@@ -157,7 +157,6 @@ impl<'a> HirLowering<'a> {
 
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
-                    let sig = sig;
                     let mut positional_index = 0usize;
                     for arg in args {
                         let expected = self.expected_expr_for_fun_call_arg(
@@ -221,9 +220,7 @@ impl<'a> HirLowering<'a> {
 
                     // T1508a/T1508c：对 class/object/interface member method 做降糖；
                     // struct/value type 的 member call 语义留给其它任务（保持既有 HIR fixtures 稳定）。
-                    let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.') else {
-                        return None;
-                    };
+                    let (owner_fqn, _) = fqn.as_str().rsplit_once('.')?;
                     let owner_is_class =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
                     let owner_is_interface = matches!(

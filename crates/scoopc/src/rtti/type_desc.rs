@@ -41,6 +41,12 @@ pub struct TypeDescDump {
     pub interfaces: Vec<InterfaceDesc>,
 }
 
+type InterfaceMetadataTables = (
+    Vec<InterfaceDesc>,
+    HashMap<String, Vec<VtableSlot>>,
+    HashMap<String, Vec<ItableEntry>>,
+);
+
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TypeDescKind {
@@ -271,14 +277,7 @@ pub fn dump_file_type_desc(
 fn collect_interface_descs_and_class_vtables(
     session: &Session,
     source: &SourceFile,
-) -> Result<
-    (
-        Vec<InterfaceDesc>,
-        HashMap<String, Vec<VtableSlot>>,
-        HashMap<String, Vec<ItableEntry>>,
-    ),
-    TypeDescError,
-> {
+) -> Result<InterfaceMetadataTables, TypeDescError> {
     // 说明：
     // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
     // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。

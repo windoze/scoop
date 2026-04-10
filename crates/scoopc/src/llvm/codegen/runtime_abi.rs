@@ -1409,20 +1409,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_continuation_resume_u64(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_continuation_resume_u64(void* k, uint64_t resume_value)`
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     /// T1607：返回 `ScoopContinuation` 的 LLVM 结构类型（用于 GEP 到 resume_word / resume_gc_ref）。
     ///
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：

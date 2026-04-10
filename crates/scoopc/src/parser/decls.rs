@@ -65,6 +65,12 @@ impl TypeBodyContext {
     };
 }
 
+type ParsedTypeParams = (
+    Option<Span>,
+    Vec<ast::TypeParam>,
+    Option<ast::EffectRowParam>,
+);
+
 impl<'a> Parser<'a> {
     /// 解析声明前缀：零个或多个注解（`@Name(...)`）+ 修饰符（`public`/`async`...）。
     ///
@@ -302,16 +308,7 @@ impl<'a> Parser<'a> {
         Ok((Span::new(start, gt.span.end), params, eff_param))
     }
 
-    fn parse_type_params_opt(
-        &mut self,
-    ) -> Result<
-        (
-            Option<Span>,
-            Vec<ast::TypeParam>,
-            Option<ast::EffectRowParam>,
-        ),
-        ParseError,
-    > {
+    fn parse_type_params_opt(&mut self) -> Result<ParsedTypeParams, ParseError> {
         if !self.peek_symbol(Symbol::Lt) {
             return Ok((None, Vec::new(), None));
         }
@@ -690,18 +687,7 @@ impl<'a> Parser<'a> {
         let start = self.peek().span.start;
         let (annotations, modifiers) = self.parse_decl_prefix()?;
 
-        let kw = if self.peek_keyword(Keyword::Val) {
-            self.bump()
-        } else if self.peek_keyword(Keyword::Var) {
-            self.bump()
-        } else {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "`val` / `var`",
-                found: tok.kind,
-                span: tok.span.into(),
-            });
-        };
+        let kw = self.bump_val_or_var_keyword()?;
 
         let kind = match kw.kind {
             TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
@@ -850,18 +836,7 @@ impl<'a> Parser<'a> {
         let start = self.peek().span.start;
         let (annotations, modifiers) = self.parse_decl_prefix()?;
 
-        let kw = if self.peek_keyword(Keyword::Val) {
-            self.bump()
-        } else if self.peek_keyword(Keyword::Var) {
-            self.bump()
-        } else {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "`val` / `var`",
-                found: tok.kind,
-                span: tok.span.into(),
-            });
-        };
+        let kw = self.bump_val_or_var_keyword()?;
 
         let kind = match kw.kind {
             TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
@@ -1533,7 +1508,7 @@ impl<'a> Parser<'a> {
                 && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("init")
             {
                 match self.parse_type_member_init_block_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::InitBlock(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::InitBlock(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1552,7 +1527,7 @@ impl<'a> Parser<'a> {
                     == Some("constructor")
             {
                 match self.parse_type_member_secondary_ctor_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::SecondaryCtor(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::SecondaryCtor(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1567,7 +1542,7 @@ impl<'a> Parser<'a> {
             // 变体之间用 `,` 分隔；允许 trailing comma。
             if ctx.allow_enum_variants && head == TokenKind::Ident {
                 match self.parse_enum_variant_decl() {
-                    Ok(variant) => members.push(ast::TypeMember::EnumVariant(variant)),
+                    Ok(variant) => members.push(ast::TypeMember::EnumVariant(Box::new(variant))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1599,7 +1574,7 @@ impl<'a> Parser<'a> {
                 }
 
                 match self.parse_companion_object_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::Object(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::Object(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1611,7 +1586,7 @@ impl<'a> Parser<'a> {
             // Appendix B.9：`object Name { ... }`（T0258）。
             if head == TokenKind::Keyword(Keyword::Object) {
                 match self.parse_object_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::Object(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::Object(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1622,7 +1597,7 @@ impl<'a> Parser<'a> {
 
             if matches!(head, TokenKind::Keyword(Keyword::Val | Keyword::Var)) {
                 match self.parse_type_member_property_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::Property(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::Property(Box::new(decl))),
                     Err(e) => {
                         // T0220：type body 内错误恢复：
                         // 记录诊断并跳过到下一个 member 起始/分隔符。
@@ -1639,7 +1614,7 @@ impl<'a> Parser<'a> {
                 } else {
                     self.parse_type_member_fun_decl()
                 } {
-                    Ok(decl) => members.push(ast::TypeMember::Fun(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::Fun(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1650,7 +1625,7 @@ impl<'a> Parser<'a> {
 
             if self.is_type_decl_start() {
                 match self.parse_type_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::Type(decl)),
+                    Ok(decl) => members.push(ast::TypeMember::Type(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.skip_type_member_fallback();
@@ -1863,18 +1838,7 @@ impl<'a> Parser<'a> {
         let start = self.peek().span.start;
         let (annotations, modifiers) = self.parse_decl_prefix()?;
 
-        let kw = if self.peek_keyword(Keyword::Val) {
-            self.bump()
-        } else if self.peek_keyword(Keyword::Var) {
-            self.bump()
-        } else {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "`val` / `var`",
-                found: tok.kind,
-                span: tok.span.into(),
-            });
-        };
+        let kw = self.bump_val_or_var_keyword()?;
 
         let kind = match kw.kind {
             TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,

@@ -676,9 +676,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 .copied()
                 .enumerate()
                 .filter_map(|(param_idx, arg_idx)| {
-                    let Some(arg_idx) = arg_idx else {
-                        return None;
-                    };
+                    let arg_idx = arg_idx?;
                     let arg = &call_args[arg_idx];
                     Some(GenericArgConstraint {
                         expected: sig.params[param_idx],
@@ -702,9 +700,10 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             let arg = &call_args[arg_idx];
             let found_ty = arg.ty;
 
-            if !is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
-                && !(arg.is_int_lit && is_integer_type(expected_ty, lower, inputs.builtins))
-            {
+            let arg_matches_expected =
+                is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+                    || arg.is_int_lit && is_integer_type(expected_ty, lower, inputs.builtins);
+            if !arg_matches_expected {
                 ok = false;
                 break;
             }
@@ -763,10 +762,11 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     .unwrap_or_else(|| "<arg>".to_string())
             )),
         )?;
-        if !is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, inputs.builtins)
-            && !(matches!(rhs.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_rhs_ty, lower, inputs.builtins))
-        {
+        let rhs_matches_expected =
+            is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, inputs.builtins)
+                || matches!(rhs.kind, ast::ExprKind::IntLit)
+                    && is_integer_type(expected_rhs_ty, lower, inputs.builtins);
+        if !rhs_matches_expected {
             return Err(ExprTypeError::OperatorOverloadNotFound {
                 op: binary_op_text(op).to_string(),
                 receiver: lower.fmt_type(lhs_ty),

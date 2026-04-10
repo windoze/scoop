@@ -84,17 +84,18 @@ pub fn write_cone_archive_v0(
     })
     .transpose()?;
 
-    let mut owned_entries: Vec<(&'static str, Vec<u8>)> = Vec::new();
-    owned_entries.push((super::CONE_TOML_FILE_NAME, cone_toml));
-    owned_entries.push((CONE_API_SCOOPIR_FILE_NAME, api_json));
-    owned_entries.push((
-        super::annotations::CONE_ANNOTATION_CLASSES_FILE_NAME,
-        annotation_classes_json,
-    ));
-    owned_entries.push((
-        super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
-        symbol_visibility_json,
-    ));
+    let mut owned_entries: Vec<(&'static str, Vec<u8>)> = vec![
+        (super::CONE_TOML_FILE_NAME, cone_toml),
+        (CONE_API_SCOOPIR_FILE_NAME, api_json),
+        (
+            super::annotations::CONE_ANNOTATION_CLASSES_FILE_NAME,
+            annotation_classes_json,
+        ),
+        (
+            super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
+            symbol_visibility_json,
+        ),
+    ];
     if let Some(bytes) = pre_specialize_json {
         owned_entries.push((super::pre_specialize::CONE_PRE_SPECIALIZE_FILE_NAME, bytes));
     }

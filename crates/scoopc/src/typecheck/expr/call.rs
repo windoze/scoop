@@ -578,9 +578,7 @@ fn map_call_args_to_params_with_defaults_and_varargs(
             param_is_vararg,
         )?;
 
-        let Some(slot) = mapping.get_mut(v_idx) else {
-            return None;
-        };
+        let slot = mapping.get_mut(v_idx)?;
         let ParamArgBinding::Vararg(arg_idxs) = slot else {
             return None;
         };

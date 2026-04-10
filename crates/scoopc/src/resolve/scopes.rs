@@ -2402,12 +2402,8 @@ impl<'a> BlockScopeChecker<'a> {
                 return None;
             }
 
-            let Some(syms) = self.index.by_fqn.get(fqn) else {
-                return None;
-            };
-            let Some(sym) = syms.get(SymbolKind::Type) else {
-                return None;
-            };
+            let syms = self.index.by_fqn.get(fqn)?;
+            let sym = syms.get(SymbolKind::Type)?;
             is_symbol_visible_from(self.use_cone, self.source, sym).then_some(fqn.to_string())
         };
 
@@ -2462,12 +2458,8 @@ impl<'a> BlockScopeChecker<'a> {
                 return None;
             }
 
-            let Some(syms) = self.index.by_fqn.get(fqn) else {
-                return None;
-            };
-            let Some(sym) = syms.get(SymbolKind::Type) else {
-                return None;
-            };
+            let syms = self.index.by_fqn.get(fqn)?;
+            let sym = syms.get(SymbolKind::Type)?;
             is_symbol_visible_from(self.use_cone, self.source, sym).then_some(fqn.to_string())
         };
 

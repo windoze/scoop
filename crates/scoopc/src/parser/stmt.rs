@@ -453,18 +453,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_local_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
-        let kw = if self.peek_keyword(Keyword::Val) {
-            self.bump()
-        } else if self.peek_keyword(Keyword::Var) {
-            self.bump()
-        } else {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "`val` / `var`",
-                found: tok.kind,
-                span: tok.span.into(),
-            });
-        };
+        let kw = self.bump_val_or_var_keyword()?;
 
         let kind = match kw.kind {
             TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
@@ -487,34 +476,29 @@ impl<'a> Parser<'a> {
         }
 
         // T0244/T0460：`val` 支持解构绑定（tuple/struct/variant pattern）；`var` 按 spec 不支持。
-        let (binding, binding_end) =
-            if kind == ast::ValKind::Val && self.peek_symbol(Symbol::LParen) {
-                let pat = self.parse_pattern()?;
-                let end = pat.span.end;
-                (ast::ValBinding::Pattern(pat), end)
-            } else if kind == ast::ValKind::Val && self.looks_like_struct_pattern_ahead() {
-                let pat = self.parse_pattern()?;
-                let end = pat.span.end;
-                (ast::ValBinding::Pattern(pat), end)
-            } else if kind == ast::ValKind::Val && self.looks_like_variant_pattern_ahead() {
-                let pat = self.parse_pattern()?;
-                let end = pat.span.end;
-                (ast::ValBinding::Pattern(pat), end)
-            } else {
-                let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-                let name = ast::Ident::new(name_tok.span);
-                // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
-                if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
-                    let tok = *self.peek();
-                    let _ = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
-                    return Err(ParseError::Expected {
-                        expected: "`:` / `=`（`var` 不支持解构绑定）",
-                        found: tok.kind,
-                        span: tok.span.into(),
-                    });
-                }
-                (ast::ValBinding::Name(name), name_tok.span.end)
-            };
+        let should_parse_pattern = kind == ast::ValKind::Val
+            && (self.peek_symbol(Symbol::LParen)
+                || self.looks_like_struct_pattern_ahead()
+                || self.looks_like_variant_pattern_ahead());
+        let (binding, binding_end) = if should_parse_pattern {
+            let pat = self.parse_pattern()?;
+            let end = pat.span.end;
+            (ast::ValBinding::Pattern(pat), end)
+        } else {
+            let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+            let name = ast::Ident::new(name_tok.span);
+            // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
+            if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
+                let tok = *self.peek();
+                let _ = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+                return Err(ParseError::Expected {
+                    expected: "`:` / `=`（`var` 不支持解构绑定）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+            (ast::ValBinding::Name(name), name_tok.span.end)
+        };
 
         let ty = if matches!(binding, ast::ValBinding::Name(_)) && self.eat_symbol(Symbol::Colon) {
             Some(self.parse_type_ref()?)

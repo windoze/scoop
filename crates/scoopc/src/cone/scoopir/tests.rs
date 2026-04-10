@@ -16,7 +16,9 @@ fn scoopir_fixture_public_api_filter_golden() {
     let source = SourceFile::load(&fixture_path).unwrap();
 
     let ast = sess.parse(&source).unwrap();
-    let index = sess.build_top_level_index(&[source.clone()]).unwrap();
+    let index = sess
+        .build_top_level_index(std::slice::from_ref(&source))
+        .unwrap();
     let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
     env.extend_from_file(&source, &ast, &index).unwrap();
 
@@ -41,7 +43,9 @@ fn scoopir_fixture_package_level_comptime_if_public_api_trimmed_golden() {
     let source = SourceFile::load(&fixture_path).unwrap();
 
     let ast = sess.parse(&source).unwrap();
-    let index = sess.build_top_level_index(&[source.clone()]).unwrap();
+    let index = sess
+        .build_top_level_index(std::slice::from_ref(&source))
+        .unwrap();
     let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
     env.extend_from_file(&source, &ast, &index).unwrap();
 

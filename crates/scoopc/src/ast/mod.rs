@@ -53,14 +53,14 @@ pub struct ImportDecl {
 
 #[derive(Debug, Clone)]
 pub enum Item {
-    TypeAlias(TypeAliasDecl),
-    Fun(FunDecl),
+    TypeAlias(Box<TypeAliasDecl>),
+    Fun(Box<FunDecl>),
     /// package 顶层 `comptime if`（条件编译）：块内为“顶层 items 列表”。
     ///
     /// 说明：
     /// - 该节点只承载语法结构；真正的“分支裁剪/选择”发生在 resolver 之前（TODO T1220b）。
     /// - 块内不允许出现语句/表达式；若出现应在 parse 阶段报错（TODO T1220a）。
-    ComptimeIf(ComptimeIfItem),
+    ComptimeIf(Box<ComptimeIfItem>),
     /// 顶层扩展属性声明（spec §10.3）。
     ///
     /// 语法形态示例：
@@ -70,10 +70,10 @@ pub enum Item {
     /// 说明：
     /// - 扩展属性不属于某个 `TypeDecl` 的 `TypeBody`，因此不是 `TypeMember::Property`；
     /// - 它的语义检查（computed/无 backing field 等）由后续 typecheck 任务逐步补齐（见 TODO T0433）。
-    ExtensionProperty(ExtensionPropertyDecl),
-    Type(TypeDecl),
-    Object(ObjectDecl),
-    Val(ValDecl),
+    ExtensionProperty(Box<ExtensionPropertyDecl>),
+    Type(Box<TypeDecl>),
+    Object(Box<ObjectDecl>),
+    Val(Box<ValDecl>),
 }
 
 /// 顶层 item 块：`{ <item>* }`。
@@ -536,21 +536,21 @@ impl std::fmt::Debug for EnumVariantDecl {
 /// 类型体中的成员声明（最小骨架）。
 #[derive(Debug, Clone)]
 pub enum TypeMember {
-    EnumVariant(EnumVariantDecl),
-    Property(PropertyDecl),
+    EnumVariant(Box<EnumVariantDecl>),
+    Property(Box<PropertyDecl>),
     /// class 初始化块：`init { ... }`（Appendix B.2.2）。
     ///
     /// 说明：当前阶段（T0256）仅做语法解析与结构化存储；
     /// 初始化顺序、`this` 语义与与构造器交互由后续 resolver/typecheck 决定。
-    InitBlock(InitBlockDecl),
+    InitBlock(Box<InitBlockDecl>),
     /// class 次构造器（secondary constructor）：`constructor(...) { ... }`（Appendix B.2.2）。
     ///
     /// 说明：当前阶段（T0257）仅做语法解析与结构化存储；
     /// 初始化顺序、delegation call 合法性与重载规则由后续 resolver/typecheck 决定。
-    SecondaryCtor(SecondaryCtorDecl),
-    Fun(FunDecl),
-    Type(TypeDecl),
-    Object(ObjectDecl),
+    SecondaryCtor(Box<SecondaryCtorDecl>),
+    Fun(Box<FunDecl>),
+    Type(Box<TypeDecl>),
+    Object(Box<ObjectDecl>),
 }
 
 /// class 初始化块：`init { ... }`（Appendix B.2.2）。

@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
             // T1220a：package-level `comptime if`（分支块内为顶层 items 列表）。
             if self.peek_keyword(Keyword::Comptime) {
                 match self.parse_comptime_if_item() {
-                    Ok(ci) => items.push(ast::Item::ComptimeIf(ci)),
+                    Ok(ci) => items.push(ast::Item::ComptimeIf(Box::new(ci))),
                     Err(e) => {
                         self.record_error(e);
                         self.recover_to_top_level_sync();
@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
 
             if head == TokenKind::Keyword(Keyword::Typealias) {
                 match self.parse_typealias_decl() {
-                    Ok(decl) => items.push(ast::Item::TypeAlias(decl)),
+                    Ok(decl) => items.push(ast::Item::TypeAlias(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.recover_to_top_level_sync();
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             }
             if head == TokenKind::Keyword(Keyword::Fun) {
                 match self.parse_fun_decl() {
-                    Ok(decl) => items.push(ast::Item::Fun(decl)),
+                    Ok(decl) => items.push(ast::Item::Fun(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.recover_to_top_level_sync();
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
             if matches!(head, TokenKind::Keyword(Keyword::Val | Keyword::Var)) {
                 if self.is_extension_property_decl_start() {
                     match self.parse_extension_property_decl() {
-                        Ok(decl) => items.push(ast::Item::ExtensionProperty(decl)),
+                        Ok(decl) => items.push(ast::Item::ExtensionProperty(Box::new(decl))),
                         Err(e) => {
                             self.record_error(e);
                             self.recover_to_top_level_sync();
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
                     }
                 } else {
                     match self.parse_val_decl() {
-                        Ok(decl) => items.push(ast::Item::Val(decl)),
+                        Ok(decl) => items.push(ast::Item::Val(Box::new(decl))),
                         Err(e) => {
                             self.record_error(e);
                             self.recover_to_top_level_sync();
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
             }
             if head == TokenKind::Keyword(Keyword::Object) {
                 match self.parse_object_decl() {
-                    Ok(decl) => items.push(ast::Item::Object(decl)),
+                    Ok(decl) => items.push(ast::Item::Object(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.recover_to_top_level_sync();
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
             }
             if self.is_type_decl_start() {
                 match self.parse_type_decl() {
-                    Ok(decl) => items.push(ast::Item::Type(decl)),
+                    Ok(decl) => items.push(ast::Item::Type(Box::new(decl))),
                     Err(e) => {
                         self.record_error(e);
                         self.recover_to_top_level_sync();
@@ -264,30 +264,30 @@ impl<'a> Parser<'a> {
         // 分支块内允许嵌套 package-level `comptime if`。
         if self.peek_keyword(Keyword::Comptime) {
             let ci = self.parse_comptime_if_item()?;
-            return Ok(ast::Item::ComptimeIf(ci));
+            return Ok(ast::Item::ComptimeIf(Box::new(ci)));
         }
 
         let head = self.peek_after_modifiers().kind;
 
         if head == TokenKind::Keyword(Keyword::Typealias) {
-            return Ok(ast::Item::TypeAlias(self.parse_typealias_decl()?));
+            return Ok(ast::Item::TypeAlias(Box::new(self.parse_typealias_decl()?)));
         }
         if head == TokenKind::Keyword(Keyword::Fun) {
-            return Ok(ast::Item::Fun(self.parse_fun_decl()?));
+            return Ok(ast::Item::Fun(Box::new(self.parse_fun_decl()?)));
         }
         if matches!(head, TokenKind::Keyword(Keyword::Val | Keyword::Var)) {
             if self.is_extension_property_decl_start() {
-                return Ok(ast::Item::ExtensionProperty(
+                return Ok(ast::Item::ExtensionProperty(Box::new(
                     self.parse_extension_property_decl()?,
-                ));
+                )));
             }
-            return Ok(ast::Item::Val(self.parse_val_decl()?));
+            return Ok(ast::Item::Val(Box::new(self.parse_val_decl()?)));
         }
         if head == TokenKind::Keyword(Keyword::Object) {
-            return Ok(ast::Item::Object(self.parse_object_decl()?));
+            return Ok(ast::Item::Object(Box::new(self.parse_object_decl()?)));
         }
         if self.is_type_decl_start() {
-            return Ok(ast::Item::Type(self.parse_type_decl()?));
+            return Ok(ast::Item::Type(Box::new(self.parse_type_decl()?)));
         }
 
         // v0：分支块内只允许顶层 items；语句/表达式应在此处报错。

@@ -239,13 +239,13 @@ mod tests {
             table.ty.explicit.get("Qux").unwrap(),
             &vec!["a.Foo".to_string()]
         );
-        assert!(table.ty.explicit.get("Foo").is_none());
+        assert!(!table.ty.explicit.contains_key("Foo"));
 
         assert_eq!(
             table.value.explicit.get("baz").unwrap(),
             &vec!["a.bar".to_string()]
         );
-        assert!(table.value.explicit.get("bar").is_none());
+        assert!(!table.value.explicit.contains_key("bar"));
     }
 
     #[test]

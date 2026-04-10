@@ -1475,10 +1475,10 @@ pub(super) fn infer_expr_type_in_expected_context(
             expected_from.clone(),
         )?;
 
-        if !is_type_assignable(then_ty, expected_ty, lower, builtins)
-            && !(matches!(then_branch.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_ty, lower, builtins))
-        {
+        let then_matches_expected = is_type_assignable(then_ty, expected_ty, lower, builtins)
+            || matches!(then_branch.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_ty, lower, builtins);
+        if !then_matches_expected {
             return Err(ExprTypeError::IfBranchTypeMismatch {
                 branch: "then",
                 expected: lower.fmt_type(expected_ty),
@@ -1494,10 +1494,10 @@ pub(super) fn infer_expr_type_in_expected_context(
 
         let else_ty = inputs.infer_in_expected(lower, else_branch, expected_ty, expected_from)?;
 
-        if !is_type_assignable(else_ty, expected_ty, lower, builtins)
-            && !(matches!(else_branch.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_ty, lower, builtins))
-        {
+        let else_matches_expected = is_type_assignable(else_ty, expected_ty, lower, builtins)
+            || matches!(else_branch.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_ty, lower, builtins);
+        if !else_matches_expected {
             return Err(ExprTypeError::IfBranchTypeMismatch {
                 branch: "else",
                 expected: lower.fmt_type(expected_ty),

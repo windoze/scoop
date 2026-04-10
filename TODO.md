@@ -1387,7 +1387,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-3c [TODO] Clippy 基线清理：清零剩余结构性 warning 并恢复严格 gate
+### T0147c-3c [DONE] Clippy 基线清理：清零剩余结构性 warning 并恢复严格 gate
 
 - 描述：在大 `Err` 收敛后，剩余告警集中为 `private_interfaces`、`dead_code`、`large_enum_variant`、`type_complexity`、`question_mark`、`if_same_then_else`、`while_let_loop` 等结构性 lint，需要做最后一轮清零。
 - 目标：
@@ -1398,8 +1398,17 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-3b
+- 完成说明：
+  - **严格 gate 恢复**：`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 已全量通过，剩余结构性 lint 清零。
+  - **结构性 lint 修复**：清理了 `private_interfaces` / `dead_code` / `type_complexity` / `question_mark` / `if_same_then_else` / `while_let_loop` / `vec_init_then_push` / `cloned_ref_to_slice_refs` / `nonminimal_bool` / `unnecessary_get_then_check` / doc list 缩进等问题，并顺手修掉 `crates/scoop/src/toolchain.rs` 测试中的 `cloned_ref_to_slice_refs`。
+  - **AST 尺寸收口**：`ast::Item` 与 `ast::TypeMember` 的大 payload variant 改为 `Box<...>`，消除 `large_enum_variant`，同时保持解析/类型检查/RTTI/LLVM/fixture 行为不变。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-3 [TODO] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
+### T0147c-3 [DONE] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
 
 - 描述：在 pointer API 与长参数问题收敛后，剩余主要噪声是 `result_large_err`，外加少量 `unused_variables` / `private_interfaces` / `dead_code`。该任务现拆分为 `T0147c-3a ~ T0147c-3c` 顺序落地。
 - 目标：
@@ -1411,6 +1420,9 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-2d
+- 完成说明：
+  - `T0147c-3a ~ T0147c-3c` 已全部完成，`result_large_err` 与剩余结构性 warning 均已清零。
+  - 严格 `clippy` gate 已恢复，后续可直接以 `cargo clippy --workspace --all-targets -- -D warnings` 作为基线验收。
 
 ### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
 

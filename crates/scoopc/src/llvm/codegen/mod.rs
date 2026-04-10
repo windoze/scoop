@@ -128,20 +128,20 @@ impl<'ctx> Env<'ctx> {
 
 /// T1606f-2: Saved local info for callee suspension.
 #[derive(Debug, Clone)]
-pub(super) struct CalleeSuspendLocal {
-    pub id: hir::SymbolId,
-    pub name: String,
-    pub cg_ty: CgTy,
-    pub hir_ty: TypeId,
-    pub mutable: bool,
+pub(in crate::llvm::codegen) struct CalleeSuspendLocal {
+    pub(in crate::llvm::codegen) id: hir::SymbolId,
+    pub(in crate::llvm::codegen) name: String,
+    pub(in crate::llvm::codegen) cg_ty: CgTy,
+    pub(in crate::llvm::codegen) hir_ty: TypeId,
+    pub(in crate::llvm::codegen) mutable: bool,
 }
 
 /// T1606f-2: Context for callee function suspension — set on MainCodegen during fresh-path codegen
 /// to instruct `codegen_perform_expr_nonresuming_custom_int` to save callee state before flag propagation.
 #[derive(Debug, Clone)]
-pub(super) struct CalleeSuspendSaveCtx {
+pub(in crate::llvm::codegen) struct CalleeSuspendSaveCtx {
     /// Locals to save at the perform point.
-    pub saved_locals: Vec<CalleeSuspendLocal>,
+    pub(in crate::llvm::codegen) saved_locals: Vec<CalleeSuspendLocal>,
 }
 
 /// T1606f-2: Info from pre-scanning a function body for callee suspension.
@@ -232,7 +232,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// T1606f-2: when set, the current function is "suspendable" — at the perform point,
     /// `codegen_perform_expr_nonresuming_custom_int` saves locals to a CalleeSuspendState before
     /// flag propagation return.
-    pub(super) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
+    pub(in crate::llvm::codegen) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
     /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
     ///
@@ -539,15 +539,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 其它 calling convention 名称留到后续任务再补齐（spec §15.5.4）。
             _ => 0,
         }
-    }
-
-    pub(crate) fn declare_top_level_var_globals(&mut self) -> Result<(), LlvmEmitError> {
-        let mut vars: Vec<&hir::TopLevelVar> = self.top_level_vars.values().collect();
-        vars.sort_by(|a, b| a.fqn.cmp(&b.fqn));
-        for v in vars {
-            let _ = self.declare_top_level_var_global(v)?;
-        }
-        Ok(())
     }
 
     fn declare_top_level_var_global(

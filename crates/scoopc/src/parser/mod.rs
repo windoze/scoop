@@ -22,7 +22,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::source::SourceFile;
 use crate::syntax::lexer::{LexError, lex};
-use crate::syntax::token::{Symbol, Token, TokenKind};
+use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ParseError {
@@ -115,6 +115,18 @@ impl<'a> Parser<'a> {
                     errors: self.errors,
                 })
             }
+        }
+    }
+
+    fn bump_val_or_var_keyword(&mut self) -> Result<Token, ParseError> {
+        let tok = *self.peek();
+        match tok.kind {
+            TokenKind::Keyword(Keyword::Val) | TokenKind::Keyword(Keyword::Var) => Ok(self.bump()),
+            _ => Err(ParseError::Expected {
+                expected: "`val` / `var`",
+                found: tok.kind,
+                span: tok.span.into(),
+            }),
         }
     }
 }

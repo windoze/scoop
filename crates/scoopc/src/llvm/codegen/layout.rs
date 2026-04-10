@@ -89,22 +89,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(layouted)
     }
 
-    pub(super) fn class_init_chain(
-        &mut self,
-        at: crate::span::Span,
-        class_fqn: &str,
-    ) -> Result<Vec<hir::ClassInit>, LlvmEmitError> {
-        let class = self.class_init_layout(at, class_fqn)?;
-        match class.super_class_fqn.clone() {
-            Some(super_fqn) => {
-                let mut chain = self.class_init_chain(at, &super_fqn)?;
-                chain.push(class);
-                Ok(chain)
-            }
-            None => Ok(vec![class]),
-        }
-    }
-
     /// 若 `field_fqn` 指向一个 class 的实例字段，则返回该字段的布局/类型信息。
     ///
     /// 返回值：

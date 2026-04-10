@@ -374,12 +374,7 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
-        loop {
-            let infix = match self.peek_infix_op() {
-                Some(x) => x,
-                None => break,
-            };
-
+        while let Some(infix) = self.peek_infix_op() {
             if infix.l_bp < min_bp {
                 break;
             }
@@ -442,12 +437,7 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
-        loop {
-            let infix = match self.peek_infix_op_in_when_arm() {
-                Some(x) => x,
-                None => break,
-            };
-
+        while let Some(infix) = self.peek_infix_op_in_when_arm() {
             if infix.l_bp < min_bp {
                 break;
             }

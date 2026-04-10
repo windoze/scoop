@@ -38,6 +38,8 @@ struct AnnotationSite {
     is_annotation_class_decl: bool,
 }
 
+type ParsedCLayoutArgs = (Option<u64>, Option<Span>, Option<u64>, Option<Span>);
+
 impl AnnotationSite {
     fn new(primary_target: AnnotationTargetKind) -> Self {
         Self {
@@ -1786,7 +1788,7 @@ fn check_clayout_struct_decl(
 fn parse_clayout_args(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
-) -> Result<(Option<u64>, Option<Span>, Option<u64>, Option<Span>), AnnotationError> {
+) -> Result<ParsedCLayoutArgs, AnnotationError> {
     let mut aligned: Option<(u64, Span)> = None;
     let mut packed: Option<(u64, Span)> = None;
 

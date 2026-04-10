@@ -956,7 +956,8 @@ fun cos(x: Int): Int
             linker: Some("my-linker"),
             link_flags: &link_flags,
         };
-        let cmd1 = link_command_with_runtime(&[obj.clone()], &out, &libs, options).unwrap();
+        let cmd1 =
+            link_command_with_runtime(std::slice::from_ref(&obj), &out, &libs, options).unwrap();
         let args1 = cmd1
             .get_args()
             .map(|a| a.to_string_lossy().to_string())

@@ -69,6 +69,8 @@ struct ClassExprShared<'a> {
     ctor_params: &'a [ast::Param],
 }
 
+type ClassInitLocals = (HashMap<Span, TypeId>, HashSet<Span>, HashSet<Span>);
+
 impl<'a> ClassExprShared<'a> {
     fn stmt_shared(self) -> StmtExprShared<'a> {
         self.file.stmt_shared()
@@ -1137,7 +1139,7 @@ fn check_class_secondary_ctor_exprs(
 fn class_init_locals(
     shared: ClassExprShared<'_>,
     lower: &mut TypeLowering<'_>,
-) -> Result<(HashMap<Span, TypeId>, HashSet<Span>, HashSet<Span>), ExprTypeError> {
+) -> Result<ClassInitLocals, ExprTypeError> {
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mutable_bindings: HashSet<Span> = HashSet::new();
