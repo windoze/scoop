@@ -797,7 +797,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0129
 
-### T0131 [TODO] `interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化
+### T0131 [DONE] `interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化
 
 - 描述：当前 `Int.toString()` 和 `Bool.toString()` 均为编译器硬编码路径：resolver 白名单特判（`resolve/scopes.rs`）、typecheck 特判（`typecheck/expr/call.rs`）、codegen 直接路由到 C runtime 函数（`scoop_int_to_string` / `scoop_bool_to_string`）。`print`/`println` 在 sysroot 中声明了 `String`/`Int`/`Bool` 三组重载。这种设计无法扩展到用户自定义类型，且每新增一个 printable 类型就需要同时修改 resolver + typecheck + codegen + sysroot 四处。
   本任务引入 `interface ToString`，将现有硬编码迁移为接口实现，并利用 T0129/T0130 的 where 约束能力将 `print`/`println` 泛型化。

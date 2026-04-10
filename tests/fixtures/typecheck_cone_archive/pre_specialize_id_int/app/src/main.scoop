@@ -1,6 +1,7 @@
 // EXPECT: pass
 // EXPECT-MONOMORPH-HIT: 1
-// EXPECT-MONOMORPH-MISS: 0
+// T0131: println 从具体重载变为泛型 `println<T> where T: ToString`，需要本地单态化。
+// EXPECT-MONOMORPH-MISS: 1
 package fixtures.t1108.app
 
 import scoop.core.*

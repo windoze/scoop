@@ -368,6 +368,14 @@ cargo run -p scoop --features llvm -- test
 
 ## 5. 泛型 where 约束完善
 
+- DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：
+  - **`sysroot/core.scoop`**：新增 `interface ToString { fun toString(): String { return "" } }`；`Int/Bool/String : ToString`；body-less extension functions `fun Int.toString(): String` / `fun Bool.toString(): String` / `fun String.toString(): String`；泛型 `print<T>`/`println<T>` 签名（body-less，resolver 用）；内部 `__scoop_print_string`/`__scoop_println_string` runtime 映射。
+  - **`sysroot/print.scoop`**（新建，compilable sysroot）：泛型 `print<T>`/`println<T>` 函数体，调用 `value.toString()` → `__scoop_print_string`。
+  - **`sysroot/mod.rs`**：`is_compilable_sysroot_file` 新增 `print.scoop`。
+  - **`llvm/codegen/mod.rs`**：4 个新增 codegen 拦截——`scoop.core.toString`（extension function dispatch by CgTy）、`scoop.core.ToString.toString`（where-bound builtin dispatch）、`scoop.core.__scoop_print_string`/`__scoop_println_string`（runtime 映射）。旧 `scoop.core.print`/`scoop.core.println` 拦截保留（向后兼容）。
+  - **新增 fixture**：`tostring_interface_basic`（16 场景：built-in print/println、toString extension、变量、concat 组合）。
+  - 139 单元测试 + 829 fixtures 通过。
+
 - DONE（T0129）：泛型函数调用处 where 约束检查：
   - **`resolve/mod.rs`**：`FunSig` 新增 `where_clause` 字段保留 AST where 子句。
   - **`typecheck/expr/mod.rs`**：`FunSigOwned` 新增 `where_constraints: Vec<FunWhereConstraintInfo>`。
