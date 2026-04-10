@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use crate::ast;
 use crate::source::SourceFile;
-use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId};
 
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};

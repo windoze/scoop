@@ -599,11 +599,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
             // Monomorphized member methods have `::<` in their FQN.
             if fqn.contains("::<") && !reachable_fqns.contains(fqn.as_str()) {
                 // Check if the base (non-monomorphized) method is reachable.
-                if let Some(base_fqn) = fqn.split("::<").next() {
-                    if reachable_fqns.contains(base_fqn) {
+                if let Some(base_fqn) = fqn.split("::<").next()
+                    && reachable_fqns.contains(base_fqn) {
                         monomorphized.push(fun);
                     }
-                }
             }
         }
         reachable.extend(monomorphized);

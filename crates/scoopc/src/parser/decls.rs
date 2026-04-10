@@ -252,8 +252,8 @@ impl<'a> Parser<'a> {
                 });
 
                 // allow trailing comma, but `eff` 必须是最后一个条目。
-                if self.eat_symbol(Symbol::Comma) {
-                    if !self.peek_symbol(Symbol::Gt) {
+                if self.eat_symbol(Symbol::Comma)
+                    && !self.peek_symbol(Symbol::Gt) {
                         let tok = *self.peek();
                         return Err(ParseError::Expected {
                             expected: "`>`（`eff` 参数必须位于泛型列表末尾）",
@@ -261,7 +261,6 @@ impl<'a> Parser<'a> {
                             span: tok.span.into(),
                         });
                     }
-                }
 
                 break;
             }

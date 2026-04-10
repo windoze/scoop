@@ -1670,11 +1670,10 @@ fn collect_extern_libs_in_annotations(
             continue;
         }
         let args = parse_extern_annotation_args(source, ann);
-        if let Some(lib) = args.lib {
-            if !lib.is_empty() {
+        if let Some(lib) = args.lib
+            && !lib.is_empty() {
                 out.insert(lib);
             }
-        }
     }
 }
 
@@ -1719,11 +1718,10 @@ fn parse_calling_convention_annotation_arg(
         },
     };
 
-    if let Some(key) = key {
-        if key != "name" {
+    if let Some(key) = key
+        && key != "name" {
             return None;
         }
-    }
 
     if !matches!(value?.kind, ast::ExprKind::StringLit) {
         return None;
@@ -2307,7 +2305,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
             })
             .collect();
 
-        let mut field_indices = base_init.field_indices.clone();
+        let field_indices = base_init.field_indices.clone();
         // 如果 field FQN 中使用了基础 FQN 前缀，替换为 mangled 版本不需要——
         // field FQN 使用原始 class FQN 前缀（如 "pkg.Box.inner"），保持不变。
         let _ = &field_indices; // 保留原始映射
@@ -2374,15 +2372,12 @@ fn collect_generic_class_decls_in_items<'a>(
                 // 嵌套声明
                 if let Some(body) = &ty.body {
                     for member in &body.members {
-                        match member {
-                            ast::TypeMember::Type(nested) => {
-                                let nested_name = nested.name.text(source).to_string();
-                                let nested_fqn = join_prefix(&fqn, &nested_name);
-                                if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
-                                    out.insert(nested_fqn, (source, nested));
-                                }
+                        if let ast::TypeMember::Type(nested) = member {
+                            let nested_name = nested.name.text(source).to_string();
+                            let nested_fqn = join_prefix(&fqn, &nested_name);
+                            if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
+                                out.insert(nested_fqn, (source, nested));
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -2432,14 +2427,13 @@ fn resolve_field_type_fqn(
 ) -> Option<String> {
     let ty_ref = ty_ref?;
     // 如果是简单路径（单段），检查是否为 type param
-    if let ast::TypeRef::Path(path) = ty_ref {
-        if path.segments.len() == 1 && path.args.is_empty() {
+    if let ast::TypeRef::Path(path) = ty_ref
+        && path.segments.len() == 1 && path.args.is_empty() {
             let name = path.segments[0].text(source);
             if let Some(concrete_ty) = param_map.get(name) {
                 return type_id_to_layout_fqn(types, *concrete_ty);
             }
         }
-    }
     // 非 type param：暂不解析（泛型嵌套留到后续任务）
     None
 }

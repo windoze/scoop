@@ -279,8 +279,8 @@ pub fn inject_cone_dependency_public_api(
         .wrap_err_with(|| format!("注入依赖 cone type 符号失败：{fqn}"))?;
 
         // T1302：typealias 需要携带 RHS 才能在下游 typecheck lowering 阶段展开。
-        if matches!(ty.kind, IrTypeDeclKind::TypeAlias) {
-            if let Some(rhs) = ty.alias_of.as_ref() {
+        if matches!(ty.kind, IrTypeDeclKind::TypeAlias)
+            && let Some(rhs) = ty.alias_of.as_ref() {
                 env.insert_external_type_alias(
                     fqn.clone(),
                     decl_file.clone(),
@@ -288,7 +288,6 @@ pub fn inject_cone_dependency_public_api(
                     ir_type_to_type_ref(&mut synth, rhs),
                 );
             }
-        }
 
         inject_type_symbol_into_index(
             index,
@@ -369,7 +368,7 @@ pub fn inject_cone_dependency_public_api(
         let entry = index
             .by_fqn
             .entry(fqn.clone())
-            .or_insert_with(NamespacedSymbols::default);
+            .or_default();
         entry.fun.push(overload);
 
         // T0322：跨包 extension 导入需要 resolver 能在依赖 cone 的 API 里发现 extension fun。
@@ -430,7 +429,7 @@ fn inject_non_public_symbols_into_index(
         let entry = index
             .by_fqn
             .entry(fqn.to_string())
-            .or_insert_with(NamespacedSymbols::default);
+            .or_default();
 
         match sym.kind {
             ConeSymbolKind::Type => {
@@ -515,7 +514,7 @@ fn inject_type_symbol_into_index(
     let entry = index
         .by_fqn
         .entry(fqn.to_string())
-        .or_insert_with(NamespacedSymbols::default);
+        .or_default();
 
     if entry.ty.is_some() {
         return Err(miette!("Index 已存在同名 type 符号：{fqn}"));

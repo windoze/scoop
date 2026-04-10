@@ -1,14 +1,8 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::ast;
-use crate::span::Span;
-use crate::syntax::string_literal::StringLiteralParseError;
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
-use super::super::TypeSymbolKind;
 use super::super::lower::TypeLowerError;
-use super::super::type_env::EnumVariantInfo;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {

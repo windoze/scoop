@@ -666,12 +666,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
 
             // Normal path: store return value and branch to return_bb.
-            if self.builder.get_insert_block().map_or(false, |bb| bb.get_terminator().is_none()) {
-                if let Some(alloca) = return_alloca {
-                    if let Some(raw) = ret_v.value {
+            if self.builder.get_insert_block().is_some_and(|bb| bb.get_terminator().is_none()) {
+                if let Some(alloca) = return_alloca
+                    && let Some(raw) = ret_v.value {
                         self.builder.build_store(alloca, raw)?;
                     }
-                }
                 self.builder.build_unconditional_branch(return_bb)?;
             }
 
@@ -813,7 +812,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0
         // to avoid creating a GC root the statepoint pass can't track).
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let _i8_ptr_ty = self.llvm_i8_ptr_type();
         let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
         let state_ptr = self.builder.build_pointer_cast(
             state_raw,
@@ -3186,7 +3185,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///            x ^= x >> 31;
     fn codegen_int_method_hash(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         receiver: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let int_cg_ty = CgTy::Int(IntTy { bits: 64, signed: true });
@@ -6865,7 +6864,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: 64,
             signed: false,
         };
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let _gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
 
         // helper：从 args[i] 取出位置参数 expr
         let positional = |idx: usize| -> Result<&hir::Expr, LlvmEmitError> {
@@ -7852,17 +7851,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 收集签名中出现的所有 Param 类型名（保持出现顺序）
         let mut param_names: Vec<String> = Vec::new();
         for p in &sig_fun.params {
-            if let crate::ty::TypeKind::Param(tp) = self.types.kind(p.ty) {
-                if !param_names.contains(&tp.name) {
+            if let crate::ty::TypeKind::Param(tp) = self.types.kind(p.ty)
+                && !param_names.contains(&tp.name) {
                     param_names.push(tp.name.clone());
                 }
-            }
         }
-        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty) {
-            if !param_names.contains(&tp.name) {
+        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty)
+            && !param_names.contains(&tp.name) {
                 param_names.push(tp.name.clone());
             }
-        }
 
         if param_names.is_empty() {
             return None;
@@ -10093,7 +10090,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(resume_bb);
 
         // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0).
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let _i8_ptr_ty = self.llvm_i8_ptr_type();
         let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
         let state_ptr = self.builder.build_pointer_cast(
             state_raw,
@@ -11971,13 +11968,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .build_load(llvm_field_ty, field_ptr, "load_field")?;
                     // `@CLayout(packed = N)`：字段地址可能是非自然对齐的，需要把 load
                     // alignment 降到 `min(field_natural_align, N)` 以避免 UB。
-                    if let Some(pack_n) = self.struct_clayout(struct_ty).and_then(|c| c.packed) {
-                        if let Some(inst) = loaded.as_instruction_value() {
+                    if let Some(pack_n) = self.struct_clayout(struct_ty).and_then(|c| c.packed)
+                        && let Some(inst) = loaded.as_instruction_value() {
                             let natural = self.target_data.get_abi_alignment(&llvm_field_ty);
                             let effective = std::cmp::min(natural, pack_n);
                             inst.set_alignment(effective)?;
                         }
-                    }
                     return self.cg_value_from_loaded(member.span, field_ty, loaded);
                 }
 

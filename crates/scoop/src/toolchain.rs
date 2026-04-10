@@ -91,6 +91,7 @@ pub enum CompileCxxError {
 /// - `linker` 仅表示“要运行的可执行文件路径/名称”，不包含额外参数；额外参数放到 `link_flags`；
 /// - `link_flags` 逐项作为独立 argv 追加到最终链接命令中（不做拆分/转义重写），以保持行为可预测。
 #[derive(Debug, Clone, Copy)]
+#[derive(Default)]
 pub struct LinkOptions<'a> {
     /// 指定链接器/驱动程序（例如 `clang`/`clang++`）。
     ///
@@ -100,14 +101,6 @@ pub struct LinkOptions<'a> {
     pub link_flags: &'a [String],
 }
 
-impl<'a> Default for LinkOptions<'a> {
-    fn default() -> Self {
-        Self {
-            linker: None,
-            link_flags: &[],
-        }
-    }
-}
 
 /// 链接阶段错误（T0806）。
 #[derive(Debug, Error, Diagnostic)]

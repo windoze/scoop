@@ -1367,17 +1367,15 @@ impl<'a> TypeLowering<'a> {
         }
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
-        if fqn == PTR_FQN {
-            if let Some(pointee) = args.first().copied() {
+        if fqn == PTR_FQN
+            && let Some(pointee) = args.first().copied() {
                 self.check_ptr_pointee_gc_free(pointee, span)?;
             }
-        }
         // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
-        if fqn == FUNPTR_FQN {
-            if let Some(sig) = args.first().copied() {
+        if fqn == FUNPTR_FQN
+            && let Some(sig) = args.first().copied() {
                 self.check_funptr_signature_is_function(sig, span)?;
             }
-        }
 
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
         let Some(sym) = self.env.type_symbol(&fqn) else {
@@ -1493,14 +1491,13 @@ impl<'a> TypeLowering<'a> {
         // 保守拒绝”的策略，但允许 **sysroot 文件** 中声明的 type param 通过该检查：
         // - sysroot 的这些声明本身无函数体（intrinsic），不会在未实例化时执行不安全行为；
         // - 真正的 use-site `Ptr<Int>` / `Ptr<String>` 仍会在类型 lowering 时被检查与拒绝。
-        if let TypeKind::Param(p) = self.type_kind(pointee) {
-            if p.decl_file
+        if let TypeKind::Param(p) = self.type_kind(pointee)
+            && p.decl_file
                 .components()
                 .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
             {
                 return Ok(());
             }
-        }
 
         let mut visiting: HashSet<TypeId> = HashSet::new();
         let mut memo: HashMap<TypeId, bool> = HashMap::new();
@@ -1905,17 +1902,15 @@ impl<'a> TypeLowering<'a> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
-        if fqn == PTR_FQN {
-            if let Some(pointee) = args.first().copied() {
+        if fqn == PTR_FQN
+            && let Some(pointee) = args.first().copied() {
                 self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
             }
-        }
         // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
-        if fqn == FUNPTR_FQN {
-            if let Some(sig) = args.first().copied() {
+        if fqn == FUNPTR_FQN
+            && let Some(sig) = args.first().copied() {
                 self.check_funptr_signature_is_function(sig, ptr_pointee_arg_span)?;
             }
-        }
 
         match sym.kind {
             TypeSymbolKind::TypeAlias => {
@@ -1983,10 +1978,7 @@ impl<'a> TypeLowering<'a> {
 
         if let Some(pos) = self.type_alias_stack.iter().position(|x| x == fqn) {
             // 构造 cycle chain：A -> B -> ... -> A
-            let mut chain = self.type_alias_stack[pos..]
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let mut chain = self.type_alias_stack[pos..].to_vec();
             chain.push(fqn.to_string());
             let cycle = chain.join(" -> ");
 

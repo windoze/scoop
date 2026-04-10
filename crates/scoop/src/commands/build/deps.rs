@@ -149,11 +149,10 @@ fn find_cone_archive_path(
 
     for root in search_paths {
         if root.is_file() {
-            if root.extension().is_some_and(|ext| ext == "cone") {
-                if archive_manifest_matches(root, dep_name, dep_req)? {
+            if root.extension().is_some_and(|ext| ext == "cone")
+                && archive_manifest_matches(root, dep_name, dep_req)? {
                     return Ok(root.to_path_buf());
                 }
-            }
             continue;
         }
 
@@ -162,11 +161,10 @@ fn find_cone_archive_path(
         }
 
         let direct = root.join(&expected_file_name);
-        if direct.is_file() {
-            if archive_manifest_matches(&direct, dep_name, dep_req)? {
+        if direct.is_file()
+            && archive_manifest_matches(&direct, dep_name, dep_req)? {
                 return Ok(direct);
             }
-        }
     }
 
     // 2) 回退：扫描搜索目录下所有 `.cone`，通过读取 `Cone.toml` 精确匹配。
@@ -185,7 +183,7 @@ fn find_cone_archive_path(
             if !path.is_file() {
                 continue;
             }
-            if !path.extension().is_some_and(|ext| ext == "cone") {
+            if path.extension().is_none_or(|ext| ext != "cone") {
                 continue;
             }
 

@@ -178,7 +178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let then_terminated = self
             .builder
             .get_insert_block()
-            .map_or(true, |bb| bb.get_terminator().is_some());
+            .is_none_or(|bb| bb.get_terminator().is_some());
         if !then_terminated {
             let then_v = if out_cg == CgTy::Unit {
                 CgValue::unit()
@@ -202,7 +202,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let else_terminated = self
             .builder
             .get_insert_block()
-            .map_or(true, |bb| bb.get_terminator().is_some());
+            .is_none_or(|bb| bb.get_terminator().is_some());
         if !else_terminated {
             let else_v = if out_cg == CgTy::Unit {
                 CgValue::unit()
@@ -1485,14 +1485,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let Some(rest) = rest_idx {
-            if rest + 1 != elements.len() {
+        if let Some(rest) = rest_idx
+            && rest + 1 != elements.len() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "when tuple pattern rest position",
                     at: elements[rest].span().into(),
                 });
             }
-        }
 
         let pat_arity = rest_idx.unwrap_or(elements.len());
         if (rest_idx.is_none() && pat_arity != tuple_elems.len())

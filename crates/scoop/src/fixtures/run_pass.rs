@@ -257,7 +257,7 @@ fn run_fixture_dump_stackmaps(
             super::box_diagnostic(RunExecFailed {
                 program: "make_temp_dir".to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                source: std::io::Error::other(e.to_string()),
             })
         })?;
     let exe_path = dir.join(default_exe_name());
@@ -272,7 +272,7 @@ fn run_fixture_dump_stackmaps(
             super::box_diagnostic(RunExecFailed {
                 program: "scoop build".to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+                source: std::io::Error::other(e.to_string()),
             })
         })?;
 
@@ -445,7 +445,7 @@ fn preview_text(s: &str, max_chars: usize) -> String {
     }
     let mut out: String = s.chars().take(max_chars).collect();
     if s.chars().count() > max_chars {
-        out.push_str("…");
+        out.push('…');
     }
     out
 }
@@ -486,14 +486,14 @@ fn run_command_collect_output(
         super::box_diagnostic(RunExecFailed {
             program: cmd.get_program().to_string_lossy().to_string(),
             fixture: rel_fixture.display().to_string(),
-            source: std::io::Error::new(std::io::ErrorKind::Other, "stdout 未被配置为 piped"),
+            source: std::io::Error::other("stdout 未被配置为 piped"),
         })
     })?;
     let child_stderr = child.stderr.take().ok_or_else(|| {
         super::box_diagnostic(RunExecFailed {
             program: cmd.get_program().to_string_lossy().to_string(),
             fixture: rel_fixture.display().to_string(),
-            source: std::io::Error::new(std::io::ErrorKind::Other, "stderr 未被配置为 piped"),
+            source: std::io::Error::other("stderr 未被配置为 piped"),
         })
     })?;
 
@@ -502,7 +502,7 @@ fn run_command_collect_output(
             super::box_diagnostic(RunExecFailed {
                 program: cmd.get_program().to_string_lossy().to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, "stdin 未被配置为 piped"),
+                source: std::io::Error::other("stdin 未被配置为 piped"),
             })
         })?;
         child_stdin.write_all(stdin_bytes).map_err(|e| {
@@ -545,7 +545,7 @@ fn run_command_collect_output(
             super::box_diagnostic(RunExecFailed {
                 program: cmd.get_program().to_string_lossy().to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, "stdout 捕获线程 panic"),
+                source: std::io::Error::other("stdout 捕获线程 panic"),
             })
         })?
         .map_err(|e| {
@@ -561,7 +561,7 @@ fn run_command_collect_output(
             super::box_diagnostic(RunExecFailed {
                 program: cmd.get_program().to_string_lossy().to_string(),
                 fixture: rel_fixture.display().to_string(),
-                source: std::io::Error::new(std::io::ErrorKind::Other, "stderr 捕获线程 panic"),
+                source: std::io::Error::other("stderr 捕获线程 panic"),
             })
         })?
         .map_err(|e| {

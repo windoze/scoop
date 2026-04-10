@@ -419,7 +419,7 @@ impl TerminatorKind {
 impl Terminator {
     /// 对 terminator 的后继基本块调用回调（包含 cleanup/unwind 边）。
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
-        self.kind.for_each_successor(|succ| f(succ));
+        self.kind.for_each_successor(&mut f);
         if let UnwindAction::Cleanup { target } = self.unwind {
             f(target);
         }

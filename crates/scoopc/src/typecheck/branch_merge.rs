@@ -47,19 +47,17 @@ pub(super) fn merge_branch_result_type(
     let a_kind = lower.type_kind(a);
     let b_kind = lower.type_kind(b);
 
-    if let Some(out) = merge_structural_lub(a, &a_kind, b, &b_kind, lower, builtins) {
-        if out != builtins.any {
+    if let Some(out) = merge_structural_lub(a, &a_kind, b, &b_kind, lower, builtins)
+        && out != builtins.any {
             return out;
         }
         // `Any` 在这里通常意味着“结构上无法更精确合并”，继续进入 union fallback。
-    }
 
     // 名义类型：尝试找“最接近的公共超类型”（不包含隐式 `Any`）。
-    if let Some(common) = merge_nominal_common_supertype(a, &a_kind, b, &b_kind, lower, builtins) {
-        if common != builtins.any {
+    if let Some(common) = merge_nominal_common_supertype(a, &a_kind, b, &b_kind, lower, builtins)
+        && common != builtins.any {
             return common;
         }
-    }
 
     // 最后：受限 union（避免无脑退化到 `Any`）。
     lower.ty_union(vec![a, b])

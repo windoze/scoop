@@ -278,14 +278,13 @@ fn compute_class_interface_closure(
             collect_interface_and_supers(iface, interfaces, &mut out, &mut HashSet::new());
         }
 
-        if let Some(super_fqn) = info.super_class_fqn.as_deref() {
-            if classes.contains_key(super_fqn) {
+        if let Some(super_fqn) = info.super_class_fqn.as_deref()
+            && classes.contains_key(super_fqn) {
                 let super_ifaces = compute_class_interface_closure(
                     super_fqn, classes, interfaces, visiting, memo,
                 )?;
                 out.extend(super_ifaces);
             }
-        }
     }
 
     let _ = visiting.remove(class_fqn);
@@ -339,13 +338,12 @@ fn resolve_method_in_class_hierarchy(
         }
     }
 
-    if let Some(super_fqn) = info.super_class_fqn.as_deref() {
-        if classes.contains_key(super_fqn) {
+    if let Some(super_fqn) = info.super_class_fqn.as_deref()
+        && classes.contains_key(super_fqn) {
             let resolved = resolve_method_in_class_hierarchy(super_fqn, key, classes, visiting);
             let _ = visiting.remove(class_fqn);
             return resolved;
         }
-    }
 
     let _ = visiting.remove(class_fqn);
     None

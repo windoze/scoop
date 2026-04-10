@@ -140,7 +140,7 @@ impl<'a> LayoutComputer<'a> {
                 ValueTypeKind::Bool => self.bool_layout(),
                 ValueTypeKind::Int | ValueTypeKind::UInt => self.word_layout(),
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
-                    let size = ((bits as u64) + 7) / 8;
+                    let size = (bits as u64).div_ceil(8);
                     let align = size.clamp(1, self.target.pointer_align.max(1));
                     TypeLayout::new(size, align)
                 }
@@ -196,8 +196,8 @@ impl<'a> LayoutComputer<'a> {
         let inner_layout = self.type_layout(inner)?;
 
         // 1) niche path：inner 提供可用 niche 值。
-        if let Some(mut domain) = inner_layout.niche {
-            if let Some(none_value) = domain.take_one() {
+        if let Some(mut domain) = inner_layout.niche
+            && let Some(none_value) = domain.take_one() {
                 debug!(
                     inner = %self.types.display(inner),
                     storage = ?domain.storage,
@@ -238,7 +238,6 @@ impl<'a> LayoutComputer<'a> {
                 );
                 return Ok(layout);
             }
-        }
 
         // 2) tagged union fallback。
         let tag = EnumTagType::for_variant_count(2);
@@ -547,7 +546,7 @@ impl<'a> LayoutComputer<'a> {
 
     fn gc_ref_word_mask_for_ref_slot(&self, ref_payload_offset: u64) -> Vec<u64> {
         let word = self.target.pointer_size.max(1);
-        if ref_payload_offset % word != 0 {
+        if !ref_payload_offset.is_multiple_of(word) {
             return Vec::new();
         }
         let idx = ref_payload_offset / word;

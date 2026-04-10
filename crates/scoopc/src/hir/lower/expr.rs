@@ -236,11 +236,10 @@ impl<'a> HirLowering<'a> {
                     // resolver 的 type receiver（例如 `TypeName.member` / `EffectName.op`）约定为：
                     // receiver ident 不写回 `resolved`。这里用该信号避免把 companion dispatch 误改写为
                     // “带隐式 receiver 参数”的普通 member call。
-                    if let ast::ExprKind::Ident(id) = &receiver.kind {
-                        if id.resolved.is_none() && self.source.slice(id.span) != "this" {
+                    if let ast::ExprKind::Ident(id) = &receiver.kind
+                        && id.resolved.is_none() && self.source.slice(id.span) != "this" {
                             return None;
                         }
-                    }
 
                     let receiver = self.lower_expr(pkg_prefix, receiver);
 
@@ -279,8 +278,8 @@ impl<'a> HirLowering<'a> {
                 } else {
                     // T1312：class ctor call 仍会被降低为 `UnresolvedIdent`，
                     // 但 codegen 需要知道它的 ctor candidates（来自 resolver 的 `ValueIdent.call`）。
-                    if let ast::ExprKind::Ident(id) = &callee.kind {
-                        if let Some(call) = id.call.as_ref() {
+                    if let ast::ExprKind::Ident(id) = &callee.kind
+                        && let Some(call) = id.call.as_ref() {
                             let mut ctor_candidates: Vec<String> = call
                                 .candidates
                                 .iter()
@@ -299,7 +298,6 @@ impl<'a> HirLowering<'a> {
                                     .or_insert(ctor_candidates);
                             }
                         }
-                    }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
                     let sig = callee_fqn.and_then(|fqn| self.fun_sig_by_fqn(fqn));
@@ -1558,8 +1556,8 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         // delegated property lowering（spec §10.4）：
         // `receiver.prop` → `receiver.prop$delegate.getValue(receiver, <PropertyMeta const>)`
-        if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() {
-            if let Some(info) = self.delegated_properties.get(fqn).cloned() {
+        if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref()
+            && let Some(info) = self.delegated_properties.get(fqn).cloned() {
                 match info {
                     DelegatedPropertyInfo::Lazy(info) => {
                         return (
@@ -1635,7 +1633,6 @@ impl<'a> HirLowering<'a> {
                     }
                 }
             }
-        }
 
         // T0112：extension property access → desugar to getter call.
         // `receiver.extProp` → `extPropGetterFqn(receiver)`
@@ -2297,9 +2294,7 @@ impl<'a> HirLowering<'a> {
             if param_to_arg.get(idx)?.is_some() {
                 continue;
             }
-            if param.default_value.is_none() {
-                return None;
-            }
+            param.default_value.as_ref()?;
         }
 
         // 反向映射：arg_idx -> param_idx（用于按调用点顺序求值实参）。

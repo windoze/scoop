@@ -915,7 +915,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if trace_start_offset_bytes >= size_bytes {
             return Ok(Vec::new());
         }
-        if trace_start_offset_bytes % ptr_size != 0 {
+        if !trace_start_offset_bytes.is_multiple_of(ptr_size) {
             return Ok(Vec::new());
         }
 
@@ -930,7 +930,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             let rel = off - trace_start_offset_bytes;
-            if rel % ptr_size != 0 {
+            if !rel.is_multiple_of(ptr_size) {
                 continue;
             }
             word_indices.push(rel / ptr_size);
@@ -1509,15 +1509,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // T0119: `@CLayout(packed = N)` — aggregate store 到 alloca 时，
                     // store alignment 降到 packed value（与 load 路径保持一致）。
                     // packed=1 时 alignment=1，packed>1 时 alignment=min(struct_natural, N)。
-                    if let CgTy::Struct(struct_ty) = ty {
-                        if let Some(pack_n) =
+                    if let CgTy::Struct(struct_ty) = ty
+                        && let Some(pack_n) =
                             self.struct_clayout(struct_ty).and_then(|c| c.packed)
                         {
                             // For whole-aggregate store, use pack_n as alignment
                             // (the struct is packed, so its overall alignment is at most pack_n).
                             store_inst.set_alignment(pack_n)?;
                         }
-                    }
                 }
             }
         }

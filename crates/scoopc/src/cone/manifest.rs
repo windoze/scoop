@@ -56,6 +56,7 @@ pub struct ConeSelectEntry {
 ///   - 解析阶段会做最小归一化（允许 `\\`，内部统一为 `/`，并拒绝绝对路径/`..`）。
 ///   - 后续真正执行时，再以 `cone root` 为基准 join + canonicalize，并在“文件缺失/不可读”等场景给出稳定诊断。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 pub struct ConeNativeBuildConfig {
     /// 入口包名（期望该包定义 `fun main`；校验由 T1113 实现）。
     pub entry_package: Option<String>,
@@ -75,20 +76,6 @@ pub struct ConeNativeBuildConfig {
     pub link_flags: Vec<String>,
 }
 
-impl Default for ConeNativeBuildConfig {
-    fn default() -> Self {
-        Self {
-            entry_package: None,
-            opt_level: None,
-            c_sources: Vec::new(),
-            c_flags: Vec::new(),
-            cxx_sources: Vec::new(),
-            cxx_flags: Vec::new(),
-            linker: None,
-            link_flags: Vec::new(),
-        }
-    }
-}
 
 /// `Cone.toml` 的最小可用 manifest。
 #[derive(Debug, Clone, PartialEq, Eq)]

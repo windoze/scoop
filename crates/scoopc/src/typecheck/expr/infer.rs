@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::call::{
@@ -23,12 +22,12 @@ use super::stmt::{check_local_val_decl_exprs, detect_smart_cast_for_if_condition
 use super::util::expr_kind_name;
 
 use super::lower_type_ref_with_enum_subst;
-use super::{ASYNC_EFFECT_FQN, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN, TASK_FQN};
+use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, TASK_FQN};
 
 use super::super::TypeSymbolKind;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::branch_merge;
-use super::super::eff_row_subst::{EffRowVarSubstPlan, apply_eff_row_var_subst_plan};
+use super::super::eff_row_subst::EffRowVarSubstPlan;
 use super::super::lower::TypeLowering;
 use super::super::type_env::EnumVariantInfo;
 use super::super::when_exhaustiveness;
@@ -1733,11 +1732,10 @@ fn infer_if_expr_type(
     let smart_cast = detect_smart_cast_for_if_condition(cond, lower, locals, &stable_bindings)?;
 
     let mut then_locals = locals.clone();
-    if let Some(sc) = smart_cast {
-        if sc.narrow_in_then {
+    if let Some(sc) = smart_cast
+        && sc.narrow_in_then {
             then_locals.insert(sc.decl_span, sc.target_ty);
         }
-    }
     let then_ty = infer_expr_type(
         source,
         then_branch,
@@ -1756,11 +1754,10 @@ fn infer_if_expr_type(
     };
 
     let mut else_locals = locals.clone();
-    if let Some(sc) = smart_cast {
-        if !sc.narrow_in_then {
+    if let Some(sc) = smart_cast
+        && !sc.narrow_in_then {
             else_locals.insert(sc.decl_span, sc.target_ty);
         }
-    }
     let else_ty = infer_expr_type(
         source,
         else_branch,
@@ -1989,10 +1986,10 @@ pub(super) fn infer_expr_type_in_expected_context(
         return Ok(expected_ty);
     }
 
-    if let ast::ExprKind::Call { callee, args } = &expr.kind {
-        if let ast::ExprKind::Ident(id) = &callee.kind {
-            if id.resolved.is_none() {
-                if let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
+    if let ast::ExprKind::Call { callee, args } = &expr.kind
+        && let ast::ExprKind::Ident(id) = &callee.kind
+            && id.resolved.is_none()
+                && let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
                     source,
                     expr,
                     id,
@@ -2007,16 +2004,13 @@ pub(super) fn infer_expr_type_in_expected_context(
                 )? {
                     return Ok(ty);
                 }
-            }
-        }
-    }
 
     // T0124: When a struct literal's type path has no type args but the expected type is a
     // generic instantiation of the same struct, use the expected type to drive inference.
-    if let ast::ExprKind::StructLit { ty, fields } = &expr.kind {
-        if ty.args.is_empty() {
-            if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty) {
-                if !nominal.args.is_empty() {
+    if let ast::ExprKind::StructLit { ty, fields } = &expr.kind
+        && ty.args.is_empty()
+            && let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty)
+                && !nominal.args.is_empty() {
                     let local_name = source.slice(ty.segments.last().map(|s| s.span).unwrap_or(ty.span));
                     let fqn_matches = nominal.fqn.ends_with(local_name)
                         && (nominal.fqn.len() == local_name.len()
@@ -2036,9 +2030,6 @@ pub(super) fn infer_expr_type_in_expected_context(
                         );
                     }
                 }
-            }
-        }
-    }
 
     infer_expr_type(
         source,
@@ -2244,7 +2235,7 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
     let subst: HashMap<String, TypeId> = type_params
         .iter()
         .cloned()
-        .zip(expected_enum_args.into_iter())
+        .zip(expected_enum_args)
         .collect();
 
     for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {

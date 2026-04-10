@@ -19,7 +19,7 @@ use super::ops::{
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
 };
 use super::util::{
-    expr_kind_name, fmt_effect_row, join_overload_signatures, visibility_from_modifiers,
+    fmt_effect_row, visibility_from_modifiers,
 };
 
 use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN};
@@ -218,11 +218,10 @@ pub(super) fn check_required_effects_for_fun_decl(
     // 即使函数体没有 perform（`performed.is_empty()`），也需要对“显式写出的 effects row”做最小语义校验：
     // - effect row item 必须是 effect 类型
     // - 闭合 row 不能直接引用 row 变量（例如 `E!`，T0628b）
-    if matches!(program_boundary, ProgramBoundaryKind::None) {
-        if let Some(expr) = fun.effects.as_ref() {
+    if matches!(program_boundary, ProgramBoundaryKind::None)
+        && let Some(expr) = fun.effects.as_ref() {
             let _ = lower.lower_effect_row_expr(Some(expr))?;
         }
-    }
 
     if performed.is_empty() {
         return Ok(());
@@ -429,8 +428,8 @@ pub(super) fn check_fun_body_exprs(
                         .unwrap_or(builtins.unit);
 
                         // 回写到顶层函数签名表：使得后续同文件的调用点能看到推断后的返回类型。
-                        if let Some(sigs) = top_level_funs.get_mut(fun_fqn) {
-                            if let Some(sig) =
+                        if let Some(sigs) = top_level_funs.get_mut(fun_fqn)
+                            && let Some(sig) =
                                 sigs.iter_mut().find(|s| s.decl_span == fun.name.span)
                             {
                                 sig.return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
@@ -443,7 +442,6 @@ pub(super) fn check_fun_body_exprs(
                                     inferred
                                 };
                             }
-                        }
 
                         inferred
                     }
@@ -1450,8 +1448,7 @@ pub(super) fn check_expr_stmt(
                 callee: inner,
                 args: type_args,
             } = &callee.kind
-            {
-                if let ast::ExprKind::MemberAccess { member, .. } = &inner.kind {
+                && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind {
                     let lowered = type_args
                         .iter()
                         .map(|a| lower.lower_type_ref(a))
@@ -1471,7 +1468,6 @@ pub(super) fn check_expr_stmt(
                         struct_field_types,
                     )?;
                 }
-            }
 
             Ok(())
         }
@@ -1538,11 +1534,10 @@ fn check_if_expr_stmt(
     let mut then_locals = locals.clone();
     let mut then_stable = stable_bindings.clone();
     let mut then_mutable = mutable_bindings.clone();
-    if let Some(smart_cast) = smart_cast {
-        if smart_cast.narrow_in_then {
+    if let Some(smart_cast) = smart_cast
+        && smart_cast.narrow_in_then {
             then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
         }
-    }
     check_expr_stmt(
         source,
         then_branch,
@@ -1564,11 +1559,10 @@ fn check_if_expr_stmt(
         let mut else_locals = locals.clone();
         let mut else_stable = stable_bindings.clone();
         let mut else_mutable = mutable_bindings.clone();
-        if let Some(smart_cast) = smart_cast {
-            if !smart_cast.narrow_in_then {
+        if let Some(smart_cast) = smart_cast
+            && !smart_cast.narrow_in_then {
                 else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
             }
-        }
 
         check_expr_stmt(
             source,
@@ -1626,14 +1620,14 @@ fn check_assign_expr_stmt(
                         });
                     }
 
-                    let expected_ty = locals.get(decl_span).copied().ok_or_else(|| {
+                    
+
+                    locals.get(decl_span).copied().ok_or_else(|| {
                         ExprTypeError::UnknownLocalValueType {
                             name: name.clone(),
                             span: id.span.into(),
                         }
-                    })?;
-
-                    expected_ty
+                    })?
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
                     let expected_ty = top_level_types.get(fqn).copied().ok_or_else(|| {
@@ -1700,14 +1694,14 @@ fn check_assign_expr_stmt(
                 });
             }
 
-            let expected_ty = struct_field_types.get(fqn).copied().ok_or_else(|| {
+            
+
+            struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
                     span: member.span.into(),
                 }
-            })?;
-
-            expected_ty
+            })?
         }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {

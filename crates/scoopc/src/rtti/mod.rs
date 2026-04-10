@@ -409,7 +409,7 @@ impl RttiContext {
                 ValueTypeKind::Bool => self.bool_layout(),
                 ValueTypeKind::Int | ValueTypeKind::UInt => self.word_layout(),
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
-                    let size = ((bits as u64) + 7) / 8;
+                    let size = (bits as u64).div_ceil(8);
                     let align = size.clamp(1, self.target.pointer_align.max(1));
                     TypeLayout::new(size, align)
                 }
@@ -488,13 +488,12 @@ impl RttiContext {
         let inner_layout = self.type_layout(inner)?;
 
         // niche path：inner 提供可用 niche 值时，Option 与 inner 共享 layout（对 size/align 很重要）。
-        if let Some(mut domain) = inner_layout.niche {
-            if domain.take_one().is_some() {
+        if let Some(mut domain) = inner_layout.niche
+            && domain.take_one().is_some() {
                 return Ok(
                     TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain)
                 );
             }
-        }
 
         // tagged union fallback：`tag(u8) + payload`（v0：仅保证 size/align）。
         let tag_layout = TypeLayout::new(1, 1);

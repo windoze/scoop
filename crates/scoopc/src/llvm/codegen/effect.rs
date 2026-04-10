@@ -1141,8 +1141,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.pop_raise_target();
 
         // body 正常结束：进入 finally（并保存结果值）。
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 if let Some(ptr) = result_ptr {
                     let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
                 }
@@ -1161,7 +1161,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 self.builder.build_unconditional_branch(finally_bb)?;
             }
-        }
 
         // --- catch ---
         self.builder.position_at_end(catch_bb);
@@ -1441,8 +1440,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(finally) = handle.finally.as_ref() {
             let _ = self.codegen_block_value(finally)?;
         }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 if let Some(target) = outer_raise_target {
                     self.builder.build_unconditional_branch(target)?;
                 } else {
@@ -1456,18 +1455,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.emit_return(span, ret_ty, v)?;
                 }
             }
-        }
 
         // --- finally ---
         self.builder.position_at_end(finally_bb);
         if let Some(finally) = handle.finally.as_ref() {
             let _ = self.codegen_block_value(finally)?;
         }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 self.builder.build_unconditional_branch(merge_bb)?;
             }
-        }
 
         // --- merge ---
         self.builder.position_at_end(merge_bb);
@@ -1519,13 +1516,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // finally（仅在当前路径可达时执行）
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
-                if let Some(finally) = handle.finally.as_ref() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+                && let Some(finally) = handle.finally.as_ref() {
                     let _ = self.codegen_block_value(finally)?;
                 }
-            }
-        }
 
         // 若 body/finally 终止了当前块：为后续 codegen 创建一个 dead block。
         let insert_block =
@@ -1694,8 +1689,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // body 正常结束：进入 finally（并保存结果值）。
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 if let Some(ptr) = result_ptr {
                     let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
                 }
@@ -1716,7 +1711,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 self.builder.build_unconditional_branch(finally_bb)?;
             }
-        }
 
         // --- catch ---
         self.builder.position_at_end(catch_bb);
@@ -1860,8 +1854,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(finally) = handle.finally.as_ref() {
             let _ = self.codegen_block_value(finally)?;
         }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 if let Some(target) = outer_target {
                     // T1608: 跨 effect 传播——清理中间帧后再跳到外层 handler。
                     let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
@@ -1876,18 +1870,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.emit_exit_with_code(span, 3)?;
                 }
             }
-        }
 
         // --- finally ---
         self.builder.position_at_end(finally_bb);
         if let Some(finally) = handle.finally.as_ref() {
             let _ = self.codegen_block_value(finally)?;
         }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 self.builder.build_unconditional_branch(merge_bb)?;
             }
-        }
 
         // --- dispatch trampoline (T1606f-1) ---
         // emit_effect_unwind_if_active 在 body 中的函数调用返回后，若 flag 被设置，
@@ -2622,9 +2614,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             decl_map.insert(id, DeclInfo { decl, order: *decl_order });
                             *decl_order += 1;
                         }
-                        if let Some(init) = &decl.init {
-                            if let hir::ExprKind::Perform { op, args } = &init.kind {
-                                if op.fqn == arm_op_fqn {
+                        if let Some(init) = &decl.init
+                            && let hir::ExprKind::Perform { op, args } = &init.kind
+                                && op.fqn == arm_op_fqn {
                                     let Some(id) = decl.id else {
                                         return Err(LlvmEmitError::UnsupportedMainBody {
                                             kind: "handle escape perform binding id",
@@ -2643,19 +2635,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         top_level_stmt_idx,
                                     });
                                 }
-                            }
-                        }
                     }
                     hir::StmtKind::Expr(expr) => {
                         // 裸 perform（未绑定到 val）仍然报错。
-                        if let hir::ExprKind::Perform { op, .. } = &expr.kind {
-                            if op.fqn == arm_op_fqn {
+                        if let hir::ExprKind::Perform { op, .. } = &expr.kind
+                            && op.fqn == arm_op_fqn {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "handle escape body (perform must be bound to val)",
                                     at: expr.span.into(),
                                 });
                             }
-                        }
                         // 递归进入控制流表达式。
                         scan_expr_for_performs(
                             expr, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
@@ -2712,8 +2701,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         path.pop();
                     }
                     // 递归进入 else-branch（如果存在且是 Block）。
-                    if let Some(else_expr) = else_branch.as_deref() {
-                        if let hir::ExprKind::Block(block) = &else_expr.kind {
+                    if let Some(else_expr) = else_branch.as_deref()
+                        && let hir::ExprKind::Block(block) = &else_expr.kind {
                             path.push(ResumeFrame::IfElse {
                                 if_expr: expr,
                                 else_block_stmts: &block.stmts,
@@ -2725,7 +2714,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             )?;
                             path.pop();
                         }
-                    }
                 }
                 hir::ExprKind::When { subject: _, arms } => {
                     for (arm_idx, when_arm) in arms.iter().enumerate() {
@@ -2810,7 +2798,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: perform_op.span.into(),
             });
         }
-        let perform_id = first_site.id;
+        let _perform_id = first_site.id;
 
         for site in &perform_sites {
             if arm.op.binders.len() != site.args.len() {
@@ -4592,8 +4580,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         // For WhileBody: after the tail, re-enter the while
                         // loop with perform interception for all sites in
                         // this body.
-                        if !terminated {
-                            if let ResumeFrame::WhileBody {
+                        if !terminated
+                            && let ResumeFrame::WhileBody {
                                 while_cond,
                                 while_body,
                                 ..
@@ -4617,8 +4605,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                             resume_after_stmt: ras,
                                             ..
                                         } = fcheck
-                                        {
-                                            if std::ptr::eq(*wb, *while_body) {
+                                            && std::ptr::eq(*wb, *while_body) {
                                                 while_intercept_map
                                                     .entry(*ras)
                                                     .or_default()
@@ -4630,7 +4617,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                     ));
                                                 break;
                                             }
-                                        }
                                     }
                                 }
 
@@ -5181,7 +5167,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 cg.builder
                                     .position_at_end(while_after_bb);
                             }
-                        }
                     }
 
                     // Top-level tail stmts (after top_level_stmt_idx)
@@ -6477,15 +6462,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // arm 正常完成：保存结果，跳到 finally（若有）或 done。
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none() {
                 if let Some(ptr) = result_ptr {
                     let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
                 }
                 let target = finally_bb.unwrap_or(done_bb);
                 self.builder.build_unconditional_branch(target)?;
             }
-        }
 
         self.env.pop_scope();
 
@@ -6496,8 +6480,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(finally) = handle.finally.as_ref() {
                 let _ = self.codegen_block_value(finally)?;
             }
-            if let Some(bb) = self.builder.get_insert_block() {
-                if bb.get_terminator().is_none() {
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none() {
                     if let Some(target) = outer_raise_target {
                         self.builder.build_unconditional_branch(target)?;
                     } else {
@@ -6511,7 +6495,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.emit_return(span, ret_ty, v)?;
                     }
                 }
-            }
         }
 
         // --- finally (T1609) ---
@@ -6521,11 +6504,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(finally) = handle.finally.as_ref() {
                 let _ = self.codegen_block_value(finally)?;
             }
-            if let Some(bb) = self.builder.get_insert_block() {
-                if bb.get_terminator().is_none() {
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none() {
                     self.builder.build_unconditional_branch(done_bb)?;
                 }
-            }
         }
 
         // --- done ---
@@ -6575,28 +6557,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Vec<IndirectPerformCallSite> {
         let mut sites = Vec::new();
         for (idx, stmt) in body.stmts.iter().enumerate() {
-            if let hir::StmtKind::Val(decl) = &stmt.kind {
-                if let Some(init) = &decl.init {
-                    if let hir::ExprKind::Call { callee, .. } = &init.kind {
-                        if let Some(fqn) = self.try_extract_callee_fqn(callee) {
-                            if let Some(fun) = self.fun_index.get(fqn) {
+            if let hir::StmtKind::Val(decl) = &stmt.kind
+                && let Some(init) = &decl.init
+                    && let hir::ExprKind::Call { callee, .. } = &init.kind
+                        && let Some(fqn) = self.try_extract_callee_fqn(callee)
+                            && let Some(fun) = self.fun_index.get(fqn) {
                                 let is_pure = self
                                     .fun_ty_effects_is_pure(fun.ty)
                                     .unwrap_or(false);
-                                if !is_pure {
-                                    if let Some(id) = decl.id {
+                                if !is_pure
+                                    && let Some(id) = decl.id {
                                         sites.push(IndirectPerformCallSite {
                                             stmt_idx: idx,
                                             result_id: id,
                                             result_ty: decl.ty,
                                         });
                                     }
-                                }
                             }
-                        }
-                    }
-                }
-            }
         }
         sites
     }
@@ -6666,8 +6643,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let mut outer_captures: Vec<CapturedLocal> = Vec::new();
         for id in &outer_used {
-            if let Some(local) = self.env.get(*id) {
-                if matches!(
+            if let Some(local) = self.env.get(*id)
+                && matches!(
                     local.ty,
                     CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
                 ) {
@@ -6678,7 +6655,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         mutable: local.mutable,
                     });
                 }
-            }
         }
         outer_captures.sort_by_key(|c| c.id.as_u32());
 
@@ -6691,11 +6667,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if idx >= first_site.stmt_idx {
                     break;
                 }
-                if let hir::StmtKind::Val(decl) = &stmt.kind {
-                    if let Some(id) = decl.id {
+                if let hir::StmtKind::Val(decl) = &stmt.kind
+                    && let Some(id) = decl.id {
                         decls_before.push((id, idx));
                     }
-                }
             }
             // Collect locals used at and after the indirect perform site.
             // T1606f-3: The step function re-codegens the call expression at the
@@ -6722,8 +6697,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // These locals haven't been codegen'd yet (body hasn't run), so we can't look them up.
             // We need their type info from the HIR decls.
             for stmt in &handle.body.stmts {
-                if let hir::StmtKind::Val(decl) = &stmt.kind {
-                    if decl.id == Some(id) {
+                if let hir::StmtKind::Val(decl) = &stmt.kind
+                    && decl.id == Some(id) {
                         let decl_ty = self.cg_ty_of(decl.ty).ok_or(
                             LlvmEmitError::UnsupportedMainBody {
                                 kind: "indirect perform body lift type",
@@ -6738,7 +6713,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                         break;
                     }
-                }
             }
         }
         body_lifts.sort_by_key(|c| c.id.as_u32());
@@ -7630,15 +7604,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "cont_state_unpin_body",
         )?;
 
-        if out_ty != CgTy::Unit {
-            if let Some(v) = body_tail {
+        if out_ty != CgTy::Unit
+            && let Some(v) = body_tail {
                 let v = self.coerce_value(span, v, out_ty)?;
                 if let Some(ptr) = result_ptr {
                     let _ =
                         self.store_local_value(span, ptr, out_ty, v)?;
                 }
             }
-        }
 
         self.env.pop_scope();
         self.builder.build_unconditional_branch(done_bb)?;
@@ -7983,8 +7956,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             // arm 正常完成：保存结果，跳到 finally（若有）或 done。
-            if let Some(bb) = self.builder.get_insert_block() {
-                if bb.get_terminator().is_none() {
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none() {
                     if let Some(ptr) = result_ptr {
                         let _ = self.store_local_value(
                             arm.body.span,
@@ -7996,7 +7969,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let target = finally_bb.unwrap_or(done_bb);
                     self.builder.build_unconditional_branch(target)?;
                 }
-            }
 
             self.env.pop_scope();
         }
@@ -8007,8 +7979,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(finally) = handle.finally.as_ref() {
                 let _ = self.codegen_block_value(finally)?;
             }
-            if let Some(bb) = self.builder.get_insert_block() {
-                if bb.get_terminator().is_none() {
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none() {
                     if let Some(target) = outer_raise_target {
                         self.builder.build_unconditional_branch(target)?;
                     } else {
@@ -8022,7 +7994,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.emit_return(span, ret_ty, v)?;
                     }
                 }
-            }
         }
 
         // --- finally (T1609) ---
@@ -8031,11 +8002,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(finally) = handle.finally.as_ref() {
                 let _ = self.codegen_block_value(finally)?;
             }
-            if let Some(bb) = self.builder.get_insert_block() {
-                if bb.get_terminator().is_none() {
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none() {
                     self.builder.build_unconditional_branch(done_bb)?;
                 }
-            }
         }
 
         // ── Done ──

@@ -339,8 +339,8 @@ fn check_fun_override(
             span: f.name.span.into(),
         }),
         (true, matches) => {
-            if let Some(first) = matches.first() {
-                if matches.iter().all(|o| !o.symbol.modifiers.is_overridable()) {
+            if let Some(first) = matches.first()
+                && matches.iter().all(|o| !o.symbol.modifiers.is_overridable()) {
                     return Err(InheritanceError::CannotOverrideFinalMember {
                         base_fqn: base_fqn.to_string(),
                         member: name,
@@ -348,7 +348,6 @@ fn check_fun_override(
                         base_span: first.symbol.span.into(),
                     });
                 }
-            }
             Ok(())
         }
         (false, matches) if !matches.is_empty() => {

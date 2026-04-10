@@ -1385,11 +1385,10 @@ fn parse_target_platform_from_fixture_args(args: &[String]) -> Option<String> {
         if let Some(v) = arg.strip_prefix("--target-platform=") {
             return Some(v.to_string());
         }
-        if arg == "--target-platform" {
-            if let Some(v) = it.peek() {
+        if arg == "--target-platform"
+            && let Some(v) = it.peek() {
                 return Some((*v).to_string());
             }
-        }
     }
     None
 }
@@ -1697,12 +1696,12 @@ fn run_typecheck_cone_case(
 
         let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
             // 先运行不依赖 resolver/index 的 typecheck 预检查。
-            scoopc::typecheck::check_file_headers(&f.source, &mut f.ast).map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_struct_decls(&f.source, &mut f.ast)
+            scoopc::typecheck::check_file_headers(&f.source, &f.ast).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_struct_decls(&f.source, &f.ast)
                 .map_err(box_diagnostic)?;
 
             // resolver phase：headers + bodies。
-            let headers = scoopc::resolve::check_file_headers(&f.source, &mut f.ast, &index)
+            let headers = scoopc::resolve::check_file_headers(&f.source, &f.ast, &index)
                 .map_err(box_diagnostic)?;
             scoopc::resolve::check_file_bodies(&f.source, &mut f.ast, &index, &headers)
                 .map_err(box_diagnostic)?;
@@ -1710,7 +1709,7 @@ fn run_typecheck_cone_case(
             // typecheck phase。
             scoopc::typecheck::check_file_annotations(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -1718,15 +1717,15 @@ fn run_typecheck_cone_case(
                 builtins,
             )
             .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_properties(&f.source, &mut f.ast, &index, &env)
+            scoopc::typecheck::check_file_properties(&f.source, &f.ast, &index, &env)
                 .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_inheritance(&f.source, &mut f.ast, &index)
+            scoopc::typecheck::check_file_inheritance(&f.source, &f.ast, &index)
                 .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_interfaces(&f.source, &mut f.ast, &index, &env)
+            scoopc::typecheck::check_file_interfaces(&f.source, &f.ast, &index, &env)
                 .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_override_effects(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -1736,7 +1735,7 @@ fn run_typecheck_cone_case(
             .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -1747,7 +1746,7 @@ fn run_typecheck_cone_case(
 
             scoopc::typecheck::check_file_where_clauses(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -1758,7 +1757,7 @@ fn run_typecheck_cone_case(
 
             scoopc::typecheck::check_file_overload_conflicts(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -1769,7 +1768,7 @@ fn run_typecheck_cone_case(
 
             scoopc::typecheck::check_file_exprs(
                 &f.source,
-                &mut f.ast,
+                &f.ast,
                 &index,
                 &headers.imports,
                 &env,
@@ -2125,22 +2124,20 @@ fn run_typecheck_cone_archive_case(
                     }
                 }
 
-                if let Some(expected) = exp.expect_monomorph_hit {
-                    if hit != expected {
+                if let Some(expected) = exp.expect_monomorph_hit
+                    && hit != expected {
                         return Err(box_diagnostic(MonomorphHitMismatch {
                             expected,
                             found: hit,
                         }));
                     }
-                }
-                if let Some(expected) = exp.expect_monomorph_miss {
-                    if miss != expected {
+                if let Some(expected) = exp.expect_monomorph_miss
+                    && miss != expected {
                         return Err(box_diagnostic(MonomorphMissMismatch {
                             expected,
                             found: miss,
                         }));
                     }
-                }
             }
 
             if want_type_monomorph_counts {
@@ -2181,22 +2178,20 @@ fn run_typecheck_cone_archive_case(
                     }
                 }
 
-                if let Some(expected) = exp.expect_type_monomorph_hit {
-                    if hit != expected {
+                if let Some(expected) = exp.expect_type_monomorph_hit
+                    && hit != expected {
                         return Err(box_diagnostic(TypeMonomorphHitMismatch {
                             expected,
                             found: hit,
                         }));
                     }
-                }
-                if let Some(expected) = exp.expect_type_monomorph_miss {
-                    if miss != expected {
+                if let Some(expected) = exp.expect_type_monomorph_miss
+                    && miss != expected {
                         return Err(box_diagnostic(TypeMonomorphMissMismatch {
                             expected,
                             found: miss,
                         }));
                     }
-                }
             }
             Ok(())
         })();

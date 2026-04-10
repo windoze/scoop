@@ -527,13 +527,12 @@ fn compute_class_vtable_slots(
 
         let member_fqn = format!("{}.{}", info.fqn, m.name);
 
-        if m.modifiers.override_ {
-            if let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
+        if m.modifiers.override_
+            && let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
                 existing.impl_in = info.fqn.clone();
                 existing.impl_member = member_fqn;
                 continue;
             }
-        }
 
         let slot = slots.len() as u32;
         slots.push(VtableSlot {
@@ -687,8 +686,8 @@ fn compute_class_interface_closure(
             collect_interface_and_supers(iface, interfaces_by_name, &mut out, &mut HashSet::new());
         }
 
-        if let Some(super_fqn) = info.super_class_fqn.as_deref() {
-            if classes.contains_key(super_fqn) {
+        if let Some(super_fqn) = info.super_class_fqn.as_deref()
+            && classes.contains_key(super_fqn) {
                 let super_ifaces = compute_class_interface_closure(
                     super_fqn,
                     classes,
@@ -698,7 +697,6 @@ fn compute_class_interface_closure(
                 )?;
                 out.extend(super_ifaces);
             }
-        }
     }
 
     let _ = visiting.remove(class_fqn);
@@ -752,13 +750,12 @@ fn resolve_method_in_class_hierarchy(
         }
     }
 
-    if let Some(super_fqn) = info.super_class_fqn.as_deref() {
-        if classes.contains_key(super_fqn) {
+    if let Some(super_fqn) = info.super_class_fqn.as_deref()
+        && classes.contains_key(super_fqn) {
             let resolved = resolve_method_in_class_hierarchy(super_fqn, key, classes, visiting);
             let _ = visiting.remove(class_fqn);
             return resolved;
         }
-    }
 
     let _ = visiting.remove(class_fqn);
     None
@@ -1401,7 +1398,7 @@ fn trace_bitmap_for_payload_fields(
         let layout = type_layout(types, target, ty);
         off = align_to(off, layout.align);
 
-        if is_gc_pointer_like(types, ty) && off % ptr_size == 0 {
+        if is_gc_pointer_like(types, ty) && off.is_multiple_of(ptr_size) {
             slots.push(off / ptr_size);
         }
 
@@ -1456,7 +1453,7 @@ fn type_layout(types: &TypeStore, target: TargetLayout, ty: TypeId) -> TypeLayou
                 TypeLayout::new(target.pointer_size, target.pointer_align)
             }
             ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
-                let size = (u64::from(*bits) + 7) / 8;
+                let size = u64::from(*bits).div_ceil(8);
                 let align = size.clamp(1, target.pointer_align.max(1));
                 TypeLayout::new(size, align)
             }
@@ -1474,11 +1471,10 @@ fn option_layout(types: &TypeStore, target: TargetLayout, inner: TypeId) -> Type
     let inner_layout = type_layout(types, target, inner);
 
     // niche path：inner 提供可用 niche 值时，Option 与 inner 共享 layout（对 offsets 影响很大）。
-    if let Some(mut domain) = inner_layout.niche {
-        if domain.take_one().is_some() {
+    if let Some(mut domain) = inner_layout.niche
+        && domain.take_one().is_some() {
             return TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
         }
-    }
 
     // tagged union fallback：`tag(i32) + payload(word)`（early stage 与 LLVM codegen 对齐）。
     let tag = TypeLayout::new(4, 4);

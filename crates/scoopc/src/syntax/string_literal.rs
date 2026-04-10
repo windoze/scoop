@@ -86,7 +86,7 @@ pub(crate) fn parse_normal_string_bytes(inner: &str) -> Result<Vec<u8>, StringLi
 
                 let mut hex = String::new();
                 let mut closed = false;
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if ch == '}' {
                         closed = true;
                         break;

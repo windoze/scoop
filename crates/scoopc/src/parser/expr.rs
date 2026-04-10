@@ -1074,14 +1074,13 @@ impl<'a> Parser<'a> {
         let mut depth_bracket = 0usize;
 
         while !self.peek_kind(TokenKind::Eof) {
-            if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                if self.peek_symbol(Symbol::RBrace)
+            if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                && (self.peek_symbol(Symbol::RBrace)
                     || self.peek_symbol(Symbol::Semicolon)
-                    || self.looks_like_handle_arm_start_at(self.i)
+                    || self.looks_like_handle_arm_start_at(self.i))
                 {
                     break;
                 }
-            }
 
             let tok = self.bump();
             if let TokenKind::Symbol(sym) = tok.kind {

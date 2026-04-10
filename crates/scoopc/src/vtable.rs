@@ -147,12 +147,11 @@ fn compute_class_vtable_slots(
 
         let member_fqn = format!("{}.{}", info.fqn, m.name);
 
-        if m.modifiers.override_ {
-            if let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
+        if m.modifiers.override_
+            && let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
                 existing.impl_member_fqn = member_fqn;
                 continue;
             }
-        }
 
         let slot = slots.len() as u32;
         slots.push(ClassVtableSlot {

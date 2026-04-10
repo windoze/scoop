@@ -288,7 +288,7 @@ fn examples_for_type(
                     .type_params
                     .iter()
                     .cloned()
-                    .zip(enum_args.into_iter())
+                    .zip(enum_args)
                     .collect();
 
                 let mut out = Vec::new();

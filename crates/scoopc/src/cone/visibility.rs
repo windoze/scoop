@@ -144,8 +144,8 @@ pub fn collect_non_public_symbols_for_cone_sources(
     // 3) 从 index 收集非 public 的顶层符号。
     let mut out: Vec<ConeSymbolVisibilityEntry> = Vec::new();
     for (fqn, ns) in &index.by_fqn {
-        if let Some(sym) = ns.ty.as_ref() {
-            if source_paths.contains(sym.decl_file.as_path())
+        if let Some(sym) = ns.ty.as_ref()
+            && source_paths.contains(sym.decl_file.as_path())
                 && sym.visibility != Visibility::Public
             {
                 out.push(ConeSymbolVisibilityEntry {
@@ -154,10 +154,9 @@ pub fn collect_non_public_symbols_for_cone_sources(
                     visibility: sym.visibility.into(),
                 });
             }
-        }
 
-        if let Some(sym) = ns.value.as_ref() {
-            if source_paths.contains(sym.decl_file.as_path())
+        if let Some(sym) = ns.value.as_ref()
+            && source_paths.contains(sym.decl_file.as_path())
                 && sym.visibility != Visibility::Public
             {
                 out.push(ConeSymbolVisibilityEntry {
@@ -166,7 +165,6 @@ pub fn collect_non_public_symbols_for_cone_sources(
                     visibility: sym.visibility.into(),
                 });
             }
-        }
 
         if !ns.fun.is_empty() {
             let declared = ns

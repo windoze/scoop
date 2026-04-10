@@ -18,13 +18,12 @@ use super::util::{
 use super::{EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
 use super::collect::build_fun_where_constraints_from_resolve_sig;
 
-use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
+use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
 use super::super::lower::TypeLowering;
-use super::super::type_env::EnumVariantInfo;
-use super::super::{TypeEnv, TypeLowerError, TypeSymbolKind};
+use super::super::{TypeLowerError, TypeSymbolKind};
 
 #[derive(Debug, Clone)]
 pub(super) enum CallArgKind {
@@ -5127,7 +5126,7 @@ fn infer_member_call_expr_type(
             &param_name,
             member_name,
             args,
-            explicit_type_args.as_deref(),
+            explicit_type_args,
             safe,
             lower,
             builtins,
@@ -5451,14 +5450,13 @@ fn infer_member_call_expr_type(
 
         // spread 实参只能绑定到 vararg 形参。
         for binding in mapping.iter() {
-            if let ParamArgBinding::Single(arg_idx) = binding {
-                if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+            if let ParamArgBinding::Single(arg_idx) = binding
+                && call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
                     return Err(ExprTypeError::SpreadArgRequiresVararg {
                         callee: callee_fqn.clone(),
                         span: call_args[*arg_idx].expr.span.into(),
                     });
                 }
-            }
         }
         let mapping_pairs = expand_param_arg_pairs(&mapping);
 
@@ -5540,8 +5538,7 @@ fn infer_member_call_expr_type(
         //   receiver 的"期望类型"必须等到 `E` 被实例化后才能确定（T0624）。
         let receiver_uses_eff = sig.eff_param.is_some()
             && sig
-                .param_eff_row_var_subst
-                .get(0)
+                .param_eff_row_var_subst.first()
                 .is_some_and(|p| p.uses_eff_var());
         if !receiver_uses_eff {
             let expected_receiver_ty = instantiated
@@ -5609,8 +5606,7 @@ fn infer_member_call_expr_type(
 
             // receiver 约束：`ReceiverType<eff Row>`。
             if let Some(base) = sig
-                .param_nominal_eff_eff_base
-                .get(0)
+                .param_nominal_eff_eff_base.first()
                 .and_then(|b| b.as_ref())
             {
                 let base = substitute_type_args_in_effect_row(
@@ -6031,16 +6027,15 @@ fn infer_member_call_expr_type(
         // 必须等到 `E` 推断/实例化后才能确定 receiver 是否匹配（T0624）。
         let receiver_uses_eff = cand.eff_param.is_some()
             && cand
-                .param_eff_row_var_subst
-                .get(0)
+                .param_eff_row_var_subst.first()
                 .is_some_and(|p| p.uses_eff_var());
         let mut cand_expected_receiver_ty = instantiated
             .params
             .first()
             .copied()
             .unwrap_or(cand.params[0]);
-        if !receiver_uses_eff {
-            if !is_type_assignable(
+        if !receiver_uses_eff
+            && !is_type_assignable(
                 actual_receiver_ty,
                 cand_expected_receiver_ty,
                 lower,
@@ -6048,7 +6043,6 @@ fn infer_member_call_expr_type(
             ) {
                 continue;
             }
-        }
 
         // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
         let mut ok = true;
@@ -6099,8 +6093,7 @@ fn infer_member_call_expr_type(
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
             if let Some(base) = cand
-                .param_nominal_eff_eff_base
-                .get(0)
+                .param_nominal_eff_eff_base.first()
                 .and_then(|b| b.as_ref())
             {
                 let base = match substitute_type_args_in_effect_row(
@@ -6763,8 +6756,8 @@ pub(super) fn substitute_single_type_param(
 
             // T1011/T1025：`Ptr<T>` 的 pointee 必须是 GC-free 值类型；该门禁必须在泛型实例化/替换时同样生效，
             // 否则可通过 `uintPtrToPtr<String>` / `p.cast<String>()` 等绕过。
-            if nominal.fqn == PTR_FQN {
-                if let Some(pointee) = args.first().copied() {
+            if nominal.fqn == PTR_FQN
+                && let Some(pointee) = args.first().copied() {
                     // 与 TypeLowering::check_ptr_pointee_gc_free 一致：允许 sysroot 内部未实例化的 `Ptr<T>` 出现在签名中。
                     if let TypeKind::Param(p) = lower.type_kind(pointee) {
                         if p.decl_file
@@ -6787,7 +6780,6 @@ pub(super) fn substitute_single_type_param(
                         .into());
                     }
                 }
-            }
 
             Ok(lower.intern_type_kind(TypeKind::Ref(RefTypeKind::Nominal(
                 crate::ty::NominalType {
@@ -6835,8 +6827,8 @@ pub(super) fn substitute_single_type_param(
             }
 
             // T1011/T1025：同上（value nominal）。
-            if nominal.fqn == PTR_FQN {
-                if let Some(pointee) = args.first().copied() {
+            if nominal.fqn == PTR_FQN
+                && let Some(pointee) = args.first().copied() {
                     if let TypeKind::Param(p) = lower.type_kind(pointee) {
                         if p.decl_file
                             .components()
@@ -6858,7 +6850,6 @@ pub(super) fn substitute_single_type_param(
                         .into());
                     }
                 }
-            }
 
             Ok(
                 lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(
@@ -7422,7 +7413,7 @@ fn try_infer_where_bound_method_call(
             let mapping_pairs = expand_param_arg_pairs(&mapping);
             let mut generic_constraints: Vec<GenericArgConstraint> =
                 Vec::with_capacity(mapping_pairs.len());
-            let mut ok = true;
+            let ok = true;
             for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                 let arg = &call_args_with_receiver[arg_idx];
                 generic_constraints.push(GenericArgConstraint {

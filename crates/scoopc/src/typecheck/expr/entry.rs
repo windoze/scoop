@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast;
 use crate::monomorph::MonomorphKey;
-use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index};
+use crate::resolve::{ConstructorOverload, ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
@@ -645,7 +645,7 @@ fn check_class_member_fun_body_exprs(
                         builtins,
                         &locals,
                         top_level_types,
-                        &*top_level_funs,
+                        top_level_funs,
                         struct_field_types,
                     )?;
 

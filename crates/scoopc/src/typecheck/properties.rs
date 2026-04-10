@@ -406,15 +406,14 @@ fn check_one_class_property(
     }
 
     // `val` 是只读属性：不应存在 setter。
-    if matches!(p.kind, ast::ValKind::Val) {
-        if let Some(setter) = &p.setter {
+    if matches!(p.kind, ast::ValKind::Val)
+        && let Some(setter) = &p.setter {
             return Err(PropertyDeclError::ValPropertySetterNotAllowed {
                 class_fqn: class_fqn.to_string(),
                 property,
                 span: setter.span.into(),
             });
         }
-    }
 
     // backing field 判定（当前阶段的最小实现）：
     // - 有 initializer → 生成 backing field
@@ -582,15 +581,14 @@ fn check_one_value_type_property(
 
     // 仅当声明了 accessor（当前只可能是 getter）时，视为 computed property：
     // - computed 不应引入 backing field，因此不允许 initializer。
-    if p.getter.is_some() {
-        if let Some(init) = &p.init {
+    if p.getter.is_some()
+        && let Some(init) = &p.init {
             return Err(PropertyDeclError::ValueTypePropertyInitializerNotAllowed {
                 type_fqn: type_fqn.to_string(),
                 property,
                 span: init.span.into(),
             });
         }
-    }
 
     Ok(())
 }
@@ -603,15 +601,14 @@ fn check_one_extension_property(
     let property = source.slice(p.name.span).to_string();
 
     // `val` extension property 不应存在 setter（与 class 属性保持一致，但错误信息更明确）。
-    if matches!(p.kind, ast::ValKind::Val) {
-        if let Some(setter) = &p.setter {
+    if matches!(p.kind, ast::ValKind::Val)
+        && let Some(setter) = &p.setter {
             return Err(PropertyDeclError::ExtensionValPropertySetterNotAllowed {
                 receiver,
                 property,
                 span: setter.span.into(),
             });
         }
-    }
 
     // extension property 不允许 initializer（不生成 backing field）。
     if let Some(init) = &p.init {
@@ -847,15 +844,12 @@ fn field_use_span_in_expr(
     e: &ast::Expr,
 ) -> Option<Span> {
     // 先检查当前节点（保证遇到最外层的 `field` 优先报错）。
-    if let ast::ExprKind::Ident(id) = &e.kind {
-        if source.slice(id.span) == "field" {
-            if let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = &id.resolved {
-                if *decl_span == backing_field_decl_span {
+    if let ast::ExprKind::Ident(id) = &e.kind
+        && source.slice(id.span) == "field"
+            && let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = &id.resolved
+                && *decl_span == backing_field_decl_span {
                     return Some(id.span);
                 }
-            }
-        }
-    }
 
     match &e.kind {
         ast::ExprKind::Missing
@@ -1231,11 +1225,10 @@ fn delegated_get_value_overload_matches(
         .and_then(|p| p.ty.as_ref())
         .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
 
-    if let Some(this_ref) = this_ref_ty_fqn.as_deref() {
-        if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+    if let Some(this_ref) = this_ref_ty_fqn.as_deref()
+        && this_ref != owner_ty_fqn && this_ref != ANY_FQN {
             return false;
         }
-    }
 
     let Some(prop) = overload
         .sig
@@ -1284,11 +1277,10 @@ fn delegated_set_value_overload_matches(
         .and_then(|p| p.ty.as_ref())
         .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
 
-    if let Some(this_ref) = this_ref_ty_fqn.as_deref() {
-        if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+    if let Some(this_ref) = this_ref_ty_fqn.as_deref()
+        && this_ref != owner_ty_fqn && this_ref != ANY_FQN {
             return false;
         }
-    }
 
     let Some(prop) = overload
         .sig
@@ -1310,11 +1302,10 @@ fn delegated_set_value_overload_matches(
         .and_then(|p| p.ty.as_ref())
         .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
 
-    if let Some(value) = value_ty.as_deref() {
-        if value != value_ty_fqn {
+    if let Some(value) = value_ty.as_deref()
+        && value != value_ty_fqn {
             return false;
         }
-    }
 
     // `setValue` 返回类型必须是 `Unit`（或省略返回类型）。
     match overload.sig.return_ty.as_ref() {
@@ -1335,7 +1326,7 @@ fn fmt_fun_sig(env: &TypeEnv, index: &Index, name: &str, overload: &FunOverload)
             p.ty.as_ref()
                 .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
                 .unwrap_or_else(|| "_".to_string());
-        params.push(format!("{ty}"));
+        params.push(ty.to_string());
     }
 
     let ret = overload

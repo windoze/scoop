@@ -926,8 +926,8 @@ impl<'a> HirLowering<'a> {
         };
 
         // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
-        if scope == ValScope::TopLevel && v.kind == ast::ValKind::Var {
-            if let Some(fqn) = top_level_fqn.as_ref() {
+        if scope == ValScope::TopLevel && v.kind == ast::ValKind::Var
+            && let Some(fqn) = top_level_fqn.as_ref() {
                 const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
                 const GLOBAL_FQN: &str = "scoop.core.Global";
 
@@ -961,7 +961,6 @@ impl<'a> HirLowering<'a> {
                     );
                 }
             }
-        }
 
         ValDecl {
             span: v.span,
@@ -1488,7 +1487,7 @@ pub fn lower_for_compilation_unit_multi_files(
     let monomorphized_funs = collect_generic_fun_instantiations(
         compilation_unit,
         monomorph_keys,
-        &index,
+        index,
         &type_kinds,
         &mut types,
         builtins,
@@ -1507,7 +1506,7 @@ pub fn lower_for_compilation_unit_multi_files(
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
     member_funs.extend(collect_generic_class_member_fun_instantiations(
         compilation_unit,
-        &index,
+        index,
         &type_kinds,
         &mut types,
         builtins,

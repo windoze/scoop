@@ -119,14 +119,12 @@ fn effect_row_base_expr_excluding_eff_var(
     })
 }
 
-fn option_inner_type_ref<'a>(ty_ref: &'a ast::TypeRef) -> Option<&'a ast::TypeRef> {
+fn option_inner_type_ref(ty_ref: &ast::TypeRef) -> Option<&ast::TypeRef> {
     match ty_ref {
         ast::TypeRef::Nullable { inner, .. } => Some(inner.as_ref()),
         ast::TypeRef::Path(p) => p
             .args
-            .iter()
-            .filter(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. }))
-            .next(),
+            .iter().find(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. })),
         _ => None,
     }
 }

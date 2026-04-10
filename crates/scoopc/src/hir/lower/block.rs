@@ -66,8 +66,8 @@ impl<'a> HirLowering<'a> {
 
         if wrap_tail_expr {
             // 隐式返回：若 block 末尾是表达式语句，则将其值包装为 task handle。
-            if let Some(last) = block.stmts.last_mut() {
-                if let StmtKind::Expr(expr) = &mut last.kind {
+            if let Some(last) = block.stmts.last_mut()
+                && let StmtKind::Expr(expr) = &mut last.kind {
                     // 用占位符把 expr move 出来，避免对 Expr 增加 Default 约束。
                     let expr_span = expr.span;
                     let expr_ty = expr.ty;
@@ -81,7 +81,6 @@ impl<'a> HirLowering<'a> {
                     );
                     *expr = self.wrap_task_spawn_int_call(expr_span, old);
                 }
-            }
         }
 
         // 重新计算 block 类型：保持与 `lower_block` 的规则一致。

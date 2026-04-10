@@ -330,7 +330,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     TypeLayout::new(target.pointer_size, target.pointer_align)
                 }
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
-                    let size = (u64::from(*bits) + 7) / 8;
+                    let size = u64::from(*bits).div_ceil(8);
                     let align = size.clamp(1, target.pointer_align.max(1));
                     TypeLayout::new(size, align)
                 }
@@ -366,8 +366,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let inner_layout = self.type_layout(inner);
 
         // niche path：inner 提供可用 niche domain。
-        if let Some(mut domain) = inner_layout.niche {
-            if let Some(none_value) = domain.take_one() {
+        if let Some(mut domain) = inner_layout.niche
+            && let Some(none_value) = domain.take_one() {
                 let storage = domain.storage;
 
                 // 关键约束（GC-FIX C2b）：
@@ -388,7 +388,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.type_layout_cache.insert(option_ty, layout);
                 return layout;
             }
-        }
 
         // tagged union fallback：不携带 niche。
         self.option_niche_cache.insert(option_ty, None);
@@ -589,7 +588,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 当前阶段 Bool 在 LLVM 中用 i1 表示，但 layout/lint/niche 计算按“存储为 u8”建模。
             CgTy::Bool => TypeLayout::new(1, 1),
             CgTy::Int(int_ty) => {
-                let size = (u64::from(int_ty.bits) + 7) / 8;
+                let size = u64::from(int_ty.bits).div_ceil(8);
                 let align = size.clamp(1, target.pointer_align.max(1));
                 TypeLayout::new(size, align)
             }

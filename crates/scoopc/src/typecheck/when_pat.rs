@@ -193,7 +193,7 @@ fn check_when_pat(
                 .type_params
                 .iter()
                 .cloned()
-                .zip(enum_args.into_iter())
+                .zip(enum_args)
                 .collect();
 
             for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {

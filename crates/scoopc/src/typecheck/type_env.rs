@@ -945,7 +945,7 @@ fn collect_member_access_path(
     }
 }
 
-fn extract_string_literal_text<'a>(source: &'a SourceFile, expr: &ast::Expr) -> Option<String> {
+fn extract_string_literal_text(source: &SourceFile, expr: &ast::Expr) -> Option<String> {
     if !matches!(expr.kind, ast::ExprKind::StringLit) {
         return None;
     }
@@ -1007,13 +1007,11 @@ fn build_import_table_best_effort(
             .to_string();
 
         // 只把确实存在且在当前文件可见的 type symbol 写入 type 命名空间的显式 import 表。
-        if let Some(syms) = index.by_fqn.get(&path) {
-            if let Some(sym) = syms.ty.as_ref() {
-                if is_symbol_visible_from(source, sym) {
+        if let Some(syms) = index.by_fqn.get(&path)
+            && let Some(sym) = syms.ty.as_ref()
+                && is_symbol_visible_from(source, sym) {
                     table.ty.explicit.entry(local).or_default().push(path);
                 }
-            }
-        }
     }
 
     // 稳定化（便于 Debug/测试 & 未来可能的缓存命中）。

@@ -289,11 +289,10 @@ impl TypeStore {
     /// T0130: 在 TypeStore 中查找匹配指定 FQN（无 type args）的 Nominal 引用类型。
     pub fn find_nominal_ref_by_fqn(&self, fqn: &str) -> Option<TypeId> {
         for id in self.iter_ids() {
-            if let TypeKind::Ref(RefTypeKind::Nominal(n)) = self.kind(id) {
-                if n.fqn == fqn && n.args.is_empty() {
+            if let TypeKind::Ref(RefTypeKind::Nominal(n)) = self.kind(id)
+                && n.fqn == fqn && n.args.is_empty() {
                     return Some(id);
                 }
-            }
         }
         None
     }

@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::ast;
-use crate::resolve::{ConeId, Index, Visibility};
+use crate::resolve::{ConeId, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
@@ -17,7 +17,7 @@ use super::util::{fmt_overload_signature, join_overload_signatures};
 
 use super::{ExprTypeError, FunSigOwned};
 
-use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
+use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::EffRowVarSubstPlan;
 use super::super::lower::TypeLowering;
 
@@ -967,8 +967,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             // with the mutable/shared borrow needed by the method lookup below.
             if let Some((receiver_fqn, receiver_args)) =
                 try_extract_nominal_fqn_and_args(lhs_ty, lower)
-            {
-                if matches!(
+                && matches!(
                     lower.nominal_decl_kind(&receiver_fqn),
                     Some(ast::TypeKind::Struct | ast::TypeKind::Class)
                 ) {
@@ -999,7 +998,6 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                         }
                     }
                 }
-            }
             Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                 op: binary_op_text(op).to_string(),
                 expected: "相同的整数类型".to_string(),

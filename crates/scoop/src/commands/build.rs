@@ -246,9 +246,9 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         Some((root.clone(), build_json))
     })();
 
-    if let Some((cone_root, build_json)) = incremental_ctx.clone() {
-        if output.is_file() {
-            if let Some(cached) = incremental::read_cached_fingerprint(&build_json)? {
+    if let Some((cone_root, build_json)) = incremental_ctx.clone()
+        && output.is_file()
+            && let Some(cached) = incremental::read_cached_fingerprint(&build_json)? {
                 let fp = incremental::compute_cone_build_fingerprint(
                     &cone_root,
                     profile.as_str(),
@@ -261,8 +261,6 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                 }
                 computed_fingerprint = Some(fp);
             }
-        }
-    }
 
     let session = scoopc::session::Session::new()?;
 
@@ -440,13 +438,12 @@ fn default_output_path_for_input_and_emit(
     emit: BuildEmit,
     profile: BuildProfile,
 ) -> PathBuf {
-    if emit == BuildEmit::Executable {
-        if let (Some(root), Some(manifest)) =
+    if emit == BuildEmit::Executable
+        && let (Some(root), Some(manifest)) =
             (input.cone_root.as_ref(), input.cone_manifest.as_ref())
         {
             return layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
         }
-    }
     default_output_path_for_emit(emit)
 }
 
@@ -567,8 +564,7 @@ fn run_frontend(
     for dep in deps {
         let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
         next_dep_cone += 1;
-        scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)
-            .map_err(miette::Report::from)?;
+        scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)?;
     }
 
     // T1113：选择“入口包”的 `fun main`，并将其作为 runtime entry point。
@@ -723,11 +719,10 @@ fn find_consumer_package_decl_span(
     }
 
     // fallback：锚点 main 文件的 package（如果存在）。
-    if let Some(anchor) = input.cone_anchor_main_index {
-        if let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref()) {
+    if let Some(anchor) = input.cone_anchor_main_index
+        && let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref()) {
             return pkg.span.into();
         }
-    }
 
     scoopc::span::Span::new(0, 0).into()
 }
@@ -788,17 +783,15 @@ fn select_cone_entry_main(
         return Ok(());
     }
 
-    if let Some(syms) = index.by_fqn.get(&entry_main_fqn) {
-        if let Some(overload) = syms.fun.first() {
-            if overload.symbol.decl_cone != consumer_cone {
+    if let Some(syms) = index.by_fqn.get(&entry_main_fqn)
+        && let Some(overload) = syms.fun.first()
+            && overload.symbol.decl_cone != consumer_cone {
                 return Err(EntryPackageMainNotInConsumerCone {
                     entry_package,
                     decl_file: overload.symbol.decl_file.display().to_string(),
                 }
                 .into());
             }
-        }
-    }
 
     let span = find_consumer_package_decl_span(input, asts, &entry_package);
     Err(EntryPackageMissingMain {
@@ -988,7 +981,6 @@ fn lower_main_hir_for_build(
         .sources
         .iter()
         .zip(front.asts.iter())
-        .map(|(source, ast)| (source, ast))
         .collect::<Vec<_>>();
 
     scoopc::hir::lower_for_compilation_unit_multi_files(
