@@ -1610,6 +1610,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "getByte"
                     | "unsafeSliceBytes"
             ) {
+                let recv_ty = match &receiver.kind {
+                    hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                        .env
+                        .get(*id)
+                        .and_then(|l| l.hir_ty)
+                        .unwrap_or(receiver.ty),
+                    _ => receiver.ty,
+                };
+                if matches!(
+                    self.types.kind(recv_ty),
+                    TypeKind::Value(ValueTypeKind::Char)
+                ) && member.name == "toInt"
+                {
+                    return self.codegen_char_method_to_int(receiver);
+                }
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
             // T1812: Int.toString() / T0114: Bool.toString() — route by codegen receiver type.
@@ -3281,6 +3296,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    /// T0146c1: `Char.toInt()` — zero-extend the runtime `i32` codepoint to `Int`.
+    fn codegen_char_method_to_int(
+        &mut self,
+        receiver: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let char_ty = CgTy::Int(IntTy {
+            bits: 32,
+            signed: false,
+        });
+        let int_ty = CgTy::Int(IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        });
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
+        self.coerce_value(receiver.span, recv, int_ty)
     }
 
     /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
@@ -11263,10 +11295,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::LiteralKind::Bool(v) => Ok(CgValue::bool(
                 self.context.bool_type().const_int(*v as u64, false),
             )),
-            hir::LiteralKind::Char(_value) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "char literal",
-                at: span.into(),
-            }),
+            hir::LiteralKind::Char(value) => Ok(CgValue::int(
+                self.context.i32_type().const_int(*value as u64, false),
+                IntTy {
+                    bits: 32,
+                    signed: false,
+                },
+            )),
             hir::LiteralKind::Int => {
                 let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {

@@ -1,119 +1,83 @@
-# Claude Plan
+# 执行记录与计划
 
-## Constraint Handling
+更新时间：2026-04-10
 
-The request asks for a complete thought process. I will not dump private chain-of-thought, but I will keep this file updated with:
-- the concrete execution plan,
-- key decisions,
-- observed facts,
-- task status,
-- any plan changes during execution.
+## 说明
 
-## Initial Execution Plan
+按要求先记录执行计划，再开始任何检查或实现工作。这里记录的是可公开的高层分析、执行步骤、决策依据和进度，不包含内部私有推理细节。
 
-1. Inspect the latest git commit message and diff summary to determine whether it mentions any known or pre-existing issue that is still unresolved.
-2. Read `TODO.md` and identify the first incomplete task.
-3. Decide whether that task is directly executable or needs decomposition.
-4. If decomposition is needed:
-   - update `PLAN.md` with the refined breakdown,
-   - update `TODO.md` so the first new subtask becomes the active task for this run.
-5. Implement exactly the first incomplete task or first new subtask.
-6. Run the narrowest relevant checks first, then broader validation, aiming to satisfy:
-   - task-specific tests,
-   - `cargo fmt --check` if relevant,
-   - `cargo clippy --all-targets -- -D warnings`,
-   - any additional fixture or integration tests affected by the change.
-7. Fix any failures or regressions found during validation.
-8. Update documentation/state:
-   - mark the task complete in `TODO.md`,
-   - update `PLAN.md`,
-   - refresh this file with progress notes and outcomes.
-9. Commit the changes with a descriptive message tied to the task identifier if available.
-10. Stop after the single task is complete.
+## 初始目标
 
-## Assumptions Before Inspection
+本轮只完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-- The repository may already contain unrelated user changes; I will not revert them.
-- The first incomplete item in `TODO.md` defines scope unless the latest commit surfaces an unresolved pre-existing issue that must be fixed first.
-- If the active task is too large to complete safely in one pass, decomposition is preferred over partial implementation.
+## 初始执行步骤
 
-## Progress Log
+1. 检查最新一次 Git 提交，确认提交说明中是否提到任何已知遗留问题。
+2. 若最新提交提到需要先修复的问题，则优先修复这些问题，并验证。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 阅读 `PLAN.md`，核对该任务的上下文、依赖和预期范围。
+5. 判断该任务是否可以在本轮完整完成。
+6. 如果任务过大，则把任务拆分为更小的可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
+7. 实现该任务，必要时补充或调整测试、文档和注释。
+8. 运行相关校验，至少包括与改动相关的测试；若范围允许，补充运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+9. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或依赖调整。
+10. 用清晰的提交信息提交本轮改动，然后停止。
 
-- Plan file created before running any shell commands, per request.
-- Inspected latest commit: `3b82a26 [T0146a] Add char literal frontend parsing`.
-- Checked full HEAD commit message: only the subject line is present; it does not mention an unresolved pre-existing issue to fix first.
-- Identified first incomplete task in `TODO.md`: `T0146b [TODO] Char 类型语义：type system / HIR / typecheck / comptime`.
-- Began implementation of `T0146b`.
-- Completed first semantic patch batch:
-  - added builtin `Char` type plumbing in `ty/mod.rs`,
-  - added resolver/index builtin fallback for `Char`,
-  - added resolver intrinsic allowance for `Char.toInt()`,
-  - lowered AST Char literals/patterns to concrete HIR `char` payloads,
-  - inferred Char literal type as builtin `Char`,
-  - enabled Char comparison typing and `when` Char pattern type checking,
-  - added comptime `ConstValue::Char` plus `toInt()` folding support,
-  - updated fixture formatting for Char const snapshots.
-- Next step: run compiler/test checks, fix all remaining exhaustive matches / downstream integration points, then add task fixtures.
+## 执行原则
 
-## Active Task
+- 优先修复最新提交明确提到的遗留问题。
+- 一次只推进一个最前面的未完成任务。
+- 若遇到阻塞，不把任务标成 blocked，而是调整任务顺序并记录依赖。
+- 不回退用户已有改动；若发现冲突性未预期修改，先评估影响再决定如何继续。
 
-- Task ID: `T0146b`
-- Summary: add static semantic support for `Char` literals and patterns across builtin type definitions, HIR lowering/data model, type checking, and compile-time evaluation.
+## 进度
 
-## Refined Plan For T0146b
+- [x] 已创建本计划文件。
+- [x] 检查最新提交。
+- [x] 读取 `TODO.md` 与 `PLAN.md`。
+- [x] 确认第一个未完成任务为 `T0146c`，并判断其需要拆分。
+- [x] 更新 `TODO.md` / `PLAN.md`，把 `T0146c` 拆成可单轮完成的子任务。
+- [x] 执行拆分后的第一个子任务 `T0146c1`。
+- [x] 运行验证。
+- [x] 更新文档与任务状态。
+- [ ] 提交改动并停止。
 
-1. Read the detailed `T0146b` entry in `TODO.md` and the corresponding notes in `PLAN.md`.
-2. Inspect current char-related code paths touched by `T0146a`:
-   - syntax/parser/AST output,
-   - HIR types and lowering hooks,
-   - builtin type tables,
-   - expression/type inference,
-   - pattern typing / exhaustiveness,
-   - comptime constant model and evaluator.
-3. Determine whether `T0146b` is small enough to finish directly or whether it needs decomposition. Current expectation: it is implementable in one pass.
-4. Implement `Char` as a real builtin semantic type, not just a parsed literal surface form.
-5. Add or update focused tests:
-   - unit tests where the type/comptime layer is best validated,
-   - fixtures for typecheck / HIR / const evaluation if applicable.
-6. Run validation commands, starting narrow and expanding until confidence is sufficient.
-7. Update `TODO.md`, `PLAN.md`, and this file with completion details.
-8. Commit once the task is complete, then stop.
-## Continuation Plan (2026-04-10)
+## 上下文结论
 
-Current status carried over from the previous run:
-- Latest commit check was already completed. `HEAD` is `3b82a26 [T0146a] Add char literal frontend parsing`, and it did not describe any unresolved pre-existing issue that needed fixing before `TODO.md`.
-- The first undone task remains `T0146b [TODO] Char 类型语义：type system / HIR / typecheck / comptime`.
-- Most implementation work for `T0146b` is already in the tree. The remaining work is to finish verification, fix any fallout, then update planning/task tracking and commit exactly this task.
+- 最新提交为 `[T0146b] Add char static semantics`，提交说明中没有额外点名需先修复的遗留问题。
+- `TODO.md` 中第一个未完成任务是 `T0146c`，范围覆盖 `sysroot / runtime / LLVM codegen / run-pass`，单轮实现与回归面过大，不适合直接整体落地。
 
-Execution plan for this continuation:
-1. Preserve the existing planning log in this file and append progress here as key steps complete.
-2. Fix the likely builtin `TypeId` instability in `crates/scoopc/src/ty/mod.rs` by moving `Char` builtin interning after the previously existing builtin types so unrelated HIR golden snapshots stay stable.
-3. Run focused verification:
-   - `cargo test --all`
-   - if needed, inspect only the failing tests and adjust the implementation or minimal expected outputs
-   - `cargo run -p scoop -- test`
-4. If verification passes closely enough for this task, update:
-   - `TODO.md` to mark `T0146b` done
-   - `PLAN.md` to record completion / any follow-up boundary for `T0146c`
-   - `memory/claude_plan.md` with outcome notes
-5. Review git diff for only task-related changes, then create one commit for this completed task and stop.
+## 拆分决策
 
-Scope boundary reminder:
-- Do not start `T0146c` runtime / codegen support for `Char`.
-- If verification reveals a dependency that blocks `T0146b`, keep the task as TODO, reorder tasks as required, document the reason in `PLAN.md`, commit the reordering, and stop.
+将原 `T0146c` 拆为两个连续子任务：
 
-## Completion Notes (2026-04-10)
+1. `T0146c1`：先补齐 LLVM 标量链路，让 `Char` 作为运行期 `i32` 值类型在单文件 run-pass 中可用。
+   - 范围：`cg_ty_of` / `cg_ty_of_type_fqn` 的 Char 映射、Char 字面量 emission、比较、`when` Char pattern、`Char.toInt()` codegen。
+   - 验收：新增 run-pass fixture，覆盖赋值、转义/Unicode escape、比较、`toInt()`、`when` pattern。
+2. `T0146c2`：再补 sysroot/runtime 文本化与剩余 API。
+   - 范围：`sysroot/core.scoop` 的 `Char` 声明、`toString()` / `hash()`、runtime `scoop_char_to_string`、相关 codegen、多文件与打印回归。
 
-- Adjusted builtin interning order so `Char` is appended after the previously existing builtin value types. This reduced unrelated `TypeId` churn but did not eliminate all snapshot diffs.
-- Found and fixed one real semantic gap during verification: `HIR lower_type_path()` did not yet map `scoop.core.Char` to the builtin `Char` type, so explicit `Char` type references in dump-HIR mode would have lowered as nominal types. Added the builtin mapping.
-- `cargo test --all` then passed after refreshing the affected HIR golden snapshots.
-- `cargo run -p scoop -- test` exposed additional snapshot drift in HIR and MIR fixtures that are not covered by the unit-test-only golden set. Regenerated all `tests/fixtures/hir/*.hir` and `tests/fixtures/mir/*.mir` snapshots from `scoop dump-hir` / `scoop dump-mir`, then reran the fixture driver successfully.
-- Ran `cargo fmt` to satisfy `cargo fmt --check`, then reran `cargo fmt --check`, `cargo test --all`, and `cargo run -p scoop -- test` to confirm the final formatted tree still passes verification.
-- Final verification status:
-  - `cargo test --all`: passed
-  - `cargo run -p scoop -- test`: passed (`fixtures: ok (848)`)
-  - `cargo clippy --workspace --all-targets -- -D warnings`: fails on pre-existing workspace-wide baseline issues, primarily:
-    - many `inkwell` deprecation errors (`ptr_type`, `ptr_sized_int_type_in_context`) in LLVM codegen,
-    - existing `too_many_arguments` and `result_large_err` clippy failures across LLVM/typecheck modules.
-  - I did not observe any new task-specific clippy failure attributable only to `T0146b`.
-- Task status: `T0146b` is complete. Next task remains `T0146c`, which will add runtime/sysroot/LLVM executable support for `Char`.
+本轮执行目标改为：完成 `T0146c1`，然后停止。
+
+## 本轮实现结果
+
+- `crates/scoopc/src/llvm/codegen/ty.rs`
+  - `ValueTypeKind::Char` / `scoop.core.Char` 已映射到 `IntTy { bits: 32, signed: false }`。
+- `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `LiteralKind::Char(char)` 现在直接发射为 LLVM `i32` 常量。
+  - `Char.toInt()` 已接线为 zero-extend 到目标平台 `Int`。
+- `crates/scoopc/src/llvm/codegen/control_flow.rs`
+  - top-level `when (char)` 的 `CharLit` 条件生成已补齐。
+  - tuple element 的 `CharLit` codegen 分支也已补齐。
+- `tests/fixtures/run-pass/char_runtime_scalar_basic.*`
+  - 新增单文件 run-pass 回归，覆盖赋值、转义、Unicode escape、比较、`toInt()`、`when` pattern、返回 `Char` 的函数。
+
+## 验证结果
+
+- `cargo test --all`：通过
+- `cargo run -p scoop -- test`：通过（`fixtures: ok (849)`）
+- `cargo run -p scoop -- build tests/fixtures/run-pass/char_runtime_scalar_basic.scoop -o /tmp/char_runtime_scalar_basic.out`：通过
+- `/tmp/char_runtime_scalar_basic.out`：stdout 与 golden 一致
+- `cargo clippy --workspace --all-targets -- -D warnings`：**未通过**
+  - 原因是仓库既有 baseline：大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`。
+  - 本轮一度引入的 `cg_ty_of` 不可达分支 warning 已清理；当前 clippy 失败项不来自本次 Char 改动。

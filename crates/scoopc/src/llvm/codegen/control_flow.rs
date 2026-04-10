@@ -582,7 +582,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         hir::WhenPat::Else { .. }
                         | hir::WhenPat::Wildcard { .. }
                         | hir::WhenPat::Bind { .. }
-                        | hir::WhenPat::IntLit { .. } => {}
+                        | hir::WhenPat::IntLit { .. }
+                        | hir::WhenPat::CharLit { .. } => {}
                         _ => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
                                 kind: "when pattern (int)",
@@ -612,7 +613,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Bind { .. } => {
                             self.builder.build_unconditional_branch(arm_bbs[idx])?;
                         }
-                        hir::WhenPat::IntLit { .. } => {
+                        hir::WhenPat::IntLit { .. } | hir::WhenPat::CharLit { .. } => {
                             let cond = self.codegen_when_pat_cond_for_int_with_value(
                                 span, int_ty, raw, &arm.pat,
                             )?;
@@ -1511,6 +1512,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_int_eq",
                 )?)
             }
+            hir::WhenPat::CharLit {
+                value: expected, ..
+            } => {
+                let expected = self.int_type(int_ty).const_int(*expected as u64, false);
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    expected,
+                    "when_char_eq",
+                )?)
+            }
             hir::WhenPat::Or { pats, .. } => {
                 let mut cond = self.context.bool_type().const_int(0, false);
                 for p in pats {
@@ -1698,6 +1710,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     raw,
                     expected,
                     "when_tuple_int_eq",
+                )?)
+            }
+            hir::WhenPat::CharLit { value, .. } => {
+                let CgTy::Int(int_ty) = elem_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem char pattern type",
+                        at: pat.span().into(),
+                    });
+                };
+                let raw = self
+                    .builder
+                    .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
+                    .into_int_value();
+                let expected = self.int_type(int_ty).const_int(*value as u64, false);
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    raw,
+                    expected,
+                    "when_tuple_char_eq",
                 )?)
             }
             hir::WhenPat::Tuple { elements, .. } => {

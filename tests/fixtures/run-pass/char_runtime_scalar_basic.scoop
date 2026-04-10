@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: char_runtime_scalar_basic.stdout
+//
+// T0146c1: Char should lower as a runtime i32 scalar in LLVM.
+
+import scoop.core.*
+
+fun classify(c: Char): Int {
+    return when (c) {
+        'A' -> 1
+        '\n' -> 2
+        '\u4E2D' -> 3
+        else -> 0
+    }
+}
+
+fun choose(flag: Bool): Char {
+    if (flag) {
+        return 'Z'
+    }
+    return '\''
+}
+
+fun main() {
+    val ascii: Char = 'A'
+    val newline: Char = '\n'
+    val unicode: Char = '\u4E2D'
+    val quote: Char = '\''
+    val zed: Char = choose(true)
+
+    println(ascii.toInt())
+    println(newline.toInt())
+    println(unicode.toInt())
+    println(quote.toInt())
+
+    println((ascii == 'A').toString())
+    println((ascii != newline).toString())
+    println((ascii < 'B').toString())
+    println((unicode > 'z').toString())
+
+    println(classify(ascii))
+    println(classify(newline))
+    println(classify(unicode))
+    println(classify('Z'))
+
+    println(zed.toInt())
+}

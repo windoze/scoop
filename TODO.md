@@ -1083,20 +1083,49 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
 - 依赖：T0146a
 
-### T0146c [TODO] Char 端到端：sysroot / runtime / LLVM codegen / run-pass
+### T0146c Char 端到端：拆分说明
 
-- 描述：在静态语义到位后补齐运行时与后端，使 `Char` 成为可打印、可哈希、可在运行期比较与分支的内建值类型。
+- 描述：原 `T0146c` 同时覆盖 `sysroot / runtime / LLVM codegen / run-pass / 多文件`，实现与回归面过大。为保证每轮都能“实现 + 验收 + 提交”，拆分为 `T0146c1 ~ T0146c2` 顺序落地。
+- 最终目标保持不变：让 `Char` 成为可运行、可比较、可文本化、可哈希、可在多文件 run-pass 中使用的内建值类型。
+
+### T0146c1 [DONE] Char LLVM 标量落地：literal / compare / when / `toInt()` / 单文件 run-pass
+
+- 描述：先补齐后端“把 Char 当作运行期 `i32` 标量值”的最小闭环，不引入新的 runtime API。
 - 目标：
-  - `sysroot/core.scoop`：新增 `struct Char`，补齐 `toInt()` / `toString()` / `hash()`。
-  - `runtime/c/scoop_runtime.c`：新增 `scoop_char_to_string(i32 codepoint)`。
-  - `llvm/codegen/`：补齐 `CgTy::Char`、Char literal emission、比较、方法 dispatch 与 `when` pattern codegen。
-  - 多文件 / run-pass 场景下 Char 字面量与 Char API 端到端工作。
+  - `llvm/codegen/ty.rs`：让 `scoop.core.Char` 与 `ValueTypeKind::Char` 落到稳定的 32-bit 标量表示（与 layout 对齐）。
+  - `llvm/codegen/mod.rs`：补齐 Char literal emission，使函数参数、局部变量、返回值、比较表达式与 `Char.toInt()` 在运行期可工作。
+  - `llvm/codegen/control_flow.rs`：补齐 top-level `when` 与 tuple element 中的 Char pattern 条件生成。
+  - 保持打印路径简单：本子任务的 run-pass 通过 `toInt()` 观察 Char 值，不要求先实现 `Char.toString()`。
 - 验收：
-  - 新增 run-pass fixtures：赋值打印、转义、Unicode escape、比较、`toInt()`、`when` pattern、多文件。
-  - 现有 run-pass fixtures 全部通过。
+  - 新增 run-pass fixture，覆盖赋值、转义、Unicode escape、比较、`toInt()`、`when` pattern。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0146a、T0146b
+- 完成记录：
+  - **LLVM 标量表示**：`crates/scoopc/src/llvm/codegen/ty.rs` 现在把 `ValueTypeKind::Char` 与 `scoop.core.Char` 统一映射为 `CgTy::Int(IntTy { bits: 32, signed: false })`，与既有 layout 的 4-byte Char 表示保持一致，同时最大化复用现有整数 codegen 管线。
+  - **Char literal emission**：`crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_literal(...)` 现在直接把 HIR `LiteralKind::Char(char)` 发射为 LLVM `i32` 常量。
+  - **`Char.toInt()` runtime lowering**：member access codegen 现在会识别 `Char.toInt()`，把运行期 `i32` codepoint zero-extend 为目标平台的 `Int`（当前 host 上为 `i64`）。
+  - **比较 / 控制流**：由于 Char 已落到无符号 `i32` 标量，既有整数比较路径现在可直接承载 `Char ==/!=/</<=/>/>=`；`crates/scoopc/src/llvm/codegen/control_flow.rs` 也补齐了 top-level `when (char)` 的 `CharLit` 条件生成，并同步补了 tuple element 的 Char pattern codegen 分支。
+  - **run-pass 回归**：新增 `tests/fixtures/run-pass/char_runtime_scalar_basic.scoop` + `.stdout`，覆盖赋值、转义、Unicode escape、比较、`toInt()`、`when` pattern 与函数返回 `Char` 的路径。
+  - **验证**：
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (849)`）
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞：主要是大面积 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`；本任务引入的 `cg_ty_of` 不可达分支 warning 已在收尾时清理
+
+### T0146c2 [TODO] Char sysroot / runtime API：`struct Char`、`toString()`、`hash()`、多文件回归
+
+- 描述：在 `T0146c1` 的标量链路稳定后，补齐声明面与文本化 API，使 `Char` 能直接参与 `print/println`、泛型 `ToString`、多文件使用与哈希。
+- 目标：
+  - `sysroot/core.scoop`：新增 `struct Char : Hashable, ToString`，补齐 `toInt()` / `toString()` / `hash()` 声明。
+  - `runtime/c/scoop_runtime.c`：新增 `scoop_char_to_string(i32 codepoint)`。
+  - `llvm/codegen/`：补齐 `Char.toString()` / `Char.hash()` 与 where-bound `ToString` 拦截。
+  - 多文件 / run-pass 场景下 Char 字面量与 Char API 端到端工作。
+- 验收：
+  - 新增 run-pass fixtures：直接打印 Char、`toString()`、`hash()`、多文件。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0146c1
 
 ### T0147 [TODO] Float 类型系统与 sysroot 基础
 

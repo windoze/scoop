@@ -46,6 +46,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
+            TypeKind::Value(ValueTypeKind::Char) => Some(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
@@ -109,7 +113,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
                 None
             }
-            _ => None,
         }
     }
 
@@ -233,6 +236,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.Bool" => Ok(CgTy::Bool),
             "scoop.core.Any" => Ok(CgTy::Ref),
             "scoop.core.String" => Ok(CgTy::String),
+            "scoop.core.Char" => Ok(CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            })),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
