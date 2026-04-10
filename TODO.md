@@ -1536,7 +1536,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all`
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0148c [TODO] Float 字面量 LLVM codegen：literal emission、算术/比较/转换、run-pass
+### T0148c [DONE] Float 字面量 LLVM codegen：literal emission、算术/比较/转换、run-pass
 
 - 描述：在静态语义完成后，补齐 LLVM 后端，使 Float 字面量与基础运算可真正执行。
 - 目标：
@@ -1548,6 +1548,27 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0148b
+- 完成说明：
+  - **LLVM 表达式 lowering**（`crates/scoopc/src/llvm/codegen/mod.rs`）：
+    - 一元负号支持 `Float64/Float32`；
+    - 二元 `+ - * / %` 支持同类型 Float；
+    - 比较 `< <= > >=` 使用有序浮点比较；
+    - 相等性 `== !=` 支持 Float，其中 `!=` 使用 unordered-or-not-equal 语义，正确处理 NaN；
+    - `coerce_value` 支持 `Float64 <-> Float32`，打通“无后缀 Float 字面量吸收到 `Float32`”的后端收窄路径；
+    - 顶层 Float 常量初始化支持字面量与一元负号。
+  - **Float builtin 路由修正**：
+    - `scoop.core.abs/isNaN/isInfinite` 的 codegen 顶层扩展拦截改为基于真实 `CgTy` 判定，避免局部 `VarRef` 的不稳定 `expr.ty` 误导分发；
+    - resolver 对 Float builtin API 的“保留为内建 member call”规则补齐短名 `Float64/Float32`，与 typecheck 保持一致。
+  - **新增验证**：
+    - LLVM 单测：`float_literals_lower_to_arithmetic_comparisons_and_narrowing`
+    - run-pass fixture：`tests/fixtures/run-pass/float_literal_runtime_basic.scoop` + `.stdout`
+      - 覆盖基础算术、比较、科学计数法、`Float32` absorption、`toInt`、`toString`、`abs`、`isNaN`、`isInfinite`
+  - **验证结果**：
+    - `cargo test -p scoopc float_literals_lower_to_arithmetic_comparisons_and_narrowing -- --nocapture`
+    - `cargo test -p scoopc float_builtin_methods_lower_to_runtime_calls_and_hash_bits -- --nocapture`
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (855)`）
 
 ### T0148d [TODO] Float 字面量收尾：comptime、多文件、剩余转换与审计
 

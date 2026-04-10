@@ -1717,7 +1717,10 @@ impl<'a> BlockScopeChecker<'a> {
 
         // T0147c: Float builtin API 需要保留为内建 member call，
         // 不能先被 extension fun 路径改写为顶层调用，否则会与 stdlib `abs(Int)` 的同名 FQN 混淆。
-        if receiver_ty_fqn == "scoop.core.Float64" || receiver_ty_fqn == "scoop.core.Float32" {
+        if matches!(
+            receiver_ty_fqn,
+            "scoop.core.Float64" | "Float64" | "scoop.core.Float32" | "Float32"
+        ) {
             let is_known_float_method = member_name == "toInt"
                 || member_name == "toString"
                 || member_name == "hash"

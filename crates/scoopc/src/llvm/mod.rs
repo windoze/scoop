@@ -1642,6 +1642,79 @@ fun main() {
     }
 
     #[test]
+    fn float_literals_lower_to_arithmetic_comparisons_and_narrowing() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+val topWide: Float64 = 1.25
+val topNarrow: Float32 = 1.5
+
+fun main() {
+    val wideBase: Float64 = 1.25
+    val narrowBase: Float32 = 1.5
+    val wideSum: Float64 = wideBase + 2.75
+    val narrowSum: Float32 = narrowBase + 0.5f
+    val narrowRem: Float32 = narrowSum % 1.5f
+    val absorbed: Float32 = 1.5
+    val negWide: Float64 = -wideBase
+    val lt: Bool = wideSum < 10.0
+    val eq: Bool = narrowBase == 1.5
+    val ne: Bool = narrowBase != 2.5
+    val text: String = 1.25e2.toString()
+    val whole: Int = 3.75.toInt()
+}
+"#,
+        );
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("fadd double"),
+            "Float64 arithmetic should lower via LLVM floating-point add"
+        );
+        assert!(
+            ir.contains("fadd float"),
+            "Float32 arithmetic should lower via LLVM floating-point add"
+        );
+        assert!(
+            ir.contains("frem float"),
+            "Float32 remainder should lower via LLVM floating-point remainder"
+        );
+        assert!(
+            ir.contains("store float 1.500000e+00, ptr %absorbed"),
+            "Unsuffixed Float literals in Float32 contexts should lower as LLVM float constants"
+        );
+        assert!(
+            ir.contains("fcmp olt double"),
+            "Float comparisons should use ordered LLVM floating-point predicates"
+        );
+        assert!(
+            ir.contains("fcmp oeq float"),
+            "Float equality should use ordered equality for NaN-sensitive semantics"
+        );
+        assert!(
+            ir.contains("fcmp une float"),
+            "Float inequality should treat NaN as not-equal"
+        );
+        assert!(
+            ir.contains("fneg double"),
+            "Unary Float negation should lower to LLVM floating-point negation"
+        );
+        assert!(
+            ir.contains("@scoop_float64_to_string("),
+            "Float literal member calls should reuse Float.toString runtime lowering"
+        );
+        assert!(
+            ir.contains("@scoop_float64_to_int("),
+            "Float literal member calls should reuse Float.toInt runtime lowering"
+        );
+    }
+
+    #[test]
     fn lowered_hir_codegen_accepts_multi_file_source_map() {
         let session = Session::new().unwrap();
 

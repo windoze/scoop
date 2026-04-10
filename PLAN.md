@@ -414,8 +414,13 @@ cargo run -p scoop --features llvm -- test
   - helper 会透传普通 block / `unsafe` block / `safe` block 的尾表达式，避免 `if (cond) { 1.5 } else { ... }` 在 `Float32` 期望类型下误报。
   - 新增 `tests/fixtures/typecheck/float_literal_static_semantics_ok.scoop`，集中回归默认 `Float64`、`Float32` 后缀、Float32 absorption、struct/class/array/if/default-param/return/assignment/with-update/比较/一元负号。
   - 验证：`cargo test -p scoopc float -- --nocapture`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过（fixtures `ok (854)`）。
-- 待做：`T0148c`（LLVM codegen）
-  - literal emission 以外的浮点算术/比较/转换、run-pass fixtures。
+- DONE（T0148c）：Float 字面量 LLVM codegen
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已补齐 Float LLVM 执行链路：一元负号、`+ - * / %`、`< <= > >=`、`== !=`、`Float64 <-> Float32` coercion，以及顶层 Float 常量初始化（字面量/一元负号）。
+  - `==` 使用 ordered-equal，`!=` 使用 unordered-or-not-equal，确保 NaN 语义正确。
+  - `scoop.core.abs/isNaN/isInfinite` 的 codegen 顶层扩展拦截已改为依赖真实 `CgTy`，避免局部 `VarRef` 的不稳定 `expr.ty` 导致误分发。
+  - resolver 对 Float builtin API 的“保留为内建 member call”规则已同时接受 `Float64/Float32` 的短名与全名，避免误改写到扩展函数路径。
+  - 新增 LLVM 单测 `float_literals_lower_to_arithmetic_comparisons_and_narrowing`，锁住 `fadd/frem/fcmp/fneg` 等关键 IR 形态；新增 run-pass fixture `float_literal_runtime_basic` 覆盖基础算术、比较、科学计数法、Float32 absorption 与 builtin 方法。
+  - 验证：`cargo test -p scoopc float_literals_lower_to_arithmetic_comparisons_and_narrowing -- --nocapture`、`cargo test -p scoopc float_builtin_methods_lower_to_runtime_calls_and_hash_bits -- --nocapture`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings`、`cargo test --all`、`cargo run -p scoop -- test` 通过（fixtures `ok (855)`）。
 - 待做：`T0148d`（收尾）
   - comptime、多文件与剩余边角语义审计。
 

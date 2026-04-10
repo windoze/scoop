@@ -1,0 +1,54 @@
+// 目标：T0148c Float 字面量 LLVM codegen —— 基础算术、比较、科学计数法、Float32 absorption 与 builtin 方法。
+
+import scoop.core.*
+
+fun main() {
+    val topWide: Float64 = 1.25
+    val topNarrow: Float32 = 1.5
+    val topNeg: Float32 = -0.5f
+    val wideSum: Float64 = topWide + 2.75
+    val narrowSum: Float32 = topNarrow + 0.5f
+    val narrowMul: Float32 = 1.5 * 2.0f
+    val narrowRem: Float32 = narrowSum % 1.5f
+    val negWide: Float64 = -topWide
+    val negNarrow: Float32 = -topNeg
+    val negAbsInput: Float32 = -2.5f
+    val gtCheck: Bool = wideSum > 3.0
+    val eqCheck: Bool = topNarrow == 1.5
+    val neCheck: Bool = topNarrow != 2.5
+    val sciCmp: Bool = 1.25e2 < 2.0e2
+    val nanValue: Float64 = 0.0 / 0.0
+    val infValue: Float64 = 1.0 / 0.0
+    val whole: Int = 3.75.toInt()
+    val absOut: Float32 = negAbsInput.abs()
+    val sciText: String = 1.25e2.toString()
+    val topWideText: String = topWide.toString()
+    val topNarrowText: String = topNarrow.toString()
+    val topNegText: String = topNeg.toString()
+    val wideSumText: String = wideSum.toString()
+    val narrowSumText: String = narrowSum.toString()
+    val narrowMulText: String = narrowMul.toString()
+    val narrowRemText: String = narrowRem.toString()
+    val negWideText: String = negWide.toString()
+    val negNarrowText: String = negNarrow.toString()
+    val absText: String = absOut.toString()
+
+    println(topWideText)
+    println(topNarrowText)
+    println(topNegText)
+    println(wideSumText)
+    println(narrowSumText)
+    println(narrowMulText)
+    println(narrowRemText)
+    println(sciText)
+    println(negWideText)
+    println(negNarrowText)
+    println(gtCheck)
+    println(eqCheck)
+    println(neCheck)
+    println(sciCmp)
+    println(nanValue.isNaN())
+    println(infValue.isInfinite())
+    println(whole)
+    println(absText)
+}

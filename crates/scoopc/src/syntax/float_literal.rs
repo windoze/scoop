@@ -20,9 +20,11 @@ pub enum FloatLiteralSuffix {
 pub fn parse_float_literal(text: &str) -> ParsedFloatLiteral {
     let (body, suffix) = split_float_suffix(text);
     let normalized: String = body.chars().filter(|&ch| ch != '_').collect();
-    let value = normalized
-        .parse::<f64>()
-        .expect("lexer validated Float literal before parse_float_literal");
+    let value = normalized.parse::<f64>().unwrap_or_else(|err| {
+        panic!(
+            "lexer validated Float literal before parse_float_literal: text={text:?}, normalized={normalized:?}, err={err:?}"
+        )
+    });
     ParsedFloatLiteral { value, suffix }
 }
 

@@ -617,12 +617,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let value = mask_to_bits(bits, int_ty.bits) as u64;
                 self.int_type(int_ty).const_int(value, false).into()
             }
-            CgTy::Float64 | CgTy::Float32 => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
+            CgTy::Float64 | CgTy::Float32 => self.const_eval_float_expr(init, cg_ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
                     kind: "top-level var initializer (float const)",
                     at: init.span.into(),
-                });
-            }
+                },
+            )?,
             // 早期阶段：仅支持"静态全零初始化"；更复杂的值类型常量构造留给后续任务补齐。
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -637,6 +637,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
         })
+    }
+
+    fn const_eval_float_expr(
+        &self,
+        expr: &hir::Expr,
+        target_ty: CgTy,
+    ) -> Option<BasicValueEnum<'ctx>> {
+        let value = self.const_eval_float_expr_value(expr)?;
+        match target_ty {
+            CgTy::Float64 => Some(self.context.f64_type().const_float(value).into()),
+            CgTy::Float32 => Some(
+                self.context
+                    .f32_type()
+                    .const_float(f64::from(value as f32))
+                    .into(),
+            ),
+            _ => None,
+        }
+    }
+
+    fn const_eval_float_expr_value(&self, expr: &hir::Expr) -> Option<f64> {
+        match &expr.kind {
+            hir::ExprKind::Literal(hir::LiteralKind::Float64(value)) => Some(*value),
+            hir::ExprKind::Literal(hir::LiteralKind::Float32(value)) => Some(f64::from(*value)),
+            hir::ExprKind::Unary {
+                op: ast::UnaryOp::Neg,
+                expr: inner,
+                ..
+            } => Some(-self.const_eval_float_expr_value(inner)?),
+            _ => None,
+        }
     }
 
     fn const_eval_int_expr_bits(&self, expr: &hir::Expr, int_ty: IntTy) -> Option<u128> {
@@ -1342,8 +1373,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
                         if matches!(
-                            self.types.kind(expr.ty),
-                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                            self.resolve_expr_cg_ty(expr),
+                            Some(CgTy::Float64 | CgTy::Float32)
                         )
                 )
             {
@@ -1354,8 +1385,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
                         if matches!(
-                            self.types.kind(expr.ty),
-                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                            self.resolve_expr_cg_ty(expr),
+                            Some(CgTy::Float64 | CgTy::Float32)
                         )
                 )
             {
@@ -1366,8 +1397,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args.first(),
                     Some(hir::CallArg::Positional(expr))
                         if matches!(
-                            self.types.kind(expr.ty),
-                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                            self.resolve_expr_cg_ty(expr),
+                            Some(CgTy::Float64 | CgTy::Float32)
                         )
                 )
             {
@@ -13171,14 +13202,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::bool(out))
             }
             ast::UnaryOp::Neg => {
-                let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
+                let value = self.codegen_expr(expr)?;
+                match value.ty {
+                    CgTy::Int(ty) => {
+                        let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "unary - operand",
+                            at: span.into(),
+                        })?;
+                        let out = self.builder.build_int_neg(v, "neg")?;
+                        Ok(CgValue::int(out, ty))
+                    }
+                    CgTy::Float64 | CgTy::Float32 => {
+                        let (v, ty) =
+                            value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "unary - operand",
+                                at: span.into(),
+                            })?;
+                        let out = self.builder.build_float_neg(v, "fneg")?;
+                        Ok(CgValue::float(out, ty))
+                    }
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "unary - operand",
                         at: span.into(),
-                    },
-                )?;
-                let out = self.builder.build_int_neg(v, "neg")?;
-                Ok(CgValue::int(out, ty))
+                    }),
+                }
             }
             ast::UnaryOp::BitNot => {
                 let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(
@@ -13224,6 +13271,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         // Fall back to HIR expression type.
         self.cg_ty_of(expr.ty)
+    }
+
+    fn expr_uses_float_codegen(&self, expr: &hir::Expr) -> bool {
+        matches!(
+            self.resolve_expr_cg_ty(expr),
+            Some(CgTy::Float64 | CgTy::Float32)
+        ) || matches!(
+            expr.kind,
+            hir::ExprKind::Literal(hir::LiteralKind::Float64(_))
+                | hir::ExprKind::Literal(hir::LiteralKind::Float32(_))
+        )
+    }
+
+    fn is_unsuffixed_float64_literal(expr: &hir::Expr) -> bool {
+        matches!(
+            expr.kind,
+            hir::ExprKind::Literal(hir::LiteralKind::Float64(_))
+        )
+    }
+
+    fn unify_float_cg_types(
+        &self,
+        lhs: &hir::Expr,
+        lhs_ty: CgTy,
+        rhs: &hir::Expr,
+        rhs_ty: CgTy,
+    ) -> Option<CgTy> {
+        match (lhs_ty, rhs_ty) {
+            (CgTy::Float64, CgTy::Float64) => Some(CgTy::Float64),
+            (CgTy::Float32, CgTy::Float32) => Some(CgTy::Float32),
+            (CgTy::Float64, CgTy::Float32) if Self::is_unsuffixed_float64_literal(lhs) => {
+                Some(CgTy::Float32)
+            }
+            (CgTy::Float32, CgTy::Float64) if Self::is_unsuffixed_float64_literal(rhs) => {
+                Some(CgTy::Float32)
+            }
+            _ => None,
+        }
     }
 
     fn try_codegen_operator_overload(
@@ -13399,10 +13484,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | ast::BinaryOp::Sub
             | ast::BinaryOp::Mul
             | ast::BinaryOp::Div
-            | ast::BinaryOp::Rem
-            | ast::BinaryOp::BitAnd
-            | ast::BinaryOp::BitXor
-            | ast::BinaryOp::BitOr => {
+            | ast::BinaryOp::Rem => {
+                // T0111: try operator overload dispatch for user-defined types first.
+                if let Some(result) = self.try_codegen_operator_overload(span, op, lhs, rhs)? {
+                    return Ok(result);
+                }
+                if self.expr_uses_float_codegen(lhs) || self.expr_uses_float_codegen(rhs) {
+                    return self.codegen_float_binary_same_type(span, op, lhs, rhs);
+                }
+                self.codegen_int_binary_same_type(span, op, lhs, rhs)
+            }
+            ast::BinaryOp::BitAnd | ast::BinaryOp::BitXor | ast::BinaryOp::BitOr => {
                 // T0111: try operator overload dispatch for user-defined types first.
                 if let Some(result) = self.try_codegen_operator_overload(span, op, lhs, rhs)? {
                     return Ok(result);
@@ -13421,6 +13513,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // T0111: try compareTo overload for user-defined types first.
                 if let Some(result) = self.try_codegen_compare_to_overload(span, op, lhs, rhs)? {
                     return Ok(result);
+                }
+                if self.expr_uses_float_codegen(lhs) || self.expr_uses_float_codegen(rhs) {
+                    return self.codegen_float_compare(span, op, lhs, rhs);
                 }
                 self.codegen_int_compare(span, op, lhs, rhs)
             }
@@ -14119,6 +14214,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(phi.as_basic_value().into_int_value())
     }
 
+    fn codegen_float_binary_same_type(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::BinaryOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (l_raw, l_ty) =
+            self.codegen_expr(lhs)?
+                .as_float()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float binary op lhs",
+                    at: span.into(),
+                })?;
+        let (r_raw, r_ty) =
+            self.codegen_expr(rhs)?
+                .as_float()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float binary op rhs",
+                    at: span.into(),
+                })?;
+
+        let out_ty = self.unify_float_cg_types(lhs, l_ty, rhs, r_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "float binary op type",
+                at: span.into(),
+            },
+        )?;
+
+        let l = self.cast_float(l_raw, l_ty, out_ty)?;
+        let r = self.cast_float(r_raw, r_ty, out_ty)?;
+
+        let out = match op {
+            ast::BinaryOp::Add => self.builder.build_float_add(l, r, "fadd")?,
+            ast::BinaryOp::Sub => self.builder.build_float_sub(l, r, "fsub")?,
+            ast::BinaryOp::Mul => self.builder.build_float_mul(l, r, "fmul")?,
+            ast::BinaryOp::Div => self.builder.build_float_div(l, r, "fdiv")?,
+            ast::BinaryOp::Rem => self.builder.build_float_rem(l, r, "frem")?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float binary op",
+                    at: span.into(),
+                });
+            }
+        };
+
+        Ok(CgValue::float(out, out_ty))
+    }
+
     fn codegen_int_binary_same_type(
         &mut self,
         span: crate::span::Span,
@@ -14305,6 +14449,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ))
     }
 
+    fn codegen_float_compare(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::BinaryOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (l_raw, l_ty) =
+            self.codegen_expr(lhs)?
+                .as_float()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float comparison lhs",
+                    at: span.into(),
+                })?;
+        let (r_raw, r_ty) =
+            self.codegen_expr(rhs)?
+                .as_float()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float comparison rhs",
+                    at: span.into(),
+                })?;
+
+        let float_ty = self.unify_float_cg_types(lhs, l_ty, rhs, r_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "float comparison operand type",
+                at: span.into(),
+            },
+        )?;
+
+        let l = self.cast_float(l_raw, l_ty, float_ty)?;
+        let r = self.cast_float(r_raw, r_ty, float_ty)?;
+
+        let pred = match op {
+            ast::BinaryOp::Lt => FloatPredicate::OLT,
+            ast::BinaryOp::Le => FloatPredicate::OLE,
+            ast::BinaryOp::Gt => FloatPredicate::OGT,
+            ast::BinaryOp::Ge => FloatPredicate::OGE,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float comparison operator",
+                    at: span.into(),
+                });
+            }
+        };
+
+        Ok(CgValue::bool(
+            self.builder.build_float_compare(pred, l, r, "fcmp")?,
+        ))
+    }
+
     fn codegen_equality(
         &mut self,
         span: crate::span::Span,
@@ -14388,6 +14582,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => unreachable!("filtered by caller"),
             };
             return Ok(CgValue::bool(result));
+        }
+
+        if let (Some((l_raw, l_ty)), Some((r_raw, r_ty))) = (lhs_v.as_float(), rhs_v.as_float()) {
+            let float_ty = self.unify_float_cg_types(lhs, l_ty, rhs, r_ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "equality float operand type",
+                    at: span.into(),
+                },
+            )?;
+            let l = self.cast_float(l_raw, l_ty, float_ty)?;
+            let r = self.cast_float(r_raw, r_ty, float_ty)?;
+            let pred = match op {
+                ast::BinaryOp::Eq => FloatPredicate::OEQ,
+                ast::BinaryOp::Ne => FloatPredicate::UNE,
+                _ => unreachable!("filtered by caller"),
+            };
+            return Ok(CgValue::bool(
+                self.builder.build_float_compare(pred, l, r, "fcmp_eq")?,
+            ));
         }
 
         // Int == Int（含 int literal 吸收）
@@ -14515,6 +14728,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             (CgTy::Float64, CgTy::Float64) | (CgTy::Float32, CgTy::Float32) => Ok(value),
+            (CgTy::Float64, CgTy::Float32) | (CgTy::Float32, CgTy::Float64) => {
+                let (v, from) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "float value",
+                    at: at.into(),
+                })?;
+                let out = self.cast_float(v, from, target)?;
+                Ok(CgValue::float(out, target))
+            }
             (CgTy::Int(from), CgTy::Int(to)) => {
                 let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "int value",
@@ -14708,6 +14929,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         } else {
             Ok(self.builder.build_int_truncate(value, to_ty, "trunc")?)
+        }
+    }
+
+    fn cast_float(
+        &mut self,
+        value: FloatValue<'ctx>,
+        from: CgTy,
+        to: CgTy,
+    ) -> Result<FloatValue<'ctx>, LlvmEmitError> {
+        match (from, to) {
+            (CgTy::Float64, CgTy::Float64) | (CgTy::Float32, CgTy::Float32) => Ok(value),
+            (CgTy::Float32, CgTy::Float64) => {
+                Ok(self
+                    .builder
+                    .build_float_ext(value, self.context.f64_type(), "fpext")?)
+            }
+            (CgTy::Float64, CgTy::Float32) => {
+                Ok(self
+                    .builder
+                    .build_float_trunc(value, self.context.f32_type(), "fptrunc")?)
+            }
+            _ => unreachable!("cast_float only accepts Float64/Float32"),
         }
     }
 
