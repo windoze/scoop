@@ -1213,6 +1213,58 @@ cargo run -p scoop --features llvm -- test
     - 额外验证 `target/debug/scoop test` 通过（`fixtures: ok (852)`），确认 fixture runner 可稳定执行
     - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞，主要是大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`；未观察到本任务新增的 task-specific clippy 失败
 
+### T0147c-1 [DONE] Clippy 基线清理：LLVM opaque pointer API 去弃用（`ptr_type` / `ptr_sized_int_type_in_context`）
+
+- 描述：最新提交已明确记录 `cargo clippy --workspace --all-targets -- -D warnings` 被大量 `inkwell` deprecated API 阻塞；当前复核结果显示仅 `ptr_type` / `ptr_sized_int_type_in_context` 一类就覆盖 LLVM codegen/runtime ABI/测试路径的大量调用点。由于这些调用点与 Float 后续任务共用同一批后端基础设施，需要先清理掉该类 warning，才能恢复严格 lint gate 并降低后续任务噪声。
+- 目标：
+  - 将 `crates/scoopc/src/llvm/**` 中所有已废弃的 `*.ptr_type(...)` 调用迁移为 LLVM 21 / inkwell 0.8 推荐的 opaque pointer API（优先统一走 `Context::ptr_type(...)`，避免继续依赖 pointee-typed pointer）。
+  - 将 `TargetData::ptr_sized_int_type_in_context(...)` 迁移到 `Context::ptr_sized_int_type(...)`。
+  - 保持现有 address space 语义不变，尤其是 GC addrspace 与默认 addrspace 的区分。
+  - 不引入新的 codegen / runtime ABI 行为变化；IR 形态允许在 opaque pointer 语义下发生等价变化。
+- 验收：
+  - `cargo clippy --workspace --all-targets -- -D warnings` 不再出现 `ptr_type` / `ptr_sized_int_type_in_context` 类错误。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147b
+- 完成记录：
+  - **opaque pointer helper 收口**：`crates/scoopc/src/llvm/codegen/gc.rs` 新增 `llvm_ptr_type(...)` 与 `llvm_ptr_sized_int_type(...)`，并让 `llvm_i8_ptr_type()` / `llvm_gc_i8_ptr_type()` 统一基于 `Context::ptr_type(...)` 构造 native / GC addrspace 指针类型。
+  - **LLVM codegen 全面迁移**：`crates/scoopc/src/llvm/codegen/mod.rs`、`effect.rs`、`gc.rs`、`layout.rs`、`control_flow.rs`、`runtime_abi.rs` 以及 `crates/scoopc/src/llvm/mod.rs` 中所有旧的 `*.ptr_type(...)` / `ptr_sized_int_type_in_context(...)` 调用，已迁移为 LLVM 21 / inkwell 0.8 的 opaque pointer 新接口。
+  - **语义保持**：GC addrspace 仍显式区分 `addrspace(1)` 与默认 `addrspace(0)`；函数指针、结构体指针、`void**` / `void***` 等位置现在都统一落为 opaque pointer，但保留原有 address space 与 cast/load/store 行为。
+  - **顺手清理新引入 warning**：迁移后去掉了若干不再需要的 typed function pointer / pointer type 临时变量，避免本子任务额外引入 `unused_variables`。
+  - **clippy 复核结论**：`cargo clippy --workspace --all-targets -- -D warnings` 已不再出现 `deprecated method`、`ptr_type`、`ptr_sized_int_type_in_context` 相关错误；当前剩余失败属于后续子任务范围（`too_many_arguments`、`result_large_err`、`private_interfaces`、`dead_code`）。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo check -p scoopc --features llvm` 通过
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍失败，但已确认不再包含 `ptr_type` / `ptr_sized_int_type_in_context` 类错误
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+
+### T0147c-2 [TODO] Clippy 基线清理：收缩超长 helper 参数列表（`too_many_arguments`）
+
+- 描述：在 deprecated API 清理后，严格 clippy gate 的下一批主要失败是 LLVM/typecheck 中的长参数函数。需要通过聚合上下文对象或局部参数结构，把高频 helper 的职责边界显式化，同时消除 `too_many_arguments`。
+- 目标：
+  - 优先清理当前 clippy 输出中的 LLVM codegen 与 typecheck 路径告警函数。
+  - 通过参数对象、局部上下文 struct 或就近封装减少签名长度，而不是直接加 `#[allow(clippy::too_many_arguments)]`。
+  - 保持行为、诊断文本与 fixture 输出稳定。
+- 验收：
+  - `cargo clippy --workspace --all-targets -- -D warnings` 不再出现 `too_many_arguments`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-1
+
+### T0147c-3 [TODO] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
+
+- 描述：在 pointer API 与长参数问题收敛后，剩余主要噪声是 `result_large_err`，外加少量 `unused_variables` / `private_interfaces` / `dead_code`。需要通过收缩错误载体或调整可见性/未使用代码，恢复严格 lint gate。
+- 目标：
+  - 清理当前 clippy 输出中的 `result_large_err`，优先处理 `typecheck::properties`、`typecheck::val_pat`、`typecheck::when_*` 等热点路径。
+  - 清理剩余零散 warning，不依赖 blanket `allow`。
+  - 完成后恢复 `cargo clippy --workspace --all-targets -- -D warnings` 全量通过。
+- 验收：
+  - `cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-2
+
 ### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
 
 - 描述：在类型与 LLVM 标量基础稳定后，补齐 Float 的最小公开 API 表面：sysroot 方法声明、resolver/typecheck builtin 路由、runtime C 符号，以及 codegen dispatch。
@@ -1236,7 +1288,7 @@ cargo run -p scoop --features llvm -- test
   - LLVM 后端对相关 builtin 方法的分发路径完整，不因 Float 接口调用而 panic。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T0147a、T0147b
+- 依赖：T0147a、T0147b、T0147c-1、T0147c-2、T0147c-3
 
 ### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
 

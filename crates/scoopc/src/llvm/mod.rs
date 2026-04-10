@@ -768,8 +768,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
     }
 
     let i32_type = context.i32_type();
-    let i8_ptr_ty = context.i8_type().ptr_type(inkwell::AddressSpace::default());
-    let i8_ptr_ptr_ty = i8_ptr_ty.ptr_type(inkwell::AddressSpace::default());
+    let i8_ptr_ptr_ty = context.ptr_type(inkwell::AddressSpace::default());
     let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
     let main = module.add_function("main", fn_type, None);

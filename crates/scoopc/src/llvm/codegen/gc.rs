@@ -750,14 +750,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         AddressSpace::from(GC_ADDRSPACE)
     }
 
+    pub(super) fn llvm_ptr_type(&self, address_space: AddressSpace) -> PointerType<'ctx> {
+        self.context.ptr_type(address_space)
+    }
+
+    pub(super) fn llvm_ptr_sized_int_type(
+        &self,
+        address_space: Option<AddressSpace>,
+    ) -> IntType<'ctx> {
+        self.context
+            .ptr_sized_int_type(self.target_data, address_space)
+    }
+
     /// LLVM addrspace(0)：native/unsafe 指针（C ABI / malloc buffer 等）。
     pub(super) fn llvm_i8_ptr_type(&self) -> PointerType<'ctx> {
-        self.context.i8_type().ptr_type(AddressSpace::default())
+        self.llvm_ptr_type(AddressSpace::default())
     }
 
     /// LLVM addrspace(1)：GC-managed 引用指针（Any/class/interface/closure/...）。
     pub(super) fn llvm_gc_i8_ptr_type(&self) -> PointerType<'ctx> {
-        self.context.i8_type().ptr_type(self.gc_address_space())
+        self.llvm_ptr_type(self.gc_address_space())
     }
 
     pub(super) fn llvm_scoop_string_type(&self) -> StructType<'ctx> {
@@ -772,14 +784,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ty = self.context.opaque_struct_type(TY_NAME);
         let header_ty = self.llvm_gc_object_header_type();
         let len_ty = self.context.i64_type();
-        let data_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let data_ty = self.llvm_i8_ptr_type();
         ty.set_body(&[header_ty.into(), len_ty.into(), data_ty.into()], false);
         ty
     }
 
     pub(super) fn llvm_scoop_string_ptr_type(&self) -> inkwell::types::PointerType<'ctx> {
-        self.llvm_scoop_string_type()
-            .ptr_type(self.gc_address_space())
+        self.llvm_ptr_type(self.gc_address_space())
     }
 
     pub(super) fn llvm_gc_object_header_type(&self) -> StructType<'ctx> {
@@ -795,7 +806,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `typedef struct { void* next; void* type_desc; uint64_t size_bytes; uint32_t flags; uint32_t mark; } ScoopGcObjectHeader;`
         let ty = self.context.opaque_struct_type(TY_NAME);
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let i32_ty = self.context.i32_type();
         ty.set_body(
@@ -826,10 +837,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let u64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+        let u64_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
 
         // self-referential：parent_type_desc 指向同一 struct 类型。
-        let desc_ptr_ty = ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
 
         // 字段顺序必须与 C 定义一致（见 `runtime/c/scoop_gc.h`）。
         ty.set_body(
@@ -992,12 +1003,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let desc_ty = self.llvm_scoop_type_descriptor_type();
-        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
 
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let u64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+        let u64_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
 
         let size_bytes = self.target_data.get_store_size(&obj_ty);
         let align_bytes = self.target_layout().pointer_align.max(1);
@@ -1423,7 +1434,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let ty = self.context.opaque_struct_type(TY_NAME);
         let header_ty = self.llvm_gc_object_header_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         ty.set_body(
             &[header_ty.into(), gc_i8_ptr_ty.into(), i8_ptr_ty.into()],

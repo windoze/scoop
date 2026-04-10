@@ -1698,7 +1698,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（Appendix A.4）。
             let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_i8_ptr_type();
             let frame_i8 = self.builder.build_bit_cast(
                 handler_frame_ptr,
                 i8_ptr_ty,
@@ -1716,7 +1716,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 进入 handler arm：pop handler frame（Appendix A.4：arm body 在自身 handler scope 外执行）。
         let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 =
             self.builder
                 .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_custom_frame_i8")?;
@@ -1920,7 +1920,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(dispatch_no_match_bb);
         {
             let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_i8_ptr_type();
             let frame_i8 = self.builder.build_bit_cast(
                 handler_frame_ptr,
                 i8_ptr_ty,
@@ -2161,7 +2161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //
         // T1608：使用统一的 op_tag 分配（按 FQN 精确匹配）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 = self.builder.build_bit_cast(
             handler_frame_ptr,
             i8_ptr_ty,
@@ -2275,7 +2275,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Appendix A.4：arm body 在自身 handler 的 dispatch scope 外执行（避免 self-capture）。
         let rt_set_active = self.declare_runtime_effect_handler_stack_set_active();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 = self.builder.build_bit_cast(
             handler_frame_ptr,
             i8_ptr_ty,
@@ -2350,7 +2350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 恢复 handler 为 active：后续 resumed computation（dispatch/state1）应处于该 handler 的动态 scope 下。
         let rt_set_active = self.declare_runtime_effect_handler_stack_set_active();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 = self.builder.build_bit_cast(
             handler_frame_ptr,
             i8_ptr_ty,
@@ -2433,7 +2433,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // handle 结束：pop handler frame（动态上下文）。
         let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 = self.builder.build_bit_cast(
             handler_frame_ptr,
             i8_ptr_ty,
@@ -3331,7 +3331,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into_pointer_value();
-            let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
+            let state_ptr_ty = cg.llvm_ptr_type(cg.gc_address_space());
             let state_ptr =
                 cg.builder
                     .build_pointer_cast(state_raw, state_ptr_ty, "cont_step_state_ptr")?;
@@ -3734,7 +3734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 t.set_body(&[header_ty.into(), payload_llvm_ty], false);
                                 t
                             };
-                        let box_ptr_ty = box_ty.ptr_type(cg.gc_address_space());
+                        let box_ptr_ty = cg.llvm_ptr_type(cg.gc_address_space());
                         let box_ptr = cg.builder.build_pointer_cast(
                             resume_gc_ref,
                             box_ptr_ty,
@@ -6610,7 +6610,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(pin, &[state_raw.into()], "cont_state_pin")?;
 
-        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
+        let state_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
@@ -7381,7 +7381,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into_pointer_value();
-            let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
+            let state_ptr_ty = cg.llvm_ptr_type(cg.gc_address_space());
             let state_ptr =
                 cg.builder
                     .build_pointer_cast(state_raw, state_ptr_ty, "step_state_ptr")?;
@@ -7586,7 +7586,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let callee_rw_i64_ptr = cg.builder.build_pointer_cast(
                 callee_rw_gep,
-                i64_ty.ptr_type(AddressSpace::default()),
+                self.llvm_ptr_type(AddressSpace::default()),
                 "callee_rw_i64_ptr",
             )?;
             let _ = cg.builder.build_store(callee_rw_i64_ptr, resume_word)?;
@@ -7797,7 +7797,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(pin, &[state_raw.into()], "cont_state_pin")?;
 
-        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
+        let state_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
@@ -8664,7 +8664,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T1607：获取 continuation 结构体类型，GEP 到 resume_word / resume_gc_ref 槽位。
         let cont_ty = self.llvm_continuation_struct_type();
-        let cont_ptr_ty = cont_ty.ptr_type(self.gc_address_space());
+        let cont_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let cont_ptr =
             self.builder
                 .build_pointer_cast(k_ptr, cont_ptr_ty, "cont_resume_k_typed")?;
@@ -8870,7 +8870,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 // 存入 payload
-                let box_ptr_ty = box_ty.ptr_type(self.gc_address_space());
+                let box_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
                 let box_typed =
                     self.builder
                         .build_pointer_cast(box_gc_ptr, box_ptr_ty, "resume_box_typed")?;

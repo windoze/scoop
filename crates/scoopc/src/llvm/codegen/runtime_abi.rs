@@ -548,10 +548,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void scoop_sync_once_run(void* once_obj, void* env_ptr, void (*fn)(void* env_ptr))`
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let env_ptr_ty = self.llvm_i8_ptr_type();
-        let init_fn_ty = self
-            .context
-            .void_type()
-            .fn_type(&[env_ptr_ty.into()], false);
         let init_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] = [
             gc_i8_ptr_ty.into(),
@@ -573,7 +569,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_thread_spawn(void* env_ptr, void (*fn)(void* env_ptr))`
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let start_fn_ty = self.context.void_type().fn_type(&[i8_ptr_ty.into()], false);
         let start_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [i8_ptr_ty.into(), start_fn_ptr_ty.into()];
@@ -667,7 +662,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ptr_ty.into()];
@@ -762,7 +756,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `uint64_t scoop_task_u64_create(uint64_t (*body_fn)(void*), void* body_ctx)`
         let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i64_ty = self.context.i64_type();
-        let body_fn_ty = i64_ty.fn_type(&[i8_ptr_ty.into()], false);
         let body_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [body_fn_ptr_ty.into(), i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
@@ -1096,7 +1089,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_enter_native(void*** root_slots, uint32_t root_slots_len)`
-        let slot_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let slots_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [slots_ptr_ty.into(), i32_ty.into()];
@@ -1396,17 +1388,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void*, uint64_t, void*))`
         // resume_gc_ref 在 LLVM 侧声明为 addrspace(1)，使 statepoint rewrite 能追踪/relocate。
         let state_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let step_fn_ty = self
-            .context
-            .void_type()
-            .fn_type(
-                &[state_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
-                false,
-            )
-            .ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [state_ptr_ty.into(), step_fn_ty.into()];
+        let step_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [state_ptr_ty.into(), step_fn_ptr_ty.into()];
         let fn_ty = state_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1453,7 +1437,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let header_ty = self.llvm_gc_object_header_type();
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         // resume_gc_ref 使用 native ptr（与 C 的 void* 对齐）；
         // 因为 GC tracing 由 continuation 的 custom trace_fn 负责而不是 bitmap。
         ty.set_body(

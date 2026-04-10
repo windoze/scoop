@@ -899,7 +899,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.llvm_enum_boxed_payload_object_type(at, enum_ty, &variant)?;
                     let payload_obj_ptr = self.builder.build_pointer_cast(
                         payload_ptr,
-                        payload_obj_ty.ptr_type(self.gc_address_space()),
+                        self.llvm_ptr_type(self.gc_address_space()),
                         "when_payload_obj_ptr",
                     )?;
                     let payload_gep = self.builder.build_struct_gep(

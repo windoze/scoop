@@ -894,7 +894,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0
         // to avoid creating a GC root the statepoint pass can't track).
         let _i8_ptr_ty = self.llvm_i8_ptr_type();
-        let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+        let state_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "callee_state_typed")?;
@@ -1996,7 +1996,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let obj_ptr_ty = obj_ty.ptr_type(self.gc_address_space());
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
@@ -2012,9 +2012,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .builder
                 .build_bit_cast(payload_ptr, i8_ptr_ty, "class_payload_i8")?
                 .into_pointer_value();
-            let size_ty = self
-                .target_data
-                .ptr_sized_int_type_in_context(self.context, None);
+            let size_ty = self.llvm_ptr_sized_int_type(None);
             let size_v = size_ty.const_int(payload_size_bytes, false);
             let zero = self.context.i8_type().const_int(0, false);
             let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
@@ -3019,13 +3017,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let data_ptr = self
                     .builder
-                    .build_load(
-                        self.context
-                            .i8_type()
-                            .ptr_type(inkwell::AddressSpace::default()),
-                        data_ptr_ptr,
-                        "get_byte_data",
-                    )?
+                    .build_load(self.llvm_i8_ptr_type(), data_ptr_ptr, "get_byte_data")?
                     .into_pointer_value();
 
                 // Bounds check: index < 0 || index >= len → return 0
@@ -3970,7 +3962,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let i64_ty = self.context.i64_type();
         let i8_ty = self.context.i8_type();
-        let i8_ptr_ty = i8_ty.ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
 
         // 1) 先把整数格式化到栈上的临时 buffer（native addrspace(0)），得到实际字节长度。
         //
@@ -5265,7 +5257,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
+        let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "once_block_ptr")?;
@@ -5287,8 +5279,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(i8_ptr_ty, fn_gep, "once_fn_raw")?
             .into_pointer_value();
 
-        let init_fn_ty = self.context.void_type().fn_type(&[i8_ptr_ty.into()], false);
-        let init_fn_ptr_ty = init_fn_ty.ptr_type(AddressSpace::default());
+        let init_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let init_fn_ptr =
             self.builder
                 .build_pointer_cast(fn_ptr_raw, init_fn_ptr_ty, "once_fn_typed")?;
@@ -5432,7 +5423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
+        let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "thread_block_ptr")?;
@@ -5454,8 +5445,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(i8_ptr_ty, fn_gep, "thread_fn_raw")?
             .into_pointer_value();
 
-        let start_fn_ty = self.context.void_type().fn_type(&[i8_ptr_ty.into()], false);
-        let start_fn_ptr_ty = start_fn_ty.ptr_type(AddressSpace::default());
+        let start_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let start_fn_ptr =
             self.builder
                 .build_pointer_cast(fn_ptr_raw, start_fn_ptr_ty, "thread_fn_typed")?;
@@ -6410,7 +6400,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
+        let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "task_block_ptr")?;
@@ -6433,8 +6423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
 
         // `uint64_t (*)(void*)`（LLVM: `i64 (i8*)`）
-        let body_fn_ty = self.context.i64_type().fn_type(&[i8_ptr_ty.into()], false);
-        let body_fn_ptr_ty = body_fn_ty.ptr_type(AddressSpace::default());
+        let body_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let body_fn_ptr =
             self.builder
                 .build_pointer_cast(fn_ptr_raw, body_fn_ptr_ty, "task_body_fn_typed")?;
@@ -6487,9 +6476,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let body_fn_ty = self.context.i64_type().fn_type(&[i8_ptr_ty.into()], false);
-        let body_fn_ptr_ty = body_fn_ty.ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let body_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
 
         let rt = self.declare_runtime_task_u64_create();
         let call = self.builder.build_call(
@@ -8456,9 +8444,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let slot_ptr_ty = gc_i8_ptr_ty.ptr_type(AddressSpace::default()); // `void**`
-        let slots_ptr_ty = slot_ptr_ty.ptr_type(AddressSpace::default()); // `void***`
+        let slot_ptr_ty = self.llvm_ptr_type(AddressSpace::default()); // `void**`
+        let slots_ptr_ty = self.llvm_ptr_type(AddressSpace::default()); // `void***`
         let i32_ty = self.context.i32_type();
 
         // 收集当前作用域内的 roots slots：使用局部变量自身的 alloca 槽位（而不是 shadow stack slot），
@@ -8677,7 +8664,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_i8 = self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?;
         let typed_fn_ptr = self.builder.build_pointer_cast(
             fn_i8,
-            llvm_fun_ty.ptr_type(AddressSpace::default()),
+            self.llvm_ptr_type(AddressSpace::default()),
             "vtable_fn_typed",
         )?;
 
@@ -8923,7 +8910,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let typed_fn_ptr = self.builder.build_pointer_cast(
             fn_i8,
-            llvm_fun_ty.ptr_type(AddressSpace::default()),
+            self.llvm_ptr_type(AddressSpace::default()),
             "itable_fn_typed",
         )?;
 
@@ -8963,7 +8950,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // receiver 指向对象头起始地址：先把它 cast 为 `ScoopGcObjectHeader*`。
         let header_ty = self.llvm_gc_object_header_type();
-        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let header_ptr =
             self.builder
                 .build_pointer_cast(receiver, header_ptr_ty, "vtable_hdr_ptr")?;
@@ -8979,7 +8966,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // type_desc.vtable : i8*
         let desc_ty = self.llvm_scoop_type_descriptor_type();
-        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let desc_ptr = self
             .builder
             .build_pointer_cast(type_desc_i8, desc_ptr_ty, "type_desc")?;
@@ -8992,7 +8979,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
 
         // vtable[slot] : i8*（函数指针）
-        let vtable_entries_ptr_ty = i8_ptr_ty.ptr_type(AddressSpace::default());
+        let vtable_entries_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let vtable_entries =
             self.builder
                 .build_pointer_cast(vtable_i8, vtable_entries_ptr_ty, "vtable_entries")?;
@@ -9054,7 +9041,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // receiver 指向对象头起始地址：先把它 cast 为 `ScoopGcObjectHeader*`。
         let header_ty = self.llvm_gc_object_header_type();
-        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let header_ptr =
             self.builder
                 .build_pointer_cast(receiver, header_ptr_ty, "itable_hdr_ptr")?;
@@ -9070,7 +9057,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // type_desc.itable : i8*
         let desc_ty = self.llvm_scoop_type_descriptor_type();
-        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let desc_ptr = self
             .builder
             .build_pointer_cast(type_desc_i8, desc_ptr_ty, "type_desc")?;
@@ -9111,7 +9098,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // lookup -> 扫描 entries 查找 interface_id。
         self.builder.position_at_end(lookup_bb);
         let itable_ty = self.llvm_scoop_itable_type();
-        let itable_ptr_ty = itable_ty.ptr_type(AddressSpace::default());
+        let itable_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let itable_ptr = self
             .builder
             .build_pointer_cast(itable_i8, itable_ptr_ty, "itable_ptr")?;
@@ -9128,7 +9115,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entries_field_ptr =
             self.builder
                 .build_struct_gep(itable_ty, itable_ptr, 2, "itable_entries_gep")?;
-        let entry_ptr_ty = entry_ty.ptr_type(AddressSpace::default());
+        let entry_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let entries_base =
             self.builder
                 .build_pointer_cast(entries_field_ptr, entry_ptr_ty, "itable_entries")?;
@@ -9228,7 +9215,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_unconditional_branch(slot_done_bb)?;
 
         self.builder.position_at_end(slot_ok_bb);
-        let methods_ptr_ty = i8_ptr_ty.ptr_type(AddressSpace::default());
+        let methods_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let methods_entries = self.builder.build_pointer_cast(
             methods_i8,
             methods_ptr_ty,
@@ -9310,7 +9297,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 当前阶段我们把 `scoop.unsafe.FunPtr<F>` 视为 "opaque native function address"；
         // - `fp(args...)` 会在 codegen 阶段执行 `inttoptr` 并生成 indirect call；
         // - v0 阶段仅支持 C ABI（callconv 0）。
-        let fun_ptr_ty = llvm_fun_ty.ptr_type(AddressSpace::default());
+        let fun_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let casted_addr = if funptr_int_ty.bits == self.host.word_bit_width() {
             funptr_addr
         } else {
@@ -9416,7 +9403,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
 
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
+        let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(closure_obj_i8, closure_ptr_ty, "closure_obj_ptr")?;
@@ -9474,7 +9461,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let typed_fn_ptr = self.builder.build_pointer_cast(
             fn_ptr_raw,
-            llvm_fun_ty.ptr_type(AddressSpace::default()),
+            self.llvm_ptr_type(AddressSpace::default()),
             "closure_fn_typed",
         )?;
 
@@ -9709,7 +9696,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let obj_ptr_ty = closure_obj_ty.ptr_type(self.gc_address_space());
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let obj_ptr = self
             .builder
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
@@ -9790,7 +9777,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let env_ptr_ty = env_ty.ptr_type(self.gc_address_space());
+            let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
@@ -9951,7 +9938,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .into_pointer_value();
 
             let env_ty = self.llvm_closure_env_type(closure.span, closure.id, capture_bindings)?;
-            let env_ptr_ty = env_ty.ptr_type(self.gc_address_space());
+            let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
@@ -10254,7 +10241,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0).
         let _i8_ptr_ty = self.llvm_i8_ptr_type();
-        let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+        let state_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "callee_state_typed")?;
@@ -10681,7 +10668,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let payload_obj_ptr_ty = payload_obj_ty.ptr_type(self.gc_address_space());
+            let payload_obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let payload_obj_ptr = self.builder.build_pointer_cast(
                 raw_ptr,
                 payload_obj_ptr_ty,
@@ -11241,7 +11228,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* malloc(size_t size)`：这里用 `i64` 作为 size（host 64-bit 场景；32-bit 下会被 truncate）。
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let size_ty = self.context.i64_type();
         let fn_ty = i8_ptr_ty.fn_type(&[size_ty.into()], false);
         self.module.add_function("malloc", fn_ty, None)
@@ -11446,12 +11433,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 空串：保持 `data = NULL`（与 runtime 侧空串约定一致）。
         if bytes.is_empty() {
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_i8_ptr_type();
             let _ = self.builder.build_store(data_ptr, i8_ptr_ty.const_null())?;
         } else {
             // 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
             let data_gv = self.get_or_create_global_bytes(span, bytes);
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_i8_ptr_type();
             let data_i8_ptr = self.builder.build_pointer_cast(
                 data_gv.as_pointer_value(),
                 i8_ptr_ty,
@@ -11488,7 +11475,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let i64_ty = self.context.i64_type();
         let i8_ty = self.context.i8_type();
-        let i8_ptr_ty = i8_ty.ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let scoop_str_ty = self.llvm_scoop_string_type();
 
         // 1) 先做一遍：收集所有片段的 (ptr, len)，并计算总长度（运行期）。
@@ -13341,7 +13328,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 读取 `header.type_desc`（i8*）。
         let header_ty = self.llvm_gc_object_header_type();
-        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let header_ptr = self
             .builder
             .build_pointer_cast(obj, header_ptr_ty, "isa_hdr_ptr")?;
@@ -13406,7 +13393,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // advance：cur = cur.parent
         self.builder.position_at_end(advance_bb);
         let desc_ty = self.llvm_scoop_type_descriptor_type();
-        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let cur_desc = self
             .builder
             .build_pointer_cast(cur_i8, desc_ptr_ty, "isa_desc")?;
@@ -13452,7 +13439,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // obj 指向对象头起始地址：先把它 cast 为 `ScoopGcObjectHeader*`。
         let header_ty = self.llvm_gc_object_header_type();
-        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let header_ptr =
             self.builder
                 .build_pointer_cast(obj, header_ptr_ty, "isa_iface_hdr_ptr")?;
@@ -13468,7 +13455,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // type_desc.itable : i8*
         let desc_ty = self.llvm_scoop_type_descriptor_type();
-        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let desc_ptr =
             self.builder
                 .build_pointer_cast(type_desc_i8, desc_ptr_ty, "isa_iface_type_desc")?;
@@ -13516,7 +13503,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // lookup：扫描 entries[idx].interface_id
         self.builder.position_at_end(lookup_bb);
         let itable_ty = self.llvm_scoop_itable_type();
-        let itable_ptr_ty = itable_ty.ptr_type(AddressSpace::default());
+        let itable_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let itable_ptr =
             self.builder
                 .build_pointer_cast(itable_i8, itable_ptr_ty, "isa_iface_itable_ptr")?;
@@ -13533,7 +13520,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entries_field_ptr =
             self.builder
                 .build_struct_gep(itable_ty, itable_ptr, 2, "isa_iface_entries_gep")?;
-        let entry_ptr_ty = entry_ty.ptr_type(AddressSpace::default());
+        let entry_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let entries_base = self.builder.build_pointer_cast(
             entries_field_ptr,
             entry_ptr_ty,
@@ -14172,7 +14159,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 写入 payload（对象头由 runtime 初始化）。
         let boxed_ty = self.llvm_boxed_int_type(value_ty);
-        let boxed_ptr_ty = boxed_ty.ptr_type(self.gc_address_space());
+        let boxed_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let boxed_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;

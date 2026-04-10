@@ -255,7 +255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let obj_ty = self.llvm_class_object_type(at, class)?;
-        let obj_ptr_ty = obj_ty.ptr_type(self.gc_address_space());
+        let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
