@@ -223,6 +223,12 @@ pub enum PropertyDeclError {
     },
 }
 
+type PropertyDeclResult<T> = Result<T, Box<PropertyDeclError>>;
+
+fn property_decl_err(error: PropertyDeclError) -> Box<PropertyDeclError> {
+    Box::new(error)
+}
+
 /// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
 /// - class（§10.1）
 /// - value type：struct/enum（§10.2）
@@ -231,7 +237,7 @@ pub fn check_file_properties(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
@@ -256,7 +262,7 @@ fn check_type_decl_properties(
     prefix: &str,
     index: &Index,
     env: &TypeEnv,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let local_name = source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
         local_name.to_string()
@@ -349,7 +355,7 @@ fn check_one_class_property(
     value_types: &HashMap<Span, &ast::TypeRef>,
     index: &Index,
     env: &TypeEnv,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let property = source.slice(p.name.span).to_string();
 
     if let Some(delegate) = &p.delegate {
@@ -369,12 +375,14 @@ fn check_one_class_property(
                 property_ty_ref.and_then(|t| type_ref_to_fqn_in_file(source, file, index, t));
 
             if !type_has_method_named(index, env, &delegate_ty, "getValue") {
-                return Err(PropertyDeclError::DelegatedPropertyMissingGetValue {
-                    class_fqn: class_fqn.to_string(),
-                    property,
-                    delegate_ty,
-                    span: delegate.span.into(),
-                });
+                return Err(property_decl_err(
+                    PropertyDeclError::DelegatedPropertyMissingGetValue {
+                        class_fqn: class_fqn.to_string(),
+                        property,
+                        delegate_ty,
+                        span: delegate.span.into(),
+                    },
+                ));
             }
 
             let signature_check = DelegatedPropertySignatureCheck {
@@ -388,12 +396,14 @@ fn check_one_class_property(
 
             if matches!(p.kind, ast::ValKind::Var) {
                 if !type_has_method_named(index, env, &delegate_ty, "setValue") {
-                    return Err(PropertyDeclError::DelegatedPropertyMissingSetValue {
-                        class_fqn: class_fqn.to_string(),
-                        property,
-                        delegate_ty,
-                        span: delegate.span.into(),
-                    });
+                    return Err(property_decl_err(
+                        PropertyDeclError::DelegatedPropertyMissingSetValue {
+                            class_fqn: class_fqn.to_string(),
+                            property,
+                            delegate_ty,
+                            span: delegate.span.into(),
+                        },
+                    ));
                 }
 
                 check_delegated_property_set_value_signature(index, env, signature_check)?;
@@ -405,11 +415,13 @@ fn check_one_class_property(
     if matches!(p.kind, ast::ValKind::Val)
         && let Some(setter) = &p.setter
     {
-        return Err(PropertyDeclError::ValPropertySetterNotAllowed {
-            class_fqn: class_fqn.to_string(),
-            property,
-            span: setter.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ValPropertySetterNotAllowed {
+                class_fqn: class_fqn.to_string(),
+                property,
+                span: setter.span.into(),
+            },
+        ));
     }
 
     // backing field 判定（当前阶段的最小实现）：
@@ -429,11 +441,13 @@ fn check_one_class_property(
         if let Some(span) = field_use_span_in_accessor(source, decl_span, p.getter.as_ref())
             .or_else(|| field_use_span_in_accessor(source, decl_span, p.setter.as_ref()))
         {
-            return Err(PropertyDeclError::FieldUsedWithoutBackingField {
-                class_fqn: class_fqn.to_string(),
-                property,
-                span: span.into(),
-            });
+            return Err(property_decl_err(
+                PropertyDeclError::FieldUsedWithoutBackingField {
+                    class_fqn: class_fqn.to_string(),
+                    property,
+                    span: span.into(),
+                },
+            ));
         }
     }
 
@@ -474,7 +488,7 @@ fn check_std_delegates_platform_policy(
     property: &str,
     delegate: &ast::Expr,
     env: &TypeEnv,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     // T1326c：delegated properties 的跨平台 policy。
     //
     // 早期阶段的最小落点：
@@ -504,7 +518,7 @@ fn check_std_delegates_platform_policy(
             // 任何未知/非 None 的模式都保守视为“不支持”。
             let requires_mutex = mode.map(|m| m.requires_mutex()).unwrap_or(true);
             if requires_mutex {
-                return Err(
+                return Err(property_decl_err(
                     PropertyDeclError::LazyThreadSafetyModeNotSupportedOnPlatform {
                         platform,
                         class_fqn: class_fqn.to_string(),
@@ -512,11 +526,11 @@ fn check_std_delegates_platform_policy(
                         mode: mode_text,
                         span: span.into(),
                     },
-                );
+                ));
             }
         }
         ParsedStdDelegateCall::Observable { span } => {
-            return Err(
+            return Err(property_decl_err(
                 PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
                     platform,
                     class_fqn: class_fqn.to_string(),
@@ -524,10 +538,10 @@ fn check_std_delegates_platform_policy(
                     delegate: "scoop.delegates.observable".to_string(),
                     span: span.into(),
                 },
-            );
+            ));
         }
         ParsedStdDelegateCall::Vetoable { span } => {
-            return Err(
+            return Err(property_decl_err(
                 PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
                     platform,
                     class_fqn: class_fqn.to_string(),
@@ -535,7 +549,7 @@ fn check_std_delegates_platform_policy(
                     delegate: "scoop.delegates.vetoable".to_string(),
                     span: span.into(),
                 },
-            );
+            ));
         }
     }
 
@@ -546,34 +560,40 @@ fn check_one_value_type_property(
     source: &SourceFile,
     type_fqn: &str,
     p: &ast::PropertyDecl,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let property = source.slice(p.name.span).to_string();
 
     // 委托属性仅允许出现在 class（spec §10.4）。
     if p.delegate.is_some() {
-        return Err(PropertyDeclError::DelegatedPropertyNotAllowedInValueType {
-            type_fqn: type_fqn.to_string(),
-            property,
-            span: p.name.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::DelegatedPropertyNotAllowedInValueType {
+                type_fqn: type_fqn.to_string(),
+                property,
+                span: p.name.span.into(),
+            },
+        ));
     }
 
     // 值类型不可变：属性不允许 `var`（即使语法上能解析）。
     if matches!(p.kind, ast::ValKind::Var) {
-        return Err(PropertyDeclError::ValueTypePropertyMustBeVal {
-            type_fqn: type_fqn.to_string(),
-            property,
-            span: p.name.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ValueTypePropertyMustBeVal {
+                type_fqn: type_fqn.to_string(),
+                property,
+                span: p.name.span.into(),
+            },
+        ));
     }
 
     // 值类型 computed property：只允许 getter-only（setter 禁止）。
     if let Some(setter) = &p.setter {
-        return Err(PropertyDeclError::ValPropertySetterNotAllowed {
-            class_fqn: type_fqn.to_string(),
-            property,
-            span: setter.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ValPropertySetterNotAllowed {
+                class_fqn: type_fqn.to_string(),
+                property,
+                span: setter.span.into(),
+            },
+        ));
     }
 
     // 仅当声明了 accessor（当前只可能是 getter）时，视为 computed property：
@@ -581,11 +601,13 @@ fn check_one_value_type_property(
     if p.getter.is_some()
         && let Some(init) = &p.init
     {
-        return Err(PropertyDeclError::ValueTypePropertyInitializerNotAllowed {
-            type_fqn: type_fqn.to_string(),
-            property,
-            span: init.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ValueTypePropertyInitializerNotAllowed {
+                type_fqn: type_fqn.to_string(),
+                property,
+                span: init.span.into(),
+            },
+        ));
     }
 
     Ok(())
@@ -594,7 +616,7 @@ fn check_one_value_type_property(
 fn check_one_extension_property(
     source: &SourceFile,
     p: &ast::ExtensionPropertyDecl,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let receiver = source.slice(p.receiver.span()).to_string();
     let property = source.slice(p.name.span).to_string();
 
@@ -602,36 +624,44 @@ fn check_one_extension_property(
     if matches!(p.kind, ast::ValKind::Val)
         && let Some(setter) = &p.setter
     {
-        return Err(PropertyDeclError::ExtensionValPropertySetterNotAllowed {
-            receiver,
-            property,
-            span: setter.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ExtensionValPropertySetterNotAllowed {
+                receiver,
+                property,
+                span: setter.span.into(),
+            },
+        ));
     }
 
     // extension property 不允许 initializer（不生成 backing field）。
     if let Some(init) = &p.init {
-        return Err(PropertyDeclError::ExtensionPropertyInitializerNotAllowed {
-            receiver,
-            property,
-            span: init.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ExtensionPropertyInitializerNotAllowed {
+                receiver,
+                property,
+                span: init.span.into(),
+            },
+        ));
     }
 
     // 必须 computed：extension property 的 default getter/setter 需要 backing field，因此不允许省略。
     if p.getter.is_none() {
-        return Err(PropertyDeclError::ExtensionPropertyGetterRequired {
-            receiver,
-            property,
-            span: p.name.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ExtensionPropertyGetterRequired {
+                receiver,
+                property,
+                span: p.name.span.into(),
+            },
+        ));
     }
     if matches!(p.kind, ast::ValKind::Var) && p.setter.is_none() {
-        return Err(PropertyDeclError::ExtensionPropertySetterRequired {
-            receiver,
-            property,
-            span: p.name.span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ExtensionPropertySetterRequired {
+                receiver,
+                property,
+                span: p.name.span.into(),
+            },
+        ));
     }
 
     // 无 backing field：禁止引用 `field`。
@@ -641,11 +671,13 @@ fn check_one_extension_property(
             || field_use_span_in_accessor(source, backing_field_decl_span, p.setter.as_ref()),
         )
     {
-        return Err(PropertyDeclError::ExtensionPropertyFieldNotAllowed {
-            receiver,
-            property,
-            span: span.into(),
-        });
+        return Err(property_decl_err(
+            PropertyDeclError::ExtensionPropertyFieldNotAllowed {
+                receiver,
+                property,
+                span: span.into(),
+            },
+        ));
     }
 
     Ok(())
@@ -1129,7 +1161,7 @@ fn check_delegated_property_get_value_signature(
     index: &Index,
     env: &TypeEnv,
     check: DelegatedPropertySignatureCheck<'_>,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let DelegatedPropertySignatureCheck {
         class_fqn,
         property,
@@ -1152,7 +1184,7 @@ fn check_delegated_property_get_value_signature(
         }
     }
 
-    Err(
+    Err(property_decl_err(
         PropertyDeclError::DelegatedPropertyGetValueSignatureMismatch {
             class_fqn: class_fqn.to_string(),
             property: property.to_string(),
@@ -1163,14 +1195,14 @@ fn check_delegated_property_get_value_signature(
             found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
             span: use_span.into(),
         },
-    )
+    ))
 }
 
 fn check_delegated_property_set_value_signature(
     index: &Index,
     env: &TypeEnv,
     check: DelegatedPropertySignatureCheck<'_>,
-) -> Result<(), PropertyDeclError> {
+) -> PropertyDeclResult<()> {
     let DelegatedPropertySignatureCheck {
         class_fqn,
         property,
@@ -1192,7 +1224,7 @@ fn check_delegated_property_set_value_signature(
         }
     }
 
-    Err(
+    Err(property_decl_err(
         PropertyDeclError::DelegatedPropertySetValueSignatureMismatch {
             class_fqn: class_fqn.to_string(),
             property: property.to_string(),
@@ -1203,7 +1235,7 @@ fn check_delegated_property_set_value_signature(
             found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
             span: use_span.into(),
         },
-    )
+    ))
 }
 
 fn delegated_get_value_overload_matches(

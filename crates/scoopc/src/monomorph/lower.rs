@@ -84,6 +84,66 @@ pub enum MonomorphLowerError {
     },
 }
 
+type MonomorphLowerResult<T> = Result<T, Box<MonomorphLowerError>>;
+
+fn monomorph_lower_err(error: MonomorphLowerError) -> Box<MonomorphLowerError> {
+    Box::new(error)
+}
+
+impl From<ParseError> for Box<MonomorphLowerError> {
+    fn from(error: ParseError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<crate::comptime::ConstEvalError> for Box<MonomorphLowerError> {
+    fn from(error: crate::comptime::ConstEvalError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<ResolveError> for Box<MonomorphLowerError> {
+    fn from(error: ResolveError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<TypeHeaderError> for Box<MonomorphLowerError> {
+    fn from(error: TypeHeaderError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<StructDeclError> for Box<MonomorphLowerError> {
+    fn from(error: StructDeclError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<TypeEnvError> for Box<MonomorphLowerError> {
+    fn from(error: TypeEnvError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<TypeLowerError> for Box<MonomorphLowerError> {
+    fn from(error: TypeLowerError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<AnnotationError> for Box<MonomorphLowerError> {
+    fn from(error: AnnotationError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
+impl From<ExprTypeError> for Box<MonomorphLowerError> {
+    fn from(error: ExprTypeError) -> Self {
+        monomorph_lower_err(MonomorphLowerError::from(error))
+    }
+}
+
 /// 单态化后的 MIR：包含“被调用到的泛型函数实例”的 MIR 视图。
 ///
 /// 注意：`file` 内的 `TypeId` 需要配合 `types` 才能做进一步解释（例如打印为 `Int/String`）。
@@ -98,7 +158,7 @@ pub struct LoweredMonomorphMir {
 pub fn lower_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<LoweredMonomorphMir, MonomorphLowerError> {
+) -> MonomorphLowerResult<LoweredMonomorphMir> {
     // 1) parse + headers 预检查（不依赖 resolver/index）
     let mut file = parse_file(source)?;
     crate::comptime::trim_package_level_comptime_ifs(source, &mut file)?;
@@ -185,20 +245,24 @@ pub fn lower_for_dump(
         }
 
         let Some(fun_decl) = fun_index.get(&(key.symbol.fqn.clone(), key.symbol.decl_span)) else {
-            return Err(MonomorphLowerError::MissingFunDeclForInstance {
-                fqn: key.symbol.fqn.clone(),
-                file: key.symbol.decl_file.display().to_string(),
-                span: key.symbol.decl_span,
-            });
+            return Err(monomorph_lower_err(
+                MonomorphLowerError::MissingFunDeclForInstance {
+                    fqn: key.symbol.fqn.clone(),
+                    file: key.symbol.decl_file.display().to_string(),
+                    span: key.symbol.decl_span,
+                },
+            ));
         };
 
         if fun_decl.type_params.len() != key.type_args.len() {
-            return Err(MonomorphLowerError::TypeArgArityMismatchForInstance {
-                fqn: key.symbol.fqn.clone(),
-                expected: fun_decl.type_params.len(),
-                found: key.type_args.len(),
-                decl_span: fun_decl.name.span.into(),
-            });
+            return Err(monomorph_lower_err(
+                MonomorphLowerError::TypeArgArityMismatchForInstance {
+                    fqn: key.symbol.fqn.clone(),
+                    expected: fun_decl.type_params.len(),
+                    found: key.type_args.len(),
+                    decl_span: fun_decl.name.span.into(),
+                },
+            ));
         }
 
         let mut bindings: Vec<(String, TypeId)> = Vec::with_capacity(fun_decl.type_params.len());

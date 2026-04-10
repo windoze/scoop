@@ -621,7 +621,7 @@ fn run_frontend(
         )
         .map_err(miette::Report::from)?;
         scoopc::typecheck::check_file_properties(source, ast, &index, &env)
-            .map_err(miette::Report::from)?;
+            .map_err(|err| miette::Report::from(*err))?;
         scoopc::typecheck::check_file_inheritance(source, ast, &index)
             .map_err(miette::Report::from)?;
 
@@ -630,7 +630,7 @@ fn run_frontend(
         scoopc::typecheck::check_file_override_effects(
             source, ast, &index, &h.imports, &env, &mut types, builtins,
         )
-        .map_err(miette::Report::from)?;
+        .map_err(|err| miette::Report::from(*err))?;
 
         scoopc::typecheck::check_file_type_refs(
             source, ast, &index, &h.imports, &env, &mut types, builtins,

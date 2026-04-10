@@ -1172,7 +1172,7 @@ fn scoopir_fixture(
 
     let hir = scoopc::hir::lower_for_dump(session, source).map_err(box_diagnostic)?;
     let ir = scoopc::cone::scoopir::export_public_api_for_source(source, &index, &env, &hir)
-        .map_err(box_diagnostic)?;
+        .map_err(box_boxed_diagnostic)?;
 
     let actual_raw = serde_json::to_string_pretty(&ir).map_err(|e| {
         box_diagnostic(ScoopIrJsonSerializeFailed {
@@ -1282,7 +1282,8 @@ fn typecheck_fixture(
     .map_err(box_diagnostic)?;
 
     // T0431/T0432：属性（class/value type）的最小语义检查。
-    scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(box_diagnostic)?;
+    scoopc::typecheck::check_file_properties(source, &ast, &index, &env)
+        .map_err(box_boxed_diagnostic)?;
     // T0439：class 继承与 override 的最小语义检查。
     scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(box_diagnostic)?;
 
@@ -1298,7 +1299,7 @@ fn typecheck_fixture(
         &mut types,
         builtins,
     )
-    .map_err(box_diagnostic)?;
+    .map_err(box_boxed_diagnostic)?;
 
     scoopc::typecheck::check_file_type_refs(
         source,
@@ -1696,7 +1697,7 @@ fn run_typecheck_cone_case(
             )
             .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_properties(&f.source, &f.ast, &index, &env)
-                .map_err(box_diagnostic)?;
+                .map_err(box_boxed_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(&f.source, &f.ast, &index)
                 .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(&f.source, &f.ast, &index, &env)
@@ -1710,7 +1711,7 @@ fn run_typecheck_cone_case(
                 &mut types,
                 builtins,
             )
-            .map_err(box_diagnostic)?;
+            .map_err(box_boxed_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(
                 &f.source,
                 &f.ast,
@@ -1957,7 +1958,7 @@ fn run_typecheck_cone_archive_case(
             )
             .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_properties(source, ast, &index, &env)
-                .map_err(box_diagnostic)?;
+                .map_err(box_boxed_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index)
                 .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(source, ast, &index, &env)
@@ -1971,7 +1972,7 @@ fn run_typecheck_cone_archive_case(
                 &mut types,
                 builtins,
             )
-            .map_err(box_diagnostic)?;
+            .map_err(box_boxed_diagnostic)?;
 
             let want_monomorph_counts =
                 exp.expect_monomorph_hit.is_some() || exp.expect_monomorph_miss.is_some();
@@ -2279,7 +2280,7 @@ fn run_typecheck_multi_case(
             )
             .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_properties(source, ast, &index, &env)
-                .map_err(box_diagnostic)?;
+                .map_err(box_boxed_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index)
                 .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(source, ast, &index, &env)
@@ -2293,7 +2294,7 @@ fn run_typecheck_multi_case(
                 &mut types,
                 builtins,
             )
-            .map_err(box_diagnostic)?;
+            .map_err(box_boxed_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(
                 source,
                 ast,
@@ -2363,6 +2364,13 @@ where
     E: miette::Diagnostic + 'static,
 {
     Box::new(e)
+}
+
+fn box_boxed_diagnostic<E>(e: Box<E>) -> Box<dyn miette::Diagnostic>
+where
+    E: miette::Diagnostic + 'static,
+{
+    e
 }
 
 fn box_report(e: miette::Report) -> Box<dyn miette::Diagnostic> {

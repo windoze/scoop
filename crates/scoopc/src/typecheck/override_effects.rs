@@ -63,6 +63,18 @@ pub enum OverrideEffectError {
     },
 }
 
+type OverrideEffectResult<T> = Result<T, Box<OverrideEffectError>>;
+
+fn override_effect_err(error: OverrideEffectError) -> Box<OverrideEffectError> {
+    Box::new(error)
+}
+
+impl From<TypeLowerError> for Box<OverrideEffectError> {
+    fn from(error: TypeLowerError) -> Self {
+        override_effect_err(OverrideEffectError::from(error))
+    }
+}
+
 #[derive(Clone, Copy)]
 struct TypeInterfaceImplTarget<'a> {
     type_fqn: &'a str,
@@ -78,7 +90,7 @@ pub fn check_file_override_effects(
     env: &TypeEnv,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
 
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -121,7 +133,7 @@ fn check_type_decl_override_effects(
     index: &Index,
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     let local_name = source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
         local_name.to_string()
@@ -216,7 +228,7 @@ fn check_object_decl_override_effects(
     index: &Index,
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     // Kotlin-like：未命名 companion object 具有隐式名字 `Companion`（resolver/index 侧同样使用该名字）。
     let obj_name = obj
         .name
@@ -278,7 +290,7 @@ fn check_class_member_override_effects(
     index: &Index,
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     let Some(body) = &decl.body else {
         return Ok(());
     };
@@ -372,15 +384,17 @@ fn check_class_member_override_effects(
             .map(|e| e.span)
             .unwrap_or(fun.name.span);
 
-        return Err(OverrideEffectError::ClassOverrideEffectRowNotContained {
-            class_fqn: class_fqn.to_string(),
-            base_fqn: base_fqn.to_string(),
-            member: name,
-            over_row: over_row_s,
-            base_row: base_row_s,
-            span: span.into(),
-            base_span: first_base_span.unwrap_or_else(|| superclass.ty.span().into()),
-        });
+        return Err(override_effect_err(
+            OverrideEffectError::ClassOverrideEffectRowNotContained {
+                class_fqn: class_fqn.to_string(),
+                base_fqn: base_fqn.to_string(),
+                member: name,
+                over_row: over_row_s,
+                base_row: base_row_s,
+                span: span.into(),
+                base_span: first_base_span.unwrap_or_else(|| superclass.ty.span().into()),
+            },
+        ));
     }
 
     Ok(())
@@ -394,7 +408,7 @@ fn check_object_member_override_effects(
     index: &Index,
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     let Some(body) = &obj.body else {
         return Ok(());
     };
@@ -484,15 +498,17 @@ fn check_object_member_override_effects(
             .map(|e| e.span)
             .unwrap_or(fun.name.span);
 
-        return Err(OverrideEffectError::ClassOverrideEffectRowNotContained {
-            class_fqn: obj_fqn.to_string(),
-            base_fqn: base_fqn.to_string(),
-            member: name,
-            over_row: over_row_s,
-            base_row: base_row_s,
-            span: span.into(),
-            base_span: first_base_span.unwrap_or_else(|| superclass.ty.span().into()),
-        });
+        return Err(override_effect_err(
+            OverrideEffectError::ClassOverrideEffectRowNotContained {
+                class_fqn: obj_fqn.to_string(),
+                base_fqn: base_fqn.to_string(),
+                member: name,
+                over_row: over_row_s,
+                base_row: base_row_s,
+                span: span.into(),
+                base_span: first_base_span.unwrap_or_else(|| superclass.ty.span().into()),
+            },
+        ));
     }
 
     Ok(())
@@ -505,7 +521,7 @@ fn check_type_interface_impl_effects(
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
     target: TypeInterfaceImplTarget<'_>,
-) -> Result<(), OverrideEffectError> {
+) -> OverrideEffectResult<()> {
     let TypeInterfaceImplTarget {
         type_fqn,
         supertypes,
@@ -628,15 +644,17 @@ fn check_type_interface_impl_effects(
                 continue;
             }
 
-            return Err(OverrideEffectError::InterfaceImplEffectRowNotContained {
-                type_fqn: type_fqn.to_string(),
-                interface_fqn: interface_fqn.to_string(),
-                member: member_name.to_string(),
-                impl_row: fmt_effect_row(&impl_row, lower),
-                base_row: fmt_effect_row(&base_row, lower),
-                span: impl_span.into(),
-                base_span: required.symbol.span.into(),
-            });
+            return Err(override_effect_err(
+                OverrideEffectError::InterfaceImplEffectRowNotContained {
+                    type_fqn: type_fqn.to_string(),
+                    interface_fqn: interface_fqn.to_string(),
+                    member: member_name.to_string(),
+                    impl_row: fmt_effect_row(&impl_row, lower),
+                    base_row: fmt_effect_row(&base_row, lower),
+                    span: impl_span.into(),
+                    base_span: required.symbol.span.into(),
+                },
+            ));
         }
     }
 
@@ -647,7 +665,7 @@ fn lower_fun_decl_effect_row(
     source: &SourceFile,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
-) -> Result<EffectRow, OverrideEffectError> {
+) -> OverrideEffectResult<EffectRow> {
     lower.push_type_params(&fun.type_params);
     let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
@@ -677,7 +695,7 @@ fn lower_fun_overload_effect_row_with_receiver_instantiation(
     receiver_fqn: &str,
     receiver_nominal: &crate::ty::NominalType,
     fun: &FunOverload,
-) -> Result<EffectRow, OverrideEffectError> {
+) -> OverrideEffectResult<EffectRow> {
     let Some(receiver_sym) = env.type_symbol(receiver_fqn) else {
         return Ok(EffectRow::pure());
     };
@@ -726,7 +744,7 @@ fn lower_interface_fun_overload_effect_row_with_receiver_instantiation(
     interface_fqn: &str,
     interface_nominal: &crate::ty::NominalType,
     fun: &FunOverload,
-) -> Result<EffectRow, OverrideEffectError> {
+) -> OverrideEffectResult<EffectRow> {
     lower_fun_overload_effect_row_with_receiver_instantiation(
         fallback_source,
         lower,

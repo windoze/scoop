@@ -1342,13 +1342,60 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
+### T0147c-3a [DONE] Clippy 基线清理：收缩非 Expr 主路径的大 `Err`
+
+- 描述：严格 `cargo clippy --workspace --all-targets -- -D warnings` 当前首先被多条非 `Expr` 主路径的 `result_large_err` 阻塞，包括 `typecheck::properties`、`typecheck::override_effects`、`cone::scoopir::export`、`monomorph::lower`。这批模块边界清晰、调用链较短，适合作为 `T0147c-3` 的第一轮收敛。
+- 目标：
+  - 收缩 `PropertyDeclError` / `OverrideEffectError` / `ScoopIrExportError` / `MonomorphLowerError` 的 `Err` 载体，避免再触发 `result_large_err`。
+  - 不改变错误消息文本、诊断 code 或现有控制流语义。
+  - 为后续 `Expr` 主路径的大 `Err` 清理保留统一做法（例如 boxed result alias / 共享错误载体约定）。
+- 验收：
+  - 严格 `cargo clippy --workspace --all-targets -- -D warnings` 输出中，不再出现上述四个模块对应的 `result_large_err`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-2d
+- 完成说明：
+  - **boxed result alias**：`typecheck/properties.rs`、`typecheck/override_effects.rs`、`cone/scoopir/export.rs`、`monomorph/lower.rs` 分别新增模块内 boxed result alias，把对外/递归 helper 的 `Result<_, Error>` 收口为 `Result<_, Box<Error>>`，避免这些路径继续触发 `result_large_err`。
+  - **错误传播兼容**：`override_effects.rs` / `monomorph/lower.rs` 为 `?` 链路补齐 `From<...> for Box<...>`；`scoop/src/fixtures/mod.rs` 新增 `box_boxed_diagnostic`，`commands/build.rs` / `commands/dump_ir.rs` 以及 `scoopir/export.rs` 内部 `miette::Report` 转换点改为显式解箱，保持 driver/fixture 侧诊断行为不变。
+  - **clippy 收敛结果**：执行 `cargo clippy --workspace --all-targets --message-format short -- -A warnings -D clippy::result_large_err` 后，`result_large_err` 失败点已收敛到后续 `T0147c-3b` 范围：`typecheck::expr/**`、`eff_row_subst`、`val_pat`、`when_pat`、`when_exhaustiveness`；本子任务负责的 `typecheck::properties`、`typecheck::override_effects`、`cone::scoopir::export`、`monomorph::lower` 已不再出现在输出中。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo check --workspace --message-format short` 通过
+    - `cargo clippy --workspace --all-targets --message-format short -- -A warnings -D clippy::result_large_err` 已执行，失败点仅剩后续 `T0147c-3b` 范围
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+
+### T0147c-3b [TODO] Clippy 基线清理：收缩 `Expr`/模式匹配路径的大 `Err`
+
+- 描述：`ExprTypeError` 仍是当前 clippy 输出中最大的一组 `result_large_err` 来源，覆盖 `typecheck::expr/**`、`eff_row_subst`、`val_pat`、`when_pat`、`when_exhaustiveness` 等路径，需要统一收口。
+- 目标：
+  - 收缩 `ExprTypeError` 相关返回路径，清理 `typecheck::expr/**`、`eff_row_subst`、`val_pat`、`when_*` 中的 `result_large_err`。
+  - 保持 `ExprTypeError` 诊断表现与现有类型检查行为不变。
+- 验收：
+  - 严格 `cargo clippy --workspace --all-targets -- -D warnings` 输出中，不再出现 `ExprTypeError` 相关 `result_large_err`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-3a
+
+### T0147c-3c [TODO] Clippy 基线清理：清零剩余结构性 warning 并恢复严格 gate
+
+- 描述：在大 `Err` 收敛后，剩余告警集中为 `private_interfaces`、`dead_code`、`large_enum_variant`、`type_complexity`、`question_mark`、`if_same_then_else`、`while_let_loop` 等结构性 lint，需要做最后一轮清零。
+- 目标：
+  - 清理剩余零散 warning，不依赖 blanket `allow`。
+  - 恢复 `cargo clippy --workspace --all-targets -- -D warnings` 全量通过。
+- 验收：
+  - `cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-3b
+
 ### T0147c-3 [TODO] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
 
-- 描述：在 pointer API 与长参数问题收敛后，剩余主要噪声是 `result_large_err`，外加少量 `unused_variables` / `private_interfaces` / `dead_code`。需要通过收缩错误载体或调整可见性/未使用代码，恢复严格 lint gate。
+- 描述：在 pointer API 与长参数问题收敛后，剩余主要噪声是 `result_large_err`，外加少量 `unused_variables` / `private_interfaces` / `dead_code`。该任务现拆分为 `T0147c-3a ~ T0147c-3c` 顺序落地。
 - 目标：
-  - 清理当前 clippy 输出中的 `result_large_err`，优先处理 `typecheck::properties`、`typecheck::val_pat`、`typecheck::when_*` 等热点路径。
-  - 清理剩余零散 warning，不依赖 blanket `allow`。
-  - 完成后恢复 `cargo clippy --workspace --all-targets -- -D warnings` 全量通过。
+  - 先收缩非 `Expr` 主路径的大 `Err`。
+  - 再统一收缩 `ExprTypeError` 相关路径。
+  - 最后清零剩余结构性 warning，恢复严格 lint gate。
 - 验收：
   - `cargo clippy --workspace --all-targets -- -D warnings` 通过。
   - `cargo test --all`

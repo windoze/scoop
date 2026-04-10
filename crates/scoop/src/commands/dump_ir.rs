@@ -17,8 +17,8 @@ pub fn run(input: PathBuf) -> Result<()> {
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let session = scoopc::session::Session::new()?;
-    let lowered =
-        scoopc::monomorph::lower_for_dump(&session, &file).map_err(miette::Report::from)?;
+    let lowered = scoopc::monomorph::lower_for_dump(&session, &file)
+        .map_err(|err| miette::Report::from(*err))?;
     println!("{:#?}", lowered.file);
     Ok(())
 }

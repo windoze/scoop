@@ -74,6 +74,12 @@ pub enum ScoopIrExportError {
     MissingFunSymbol { fqn: String },
 }
 
+type ScoopIrExportResult<T> = Result<T, Box<ScoopIrExportError>>;
+
+fn scoop_ir_export_err(error: ScoopIrExportError) -> Box<ScoopIrExportError> {
+    Box::new(error)
+}
+
 /// 从“单个源文件”的编译产物导出其 public API 的 ScoopIR v0。
 ///
 /// 说明：
@@ -84,7 +90,7 @@ pub fn export_public_api_for_source(
     index: &Index,
     env: &TypeEnv,
     hir: &LoweredHir,
-) -> Result<ScoopIrFile, ScoopIrExportError> {
+) -> ScoopIrExportResult<ScoopIrFile> {
     let mut types = export_public_types_for_source(source, index, env)?;
     types.sort_by(|a, b| a.fqn.cmp(&b.fqn));
 
@@ -171,7 +177,7 @@ pub fn export_public_api_for_cone_sources(
         let hir = crate::hir::lower_for_compilation_unit(source, ast, &index, &pairs)
             .map_err(miette::Report::from)?;
         let ir = export_public_api_for_source(source, &index, &env, &hir)
-            .map_err(miette::Report::from)?;
+            .map_err(|err| miette::Report::from(*err))?;
 
         all_types.extend(ir.types);
         all_funs.extend(ir.funs);
@@ -192,7 +198,7 @@ fn export_public_types_for_source(
     source: &SourceFile,
     index: &Index,
     env: &TypeEnv,
-) -> Result<Vec<IrTypeDecl>, ScoopIrExportError> {
+) -> ScoopIrExportResult<Vec<IrTypeDecl>> {
     let mut out: Vec<IrTypeDecl> = Vec::new();
 
     for (fqn, ns) in &index.by_fqn {
@@ -206,9 +212,9 @@ fn export_public_types_for_source(
             continue;
         }
 
-        let symbol = env
-            .type_symbol(fqn)
-            .ok_or_else(|| ScoopIrExportError::MissingTypeSymbol { fqn: fqn.clone() })?;
+        let symbol = env.type_symbol(fqn).ok_or_else(|| {
+            scoop_ir_export_err(ScoopIrExportError::MissingTypeSymbol { fqn: fqn.clone() })
+        })?;
 
         // T1016b：comptime-only annotation classes 不导出到 `.cone` 的 public API。
         //
@@ -273,18 +279,18 @@ fn export_type_alias_rhs_ir_type(
     env: &TypeEnv,
     alias_sym: &TypeSymbol,
     alias_fqn: &str,
-) -> Result<IrType, ScoopIrExportError> {
-    let info =
-        env.type_alias(alias_fqn)
-            .ok_or_else(|| ScoopIrExportError::MissingTypeAliasInfo {
-                fqn: alias_fqn.to_string(),
-            })?;
+) -> ScoopIrExportResult<IrType> {
+    let info = env.type_alias(alias_fqn).ok_or_else(|| {
+        scoop_ir_export_err(ScoopIrExportError::MissingTypeAliasInfo {
+            fqn: alias_fqn.to_string(),
+        })
+    })?;
 
-    let decl_source =
-        env.source(&info.decl_file)
-            .ok_or_else(|| ScoopIrExportError::MissingTypeSymbol {
-                fqn: alias_fqn.to_string(),
-            })?;
+    let decl_source = env.source(&info.decl_file).ok_or_else(|| {
+        scoop_ir_export_err(ScoopIrExportError::MissingTypeSymbol {
+            fqn: alias_fqn.to_string(),
+        })
+    })?;
 
     let (pkg_prefix, imports) = env
         .file_type_context(&info.decl_file)
@@ -328,9 +334,11 @@ fn export_type_alias_rhs_ir_type(
         let out = ctx.lower_type_ref(&info.ty);
         ctx.pop_type_param_bindings();
 
-        out.map_err(|source| ScoopIrExportError::TypeAliasRhsLoweringFailed {
-            fqn: alias_fqn.to_string(),
-            source,
+        out.map_err(|source| {
+            scoop_ir_export_err(ScoopIrExportError::TypeAliasRhsLoweringFailed {
+                fqn: alias_fqn.to_string(),
+                source,
+            })
         })?
     };
 
@@ -343,26 +351,32 @@ fn assert_typealias_rhs_is_public(
     index: &Index,
     alias_fqn: &str,
     ty: &IrType,
-) -> Result<(), ScoopIrExportError> {
+) -> ScoopIrExportResult<()> {
     match ty {
         IrType::Named { fqn, args, eff } => {
             let Some(syms) = index.by_fqn.get(fqn) else {
-                return Err(ScoopIrExportError::TypeAliasReferencesUnknownType {
-                    alias_fqn: alias_fqn.to_string(),
-                    referenced_fqn: fqn.clone(),
-                });
+                return Err(scoop_ir_export_err(
+                    ScoopIrExportError::TypeAliasReferencesUnknownType {
+                        alias_fqn: alias_fqn.to_string(),
+                        referenced_fqn: fqn.clone(),
+                    },
+                ));
             };
             let Some(sym) = syms.ty.as_ref() else {
-                return Err(ScoopIrExportError::TypeAliasReferencesUnknownType {
-                    alias_fqn: alias_fqn.to_string(),
-                    referenced_fqn: fqn.clone(),
-                });
+                return Err(scoop_ir_export_err(
+                    ScoopIrExportError::TypeAliasReferencesUnknownType {
+                        alias_fqn: alias_fqn.to_string(),
+                        referenced_fqn: fqn.clone(),
+                    },
+                ));
             };
             if sym.visibility != Visibility::Public {
-                return Err(ScoopIrExportError::TypeAliasExposesNonPublicType {
-                    alias_fqn: alias_fqn.to_string(),
-                    referenced_fqn: fqn.clone(),
-                });
+                return Err(scoop_ir_export_err(
+                    ScoopIrExportError::TypeAliasExposesNonPublicType {
+                        alias_fqn: alias_fqn.to_string(),
+                        referenced_fqn: fqn.clone(),
+                    },
+                ));
             }
             for a in args {
                 assert_typealias_rhs_is_public(index, alias_fqn, a)?;
@@ -417,7 +431,7 @@ fn export_public_funs_for_source(
     source: &SourceFile,
     index: &Index,
     hir: &LoweredHir,
-) -> Result<Vec<IrFunDecl>, ScoopIrExportError> {
+) -> ScoopIrExportResult<Vec<IrFunDecl>> {
     let mut out: Vec<IrFunDecl> = Vec::new();
 
     for item in &hir.file.items {
@@ -427,9 +441,9 @@ fn export_public_funs_for_source(
 
         // v0：用 Index 的可见性作为 “public API” 的过滤条件。
         let Some(ns) = index.by_fqn.get(&fun.fqn) else {
-            return Err(ScoopIrExportError::MissingFunSymbol {
+            return Err(scoop_ir_export_err(ScoopIrExportError::MissingFunSymbol {
                 fqn: fun.fqn.clone(),
-            });
+            }));
         };
         let Some(overload) = ns.fun.iter().find(|o| {
             o.symbol.decl_file.as_path() == source.path()
@@ -482,12 +496,12 @@ fn decode_function_type(
     store: &TypeStore,
     fun_ty: TypeId,
     fqn: &str,
-) -> Result<FunctionType, ScoopIrExportError> {
+) -> ScoopIrExportResult<FunctionType> {
     match store.kind(fun_ty) {
         TypeKind::Ref(RefTypeKind::Function(ft)) => Ok(ft.clone()),
-        _ => Err(ScoopIrExportError::UnexpectedFunType {
+        _ => Err(scoop_ir_export_err(ScoopIrExportError::UnexpectedFunType {
             fqn: fqn.to_string(),
-        }),
+        })),
     }
 }
 
