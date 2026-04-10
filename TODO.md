@@ -1570,19 +1570,56 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all`
     - `cargo run -p scoop -- test`（`fixtures: ok (855)`）
 
-### T0148d [TODO] Float 字面量收尾：comptime、多文件、剩余转换与审计
+### T0148d Float 字面量收尾（拆分）
 
-- 描述：补齐 Float literal 在 comptime、多文件和剩余边角语境中的行为，完成对原始 T0148 的收尾。
+- 描述：原始 T0148d 同时跨 `comptime`、多文件 SourceMap 回归、以及剩余边角语义审计，单轮实现面仍偏大，现继续拆成可独立验收的小步。
+- 子任务顺序：
+  - `T0148d-1`：先补齐 `comptime` 的 Float 值模型、字面量求值与基础常量折叠。
+  - `T0148d-2`：补齐多文件 / 非入口源文件中的 Float literal fixture，验证 SourceMap-backed literal 管线。
+  - `T0148d-3`：审计剩余不支持语义与诊断行为；能补齐的直接补齐，不能补齐的给出明确错误或后续任务链接。
+- 依赖：T0148c
+
+### T0148d-1 [TODO] Float 字面量收尾：comptime 值模型与基础常量折叠
+
+- 描述：当前 `crates/scoopc/src/comptime/value.rs` / `eval.rs` 仍只有 `Int/Bool/Char/String/...`，Float literal 虽已打通前端、静态语义与 LLVM，但在 `const val` / `comptime if` / const fun 折叠路径里仍不可用。
 - 目标：
-  - `comptime/eval.rs` / `ConstValue` 支持 Float literal 与基础常量折叠。
-  - 验证非入口源文件中的 Float literal 与 SourceMap-backed literal 框架联通。
-  - 如需保留暂不支持的语义（例如 `when` pattern / `String.toFloat64()`），给出明确诊断或后续任务链接，而不是静默退化。
-  - 汇总并补齐 T0148 相关 fixture 审计。
+  - `ConstValue` 新增 Float 值表示，并补齐 `value_kind` / `member access` 等匹配分支。
+  - `comptime/eval.rs` 支持 `ExprKind::FloatLit` 的常量求值。
+  - 支持基础 Float 常量折叠：一元负号、`+ - * / %`、`< <= > >=`、`== !=`，并处理 `Float64/Float32` 字面量后缀。
+  - 对暂不支持的 comptime Float 语义保持显式诊断，而不是误落到 `UnsupportedExpr { kind: "expression kind" }` 之类的模糊路径。
 - 验收：
-  - 新增 comptime fixture 和多文件 fixture。
+  - 新增 Rust 单测与 `tests/fixtures/comptime/*.comptime` fixture，覆盖 Float literal、基础算术、比较、`Float32` 后缀。
+  - `cargo test -p scoopc comptime -- --nocapture`
   - `cargo test --all`
   - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 - 依赖：T0148c
+
+### T0148d-2 [TODO] Float 字面量收尾：多文件 / 非入口源文件回归
+
+- 描述：在 SourceMap-backed literal 架构下，Float literal 需要像 Int/String/Char 一样，在非入口源文件与 Cone 多文件工程中稳定解析、诊断并参与执行。
+- 目标：
+  - 新增多文件 / Cone fixture，覆盖 helper 文件中的 Float literal 常量、函数返回值、默认参数或顶层初始化。
+  - 如涉及失败场景，确保报错定位到真实源文件与真实 span，而不是入口文件或模糊位置。
+  - 复核 Float literal 与现有 `SourceMap` 字面量回退/诊断流程的联通性。
+- 验收：
+  - 新增 run-pass / cone / 必要时 build 或 compile-fail fixture。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0148d-1
+
+### T0148d-3 [TODO] Float 字面量收尾：剩余转换、边角语义与审计
+
+- 描述：在 comptime 与多文件路径打通后，对 T0148 剩余边角语义做系统审计，避免“语法已接受但语义静默退化”。
+- 目标：
+  - 审计 remaining gaps，例如 `when` pattern、尚未接线的转换 API、其它字面量上下文中的 Float 行为。
+  - 能直接补齐的在本任务内补齐；若需后续大任务，新增明确 TODO 并提供稳定诊断。
+  - 汇总 T0148 最终 fixture 覆盖面，确认无遗漏主路径。
+- 验收：
+  - 补齐对应 fixture / 诊断回归。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0148d-2
 
 ### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
 
