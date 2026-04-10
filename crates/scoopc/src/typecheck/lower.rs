@@ -1330,6 +1330,14 @@ impl<'a> TypeLowering<'a> {
                 check_arity(&fqn, 0, args.len(), span)?;
                 return Ok(self.builtins.char_);
             }
+            "scoop.core.Float64" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.float64);
+            }
+            "scoop.core.Float32" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.float32);
+            }
             "scoop.core.Int" => {
                 check_arity(&fqn, 0, args.len(), span)?;
                 return Ok(self.builtins.int);
@@ -1573,6 +1581,8 @@ impl<'a> TypeLowering<'a> {
                 | ValueTypeKind::Nothing
                 | ValueTypeKind::Bool
                 | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
                 | ValueTypeKind::Int
                 | ValueTypeKind::UInt
                 | ValueTypeKind::IntN(_)
@@ -1842,6 +1852,26 @@ impl<'a> TypeLowering<'a> {
                     });
                 }
                 return Ok(self.builtins.char_);
+            }
+            "scoop.core.Float64" => {
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
+                return Ok(self.builtins.float64);
+            }
+            "scoop.core.Float32" => {
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
+                return Ok(self.builtins.float32);
             }
             // `Int/UInt`：word-sized 整数。
             "scoop.core.Int" => {
@@ -2871,6 +2901,8 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
         "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
         "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
+        "Float64" | "scoop.core.Float64" => Some("scoop.core.Float64"),
+        "Float32" | "scoop.core.Float32" => Some("scoop.core.Float32"),
         "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),

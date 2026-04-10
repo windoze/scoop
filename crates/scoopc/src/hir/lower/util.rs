@@ -2062,6 +2062,8 @@ pub(super) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) ->
         TypeKind::Value(ValueTypeKind::Unit) => Some("scoop.core.Unit".to_string()),
         TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
         TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char".to_string()),
+        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64".to_string()),
+        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32".to_string()),
         TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int".to_string()),
         TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt".to_string()),
         TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),

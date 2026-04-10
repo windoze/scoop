@@ -2042,6 +2042,8 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
         "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
         "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
+        "Float64" | "scoop.core.Float64" => Some("scoop.core.Float64"),
+        "Float32" | "scoop.core.Float32" => Some("scoop.core.Float32"),
         "String" | "scoop.core.String" => Some("scoop.core.String"),
         "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),

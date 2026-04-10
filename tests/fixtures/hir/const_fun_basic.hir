@@ -7,7 +7,7 @@ File {
                 name: "add",
                 is_const: true,
                 ty: TypeId(
-                    8,
+                    10,
                 ),
                 params: [
                     Param {
@@ -94,7 +94,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    9,
+                    11,
                 ),
                 params: [],
                 return_ty: TypeId(

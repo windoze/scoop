@@ -3622,6 +3622,8 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
         "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
         "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
+        "Float64" | "scoop.core.Float64" => Some("scoop.core.Float64"),
+        "Float32" | "scoop.core.Float32" => Some("scoop.core.Float32"),
         "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
@@ -6738,6 +6740,8 @@ pub(super) fn substitute_single_type_param(
         | TypeKind::Value(ValueTypeKind::Nothing)
         | TypeKind::Value(ValueTypeKind::Bool)
         | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
         | TypeKind::Value(ValueTypeKind::Int)
         | TypeKind::Value(ValueTypeKind::UInt)
         | TypeKind::Value(ValueTypeKind::IntN(_))

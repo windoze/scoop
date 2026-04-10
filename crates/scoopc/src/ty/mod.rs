@@ -220,6 +220,10 @@ pub enum ValueTypeKind {
     ///
     /// 说明：当前阶段把它建模为独立标量，而不是“某种整数别名”，避免把算术规则与字符语义混在一起。
     Char,
+    /// `Float64`：内建双精度浮点类型（IEEE 754 binary64）。
+    Float64,
+    /// `Float32`：内建单精度浮点类型（IEEE 754 binary32）。
+    Float32,
 
     /// word-sized 整数（随 target 指针宽度变化，spec §2.3.4）。
     Int,
@@ -323,6 +327,8 @@ impl TypeStore {
             uint: self.intern(TypeKind::Value(ValueTypeKind::UInt)),
             // Keep previously existing builtin `TypeId`s stable for HIR/test fixtures.
             char_: self.intern(TypeKind::Value(ValueTypeKind::Char)),
+            float64: self.intern(TypeKind::Value(ValueTypeKind::Float64)),
+            float32: self.intern(TypeKind::Value(ValueTypeKind::Float32)),
         }
     }
 
@@ -420,6 +426,8 @@ impl TypeStore {
                 | ValueTypeKind::Nothing
                 | ValueTypeKind::Bool
                 | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
                 | ValueTypeKind::Int
                 | ValueTypeKind::UInt
                 | ValueTypeKind::IntN(_)
@@ -519,6 +527,8 @@ pub struct BuiltinTypes {
     pub nothing: TypeId,
     pub bool_: TypeId,
     pub char_: TypeId,
+    pub float64: TypeId,
+    pub float32: TypeId,
     pub int: TypeId,
     pub uint: TypeId,
 }
@@ -556,6 +566,8 @@ fn format_type(
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),
         TypeKind::Value(ValueTypeKind::Char) => write!(f, "Char"),
+        TypeKind::Value(ValueTypeKind::Float64) => write!(f, "Float64"),
+        TypeKind::Value(ValueTypeKind::Float32) => write!(f, "Float32"),
         TypeKind::Value(ValueTypeKind::Int) => write!(f, "Int"),
         TypeKind::Value(ValueTypeKind::UInt) => write!(f, "UInt"),
         TypeKind::Value(ValueTypeKind::IntN(bits)) => write!(f, "Int{bits}"),
@@ -695,6 +707,8 @@ mod tests {
         assert_eq!(tys.display(builtins.nothing).to_string(), "Nothing");
         assert_eq!(tys.display(builtins.bool_).to_string(), "Bool");
         assert_eq!(tys.display(builtins.char_).to_string(), "Char");
+        assert_eq!(tys.display(builtins.float64).to_string(), "Float64");
+        assert_eq!(tys.display(builtins.float32).to_string(), "Float32");
         assert_eq!(tys.display(builtins.int).to_string(), "Int");
         assert_eq!(tys.display(builtins.uint).to_string(), "UInt");
 

@@ -1,0 +1,29 @@
+// EXPECT: pass
+// 目标：T0147a Float builtin type plumbing：Float64 / Float32 / Double 可作为类型注解被解析。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+typealias Wide = Double
+
+struct FloatPair(val hi: Float64, val lo: Float32)
+
+val a: Float64
+val b: Float32
+val c: Wide
+
+fun id64(x: Float64): Float64 {
+    return x
+}
+
+fun id32(x: Float32): Float32 {
+    return x
+}
+
+fun choose(flag: Bool, left: Float64, right: Float64): Float64 {
+    if (flag) {
+        return left
+    }
+    return right
+}

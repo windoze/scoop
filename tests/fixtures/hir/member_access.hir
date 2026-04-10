@@ -10,7 +10,7 @@ File {
                 fqn: "a.use",
                 name: "use",
                 ty: TypeId(
-                    9,
+                    11,
                 ),
                 params: [
                     Param {
@@ -18,7 +18,7 @@ File {
                         id: S0,
                         name: "p",
                         ty: TypeId(
-                            8,
+                            10,
                         ),
                     },
                 ],

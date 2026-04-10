@@ -380,6 +380,14 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0146c1）：Char LLVM 标量落地——已把 `Char` 作为运行期 `i32` 标量值接到 LLVM/run-pass：`cg_ty_of` / `cg_ty_of_type_fqn` 映射到 `IntTy { bits: 32, signed: false }`，`codegen_literal` 支持 `LiteralKind::Char`，member access codegen 支持 `Char.toInt()` zero-extend 到目标 `Int`，`control_flow.rs` 补齐 top-level `when` Char pattern 与 tuple element Char pattern 的条件生成。新增 run-pass fixture `char_runtime_scalar_basic.*`，覆盖赋值、转义、Unicode escape、比较、`toInt()`、`when` pattern 与返回 `Char` 的函数。验证：`cargo test --all` 通过，`cargo run -p scoop -- test` 通过（`fixtures: ok (849)`）；严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍受既有 repo baseline 阻塞（`inkwell` deprecated API、长期 `too_many_arguments` / `result_large_err`），本任务引入的 `cg_ty_of` 不可达分支 warning 已清理。
 - DONE（T0146c2）：Char sysroot/runtime 文本化——已在 `sysroot/core.scoop` 增加 `struct Char : Hashable, ToString` 与 `toInt()/toString()/hash()` 声明；`typecheck/assignable.rs` 补齐 builtin `Char` → nominal interface 的约束判定；runtime 新增 `scoop_char_to_string(int32_t codepoint)` UTF-8 编码，并接到 `runtime_symbols.rs` / `runtime_abi.rs` / `scoop_runtime_api.h`；LLVM codegen 新增 `Char.toString()` / `Char.hash()` lowering、`print/println` 与 `ToString` builtin dispatch 的 Char 路径，以及 body-less 扩展函数顶层拦截 `scoop.core.toInt` / `scoop.core.toString` / `scoop.core.hash`。新增 `run-pass/char_runtime_textual_basic.*` 与 `run_pass_cone/char_multi_file_runtime_api/**` 两组回归。验证：`cargo test --all` 通过，`cargo run -p scoop -- test` 通过（`fixtures: ok (851)`）；严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍受既有 baseline 阻塞（大量 `inkwell` deprecated `ptr_type` 与长期 `too_many_arguments` / `result_large_err`），非本任务引入。
 
+## 4.2 Float builtin groundwork（T0147）
+
+> 背景：原 `T0147` 横跨 builtin 类型、LLVM `CgTy`、sysroot API、resolver/typecheck builtin 路由与 runtime C ABI。与此前 `Char` 的落地类似，直接整包推进会让单轮改动和回归面过大，因此拆成可独立验收的小步。
+
+- DONE（T0147a）：Float builtin type plumbing——已在 `ty/mod.rs` / `typecheck/lower.rs` / `typecheck/layout.rs` / `rtti/*` / `sysroot/core.scoop` 中引入 `Float64` / `Float32` / `Double` 的类型身份与共享基础设施；implicit builtin type lookup、layout、RTTI、Cone/HIR 共享穷举路径已补齐，并新增 `typecheck/float_builtin_type_refs_ok.scoop`。LLVM 浮点标量映射刻意后置到 `T0147b`；验证：`cargo test --all` 通过，`cargo run -p scoop -- test` 通过（`fixtures: ok (852)`），严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍受既有 workspace baseline 阻塞，非本任务新增。
+- PENDING（T0147b）：Float LLVM 标量映射——在 `T0147a` 完成后，为 LLVM 后端新增 `CgTy::Float64/Float32`、LLVM type lowering、default value 与关键 exhaustive match 分支，确保新增 builtin 不会在后端共享路径上触发 panic。
+- PENDING（T0147c）：Float sysroot API 与 builtin 方法路由——在类型与 LLVM 标量稳定后，再补 `toInt()/toString()/hash()/abs()/isNaN()/isInfinite()` 的 sysroot 声明、resolver/typecheck builtin 路由、runtime C 符号与 codegen dispatch。
+
 ## 5. 泛型 where 约束完善
 
 - DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：

@@ -139,6 +139,8 @@ impl<'a> LayoutComputer<'a> {
                 ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
                 ValueTypeKind::Bool => self.bool_layout(),
                 ValueTypeKind::Char => TypeLayout::new(4, 4),
+                ValueTypeKind::Float64 => TypeLayout::new(8, 8),
+                ValueTypeKind::Float32 => TypeLayout::new(4, 4),
                 ValueTypeKind::Int | ValueTypeKind::UInt => self.word_layout(),
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
                     let size = (bits as u64).div_ceil(8);

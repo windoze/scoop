@@ -43,7 +43,10 @@ interface ToString {
 // - sysroot 只提供"可见声明"，用于名字解析与工具链展示。
 struct Bool : Hashable, ToString
 struct Char : Hashable, ToString
+struct Float64
+struct Float32
 class String : Hashable, ToString
+typealias Double = Float64
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：

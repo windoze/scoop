@@ -50,6 +50,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: 32,
                 signed: false,
             })),
+            // T0147a：Float builtin 类型身份已接入静态基础设施；LLVM 标量映射留待 T0147b。
+            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32) => None,
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
@@ -180,8 +182,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Check if a type FQN refers to a GC-free type (value type with no reference fields).
     fn type_fqn_is_gc_free(&self, fqn: &str) -> bool {
         match fqn {
-            "scoop.core.Unit" | "scoop.core.Bool" | "scoop.core.Int" | "scoop.core.UInt"
-            | "scoop.core.UIntPtr" => true,
+            "scoop.core.Unit" | "scoop.core.Bool" | "scoop.core.Float64" | "scoop.core.Float32"
+            | "scoop.core.Int" | "scoop.core.UInt" | "scoop.core.UIntPtr" => true,
             "scoop.core.String" | "scoop.core.Any" => false,
             other => {
                 // Fixed-width integer types: Int8, Int16, Int32, Int64, UInt8, etc.

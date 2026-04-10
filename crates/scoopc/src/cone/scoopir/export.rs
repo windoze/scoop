@@ -584,6 +584,8 @@ fn collect_type_params_from_type_id(
         | TypeKind::Value(ValueTypeKind::Nothing)
         | TypeKind::Value(ValueTypeKind::Bool)
         | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
         | TypeKind::Value(ValueTypeKind::Int)
         | TypeKind::Value(ValueTypeKind::UInt)
         | TypeKind::Value(ValueTypeKind::IntN(_))
@@ -716,6 +718,16 @@ fn to_ir_type(store: &TypeStore, id: TypeId, depth: usize) -> IrType {
         },
         TypeKind::Value(ValueTypeKind::Char) => IrType::Named {
             fqn: "scoop.core.Char".to_string(),
+            args: Vec::new(),
+            eff: None,
+        },
+        TypeKind::Value(ValueTypeKind::Float64) => IrType::Named {
+            fqn: "scoop.core.Float64".to_string(),
+            args: Vec::new(),
+            eff: None,
+        },
+        TypeKind::Value(ValueTypeKind::Float32) => IrType::Named {
+            fqn: "scoop.core.Float32".to_string(),
             args: Vec::new(),
             eff: None,
         },

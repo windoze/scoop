@@ -242,6 +242,8 @@ fn type_id_for_nominal_fqn_no_args(
         "scoop.core.Nothing" => return builtins.nothing,
         "scoop.core.Bool" => return builtins.bool_,
         "scoop.core.Char" => return builtins.char_,
+        "scoop.core.Float64" => return builtins.float64,
+        "scoop.core.Float32" => return builtins.float32,
         "scoop.core.Int" => return builtins.int,
         "scoop.core.UInt" => return builtins.uint,
         "scoop.core.Option" => {

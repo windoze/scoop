@@ -1142,43 +1142,86 @@ cargo run -p scoop --features llvm -- test
       - `cargo run -p scoop -- run tests/fixtures/run_pass_cone/char_multi_file_runtime_api`
     - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞：大量 `inkwell` deprecated `ptr_type`，以及长期存在的 `too_many_arguments` / `result_large_err`；不是本任务引入。
 
-### T0147 [TODO] Float 类型系统与 sysroot 基础
+### T0147 Float 类型系统与 sysroot 基础：拆分说明
 
-- 描述：Scoop 当前没有浮点类型。本任务在类型系统和 sysroot 中引入 `Float64`（主力浮点类型，对应 IEEE 754 binary64/double）和 `Float32`（对应 IEEE 754 binary32/float），并在 LLVM codegen 中实现基础布局、默认值和类型映射。`Float64` 作为"默认浮点类型"（类似 `Int` 作为默认整数类型），在无显式标注时浮点字面量推断为 `Float64`。
+- 说明：原 `T0147` 同时覆盖 builtin type plumbing、LLVM `CgTy` 标量接线、sysroot API、resolver/typecheck builtin 路由以及 runtime C ABI，跨层面过大，不适合单轮“实现 + 验收 + 提交”。现拆分为 `T0147a ~ T0147c` 顺序落地。
+- 最终目标保持不变：引入 `Float64`（默认浮点类型，IEEE 754 binary64）与 `Float32`（IEEE 754 binary32），先建立稳定的类型与后端基础，再为 `T0148` 的浮点字面量/运算/编译期求值铺路。
+
+### T0147a [DONE] Float builtin type plumbing：`ValueTypeKind` / `BuiltinTypes` / type lowering / layout / RTTI / sysroot 类型声明
+
+- 描述：先把 `Float64` / `Float32` 作为编译器认识的内建值类型接入所有共享静态基础设施，但暂不引入浮点字面量、运算符、runtime 方法或 codegen dispatch。
 - 目标：
   - **类型系统**（`ty/mod.rs`）：
     - `ValueTypeKind` 新增 `Float64` 和 `Float32` 变体。
     - `BuiltinTypes` 新增 `float64: TypeId` 和 `float32: TypeId`。
-    - 定义 **float absorption** 规则（类似整数的 integer absorption）：浮点字面量在类型上下文已知时可隐式适配为 `Float32`（截断精度）。
+    - `TypeStore::intern_builtins()`、`fmt::Display`、clone/intern 相关共享路径都能识别两种 Float builtin。
+  - **Type lowering / builtin lookup**（`typecheck/lower.rs`）：
+    - `Float64` / `Float32` 可像 `Int` / `Bool` 一样通过隐式 builtin type path 解析。
+    - builtin type lowering（含 path lowering / call-site type lowering）可返回正确的 builtin `TypeId`。
+  - **共享布局与 RTTI**：
+    - `typecheck/layout.rs`：`Float64 => size=8, align=8`；`Float32 => size=4, align=4`。
+    - `rtti/type_desc.rs` 与 `rtti/mod.rs` 补齐 Float builtin 分支，避免 exhaustive match 漏洞。
   - **Sysroot**（`sysroot/core.scoop`）：
-    - 新增 `struct Float64 : Hashable` 声明。
-    - 新增 `struct Float32 : Hashable` 声明。
-    - 基础方法声明：
-      - `fun toInt(): Int`（截断取整）。
-      - `fun toString(): String`（十进制字符串表示）。
-      - `fun hash(): Int`。
-      - `fun abs(): Float64`（`Float32` 版同理）。
-      - `fun isNaN(): Bool`、`fun isInfinite(): Bool`。
-    - 类型别名：`typealias Double = Float64`。
-  - **LLVM codegen 类型映射**（`llvm/codegen/`）：
-    - `CgTy` 新增 `Float64` 和 `Float32` 变体。
-    - `cg_ty_of`：`ValueTypeKind::Float64 => CgTy::Float64`，`Float32 => CgTy::Float32`。
-    - `llvm_basic_type_of`：`CgTy::Float64 => context.f64_type()`，`CgTy::Float32 => context.f32_type()`。
-    - `TypeLayout`：`Float64 => size=8, align=8`；`Float32 => size=4, align=4`。
-    - `default_value`：`Float64 => 0.0 f64 常量`，`Float32 => 0.0 f32 常量`。
-    - 所有 `match CgTy` 穷举点（`mod.rs`、`effect.rs`、`control_flow.rs`、`gc.rs`）添加 `Float64`/`Float32` 分支。
-  - **Runtime/C**（`runtime/c/scoop_runtime.c`）：
-    - `scoop_float64_to_string(double) -> ScoopString*`。
-    - `scoop_float32_to_string(float) -> ScoopString*`。
-    - `scoop_float64_to_int(double) -> int64_t`（截断）。
-    - `scoop_string_to_float64(ScoopString*) -> double`（解析，失败返回 `0.0` 或 NaN）。
-  - **Resolver**（`resolve/scopes.rs`）：Float64/Float32 方法白名单。
-  - **Typecheck**（`typecheck/`）：Float64/Float32 方法调用类型检查。
+    - 新增 `struct Float64`、`struct Float32` 声明。
+    - 新增 `typealias Double = Float64`。
+    - 暂不在本子任务中加入成员方法与接口实现。
 - 验收：
-  - Float64/Float32 类型在编译器中可被引用、实例化（通过构造或类型转换）。
-  - `CgTy::Float64`/`Float32` 在所有 codegen match 穷举中不 panic。
-  - `cargo test --all` 通过（类型系统 + codegen 骨架不破坏现有功能）。
+  - `Float64` / `Float32` / `Double` 可在类型注解中被解析。
+  - 共享类型基础设施中的相关穷举分支补齐，不因新增 builtin 类型而编译失败。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
 - 依赖：无
+- 完成记录：
+  - **builtin 类型身份**：`crates/scoopc/src/ty/mod.rs` 已新增 `ValueTypeKind::Float64` / `Float32`，`BuiltinTypes::float64` / `float32`，并补齐 `TypeStore::intern_builtins()`、builtin clone/intern 共享路径与 `fmt::Display`，使 Float builtin 成为一等内建值类型。
+  - **type lowering / builtin lookup**：`crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/cone/pre_specialize.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/hir/lower/util.rs` 已补齐 `Float64` / `Float32` / `Double` 的隐式 builtin type 解析与共享 lowering 路径；新增 fixture `tests/fixtures/typecheck/float_builtin_type_refs_ok.scoop` 验证类型引用可解析。
+  - **共享布局与静态基础设施**：`crates/scoopc/src/typecheck/layout.rs` 将 `Float64` / `Float32` 分别布局为 `size=8 align=8` 与 `size=4 align=4`；`crates/scoopc/src/rtti/type_desc.rs`、`crates/scoopc/src/rtti/mod.rs`、`crates/scoopc/src/cone/scoopir/export.rs`、`crates/scoopc/src/typecheck/branch_merge.rs`、`crates/scoopc/src/typecheck/assignable.rs` 等模块已补齐相关穷举与 builtin->nominal/shared 路径。`crates/scoopc/src/llvm/codegen/layout.rs` / `crates/scoopc/src/llvm/codegen/ty.rs` 也已补齐新增 builtin 的共享分支；其中 LLVM 浮点标量映射明确延后到 `T0147b`。
+  - **sysroot 声明面**：`sysroot/core.scoop` 已新增 `struct Float64`、`struct Float32` 和 `typealias Double = Float64`，但本子任务仍故意不加入成员方法与接口实现。
+  - **golden 刷新**：由于 builtin `TypeId` 顺序新增 `Float64` / `Float32`，已同步刷新受影响的 HIR/MIR fixtures，保证 dump goldens 与当前 builtin 编号一致。
+  - **验证**：
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞，主要是 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context` 以及长期存在的 `too_many_arguments` / `result_large_err`；未发现由本任务新增的 clippy 问题
+
+### T0147b [TODO] Float LLVM 标量映射：`CgTy` / LLVM type / default value / codegen 穷举补齐
+
+- 描述：在静态类型基础稳定后，把 `Float64` / `Float32` 作为真正的 LLVM 标量类型接到后端，共享 `CgTy` 与基础布局/默认值路径，但暂不引入字面量与算术 codegen。
+- 目标：
+  - `llvm/codegen/types.rs`：新增 `CgTy::Float64` / `CgTy::Float32`。
+  - `llvm/codegen/ty.rs`：
+    - `cg_ty_of` / `cg_ty_of_type_fqn` 映射 Float builtin；
+    - `llvm_basic_type_of` 返回 `context.f64_type()` / `context.f32_type()`。
+  - `llvm/codegen/mod.rs`：`default_value` 与关键 `match CgTy` 穷举点补齐 Float 分支。
+  - `llvm/codegen/effect.rs` / `gc.rs` / 其它关键 codegen 模块补齐所有必须的 Float 分支，确保新增 builtin 不会触发 panic 或 unreachable。
+- 验收：
+  - `CgTy::Float64` / `Float32` 在 LLVM 后端共享路径中可被安全处理。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147a
+
+### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
+
+- 描述：在类型与 LLVM 标量基础稳定后，补齐 Float 的最小公开 API 表面：sysroot 方法声明、resolver/typecheck builtin 路由、runtime C 符号，以及 codegen dispatch。
+- 目标：
+  - **Sysroot**（`sysroot/core.scoop`）：
+    - `struct Float64 : Hashable, ToString`
+    - `struct Float32 : Hashable, ToString`
+    - 补齐 `toInt()` / `toString()` / `hash()` / `abs()` / `isNaN()` / `isInfinite()` 声明。
+  - **Resolver / Typecheck**：
+    - Float64/Float32 方法白名单与最小 builtin 方法调用类型检查。
+  - **Runtime/C**（`runtime/c/scoop_runtime.c` + `runtime/c/scoop_runtime_api.h`）：
+    - `scoop_float64_to_string(double)`
+    - `scoop_float32_to_string(float)`
+    - `scoop_float64_to_int(double)`
+    - 为后续转换预留 `scoop_string_to_float64(ScoopString*)` 符号。
+  - **LLVM codegen**：
+    - runtime symbols / ABI 声明补齐；
+    - `Float64` / `Float32` builtin 方法可被 lowering 到 runtime 或直接 LLVM 指令。
+- 验收：
+  - Float builtin 方法在静态阶段可解析并通过类型检查。
+  - LLVM 后端对相关 builtin 方法的分发路径完整，不因 Float 接口调用而 panic。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147a、T0147b
 
 ### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
 
@@ -1239,7 +1282,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 comptime fixture：`const val pi = 3.14159; const val area = pi * 2.0 * 2.0`。
   - 现有 run-pass fixtures 全部通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
-- 依赖：T0147（Float 类型系统基础）、T0140（多文件字面量框架）
+- 依赖：T0147a、T0147b、T0147c、T0140（多文件字面量框架）
 
 ### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
 

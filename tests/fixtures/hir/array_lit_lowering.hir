@@ -6,7 +6,7 @@ File {
                 fqn: "fixtures.hir.takesArray",
                 name: "takesArray",
                 ty: TypeId(
-                    9,
+                    11,
                 ),
                 params: [
                     Param {
@@ -14,7 +14,7 @@ File {
                         id: S0,
                         name: "xs",
                         ty: TypeId(
-                            8,
+                            10,
                         ),
                     },
                 ],
@@ -38,7 +38,7 @@ File {
                 fqn: "fixtures.hir.takesMutableArray",
                 name: "takesMutableArray",
                 ty: TypeId(
-                    11,
+                    13,
                 ),
                 params: [
                     Param {
@@ -46,7 +46,7 @@ File {
                         id: S1,
                         name: "xs",
                         ty: TypeId(
-                            10,
+                            12,
                         ),
                     },
                 ],
@@ -70,7 +70,7 @@ File {
                 fqn: "fixtures.hir.main",
                 name: "main",
                 ty: TypeId(
-                    12,
+                    14,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -99,7 +99,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            8,
+                                            10,
                                         ),
                                         init: Some(
                                             Expr {
@@ -395,7 +395,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            10,
+                                            12,
                                         ),
                                         init: Some(
                                             Expr {
@@ -1189,7 +1189,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            8,
+                                            10,
                                         ),
                                         init: Some(
                                             Expr {
@@ -1317,7 +1317,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            10,
+                                            12,
                                         ),
                                         init: Some(
                                             Expr {
