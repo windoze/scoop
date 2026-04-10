@@ -2411,6 +2411,43 @@ const ScoopString *scoop_bool_to_string(int64_t value) {
   }
 }
 
+// T0146c2: scoop_char_to_string：将单个 Unicode scalar value 编码为 UTF-8 字符串。
+//
+// 说明：
+// - `Char` 的运行时表示为 i32 codepoint（U+0000..U+10FFFF）；
+// - 对非法 codepoint（越界或 surrogate）保守降级为 U+FFFD；
+// - 返回值为 GC-managed ScoopString*。
+const ScoopString *scoop_char_to_string(int32_t codepoint) {
+  uint32_t cp = (uint32_t)codepoint;
+  if (cp > 0x10FFFFu || (cp >= 0xD800u && cp <= 0xDFFFu)) {
+    cp = 0xFFFDu;
+  }
+
+  uint8_t buf[4];
+  uint64_t len = 0;
+  if (cp <= 0x7Fu) {
+    buf[0] = (uint8_t)cp;
+    len = 1;
+  } else if (cp <= 0x7FFu) {
+    buf[0] = (uint8_t)(0xC0u | (cp >> 6));
+    buf[1] = (uint8_t)(0x80u | (cp & 0x3Fu));
+    len = 2;
+  } else if (cp <= 0xFFFFu) {
+    buf[0] = (uint8_t)(0xE0u | (cp >> 12));
+    buf[1] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+    buf[2] = (uint8_t)(0x80u | (cp & 0x3Fu));
+    len = 3;
+  } else {
+    buf[0] = (uint8_t)(0xF0u | (cp >> 18));
+    buf[1] = (uint8_t)(0x80u | ((cp >> 12) & 0x3Fu));
+    buf[2] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+    buf[3] = (uint8_t)(0x80u | (cp & 0x3Fu));
+    len = 4;
+  }
+
+  return scoop_string_from_bytes(buf, len);
+}
+
 // scoop_int_to_string：将 int64_t 转换为十进制字符串表示。
 // 返回 GC-managed ScoopString*。
 const ScoopString *scoop_int_to_string(int64_t value) {

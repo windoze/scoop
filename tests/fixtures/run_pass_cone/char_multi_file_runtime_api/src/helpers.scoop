@@ -1,0 +1,19 @@
+// Non-entry file with Char literals and Char runtime API.
+// T0146c2: verify Char.toString()/hash() survive multi-file cone builds.
+
+package fixtures.run_pass_cone.char_multi_file_runtime_api
+
+import scoop.core.*
+
+public fun helper_char(): Char {
+    return '\u03A9'
+}
+
+public fun helper_label(): String {
+    return "helper=".concat('\u4E2D'.toString())
+}
+
+public fun helper_hash_matches(): Bool {
+    val glyph: Char = '\u03A9'
+    return glyph.hash() == glyph.toInt().hash()
+}

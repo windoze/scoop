@@ -216,6 +216,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// `const ScoopString* scoop_char_to_string(int32_t codepoint)`
+    pub(super) fn declare_runtime_char_to_string(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CHAR_TO_STRING;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i32_ty = self.context.i32_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[i32_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // T1812: Int↔String conversion methods.
 
     /// `const ScoopString* scoop_int_to_string(int64_t value)`

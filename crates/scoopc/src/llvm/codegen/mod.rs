@@ -1340,6 +1340,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_to_string_ext(span, callee.span, args);
             }
 
+            // T0146c2：body-less extension function `toInt()`（当前先覆盖 Char）。
+            if fqn == "scoop.core.toInt" {
+                return self.codegen_sysroot_to_int_ext(span, callee.span, args);
+            }
+
+            // T0146c2：body-less extension function `hash()`（当前先覆盖 Char；其余标量可复用）。
+            if fqn == "scoop.core.hash" {
+                return self.codegen_sysroot_hash_ext(span, callee.span, args);
+            }
+
             // T1318e：std v2 io（stdin/stdout/stderr）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
             if fqn == "scoop.io.stdoutWriteString" {
                 return self.codegen_sysroot_io_write_string(
@@ -1627,7 +1637,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
-            // T1812: Int.toString() / T0114: Bool.toString() — route by codegen receiver type.
+            // T0146c2/T1812/T0114: Char/Int/Bool.toString() — route by builtin receiver type.
             //
             // Evaluate the receiver first, then dispatch based on CgTy. This correctly
             // handles both typed variables and expression results (e.g., comparison ops
@@ -1635,7 +1645,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "toString" {
                 return self.codegen_to_string_method(span, receiver);
             }
-            // T1817: hash() — route to Int or String based on receiver type.
+            // T0146c2/T1817: hash() — route to Char/Int/String based on receiver type.
             if member.name == "hash" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -1646,6 +1656,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     _ => receiver.ty,
                 };
                 match self.types.kind(recv_ty) {
+                    TypeKind::Value(ValueTypeKind::Char) => {
+                        return self.codegen_char_method_hash(span, receiver);
+                    }
                     TypeKind::Value(ValueTypeKind::Int) => {
                         return self.codegen_int_method_hash(span, receiver);
                     }
@@ -3207,14 +3220,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// T0114 / T1812: Unified `toString()` dispatch — evaluate receiver first, then
-    /// branch on `CgTy` so that expression results (e.g. `(x == y).toString()`) route
-    /// correctly even when the HIR type doesn't resolve to Bool.
+    /// T0146c2 / T0114 / T1812: Unified `toString()` dispatch。
+    ///
+    /// 先用 HIR concrete type 识别 `Char`（因为运行期与 `Int` 同为 `CgTy::Int`），
+    /// 再按 `CgTy` 处理 Bool/Int/String 等其它内建路径。
     fn codegen_to_string_method(
         &mut self,
         span: crate::span::Span,
         receiver: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if self.expr_is_builtin_char(receiver) {
+            return self.codegen_char_method_to_string(span, receiver);
+        }
+
         // Evaluate the receiver without a forced expected type so we get its
         // natural CgTy.
         let recv = self.codegen_expr(receiver)?;
@@ -3291,6 +3309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(str_ptr.into()),
                 })
             }
+            CgTy::String => Ok(recv),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "toString() unsupported receiver CgTy",
                 at: span.into(),
@@ -3313,6 +3332,92 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
         self.coerce_value(receiver.span, recv, int_ty)
+    }
+
+    /// T0146c2: `Char.toString()` —— 调 runtime 把 Unicode scalar value 编码为 UTF-8 String。
+    fn codegen_char_method_to_string(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let char_ty = CgTy::Int(IntTy {
+            bits: 32,
+            signed: false,
+        });
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
+        let Some(raw) = recv.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.toString receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::IntValue(codepoint) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.toString receiver type",
+                at: receiver.span.into(),
+            });
+        };
+        let str_ptr = self.codegen_char_to_string_value(span, codepoint)?;
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
+    }
+
+    /// T0146c2: `Char.hash()` —— 以 codepoint zero-extend 到 i64 后复用 `Int.hash()` mixing。
+    fn codegen_char_method_hash(
+        &mut self,
+        _span: crate::span::Span,
+        receiver: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let char_ty = CgTy::Int(IntTy {
+            bits: 32,
+            signed: false,
+        });
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
+        let Some(raw) = recv.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.hash receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::IntValue(codepoint) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.hash receiver type",
+                at: receiver.span.into(),
+            });
+        };
+        let widened = self.builder.build_int_z_extend(
+            codepoint,
+            self.context.i64_type(),
+            "char_hash_zext",
+        )?;
+        self.codegen_i64_hash_value(widened)
+    }
+
+    fn codegen_char_to_string_value(
+        &mut self,
+        span: crate::span::Span,
+        codepoint: IntValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let rt_fun = self.declare_runtime_char_to_string();
+        let call = self
+            .builder
+            .build_call(rt_fun, &[codepoint.into()], "rt_char_to_string")?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.toString return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Char.toString return type",
+                at: span.into(),
+            });
+        };
+        Ok(str_ptr)
     }
 
     /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
@@ -3344,6 +3449,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        self.codegen_i64_hash_value(x)
+    }
+
+    fn codegen_i64_hash_value(
+        &mut self,
+        x: IntValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let i64_ty = self.context.i64_type();
         // x ^= x >> 30
         let s1 =
@@ -3407,6 +3519,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
         };
+
+        if self.expr_is_builtin_char(expr) {
+            let char_ty = CgTy::Int(IntTy {
+                bits: 32,
+                signed: false,
+            });
+            let recv = self.codegen_expr_in_expected_context(expr, Some(char_ty))?;
+            let Some(raw) = recv.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sysroot print/println char arg value",
+                    at: expr.span.into(),
+                });
+            };
+            let BasicValueEnum::IntValue(codepoint) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sysroot print/println char arg type",
+                    at: expr.span.into(),
+                });
+            };
+            let str_ptr = self.codegen_char_to_string_value(expr.span, codepoint)?;
+            let rt_fun = self.declare_runtime_print_like(rt_name);
+            let _ =
+                self.builder
+                    .build_call(rt_fun, &[str_ptr.into()], "rt_print_char_as_string")?;
+            return Ok(CgValue::unit());
+        }
 
         // 说明：
         // - sysroot 中允许 `print/println` 以 overload set 的形式声明（例如 `String` 与 `Int`）；
@@ -3523,11 +3661,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// T0131：where-bound `ToString.toString` 拦截——内建类型短路分发。
+    /// T0131/T0146c2：where-bound `ToString.toString` 拦截——内建类型短路分发。
     ///
     /// monomorphized `print<Bool>` body 调用 `value.toString()`，HIR 将其改写为
     /// `scoop.core.ToString.toString(value)`。此函数在 itable dispatch 前拦截：
-    /// - 内建类型（Bool/Int/String）→ 调用 runtime → `Some(CgValue)`
+    /// - 内建类型（Bool/Char/Int/String）→ 调用 runtime → `Some(CgValue)`
     /// - 其它类型（class/struct）→ `None`（fall-through 到 itable 或 fun_index）
     fn try_codegen_tostring_iface_builtin(
         &mut self,
@@ -3541,6 +3679,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let hir::CallArg::Positional(expr) = &args[0] else {
             return Ok(None);
         };
+        if self.expr_is_builtin_char(expr) {
+            return self.codegen_char_method_to_string(span, expr).map(Some);
+        }
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Bool => {
@@ -3675,7 +3816,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::unit())
     }
 
-    /// T0131：body-less extension function `toString()`（Int/Bool/String）codegen 拦截。
+    /// T0131/T0146c2：body-less extension function `toString()`（Char/Int/Bool/String）codegen 拦截。
     ///
     /// HIR lowering 将 `receiver.toString()` 改写为 top-level call `scoop.core.toString(receiver)`。
     /// 按 receiver CgTy 分发到对应 runtime 函数。
@@ -3698,6 +3839,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: callee_span.into(),
             });
         };
+
+        if self.expr_is_builtin_char(expr) {
+            return self.codegen_char_method_to_string(span, expr);
+        }
 
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
@@ -3777,6 +3922,82 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "toString ext unsupported CgTy",
+                at: span.into(),
+            }),
+        }
+    }
+
+    /// T0146c2：body-less extension function `toInt()` codegen 拦截。
+    ///
+    /// 当前主要用于 `Char.toInt()`：HIR lowering 会把它改写为 `scoop.core.toInt(receiver)`。
+    fn codegen_sysroot_to_int_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toInt ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toInt ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        if self.expr_is_builtin_char(expr) {
+            return self.codegen_char_method_to_int(expr);
+        }
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::String => self.codegen_string_method(span, expr, "toInt", &[]),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toInt ext unsupported CgTy",
+                at: span.into(),
+            }),
+        }
+    }
+
+    /// T0146c2：body-less extension function `hash()` codegen 拦截。
+    ///
+    /// 当前主要用于 `Char.hash()`：HIR lowering 会把它改写为 `scoop.core.hash(receiver)`。
+    /// 这里按 receiver 的内建类型分发到对应 hashing 路径。
+    fn codegen_sysroot_hash_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "hash ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "hash ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        if self.expr_is_builtin_char(expr) {
+            return self.codegen_char_method_hash(span, expr);
+        }
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Int(_) => self.codegen_int_method_hash(span, expr),
+            CgTy::String => self.codegen_string_method(span, expr, "hash", &[]),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "hash ext unsupported CgTy",
                 at: span.into(),
             }),
         }
@@ -8088,6 +8309,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         None
+    }
+
+    /// `Char` 在 LLVM 侧与 `Int` 同为 `CgTy::Int`，因此 builtin 分发需要额外看 HIR concrete type。
+    fn expr_is_builtin_char(&self, expr: &hir::Expr) -> bool {
+        let ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
+        matches!(self.types.kind(ty), TypeKind::Value(ValueTypeKind::Char))
     }
 
     /// T0130: 尝试从 callee 表达式推导 Call 结果的具体类型。

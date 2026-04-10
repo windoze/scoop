@@ -42,6 +42,7 @@ interface ToString {
 // - 这些类型的布局/语义由编译器与运行时固定；
 // - sysroot 只提供"可见声明"，用于名字解析与工具链展示。
 struct Bool : Hashable, ToString
+struct Char : Hashable, ToString
 class String : Hashable, ToString
 // 泛型数组类型（compile-time + runtime 表面）。
 //
@@ -132,11 +133,16 @@ annotation class Global
 //
 // 说明：
 // - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
-//   `Int.toString()` / `Bool.toString()` / `String.toString()`；
-// - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy 路由到 runtime 函数。
+//   `Char.toInt()` / `Char.toString()` / `Int.toString()` / `Bool.toString()` / `String.toString()` /
+//   `Char.hash()`；
+// - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy/内建类型路由到 runtime 函数；
+// - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
+fun Char.toInt(): Int
+fun Char.toString(): String
 fun Int.toString(): String
 fun Bool.toString(): String
 fun String.toString(): String
+fun Char.hash(): Int
 
 // T0131: 泛型 print/println 签名（body-less，resolver/typecheck 用）。
 //

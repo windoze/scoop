@@ -202,6 +202,14 @@ pub(super) fn is_type_assignable(
                 && nominal_is_subtype_by_fqn("scoop.core.Bool", &expected_nominal.fqn, lower.env())
         }
         (
+            TypeKind::Value(ValueTypeKind::Char),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
+                && nominal_is_subtype_by_fqn("scoop.core.Char", &expected_nominal.fqn, lower.env())
+        }
+        (
             TypeKind::Value(ValueTypeKind::Int),
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         ) => {

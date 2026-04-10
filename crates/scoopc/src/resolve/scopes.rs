@@ -1772,9 +1772,13 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        // T0146b: Char.toInt() — 先走前端 intrinsic 路径；sysroot/runtime 落地留给 T0146c。
-        if receiver_ty_fqn == "scoop.core.Char" && member_name == "toInt" {
-            return Ok(());
+        // T0146c2: Char 内建 API —— 与 Int/Bool/String 一样走 minimal builtin 路径。
+        if receiver_ty_fqn == "scoop.core.Char" {
+            let is_known_char_method =
+                member_name == "toInt" || member_name == "toString" || member_name == "hash";
+            if is_known_char_method {
+                return Ok(());
+            }
         }
 
         // spec §5.5：`Continuation.resume` 是内建操作。

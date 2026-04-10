@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: char_runtime_textual_basic.stdout
+//
+// T0146c2: Char should support toString()/hash()/print via sysroot + runtime.
+
+import scoop.core.*
+
+fun main() {
+    val ascii: Char = 'A'
+    val apostrophe: Char = '\''
+    val unicode: Char = '\u4E2D'
+
+    print(ascii)
+    print(apostrophe)
+    println("")
+    println(unicode)
+
+    println(ascii.toString())
+    println("value=".concat(unicode.toString()))
+
+    println((ascii.hash() == ascii.toInt().hash()).toString())
+    println((apostrophe.hash() == apostrophe.toInt().hash()).toString())
+    println((ascii.hash() != unicode.hash()).toString())
+}

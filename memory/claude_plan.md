@@ -1,83 +1,107 @@
-# 执行记录与计划
+# 执行记录与当前计划
 
-更新时间：2026-04-10
+## 背景与上一轮结果
+- 仓库当前基线已经完成上一轮任务拆分与首个子任务实现。
+- 原始任务 `T0146c` 被拆分为两个子任务：
+  - `T0146c1`：把 `Char` 作为 LLVM 运行期标量值打通。
+  - `T0146c2`：补齐 `sysroot/runtime` 的 `Char` API、字符串化、哈希与打印链路。
+- 上一轮已完成并提交 `T0146c1`，提交为 `19855ec [T0146c1] Lower Char as LLVM scalar`。
+- 当前工作树预期应以该提交为起点，当前轮只允许继续处理 `TODO.md` 中新的首个未完成任务，也就是 `T0146c2`。
 
-## 说明
+## 对用户要求的理解
+- 先检查最近一次提交是否提及需要先修的既有问题；如果有，必须先修。
+- 只完成 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 如果任务过大，需要拆分并同步更新 `TODO.md` 与 `PLAN.md`，但不能跨到下一个任务。
+- 执行中需要持续更新本文件，记录关键进展、计划变更与验证结果。
+- 完成后要更新 `TODO.md`、`PLAN.md`，提交 git commit，然后停止。
 
-按要求先记录执行计划，再开始任何检查或实现工作。这里记录的是可公开的高层分析、执行步骤、决策依据和进度，不包含内部私有推理细节。
+## 当前任务判断
+- 根据上一轮拆分结果，当前首个未完成任务应为 `T0146c2`。
+- 该任务目标是让 `Char` 具备完整运行期 API 和文本化能力，使它能像其他基础值类型一样进入 `ToString`、`print`、`println` 与 `hash` 路径。
+- 这一轮不继续推进 `T0146c2` 后面的任何任务；如果实现过程中发现范围仍过大，再进一步拆分并只做新的第一个子任务。
 
-## 初始目标
+## 本轮高层执行计划
+1. 读取并确认 `TODO.md`、`PLAN.md`、最近一次提交信息以及与 `Char` 相关的 `sysroot`、runtime、LLVM codegen 现状，验证当前首个未完成任务确实是 `T0146c2`。
+2. 检查最近一次提交信息是否包含需要先处理的既有问题；若提交说明没有新增待修项，则直接进入 `T0146c2`。
+3. 设计 `Char` 的最小闭环实现，优先复用已有 `Int`/`String`/trait lowering 路径，避免引入额外表示层复杂度。
+4. 在 `sysroot/core.scoop` 中补齐 `Char` 的接口定义，至少覆盖：
+   - `struct Char : Hashable, ToString`
+   - `toInt()`
+   - `toString()`
+   - `hash()`
+   如果现有 trait/内建声明形式要求额外适配，则按仓库既有模式接入。
+5. 在 `runtime/c/scoop_runtime.c` 中实现 `scoop_char_to_string(i32 codepoint)` 或等效导出函数，保证 ASCII 与一般 Unicode 标量值都能转成运行时 `String`；若现有字符串构造 API 有限制，则按现有 runtime 约定完成最小正确实现。
+6. 在 LLVM codegen 中补齐 `Char.toString()` 与 `Char.hash()` 的成员访问/codegen 路径，并确认 `Char.toInt()` 与平台 `Int` 宽度转换仍然正确。
+7. 检查 `print`/`println`/where-bound `ToString` 等调用链中对 `Char` 是否还存在缺口；如果 `Char: ToString` 自动走通，只补缺的地方，不做无关重构。
+8. 为本任务补充最小但充分的回归：
+   - 直接打印 `Char`
+   - `Char.toString()`
+   - `Char.hash()`
+   - 如任务描述要求涉及多文件场景，则补对应 fixture
+9. 运行验证：
+   - 先跑与本任务直接相关的 fixture/build 验证
+   - 再跑更完整的测试（至少 `cargo test --all` 与 `cargo run -p scoop -- test`）
+   - 尝试 `cargo clippy --workspace --all-targets -- -D warnings`
+10. 根据结果修正问题；若 `clippy` 失败来自仓库既有基线而非本轮新增问题，记录清楚，不额外扩散范围。
+11. 更新 `TODO.md`、`PLAN.md`、本文件，标记 `T0146c2` 完成；然后提交一次清晰的 git commit，并停止。
 
-本轮只完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
+## 关键风险与检查点
+- `Char` 的 sysroot 声明可能已部分存在，需避免与现有语言内建定义冲突。
+- runtime 字符串 API 可能要求 UTF-8，而 `Char` 运行值是 Unicode 标量值；需要确认正确编码路径。
+- `print/println` 可能并不是直接走 `ToString`，也可能有内建特判；需要以现有实现为准。
+- `hash()` 返回值的语义要与仓库中其他标量类型保持一致，优先遵循现有 `Hashable` 约定。
+- 如发现 `T0146c2` 仍明显超出一轮可控范围，需要立即回到文档拆分，而不是半做半停。
 
-## 初始执行步骤
+## 开始执行前的状态
+- 当前尚未读取本轮所需源码细节。
+- 当前尚未确认 `T0146c2` 是否还需进一步拆分。
+- 当前尚未做代码改动。
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到任何已知遗留问题。
-2. 若最新提交提到需要先修复的问题，则优先修复这些问题，并验证。
-3. 阅读 `TODO.md`，定位第一个未完成任务。
-4. 阅读 `PLAN.md`，核对该任务的上下文、依赖和预期范围。
-5. 判断该任务是否可以在本轮完整完成。
-6. 如果任务过大，则把任务拆分为更小的可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-7. 实现该任务，必要时补充或调整测试、文档和注释。
-8. 运行相关校验，至少包括与改动相关的测试；若范围允许，补充运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-9. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或依赖调整。
-10. 用清晰的提交信息提交本轮改动，然后停止。
+## 进展更新（本轮实现前）
+- 已检查最新提交 `19855ec [T0146c1] Lower Char as LLVM scalar`；提交说明未引入需要先于 `T0146c2` 处理的额外既有问题。
+- 已重新核对 `TODO.md` 与 `PLAN.md`：当前首个未完成任务确认为 `T0146c2`，范围不需要继续拆分。
+- 已完成现状勘测：
+  - `sysroot/core.scoop` 目前有 `Bool` / `String` / `Int` 的 `ToString` 路径，但还没有 `Char` 声明与 `Char.toString()/hash()` 扩展声明。
+  - resolver/typecheck 当前只对 `Char.toInt()` 做了最小 special-case，未覆盖 `Char.toString()` / `Char.hash()`。
+  - LLVM codegen 已支持 `Char` 作为运行期 `i32` 标量，以及 `Char.toInt()`；但 `codegen_to_string_method`、`codegen_sysroot_to_string_ext`、`try_codegen_tostring_iface_builtin`、`codegen_sysroot_print_like` 仍未接 `Char`。
+  - runtime 目前已有 `scoop_bool_to_string` / `scoop_int_to_string` / `scoop_string_hash`，但没有 `scoop_char_to_string`。
+- 由此确认的最小实现闭环：
+  1. `sysroot/core.scoop` 新增 `struct Char : Hashable, ToString`，并声明 `fun Char.toInt(): Int`、`fun Char.toString(): String`、`fun Char.hash(): Int`。
+  2. resolver/typecheck 把 `Char.toString()` / `Char.hash()` 加入与 `Char.toInt()` 同级的 builtin 路径。
+  3. runtime 新增 `scoop_char_to_string(int32_t codepoint)`，以 UTF-8 编码一个 Unicode scalar value 到 `ScoopString`。
+  4. LLVM codegen：
+     - `Char.toString()` 调 runtime `scoop_char_to_string`
+     - `Char.hash()` 复用现有 `Int.hash()` mixing 逻辑（对 `i32` codepoint 先 zero-extend 到 `i64`）
+     - `print/println` 与 where-bound `ToString` builtin 分发都纳入 `Char`
+  5. 新增两个回归：
+     - 单文件 run-pass：直接打印 `Char`、`toString()`、`hash()`
+     - 多文件 `run_pass_cone`：非入口文件中的 Char 字面量与 Char API
 
-## 执行原则
-
-- 优先修复最新提交明确提到的遗留问题。
-- 一次只推进一个最前面的未完成任务。
-- 若遇到阻塞，不把任务标成 blocked，而是调整任务顺序并记录依赖。
-- 不回退用户已有改动；若发现冲突性未预期修改，先评估影响再决定如何继续。
-
-## 进度
-
-- [x] 已创建本计划文件。
-- [x] 检查最新提交。
-- [x] 读取 `TODO.md` 与 `PLAN.md`。
-- [x] 确认第一个未完成任务为 `T0146c`，并判断其需要拆分。
-- [x] 更新 `TODO.md` / `PLAN.md`，把 `T0146c` 拆成可单轮完成的子任务。
-- [x] 执行拆分后的第一个子任务 `T0146c1`。
-- [x] 运行验证。
-- [x] 更新文档与任务状态。
-- [ ] 提交改动并停止。
-
-## 上下文结论
-
-- 最新提交为 `[T0146b] Add char static semantics`，提交说明中没有额外点名需先修复的遗留问题。
-- `TODO.md` 中第一个未完成任务是 `T0146c`，范围覆盖 `sysroot / runtime / LLVM codegen / run-pass`，单轮实现与回归面过大，不适合直接整体落地。
-
-## 拆分决策
-
-将原 `T0146c` 拆为两个连续子任务：
-
-1. `T0146c1`：先补齐 LLVM 标量链路，让 `Char` 作为运行期 `i32` 值类型在单文件 run-pass 中可用。
-   - 范围：`cg_ty_of` / `cg_ty_of_type_fqn` 的 Char 映射、Char 字面量 emission、比较、`when` Char pattern、`Char.toInt()` codegen。
-   - 验收：新增 run-pass fixture，覆盖赋值、转义/Unicode escape、比较、`toInt()`、`when` pattern。
-2. `T0146c2`：再补 sysroot/runtime 文本化与剩余 API。
-   - 范围：`sysroot/core.scoop` 的 `Char` 声明、`toString()` / `hash()`、runtime `scoop_char_to_string`、相关 codegen、多文件与打印回归。
-
-本轮执行目标改为：完成 `T0146c1`，然后停止。
-
-## 本轮实现结果
-
-- `crates/scoopc/src/llvm/codegen/ty.rs`
-  - `ValueTypeKind::Char` / `scoop.core.Char` 已映射到 `IntTy { bits: 32, signed: false }`。
-- `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `LiteralKind::Char(char)` 现在直接发射为 LLVM `i32` 常量。
-  - `Char.toInt()` 已接线为 zero-extend 到目标平台 `Int`。
-- `crates/scoopc/src/llvm/codegen/control_flow.rs`
-  - top-level `when (char)` 的 `CharLit` 条件生成已补齐。
-  - tuple element 的 `CharLit` codegen 分支也已补齐。
-- `tests/fixtures/run-pass/char_runtime_scalar_basic.*`
-  - 新增单文件 run-pass 回归，覆盖赋值、转义、Unicode escape、比较、`toInt()`、`when` pattern、返回 `Char` 的函数。
-
-## 验证结果
-
-- `cargo test --all`：通过
-- `cargo run -p scoop -- test`：通过（`fixtures: ok (849)`）
-- `cargo run -p scoop -- build tests/fixtures/run-pass/char_runtime_scalar_basic.scoop -o /tmp/char_runtime_scalar_basic.out`：通过
-- `/tmp/char_runtime_scalar_basic.out`：stdout 与 golden 一致
-- `cargo clippy --workspace --all-targets -- -D warnings`：**未通过**
-  - 原因是仓库既有 baseline：大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`。
-  - 本轮一度引入的 `cg_ty_of` 不可达分支 warning 已清理；当前 clippy 失败项不来自本次 Char 改动。
+## 进展更新（实现与验证完成）
+- 已完成代码实现：
+  - `sysroot/core.scoop`：新增 `struct Char : Hashable, ToString`，并声明 `fun Char.toInt(): Int`、`fun Char.toString(): String`、`fun Char.hash(): Int`。
+  - `resolve/scopes.rs` 与 `typecheck/expr/call.rs`：`Char.toInt()` / `Char.toString()` / `Char.hash()` 进入 builtin member 路径。
+  - `typecheck/assignable.rs`：补齐 `ValueTypeKind::Char -> scoop.core.Char` 的 nominal subtype 判定，使 `Char` 能满足 `where T: ToString` / `where T: Hashable` 这类 interface 约束。
+  - `runtime/c/scoop_runtime.c`：新增 `scoop_char_to_string(int32_t codepoint)`，把 Unicode scalar value 编码为 UTF-8；同时接到 `runtime_symbols.rs` / `runtime_abi.rs` / `scoop_runtime_api.h`。
+  - `llvm/codegen/mod.rs`：
+    - 新增 `Char.toString()` / `Char.hash()` lowering；
+    - `print/println` 与 `ToString` builtin dispatch 现在能识别 `Char`；
+    - 新增 body-less extension 顶层拦截：`scoop.core.toInt` / `scoop.core.toString` / `scoop.core.hash`；
+    - `Char.hash()` 复用现有 `Int.hash()` mixing 逻辑（`i32` codepoint zero-extend 到 `i64`）。
+- 在实现过程中额外发现并修正了两个实际缺口：
+  1. `where T: ToString` 对 `Char` 最初仍报约束不满足，需要在 `assignable.rs` 中补齐 builtin Char → nominal interface 的上转。
+  2. 加入 sysroot 的 body-less `Char.toInt()/hash()` 声明后，HIR 会把它们 lowering 成顶层调用 `scoop.core.toInt/hash(...)`，因此 codegen 需要像 `scoop.core.toString(...)` 一样提供专门拦截，而不能只补 member-call 路径。
+- 已新增回归：
+  - `tests/fixtures/run-pass/char_runtime_textual_basic.scoop` + `.stdout`
+  - `tests/fixtures/run_pass_cone/char_multi_file_runtime_api/**`
+- 已完成验证：
+  - `cargo fmt`
+  - `cargo test --all`：通过
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/char_runtime_textual_basic.scoop -o /tmp/char_runtime_textual_basic.out && /tmp/char_runtime_textual_basic.out`：输出与 golden 一致
+  - `cargo run -p scoop -- run tests/fixtures/run_pass_cone/char_multi_file_runtime_api`：输出 `Ω / helper=中 / true`
+  - `cargo run -p scoop -- test`：通过，`fixtures: ok (851)`
+  - `cargo clippy --workspace --all-targets -- -D warnings`：仍失败，但失败原因为仓库既有 baseline（大量 `inkwell` deprecated `ptr_type`、长期 `too_many_arguments` / `result_large_err`），不是本轮引入
+- 剩余收尾动作：
+  1. 更新 `TODO.md`
+  2. 更新 `PLAN.md`
+  3. 提交 git commit

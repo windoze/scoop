@@ -4278,17 +4278,41 @@ fn infer_member_call_expr_type(
         return Ok(builtins.string);
     }
 
-    // T0146b: Char.toInt() — 运行期/sysroot 实现留给 T0146c，当前先补齐静态类型与 comptime。
-    if actual_receiver_ty == builtins.char_ && member_name == "toInt" {
-        if !args.is_empty() {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: "toInt".into(),
-                expected: 0,
-                found: args.len(),
-                span: call_expr.span.into(),
-            });
+    // T0146c2: Char 内建 API —— toInt()/toString()/hash().
+    if actual_receiver_ty == builtins.char_ {
+        if member_name == "toInt" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "toInt".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
         }
-        return Ok(builtins.int);
+        if member_name == "toString" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "toString".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
+        if member_name == "hash" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "hash".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
     }
 
     // spec §15.10：GC pin/unpin（early stage）。

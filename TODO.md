@@ -1112,7 +1112,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (849)`）
     - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞：主要是大面积 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`；本任务引入的 `cg_ty_of` 不可达分支 warning 已在收尾时清理
 
-### T0146c2 [TODO] Char sysroot / runtime API：`struct Char`、`toString()`、`hash()`、多文件回归
+### T0146c2 [DONE] Char sysroot / runtime API：`struct Char`、`toString()`、`hash()`、多文件回归
 
 - 描述：在 `T0146c1` 的标量链路稳定后，补齐声明面与文本化 API，使 `Char` 能直接参与 `print/println`、泛型 `ToString`、多文件使用与哈希。
 - 目标：
@@ -1126,6 +1126,21 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0146c1
+- 完成说明：
+  - **sysroot 声明面**：`sysroot/core.scoop` 已新增 `struct Char : Hashable, ToString`，并补齐 `fun Char.toInt(): Int`、`fun Char.toString(): String`、`fun Char.hash(): Int`。
+  - **静态约束**：`resolve/scopes.rs` 与 `typecheck/expr/call.rs` 已把 `Char.toInt()` / `Char.toString()` / `Char.hash()` 接入 builtin member 路径；`typecheck/assignable.rs` 已补齐 builtin `Char` → nominal `scoop.core.Char` 的上转，使 `Char` 能满足 `where T: ToString` / `where T: Hashable`。
+  - **runtime / ABI**：`runtime/c/scoop_runtime.c` 已新增 `scoop_char_to_string(int32_t codepoint)`，把 Unicode scalar value 编码为 UTF-8 `ScoopString`；并同步接到 `runtime_symbols.rs` / `runtime_abi.rs` / `scoop_runtime_api.h`。
+  - **LLVM codegen**：`crates/scoopc/src/llvm/codegen/mod.rs` 已补齐 `Char.toString()` / `Char.hash()` lowering、`print/println` 与 `ToString` builtin dispatch 的 Char 路径，并新增 body-less 扩展函数顶层拦截 `scoop.core.toInt` / `scoop.core.toString` / `scoop.core.hash`。`Char.hash()` 复用现有 `Int.hash()` mixing 逻辑（对 `i32` codepoint zero-extend 到 `i64`）。
+  - **回归**：
+    - `tests/fixtures/run-pass/char_runtime_textual_basic.scoop` + `.stdout`：覆盖直接 `print/println(Char)`、`Char.toString()`、`Char.hash()`。
+    - `tests/fixtures/run_pass_cone/char_multi_file_runtime_api/**`：覆盖非入口文件中的 Char 字面量、`toString()`、`hash()` 与入口打印路径。
+  - **验证**：
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (851)`）
+    - 单独验证：
+      - `cargo run -p scoop -- build tests/fixtures/run-pass/char_runtime_textual_basic.scoop -o /tmp/char_runtime_textual_basic.out && /tmp/char_runtime_textual_basic.out`
+      - `cargo run -p scoop -- run tests/fixtures/run_pass_cone/char_multi_file_runtime_api`
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞：大量 `inkwell` deprecated `ptr_type`，以及长期存在的 `too_many_arguments` / `result_large_err`；不是本任务引入。
 
 ### T0147 [TODO] Float 类型系统与 sysroot 基础
 
