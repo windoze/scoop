@@ -124,7 +124,6 @@ impl<'ctx> Env<'ctx> {
         }
         None
     }
-
 }
 
 /// T1606f-2: Saved local info for callee suspension.
@@ -331,13 +330,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// 当前阶段 HIR span 仍然只携带“文件内 offset”，尚不能直接用 `SourceMap`
-    /// 精确反查所属文件；因此这类旧路径先保留“入口文件回退”语义，
-    /// 只把持有形态切换到 `SourceMap`，为后续 T0150c/T0150d 做铺垫。
+    /// 入口文件（仍用于少量“未显式切换 source context”的旧路径回退）。
     pub(super) fn entry_source(&self) -> &SourceFile {
         self.source_map
             .source(self.entry_source_id)
             .expect("entry source id should exist in source map")
+    }
+
+    fn current_source(&self) -> Result<&SourceFile, LlvmEmitError> {
+        self.source_map
+            .source(self.current_source_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "current source lookup",
+                at: crate::span::Span::new(0, 0).into(),
+            })
     }
 
     fn source_id_for_path(
@@ -358,13 +364,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_id: SourceId,
         span: crate::span::Span,
     ) -> Result<&str, LlvmEmitError> {
-        let bound = self
-            .source_map
-            .bind_span(source_id, span)
-            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+        let bound = self.source_map.bind_span(source_id, span).map_err(|_| {
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "source-backed literal span",
                 at: span.into(),
-            })?;
+            }
+        })?;
         self.source_map
             .slice(bound)
             .map_err(|_| LlvmEmitError::UnsupportedMainBody {
@@ -377,10 +382,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.source_slice_at(self.current_source_id, span)
     }
 
-    fn parse_current_int_literal(
-        &self,
-        span: crate::span::Span,
-    ) -> Result<u128, LlvmEmitError> {
+    fn parse_current_int_literal(&self, span: crate::span::Span) -> Result<u128, LlvmEmitError> {
         Ok(parse_int_literal_decimal(self.current_source_slice(span)?))
     }
 
@@ -388,11 +390,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         span: crate::span::Span,
     ) -> Result<Vec<u8>, LlvmEmitError> {
-        parse_string_literal_bytes(self.current_source_slice(span)?).map_err(|_| {
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "string literal parse",
-                at: span.into(),
-            }
+        let text = self.current_source_slice(span)?;
+        let source = self.current_source()?;
+        parse_string_literal_bytes(text).map_err(|err| {
+            LlvmEmitError::invalid_literal(
+                source,
+                span,
+                "string literal",
+                string_literal_parse_reason(err),
+                text,
+            )
         })
     }
 
@@ -441,9 +448,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
             }
             if returns_gc_free_aggregate {
-                let attr = self
-                    .context
-                    .create_string_attribute("gc-leaf-function", "");
+                let attr = self.context.create_string_attribute("gc-leaf-function", "");
                 existing.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
             }
             return Ok(existing);
@@ -481,9 +486,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         }
         if returns_gc_free_aggregate {
-            let attr = self
-                .context
-                .create_string_attribute("gc-leaf-function", "");
+            let attr = self.context.create_string_attribute("gc-leaf-function", "");
             llvm_fun.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
         }
         Ok(llvm_fun)
@@ -719,13 +722,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let suspend_info = self.scan_for_callee_suspend(body);
 
         if let Some(info) = suspend_info {
-            self.codegen_top_level_fun_suspendable(
-                fun,
-                llvm_fun,
-                body,
-                declared_return_cg,
-                info,
-            )?;
+            self.codegen_top_level_fun_suspendable(fun, llvm_fun, body, declared_return_cg, info)?;
         } else {
             // T0141: Set up function-level return context for early return support.
             // Alloca is placed here (still in the entry block before body codegen).
@@ -745,11 +742,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
 
             // Normal path: store return value and branch to return_bb.
-            if self.builder.get_insert_block().is_some_and(|bb| bb.get_terminator().is_none()) {
+            if self
+                .builder
+                .get_insert_block()
+                .is_some_and(|bb| bb.get_terminator().is_none())
+            {
                 if let Some(alloca) = return_alloca
-                    && let Some(raw) = ret_v.value {
-                        self.builder.build_store(alloca, raw)?;
-                    }
+                    && let Some(raw) = ret_v.value
+                {
+                    self.builder.build_store(alloca, raw)?;
+                }
                 self.builder.build_unconditional_branch(return_bb)?;
             }
 
@@ -837,7 +839,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "callee suspend local type (only Int/Bool/Ref/String)",
                             at: fun.span.into(),
-                        })
+                        });
                     }
                 });
             }
@@ -847,9 +849,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // ── Entry check: is this a resume? ──
         let rt_get = self.declare_runtime_callee_suspend_state_get();
-        let get_call = self
-            .builder
-            .build_call(rt_get, &[], "callee_suspend_get")?;
+        let get_call = self.builder.build_call(rt_get, &[], "callee_suspend_get")?;
         let state_raw = get_call
             .try_as_basic_value()
             .basic()
@@ -868,12 +868,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "is_callee_resume",
         )?;
 
-        let fresh_bb = self
-            .context
-            .append_basic_block(llvm_fun, "fresh_entry");
-        let resume_bb = self
-            .context
-            .append_basic_block(llvm_fun, "resume_entry");
+        let fresh_bb = self.context.append_basic_block(llvm_fun, "fresh_entry");
+        let resume_bb = self.context.append_basic_block(llvm_fun, "resume_entry");
         self.builder
             .build_conditional_branch(is_resume, resume_bb, fresh_bb)?;
 
@@ -893,11 +889,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // to avoid creating a GC root the statepoint pass can't track).
         let _i8_ptr_ty = self.llvm_i8_ptr_type();
         let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
-        let state_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            state_ptr_ty,
-            "callee_state_typed",
-        )?;
+        let state_ptr =
+            self.builder
+                .build_pointer_cast(state_raw, state_ptr_ty, "callee_state_typed")?;
 
         // Clear TLS.
         let rt_clear = self.declare_runtime_callee_suspend_state_clear();
@@ -906,12 +900,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_call(rt_clear, &[], "callee_suspend_clear")?;
 
         // Read resume_word from state (field 1).
-        let rw_ptr = self.builder.build_struct_gep(
-            state_ty,
-            state_ptr,
-            1,
-            "callee_resume_word_gep",
-        )?;
+        let rw_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "callee_resume_word_gep")?;
         let resume_word = self
             .builder
             .build_load(i64_ty, rw_ptr, "callee_resume_word")?
@@ -944,8 +935,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.builder
                             .build_int_truncate(loaded, to, "restore_trunc")?
                     };
-                    let ptr =
-                        self.create_entry_alloca(fun.span, &alloca_name, local.cg_ty)?;
+                    let ptr = self.create_entry_alloca(fun.span, &alloca_name, local.cg_ty)?;
                     let _ = self.builder.build_store(ptr, v)?;
                     self.env.insert(
                         local.id,
@@ -968,8 +958,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         i64_ty.const_zero(),
                         "restore_bool",
                     )?;
-                    let ptr =
-                        self.create_entry_alloca(fun.span, &alloca_name, CgTy::Bool)?;
+                    let ptr = self.create_entry_alloca(fun.span, &alloca_name, CgTy::Bool)?;
                     let _ = self.builder.build_store(ptr, b)?;
                     self.env.insert(
                         local.id,
@@ -986,8 +975,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_ref")?
                         .into_pointer_value();
-                    let ptr =
-                        self.create_entry_alloca(fun.span, &alloca_name, CgTy::Ref)?;
+                    let ptr = self.create_entry_alloca(fun.span, &alloca_name, CgTy::Ref)?;
                     let _ = self.builder.build_store(ptr, loaded)?;
                     self.env.insert(
                         local.id,
@@ -1005,16 +993,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_str")?
                         .into_pointer_value();
                     let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-                    let casted = self.builder.build_pointer_cast(
-                        loaded,
-                        str_ptr_ty,
-                        "restore_str_cast",
-                    )?;
-                    let ptr = self.create_entry_alloca(
-                        fun.span,
-                        &alloca_name,
-                        CgTy::String,
-                    )?;
+                    let casted =
+                        self.builder
+                            .build_pointer_cast(loaded, str_ptr_ty, "restore_str_cast")?;
+                    let ptr = self.create_entry_alloca(fun.span, &alloca_name, CgTy::String)?;
                     let _ = self.builder.build_store(ptr, casted)?;
                     self.env.insert(
                         local.id,
@@ -1030,7 +1012,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "callee suspend restore local type",
                         at: fun.span.into(),
-                    })
+                    });
                 }
             }
         }
@@ -1038,27 +1020,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Unpin state now (all fields loaded to stack allocas).
         // Use inttoptr to create a GC ptr without introducing a trackable GC root
         // (the statepoint pass can't handle address_space_cast from non-GC to GC).
-        let state_int = self.builder.build_ptr_to_int(
-            state_raw,
-            i64_ty,
-            "callee_state_int_for_unpin",
-        )?;
-        let state_gc_for_unpin = self.builder.build_int_to_ptr(
-            state_int,
-            gc_i8_ptr_ty,
-            "callee_state_gc_for_unpin",
-        )?;
+        let state_int =
+            self.builder
+                .build_ptr_to_int(state_raw, i64_ty, "callee_state_int_for_unpin")?;
+        let state_gc_for_unpin =
+            self.builder
+                .build_int_to_ptr(state_int, gc_i8_ptr_ty, "callee_state_gc_for_unpin")?;
         let unpin = self.declare_runtime_gc_unpin();
-        let _ = self
-            .builder
-            .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
+        let _ =
+            self.builder
+                .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
 
         // Bind the perform-binding to the resume value.
-        let perform_alloca = self.create_entry_alloca(
-            fun.span,
-            "callee_resume_val",
-            perform_binding_cg_ty,
-        )?;
+        let perform_alloca =
+            self.create_entry_alloca(fun.span, "callee_resume_val", perform_binding_cg_ty)?;
         match perform_binding_cg_ty {
             CgTy::Int(int_ty) => {
                 let to = self.int_type(int_ty);
@@ -1083,7 +1058,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "callee suspend resume value type (only Int/Bool supported)",
                     at: fun.span.into(),
-                })
+                });
             }
         }
         self.env.insert(
@@ -1119,21 +1094,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         && let Some(bb) = self.builder.get_insert_block()
                         && bb.get_terminator().is_none()
                     {
-                        let rv = self.coerce_value(
-                            expr.span,
-                            v,
-                            declared_return_cg,
-                        )?;
+                        let rv = self.coerce_value(expr.span, v, declared_return_cg)?;
                         self.emit_return(fun.span, declared_return_cg, rv)?;
                     }
                 }
                 hir::StmtKind::Return { value } => {
                     let out = match value {
                         Some(expr) => {
-                            let v = self.codegen_expr_in_expected_context(
-                                expr,
-                                Some(declared_return_cg),
-                            )?;
+                            let v = self
+                                .codegen_expr_in_expected_context(expr, Some(declared_return_cg))?;
                             if declared_return_cg == CgTy::Unit {
                                 CgValue::unit()
                             } else {
@@ -1152,7 +1121,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "stmt in callee resume path",
                         at: stmt.span.into(),
-                    })
+                    });
                 }
             }
         }
@@ -1641,12 +1610,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "getByte"
                     | "unsafeSliceBytes"
             ) {
-                return self.codegen_string_method(
-                    span,
-                    receiver,
-                    &member.name,
-                    args,
-                );
+                return self.codegen_string_method(span, receiver, &member.name, args);
             }
             // T1812: Int.toString() / T0114: Bool.toString() — route by codegen receiver type.
             //
@@ -1659,9 +1623,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T1817: hash() — route to Int or String based on receiver type.
             if member.name == "hash" {
                 let recv_ty = match &receiver.kind {
-                    hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                        self.env.get(*id).and_then(|l| l.hir_ty).unwrap_or(receiver.ty)
-                    }
+                    hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                        .env
+                        .get(*id)
+                        .and_then(|l| l.hir_ty)
+                        .unwrap_or(receiver.ty),
                     _ => receiver.ty,
                 };
                 match self.types.kind(recv_ty) {
@@ -1681,7 +1647,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
             // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
             if let Some(candidates) = self.ctor_call_sites.get(&callee.span) {
-                return self.codegen_class_ctor_call(span, callee.span, name, args, candidates, result_ty);
+                return self.codegen_class_ctor_call(
+                    span,
+                    callee.span,
+                    name,
+                    args,
+                    candidates,
+                    result_ty,
+                );
             }
 
             let Some(CgTy::Enum(enum_ty)) = expected else {
@@ -2591,45 +2564,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "length" => {
                 // scoop_string_length(s) -> i64
                 let rt_fun = self.declare_runtime_string_length();
-                let call = self
-                    .builder
-                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_length")?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[recv_ptr.into()], "rt_string_length")?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.length return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.length return type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0122/T0143: substring/indexOf/contains/startsWith/endsWith/split 已迁移到 sysroot/string.scoop
             "toInt" => {
                 // scoop_string_to_int(s) -> i64
                 let rt_fun = self.declare_runtime_string_to_int();
-                let call = self
-                    .builder
-                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_to_int")?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[recv_ptr.into()], "rt_string_to_int")?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.toInt return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.toInt return type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             "concat" => {
                 // scoop_string_concat(a, b) -> ScoopString*
@@ -2645,7 +2628,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                let other = self.codegen_expr_in_expected_context(other_expr, Some(CgTy::String))?;
+                let other =
+                    self.codegen_expr_in_expected_context(other_expr, Some(CgTy::String))?;
                 let other_coerced = self.coerce_value(other_expr.span, other, CgTy::String)?;
                 let Some(other_raw) = other_coerced.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2665,13 +2649,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), other_ptr.into()],
                     "rt_string_concat",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.concat return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(result_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.concat return type",
@@ -2689,35 +2672,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let call = self
                     .builder
                     .build_call(rt_fun, &[recv_ptr.into()], "rt_string_hash")?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.hash return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.hash return type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0122/T0143: trim/trimStart/trimEnd 已迁移到 sysroot/string.scoop
             // T0115: String.isEmpty() — 0 args → Bool (i64 0/1 → i1)
             "isEmpty" => {
                 let rt_fun = self.declare_runtime_string_is_empty();
-                let call = self
-                    .builder
-                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_isEmpty")?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[recv_ptr.into()], "rt_string_isEmpty")?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.isEmpty return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.isEmpty return type",
@@ -2788,13 +2775,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), old_ptr.into(), new_ptr.into()],
                     "rt_string_replace",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.replace return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(out_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.replace return type",
@@ -2822,7 +2808,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let idx = self.codegen_expr_in_expected_context(
                     idx_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                    Some(CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    })),
                 )?;
                 let idx_val = idx.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "String.charAt index value",
@@ -2834,20 +2823,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), idx_val.into()],
                     "rt_string_charAt",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.charAt return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.charAt return type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0115: String.repeat(n) — 1 Int arg → String
             "repeat" => {
@@ -2865,7 +2859,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let n = self.codegen_expr_in_expected_context(
                     n_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                    Some(CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    })),
                 )?;
                 let n_val = n.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "String.repeat n value",
@@ -2877,13 +2874,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), n_val.into()],
                     "rt_string_repeat",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.repeat return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(out_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.repeat return type",
@@ -2930,20 +2926,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), other_ptr.into()],
                     "rt_string_compareTo",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.compareTo return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.compareTo return type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0120: String.byteLength() — 0 args → Int (inline LLVM IR: read ScoopString.len)
             "byteLength" => {
@@ -2960,16 +2961,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     1,
                     "str_byte_length_gep",
                 )?;
-                let len_val = self
-                    .builder
-                    .build_load(self.context.i64_type(), len_ptr, "str_byte_length")?;
+                let len_val =
+                    self.builder
+                        .build_load(self.context.i64_type(), len_ptr, "str_byte_length")?;
                 let BasicValueEnum::IntValue(iv) = len_val else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.byteLength load type",
                         at: span.into(),
                     });
                 };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    iv,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0120: String.getByte(index) — 1 Int arg → Int (inline LLVM IR: bounds-checked byte read)
             "getByte" => {
@@ -2987,7 +2994,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let idx = self.codegen_expr_in_expected_context(
                     idx_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                    Some(CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    })),
                 )?;
                 let idx_val = idx.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "String.getByte index value",
@@ -3005,22 +3015,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let i8_ty = self.context.i8_type();
 
                 // Load string length for bounds check
-                let len_ptr = self
-                    .builder
-                    .build_struct_gep(scoop_str_ty, recv_ptr, 1, "get_byte_len_gep")?;
+                let len_ptr =
+                    self.builder
+                        .build_struct_gep(scoop_str_ty, recv_ptr, 1, "get_byte_len_gep")?;
                 let len_val = self
                     .builder
                     .build_load(i64_ty, len_ptr, "get_byte_len")?
                     .into_int_value();
 
                 // Load data pointer
-                let data_ptr_ptr = self
-                    .builder
-                    .build_struct_gep(scoop_str_ty, recv_ptr, 2, "get_byte_data_gep")?;
+                let data_ptr_ptr = self.builder.build_struct_gep(
+                    scoop_str_ty,
+                    recv_ptr,
+                    2,
+                    "get_byte_data_gep",
+                )?;
                 let data_ptr = self
                     .builder
                     .build_load(
-                        self.context.i8_type().ptr_type(inkwell::AddressSpace::default()),
+                        self.context
+                            .i8_type()
+                            .ptr_type(inkwell::AddressSpace::default()),
                         data_ptr_ptr,
                         "get_byte_data",
                     )?
@@ -3033,11 +3048,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .unwrap()
                     .get_parent()
                     .unwrap();
-                let in_bounds_bb =
-                    self.context.append_basic_block(current_fn, "getByte_in_bounds");
-                let out_of_bounds_bb =
-                    self.context
-                        .append_basic_block(current_fn, "getByte_out_of_bounds");
+                let in_bounds_bb = self
+                    .context
+                    .append_basic_block(current_fn, "getByte_in_bounds");
+                let out_of_bounds_bb = self
+                    .context
+                    .append_basic_block(current_fn, "getByte_out_of_bounds");
                 let merge_bb = self.context.append_basic_block(current_fn, "getByte_merge");
 
                 // Check index < 0
@@ -3050,8 +3066,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let not_negative_bb = self
                     .context
                     .append_basic_block(current_fn, "getByte_not_negative");
-                self.builder
-                    .build_conditional_branch(is_negative, out_of_bounds_bb, not_negative_bb)?;
+                self.builder.build_conditional_branch(
+                    is_negative,
+                    out_of_bounds_bb,
+                    not_negative_bb,
+                )?;
 
                 // Check index >= len
                 self.builder.position_at_end(not_negative_bb);
@@ -3072,8 +3091,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // In bounds: load byte and zero-extend to i64
                 self.builder.position_at_end(in_bounds_bb);
                 let byte_ptr = unsafe {
-                    self.builder
-                        .build_in_bounds_gep(i8_ty, data_ptr, &[idx_int], "get_byte_elem_gep")?
+                    self.builder.build_in_bounds_gep(
+                        i8_ty,
+                        data_ptr,
+                        &[idx_int],
+                        "get_byte_elem_gep",
+                    )?
                 };
                 let byte_val = self
                     .builder
@@ -3087,12 +3110,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Merge: phi node
                 self.builder.position_at_end(merge_bb);
                 let phi = self.builder.build_phi(i64_ty, "get_byte_result")?;
-                phi.add_incoming(&[
-                    (&zero_val, out_of_bounds_bb),
-                    (&byte_i64, in_bounds_bb),
-                ]);
+                phi.add_incoming(&[(&zero_val, out_of_bounds_bb), (&byte_i64, in_bounds_bb)]);
                 let result = phi.as_basic_value().into_int_value();
-                Ok(CgValue::int(result, IntTy { bits: 64, signed: true }))
+                Ok(CgValue::int(
+                    result,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                ))
             }
             // T0121: String.unsafeSliceBytes(byteOffset, byteLength) — @Unsafe, 2 Int args → String
             "unsafeSliceBytes" => {
@@ -3116,11 +3142,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let offset_cg = self.codegen_expr_in_expected_context(
                     offset_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                    Some(CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    })),
                 )?;
                 let len_cg = self.codegen_expr_in_expected_context(
                     len_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                    Some(CgTy::Int(IntTy {
+                        bits: 64,
+                        signed: true,
+                    })),
                 )?;
                 let offset_val = offset_cg.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "String.unsafeSliceBytes offset value",
@@ -3136,13 +3168,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[recv_ptr.into(), offset_val.into(), len_val.into()],
                     "rt_string_unsafe_slice_bytes",
                 )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "String.unsafeSliceBytes return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(out_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.unsafeSliceBytes return type",
@@ -3188,22 +3219,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let i64_ty = self.context.i64_type();
-                let bool_as_i64 =
-                    self.builder
-                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[bool_as_i64.into()],
-                    "rt_bool_to_string",
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "Bool.toString return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(str_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "Bool.toString return type",
@@ -3230,18 +3256,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[int_val.into()],
-                    "rt_int_to_string",
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "Int.toString return value",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(str_ptr) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "Int.toString return type",
@@ -3260,7 +3283,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-
     /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
     ///
     /// Algorithm: x ^= x >> 30; x *= 0xbf58476d1ce4e5b9;
@@ -3271,7 +3293,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _span: crate::span::Span,
         receiver: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let int_cg_ty = CgTy::Int(IntTy { bits: 64, signed: true });
+        let int_cg_ty = CgTy::Int(IntTy {
+            bits: 64,
+            signed: true,
+        });
         let recv = self.codegen_expr_in_expected_context(receiver, Some(int_cg_ty))?;
         let coerced = self.coerce_value(receiver.span, recv, int_cg_ty)?;
         let Some(raw) = coerced.value else {
@@ -3289,22 +3314,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let i64_ty = self.context.i64_type();
         // x ^= x >> 30
-        let s1 = self.builder.build_right_shift(x, i64_ty.const_int(30, false), false, "hash_s1")?;
+        let s1 =
+            self.builder
+                .build_right_shift(x, i64_ty.const_int(30, false), false, "hash_s1")?;
         let x1 = self.builder.build_xor(x, s1, "hash_x1")?;
         // x *= 0xbf58476d1ce4e5b9
         let c1 = i64_ty.const_int(0xbf58476d1ce4e5b9, false);
         let x2 = self.builder.build_int_mul(x1, c1, "hash_x2")?;
         // x ^= x >> 27
-        let s2 = self.builder.build_right_shift(x2, i64_ty.const_int(27, false), false, "hash_s2")?;
+        let s2 =
+            self.builder
+                .build_right_shift(x2, i64_ty.const_int(27, false), false, "hash_s2")?;
         let x3 = self.builder.build_xor(x2, s2, "hash_x3")?;
         // x *= 0x94d049bb133111eb
         let c2 = i64_ty.const_int(0x94d049bb133111eb, false);
         let x4 = self.builder.build_int_mul(x3, c2, "hash_x4")?;
         // x ^= x >> 31
-        let s3 = self.builder.build_right_shift(x4, i64_ty.const_int(31, false), false, "hash_s3")?;
+        let s3 =
+            self.builder
+                .build_right_shift(x4, i64_ty.const_int(31, false), false, "hash_s3")?;
         let x5 = self.builder.build_xor(x4, s3, "hash_x5")?;
 
-        Ok(CgValue::int(x5, IntTy { bits: 64, signed: true }))
+        Ok(CgValue::int(
+            x5,
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        ))
     }
 
     fn codegen_sysroot_print_like(
@@ -3488,15 +3525,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let i64_ty = self.context.i64_type();
-                let bool_as_i64 =
-                    self.builder
-                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[bool_as_i64.into()],
-                    "rt_bool_to_string",
-                )?;
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "ToString.toString Bool ret",
@@ -3528,11 +3561,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[int_val.into()],
-                    "rt_int_to_string",
-                )?;
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "ToString.toString Int ret",
@@ -3573,7 +3604,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "__scoop_print_string fqn",
                     at: span.into(),
-                })
+                });
             }
         };
 
@@ -3652,15 +3683,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let i64_ty = self.context.i64_type();
-                let bool_as_i64 =
-                    self.builder
-                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[bool_as_i64.into()],
-                    "rt_bool_to_string",
-                )?;
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "toString ext Bool ret",
@@ -3692,11 +3719,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[int_val.into()],
-                    "rt_int_to_string",
-                )?;
+                let call =
+                    self.builder
+                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "toString ext Int ret",
@@ -7866,9 +7891,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0130: 递归检查 Nominal 类型参数内部的 Param（例如 `this: Printer<T>`）
         let sig_fun = self.fun_index.get(fqn).copied()?;
 
-        let has_param = sig_fun.params.iter().any(|p| {
-            self.ty_contains_param(p.ty)
-        }) || self.ty_contains_param(sig_fun.return_ty);
+        let has_param = sig_fun.params.iter().any(|p| self.ty_contains_param(p.ty))
+            || self.ty_contains_param(sig_fun.return_ty);
 
         if !has_param {
             return None;
@@ -7880,13 +7904,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         };
 
-        let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) =
-            &receiver_expr.kind
-        {
-            self.env.get(*id).and_then(|local| local.hir_ty)?
-        } else {
-            return None;
-        };
+        let receiver_hir_ty =
+            if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver_expr.kind {
+                self.env.get(*id).and_then(|local| local.hir_ty)?
+            } else {
+                return None;
+            };
 
         // 从 receiver 的 nominal 类型中提取 type args
         let crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) =
@@ -7935,14 +7958,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut param_names: Vec<String> = Vec::new();
         for p in &sig_fun.params {
             if let crate::ty::TypeKind::Param(tp) = self.types.kind(p.ty)
-                && !param_names.contains(&tp.name) {
-                    param_names.push(tp.name.clone());
-                }
-        }
-        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty)
-            && !param_names.contains(&tp.name) {
+                && !param_names.contains(&tp.name)
+            {
                 param_names.push(tp.name.clone());
             }
+        }
+        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty)
+            && !param_names.contains(&tp.name)
+        {
+            param_names.push(tp.name.clone());
+        }
 
         if param_names.is_empty() {
             return None;
@@ -8012,7 +8037,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<crate::ty::TypeId> {
         let ty = expr.ty;
         // 如果 HIR type 不是 Any，直接使用
-        if !matches!(self.types.kind(ty), crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)) {
+        if !matches!(
+            self.types.kind(ty),
+            crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
+        ) {
             return Some(ty);
         }
 
@@ -8045,8 +8073,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 查找 fun_index 中的返回类型
         if let Some(fun) = self.fun_index.get(fqn) {
             let ret_kind = self.types.kind(fun.return_ty);
-            if !matches!(ret_kind, crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any))
-                && !matches!(ret_kind, crate::ty::TypeKind::Param(_))
+            if !matches!(
+                ret_kind,
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
+            ) && !matches!(ret_kind, crate::ty::TypeKind::Param(_))
             {
                 return Some(fun.return_ty);
             }
@@ -9527,7 +9557,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })?;
 
             let fn_ty = match ret_cg {
-                CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
+                CgTy::Unit | CgTy::Never => {
+                    self.context.void_type().fn_type(&llvm_param_tys, false)
+                }
                 CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
                 CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
                 CgTy::String => self
@@ -10015,8 +10047,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let suspend_info = self.scan_for_callee_suspend(block);
             if let Some(info) = suspend_info {
                 // Gather captures + params as pre-existing locals to include in saved state.
-                let mut pre_locals: Vec<(hir::SymbolId, Option<String>, TypeId, bool)> =
-                    Vec::new();
+                let mut pre_locals: Vec<(hir::SymbolId, Option<String>, TypeId, bool)> = Vec::new();
                 for (id, name, ty_id) in capture_bindings {
                     pre_locals.push((*id, Some(name.clone()), *ty_id, false));
                 }
@@ -10121,7 +10152,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "closure callee suspend local type (only Int/Bool/Ref/String)",
                             at: span.into(),
-                        })
+                        });
                     }
                 });
             }
@@ -10131,9 +10162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // ── Entry check: is this a resume? ──
         let rt_get = self.declare_runtime_callee_suspend_state_get();
-        let get_call = self
-            .builder
-            .build_call(rt_get, &[], "callee_suspend_get")?;
+        let get_call = self.builder.build_call(rt_get, &[], "callee_suspend_get")?;
         let state_raw = get_call
             .try_as_basic_value()
             .basic()
@@ -10152,12 +10181,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "is_callee_resume",
         )?;
 
-        let fresh_bb = self
-            .context
-            .append_basic_block(llvm_fun, "fresh_entry");
-        let resume_bb = self
-            .context
-            .append_basic_block(llvm_fun, "resume_entry");
+        let fresh_bb = self.context.append_basic_block(llvm_fun, "fresh_entry");
+        let resume_bb = self.context.append_basic_block(llvm_fun, "resume_entry");
         self.builder
             .build_conditional_branch(is_resume, resume_bb, fresh_bb)?;
 
@@ -10176,11 +10201,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0).
         let _i8_ptr_ty = self.llvm_i8_ptr_type();
         let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
-        let state_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            state_ptr_ty,
-            "callee_state_typed",
-        )?;
+        let state_ptr =
+            self.builder
+                .build_pointer_cast(state_raw, state_ptr_ty, "callee_state_typed")?;
 
         // Clear TLS.
         let rt_clear = self.declare_runtime_callee_suspend_state_clear();
@@ -10189,12 +10212,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_call(rt_clear, &[], "callee_suspend_clear")?;
 
         // Read resume_word from state (field 1).
-        let rw_ptr = self.builder.build_struct_gep(
-            state_ty,
-            state_ptr,
-            1,
-            "callee_resume_word_gep",
-        )?;
+        let rw_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "callee_resume_word_gep")?;
         let resume_word = self
             .builder
             .build_load(i64_ty, rw_ptr, "callee_resume_word")?
@@ -10224,8 +10244,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.builder
                             .build_int_truncate(loaded, to, "restore_trunc")?
                     };
-                    let ptr =
-                        self.create_entry_alloca(span, &alloca_name, local.cg_ty)?;
+                    let ptr = self.create_entry_alloca(span, &alloca_name, local.cg_ty)?;
                     let _ = self.builder.build_store(ptr, v)?;
                     self.env.insert(
                         local.id,
@@ -10248,8 +10267,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         i64_ty.const_zero(),
                         "restore_bool",
                     )?;
-                    let ptr =
-                        self.create_entry_alloca(span, &alloca_name, CgTy::Bool)?;
+                    let ptr = self.create_entry_alloca(span, &alloca_name, CgTy::Bool)?;
                     let _ = self.builder.build_store(ptr, b)?;
                     self.env.insert(
                         local.id,
@@ -10266,8 +10284,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_ref")?
                         .into_pointer_value();
-                    let ptr =
-                        self.create_entry_alloca(span, &alloca_name, CgTy::Ref)?;
+                    let ptr = self.create_entry_alloca(span, &alloca_name, CgTy::Ref)?;
                     let _ = self.builder.build_store(ptr, loaded)?;
                     self.env.insert(
                         local.id,
@@ -10285,16 +10302,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_str")?
                         .into_pointer_value();
                     let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-                    let casted = self.builder.build_pointer_cast(
-                        loaded,
-                        str_ptr_ty,
-                        "restore_str_cast",
-                    )?;
-                    let ptr = self.create_entry_alloca(
-                        span,
-                        &alloca_name,
-                        CgTy::String,
-                    )?;
+                    let casted =
+                        self.builder
+                            .build_pointer_cast(loaded, str_ptr_ty, "restore_str_cast")?;
+                    let ptr = self.create_entry_alloca(span, &alloca_name, CgTy::String)?;
                     let _ = self.builder.build_store(ptr, casted)?;
                     self.env.insert(
                         local.id,
@@ -10310,33 +10321,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "closure callee suspend restore local type",
                         at: span.into(),
-                    })
+                    });
                 }
             }
         }
 
         // Unpin state (all fields loaded to stack allocas).
-        let state_int = self.builder.build_ptr_to_int(
-            state_raw,
-            i64_ty,
-            "callee_state_int_for_unpin",
-        )?;
-        let state_gc_for_unpin = self.builder.build_int_to_ptr(
-            state_int,
-            gc_i8_ptr_ty,
-            "callee_state_gc_for_unpin",
-        )?;
+        let state_int =
+            self.builder
+                .build_ptr_to_int(state_raw, i64_ty, "callee_state_int_for_unpin")?;
+        let state_gc_for_unpin =
+            self.builder
+                .build_int_to_ptr(state_int, gc_i8_ptr_ty, "callee_state_gc_for_unpin")?;
         let unpin = self.declare_runtime_gc_unpin();
-        let _ = self
-            .builder
-            .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
+        let _ =
+            self.builder
+                .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
 
         // Bind the perform-binding to the resume value.
-        let perform_alloca = self.create_entry_alloca(
-            span,
-            "callee_resume_val",
-            perform_binding_cg_ty,
-        )?;
+        let perform_alloca =
+            self.create_entry_alloca(span, "callee_resume_val", perform_binding_cg_ty)?;
         match perform_binding_cg_ty {
             CgTy::Int(int_ty) => {
                 let to = self.int_type(int_ty);
@@ -10361,7 +10365,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "closure callee suspend resume value type (only Int/Bool supported)",
                     at: span.into(),
-                })
+                });
             }
         }
         self.env.insert(
@@ -10397,21 +10401,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         && let Some(bb) = self.builder.get_insert_block()
                         && bb.get_terminator().is_none()
                     {
-                        let rv = self.coerce_value(
-                            expr.span,
-                            v,
-                            declared_return_cg,
-                        )?;
+                        let rv = self.coerce_value(expr.span, v, declared_return_cg)?;
                         self.emit_return(span, declared_return_cg, rv)?;
                     }
                 }
                 hir::StmtKind::Return { value } => {
                     let out = match value {
                         Some(expr) => {
-                            let v = self.codegen_expr_in_expected_context(
-                                expr,
-                                Some(declared_return_cg),
-                            )?;
+                            let v = self
+                                .codegen_expr_in_expected_context(expr, Some(declared_return_cg))?;
                             if declared_return_cg == CgTy::Unit {
                                 CgValue::unit()
                             } else {
@@ -10430,7 +10428,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "stmt in closure callee resume path",
                         at: stmt.span.into(),
-                    })
+                    });
                 }
             }
         }
@@ -11190,10 +11188,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         value: Option<&hir::Expr>,
     ) -> Result<(), LlvmEmitError> {
-        let return_ctx = self.return_context.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "return outside function with return context",
-            at: span.into(),
-        })?;
+        let return_ctx = self
+            .return_context
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "return outside function with return context",
+                at: span.into(),
+            })?;
         let declared_return_cg = self.current_fun_return_ty.unwrap_or(CgTy::Unit);
 
         match value {
@@ -11895,9 +11895,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .map_or(idx as u32, |indices| indices[idx]);
 
             let name = format!("insert_{}", field.name);
-            agg = self
-                .builder
-                .build_insert_value(agg, raw, llvm_idx, &name)?;
+            agg = self.builder.build_insert_value(agg, raw, llvm_idx, &name)?;
         }
 
         Ok(CgValue {
@@ -11995,7 +11993,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // T0125：从 receiver 局部变量获取精确的 hir_ty（receiver.ty 在 HIR 中总是 Any，
                 // 但 CgLocal.hir_ty 保留了声明时的参数化类型，例如 Box<Int>）。
                 let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local {
-                    id, ..
+                    id,
+                    ..
                 }) = &receiver.kind
                 {
                     self.env
@@ -12057,17 +12056,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "field_gep",
                     )?;
                     let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_field_ty, field_ptr, "load_field")?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_field_ty, field_ptr, "load_field")?;
                     // `@CLayout(packed = N)`：字段地址可能是非自然对齐的，需要把 load
                     // alignment 降到 `min(field_natural_align, N)` 以避免 UB。
                     if let Some(pack_n) = self.struct_clayout(struct_ty).and_then(|c| c.packed)
-                        && let Some(inst) = loaded.as_instruction_value() {
-                            let natural = self.target_data.get_abi_alignment(&llvm_field_ty);
-                            let effective = std::cmp::min(natural, pack_n);
-                            inst.set_alignment(effective)?;
-                        }
+                        && let Some(inst) = loaded.as_instruction_value()
+                    {
+                        let natural = self.target_data.get_abi_alignment(&llvm_field_ty);
+                        let effective = std::cmp::min(natural, pack_n);
+                        inst.set_alignment(effective)?;
+                    }
                     return self.cg_value_from_loaded(member.span, field_ty, loaded);
                 }
 
@@ -12130,9 +12130,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "tuple_elem_gep",
             )?;
             let llvm_elem_ty = self.llvm_basic_type_of(member.span, elem_ty)?;
-            let loaded =
-                self.builder
-                    .build_load(llvm_elem_ty, elem_ptr, "load_tuple_elem")?;
+            let loaded = self
+                .builder
+                .build_load(llvm_elem_ty, elem_ptr, "load_tuple_elem")?;
             return self.cg_value_from_loaded(member.span, elem_ty, loaded);
         }
 
@@ -12637,8 +12637,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // Get the struct FQN from TypeId.
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id)
-        else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id) else {
             return Ok(None);
         };
         let struct_fqn = nominal.fqn.clone();
@@ -12668,8 +12667,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         };
 
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id)
-        else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id) else {
             return Ok(None);
         };
         let struct_fqn = nominal.fqn.clone();
@@ -12683,10 +12681,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Call compareTo: returns Int
         let cmp_result =
             self.codegen_operator_overload_call(span, &method_fqn, sig_fun, lhs, rhs)?;
-        let (cmp_int, _) = cmp_result.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "compareTo return type (expected Int)",
-            at: span.into(),
-        })?;
+        let (cmp_int, _) = cmp_result
+            .as_int()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "compareTo return type (expected Int)",
+                at: span.into(),
+            })?;
 
         // Compare result with 0: result < 0 for Lt, result <= 0 for Le, etc.
         let zero = self.context.i64_type().const_zero();
@@ -12726,23 +12726,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // Evaluate LHS (this/receiver parameter)
-        let this_target_cg = self.cg_ty_of(sig_fun.params[0].ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "operator overload receiver type",
-                at: lhs.span.into(),
-            },
-        )?;
+        let this_target_cg =
+            self.cg_ty_of(sig_fun.params[0].ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "operator overload receiver type",
+                    at: lhs.span.into(),
+                })?;
         let lhs_v = self.codegen_expr(lhs)?;
         let lhs_coerced = self.coerce_value(lhs.span, lhs_v, this_target_cg)?;
         let lhs_arg = self.as_llvm_arg_value(lhs.span, this_target_cg, lhs_coerced)?;
 
         // Evaluate RHS (method parameter)
-        let rhs_target_cg = self.cg_ty_of(sig_fun.params[1].ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "operator overload rhs type",
-                at: rhs.span.into(),
-            },
-        )?;
+        let rhs_target_cg =
+            self.cg_ty_of(sig_fun.params[1].ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "operator overload rhs type",
+                    at: rhs.span.into(),
+                })?;
         let rhs_v = self.codegen_expr(rhs)?;
         let rhs_coerced = self.coerce_value(rhs.span, rhs_v, rhs_target_cg)?;
         let rhs_arg = self.as_llvm_arg_value(rhs.span, rhs_target_cg, rhs_coerced)?;
@@ -12753,18 +12753,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
 
-        let call_site =
-            self.builder
-                .build_call(llvm_fun, &[lhs_arg, rhs_arg], "op_overload")?;
+        let call_site = self
+            .builder
+            .build_call(llvm_fun, &[lhs_arg, rhs_arg], "op_overload")?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(method_fqn));
 
         // Convert return value to CgValue (same pattern as codegen_top_level_fun_call).
-        let ret_cg = self.cg_ty_of(sig_fun.return_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "operator overload return type",
-                at: span.into(),
-            },
-        )?;
+        let ret_cg =
+            self.cg_ty_of(sig_fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "operator overload return type",
+                    at: span.into(),
+                })?;
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
@@ -12855,9 +12855,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
                 // T0111: try compareTo overload for user-defined types first.
-                if let Some(result) =
-                    self.try_codegen_compare_to_overload(span, op, lhs, rhs)?
-                {
+                if let Some(result) = self.try_codegen_compare_to_overload(span, op, lhs, rhs)? {
                     return Ok(result);
                 }
                 self.codegen_int_compare(span, op, lhs, rhs)
@@ -13775,24 +13773,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T0107: String == String — call scoop_string_equals(a, b) -> i64 (1=equal, 0=not)
         if matches!((lhs_v.ty, rhs_v.ty), (CgTy::String, CgTy::String)) {
-            let BasicValueEnum::PointerValue(l) = lhs_v.value.ok_or(
-                LlvmEmitError::UnsupportedMainBody {
+            let BasicValueEnum::PointerValue(l) =
+                lhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "equality lhs string value",
                     at: span.into(),
-                },
-            )?
+                })?
             else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "equality lhs string type",
                     at: span.into(),
                 });
             };
-            let BasicValueEnum::PointerValue(r) = rhs_v.value.ok_or(
-                LlvmEmitError::UnsupportedMainBody {
+            let BasicValueEnum::PointerValue(r) =
+                rhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "equality rhs string value",
                     at: span.into(),
-                },
-            )?
+                })?
             else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "equality rhs string type",
@@ -13803,13 +13799,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let call = self
                 .builder
                 .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
-            let raw_result = call
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "String equals return value",
-                    at: span.into(),
-                })?;
+            let raw_result =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String equals return value",
+                        at: span.into(),
+                    })?;
             let BasicValueEnum::IntValue(eq_i64) = raw_result else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "String equals return type",
@@ -14335,6 +14331,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
+fn string_literal_parse_reason(err: StringLiteralParseError) -> &'static str {
+    match err {
+        StringLiteralParseError::Invalid => "包含无效引号、转义或 Unicode 码点",
+        StringLiteralParseError::Interpolated => "插值字符串当前阶段不能直接按普通字符串解析",
+        StringLiteralParseError::InvalidUtf8 => "解码后的字节不是有效 UTF-8",
+    }
+}
+
 fn object_init_fn_name(object_fqn: &str) -> String {
     format!("__scoop_object_init__{object_fqn}")
 }
@@ -14426,7 +14430,6 @@ fn sanitize_llvm_ident(text: &str) -> String {
     }
     if out.is_empty() { "_".to_string() } else { out }
 }
-
 
 fn mask_to_bits(value: u128, bits: u32) -> u128 {
     if bits == 0 {

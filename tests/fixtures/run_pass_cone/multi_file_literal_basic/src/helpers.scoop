@@ -1,5 +1,5 @@
-// Non-entry file with Int and String literals (T0140).
-// Before T0140, this would fail with MultiFileNonEntrySourceBackedLiteral.
+// Non-entry file with Int and String literals.
+// T0150 之后这些字面量会通过 SourceMap 绑定回本文件。
 
 package fixtures.run_pass_cone.multi_file_literal_basic
 

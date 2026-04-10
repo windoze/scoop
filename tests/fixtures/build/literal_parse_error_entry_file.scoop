@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::llvm::invalid_literal
+// EXPECT-ERROR: literal_parse_error_entry_file.scoop:12:13，原文："\u{110000}"
+// EXPECT-ERROR-AT: 12:13
+// ARGS: --emit-llvm
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main() {
+    println("\u{110000}")
+}

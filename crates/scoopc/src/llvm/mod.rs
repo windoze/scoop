@@ -12,13 +12,14 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use inkwell::context::Context;
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
 use inkwell::targets::TargetData;
 use inkwell::values::InstructionValueError;
-use miette::Diagnostic;
+use miette::{Diagnostic, NamedSource};
 use thiserror::Error;
 
 use crate::ast;
@@ -108,6 +109,21 @@ pub enum LlvmEmitError {
         at: miette::SourceSpan,
     },
 
+    #[error("字面量解析失败：{kind}（{file}:{line}:{column}，原文：{text}，原因：{reason}）")]
+    #[diagnostic(code(scoop::llvm::invalid_literal))]
+    InvalidLiteral {
+        kind: &'static str,
+        reason: &'static str,
+        file: String,
+        line: usize,
+        column: usize,
+        text: String,
+        #[source_code]
+        src: Arc<NamedSource<String>>,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("LLVM module 校验失败：{message}")]
     #[diagnostic(code(scoop::llvm::module_verification_failed))]
     ModuleVerificationFailed { message: String },
@@ -135,6 +151,29 @@ pub enum LlvmEmitError {
     #[error("写入 assembly 文件失败：{path}: {message}")]
     #[diagnostic(code(scoop::llvm::write_asm_failed))]
     WriteAsmFailed { path: PathBuf, message: String },
+}
+
+impl LlvmEmitError {
+    pub(crate) fn invalid_literal(
+        source: &SourceFile,
+        span: Span,
+        kind: &'static str,
+        reason: &'static str,
+        text: &str,
+    ) -> Self {
+        let file = diagnostic_source_name(source.path());
+        let (line, column) = source.offset_to_line_col(span.start).unwrap_or((1, 1));
+        Self::InvalidLiteral {
+            kind,
+            reason,
+            file: file.clone(),
+            line,
+            column,
+            text: literal_text_preview(text),
+            src: Arc::new(NamedSource::new(file, source.text().to_string())),
+            span: span.into(),
+        }
+    }
 }
 
 /// 为一个 Scoop 程序生成 LLVM IR（`.ll` 文本）。
@@ -647,9 +686,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
             if fqn.contains("::<") && !reachable_fqns.contains(fqn.as_str()) {
                 // Check if the base (non-monomorphized) method is reachable.
                 if let Some(base_fqn) = fqn.split("::<").next()
-                    && reachable_fqns.contains(base_fqn) {
-                        monomorphized.push(fun);
-                    }
+                    && reachable_fqns.contains(base_fqn)
+                {
+                    monomorphized.push(fun);
+                }
             }
         }
         reachable.extend(monomorphized);
@@ -657,21 +697,20 @@ fn build_main_module_from_lowered_hir<'ctx>(
 
     // T0126: Helper to check if a function's signature contains TypeKind::Param
     // (recursively, including inside Nominal type args like `Printer<T>`).
-    let ty_contains_param =
-        |types: &crate::ty::TypeStore, ty: crate::ty::TypeId| -> bool {
-            let mut stack = vec![ty];
-            while let Some(id) = stack.pop() {
-                match types.kind(id) {
-                    crate::ty::TypeKind::Param(_) => return true,
-                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
-                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
-                        stack.extend(n.args.iter().copied());
-                    }
-                    _ => {}
+    let ty_contains_param = |types: &crate::ty::TypeStore, ty: crate::ty::TypeId| -> bool {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match types.kind(id) {
+                crate::ty::TypeKind::Param(_) => return true,
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                    stack.extend(n.args.iter().copied());
                 }
+                _ => {}
             }
-            false
-        };
+        }
+        false
+    };
     let fun_has_param_types = |fun: &hir::FunDecl| -> bool {
         fun.params
             .iter()
@@ -1409,6 +1448,40 @@ fn module_name_from_path(path: &Path) -> String {
         .to_string()
 }
 
+fn diagnostic_source_name(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| path.to_str().unwrap_or("<source>"))
+        .to_string()
+}
+
+fn literal_text_preview(text: &str) -> String {
+    const LIMIT: usize = 80;
+
+    let mut out = String::new();
+    let mut truncated = false;
+
+    for (count, ch) in text.chars().enumerate() {
+        if count == LIMIT {
+            truncated = true;
+            break;
+        }
+        match ch {
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(ch),
+        }
+    }
+
+    if truncated {
+        out.push_str("...");
+    }
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -1491,8 +1564,7 @@ fun main(): Int { return helper(41) }
 
         let headers_main =
             crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
-        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main)
-            .unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
 
         let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
         for file in &session.sysroot().files {

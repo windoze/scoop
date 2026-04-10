@@ -200,14 +200,6 @@ struct RunPassConeGoldenReadFailed {
     source: std::io::Error,
 }
 
-#[derive(Debug, Error, Diagnostic)]
-#[error("run_pass_cone build 失败：{message}（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::run_pass_cone_build_failed))]
-struct RunPassConeBuildFailed {
-    message: String,
-    fixture: String,
-}
-
 /// 运行一个 `tests/fixtures/run_pass_cone/<case>/` 用例（cone 包：以目录为单位 build + exec）。
 ///
 /// 约定：
@@ -331,10 +323,7 @@ fn run_run_pass_cone_case(
                                 Err(e) => e,
                             };
 
-                        Err(box_diagnostic(RunPassConeBuildFailed {
-                            message: e.to_string(),
-                            fixture: rel_case.display().to_string(),
-                        }))
+                        Err(box_report(e))
                     }
                 }
             }
@@ -705,14 +694,6 @@ struct BuildOutputDirCreateFailed {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("build fixtures 执行失败：{message}（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::build_exec_failed))]
-struct BuildExecFailed {
-    message: String,
-    fixture: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
 #[error("无法读取 build fixtures 产物元数据：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::build_artifact_metadata_failed))]
 struct BuildArtifactMetadataFailed {
@@ -915,12 +896,7 @@ fn build_fixture(
             ..crate::commands::build::BuildOptions::default()
         },
     )
-    .map_err(|e| {
-        box_diagnostic(BuildExecFailed {
-            message: e.to_string(),
-            fixture: fixture_path.display().to_string(),
-        })
-    })?;
+    .map_err(box_report)?;
 
     if !out.is_file() {
         return Err(box_diagnostic(BuildArtifactMissing {
@@ -1386,9 +1362,10 @@ fn parse_target_platform_from_fixture_args(args: &[String]) -> Option<String> {
             return Some(v.to_string());
         }
         if arg == "--target-platform"
-            && let Some(v) = it.peek() {
-                return Some((*v).to_string());
-            }
+            && let Some(v) = it.peek()
+        {
+            return Some((*v).to_string());
+        }
     }
     None
 }
@@ -2125,19 +2102,21 @@ fn run_typecheck_cone_archive_case(
                 }
 
                 if let Some(expected) = exp.expect_monomorph_hit
-                    && hit != expected {
-                        return Err(box_diagnostic(MonomorphHitMismatch {
-                            expected,
-                            found: hit,
-                        }));
-                    }
+                    && hit != expected
+                {
+                    return Err(box_diagnostic(MonomorphHitMismatch {
+                        expected,
+                        found: hit,
+                    }));
+                }
                 if let Some(expected) = exp.expect_monomorph_miss
-                    && miss != expected {
-                        return Err(box_diagnostic(MonomorphMissMismatch {
-                            expected,
-                            found: miss,
-                        }));
-                    }
+                    && miss != expected
+                {
+                    return Err(box_diagnostic(MonomorphMissMismatch {
+                        expected,
+                        found: miss,
+                    }));
+                }
             }
 
             if want_type_monomorph_counts {
@@ -2179,19 +2158,21 @@ fn run_typecheck_cone_archive_case(
                 }
 
                 if let Some(expected) = exp.expect_type_monomorph_hit
-                    && hit != expected {
-                        return Err(box_diagnostic(TypeMonomorphHitMismatch {
-                            expected,
-                            found: hit,
-                        }));
-                    }
+                    && hit != expected
+                {
+                    return Err(box_diagnostic(TypeMonomorphHitMismatch {
+                        expected,
+                        found: hit,
+                    }));
+                }
                 if let Some(expected) = exp.expect_type_monomorph_miss
-                    && miss != expected {
-                        return Err(box_diagnostic(TypeMonomorphMissMismatch {
-                            expected,
-                            found: miss,
-                        }));
-                    }
+                    && miss != expected
+                {
+                    return Err(box_diagnostic(TypeMonomorphMissMismatch {
+                        expected,
+                        found: miss,
+                    }));
+                }
             }
             Ok(())
         })();
@@ -2383,6 +2364,10 @@ where
     Box::new(e)
 }
 
+fn box_report(e: miette::Report) -> Box<dyn miette::Diagnostic> {
+    e.into()
+}
+
 fn assert_diagnostic_matches(
     source: &scoopc::source::SourceFile,
     exp: &FixtureExpectation<'_>,
@@ -2422,22 +2407,30 @@ fn primary_label_line_col(
     source: &scoopc::source::SourceFile,
     diag: &dyn miette::Diagnostic,
 ) -> Result<(usize, usize)> {
-    let mut first = None;
-    let mut primary = None;
+    let mut first: Option<(usize, usize)> = None;
+    let mut primary: Option<(usize, usize)> = None;
 
     if let Some(labels) = diag.labels() {
         for l in labels {
-            first.get_or_insert(l.offset());
+            first.get_or_insert((l.offset(), l.len()));
             if l.primary() {
-                primary = Some(l.offset());
+                primary = Some((l.offset(), l.len()));
                 break;
             }
         }
     }
 
-    let offset = primary
+    let (offset, len) = primary
         .or(first)
         .ok_or_else(|| miette!("诊断未提供 labels/span，无法断言错误位置"))?;
+
+    if let Some(source_code) = diag.source_code() {
+        let span: miette::SourceSpan = (offset, len).into();
+        if let Ok(contents) = source_code.read_span(&span, 0, 0) {
+            return Ok((contents.line() + 1, contents.column() + 1));
+        }
+    }
+
     source.offset_to_line_col(offset)
 }
 

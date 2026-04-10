@@ -963,7 +963,7 @@ cargo run -p scoop --features llvm -- test
   - 验证通过：`cargo check -p scoopc`、`cargo test --all`、`cargo run -p scoop -- test`。
   - 补充检查：`cargo clippy --workspace --all-targets -- -D warnings` 仍受既有仓库级 baseline 阻塞（inkwell deprecated `ptr_type` 与长期 clippy lint），非 T0150c 回归。
 
-### T0150d [TODO] 字面量解析诊断接入 SourceMap + 多文件失败回归
+### T0150d [DONE] 字面量解析诊断接入 SourceMap + 多文件失败回归
 
 - 描述：在 SourceMap-backed literal parsing 完成后，补齐失败路径的诊断展示和回归 fixture，真正解决 T0150 的问题。
 - 目标：
@@ -975,6 +975,13 @@ cargo run -p scoop --features llvm -- test
   - 诊断输出包含文件名、行号、列号和原始字面量文本。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150b、T0150c
+- 完成记录：
+  - LLVM 新增 `scoop::llvm::invalid_literal` 诊断，携带 `SourceMap` 恢复出的文件名、行列号、字面量原文预览与 `source_code`，entry/non-entry 文件都会渲染精确定位。
+  - 当前 string literal parse failure 已按 emission 时的当前 source context 走 `SourceMap + Span` 取原文并报错；错误原因统一展示为“包含无效引号、转义或 Unicode 码点”。
+  - fixture harness 的 `build` / `run_pass_cone` expected-fail 路径现保留原始 `miette::Report`；`EXPECT-ERROR-AT` 会优先读取诊断挂载的 `source_code()`，因此可稳定断言 helper file 的 `helpers.scoop:6:12`。
+  - 新增 `tests/fixtures/build/literal_parse_error_entry_file.scoop` 与 `tests/fixtures/run_pass_cone/multi_file_literal_parse_error_non_entry/`，并清理 T0140 遗留注释。
+  - 验证通过：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`。
+  - 补充检查：直接 `cargo run -p scoop -- build ... --emit-llvm` 现分别报出 `literal_parse_error_entry_file.scoop:12:13` 与 `helpers.scoop:6:12`；严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞（`inkwell::ptr_type` deprecated 与长期 clippy lint），当前已无 `InvalidLiteral` / `literal_text_preview` 相关的新回归。
 
 ### T0145 [TODO] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
 

@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::llvm::invalid_literal
+// EXPECT-ERROR: helpers.scoop:6:12，原文："\u{110000}"
+// EXPECT-ERROR-AT: 6:12
+
+package fixtures.run_pass_cone.multi_file_literal_parse_error_non_entry
+
+import scoop.core.*
+
+fun main() {
+    println(helper())
+}
