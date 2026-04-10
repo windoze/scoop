@@ -286,6 +286,18 @@ impl TypeStore {
         TypeDisplay { store: self, id }
     }
 
+    /// T0130: 在 TypeStore 中查找匹配指定 FQN（无 type args）的 Nominal 引用类型。
+    pub fn find_nominal_ref_by_fqn(&self, fqn: &str) -> Option<TypeId> {
+        for id in self.iter_ids() {
+            if let TypeKind::Ref(RefTypeKind::Nominal(n)) = self.kind(id) {
+                if n.fqn == fqn && n.args.is_empty() {
+                    return Some(id);
+                }
+            }
+        }
+        None
+    }
+
     pub fn is_ref(&self, id: TypeId) -> bool {
         self.kind(id).is_ref()
     }
@@ -386,6 +398,81 @@ impl TypeStore {
     /// 构造一个类型参数 `TypeId`（例如 `T`）。
     pub fn ty_param(&mut self, param: TypeParamType) -> TypeId {
         self.intern(TypeKind::Param(param))
+    }
+
+    /// T0130: 将一个 TypeId 从另一个 TypeStore 复制到当前 TypeStore 中。
+    ///
+    /// 用途：monomorph key 中的 TypeId 来自 typecheck 阶段的 TypeStore，
+    /// 但 HIR lowering 使用独立的 TypeStore。此方法递归拷贝类型结构，
+    /// 保证 TypeId 在当前 store 中有效。
+    pub fn re_intern_from(&mut self, other: &TypeStore, id: TypeId) -> TypeId {
+        let kind = other.kind(id);
+        match kind {
+            TypeKind::Value(v) => match v {
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_) => self.intern(kind.clone()),
+                ValueTypeKind::Option(inner) => {
+                    let new_inner = self.re_intern_from(other, *inner);
+                    self.ty_option(new_inner)
+                }
+                ValueTypeKind::Tuple(elems) => {
+                    let new_elems: Vec<TypeId> =
+                        elems.iter().map(|&e| self.re_intern_from(other, e)).collect();
+                    self.ty_tuple(new_elems)
+                }
+                ValueTypeKind::Nominal(n) => {
+                    let new_args: Vec<TypeId> =
+                        n.args.iter().map(|&a| self.re_intern_from(other, a)).collect();
+                    let new_eff = n.eff.as_ref().map(|e| self.re_intern_effect_row_from(other, e));
+                    self.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                        fqn: n.fqn.clone(),
+                        args: new_args,
+                        eff: new_eff,
+                    })))
+                }
+            },
+            TypeKind::Ref(r) => match r {
+                RefTypeKind::Any | RefTypeKind::String => self.intern(kind.clone()),
+                RefTypeKind::Nominal(n) => {
+                    let new_args: Vec<TypeId> =
+                        n.args.iter().map(|&a| self.re_intern_from(other, a)).collect();
+                    let new_eff = n.eff.as_ref().map(|e| self.re_intern_effect_row_from(other, e));
+                    self.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                        fqn: n.fqn.clone(),
+                        args: new_args,
+                        eff: new_eff,
+                    })))
+                }
+                RefTypeKind::Function(f) => {
+                    let new_receiver = f.receiver.map(|r| self.re_intern_from(other, r));
+                    let new_params: Vec<TypeId> =
+                        f.params.iter().map(|&p| self.re_intern_from(other, p)).collect();
+                    let new_return = self.re_intern_from(other, f.return_ty);
+                    let new_effects = self.re_intern_effect_row_from(other, &f.effects);
+                    self.ty_function(new_receiver, new_params, new_return, new_effects, f.effects_closed)
+                }
+                RefTypeKind::Union(u) => {
+                    let new_variants: Vec<TypeId> =
+                        u.variants.iter().map(|&v| self.re_intern_from(other, v)).collect();
+                    self.ty_union(new_variants)
+                }
+            },
+            TypeKind::Param(p) => self.intern(TypeKind::Param(p.clone())),
+        }
+    }
+
+    fn re_intern_effect_row_from(&mut self, other: &TypeStore, row: &EffectRow) -> EffectRow {
+        let new_terms: Vec<TypeId> = row
+            .terms
+            .iter()
+            .map(|&t| self.re_intern_from(other, t))
+            .collect();
+        EffectRow::new(new_terms)
     }
 }
 

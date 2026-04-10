@@ -46,6 +46,11 @@ struct BlockScopeChecker<'a> {
     /// 用途：在 property initializer / `init { ... }` 中禁止访问"尚未初始化"的后置属性，
     /// 并给出稳定诊断（`scoop::resolve::forward_reference`）。
     init_value_members: Vec<InitValueMembersContext>,
+    /// T0130：where 约束 bound scope 栈。
+    ///
+    /// 每一层对应一个 type-param 声明域（function / type declaration），
+    /// 记录当前可见的 `where T: Interface` 约束。
+    where_bound_scopes: Vec<Vec<WhereBoundEntry>>,
 }
 
 #[derive(Clone)]
@@ -83,6 +88,17 @@ struct BackingFieldBinding {
     ty: Option<ast::TypeRef>,
 }
 
+/// T0130：where 约束 bound 的 resolver 侧记录。
+///
+/// 记录一个 type param 受到的接口约束（例如 `where T: Describe` → param_name="T", bound_fqn="Describe"）。
+/// resolver 在 member access 中利用此信息：当 receiver 类型为 type param 且无法直接确定 FQN 时，
+/// 通过 bound interface 查找成员方法。
+#[derive(Debug, Clone)]
+struct WhereBoundEntry {
+    param_name: String,
+    bound_fqn: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MemberReceiverKind {
     /// receiver 是一个值表达式，且其静态类型（FQN）可确定。
@@ -109,6 +125,7 @@ impl<'a> BlockScopeChecker<'a> {
             scopes: Vec::new(),
             this_context: Vec::new(),
             init_value_members: Vec::new(),
+            where_bound_scopes: Vec::new(),
         }
     }
 
@@ -202,6 +219,9 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        // T0130：push where bounds（类型级 type params + where clause）。
+        self.push_where_bounds(&ty.type_params, ty.where_clause.as_ref());
+
         for member in &mut body.members {
             match member {
                 ast::TypeMember::EnumVariant(_v) => {
@@ -247,6 +267,7 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        self.pop_where_bounds();
         Ok(())
     }
 
@@ -355,6 +376,9 @@ impl<'a> BlockScopeChecker<'a> {
     }
 
     fn check_fun_body(&mut self, fun: &mut ast::FunDecl) -> Result<(), ResolveError> {
+        // T0130：push where bounds（函数级 type params + where clause）。
+        self.push_where_bounds(&fun.type_params, fun.where_clause.as_ref());
+
         // 函数级作用域：先放入参数（允许 block 内部遮蔽参数名）。
         self.push_scope();
         for p in &mut fun.params {
@@ -379,6 +403,7 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         self.pop_scope();
+        self.pop_where_bounds();
         Ok(())
     }
 
@@ -1552,6 +1577,57 @@ impl<'a> BlockScopeChecker<'a> {
         let _ = self.scopes.pop();
     }
 
+    // ------------------------------------------------------------------
+    // T0130：where bound scope 管理
+    // ------------------------------------------------------------------
+
+    /// 构建并 push 一层 where bound scope（从 type params + where clause 中提取）。
+    fn push_where_bounds(
+        &mut self,
+        type_params: &[ast::TypeParam],
+        where_clause: Option<&ast::WhereClause>,
+    ) {
+        let Some(wc) = where_clause else {
+            self.where_bound_scopes.push(Vec::new());
+            return;
+        };
+        let param_names: HashSet<String> = type_params
+            .iter()
+            .map(|p| self.source.slice(p.name.span).to_string())
+            .collect();
+        let mut entries = Vec::new();
+        for c in &wc.constraints {
+            let target = self.source.slice(c.ty_param.span).to_string();
+            if !param_names.contains(&target) {
+                continue;
+            }
+            if let Some(fqn) = self.type_ref_to_fqn(&c.bound) {
+                entries.push(WhereBoundEntry {
+                    param_name: target,
+                    bound_fqn: fqn,
+                });
+            }
+        }
+        self.where_bound_scopes.push(entries);
+    }
+
+    fn pop_where_bounds(&mut self) {
+        let _ = self.where_bound_scopes.pop();
+    }
+
+    /// 查找某个 type param name 的所有 where bound interface FQN。
+    fn lookup_where_bounds_for_param(&self, param_name: &str) -> Vec<&str> {
+        let mut out = Vec::new();
+        for scope in self.where_bound_scopes.iter().rev() {
+            for entry in scope {
+                if entry.param_name == param_name {
+                    out.push(entry.bound_fqn.as_str());
+                }
+            }
+        }
+        out
+    }
+
     fn resolve_member_access(
         &self,
         receiver: &ast::Expr,
@@ -1562,12 +1638,11 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         let Some(receiver_kind) = self.infer_member_receiver_kind(receiver) else {
-            // 当前阶段（T0310/T0317）只处理"静态可确定"的 receiver：
-            // - value receiver：可确定类型（局部类型注解 / this / struct literal / object 单例）
-            // - type receiver：可解析为一个类型 FQN（用于 companion member access）
+            // T0130：尝试通过 where bound 解析 type param receiver 的成员访问。
             //
-            // 无法确定时保持保守：不做解析也不报错（避免对泛型/推断场景产生误报）。
-            return Ok(());
+            // 当 receiver 类型为 type param（如 `x: T`）时，`infer_member_receiver_kind` 返回 None
+            //（因为 `T` 不在 index 中）。此时通过 where bound 查找 bound interface 中是否包含该成员。
+            return self.try_resolve_where_bound_member_access(receiver, member);
         };
 
         match receiver_kind {
@@ -2017,6 +2092,59 @@ impl<'a> BlockScopeChecker<'a> {
         candidates.sort();
         candidates.dedup();
         candidates
+    }
+
+    /// T0130：where bound 驱动的 member access 解析。
+    ///
+    /// 当 receiver 的类型为 type param（如 `x: T`）且 `infer_member_receiver_kind` 返回 None 时，
+    /// 尝试通过 where clause 约束中的 bound interface 查找成员方法。
+    ///
+    /// 例如 `fun <T> f(x: T) where T: Describe { x.describe() }`
+    /// → 将 `describe` 解析为 `Describe.describe`。
+    fn try_resolve_where_bound_member_access(
+        &self,
+        receiver: &ast::Expr,
+        member: &mut ast::MemberIdent,
+    ) -> Result<(), ResolveError> {
+        // 获取 receiver 变量的类型名。仅处理简单 Ident receiver 的情形。
+        let type_param_name = match &receiver.kind {
+            ast::ExprKind::Ident(id) => {
+                let name = self.source.slice(id.span);
+                if name == "this" {
+                    return Ok(());
+                }
+                if let Some(binding) = self.local_binding(name) {
+                    // 从 binding 的 TypeRef 中提取单段类型名。
+                    match binding.ty.as_ref() {
+                        Some(ast::TypeRef::Path(p)) if p.segments.len() == 1 => {
+                            self.source.slice(p.segments[0].span).to_string()
+                        }
+                        _ => return Ok(()),
+                    }
+                } else {
+                    return Ok(());
+                }
+            }
+            _ => return Ok(()),
+        };
+
+        let member_name = self.source.slice(member.span);
+
+        // 遍历 where bounds：查找 type_param_name 的 bound interface 中是否包含 member_name。
+        let bounds = self.lookup_where_bounds_for_param(&type_param_name);
+        for bound_fqn in bounds {
+            let candidate_fqn = format!("{bound_fqn}.{member_name}");
+            if let Some(syms) = self.index.by_fqn.get(&candidate_fqn) {
+                if syms.any_visible_fun(self.use_cone, self.source).is_some() {
+                    member.resolved = Some(ast::ResolvedMemberRef::Fun {
+                        fqn: candidate_fqn,
+                    });
+                    return Ok(());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn resolve_member_access_on_type_receiver(

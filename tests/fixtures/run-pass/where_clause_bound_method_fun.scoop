@@ -1,0 +1,33 @@
+// EXPECT: pass
+// RUN-STDOUT: where_clause_bound_method_fun.stdout
+// EXPECT-EXIT: 0
+//
+// T0130: where 约束 bound 驱动的方法分发——泛型函数体内通过约束调用接口方法，end-to-end。
+
+import scoop.core.*
+
+interface Describe {
+    fun describe(): String
+}
+
+class Dog() : Describe {
+    fun describe(): String {
+        return "Dog"
+    }
+}
+
+class Cat() : Describe {
+    fun describe(): String {
+        return "Cat"
+    }
+}
+
+fun <T> printDescription(x: T): Unit where T: Describe {
+    println(x.describe())
+}
+
+fun main(): Int {
+    val _u1: Unit = printDescription(Dog())
+    val _u2: Unit = printDescription(Cat())
+    0
+}

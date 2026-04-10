@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR: 不可调用
+// T0130: 无 where 约束时，泛型函数体内调用接口方法应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {
+    fun show(): String
+}
+
+fun <T> display(x: T): String {
+    return x.show()
+}

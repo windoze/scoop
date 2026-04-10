@@ -1,0 +1,16 @@
+// EXPECT: pass
+// T0130: where 约束 bound 驱动的方法分发——泛型类型成员方法体内通过约束调用接口方法应通过。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {
+    fun show(): String
+}
+
+class Wrapper<T>(val v: T) where T: Show {
+    fun display(): String {
+        return v.show()
+    }
+}

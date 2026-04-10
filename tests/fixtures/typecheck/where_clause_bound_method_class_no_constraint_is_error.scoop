@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR: 不可调用
+// T0130: 无 where 约束时，泛型类型成员方法体内调用接口方法应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {
+    fun show(): String
+}
+
+class Wrapper<T>(val v: T) {
+    fun display(): String {
+        return v.show()
+    }
+}

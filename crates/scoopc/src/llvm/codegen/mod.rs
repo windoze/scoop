@@ -122,6 +122,7 @@ impl<'ctx> Env<'ctx> {
         }
         None
     }
+
 }
 
 /// T1606f-2: Saved local info for callee suspension.
@@ -7453,23 +7454,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 例如：`Box.get` + receiver `Box<Int>` → `Box.get::<Int>`
     ///
     /// 返回 `Some(mangled_fqn)` 表示应使用单态化变体；`None` 表示无需重写。
+    /// T0130: 递归检查类型是否包含 `TypeKind::Param`（包括 Nominal 内部的类型参数）。
+    fn ty_contains_param(&self, ty: crate::ty::TypeId) -> bool {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match self.types.kind(id) {
+                crate::ty::TypeKind::Param(_) => return true,
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                    stack.extend(n.args.iter().copied());
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
     fn try_resolve_monomorphized_member_fqn(
         &self,
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Option<String> {
         // 检查 fun_index 中原始函数是否存在以及其签名是否包含 Param 类型
+        // T0130: 递归检查 Nominal 类型参数内部的 Param（例如 `this: Printer<T>`）
         let sig_fun = self.fun_index.get(fqn).copied()?;
 
         let has_param = sig_fun.params.iter().any(|p| {
-            matches!(
-                self.types.kind(p.ty),
-                crate::ty::TypeKind::Param(_)
-            )
-        }) || matches!(
-            self.types.kind(sig_fun.return_ty),
-            crate::ty::TypeKind::Param(_)
-        );
+            self.ty_contains_param(p.ty)
+        }) || self.ty_contains_param(sig_fun.return_ty);
 
         if !has_param {
             return None;
@@ -7611,6 +7623,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// T0127: 从 HIR 表达式中尽量提取具体（非 Any/Param）的 TypeId。
     ///
     /// 对于字面量表达式直接返回其 HIR type；对于变量引用尝试从 env 中获取 hir_ty。
+    /// T0130: 对于 Call 表达式，尝试通过 callee 的已知签名推导返回类型。
     fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<crate::ty::TypeId> {
         let ty = expr.ty;
         // 如果 HIR type 不是 Any，直接使用
@@ -7623,6 +7636,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.env.get(*id).and_then(|local| local.hir_ty);
         }
 
+        // T0130: 对于 Call 表达式，尝试通过 callee 推导返回类型。
+        // 典型场景：`printDescription(Dog())` 中 `Dog()` 是一个 class 构造器调用。
+        if let hir::ExprKind::Call { callee, .. } = &expr.kind {
+            return self.resolve_call_result_type(callee);
+        }
+
+        None
+    }
+
+    /// T0130: 尝试从 callee 表达式推导 Call 结果的具体类型。
+    fn resolve_call_result_type(&self, callee: &hir::Expr) -> Option<crate::ty::TypeId> {
+        let fqn = match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+            hir::ExprKind::UnresolvedIdent { name } => Some(name.as_str()),
+            _ => None,
+        }?;
+
+        // 查找 class_inits 中是否有这个 FQN（class 构造器调用）
+        if self.class_inits.contains_key(fqn) {
+            return self.types.find_nominal_ref_by_fqn(fqn);
+        }
+        // 查找 fun_index 中的返回类型
+        if let Some(fun) = self.fun_index.get(fqn) {
+            let ret_kind = self.types.kind(fun.return_ty);
+            if !matches!(ret_kind, crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any))
+                && !matches!(ret_kind, crate::ty::TypeKind::Param(_))
+            {
+                return Some(fun.return_ty);
+            }
+        }
         None
     }
 

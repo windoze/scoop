@@ -26,7 +26,7 @@ use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind, T
 
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
-use super::super::lower::TypeLowering;
+use super::super::lower::{TypeLowering, WhereBoundEntry};
 use super::super::{val_pat, when_exhaustiveness, when_pat};
 
 #[derive(Debug, Clone, Copy)]
@@ -283,12 +283,26 @@ pub(super) fn check_fun_body_exprs(
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     lower.push_type_params(&fun.type_params);
+
+    // T0130：把函数声明处的 where 约束推入 bound 作用域，
+    // 以便函数体内对 TypeKind::Param 接收者的方法调用可通过 bound 驱动分发。
+    let where_bounds_pushed = if let Some(wc) = &fun.where_clause {
+        let bounds = build_where_bound_entries(source, &fun.type_params, wc);
+        lower.push_where_bounds(bounds);
+        true
+    } else {
+        false
+    };
+
     let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
         let default = match eff_param.default.as_ref() {
             Some(expr) => match lower.lower_effect_row_expr(Some(expr)) {
                 Ok(row) => row,
                 Err(e) => {
+                    if where_bounds_pushed {
+                        lower.pop_where_bounds();
+                    }
                     lower.pop_type_params(&fun.type_params);
                     return Err(e.into());
                 }
@@ -510,6 +524,9 @@ pub(super) fn check_fun_body_exprs(
     }
     if unsafe_ctx_pushed {
         lower.pop_unsafe_context();
+    }
+    if where_bounds_pushed {
+        lower.pop_where_bounds();
     }
     lower.pop_type_params(&fun.type_params);
     result
@@ -1786,4 +1803,33 @@ pub(super) fn detect_smart_cast_for_if_condition(
         target_ty,
         narrow_in_then: matches!(op, ast::TypeCheckOp::Is),
     }))
+}
+
+/// 从 AST `where_clause` 和 `type_params` 构建 `WhereBoundEntry` 列表（T0130）。
+///
+/// 每条 `where T: Bound` 约束映射为一个 `WhereBoundEntry`。
+fn build_where_bound_entries(
+    source: &SourceFile,
+    type_params: &[ast::TypeParam],
+    where_clause: &ast::WhereClause,
+) -> Vec<WhereBoundEntry> {
+    let param_names: Vec<String> = type_params
+        .iter()
+        .map(|p| source.slice(p.name.span).to_string())
+        .collect();
+
+    let mut out = Vec::new();
+    for c in &where_clause.constraints {
+        let target_name = source.slice(c.ty_param.span).to_string();
+        // 只收集当前声明的 type params 的约束。
+        if !param_names.contains(&target_name) {
+            continue;
+        }
+        out.push(WhereBoundEntry {
+            param_name: target_name,
+            bound: c.bound.clone(),
+            decl_file: source.path().to_path_buf(),
+        });
+    }
+    out
 }

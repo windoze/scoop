@@ -62,6 +62,10 @@ struct FrontendOutput {
     /// T0127: 泛型函数调用的 monomorph keys，用于在 HIR lowering 时生成单态化函数变体。
     #[cfg(feature = "llvm")]
     monomorph_keys: Vec<scoopc::monomorph::MonomorphKey>,
+    /// T0130: typecheck 阶段的 TypeStore，用于在 HIR lowering 时将 monomorph key 中的
+    /// TypeId 重新 intern 到 HIR lowering 的 TypeStore 中。
+    #[cfg(feature = "llvm")]
+    typecheck_types: scoopc::ty::TypeStore,
 }
 
 impl FrontendOutput {
@@ -668,6 +672,8 @@ fn run_frontend(
         index,
         #[cfg(feature = "llvm")]
         monomorph_keys: all_monomorph_keys,
+        #[cfg(feature = "llvm")]
+        typecheck_types: types,
     })
 }
 
@@ -989,6 +995,7 @@ fn lower_main_hir_for_build(
         &unit,
         &files_to_lower,
         &front.monomorph_keys,
+        &front.typecheck_types,
     )
     .map_err(miette::Report::from)
 }

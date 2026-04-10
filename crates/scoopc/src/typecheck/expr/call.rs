@@ -5109,6 +5109,33 @@ fn infer_member_call_expr_type(
         }
     }
 
+    // T0130：bound 驱动的方法分发——当 receiver 为 TypeKind::Param 时，
+    // 通过 where 约束查找 bound 接口的方法集合。
+    if let TypeKind::Param(p) = lower.type_kind(actual_receiver_ty) {
+        let member_name = source.slice(member.span);
+        let param_name = p.name.clone();
+
+        if let Some(ret) = try_infer_where_bound_method_call(
+            source,
+            call_expr,
+            receiver,
+            actual_receiver_ty,
+            &param_name,
+            member_name,
+            args,
+            explicit_type_args.as_deref(),
+            safe,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )? {
+            return Ok(ret);
+        }
+    }
+
     // 当前阶段只支持"扩展函数调用"（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
@@ -7284,6 +7311,153 @@ fn check_fun_where_constraints_after_instantiation(
     }
 
     Ok(())
+}
+
+/// T0130：尝试通过 where 约束的 bound 接口解析 TypeKind::Param 接收者上的方法调用。
+///
+/// 当 receiver 类型为 `TypeKind::Param`（如 `T`）时，查找该 type param 的 where 约束，
+/// 将 bound 接口的方法集合纳入候选。如果找到匹配的方法，返回 `Some(return_ty)`。
+#[allow(clippy::too_many_arguments)]
+fn try_infer_where_bound_method_call(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    receiver: &ast::Expr,
+    receiver_ty: TypeId,
+    param_name: &str,
+    member_name: &str,
+    args: &[ast::Expr],
+    _explicit_type_args: Option<&[TypeId]>,
+    safe: bool,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let bounds = lower.lookup_where_bounds_for_param(param_name);
+    if bounds.is_empty() {
+        return Ok(None);
+    }
+
+    // 对每个 bound，lower 其 type ref 得到 bound 接口类型，然后查找接口方法。
+    let bound_entries: Vec<_> = bounds
+        .into_iter()
+        .map(|b| (b.bound.clone(), b.decl_file.clone()))
+        .collect();
+
+    for (bound_ref, decl_file) in &bound_entries {
+        // Lower bound type ref 在声明处文件上下文中。
+        let bound_ty = match lower.lower_type_ref_in_decl_file(decl_file, bound_ref) {
+            Ok(ty) => ty,
+            Err(_) => continue,
+        };
+
+        // 从 bound 类型中提取名义 FQN（接口 FQN）。
+        let (bound_fqn, bound_args) =
+            match try_extract_nominal_fqn_and_args(bound_ty, lower) {
+                Some(pair) => pair,
+                None => continue,
+            };
+
+        // 构造 interface 方法的 FQN：`InterfaceFqn.methodName`。
+        let method_fqn = format!("{bound_fqn}.{member_name}");
+
+        // 在索引中查找该方法。
+        let sigs = collect_member_method_signatures_from_index(
+            source,
+            bound_ty,
+            &bound_fqn,
+            &bound_args,
+            &method_fqn,
+            lower,
+            builtins,
+        )?;
+
+        if sigs.is_empty() {
+            continue;
+        }
+
+        // 找到了匹配的 bound 方法——按照普通 member method call 的模式进行类型检查。
+        let call_args = collect_call_arg_infos(
+            source,
+            args,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+        check_call_arg_named_rules(&method_fqn, &call_args)?;
+
+        // 用 receiver 作为隐式第 0 个参数（使用 TypeKind::Param 的原始类型）。
+        let receiver_arg = CallArgInfo {
+            kind: CallArgKind::Positional,
+            expr: receiver,
+            ty: receiver_ty,
+            is_int_lit: false,
+            is_spread: false,
+        };
+
+        let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
+        call_args_with_receiver.push(receiver_arg);
+        call_args_with_receiver.extend(call_args.iter().cloned());
+
+        // 尝试对每个签名候选进行匹配。
+        for cand in &sigs {
+            let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                &call_args_with_receiver,
+                &cand.param_names,
+                &cand.param_has_defaults,
+                &cand.param_is_vararg,
+            ) else {
+                continue;
+            };
+
+            let mapping_pairs = expand_param_arg_pairs(&mapping);
+            let mut generic_constraints: Vec<GenericArgConstraint> =
+                Vec::with_capacity(mapping_pairs.len());
+            let mut ok = true;
+            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                let arg = &call_args_with_receiver[arg_idx];
+                generic_constraints.push(GenericArgConstraint {
+                    expected: cand.params[param_idx],
+                    found: arg.ty,
+                    found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                    from: format!("第 {} 个实参", arg_idx + 1),
+                    span: arg.expr.span,
+                });
+            }
+            if !ok {
+                continue;
+            }
+
+            let instantiated =
+                match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                    &method_fqn,
+                    call_expr.span,
+                    cand,
+                    None,
+                    generic_constraints,
+                    lower,
+                    builtins,
+                ) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+
+            let ret = if safe {
+                lower.ty_option(instantiated.return_ty)
+            } else {
+                instantiated.return_ty
+            };
+
+            return Ok(Some(ret));
+        }
+    }
+
+    Ok(None)
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -1390,6 +1390,7 @@ pub fn lower_for_compilation_unit_multi_files(
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
     monomorph_keys: &[crate::monomorph::MonomorphKey],
+    typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -1473,7 +1474,30 @@ pub fn lower_for_compilation_unit_multi_files(
             ctor_call_sites.extend(file_class_ctor_call_sites);
         }
     }
-    // T0125：泛型 class 的具体实例化 ClassInit。
+    // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
+    class_inits.extend(collect_generic_class_instantiation_inits(
+        compilation_unit,
+        &types,
+        &class_inits,
+    ));
+
+    // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
+    // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
+    // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），
+    // 这些类型需要被后续的 class member monomorphization 发现。
+    let monomorphized_funs = collect_generic_fun_instantiations(
+        compilation_unit,
+        monomorph_keys,
+        &index,
+        &type_kinds,
+        &mut types,
+        builtins,
+        typecheck_types,
+    );
+    items.extend(monomorphized_funs.into_iter().map(Item::Fun));
+
+    // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
+    // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
         &types,
@@ -1488,17 +1512,6 @@ pub fn lower_for_compilation_unit_multi_files(
         &mut types,
         builtins,
     ));
-
-    // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
-    let monomorphized_funs = collect_generic_fun_instantiations(
-        compilation_unit,
-        monomorph_keys,
-        &index,
-        &type_kinds,
-        &mut types,
-        builtins,
-    );
-    items.extend(monomorphized_funs.into_iter().map(Item::Fun));
 
     Ok(LoweredHir {
         file: File { items },
@@ -1773,8 +1786,9 @@ fun main(): Int { return id(1) }
         unit.push((&src_main, &ast_main));
 
         let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+        let empty_types = TypeStore::new();
         let lowered =
-            lower_for_compilation_unit_multi_files(&src_main, &index, &unit, &files_to_lower, &[])
+            lower_for_compilation_unit_multi_files(&src_main, &index, &unit, &files_to_lower, &[], &empty_types)
                 .unwrap();
 
         let fun_fqns: HashSet<&str> = lowered

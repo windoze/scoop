@@ -2643,6 +2643,7 @@ pub(super) fn collect_generic_fun_instantiations(
     type_kinds: &HashMap<String, ast::TypeKind>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
+    typecheck_types: &TypeStore,
 ) -> Vec<super::super::FunDecl> {
     if monomorph_keys.is_empty() {
         return Vec::new();
@@ -2679,8 +2680,16 @@ pub(super) fn collect_generic_fun_instantiations(
     let mut out: Vec<super::super::FunDecl> = Vec::new();
 
     for key in monomorph_keys {
+        // T0130: monomorph key 中的 TypeId 来自 typecheck 阶段的 TypeStore，
+        // 需要在当前 HIR lowering 的 TypeStore 中重新 intern。
+        let re_interned_args: Vec<crate::ty::TypeId> = key
+            .type_args
+            .iter()
+            .map(|&a| types.re_intern_from(typecheck_types, a))
+            .collect();
+
         // 跳过仍含 Param 类型的 key（泛型传递调用）
-        if key.type_args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
+        if re_interned_args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
             continue;
         }
 
@@ -2689,12 +2698,12 @@ pub(super) fn collect_generic_fun_instantiations(
             continue;
         };
 
-        if fun_decl.type_params.len() != key.type_args.len() {
+        if fun_decl.type_params.len() != re_interned_args.len() {
             continue;
         }
 
         // 构造 mangled FQN 用于去重
-        let args_str = key.type_args
+        let args_str = re_interned_args
             .iter()
             .map(|id| types.display(*id).to_string())
             .collect::<Vec<_>>()
@@ -2709,7 +2718,7 @@ pub(super) fn collect_generic_fun_instantiations(
         let bindings: Vec<(String, crate::ty::TypeId)> = fun_decl
             .type_params
             .iter()
-            .zip(key.type_args.iter())
+            .zip(re_interned_args.iter())
             .map(|(p, &arg)| (p.name.text(source).to_string(), arg))
             .collect();
 

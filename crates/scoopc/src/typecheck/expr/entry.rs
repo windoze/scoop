@@ -25,7 +25,7 @@ use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 use super::super::TypeEnv;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
-use super::super::lower::{TypeInstantiationKey, TypeLowering};
+use super::super::lower::{TypeInstantiationKey, TypeLowering, WhereBoundEntry};
 
 /// 对一个文件的表达式做最小类型检查。
 ///
@@ -397,6 +397,15 @@ fn check_class_member_fun_bodies_in_type_decl(
         // `this: C<T>` 中的 `T` 是 `TypeKind::Param`，约束在该层被视作假设而非此刻验证的条件。
         lower.push_type_params(&decl.type_params);
 
+        // T0130：推入类型声明处的 where 约束，以便成员方法体内可通过 bound 驱动方法分发。
+        let type_where_bounds_pushed = if let Some(wc) = &decl.where_clause {
+            let bounds = build_type_where_bound_entries(source, &decl.type_params, wc);
+            lower.push_where_bounds(bounds);
+            true
+        } else {
+            false
+        };
+
         let result: Result<(), ExprTypeError> = (|| {
             let this_ty_args = decl
                 .type_params
@@ -500,6 +509,9 @@ fn check_class_member_fun_bodies_in_type_decl(
             Ok(())
         })();
 
+        if type_where_bounds_pushed {
+            lower.pop_where_bounds();
+        }
         lower.pop_type_params(&decl.type_params);
         result?;
     }
@@ -1252,7 +1264,7 @@ fn check_top_level_val_initializer(
         return Ok(());
     }
 
-    // 整数字面量（`1`）在静态语义上是“可被上下文整数类型吸收”的常量：
+    // 整数字面量（`1`）在静态语义上是”可被上下文整数类型吸收”的常量：
     // - 允许 `val x: UInt8 = 1` 这类写法（后续可在此加入 range check）。
     if matches!(init.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
         return Ok(());
@@ -1263,4 +1275,30 @@ fn check_top_level_val_initializer(
         found: lower.fmt_type(found),
         span: init.span.into(),
     })
+}
+
+/// 从类型声明的 `where_clause` 和 `type_params` 构建 `WhereBoundEntry` 列表（T0130）。
+fn build_type_where_bound_entries(
+    source: &SourceFile,
+    type_params: &[ast::TypeParam],
+    where_clause: &ast::WhereClause,
+) -> Vec<WhereBoundEntry> {
+    let param_names: Vec<String> = type_params
+        .iter()
+        .map(|p| source.slice(p.name.span).to_string())
+        .collect();
+
+    let mut out = Vec::new();
+    for c in &where_clause.constraints {
+        let target_name = source.slice(c.ty_param.span).to_string();
+        if !param_names.contains(&target_name) {
+            continue;
+        }
+        out.push(WhereBoundEntry {
+            param_name: target_name,
+            bound: c.bound.clone(),
+            decl_file: source.path().to_path_buf(),
+        });
+    }
+    out
 }

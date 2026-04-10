@@ -362,6 +362,20 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
     Ok(ctx.take_type_instantiation_keys())
 }
 
+/// `where T: Bound` 约束在 TypeLowering 中的运行时表示（T0130）。
+///
+/// 当进入泛型函数/类型声明的 body 时，把 where 子句的约束 push 到 `where_bound_scopes`；
+/// 当 receiver 为 `TypeKind::Param` 时，查找该 param 的 bound 接口方法以驱动方法分发。
+#[derive(Debug, Clone)]
+pub(super) struct WhereBoundEntry {
+    /// 被约束的 type param 名称（如 `T`）。
+    pub param_name: String,
+    /// bound 右侧的 type ref（如 `Show`）——在查找时再 lower，以便在正确的上下文中解析。
+    pub bound: ast::TypeRef,
+    /// 声明处文件（用于在正确的 source/package/import 上下文中 lower bound type ref）。
+    pub decl_file: std::path::PathBuf,
+}
+
 pub(crate) struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
@@ -432,9 +446,18 @@ pub(crate) struct TypeLowering<'a> {
     /// `const fun` 上下文深度（TODO T1211）。
     ///
     /// 说明：
-    /// - `const fun` 的限制更接近“编译期可执行”的静态门禁（禁止调用非 const、禁止闭包、禁止分配等）；
+    /// - `const fun` 的限制更接近”编译期可执行”的静态门禁（禁止调用非 const、禁止闭包、禁止分配等）；
     /// - 使用 depth 而不是 bool，便于未来扩展局部 `const { ... }` / `comptime` 等可嵌套语境。
     const_context_depth: usize,
+
+    /// `where` 约束 bound 作用域栈（T0130）。
+    ///
+    /// 说明：
+    /// - 每一层表示一个作用域（函数或类型声明）中的 where 约束。
+    /// - 每个条目记录 `(type_param_name, bound_type_ref, decl_file)` ：
+    ///   当接收者类型为 `TypeKind::Param` 时，查找该 param 的 bound 接口方法集合。
+    /// - 与 `type_param_scopes` 对齐地 push/pop。
+    where_bound_scopes: Vec<Vec<WhereBoundEntry>>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -499,6 +522,7 @@ impl<'a> TypeLowering<'a> {
             unsafe_context_depth: 0,
             nogc_context_depth: 0,
             const_context_depth: 0,
+            where_bound_scopes: Vec::new(),
         }
     }
 
@@ -581,6 +605,34 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn in_const_context(&self) -> bool {
         self.const_context_depth > 0
+    }
+
+    /// 推入一层 where 约束 bound 作用域（T0130）。
+    ///
+    /// 在进入泛型函数体或泛型类型成员体时调用，把 `where T: Bound` 的约束记录下来，
+    /// 以便在 typecheck 期间对 `TypeKind::Param` 接收者的方法调用进行 bound 驱动的分发。
+    pub(super) fn push_where_bounds(&mut self, bounds: Vec<WhereBoundEntry>) {
+        self.where_bound_scopes.push(bounds);
+    }
+
+    /// 弹出最近一层 where 约束 bound 作用域（T0130）。
+    pub(super) fn pop_where_bounds(&mut self) {
+        let _ = self.where_bound_scopes.pop();
+    }
+
+    /// 查找所有 where 约束中以 `param_name` 为目标的 bound（T0130）。
+    ///
+    /// 从内层到外层扫描所有作用域，收集所有命中的条目（一个 type param 可能有多个 bound）。
+    pub(super) fn lookup_where_bounds_for_param(&self, param_name: &str) -> Vec<&WhereBoundEntry> {
+        let mut out = Vec::new();
+        for scope in self.where_bound_scopes.iter().rev() {
+            for entry in scope {
+                if entry.param_name == param_name {
+                    out.push(entry);
+                }
+            }
+        }
+        out
     }
 
     /// 开启 monomorph 请求收集（T0712）。

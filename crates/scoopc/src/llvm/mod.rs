@@ -609,14 +609,28 @@ fn build_main_module_from_lowered_hir<'ctx>(
         reachable.extend(monomorphized);
     }
 
-    // T0126: Helper to check if a function's signature contains TypeKind::Param.
+    // T0126: Helper to check if a function's signature contains TypeKind::Param
+    // (recursively, including inside Nominal type args like `Printer<T>`).
+    let ty_contains_param =
+        |types: &crate::ty::TypeStore, ty: crate::ty::TypeId| -> bool {
+            let mut stack = vec![ty];
+            while let Some(id) = stack.pop() {
+                match types.kind(id) {
+                    crate::ty::TypeKind::Param(_) => return true,
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                        stack.extend(n.args.iter().copied());
+                    }
+                    _ => {}
+                }
+            }
+            false
+        };
     let fun_has_param_types = |fun: &hir::FunDecl| -> bool {
-        fun.params.iter().any(|p| {
-            matches!(lowered.types.kind(p.ty), crate::ty::TypeKind::Param(_))
-        }) || matches!(
-            lowered.types.kind(fun.return_ty),
-            crate::ty::TypeKind::Param(_)
-        )
+        fun.params
+            .iter()
+            .any(|p| ty_contains_param(&lowered.types, p.ty))
+            || ty_contains_param(&lowered.types, fun.return_ty)
     };
 
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));

@@ -774,7 +774,7 @@ cargo run -p scoop --features llvm -- test
     - `where_clause_fun_generic_passthrough_ok`：泛型传递调用跳过检查 → 通过。
   - 139 单元测试 + 823 fixtures 通过。
 
-### T0130 [TODO] 泛型 where 约束：bound 驱动的方法分发（函数体 + 类型成员体内通过约束调用接口方法）
+### T0130 [DONE] 泛型 where 约束：bound 驱动的方法分发（函数体 + 类型成员体内通过约束调用接口方法）
 
 - 描述：当泛型代码体内通过类型参数调用方法时（如 `x.show()`），typechecker 需要利用 `where T: Show` 约束得知 `T` 拥有 `Show` 接口的方法，而非报 `UnresolvedMember`。这同时影响两类场景：
   - **泛型函数体**：`fun <T> f(x: T) where T: Show { x.show() }`
