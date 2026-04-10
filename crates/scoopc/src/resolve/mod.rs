@@ -550,6 +550,13 @@ pub struct IndexedFile<'a> {
     pub file: &'a ast::File,
 }
 
+#[derive(Clone, Copy)]
+struct DeclOrigin<'a> {
+    cone: ConeId,
+    source: &'a SourceFile,
+    pkg_prefix: &'a str,
+}
+
 impl Index {
     pub fn build(files: &[(&SourceFile, &ast::File)]) -> Result<Self, ResolveError> {
         let owned = files
@@ -827,6 +834,11 @@ impl Index {
         file: &ast::File,
     ) -> Result<(), ResolveError> {
         let pkg = package_prefix(source, file.package.as_ref());
+        let pkg_origin = DeclOrigin {
+            cone,
+            source,
+            pkg_prefix: &pkg,
+        };
 
         for item in &file.items {
             match item {
@@ -834,9 +846,7 @@ impl Index {
                     // typealias 是类型命名空间的顶层符号（T0251）。
                     let visibility = visibility_from_modifiers(&ta.modifiers, ta.span)?;
                     self.insert_symbol(
-                        cone,
-                        source,
-                        &pkg,
+                        pkg_origin,
                         SymbolKind::Type,
                         ta.name.span,
                         visibility,
@@ -858,9 +868,7 @@ impl Index {
                     if let Some(name) = v.name() {
                         let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
                         self.insert_symbol(
-                            cone,
-                            source,
-                            &pkg,
+                            pkg_origin,
                             SymbolKind::Value,
                             name.span,
                             visibility,
@@ -892,12 +900,15 @@ impl Index {
         prefix: &str,
         ty: &ast::TypeDecl,
     ) -> Result<(), ResolveError> {
+        let decl_origin = DeclOrigin {
+            cone,
+            source,
+            pkg_prefix: prefix,
+        };
         // 1) 先插入类型自身（type namespace）。
         let visibility = visibility_from_modifiers(&ty.modifiers, ty.span)?;
         self.insert_symbol(
-            cone,
-            source,
-            prefix,
+            decl_origin,
             SymbolKind::Type,
             ty.name.span,
             visibility,
@@ -911,9 +922,7 @@ impl Index {
         // 会在后续 rich enum 任务中补齐（T0425+）。
         if matches!(ty.kind, ast::TypeKind::Enum) {
             self.insert_symbol(
-                cone,
-                source,
-                prefix,
+                decl_origin,
                 SymbolKind::Value,
                 ty.name.span,
                 visibility,
@@ -928,13 +937,16 @@ impl Index {
         } else {
             format!("{prefix}.{type_name}")
         };
+        let type_origin = DeclOrigin {
+            pkg_prefix: &type_prefix,
+            ..decl_origin
+        };
 
         // T0318：构造函数 overload set（primary + secondary）。
         if let Some(primary_ctor) = &ty.primary_ctor {
             self.insert_constructor_overload(
                 &type_prefix,
-                cone,
-                source,
+                type_origin,
                 ConstructorKind::Primary,
                 visibility,
                 primary_ctor.params_span,
@@ -954,9 +966,7 @@ impl Index {
         {
             for p in &primary_ctor.params {
                 self.insert_symbol(
-                    cone,
-                    source,
-                    &type_prefix,
+                    type_origin,
                     SymbolKind::Value,
                     p.name.span,
                     Visibility::Public,
@@ -979,9 +989,7 @@ impl Index {
                     continue;
                 }
                 self.insert_symbol(
-                    cone,
-                    source,
-                    &type_prefix,
+                    type_origin,
                     SymbolKind::Value,
                     p.name.span,
                     Visibility::Public,
@@ -1012,9 +1020,7 @@ impl Index {
                         // 因此若插入时遇到同名冲突（DuplicateDefinition），这里选择忽略并继续，
                         // 让 typecheck 再给出更精确的诊断。
                         let inserted = self.insert_symbol(
-                            cone,
-                            source,
-                            &type_prefix,
+                            type_origin,
                             SymbolKind::Value,
                             v.name.span,
                             visibility,
@@ -1030,9 +1036,7 @@ impl Index {
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
                     self.insert_symbol(
-                        cone,
-                        source,
-                        &type_prefix,
+                        type_origin,
                         SymbolKind::Value,
                         p.name.span,
                         visibility,
@@ -1048,8 +1052,7 @@ impl Index {
                     let ctor_visibility = visibility_from_modifiers(&ctor.modifiers, ctor.span)?;
                     self.insert_constructor_overload(
                         &type_prefix,
-                        cone,
-                        source,
+                        type_origin,
                         ConstructorKind::Secondary,
                         ctor_visibility,
                         ctor.span,
@@ -1091,6 +1094,11 @@ impl Index {
         prefix: &str,
         obj: &ast::ObjectDecl,
     ) -> Result<(), ResolveError> {
+        let decl_origin = DeclOrigin {
+            cone,
+            source,
+            pkg_prefix: prefix,
+        };
         let visibility = visibility_from_modifiers(&obj.modifiers, obj.span)?;
 
         let (obj_name, obj_name_span) = match &obj.name {
@@ -1108,18 +1116,14 @@ impl Index {
         // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
         if let Some(name_span) = obj_name_span {
             self.insert_symbol(
-                cone,
-                source,
-                prefix,
+                decl_origin,
                 SymbolKind::Type,
                 name_span,
                 visibility,
                 &obj.modifiers,
             )?;
             self.insert_symbol(
-                cone,
-                source,
-                prefix,
+                decl_origin,
                 SymbolKind::Value,
                 name_span,
                 visibility,
@@ -1127,9 +1131,7 @@ impl Index {
             )?;
         } else {
             self.insert_synth_symbol(
-                cone,
-                source,
-                prefix,
+                decl_origin,
                 SymbolKind::Type,
                 &obj_name,
                 obj.span,
@@ -1137,9 +1139,7 @@ impl Index {
                 &obj.modifiers,
             )?;
             self.insert_synth_symbol(
-                cone,
-                source,
-                prefix,
+                decl_origin,
                 SymbolKind::Value,
                 &obj_name,
                 obj.span,
@@ -1152,6 +1152,10 @@ impl Index {
             obj_name.clone()
         } else {
             format!("{prefix}.{obj_name}")
+        };
+        let obj_origin = DeclOrigin {
+            pkg_prefix: &obj_prefix,
+            ..decl_origin
         };
 
         // 记录 object 的“类型身份”，用于成员访问时判断该值是否为 object 单例（T0317）。
@@ -1167,9 +1171,7 @@ impl Index {
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
                     self.insert_symbol(
-                        cone,
-                        source,
-                        &obj_prefix,
+                        obj_origin,
                         SymbolKind::Value,
                         p.name.span,
                         visibility,
@@ -1198,9 +1200,7 @@ impl Index {
 
     fn insert_synth_symbol(
         &mut self,
-        cone: ConeId,
-        source: &SourceFile,
-        pkg_prefix: &str,
+        decl_origin: DeclOrigin<'_>,
         kind: SymbolKind,
         local: &str,
         decl_span: Span,
@@ -1211,6 +1211,11 @@ impl Index {
             kind != SymbolKind::Fun,
             "fun 命名空间必须使用 insert_fun_overload"
         );
+        let DeclOrigin {
+            cone,
+            source,
+            pkg_prefix,
+        } = decl_origin;
         let fqn = if pkg_prefix.is_empty() {
             local.to_string()
         } else {
@@ -1243,13 +1248,13 @@ impl Index {
     fn insert_constructor_overload(
         &mut self,
         type_fqn: &str,
-        cone: ConeId,
-        source: &SourceFile,
+        decl_origin: DeclOrigin<'_>,
         kind: ConstructorKind,
         visibility: Visibility,
         span: Span,
         params: &[ast::Param],
     ) {
+        let DeclOrigin { cone, source, .. } = decl_origin;
         let decl_file = source.path().to_path_buf();
         let params = params
             .iter()
@@ -1376,9 +1381,7 @@ impl Index {
 
     fn insert_symbol(
         &mut self,
-        cone: ConeId,
-        source: &SourceFile,
-        pkg_prefix: &str,
+        decl_origin: DeclOrigin<'_>,
         kind: SymbolKind,
         name_span: Span,
         visibility: Visibility,
@@ -1388,6 +1391,11 @@ impl Index {
             kind != SymbolKind::Fun,
             "fun 命名空间必须使用 insert_fun_overload"
         );
+        let DeclOrigin {
+            cone,
+            source,
+            pkg_prefix,
+        } = decl_origin;
         let local = source.slice(name_span).to_string();
         let fqn = if pkg_prefix.is_empty() {
             local.clone()

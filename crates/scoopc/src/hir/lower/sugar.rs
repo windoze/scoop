@@ -40,7 +40,6 @@ impl<'a> HirLowering<'a> {
                     member.span,
                     receiver,
                     rhs,
-                    fqn,
                     &info,
                 ),
             DelegatedPropertyInfo::Vetoable(info) => self.lower_vetoable_delegated_property_assign(
@@ -49,7 +48,6 @@ impl<'a> HirLowering<'a> {
                 member.span,
                 receiver,
                 rhs,
-                fqn,
                 &info,
             ),
             DelegatedPropertyInfo::Generic(info) => {
@@ -534,7 +532,6 @@ impl<'a> HirLowering<'a> {
         span: Span,
         receiver: &ast::Expr,
         property_fqn: &str,
-        property_name: String,
         ty: Option<ast::TypeRef>,
         mutex_field_fqn: Option<String>,
     ) -> (ExprKind, TypeId) {
@@ -543,6 +540,11 @@ impl<'a> HirLowering<'a> {
         // - 早期阶段通过一个 per-property 的 `Mutex` 保护 backing field 读写。
         let receiver = self.lower_expr(pkg_prefix, receiver);
         let value_ty = self.delegated_property_ty(ty.as_ref());
+        let property_name = property_fqn
+            .rsplit('.')
+            .next()
+            .unwrap_or(property_fqn)
+            .to_string();
 
         let mutex_fqn = mutex_field_fqn.unwrap_or_else(|| {
             // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
@@ -629,7 +631,6 @@ impl<'a> HirLowering<'a> {
         member_span: Span,
         receiver: &ast::Expr,
         rhs: &ast::Expr,
-        property_fqn: &str,
         info: &ObservableDelegatedPropertyInfo,
     ) -> Option<Expr> {
         if info.on_change.params.len() != 2 {
@@ -652,7 +653,7 @@ impl<'a> HirLowering<'a> {
                 member_span,
                 recv,
                 info.name.clone(),
-                property_fqn.to_string(),
+                info.property_fqn.clone(),
             )
         };
 
@@ -763,7 +764,6 @@ impl<'a> HirLowering<'a> {
         member_span: Span,
         receiver: &ast::Expr,
         rhs: &ast::Expr,
-        property_fqn: &str,
         info: &VetoableDelegatedPropertyInfo,
     ) -> Option<Expr> {
         if info.on_change.params.len() != 2 {
@@ -786,7 +786,7 @@ impl<'a> HirLowering<'a> {
                 member_span,
                 recv,
                 info.name.clone(),
-                property_fqn.to_string(),
+                info.property_fqn.clone(),
             )
         };
 

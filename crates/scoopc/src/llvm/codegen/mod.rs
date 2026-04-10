@@ -263,28 +263,62 @@ struct ReturnContext<'ctx> {
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
 }
 
+pub(super) struct MainCodegenInputs<'a, 'ctx> {
+    pub(super) context: &'ctx Context,
+    pub(super) module: &'a Module<'ctx>,
+    pub(super) builder: &'a Builder<'ctx>,
+    pub(super) target_data: &'a TargetData,
+    pub(super) host: &'a HostTargetInfo,
+    pub(super) source_map: &'a SourceMap,
+    pub(super) entry_source_id: SourceId,
+    pub(super) types: &'a TypeStore,
+    pub(super) struct_layouts: &'a hir::StructLayoutIndex,
+    pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
+    pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
+    pub(super) object_inits: &'a hir::ObjectInitIndex,
+    pub(super) class_inits: &'a hir::ClassInitIndex,
+    pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
+    pub(super) interfaces: &'a crate::itable::InterfaceIndex,
+    pub(super) class_itables: &'a crate::itable::ClassItableIndex,
+    pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    pub(super) extern_funs: &'a hir::ExternFunIndex,
+    pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+}
+
+pub(super) struct TypeDescriptorSpec<'ctx, 'a> {
+    pub(super) at: crate::span::Span,
+    pub(super) global_name: &'a str,
+    pub(super) canonical_name: &'a str,
+    pub(super) obj_ty: StructType<'ctx>,
+    pub(super) trace_start_offset_bytes: u64,
+    pub(super) parent: Option<GlobalValue<'ctx>>,
+    pub(super) itable: Option<PointerValue<'ctx>>,
+    pub(super) vtable: Option<PointerValue<'ctx>>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(crate) fn new(
-        context: &'ctx Context,
-        module: &'a Module<'ctx>,
-        builder: &'a Builder<'ctx>,
-        target_data: &'a TargetData,
-        host: &'a HostTargetInfo,
-        source_map: &'a SourceMap,
-        entry_source_id: SourceId,
-        types: &'a TypeStore,
-        struct_layouts: &'a hir::StructLayoutIndex,
-        enum_layouts: &'a hir::EnumLayoutIndex,
-        top_level_vars: &'a hir::TopLevelVarIndex,
-        object_inits: &'a hir::ObjectInitIndex,
-        class_inits: &'a hir::ClassInitIndex,
-        class_vtables: &'a crate::vtable::ClassVtableIndex,
-        interfaces: &'a crate::itable::InterfaceIndex,
-        class_itables: &'a crate::itable::ClassItableIndex,
-        ctor_call_sites: &'a hir::CtorCallSiteIndex,
-        extern_funs: &'a hir::ExternFunIndex,
-        fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    ) -> Self {
+    pub(crate) fn new(inputs: MainCodegenInputs<'a, 'ctx>) -> Self {
+        let MainCodegenInputs {
+            context,
+            module,
+            builder,
+            target_data,
+            host,
+            source_map,
+            entry_source_id,
+            types,
+            struct_layouts,
+            enum_layouts,
+            top_level_vars,
+            object_inits,
+            class_inits,
+            class_vtables,
+            interfaces,
+            class_itables,
+            ctor_call_sites,
+            extern_funs,
+            fun_index,
+        } = inputs;
         Self {
             context,
             module,
@@ -9608,27 +9642,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let llvm_fun = self.module.add_function(&fun_name, fn_ty, None);
             llvm_fun.set_call_conventions(0);
 
-            let mut cg = MainCodegen::new(
-                self.context,
-                self.module,
-                self.builder,
-                self.target_data,
-                self.host,
-                self.source_map,
-                self.entry_source_id,
-                self.types,
-                self.struct_layouts,
-                self.enum_layouts,
-                self.top_level_vars,
-                self.object_inits,
-                self.class_inits,
-                self.class_vtables,
-                self.interfaces,
-                self.class_itables,
-                self.ctor_call_sites,
-                self.extern_funs,
-                self.fun_index,
-            );
+            let mut cg = MainCodegen::new(MainCodegenInputs {
+                context: self.context,
+                module: self.module,
+                builder: self.builder,
+                target_data: self.target_data,
+                host: self.host,
+                source_map: self.source_map,
+                entry_source_id: self.entry_source_id,
+                types: self.types,
+                struct_layouts: self.struct_layouts,
+                enum_layouts: self.enum_layouts,
+                top_level_vars: self.top_level_vars,
+                object_inits: self.object_inits,
+                class_inits: self.class_inits,
+                class_vtables: self.class_vtables,
+                interfaces: self.interfaces,
+                class_itables: self.class_itables,
+                ctor_call_sites: self.ctor_call_sites,
+                extern_funs: self.extern_funs,
+                fun_index: self.fun_index,
+            });
             // 说明：closure 捕获信息里没有类型；这里在外层 codegen 阶段用 env 中的 locals 恢复 type id，
             // 再传给 closure fun body 用于 env layout 与绑定。
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
@@ -12382,27 +12416,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 在生成 init function body 时，临时切换 builder 的插入点；结束后恢复到调用方位置。
         let saved_block = self.builder.get_insert_block();
 
-        let mut init_codegen = MainCodegen::new(
-            self.context,
-            self.module,
-            self.builder,
-            self.target_data,
-            self.host,
-            self.source_map,
-            self.entry_source_id,
-            self.types,
-            self.struct_layouts,
-            self.enum_layouts,
-            self.top_level_vars,
-            self.object_inits,
-            self.class_inits,
-            self.class_vtables,
-            self.interfaces,
-            self.class_itables,
-            self.ctor_call_sites,
-            self.extern_funs,
-            self.fun_index,
-        );
+        let mut init_codegen = MainCodegen::new(MainCodegenInputs {
+            context: self.context,
+            module: self.module,
+            builder: self.builder,
+            target_data: self.target_data,
+            host: self.host,
+            source_map: self.source_map,
+            entry_source_id: self.entry_source_id,
+            types: self.types,
+            struct_layouts: self.struct_layouts,
+            enum_layouts: self.enum_layouts,
+            top_level_vars: self.top_level_vars,
+            object_inits: self.object_inits,
+            class_inits: self.class_inits,
+            class_vtables: self.class_vtables,
+            interfaces: self.interfaces,
+            class_itables: self.class_itables,
+            ctor_call_sites: self.ctor_call_sites,
+            extern_funs: self.extern_funs,
+            fun_index: self.fun_index,
+        });
         init_codegen.codegen_object_init_fun_body(obj, llvm_fun)?;
 
         if let Some(bb) = saved_block {

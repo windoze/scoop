@@ -1608,7 +1608,6 @@ impl<'a> HirLowering<'a> {
                         member.span,
                         receiver,
                         fqn,
-                        info.name,
                         info.ty,
                         info.mutex_field_fqn,
                     );
@@ -1619,7 +1618,6 @@ impl<'a> HirLowering<'a> {
                         member.span,
                         receiver,
                         fqn,
-                        info.name,
                         info.ty,
                         info.mutex_field_fqn,
                     );

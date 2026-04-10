@@ -1296,6 +1296,7 @@ fn collect_delegated_properties_in_type_decl(
                                 Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
                                 name: name.clone(),
+                                property_fqn: prop_fqn.clone(),
                                 ty: p.ty.clone(),
                                 on_change,
                                 mutex_field_fqn,
@@ -1306,6 +1307,7 @@ fn collect_delegated_properties_in_type_decl(
                                 Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
                                 name: name.clone(),
+                                property_fqn: prop_fqn.clone(),
                                 ty: p.ty.clone(),
                                 on_change,
                                 mutex_field_fqn,
@@ -1393,6 +1395,7 @@ fn collect_delegated_properties_in_object_decl(
                         let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
                             name: name.clone(),
+                            property_fqn: prop_fqn.clone(),
                             ty: p.ty.clone(),
                             on_change,
                             mutex_field_fqn,
@@ -1402,6 +1405,7 @@ fn collect_delegated_properties_in_object_decl(
                         let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
                             name: name.clone(),
+                            property_fqn: prop_fqn.clone(),
                             ty: p.ty.clone(),
                             on_change,
                             mutex_field_fqn,
@@ -2617,16 +2621,20 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
             };
 
             let mut hir_fun = super::lower_member_fun_with_type_bindings(
-                source,
-                file,
-                index,
-                type_kinds,
-                types,
-                builtins,
-                base_fqn,
-                decl.name.span,
-                concrete_args,
-                fun,
+                super::LoweringInputs {
+                    source,
+                    file,
+                    index,
+                    type_kinds,
+                    types,
+                    builtins,
+                },
+                super::BoundMemberFunLoweringTarget {
+                    owner_fqn: base_fqn,
+                    this_decl_span: decl.name.span,
+                    this_concrete_args: concrete_args,
+                    fun,
+                },
                 bindings.clone(),
             );
 
@@ -2797,7 +2805,16 @@ pub(super) fn collect_generic_fun_instantiations(
             .collect();
 
         let mut hir_fun = super::lower_fun_with_type_bindings(
-            source, file, index, type_kinds, types, builtins, fun_decl, bindings,
+            super::LoweringInputs {
+                source,
+                file,
+                index,
+                type_kinds,
+                types,
+                builtins,
+            },
+            fun_decl,
+            bindings,
         );
 
         hir_fun.fqn = instance_fqn;

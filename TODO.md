@@ -1239,18 +1239,74 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-2 [TODO] Clippy 基线清理：收缩超长 helper 参数列表（`too_many_arguments`）
+### T0147c-2a [DONE] Clippy 基线清理：lowering / resolve / LLVM helper 签名收口
 
-- 描述：在 deprecated API 清理后，严格 clippy gate 的下一批主要失败是 LLVM/typecheck 中的长参数函数。需要通过聚合上下文对象或局部参数结构，把高频 helper 的职责边界显式化，同时消除 `too_many_arguments`。
+- 描述：当前 `cargo clippy --workspace --all-targets -- -D warnings` 中共有 78 个 `too_many_arguments`，其中 13 个集中在 `hir/lower/{mod,sugar}.rs`、`resolve/mod.rs`、`llvm/codegen/{mod,effect,gc}.rs`。这批函数彼此耦合较低、数量可控，适合作为 `T0147c-2` 的第一轮收口。
 - 目标：
-  - 优先清理当前 clippy 输出中的 LLVM codegen 与 typecheck 路径告警函数。
-  - 通过参数对象、局部上下文 struct 或就近封装减少签名长度，而不是直接加 `#[allow(clippy::too_many_arguments)]`。
-  - 保持行为、诊断文本与 fixture 输出稳定。
+  - 清理以下模块中的全部 `too_many_arguments`：`hir/lower/sugar.rs`（3）、`hir/lower/mod.rs`（2）、`resolve/mod.rs`（3）、`llvm/codegen/effect.rs`（3）、`llvm/codegen/gc.rs`（1）、`llvm/codegen/mod.rs`（1）。
+  - 优先使用局部参数对象、上下文 struct 或就近 helper 封装，避免 blanket `allow`。
+  - 保持 lowering / resolve / codegen 行为、错误文本和 fixture 输出稳定。
+- 验收：
+  - 严格 clippy 输出中，上述文件不再出现 `too_many_arguments`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-1
+- 完成说明：
+  - **HIR lowering**：
+    - `ObservableDelegatedPropertyInfo` / `VetoableDelegatedPropertyInfo` 收入 `property_fqn`，让 observable/vetoable assign helper 不再额外传递 backing field FQN。
+    - `lower_observable_vetoable_delegated_property_get` 改为从 `property_fqn` 反推属性名；`lower_observable_delegated_property_assign` / `lower_vetoable_delegated_property_assign` 直接消费 info 内的 `property_fqn`。
+    - `lower_fun_with_type_bindings` / `lower_member_fun_with_type_bindings` 改为接收 `LoweringInputs` / `BoundMemberFunLoweringTarget`，monomorph / pre-specialize / HIR util 调用点同步切换到结构化输入。
+  - **resolver**：
+    - 新增 `DeclOrigin { cone, source, pkg_prefix }`，收口 `insert_symbol` / `insert_synth_symbol` / `insert_constructor_overload` 的公共“声明来源”参数。
+    - `add_file_in_cone` / `add_type_decl` / `add_object_decl` 内部调用统一改为传递 `DeclOrigin`。
+  - **LLVM codegen**：
+    - `MainCodegen::new` 改为接收 `MainCodegenInputs`；`llvm/mod.rs` 与 codegen 内部的再入构造点全部切换到结构化输入。
+    - `get_or_create_type_descriptor_global` 改为接收 `TypeDescriptorSpec`；`gc.rs` / `effect.rs` / `ty.rs` 调用点统一改为 spec struct。
+    - handle escape continuation 的递归 perform 扫描改为局部 `NestedPerformScanState`，把 `path` / `pc` / `sites` / `decl_map` 等共享状态收进对象；间接 perform 路径新增 `IndirectEscapeContinuationPlan`。
+  - **clippy 复核**：
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 中 `too_many_arguments` 总数已从 **78** 降到 **65**，本子任务负责的 13 个告警全部清零。
+    - 目标文件中仍有 `private_interfaces` / `dead_code` 等旧 warning，属后续 `T0147c-3` 范围。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo check -p scoopc --features llvm` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+
+### T0147c-2b [TODO] Clippy 基线清理：typecheck 支撑模块签名收口
+
+- 描述：在 lowering / resolve / LLVM 收口后，继续清理 typecheck 非 expr 主路径中的长参数函数，先降低外围模块噪声，再进入 expr 主干。
+- 目标：
+  - 清理 `typecheck/annotations.rs`（6）、`typecheck/override_effects.rs`（1）、`typecheck/properties.rs`（2）、`typecheck/val_pat.rs`（3）中的全部 `too_many_arguments`。
+  - 使用参数结构体或上下文对象明确“只读输入 / 可变状态 / 诊断上下文”的边界。
+- 验收：
+  - 严格 clippy 输出中，上述文件不再出现 `too_many_arguments`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-2a
+
+### T0147c-2c [TODO] Clippy 基线清理：typecheck expr 中等规模路径签名收口
+
+- 描述：`typecheck/expr` 内部告警数量最多，需要分批处理。此子任务先覆盖 member / ops / stmt 三个中等规模模块，减少交叉调用时的参数扩散。
+- 目标：
+  - 清理 `typecheck/expr/member.rs`（5）、`typecheck/expr/ops.rs`（4）、`typecheck/expr/stmt.rs`（8）中的全部 `too_many_arguments`。
+  - 沿调用链下沉共享上下文，避免同一组参数在多层 helper 间重复传递。
+- 验收：
+  - 严格 clippy 输出中，上述文件不再出现 `too_many_arguments`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147c-2b
+
+### T0147c-2d [TODO] Clippy 基线清理：typecheck expr 主干签名收口
+
+- 描述：最后清理 `typecheck/expr` 主干大模块，覆盖 `call` / `entry` / `infer` 中剩余 36 个 `too_many_arguments`，并关闭该类 clippy 告警。
+- 目标：
+  - 清理 `typecheck/expr/call.rs`（11）、`typecheck/expr/entry.rs`（9）、`typecheck/expr/infer.rs`（16）中的全部 `too_many_arguments`。
+  - 完成后，workspace 严格 clippy 输出中不再出现任何 `too_many_arguments`。
 - 验收：
   - `cargo clippy --workspace --all-targets -- -D warnings` 不再出现 `too_many_arguments`。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T0147c-1
+- 依赖：T0147c-2c
 
 ### T0147c-3 [TODO] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
 
@@ -1263,7 +1319,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo clippy --workspace --all-targets -- -D warnings` 通过。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T0147c-2
+- 依赖：T0147c-2d
 
 ### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
 
@@ -1288,7 +1344,7 @@ cargo run -p scoop --features llvm -- test
   - LLVM 后端对相关 builtin 方法的分发路径完整，不因 Float 接口调用而 panic。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T0147a、T0147b、T0147c-1、T0147c-2、T0147c-3
+- 依赖：T0147a、T0147b、T0147c-1、T0147c-2d、T0147c-3
 
 ### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
 

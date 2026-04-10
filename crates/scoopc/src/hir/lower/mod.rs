@@ -1549,21 +1549,40 @@ pub fn lower_for_compilation_unit_multi_files(
     })
 }
 
+pub(crate) struct LoweringInputs<'a> {
+    pub(crate) source: &'a SourceFile,
+    pub(crate) file: &'a ast::File,
+    pub(crate) index: &'a Index,
+    pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub(crate) types: &'a mut TypeStore,
+    pub(crate) builtins: BuiltinTypes,
+}
+
+pub(super) struct BoundMemberFunLoweringTarget<'a> {
+    pub(super) owner_fqn: &'a str,
+    pub(super) this_decl_span: Span,
+    pub(super) this_concrete_args: &'a [TypeId],
+    pub(super) fun: &'a ast::FunDecl,
+}
+
 /// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
 ///
 /// 说明：
 /// - 该函数假设调用方已在 AST 上运行 resolver（headers + bodies），以便 `ValueIdent.resolved` 等信息可用；
 /// - `type_bindings` 用于把函数声明处的 `T` 等 type params 映射为具体 `TypeId`（调用点推断结果）。
 pub(crate) fn lower_fun_with_type_bindings(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    types: &mut TypeStore,
-    builtins: BuiltinTypes,
+    inputs: LoweringInputs<'_>,
     fun: &ast::FunDecl,
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
+    let LoweringInputs {
+        source,
+        file,
+        index,
+        type_kinds,
+        types,
+        builtins,
+    } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);
@@ -1591,18 +1610,24 @@ pub(crate) fn lower_fun_with_type_bindings(
 /// - 生成的 FunDecl 中 `this` 参数类型为具体的 `owner_fqn<concrete_args>`，所有引用 owner
 ///   type params 的地方均被替换为具体类型。
 pub(crate) fn lower_member_fun_with_type_bindings(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    types: &mut TypeStore,
-    builtins: BuiltinTypes,
-    owner_fqn: &str,
-    this_decl_span: Span,
-    this_concrete_args: &[TypeId],
-    fun: &ast::FunDecl,
+    inputs: LoweringInputs<'_>,
+    target: BoundMemberFunLoweringTarget<'_>,
     owner_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
+    let LoweringInputs {
+        source,
+        file,
+        index,
+        type_kinds,
+        types,
+        builtins,
+    } = inputs;
+    let BoundMemberFunLoweringTarget {
+        owner_fqn,
+        this_decl_span,
+        this_concrete_args,
+        fun,
+    } = target;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);

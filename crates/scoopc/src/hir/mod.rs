@@ -23,11 +23,11 @@ use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
-pub(crate) use lower::lower_fun_with_type_bindings;
 pub use lower::{
     HirLowerError, LoweredHir, lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
     lower_for_dump,
 };
+pub(crate) use lower::{LoweringInputs, lower_fun_with_type_bindings};
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///

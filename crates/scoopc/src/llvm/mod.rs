@@ -627,27 +627,27 @@ fn build_main_module_from_lowered_hir<'ctx>(
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
     // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
-    let mut declare = codegen::MainCodegen::new(
+    let mut declare = codegen::MainCodegen::new(codegen::MainCodegenInputs {
         context,
-        &module,
-        &builder,
-        &target_data,
-        &target_info,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
         source_map,
         entry_source_id,
-        &lowered.types,
-        &lowered.struct_layouts,
-        &lowered.enum_layouts,
-        &lowered.top_level_vars,
-        &lowered.object_inits,
-        &lowered.class_inits,
-        &lowered.class_vtables,
-        &lowered.interfaces,
-        &lowered.class_itables,
-        &lowered.ctor_call_sites,
-        &lowered.extern_funs,
-        &fun_index,
-    );
+        types: &lowered.types,
+        struct_layouts: &lowered.struct_layouts,
+        enum_layouts: &lowered.enum_layouts,
+        top_level_vars: &lowered.top_level_vars,
+        object_inits: &lowered.object_inits,
+        class_inits: &lowered.class_inits,
+        class_vtables: &lowered.class_vtables,
+        interfaces: &lowered.interfaces,
+        class_itables: &lowered.class_itables,
+        ctor_call_sites: &lowered.ctor_call_sites,
+        extern_funs: &lowered.extern_funs,
+        fun_index: &fun_index,
+    });
 
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
         hir_main,
@@ -743,27 +743,27 @@ fn build_main_module_from_lowered_hir<'ctx>(
                 kind: "missing declared function",
                 at: fun.span.into(),
             })?;
-        codegen::MainCodegen::new(
+        codegen::MainCodegen::new(codegen::MainCodegenInputs {
             context,
-            &module,
-            &builder,
-            &target_data,
-            &target_info,
+            module: &module,
+            builder: &builder,
+            target_data: &target_data,
+            host: &target_info,
             source_map,
             entry_source_id,
-            &lowered.types,
-            &lowered.struct_layouts,
-            &lowered.enum_layouts,
-            &lowered.top_level_vars,
-            &lowered.object_inits,
-            &lowered.class_inits,
-            &lowered.class_vtables,
-            &lowered.interfaces,
-            &lowered.class_itables,
-            &lowered.ctor_call_sites,
-            &lowered.extern_funs,
-            &fun_index,
-        )
+            types: &lowered.types,
+            struct_layouts: &lowered.struct_layouts,
+            enum_layouts: &lowered.enum_layouts,
+            top_level_vars: &lowered.top_level_vars,
+            object_inits: &lowered.object_inits,
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            interfaces: &lowered.interfaces,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            extern_funs: &lowered.extern_funs,
+            fun_index: &fun_index,
+        })
         .codegen_top_level_fun(fun, llvm_fun)?;
     }
 
@@ -820,27 +820,27 @@ fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
-    let exit_code = codegen::MainCodegen::new(
+    let exit_code = codegen::MainCodegen::new(codegen::MainCodegenInputs {
         context,
-        &module,
-        &builder,
-        &target_data,
-        &target_info,
+        module: &module,
+        builder: &builder,
+        target_data: &target_data,
+        host: &target_info,
         source_map,
         entry_source_id,
-        &lowered.types,
-        &lowered.struct_layouts,
-        &lowered.enum_layouts,
-        &lowered.top_level_vars,
-        &lowered.object_inits,
-        &lowered.class_inits,
-        &lowered.class_vtables,
-        &lowered.interfaces,
-        &lowered.class_itables,
-        &lowered.ctor_call_sites,
-        &lowered.extern_funs,
-        &fun_index,
-    )
+        types: &lowered.types,
+        struct_layouts: &lowered.struct_layouts,
+        enum_layouts: &lowered.enum_layouts,
+        top_level_vars: &lowered.top_level_vars,
+        object_inits: &lowered.object_inits,
+        class_inits: &lowered.class_inits,
+        class_vtables: &lowered.class_vtables,
+        interfaces: &lowered.interfaces,
+        class_itables: &lowered.class_itables,
+        ctor_call_sites: &lowered.ctor_call_sites,
+        extern_funs: &lowered.extern_funs,
+        fun_index: &fun_index,
+    })
     .codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;
 

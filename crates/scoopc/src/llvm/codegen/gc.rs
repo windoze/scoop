@@ -989,15 +989,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn get_or_create_type_descriptor_global(
         &mut self,
-        at: crate::span::Span,
-        global_name: &str,
-        canonical_name: &str,
-        obj_ty: StructType<'ctx>,
-        trace_start_offset_bytes: u64,
-        parent: Option<GlobalValue<'ctx>>,
-        itable: Option<PointerValue<'ctx>>,
-        vtable: Option<PointerValue<'ctx>>,
+        spec: TypeDescriptorSpec<'ctx, '_>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let TypeDescriptorSpec {
+            at,
+            global_name,
+            canonical_name,
+            obj_ty,
+            trace_start_offset_bytes,
+            parent,
+            itable,
+            vtable,
+        } = spec;
         if let Some(existing) = self.module.get_global(global_name) {
             return Ok(existing);
         }
@@ -1089,16 +1092,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get_or_create_class_vtable_global(at, class_fqn)?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
 
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            &global_name,
-            &class.fqn,
+            global_name: &global_name,
+            canonical_name: &class.fqn,
             obj_ty,
             trace_start_offset_bytes,
             parent,
-            itable_ptr,
-            vtable_ptr,
-        )
+            itable: itable_ptr,
+            vtable: vtable_ptr,
+        })
     }
 
     pub(super) fn get_or_create_class_itable_global(
@@ -1275,16 +1278,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let obj_ty = self.llvm_closure_object_type();
         let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            GLOBAL_NAME,
-            "scoop.runtime.ScoopClosure",
+            global_name: GLOBAL_NAME,
+            canonical_name: "scoop.runtime.ScoopClosure",
             obj_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     pub(super) fn get_or_create_closure_env_type_desc_global(
@@ -1299,16 +1302,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let trace_start_offset_bytes = self.target_data.offset_of_element(&env_ty, 1).unwrap_or(0);
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            &global_name,
-            &format!("scoop.lambda_env${}", closure_id.as_u32()),
-            env_ty,
+            global_name: &global_name,
+            canonical_name: &format!("scoop.lambda_env${}", closure_id.as_u32()),
+            obj_ty: env_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     pub(super) fn get_or_create_string_type_desc_global(
@@ -1322,16 +1325,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let obj_ty = self.llvm_scoop_string_type();
         let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            GLOBAL_NAME,
-            "scoop.core.String",
+            global_name: GLOBAL_NAME,
+            canonical_name: "scoop.core.String",
             obj_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     pub(super) fn llvm_boxed_unit_type(&self) -> StructType<'ctx> {
@@ -1356,16 +1359,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let obj_ty = self.llvm_boxed_unit_type();
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            GLOBAL_NAME,
-            "scoop.runtime.BoxedUnit",
+            global_name: GLOBAL_NAME,
+            canonical_name: "scoop.runtime.BoxedUnit",
             obj_ty,
-            0,
-            None,
-            None,
-            None,
-        )
+            trace_start_offset_bytes: 0,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     pub(super) fn get_or_create_boxed_int_type_desc_global(
@@ -1384,20 +1387,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let obj_ty = self.llvm_boxed_int_type(payload);
         let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            &global_name,
-            &format!(
+            global_name: &global_name,
+            canonical_name: &format!(
                 "scoop.runtime.BoxedInt{}_{}",
                 payload.bits,
                 if payload.signed { "i" } else { "u" }
             ),
             obj_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 
     pub(super) fn llvm_boxed_int_type(&self, payload: IntTy) -> StructType<'ctx> {

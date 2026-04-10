@@ -39,6 +39,13 @@ struct IndirectPerformCallSite {
     result_ty: TypeId,
 }
 
+struct IndirectEscapeContinuationPlan {
+    continuation_symbol: hir::SymbolId,
+    seq: u32,
+    out_ty: CgTy,
+    indirect_sites: Vec<IndirectPerformCallSite>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn current_raise_target(&self) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
         self.raise_target_stack.last().copied()
@@ -240,16 +247,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             size_bytes
         };
         let desc_name = format!("__scoop_type_desc_callee_suspend__{func_name_san}");
-        let state_desc = self.get_or_create_type_descriptor_global(
+        let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            &desc_name,
-            &state_ty_name,
-            state_ty,
-            trace_start,
-            None,
-            None,
-            None,
-        )?;
+            global_name: &desc_name,
+            canonical_name: &state_ty_name,
+            obj_ty: state_ty,
+            trace_start_offset_bytes: trace_start,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })?;
 
         // Allocate CalleeSuspendState.
         let rt_alloc = self.declare_runtime_alloc_typed();
@@ -2621,226 +2628,159 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 算法：用 path 栈（outermost-first）追踪当前嵌套上下文。
         // 在每一层 block 迭代时，先更新最顶层 frame 的 resume_after_stmt 为当前 stmt index，
         // 再递归进入子结构。当找到 perform 时，clone 当前 path 作为 resume_path。
-        fn scan_stmts_for_performs<'a>(
-            stmts: &'a [hir::Stmt],
-            arm_op_fqn: &str,
-            path: &mut Vec<ResumeFrame<'a>>,
-            top_level_stmt_idx: usize,
-            pc: &mut usize,
-            sites: &mut Vec<NestedPerformSite<'a>>,
-            decl_order: &mut usize,
-            decl_map: &mut HashMap<hir::SymbolId, DeclInfo<'a>>,
-        ) -> Result<(), LlvmEmitError> {
-            for (idx, stmt) in stmts.iter().enumerate() {
-                // 如果 path 非空，更新最顶层 frame 的 resume_after_stmt 为当前 idx。
-                if let Some(frame) = path.last_mut() {
-                    frame.set_resume_after_stmt(idx);
-                }
-                match &stmt.kind {
-                    hir::StmtKind::Val(decl) => {
-                        // 追踪 decl 的声明顺序（pre-order traversal）。
-                        if let Some(id) = decl.id {
-                            decl_map.insert(
-                                id,
-                                DeclInfo {
-                                    decl,
-                                    order: *decl_order,
-                                },
-                            );
-                            *decl_order += 1;
-                        }
-                        if let Some(init) = &decl.init
-                            && let hir::ExprKind::Perform { op, args } = &init.kind
-                            && op.fqn == arm_op_fqn
-                        {
-                            let Some(id) = decl.id else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle escape perform binding id",
-                                    at: decl.span.into(),
-                                });
-                            };
-                            let this_pc = *pc;
-                            *pc += 1;
-                            sites.push(NestedPerformSite {
-                                pc: this_pc,
-                                decl,
-                                op,
-                                args: args.as_slice(),
-                                id,
-                                resume_path: path.clone(),
-                                top_level_stmt_idx,
-                            });
-                        }
-                    }
-                    hir::StmtKind::Expr(expr) => {
-                        // 裸 perform（未绑定到 val）仍然报错。
-                        if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                            && op.fqn == arm_op_fqn
-                        {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle escape body (perform must be bound to val)",
-                                at: expr.span.into(),
-                            });
-                        }
-                        // 递归进入控制流表达式。
-                        scan_expr_for_performs(
-                            expr,
-                            arm_op_fqn,
-                            path,
-                            top_level_stmt_idx,
-                            pc,
-                            sites,
-                            decl_order,
-                            decl_map,
-                        )?;
-                    }
-                    hir::StmtKind::While { cond, body } => {
-                        // 递归进入 while body，添加 WhileBody frame。
-                        path.push(ResumeFrame::WhileBody {
-                            while_cond: cond,
-                            while_body: body,
-                            resume_after_stmt: 0,
-                        });
-                        scan_stmts_for_performs(
-                            &body.stmts,
-                            arm_op_fqn,
-                            path,
-                            top_level_stmt_idx,
-                            pc,
-                            sites,
-                            decl_order,
-                            decl_map,
-                        )?;
-                        path.pop();
-                    }
-                    // 其他语句不含 perform 点（Break/Continue/Return/Empty/Todo）。
-                    _ => {}
-                }
-            }
-            Ok(())
+        struct NestedPerformScanState<'hir> {
+            path: Vec<ResumeFrame<'hir>>,
+            pc: usize,
+            sites: Vec<NestedPerformSite<'hir>>,
+            decl_order: usize,
+            decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
         }
 
-        fn scan_expr_for_performs<'a>(
-            expr: &'a hir::Expr,
-            arm_op_fqn: &str,
-            path: &mut Vec<ResumeFrame<'a>>,
-            top_level_stmt_idx: usize,
-            pc: &mut usize,
-            sites: &mut Vec<NestedPerformSite<'a>>,
-            decl_order: &mut usize,
-            decl_map: &mut HashMap<hir::SymbolId, DeclInfo<'a>>,
-        ) -> Result<(), LlvmEmitError> {
-            match &expr.kind {
-                hir::ExprKind::If {
-                    cond: _,
-                    then_branch,
-                    else_branch,
-                } => {
-                    // 递归进入 then-branch（如果是 Block）。
-                    if let hir::ExprKind::Block(block) = &then_branch.kind {
-                        path.push(ResumeFrame::IfThen {
-                            if_expr: expr,
-                            then_block_stmts: &block.stmts,
-                            resume_after_stmt: 0,
-                        });
-                        scan_stmts_for_performs(
-                            &block.stmts,
-                            arm_op_fqn,
-                            path,
-                            top_level_stmt_idx,
-                            pc,
-                            sites,
-                            decl_order,
-                            decl_map,
-                        )?;
-                        path.pop();
+        impl<'hir> NestedPerformScanState<'hir> {
+            fn scan_stmts(
+                &mut self,
+                stmts: &'hir [hir::Stmt],
+                arm_op_fqn: &str,
+                top_level_stmt_idx: usize,
+            ) -> Result<(), LlvmEmitError> {
+                for (idx, stmt) in stmts.iter().enumerate() {
+                    if let Some(frame) = self.path.last_mut() {
+                        frame.set_resume_after_stmt(idx);
                     }
-                    // 递归进入 else-branch（如果存在且是 Block）。
-                    if let Some(else_expr) = else_branch.as_deref()
-                        && let hir::ExprKind::Block(block) = &else_expr.kind
-                    {
-                        path.push(ResumeFrame::IfElse {
-                            if_expr: expr,
-                            else_block_stmts: &block.stmts,
-                            resume_after_stmt: 0,
-                        });
-                        scan_stmts_for_performs(
-                            &block.stmts,
-                            arm_op_fqn,
-                            path,
-                            top_level_stmt_idx,
-                            pc,
-                            sites,
-                            decl_order,
-                            decl_map,
-                        )?;
-                        path.pop();
-                    }
-                }
-                hir::ExprKind::When { subject: _, arms } => {
-                    for (arm_idx, when_arm) in arms.iter().enumerate() {
-                        if let hir::ExprKind::Block(block) = &when_arm.body.kind {
-                            path.push(ResumeFrame::WhenArm {
-                                when_expr: expr,
-                                arm_index: arm_idx,
-                                arm_block_stmts: &block.stmts,
+                    match &stmt.kind {
+                        hir::StmtKind::Val(decl) => {
+                            if let Some(id) = decl.id {
+                                self.decl_map.insert(
+                                    id,
+                                    DeclInfo {
+                                        decl,
+                                        order: self.decl_order,
+                                    },
+                                );
+                                self.decl_order += 1;
+                            }
+                            if let Some(init) = &decl.init
+                                && let hir::ExprKind::Perform { op, args } = &init.kind
+                                && op.fqn == arm_op_fqn
+                            {
+                                let Some(id) = decl.id else {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "handle escape perform binding id",
+                                        at: decl.span.into(),
+                                    });
+                                };
+                                let this_pc = self.pc;
+                                self.pc += 1;
+                                self.sites.push(NestedPerformSite {
+                                    pc: this_pc,
+                                    decl,
+                                    op,
+                                    args: args.as_slice(),
+                                    id,
+                                    resume_path: self.path.clone(),
+                                    top_level_stmt_idx,
+                                });
+                            }
+                        }
+                        hir::StmtKind::Expr(expr) => {
+                            if let hir::ExprKind::Perform { op, .. } = &expr.kind
+                                && op.fqn == arm_op_fqn
+                            {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle escape body (perform must be bound to val)",
+                                    at: expr.span.into(),
+                                });
+                            }
+                            self.scan_expr(expr, arm_op_fqn, top_level_stmt_idx)?;
+                        }
+                        hir::StmtKind::While { cond, body } => {
+                            self.path.push(ResumeFrame::WhileBody {
+                                while_cond: cond,
+                                while_body: body,
                                 resume_after_stmt: 0,
                             });
-                            scan_stmts_for_performs(
-                                &block.stmts,
-                                arm_op_fqn,
-                                path,
-                                top_level_stmt_idx,
-                                pc,
-                                sites,
-                                decl_order,
-                                decl_map,
-                            )?;
-                            path.pop();
+                            self.scan_stmts(&body.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                            self.path.pop();
                         }
+                        _ => {}
                     }
                 }
-                hir::ExprKind::Block(block) => {
-                    path.push(ResumeFrame::Block {
-                        block,
-                        resume_after_stmt: 0,
-                    });
-                    scan_stmts_for_performs(
-                        &block.stmts,
-                        arm_op_fqn,
-                        path,
-                        top_level_stmt_idx,
-                        pc,
-                        sites,
-                        decl_order,
-                        decl_map,
-                    )?;
-                    path.pop();
-                }
-                // 不递归进入 Closure（perform in closure 需要不同策略）和 Handle（嵌套 handle 有自己的状态机）。
-                // 其他表达式不含语句级控制流。
-                _ => {}
+                Ok(())
             }
-            Ok(())
+
+            fn scan_expr(
+                &mut self,
+                expr: &'hir hir::Expr,
+                arm_op_fqn: &str,
+                top_level_stmt_idx: usize,
+            ) -> Result<(), LlvmEmitError> {
+                match &expr.kind {
+                    hir::ExprKind::If {
+                        cond: _,
+                        then_branch,
+                        else_branch,
+                    } => {
+                        if let hir::ExprKind::Block(block) = &then_branch.kind {
+                            self.path.push(ResumeFrame::IfThen {
+                                if_expr: expr,
+                                then_block_stmts: &block.stmts,
+                                resume_after_stmt: 0,
+                            });
+                            self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                            self.path.pop();
+                        }
+                        if let Some(else_expr) = else_branch.as_deref()
+                            && let hir::ExprKind::Block(block) = &else_expr.kind
+                        {
+                            self.path.push(ResumeFrame::IfElse {
+                                if_expr: expr,
+                                else_block_stmts: &block.stmts,
+                                resume_after_stmt: 0,
+                            });
+                            self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                            self.path.pop();
+                        }
+                    }
+                    hir::ExprKind::When { subject: _, arms } => {
+                        for (arm_idx, when_arm) in arms.iter().enumerate() {
+                            if let hir::ExprKind::Block(block) = &when_arm.body.kind {
+                                self.path.push(ResumeFrame::WhenArm {
+                                    when_expr: expr,
+                                    arm_index: arm_idx,
+                                    arm_block_stmts: &block.stmts,
+                                    resume_after_stmt: 0,
+                                });
+                                self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                                self.path.pop();
+                            }
+                        }
+                    }
+                    hir::ExprKind::Block(block) => {
+                        self.path.push(ResumeFrame::Block {
+                            block,
+                            resume_after_stmt: 0,
+                        });
+                        self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                        self.path.pop();
+                    }
+                    _ => {}
+                }
+                Ok(())
+            }
         }
 
-        let mut perform_sites: Vec<NestedPerformSite<'_>> = Vec::new();
-        let mut scan_path: Vec<ResumeFrame<'_>> = Vec::new();
-        let mut pc_counter: usize = 0;
-        let mut decl_order_counter: usize = 0;
-        let mut decl_map: HashMap<hir::SymbolId, DeclInfo<'_>> = HashMap::new();
+        let mut scan_state = NestedPerformScanState {
+            path: Vec::new(),
+            pc: 0,
+            sites: Vec::new(),
+            decl_order: 0,
+            decl_map: HashMap::new(),
+        };
         for (top_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            scan_stmts_for_performs(
-                std::slice::from_ref(stmt),
-                &arm.op.op.fqn,
-                &mut scan_path,
-                top_idx,
-                &mut pc_counter,
-                &mut perform_sites,
-                &mut decl_order_counter,
-                &mut decl_map,
-            )?;
+            scan_state.scan_stmts(std::slice::from_ref(stmt), &arm.op.op.fqn, top_idx)?;
         }
+        let perform_sites = scan_state.sites;
+        let decl_map = scan_state.decl_map;
 
         let Some(first_site) = perform_sites.first() else {
             // T1606f-2: No direct performs found. Check for indirect performs through function calls.
@@ -2851,10 +2791,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     handle,
                     arm,
-                    continuation_symbol,
-                    seq,
-                    out_ty,
-                    indirect_sites,
+                    IndirectEscapeContinuationPlan {
+                        continuation_symbol,
+                        seq,
+                        out_ty,
+                        indirect_sites,
+                    },
                 );
             }
             // T1606a：没有匹配 op 的 perform 点，arm 不可达；退化为顺序执行 `body -> finally` 并返回 body 值。
@@ -3293,27 +3235,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 生成 step 函数体：执行 perform 之后的剩余语句（state 参数当前阶段仅用于 keep-alive handler frame）。
         {
-            let mut cg = MainCodegen::new(
-                self.context,
-                self.module,
-                self.builder,
-                self.target_data,
-                self.host,
-                self.source_map,
-                self.entry_source_id,
-                self.types,
-                self.struct_layouts,
-                self.enum_layouts,
-                self.top_level_vars,
-                self.object_inits,
-                self.class_inits,
-                self.class_vtables,
-                self.interfaces,
-                self.class_itables,
-                self.ctor_call_sites,
-                self.extern_funs,
-                self.fun_index,
-            );
+            let mut cg = MainCodegen::new(MainCodegenInputs {
+                context: self.context,
+                module: self.module,
+                builder: self.builder,
+                target_data: self.target_data,
+                host: self.host,
+                source_map: self.source_map,
+                entry_source_id: self.entry_source_id,
+                types: self.types,
+                struct_layouts: self.struct_layouts,
+                enum_layouts: self.enum_layouts,
+                top_level_vars: self.top_level_vars,
+                object_inits: self.object_inits,
+                class_inits: self.class_inits,
+                class_vtables: self.class_vtables,
+                interfaces: self.interfaces,
+                class_itables: self.class_itables,
+                ctor_call_sites: self.ctor_call_sites,
+                extern_funs: self.extern_funs,
+                fun_index: self.fun_index,
+            });
 
             let entry = self.context.append_basic_block(step_fn, "entry");
             cg.builder.position_at_end(entry);
@@ -6563,16 +6505,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .offset_of_element(&state_ty, first_capture_field_index)
                 .unwrap_or(size_bytes)
         };
-        let state_desc = self.get_or_create_type_descriptor_global(
-            span,
-            &state_desc_global_name,
-            &state_ty_name,
-            state_ty,
+        let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at: span,
+            global_name: &state_desc_global_name,
+            canonical_name: &state_ty_name,
+            obj_ty: state_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )?;
+            parent: None,
+            itable: None,
+            vtable: None,
+        })?;
 
         let rt_alloc = self.declare_runtime_alloc_typed();
         let size_v = i64_ty.const_int(total_size, false);
@@ -7172,11 +7114,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         handle: &hir::HandleExpr,
         arm: &hir::HandleArm,
-        continuation_symbol: hir::SymbolId,
-        seq: u32,
-        out_ty: CgTy,
-        indirect_sites: Vec<IndirectPerformCallSite>,
+        plan: IndirectEscapeContinuationPlan,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let IndirectEscapeContinuationPlan {
+            continuation_symbol,
+            seq,
+            out_ty,
+            indirect_sites,
+        } = plan;
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -7346,27 +7291,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // ── Generate step function body ──
         {
-            let mut cg = MainCodegen::new(
-                self.context,
-                self.module,
-                self.builder,
-                self.target_data,
-                self.host,
-                self.source_map,
-                self.entry_source_id,
-                self.types,
-                self.struct_layouts,
-                self.enum_layouts,
-                self.top_level_vars,
-                self.object_inits,
-                self.class_inits,
-                self.class_vtables,
-                self.interfaces,
-                self.class_itables,
-                self.ctor_call_sites,
-                self.extern_funs,
-                self.fun_index,
-            );
+            let mut cg = MainCodegen::new(MainCodegenInputs {
+                context: self.context,
+                module: self.module,
+                builder: self.builder,
+                target_data: self.target_data,
+                host: self.host,
+                source_map: self.source_map,
+                entry_source_id: self.entry_source_id,
+                types: self.types,
+                struct_layouts: self.struct_layouts,
+                enum_layouts: self.enum_layouts,
+                top_level_vars: self.top_level_vars,
+                object_inits: self.object_inits,
+                class_inits: self.class_inits,
+                class_vtables: self.class_vtables,
+                interfaces: self.interfaces,
+                class_itables: self.class_itables,
+                ctor_call_sites: self.ctor_call_sites,
+                extern_funs: self.extern_funs,
+                fun_index: self.fun_index,
+            });
 
             let entry = self.context.append_basic_block(step_fn, "entry");
             cg.builder.position_at_end(entry);
@@ -7755,16 +7700,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .offset_of_element(&state_ty, first_capture_field_index)
                 .unwrap_or(total_size)
         };
-        let state_desc = self.get_or_create_type_descriptor_global(
-            span,
-            &state_desc_global_name,
-            &state_ty_name,
-            state_ty,
+        let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at: span,
+            global_name: &state_desc_global_name,
+            canonical_name: &state_ty_name,
+            obj_ty: state_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )?;
+            parent: None,
+            itable: None,
+            vtable: None,
+        })?;
 
         let rt_alloc = self.declare_runtime_alloc_typed();
         let size_v = i64_ty.const_int(total_size, false);
@@ -8832,16 +8777,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .target_data
                     .offset_of_element(&box_ty, 1)
                     .unwrap_or(box_size);
-                let box_desc = self.get_or_create_type_descriptor_global(
-                    span,
-                    &box_desc_name,
-                    &box_ty_name,
-                    box_ty,
-                    trace_start,
-                    None,
-                    None,
-                    None,
-                )?;
+                let box_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+                    at: span,
+                    global_name: &box_desc_name,
+                    canonical_name: &box_ty_name,
+                    obj_ty: box_ty,
+                    trace_start_offset_bytes: trace_start,
+                    parent: None,
+                    itable: None,
+                    vtable: None,
+                })?;
 
                 // 分配 box
                 let rt_alloc = self.declare_runtime_alloc_typed();

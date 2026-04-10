@@ -64,6 +64,7 @@ pub(super) struct LazyDelegatedPropertyInfo {
 #[derive(Debug, Clone)]
 pub(super) struct ObservableDelegatedPropertyInfo {
     pub(super) name: String,
+    pub(super) property_fqn: String,
     pub(super) ty: Option<ast::TypeRef>,
     pub(super) on_change: ast::LambdaExpr,
     /// observable/vetoable 的内部互斥锁字段（class field fqn）。
@@ -75,6 +76,7 @@ pub(super) struct ObservableDelegatedPropertyInfo {
 #[derive(Debug, Clone)]
 pub(super) struct VetoableDelegatedPropertyInfo {
     pub(super) name: String,
+    pub(super) property_fqn: String,
     pub(super) ty: Option<ast::TypeRef>,
     pub(super) on_change: ast::LambdaExpr,
     /// vetoable 的内部互斥锁字段（class field fqn）。

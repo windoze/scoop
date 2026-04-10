@@ -209,12 +209,14 @@ pub fn lower_for_dump(
 
         // 先降低到 HIR（type params 已绑定到具体类型），再走 MIR lowering。
         let mut hir_fun = crate::hir::lower_fun_with_type_bindings(
-            source,
-            &file,
-            &index,
-            &type_kinds,
-            &mut types,
-            builtins,
+            crate::hir::LoweringInputs {
+                source,
+                file: &file,
+                index: &index,
+                type_kinds: &type_kinds,
+                types: &mut types,
+                builtins,
+            },
             fun_decl,
             bindings,
         );

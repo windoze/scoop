@@ -12,7 +12,7 @@ use crate::hir;
 use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
-use super::{LlvmEmitError, MainCodegen, sanitize_llvm_ident};
+use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec, sanitize_llvm_ident};
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 返回名义类型在 struct_layouts/enum_layouts 中的查找 key（T0124）。
@@ -708,15 +708,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .target_data
             .offset_of_element(&payload_obj_ty, 1)
             .unwrap_or(0);
-        self.get_or_create_type_descriptor_global(
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
-            &global_name,
-            &canonical_name,
-            payload_obj_ty,
+            global_name: &global_name,
+            canonical_name: &canonical_name,
+            obj_ty: payload_obj_ty,
             trace_start_offset_bytes,
-            None,
-            None,
-            None,
-        )
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
     }
 }
