@@ -572,12 +572,15 @@ pub enum ExprTypeError {
     )]
     #[diagnostic(code(scoop::typecheck::generic_type_arg_inference_conflict))]
     GenericTypeArgInferenceConflict {
-        callee: String,
-        param: String,
-        left: String,
-        right: String,
-        left_from: String,
-        right_from: String,
+        // 该 variant 同时携带 6 个 String，会把整个 ExprTypeError 枚举体抬到
+        // clippy `result_large_err` 的阈值之上。把字符串字段单独装箱后，
+        // 保持诊断文本不变，但让 `Result<_, ExprTypeError>` 的 Err 载荷显著变小。
+        callee: Box<String>,
+        param: Box<String>,
+        left: Box<String>,
+        right: Box<String>,
+        left_from: Box<String>,
+        right_from: Box<String>,
         #[label("这里（产生冲突的约束）")]
         span: miette::SourceSpan,
         #[label("这里（之前的约束）")]

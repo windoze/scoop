@@ -6838,12 +6838,12 @@ fn instantiate_fun_sig_for_call_with_optional_explicit_type_args(
 
                     let param_name = type_param_name(param_ty, lower);
                     return Err(ExprTypeError::GenericTypeArgInferenceConflict {
-                        callee: callee.to_string(),
-                        param: param_name,
-                        left: lower.fmt_type(*bound),
-                        right: lower.fmt_type(candidate),
-                        left_from: src.from.clone(),
-                        right_from: c.from.clone(),
+                        callee: Box::new(callee.to_string()),
+                        param: Box::new(param_name),
+                        left: Box::new(lower.fmt_type(*bound)),
+                        right: Box::new(lower.fmt_type(candidate)),
+                        left_from: Box::new(src.from.clone()),
+                        right_from: Box::new(c.from.clone()),
                         span: c.span.into(),
                         previous: src.span.into(),
                     });

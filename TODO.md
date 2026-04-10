@@ -1365,7 +1365,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-3b [TODO] Clippy 基线清理：收缩 `Expr`/模式匹配路径的大 `Err`
+### T0147c-3b [DONE] Clippy 基线清理：收缩 `Expr`/模式匹配路径的大 `Err`
 
 - 描述：`ExprTypeError` 仍是当前 clippy 输出中最大的一组 `result_large_err` 来源，覆盖 `typecheck::expr/**`、`eff_row_subst`、`val_pat`、`when_pat`、`when_exhaustiveness` 等路径，需要统一收口。
 - 目标：
@@ -1376,6 +1376,16 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-3a
+- 完成说明：
+  - **`ExprTypeError` 收缩**（`typecheck/expr/error.rs`）：将超大 variant `GenericTypeArgInferenceConflict` 的 6 个 `String` 载荷改为 `Box<String>`，保留原有诊断文本、label 与错误码不变，但显著缩小 `ExprTypeError` 枚举体体积。
+  - **构造点同步**：`typecheck/expr/infer.rs` 与 `typecheck/expr/call.rs` 的 `GenericTypeArgInferenceConflict` 构造点同步改为装箱字段；其余逻辑保持不变。
+  - **clippy 收敛结果**：执行 `cargo clippy --workspace --all-targets --message-format short -- -A warnings -D clippy::result_large_err` 后，`typecheck::expr/**`、`eff_row_subst`、`val_pat`、`when_pat`、`when_exhaustiveness` 中的 `ExprTypeError` 相关 `result_large_err` 已全部清零，无需额外引入 boxed result alias。
+  - **全量 clippy 复核**：`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 已复核，当前剩余失败仅为后续 `T0147c-3c` 的结构性 lint（`private_interfaces`、`dead_code`、`large_enum_variant`、`question_mark`、`type_complexity` 等），不再包含本任务范围内的 `result_large_err`。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo clippy --workspace --all-targets --message-format short -- -A warnings -D clippy::result_large_err` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
 ### T0147c-3c [TODO] Clippy 基线清理：清零剩余结构性 warning 并恢复严格 gate
 

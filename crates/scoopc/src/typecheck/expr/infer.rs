@@ -998,12 +998,12 @@ pub(super) fn infer_handle_expr_type(
 
                             let param_name = type_param_name(param_ty, lower);
                             return Err(ExprTypeError::GenericTypeArgInferenceConflict {
-                                callee: callee_fqn.clone(),
-                                param: param_name,
-                                left: lower.fmt_type(*bound),
-                                right: lower.fmt_type(candidate),
-                                left_from: src.from.clone(),
-                                right_from: c.from.clone(),
+                                callee: Box::new(callee_fqn.clone()),
+                                param: Box::new(param_name),
+                                left: Box::new(lower.fmt_type(*bound)),
+                                right: Box::new(lower.fmt_type(candidate)),
+                                left_from: Box::new(src.from.clone()),
+                                right_from: Box::new(c.from.clone()),
                                 span: c.span.into(),
                                 previous: src.span.into(),
                             });
