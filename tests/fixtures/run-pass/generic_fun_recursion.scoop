@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_recursion.stdout
+// EXPECT-EXIT: 0
+//
+// T0127: Generic recursive function — returns the value after n recursions.
+
+import scoop.core.*
+
+fun repeat<T>(x: T, n: Int): T {
+    if (n <= 0) {
+        return x
+    }
+    return repeat(x, n - 1)
+}
+
+fun main(): Int {
+    val result: Int = repeat(42, 3)
+    println(result)
+    val s: String = repeat("ok", 2)
+    println(s)
+    0
+}

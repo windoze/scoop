@@ -1,0 +1,17 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_higher_order.stdout
+// EXPECT-EXIT: 0
+//
+// T0127: Generic higher-order function — takes a lambda parameter.
+
+import scoop.core.*
+
+fun apply<T>(v: T, f: (T) -> T): T {
+    return f(v)
+}
+
+fun main(): Int {
+    val result: Int = apply(21, { x: Int -> x + x })
+    println(result)
+    0
+}

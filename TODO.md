@@ -712,7 +712,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124、T0125
 
-### T0127 [TODO] 泛型验证与修复：泛型函数边界场景
+### T0127 [DONE] 泛型验证与修复：泛型函数边界场景
 
 - 描述：泛型函数的 monomorphization 已基本工作，但需验证并修复以下边界场景。
 - 需验证并修复的场景：
@@ -726,6 +726,15 @@ cargo run -p scoop --features llvm -- test
   - 每个场景新增 run-pass fixture。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124（部分场景需要泛型 class 工作）
+- 完成情况：
+  - 实现了泛型独立函数的 LLVM 编译路径端到端支持（之前完全无法编译）：
+    - `build.rs`：通过 `check_file_exprs_with_monomorph_keys` 收集 monomorph keys。
+    - `hir/lower/util.rs`：新增 `collect_generic_fun_instantiations()` 从 monomorph keys 生成单态化 FunDecl。
+    - `hir/lower/mod.rs`：`lower_for_compilation_unit_multi_files()` 接受并使用 monomorph keys。
+    - `llvm/codegen/mod.rs`：新增 `try_resolve_monomorphized_standalone_fun_fqn()` 在 codegen 阶段将泛型函数调用重定向到单态化变体。
+  - 新增 run-pass fixtures：`generic_fun_basic`、`generic_fun_multi_param`、`generic_fun_transitive`、`generic_fun_higher_order`、`generic_fun_recursion`。
+  - 泛型扩展函数场景推迟（需要 `index_file_fun_decls` 扩展支持）。
+  - `cargo test --all` (139 tests) + `cargo run -p scoop -- test` (819 fixtures) 全部通过。
 
 ### T0129 [TODO] 泛型 where 约束：实例化处 bound 检查（函数调用 + 类型构造）
 

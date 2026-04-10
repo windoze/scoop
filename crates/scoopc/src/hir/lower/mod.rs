@@ -1389,6 +1389,7 @@ pub fn lower_for_compilation_unit_multi_files(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -1487,6 +1488,17 @@ pub fn lower_for_compilation_unit_multi_files(
         &mut types,
         builtins,
     ));
+
+    // T0127：为泛型独立函数的具体实例化生成单态化的 FunDecl。
+    let monomorphized_funs = collect_generic_fun_instantiations(
+        compilation_unit,
+        monomorph_keys,
+        &index,
+        &type_kinds,
+        &mut types,
+        builtins,
+    );
+    items.extend(monomorphized_funs.into_iter().map(Item::Fun));
 
     Ok(LoweredHir {
         file: File { items },
@@ -1762,7 +1774,7 @@ fun main(): Int { return id(1) }
 
         let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
         let lowered =
-            lower_for_compilation_unit_multi_files(&src_main, &index, &unit, &files_to_lower)
+            lower_for_compilation_unit_multi_files(&src_main, &index, &unit, &files_to_lower, &[])
                 .unwrap();
 
         let fun_fqns: HashSet<&str> = lowered

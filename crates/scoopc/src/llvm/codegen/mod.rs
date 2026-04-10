@@ -7517,6 +7517,115 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// T0127: 尝试将泛型独立函数调用的 FQN 解析为单态化后的变体。
+    ///
+    /// 例如：`id(42)` 其中 `fun <T> id(x: T): T` → `id::<Int>`
+    ///
+    /// 工作原理：
+    /// 1. 检查 fun_index 中原始函数的签名是否包含 Param 类型
+    /// 2. 从 Param 类型与 call arg 类型的对应关系推导 type param → concrete type 映射
+    /// 3. 构造 mangled FQN 并在 fun_index 中查找
+    fn try_resolve_monomorphized_standalone_fun_fqn(
+        &self,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Option<String> {
+        let sig_fun = self.fun_index.get(fqn).copied()?;
+
+        // 收集签名中出现的所有 Param 类型名（保持出现顺序）
+        let mut param_names: Vec<String> = Vec::new();
+        for p in &sig_fun.params {
+            if let crate::ty::TypeKind::Param(tp) = self.types.kind(p.ty) {
+                if !param_names.contains(&tp.name) {
+                    param_names.push(tp.name.clone());
+                }
+            }
+        }
+        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty) {
+            if !param_names.contains(&tp.name) {
+                param_names.push(tp.name.clone());
+            }
+        }
+
+        if param_names.is_empty() {
+            return None;
+        }
+
+        // 从 call args 的类型推导 Param → concrete TypeId 映射
+        let mut bindings: std::collections::HashMap<String, crate::ty::TypeId> =
+            std::collections::HashMap::new();
+
+        for (idx, param) in sig_fun.params.iter().enumerate() {
+            let crate::ty::TypeKind::Param(tp) = self.types.kind(param.ty) else {
+                continue;
+            };
+            if bindings.contains_key(&tp.name) {
+                continue;
+            }
+
+            // 获取对应 call arg 的具体类型
+            let arg = args.get(idx)?;
+            let hir::CallArg::Positional(arg_expr) = arg else {
+                continue;
+            };
+            let concrete_ty = self.resolve_expr_concrete_type(arg_expr);
+            if let Some(ty) = concrete_ty {
+                bindings.insert(tp.name.clone(), ty);
+            }
+        }
+
+        // 检查是否所有 Param 都已绑定
+        if bindings.len() != param_names.len() {
+            // 未能全部推导，尝试 fallback：在 fun_index 中查找唯一的 monomorphized 变体
+            let prefix = format!("{fqn}::<");
+            let variants: Vec<&str> = self
+                .fun_index
+                .keys()
+                .filter(|k| k.starts_with(&prefix))
+                .map(|k| k.as_str())
+                .collect();
+            if variants.len() == 1 {
+                return Some(variants[0].to_string());
+            }
+            return None;
+        }
+
+        // 按 param_names 顺序构造 mangled FQN
+        let args_str = param_names
+            .iter()
+            .map(|name| {
+                let ty = bindings[name];
+                self.types.display(ty).to_string()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mangled_fqn = format!("{fqn}::<{args_str}>");
+
+        if self.fun_index.contains_key(&mangled_fqn) {
+            Some(mangled_fqn)
+        } else {
+            None
+        }
+    }
+
+    /// T0127: 从 HIR 表达式中尽量提取具体（非 Any/Param）的 TypeId。
+    ///
+    /// 对于字面量表达式直接返回其 HIR type；对于变量引用尝试从 env 中获取 hir_ty。
+    fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<crate::ty::TypeId> {
+        let ty = expr.ty;
+        // 如果 HIR type 不是 Any，直接使用
+        if !matches!(self.types.kind(ty), crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)) {
+            return Some(ty);
+        }
+
+        // 对于 VarRef，尝试从 env 中获取 hir_ty
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind {
+            return self.env.get(*id).and_then(|local| local.hir_ty);
+        }
+
+        None
+    }
+
     fn codegen_top_level_fun_call(
         &mut self,
         span: crate::span::Span,
@@ -7525,12 +7634,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // T0126：对泛型 class 的成员方法调用，尝试重定向到单态化后的变体。
-        //
-        // 当 fun_index 中原始 FQN 对应的函数签名包含 TypeKind::Param 时，说明这是一个
-        // 泛型 class 的成员方法（例如 `Box.get` 返回 Param("T")）。此时从第一个参数
-        // （receiver）的 CgLocal.hir_ty 中提取具体的类型实参，构造单态化后的 FQN
-        // （例如 `Box.get::<Int>`）并在 fun_index 中查找。
-        let effective_fqn = self.try_resolve_monomorphized_member_fqn(fqn, args);
+        // T0127：对泛型独立函数调用，同样尝试重定向到单态化后的变体。
+        let effective_fqn = self
+            .try_resolve_monomorphized_member_fqn(fqn, args)
+            .or_else(|| self.try_resolve_monomorphized_standalone_fun_fqn(fqn, args));
         let fqn = effective_fqn.as_deref().unwrap_or(fqn);
 
         // T1510c：`@Extern` 调用点需要显式标记"进入 native"并向 runtime 暴露 roots slots，

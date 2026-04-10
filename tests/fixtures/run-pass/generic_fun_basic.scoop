@@ -1,0 +1,19 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0127: Basic generic standalone function — single type param.
+
+import scoop.core.*
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun main(): Int {
+    val a: Int = id(42)
+    println(a)
+    val b: String = id("hello")
+    println(b)
+    0
+}

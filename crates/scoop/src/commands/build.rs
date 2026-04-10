@@ -59,6 +59,9 @@ struct FrontendOutput {
     asts: Vec<scoopc::ast::File>,
     #[cfg(feature = "llvm")]
     index: scoopc::resolve::Index,
+    /// T0127: 泛型函数调用的 monomorph keys，用于在 HIR lowering 时生成单态化函数变体。
+    #[cfg(feature = "llvm")]
+    monomorph_keys: Vec<scoopc::monomorph::MonomorphKey>,
 }
 
 impl FrontendOutput {
@@ -598,6 +601,10 @@ fn run_frontend(
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
+    // T0127: 收集泛型函数调用的 monomorph keys（用于 HIR lowering 生成单态化函数变体）。
+    #[cfg(feature = "llvm")]
+    let mut all_monomorph_keys: Vec<scoopc::monomorph::MonomorphKey> = Vec::new();
+
     // typecheck phase：逐文件执行（共享 env/index/types）。
     for ((source, ast), h) in input.sources.iter().zip(asts.iter()).zip(headers.iter()) {
         scoopc::typecheck::check_file_annotations(
@@ -631,10 +638,22 @@ fn run_frontend(
         )
         .map_err(miette::Report::from)?;
 
-        scoopc::typecheck::check_file_exprs(
-            source, ast, &index, &h.imports, &env, &mut types, builtins,
-        )
-        .map_err(miette::Report::from)?;
+        // T0127: 使用 check_file_exprs_with_monomorph_keys 收集泛型函数实例化信息。
+        #[cfg(feature = "llvm")]
+        {
+            let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+            all_monomorph_keys.extend(keys);
+        }
+        #[cfg(not(feature = "llvm"))]
+        {
+            scoopc::typecheck::check_file_exprs(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+        }
     }
 
     // 对整个编译单元中出现过的类型做一次 layout/metadata 计算（与 fixtures/typecheck_multi 对齐）。
@@ -647,6 +666,8 @@ fn run_frontend(
         asts,
         #[cfg(feature = "llvm")]
         index,
+        #[cfg(feature = "llvm")]
+        monomorph_keys: all_monomorph_keys,
     })
 }
 
@@ -967,6 +988,7 @@ fn lower_main_hir_for_build(
         &front.index,
         &unit,
         &files_to_lower,
+        &front.monomorph_keys,
     )
     .map_err(miette::Report::from)
 }

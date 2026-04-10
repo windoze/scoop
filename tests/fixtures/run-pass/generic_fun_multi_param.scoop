@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_multi_param.stdout
+// EXPECT-EXIT: 0
+//
+// T0127: Generic standalone function with multiple type parameters.
+
+import scoop.core.*
+
+fun first<A, B>(a: A, b: B): A {
+    return a
+}
+
+fun second<A, B>(a: A, b: B): B {
+    return b
+}
+
+fun main(): Int {
+    val x: Int = first(10, "ignored")
+    println(x)
+    val y: String = second(42, "kept")
+    println(y)
+    0
+}

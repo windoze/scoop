@@ -2629,6 +2629,108 @@ fn collect_generic_class_decls_with_file<'a>(
     }
 }
 
+/// T0127: 从 monomorph keys 收集泛型独立函数的具体实例化，生成单态化的 HIR FunDecl。
+///
+/// 工作原理：
+/// 1. 从 AST 中索引所有泛型顶层函数声明（有 type_params 的 `ast::Item::Fun`）。
+/// 2. 遍历 monomorph keys，对每个 key 找到对应的函数声明。
+/// 3. 调用 `lower_fun_with_type_bindings` 生成具体实例的 HIR FunDecl。
+/// 4. 重命名 FQN 为 mangled 形式（例如 `pkg.id::<Int>`）。
+pub(super) fn collect_generic_fun_instantiations(
+    pairs: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Vec<super::super::FunDecl> {
+    if monomorph_keys.is_empty() {
+        return Vec::new();
+    }
+
+    // 1) 索引泛型顶层函数：(fqn, decl_span) → (source, file, fun_decl)
+    let mut generic_funs: HashMap<(String, crate::span::Span), (&SourceFile, &ast::File, &ast::FunDecl)> =
+        HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Fun(fun) = item else {
+                continue;
+            };
+            if fun.type_params.is_empty() {
+                continue;
+            }
+            let local_name = source.slice(fun.name.span);
+            let fqn = if pkg_prefix.is_empty() {
+                local_name.to_string()
+            } else {
+                format!("{pkg_prefix}.{local_name}")
+            };
+            generic_funs.insert((fqn, fun.name.span), (source, file, fun));
+        }
+    }
+
+    if generic_funs.is_empty() {
+        return Vec::new();
+    }
+
+    // 2) 去重 + 生成实例
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out: Vec<super::super::FunDecl> = Vec::new();
+
+    for key in monomorph_keys {
+        // 跳过仍含 Param 类型的 key（泛型传递调用）
+        if key.type_args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
+            continue;
+        }
+
+        let lookup_key = (key.symbol.fqn.clone(), key.symbol.decl_span);
+        let Some((source, file, fun_decl)) = generic_funs.get(&lookup_key) else {
+            continue;
+        };
+
+        if fun_decl.type_params.len() != key.type_args.len() {
+            continue;
+        }
+
+        // 构造 mangled FQN 用于去重
+        let args_str = key.type_args
+            .iter()
+            .map(|id| types.display(*id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let instance_fqn = format!("{}::<{args_str}>", key.symbol.fqn);
+
+        if !seen.insert(instance_fqn.clone()) {
+            continue;
+        }
+
+        // 构建 type param → concrete TypeId 映射
+        let bindings: Vec<(String, crate::ty::TypeId)> = fun_decl
+            .type_params
+            .iter()
+            .zip(key.type_args.iter())
+            .map(|(p, &arg)| (p.name.text(source).to_string(), arg))
+            .collect();
+
+        let mut hir_fun = super::lower_fun_with_type_bindings(
+            source,
+            file,
+            index,
+            type_kinds,
+            types,
+            builtins,
+            fun_decl,
+            bindings,
+        );
+
+        hir_fun.fqn = instance_fqn;
+        out.push(hir_fun);
+    }
+
+    out
+}
+
 fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {
     match &expr.kind {
         ast::ExprKind::IntLit => {

@@ -1,0 +1,25 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_transitive.stdout
+// EXPECT-EXIT: 0
+//
+// T0127: Generic function with transitive instantiation — wraps value in a generic class.
+
+import scoop.core.*
+
+class Box<T>(val inner: T) {
+    fun get(): T {
+        return this.inner
+    }
+}
+
+fun wrap<T>(v: T): Box<T> {
+    val b: Box<T> = Box(v)
+    return b
+}
+
+fun main(): Int {
+    val b: Box<Int> = wrap(77)
+    val x: Int = b.get()
+    println(x)
+    0
+}
