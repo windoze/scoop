@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0148d-3 comptime：Float builtin 方法在 const 路径可直接折叠。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const val WHOLE: Int = 3.75.toInt()
+const val NAN_TO_INT: Int = (0.0 / 0.0).toInt()
+const val WIDE_TEXT: String = 125.0.toString()
+const val NARROW_TEXT: String = 0.5f.toString()
+const val ABS_WIDE: Float64 = (-2.5).abs()
+const val ABS_NARROW: Float32 = (-0.5f).abs()
+const val NAN_FLAG: Bool = (0.0 / 0.0).isNaN()
+const val INF_FLAG: Bool = (1.0 / 0.0).isInfinite()

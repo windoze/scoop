@@ -1632,7 +1632,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (858)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0148d-3 [TODO] Float 字面量收尾：剩余转换、边角语义与审计
+### T0148d-3 [DONE] Float 字面量收尾：剩余转换、边角语义与审计
 
 - 描述：在 comptime 与多文件路径打通后，对 T0148 剩余边角语义做系统审计，避免“语法已接受但语义静默退化”。
 - 目标：
@@ -1644,6 +1644,16 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0148d-2
+- 完成说明：
+  - **`when` pattern 诊断**：`parser/expr.rs` 现在会专门拒绝 Float pattern，报出“`when` 分支模式暂不支持 Float 字面量”的稳定 parse 诊断，并用占位 wildcard 继续消费当前 arm，避免再级联出额外的顶层噪声错误。新增 parse fixture `when_float_pattern_is_error` 与 Rust 单测 `when_float_pattern_reports_single_parse_error`。
+  - **comptime Float builtin 方法**：`comptime/eval.rs` 新增编译期 intrinsic 路径，支持 `Float.toInt()` / `toString()` / `hash()` / `abs()` / `isNaN()` / `isInfinite()` 在 `const val` / `const fun` / `comptime if` 中直接折叠；语义对齐运行期（`NaN.toInt() == 0`、`Infinity` 文本、hash 位混合规则等）。新增 Rust 单测 `const_eval_float_builtin_methods` 与 fixture `comptime/float_builtin_methods_basic.*`。
+  - **其它字面量上下文**：LLVM `codegen_interpolated_string` 已从仅支持 `{Int}` / `{String}` 扩展为支持 `{Float}`，复用现有 Float `toString` 路径；同时补充 run-pass fixture `float_literal_other_contexts_basic`，覆盖 `println(1.5)` / `println(0.5f)`、f-string 插值，以及 `NaN` / `Infinity` 文本。
+  - **审计结论**：另行复核发现“顶层 `const val` 一般表达式落到 `top-level value ref`”是与 Float 无关的既有限制，本任务不改动其行为，只确保 Float 不再在本轮覆盖的路径里静默退化。
+  - **验证**：
+    - `cargo fmt --check`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (861)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
 

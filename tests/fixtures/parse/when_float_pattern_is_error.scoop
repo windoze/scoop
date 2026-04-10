@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR: Float 字面量
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 11:9
+
+package fixtures.parse
+
+fun main() {
+    val x: Float64 = 1.5
+    val y = when (x) {
+        1.5 -> 1
+        else -> 2
+    }
+    println(y)
+}

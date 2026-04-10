@@ -557,6 +557,16 @@ pub(crate) fn eval_const_expr_with_host(
                 )? {
                     return Ok(result);
                 }
+                if let Some(result) = try_eval_float_method_intrinsic(
+                    ctx,
+                    host,
+                    expr.span,
+                    receiver,
+                    member_name,
+                    args,
+                )? {
+                    return Ok(result);
+                }
                 if let Some(result) = try_eval_char_method_intrinsic(
                     ctx,
                     host,
@@ -876,6 +886,65 @@ fn try_eval_string_method_intrinsic(
     Ok(Some(result))
 }
 
+/// Float builtin 方法 intrinsics（T0148d-3）。
+///
+/// 目标：让 `const val` / `comptime if` / `const fun` 能在编译期直接执行
+/// `Float.toInt()/toString()/hash()/abs()/isNaN()/isInfinite()`，避免掉到模糊的
+/// “generic call callee / expression kind” 路径。
+fn try_eval_float_method_intrinsic(
+    ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
+    call_span: crate::span::Span,
+    receiver_expr: &ast::Expr,
+    method_name: &str,
+    args: &[ast::Expr],
+) -> Result<Option<ConstValue>, ConstEvalError> {
+    let is_known_float_method = matches!(
+        method_name,
+        "toInt" | "toString" | "hash" | "abs" | "isNaN" | "isInfinite"
+    );
+    if !is_known_float_method {
+        return Ok(None);
+    }
+
+    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let ConstValue::Float(value) = recv else {
+        return Ok(None);
+    };
+
+    if !args.is_empty() {
+        return Err(ConstEvalError::ConstFunArityMismatch {
+            name: method_name.to_string(),
+            expected: 0,
+            found: args.len(),
+            span: call_span.into(),
+        });
+    }
+
+    let mk_int = |v: i64| ConstValue::Int(ConstInt::new(ctx.default_int_ty, v as u128));
+
+    let result = match method_name {
+        "toInt" => mk_int(const_float_to_i64(value)),
+        "toString" => ConstValue::String(format_const_float_to_runtime_text(value)),
+        "hash" => mk_int(const_float_hash_i64(value)),
+        "abs" => match value.ty() {
+            ConstFloatTy::Float64 => ConstValue::Float(ConstFloat::from_f64(value.as_f64().abs())),
+            ConstFloatTy::Float32 => ConstValue::Float(ConstFloat::from_f32(value.as_f32().abs())),
+        },
+        "isNaN" => ConstValue::Bool(match value.ty() {
+            ConstFloatTy::Float64 => value.as_f64().is_nan(),
+            ConstFloatTy::Float32 => value.as_f32().is_nan(),
+        }),
+        "isInfinite" => ConstValue::Bool(match value.ty() {
+            ConstFloatTy::Float64 => value.as_f64().is_infinite(),
+            ConstFloatTy::Float32 => value.as_f32().is_infinite(),
+        }),
+        _ => unreachable!("filtered by is_known_float_method"),
+    };
+
+    Ok(Some(result))
+}
+
 /// Char 方法 intrinsics（T0146b）。
 ///
 /// 当前只补齐 `toInt()` 的编译期求值；运行期/sysroot API 留给 T0146c。
@@ -909,6 +978,67 @@ fn try_eval_char_method_intrinsic(
         ctx.default_int_ty,
         ch as u32 as u128,
     ))))
+}
+
+fn format_const_float_to_runtime_text(value: ConstFloat) -> String {
+    match value {
+        ConstFloat::Float64(bits) => {
+            normalize_const_float_text(f64::from_bits(bits).to_string(), f64::from_bits(bits))
+        }
+        ConstFloat::Float32(bits) => {
+            let raw = f32::from_bits(bits);
+            normalize_const_float_text(raw.to_string(), f64::from(raw))
+        }
+    }
+}
+
+fn normalize_const_float_text(mut text: String, value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value.is_infinite() {
+        return if value.is_sign_negative() {
+            "-Infinity".to_string()
+        } else {
+            "Infinity".to_string()
+        };
+    }
+    if !text.contains('.') && !text.contains('e') && !text.contains('E') {
+        text.push_str(".0");
+    }
+    text
+}
+
+fn const_float_to_i64(value: ConstFloat) -> i64 {
+    let value = match value.ty() {
+        ConstFloatTy::Float64 => value.as_f64(),
+        ConstFloatTy::Float32 => f64::from(value.as_f32()),
+    };
+
+    if value.is_nan() {
+        return 0;
+    }
+    if value >= i64::MAX as f64 {
+        return i64::MAX;
+    }
+    if value <= i64::MIN as f64 {
+        return i64::MIN;
+    }
+    value as i64
+}
+
+fn const_float_hash_i64(value: ConstFloat) -> i64 {
+    let mut bits = match value {
+        ConstFloat::Float64(bits) => bits,
+        ConstFloat::Float32(bits) => u64::from(bits),
+    };
+
+    bits ^= bits >> 30;
+    bits = bits.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    bits ^= bits >> 27;
+    bits = bits.wrapping_mul(0x94d0_49bb_1331_11eb);
+    bits ^= bits >> 31;
+    bits as i64
 }
 
 /// 字节级 indexOf（与 sysroot/string.scoop 语义一致）。

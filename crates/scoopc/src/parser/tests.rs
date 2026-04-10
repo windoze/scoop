@@ -1,4 +1,5 @@
 use super::*;
+use crate::syntax::token::TokenKind;
 
 /// 一个极简、可复现的伪随机数生成器（避免引入 `rand` 依赖）。
 #[derive(Clone)]
@@ -405,6 +406,35 @@ fn parse_float_literals_and_int_member_call() {
     };
     assert!(matches!(receiver.kind, ast::ExprKind::IntLit));
     assert_eq!(src.slice(receiver.span), "1");
+}
+
+#[test]
+fn when_float_pattern_reports_single_parse_error() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+fun main() {
+    val x: Float64 = 1.5
+    val y = when (x) {
+        1.5 -> 1
+        else -> 2
+    }
+    println(y)
+}
+"#,
+    );
+
+    let err = parse_file(&src).expect_err("Float when pattern 应报 parser 错误");
+    match err {
+        ParseError::Expected {
+            expected,
+            found: TokenKind::FloatLiteral,
+            ..
+        } => {
+            assert!(expected.contains("Float 字面量"));
+        }
+        other => panic!("期望单个 FloatLiteral parser 错误，实际为: {other:?}"),
+    }
 }
 
 #[test]

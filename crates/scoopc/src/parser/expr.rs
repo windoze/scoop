@@ -1851,6 +1851,17 @@ impl<'a> Parser<'a> {
             return self.parse_when_tuple_pat();
         }
 
+        if self.peek_kind(TokenKind::FloatLiteral) {
+            let tok = self.bump();
+            self.record_error(ParseError::Expected {
+                expected: "when 分支模式（暂不支持 Float 字面量；请改用 guard 或 if）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+            // 继续解析当前 arm，避免把后续 `-> body` 级联成额外的噪声错误。
+            return Ok(ast::WhenPat::Wildcard { span: tok.span });
+        }
+
         if self.peek_kind(TokenKind::IntLiteral) {
             let tok = self.bump();
             return Ok(ast::WhenPat::IntLit { span: tok.span });

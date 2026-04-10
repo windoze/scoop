@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: float_literal_other_contexts_basic.stdout
+// EXPECT-EXIT: 0
+// 目标：T0148d-3：Float 字面量在 generic print 与 f-string 插值上下文中可工作。
+
+import scoop.core.*
+
+fun main() {
+    println(1.5)
+    println(0.5f)
+    println(f"wide {1.5}")
+    println(f"narrow {0.5f}")
+    println(f"nan {(0.0 / 0.0)}")
+    println(f"inf {(1.0 / 0.0)}")
+}

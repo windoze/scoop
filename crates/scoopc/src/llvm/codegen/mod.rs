@@ -12001,6 +12001,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn load_scoop_string_len_and_data(
+        &mut self,
+        str_obj_ptr: PointerValue<'ctx>,
+    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        let len_ptr =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_obj_ptr, 1, "str_len_gep_interp")?;
+        let data_ptr =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_obj_ptr, 2, "str_data_gep_interp")?;
+
+        let len = self
+            .builder
+            .build_load(i64_ty, len_ptr, "str_len_interp")?
+            .into_int_value();
+        let data = self
+            .builder
+            .build_load(i8_ptr_ty, data_ptr, "str_data_interp")?
+            .into_pointer_value();
+
+        Ok((len, data))
+    }
+
     fn codegen_interpolated_string(
         &mut self,
         span: crate::span::Span,
@@ -12011,7 +12038,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 返回一个 GC-managed `ScoopString` 对象（addrspace(1)），其 `data` 指向 `malloc` 的 bytes buffer。
         //
         // 约束（与 TODO T0823 对齐）：
-        // - 仅支持 `{Int}` 与 `{String}`；
+        // - 目前支持 `{Int}` / `{String}` / `{Float}`；
         // - 先不支持 format spec / locale；
         // - 当前阶段不接入 type descriptor/release：`data` 的释放留给后续任务补齐（T1507/T1514）。
 
@@ -12073,27 +12100,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 });
                             };
 
-                            let len_ptr = self.builder.build_struct_gep(
-                                scoop_str_ty,
-                                str_obj_ptr,
-                                1,
-                                "fstr_part_len_gep",
-                            )?;
-                            let data_ptr = self.builder.build_struct_gep(
-                                scoop_str_ty,
-                                str_obj_ptr,
-                                2,
-                                "fstr_part_data_gep",
-                            )?;
+                            let (len, data) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
 
-                            let len = self
-                                .builder
-                                .build_load(i64_ty, len_ptr, "fstr_part_len")?
-                                .into_int_value();
-                            let data = self
-                                .builder
-                                .build_load(i8_ptr_ty, data_ptr, "fstr_part_data")?
-                                .into_pointer_value();
+                            segments.push(Segment { ptr: data, len });
+                            total_len =
+                                self.builder
+                                    .build_int_add(total_len, len, "fstr_total_len")?;
+                        }
+                        CgTy::Float64 | CgTy::Float32 => {
+                            let str_v =
+                                self.codegen_float_to_string_value(expr.span, expr.span, v)?;
+                            let Some(raw) = str_v.value else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation float expr value",
+                                    at: expr.span.into(),
+                                });
+                            };
+                            let BasicValueEnum::PointerValue(str_obj_ptr) = raw else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation float expr type",
+                                    at: expr.span.into(),
+                                });
+                            };
+
+                            let (len, data) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
 
                             segments.push(Segment { ptr: data, len });
                             total_len =

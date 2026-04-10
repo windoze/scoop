@@ -431,8 +431,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 `run_pass_cone/float_multi_file_literal_basic`：在 helper 文件中覆盖 Float 顶层初始化、普通函数返回值、`Float32` absorption 与科学计数法比较；入口运行输出稳定为 `3.75 / 1.75 / 2.5 / 2.0 / true`。
   - 新增 `run_pass_cone/float_multi_file_literal_type_mismatch_non_entry`：helper 文件中的 `return 1.5` → `Int` 类型不匹配会稳定报 `scoop::typecheck::return_type_mismatch`，并把 `EXPECT-ERROR-AT` 锁到 helper 文件真实标签位置 `6:6`，避免错误漂移到入口文件。
   - 验证：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (858)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
-- 待做：`T0148d-3`
-  - 统一审计剩余边角语义与诊断；能补齐的直接补齐，暂不支持的必须给出明确错误或新任务链接。
+- DONE（T0148d-3）：剩余转换、边角语义与审计
+  - parser 对 `when (x) { 1.5 -> ... }` 现给出稳定的“Float 字面量暂不支持”错误，并通过占位 wildcard 继续消费当前 arm，避免额外级联 parse 噪声；新增 parse fixture `when_float_pattern_is_error` 与 Rust 单测锁住“单一错误”行为。
+  - `comptime/eval.rs` 已补齐 Float builtin 方法折叠：`toInt()/toString()/hash()/abs()/isNaN()/isInfinite()`；新增 Rust 单测 `const_eval_float_builtin_methods` 与 fixture `comptime/float_builtin_methods_basic.*`。
+  - LLVM f-string / 插值字符串现支持 `{Float}`，复用 Float `toString` 路由；新增 run-pass fixture `float_literal_other_contexts_basic`，覆盖 generic `println(Float)`、f-string 插值、`NaN` / `Infinity` 文本。
+  - 审计顺带确认：顶层 `const val` 一般表达式仍有 `top-level value ref` 的老限制，但该问题并非 Float 特有，本轮仅记录，不在 T0148d-3 中扩 scope。
+  - 验证：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (861)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 ## 5. 泛型 where 约束完善
 

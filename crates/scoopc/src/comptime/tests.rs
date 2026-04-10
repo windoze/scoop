@@ -48,6 +48,16 @@ fn mk_float32(value: f32) -> ConstValue {
     ConstValue::Float(ConstFloat::from_f32(value))
 }
 
+fn mk_float_hash(int_ty: ConstIntTy, bits: u64) -> ConstValue {
+    let mut mixed = bits;
+    mixed ^= mixed >> 30;
+    mixed = mixed.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    mixed ^= mixed >> 27;
+    mixed = mixed.wrapping_mul(0x94d0_49bb_1331_11eb);
+    mixed ^= mixed >> 31;
+    ConstValue::Int(ConstInt::new(int_ty, mixed as i64 as u128))
+}
+
 fn mk_type_kind(variant: &str) -> ConstValue {
     ConstValue::Enum(ConstEnum {
         ty: Some("TypeKind".to_string()),
@@ -252,6 +262,37 @@ const val CMP: Bool = SUM == 2.0
                 value: ConstValue::Bool(true),
             },
         ]
+    );
+}
+
+#[test]
+fn const_eval_float_builtin_methods() {
+    let ty = ConstIntTy::host_word(true);
+
+    assert_eq!(eval_expr("3.75.toInt()", ty), mk_int(ty, 3));
+    assert_eq!(eval_expr("(0.0 / 0.0).toInt()", ty), mk_int(ty, 0));
+    assert_eq!(
+        eval_expr("125.0.toString()", ty),
+        ConstValue::String("125.0".to_string())
+    );
+    assert_eq!(
+        eval_expr("0.5f.toString()", ty),
+        ConstValue::String("0.5".to_string())
+    );
+    assert_eq!(eval_expr("(-2.5).abs()", ty), mk_float64(2.5));
+    assert_eq!(eval_expr("(-0.5f).abs()", ty), mk_float32(0.5));
+    assert_eq!(eval_expr("(0.0 / 0.0).isNaN()", ty), ConstValue::Bool(true));
+    assert_eq!(
+        eval_expr("(1.0 / 0.0).isInfinite()", ty),
+        ConstValue::Bool(true)
+    );
+    assert_eq!(
+        eval_expr("1.5.hash()", ty),
+        mk_float_hash(ty, 1.5f64.to_bits())
+    );
+    assert_eq!(
+        eval_expr("1.5f.hash()", ty),
+        mk_float_hash(ty, u64::from((1.5f32).to_bits()))
     );
 }
 
