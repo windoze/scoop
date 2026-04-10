@@ -368,6 +368,8 @@ pub struct FunSig {
     pub return_ty: Option<ast::TypeRef>,
     pub effects: Option<ast::EffectRowExpr>,
     pub builtin_flags: BuiltinFunFlags,
+    /// `where` 子句（T0129）：保留 AST 以便 typecheck 在调用处验证约束。
+    pub where_clause: Option<ast::WhereClause>,
 }
 
 /// fun 命名空间中的一个 overload 候选。
@@ -1359,6 +1361,7 @@ impl Index {
             return_ty,
             effects: fun.effects.clone(),
             builtin_flags: builtin_fun_flags_from_annotations(source, &fun.annotations),
+            where_clause: fun.where_clause.clone(),
         };
 
         let entry = self.by_fqn.entry(fqn).or_default();

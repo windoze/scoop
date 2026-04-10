@@ -736,7 +736,7 @@ cargo run -p scoop --features llvm -- test
   - 泛型扩展函数场景推迟（需要 `index_file_fun_decls` 扩展支持）。
   - `cargo test --all` (139 tests) + `cargo run -p scoop -- test` (819 fixtures) 全部通过。
 
-### T0129 [TODO] 泛型 where 约束：实例化处 bound 检查（函数调用 + 类型构造）
+### T0129 [DONE] 泛型 where 约束：实例化处 bound 检查（函数调用 + 类型构造）
 
 - 描述：当前 `where` 子句在声明处验证合法性（`typecheck/where_clause.rs`），在**类型实例化**处有检查（`TypeSymbol.where_constraints` + `check_where_constraints_on_instantiation`），但**泛型函数调用处完全不检查 bound**。`FunSigOwned` 没有 `where_constraints` 字段，`instantiate_generic_call` 推断出类型实参后不验证其是否满足声明处的 `where` 约束。例如：
   ```
@@ -755,6 +755,24 @@ cargo run -p scoop --features llvm -- test
   - 已有 `where_clause_satisfies_bound_ok.scoop` 等 fixtures 不受影响。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **`resolve/mod.rs`**：`FunSig` 新增 `where_clause: Option<ast::WhereClause>` 字段，在函数签名收集时从 AST 复制 where 子句。
+  - **`typecheck/expr/mod.rs`**：新增 `FunWhereConstraintInfo` 结构体（`span`/`param_index`/`param_name`/`bound: ast::TypeRef`）；`FunSigOwned` 新增 `where_constraints: Vec<FunWhereConstraintInfo>` 字段。
+  - **`typecheck/expr/collect.rs`**：新增 `build_fun_where_constraints` + `build_fun_where_constraints_from_resolve_sig` 辅助函数，从 AST where_clause + type_params 构建约束列表。同文件签名收集（`collect_top_level_fun_signatures`）和扩展属性签名收集均填充新字段。
+  - **`typecheck/expr/call.rs`**：
+    - 跨文件签名收集（`collect_top_level_fun_signatures_from_index`）填充 where_constraints。
+    - 新增 `check_fun_where_constraints_after_instantiation` 函数：在声明文件上下文中 lower bound TypeRef，检查 `is_type_assignable(arg_ty, bound_ty)`；type arg 为 `TypeKind::Param` 时跳过。
+    - 6 个 `instantiate_fun_sig_for_call*` 调用点均插入 where 约束检查：直接路径用 `?` 传播错误（报 `where_constraint_not_satisfied`），重载候选路径用 `is_err() → continue` 过滤候选。
+  - **`typecheck/expr/error.rs`**：新增 `FunWhereConstraintNotSatisfied` 错误变体（diagnostic code `scoop::typecheck::where_constraint_not_satisfied`）。
+  - **`typecheck/expr/ops.rs`**：member method 签名收集也填充 where_constraints。
+  - **`typecheck/expr/infer.rs`**：effect handler arm 签名构建补齐空 where_constraints。
+  - **`cone/consume.rs`**：跨包 FunSig 构建补齐 `where_clause: None`。
+  - **Fixtures**（4 个新增）：
+    - `where_clause_fun_not_satisfied_is_error`：单约束不满足 → `where_constraint_not_satisfied`。
+    - `where_clause_fun_multi_constraint_not_satisfied_is_error`：多约束中 B 不满足 Eq → `where_constraint_not_satisfied`。
+    - `where_clause_fun_satisfies_bound_ok`：满足约束 → 通过。
+    - `where_clause_fun_generic_passthrough_ok`：泛型传递调用跳过检查 → 通过。
+  - 139 单元测试 + 823 fixtures 通过。
 
 ### T0130 [TODO] 泛型 where 约束：bound 驱动的方法分发（函数体 + 类型成员体内通过约束调用接口方法）
 

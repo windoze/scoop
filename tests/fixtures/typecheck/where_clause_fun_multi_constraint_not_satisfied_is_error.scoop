@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 18:15
+// EXPECT-ERROR: 泛型约束不满足
+// 目标：T0129 where 子句：泛型函数多约束，其中 B 不满足 Eq 应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+interface Eq {}
+
+class Good() : Show, Eq {}
+class OnlyShow() : Show {}
+
+fun <A, B> combine(a: A, b: B): Unit where A: Show, B: Eq {}
+val x: Unit = combine(Good(), OnlyShow())

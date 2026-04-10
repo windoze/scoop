@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 14:15
+// EXPECT-ERROR: 泛型约束不满足
+// 目标：T0129 where 子句：泛型函数调用处类型实参不满足约束应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+class Bad() {}
+fun <T> show(x: T): Unit where T: Show {}
+val x: Unit = show(Bad())

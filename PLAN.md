@@ -365,3 +365,13 @@ cargo run -p scoop --features llvm -- test
   - **注释更新**：`resolve/scopes.rs`、`typecheck/expr/call.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c` 中的 `stdlib/string.scoop` → `sysroot/string.scoop`。
   - **删除 `stdlib/string.scoop`**。
   - 139 单元测试 + 809 fixtures 通过。
+
+## 5. 泛型 where 约束完善
+
+- DONE（T0129）：泛型函数调用处 where 约束检查：
+  - **`resolve/mod.rs`**：`FunSig` 新增 `where_clause` 字段保留 AST where 子句。
+  - **`typecheck/expr/mod.rs`**：`FunSigOwned` 新增 `where_constraints: Vec<FunWhereConstraintInfo>`。
+  - **`typecheck/expr/collect.rs`**：新增辅助函数从 AST where_clause + type_params 构建约束列表。
+  - **`typecheck/expr/call.rs`**：新增 `check_fun_where_constraints_after_instantiation`，在 6 个 `instantiate_fun_sig_for_call*` 调用点后验证约束。
+  - **4 个新增 fixtures**：单/多约束不满足、满足、泛型传递调用。
+  - 139 单元测试 + 823 fixtures 通过。

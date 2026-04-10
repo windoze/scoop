@@ -15,9 +15,8 @@ use super::util::{
     expr_kind_name, fmt_overload_signature, join_overload_signatures, short_name_from_fqn,
 };
 
-use super::{
-    ASYNC_EFFECT_FQN, EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN, TASK_FQN,
-};
+use super::{EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
+use super::collect::build_fun_where_constraints_from_resolve_sig;
 
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::eff_row_subst::{
@@ -1354,6 +1353,13 @@ fn collect_top_level_fun_signatures_from_index(
             param_eff_row_var_subst.push(subst_plan);
         }
 
+        // T0129：从 resolve 的 FunSig 构建 where constraints。
+        let where_constraints = build_fun_where_constraints_from_resolve_sig(
+            &decl_source,
+            &o.sig.type_params,
+            o.sig.where_clause.as_ref(),
+        );
+
         out.push(FunSigOwned {
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
@@ -1376,6 +1382,7 @@ fn collect_top_level_fun_signatures_from_index(
             params,
             return_ty,
             effects: o.sig.effects.clone(),
+            where_constraints,
         });
     }
 
@@ -1957,6 +1964,16 @@ pub(super) fn infer_call_expr_type(
                         builtins,
                     )?;
 
+                // T0129：检查 where 约束。
+                check_fun_where_constraints_after_instantiation(
+                    &callee_fqn,
+                    call_expr.span,
+                    sig,
+                    &instantiated.type_args,
+                    lower,
+                    builtins,
+                )?;
+
                 // 先在"期望类型语境"下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
                 let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
@@ -2366,6 +2383,20 @@ pub(super) fn infer_call_expr_type(
                         Ok(s) => s,
                         Err(_) => continue,
                     };
+
+                // T0129：检查 where 约束；不满足则跳过该候选。
+                if check_fun_where_constraints_after_instantiation(
+                    &callee_fqn,
+                    call_expr.span,
+                    cand,
+                    &instantiated.type_args,
+                    lower,
+                    builtins,
+                )
+                .is_err()
+                {
+                    continue;
+                }
 
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
@@ -3736,6 +3767,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         params,
         return_ty,
         effects: None,
+        where_constraints: Vec::new(),
     };
 
     let call_args = collect_call_arg_infos(
@@ -3790,6 +3822,16 @@ pub(super) fn infer_effect_op_call_expr_type(
                     span: arg.expr.span,
                 }
             }),
+        lower,
+        builtins,
+    )?;
+
+    // T0129：检查 where 约束。
+    check_fun_where_constraints_after_instantiation(
+        &callee_fqn,
+        call_expr.span,
+        &sig,
+        &instantiated.type_args,
         lower,
         builtins,
     )?;
@@ -4843,6 +4885,20 @@ fn infer_member_call_expr_type(
                         Err(_) => continue,
                     };
 
+                // T0129：检查 where 约束；不满足则跳过该候选。
+                if check_fun_where_constraints_after_instantiation(
+                    fqn.as_str(),
+                    call_expr.span,
+                    cand,
+                    &instantiated.type_args,
+                    lower,
+                    builtins,
+                )
+                .is_err()
+                {
+                    continue;
+                }
+
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
                 let mut checked_arg_tys: Vec<TypeId> =
@@ -5437,6 +5493,16 @@ fn infer_member_call_expr_type(
             builtins,
         )?;
 
+        // T0129：检查 where 约束。
+        check_fun_where_constraints_after_instantiation(
+            &callee_fqn,
+            call_expr.span,
+            sig,
+            &instantiated.type_args,
+            lower,
+            builtins,
+        )?;
+
         // receiver mismatch 检查：
         // - 默认路径：在推断 `eff` row 参数之前就可以做 receiver 可赋值检查，给出更精确诊断；
         // - 但当 receiver 的期望类型依赖 `E`（例如 `Type<eff (E + IO)>`，或更深的嵌套位置）时，
@@ -5915,6 +5981,20 @@ fn infer_member_call_expr_type(
             Ok(s) => s,
             Err(_) => continue,
         };
+
+        // T0129：检查 where 约束；不满足则跳过该候选。
+        if check_fun_where_constraints_after_instantiation(
+            &callee_fqn,
+            call_expr.span,
+            cand,
+            &instantiated.type_args,
+            lower,
+            builtins,
+        )
+        .is_err()
+        {
+            continue;
+        }
 
         // receiver mismatch 检查：同单候选路径，若 receiver 的期望类型依赖 `E`，
         // 必须等到 `E` 推断/实例化后才能确定 receiver 是否匹配（T0624）。
@@ -7138,6 +7218,72 @@ pub(super) fn instantiate_fun_sig_for_call(
         lower,
         builtins,
     )
+}
+
+/// T0129：泛型函数调用处 where 约束检查。
+///
+/// 在 `instantiate_fun_sig_for_call*` 推断出具体 type args 后调用：
+/// 遍历 `sig.where_constraints`，在声明处文件上下文中 lower bound，
+/// 检查 `type_args[c.param_index]` 是否 assignable to bound_ty。
+/// 当 type arg 仍为 `TypeKind::Param` 时跳过（泛型传递调用）。
+fn check_fun_where_constraints_after_instantiation(
+    callee: &str,
+    call_span: Span,
+    sig: &FunSigOwned,
+    type_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    if sig.where_constraints.is_empty() {
+        return Ok(());
+    }
+
+    // 构建 type param name → concrete type arg 的绑定表，
+    // 用于在 lower bound TypeRef 时将 bound 中出现的 type param 替换为具体类型。
+    let bindings: Vec<(String, TypeId)> = sig
+        .type_params
+        .iter()
+        .zip(type_args.iter().copied())
+        .map(|(param_ty, arg_ty)| {
+            let name = match lower.type_kind(*param_ty) {
+                TypeKind::Param(p) => p.name.clone(),
+                _ => format!("#{}", sig.type_params.iter().position(|t| t == param_ty).unwrap_or(0)),
+            };
+            (name, arg_ty)
+        })
+        .collect();
+
+    for c in &sig.where_constraints {
+        let Some(arg_ty) = type_args.get(c.param_index).copied() else {
+            continue;
+        };
+
+        // 当 type arg 仍为 type param 时跳过（泛型传递调用，无法在此刻验证）。
+        if matches!(lower.type_kind(arg_ty), TypeKind::Param(_)) {
+            continue;
+        }
+
+        // 在声明处文件上下文中 lower bound TypeRef，应用 type arg 替换。
+        let bound_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            &sig.decl_file,
+            bindings.iter().cloned(),
+            &c.bound,
+        )?;
+
+        if is_type_assignable(arg_ty, bound_ty, lower, builtins) {
+            continue;
+        }
+
+        return Err(ExprTypeError::FunWhereConstraintNotSatisfied {
+            callee: callee.to_string(),
+            param: c.param_name.clone(),
+            arg: lower.fmt_type(arg_ty),
+            bound: lower.fmt_type(bound_ty),
+            span: call_span.into(),
+        });
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy)]

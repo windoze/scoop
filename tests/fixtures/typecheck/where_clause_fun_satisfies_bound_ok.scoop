@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0129 where 子句：泛型函数调用处类型实参满足约束应通过。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+
+class Good() : Show {}
+
+fun <T> display(x: T): Unit where T: Show {}
+
+val ok: Unit = display(Good())

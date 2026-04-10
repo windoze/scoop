@@ -1185,6 +1185,7 @@ pub(super) fn infer_handle_expr_type(
             params: op_params,
             return_ty: op_return_ty,
             effects: None,
+            where_constraints: Vec::new(),
         };
 
         // 5) 决定 effect type args：

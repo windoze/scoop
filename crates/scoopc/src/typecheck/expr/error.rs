@@ -601,6 +601,18 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    /// 泛型函数调用处 `where` 约束不满足（T0129）。
+    #[error("泛型约束不满足：{callee} 的类型实参 {arg} 不满足 {param} : {bound}")]
+    #[diagnostic(code(scoop::typecheck::where_constraint_not_satisfied))]
+    FunWhereConstraintNotSatisfied {
+        callee: String,
+        param: String,
+        arg: String,
+        bound: String,
+        #[label("这里的类型实参不满足 where 约束")]
+        span: miette::SourceSpan,
+    },
+
     #[error("enum variant 构造歧义：{name} 同时匹配 {candidates}")]
     #[diagnostic(code(scoop::typecheck::ambiguous_enum_variant_ctor))]
     AmbiguousEnumVariantCtor {

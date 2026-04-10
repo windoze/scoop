@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0129 where 子句：泛型传递调用（type arg 仍为 Param）时应跳过约束检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+
+fun <T> inner(x: T): Unit where T: Show {}
+fun <U> outer(x: U): Unit where U: Show {
+    return inner(x)
+}

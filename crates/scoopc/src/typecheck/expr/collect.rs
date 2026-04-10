@@ -8,7 +8,7 @@ use crate::ty::{BuiltinTypes, EffectRow, TypeId};
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};
 use super::util::package_prefix;
 
-use super::{EffParamSig, ExprTypeError, FunSigOwned, TASK_FQN};
+use super::{EffParamSig, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN};
 
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
@@ -242,6 +242,13 @@ pub(super) fn collect_top_level_fun_signatures(
                 EffRowVarSubstPlan::None
             };
 
+            // T0129：从 AST where_clause 构建 where_constraints。
+            let where_constraints = build_fun_where_constraints(
+                source,
+                &fun.type_params,
+                fun.where_clause.as_ref(),
+            );
+
             map.entry(fqn).or_default().push(FunSigOwned {
                 decl_span,
                 decl_file: source.path().to_path_buf(),
@@ -264,6 +271,7 @@ pub(super) fn collect_top_level_fun_signatures(
                 params,
                 return_ty,
                 effects: fun.effects.clone(),
+                where_constraints,
             });
             Ok(())
         })();
@@ -323,6 +331,7 @@ pub(super) fn collect_top_level_fun_signatures(
                 params: vec![receiver_ty],
                 return_ty,
                 effects: None,
+                where_constraints: Vec::new(),
             });
             Ok(())
         })();
@@ -332,6 +341,69 @@ pub(super) fn collect_top_level_fun_signatures(
 
     Ok(map)
 }
+
+/// 从 AST `where_clause` + `type_params` 构建 `FunWhereConstraintInfo` 列表（T0129）。
+///
+/// 此函数在"同文件"和"跨文件"两条签名收集路径中复用。
+fn build_fun_where_constraints(
+    source: &SourceFile,
+    type_params: &[ast::TypeParam],
+    where_clause: Option<&ast::WhereClause>,
+) -> Vec<FunWhereConstraintInfo> {
+    let Some(wc) = where_clause else {
+        return Vec::new();
+    };
+    let param_names: Vec<String> = type_params
+        .iter()
+        .map(|p| p.name.text(source).to_string())
+        .collect();
+    let mut out = Vec::new();
+    for c in &wc.constraints {
+        let target_name = source.slice(c.ty_param.span).to_string();
+        let Some(param_index) = param_names.iter().position(|n| n == &target_name) else {
+            // 如果 target 不在当前函数的 type params 中，跳过
+            // （where_clause.rs 的 declaration-site 检查会报错）。
+            continue;
+        };
+        out.push(FunWhereConstraintInfo {
+            span: c.span,
+            param_index,
+            param_name: target_name,
+            bound: c.bound.clone(),
+        });
+    }
+    out
+}
+
+/// 从 resolve 的 `TypeParamSig` + `WhereClause` 构建 `FunWhereConstraintInfo` 列表（T0129）。
+///
+/// 用于跨文件签名收集路径：resolver 的 `FunSig.type_params` 已有 param name，
+/// `FunSig.where_clause` 保留了 AST where clause。
+pub(super) fn build_fun_where_constraints_from_resolve_sig(
+    decl_source: &SourceFile,
+    type_params: &[crate::resolve::TypeParamSig],
+    where_clause: Option<&ast::WhereClause>,
+) -> Vec<FunWhereConstraintInfo> {
+    let Some(wc) = where_clause else {
+        return Vec::new();
+    };
+    let param_names: Vec<&str> = type_params.iter().map(|p| p.name.as_str()).collect();
+    let mut out = Vec::new();
+    for c in &wc.constraints {
+        let target_name = decl_source.slice(c.ty_param.span).to_string();
+        let Some(param_index) = param_names.iter().position(|n| *n == target_name) else {
+            continue;
+        };
+        out.push(FunWhereConstraintInfo {
+            span: c.span,
+            param_index,
+            param_name: target_name,
+            bound: c.bound.clone(),
+        });
+    }
+    out
+}
+
 pub(super) fn collect_member_mutabilities(
     source: &SourceFile,
     file: &ast::File,

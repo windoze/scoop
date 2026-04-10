@@ -282,6 +282,13 @@ pub(super) fn collect_member_method_signatures_from_index(
             param_eff_row_var_subst.push(EffRowVarSubstPlan::None);
         }
 
+        // T0129：member method 签名收集中也填充 where_constraints。
+        let where_constraints = super::collect::build_fun_where_constraints_from_resolve_sig(
+            &decl_source,
+            &o.sig.type_params,
+            o.sig.where_clause.as_ref(),
+        );
+
         out.push(FunSigOwned {
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
@@ -304,6 +311,7 @@ pub(super) fn collect_member_method_signatures_from_index(
             params,
             return_ty,
             effects: o.sig.effects.clone(),
+            where_constraints,
         });
     }
 

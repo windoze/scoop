@@ -1,27 +1,24 @@
-# Current Task: T0127 — 泛型验证与修复：泛型函数边界场景
+# Current Task: T0129 — 泛型 where 约束：实例化处 bound 检查
 
-## Status: IN PROGRESS
+## Status: COMPLETED
 
-## 执行计划
+## 完成摘要
 
-### 需要验证并修复的场景
-1. **多类型参数** `fun <A, B> pair(a: A, b: B): Pair<A, B>`
-2. **传递实例化** `fun <T> wrap(v: T) = Box<T>(v)`
-3. **泛型扩展函数** `fun <T> T.toBox(): Box<T>`
-4. **泛型高阶函数** `fun <T, R> myMap(v: T, f: (T) -> R): R`
-5. **泛型递归** `fun <T> foo(x: T, n: Int): T` (with base case)
-6. **类型参数约束** → 推迟到 T0129/T0130
+### 修改清单
+1. **`resolve/mod.rs`**: `FunSig` 新增 `where_clause: Option<ast::WhereClause>`
+2. **`typecheck/expr/mod.rs`**: 新增 `FunWhereConstraintInfo` + `FunSigOwned.where_constraints`
+3. **`typecheck/expr/collect.rs`**: 新增 `build_fun_where_constraints` + `build_fun_where_constraints_from_resolve_sig`
+4. **`typecheck/expr/call.rs`**: 新增 `check_fun_where_constraints_after_instantiation`，6 个调用点插入检查
+5. **`typecheck/expr/error.rs`**: 新增 `FunWhereConstraintNotSatisfied` 错误变体
+6. **`typecheck/expr/ops.rs`**: member method 签名收集填充 where_constraints
+7. **`typecheck/expr/infer.rs`**: effect handler arm 签名补齐空 where_constraints
+8. **`cone/consume.rs`**: 跨包 FunSig 补齐 `where_clause: None`
 
-### 注意事项
-- monomorph lower 中 `index_file_fun_decls` 只索引 `ast::Item::Fun`
-- cross-file 泛型函数实例化存在 gap（但对当前单文件场景不影响）
-- 泛型递归需验证 recursive call FQN 解析
+### 新增 Fixtures (4 个)
+- `where_clause_fun_not_satisfied_is_error` — 单约束不满足
+- `where_clause_fun_multi_constraint_not_satisfied_is_error` — 多约束中 B 不满足
+- `where_clause_fun_satisfies_bound_ok` — 满足约束
+- `where_clause_fun_generic_passthrough_ok` — 泛型传递调用跳过检查
 
-### 当前进度
-- [x] 分析完成
-- [ ] Step 1: 多类型参数 fixture
-- [ ] Step 2: 传递实例化 fixture
-- [ ] Step 3: 泛型扩展函数 fixture
-- [ ] Step 4: 泛型高阶函数 fixture
-- [ ] Step 5: 泛型递归 fixture
-- [ ] Step 6: 最终验证和提交
+### 验收
+- 139 单元测试 + 823 fixtures 通过

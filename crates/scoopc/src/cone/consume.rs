@@ -361,6 +361,7 @@ pub fn inject_cone_dependency_public_api(
                 return_ty,
                 effects,
                 builtin_flags: BuiltinFunFlags::default(),
+                where_clause: None,
             },
             has_body: false,
         };
@@ -491,6 +492,7 @@ fn inject_non_public_symbols_into_index(
                         return_ty: None,
                         effects: None,
                         builtin_flags: BuiltinFunFlags::default(),
+                        where_clause: None,
                     },
                     has_body: false,
                 });

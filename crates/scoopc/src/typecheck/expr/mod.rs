@@ -56,9 +56,25 @@ struct EffParamSig {
     default: EffectRow,
 }
 
+/// 泛型函数声明处 `where` 子句的一条约束信息（T0129）。
+///
+/// 与 `type_env::WhereConstraintInfo` 功能类似，但用于函数签名而非类型声明。
+/// bound 存为 `ast::TypeRef`（未 lower），以便在调用处结合具体 type args 做 substitution 后再检查。
+#[derive(Debug, Clone)]
+struct FunWhereConstraintInfo {
+    /// 约束所在 span（用于诊断）。
+    span: Span,
+    /// 约束目标在函数 type param 列表中的索引（0-based）。
+    param_index: usize,
+    /// 约束目标的 type param 名称（用于诊断消息）。
+    param_name: String,
+    /// 约束右侧的 bound TypeRef（在声明处文件上下文中 lower）。
+    bound: ast::TypeRef,
+}
+
 #[derive(Debug, Clone)]
 struct FunSigOwned {
-    /// 声明处 name 的 span：用于把“某个具体 overload”与 AST 节点对应起来，
+    /// 声明处 name 的 span：用于把”某个具体 overload”与 AST 节点对应起来，
     /// 以便在后续 pass 中回写（例如返回类型推断，T0507）。
     decl_span: Span,
     /// 该签名所属的声明文件（用于在正确的 source/package/import 上下文中 lower row/type）。
@@ -171,4 +187,8 @@ struct FunSigOwned {
     return_ty: TypeId,
     /// 函数声明处的 effect row 标注：`/ Pure` / `/ E` / `/ (E1 + E2)`（spec §5.8）。
     effects: Option<ast::EffectRowExpr>,
+    /// 泛型函数声明处的 `where` 子句约束（T0129）。
+    ///
+    /// 在调用点泛型实参推断完成后，遍历该列表验证具体 type arg 满足每条约束。
+    where_constraints: Vec<FunWhereConstraintInfo>,
 }
