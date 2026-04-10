@@ -590,6 +590,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let value = mask_to_bits(bits, int_ty.bits) as u64;
                 self.int_type(int_ty).const_int(value, false).into()
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "top-level var initializer (float const)",
+                    at: init.span.into(),
+                });
+            }
             // 早期阶段：仅支持"静态全零初始化"；更复杂的值类型常量构造留给后续任务补齐。
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -834,10 +840,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for local in &saved_locals {
                 fields.push(match local.cg_ty {
                     CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
                     _ => {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "callee suspend local type (only Int/Bool/Ref/String)",
+                            kind: "callee suspend local type (only Int/Bool/Float/Ref/String)",
                             at: fun.span.into(),
                         });
                     }
@@ -923,48 +929,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let alloca_name = format!("resumed_{}", local.name);
             match local.cg_ty {
-                CgTy::Int(int_ty) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let loaded = self
                         .builder
-                        .build_load(i64_ty, field_ptr, "restore_load_int")?
+                        .build_load(i64_ty, field_ptr, "restore_load_scalar")?
                         .into_int_value();
-                    let to = self.int_type(int_ty);
-                    let v = if int_ty.bits == 64 {
-                        loaded
-                    } else {
-                        self.builder
-                            .build_int_truncate(loaded, to, "restore_trunc")?
-                    };
+                    let restored =
+                        self.decode_u64_word_to_cg_value(fun.span, loaded, local.cg_ty)?;
                     let ptr = self.create_entry_alloca(fun.span, &alloca_name, local.cg_ty)?;
-                    let _ = self.builder.build_store(ptr, v)?;
+                    let _ = self.store_local_value(fun.span, ptr, local.cg_ty, restored)?;
                     self.env.insert(
                         local.id,
                         CgLocal {
                             hir_ty: Some(local.hir_ty),
                             ty: local.cg_ty,
-                            ptr,
-                            mutable: local.mutable,
-                        },
-                    );
-                }
-                CgTy::Bool => {
-                    let loaded = self
-                        .builder
-                        .build_load(i64_ty, field_ptr, "restore_load_bool")?
-                        .into_int_value();
-                    let b = self.builder.build_int_compare(
-                        IntPredicate::NE,
-                        loaded,
-                        i64_ty.const_zero(),
-                        "restore_bool",
-                    )?;
-                    let ptr = self.create_entry_alloca(fun.span, &alloca_name, CgTy::Bool)?;
-                    let _ = self.builder.build_store(ptr, b)?;
-                    self.env.insert(
-                        local.id,
-                        CgLocal {
-                            hir_ty: Some(local.hir_ty),
-                            ty: CgTy::Bool,
                             ptr,
                             mutable: local.mutable,
                         },
@@ -1034,33 +1012,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Bind the perform-binding to the resume value.
         let perform_alloca =
             self.create_entry_alloca(fun.span, "callee_resume_val", perform_binding_cg_ty)?;
-        match perform_binding_cg_ty {
-            CgTy::Int(int_ty) => {
-                let to = self.int_type(int_ty);
-                let v = if int_ty.bits == 64 {
-                    resume_word
-                } else {
-                    self.builder
-                        .build_int_truncate(resume_word, to, "resume_trunc")?
-                };
-                let _ = self.builder.build_store(perform_alloca, v)?;
-            }
-            CgTy::Bool => {
-                let b = self.builder.build_int_compare(
-                    IntPredicate::NE,
-                    resume_word,
-                    i64_ty.const_zero(),
-                    "resume_bool_cmp",
-                )?;
-                let _ = self.builder.build_store(perform_alloca, b)?;
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee suspend resume value type (only Int/Bool supported)",
-                    at: fun.span.into(),
-                });
-            }
-        }
+        let resume_value =
+            self.decode_u64_word_to_cg_value(fun.span, resume_word, perform_binding_cg_ty)?;
+        let _ = self.store_local_value(
+            fun.span,
+            perform_alloca,
+            perform_binding_cg_ty,
+            resume_value,
+        )?;
         self.env.insert(
             info.perform_binding_id,
             CgLocal {
@@ -7536,7 +7495,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 当前 runtime array 以 "u64 word buffer" 表示元素，因此这里限制为可编码为 u64 的类型。
         match cg {
-            CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => Some(cg),
+            CgTy::Unit
+            | CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref => Some(cg),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) | CgTy::Never => None,
         }
     }
@@ -7563,6 +7528,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "u64_to_bool",
                 )?;
                 Ok(CgValue::bool(is_true))
+            }
+            CgTy::Float64 => {
+                let raw = self
+                    .builder
+                    .build_bit_cast(word_u64, self.context.f64_type(), "u64_to_f64_bits")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float64))
+            }
+            CgTy::Float32 => {
+                let bits32 = self.builder.build_int_truncate(
+                    word_u64,
+                    self.context.i32_type(),
+                    "u64_to_f32_bits",
+                )?;
+                let raw = self
+                    .builder
+                    .build_bit_cast(bits32, self.context.f32_type(), "i32_to_f32_bits")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float32))
             }
             CgTy::Int(int_ty) => {
                 let decoded = self.cast_int(word_u64, from_u64, int_ty)?;
@@ -8450,57 +8434,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::bool(value))
-            }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::int(value, int_ty))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "call return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(raw),
-                })
+                self.cg_value_from_loaded(span, ret_cg, raw)
             }
         }
     }
@@ -8753,57 +8694,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(Some(CgValue::bool(value)))
-            }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(Some(CgValue::int(value, int_ty)))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "vtable call return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(Some(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                }))
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(Some(CgValue {
-                    ty: ret_cg,
-                    value: Some(raw),
-                }))
+                Ok(Some(self.cg_value_from_loaded(span, ret_cg, raw)?))
             }
         }
     }
@@ -9042,57 +8940,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(Some(CgValue::bool(value)))
-            }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(Some(CgValue::int(value, int_ty)))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "itable call return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(Some(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                }))
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(Some(CgValue {
-                    ty: ret_cg,
-                    value: Some(raw),
-                }))
+                Ok(Some(self.cg_value_from_loaded(span, ret_cg, raw)?))
             }
         }
     }
@@ -9512,57 +9367,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::bool(value))
-            }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::int(value, int_ty))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "funptr call return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr call return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(raw),
-                })
+                self.cg_value_from_loaded(span, ret_cg, raw)
             }
         }
     }
@@ -9645,6 +9457,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun_ty = match ret_cg {
             CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
+            CgTy::Float64 => self.context.f64_type().fn_type(&llvm_param_tys, false),
+            CgTy::Float32 => self.context.f32_type().fn_type(&llvm_param_tys, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
             CgTy::String => self
                 .llvm_scoop_string_ptr_type()
@@ -9705,51 +9519,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "function value call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::bool(value))
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "function value call return type",
+                    at: span.into(),
+                })
             }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "function value call return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::int(value, int_ty))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "function value call return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "function value call return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function value call return type",
-                    at: span.into(),
-                })
+                self.cg_value_from_loaded(span, ret_cg, raw)
             }
         }
     }
@@ -9820,6 +9603,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.context.void_type().fn_type(&llvm_param_tys, false)
                 }
                 CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
+                CgTy::Float64 => self.context.f64_type().fn_type(&llvm_param_tys, false),
+                CgTy::Float32 => self.context.f32_type().fn_type(&llvm_param_tys, false),
                 CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
                 CgTy::String => self
                     .llvm_scoop_string_ptr_type()
@@ -10241,6 +10026,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         })?
                         .into_int_value();
                     CgValue::bool(raw)
+                }
+                CgTy::Float64 | CgTy::Float32 => {
+                    let raw = llvm_fun
+                        .get_nth_param((idx + 1) as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda param",
+                            at: closure.span.into(),
+                        })?
+                        .into_float_value();
+                    CgValue::float(raw, target_ty)
                 }
                 CgTy::Int(int_ty) => {
                     let raw = llvm_fun
@@ -10983,6 +10778,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     gc_ptr: None,
                 })
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                let word = self.coerce_u64_word(at, value)?;
+                Ok(CgEnumPayload {
+                    word: Some(word),
+                    gc_ptr: None,
+                })
+            }
             CgTy::String => {
                 let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -11266,6 +11068,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match param_ty {
             CgTy::Unit | CgTy::Never => self.context.i8_type().const_int(0, false).into(),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -11307,6 +11111,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         })?
                         .into_int_value();
                     CgValue::bool(raw)
+                }
+                CgTy::Float64 | CgTy::Float32 => {
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?
+                        .into_float_value();
+                    CgValue::float(raw, target_ty)
                 }
                 CgTy::Int(int_ty) => {
                     let raw = llvm_fun
@@ -11376,6 +11190,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ty {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
+            CgTy::Float64 => {
+                CgValue::float(self.context.f64_type().const_float(0.0), CgTy::Float64)
+            }
+            CgTy::Float32 => {
+                CgValue::float(self.context.f32_type().const_float(0.0), CgTy::Float32)
+            }
             CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
             CgTy::String => CgValue {
                 ty: CgTy::String,
@@ -11493,6 +11313,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(())
             }
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -11973,6 +11795,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 Ok(match cg_ty {
                     CgTy::Bool => CgValue::bool(loaded.into_int_value()),
+                    CgTy::Float64 | CgTy::Float32 => {
+                        CgValue::float(loaded.into_float_value(), cg_ty)
+                    }
                     CgTy::Int(int_ty) => CgValue::int(loaded.into_int_value(), int_ty),
                     CgTy::String => CgValue {
                         ty: CgTy::String,
@@ -12012,6 +11837,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             )?
                             .into_int_value();
                         Ok(CgValue::bool(raw))
+                    }
+                    CgTy::Float64 | CgTy::Float32 => {
+                        let raw = self
+                            .builder
+                            .build_load(
+                                self.llvm_basic_type_of(span, local.ty)?,
+                                local.ptr,
+                                "load_float",
+                            )?
+                            .into_float_value();
+                        Ok(CgValue::float(raw, local.ty))
                     }
                     CgTy::Int(int_ty) => {
                         let raw = self
@@ -12787,6 +12623,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match ty {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(raw.into_int_value()),
+            CgTy::Float64 | CgTy::Float32 => CgValue::float(raw.into_float_value(), ty),
             CgTy::Int(int_ty) => CgValue::int(raw.into_int_value(), int_ty),
             CgTy::String => CgValue {
                 ty: CgTy::String,
@@ -13034,57 +12871,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "operator overload return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::bool(value))
-            }
-            CgTy::Int(int_ty) => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "operator overload return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
-                Ok(CgValue::int(value, int_ty))
-            }
-            CgTy::String | CgTy::Ref => {
+            _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "operator overload return value",
                         at: span.into(),
                     },
                 )?;
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "operator overload return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(ptr.into()),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "operator overload return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(CgValue {
-                    ty: ret_cg,
-                    value: Some(raw),
-                })
+                self.cg_value_from_loaded(span, ret_cg, raw)
             }
         }
     }
@@ -14216,6 +14010,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(boxed.into()),
                 })
             }
+            (CgTy::Float64, CgTy::Float64) | (CgTy::Float32, CgTy::Float32) => Ok(value),
             (CgTy::Int(from), CgTy::Int(to)) => {
                 let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "int value",
@@ -14428,6 +14223,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
                 Ok(self.builder.build_int_z_extend(b, i32_ty, "exit_bool")?)
             }
+            CgTy::Float64 | CgTy::Float32 => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "float exit code",
+                at: at.into(),
+            }),
             CgTy::Int(int_ty) => {
                 let (v, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "exit int",

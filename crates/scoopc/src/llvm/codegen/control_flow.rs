@@ -224,6 +224,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::never())
             }
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -420,6 +422,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Ok(CgValue::never())
                 }
                 CgTy::Bool
+                | CgTy::Float64
+                | CgTy::Float32
                 | CgTy::Int(_)
                 | CgTy::String
                 | CgTy::Ref
@@ -762,6 +766,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::never())
             }
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -988,6 +994,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                         CgTy::Never
                         | CgTy::Unit
+                        | CgTy::Float64
+                        | CgTy::Float32
                         | CgTy::Int(_)
                         | CgTy::Tuple(_)
                         | CgTy::Struct(_)
@@ -1072,6 +1080,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let from = self.enum_payload_ty();
                         let casted = self.cast_int(payload_word, from, int_ty)?;
                         CgValue::int(casted, int_ty)
+                    }
+                    CgTy::Float64 => {
+                        let raw = self
+                            .builder
+                            .build_bit_cast(
+                                payload_word,
+                                self.context.f64_type(),
+                                "payload_to_f64",
+                            )?
+                            .into_float_value();
+                        CgValue::float(raw, CgTy::Float64)
+                    }
+                    CgTy::Float32 => {
+                        let bits32 = self.builder.build_int_truncate(
+                            payload_word,
+                            self.context.i32_type(),
+                            "payload_to_f32_bits",
+                        )?;
+                        let raw = self
+                            .builder
+                            .build_bit_cast(bits32, self.context.f32_type(), "payload_to_f32")?
+                            .into_float_value();
+                        CgValue::float(raw, CgTy::Float32)
                     }
                     CgTy::String => {
                         let ptr = self.builder.build_pointer_cast(

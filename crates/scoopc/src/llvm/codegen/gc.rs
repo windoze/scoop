@@ -1451,6 +1451,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.builder.build_store(ptr, zero)?;
             }
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref

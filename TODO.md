@@ -1182,7 +1182,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
     - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞，主要是 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context` 以及长期存在的 `too_many_arguments` / `result_large_err`；未发现由本任务新增的 clippy 问题
 
-### T0147b [TODO] Float LLVM 标量映射：`CgTy` / LLVM type / default value / codegen 穷举补齐
+### T0147b [DONE] Float LLVM 标量映射：`CgTy` / LLVM type / default value / codegen 穷举补齐
 
 - 描述：在静态类型基础稳定后，把 `Float64` / `Float32` 作为真正的 LLVM 标量类型接到后端，共享 `CgTy` 与基础布局/默认值路径，但暂不引入字面量与算术 codegen。
 - 目标：
@@ -1197,6 +1197,21 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147a
+- 完成记录：
+  - **LLVM 标量类型接线**：`crates/scoopc/src/llvm/codegen/types.rs` 已新增 `CgTy::Float64` / `CgTy::Float32`，并为 `CgValue` 补齐 `float(...)` 构造与 `as_float()` 读取路径，使 Float builtin 可作为真正的 LLVM 浮点标量参与共享 codegen。
+  - **type lowering / LLVM basic type**：`crates/scoopc/src/llvm/codegen/ty.rs` 的 `cg_ty_of` / `cg_ty_of_type_fqn` 已把 `Float64` / `Float32` 映射到新的 `CgTy` 变体；`llvm_basic_type_of` 分别返回 `context.f64_type()` / `context.f32_type()`。
+  - **主 codegen 共享路径补齐**：`crates/scoopc/src/llvm/codegen/mod.rs` 已补齐参数接收、默认值、返回值组装、top-level/local load、lambda 参数、函数值调用签名、operator overload 返回值、`decode_u64_word_to_cg_value`、`coerce_enum_payload`、`cg_value_from_loaded` 等关键共享路径上的 Float 分支，避免新增 builtin 在后端触发 panic / unreachable。
+  - **控制流 / effect / GC 共享路径补齐**：`crates/scoopc/src/llvm/codegen/control_flow.rs`、`effect.rs`、`gc.rs`、`layout.rs` 已补齐 `if/when` 结果槽位、enum payload 解码、continuation resume word 编解码、capture/state 标量存储、`store_local_value` 与 `cg_ty_layout` 的 Float 分支，其中 `Float64` / `Float32` 布局分别为 `8/8` 与 `4/4`。
+  - **新增 LLVM 回归测试**：`crates/scoopc/src/llvm/mod.rs` 新增 `float_builtin_types_lower_to_llvm_scalars`，断言 IR 中 `Float64` / `Float32` 分别落为 `double` / `float`，并验证 extern ABI 与函数调用签名已切换为真正浮点类型。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo fmt --all --check` 通过
+    - `cargo check -p scoopc --features llvm` 通过
+    - `cargo test -p scoopc float_builtin_types_lower_to_llvm_scalars --features llvm` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+    - 额外验证 `target/debug/scoop test` 通过（`fixtures: ok (852)`），确认 fixture runner 可稳定执行
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞，主要是大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`；未观察到本任务新增的 task-specific clippy 失败
 
 ### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
 

@@ -4,6 +4,7 @@
 //! 以便后续把 `expr/stmt/layout/effect/gc` 等实现分拆到独立文件时，避免循环依赖与散落的常量约定。
 
 use inkwell::values::BasicValueEnum;
+use inkwell::values::FloatValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
@@ -20,6 +21,8 @@ pub(super) struct IntTy {
 pub(super) enum CgTy {
     Unit,
     Bool,
+    Float64,
+    Float32,
     Int(IntTy),
     Tuple(TypeId),
     Struct(TypeId),
@@ -129,6 +132,14 @@ impl<'ctx> CgValue<'ctx> {
         }
     }
 
+    pub(super) fn float(value: FloatValue<'ctx>, ty: CgTy) -> Self {
+        debug_assert!(matches!(ty, CgTy::Float64 | CgTy::Float32));
+        Self {
+            ty,
+            value: Some(value.into()),
+        }
+    }
+
     pub(super) fn as_int(self) -> Option<(IntValue<'ctx>, IntTy)> {
         match self.ty {
             CgTy::Int(ty) => match self.value? {
@@ -143,6 +154,16 @@ impl<'ctx> CgValue<'ctx> {
         match self.ty {
             CgTy::Bool => match self.value? {
                 BasicValueEnum::IntValue(v) => Some(v),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    pub(super) fn as_float(self) -> Option<(FloatValue<'ctx>, CgTy)> {
+        match self.ty {
+            CgTy::Float64 | CgTy::Float32 => match self.value? {
+                BasicValueEnum::FloatValue(v) => Some((v, self.ty)),
                 _ => None,
             },
             _ => None,

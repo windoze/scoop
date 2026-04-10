@@ -592,6 +592,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit | CgTy::Never => TypeLayout::new(0, 1),
             // 当前阶段 Bool 在 LLVM 中用 i1 表示，但 layout/lint/niche 计算按“存储为 u8”建模。
             CgTy::Bool => TypeLayout::new(1, 1),
+            CgTy::Float64 => TypeLayout::new(8, 8),
+            CgTy::Float32 => TypeLayout::new(4, 4),
             CgTy::Int(int_ty) => {
                 let size = u64::from(int_ty.bits).div_ceil(8);
                 let align = size.clamp(1, target.pointer_align.max(1));

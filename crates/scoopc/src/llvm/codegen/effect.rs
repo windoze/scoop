@@ -1458,6 +1458,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -1542,6 +1544,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -1949,6 +1953,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -2443,6 +2449,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -3685,26 +3693,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let resume_value = match resume_value_ty {
                     CgTy::Unit => CgValue::unit(),
                     CgTy::Never => CgValue::never(),
-                    CgTy::Bool => {
-                        let zero = i64_ty.const_int(0, false);
-                        let b = cg.builder.build_int_compare(
-                            IntPredicate::NE,
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => cg
+                        .decode_u64_word_to_cg_value(
+                            site.decl.span,
                             resume_word,
-                            zero,
-                            "resume_bool",
-                        )?;
-                        CgValue::bool(b)
-                    }
-                    CgTy::Int(int_ty) => {
-                        let to = cg.int_type(int_ty);
-                        let v = if int_ty.bits == 64 {
-                            resume_word
-                        } else {
-                            cg.builder
-                                .build_int_truncate(resume_word, to, "resume_int")?
-                        };
-                        CgValue::int(v, int_ty)
-                    }
+                            resume_value_ty,
+                        )?,
                     CgTy::String => {
                         // resume_gc_ref 直接是 ScoopString* addrspace(1)
                         let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
@@ -6261,50 +6255,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 },
                             )?;
                         }
-                        CgTy::Bool => {
-                            let loaded = cg
-                                .builder
-                                .build_load(
-                                    cg.llvm_basic_type_of(span, CgTy::Bool)?,
-                                    local.ptr,
-                                    "intercept_cap_load_bool",
-                                )?
-                                .into_int_value();
-                            let extended = cg.builder.build_int_z_extend(
-                                loaded,
-                                i64_ty,
-                                "intercept_cap_zext_bool",
-                            )?;
-                            let _ = cg.builder.build_store(field_ptr, extended)?;
-                        }
-                        CgTy::Int(int_ty_info) => {
-                            if int_ty_info.bits > 64 {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: capture int width > 64",
-                                    at: span.into(),
-                                });
-                            }
+                        CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                             let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded = cg
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "intercept_cap_load_int")?
-                                .into_int_value();
-                            let extended = if int_ty_info.bits == 64 {
-                                loaded
-                            } else if int_ty_info.signed {
-                                cg.builder.build_int_s_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "intercept_cap_sext_int",
-                                )?
-                            } else {
-                                cg.builder.build_int_z_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "intercept_cap_zext_int",
-                                )?
-                            };
-                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                            let loaded =
+                                cg.builder
+                                    .build_load(llvm_ty, local.ptr, "intercept_cap_load")?;
+                            let loaded_v = cg.cg_value_from_loaded(span, cap.ty, loaded)?;
+                            let word = cg.coerce_u64_word(span, loaded_v)?;
+                            let _ = cg.builder.build_store(field_ptr, word)?;
                         }
                         _ => unreachable!("captures filtered by type"),
                     }
@@ -6388,50 +6346,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 },
                             )?;
                         }
-                        CgTy::Bool => {
-                            let loaded = cg
-                                .builder
-                                .build_load(
-                                    cg.llvm_basic_type_of(span, CgTy::Bool)?,
-                                    local.ptr,
-                                    "intercept_lift_load_bool",
-                                )?
-                                .into_int_value();
-                            let extended = cg.builder.build_int_z_extend(
-                                loaded,
-                                i64_ty,
-                                "intercept_lift_zext_bool",
-                            )?;
-                            let _ = cg.builder.build_store(field_ptr, extended)?;
-                        }
-                        CgTy::Int(int_ty_info) => {
-                            if int_ty_info.bits > 64 {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: lift int width > 64",
-                                    at: span.into(),
-                                });
-                            }
+                        CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                             let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded = cg
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "intercept_lift_load_int")?
-                                .into_int_value();
-                            let extended = if int_ty_info.bits == 64 {
-                                loaded
-                            } else if int_ty_info.signed {
-                                cg.builder.build_int_s_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "intercept_lift_sext_int",
-                                )?
-                            } else {
-                                cg.builder.build_int_z_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "intercept_lift_zext_int",
-                                )?
-                            };
-                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                            let loaded =
+                                cg.builder
+                                    .build_load(llvm_ty, local.ptr, "intercept_lift_load")?;
+                            let loaded_v = cg.cg_value_from_loaded(span, cap.ty, loaded)?;
+                            let word = cg.coerce_u64_word(span, loaded_v)?;
+                            let _ = cg.builder.build_store(field_ptr, word)?;
                         }
                         _ => unreachable!("captures filtered by type"),
                     }
@@ -6721,7 +6643,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
-                CgTy::Bool | CgTy::Int(_) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!("captures filtered by type"),
@@ -6741,7 +6663,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
-                CgTy::Bool | CgTy::Int(_) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!("captures filtered by type"),
@@ -6885,51 +6807,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                     )?;
                 }
-                CgTy::Bool => {
-                    let loaded = self
-                        .builder
-                        .build_load(
-                            self.llvm_basic_type_of(span, CgTy::Bool)?,
-                            local.ptr,
-                            "cont_state_capture_load_bool",
-                        )?
-                        .into_int_value();
-                    let extended = self.builder.build_int_z_extend(
-                        loaded,
-                        i64_ty,
-                        "cont_state_capture_zext_bool",
-                    )?;
-                    let _ = self.builder.build_store(field_ptr, extended)?;
-                }
-                CgTy::Int(int_ty) => {
-                    if int_ty.bits > 64 {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture int width > 64",
-                            at: span.into(),
-                        });
-                    }
-
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                    let loaded = self
-                        .builder
-                        .build_load(llvm_ty, local.ptr, "cont_state_capture_load_int")?
-                        .into_int_value();
-                    let extended = if int_ty.bits == 64 {
-                        loaded
-                    } else if int_ty.signed {
-                        self.builder.build_int_s_extend(
-                            loaded,
-                            i64_ty,
-                            "cont_state_capture_sext_int",
-                        )?
-                    } else {
-                        self.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "cont_state_capture_zext_int",
-                        )?
-                    };
-                    let _ = self.builder.build_store(field_ptr, extended)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_ty, local.ptr, "cont_state_capture_load")?;
+                    let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
+                    let word = self.coerce_u64_word(span, loaded_v)?;
+                    let _ = self.builder.build_store(field_ptr, word)?;
                 }
                 _ => unreachable!("captures filtered by type"),
             }
@@ -7011,51 +6896,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                     )?;
                 }
-                CgTy::Bool => {
-                    let loaded = self
-                        .builder
-                        .build_load(
-                            self.llvm_basic_type_of(span, CgTy::Bool)?,
-                            local.ptr,
-                            "cont_state_capture_load_bool",
-                        )?
-                        .into_int_value();
-                    let extended = self.builder.build_int_z_extend(
-                        loaded,
-                        i64_ty,
-                        "cont_state_capture_zext_bool",
-                    )?;
-                    let _ = self.builder.build_store(field_ptr, extended)?;
-                }
-                CgTy::Int(int_ty) => {
-                    if int_ty.bits > 64 {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture int width > 64",
-                            at: span.into(),
-                        });
-                    }
-
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                    let loaded = self
-                        .builder
-                        .build_load(llvm_ty, local.ptr, "cont_state_capture_load_int")?
-                        .into_int_value();
-                    let extended = if int_ty.bits == 64 {
-                        loaded
-                    } else if int_ty.signed {
-                        self.builder.build_int_s_extend(
-                            loaded,
-                            i64_ty,
-                            "cont_state_capture_sext_int",
-                        )?
-                    } else {
-                        self.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "cont_state_capture_zext_int",
-                        )?
-                    };
-                    let _ = self.builder.build_store(field_ptr, extended)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_ty, local.ptr, "cont_state_capture_load")?;
+                    let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
+                    let word = self.coerce_u64_word(span, loaded_v)?;
+                    let _ = self.builder.build_store(field_ptr, word)?;
                 }
                 _ => unreachable!("captures filtered by type"),
             }
@@ -7256,6 +7104,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -7373,7 +7223,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(local) = self.env.get(*id)
                 && matches!(
                     local.ty,
-                    CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
+                    CgTy::Ref
+                        | CgTy::String
+                        | CgTy::Bool
+                        | CgTy::Float64
+                        | CgTy::Float32
+                        | CgTy::Int(_)
                 )
             {
                 outer_captures.push(CapturedLocal {
@@ -7462,14 +7317,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for cap in &outer_captures {
                 fields.push(match cap.ty {
                     CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
                     _ => unreachable!("captures filtered by type"),
                 });
             }
             for cap in &body_lifts {
                 fields.push(match cap.ty {
                     CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
                     _ => unreachable!("lifts filtered by type"),
                 });
             }
@@ -7598,49 +7453,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             },
                         );
                     }
-                    CgTy::Bool => {
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                         let loaded = cg
                             .builder
-                            .build_load(i64_ty, field_ptr, "step_cap_bool")?
+                            .build_load(i64_ty, field_ptr, "step_cap_scalar")?
                             .into_int_value();
-                        let b = cg.builder.build_int_compare(
-                            IntPredicate::NE,
-                            loaded,
-                            i64_ty.const_zero(),
-                            "step_cap_bool_cmp",
-                        )?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
-                        let _ = cg.builder.build_store(ptr, b)?;
+                        let restored = cg.decode_u64_word_to_cg_value(span, loaded, cap.ty)?;
+                        let ptr = cg.create_entry_alloca(span, &name, cap.ty)?;
+                        let _ = cg.store_local_value(span, ptr, cap.ty, restored)?;
                         cg.env.insert(
                             cap.id,
                             CgLocal {
                                 hir_ty: cap.hir_ty,
-                                ty: CgTy::Bool,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Int(int_ty) => {
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "step_cap_int")?
-                            .into_int_value();
-                        let to = cg.int_type(int_ty);
-                        let v = if int_ty.bits == 64 {
-                            loaded
-                        } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "step_cap_trunc")?
-                        };
-                        let slot_ty = CgTy::Int(int_ty);
-                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
-                        let _ = cg.builder.build_store(ptr, v)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: slot_ty,
+                                ty: cap.ty,
                                 ptr,
                                 mutable: cap.mutable,
                             },
@@ -7658,26 +7483,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_struct_gep(state_ty, state_ptr, field_idx, "step_lift_gep")?;
                 let name = format!("lift_{}", cap.id.as_u32());
                 match cap.ty {
-                    CgTy::Int(int_ty) => {
+                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                         let loaded = cg
                             .builder
-                            .build_load(i64_ty, field_ptr, "step_lift_int")?
+                            .build_load(i64_ty, field_ptr, "step_lift_scalar")?
                             .into_int_value();
-                        let to = cg.int_type(int_ty);
-                        let v = if int_ty.bits == 64 {
-                            loaded
-                        } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "step_lift_trunc")?
-                        };
-                        let slot_ty = CgTy::Int(int_ty);
-                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
-                        let _ = cg.builder.build_store(ptr, v)?;
+                        let restored = cg.decode_u64_word_to_cg_value(span, loaded, cap.ty)?;
+                        let ptr = cg.create_entry_alloca(span, &name, cap.ty)?;
+                        let _ = cg.store_local_value(span, ptr, cap.ty, restored)?;
                         cg.env.insert(
                             cap.id,
                             CgLocal {
                                 hir_ty: cap.hir_ty,
-                                ty: slot_ty,
+                                ty: cap.ty,
                                 ptr,
                                 mutable: cap.mutable,
                             },
@@ -7718,29 +7536,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             CgLocal {
                                 hir_ty: cap.hir_ty,
                                 ty: CgTy::String,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Bool => {
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "step_lift_bool")?
-                            .into_int_value();
-                        let b = cg.builder.build_int_compare(
-                            IntPredicate::NE,
-                            loaded,
-                            i64_ty.const_zero(),
-                            "step_lift_bool_cmp",
-                        )?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
-                        let _ = cg.builder.build_store(ptr, b)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::Bool,
                                 ptr,
                                 mutable: cap.mutable,
                             },
@@ -8030,7 +7825,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
-                CgTy::Bool | CgTy::Int(_) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!(),
@@ -8050,7 +7845,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
-                CgTy::Bool | CgTy::Int(_) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!(),
@@ -8591,6 +8386,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
             CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
             | CgTy::Int(_)
             | CgTy::String
             | CgTy::Ref
@@ -8913,6 +8710,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                let word = self.coerce_u64_word(value_expr.span, value)?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
+                let _ = self.builder.build_store(word_ptr, word)?;
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
+            }
             CgTy::Int(_) => {
                 let word = self.coerce_u64_word(value_expr.span, value)?;
                 let word_ptr =
@@ -9142,6 +8953,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     signed: false,
                 };
                 Ok(self.cast_int(raw, from, to)?)
+            }
+            CgTy::Float64 => {
+                let (raw, _) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "u64 word from float64",
+                    at: at.into(),
+                })?;
+                Ok(self
+                    .builder
+                    .build_bit_cast(raw, i64_ty, "f64_to_u64_bits")?
+                    .into_int_value())
+            }
+            CgTy::Float32 => {
+                let (raw, _) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "u64 word from float32",
+                    at: at.into(),
+                })?;
+                let bits32 = self
+                    .builder
+                    .build_bit_cast(raw, self.context.i32_type(), "f32_to_u32_bits")?
+                    .into_int_value();
+                Ok(self
+                    .builder
+                    .build_int_z_extend(bits32, i64_ty, "u32_to_u64_bits")?)
             }
             CgTy::String | CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "u64 word from gc pointer (ptr<->int is forbidden)",

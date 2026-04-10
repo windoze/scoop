@@ -1522,6 +1522,70 @@ mod tests {
     }
 
     #[test]
+    fn float_builtin_types_lower_to_llvm_scalars() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_seed64")
+fun seed64(): Float64
+
+@Extern(name = "scoop_test_seed32")
+fun seed32(): Float32
+
+fun id64(x: Float64): Float64 {
+    return x
+}
+
+fun id32(x: Float32): Float32 {
+    return x
+}
+
+fun choose(flag: Bool, left: Float64, right: Float64): Float64 {
+    if (flag) {
+        return left
+    }
+    return right
+}
+
+fun main() {
+    val a64: Float64 = seed64()
+    val a32: Float32 = seed32()
+    val b64: Float64 = id64(a64)
+    val b32: Float32 = id32(a32)
+    val c64: Float64 = choose(true, b64, a64)
+}
+"#,
+        );
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("define double @a.id64("),
+            "Float64 should lower to LLVM double in function signatures"
+        );
+        assert!(
+            ir.contains("define float @a.id32("),
+            "Float32 should lower to LLVM float in function signatures"
+        );
+        assert!(
+            ir.contains("declare double @scoop_test_seed64()"),
+            "extern Float64 function should keep double ABI"
+        );
+        assert!(
+            ir.contains("declare float @scoop_test_seed32()"),
+            "extern Float32 function should keep float ABI"
+        );
+        assert!(
+            ir.contains("call double @a.choose("),
+            "Float64 return values should stay on the LLVM scalar path through calls"
+        );
+    }
+
+    #[test]
     fn lowered_hir_codegen_accepts_multi_file_source_map() {
         let session = Session::new().unwrap();
 

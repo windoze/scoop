@@ -50,8 +50,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: 32,
                 signed: false,
             })),
-            // T0147a：Float builtin 类型身份已接入静态基础设施；LLVM 标量映射留待 T0147b。
-            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32) => None,
+            TypeKind::Value(ValueTypeKind::Float64) => Some(CgTy::Float64),
+            TypeKind::Value(ValueTypeKind::Float32) => Some(CgTy::Float32),
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
@@ -242,6 +242,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: 32,
                 signed: false,
             })),
+            "scoop.core.Float64" => Ok(CgTy::Float64),
+            "scoop.core.Float32" => Ok(CgTy::Float32),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
@@ -311,6 +313,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 说明：Unit 没有运行期值；当前阶段仅用于”可放入 alloca”与保持 load/store 管线统一。
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
+            CgTy::Float64 => self.context.f64_type().into(),
+            CgTy::Float32 => self.context.f32_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
             CgTy::String => self.llvm_scoop_string_ptr_type().into(),
             CgTy::Ref => self.llvm_gc_i8_ptr_type().into(),
