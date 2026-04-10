@@ -340,14 +340,15 @@ fn check_fun_override(
         }),
         (true, matches) => {
             if let Some(first) = matches.first()
-                && matches.iter().all(|o| !o.symbol.modifiers.is_overridable()) {
-                    return Err(InheritanceError::CannotOverrideFinalMember {
-                        base_fqn: base_fqn.to_string(),
-                        member: name,
-                        span: f.name.span.into(),
-                        base_span: first.symbol.span.into(),
-                    });
-                }
+                && matches.iter().all(|o| !o.symbol.modifiers.is_overridable())
+            {
+                return Err(InheritanceError::CannotOverrideFinalMember {
+                    base_fqn: base_fqn.to_string(),
+                    member: name,
+                    span: f.name.span.into(),
+                    base_span: first.symbol.span.into(),
+                });
+            }
             Ok(())
         }
         (false, matches) if !matches.is_empty() => {

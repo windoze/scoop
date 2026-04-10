@@ -248,19 +248,20 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     if let Some((cone_root, build_json)) = incremental_ctx.clone()
         && output.is_file()
-            && let Some(cached) = incremental::read_cached_fingerprint(&build_json)? {
-                let fp = incremental::compute_cone_build_fingerprint(
-                    &cone_root,
-                    profile.as_str(),
-                    entry_package_for_fingerprint.as_deref(),
-                    opt_level,
-                )?;
-                if fp.fingerprint == cached {
-                    eprintln!("skipping build (cache hit)");
-                    return Ok(());
-                }
-                computed_fingerprint = Some(fp);
-            }
+        && let Some(cached) = incremental::read_cached_fingerprint(&build_json)?
+    {
+        let fp = incremental::compute_cone_build_fingerprint(
+            &cone_root,
+            profile.as_str(),
+            entry_package_for_fingerprint.as_deref(),
+            opt_level,
+        )?;
+        if fp.fingerprint == cached {
+            eprintln!("skipping build (cache hit)");
+            return Ok(());
+        }
+        computed_fingerprint = Some(fp);
+    }
 
     let session = scoopc::session::Session::new()?;
 
@@ -447,9 +448,9 @@ fn default_output_path_for_input_and_emit(
     if emit == BuildEmit::Executable
         && let (Some(root), Some(manifest)) =
             (input.cone_root.as_ref(), input.cone_manifest.as_ref())
-        {
-            return layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
-        }
+    {
+        return layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
+    }
     default_output_path_for_emit(emit)
 }
 
@@ -726,9 +727,10 @@ fn find_consumer_package_decl_span(
 
     // fallback：锚点 main 文件的 package（如果存在）。
     if let Some(anchor) = input.cone_anchor_main_index
-        && let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref()) {
-            return pkg.span.into();
-        }
+        && let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref())
+    {
+        return pkg.span.into();
+    }
 
     scoopc::span::Span::new(0, 0).into()
 }
@@ -791,13 +793,14 @@ fn select_cone_entry_main(
 
     if let Some(syms) = index.by_fqn.get(&entry_main_fqn)
         && let Some(overload) = syms.fun.first()
-            && overload.symbol.decl_cone != consumer_cone {
-                return Err(EntryPackageMainNotInConsumerCone {
-                    entry_package,
-                    decl_file: overload.symbol.decl_file.display().to_string(),
-                }
-                .into());
-            }
+        && overload.symbol.decl_cone != consumer_cone
+    {
+        return Err(EntryPackageMainNotInConsumerCone {
+            entry_package,
+            decl_file: overload.symbol.decl_file.display().to_string(),
+        }
+        .into());
+    }
 
     let span = find_consumer_package_decl_span(input, asts, &entry_package);
     Err(EntryPackageMissingMain {

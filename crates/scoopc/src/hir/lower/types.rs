@@ -150,7 +150,6 @@ pub enum HirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
-
 }
 
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。

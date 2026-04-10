@@ -189,12 +189,8 @@ fn check_when_pat(
 
             let type_param_set: HashSet<&str> =
                 decl.type_params.iter().map(|s| s.as_str()).collect();
-            let subst: HashMap<String, TypeId> = decl
-                .type_params
-                .iter()
-                .cloned()
-                .zip(enum_args)
-                .collect();
+            let subst: HashMap<String, TypeId> =
+                decl.type_params.iter().cloned().zip(enum_args).collect();
 
             for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
                 let expected_field_ty = lower_type_ref_with_enum_subst(

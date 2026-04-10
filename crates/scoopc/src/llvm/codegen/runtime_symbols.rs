@@ -2,6 +2,7 @@
 //!
 //! 注意：这里仅负责“符号名字符串”，签名/调用约定见 `runtime_abi.rs`。
 
+#[allow(dead_code)]
 pub(super) const SCOOP_ALLOC: &str = "scoop_alloc";
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_CLEAR: &str = "scoop_callee_suspend_state_clear";
@@ -24,6 +25,7 @@ pub(super) const SCOOP_CHANNELS_RECV_U64: &str = "scoop_channels_recv_u64";
 pub(super) const SCOOP_CHANNELS_SEND_U64: &str = "scoop_channels_send_u64";
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
 pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
+#[allow(dead_code)]
 pub(super) const SCOOP_CONTINUATION_RESUME_U64: &str = "scoop_continuation_resume_u64";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
@@ -55,6 +57,7 @@ pub(super) const SCOOP_EXECUTOR_RUN_NEXT: &str = "scoop_executor_run_next";
 pub(super) const SCOOP_EXECUTOR_RUN_UNTIL_IDLE: &str = "scoop_executor_run_until_idle";
 pub(super) const SCOOP_FS_READ_ALL_TEXT_UTF8: &str = "scoop_fs_read_all_text_utf8";
 pub(super) const SCOOP_FS_WRITE_ALL_TEXT_UTF8: &str = "scoop_fs_write_all_text_utf8";
+#[allow(dead_code)]
 pub(super) const SCOOP_GC_COLLECT: &str = "scoop_gc_collect";
 pub(super) const SCOOP_GC_COLLECT_SAFEPOINT: &str = "scoop_gc_collect_safepoint";
 pub(super) const SCOOP_GC_DEBUG_ALLOC_GARBAGE: &str = "scoop_gc_debug_alloc_garbage";

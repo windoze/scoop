@@ -21,8 +21,8 @@ use super::super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
     ClassField, ClassInit, ClassInitIndex, ClassInitStep, CtorCallSiteIndex, EnumLayout,
     EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, ExternAbi, ExternFun,
-    ExternFunIndex, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef,
-    ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, StmtKind, StructCLayout,
+    ExternFunIndex, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef, ObjectInit,
+    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, StmtKind, StructCLayout,
     StructFieldLayout, StructLayout, StructLayoutIndex, SymbolId, ValueRef, WhenPat,
 };
 
@@ -1674,9 +1674,10 @@ fn collect_extern_libs_in_annotations(
         }
         let args = parse_extern_annotation_args(source, ann);
         if let Some(lib) = args.lib
-            && !lib.is_empty() {
-                out.insert(lib);
-            }
+            && !lib.is_empty()
+        {
+            out.insert(lib);
+        }
     }
 }
 
@@ -1722,9 +1723,10 @@ fn parse_calling_convention_annotation_arg(
     };
 
     if let Some(key) = key
-        && key != "name" {
-            return None;
-        }
+        && key != "name"
+    {
+        return None;
+    }
 
     if !matches!(value?.kind, ast::ExprKind::StringLit) {
         return None;
@@ -2092,11 +2094,19 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             let ast::Item::Type(ty) = item else { continue };
-            if !matches!(ty.kind, ast::TypeKind::Struct) { continue }
-            if ty.type_params.is_empty() { continue }
+            if !matches!(ty.kind, ast::TypeKind::Struct) {
+                continue;
+            }
+            if ty.type_params.is_empty() {
+                continue;
+            }
 
             let name = ty.name.text(source).to_string();
-            let fqn = if pkg_prefix.is_empty() { name } else { format!("{pkg_prefix}.{name}") };
+            let fqn = if pkg_prefix.is_empty() {
+                name
+            } else {
+                format!("{pkg_prefix}.{name}")
+            };
             generic_structs.insert(fqn, (source, ty));
         }
     }
@@ -2108,17 +2118,27 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
     // 2) 扫描 TypeStore 中的具体实例化
     let mut out: StructLayoutIndex = HashMap::new();
     for ty_id in types.iter_ids() {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
-        if nominal.args.is_empty() { continue }
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
+            continue;
+        };
+        if nominal.args.is_empty() {
+            continue;
+        }
 
-        let Some((source, decl)) = generic_structs.get(&nominal.fqn) else { continue };
+        let Some((source, decl)) = generic_structs.get(&nominal.fqn) else {
+            continue;
+        };
 
         let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
-        if out.contains_key(&mangled) { continue }
+        if out.contains_key(&mangled) {
+            continue;
+        }
 
         // 构建 type param name → concrete TypeId 映射
         let type_params = &decl.type_params;
-        if type_params.len() != nominal.args.len() { continue }
+        if type_params.len() != nominal.args.len() {
+            continue;
+        }
 
         let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
         for (idx, p) in type_params.iter().enumerate() {
@@ -2145,11 +2165,14 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             }
         }
 
-        out.insert(mangled.clone(), StructLayout {
-            fqn: mangled,
-            fields,
-            c_layout: None,
-        });
+        out.insert(
+            mangled.clone(),
+            StructLayout {
+                fqn: mangled,
+                fields,
+                c_layout: None,
+            },
+        );
     }
 
     out
@@ -2168,11 +2191,19 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             let ast::Item::Type(ty) = item else { continue };
-            if !matches!(ty.kind, ast::TypeKind::Enum) { continue }
-            if ty.type_params.is_empty() { continue }
+            if !matches!(ty.kind, ast::TypeKind::Enum) {
+                continue;
+            }
+            if ty.type_params.is_empty() {
+                continue;
+            }
 
             let name = ty.name.text(source).to_string();
-            let fqn = if pkg_prefix.is_empty() { name } else { format!("{pkg_prefix}.{name}") };
+            let fqn = if pkg_prefix.is_empty() {
+                name
+            } else {
+                format!("{pkg_prefix}.{name}")
+            };
             generic_enums.insert(fqn, (source, ty));
         }
     }
@@ -2184,16 +2215,26 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
     // 2) 扫描 TypeStore
     let mut out: EnumLayoutIndex = HashMap::new();
     for ty_id in types.iter_ids() {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
-        if nominal.args.is_empty() { continue }
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
+            continue;
+        };
+        if nominal.args.is_empty() {
+            continue;
+        }
 
-        let Some((source, decl)) = generic_enums.get(&nominal.fqn) else { continue };
+        let Some((source, decl)) = generic_enums.get(&nominal.fqn) else {
+            continue;
+        };
 
         let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
-        if out.contains_key(&mangled) { continue }
+        if out.contains_key(&mangled) {
+            continue;
+        }
 
         let type_params = &decl.type_params;
-        if type_params.len() != nominal.args.len() { continue }
+        if type_params.len() != nominal.args.len() {
+            continue;
+        }
 
         let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
         for (idx, p) in type_params.iter().enumerate() {
@@ -2206,7 +2247,9 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
 
         if let Some(body) = &decl.body {
             for member in &body.members {
-                let ast::TypeMember::EnumVariant(v) = member else { continue };
+                let ast::TypeMember::EnumVariant(v) = member else {
+                    continue;
+                };
                 let variant_name = v.name.text(source).to_string();
                 let tag = next_tag;
                 next_tag = next_tag.saturating_add(1);
@@ -2231,11 +2274,14 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
             }
         }
 
-        out.insert(mangled.clone(), EnumLayout {
-            fqn: mangled,
-            repr: EnumRepr::TaggedUnion,
-            variants,
-        });
+        out.insert(
+            mangled.clone(),
+            EnumLayout {
+                fqn: mangled,
+                repr: EnumRepr::TaggedUnion,
+                variants,
+            },
+        );
     }
 
     out
@@ -2257,7 +2303,13 @@ pub(super) fn collect_generic_class_instantiation_inits(
     let mut generic_classes: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
-        collect_generic_class_decls_in_items(source, &pkg_prefix, &pkg_prefix, &file.items, &mut generic_classes);
+        collect_generic_class_decls_in_items(
+            source,
+            &pkg_prefix,
+            &pkg_prefix,
+            &file.items,
+            &mut generic_classes,
+        );
     }
 
     if generic_classes.is_empty() {
@@ -2267,19 +2319,31 @@ pub(super) fn collect_generic_class_instantiation_inits(
     // 2) 扫描 TypeStore 中的具体实例化（class 是 ref type → RefTypeKind::Nominal）
     let mut out: ClassInitIndex = HashMap::new();
     for ty_id in types.iter_ids() {
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
-        if nominal.args.is_empty() { continue }
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
+            continue;
+        };
+        if nominal.args.is_empty() {
+            continue;
+        }
 
-        let Some((source, decl)) = generic_classes.get(&nominal.fqn) else { continue };
+        let Some((source, decl)) = generic_classes.get(&nominal.fqn) else {
+            continue;
+        };
 
         let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
-        if out.contains_key(&mangled) { continue }
+        if out.contains_key(&mangled) {
+            continue;
+        }
 
         // base ClassInit 必须存在
-        let Some(base_init) = base_class_inits.get(&nominal.fqn) else { continue };
+        let Some(base_init) = base_class_inits.get(&nominal.fqn) else {
+            continue;
+        };
 
         let type_params = &decl.type_params;
-        if type_params.len() != nominal.args.len() { continue }
+        if type_params.len() != nominal.args.len() {
+            continue;
+        }
 
         // 构建 type param name → concrete TypeId 映射
         let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
@@ -2330,18 +2394,21 @@ pub(super) fn collect_generic_class_instantiation_inits(
             })
             .collect();
 
-        out.insert(mangled.clone(), ClassInit {
-            fqn: mangled,
-            source_path: base_init.source_path.clone(),
-            super_class_fqn: base_init.super_class_fqn.clone(),
-            super_ctor_args_span: base_init.super_ctor_args_span,
-            super_ctor_args: base_init.super_ctor_args.clone(),
-            this_id: base_init.this_id,
-            fields,
-            field_indices,
-            steps: base_init.steps.clone(),
-            ctors,
-        });
+        out.insert(
+            mangled.clone(),
+            ClassInit {
+                fqn: mangled,
+                source_path: base_init.source_path.clone(),
+                super_class_fqn: base_init.super_class_fqn.clone(),
+                super_ctor_args_span: base_init.super_ctor_args_span,
+                super_ctor_args: base_init.super_ctor_args.clone(),
+                this_id: base_init.this_id,
+                fields,
+                field_indices,
+                steps: base_init.steps.clone(),
+                ctors,
+            },
+        );
     }
 
     out
@@ -2371,7 +2438,9 @@ fn collect_generic_class_decls_in_items<'a>(
                         if let ast::TypeMember::Type(nested) = member {
                             let nested_name = nested.name.text(source).to_string();
                             let nested_fqn = join_prefix(&fqn, &nested_name);
-                            if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
+                            if matches!(nested.kind, ast::TypeKind::Class)
+                                && !nested.type_params.is_empty()
+                            {
                                 out.insert(nested_fqn, (source, nested));
                             }
                         }
@@ -2387,7 +2456,9 @@ fn collect_generic_class_decls_in_items<'a>(
                             if let ast::TypeMember::Type(nested) = member {
                                 let nested_name = nested.name.text(source).to_string();
                                 let nested_fqn = join_prefix(&obj_fqn, &nested_name);
-                                if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
+                                if matches!(nested.kind, ast::TypeKind::Class)
+                                    && !nested.type_params.is_empty()
+                                {
                                     out.insert(nested_fqn, (source, nested));
                                 }
                             }
@@ -2407,9 +2478,7 @@ fn substitute_type_param(
     param_map: &HashMap<String, crate::ty::TypeId>,
 ) -> crate::ty::TypeId {
     match types.kind(ty) {
-        TypeKind::Param(p) => {
-            param_map.get(&p.name).copied().unwrap_or(ty)
-        }
+        TypeKind::Param(p) => param_map.get(&p.name).copied().unwrap_or(ty),
         _ => ty,
     }
 }
@@ -2424,12 +2493,14 @@ fn resolve_field_type_fqn(
     let ty_ref = ty_ref?;
     // 如果是简单路径（单段），检查是否为 type param
     if let ast::TypeRef::Path(path) = ty_ref
-        && path.segments.len() == 1 && path.args.is_empty() {
-            let name = path.segments[0].text(source);
-            if let Some(concrete_ty) = param_map.get(name) {
-                return type_id_to_layout_fqn(types, *concrete_ty);
-            }
+        && path.segments.len() == 1
+        && path.args.is_empty()
+    {
+        let name = path.segments[0].text(source);
+        if let Some(concrete_ty) = param_map.get(name) {
+            return type_id_to_layout_fqn(types, *concrete_ty);
         }
+    }
     // 非 type param：暂不解析（泛型嵌套留到后续任务）
     None
 }
@@ -2484,7 +2555,11 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
             continue;
         }
         // 跳过仍包含 Param 类型的实例化（例如 Box<T>）
-        if nominal.args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
+        if nominal
+            .args
+            .iter()
+            .any(|&a| matches!(types.kind(a), TypeKind::Param(_)))
+        {
             continue;
         }
 
@@ -2640,8 +2715,10 @@ pub(super) fn collect_generic_fun_instantiations(
     }
 
     // 1) 索引泛型顶层函数：(fqn, decl_span) → (source, file, fun_decl)
-    let mut generic_funs: HashMap<(String, crate::span::Span), (&SourceFile, &ast::File, &ast::FunDecl)> =
-        HashMap::new();
+    let mut generic_funs: HashMap<
+        (String, crate::span::Span),
+        (&SourceFile, &ast::File, &ast::FunDecl),
+    > = HashMap::new();
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
@@ -2679,7 +2756,10 @@ pub(super) fn collect_generic_fun_instantiations(
             .collect();
 
         // 跳过仍含 Param 类型的 key（泛型传递调用）
-        if re_interned_args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
+        if re_interned_args
+            .iter()
+            .any(|&a| matches!(types.kind(a), TypeKind::Param(_)))
+        {
             continue;
         }
 
@@ -2713,14 +2793,7 @@ pub(super) fn collect_generic_fun_instantiations(
             .collect();
 
         let mut hir_fun = super::lower_fun_with_type_bindings(
-            source,
-            file,
-            index,
-            type_kinds,
-            types,
-            builtins,
-            fun_decl,
-            bindings,
+            source, file, index, type_kinds, types, builtins, fun_decl, bindings,
         );
 
         hir_fun.fqn = instance_fqn;

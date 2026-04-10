@@ -387,9 +387,10 @@ impl<'a> BlockScopeChecker<'a> {
             if p.is_vararg {
                 let name = p.name.text(self.source).to_string();
                 if let Some(cur) = self.scopes.last_mut()
-                    && let Some(binding) = cur.get_mut(&name) {
-                        binding.ty_fqn_override = Some("scoop.core.Array".to_string());
-                    }
+                    && let Some(binding) = cur.get_mut(&name)
+                {
+                    binding.ty_fqn_override = Some("scoop.core.Array".to_string());
+                }
             }
             if let Some(default) = &mut p.default_value {
                 self.check_expr(default)?;
@@ -1285,11 +1286,12 @@ impl<'a> BlockScopeChecker<'a> {
 
             if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 return Ok(Some(fqn.to_string()));
-            } else if syms.has_fun() && not_visible.is_none()
-                && let Some(first) = syms.first_fun() {
-                    not_visible =
-                        Some((fqn.to_string(), first.symbol.visibility, first.symbol.span));
-                }
+            } else if syms.has_fun()
+                && not_visible.is_none()
+                && let Some(first) = syms.first_fun()
+            {
+                not_visible = Some((fqn.to_string(), first.symbol.visibility, first.symbol.span));
+            }
 
             if let Some(sym) = sym_val {
                 if is_symbol_visible_from(self.use_cone, self.source, sym) {
@@ -1366,11 +1368,12 @@ impl<'a> BlockScopeChecker<'a> {
 
                 if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                     matches.push(fqn.clone());
-                } else if syms.has_fun() && not_visible.is_none()
-                    && let Some(first) = syms.first_fun() {
-                        not_visible =
-                            Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
-                    }
+                } else if syms.has_fun()
+                    && not_visible.is_none()
+                    && let Some(first) = syms.first_fun()
+                {
+                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+                }
             }
 
             !matches.is_empty()
@@ -1390,11 +1393,12 @@ impl<'a> BlockScopeChecker<'a> {
 
         // 2) 显式 import（含 alias）
         if let Some(fqns) = self.imports.value.explicit.get(name)
-            && probe_group(fqns) {
-                matches.sort();
-                matches.dedup();
-                return Ok(matches);
-            }
+            && probe_group(fqns)
+        {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
+        }
 
         // 3) star import（`import pkg.*`）
         let group_star = self
@@ -1462,9 +1466,10 @@ impl<'a> BlockScopeChecker<'a> {
                 {
                     matches.push(ty_fqn.clone());
                 } else if not_visible.is_none()
-                    && let Some(first) = ctors.first() {
-                        not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
-                    }
+                    && let Some(first) = ctors.first()
+                {
+                    not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
+                }
             }
 
             !matches.is_empty()
@@ -1484,11 +1489,12 @@ impl<'a> BlockScopeChecker<'a> {
 
         // 2) 显式 import（含 alias）
         if let Some(fqns) = self.imports.ty.explicit.get(name)
-            && probe_group(fqns) {
-                matches.sort();
-                matches.dedup();
-                return Ok(matches);
-            }
+            && probe_group(fqns)
+        {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
+        }
 
         // 3) star import（`import pkg.*`）
         let group_star = self
@@ -1639,22 +1645,10 @@ impl<'a> BlockScopeChecker<'a> {
         match receiver_kind {
             MemberReceiverKind::Value {
                 ty_fqn: receiver_ty_fqn,
-            } => {
-                self.resolve_member_access_on_value_receiver(
-                    &receiver_ty_fqn,
-                    receiver,
-                    member,
-                )
-            }
+            } => self.resolve_member_access_on_value_receiver(&receiver_ty_fqn, receiver, member),
             MemberReceiverKind::Type {
                 ty_fqn: receiver_ty_fqn,
-            } => {
-                self.resolve_member_access_on_type_receiver(
-                    &receiver_ty_fqn,
-                    receiver,
-                    member,
-                )
-            }
+            } => self.resolve_member_access_on_type_receiver(&receiver_ty_fqn, receiver, member),
         }
     }
 
@@ -1676,28 +1670,29 @@ impl<'a> BlockScopeChecker<'a> {
                 member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
                 return Ok(());
             } else if syms.has_fun()
-                && let Some(first) = syms.first_fun() {
-                    not_visible = Some((
-                        member_fqn.clone(),
-                        first.symbol.visibility,
-                        first.symbol.span,
-                    ));
-                }
+                && let Some(first) = syms.first_fun()
+            {
+                not_visible = Some((
+                    member_fqn.clone(),
+                    first.symbol.visibility,
+                    first.symbol.span,
+                ));
+            }
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
                 if is_symbol_visible_from(self.use_cone, self.source, sym) {
                     // T0316：class 初始化阶段禁止访问"后置属性"（前向引用）。
                     if let Some(init_ctx) = self.init_value_members.last()
                         && init_ctx.this_ty_fqn == receiver_ty_fqn
-                            && self.is_receiver_this(receiver)
-                            && !init_ctx.visible_value_members.contains(member_name)
-                        {
-                            return Err(ResolveError::ForwardReference {
-                                name: member_fqn.clone(),
-                                use_span: member.span.into(),
-                                def_span: sym.span.into(),
-                            });
-                        }
+                        && self.is_receiver_this(receiver)
+                        && !init_ctx.visible_value_members.contains(member_name)
+                    {
+                        return Err(ResolveError::ForwardReference {
+                            name: member_fqn.clone(),
+                            use_span: member.span.into(),
+                            def_span: sym.span.into(),
+                        });
+                    }
                     member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: member_fqn });
                     return Ok(());
                 }
@@ -1726,8 +1721,7 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         // T0112：extension property fallback。
-        let ext_prop_candidates =
-            self.extension_property_candidates(receiver_ty_fqn, member_name);
+        let ext_prop_candidates = self.extension_property_candidates(receiver_ty_fqn, member_name);
         if let Some(fqn) = ext_prop_candidates.first().cloned() {
             member.resolved = Some(ast::ResolvedMemberRef::ExtensionValue { fqn });
             return Ok(());
@@ -1765,8 +1759,7 @@ impl<'a> BlockScopeChecker<'a> {
         // T1812: Int.toString() — 内建数值→文本转换。
         // T1817: Int.hash() — 内建哈希。
         if receiver_ty_fqn == "scoop.core.Int" {
-            let is_known_int_method = member_name == "toString"
-                || member_name == "hash";
+            let is_known_int_method = member_name == "toString" || member_name == "hash";
             if is_known_int_method {
                 return Ok(());
             }
@@ -1867,10 +1860,10 @@ impl<'a> BlockScopeChecker<'a> {
             }
 
             if not_visible.is_none()
-                && let Some(first) = syms.first_fun() {
-                    not_visible =
-                        Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
-                }
+                && let Some(first) = syms.first_fun()
+            {
+                not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+            }
         }
 
         // 2) star import：`import pkg.*` 引入该 package 下的 extension。
@@ -1904,10 +1897,11 @@ impl<'a> BlockScopeChecker<'a> {
                 }
 
                 if not_visible.is_none()
-                    && let Some(first) = syms.first_fun() {
-                        not_visible =
-                            Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
-                    }
+                    && let Some(first) = syms.first_fun()
+                {
+                    not_visible =
+                        Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                }
             }
         }
 
@@ -1941,10 +1935,11 @@ impl<'a> BlockScopeChecker<'a> {
                     }
 
                     if not_visible.is_none()
-                        && let Some(first) = syms.first_fun() {
-                            not_visible =
-                                Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
-                        }
+                        && let Some(first) = syms.first_fun()
+                    {
+                        not_visible =
+                            Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    }
                 }
             }
         }
@@ -1953,14 +1948,15 @@ impl<'a> BlockScopeChecker<'a> {
         candidates.dedup();
 
         if candidates.is_empty()
-            && let Some((name, visibility, def_span)) = not_visible {
-                return Err(ResolveError::NotVisible {
-                    name,
-                    visibility,
-                    use_span: use_span.into(),
-                    def_span: def_span.into(),
-                });
-            }
+            && let Some((name, visibility, def_span)) = not_visible
+        {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: use_span.into(),
+                def_span: def_span.into(),
+            });
+        }
 
         Ok(candidates)
     }
@@ -2120,12 +2116,11 @@ impl<'a> BlockScopeChecker<'a> {
         for bound_fqn in bounds {
             let candidate_fqn = format!("{bound_fqn}.{member_name}");
             if let Some(syms) = self.index.by_fqn.get(&candidate_fqn)
-                && syms.any_visible_fun(self.use_cone, self.source).is_some() {
-                    member.resolved = Some(ast::ResolvedMemberRef::Fun {
-                        fqn: candidate_fqn,
-                    });
-                    return Ok(());
-                }
+                && syms.any_visible_fun(self.use_cone, self.source).is_some()
+            {
+                member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: candidate_fqn });
+                return Ok(());
+            }
         }
 
         Ok(())
@@ -2142,26 +2137,27 @@ impl<'a> BlockScopeChecker<'a> {
 
         // 1) `TypeName.NestedObject`：若该成员本身是一个 object（同时存在 type+value 符号），直接解析到该 object 值。
         if let Some(syms) = self.index.by_fqn.get(&direct_fqn)
-            && syms.get(SymbolKind::Type).is_some() {
-                let mut not_visible: Option<(String, Visibility, Span)> = None;
+            && syms.get(SymbolKind::Type).is_some()
+        {
+            let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-                if let Some(sym) = syms.get(SymbolKind::Value) {
-                    if is_symbol_visible_from(self.use_cone, self.source, sym) {
-                        member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: direct_fqn });
-                        return Ok(());
-                    }
-                    not_visible = Some((direct_fqn.clone(), sym.visibility, sym.span));
+            if let Some(sym) = syms.get(SymbolKind::Value) {
+                if is_symbol_visible_from(self.use_cone, self.source, sym) {
+                    member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: direct_fqn });
+                    return Ok(());
                 }
-
-                if let Some((name, visibility, def_span)) = not_visible {
-                    return Err(ResolveError::NotVisible {
-                        name,
-                        visibility,
-                        use_span: member.span.into(),
-                        def_span: def_span.into(),
-                    });
-                }
+                not_visible = Some((direct_fqn.clone(), sym.visibility, sym.span));
             }
+
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: member.span.into(),
+                    def_span: def_span.into(),
+                });
+            }
+        }
 
         // 1.5) `EffectName.op`：effect operation 的限定引用（spec §5.2）。
         //
@@ -2216,16 +2212,17 @@ impl<'a> BlockScopeChecker<'a> {
             // - 这避免了 "private companion object 但成员 public" 这类绕过可见性的情况。
             if let Some(companion_syms) = self.index.by_fqn.get(c)
                 && let Some(companion_value) = companion_syms.get(SymbolKind::Value)
-                    && !is_symbol_visible_from(self.use_cone, self.source, companion_value) {
-                        if not_visible.is_none() {
-                            not_visible = Some((
-                                format!("{c}.{member_name}"),
-                                companion_value.visibility,
-                                companion_value.span,
-                            ));
-                        }
-                        continue;
-                    }
+                && !is_symbol_visible_from(self.use_cone, self.source, companion_value)
+            {
+                if not_visible.is_none() {
+                    not_visible = Some((
+                        format!("{c}.{member_name}"),
+                        companion_value.visibility,
+                        companion_value.span,
+                    ));
+                }
+                continue;
+            }
 
             let fqn = format!("{c}.{member_name}");
             let Some(syms) = self.index.by_fqn.get(&fqn) else {
@@ -2234,10 +2231,12 @@ impl<'a> BlockScopeChecker<'a> {
 
             if let Some(fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 fun_matches.push((fqn.clone(), fun.symbol.visibility, fun.symbol.span));
-            } else if syms.has_fun() && not_visible.is_none()
-                && let Some(first) = syms.first_fun() {
-                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
-                }
+            } else if syms.has_fun()
+                && not_visible.is_none()
+                && let Some(first) = syms.first_fun()
+            {
+                not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+            }
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
                 if is_symbol_visible_from(self.use_cone, self.source, sym) {

@@ -101,8 +101,6 @@ fn is_compilable_sysroot_file(path: &Path) -> bool {
         .is_some_and(|name| name == "string.scoop" || name == "print.scoop")
 }
 
-
-
 /// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
 /// 供 build pipeline 的 `load_stdlib_sources()` 调用，将这些文件与 stdlib 一同加入 `input.sources`。
 pub fn collect_compilable_sysroot_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {

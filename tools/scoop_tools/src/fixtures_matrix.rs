@@ -297,74 +297,97 @@ fn parse_expectation_from_source(source: &str) -> ExpectationKind {
 /// 约定：一个 run-pass fixture 匹配某领域，当且仅当其文件名（不含路径与 `.scoop`）
 /// 以该领域的某个前缀开头（`starts_with` 匹配）。
 const STDLIB_DOMAINS: &[(&str, &str, &[&str])] = &[
-    ("1", "Core types & primitives", &[
-        "minimal_", "value_type_", "class_", "enum_", "option_", "struct_",
-        "string_", "bool_", "int_", "float_", "array_", "tuple_",
-    ]),
-    ("2", "Properties / Delegates", &[
-        "delegated_prop", "lazy_", "observable_", "vetoable_",
-    ]),
-    ("3", "Collections", &[
-        "stdlib_iter_", "stdlib_set_", "stdlib_smoke_collections",
-        "mutable_array_", "list_and_mutable_list",
-        "stdlib_collections",
-    ]),
-    ("4", "Ranges / Progressions", &[
-        "kotlin_ranges_", "stdlib_smoke_ranges",
-    ]),
-    ("5", "Text (String)", &[
-        "stdlib_string_", "string_interp", "string_escape",
-        "string_multiline", "string_trim",
-    ]),
-    ("6", "Text formatting", &[
-        "stdlib_string_builder", "stdlib_format",
-    ]),
-    ("7", "Math", &[
-        "stdlib_math",
-    ]),
-    ("8", "Hashing", &[
-        "stdlib_hash",
-    ]),
-    ("9", "Random", &[
-        "stdlib_random",
-    ]),
-    ("10", "Time", &[
-        "std_env_time",
-    ]),
-    ("11", "IO (stdin/stdout/stderr)", &[
-        "std_io_",
-    ]),
-    ("12", "File system", &[
-        "std_fs_",
-    ]),
-    ("13", "Process / Env / Path", &[
-        "std_process_", "std_path_", "std_env_",
-    ]),
-    ("14", "Concurrency / Threading", &[
-        "std_sync_", "std_thread_",
-    ]),
-    ("15", "Task / Executor (async)", &[
-        "std_task_",
-    ]),
-    ("16", "Net", &[
-        "std_net_",
-    ]),
-    ("17", "Unsafe / Pointers", &[
-        "unsafe_", "nogc_",
-    ]),
-    ("18", "Scope functions", &[
-        "kotlin_scope_functions",
-    ]),
-    ("19", "Preconditions", &[
-        "kotlin_require_", "kotlin_check_",
-        "stdlib_smoke_test_and_preconditions",
-    ]),
-    ("20", "Test utilities", &[
-        "std_test_",
-    ]),
-    ("21", "Reflection", &[
-        "comptime_reflect", "comptime_fields", "comptime_variants",
-    ]),
+    (
+        "1",
+        "Core types & primitives",
+        &[
+            "minimal_",
+            "value_type_",
+            "class_",
+            "enum_",
+            "option_",
+            "struct_",
+            "string_",
+            "bool_",
+            "int_",
+            "float_",
+            "array_",
+            "tuple_",
+        ],
+    ),
+    (
+        "2",
+        "Properties / Delegates",
+        &["delegated_prop", "lazy_", "observable_", "vetoable_"],
+    ),
+    (
+        "3",
+        "Collections",
+        &[
+            "stdlib_iter_",
+            "stdlib_set_",
+            "stdlib_smoke_collections",
+            "mutable_array_",
+            "list_and_mutable_list",
+            "stdlib_collections",
+        ],
+    ),
+    (
+        "4",
+        "Ranges / Progressions",
+        &["kotlin_ranges_", "stdlib_smoke_ranges"],
+    ),
+    (
+        "5",
+        "Text (String)",
+        &[
+            "stdlib_string_",
+            "string_interp",
+            "string_escape",
+            "string_multiline",
+            "string_trim",
+        ],
+    ),
+    (
+        "6",
+        "Text formatting",
+        &["stdlib_string_builder", "stdlib_format"],
+    ),
+    ("7", "Math", &["stdlib_math"]),
+    ("8", "Hashing", &["stdlib_hash"]),
+    ("9", "Random", &["stdlib_random"]),
+    ("10", "Time", &["std_env_time"]),
+    ("11", "IO (stdin/stdout/stderr)", &["std_io_"]),
+    ("12", "File system", &["std_fs_"]),
+    (
+        "13",
+        "Process / Env / Path",
+        &["std_process_", "std_path_", "std_env_"],
+    ),
+    (
+        "14",
+        "Concurrency / Threading",
+        &["std_sync_", "std_thread_"],
+    ),
+    ("15", "Task / Executor (async)", &["std_task_"]),
+    ("16", "Net", &["std_net_"]),
+    ("17", "Unsafe / Pointers", &["unsafe_", "nogc_"]),
+    ("18", "Scope functions", &["kotlin_scope_functions"]),
+    (
+        "19",
+        "Preconditions",
+        &[
+            "kotlin_require_",
+            "kotlin_check_",
+            "stdlib_smoke_test_and_preconditions",
+        ],
+    ),
+    ("20", "Test utilities", &["std_test_"]),
+    (
+        "21",
+        "Reflection",
+        &["comptime_reflect", "comptime_fields", "comptime_variants"],
+    ),
 ];
 
 /// 按 stdlib 领域扫描 `run-pass/` 下的 fixture 覆盖度。
@@ -396,7 +419,10 @@ impl StdlibReport {
         ));
 
         if !self.gaps.is_empty() {
-            out.push_str(&format!("\ngaps ({} domains without fixtures):\n", gap_count));
+            out.push_str(&format!(
+                "\ngaps ({} domains without fixtures):\n",
+                gap_count
+            ));
             for g in &self.gaps {
                 out.push_str(&format!("  - §{} {}\n", g.domain_id, g.title));
             }
@@ -507,10 +533,17 @@ mod tests {
         assert_eq!(report.domain_count, 21);
 
         // IO, Collections, and Scope functions should be covered.
-        let covered_ids: Vec<&str> = report.covered.iter().map(|c| c.domain_id.as_str()).collect();
+        let covered_ids: Vec<&str> = report
+            .covered
+            .iter()
+            .map(|c| c.domain_id.as_str())
+            .collect();
         assert!(covered_ids.contains(&"3"), "Collections should be covered");
         assert!(covered_ids.contains(&"11"), "IO should be covered");
-        assert!(covered_ids.contains(&"18"), "Scope functions should be covered");
+        assert!(
+            covered_ids.contains(&"18"),
+            "Scope functions should be covered"
+        );
 
         // Math, Random, Net should be gaps.
         let gap_ids: Vec<&str> = report.gaps.iter().map(|g| g.domain_id.as_str()).collect();

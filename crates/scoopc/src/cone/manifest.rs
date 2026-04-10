@@ -55,8 +55,7 @@ pub struct ConeSelectEntry {
 /// - paths 规则：统一要求为“相对 cone root 的相对路径”（例如 `native/foo.c`）。
 ///   - 解析阶段会做最小归一化（允许 `\\`，内部统一为 `/`，并拒绝绝对路径/`..`）。
 ///   - 后续真正执行时，再以 `cone root` 为基准 join + canonicalize，并在“文件缺失/不可读”等场景给出稳定诊断。
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ConeNativeBuildConfig {
     /// 入口包名（期望该包定义 `fun main`；校验由 T1113 实现）。
     pub entry_package: Option<String>,
@@ -75,7 +74,6 @@ pub struct ConeNativeBuildConfig {
     /// 额外链接参数（追加到最终链接命令；不替代 `linker`）。
     pub link_flags: Vec<String>,
 }
-
 
 /// `Cone.toml` 的最小可用 manifest。
 #[derive(Debug, Clone, PartialEq, Eq)]

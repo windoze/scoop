@@ -23,7 +23,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let ty = self.context.opaque_struct_type(TY_NAME);
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         ty.set_body(&[i8_ptr_ty.into(), i32_ty.into(), i32_ty.into()], false);
         ty
@@ -51,7 +51,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 该函数用于 f-string 插值 `{Int}` 的最小 formatting（TODO T0823）；
         // - 由 runtime 实现，避免在 LLVM IR 中直接引入 varargs `snprintf` 调用。
         let i64_ty = self.context.i64_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [i64_ty.into(), i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
@@ -540,7 +540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .void_type()
             .fn_type(&[env_ptr_ty.into()], false);
-        let init_fn_ptr_ty = init_fn_ty.ptr_type(AddressSpace::default());
+        let init_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] = [
             gc_i8_ptr_ty.into(),
             env_ptr_ty.into(),
@@ -562,7 +562,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let start_fn_ty = self.context.void_type().fn_type(&[i8_ptr_ty.into()], false);
-        let start_fn_ptr_ty = start_fn_ty.ptr_type(AddressSpace::default());
+        let start_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [i8_ptr_ty.into(), start_fn_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
@@ -656,7 +656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
-        let i64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+        let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
@@ -748,10 +748,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint64_t scoop_task_u64_create(uint64_t (*body_fn)(void*), void* body_ctx)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i64_ty = self.context.i64_type();
         let body_fn_ty = i64_ty.fn_type(&[i8_ptr_ty.into()], false);
-        let body_fn_ptr_ty = body_fn_ty.ptr_type(AddressSpace::default());
+        let body_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [body_fn_ptr_ty.into(), i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -966,6 +966,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)]
     pub(super) fn declare_runtime_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1003,7 +1004,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_once_begin(uint64_t* guard_word)`（TODO T0918）
         let i32_ty = self.context.i32_type();
-        let i64_ptr_ty = self.context.i64_type().ptr_type(AddressSpace::default());
+        let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -1016,12 +1017,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_once_end(uint64_t* guard_word)`（TODO T0918）
-        let i64_ptr_ty = self.context.i64_type().ptr_type(AddressSpace::default());
+        let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)]
     pub(super) fn declare_runtime_gc_collect(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1053,8 +1055,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 因此这里必须使用 `addrspace(0)` 指针类型承载 slot_addr（与 C ABI 的 `void*` 对齐）。
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
-            [i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1083,9 +1084,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_enter_native(void*** root_slots, uint32_t root_slots_len)`
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let slot_ptr_ty = gc_i8_ptr_ty.ptr_type(AddressSpace::default());
-        let slots_ptr_ty = slot_ptr_ty.ptr_type(AddressSpace::default());
+        let slot_ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let slots_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [slots_ptr_ty.into(), i32_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -1278,7 +1278,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_callee_suspend_state_get(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let fn_ty = i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1290,7 +1290,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_callee_suspend_state_set(void* state)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -1314,7 +1314,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_effect_handler_stack_push(ScoopEffectHandlerFrame* frame, uint32_t op_tag)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -1328,7 +1328,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_effect_handler_stack_pop(ScoopEffectHandlerFrame* frame)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -1341,7 +1341,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_effect_handler_stack_set_active(ScoopEffectHandlerFrame* frame, uint32_t active)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -1368,7 +1368,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_effect_handler_stack_swap_top(void* new_top)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -1446,14 +1446,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 因为 GC tracing 由 continuation 的 custom trace_fn 负责而不是 bitmap。
         ty.set_body(
             &[
-                header_ty.into(),     // 0: hdr
-                i32_ty.into(),        // 1: resumed (_Atomic uint32_t)
-                i32_ty.into(),        // 2: _reserved_u32
-                i8_ptr_ty.into(),     // 3: captured_handler_stack_top
-                i8_ptr_ty.into(),     // 4: state (GC ref, but handled by custom trace_fn)
-                i8_ptr_ty.into(),     // 5: step_fn
-                i64_ty.into(),        // 6: resume_word
-                i8_ptr_ty.into(),     // 7: resume_gc_ref
+                header_ty.into(), // 0: hdr
+                i32_ty.into(),    // 1: resumed (_Atomic uint32_t)
+                i32_ty.into(),    // 2: _reserved_u32
+                i8_ptr_ty.into(), // 3: captured_handler_stack_top
+                i8_ptr_ty.into(), // 4: state (GC ref, but handled by custom trace_fn)
+                i8_ptr_ty.into(), // 5: step_fn
+                i64_ty.into(),    // 6: resume_word
+                i8_ptr_ty.into(), // 7: resume_gc_ref
             ],
             false,
         );

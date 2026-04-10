@@ -1,7 +1,6 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-
 use super::super::lower::TypeLowerError;
 
 #[derive(Debug, Error, Diagnostic)]

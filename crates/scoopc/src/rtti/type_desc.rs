@@ -528,11 +528,12 @@ fn compute_class_vtable_slots(
         let member_fqn = format!("{}.{}", info.fqn, m.name);
 
         if m.modifiers.override_
-            && let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
-                existing.impl_in = info.fqn.clone();
-                existing.impl_member = member_fqn;
-                continue;
-            }
+            && let Some(existing) = slots.iter_mut().find(|s| key_matches(s))
+        {
+            existing.impl_in = info.fqn.clone();
+            existing.impl_member = member_fqn;
+            continue;
+        }
 
         let slot = slots.len() as u32;
         slots.push(VtableSlot {
@@ -687,16 +688,17 @@ fn compute_class_interface_closure(
         }
 
         if let Some(super_fqn) = info.super_class_fqn.as_deref()
-            && classes.contains_key(super_fqn) {
-                let super_ifaces = compute_class_interface_closure(
-                    super_fqn,
-                    classes,
-                    interfaces_by_name,
-                    visiting,
-                    memo,
-                )?;
-                out.extend(super_ifaces);
-            }
+            && classes.contains_key(super_fqn)
+        {
+            let super_ifaces = compute_class_interface_closure(
+                super_fqn,
+                classes,
+                interfaces_by_name,
+                visiting,
+                memo,
+            )?;
+            out.extend(super_ifaces);
+        }
     }
 
     let _ = visiting.remove(class_fqn);
@@ -751,11 +753,12 @@ fn resolve_method_in_class_hierarchy(
     }
 
     if let Some(super_fqn) = info.super_class_fqn.as_deref()
-        && classes.contains_key(super_fqn) {
-            let resolved = resolve_method_in_class_hierarchy(super_fqn, key, classes, visiting);
-            let _ = visiting.remove(class_fqn);
-            return resolved;
-        }
+        && classes.contains_key(super_fqn)
+    {
+        let resolved = resolve_method_in_class_hierarchy(super_fqn, key, classes, visiting);
+        let _ = visiting.remove(class_fqn);
+        return resolved;
+    }
 
     let _ = visiting.remove(class_fqn);
     None
@@ -1472,9 +1475,10 @@ fn option_layout(types: &TypeStore, target: TargetLayout, inner: TypeId) -> Type
 
     // niche path：inner 提供可用 niche 值时，Option 与 inner 共享 layout（对 offsets 影响很大）。
     if let Some(mut domain) = inner_layout.niche
-        && domain.take_one().is_some() {
-            return TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
-        }
+        && domain.take_one().is_some()
+    {
+        return TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
+    }
 
     // tagged union fallback：`tag(i32) + payload(word)`（early stage 与 LLVM codegen 对齐）。
     let tag = TypeLayout::new(4, 4);

@@ -138,10 +138,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(layout) = self.struct_layouts.get(&key) else {
             return false;
         };
-        layout
-            .fields
-            .iter()
-            .all(|f| f.ty_fqn.as_deref().is_some_and(|fqn| self.type_fqn_is_gc_free(fqn)))
+        layout.fields.iter().all(|f| {
+            f.ty_fqn
+                .as_deref()
+                .is_some_and(|fqn| self.type_fqn_is_gc_free(fqn))
+        })
     }
 
     /// Check if a tuple type contains no GC references in any of its elements.
@@ -166,7 +167,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         layout.variants.iter().all(|v| {
             v.fields.iter().all(|f| {
-                f.ty_fqn.as_deref().is_some_and(|fqn| self.type_fqn_is_gc_free(fqn))
+                f.ty_fqn
+                    .as_deref()
+                    .is_some_and(|fqn| self.type_fqn_is_gc_free(fqn))
             })
         })
     }
@@ -180,13 +183,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             other => {
                 // Fixed-width integer types: Int8, Int16, Int32, Int64, UInt8, etc.
                 if let Some(suffix) = other.strip_prefix("scoop.core.Int")
-                    && suffix.parse::<u32>().is_ok() {
-                        return true;
-                    }
+                    && suffix.parse::<u32>().is_ok()
+                {
+                    return true;
+                }
                 if let Some(suffix) = other.strip_prefix("scoop.core.UInt")
-                    && suffix.parse::<u32>().is_ok() {
-                        return true;
-                    }
+                    && suffix.parse::<u32>().is_ok()
+                {
+                    return true;
+                }
                 // Nested struct: check its fields recursively.
                 if let Some(layout) = self.struct_layouts.get(other) {
                     return layout.fields.iter().all(|f| {
@@ -265,7 +270,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - 对于 `struct Wrap(val e: E)` 这类场景，需要能把 `E` 映射为 `CgTy::Enum`，
                 //   以便在 LLVM struct type 中内嵌该字段，并支持后续的 field GEP/load/store。
                 // - T0124：支持 mangled FQN（含 type args）的查找。
-                if (self.struct_layouts.contains_key(other) || self.enum_layouts.contains_key(other))
+                if (self.struct_layouts.contains_key(other)
+                    || self.enum_layouts.contains_key(other))
                     && let Some(ty) = self.types.iter_ids().find(|id| match self.types.kind(*id) {
                         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                             // T0124：使用 mangled FQN 比较（支持参数化类型如 “Pair<Int, String>”）。
@@ -274,9 +280,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         _ => false,
                     })
-                        && let Some(cg) = self.cg_ty_of(ty) {
-                            return Ok(cg);
-                        }
+                    && let Some(cg) = self.cg_ty_of(ty)
+                {
+                    return Ok(cg);
+                }
 
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "struct field type",
@@ -320,13 +327,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
         let key = self.nominal_layout_key(nominal);
-        let layout =
-            self.struct_layouts
-                .get(&key)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct layout",
-                    at: at.into(),
-                })?;
+        let layout = self
+            .struct_layouts
+            .get(&key)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct layout",
+                at: at.into(),
+            })?;
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
             // T0119: Each top-level function gets a fresh MainCodegen instance, so
@@ -335,35 +342,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // our local cache is empty.
             let pack_value = layout.c_layout.as_ref().and_then(|c| c.packed);
             if let Some(n) = pack_value
-                && n > 1 && !self.pack_field_indices.contains_key(&layout.fqn) {
-                    let mut user_fields: Vec<BasicTypeEnum<'ctx>> =
-                        Vec::with_capacity(layout.fields.len());
-                    for field in &layout.fields {
-                        let field_cg =
-                            self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
-                        user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
-                    }
-
-                    let mut indices: Vec<u32> = Vec::new();
-                    let mut elem_idx: u32 = 0;
-                    let mut off: u64 = 0;
-                    for field_ty in &user_fields {
-                        let natural_align =
-                            self.target_data.get_abi_alignment(field_ty) as u64;
-                        let effective_align = std::cmp::min(natural_align, n as u64);
-                        let aligned_offset =
-                            (off + effective_align - 1) & !(effective_align - 1);
-                        if aligned_offset > off {
-                            elem_idx += 1; // skip padding element
-                        }
-                        indices.push(elem_idx);
-                        elem_idx += 1;
-                        off = aligned_offset + self.target_data.get_store_size(field_ty);
-                    }
-
-                    self.pack_field_indices
-                        .insert(layout.fqn.clone(), indices);
+                && n > 1
+                && !self.pack_field_indices.contains_key(&layout.fqn)
+            {
+                let mut user_fields: Vec<BasicTypeEnum<'ctx>> =
+                    Vec::with_capacity(layout.fields.len());
+                for field in &layout.fields {
+                    let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+                    user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
                 }
+
+                let mut indices: Vec<u32> = Vec::new();
+                let mut elem_idx: u32 = 0;
+                let mut off: u64 = 0;
+                for field_ty in &user_fields {
+                    let natural_align = self.target_data.get_abi_alignment(field_ty) as u64;
+                    let effective_align = std::cmp::min(natural_align, n as u64);
+                    let aligned_offset = (off + effective_align - 1) & !(effective_align - 1);
+                    if aligned_offset > off {
+                        elem_idx += 1; // skip padding element
+                    }
+                    indices.push(elem_idx);
+                    elem_idx += 1;
+                    off = aligned_offset + self.target_data.get_store_size(field_ty);
+                }
+
+                self.pack_field_indices.insert(layout.fqn.clone(), indices);
+            }
             return Ok(existing);
         }
 
@@ -391,10 +396,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut offset: u64 = 0;
 
                 for field_ty in &user_fields {
-                    let natural_align = self
-                        .target_data
-                        .get_abi_alignment(field_ty)
-                        as u64;
+                    let natural_align = self.target_data.get_abi_alignment(field_ty) as u64;
                     let effective_align = std::cmp::min(natural_align, n as u64);
 
                     // Insert padding bytes to reach the next aligned offset.

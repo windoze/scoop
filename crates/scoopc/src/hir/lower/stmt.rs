@@ -94,12 +94,7 @@ impl<'a> HirLowering<'a> {
     /// - `ArrayInt`: 索引ベースの while ループ
     /// - `IntProgression`: progression while ループ
     /// - `Custom`: 未実装（Todo）
-    fn lower_for_stmt(
-        &mut self,
-        pkg_prefix: &str,
-        stmt_span: Span,
-        f: &ast::ForStmt,
-    ) -> Stmt {
+    fn lower_for_stmt(&mut self, pkg_prefix: &str, stmt_span: Span, f: &ast::ForStmt) -> Stmt {
         let info = f.resolved_for_info.get();
         let kind = info.map(|i| &i.kind);
 
@@ -134,12 +129,7 @@ impl<'a> HirLowering<'a> {
     ///     }
     /// }
     /// ```
-    fn lower_for_array_int(
-        &mut self,
-        pkg_prefix: &str,
-        stmt_span: Span,
-        f: &ast::ForStmt,
-    ) -> Stmt {
+    fn lower_for_array_int(&mut self, pkg_prefix: &str, stmt_span: Span, f: &ast::ForStmt) -> Stmt {
         let span = f.span;
         let for_span = f.for_span;
 

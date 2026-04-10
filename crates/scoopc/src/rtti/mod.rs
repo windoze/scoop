@@ -489,11 +489,10 @@ impl RttiContext {
 
         // niche path：inner 提供可用 niche 值时，Option 与 inner 共享 layout（对 size/align 很重要）。
         if let Some(mut domain) = inner_layout.niche
-            && domain.take_one().is_some() {
-                return Ok(
-                    TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain)
-                );
-            }
+            && domain.take_one().is_some()
+        {
+            return Ok(TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain));
+        }
 
         // tagged union fallback：`tag(u8) + payload`（v0：仅保证 size/align）。
         let tag_layout = TypeLayout::new(1, 1);

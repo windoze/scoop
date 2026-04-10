@@ -1485,9 +1485,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     //
                     // 注意：该地址只是 native 指针（C ABI `void*`），不应位于 GC address space；
                     // 否则会被 statepoint/stackmap 当作 GC root，产生 derived/non-header roots。
-                    let slot_addr_i8_gc = self
-                        .builder
-                        .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr_i8_gc")?;
+                    let slot_addr_i8_gc = self.builder.build_pointer_cast(
+                        ptr,
+                        gc_i8_ptr_ty,
+                        "gc_wb_slot_addr_i8_gc",
+                    )?;
                     let slot_addr = self.builder.build_address_space_cast(
                         slot_addr_i8_gc,
                         i8_ptr_ty,
@@ -1510,13 +1512,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // store alignment 降到 packed value（与 load 路径保持一致）。
                     // packed=1 时 alignment=1，packed>1 时 alignment=min(struct_natural, N)。
                     if let CgTy::Struct(struct_ty) = ty
-                        && let Some(pack_n) =
-                            self.struct_clayout(struct_ty).and_then(|c| c.packed)
-                        {
-                            // For whole-aggregate store, use pack_n as alignment
-                            // (the struct is packed, so its overall alignment is at most pack_n).
-                            store_inst.set_alignment(pack_n)?;
-                        }
+                        && let Some(pack_n) = self.struct_clayout(struct_ty).and_then(|c| c.packed)
+                    {
+                        // For whole-aggregate store, use pack_n as alignment
+                        // (the struct is packed, so its overall alignment is at most pack_n).
+                        store_inst.set_alignment(pack_n)?;
+                    }
                 }
             }
         }

@@ -1368,14 +1368,16 @@ impl<'a> TypeLowering<'a> {
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
         if fqn == PTR_FQN
-            && let Some(pointee) = args.first().copied() {
-                self.check_ptr_pointee_gc_free(pointee, span)?;
-            }
+            && let Some(pointee) = args.first().copied()
+        {
+            self.check_ptr_pointee_gc_free(pointee, span)?;
+        }
         // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
         if fqn == FUNPTR_FQN
-            && let Some(sig) = args.first().copied() {
-                self.check_funptr_signature_is_function(sig, span)?;
-            }
+            && let Some(sig) = args.first().copied()
+        {
+            self.check_funptr_signature_is_function(sig, span)?;
+        }
 
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
         let Some(sym) = self.env.type_symbol(&fqn) else {
@@ -1495,9 +1497,9 @@ impl<'a> TypeLowering<'a> {
             && p.decl_file
                 .components()
                 .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
-            {
-                return Ok(());
-            }
+        {
+            return Ok(());
+        }
 
         let mut visiting: HashSet<TypeId> = HashSet::new();
         let mut memo: HashMap<TypeId, bool> = HashMap::new();
@@ -1903,14 +1905,16 @@ impl<'a> TypeLowering<'a> {
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
         if fqn == PTR_FQN
-            && let Some(pointee) = args.first().copied() {
-                self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
-            }
+            && let Some(pointee) = args.first().copied()
+        {
+            self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
+        }
         // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
         if fqn == FUNPTR_FQN
-            && let Some(sig) = args.first().copied() {
-                self.check_funptr_signature_is_function(sig, ptr_pointee_arg_span)?;
-            }
+            && let Some(sig) = args.first().copied()
+        {
+            self.check_funptr_signature_is_function(sig, ptr_pointee_arg_span)?;
+        }
 
         match sym.kind {
             TypeSymbolKind::TypeAlias => {

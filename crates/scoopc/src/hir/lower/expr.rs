@@ -230,9 +230,11 @@ impl<'a> HirLowering<'a> {
                     // receiver ident 不写回 `resolved`。这里用该信号避免把 companion dispatch 误改写为
                     // “带隐式 receiver 参数”的普通 member call。
                     if let ast::ExprKind::Ident(id) = &receiver.kind
-                        && id.resolved.is_none() && self.source.slice(id.span) != "this" {
-                            return None;
-                        }
+                        && id.resolved.is_none()
+                        && self.source.slice(id.span) != "this"
+                    {
+                        return None;
+                    }
 
                     let receiver = self.lower_expr(pkg_prefix, receiver);
 
@@ -272,25 +274,24 @@ impl<'a> HirLowering<'a> {
                     // T1312：class ctor call 仍会被降低为 `UnresolvedIdent`，
                     // 但 codegen 需要知道它的 ctor candidates（来自 resolver 的 `ValueIdent.call`）。
                     if let ast::ExprKind::Ident(id) = &callee.kind
-                        && let Some(call) = id.call.as_ref() {
-                            let mut ctor_candidates: Vec<String> = call
-                                .candidates
-                                .iter()
-                                .filter_map(|c| match c {
-                                    ast::CallCandidate::Constructor { ty_fqn } => {
-                                        Some(ty_fqn.clone())
-                                    }
-                                    ast::CallCandidate::Fun { .. } => None,
-                                })
-                                .collect();
-                            if !ctor_candidates.is_empty() {
-                                ctor_candidates.sort();
-                                ctor_candidates.dedup();
-                                self.ctor_call_sites
-                                    .entry(id.span)
-                                    .or_insert(ctor_candidates);
-                            }
+                        && let Some(call) = id.call.as_ref()
+                    {
+                        let mut ctor_candidates: Vec<String> = call
+                            .candidates
+                            .iter()
+                            .filter_map(|c| match c {
+                                ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+                                ast::CallCandidate::Fun { .. } => None,
+                            })
+                            .collect();
+                        if !ctor_candidates.is_empty() {
+                            ctor_candidates.sort();
+                            ctor_candidates.dedup();
+                            self.ctor_call_sites
+                                .entry(id.span)
+                                .or_insert(ctor_candidates);
                         }
+                    }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
                     let sig = callee_fqn.and_then(|fqn| self.fun_sig_by_fqn(fqn));
@@ -301,7 +302,11 @@ impl<'a> HirLowering<'a> {
                         // in the sig start with it, but call args don't include receiver.
                         let offset = if s.receiver.is_some() { 1 } else { 0 };
                         s.params.iter().enumerate().find_map(|(i, p)| {
-                            if p.is_vararg { Some(i.saturating_sub(offset)) } else { None }
+                            if p.is_vararg {
+                                Some(i.saturating_sub(offset))
+                            } else {
+                                None
+                            }
                         })
                     });
 
@@ -310,7 +315,13 @@ impl<'a> HirLowering<'a> {
                     // T0113: if there's a vararg param, split args into pre-vararg,
                     // vararg, and post-vararg, and wrap the vararg args in an array literal.
                     let lowered_args = if let Some(va_idx) = vararg_param_index {
-                        self.lower_call_args_with_vararg(pkg_prefix, e.span, args, sig.as_ref(), va_idx)
+                        self.lower_call_args_with_vararg(
+                            pkg_prefix,
+                            e.span,
+                            args,
+                            sig.as_ref(),
+                            va_idx,
+                        )
                     } else {
                         let mut positional_index = 0usize;
                         let mut out: Vec<CallArg> = Vec::with_capacity(args.len());
@@ -813,7 +824,10 @@ impl<'a> HirLowering<'a> {
             _ => None,
         };
 
-        ExpectedExpr { array_lit_target, struct_lit_ty: None }
+        ExpectedExpr {
+            array_lit_target,
+            struct_lit_ty: None,
+        }
     }
 
     /// 将 `[...]` 降到统一的 builder/intrinsics 调用形态（TODO T1317c）。
@@ -1001,22 +1015,14 @@ impl<'a> HirLowering<'a> {
         for arg in args {
             // Named args are passed through without affecting positional index.
             if let ast::ExprKind::NamedArg { .. } = &arg.kind {
-                let expected = self.expected_expr_for_fun_call_arg(
-                    sig,
-                    arg,
-                    positional_index,
-                );
+                let expected = self.expected_expr_for_fun_call_arg(sig, arg, positional_index);
                 out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
                 continue;
             }
 
             if positional_index < vararg_idx {
                 // Pre-vararg: normal positional arg.
-                let expected = self.expected_expr_for_fun_call_arg(
-                    sig,
-                    arg,
-                    positional_index,
-                );
+                let expected = self.expected_expr_for_fun_call_arg(sig, arg, positional_index);
                 out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
             } else {
                 // Vararg slot: collect for later wrapping.
@@ -1036,9 +1042,7 @@ impl<'a> HirLowering<'a> {
             // Single spread arg: unwrap and pass the inner expression directly.
             let arg = vararg_args[0];
             match &arg.kind {
-                ast::ExprKind::SpreadArg { expr: inner, .. } => {
-                    self.lower_expr(pkg_prefix, inner)
-                }
+                ast::ExprKind::SpreadArg { expr: inner, .. } => self.lower_expr(pkg_prefix, inner),
                 _ => unreachable!("has_spread is true but arg is not SpreadArg"),
             }
         } else {
@@ -1261,7 +1265,9 @@ impl<'a> HirLowering<'a> {
         // instantiation of the same struct.
         let ty_id = if ty.args.is_empty() {
             if let Some(expected) = expected_ty {
-                if let crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) = self.types.kind(expected) {
+                if let crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) =
+                    self.types.kind(expected)
+                {
                     if !nominal.args.is_empty() {
                         expected
                     } else {
@@ -1374,15 +1380,7 @@ impl<'a> HirLowering<'a> {
 
         // 生成 struct lit 字段列表。
         let struct_lit = self.build_with_struct_lit(
-            pkg_prefix,
-            expr_span,
-            with_span,
-            &base_fqn,
-            ty_id,
-            &base_ref,
-            &grouped,
-            fqn_map,
-            "",
+            pkg_prefix, expr_span, with_span, &base_fqn, ty_id, &base_ref, &grouped, fqn_map, "",
         );
 
         // 包装为 block：{ val $with_base = base; struct_lit }
@@ -1483,8 +1481,7 @@ impl<'a> HirLowering<'a> {
                     };
 
                     if let Some(nested_fqn) = fqn_map.get(&nested_prefix) {
-                        let nested_ty =
-                            self.intern_nominal(nested_fqn.clone(), vec![], None);
+                        let nested_ty = self.intern_nominal(nested_fqn.clone(), vec![], None);
 
                         // 按下一段 field name 重新分组。
                         let mut nested_grouped: std::collections::HashMap<
@@ -1550,82 +1547,80 @@ impl<'a> HirLowering<'a> {
         // delegated property lowering（spec §10.4）：
         // `receiver.prop` → `receiver.prop$delegate.getValue(receiver, <PropertyMeta const>)`
         if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref()
-            && let Some(info) = self.delegated_properties.get(fqn).cloned() {
-                match info {
-                    DelegatedPropertyInfo::Lazy(info) => {
-                        return (
-                            self.lower_lazy_delegated_property_get(
-                                pkg_prefix,
-                                member.span,
-                                receiver,
-                                &info,
-                            ),
-                            self.builtins.any,
-                        );
-                    }
-                    DelegatedPropertyInfo::Generic(info) => {
-                        let receiver = self.lower_expr(pkg_prefix, receiver);
-                        let this_ref = receiver.clone();
-
-                        let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+            && let Some(info) = self.delegated_properties.get(fqn).cloned()
+        {
+            match info {
+                DelegatedPropertyInfo::Lazy(info) => {
+                    return (
+                        self.lower_lazy_delegated_property_get(
+                            pkg_prefix,
                             member.span,
                             receiver,
                             &info,
-                        );
-                        let callee = Expr {
-                            span: member.span,
-                            ty: self.builtins.any,
-                            kind: ExprKind::MemberAccess {
-                                receiver: Box::new(delegate),
-                                member: MemberAccess {
-                                    span: member.span,
-                                    name: "getValue".to_string(),
-                                    resolved: None,
-                                },
-                            },
-                        };
-                        let meta =
-                            self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+                        ),
+                        self.builtins.any,
+                    );
+                }
+                DelegatedPropertyInfo::Generic(info) => {
+                    let receiver = self.lower_expr(pkg_prefix, receiver);
+                    let this_ref = receiver.clone();
 
-                        return (
-                            ExprKind::Call {
-                                callee: Box::new(callee),
-                                args: vec![
-                                    CallArg::Positional(this_ref),
-                                    CallArg::Positional(meta),
-                                ],
+                    let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+                        member.span,
+                        receiver,
+                        &info,
+                    );
+                    let callee = Expr {
+                        span: member.span,
+                        ty: self.builtins.any,
+                        kind: ExprKind::MemberAccess {
+                            receiver: Box::new(delegate),
+                            member: MemberAccess {
+                                span: member.span,
+                                name: "getValue".to_string(),
+                                resolved: None,
                             },
-                            self.builtins.any,
-                        );
-                    }
-                    DelegatedPropertyInfo::Observable(info) => {
-                        return self.lower_observable_vetoable_delegated_property_get(
-                            pkg_prefix,
-                            member.span,
-                            receiver,
-                            fqn,
-                            info.name,
-                            info.ty,
-                            info.mutex_field_fqn,
-                        );
-                    }
-                    DelegatedPropertyInfo::Vetoable(info) => {
-                        return self.lower_observable_vetoable_delegated_property_get(
-                            pkg_prefix,
-                            member.span,
-                            receiver,
-                            fqn,
-                            info.name,
-                            info.ty,
-                            info.mutex_field_fqn,
-                        );
-                    }
-                    DelegatedPropertyInfo::MapBacked => {
-                        // map-backed：值在初始化时被拷贝到真实字段，后续只读；
-                        // 读取不需要额外同步，按普通字段访问处理。
-                    }
+                        },
+                    };
+                    let meta =
+                        self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+
+                    return (
+                        ExprKind::Call {
+                            callee: Box::new(callee),
+                            args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
+                        },
+                        self.builtins.any,
+                    );
+                }
+                DelegatedPropertyInfo::Observable(info) => {
+                    return self.lower_observable_vetoable_delegated_property_get(
+                        pkg_prefix,
+                        member.span,
+                        receiver,
+                        fqn,
+                        info.name,
+                        info.ty,
+                        info.mutex_field_fqn,
+                    );
+                }
+                DelegatedPropertyInfo::Vetoable(info) => {
+                    return self.lower_observable_vetoable_delegated_property_get(
+                        pkg_prefix,
+                        member.span,
+                        receiver,
+                        fqn,
+                        info.name,
+                        info.ty,
+                        info.mutex_field_fqn,
+                    );
+                }
+                DelegatedPropertyInfo::MapBacked => {
+                    // map-backed：值在初始化时被拷贝到真实字段，后续只读；
+                    // 读取不需要额外同步，按普通字段访问处理。
                 }
             }
+        }
 
         // T0112：extension property access → desugar to getter call.
         // `receiver.extProp` → `extPropGetterFqn(receiver)`
@@ -1892,7 +1887,8 @@ impl<'a> HirLowering<'a> {
 
         // Build the inner call `v.method(args)` using the same lowering strategies
         // as the normal Call path (extension fun → TopLevel, class member → TopLevel, fallback).
-        let inner_call = self.lower_safe_call_inner_call(pkg_prefix, span, op_span, member, &v_ref, args);
+        let inner_call =
+            self.lower_safe_call_inner_call(pkg_prefix, span, op_span, member, &v_ref, args);
 
         let some_arm = WhenArm {
             span: op_span,

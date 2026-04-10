@@ -193,13 +193,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
         let key = self.nominal_layout_key(nominal);
-        let layout =
-            self.struct_layouts
-                .get(&key)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct layout",
-                    at: at.into(),
-                })?;
+        let layout = self
+            .struct_layouts
+            .get(&key)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct layout",
+                at: at.into(),
+            })?;
 
         let idx = layout
             .fields
@@ -368,27 +368,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // niche path：inner 提供可用 niche domain。
         if let Some(mut domain) = inner_layout.niche
-            && let Some(none_value) = domain.take_one() {
-                let storage = domain.storage;
+            && let Some(none_value) = domain.take_one()
+        {
+            let storage = domain.storage;
 
-                // 关键约束（GC-FIX C2b）：
-                // - `addrspace(1)` 的 GC-managed 指针不允许用“非 NULL 小整数”做哨兵值；
-                // - 否则 `Option<Option<Ref>>` 会把 `None` 编码成 1/2/...，进入 stackmap roots 后无法区分，
-                //   进而在精确 GC 下造成误追踪或崩溃。
-                //
-                // 因此：Pointer niche 只允许使用一次（`None == NULL`），并禁止把剩余 niche domain 继续向外层传播。
-                if storage == NicheStorage::Pointer {
-                    domain.next = domain.end;
-                }
-
-                self.option_niche_cache
-                    .insert(option_ty, Some((storage, none_value)));
-
-                let layout =
-                    TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
-                self.type_layout_cache.insert(option_ty, layout);
-                return layout;
+            // 关键约束（GC-FIX C2b）：
+            // - `addrspace(1)` 的 GC-managed 指针不允许用“非 NULL 小整数”做哨兵值；
+            // - 否则 `Option<Option<Ref>>` 会把 `None` 编码成 1/2/...，进入 stackmap roots 后无法区分，
+            //   进而在精确 GC 下造成误追踪或崩溃。
+            //
+            // 因此：Pointer niche 只允许使用一次（`None == NULL`），并禁止把剩余 niche domain 继续向外层传播。
+            if storage == NicheStorage::Pointer {
+                domain.next = domain.end;
             }
+
+            self.option_niche_cache
+                .insert(option_ty, Some((storage, none_value)));
+
+            let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
+            self.type_layout_cache.insert(option_ty, layout);
+            return layout;
+        }
 
         // tagged union fallback：不携带 niche。
         self.option_niche_cache.insert(option_ty, None);
@@ -479,12 +479,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                 let enum_key = self.nominal_layout_key(nominal);
-                let hir_layout = self.enum_layouts.get(&enum_key).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum layout",
-                        at: at.into(),
-                    },
-                )?;
+                let hir_layout =
+                    self.enum_layouts
+                        .get(&enum_key)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "enum layout",
+                            at: at.into(),
+                        })?;
 
                 let mut repr = CgEnumRepr::TaggedUnion;
                 if let hir::EnumRepr::ValueOnly { underlying_ty_fqn } = &hir_layout.repr {

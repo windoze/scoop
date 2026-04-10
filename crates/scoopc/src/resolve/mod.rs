@@ -950,19 +950,20 @@ impl Index {
         //   所有 ctor params 视为字段（后续若扩展 class 语义再细化规则）。
         // - ctor params 暂不支持显式可见性修饰符，因此默认 public（与无修饰的成员一致）。
         if matches!(ty.kind, ast::TypeKind::Struct)
-            && let Some(primary_ctor) = &ty.primary_ctor {
-                for p in &primary_ctor.params {
-                    self.insert_symbol(
-                        cone,
-                        source,
-                        &type_prefix,
-                        SymbolKind::Value,
-                        p.name.span,
-                        Visibility::Public,
-                        &[],
-                    )?;
-                }
+            && let Some(primary_ctor) = &ty.primary_ctor
+        {
+            for p in &primary_ctor.params {
+                self.insert_symbol(
+                    cone,
+                    source,
+                    &type_prefix,
+                    SymbolKind::Value,
+                    p.name.span,
+                    Visibility::Public,
+                    &[],
+                )?;
             }
+        }
 
         // class 的主构造参数仅在带 `val/var` 前缀时才声明字段/属性：
         // - `class C(x: Int)`：`x` 只是构造参数，不应可通过 `this.x` 成员访问读取
@@ -971,22 +972,23 @@ impl Index {
         // 说明：
         // - 当前阶段暂不处理 ctor param 上的可见性修饰符（语法也未支持），因此默认 public。
         if matches!(ty.kind, ast::TypeKind::Class)
-            && let Some(primary_ctor) = &ty.primary_ctor {
-                for p in &primary_ctor.params {
-                    if p.kind.is_none() {
-                        continue;
-                    }
-                    self.insert_symbol(
-                        cone,
-                        source,
-                        &type_prefix,
-                        SymbolKind::Value,
-                        p.name.span,
-                        Visibility::Public,
-                        &[],
-                    )?;
+            && let Some(primary_ctor) = &ty.primary_ctor
+        {
+            for p in &primary_ctor.params {
+                if p.kind.is_none() {
+                    continue;
                 }
+                self.insert_symbol(
+                    cone,
+                    source,
+                    &type_prefix,
+                    SymbolKind::Value,
+                    p.name.span,
+                    Visibility::Public,
+                    &[],
+                )?;
             }
+        }
 
         let Some(body) = &ty.body else {
             return Ok(());
@@ -1518,8 +1520,7 @@ pub fn check_file_headers(
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;
                 let eff_param = fun.eff_param.as_ref().map(|p| source.slice(p.name.span));
-                let result =
-                    resolve_fun_header(source, file, index, &type_params, eff_param, fun);
+                let result = resolve_fun_header(source, file, index, &type_params, eff_param, fun);
                 type_params.pop_decl();
                 result?;
             }
@@ -1717,7 +1718,8 @@ fn resolve_type_decl_headers(
                         .as_ref()
                         .map(|p| source.slice(p.name.span))
                         .or(ty_eff_param);
-                    let result = resolve_fun_header(source, file, index, type_params, fun_eff_param, f);
+                    let result =
+                        resolve_fun_header(source, file, index, type_params, fun_eff_param, f);
                     type_params.pop_decl();
                     result?;
                 }
@@ -1821,8 +1823,7 @@ fn resolve_object_decl_headers(
             ast::TypeMember::Fun(f) => {
                 type_params.push_decl(source, &f.type_params)?;
                 let eff_param = f.eff_param.as_ref().map(|p| source.slice(p.name.span));
-                let result =
-                    resolve_fun_header(source, file, index, &type_params, eff_param, f);
+                let result = resolve_fun_header(source, file, index, &type_params, eff_param, f);
                 type_params.pop_decl();
                 result?;
             }

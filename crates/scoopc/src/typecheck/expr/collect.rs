@@ -242,11 +242,8 @@ pub(super) fn collect_top_level_fun_signatures(
             };
 
             // T0129：从 AST where_clause 构建 where_constraints。
-            let where_constraints = build_fun_where_constraints(
-                source,
-                &fun.type_params,
-                fun.where_clause.as_ref(),
-            );
+            let where_constraints =
+                build_fun_where_constraints(source, &fun.type_params, fun.where_clause.as_ref());
 
             map.entry(fqn).or_default().push(FunSigOwned {
                 decl_span,

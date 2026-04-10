@@ -145,11 +145,12 @@ fn check_vararg_params(params: &[ast::Param]) -> Result<(), TypeHeaderError> {
     }
 
     if let Some(idx) = vararg_pos
-        && idx + 1 != params.len() {
-            return Err(TypeHeaderError::VarargParamMustBeLast {
-                span: params[idx].name.span.into(),
-            });
-        }
+        && idx + 1 != params.len()
+    {
+        return Err(TypeHeaderError::VarargParamMustBeLast {
+            span: params[idx].name.span.into(),
+        });
+    }
 
     Ok(())
 }

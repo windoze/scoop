@@ -197,47 +197,47 @@ impl<'a> LayoutComputer<'a> {
 
         // 1) niche path：inner 提供可用 niche 值。
         if let Some(mut domain) = inner_layout.niche
-            && let Some(none_value) = domain.take_one() {
-                debug!(
-                    inner = %self.types.display(inner),
-                    storage = ?domain.storage,
-                    none_value,
-                    "Option<T> uses niche optimization"
-                );
+            && let Some(none_value) = domain.take_one()
+        {
+            debug!(
+                inner = %self.types.display(inner),
+                storage = ?domain.storage,
+                none_value,
+                "Option<T> uses niche optimization"
+            );
 
-                let layout =
-                    TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
-                let option_id = self.option_type_id(inner);
-                self.enum_cache.insert(
-                    option_id,
-                    EnumLayout {
-                        repr: EnumRepr::Niche {
-                            storage: domain.storage,
-                            none_value,
-                        },
-                        layout,
-                        tag_offset: 0,
-                        payload_offset: 0,
-                        payload: layout,
-                        gc_ref_word_mask: Vec::new(),
-                        ref_payload_offset: 0,
-                        ref_payload: TypeLayout::new(0, 1),
-                        variants: vec![
-                            EnumVariantLayout {
-                                name: "Some".to_string(),
-                                boxed: false,
-                                payload: inner_layout.without_niche(),
-                            },
-                            EnumVariantLayout {
-                                name: "None".to_string(),
-                                boxed: false,
-                                payload: TypeLayout::new(0, 1),
-                            },
-                        ],
+            let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
+            let option_id = self.option_type_id(inner);
+            self.enum_cache.insert(
+                option_id,
+                EnumLayout {
+                    repr: EnumRepr::Niche {
+                        storage: domain.storage,
+                        none_value,
                     },
-                );
-                return Ok(layout);
-            }
+                    layout,
+                    tag_offset: 0,
+                    payload_offset: 0,
+                    payload: layout,
+                    gc_ref_word_mask: Vec::new(),
+                    ref_payload_offset: 0,
+                    ref_payload: TypeLayout::new(0, 1),
+                    variants: vec![
+                        EnumVariantLayout {
+                            name: "Some".to_string(),
+                            boxed: false,
+                            payload: inner_layout.without_niche(),
+                        },
+                        EnumVariantLayout {
+                            name: "None".to_string(),
+                            boxed: false,
+                            payload: TypeLayout::new(0, 1),
+                        },
+                    ],
+                },
+            );
+            return Ok(layout);
+        }
 
         // 2) tagged union fallback。
         let tag = EnumTagType::for_variant_count(2);

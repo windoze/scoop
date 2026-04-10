@@ -1009,9 +1009,10 @@ fn build_import_table_best_effort(
         // 只把确实存在且在当前文件可见的 type symbol 写入 type 命名空间的显式 import 表。
         if let Some(syms) = index.by_fqn.get(&path)
             && let Some(sym) = syms.ty.as_ref()
-                && is_symbol_visible_from(source, sym) {
-                    table.ty.explicit.entry(local).or_default().push(path);
-                }
+            && is_symbol_visible_from(source, sym)
+        {
+            table.ty.explicit.entry(local).or_default().push(path);
+        }
     }
 
     // 稳定化（便于 Debug/测试 & 未来可能的缓存命中）。

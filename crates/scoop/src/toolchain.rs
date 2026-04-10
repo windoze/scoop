@@ -90,8 +90,7 @@ pub enum CompileCxxError {
 /// 约定：
 /// - `linker` 仅表示“要运行的可执行文件路径/名称”，不包含额外参数；额外参数放到 `link_flags`；
 /// - `link_flags` 逐项作为独立 argv 追加到最终链接命令中（不做拆分/转义重写），以保持行为可预测。
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct LinkOptions<'a> {
     /// 指定链接器/驱动程序（例如 `clang`/`clang++`）。
     ///
@@ -100,7 +99,6 @@ pub struct LinkOptions<'a> {
     /// 追加到最终链接命令的额外参数（保持顺序）。
     pub link_flags: &'a [String],
 }
-
 
 /// 链接阶段错误（T0806）。
 #[derive(Debug, Error, Diagnostic)]

@@ -216,9 +216,10 @@ impl Solver {
                         }
                     }
                     if let Some(ub) = b_state.binding
-                        && push_unique(&mut a_state.upper_bounds, ub) {
-                            changed = true;
-                        }
+                        && push_unique(&mut a_state.upper_bounds, ub)
+                    {
+                        changed = true;
+                    }
 
                     // b.lower += a.lower + a.binding
                     let a_lower = a_state.lower_bounds.clone();
@@ -228,9 +229,10 @@ impl Solver {
                         }
                     }
                     if let Some(lb) = a_state.binding
-                        && push_unique(&mut b_state.lower_bounds, lb) {
-                            changed = true;
-                        }
+                        && push_unique(&mut b_state.lower_bounds, lb)
+                    {
+                        changed = true;
+                    }
                 }
             }
 
@@ -364,9 +366,10 @@ impl Solver {
         let binding_a = self.vars[root_a.0 as usize].binding;
         let binding_b = self.vars[root_b.0 as usize].binding;
         if let (Some(left), Some(right)) = (binding_a, binding_b)
-            && left != right {
-                return Err(InferError::TypeConflict { left, right });
-            }
+            && left != right
+        {
+            return Err(InferError::TypeConflict { left, right });
+        }
 
         // 把 b 挂到 a 上，并合并 binding。
         self.vars[root_b.0 as usize].parent = root_a;
@@ -496,9 +499,10 @@ fn is_subtype_of(sub: TypeId, sup: TypeId, types: &TypeStore, builtins: BuiltinT
 
             // receiver function type：把 receiver 当作第一个参数参与逆变比较。
             if let (Some(sup_recv), Some(sub_recv)) = (sup_fun.receiver, sub_fun.receiver)
-                && !is_subtype_of(sup_recv, sub_recv, types, builtins) {
-                    return false;
-                }
+                && !is_subtype_of(sup_recv, sub_recv, types, builtins)
+            {
+                return false;
+            }
 
             for (sup_param, sub_param) in sup_fun
                 .params

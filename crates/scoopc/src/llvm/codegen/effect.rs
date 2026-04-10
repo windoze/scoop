@@ -34,7 +34,7 @@ struct IndirectPerformCallSite {
     /// Index of the stmt in handle.body.stmts.
     stmt_idx: usize,
     /// SymbolId of the val binding for the call result.
-    result_id: hir::SymbolId,
+    _result_id: hir::SymbolId,
     /// HIR type of the call result.
     result_ty: TypeId,
 }
@@ -201,31 +201,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let func_name = func.get_name().to_str().unwrap_or("anon");
         let func_name_san = sanitize_llvm_ident(func_name);
-        let state_ty_name =
-            format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
-        let state_ty =
-            if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
-                existing
-            } else {
-                let ty = self.context.opaque_struct_type(&state_ty_name);
-                let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-                fields.push(header_ty.into()); // 0: GC header
-                fields.push(i64_ty.into()); // 1: resume_word
-                for local in &ctx.saved_locals {
-                    fields.push(match local.cg_ty {
-                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "callee suspend local type",
-                                at: at.into(),
-                            })
-                        }
-                    });
-                }
-                ty.set_body(&fields, false);
-                ty
-            };
+        let state_ty_name = format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
+        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+            existing
+        } else {
+            let ty = self.context.opaque_struct_type(&state_ty_name);
+            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+            fields.push(header_ty.into()); // 0: GC header
+            fields.push(i64_ty.into()); // 1: resume_word
+            for local in &ctx.saved_locals {
+                fields.push(match local.cg_ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "callee suspend local type",
+                            at: at.into(),
+                        });
+                    }
+                });
+            }
+            ty.set_body(&fields, false);
+            ty
+        };
 
         // Create type descriptor for GC.
         let size_bytes = self.target_data.get_store_size(&state_ty);
@@ -241,9 +239,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             size_bytes
         };
-        let desc_name = format!(
-            "__scoop_type_desc_callee_suspend__{func_name_san}"
-        );
+        let desc_name = format!("__scoop_type_desc_callee_suspend__{func_name_san}");
         let state_desc = self.get_or_create_type_descriptor_global(
             at,
             &desc_name,
@@ -283,20 +279,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(pin, &[state_raw.into()], "callee_state_pin")?;
 
-        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
-        let state_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            state_ptr_ty,
-            "callee_state_ptr",
-        )?;
+        let state_ptr_ty = self.context.ptr_type(self.gc_address_space());
+        let state_ptr =
+            self.builder
+                .build_pointer_cast(state_raw, state_ptr_ty, "callee_state_ptr")?;
 
         // Zero-initialize resume_word (field 1).
-        let rw_ptr = self.builder.build_struct_gep(
-            state_ty,
-            state_ptr,
-            1,
-            "callee_state_rw_gep",
-        )?;
+        let rw_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "callee_state_rw_gep")?;
         let _ = self.builder.build_store(rw_ptr, i64_ty.const_zero())?;
 
         // Save locals to state.
@@ -327,17 +318,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let extended = if int_ty.bits == 64 {
                         loaded
                     } else if int_ty.signed {
-                        self.builder.build_int_s_extend(
-                            loaded,
-                            i64_ty,
-                            "callee_save_sext",
-                        )?
+                        self.builder
+                            .build_int_s_extend(loaded, i64_ty, "callee_save_sext")?
                     } else {
-                        self.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "callee_save_zext",
-                        )?
+                        self.builder
+                            .build_int_z_extend(loaded, i64_ty, "callee_save_zext")?
                     };
                     let _ = self.builder.build_store(field_ptr, extended)?;
                 }
@@ -347,11 +332,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_load(llvm_ty, local.ptr, "callee_save_bool")?
                         .into_int_value();
-                    let extended = self.builder.build_int_z_extend(
-                        loaded,
-                        i64_ty,
-                        "callee_save_bool_zext",
-                    )?;
+                    let extended =
+                        self.builder
+                            .build_int_z_extend(loaded, i64_ty, "callee_save_bool_zext")?;
                     let _ = self.builder.build_store(field_ptr, extended)?;
                 }
                 CgTy::Ref => {
@@ -400,7 +383,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "callee suspend save: unsupported local type",
                         at: at.into(),
-                    })
+                    });
                 }
             }
         }
@@ -959,11 +942,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T1608: 跨 effect 传播——清理当前 handler stack 中不匹配的中间帧。
         let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
-        let _ = self.builder.build_call(
-            rt_unwind,
-            &[op_tag_i32.into()],
-            "effect_unwind_to_tag",
-        )?;
+        let _ = self
+            .builder
+            .build_call(rt_unwind, &[op_tag_i32.into()], "effect_unwind_to_tag")?;
 
         if let Some(target) = self.current_effect_unwind_target(&op.fqn) {
             // 同一函数内存在匹配的 handle boundary → 直接跳转到 catch block。
@@ -1116,7 +1097,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 进入 handle body：push handler frame（动态上下文）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let frame_i8 =
             self.builder
                 .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
@@ -1143,32 +1124,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // body 正常结束：进入 finally（并保存结果值）。
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                if let Some(ptr) = result_ptr {
-                    let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
-                }
-
-                // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（与现有 lowering 一致）。
-                let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-                let frame_i8 = self.builder.build_bit_cast(
-                    handler_frame_ptr,
-                    i8_ptr_ty,
-                    "handle_effect_frame_i8",
-                )?;
-                let _ = self
-                    .builder
-                    .build_call(rt_pop, &[frame_i8.into()], "handle_effect_pop")?;
-
-                self.builder.build_unconditional_branch(finally_bb)?;
+            && bb.get_terminator().is_none()
+        {
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
             }
+
+            // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（与现有 lowering 一致）。
+            let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+            let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
+            let frame_i8 = self.builder.build_bit_cast(
+                handler_frame_ptr,
+                i8_ptr_ty,
+                "handle_effect_frame_i8",
+            )?;
+            let _ = self
+                .builder
+                .build_call(rt_pop, &[frame_i8.into()], "handle_effect_pop")?;
+
+            self.builder.build_unconditional_branch(finally_bb)?;
+        }
 
         // --- catch ---
         self.builder.position_at_end(catch_bb);
 
         // 进入 handler arm：pop handler frame（Appendix A.4：arm body 在自身 handler scope 外执行）。
         let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let frame_i8 =
             self.builder
                 .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
@@ -1442,20 +1424,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.codegen_block_value(finally)?;
         }
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                if let Some(target) = outer_raise_target {
-                    self.builder.build_unconditional_branch(target)?;
-                } else {
-                    let ret_ty =
-                        self.current_fun_return_ty
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle finally unwind needs function return type",
-                                at: span.into(),
-                            })?;
-                    let v = self.default_value(ret_ty);
-                    self.emit_return(span, ret_ty, v)?;
-                }
+            && bb.get_terminator().is_none()
+        {
+            if let Some(target) = outer_raise_target {
+                self.builder.build_unconditional_branch(target)?;
+            } else {
+                let ret_ty =
+                    self.current_fun_return_ty
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle finally unwind needs function return type",
+                            at: span.into(),
+                        })?;
+                let v = self.default_value(ret_ty);
+                self.emit_return(span, ret_ty, v)?;
             }
+        }
 
         // --- finally ---
         self.builder.position_at_end(finally_bb);
@@ -1463,9 +1446,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.codegen_block_value(finally)?;
         }
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                self.builder.build_unconditional_branch(merge_bb)?;
-            }
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(merge_bb)?;
+        }
 
         // --- merge ---
         self.builder.position_at_end(merge_bb);
@@ -1473,8 +1457,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -1519,9 +1508,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // finally（仅在当前路径可达时执行）
         if let Some(bb) = self.builder.get_insert_block()
             && bb.get_terminator().is_none()
-                && let Some(finally) = handle.finally.as_ref() {
-                    let _ = self.codegen_block_value(finally)?;
-                }
+            && let Some(finally) = handle.finally.as_ref()
+        {
+            let _ = self.codegen_block_value(finally)?;
+        }
 
         // 若 body/finally 终止了当前块：为后续 codegen 创建一个 dead block。
         let insert_block =
@@ -1551,8 +1541,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -1646,7 +1641,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 进入 handle body：push handler frame（动态上下文）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let frame_i8 =
             self.builder
                 .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_custom_frame_i8")?;
@@ -1691,27 +1686,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // body 正常结束：进入 finally（并保存结果值）。
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                if let Some(ptr) = result_ptr {
-                    let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
-                }
-
-                // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（Appendix A.4）。
-                let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-                let frame_i8 = self.builder.build_bit_cast(
-                    handler_frame_ptr,
-                    i8_ptr_ty,
-                    "handle_custom_frame_i8",
-                )?;
-                let _ = self.builder.build_call(
-                    rt_pop,
-                    &[frame_i8.into()],
-                    "handle_custom_effect_pop",
-                )?;
-
-                self.builder.build_unconditional_branch(finally_bb)?;
+            && bb.get_terminator().is_none()
+        {
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
             }
+
+            // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（Appendix A.4）。
+            let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let frame_i8 = self.builder.build_bit_cast(
+                handler_frame_ptr,
+                i8_ptr_ty,
+                "handle_custom_frame_i8",
+            )?;
+            let _ =
+                self.builder
+                    .build_call(rt_pop, &[frame_i8.into()], "handle_custom_effect_pop")?;
+
+            self.builder.build_unconditional_branch(finally_bb)?;
+        }
 
         // --- catch ---
         self.builder.position_at_end(catch_bb);
@@ -1856,21 +1850,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.codegen_block_value(finally)?;
         }
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                if let Some(target) = outer_target {
-                    // T1608: 跨 effect 传播——清理中间帧后再跳到外层 handler。
-                    let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
-                    let _ = self.builder.build_call(
-                        rt_unwind,
-                        &[op_tag_i32.into()],
-                        "effect_unwind_to_tag",
-                    )?;
-                    self.builder.build_unconditional_branch(target)?;
-                } else {
-                    // 当前阶段：自定义 effect 在程序边界的处理策略尚未固定；先按运行期错误处理。
-                    self.emit_exit_with_code(span, 3)?;
-                }
+            && bb.get_terminator().is_none()
+        {
+            if let Some(target) = outer_target {
+                // T1608: 跨 effect 传播——清理中间帧后再跳到外层 handler。
+                let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
+                let _ = self.builder.build_call(
+                    rt_unwind,
+                    &[op_tag_i32.into()],
+                    "effect_unwind_to_tag",
+                )?;
+                self.builder.build_unconditional_branch(target)?;
+            } else {
+                // 当前阶段：自定义 effect 在程序边界的处理策略尚未固定；先按运行期错误处理。
+                self.emit_exit_with_code(span, 3)?;
             }
+        }
 
         // --- finally ---
         self.builder.position_at_end(finally_bb);
@@ -1878,9 +1873,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.codegen_block_value(finally)?;
         }
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                self.builder.build_unconditional_branch(merge_bb)?;
-            }
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(merge_bb)?;
+        }
 
         // --- dispatch trampoline (T1606f-1) ---
         // emit_effect_unwind_if_active 在 body 中的函数调用返回后，若 flag 被设置，
@@ -1892,13 +1888,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let tag_call = self
                 .builder
                 .build_call(rt_read_tag, &[], "dispatch_read_op_tag")?;
-            let tag_raw = tag_call
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+            let tag_raw = tag_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
                     kind: "dispatch read_op_tag return value",
                     at: span.into(),
-                })?;
+                },
+            )?;
             let BasicValueEnum::IntValue(slot_tag) = tag_raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "dispatch read_op_tag return type",
@@ -1912,11 +1907,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 op_tag_i32,
                 "dispatch_tag_eq",
             )?;
-            self.builder.build_conditional_branch(
-                tag_matches,
-                catch_bb,
-                dispatch_no_match_bb,
-            )?;
+            self.builder
+                .build_conditional_branch(tag_matches, catch_bb, dispatch_no_match_bb)?;
         }
 
         // --- dispatch no match (T1606f-1) ---
@@ -1939,12 +1931,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_unconditional_branch(outer)?;
             } else {
                 // 无外层 handler → 返回默认值向外传播（flag 保持 active）。
-                let ret_ty = self
-                    .current_fun_return_ty
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "dispatch no-match needs function return type",
-                        at: span.into(),
-                    })?;
+                let ret_ty =
+                    self.current_fun_return_ty
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "dispatch no-match needs function return type",
+                            at: span.into(),
+                        })?;
                 let v = self.default_value(ret_ty);
                 self.emit_return(span, ret_ty, v)?;
             }
@@ -1956,8 +1948,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -2165,10 +2162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "handle_resume_effect_frame_i8",
         )?;
         let resume_tag = self.effect_op_tag(&arm.op.op.fqn);
-        let op_tag_i32 = self
-            .context
-            .i32_type()
-            .const_int(resume_tag as u64, false);
+        let op_tag_i32 = self.context.i32_type().const_int(resume_tag as u64, false);
         let _ = self.builder.build_call(
             rt_push,
             &[frame_i8.into(), op_tag_i32.into()],
@@ -2448,8 +2442,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -2528,11 +2527,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         impl<'hir> ResumeFrame<'hir> {
             fn set_resume_after_stmt(&mut self, idx: usize) {
                 match self {
-                    ResumeFrame::IfThen { resume_after_stmt, .. }
-                    | ResumeFrame::IfElse { resume_after_stmt, .. }
-                    | ResumeFrame::WhenArm { resume_after_stmt, .. }
-                    | ResumeFrame::WhileBody { resume_after_stmt, .. }
-                    | ResumeFrame::Block { resume_after_stmt, .. } => {
+                    ResumeFrame::IfThen {
+                        resume_after_stmt, ..
+                    }
+                    | ResumeFrame::IfElse {
+                        resume_after_stmt, ..
+                    }
+                    | ResumeFrame::WhenArm {
+                        resume_after_stmt, ..
+                    }
+                    | ResumeFrame::WhileBody {
+                        resume_after_stmt, ..
+                    }
+                    | ResumeFrame::Block {
+                        resume_after_stmt, ..
+                    } => {
                         *resume_after_stmt = idx;
                     }
                 }
@@ -2552,17 +2561,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ResumeFrame::IfElse { if_expr: b_e, .. },
                 ) => std::ptr::eq(*a_e, *b_e),
                 (
-                    ResumeFrame::WhenArm { when_expr: a_e, arm_index: a_i, .. },
-                    ResumeFrame::WhenArm { when_expr: b_e, arm_index: b_i, .. },
+                    ResumeFrame::WhenArm {
+                        when_expr: a_e,
+                        arm_index: a_i,
+                        ..
+                    },
+                    ResumeFrame::WhenArm {
+                        when_expr: b_e,
+                        arm_index: b_i,
+                        ..
+                    },
                 ) => std::ptr::eq(*a_e, *b_e) && a_i == b_i,
                 (
-                    ResumeFrame::WhileBody { while_body: a_b, .. },
-                    ResumeFrame::WhileBody { while_body: b_b, .. },
+                    ResumeFrame::WhileBody {
+                        while_body: a_b, ..
+                    },
+                    ResumeFrame::WhileBody {
+                        while_body: b_b, ..
+                    },
                 ) => std::ptr::eq(*a_b, *b_b),
-                (
-                    ResumeFrame::Block { block: a_b, .. },
-                    ResumeFrame::Block { block: b_b, .. },
-                ) => std::ptr::eq(*a_b, *b_b),
+                (ResumeFrame::Block { block: a_b, .. }, ResumeFrame::Block { block: b_b, .. }) => {
+                    std::ptr::eq(*a_b, *b_b)
+                }
                 _ => false,
             }
         }
@@ -2612,44 +2632,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     hir::StmtKind::Val(decl) => {
                         // 追踪 decl 的声明顺序（pre-order traversal）。
                         if let Some(id) = decl.id {
-                            decl_map.insert(id, DeclInfo { decl, order: *decl_order });
+                            decl_map.insert(
+                                id,
+                                DeclInfo {
+                                    decl,
+                                    order: *decl_order,
+                                },
+                            );
                             *decl_order += 1;
                         }
                         if let Some(init) = &decl.init
                             && let hir::ExprKind::Perform { op, args } = &init.kind
-                                && op.fqn == arm_op_fqn {
-                                    let Some(id) = decl.id else {
-                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                            kind: "handle escape perform binding id",
-                                            at: decl.span.into(),
-                                        });
-                                    };
-                                    let this_pc = *pc;
-                                    *pc += 1;
-                                    sites.push(NestedPerformSite {
-                                        pc: this_pc,
-                                        decl,
-                                        op,
-                                        args: args.as_slice(),
-                                        id,
-                                        resume_path: path.clone(),
-                                        top_level_stmt_idx,
-                                    });
-                                }
+                            && op.fqn == arm_op_fqn
+                        {
+                            let Some(id) = decl.id else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle escape perform binding id",
+                                    at: decl.span.into(),
+                                });
+                            };
+                            let this_pc = *pc;
+                            *pc += 1;
+                            sites.push(NestedPerformSite {
+                                pc: this_pc,
+                                decl,
+                                op,
+                                args: args.as_slice(),
+                                id,
+                                resume_path: path.clone(),
+                                top_level_stmt_idx,
+                            });
+                        }
                     }
                     hir::StmtKind::Expr(expr) => {
                         // 裸 perform（未绑定到 val）仍然报错。
                         if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                            && op.fqn == arm_op_fqn {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle escape body (perform must be bound to val)",
-                                    at: expr.span.into(),
-                                });
-                            }
+                            && op.fqn == arm_op_fqn
+                        {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle escape body (perform must be bound to val)",
+                                at: expr.span.into(),
+                            });
+                        }
                         // 递归进入控制流表达式。
                         scan_expr_for_performs(
-                            expr, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                            decl_order, decl_map,
+                            expr,
+                            arm_op_fqn,
+                            path,
+                            top_level_stmt_idx,
+                            pc,
+                            sites,
+                            decl_order,
+                            decl_map,
                         )?;
                     }
                     hir::StmtKind::While { cond, body } => {
@@ -2660,8 +2694,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             resume_after_stmt: 0,
                         });
                         scan_stmts_for_performs(
-                            &body.stmts, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                            decl_order, decl_map,
+                            &body.stmts,
+                            arm_op_fqn,
+                            path,
+                            top_level_stmt_idx,
+                            pc,
+                            sites,
+                            decl_order,
+                            decl_map,
                         )?;
                         path.pop();
                     }
@@ -2696,25 +2736,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             resume_after_stmt: 0,
                         });
                         scan_stmts_for_performs(
-                            &block.stmts, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                            decl_order, decl_map,
+                            &block.stmts,
+                            arm_op_fqn,
+                            path,
+                            top_level_stmt_idx,
+                            pc,
+                            sites,
+                            decl_order,
+                            decl_map,
                         )?;
                         path.pop();
                     }
                     // 递归进入 else-branch（如果存在且是 Block）。
                     if let Some(else_expr) = else_branch.as_deref()
-                        && let hir::ExprKind::Block(block) = &else_expr.kind {
-                            path.push(ResumeFrame::IfElse {
-                                if_expr: expr,
-                                else_block_stmts: &block.stmts,
-                                resume_after_stmt: 0,
-                            });
-                            scan_stmts_for_performs(
-                                &block.stmts, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                                decl_order, decl_map,
-                            )?;
-                            path.pop();
-                        }
+                        && let hir::ExprKind::Block(block) = &else_expr.kind
+                    {
+                        path.push(ResumeFrame::IfElse {
+                            if_expr: expr,
+                            else_block_stmts: &block.stmts,
+                            resume_after_stmt: 0,
+                        });
+                        scan_stmts_for_performs(
+                            &block.stmts,
+                            arm_op_fqn,
+                            path,
+                            top_level_stmt_idx,
+                            pc,
+                            sites,
+                            decl_order,
+                            decl_map,
+                        )?;
+                        path.pop();
+                    }
                 }
                 hir::ExprKind::When { subject: _, arms } => {
                     for (arm_idx, when_arm) in arms.iter().enumerate() {
@@ -2726,8 +2779,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 resume_after_stmt: 0,
                             });
                             scan_stmts_for_performs(
-                                &block.stmts, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                                decl_order, decl_map,
+                                &block.stmts,
+                                arm_op_fqn,
+                                path,
+                                top_level_stmt_idx,
+                                pc,
+                                sites,
+                                decl_order,
+                                decl_map,
                             )?;
                             path.pop();
                         }
@@ -2739,8 +2798,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         resume_after_stmt: 0,
                     });
                     scan_stmts_for_performs(
-                        &block.stmts, arm_op_fqn, path, top_level_stmt_idx, pc, sites,
-                        decl_order, decl_map,
+                        &block.stmts,
+                        arm_op_fqn,
+                        path,
+                        top_level_stmt_idx,
+                        pc,
+                        sites,
+                        decl_order,
+                        decl_map,
                     )?;
                     path.pop();
                 }
@@ -2771,10 +2836,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let Some(first_site) = perform_sites.first() else {
             // T1606f-2: No direct performs found. Check for indirect performs through function calls.
-            let indirect_sites = self.scan_for_indirect_perform_call_sites(
-                &handle.body,
-                &arm.op.op.fqn,
-            );
+            let indirect_sites =
+                self.scan_for_indirect_perform_call_sites(&handle.body, &arm.op.op.fqn);
             if !indirect_sites.is_empty() {
                 return self.codegen_handle_expr_escape_continuation_indirect(
                     span,
@@ -2998,7 +3061,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T1606e：top-level 拦截表 — 映射 top_level_stmt_idx -> [(pc, resume_path)]。
         // 对于 flat performs，resume_path 为空；对于嵌套 performs，resume_path 描述控制流嵌套。
         // 同一 top_level_stmt_idx 下可能有多个 perform（例如 if/else 两侧各有一个 perform）。
-        let mut top_level_intercepts: HashMap<usize, Vec<(usize, &[ResumeFrame<'_>])>> = HashMap::new();
+        let mut top_level_intercepts: HashMap<usize, Vec<(usize, &[ResumeFrame<'_>])>> =
+            HashMap::new();
         for (pc, site) in perform_sites.iter().enumerate() {
             top_level_intercepts
                 .entry(site.top_level_stmt_idx)
@@ -3063,22 +3127,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // resume_path 每层的 continuation（stmts after the frame's resume_after_stmt）。
             for frame in &site.resume_path {
                 match frame {
-                    ResumeFrame::IfThen { then_block_stmts, resume_after_stmt, .. } => {
+                    ResumeFrame::IfThen {
+                        then_block_stmts,
+                        resume_after_stmt,
+                        ..
+                    } => {
                         for stmt in then_block_stmts.iter().skip(*resume_after_stmt + 1) {
                             collect_used_locals_in_stmt(stmt, used_after);
                         }
                     }
-                    ResumeFrame::IfElse { else_block_stmts, resume_after_stmt, .. } => {
+                    ResumeFrame::IfElse {
+                        else_block_stmts,
+                        resume_after_stmt,
+                        ..
+                    } => {
                         for stmt in else_block_stmts.iter().skip(*resume_after_stmt + 1) {
                             collect_used_locals_in_stmt(stmt, used_after);
                         }
                     }
-                    ResumeFrame::WhenArm { arm_block_stmts, resume_after_stmt, .. } => {
+                    ResumeFrame::WhenArm {
+                        arm_block_stmts,
+                        resume_after_stmt,
+                        ..
+                    } => {
                         for stmt in arm_block_stmts.iter().skip(*resume_after_stmt + 1) {
                             collect_used_locals_in_stmt(stmt, used_after);
                         }
                     }
-                    ResumeFrame::WhileBody { while_cond, while_body, resume_after_stmt } => {
+                    ResumeFrame::WhileBody {
+                        while_cond,
+                        while_body,
+                        resume_after_stmt,
+                    } => {
                         // 本次迭代的 continuation。
                         for stmt in while_body.stmts.iter().skip(*resume_after_stmt + 1) {
                             collect_used_locals_in_stmt(stmt, used_after);
@@ -3087,7 +3167,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         collect_used_locals_in_block(while_body, used_after);
                         collect_used_locals_in_expr(while_cond, used_after);
                     }
-                    ResumeFrame::Block { block, resume_after_stmt } => {
+                    ResumeFrame::Block {
+                        block,
+                        resume_after_stmt,
+                    } => {
                         for stmt in block.stmts.iter().skip(*resume_after_stmt + 1) {
                             collect_used_locals_in_stmt(stmt, used_after);
                         }
@@ -3562,9 +3645,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // after evaluating args → writing binder slots → storing next_pc.
             // The shared block handles: write back captures → set pc → create continuation →
             // pin → detach handler → arm body → unpin → return.
-            let intercept_bb =
-                self.context
-                    .append_basic_block(step_fn, "cont_step_intercept");
+            let intercept_bb = self
+                .context
+                .append_basic_block(step_fn, "cont_step_intercept");
             let intercept_next_pc_ptr =
                 cg.create_entry_alloca_raw(span, "intercept_next_pc", i32_ty.into())?;
 
@@ -3644,19 +3727,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                     CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                         // resume_gc_ref 指向 boxed payload: { GcObjectHeader, <payload> }
-                        let payload_llvm_ty = cg.llvm_basic_type_of(site.decl.span, resume_value_ty)?;
+                        let payload_llvm_ty =
+                            cg.llvm_basic_type_of(site.decl.span, resume_value_ty)?;
                         let header_ty = cg.llvm_gc_object_header_type();
-                        let box_ty_name = format!(
-                            "scoop.runtime.ResumeBox__{func_name}_{seq}_pc{pc}"
-                        );
-                        let box_ty = if let Some(existing) = cg.context.get_struct_type(&box_ty_name)
-                        {
-                            existing
-                        } else {
-                            let t = cg.context.opaque_struct_type(&box_ty_name);
-                            t.set_body(&[header_ty.into(), payload_llvm_ty], false);
-                            t
-                        };
+                        let box_ty_name =
+                            format!("scoop.runtime.ResumeBox__{func_name}_{seq}_pc{pc}");
+                        let box_ty =
+                            if let Some(existing) = cg.context.get_struct_type(&box_ty_name) {
+                                existing
+                            } else {
+                                let t = cg.context.opaque_struct_type(&box_ty_name);
+                                t.set_body(&[header_ty.into(), payload_llvm_ty], false);
+                                t
+                            };
                         let box_ptr_ty = box_ty.ptr_type(cg.gc_address_space());
                         let box_ptr = cg.builder.build_pointer_cast(
                             resume_gc_ref,
@@ -3696,32 +3779,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         if let Some(intercepts) = top_level_intercepts.get(&idx) {
                             // Check for flat (top-level) intercept first.
-                            if let Some(&(next_pc, _)) = intercepts.iter().find(|(_, rp)| rp.is_empty()) {
+                            if let Some(&(next_pc, _)) =
+                                intercepts.iter().find(|(_, rp)| rp.is_empty())
+                            {
                                 // Direct flat intercept.
                                 let next_site = &perform_sites[next_pc];
-                                for (slot, arg) in
-                                    binder_slots.iter().zip(next_site.args.iter())
-                                {
+                                for (slot, arg) in binder_slots.iter().zip(next_site.args.iter()) {
                                     let hir::CallArg::Positional(expr) = arg else {
                                         return Err(LlvmEmitError::UnsupportedMainBody {
                                             kind: "handle escape named perform arg",
                                             at: span.into(),
                                         });
                                     };
-                                    let v = cg.codegen_expr_in_expected_context(
-                                        expr,
-                                        Some(slot.ty),
-                                    )?;
-                                    let _stored = cg.store_local_value(
-                                        expr.span, slot.ptr, slot.ty, v,
-                                    )?;
+                                    let v =
+                                        cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+                                    let _stored =
+                                        cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
                                 }
                                 let _ = cg.builder.build_store(
                                     intercept_next_pc_ptr,
                                     i32_ty.const_int(next_pc as u64, false),
                                 )?;
-                                cg.builder
-                                    .build_unconditional_branch(intercept_bb)?;
+                                cg.builder.build_unconditional_branch(intercept_bb)?;
                                 terminated = true;
                                 break;
                             }
@@ -3730,40 +3809,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let (intercept_pc, inner_path) = *first;
                             if !inner_path.is_empty() {
                                 match &inner_path[0] {
-                                    ResumeFrame::IfThen { if_expr, then_block_stmts, resume_after_stmt: perform_stmt_idx, .. } => {
-                                        if let hir::ExprKind::If { cond: if_cond, then_branch: _, else_branch } = &if_expr.kind {
-                                            let cond_v = cg.codegen_expr_in_expected_context(if_cond, Some(CgTy::Bool))?;
-                                            let cond_b = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                kind: "if cond (tail nested intercept)",
-                                                at: if_cond.span.into(),
-                                            })?;
-                                            let then_bb_i = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_then"));
+                                    ResumeFrame::IfThen {
+                                        if_expr,
+                                        then_block_stmts,
+                                        resume_after_stmt: perform_stmt_idx,
+                                        ..
+                                    } => {
+                                        if let hir::ExprKind::If {
+                                            cond: if_cond,
+                                            then_branch: _,
+                                            else_branch,
+                                        } = &if_expr.kind
+                                        {
+                                            let cond_v = cg.codegen_expr_in_expected_context(
+                                                if_cond,
+                                                Some(CgTy::Bool),
+                                            )?;
+                                            let cond_b = cond_v.as_bool().ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
+                                                    kind: "if cond (tail nested intercept)",
+                                                    at: if_cond.span.into(),
+                                                },
+                                            )?;
+                                            let then_bb_i = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_tail_if_then"),
+                                            );
                                             let has_else = else_branch.is_some();
-                                            let else_or_after = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_{}", if has_else { "else" } else { "after" }));
+                                            let else_or_after = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!(
+                                                    "step_pc{pc}_tail_if_{}",
+                                                    if has_else { "else" } else { "after" }
+                                                ),
+                                            );
                                             let after_if_bb = if has_else {
-                                                self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_after"))
+                                                self.context.append_basic_block(
+                                                    step_fn,
+                                                    &format!("step_pc{pc}_tail_if_after"),
+                                                )
                                             } else {
                                                 else_or_after
                                             };
-                                            cg.builder.build_conditional_branch(cond_b, then_bb_i, else_or_after)?;
+                                            cg.builder.build_conditional_branch(
+                                                cond_b,
+                                                then_bb_i,
+                                                else_or_after,
+                                            )?;
 
                                             // Then-branch: stmts before perform, then intercept
                                             cg.builder.position_at_end(then_bb_i);
                                             for (ti, tstmt) in then_block_stmts.iter().enumerate() {
                                                 if ti == *perform_stmt_idx {
                                                     let is = &perform_sites[intercept_pc];
-                                                    for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                        let hir::CallArg::Positional(expr) = arg else {
+                                                    for (slot, arg) in
+                                                        binder_slots.iter().zip(is.args.iter())
+                                                    {
+                                                        let hir::CallArg::Positional(expr) = arg
+                                                        else {
                                                             return Err(LlvmEmitError::UnsupportedMainBody {
                                                                 kind: "handle escape named perform arg",
                                                                 at: span.into(),
                                                             });
                                                         };
-                                                        let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                        let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                        let v = cg
+                                                            .codegen_expr_in_expected_context(
+                                                                expr,
+                                                                Some(slot.ty),
+                                                            )?;
+                                                        let _stored = cg.store_local_value(
+                                                            expr.span, slot.ptr, slot.ty, v,
+                                                        )?;
                                                     }
-                                                    let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                    cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                    let _ = cg.builder.build_store(
+                                                        intercept_next_pc_ptr,
+                                                        i32_ty
+                                                            .const_int(intercept_pc as u64, false),
+                                                    )?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(intercept_bb)?;
                                                     break;
                                                 }
                                                 match &tstmt.kind {
@@ -3771,39 +3895,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                     hir::StmtKind::Val(decl) => {
                                                         if let Some(id) = decl.id {
                                                             if body_lift_ids.contains(&id) {
-                                                                let Some(init) = decl.init.as_ref() else {
+                                                                let Some(init) = decl.init.as_ref()
+                                                                else {
                                                                     return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
                                                                 };
                                                                 let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                 let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                 let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                            } else { cg.codegen_val_decl(decl)?; }
-                                                        } else { cg.codegen_val_decl(decl)?; }
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        decl.span, local.ptr,
+                                                                        decl_ty, v,
+                                                                    )?;
+                                                            } else {
+                                                                cg.codegen_val_decl(decl)?;
+                                                            }
+                                                        } else {
+                                                            cg.codegen_val_decl(decl)?;
+                                                        }
                                                     }
-                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                    hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                                                    }
+                                                    hir::StmtKind::Expr(expr) => {
+                                                        let _ = cg.codegen_expr(expr)?;
+                                                    }
                                                     _ => {}
                                                 }
                                             }
 
                                             // Else-branch: check if also intercepted (both branches have performs).
-                                            let else_intercept = intercepts.iter().find(|(_, rp)| matches!(rp.first(), Some(ResumeFrame::IfElse { .. })));
+                                            let else_intercept =
+                                                intercepts.iter().find(|(_, rp)| {
+                                                    matches!(
+                                                        rp.first(),
+                                                        Some(ResumeFrame::IfElse { .. })
+                                                    )
+                                                });
                                             if let Some(&(else_ipc, else_rp)) = else_intercept {
-                                                if let ResumeFrame::IfElse { else_block_stmts: ebs, resume_after_stmt: epi, .. } = &else_rp[0] {
+                                                if let ResumeFrame::IfElse {
+                                                    else_block_stmts: ebs,
+                                                    resume_after_stmt: epi,
+                                                    ..
+                                                } = &else_rp[0]
+                                                {
                                                     cg.builder.position_at_end(else_or_after);
                                                     for (ei, estmt) in ebs.iter().enumerate() {
                                                         if ei == *epi {
                                                             let es = &perform_sites[else_ipc];
-                                                            for (slot, arg) in binder_slots.iter().zip(es.args.iter()) {
-                                                                let hir::CallArg::Positional(expr) = arg else {
+                                                            for (slot, arg) in binder_slots
+                                                                .iter()
+                                                                .zip(es.args.iter())
+                                                            {
+                                                                let hir::CallArg::Positional(expr) =
+                                                                    arg
+                                                                else {
                                                                     return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                                 };
                                                                 let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        expr.span, slot.ptr,
+                                                                        slot.ty, v,
+                                                                    )?;
                                                             }
-                                                            let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(else_ipc as u64, false))?;
-                                                            cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                            let _ = cg.builder.build_store(
+                                                                intercept_next_pc_ptr,
+                                                                i32_ty.const_int(
+                                                                    else_ipc as u64,
+                                                                    false,
+                                                                ),
+                                                            )?;
+                                                            cg.builder.build_unconditional_branch(
+                                                                intercept_bb,
+                                                            )?;
                                                             break;
                                                         }
                                                         match &estmt.kind {
@@ -3811,18 +3976,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                             hir::StmtKind::Val(decl) => {
                                                                 if let Some(id) = decl.id {
                                                                     if body_lift_ids.contains(&id) {
-                                                                        let Some(init) = decl.init.as_ref() else {
+                                                                        let Some(init) =
+                                                                            decl.init.as_ref()
+                                                                        else {
                                                                             return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
                                                                         };
                                                                         let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                         let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                         let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                        let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                    } else { cg.codegen_val_decl(decl)?; }
-                                                                } else { cg.codegen_val_decl(decl)?; }
+                                                                        let _stored = cg
+                                                                            .store_local_value(
+                                                                                decl.span,
+                                                                                local.ptr, decl_ty,
+                                                                                v,
+                                                                            )?;
+                                                                    } else {
+                                                                        cg.codegen_val_decl(decl)?;
+                                                                    }
+                                                                } else {
+                                                                    cg.codegen_val_decl(decl)?;
+                                                                }
                                                             }
-                                                            hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                            hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                            hir::StmtKind::Assign {
+                                                                lhs,
+                                                                eq_span,
+                                                                rhs,
+                                                            } => {
+                                                                cg.codegen_assign_stmt(
+                                                                    *eq_span, lhs, rhs,
+                                                                )?;
+                                                            }
+                                                            hir::StmtKind::Expr(expr) => {
+                                                                let _ = cg.codegen_expr(expr)?;
+                                                            }
                                                             _ => {}
                                                         }
                                                     }
@@ -3830,42 +4016,97 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                             } else if let Some(else_expr) = else_branch.as_deref() {
                                                 cg.builder.position_at_end(else_or_after);
                                                 let _ = cg.codegen_expr(else_expr)?;
-                                                cg.builder.build_unconditional_branch(after_if_bb)?;
+                                                cg.builder
+                                                    .build_unconditional_branch(after_if_bb)?;
                                             }
                                             // After-if: continue with remaining tail stmts
                                             cg.builder.position_at_end(after_if_bb);
                                             continue;
                                         }
                                     }
-                                    ResumeFrame::IfElse { if_expr, else_block_stmts, resume_after_stmt: perform_stmt_idx, .. } => {
-                                        if let hir::ExprKind::If { cond: if_cond, then_branch, else_branch: _ } = &if_expr.kind {
-                                            let cond_v = cg.codegen_expr_in_expected_context(if_cond, Some(CgTy::Bool))?;
-                                            let cond_b = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                kind: "if cond (tail nested intercept)",
-                                                at: if_cond.span.into(),
-                                            })?;
-                                            let then_bb_i = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_then"));
-                                            let else_bb_i = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_else"));
-                                            let after_if_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_if_after"));
-                                            cg.builder.build_conditional_branch(cond_b, then_bb_i, else_bb_i)?;
+                                    ResumeFrame::IfElse {
+                                        if_expr,
+                                        else_block_stmts,
+                                        resume_after_stmt: perform_stmt_idx,
+                                        ..
+                                    } => {
+                                        if let hir::ExprKind::If {
+                                            cond: if_cond,
+                                            then_branch,
+                                            else_branch: _,
+                                        } = &if_expr.kind
+                                        {
+                                            let cond_v = cg.codegen_expr_in_expected_context(
+                                                if_cond,
+                                                Some(CgTy::Bool),
+                                            )?;
+                                            let cond_b = cond_v.as_bool().ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
+                                                    kind: "if cond (tail nested intercept)",
+                                                    at: if_cond.span.into(),
+                                                },
+                                            )?;
+                                            let then_bb_i = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_tail_if_then"),
+                                            );
+                                            let else_bb_i = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_tail_if_else"),
+                                            );
+                                            let after_if_bb = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_tail_if_after"),
+                                            );
+                                            cg.builder.build_conditional_branch(
+                                                cond_b, then_bb_i, else_bb_i,
+                                            )?;
 
                                             // Then-branch: check if also intercepted (both branches have performs).
-                                            let then_intercept = intercepts.iter().find(|(_, rp)| matches!(rp.first(), Some(ResumeFrame::IfThen { .. })));
+                                            let then_intercept =
+                                                intercepts.iter().find(|(_, rp)| {
+                                                    matches!(
+                                                        rp.first(),
+                                                        Some(ResumeFrame::IfThen { .. })
+                                                    )
+                                                });
                                             if let Some(&(then_ipc, then_rp)) = then_intercept {
-                                                if let ResumeFrame::IfThen { then_block_stmts: tbs, resume_after_stmt: tpi, .. } = &then_rp[0] {
+                                                if let ResumeFrame::IfThen {
+                                                    then_block_stmts: tbs,
+                                                    resume_after_stmt: tpi,
+                                                    ..
+                                                } = &then_rp[0]
+                                                {
                                                     cg.builder.position_at_end(then_bb_i);
                                                     for (ti, tstmt) in tbs.iter().enumerate() {
                                                         if ti == *tpi {
                                                             let ts = &perform_sites[then_ipc];
-                                                            for (slot, arg) in binder_slots.iter().zip(ts.args.iter()) {
-                                                                let hir::CallArg::Positional(expr) = arg else {
+                                                            for (slot, arg) in binder_slots
+                                                                .iter()
+                                                                .zip(ts.args.iter())
+                                                            {
+                                                                let hir::CallArg::Positional(expr) =
+                                                                    arg
+                                                                else {
                                                                     return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                                 };
                                                                 let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        expr.span, slot.ptr,
+                                                                        slot.ty, v,
+                                                                    )?;
                                                             }
-                                                            let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(then_ipc as u64, false))?;
-                                                            cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                            let _ = cg.builder.build_store(
+                                                                intercept_next_pc_ptr,
+                                                                i32_ty.const_int(
+                                                                    then_ipc as u64,
+                                                                    false,
+                                                                ),
+                                                            )?;
+                                                            cg.builder.build_unconditional_branch(
+                                                                intercept_bb,
+                                                            )?;
                                                             break;
                                                         }
                                                         match &tstmt.kind {
@@ -3873,18 +4114,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                             hir::StmtKind::Val(decl) => {
                                                                 if let Some(id) = decl.id {
                                                                     if body_lift_ids.contains(&id) {
-                                                                        let Some(init) = decl.init.as_ref() else {
+                                                                        let Some(init) =
+                                                                            decl.init.as_ref()
+                                                                        else {
                                                                             return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
                                                                         };
                                                                         let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                         let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                         let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                        let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                    } else { cg.codegen_val_decl(decl)?; }
-                                                                } else { cg.codegen_val_decl(decl)?; }
+                                                                        let _stored = cg
+                                                                            .store_local_value(
+                                                                                decl.span,
+                                                                                local.ptr, decl_ty,
+                                                                                v,
+                                                                            )?;
+                                                                    } else {
+                                                                        cg.codegen_val_decl(decl)?;
+                                                                    }
+                                                                } else {
+                                                                    cg.codegen_val_decl(decl)?;
+                                                                }
                                                             }
-                                                            hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                            hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                            hir::StmtKind::Assign {
+                                                                lhs,
+                                                                eq_span,
+                                                                rhs,
+                                                            } => {
+                                                                cg.codegen_assign_stmt(
+                                                                    *eq_span, lhs, rhs,
+                                                                )?;
+                                                            }
+                                                            hir::StmtKind::Expr(expr) => {
+                                                                let _ = cg.codegen_expr(expr)?;
+                                                            }
                                                             _ => {}
                                                         }
                                                     }
@@ -3892,7 +4154,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                             } else {
                                                 cg.builder.position_at_end(then_bb_i);
                                                 let _ = cg.codegen_expr(then_branch)?;
-                                                cg.builder.build_unconditional_branch(after_if_bb)?;
+                                                cg.builder
+                                                    .build_unconditional_branch(after_if_bb)?;
                                             }
 
                                             // Else-branch: stmts before perform, then intercept
@@ -3900,15 +4163,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                             for (ei, estmt) in else_block_stmts.iter().enumerate() {
                                                 if ei == *perform_stmt_idx {
                                                     let is = &perform_sites[intercept_pc];
-                                                    for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                        let hir::CallArg::Positional(expr) = arg else {
+                                                    for (slot, arg) in
+                                                        binder_slots.iter().zip(is.args.iter())
+                                                    {
+                                                        let hir::CallArg::Positional(expr) = arg
+                                                        else {
                                                             return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                         };
-                                                        let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                        let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                        let v = cg
+                                                            .codegen_expr_in_expected_context(
+                                                                expr,
+                                                                Some(slot.ty),
+                                                            )?;
+                                                        let _stored = cg.store_local_value(
+                                                            expr.span, slot.ptr, slot.ty, v,
+                                                        )?;
                                                     }
-                                                    let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                    cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                    let _ = cg.builder.build_store(
+                                                        intercept_next_pc_ptr,
+                                                        i32_ty
+                                                            .const_int(intercept_pc as u64, false),
+                                                    )?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(intercept_bb)?;
                                                     break;
                                                 }
                                                 match &estmt.kind {
@@ -3916,18 +4193,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                     hir::StmtKind::Val(decl) => {
                                                         if let Some(id) = decl.id {
                                                             if body_lift_ids.contains(&id) {
-                                                                let Some(init) = decl.init.as_ref() else {
+                                                                let Some(init) = decl.init.as_ref()
+                                                                else {
                                                                     return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
                                                                 };
                                                                 let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                 let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                 let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                            } else { cg.codegen_val_decl(decl)?; }
-                                                        } else { cg.codegen_val_decl(decl)?; }
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        decl.span, local.ptr,
+                                                                        decl_ty, v,
+                                                                    )?;
+                                                            } else {
+                                                                cg.codegen_val_decl(decl)?;
+                                                            }
+                                                        } else {
+                                                            cg.codegen_val_decl(decl)?;
+                                                        }
                                                     }
-                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                    hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                                                    }
+                                                    hir::StmtKind::Expr(expr) => {
+                                                        let _ = cg.codegen_expr(expr)?;
+                                                    }
                                                     _ => {}
                                                 }
                                             }
@@ -3936,73 +4226,190 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                             continue;
                                         }
                                     }
-                                    ResumeFrame::WhileBody { while_cond, while_body, resume_after_stmt: perform_body_idx, .. } => {
+                                    ResumeFrame::WhileBody {
+                                        while_cond,
+                                        while_body,
+                                        resume_after_stmt: perform_body_idx,
+                                        ..
+                                    } => {
                                         // Generate while loop with interception at the perform point.
-                                        let wc_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_while_cond"));
-                                        let wb_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_while_body"));
-                                        let wa_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_tail_while_after"));
+                                        let wc_bb = self.context.append_basic_block(
+                                            step_fn,
+                                            &format!("step_pc{pc}_tail_while_cond"),
+                                        );
+                                        let wb_bb = self.context.append_basic_block(
+                                            step_fn,
+                                            &format!("step_pc{pc}_tail_while_body"),
+                                        );
+                                        let wa_bb = self.context.append_basic_block(
+                                            step_fn,
+                                            &format!("step_pc{pc}_tail_while_after"),
+                                        );
                                         cg.builder.build_unconditional_branch(wc_bb)?;
                                         cg.builder.position_at_end(wc_bb);
-                                        let cv = cg.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
-                                        let cb = cv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                                            kind: "while cond (tail nested intercept)",
-                                            at: while_cond.span.into(),
-                                        })?;
+                                        let cv = cg.codegen_expr_in_expected_context(
+                                            while_cond,
+                                            Some(CgTy::Bool),
+                                        )?;
+                                        let cb = cv.as_bool().ok_or(
+                                            LlvmEmitError::UnsupportedMainBody {
+                                                kind: "while cond (tail nested intercept)",
+                                                at: while_cond.span.into(),
+                                            },
+                                        )?;
                                         cg.builder.build_conditional_branch(cb, wb_bb, wa_bb)?;
 
                                         cg.builder.position_at_end(wb_bb);
                                         cg.env.push_scope();
                                         let mut while_term = false;
                                         for (bi, bstmt) in while_body.stmts.iter().enumerate() {
-                                            if while_term { break; }
+                                            if while_term {
+                                                break;
+                                            }
                                             if bi == *perform_body_idx {
                                                 // T1606e: check for deeper nesting (if/else within while body).
                                                 if inner_path.len() > 1 {
                                                     match &inner_path[1] {
-                                                        ResumeFrame::IfThen { if_expr: nested_if, then_block_stmts: nested_tbs, resume_after_stmt: nested_tpi, .. } => {
-                                                            if let hir::ExprKind::If { cond: if_cond, then_branch: _, else_branch } = &nested_if.kind {
+                                                        ResumeFrame::IfThen {
+                                                            if_expr: nested_if,
+                                                            then_block_stmts: nested_tbs,
+                                                            resume_after_stmt: nested_tpi,
+                                                            ..
+                                                        } => {
+                                                            if let hir::ExprKind::If {
+                                                                cond: if_cond,
+                                                                then_branch: _,
+                                                                else_branch,
+                                                            } = &nested_if.kind
+                                                            {
                                                                 let cond_v = cg.codegen_expr_in_expected_context(if_cond, Some(CgTy::Bool))?;
                                                                 let cond_b = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
                                                                     kind: "if cond in while body (tail intercept)",
                                                                     at: if_cond.span.into(),
                                                                 })?;
-                                                                let if_then_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_then"));
-                                                                let has_else = else_branch.is_some();
-                                                                let if_else_or_after = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_{}", if has_else { "else" } else { "after" }));
-                                                                let if_after_bb = if has_else { self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_after")) } else { if_else_or_after };
-                                                                cg.builder.build_conditional_branch(cond_b, if_then_bb, if_else_or_after)?;
+                                                                let if_then_bb = self
+                                                                    .context
+                                                                    .append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_then"
+                                                                        ),
+                                                                    );
+                                                                let has_else =
+                                                                    else_branch.is_some();
+                                                                let if_else_or_after = self
+                                                                    .context
+                                                                    .append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_{}",
+                                                                            if has_else {
+                                                                                "else"
+                                                                            } else {
+                                                                                "after"
+                                                                            }
+                                                                        ),
+                                                                    );
+                                                                let if_after_bb = if has_else {
+                                                                    self.context.append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_after"
+                                                                        ),
+                                                                    )
+                                                                } else {
+                                                                    if_else_or_after
+                                                                };
+                                                                cg.builder
+                                                                    .build_conditional_branch(
+                                                                        cond_b,
+                                                                        if_then_bb,
+                                                                        if_else_or_after,
+                                                                    )?;
 
                                                                 // Then-branch: stmts before perform, then intercept
-                                                                cg.builder.position_at_end(if_then_bb);
-                                                                for (ti, tstmt) in nested_tbs.iter().enumerate() {
+                                                                cg.builder
+                                                                    .position_at_end(if_then_bb);
+                                                                for (ti, tstmt) in
+                                                                    nested_tbs.iter().enumerate()
+                                                                {
                                                                     if ti == *nested_tpi {
-                                                                        let is = &perform_sites[intercept_pc];
-                                                                        for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
+                                                                        let is = &perform_sites
+                                                                            [intercept_pc];
+                                                                        for (slot, arg) in
+                                                                            binder_slots
+                                                                                .iter()
+                                                                                .zip(is.args.iter())
+                                                                        {
                                                                             let hir::CallArg::Positional(expr) = arg else {
                                                                                 return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                                             };
                                                                             let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                            let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                            let _stored = cg
+                                                                                .store_local_value(
+                                                                                    expr.span,
+                                                                                    slot.ptr,
+                                                                                    slot.ty, v,
+                                                                                )?;
                                                                         }
-                                                                        let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
+                                                                        let _ = cg
+                                                                            .builder
+                                                                            .build_store(
+                                                                            intercept_next_pc_ptr,
+                                                                            i32_ty.const_int(
+                                                                                intercept_pc as u64,
+                                                                                false,
+                                                                            ),
+                                                                        )?;
                                                                         cg.builder.build_unconditional_branch(intercept_bb)?;
                                                                         break;
                                                                     }
                                                                     match &tstmt.kind {
                                                                         hir::StmtKind::Empty => {}
-                                                                        hir::StmtKind::Val(decl) => {
-                                                                            if let Some(id) = decl.id {
-                                                                                if body_lift_ids.contains(&id) {
-                                                                                    let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                        hir::StmtKind::Val(
+                                                                            decl,
+                                                                        ) => {
+                                                                            if let Some(id) =
+                                                                                decl.id
+                                                                            {
+                                                                                if body_lift_ids
+                                                                                    .contains(&id)
+                                                                                {
+                                                                                    let Some(init) =
+                                                                                        decl.init
+                                                                                            .as_ref(
+                                                                                            )
+                                                                                    else {
+                                                                                        return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                                    };
                                                                                     let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                                     let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                                     let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
                                                                                     let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                                } else { cg.codegen_val_decl(decl)?; }
-                                                                            } else { cg.codegen_val_decl(decl)?; }
+                                                                                } else {
+                                                                                    cg.codegen_val_decl(decl)?;
+                                                                                }
+                                                                            } else {
+                                                                                cg.codegen_val_decl(decl)?;
+                                                                            }
                                                                         }
-                                                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                                        hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                                        hir::StmtKind::Assign {
+                                                                            lhs,
+                                                                            eq_span,
+                                                                            rhs,
+                                                                        } => {
+                                                                            cg.codegen_assign_stmt(
+                                                                                *eq_span, lhs, rhs,
+                                                                            )?;
+                                                                        }
+                                                                        hir::StmtKind::Expr(
+                                                                            expr,
+                                                                        ) => {
+                                                                            let _ = cg
+                                                                                .codegen_expr(
+                                                                                    expr,
+                                                                                )?;
+                                                                        }
                                                                         _ => {}
                                                                     }
                                                                 }
@@ -4011,12 +4418,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                                 let else_in_while = intercepts.iter().find(|(_, rp)| {
                                                                     rp.len() > 1 && matches!(rp[0], ResumeFrame::WhileBody { .. }) && matches!(rp[1], ResumeFrame::IfElse { .. })
                                                                 });
-                                                                if let Some(&(else_wpc, else_wrp)) = else_in_while {
-                                                                    if let ResumeFrame::IfElse { else_block_stmts: ebs, resume_after_stmt: epi, .. } = &else_wrp[1] {
-                                                                        cg.builder.position_at_end(if_else_or_after);
-                                                                        for (ei, estmt) in ebs.iter().enumerate() {
+                                                                if let Some(&(else_wpc, else_wrp)) =
+                                                                    else_in_while
+                                                                {
+                                                                    if let ResumeFrame::IfElse {
+                                                                        else_block_stmts: ebs,
+                                                                        resume_after_stmt: epi,
+                                                                        ..
+                                                                    } = &else_wrp[1]
+                                                                    {
+                                                                        cg.builder.position_at_end(
+                                                                            if_else_or_after,
+                                                                        );
+                                                                        for (ei, estmt) in
+                                                                            ebs.iter().enumerate()
+                                                                        {
                                                                             if ei == *epi {
-                                                                                let es = &perform_sites[else_wpc];
+                                                                                let es =
+                                                                                    &perform_sites
+                                                                                        [else_wpc];
                                                                                 for (slot, arg) in binder_slots.iter().zip(es.args.iter()) {
                                                                                     let hir::CallArg::Positional(expr) = arg else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() }); };
                                                                                     let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
@@ -4045,60 +4465,163 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                                             }
                                                                         }
                                                                     }
-                                                                } else if let Some(else_expr) = else_branch.as_deref() {
-                                                                    cg.builder.position_at_end(if_else_or_after);
-                                                                    let _ = cg.codegen_expr(else_expr)?;
-                                                                    cg.builder.build_unconditional_branch(if_after_bb)?;
+                                                                } else if let Some(else_expr) =
+                                                                    else_branch.as_deref()
+                                                                {
+                                                                    cg.builder.position_at_end(
+                                                                        if_else_or_after,
+                                                                    );
+                                                                    let _ =
+                                                                        cg.codegen_expr(else_expr)?;
+                                                                    cg.builder
+                                                                        .build_unconditional_branch(
+                                                                            if_after_bb,
+                                                                        )?;
                                                                 }
 
                                                                 // After-if: remaining while body stmts, loop back
-                                                                cg.builder.position_at_end(if_after_bb);
-                                                                for remaining in while_body.stmts[bi+1..].iter() {
+                                                                cg.builder
+                                                                    .position_at_end(if_after_bb);
+                                                                for remaining in while_body.stmts
+                                                                    [bi + 1..]
+                                                                    .iter()
+                                                                {
                                                                     match &remaining.kind {
                                                                         hir::StmtKind::Empty => {}
-                                                                        hir::StmtKind::Val(decl) => {
-                                                                            if let Some(id) = decl.id {
-                                                                                if body_lift_ids.contains(&id) {
-                                                                                    let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                        hir::StmtKind::Val(
+                                                                            decl,
+                                                                        ) => {
+                                                                            if let Some(id) =
+                                                                                decl.id
+                                                                            {
+                                                                                if body_lift_ids
+                                                                                    .contains(&id)
+                                                                                {
+                                                                                    let Some(init) =
+                                                                                        decl.init
+                                                                                            .as_ref(
+                                                                                            )
+                                                                                    else {
+                                                                                        return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                                    };
                                                                                     let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                                     let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                                     let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
                                                                                     let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                                } else { cg.codegen_val_decl(decl)?; }
-                                                                            } else { cg.codegen_val_decl(decl)?; }
+                                                                                } else {
+                                                                                    cg.codegen_val_decl(decl)?;
+                                                                                }
+                                                                            } else {
+                                                                                cg.codegen_val_decl(decl)?;
+                                                                            }
                                                                         }
-                                                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                                        hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
-                                                                        hir::StmtKind::While { cond, body } => { cg.codegen_while_stmt(remaining.span, cond, body)?; }
+                                                                        hir::StmtKind::Assign {
+                                                                            lhs,
+                                                                            eq_span,
+                                                                            rhs,
+                                                                        } => {
+                                                                            cg.codegen_assign_stmt(
+                                                                                *eq_span, lhs, rhs,
+                                                                            )?;
+                                                                        }
+                                                                        hir::StmtKind::Expr(
+                                                                            expr,
+                                                                        ) => {
+                                                                            let _ = cg
+                                                                                .codegen_expr(
+                                                                                    expr,
+                                                                                )?;
+                                                                        }
+                                                                        hir::StmtKind::While {
+                                                                            cond,
+                                                                            body,
+                                                                        } => {
+                                                                            cg.codegen_while_stmt(
+                                                                                remaining.span,
+                                                                                cond,
+                                                                                body,
+                                                                            )?;
+                                                                        }
                                                                         _ => {}
                                                                     }
                                                                 }
-                                                                cg.builder.build_unconditional_branch(wc_bb)?;
+                                                                cg.builder
+                                                                    .build_unconditional_branch(
+                                                                        wc_bb,
+                                                                    )?;
                                                                 while_term = true;
                                                             }
                                                         }
-                                                        ResumeFrame::IfElse { if_expr: nested_if, else_block_stmts: nested_ebs, resume_after_stmt: nested_epi, .. } => {
-                                                            if let hir::ExprKind::If { cond: if_cond, then_branch, else_branch: _ } = &nested_if.kind {
+                                                        ResumeFrame::IfElse {
+                                                            if_expr: nested_if,
+                                                            else_block_stmts: nested_ebs,
+                                                            resume_after_stmt: nested_epi,
+                                                            ..
+                                                        } => {
+                                                            if let hir::ExprKind::If {
+                                                                cond: if_cond,
+                                                                then_branch,
+                                                                else_branch: _,
+                                                            } = &nested_if.kind
+                                                            {
                                                                 let cond_v = cg.codegen_expr_in_expected_context(if_cond, Some(CgTy::Bool))?;
                                                                 let cond_b = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
                                                                     kind: "if cond in while body (tail intercept)",
                                                                     at: if_cond.span.into(),
                                                                 })?;
-                                                                let if_then_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_then"));
-                                                                let if_else_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_else"));
-                                                                let if_after_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_wif_after"));
-                                                                cg.builder.build_conditional_branch(cond_b, if_then_bb, if_else_bb)?;
+                                                                let if_then_bb = self
+                                                                    .context
+                                                                    .append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_then"
+                                                                        ),
+                                                                    );
+                                                                let if_else_bb = self
+                                                                    .context
+                                                                    .append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_else"
+                                                                        ),
+                                                                    );
+                                                                let if_after_bb = self
+                                                                    .context
+                                                                    .append_basic_block(
+                                                                        step_fn,
+                                                                        &format!(
+                                                                            "step_pc{pc}_wif_after"
+                                                                        ),
+                                                                    );
+                                                                cg.builder
+                                                                    .build_conditional_branch(
+                                                                        cond_b, if_then_bb,
+                                                                        if_else_bb,
+                                                                    )?;
 
                                                                 // Then-branch: check if also intercepted, else codegen normally.
                                                                 let then_in_while = intercepts.iter().find(|(_, rp)| {
                                                                     rp.len() > 1 && matches!(rp[0], ResumeFrame::WhileBody { .. }) && matches!(rp[1], ResumeFrame::IfThen { .. })
                                                                 });
-                                                                if let Some(&(then_wpc, then_wrp)) = then_in_while {
-                                                                    if let ResumeFrame::IfThen { then_block_stmts: tbs, resume_after_stmt: tpi, .. } = &then_wrp[1] {
-                                                                        cg.builder.position_at_end(if_then_bb);
-                                                                        for (ti, tstmt) in tbs.iter().enumerate() {
+                                                                if let Some(&(then_wpc, then_wrp)) =
+                                                                    then_in_while
+                                                                {
+                                                                    if let ResumeFrame::IfThen {
+                                                                        then_block_stmts: tbs,
+                                                                        resume_after_stmt: tpi,
+                                                                        ..
+                                                                    } = &then_wrp[1]
+                                                                    {
+                                                                        cg.builder.position_at_end(
+                                                                            if_then_bb,
+                                                                        );
+                                                                        for (ti, tstmt) in
+                                                                            tbs.iter().enumerate()
+                                                                        {
                                                                             if ti == *tpi {
-                                                                                let ts = &perform_sites[then_wpc];
+                                                                                let ts =
+                                                                                    &perform_sites
+                                                                                        [then_wpc];
                                                                                 for (slot, arg) in binder_slots.iter().zip(ts.args.iter()) {
                                                                                     let hir::CallArg::Positional(expr) = arg else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() }); };
                                                                                     let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
@@ -4128,97 +4651,234 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                                         }
                                                                     }
                                                                 } else {
-                                                                    cg.builder.position_at_end(if_then_bb);
-                                                                    let _ = cg.codegen_expr(then_branch)?;
-                                                                    cg.builder.build_unconditional_branch(if_after_bb)?;
+                                                                    cg.builder.position_at_end(
+                                                                        if_then_bb,
+                                                                    );
+                                                                    let _ = cg.codegen_expr(
+                                                                        then_branch,
+                                                                    )?;
+                                                                    cg.builder
+                                                                        .build_unconditional_branch(
+                                                                            if_after_bb,
+                                                                        )?;
                                                                 }
 
                                                                 // Else-branch: stmts before perform, then intercept
-                                                                cg.builder.position_at_end(if_else_bb);
-                                                                for (ei, estmt) in nested_ebs.iter().enumerate() {
+                                                                cg.builder
+                                                                    .position_at_end(if_else_bb);
+                                                                for (ei, estmt) in
+                                                                    nested_ebs.iter().enumerate()
+                                                                {
                                                                     if ei == *nested_epi {
-                                                                        let is = &perform_sites[intercept_pc];
-                                                                        for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
+                                                                        let is = &perform_sites
+                                                                            [intercept_pc];
+                                                                        for (slot, arg) in
+                                                                            binder_slots
+                                                                                .iter()
+                                                                                .zip(is.args.iter())
+                                                                        {
                                                                             let hir::CallArg::Positional(expr) = arg else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() }); };
                                                                             let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                            let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                            let _stored = cg
+                                                                                .store_local_value(
+                                                                                    expr.span,
+                                                                                    slot.ptr,
+                                                                                    slot.ty, v,
+                                                                                )?;
                                                                         }
-                                                                        let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
+                                                                        let _ = cg
+                                                                            .builder
+                                                                            .build_store(
+                                                                            intercept_next_pc_ptr,
+                                                                            i32_ty.const_int(
+                                                                                intercept_pc as u64,
+                                                                                false,
+                                                                            ),
+                                                                        )?;
                                                                         cg.builder.build_unconditional_branch(intercept_bb)?;
                                                                         break;
                                                                     }
                                                                     match &estmt.kind {
                                                                         hir::StmtKind::Empty => {}
-                                                                        hir::StmtKind::Val(decl) => {
-                                                                            if let Some(id) = decl.id {
-                                                                                if body_lift_ids.contains(&id) {
-                                                                                    let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                        hir::StmtKind::Val(
+                                                                            decl,
+                                                                        ) => {
+                                                                            if let Some(id) =
+                                                                                decl.id
+                                                                            {
+                                                                                if body_lift_ids
+                                                                                    .contains(&id)
+                                                                                {
+                                                                                    let Some(init) =
+                                                                                        decl.init
+                                                                                            .as_ref(
+                                                                                            )
+                                                                                    else {
+                                                                                        return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                                    };
                                                                                     let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                                     let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                                     let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
                                                                                     let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                                } else { cg.codegen_val_decl(decl)?; }
-                                                                            } else { cg.codegen_val_decl(decl)?; }
+                                                                                } else {
+                                                                                    cg.codegen_val_decl(decl)?;
+                                                                                }
+                                                                            } else {
+                                                                                cg.codegen_val_decl(decl)?;
+                                                                            }
                                                                         }
-                                                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                                        hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                                        hir::StmtKind::Assign {
+                                                                            lhs,
+                                                                            eq_span,
+                                                                            rhs,
+                                                                        } => {
+                                                                            cg.codegen_assign_stmt(
+                                                                                *eq_span, lhs, rhs,
+                                                                            )?;
+                                                                        }
+                                                                        hir::StmtKind::Expr(
+                                                                            expr,
+                                                                        ) => {
+                                                                            let _ = cg
+                                                                                .codegen_expr(
+                                                                                    expr,
+                                                                                )?;
+                                                                        }
                                                                         _ => {}
                                                                     }
                                                                 }
 
                                                                 // After-if: remaining while body stmts, loop back
-                                                                cg.builder.position_at_end(if_after_bb);
-                                                                for remaining in while_body.stmts[bi+1..].iter() {
+                                                                cg.builder
+                                                                    .position_at_end(if_after_bb);
+                                                                for remaining in while_body.stmts
+                                                                    [bi + 1..]
+                                                                    .iter()
+                                                                {
                                                                     match &remaining.kind {
                                                                         hir::StmtKind::Empty => {}
-                                                                        hir::StmtKind::Val(decl) => {
-                                                                            if let Some(id) = decl.id {
-                                                                                if body_lift_ids.contains(&id) {
-                                                                                    let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                        hir::StmtKind::Val(
+                                                                            decl,
+                                                                        ) => {
+                                                                            if let Some(id) =
+                                                                                decl.id
+                                                                            {
+                                                                                if body_lift_ids
+                                                                                    .contains(&id)
+                                                                                {
+                                                                                    let Some(init) =
+                                                                                        decl.init
+                                                                                            .as_ref(
+                                                                                            )
+                                                                                    else {
+                                                                                        return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                                    };
                                                                                     let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                                     let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                                     let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
                                                                                     let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                                } else { cg.codegen_val_decl(decl)?; }
-                                                                            } else { cg.codegen_val_decl(decl)?; }
+                                                                                } else {
+                                                                                    cg.codegen_val_decl(decl)?;
+                                                                                }
+                                                                            } else {
+                                                                                cg.codegen_val_decl(decl)?;
+                                                                            }
                                                                         }
-                                                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                                        hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
-                                                                        hir::StmtKind::While { cond, body } => { cg.codegen_while_stmt(remaining.span, cond, body)?; }
+                                                                        hir::StmtKind::Assign {
+                                                                            lhs,
+                                                                            eq_span,
+                                                                            rhs,
+                                                                        } => {
+                                                                            cg.codegen_assign_stmt(
+                                                                                *eq_span, lhs, rhs,
+                                                                            )?;
+                                                                        }
+                                                                        hir::StmtKind::Expr(
+                                                                            expr,
+                                                                        ) => {
+                                                                            let _ = cg
+                                                                                .codegen_expr(
+                                                                                    expr,
+                                                                                )?;
+                                                                        }
+                                                                        hir::StmtKind::While {
+                                                                            cond,
+                                                                            body,
+                                                                        } => {
+                                                                            cg.codegen_while_stmt(
+                                                                                remaining.span,
+                                                                                cond,
+                                                                                body,
+                                                                            )?;
+                                                                        }
                                                                         _ => {}
                                                                     }
                                                                 }
-                                                                cg.builder.build_unconditional_branch(wc_bb)?;
+                                                                cg.builder
+                                                                    .build_unconditional_branch(
+                                                                        wc_bb,
+                                                                    )?;
                                                                 while_term = true;
                                                             }
                                                         }
                                                         _ => {
                                                             // Direct flat intercept in while body (inner_path[1] is unsupported nested type)
                                                             let is = &perform_sites[intercept_pc];
-                                                            for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                                let hir::CallArg::Positional(expr) = arg else {
+                                                            for (slot, arg) in binder_slots
+                                                                .iter()
+                                                                .zip(is.args.iter())
+                                                            {
+                                                                let hir::CallArg::Positional(expr) =
+                                                                    arg
+                                                                else {
                                                                     return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                                 };
                                                                 let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        expr.span, slot.ptr,
+                                                                        slot.ty, v,
+                                                                    )?;
                                                             }
-                                                            let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                            cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                            let _ = cg.builder.build_store(
+                                                                intercept_next_pc_ptr,
+                                                                i32_ty.const_int(
+                                                                    intercept_pc as u64,
+                                                                    false,
+                                                                ),
+                                                            )?;
+                                                            cg.builder.build_unconditional_branch(
+                                                                intercept_bb,
+                                                            )?;
                                                             while_term = true;
                                                         }
                                                     }
                                                 } else {
                                                     // Direct flat intercept in while body (perform is directly at this stmt)
                                                     let is = &perform_sites[intercept_pc];
-                                                    for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                        let hir::CallArg::Positional(expr) = arg else {
+                                                    for (slot, arg) in
+                                                        binder_slots.iter().zip(is.args.iter())
+                                                    {
+                                                        let hir::CallArg::Positional(expr) = arg
+                                                        else {
                                                             return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                         };
-                                                        let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                        let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                        let v = cg
+                                                            .codegen_expr_in_expected_context(
+                                                                expr,
+                                                                Some(slot.ty),
+                                                            )?;
+                                                        let _stored = cg.store_local_value(
+                                                            expr.span, slot.ptr, slot.ty, v,
+                                                        )?;
                                                     }
-                                                    let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                    cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                    let _ = cg.builder.build_store(
+                                                        intercept_next_pc_ptr,
+                                                        i32_ty
+                                                            .const_int(intercept_pc as u64, false),
+                                                    )?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(intercept_bb)?;
                                                     while_term = true;
                                                 }
                                                 break;
@@ -4228,24 +4888,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                 hir::StmtKind::Val(decl) => {
                                                     if let Some(id) = decl.id {
                                                         if body_lift_ids.contains(&id) {
-                                                            let Some(init) = decl.init.as_ref() else {
+                                                            let Some(init) = decl.init.as_ref()
+                                                            else {
                                                                 return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
                                                             };
                                                             let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                             let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
-                                                            let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                            let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                        } else { cg.codegen_val_decl(decl)?; }
-                                                    } else { cg.codegen_val_decl(decl)?; }
+                                                            let v = cg
+                                                                .codegen_expr_in_expected_context(
+                                                                    init,
+                                                                    Some(decl_ty),
+                                                                )?;
+                                                            let _stored = cg.store_local_value(
+                                                                decl.span, local.ptr, decl_ty, v,
+                                                            )?;
+                                                        } else {
+                                                            cg.codegen_val_decl(decl)?;
+                                                        }
+                                                    } else {
+                                                        cg.codegen_val_decl(decl)?;
+                                                    }
                                                 }
-                                                hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
-                                                hir::StmtKind::While { cond, body } => { cg.codegen_while_stmt(bstmt.span, cond, body)?; }
+                                                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                                    cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                                                }
+                                                hir::StmtKind::Expr(expr) => {
+                                                    let _ = cg.codegen_expr(expr)?;
+                                                }
+                                                hir::StmtKind::While { cond, body } => {
+                                                    cg.codegen_while_stmt(bstmt.span, cond, body)?;
+                                                }
                                                 _ => {
-                                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                                        kind: "stmt in while body (tail nested intercept)",
-                                                        at: bstmt.span.into(),
-                                                    });
+                                                    return Err(
+                                                        LlvmEmitError::UnsupportedMainBody {
+                                                            kind: "stmt in while body (tail nested intercept)",
+                                                            at: bstmt.span.into(),
+                                                        },
+                                                    );
                                                 }
                                             }
                                         }
@@ -4268,35 +4947,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             hir::StmtKind::Val(decl) => {
                                 if let Some(id) = decl.id {
                                     if body_lift_ids.contains(&id) {
-                                        let Some(init) = decl.init.as_ref()
-                                        else {
+                                        let Some(init) = decl.init.as_ref() else {
                                             return Err(LlvmEmitError::UnsupportedMainBody {
                                                 kind: "lifted local without init",
                                                 at: decl.span.into(),
                                             });
                                         };
-                                        let decl_ty =
-                                            cg.cg_ty_of(decl.ty).ok_or(
-                                                LlvmEmitError::UnsupportedMainBody {
-                                                    kind: "lifted local type",
-                                                    at: decl.span.into(),
-                                                },
-                                            )?;
-                                        let local =
-                                            cg.env.get(id).ok_or(
-                                                LlvmEmitError::UnsupportedMainBody {
-                                                    kind: "lifted local slot missing",
-                                                    at: decl.span.into(),
-                                                },
-                                            )?;
-                                        let v =
-                                            cg.codegen_expr_in_expected_context(
-                                                init,
-                                                Some(decl_ty),
-                                            )?;
-                                        let _stored = cg.store_local_value(
-                                            decl.span, local.ptr, decl_ty, v,
+                                        let decl_ty = cg.cg_ty_of(decl.ty).ok_or(
+                                            LlvmEmitError::UnsupportedMainBody {
+                                                kind: "lifted local type",
+                                                at: decl.span.into(),
+                                            },
                                         )?;
+                                        let local = cg.env.get(id).ok_or(
+                                            LlvmEmitError::UnsupportedMainBody {
+                                                kind: "lifted local slot missing",
+                                                at: decl.span.into(),
+                                            },
+                                        )?;
+                                        let v = cg.codegen_expr_in_expected_context(
+                                            init,
+                                            Some(decl_ty),
+                                        )?;
+                                        let _stored =
+                                            cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
                                     } else {
                                         cg.codegen_val_decl(decl)?;
                                     }
@@ -4340,48 +5014,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         let frame = &site.resume_path[level];
                         // Get the tail stmts for this frame.
-                        let (tail_stmts, tail_base_idx): (&[hir::Stmt], usize) =
-                            match frame {
-                                ResumeFrame::IfThen {
-                                    then_block_stmts,
-                                    resume_after_stmt,
-                                    ..
-                                } => (
-                                    &then_block_stmts[*resume_after_stmt + 1..],
-                                    *resume_after_stmt + 1,
-                                ),
-                                ResumeFrame::IfElse {
-                                    else_block_stmts,
-                                    resume_after_stmt,
-                                    ..
-                                } => (
-                                    &else_block_stmts[*resume_after_stmt + 1..],
-                                    *resume_after_stmt + 1,
-                                ),
-                                ResumeFrame::WhenArm {
-                                    arm_block_stmts,
-                                    resume_after_stmt,
-                                    ..
-                                } => (
-                                    &arm_block_stmts[*resume_after_stmt + 1..],
-                                    *resume_after_stmt + 1,
-                                ),
-                                ResumeFrame::Block {
-                                    block,
-                                    resume_after_stmt,
-                                } => (
-                                    &block.stmts[*resume_after_stmt + 1..],
-                                    *resume_after_stmt + 1,
-                                ),
-                                ResumeFrame::WhileBody {
-                                    while_body,
-                                    resume_after_stmt,
-                                    ..
-                                } => (
-                                    &while_body.stmts[*resume_after_stmt + 1..],
-                                    *resume_after_stmt + 1,
-                                ),
-                            };
+                        let (tail_stmts, tail_base_idx): (&[hir::Stmt], usize) = match frame {
+                            ResumeFrame::IfThen {
+                                then_block_stmts,
+                                resume_after_stmt,
+                                ..
+                            } => (
+                                &then_block_stmts[*resume_after_stmt + 1..],
+                                *resume_after_stmt + 1,
+                            ),
+                            ResumeFrame::IfElse {
+                                else_block_stmts,
+                                resume_after_stmt,
+                                ..
+                            } => (
+                                &else_block_stmts[*resume_after_stmt + 1..],
+                                *resume_after_stmt + 1,
+                            ),
+                            ResumeFrame::WhenArm {
+                                arm_block_stmts,
+                                resume_after_stmt,
+                                ..
+                            } => (
+                                &arm_block_stmts[*resume_after_stmt + 1..],
+                                *resume_after_stmt + 1,
+                            ),
+                            ResumeFrame::Block {
+                                block,
+                                resume_after_stmt,
+                            } => (
+                                &block.stmts[*resume_after_stmt + 1..],
+                                *resume_after_stmt + 1,
+                            ),
+                            ResumeFrame::WhileBody {
+                                while_body,
+                                resume_after_stmt,
+                                ..
+                            } => (
+                                &while_body.stmts[*resume_after_stmt + 1..],
+                                *resume_after_stmt + 1,
+                            ),
+                        };
 
                         // Build intercept map for this frame's tail: which
                         // tail stmts contain performs from other sites?
@@ -4389,9 +5062,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             usize,
                             Vec<(usize, &[ResumeFrame<'_>])>,
                         > = HashMap::new();
-                        for (other_pc, other_site) in
-                            perform_sites.iter().enumerate()
-                        {
+                        for (other_pc, other_site) in perform_sites.iter().enumerate() {
                             if other_pc == site.pc {
                                 continue;
                             }
@@ -4418,8 +5089,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             // At this level, check if the other site's frame
                             // matches and has a stmt index in the tail range.
                             let other_frame = &other_site.resume_path[level];
-                            if !resume_frame_same_structure(frame, other_frame)
-                            {
+                            if !resume_frame_same_structure(frame, other_frame) {
                                 continue;
                             }
                             let other_ras = match other_frame {
@@ -4440,8 +5110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 } => *resume_after_stmt,
                             };
                             if other_ras >= tail_base_idx {
-                                let inner_path =
-                                    &other_site.resume_path[level + 1..];
+                                let inner_path = &other_site.resume_path[level + 1..];
                                 tail_intercept_map
                                     .entry(other_ras)
                                     .or_default()
@@ -4455,9 +5124,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 break;
                             }
                             let actual_idx = tail_base_idx + i;
-                            if let Some(intercepts) =
-                                tail_intercept_map.get(&actual_idx)
-                            {
+                            if let Some(intercepts) = tail_intercept_map.get(&actual_idx) {
                                 let (intercept_pc, inner_path) = intercepts
                                     .iter()
                                     .find(|(_, ip)| ip.is_empty())
@@ -4465,39 +5132,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     .unwrap_or(intercepts[0]);
                                 if inner_path.is_empty() {
                                     // Direct perform at this level
-                                    let intercept_site =
-                                        &perform_sites[intercept_pc];
-                                    for (slot, arg) in binder_slots
-                                        .iter()
-                                        .zip(intercept_site.args.iter())
+                                    let intercept_site = &perform_sites[intercept_pc];
+                                    for (slot, arg) in
+                                        binder_slots.iter().zip(intercept_site.args.iter())
                                     {
-                                        let hir::CallArg::Positional(expr) =
-                                            arg
-                                        else {
+                                        let hir::CallArg::Positional(expr) = arg else {
                                             return Err(LlvmEmitError::UnsupportedMainBody {
                                                 kind: "handle escape named perform arg",
                                                 at: span.into(),
                                             });
                                         };
-                                        let v =
-                                            cg.codegen_expr_in_expected_context(
-                                                expr,
-                                                Some(slot.ty),
-                                            )?;
-                                        let _stored = cg.store_local_value(
-                                            expr.span, slot.ptr, slot.ty, v,
+                                        let v = cg.codegen_expr_in_expected_context(
+                                            expr,
+                                            Some(slot.ty),
                                         )?;
+                                        let _stored =
+                                            cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
                                     }
                                     let _ = cg.builder.build_store(
                                         intercept_next_pc_ptr,
-                                        i32_ty.const_int(
-                                            intercept_pc as u64,
-                                            false,
-                                        ),
+                                        i32_ty.const_int(intercept_pc as u64, false),
                                     )?;
-                                    cg.builder.build_unconditional_branch(
-                                        intercept_bb,
-                                    )?;
+                                    cg.builder.build_unconditional_branch(intercept_bb)?;
                                     terminated = true;
                                     break;
                                 }
@@ -4511,37 +5167,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 hir::StmtKind::Val(decl) => {
                                     if let Some(id) = decl.id {
                                         if body_lift_ids.contains(&id) {
-                                            let Some(init) =
-                                                decl.init.as_ref()
-                                            else {
+                                            let Some(init) = decl.init.as_ref() else {
                                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local without init",
                                                     at: decl.span.into(),
                                                 });
                                             };
-                                            let decl_ty = cg
-                                                .cg_ty_of(decl.ty)
-                                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                            let decl_ty = cg.cg_ty_of(decl.ty).ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local type",
                                                     at: decl.span.into(),
-                                                })?;
-                                            let local = cg
-                                                .env
-                                                .get(id)
-                                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                },
+                                            )?;
+                                            let local = cg.env.get(id).ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local slot missing",
                                                     at: decl.span.into(),
-                                                })?;
-                                            let v = cg
-                                                .codegen_expr_in_expected_context(
-                                                    init,
-                                                    Some(decl_ty),
-                                                )?;
-                                            let _stored =
-                                                cg.store_local_value(
-                                                    decl.span, local.ptr,
-                                                    decl_ty, v,
-                                                )?;
+                                                },
+                                            )?;
+                                            let v = cg.codegen_expr_in_expected_context(
+                                                init,
+                                                Some(decl_ty),
+                                            )?;
+                                            let _stored = cg.store_local_value(
+                                                decl.span, local.ptr, decl_ty, v,
+                                            )?;
                                         } else {
                                             cg.codegen_val_decl(decl)?;
                                         }
@@ -4549,32 +5199,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         cg.codegen_val_decl(decl)?;
                                     }
                                 }
-                                hir::StmtKind::Assign {
-                                    lhs,
-                                    eq_span,
-                                    rhs,
-                                } => {
-                                    cg.codegen_assign_stmt(
-                                        *eq_span, lhs, rhs,
-                                    )?;
+                                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                    cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
                                 }
                                 hir::StmtKind::Expr(expr) => {
                                     let _ = cg.codegen_expr(expr)?;
                                 }
                                 hir::StmtKind::While { cond, body } => {
-                                    cg.codegen_while_stmt(
-                                        tail_stmt.span,
-                                        cond,
-                                        body,
-                                    )?;
+                                    cg.codegen_while_stmt(tail_stmt.span, cond, body)?;
                                 }
                                 _ => {
-                                    return Err(
-                                        LlvmEmitError::UnsupportedMainBody {
-                                            kind: "statement inside continuation step (nested tail)",
-                                            at: tail_stmt.span.into(),
-                                        },
-                                    );
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "statement inside continuation step (nested tail)",
+                                        at: tail_stmt.span.into(),
+                                    });
                                 }
                             }
                         }
@@ -4588,614 +5226,508 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 while_body,
                                 ..
                             } = frame
-                            {
-                                // Build intercept map for the full while body.
-                                let mut while_intercept_map: HashMap<
-                                    usize,
-                                    Vec<(usize, &[ResumeFrame<'_>])>,
-                                > = HashMap::new();
-                                for (other_pc, other_site) in
-                                    perform_sites.iter().enumerate()
-                                {
-                                    for (fi, fcheck) in other_site
-                                        .resume_path
-                                        .iter()
-                                        .enumerate()
+                        {
+                            // Build intercept map for the full while body.
+                            let mut while_intercept_map: HashMap<
+                                usize,
+                                Vec<(usize, &[ResumeFrame<'_>])>,
+                            > = HashMap::new();
+                            for (other_pc, other_site) in perform_sites.iter().enumerate() {
+                                for (fi, fcheck) in other_site.resume_path.iter().enumerate() {
+                                    if let ResumeFrame::WhileBody {
+                                        while_body: wb,
+                                        resume_after_stmt: ras,
+                                        ..
+                                    } = fcheck
+                                        && std::ptr::eq(*wb, *while_body)
                                     {
-                                        if let ResumeFrame::WhileBody {
-                                            while_body: wb,
-                                            resume_after_stmt: ras,
-                                            ..
-                                        } = fcheck
-                                            && std::ptr::eq(*wb, *while_body) {
-                                                while_intercept_map
-                                                    .entry(*ras)
-                                                    .or_default()
-                                                    .push((
-                                                        other_pc,
-                                                        &other_site
-                                                            .resume_path
-                                                            [fi + 1..],
-                                                    ));
-                                                break;
-                                            }
-                                    }
-                                }
-
-                                // Generate while loop.
-                                let while_cond_bb =
-                                    self.context.append_basic_block(
-                                        step_fn,
-                                        &format!(
-                                            "step_pc{pc}_while_cond"
-                                        ),
-                                    );
-                                let while_body_bb =
-                                    self.context.append_basic_block(
-                                        step_fn,
-                                        &format!(
-                                            "step_pc{pc}_while_body"
-                                        ),
-                                    );
-                                let while_after_bb =
-                                    self.context.append_basic_block(
-                                        step_fn,
-                                        &format!(
-                                            "step_pc{pc}_while_after"
-                                        ),
-                                    );
-
-                                cg.builder.build_unconditional_branch(
-                                    while_cond_bb,
-                                )?;
-                                cg.builder.position_at_end(while_cond_bb);
-                                let cv =
-                                    cg.codegen_expr_in_expected_context(
-                                        while_cond,
-                                        Some(CgTy::Bool),
-                                    )?;
-                                let cb = cv.as_bool().ok_or(
-                                    LlvmEmitError::UnsupportedMainBody {
-                                        kind: "while cond value (step while re-exec)",
-                                        at: while_cond.span.into(),
-                                    },
-                                )?;
-                                cg.builder.build_conditional_branch(
-                                    cb,
-                                    while_body_bb,
-                                    while_after_bb,
-                                )?;
-
-                                cg.builder.position_at_end(while_body_bb);
-                                cg.env.push_scope();
-                                let mut while_terminated = false;
-                                for (body_idx, body_stmt) in
-                                    while_body.stmts.iter().enumerate()
-                                {
-                                    if while_terminated {
+                                        while_intercept_map
+                                            .entry(*ras)
+                                            .or_default()
+                                            .push((other_pc, &other_site.resume_path[fi + 1..]));
                                         break;
                                     }
-                                    if let Some(intercepts) =
-                                        while_intercept_map.get(&body_idx)
-                                    {
-                                        let (intercept_pc, inner_path) =
-                                            intercepts
-                                                .iter()
-                                                .find(|(_, ip)| {
-                                                    ip.is_empty()
-                                                })
-                                                .copied()
-                                                .unwrap_or(intercepts[0]);
-                                        if inner_path.is_empty() {
-                                            // Direct perform in while body
-                                            let intercept_site =
-                                                &perform_sites[intercept_pc];
-                                            for (slot, arg) in binder_slots
-                                                .iter()
-                                                .zip(
-                                                    intercept_site.args.iter(),
-                                                )
-                                            {
-                                                let hir::CallArg::Positional(
-                                                    expr,
-                                                ) = arg
-                                                else {
-                                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                                        kind: "handle escape named perform arg",
-                                                        at: span.into(),
-                                                    });
-                                                };
-                                                let v = cg
-                                                    .codegen_expr_in_expected_context(
-                                                        expr,
-                                                        Some(slot.ty),
-                                                    )?;
-                                                let _stored =
-                                                    cg.store_local_value(
-                                                        expr.span,
-                                                        slot.ptr,
-                                                        slot.ty,
-                                                        v,
-                                                    )?;
-                                            }
-                                            let _ = cg.builder.build_store(
-                                                intercept_next_pc_ptr,
-                                                i32_ty.const_int(
-                                                    intercept_pc as u64,
-                                                    false,
-                                                ),
+                                }
+                            }
+
+                            // Generate while loop.
+                            let while_cond_bb = self
+                                .context
+                                .append_basic_block(step_fn, &format!("step_pc{pc}_while_cond"));
+                            let while_body_bb = self
+                                .context
+                                .append_basic_block(step_fn, &format!("step_pc{pc}_while_body"));
+                            let while_after_bb = self
+                                .context
+                                .append_basic_block(step_fn, &format!("step_pc{pc}_while_after"));
+
+                            cg.builder.build_unconditional_branch(while_cond_bb)?;
+                            cg.builder.position_at_end(while_cond_bb);
+                            let cv =
+                                cg.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
+                            let cb = cv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "while cond value (step while re-exec)",
+                                at: while_cond.span.into(),
+                            })?;
+                            cg.builder.build_conditional_branch(
+                                cb,
+                                while_body_bb,
+                                while_after_bb,
+                            )?;
+
+                            cg.builder.position_at_end(while_body_bb);
+                            cg.env.push_scope();
+                            let mut while_terminated = false;
+                            for (body_idx, body_stmt) in while_body.stmts.iter().enumerate() {
+                                if while_terminated {
+                                    break;
+                                }
+                                if let Some(intercepts) = while_intercept_map.get(&body_idx) {
+                                    let (intercept_pc, inner_path) = intercepts
+                                        .iter()
+                                        .find(|(_, ip)| ip.is_empty())
+                                        .copied()
+                                        .unwrap_or(intercepts[0]);
+                                    if inner_path.is_empty() {
+                                        // Direct perform in while body
+                                        let intercept_site = &perform_sites[intercept_pc];
+                                        for (slot, arg) in
+                                            binder_slots.iter().zip(intercept_site.args.iter())
+                                        {
+                                            let hir::CallArg::Positional(expr) = arg else {
+                                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                                    kind: "handle escape named perform arg",
+                                                    at: span.into(),
+                                                });
+                                            };
+                                            let v = cg.codegen_expr_in_expected_context(
+                                                expr,
+                                                Some(slot.ty),
                                             )?;
-                                            cg.builder
-                                                .build_unconditional_branch(
-                                                    intercept_bb,
-                                                )?;
-                                            while_terminated = true;
-                                            break;
-                                        } else {
-                                            // Nested perform in if/etc inside while body.
-                                            // Generate control flow with interception.
-                                            match &inner_path[0] {
-                                                ResumeFrame::IfThen {
-                                                    if_expr,
-                                                    then_block_stmts,
-                                                    resume_after_stmt:
-                                                        perform_stmt_idx,
-                                                    ..
-                                                } => {
-                                                    if let hir::ExprKind::If {
-                                                        cond: if_cond,
-                                                        then_branch: _,
-                                                        else_branch,
-                                                    } = &if_expr.kind
-                                                    {
-                                                        let cond_v = cg
-                                                            .codegen_expr_in_expected_context(
-                                                                if_cond,
-                                                                Some(
-                                                                    CgTy::Bool,
-                                                                ),
-                                                            )?;
-                                                        let cond_b = cond_v
-                                                            .as_bool()
-                                                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                kind: "if cond value (while body intercept)",
-                                                                at: if_cond.span.into(),
-                                                            })?;
-                                                        let then_bb_i = self
-                                                            .context
-                                                            .append_basic_block(
-                                                                step_fn,
-                                                                &format!(
-                                                                    "step_pc{pc}_wif_then"
-                                                                ),
-                                                            );
-                                                        let has_else =
-                                                            else_branch
-                                                                .is_some();
-                                                        let else_or_after = self
-                                                            .context
-                                                            .append_basic_block(
-                                                                step_fn,
-                                                                &format!(
-                                                                    "step_pc{pc}_wif_{}",
-                                                                    if has_else {
-                                                                        "else"
-                                                                    } else {
-                                                                        "after"
-                                                                    }
-                                                                ),
-                                                            );
-                                                        let after_if_bb =
-                                                            if has_else {
-                                                                self.context
-                                                                    .append_basic_block(
-                                                                        step_fn,
-                                                                        &format!(
-                                                                            "step_pc{pc}_wif_after"
-                                                                        ),
-                                                                    )
-                                                            } else {
-                                                                else_or_after
-                                                            };
-                                                        cg.builder
-                                                            .build_conditional_branch(
-                                                                cond_b,
-                                                                then_bb_i,
-                                                                else_or_after,
-                                                            )?;
-
-                                                        // Then-branch: codegen stmts before perform, then intercept
-                                                        cg.builder
-                                                            .position_at_end(
-                                                                then_bb_i,
-                                                            );
-                                                        for (ti, tstmt) in
-                                                            then_block_stmts
-                                                                .iter()
-                                                                .enumerate()
-                                                        {
-                                                            if ti
-                                                                == *perform_stmt_idx
-                                                            {
-                                                                let is =
-                                                                    &perform_sites
-                                                                        [intercept_pc];
-                                                                for (
-                                                                    slot,
-                                                                    arg,
-                                                                ) in binder_slots
-                                                                    .iter()
-                                                                    .zip(
-                                                                        is.args
-                                                                            .iter(),
-                                                                    )
-                                                                {
-                                                                    let hir::CallArg::Positional(expr) = arg else {
-                                                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                                                            kind: "handle escape named perform arg",
-                                                                            at: span.into(),
-                                                                        });
-                                                                    };
-                                                                    let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                    let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
-                                                                }
-                                                                let _ = cg
-                                                                    .builder
-                                                                    .build_store(
-                                                                        intercept_next_pc_ptr,
-                                                                        i32_ty.const_int(
-                                                                            intercept_pc as u64,
-                                                                            false,
-                                                                        ),
-                                                                    )?;
-                                                                cg.builder.build_unconditional_branch(intercept_bb)?;
-                                                                break;
-                                                            }
-                                                            // Normal stmt before the perform
-                                                            match &tstmt.kind {
-                                                                hir::StmtKind::Empty => {}
-                                                                hir::StmtKind::Val(decl) => {
-                                                                    if let Some(id) = decl.id {
-                                                                        if body_lift_ids.contains(&id) {
-                                                                            let Some(init) = decl.init.as_ref() else {
-                                                                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                                                                    kind: "lifted local without init",
-                                                                                    at: decl.span.into(),
-                                                                                });
-                                                                            };
-                                                                            let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                                kind: "lifted local type",
-                                                                                at: decl.span.into(),
-                                                                            })?;
-                                                                            let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                                kind: "lifted local slot missing",
-                                                                                at: decl.span.into(),
-                                                                            })?;
-                                                                            let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                            let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                        } else {
-                                                                            cg.codegen_val_decl(decl)?;
-                                                                        }
-                                                                    } else {
-                                                                        cg.codegen_val_decl(decl)?;
-                                                                    }
-                                                                }
-                                                                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                                                                    cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                                                                }
-                                                                hir::StmtKind::Expr(expr) => {
-                                                                    let _ = cg.codegen_expr(expr)?;
-                                                                }
-                                                                _ => {}
-                                                            }
-                                                        }
-
-                                                        // Else-branch: codegen normally
-                                                        if let Some(
-                                                            else_expr,
-                                                        ) = else_branch
-                                                            .as_deref()
-                                                        {
-                                                            cg.builder.position_at_end(else_or_after);
-                                                            let _ = cg.codegen_expr(else_expr)?;
-                                                            cg.builder.build_unconditional_branch(after_if_bb)?;
-                                                        }
-                                                        // After-if: continue while body
-                                                        cg.builder
-                                                            .position_at_end(
-                                                                after_if_bb,
-                                                            );
-                                                    }
-                                                }
-                                                ResumeFrame::IfElse {
-                                                    if_expr,
-                                                    else_block_stmts,
-                                                    resume_after_stmt:
-                                                        perform_stmt_idx,
-                                                    ..
-                                                } => {
-                                                    if let hir::ExprKind::If {
-                                                        cond: if_cond,
-                                                        then_branch,
-                                                        else_branch: _,
-                                                    } = &if_expr.kind
-                                                    {
-                                                        let cond_v = cg
-                                                            .codegen_expr_in_expected_context(
-                                                                if_cond,
-                                                                Some(
-                                                                    CgTy::Bool,
-                                                                ),
-                                                            )?;
-                                                        let cond_b = cond_v
-                                                            .as_bool()
-                                                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                kind: "if cond value (while body intercept)",
-                                                                at: if_cond.span.into(),
-                                                            })?;
-                                                        let then_bb_i = self
-                                                            .context
-                                                            .append_basic_block(
-                                                                step_fn,
-                                                                &format!(
-                                                                    "step_pc{pc}_wif_then"
-                                                                ),
-                                                            );
-                                                        let else_bb_i = self
-                                                            .context
-                                                            .append_basic_block(
-                                                                step_fn,
-                                                                &format!(
-                                                                    "step_pc{pc}_wif_else"
-                                                                ),
-                                                            );
-                                                        let after_if_bb = self
-                                                            .context
-                                                            .append_basic_block(
-                                                                step_fn,
-                                                                &format!(
-                                                                    "step_pc{pc}_wif_after"
-                                                                ),
-                                                            );
-                                                        cg.builder
-                                                            .build_conditional_branch(
-                                                                cond_b,
-                                                                then_bb_i,
-                                                                else_bb_i,
-                                                            )?;
-
-                                                        // Then-branch: codegen normally
-                                                        cg.builder
-                                                            .position_at_end(
-                                                                then_bb_i,
-                                                            );
-                                                        let _ = cg
-                                                            .codegen_expr(
-                                                                then_branch,
-                                                            )?;
-                                                        cg.builder.build_unconditional_branch(after_if_bb)?;
-
-                                                        // Else-branch: stmts before perform, then intercept
-                                                        cg.builder
-                                                            .position_at_end(
-                                                                else_bb_i,
-                                                            );
-                                                        for (ei, estmt) in
-                                                            else_block_stmts
-                                                                .iter()
-                                                                .enumerate()
-                                                        {
-                                                            if ei
-                                                                == *perform_stmt_idx
-                                                            {
-                                                                let is =
-                                                                    &perform_sites
-                                                                        [intercept_pc];
-                                                                for (
-                                                                    slot,
-                                                                    arg,
-                                                                ) in binder_slots
-                                                                    .iter()
-                                                                    .zip(
-                                                                        is.args
-                                                                            .iter(),
-                                                                    )
-                                                                {
-                                                                    let hir::CallArg::Positional(expr) = arg else {
-                                                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                                                            kind: "handle escape named perform arg",
-                                                                            at: span.into(),
-                                                                        });
-                                                                    };
-                                                                    let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                    let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
-                                                                }
-                                                                let _ = cg
-                                                                    .builder
-                                                                    .build_store(
-                                                                        intercept_next_pc_ptr,
-                                                                        i32_ty.const_int(
-                                                                            intercept_pc as u64,
-                                                                            false,
-                                                                        ),
-                                                                    )?;
-                                                                cg.builder.build_unconditional_branch(intercept_bb)?;
-                                                                break;
-                                                            }
-                                                            match &estmt.kind {
-                                                                hir::StmtKind::Empty => {}
-                                                                hir::StmtKind::Val(decl) => {
-                                                                    if let Some(id) = decl.id {
-                                                                        if body_lift_ids.contains(&id) {
-                                                                            let Some(init) = decl.init.as_ref() else {
-                                                                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                                                                    kind: "lifted local without init",
-                                                                                    at: decl.span.into(),
-                                                                                });
-                                                                            };
-                                                                            let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                                kind: "lifted local type",
-                                                                                at: decl.span.into(),
-                                                                            })?;
-                                                                            let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                                kind: "lifted local slot missing",
-                                                                                at: decl.span.into(),
-                                                                            })?;
-                                                                            let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                            let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                        } else {
-                                                                            cg.codegen_val_decl(decl)?;
-                                                                        }
-                                                                    } else {
-                                                                        cg.codegen_val_decl(decl)?;
-                                                                    }
-                                                                }
-                                                                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                                                                    cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                                                                }
-                                                                hir::StmtKind::Expr(expr) => {
-                                                                    let _ = cg.codegen_expr(expr)?;
-                                                                }
-                                                                _ => {}
-                                                            }
-                                                        }
-
-                                                        // After-if
-                                                        cg.builder
-                                                            .position_at_end(
-                                                                after_if_bb,
-                                                            );
-                                                    }
-                                                }
-                                                _ => {
-                                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                                        kind: "T1606e: unsupported nested perform path in while body",
-                                                        at: span.into(),
-                                                    });
-                                                }
-                                            }
+                                            let _stored = cg.store_local_value(
+                                                expr.span, slot.ptr, slot.ty, v,
+                                            )?;
                                         }
+                                        let _ = cg.builder.build_store(
+                                            intercept_next_pc_ptr,
+                                            i32_ty.const_int(intercept_pc as u64, false),
+                                        )?;
+                                        cg.builder.build_unconditional_branch(intercept_bb)?;
+                                        while_terminated = true;
+                                        break;
                                     } else {
-                                        // Normal stmt in while body
-                                        match &body_stmt.kind {
-                                            hir::StmtKind::Empty => {}
-                                            hir::StmtKind::Val(decl) => {
-                                                if let Some(id) = decl.id {
-                                                    if body_lift_ids
-                                                        .contains(&id)
-                                                    {
-                                                        let Some(init) =
-                                                            decl.init.as_ref()
-                                                        else {
-                                                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                                                kind: "lifted local without init",
-                                                                at: decl.span.into(),
-                                                            });
-                                                        };
-                                                        let decl_ty = cg
-                                                            .cg_ty_of(decl.ty)
+                                        // Nested perform in if/etc inside while body.
+                                        // Generate control flow with interception.
+                                        match &inner_path[0] {
+                                            ResumeFrame::IfThen {
+                                                if_expr,
+                                                then_block_stmts,
+                                                resume_after_stmt: perform_stmt_idx,
+                                                ..
+                                            } => {
+                                                if let hir::ExprKind::If {
+                                                    cond: if_cond,
+                                                    then_branch: _,
+                                                    else_branch,
+                                                } = &if_expr.kind
+                                                {
+                                                    let cond_v = cg
+                                                        .codegen_expr_in_expected_context(
+                                                            if_cond,
+                                                            Some(CgTy::Bool),
+                                                        )?;
+                                                    let cond_b = cond_v
+                                                            .as_bool()
                                                             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                kind: "lifted local type",
-                                                                at: decl.span.into(),
+                                                                kind: "if cond value (while body intercept)",
+                                                                at: if_cond.span.into(),
                                                             })?;
-                                                        let local = cg
-                                                            .env
-                                                            .get(id)
-                                                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                                                kind: "lifted local slot missing",
-                                                                at: decl.span.into(),
-                                                            })?;
-                                                        let v = cg
-                                                            .codegen_expr_in_expected_context(
-                                                                init,
-                                                                Some(decl_ty),
-                                                            )?;
-                                                        let _stored = cg
-                                                            .store_local_value(
-                                                                decl.span,
-                                                                local.ptr,
-                                                                decl_ty,
-                                                                v,
-                                                            )?;
+                                                    let then_bb_i =
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!("step_pc{pc}_wif_then"),
+                                                        );
+                                                    let has_else = else_branch.is_some();
+                                                    let else_or_after =
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!(
+                                                                "step_pc{pc}_wif_{}",
+                                                                if has_else {
+                                                                    "else"
+                                                                } else {
+                                                                    "after"
+                                                                }
+                                                            ),
+                                                        );
+                                                    let after_if_bb = if has_else {
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!("step_pc{pc}_wif_after"),
+                                                        )
                                                     } else {
-                                                        cg.codegen_val_decl(
-                                                            decl,
+                                                        else_or_after
+                                                    };
+                                                    cg.builder.build_conditional_branch(
+                                                        cond_b,
+                                                        then_bb_i,
+                                                        else_or_after,
+                                                    )?;
+
+                                                    // Then-branch: codegen stmts before perform, then intercept
+                                                    cg.builder.position_at_end(then_bb_i);
+                                                    for (ti, tstmt) in
+                                                        then_block_stmts.iter().enumerate()
+                                                    {
+                                                        if ti == *perform_stmt_idx {
+                                                            let is = &perform_sites[intercept_pc];
+                                                            for (slot, arg) in binder_slots
+                                                                .iter()
+                                                                .zip(is.args.iter())
+                                                            {
+                                                                let hir::CallArg::Positional(expr) =
+                                                                    arg
+                                                                else {
+                                                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                                                            kind: "handle escape named perform arg",
+                                                                            at: span.into(),
+                                                                        });
+                                                                };
+                                                                let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        expr.span, slot.ptr,
+                                                                        slot.ty, v,
+                                                                    )?;
+                                                            }
+                                                            let _ = cg.builder.build_store(
+                                                                intercept_next_pc_ptr,
+                                                                i32_ty.const_int(
+                                                                    intercept_pc as u64,
+                                                                    false,
+                                                                ),
+                                                            )?;
+                                                            cg.builder.build_unconditional_branch(
+                                                                intercept_bb,
+                                                            )?;
+                                                            break;
+                                                        }
+                                                        // Normal stmt before the perform
+                                                        match &tstmt.kind {
+                                                            hir::StmtKind::Empty => {}
+                                                            hir::StmtKind::Val(decl) => {
+                                                                if let Some(id) = decl.id {
+                                                                    if body_lift_ids.contains(&id) {
+                                                                        let Some(init) =
+                                                                            decl.init.as_ref()
+                                                                        else {
+                                                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                                                    kind: "lifted local without init",
+                                                                                    at: decl.span.into(),
+                                                                                });
+                                                                        };
+                                                                        let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                                                kind: "lifted local type",
+                                                                                at: decl.span.into(),
+                                                                            })?;
+                                                                        let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                                                kind: "lifted local slot missing",
+                                                                                at: decl.span.into(),
+                                                                            })?;
+                                                                        let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
+                                                                        let _stored = cg
+                                                                            .store_local_value(
+                                                                                decl.span,
+                                                                                local.ptr, decl_ty,
+                                                                                v,
+                                                                            )?;
+                                                                    } else {
+                                                                        cg.codegen_val_decl(decl)?;
+                                                                    }
+                                                                } else {
+                                                                    cg.codegen_val_decl(decl)?;
+                                                                }
+                                                            }
+                                                            hir::StmtKind::Assign {
+                                                                lhs,
+                                                                eq_span,
+                                                                rhs,
+                                                            } => {
+                                                                cg.codegen_assign_stmt(
+                                                                    *eq_span, lhs, rhs,
+                                                                )?;
+                                                            }
+                                                            hir::StmtKind::Expr(expr) => {
+                                                                let _ = cg.codegen_expr(expr)?;
+                                                            }
+                                                            _ => {}
+                                                        }
+                                                    }
+
+                                                    // Else-branch: codegen normally
+                                                    if let Some(else_expr) = else_branch.as_deref()
+                                                    {
+                                                        cg.builder.position_at_end(else_or_after);
+                                                        let _ = cg.codegen_expr(else_expr)?;
+                                                        cg.builder.build_unconditional_branch(
+                                                            after_if_bb,
                                                         )?;
                                                     }
-                                                } else {
-                                                    cg.codegen_val_decl(
-                                                        decl,
-                                                    )?;
+                                                    // After-if: continue while body
+                                                    cg.builder.position_at_end(after_if_bb);
                                                 }
                                             }
-                                            hir::StmtKind::Assign {
-                                                lhs,
-                                                eq_span,
-                                                rhs,
+                                            ResumeFrame::IfElse {
+                                                if_expr,
+                                                else_block_stmts,
+                                                resume_after_stmt: perform_stmt_idx,
+                                                ..
                                             } => {
-                                                cg.codegen_assign_stmt(
-                                                    *eq_span, lhs, rhs,
-                                                )?;
-                                            }
-                                            hir::StmtKind::Expr(expr) => {
-                                                let _ =
-                                                    cg.codegen_expr(expr)?;
-                                            }
-                                            hir::StmtKind::While {
-                                                cond,
-                                                body,
-                                            } => {
-                                                cg.codegen_while_stmt(
-                                                    body_stmt.span,
-                                                    cond,
-                                                    body,
-                                                )?;
+                                                if let hir::ExprKind::If {
+                                                    cond: if_cond,
+                                                    then_branch,
+                                                    else_branch: _,
+                                                } = &if_expr.kind
+                                                {
+                                                    let cond_v = cg
+                                                        .codegen_expr_in_expected_context(
+                                                            if_cond,
+                                                            Some(CgTy::Bool),
+                                                        )?;
+                                                    let cond_b = cond_v
+                                                            .as_bool()
+                                                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                                kind: "if cond value (while body intercept)",
+                                                                at: if_cond.span.into(),
+                                                            })?;
+                                                    let then_bb_i =
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!("step_pc{pc}_wif_then"),
+                                                        );
+                                                    let else_bb_i =
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!("step_pc{pc}_wif_else"),
+                                                        );
+                                                    let after_if_bb =
+                                                        self.context.append_basic_block(
+                                                            step_fn,
+                                                            &format!("step_pc{pc}_wif_after"),
+                                                        );
+                                                    cg.builder.build_conditional_branch(
+                                                        cond_b, then_bb_i, else_bb_i,
+                                                    )?;
+
+                                                    // Then-branch: codegen normally
+                                                    cg.builder.position_at_end(then_bb_i);
+                                                    let _ = cg.codegen_expr(then_branch)?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(after_if_bb)?;
+
+                                                    // Else-branch: stmts before perform, then intercept
+                                                    cg.builder.position_at_end(else_bb_i);
+                                                    for (ei, estmt) in
+                                                        else_block_stmts.iter().enumerate()
+                                                    {
+                                                        if ei == *perform_stmt_idx {
+                                                            let is = &perform_sites[intercept_pc];
+                                                            for (slot, arg) in binder_slots
+                                                                .iter()
+                                                                .zip(is.args.iter())
+                                                            {
+                                                                let hir::CallArg::Positional(expr) =
+                                                                    arg
+                                                                else {
+                                                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                                                            kind: "handle escape named perform arg",
+                                                                            at: span.into(),
+                                                                        });
+                                                                };
+                                                                let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        expr.span, slot.ptr,
+                                                                        slot.ty, v,
+                                                                    )?;
+                                                            }
+                                                            let _ = cg.builder.build_store(
+                                                                intercept_next_pc_ptr,
+                                                                i32_ty.const_int(
+                                                                    intercept_pc as u64,
+                                                                    false,
+                                                                ),
+                                                            )?;
+                                                            cg.builder.build_unconditional_branch(
+                                                                intercept_bb,
+                                                            )?;
+                                                            break;
+                                                        }
+                                                        match &estmt.kind {
+                                                            hir::StmtKind::Empty => {}
+                                                            hir::StmtKind::Val(decl) => {
+                                                                if let Some(id) = decl.id {
+                                                                    if body_lift_ids.contains(&id) {
+                                                                        let Some(init) =
+                                                                            decl.init.as_ref()
+                                                                        else {
+                                                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                                                    kind: "lifted local without init",
+                                                                                    at: decl.span.into(),
+                                                                                });
+                                                                        };
+                                                                        let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                                                kind: "lifted local type",
+                                                                                at: decl.span.into(),
+                                                                            })?;
+                                                                        let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                                                kind: "lifted local slot missing",
+                                                                                at: decl.span.into(),
+                                                                            })?;
+                                                                        let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
+                                                                        let _stored = cg
+                                                                            .store_local_value(
+                                                                                decl.span,
+                                                                                local.ptr, decl_ty,
+                                                                                v,
+                                                                            )?;
+                                                                    } else {
+                                                                        cg.codegen_val_decl(decl)?;
+                                                                    }
+                                                                } else {
+                                                                    cg.codegen_val_decl(decl)?;
+                                                                }
+                                                            }
+                                                            hir::StmtKind::Assign {
+                                                                lhs,
+                                                                eq_span,
+                                                                rhs,
+                                                            } => {
+                                                                cg.codegen_assign_stmt(
+                                                                    *eq_span, lhs, rhs,
+                                                                )?;
+                                                            }
+                                                            hir::StmtKind::Expr(expr) => {
+                                                                let _ = cg.codegen_expr(expr)?;
+                                                            }
+                                                            _ => {}
+                                                        }
+                                                    }
+
+                                                    // After-if
+                                                    cg.builder.position_at_end(after_if_bb);
+                                                }
                                             }
                                             _ => {
                                                 return Err(LlvmEmitError::UnsupportedMainBody {
-                                                    kind: "statement inside continuation step (while body)",
-                                                    at: body_stmt.span.into(),
+                                                    kind: "T1606e: unsupported nested perform path in while body",
+                                                    at: span.into(),
                                                 });
                                             }
                                         }
                                     }
+                                } else {
+                                    // Normal stmt in while body
+                                    match &body_stmt.kind {
+                                        hir::StmtKind::Empty => {}
+                                        hir::StmtKind::Val(decl) => {
+                                            if let Some(id) = decl.id {
+                                                if body_lift_ids.contains(&id) {
+                                                    let Some(init) = decl.init.as_ref() else {
+                                                        return Err(
+                                                            LlvmEmitError::UnsupportedMainBody {
+                                                                kind: "lifted local without init",
+                                                                at: decl.span.into(),
+                                                            },
+                                                        );
+                                                    };
+                                                    let decl_ty = cg.cg_ty_of(decl.ty).ok_or(
+                                                        LlvmEmitError::UnsupportedMainBody {
+                                                            kind: "lifted local type",
+                                                            at: decl.span.into(),
+                                                        },
+                                                    )?;
+                                                    let local = cg.env.get(id).ok_or(
+                                                        LlvmEmitError::UnsupportedMainBody {
+                                                            kind: "lifted local slot missing",
+                                                            at: decl.span.into(),
+                                                        },
+                                                    )?;
+                                                    let v = cg.codegen_expr_in_expected_context(
+                                                        init,
+                                                        Some(decl_ty),
+                                                    )?;
+                                                    let _stored = cg.store_local_value(
+                                                        decl.span, local.ptr, decl_ty, v,
+                                                    )?;
+                                                } else {
+                                                    cg.codegen_val_decl(decl)?;
+                                                }
+                                            } else {
+                                                cg.codegen_val_decl(decl)?;
+                                            }
+                                        }
+                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                            cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                                        }
+                                        hir::StmtKind::Expr(expr) => {
+                                            let _ = cg.codegen_expr(expr)?;
+                                        }
+                                        hir::StmtKind::While { cond, body } => {
+                                            cg.codegen_while_stmt(body_stmt.span, cond, body)?;
+                                        }
+                                        _ => {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "statement inside continuation step (while body)",
+                                                at: body_stmt.span.into(),
+                                            });
+                                        }
+                                    }
                                 }
-                                cg.env.pop_scope();
-                                if !while_terminated {
-                                    cg.builder.build_unconditional_branch(
-                                        while_cond_bb,
-                                    )?;
-                                }
-                                cg.builder
-                                    .position_at_end(while_after_bb);
                             }
+                            cg.env.pop_scope();
+                            if !while_terminated {
+                                cg.builder.build_unconditional_branch(while_cond_bb)?;
+                            }
+                            cg.builder.position_at_end(while_after_bb);
+                        }
                     }
 
                     // Top-level tail stmts (after top_level_stmt_idx)
                     if !terminated {
-                        for (idx, stmt) in
-                            handle.body.stmts.iter().enumerate()
-                        {
+                        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
                             if terminated {
                                 break;
                             }
                             if idx <= site.top_level_stmt_idx {
                                 continue;
                             }
-                            if let Some(intercepts) =
-                                top_level_intercepts.get(&idx)
-                            {
+                            if let Some(intercepts) = top_level_intercepts.get(&idx) {
                                 // Check for flat intercept first.
-                                if let Some(&(next_pc, _)) = intercepts.iter().find(|(_, rp)| rp.is_empty()) {
+                                if let Some(&(next_pc, _)) =
+                                    intercepts.iter().find(|(_, rp)| rp.is_empty())
+                                {
                                     let next_site = &perform_sites[next_pc];
-                                    for (slot, arg) in binder_slots.iter().zip(next_site.args.iter()) {
+                                    for (slot, arg) in
+                                        binder_slots.iter().zip(next_site.args.iter())
+                                    {
                                         let hir::CallArg::Positional(expr) = arg else {
-                                            return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle escape named perform arg",
+                                                at: span.into(),
+                                            });
                                         };
-                                        let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                        let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                        let v = cg.codegen_expr_in_expected_context(
+                                            expr,
+                                            Some(slot.ty),
+                                        )?;
+                                        let _stored =
+                                            cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
                                     }
-                                    let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(next_pc as u64, false))?;
+                                    let _ = cg.builder.build_store(
+                                        intercept_next_pc_ptr,
+                                        i32_ty.const_int(next_pc as u64, false),
+                                    )?;
                                     cg.builder.build_unconditional_branch(intercept_bb)?;
                                     terminated = true;
                                     break;
@@ -5205,28 +5737,87 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 let (intercept_pc, inner_path) = *first;
                                 if !inner_path.is_empty() {
                                     match &inner_path[0] {
-                                        ResumeFrame::IfThen { if_expr, then_block_stmts, resume_after_stmt: perform_stmt_idx, .. } => {
-                                            if let hir::ExprKind::If { cond: if_cond, then_branch: _, else_branch } = &if_expr.kind {
-                                                let cond_v = cg.codegen_expr_in_expected_context(if_cond, Some(CgTy::Bool))?;
-                                                let cond_b = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody { kind: "if cond (nested tail intercept)", at: if_cond.span.into() })?;
-                                                let then_bb_i = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_if_then"));
+                                        ResumeFrame::IfThen {
+                                            if_expr,
+                                            then_block_stmts,
+                                            resume_after_stmt: perform_stmt_idx,
+                                            ..
+                                        } => {
+                                            if let hir::ExprKind::If {
+                                                cond: if_cond,
+                                                then_branch: _,
+                                                else_branch,
+                                            } = &if_expr.kind
+                                            {
+                                                let cond_v = cg.codegen_expr_in_expected_context(
+                                                    if_cond,
+                                                    Some(CgTy::Bool),
+                                                )?;
+                                                let cond_b = cond_v.as_bool().ok_or(
+                                                    LlvmEmitError::UnsupportedMainBody {
+                                                        kind: "if cond (nested tail intercept)",
+                                                        at: if_cond.span.into(),
+                                                    },
+                                                )?;
+                                                let then_bb_i = self.context.append_basic_block(
+                                                    step_fn,
+                                                    &format!("step_pc{pc}_ntail_if_then"),
+                                                );
                                                 let has_else = else_branch.is_some();
-                                                let else_or_after = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_if_{}", if has_else { "else" } else { "after" }));
-                                                let after_if_bb = if has_else { self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_if_after")) } else { else_or_after };
-                                                cg.builder.build_conditional_branch(cond_b, then_bb_i, else_or_after)?;
+                                                let else_or_after =
+                                                    self.context.append_basic_block(
+                                                        step_fn,
+                                                        &format!(
+                                                            "step_pc{pc}_ntail_if_{}",
+                                                            if has_else { "else" } else { "after" }
+                                                        ),
+                                                    );
+                                                let after_if_bb = if has_else {
+                                                    self.context.append_basic_block(
+                                                        step_fn,
+                                                        &format!("step_pc{pc}_ntail_if_after"),
+                                                    )
+                                                } else {
+                                                    else_or_after
+                                                };
+                                                cg.builder.build_conditional_branch(
+                                                    cond_b,
+                                                    then_bb_i,
+                                                    else_or_after,
+                                                )?;
                                                 cg.builder.position_at_end(then_bb_i);
-                                                for (ti, tstmt) in then_block_stmts.iter().enumerate() {
+                                                for (ti, tstmt) in
+                                                    then_block_stmts.iter().enumerate()
+                                                {
                                                     if ti == *perform_stmt_idx {
                                                         let is = &perform_sites[intercept_pc];
-                                                        for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                            let hir::CallArg::Positional(expr) = arg else {
+                                                        for (slot, arg) in
+                                                            binder_slots.iter().zip(is.args.iter())
+                                                        {
+                                                            let hir::CallArg::Positional(expr) =
+                                                                arg
+                                                            else {
                                                                 return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                             };
-                                                            let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                            let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                            let v = cg
+                                                                .codegen_expr_in_expected_context(
+                                                                    expr,
+                                                                    Some(slot.ty),
+                                                                )?;
+                                                            let _stored = cg.store_local_value(
+                                                                expr.span, slot.ptr, slot.ty, v,
+                                                            )?;
                                                         }
-                                                        let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                        cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                        let _ = cg.builder.build_store(
+                                                            intercept_next_pc_ptr,
+                                                            i32_ty.const_int(
+                                                                intercept_pc as u64,
+                                                                false,
+                                                            ),
+                                                        )?;
+                                                        cg.builder.build_unconditional_branch(
+                                                            intercept_bb,
+                                                        )?;
                                                         break;
                                                     }
                                                     match &tstmt.kind {
@@ -5234,89 +5825,213 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                         hir::StmtKind::Val(decl) => {
                                                             if let Some(id) = decl.id {
                                                                 if body_lift_ids.contains(&id) {
-                                                                    let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                    let Some(init) =
+                                                                        decl.init.as_ref()
+                                                                    else {
+                                                                        return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                    };
                                                                     let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                     let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                     let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                    let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                } else { cg.codegen_val_decl(decl)?; }
-                                                            } else { cg.codegen_val_decl(decl)?; }
+                                                                    let _stored = cg
+                                                                        .store_local_value(
+                                                                            decl.span, local.ptr,
+                                                                            decl_ty, v,
+                                                                        )?;
+                                                                } else {
+                                                                    cg.codegen_val_decl(decl)?;
+                                                                }
+                                                            } else {
+                                                                cg.codegen_val_decl(decl)?;
+                                                            }
                                                         }
-                                                        hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                        hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                        hir::StmtKind::Assign {
+                                                            lhs,
+                                                            eq_span,
+                                                            rhs,
+                                                        } => {
+                                                            cg.codegen_assign_stmt(
+                                                                *eq_span, lhs, rhs,
+                                                            )?;
+                                                        }
+                                                        hir::StmtKind::Expr(expr) => {
+                                                            let _ = cg.codegen_expr(expr)?;
+                                                        }
                                                         _ => {}
                                                     }
                                                 }
                                                 // Else-branch: check if also intercepted (both branches).
-                                                let else_intercept = intercepts.iter().find(|(_, rp)| matches!(rp.first(), Some(ResumeFrame::IfElse { .. })));
+                                                let else_intercept =
+                                                    intercepts.iter().find(|(_, rp)| {
+                                                        matches!(
+                                                            rp.first(),
+                                                            Some(ResumeFrame::IfElse { .. })
+                                                        )
+                                                    });
                                                 if let Some(&(else_ipc, else_rp)) = else_intercept {
-                                                    if let ResumeFrame::IfElse { else_block_stmts: ebs, resume_after_stmt: epi, .. } = &else_rp[0] {
+                                                    if let ResumeFrame::IfElse {
+                                                        else_block_stmts: ebs,
+                                                        resume_after_stmt: epi,
+                                                        ..
+                                                    } = &else_rp[0]
+                                                    {
                                                         cg.builder.position_at_end(else_or_after);
                                                         for (ei, estmt) in ebs.iter().enumerate() {
                                                             if ei == *epi {
                                                                 let es = &perform_sites[else_ipc];
-                                                                for (slot, arg) in binder_slots.iter().zip(es.args.iter()) {
-                                                                    let hir::CallArg::Positional(expr) = arg else {
+                                                                for (slot, arg) in binder_slots
+                                                                    .iter()
+                                                                    .zip(es.args.iter())
+                                                                {
+                                                                    let hir::CallArg::Positional(
+                                                                        expr,
+                                                                    ) = arg
+                                                                    else {
                                                                         return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
                                                                     };
                                                                     let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                                    let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                                    let _stored = cg
+                                                                        .store_local_value(
+                                                                            expr.span, slot.ptr,
+                                                                            slot.ty, v,
+                                                                        )?;
                                                                 }
-                                                                let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(else_ipc as u64, false))?;
-                                                                cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                                let _ = cg.builder.build_store(
+                                                                    intercept_next_pc_ptr,
+                                                                    i32_ty.const_int(
+                                                                        else_ipc as u64,
+                                                                        false,
+                                                                    ),
+                                                                )?;
+                                                                cg.builder
+                                                                    .build_unconditional_branch(
+                                                                        intercept_bb,
+                                                                    )?;
                                                                 break;
                                                             }
                                                             match &estmt.kind {
                                                                 hir::StmtKind::Empty => {}
                                                                 hir::StmtKind::Val(decl) => {
                                                                     if let Some(id) = decl.id {
-                                                                        if body_lift_ids.contains(&id) {
-                                                                            let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                        if body_lift_ids
+                                                                            .contains(&id)
+                                                                        {
+                                                                            let Some(init) =
+                                                                                decl.init.as_ref()
+                                                                            else {
+                                                                                return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                            };
                                                                             let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                             let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                             let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                            let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                                        } else { cg.codegen_val_decl(decl)?; }
-                                                                    } else { cg.codegen_val_decl(decl)?; }
+                                                                            let _stored = cg
+                                                                                .store_local_value(
+                                                                                    decl.span,
+                                                                                    local.ptr,
+                                                                                    decl_ty, v,
+                                                                                )?;
+                                                                        } else {
+                                                                            cg.codegen_val_decl(
+                                                                                decl,
+                                                                            )?;
+                                                                        }
+                                                                    } else {
+                                                                        cg.codegen_val_decl(decl)?;
+                                                                    }
                                                                 }
-                                                                hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                                hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
+                                                                hir::StmtKind::Assign {
+                                                                    lhs,
+                                                                    eq_span,
+                                                                    rhs,
+                                                                } => {
+                                                                    cg.codegen_assign_stmt(
+                                                                        *eq_span, lhs, rhs,
+                                                                    )?;
+                                                                }
+                                                                hir::StmtKind::Expr(expr) => {
+                                                                    let _ =
+                                                                        cg.codegen_expr(expr)?;
+                                                                }
                                                                 _ => {}
                                                             }
                                                         }
                                                     }
-                                                } else if let Some(else_expr) = else_branch.as_deref() {
+                                                } else if let Some(else_expr) =
+                                                    else_branch.as_deref()
+                                                {
                                                     cg.builder.position_at_end(else_or_after);
                                                     let _ = cg.codegen_expr(else_expr)?;
-                                                    cg.builder.build_unconditional_branch(after_if_bb)?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(after_if_bb)?;
                                                 }
                                                 cg.builder.position_at_end(after_if_bb);
                                                 continue;
                                             }
                                         }
-                                        ResumeFrame::WhileBody { while_cond, while_body, resume_after_stmt: perform_body_idx, .. } => {
-                                            let wc_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_wc"));
-                                            let wb_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_wb"));
-                                            let wa_bb = self.context.append_basic_block(step_fn, &format!("step_pc{pc}_ntail_wa"));
+                                        ResumeFrame::WhileBody {
+                                            while_cond,
+                                            while_body,
+                                            resume_after_stmt: perform_body_idx,
+                                            ..
+                                        } => {
+                                            let wc_bb = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_ntail_wc"),
+                                            );
+                                            let wb_bb = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_ntail_wb"),
+                                            );
+                                            let wa_bb = self.context.append_basic_block(
+                                                step_fn,
+                                                &format!("step_pc{pc}_ntail_wa"),
+                                            );
                                             cg.builder.build_unconditional_branch(wc_bb)?;
                                             cg.builder.position_at_end(wc_bb);
-                                            let cv = cg.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
-                                            let cb = cv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody { kind: "while cond (nested tail intercept)", at: while_cond.span.into() })?;
-                                            cg.builder.build_conditional_branch(cb, wb_bb, wa_bb)?;
+                                            let cv = cg.codegen_expr_in_expected_context(
+                                                while_cond,
+                                                Some(CgTy::Bool),
+                                            )?;
+                                            let cb = cv.as_bool().ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
+                                                    kind: "while cond (nested tail intercept)",
+                                                    at: while_cond.span.into(),
+                                                },
+                                            )?;
+                                            cg.builder
+                                                .build_conditional_branch(cb, wb_bb, wa_bb)?;
                                             cg.builder.position_at_end(wb_bb);
                                             cg.env.push_scope();
                                             let mut wt = false;
                                             for (bi, bstmt) in while_body.stmts.iter().enumerate() {
-                                                if wt { break; }
+                                                if wt {
+                                                    break;
+                                                }
                                                 if bi == *perform_body_idx {
                                                     let is = &perform_sites[intercept_pc];
-                                                    for (slot, arg) in binder_slots.iter().zip(is.args.iter()) {
-                                                        let hir::CallArg::Positional(expr) = arg else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() }); };
-                                                        let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                                                        let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                                    for (slot, arg) in
+                                                        binder_slots.iter().zip(is.args.iter())
+                                                    {
+                                                        let hir::CallArg::Positional(expr) = arg
+                                                        else {
+                                                            return Err(LlvmEmitError::UnsupportedMainBody { kind: "handle escape named perform arg", at: span.into() });
+                                                        };
+                                                        let v = cg
+                                                            .codegen_expr_in_expected_context(
+                                                                expr,
+                                                                Some(slot.ty),
+                                                            )?;
+                                                        let _stored = cg.store_local_value(
+                                                            expr.span, slot.ptr, slot.ty, v,
+                                                        )?;
                                                     }
-                                                    let _ = cg.builder.build_store(intercept_next_pc_ptr, i32_ty.const_int(intercept_pc as u64, false))?;
-                                                    cg.builder.build_unconditional_branch(intercept_bb)?;
+                                                    let _ = cg.builder.build_store(
+                                                        intercept_next_pc_ptr,
+                                                        i32_ty
+                                                            .const_int(intercept_pc as u64, false),
+                                                    )?;
+                                                    cg.builder
+                                                        .build_unconditional_branch(intercept_bb)?;
                                                     wt = true;
                                                     break;
                                                 }
@@ -5325,22 +6040,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                                     hir::StmtKind::Val(decl) => {
                                                         if let Some(id) = decl.id {
                                                             if body_lift_ids.contains(&id) {
-                                                                let Some(init) = decl.init.as_ref() else { return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() }); };
+                                                                let Some(init) = decl.init.as_ref()
+                                                                else {
+                                                                    return Err(LlvmEmitError::UnsupportedMainBody { kind: "lifted local without init", at: decl.span.into() });
+                                                                };
                                                                 let decl_ty = cg.cg_ty_of(decl.ty).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local type", at: decl.span.into() })?;
                                                                 let local = cg.env.get(id).ok_or(LlvmEmitError::UnsupportedMainBody { kind: "lifted local slot missing", at: decl.span.into() })?;
                                                                 let v = cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
-                                                                let _stored = cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
-                                                            } else { cg.codegen_val_decl(decl)?; }
-                                                        } else { cg.codegen_val_decl(decl)?; }
+                                                                let _stored = cg
+                                                                    .store_local_value(
+                                                                        decl.span, local.ptr,
+                                                                        decl_ty, v,
+                                                                    )?;
+                                                            } else {
+                                                                cg.codegen_val_decl(decl)?;
+                                                            }
+                                                        } else {
+                                                            cg.codegen_val_decl(decl)?;
+                                                        }
                                                     }
-                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => { cg.codegen_assign_stmt(*eq_span, lhs, rhs)?; }
-                                                    hir::StmtKind::Expr(expr) => { let _ = cg.codegen_expr(expr)?; }
-                                                    hir::StmtKind::While { cond, body } => { cg.codegen_while_stmt(bstmt.span, cond, body)?; }
-                                                    _ => { return Err(LlvmEmitError::UnsupportedMainBody { kind: "stmt in while (nested tail intercept)", at: bstmt.span.into() }); }
+                                                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                                                    }
+                                                    hir::StmtKind::Expr(expr) => {
+                                                        let _ = cg.codegen_expr(expr)?;
+                                                    }
+                                                    hir::StmtKind::While { cond, body } => {
+                                                        cg.codegen_while_stmt(
+                                                            bstmt.span, cond, body,
+                                                        )?;
+                                                    }
+                                                    _ => {
+                                                        return Err(
+                                                            LlvmEmitError::UnsupportedMainBody {
+                                                                kind: "stmt in while (nested tail intercept)",
+                                                                at: bstmt.span.into(),
+                                                            },
+                                                        );
+                                                    }
                                                 }
                                             }
                                             cg.env.pop_scope();
-                                            if !wt { cg.builder.build_unconditional_branch(wc_bb)?; }
+                                            if !wt {
+                                                cg.builder.build_unconditional_branch(wc_bb)?;
+                                            }
                                             cg.builder.position_at_end(wa_bb);
                                             continue;
                                         }
@@ -5354,37 +6097,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 hir::StmtKind::Val(decl) => {
                                     if let Some(id) = decl.id {
                                         if body_lift_ids.contains(&id) {
-                                            let Some(init) =
-                                                decl.init.as_ref()
-                                            else {
+                                            let Some(init) = decl.init.as_ref() else {
                                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local without init",
                                                     at: decl.span.into(),
                                                 });
                                             };
-                                            let decl_ty = cg
-                                                .cg_ty_of(decl.ty)
-                                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                            let decl_ty = cg.cg_ty_of(decl.ty).ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local type",
                                                     at: decl.span.into(),
-                                                })?;
-                                            let local = cg
-                                                .env
-                                                .get(id)
-                                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                                },
+                                            )?;
+                                            let local = cg.env.get(id).ok_or(
+                                                LlvmEmitError::UnsupportedMainBody {
                                                     kind: "lifted local slot missing",
                                                     at: decl.span.into(),
-                                                })?;
-                                            let v = cg
-                                                .codegen_expr_in_expected_context(
-                                                    init,
-                                                    Some(decl_ty),
-                                                )?;
-                                            let _stored =
-                                                cg.store_local_value(
-                                                    decl.span, local.ptr,
-                                                    decl_ty, v,
-                                                )?;
+                                                },
+                                            )?;
+                                            let v = cg.codegen_expr_in_expected_context(
+                                                init,
+                                                Some(decl_ty),
+                                            )?;
+                                            let _stored = cg.store_local_value(
+                                                decl.span, local.ptr, decl_ty, v,
+                                            )?;
                                         } else {
                                             cg.codegen_val_decl(decl)?;
                                         }
@@ -5392,30 +6129,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         cg.codegen_val_decl(decl)?;
                                     }
                                 }
-                                hir::StmtKind::Assign {
-                                    lhs,
-                                    eq_span,
-                                    rhs,
-                                } => {
-                                    cg.codegen_assign_stmt(
-                                        *eq_span, lhs, rhs,
-                                    )?;
+                                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                                    cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
                                 }
                                 hir::StmtKind::Expr(expr) => {
                                     let _ = cg.codegen_expr(expr)?;
                                 }
                                 hir::StmtKind::While { cond, body } => {
-                                    cg.codegen_while_stmt(
-                                        stmt.span, cond, body,
-                                    )?;
+                                    cg.codegen_while_stmt(stmt.span, cond, body)?;
                                 }
                                 _ => {
-                                    return Err(
-                                        LlvmEmitError::UnsupportedMainBody {
-                                            kind: "statement inside continuation step",
-                                            at: stmt.span.into(),
-                                        },
-                                    );
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "statement inside continuation step",
+                                        at: stmt.span.into(),
+                                    });
                                 }
                             }
                         }
@@ -5425,11 +6152,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Completion: unpin state + return
                 if !terminated {
                     let unpin = cg.declare_runtime_gc_unpin();
-                    let _ = cg.builder.build_call(
-                        unpin,
-                        &[state_raw.into()],
-                        "cont_state_unpin",
-                    )?;
+                    let _ =
+                        cg.builder
+                            .build_call(unpin, &[state_raw.into()], "cont_state_unpin")?;
                     cg.builder.build_return(None)?;
                 }
             }
@@ -5457,375 +6182,374 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Dead code: no pc block ever branches here. Emit unreachable.
                 cg.builder.build_unreachable()?;
             } else {
-
-            // Write back captures (outer_captures + body_lifts) to heap state.
-            for (idx, cap) in outer_captures.iter().enumerate() {
-                let field_idx = outer_field_base.saturating_add(idx as u32);
-                let field_ptr = cg.builder.build_struct_gep(
-                    state_ty,
-                    state_ptr,
-                    field_idx,
-                    "intercept_capture_gep",
-                )?;
-                let local =
-                    cg.env
+                // Write back captures (outer_captures + body_lifts) to heap state.
+                for (idx, cap) in outer_captures.iter().enumerate() {
+                    let field_idx = outer_field_base.saturating_add(idx as u32);
+                    let field_ptr = cg.builder.build_struct_gep(
+                        state_ty,
+                        state_ptr,
+                        field_idx,
+                        "intercept_capture_gep",
+                    )?;
+                    let local = cg
+                        .env
                         .get(cap.id)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "intercept: capture local not found",
                             at: span.into(),
                         })?;
-                if local.ty != cap.ty {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "intercept: capture local type mismatch",
-                        at: span.into(),
-                    });
-                }
-                match cap.ty {
-                    CgTy::Ref => {
-                        let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_cap_load_ref")?;
-                        let BasicValueEnum::PointerValue(ptr) = loaded else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: capture ref ptr",
-                                at: span.into(),
-                            });
-                        };
-                        let casted = cg.builder.build_pointer_cast(
-                            ptr,
-                            gc_i8_ptr_ty,
-                            "intercept_cap_ref_i8",
-                        )?;
-                        let _ = cg.store_local_value(
-                            span,
-                            field_ptr,
-                            CgTy::Ref,
-                            CgValue {
-                                ty: CgTy::Ref,
-                                value: Some(casted.into()),
-                            },
-                        )?;
+                    if local.ty != cap.ty {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "intercept: capture local type mismatch",
+                            at: span.into(),
+                        });
                     }
-                    CgTy::String => {
-                        let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_cap_load_str")?;
-                        let BasicValueEnum::PointerValue(ptr) = loaded else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: capture str ptr",
-                                at: span.into(),
-                            });
-                        };
-                        let casted = cg.builder.build_pointer_cast(
-                            ptr,
-                            gc_i8_ptr_ty,
-                            "intercept_cap_str_i8",
-                        )?;
-                        let _ = cg.store_local_value(
-                            span,
-                            field_ptr,
-                            CgTy::Ref,
-                            CgValue {
-                                ty: CgTy::Ref,
-                                value: Some(casted.into()),
-                            },
-                        )?;
-                    }
-                    CgTy::Bool => {
-                        let loaded = cg
-                            .builder
-                            .build_load(
-                                cg.llvm_basic_type_of(span, CgTy::Bool)?,
+                    match cap.ty {
+                        CgTy::Ref => {
+                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let loaded = cg.builder.build_load(
+                                llvm_ty,
                                 local.ptr,
-                                "intercept_cap_load_bool",
-                            )?
-                            .into_int_value();
-                        let extended = cg.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "intercept_cap_zext_bool",
-                        )?;
-                        let _ = cg.builder.build_store(field_ptr, extended)?;
-                    }
-                    CgTy::Int(int_ty_info) => {
-                        if int_ty_info.bits > 64 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: capture int width > 64",
-                                at: span.into(),
-                            });
+                                "intercept_cap_load_ref",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: capture ref ptr",
+                                    at: span.into(),
+                                });
+                            };
+                            let casted = cg.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "intercept_cap_ref_i8",
+                            )?;
+                            let _ = cg.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
                         }
-                        let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_cap_load_int")?
-                            .into_int_value();
-                        let extended = if int_ty_info.bits == 64 {
-                            loaded
-                        } else if int_ty_info.signed {
-                            cg.builder.build_int_s_extend(
+                        CgTy::String => {
+                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
+                            let loaded = cg.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "intercept_cap_load_str",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: capture str ptr",
+                                    at: span.into(),
+                                });
+                            };
+                            let casted = cg.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "intercept_cap_str_i8",
+                            )?;
+                            let _ = cg.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::Bool => {
+                            let loaded = cg
+                                .builder
+                                .build_load(
+                                    cg.llvm_basic_type_of(span, CgTy::Bool)?,
+                                    local.ptr,
+                                    "intercept_cap_load_bool",
+                                )?
+                                .into_int_value();
+                            let extended = cg.builder.build_int_z_extend(
                                 loaded,
                                 i64_ty,
-                                "intercept_cap_sext_int",
-                            )?
-                        } else {
-                            cg.builder.build_int_z_extend(
-                                loaded,
-                                i64_ty,
-                                "intercept_cap_zext_int",
-                            )?
-                        };
-                        let _ = cg.builder.build_store(field_ptr, extended)?;
+                                "intercept_cap_zext_bool",
+                            )?;
+                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                        }
+                        CgTy::Int(int_ty_info) => {
+                            if int_ty_info.bits > 64 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: capture int width > 64",
+                                    at: span.into(),
+                                });
+                            }
+                            let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
+                            let loaded = cg
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "intercept_cap_load_int")?
+                                .into_int_value();
+                            let extended = if int_ty_info.bits == 64 {
+                                loaded
+                            } else if int_ty_info.signed {
+                                cg.builder.build_int_s_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "intercept_cap_sext_int",
+                                )?
+                            } else {
+                                cg.builder.build_int_z_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "intercept_cap_zext_int",
+                                )?
+                            };
+                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                        }
+                        _ => unreachable!("captures filtered by type"),
                     }
-                    _ => unreachable!("captures filtered by type"),
                 }
-            }
 
-            for (idx, cap) in body_lifts.iter().enumerate() {
-                let field_idx = body_field_base.saturating_add(idx as u32);
-                let field_ptr = cg.builder.build_struct_gep(
-                    state_ty,
-                    state_ptr,
-                    field_idx,
-                    "intercept_lift_gep",
-                )?;
-                let local =
-                    cg.env
+                for (idx, cap) in body_lifts.iter().enumerate() {
+                    let field_idx = body_field_base.saturating_add(idx as u32);
+                    let field_ptr = cg.builder.build_struct_gep(
+                        state_ty,
+                        state_ptr,
+                        field_idx,
+                        "intercept_lift_gep",
+                    )?;
+                    let local = cg
+                        .env
                         .get(cap.id)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "intercept: lift local not found",
                             at: span.into(),
                         })?;
-                if local.ty != cap.ty {
+                    if local.ty != cap.ty {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "intercept: lift local type mismatch",
+                            at: span.into(),
+                        });
+                    }
+                    match cap.ty {
+                        CgTy::Ref => {
+                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let loaded = cg.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "intercept_lift_load_ref",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: lift ref ptr",
+                                    at: span.into(),
+                                });
+                            };
+                            let casted = cg.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "intercept_lift_ref_i8",
+                            )?;
+                            let _ = cg.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::String => {
+                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
+                            let loaded = cg.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "intercept_lift_load_str",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: lift str ptr",
+                                    at: span.into(),
+                                });
+                            };
+                            let casted = cg.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "intercept_lift_str_i8",
+                            )?;
+                            let _ = cg.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::Bool => {
+                            let loaded = cg
+                                .builder
+                                .build_load(
+                                    cg.llvm_basic_type_of(span, CgTy::Bool)?,
+                                    local.ptr,
+                                    "intercept_lift_load_bool",
+                                )?
+                                .into_int_value();
+                            let extended = cg.builder.build_int_z_extend(
+                                loaded,
+                                i64_ty,
+                                "intercept_lift_zext_bool",
+                            )?;
+                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                        }
+                        CgTy::Int(int_ty_info) => {
+                            if int_ty_info.bits > 64 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "intercept: lift int width > 64",
+                                    at: span.into(),
+                                });
+                            }
+                            let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
+                            let loaded = cg
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "intercept_lift_load_int")?
+                                .into_int_value();
+                            let extended = if int_ty_info.bits == 64 {
+                                loaded
+                            } else if int_ty_info.signed {
+                                cg.builder.build_int_s_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "intercept_lift_sext_int",
+                                )?
+                            } else {
+                                cg.builder.build_int_z_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "intercept_lift_zext_int",
+                                )?
+                            };
+                            let _ = cg.builder.build_store(field_ptr, extended)?;
+                        }
+                        _ => unreachable!("captures filtered by type"),
+                    }
+                }
+
+                // Update pc in state from the alloca set by each interception point.
+                let next_pc_val = cg.builder.build_load(
+                    i32_ty,
+                    intercept_next_pc_ptr,
+                    "intercept_load_next_pc",
+                )?;
+                let pc_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    2,
+                    "intercept_state_pc_gep",
+                )?;
+                let _ = cg.builder.build_store(pc_ptr, next_pc_val)?;
+
+                // Create continuation.
+                let rt_cont_alloc = cg.declare_runtime_continuation_alloc();
+                let step_ptr = step_fn.as_global_value().as_pointer_value();
+                let call = cg.builder.build_call(
+                    rt_cont_alloc,
+                    &[state_raw.into(), step_ptr.into()],
+                    "intercept_cont_alloc",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "intercept: continuation alloc return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(k_raw) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "intercept: lift local type mismatch",
+                        kind: "intercept: continuation alloc return type",
                         at: span.into(),
                     });
+                };
+
+                // Pin k to avoid GC moving it before arm stores it in a root.
+                let pin = cg.declare_runtime_gc_pin();
+                let _ = cg
+                    .builder
+                    .build_call(pin, &[k_raw.into()], "intercept_k_pin")?;
+
+                // Store k into cont_ptr.
+                let _stored = cg.store_local_value(
+                    span,
+                    cont_ptr,
+                    CgTy::Ref,
+                    CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(k_raw.into()),
+                    },
+                )?;
+
+                // Detach handler frame from TLS handler stack (prevent self-capture).
+                let handler_frame_ty = cg.llvm_effect_handler_frame_type();
+                let frame_ptr =
+                    cg.builder
+                        .build_struct_gep(state_ty, state_ptr, 1, "intercept_frame_gep")?;
+                let prev_ptr = cg.builder.build_struct_gep(
+                    handler_frame_ty,
+                    frame_ptr,
+                    0,
+                    "intercept_prev_gep",
+                )?;
+                let prev_raw = cg
+                    .builder
+                    .build_load(i8_ptr_ty, prev_ptr, "intercept_prev")?;
+                let rt_swap = cg.declare_runtime_effect_handler_stack_swap_top();
+                let _ = cg
+                    .builder
+                    .build_call(rt_swap, &[prev_raw.into()], "intercept_detach")?;
+
+                // Execute arm body.
+                cg.env.push_scope();
+                for slot in &binder_slots {
+                    cg.env.insert(
+                        slot.id,
+                        CgLocal {
+                            hir_ty: Some(slot.hir_ty),
+                            ty: slot.ty,
+                            ptr: slot.ptr,
+                            mutable: false,
+                        },
+                    );
                 }
-                match cap.ty {
-                    CgTy::Ref => {
-                        let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_lift_load_ref")?;
-                        let BasicValueEnum::PointerValue(ptr) = loaded else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: lift ref ptr",
-                                at: span.into(),
-                            });
-                        };
-                        let casted = cg.builder.build_pointer_cast(
-                            ptr,
-                            gc_i8_ptr_ty,
-                            "intercept_lift_ref_i8",
-                        )?;
-                        let _ = cg.store_local_value(
-                            span,
-                            field_ptr,
-                            CgTy::Ref,
-                            CgValue {
-                                ty: CgTy::Ref,
-                                value: Some(casted.into()),
-                            },
-                        )?;
-                    }
-                    CgTy::String => {
-                        let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_lift_load_str")?;
-                        let BasicValueEnum::PointerValue(ptr) = loaded else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: lift str ptr",
-                                at: span.into(),
-                            });
-                        };
-                        let casted = cg.builder.build_pointer_cast(
-                            ptr,
-                            gc_i8_ptr_ty,
-                            "intercept_lift_str_i8",
-                        )?;
-                        let _ = cg.store_local_value(
-                            span,
-                            field_ptr,
-                            CgTy::Ref,
-                            CgValue {
-                                ty: CgTy::Ref,
-                                value: Some(casted.into()),
-                            },
-                        )?;
-                    }
-                    CgTy::Bool => {
-                        let loaded = cg
-                            .builder
-                            .build_load(
-                                cg.llvm_basic_type_of(span, CgTy::Bool)?,
-                                local.ptr,
-                                "intercept_lift_load_bool",
-                            )?
-                            .into_int_value();
-                        let extended = cg.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "intercept_lift_zext_bool",
-                        )?;
-                        let _ = cg.builder.build_store(field_ptr, extended)?;
-                    }
-                    CgTy::Int(int_ty_info) => {
-                        if int_ty_info.bits > 64 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "intercept: lift int width > 64",
-                                at: span.into(),
-                            });
-                        }
-                        let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                        let loaded = cg
-                            .builder
-                            .build_load(llvm_ty, local.ptr, "intercept_lift_load_int")?
-                            .into_int_value();
-                        let extended = if int_ty_info.bits == 64 {
-                            loaded
-                        } else if int_ty_info.signed {
-                            cg.builder.build_int_s_extend(
-                                loaded,
-                                i64_ty,
-                                "intercept_lift_sext_int",
-                            )?
-                        } else {
-                            cg.builder.build_int_z_extend(
-                                loaded,
-                                i64_ty,
-                                "intercept_lift_zext_int",
-                            )?
-                        };
-                        let _ = cg.builder.build_store(field_ptr, extended)?;
-                    }
-                    _ => unreachable!("captures filtered by type"),
-                }
-            }
-
-            // Update pc in state from the alloca set by each interception point.
-            let next_pc_val = cg
-                .builder
-                .build_load(i32_ty, intercept_next_pc_ptr, "intercept_load_next_pc")?;
-            let pc_ptr = cg.builder.build_struct_gep(
-                state_ty,
-                state_ptr,
-                2,
-                "intercept_state_pc_gep",
-            )?;
-            let _ = cg.builder.build_store(pc_ptr, next_pc_val)?;
-
-            // Create continuation.
-            let rt_cont_alloc = cg.declare_runtime_continuation_alloc();
-            let step_ptr = step_fn.as_global_value().as_pointer_value();
-            let call = cg.builder.build_call(
-                rt_cont_alloc,
-                &[state_raw.into(), step_ptr.into()],
-                "intercept_cont_alloc",
-            )?;
-            let raw = call.try_as_basic_value().basic().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "intercept: continuation alloc return value",
-                    at: span.into(),
-                },
-            )?;
-            let BasicValueEnum::PointerValue(k_raw) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "intercept: continuation alloc return type",
-                    at: span.into(),
-                });
-            };
-
-            // Pin k to avoid GC moving it before arm stores it in a root.
-            let pin = cg.declare_runtime_gc_pin();
-            let _ = cg.builder.build_call(
-                pin,
-                &[k_raw.into()],
-                "intercept_k_pin",
-            )?;
-
-            // Store k into cont_ptr.
-            let _stored = cg.store_local_value(
-                span,
-                cont_ptr,
-                CgTy::Ref,
-                CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(k_raw.into()),
-                },
-            )?;
-
-            // Detach handler frame from TLS handler stack (prevent self-capture).
-            let handler_frame_ty = cg.llvm_effect_handler_frame_type();
-            let frame_ptr = cg.builder.build_struct_gep(
-                state_ty,
-                state_ptr,
-                1,
-                "intercept_frame_gep",
-            )?;
-            let prev_ptr = cg.builder.build_struct_gep(
-                handler_frame_ty,
-                frame_ptr,
-                0,
-                "intercept_prev_gep",
-            )?;
-            let prev_raw = cg
-                .builder
-                .build_load(i8_ptr_ty, prev_ptr, "intercept_prev")?;
-            let rt_swap = cg.declare_runtime_effect_handler_stack_swap_top();
-            let _ = cg.builder.build_call(
-                rt_swap,
-                &[prev_raw.into()],
-                "intercept_detach",
-            )?;
-
-            // Execute arm body.
-            cg.env.push_scope();
-            for slot in &binder_slots {
                 cg.env.insert(
-                    slot.id,
+                    continuation_symbol,
                     CgLocal {
-                        hir_ty: Some(slot.hir_ty),
-                        ty: slot.ty,
-                        ptr: slot.ptr,
+                        hir_ty: None,
+                        ty: CgTy::Ref,
+                        ptr: cont_ptr,
                         mutable: false,
                     },
                 );
-            }
-            cg.env.insert(
-                continuation_symbol,
-                CgLocal {
-                    hir_ty: None,
-                    ty: CgTy::Ref,
-                    ptr: cont_ptr,
-                    mutable: false,
-                },
-            );
-            let arm_v = cg.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
-            let _arm_v = if out_ty == CgTy::Unit {
-                CgValue::unit()
-            } else {
-                cg.coerce_value(arm.body.span, arm_v, out_ty)?
-            };
-            cg.env.pop_scope();
+                let arm_v = cg.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+                let _arm_v = if out_ty == CgTy::Unit {
+                    CgValue::unit()
+                } else {
+                    cg.coerce_value(arm.body.span, arm_v, out_ty)?
+                };
+                cg.env.pop_scope();
 
-            // Unpin k after arm completes.
-            let llvm_ref_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
-            let k_loaded = cg
-                .builder
-                .build_load(llvm_ref_ty, cont_ptr, "intercept_k_unpin_load")?
-                .into_pointer_value();
-            let unpin = cg.declare_runtime_gc_unpin();
-            let _ = cg.builder.build_call(
-                unpin,
-                &[k_loaded.into()],
-                "intercept_k_unpin",
-            )?;
+                // Unpin k after arm completes.
+                let llvm_ref_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                let k_loaded = cg
+                    .builder
+                    .build_load(llvm_ref_ty, cont_ptr, "intercept_k_unpin_load")?
+                    .into_pointer_value();
+                let unpin = cg.declare_runtime_gc_unpin();
+                let _ = cg
+                    .builder
+                    .build_call(unpin, &[k_loaded.into()], "intercept_k_unpin")?;
 
-            cg.builder.build_return(None)?;
-
+                cg.builder.build_return(None)?;
             } // if intercept_reachable
 
             cg.env.pop_scope();
@@ -5960,7 +6684,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // v0 取舍（T1606c）：在 multi-perform 的生命周期内 pin 住 state，避免 moving GC 把它搬走；
         // 并在 step trampoline 走到 "body 完成（无下一次 perform）" 路径时解除 pin。
         let pin = self.declare_runtime_gc_pin();
-        let _ = self.builder.build_call(pin, &[state_raw.into()], "cont_state_pin")?;
+        let _ = self
+            .builder
+            .build_call(pin, &[state_raw.into()], "cont_state_pin")?;
 
         let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
         let state_ptr =
@@ -5974,9 +6700,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             // 注意：不要把 `pc_ptr`（state 内部 derived pointer）跨越任何可能触发 GC 的调用长期保活，
             // 否则 stackmap roots 里会出现 non-header roots，在 `SCOOP_GC_VERIFY_ROOTS=1` 下 fail-fast。
-            let pc_ptr = self
-                .builder
-                .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
+            let pc_ptr =
+                self.builder
+                    .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
             let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
         }
         let outer_field_base = 3u32;
@@ -6036,10 +6762,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         // T1608：使用统一的 op_tag 分配。
         let escape_tag = self.effect_op_tag(&arm.op.op.fqn);
-        let op_tag_i32 = self
-            .context
-            .i32_type()
-            .const_int(escape_tag as u64, false);
+        let op_tag_i32 = self.context.i32_type().const_int(escape_tag as u64, false);
         let _ = self.builder.build_call(
             rt_push,
             &[frame_i8.into(), op_tag_i32.into()],
@@ -6352,9 +7075,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 第一条 continuation resume 对应 pc=0（从第 1 个 perform 点之后继续）。
         {
-            let pc_ptr = self
-                .builder
-                .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
+            let pc_ptr =
+                self.builder
+                    .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
             let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
         }
 
@@ -6465,13 +7188,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // arm 正常完成：保存结果，跳到 finally（若有）或 done。
         if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none() {
-                if let Some(ptr) = result_ptr {
-                    let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
-                }
-                let target = finally_bb.unwrap_or(done_bb);
-                self.builder.build_unconditional_branch(target)?;
+            && bb.get_terminator().is_none()
+        {
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
             }
+            let target = finally_bb.unwrap_or(done_bb);
+            self.builder.build_unconditional_branch(target)?;
+        }
 
         self.env.pop_scope();
 
@@ -6483,20 +7207,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(finally)?;
             }
             if let Some(bb) = self.builder.get_insert_block()
-                && bb.get_terminator().is_none() {
-                    if let Some(target) = outer_raise_target {
-                        self.builder.build_unconditional_branch(target)?;
-                    } else {
-                        let ret_ty =
-                            self.current_fun_return_ty
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle escape finally unwind needs function return type",
-                                    at: span.into(),
-                                })?;
-                        let v = self.default_value(ret_ty);
-                        self.emit_return(span, ret_ty, v)?;
-                    }
+                && bb.get_terminator().is_none()
+            {
+                if let Some(target) = outer_raise_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    let ret_ty =
+                        self.current_fun_return_ty
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle escape finally unwind needs function return type",
+                                at: span.into(),
+                            })?;
+                    let v = self.default_value(ret_ty);
+                    self.emit_return(span, ret_ty, v)?;
                 }
+            }
         }
 
         // --- finally (T1609) ---
@@ -6507,9 +7232,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(finally)?;
             }
             if let Some(bb) = self.builder.get_insert_block()
-                && bb.get_terminator().is_none() {
-                    self.builder.build_unconditional_branch(done_bb)?;
-                }
+                && bb.get_terminator().is_none()
+            {
+                self.builder.build_unconditional_branch(done_bb)?;
+            }
         }
 
         // --- done ---
@@ -6529,8 +7255,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle escape result slot",
@@ -6561,21 +7292,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (idx, stmt) in body.stmts.iter().enumerate() {
             if let hir::StmtKind::Val(decl) = &stmt.kind
                 && let Some(init) = &decl.init
-                    && let hir::ExprKind::Call { callee, .. } = &init.kind
-                        && let Some(fqn) = self.try_extract_callee_fqn(callee)
-                            && let Some(fun) = self.fun_index.get(fqn) {
-                                let is_pure = self
-                                    .fun_ty_effects_is_pure(fun.ty)
-                                    .unwrap_or(false);
-                                if !is_pure
-                                    && let Some(id) = decl.id {
-                                        sites.push(IndirectPerformCallSite {
-                                            stmt_idx: idx,
-                                            result_id: id,
-                                            result_ty: decl.ty,
-                                        });
-                                    }
-                            }
+                && let hir::ExprKind::Call { callee, .. } = &init.kind
+                && let Some(fqn) = self.try_extract_callee_fqn(callee)
+                && let Some(fun) = self.fun_index.get(fqn)
+            {
+                let is_pure = self.fun_ty_effects_is_pure(fun.ty).unwrap_or(false);
+                if !is_pure && let Some(id) = decl.id {
+                    sites.push(IndirectPerformCallSite {
+                        stmt_idx: idx,
+                        _result_id: id,
+                        result_ty: decl.ty,
+                    });
+                }
+            }
         }
         sites
     }
@@ -6611,11 +7340,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "builder has no parent function",
                 at: span.into(),
             })?;
-        let func_name = func
-            .get_name()
-            .to_str()
-            .unwrap_or("anonymous")
-            .to_string();
+        let func_name = func.get_name().to_str().unwrap_or("anonymous").to_string();
         let func_name = sanitize_llvm_ident(&func_name);
 
         let i8_ptr_ty = self.llvm_i8_ptr_type();
@@ -6649,14 +7374,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 && matches!(
                     local.ty,
                     CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
-                ) {
-                    outer_captures.push(CapturedLocal {
-                        id: *id,
-                        hir_ty: local.hir_ty,
-                        ty: local.ty,
-                        mutable: local.mutable,
-                    });
-                }
+                )
+            {
+                outer_captures.push(CapturedLocal {
+                    id: *id,
+                    hir_ty: local.hir_ty,
+                    ty: local.ty,
+                    mutable: local.mutable,
+                });
+            }
         }
         outer_captures.sort_by_key(|c| c.id.as_u32());
 
@@ -6670,9 +7396,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     break;
                 }
                 if let hir::StmtKind::Val(decl) = &stmt.kind
-                    && let Some(id) = decl.id {
-                        decls_before.push((id, idx));
-                    }
+                    && let Some(id) = decl.id
+                {
+                    decls_before.push((id, idx));
+                }
             }
             // Collect locals used at and after the indirect perform site.
             // T1606f-3: The step function re-codegens the call expression at the
@@ -6700,68 +7427,63 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // We need their type info from the HIR decls.
             for stmt in &handle.body.stmts {
                 if let hir::StmtKind::Val(decl) = &stmt.kind
-                    && decl.id == Some(id) {
-                        let decl_ty = self.cg_ty_of(decl.ty).ok_or(
-                            LlvmEmitError::UnsupportedMainBody {
+                    && decl.id == Some(id)
+                {
+                    let decl_ty =
+                        self.cg_ty_of(decl.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
                                 kind: "indirect perform body lift type",
                                 at: decl.span.into(),
-                            },
-                        )?;
-                        body_lifts.push(CapturedLocal {
-                            id,
-                            hir_ty: Some(decl.ty),
-                            ty: decl_ty,
-                            mutable: decl.mutable,
-                        });
-                        break;
-                    }
+                            })?;
+                    body_lifts.push(CapturedLocal {
+                        id,
+                        hir_ty: Some(decl.ty),
+                        ty: decl_ty,
+                        mutable: decl.mutable,
+                    });
+                    break;
+                }
             }
         }
         body_lifts.sort_by_key(|c| c.id.as_u32());
 
         // ContState struct: { header, handler_frame, pc, outer_captures..., body_lifts... }
-        let state_ty_name = format!(
-            "scoop.runtime.ContState__{func_name}_{seq}"
-        );
-        let state_ty =
-            if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
-                existing
-            } else {
-                let ty = self.context.opaque_struct_type(&state_ty_name);
-                let header_ty = self.llvm_gc_object_header_type();
-                let frame_ty = self.llvm_effect_handler_frame_type();
-                let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-                fields.push(header_ty.into()); // 0: header
-                fields.push(frame_ty.into()); // 1: handler_frame
-                fields.push(i32_ty.into()); // 2: pc
-                for cap in &outer_captures {
-                    fields.push(match cap.ty {
-                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                        _ => unreachable!("captures filtered by type"),
-                    });
-                }
-                for cap in &body_lifts {
-                    fields.push(match cap.ty {
-                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                        _ => unreachable!("lifts filtered by type"),
-                    });
-                }
-                ty.set_body(&fields, false);
-                ty
-            };
+        let state_ty_name = format!("scoop.runtime.ContState__{func_name}_{seq}");
+        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+            existing
+        } else {
+            let ty = self.context.opaque_struct_type(&state_ty_name);
+            let header_ty = self.llvm_gc_object_header_type();
+            let frame_ty = self.llvm_effect_handler_frame_type();
+            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+            fields.push(header_ty.into()); // 0: header
+            fields.push(frame_ty.into()); // 1: handler_frame
+            fields.push(i32_ty.into()); // 2: pc
+            for cap in &outer_captures {
+                fields.push(match cap.ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("captures filtered by type"),
+                });
+            }
+            for cap in &body_lifts {
+                fields.push(match cap.ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("lifts filtered by type"),
+                });
+            }
+            ty.set_body(&fields, false);
+            ty
+        };
 
         // Step function: void step(void* state, u64 resume_word, void* resume_gc_ref)
-        let step_name = format!(
-            "__scoop_cont_step__{func_name}_{seq}"
-        );
+        let step_name = format!("__scoop_cont_step__{func_name}_{seq}");
         let step_fn_ty = self.context.void_type().fn_type(
             &[gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
             false,
         );
-        let step_fn =
-            self.module.add_function(&step_name, step_fn_ty, None);
+        let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
         step_fn.set_linkage(Linkage::Internal);
         step_fn.set_gc(super::super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
@@ -6791,9 +7513,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.fun_index,
             );
 
-            let entry = self
-                .context
-                .append_basic_block(step_fn, "entry");
+            let entry = self.context.append_basic_block(step_fn, "entry");
             cg.builder.position_at_end(entry);
             cg.current_fun_return_ty = Some(CgTy::Unit);
             cg.env.push_scope();
@@ -6807,11 +7527,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?
                 .into_pointer_value();
             let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
-            let state_ptr = cg.builder.build_pointer_cast(
-                state_raw,
-                state_ptr_ty,
-                "step_state_ptr",
-            )?;
+            let state_ptr =
+                cg.builder
+                    .build_pointer_cast(state_raw, state_ptr_ty, "step_state_ptr")?;
             let resume_word = step_fn
                 .get_nth_param(1)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -6829,8 +7547,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // Restore outer captures from ContState.
             let outer_field_base = 3u32;
-            let body_field_base =
-                outer_field_base.saturating_add(outer_captures.len() as u32);
+            let body_field_base = outer_field_base.saturating_add(outer_captures.len() as u32);
             for (idx, cap) in outer_captures.iter().enumerate() {
                 let field_idx = outer_field_base.saturating_add(idx as u32);
                 let field_ptr = cg.builder.build_struct_gep(
@@ -6846,8 +7563,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(gc_i8_ptr_ty, field_ptr, "step_cap_ref")?
                             .into_pointer_value();
-                        let ptr =
-                            cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
                         let _ = cg.builder.build_store(ptr, loaded)?;
                         cg.env.insert(
                             cap.id,
@@ -6870,11 +7586,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             str_ptr_ty,
                             "step_cap_str_cast",
                         )?;
-                        let ptr = cg.create_entry_alloca(
-                            span,
-                            &name,
-                            CgTy::String,
-                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
                         let _ = cg.builder.build_store(ptr, casted)?;
                         cg.env.insert(
                             cap.id,
@@ -6897,11 +7609,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             i64_ty.const_zero(),
                             "step_cap_bool_cmp",
                         )?;
-                        let ptr = cg.create_entry_alloca(
-                            span,
-                            &name,
-                            CgTy::Bool,
-                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
                         let _ = cg.builder.build_store(ptr, b)?;
                         cg.env.insert(
                             cap.id,
@@ -6922,15 +7630,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let v = if int_ty.bits == 64 {
                             loaded
                         } else {
-                            cg.builder.build_int_truncate(
-                                loaded,
-                                to,
-                                "step_cap_trunc",
-                            )?
+                            cg.builder
+                                .build_int_truncate(loaded, to, "step_cap_trunc")?
                         };
                         let slot_ty = CgTy::Int(int_ty);
-                        let ptr =
-                            cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
                         let _ = cg.builder.build_store(ptr, v)?;
                         cg.env.insert(
                             cap.id,
@@ -6949,12 +7653,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Restore body lifts.
             for (idx, cap) in body_lifts.iter().enumerate() {
                 let field_idx = body_field_base.saturating_add(idx as u32);
-                let field_ptr = cg.builder.build_struct_gep(
-                    state_ty,
-                    state_ptr,
-                    field_idx,
-                    "step_lift_gep",
-                )?;
+                let field_ptr =
+                    cg.builder
+                        .build_struct_gep(state_ty, state_ptr, field_idx, "step_lift_gep")?;
                 let name = format!("lift_{}", cap.id.as_u32());
                 match cap.ty {
                     CgTy::Int(int_ty) => {
@@ -6966,15 +7667,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let v = if int_ty.bits == 64 {
                             loaded
                         } else {
-                            cg.builder.build_int_truncate(
-                                loaded,
-                                to,
-                                "step_lift_trunc",
-                            )?
+                            cg.builder
+                                .build_int_truncate(loaded, to, "step_lift_trunc")?
                         };
                         let slot_ty = CgTy::Int(int_ty);
-                        let ptr =
-                            cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
                         let _ = cg.builder.build_store(ptr, v)?;
                         cg.env.insert(
                             cap.id,
@@ -6991,8 +7688,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(gc_i8_ptr_ty, field_ptr, "step_lift_ref")?
                             .into_pointer_value();
-                        let ptr =
-                            cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
                         let _ = cg.builder.build_store(ptr, loaded)?;
                         cg.env.insert(
                             cap.id,
@@ -7015,11 +7711,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             str_ptr_ty,
                             "step_lift_str_cast",
                         )?;
-                        let ptr = cg.create_entry_alloca(
-                            span,
-                            &name,
-                            CgTy::String,
-                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
                         let _ = cg.builder.build_store(ptr, casted)?;
                         cg.env.insert(
                             cap.id,
@@ -7042,11 +7734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             i64_ty.const_zero(),
                             "step_lift_bool_cmp",
                         )?;
-                        let ptr = cg.create_entry_alloca(
-                            span,
-                            &name,
-                            CgTy::Bool,
-                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
                         let _ = cg.builder.build_store(ptr, b)?;
                         cg.env.insert(
                             cap.id,
@@ -7058,7 +7746,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             },
                         );
                     }
-                    _ => unreachable!("body lifts filtered by type")
+                    _ => unreachable!("body lifts filtered by type"),
                 }
             }
 
@@ -7089,13 +7777,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let callee_rw_byte_offset = self
                 .target_data
                 .get_store_size(&self.llvm_gc_object_header_type());
-            let callee_rw_ptr = cg.builder.build_pointer_cast(
-                callee_state_raw,
-                i8_ptr_ty,
-                "callee_state_i8",
-            )?;
-            let offset_val =
-                i64_ty.const_int(callee_rw_byte_offset, false);
+            let callee_rw_ptr =
+                cg.builder
+                    .build_pointer_cast(callee_state_raw, i8_ptr_ty, "callee_state_i8")?;
+            let offset_val = i64_ty.const_int(callee_rw_byte_offset, false);
             let callee_rw_gep = unsafe {
                 cg.builder.build_gep(
                     cg.context.i8_type(),
@@ -7109,9 +7794,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 i64_ty.ptr_type(AddressSpace::default()),
                 "callee_rw_i64_ptr",
             )?;
-            let _ = cg
-                .builder
-                .build_store(callee_rw_i64_ptr, resume_word)?;
+            let _ = cg.builder.build_store(callee_rw_i64_ptr, resume_word)?;
 
             // Re-call the callee function.
             // The callee will detect its saved state in TLS, use the resume_word, and return the actual result.
@@ -7131,10 +7814,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             // Codegen the call expression (the callee will detect resume via TLS).
-            let call_result = cg.codegen_expr_in_expected_context(
-                call_init,
-                Some(call_result_cg_ty),
-            )?;
+            let call_result =
+                cg.codegen_expr_in_expected_context(call_init, Some(call_result_cg_ty))?;
 
             // Bind the call result to the val decl's local.
             if let Some(id) = call_decl.id {
@@ -7143,12 +7824,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     call_decl.name.as_deref().unwrap_or("v"),
                     call_result_cg_ty,
                 )?;
-                let _ = cg.store_local_value(
-                    call_decl.span,
-                    ptr,
-                    call_result_cg_ty,
-                    call_result,
-                )?;
+                let _ =
+                    cg.store_local_value(call_decl.span, ptr, call_result_cg_ty, call_result)?;
                 cg.env.insert(
                     id,
                     CgLocal {
@@ -7161,9 +7838,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             // Execute remaining stmts after the call.
-            for stmt in
-                handle.body.stmts.iter().skip(site.stmt_idx + 1)
-            {
+            for stmt in handle.body.stmts.iter().skip(site.stmt_idx + 1) {
                 match &stmt.kind {
                     hir::StmtKind::Empty => {}
                     hir::StmtKind::Val(decl) => {
@@ -7182,18 +7857,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "stmt in step function (indirect perform)",
                             at: stmt.span.into(),
-                        })
+                        });
                     }
                 }
             }
 
             // Unpin cont_state + return.
             let unpin = cg.declare_runtime_gc_unpin();
-            let _ = cg.builder.build_call(
-                unpin,
-                &[state_raw.into()],
-                "step_unpin",
-            )?;
+            let _ = cg
+                .builder
+                .build_call(unpin, &[state_raw.into()], "step_unpin")?;
             cg.builder.build_return(None)?;
 
             cg.env.pop_scope();
@@ -7212,9 +7885,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let dispatch_no_match_bb = self
             .context
             .append_basic_block(func, "handle_indirect_dispatch_nomatch");
-        let arm_bb = self
-            .context
-            .append_basic_block(func, "handle_indirect_arm");
+        let arm_bb = self.context.append_basic_block(func, "handle_indirect_arm");
         let done_bb = self
             .context
             .append_basic_block(func, "handle_indirect_done");
@@ -7241,19 +7912,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let result_ptr = if out_ty == CgTy::Unit {
             None
         } else {
-            Some(self.create_entry_alloca(
-                span,
-                "handle_indirect_result",
-                out_ty,
-            )?)
+            Some(self.create_entry_alloca(span, "handle_indirect_result", out_ty)?)
         };
 
         // Continuation binder local.
-        let cont_ptr = self.create_entry_alloca(
-            span,
-            &format!("handle_indirect_k_{seq}"),
-            CgTy::Ref,
-        )?;
+        let cont_ptr =
+            self.create_entry_alloca(span, &format!("handle_indirect_k_{seq}"), CgTy::Ref)?;
 
         // Binder slots for the arm pattern (e.g., op args).
         struct BinderSlot<'ctx> {
@@ -7264,17 +7928,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
         for binder in &arm.op.binders {
-            let binder_ty = self.cg_ty_of(binder.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
+            let binder_ty = self
+                .cg_ty_of(binder.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle indirect binder type",
                     at: binder.span.into(),
-                },
-            )?;
-            let ptr = self.create_entry_alloca(
-                binder.span,
-                &binder.name,
-                binder_ty,
-            )?;
+                })?;
+            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
             binder_slots.push(BinderSlot {
                 id: binder.id,
                 hir_ty: binder.ty,
@@ -7291,21 +7951,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Allocate and pin ContState.
         let total_size = self.target_data.get_store_size(&state_ty);
-        let state_desc_global_name = format!(
-            "__scoop_type_desc_cont_state__{func_name}_{seq}"
-        );
+        let state_desc_global_name = format!("__scoop_type_desc_cont_state__{func_name}_{seq}");
         let first_capture_field_index = 3u32;
-        let trace_start_offset_bytes =
-            if outer_captures.is_empty() && body_lifts.is_empty() {
-                total_size
-            } else {
-                self.target_data
-                    .offset_of_element(
-                        &state_ty,
-                        first_capture_field_index,
-                    )
-                    .unwrap_or(total_size)
-            };
+        let trace_start_offset_bytes = if outer_captures.is_empty() && body_lifts.is_empty() {
+            total_size
+        } else {
+            self.target_data
+                .offset_of_element(&state_ty, first_capture_field_index)
+                .unwrap_or(total_size)
+        };
         let state_desc = self.get_or_create_type_descriptor_global(
             span,
             &state_desc_global_name,
@@ -7329,12 +7983,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[state_desc_i8.into(), size_v.into()],
             "rt_alloc_cont_state",
         )?;
-        let raw = call.try_as_basic_value().basic().ok_or(
-            LlvmEmitError::UnsupportedMainBody {
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "scoop_alloc return value",
                 at: span.into(),
-            },
-        )?;
+            })?;
         let BasicValueEnum::PointerValue(state_raw) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "scoop_alloc return type",
@@ -7348,25 +8003,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_call(pin, &[state_raw.into()], "cont_state_pin")?;
 
         let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
-        let state_ptr = self.builder.build_pointer_cast(
-            state_raw,
-            state_ptr_ty,
-            "cont_state_ptr",
-        )?;
+        let state_ptr =
+            self.builder
+                .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
 
         // Zero-init pc and capture fields.
         {
-            let pc_ptr = self.builder.build_struct_gep(
-                state_ty,
-                state_ptr,
-                2,
-                "cont_state_pc_gep",
-            )?;
+            let pc_ptr =
+                self.builder
+                    .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
             let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
         }
         let outer_field_base = 3u32;
-        let body_field_base =
-            outer_field_base.saturating_add(outer_captures.len() as u32);
+        let body_field_base = outer_field_base.saturating_add(outer_captures.len() as u32);
         for (idx, cap) in outer_captures.iter().enumerate() {
             let field_idx = outer_field_base.saturating_add(idx as u32);
             let field_ptr = self.builder.build_struct_gep(
@@ -7382,9 +8031,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
                 CgTy::Bool | CgTy::Int(_) => {
-                    let _ = self
-                        .builder
-                        .build_store(field_ptr, i64_ty.const_zero())?;
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!(),
             }
@@ -7404,23 +8051,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
                 }
                 CgTy::Bool | CgTy::Int(_) => {
-                    let _ = self
-                        .builder
-                        .build_store(field_ptr, i64_ty.const_zero())?;
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
                 }
                 _ => unreachable!(),
             }
         }
 
         // Push handler frame.
-        let rt_push =
-            self.declare_runtime_effect_handler_stack_push();
-        let frame_ptr = self.builder.build_struct_gep(
-            state_ty,
-            state_ptr,
-            1,
-            "cont_state_frame_gep",
-        )?;
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let frame_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
         let frame_i8 = self.builder.build_address_space_cast(
             frame_ptr,
             i8_ptr_ty,
@@ -7448,24 +8089,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // already be saved in ContState for the step function to restore.
             if idx == first_site.stmt_idx && !body_lifts.is_empty() {
                 for (li, cap) in body_lifts.iter().enumerate() {
-                    let field_idx =
-                        body_field_base.saturating_add(li as u32);
+                    let field_idx = body_field_base.saturating_add(li as u32);
                     let field_ptr = self.builder.build_struct_gep(
                         state_ty,
                         state_ptr,
                         field_idx,
                         "body_save_lift",
                     )?;
-                    let local = self.env.get(cap.id).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
+                    let local = self
+                        .env
+                        .get(cap.id)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "body save lift not found",
                             at: span.into(),
-                        },
-                    )?;
+                        })?;
                     match cap.ty {
                         CgTy::Int(int_ty) => {
-                            let llvm_ty =
-                                self.llvm_basic_type_of(span, cap.ty)?;
+                            let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
                             let loaded = self
                                 .builder
                                 .build_load(llvm_ty, local.ptr, "body_lift_int")?
@@ -7473,24 +8113,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let ext = if int_ty.bits == 64 {
                                 loaded
                             } else if int_ty.signed {
-                                self.builder.build_int_s_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "body_lift_sext",
-                                )?
+                                self.builder
+                                    .build_int_s_extend(loaded, i64_ty, "body_lift_sext")?
                             } else {
-                                self.builder.build_int_z_extend(
-                                    loaded,
-                                    i64_ty,
-                                    "body_lift_zext",
-                                )?
+                                self.builder
+                                    .build_int_z_extend(loaded, i64_ty, "body_lift_zext")?
                             };
-                            let _ =
-                                self.builder.build_store(field_ptr, ext)?;
+                            let _ = self.builder.build_store(field_ptr, ext)?;
                         }
                         CgTy::Bool => {
-                            let llvm_ty = self
-                                .llvm_basic_type_of(span, CgTy::Bool)?;
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::Bool)?;
                             let loaded = self
                                 .builder
                                 .build_load(llvm_ty, local.ptr, "body_lift_bool")?
@@ -7500,12 +8132,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 i64_ty,
                                 "body_lift_bool_zext",
                             )?;
-                            let _ =
-                                self.builder.build_store(field_ptr, ext)?;
+                            let _ = self.builder.build_store(field_ptr, ext)?;
                         }
                         CgTy::Ref => {
-                            let llvm_ty =
-                                self.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
                             let loaded = self
                                 .builder
                                 .build_load(llvm_ty, local.ptr, "body_lift_ref")?
@@ -7526,8 +8156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             )?;
                         }
                         CgTy::String => {
-                            let llvm_ty = self
-                                .llvm_basic_type_of(span, CgTy::String)?;
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
                             let loaded = self
                                 .builder
                                 .build_load(llvm_ty, local.ptr, "body_lift_str")?
@@ -7569,8 +8198,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     } else {
                         Some(CgTy::Unit)
                     };
-                    let v = self
-                        .codegen_expr_in_expected_context(expr, expected)?;
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     body_tail = if is_last { Some(v) } else { None };
                 }
                 hir::StmtKind::While { cond, body } => {
@@ -7581,7 +8209,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "stmt in handle body (indirect perform)",
                         at: stmt.span.into(),
-                    })
+                    });
                 }
             }
         }
@@ -7591,30 +8219,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Body completed normally (no perform happened).
         // Pop handler frame and store body result.
-        let rt_pop =
-            self.declare_runtime_effect_handler_stack_pop();
-        let _ = self.builder.build_call(
-            rt_pop,
-            &[frame_i8.into()],
-            "handle_indirect_pop",
-        )?;
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_indirect_pop")?;
 
         // Unpin cont_state (no continuation needed).
         let unpin_fn = self.declare_runtime_gc_unpin();
-        let _ = self.builder.build_call(
-            unpin_fn,
-            &[state_raw.into()],
-            "cont_state_unpin_body",
-        )?;
+        let _ = self
+            .builder
+            .build_call(unpin_fn, &[state_raw.into()], "cont_state_unpin_body")?;
 
         if out_ty != CgTy::Unit
-            && let Some(v) = body_tail {
-                let v = self.coerce_value(span, v, out_ty)?;
-                if let Some(ptr) = result_ptr {
-                    let _ =
-                        self.store_local_value(span, ptr, out_ty, v)?;
-                }
+            && let Some(v) = body_tail
+        {
+            let v = self.coerce_value(span, v, out_ty)?;
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(span, ptr, out_ty, v)?;
             }
+        }
 
         self.env.pop_scope();
         self.builder.build_unconditional_branch(done_bb)?;
@@ -7622,8 +8245,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // ── Dispatch (flag-based unwind after a call in the body) ──
         self.builder.position_at_end(dispatch_bb);
         {
-            let rt_read_tag = self
-                .declare_runtime_effect_perform_slot_read_op_tag();
+            let rt_read_tag = self.declare_runtime_effect_perform_slot_read_op_tag();
             let tag_call = self
                 .builder
                 .build_call(rt_read_tag, &[], "dispatch_read_op_tag")?;
@@ -7646,32 +8268,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 op_tag_i32,
                 "dispatch_tag_eq",
             )?;
-            self.builder.build_conditional_branch(
-                tag_matches,
-                arm_bb,
-                dispatch_no_match_bb,
-            )?;
+            self.builder
+                .build_conditional_branch(tag_matches, arm_bb, dispatch_no_match_bb)?;
         }
 
         // ── Dispatch no match ──
         self.builder.position_at_end(dispatch_no_match_bb);
         {
-            let rt_pop =
-                self.declare_runtime_effect_handler_stack_pop();
-            let _ = self.builder.build_call(
-                rt_pop,
-                &[frame_i8.into()],
-                "dispatch_nomatch_pop",
-            )?;
+            let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+            let _ = self
+                .builder
+                .build_call(rt_pop, &[frame_i8.into()], "dispatch_nomatch_pop")?;
             if let Some(outer) = outer_raise_target {
                 self.builder.build_unconditional_branch(outer)?;
             } else {
-                let ret_ty = self.current_fun_return_ty.ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "dispatch no-match needs function return type",
-                        at: span.into(),
-                    },
-                )?;
+                let ret_ty =
+                    self.current_fun_return_ty
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "dispatch no-match needs function return type",
+                            at: span.into(),
+                        })?;
                 let v = self.default_value(ret_ty);
                 self.emit_return(span, ret_ty, v)?;
             }
@@ -7682,24 +8298,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             // Save captures to ContState.
             for (idx, cap) in outer_captures.iter().enumerate() {
-                let field_idx =
-                    outer_field_base.saturating_add(idx as u32);
+                let field_idx = outer_field_base.saturating_add(idx as u32);
                 let field_ptr = self.builder.build_struct_gep(
                     state_ty,
                     state_ptr,
                     field_idx,
                     "arm_save_cap",
                 )?;
-                let local = self.env.get(cap.id).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
+                let local = self
+                    .env
+                    .get(cap.id)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "arm save capture not found",
                         at: span.into(),
-                    },
-                )?;
+                    })?;
                 match cap.ty {
                     CgTy::Int(int_ty) => {
-                        let llvm_ty =
-                            self.llvm_basic_type_of(span, cap.ty)?;
+                        let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
                         let loaded = self
                             .builder
                             .build_load(llvm_ty, local.ptr, "arm_cap_int")?
@@ -7707,39 +8322,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let ext = if int_ty.bits == 64 {
                             loaded
                         } else if int_ty.signed {
-                            self.builder.build_int_s_extend(
-                                loaded,
-                                i64_ty,
-                                "arm_cap_sext",
-                            )?
+                            self.builder
+                                .build_int_s_extend(loaded, i64_ty, "arm_cap_sext")?
                         } else {
-                            self.builder.build_int_z_extend(
-                                loaded,
-                                i64_ty,
-                                "arm_cap_zext",
-                            )?
+                            self.builder
+                                .build_int_z_extend(loaded, i64_ty, "arm_cap_zext")?
                         };
-                        let _ =
-                            self.builder.build_store(field_ptr, ext)?;
+                        let _ = self.builder.build_store(field_ptr, ext)?;
                     }
                     CgTy::Bool => {
-                        let llvm_ty = self
-                            .llvm_basic_type_of(span, CgTy::Bool)?;
+                        let llvm_ty = self.llvm_basic_type_of(span, CgTy::Bool)?;
                         let loaded = self
                             .builder
                             .build_load(llvm_ty, local.ptr, "arm_cap_bool")?
                             .into_int_value();
-                        let ext = self.builder.build_int_z_extend(
-                            loaded,
-                            i64_ty,
-                            "arm_cap_bool_zext",
-                        )?;
-                        let _ =
-                            self.builder.build_store(field_ptr, ext)?;
+                        let ext =
+                            self.builder
+                                .build_int_z_extend(loaded, i64_ty, "arm_cap_bool_zext")?;
+                        let _ = self.builder.build_store(field_ptr, ext)?;
                     }
                     CgTy::Ref => {
-                        let llvm_ty =
-                            self.llvm_basic_type_of(span, CgTy::Ref)?;
+                        let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
                         let loaded = self
                             .builder
                             .build_load(llvm_ty, local.ptr, "arm_cap_ref")?
@@ -7760,8 +8363,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )?;
                     }
                     CgTy::String => {
-                        let llvm_ty = self
-                            .llvm_basic_type_of(span, CgTy::String)?;
+                        let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
                         let loaded = self
                             .builder
                             .build_load(llvm_ty, local.ptr, "arm_cap_str")?
@@ -7790,35 +8392,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // Set pc = 0.
             {
-                let pc_ptr = self.builder.build_struct_gep(
-                    state_ty,
-                    state_ptr,
-                    2,
-                    "arm_pc_gep",
-                )?;
-                let _ = self
+                let pc_ptr = self
                     .builder
-                    .build_store(pc_ptr, i32_ty.const_zero())?;
+                    .build_struct_gep(state_ty, state_ptr, 2, "arm_pc_gep")?;
+                let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
             }
 
             // Read binder values from perform slot (for arm pattern binders).
             for (slot_idx, slot) in binder_slots.iter().enumerate() {
                 // Read from perform slot. For single-arg effects, read slot_read_u64.
                 if slot_idx == 0 {
-                    let rt_read = self
-                        .declare_runtime_effect_perform_slot_read_u64();
-                    let read_call = self.builder.build_call(
-                        rt_read,
-                        &[],
-                        "arm_read_binder",
+                    let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+                    let read_call = self.builder.build_call(rt_read, &[], "arm_read_binder")?;
+                    let raw = read_call.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "arm read binder return",
+                            at: span.into(),
+                        },
                     )?;
-                    let raw =
-                        read_call.try_as_basic_value().basic().ok_or(
-                            LlvmEmitError::UnsupportedMainBody {
-                                kind: "arm read binder return",
-                                at: span.into(),
-                            },
-                        )?;
                     let BasicValueEnum::IntValue(binder_u64) = raw else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "arm read binder type",
@@ -7842,26 +8433,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         _ => CgValue::unit(), // For now, unsupported
                     };
-                    let _ = self.store_local_value(
-                        span,
-                        slot.ptr,
-                        slot.ty,
-                        binder_v,
-                    )?;
+                    let _ = self.store_local_value(span, slot.ptr, slot.ty, binder_v)?;
                 }
             }
 
             // Clear effect active flag (the dispatch caught it).
             let rt_clear = self.declare_runtime_effect_clear();
-            let _ = self
-                .builder
-                .build_call(rt_clear, &[], "arm_effect_clear")?;
+            let _ = self.builder.build_call(rt_clear, &[], "arm_effect_clear")?;
 
             // Create continuation.
-            let rt_cont_alloc =
-                self.declare_runtime_continuation_alloc();
-            let step_ptr =
-                step_fn.as_global_value().as_pointer_value();
+            let rt_cont_alloc = self.declare_runtime_continuation_alloc();
+            let step_ptr = step_fn.as_global_value().as_pointer_value();
             let cont_call = self.builder.build_call(
                 rt_cont_alloc,
                 &[state_raw.into(), step_ptr.into()],
@@ -7877,11 +8459,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .into_pointer_value();
 
             // Pin continuation.
-            let _ = self.builder.build_call(
-                pin,
-                &[k_raw.into()],
-                "arm_k_pin",
-            )?;
+            let _ = self.builder.build_call(pin, &[k_raw.into()], "arm_k_pin")?;
             let _ = self.store_local_value(
                 span,
                 cont_ptr,
@@ -7893,30 +8471,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
 
             // Detach handler frame from TLS handler stack.
-            let handler_frame_ty =
-                self.llvm_effect_handler_frame_type();
-            let frame_ptr_for_detach = self.builder.build_struct_gep(
-                state_ty,
-                state_ptr,
-                1,
-                "arm_frame_gep",
-            )?;
+            let handler_frame_ty = self.llvm_effect_handler_frame_type();
+            let frame_ptr_for_detach =
+                self.builder
+                    .build_struct_gep(state_ty, state_ptr, 1, "arm_frame_gep")?;
             let prev_ptr = self.builder.build_struct_gep(
                 handler_frame_ty,
                 frame_ptr_for_detach,
                 0,
                 "arm_prev_gep",
             )?;
-            let prev_raw = self
+            let prev_raw = self.builder.build_load(i8_ptr_ty, prev_ptr, "arm_prev")?;
+            let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+            let _ = self
                 .builder
-                .build_load(i8_ptr_ty, prev_ptr, "arm_prev")?;
-            let rt_swap = self
-                .declare_runtime_effect_handler_stack_swap_top();
-            let _ = self.builder.build_call(
-                rt_swap,
-                &[prev_raw.into()],
-                "arm_detach",
-            )?;
+                .build_call(rt_swap, &[prev_raw.into()], "arm_detach")?;
 
             // Execute arm body.
             self.env.push_scope();
@@ -7945,10 +8514,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(fu_bb) = finally_unwind_bb {
                 self.push_raise_target(fu_bb);
             }
-            let arm_v = self.codegen_expr_in_expected_context(
-                &arm.body,
-                Some(out_ty),
-            )?;
+            let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
             if finally_unwind_bb.is_some() {
                 self.pop_raise_target();
             }
@@ -7960,18 +8526,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // arm 正常完成：保存结果，跳到 finally（若有）或 done。
             if let Some(bb) = self.builder.get_insert_block()
-                && bb.get_terminator().is_none() {
-                    if let Some(ptr) = result_ptr {
-                        let _ = self.store_local_value(
-                            arm.body.span,
-                            ptr,
-                            out_ty,
-                            arm_v,
-                        )?;
-                    }
-                    let target = finally_bb.unwrap_or(done_bb);
-                    self.builder.build_unconditional_branch(target)?;
+                && bb.get_terminator().is_none()
+            {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
                 }
+                let target = finally_bb.unwrap_or(done_bb);
+                self.builder.build_unconditional_branch(target)?;
+            }
 
             self.env.pop_scope();
         }
@@ -7983,20 +8545,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(finally)?;
             }
             if let Some(bb) = self.builder.get_insert_block()
-                && bb.get_terminator().is_none() {
-                    if let Some(target) = outer_raise_target {
-                        self.builder.build_unconditional_branch(target)?;
-                    } else {
-                        let ret_ty =
-                            self.current_fun_return_ty
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle indirect finally unwind needs function return type",
-                                    at: span.into(),
-                                })?;
-                        let v = self.default_value(ret_ty);
-                        self.emit_return(span, ret_ty, v)?;
-                    }
+                && bb.get_terminator().is_none()
+            {
+                if let Some(target) = outer_raise_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    let ret_ty =
+                        self.current_fun_return_ty
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle indirect finally unwind needs function return type",
+                                at: span.into(),
+                            })?;
+                    let v = self.default_value(ret_ty);
+                    self.emit_return(span, ret_ty, v)?;
                 }
+            }
         }
 
         // --- finally (T1609) ---
@@ -8006,9 +8569,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.codegen_block_value(finally)?;
             }
             if let Some(bb) = self.builder.get_insert_block()
-                && bb.get_terminator().is_none() {
-                    self.builder.build_unconditional_branch(done_bb)?;
-                }
+                && bb.get_terminator().is_none()
+            {
+                self.builder.build_unconditional_branch(done_bb)?;
+            }
         }
 
         // ── Done ──
@@ -8019,11 +8583,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(llvm_ref_ty, cont_ptr, "handle_indirect_k_unpin_load")?
             .into_pointer_value();
         let unpin = self.declare_runtime_gc_unpin();
-        let _ = self.builder.build_call(
-            unpin,
-            &[k_loaded.into()],
-            "handle_indirect_k_unpin",
-        )?;
+        let _ = self
+            .builder
+            .build_call(unpin, &[k_loaded.into()], "handle_indirect_k_unpin")?;
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
@@ -8042,11 +8604,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
-                let loaded = self.builder.build_load(
-                    llvm_ty,
-                    ptr,
-                    "handle_indirect_result",
-                )?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, ptr, "handle_indirect_result")?;
                 CgValue {
                     ty: out_ty,
                     value: Some(loaded),
@@ -8056,18 +8616,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// Helper: collect used locals in a stmt (static, no codegen state needed).
-    fn collect_used_locals_in_stmt_static(
-        stmt: &hir::Stmt,
-        out: &mut HashSet<hir::SymbolId>,
-    ) {
+    fn collect_used_locals_in_stmt_static(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
         match &stmt.kind {
             hir::StmtKind::Empty
             | hir::StmtKind::Break { .. }
             | hir::StmtKind::Continue { .. }
             | hir::StmtKind::Todo(_) => {}
-            hir::StmtKind::Expr(expr) => {
-                Self::collect_used_locals_in_expr_static(expr, out)
-            }
+            hir::StmtKind::Expr(expr) => Self::collect_used_locals_in_expr_static(expr, out),
             hir::StmtKind::Val(decl) => {
                 if let Some(init) = &decl.init {
                     Self::collect_used_locals_in_expr_static(init, out);
@@ -8092,10 +8647,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// Helper: collect used locals in an expression (static).
-    fn collect_used_locals_in_expr_static(
-        expr: &hir::Expr,
-        out: &mut HashSet<hir::SymbolId>,
-    ) {
+    fn collect_used_locals_in_expr_static(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
                 out.insert(*id);
@@ -8105,14 +8657,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 for arg in args {
                     match arg {
                         hir::CallArg::Positional(e) => {
-                            Self::collect_used_locals_in_expr_static(
-                                e, out,
-                            )
+                            Self::collect_used_locals_in_expr_static(e, out)
                         }
                         hir::CallArg::Named { value, .. } => {
-                            Self::collect_used_locals_in_expr_static(
-                                value, out,
-                            )
+                            Self::collect_used_locals_in_expr_static(value, out)
                         }
                     }
                 }
@@ -8128,10 +8676,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 else_branch,
             } => {
                 Self::collect_used_locals_in_expr_static(cond, out);
-                Self::collect_used_locals_in_expr_static(
-                    then_branch,
-                    out,
-                );
+                Self::collect_used_locals_in_expr_static(then_branch, out);
                 if let Some(e) = else_branch {
                     Self::collect_used_locals_in_expr_static(e, out);
                 }
@@ -8150,20 +8695,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::ExprKind::InterpolatedString { parts, .. } => {
                 for part in parts {
-                    if let hir::InterpolatedStringPart::Expr { expr } =
-                        part
-                    {
-                        Self::collect_used_locals_in_expr_static(
-                            expr, out,
-                        );
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        Self::collect_used_locals_in_expr_static(expr, out);
                     }
                 }
             }
             hir::ExprKind::StructLit { fields, .. } => {
                 for f in fields {
-                    Self::collect_used_locals_in_expr_static(
-                        &f.value, out,
-                    );
+                    Self::collect_used_locals_in_expr_static(&f.value, out);
                 }
             }
             hir::ExprKind::TupleLit { elements } => {
@@ -8177,9 +8716,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(g) = &arm.guard {
                         Self::collect_used_locals_in_expr_static(g, out);
                     }
-                    Self::collect_used_locals_in_expr_static(
-                        &arm.body, out,
-                    );
+                    Self::collect_used_locals_in_expr_static(&arm.body, out);
                 }
             }
             hir::ExprKind::Closure(closure) => {
@@ -8188,9 +8725,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 for cap in &closure.captures {
                     out.insert(cap.id);
                 }
-                Self::collect_used_locals_in_expr_static(
-                    &closure.body, out,
-                );
+                Self::collect_used_locals_in_expr_static(&closure.body, out);
             }
             _ => {}
         }
@@ -8344,12 +8879,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match value.ty {
             CgTy::Unit | CgTy::Never => {
                 // Unit/Never：写 0 到 resume_word，resume_gc_ref 置 null。
-                let word_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6,
-                    "cont_resume_word_gep",
-                )?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
                 let _ = self
                     .builder
                     .build_store(word_ptr, i64_ty.const_int(0, false))?;
@@ -8359,9 +8891,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     7,
                     "cont_resume_gc_ref_gep",
                 )?;
-                let _ = self
-                    .builder
-                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
             }
             CgTy::Bool => {
                 let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -8371,12 +8901,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let extended = self
                     .builder
                     .build_int_z_extend(b, i64_ty, "resume_bool_to_u64")?;
-                let word_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6,
-                    "cont_resume_word_gep",
-                )?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
                 let _ = self.builder.build_store(word_ptr, extended)?;
                 let ref_ptr = self.builder.build_struct_gep(
                     cont_ty,
@@ -8384,18 +8911,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     7,
                     "cont_resume_gc_ref_gep",
                 )?;
-                let _ = self
-                    .builder
-                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
             }
             CgTy::Int(_) => {
                 let word = self.coerce_u64_word(value_expr.span, value)?;
-                let word_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6,
-                    "cont_resume_word_gep",
-                )?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
                 let _ = self.builder.build_store(word_ptr, word)?;
                 let ref_ptr = self.builder.build_struct_gep(
                     cont_ty,
@@ -8403,18 +8925,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     7,
                     "cont_resume_gc_ref_gep",
                 )?;
-                let _ = self
-                    .builder
-                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
             }
             CgTy::String | CgTy::Ref => {
                 // GC reference：写 0 到 resume_word，写 GC ptr 到 resume_gc_ref（with write barrier）。
-                let word_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6,
-                    "cont_resume_word_gep",
-                )?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
                 let _ = self
                     .builder
                     .build_store(word_ptr, i64_ty.const_int(0, false))?;
@@ -8451,21 +8968,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     i8_ptr_ty,
                     "cont_resume_gc_ref_slot",
                 )?;
-                let value_i8 =
-                    self.builder
-                        .build_pointer_cast(gc_val, gc_i8_ptr_ty, "cont_resume_gc_val_i8")?;
-                let _ = self
-                    .builder
-                    .build_call(wb, &[slot_addr.into(), value_i8.into()], "cont_resume_wb")?;
+                let value_i8 = self.builder.build_pointer_cast(
+                    gc_val,
+                    gc_i8_ptr_ty,
+                    "cont_resume_gc_val_i8",
+                )?;
+                let _ = self.builder.build_call(
+                    wb,
+                    &[slot_addr.into(), value_i8.into()],
+                    "cont_resume_wb",
+                )?;
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 // 复合类型：box 到 GC heap，将 box ptr 写入 resume_gc_ref。
-                let word_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6,
-                    "cont_resume_word_gep",
-                )?;
+                let word_ptr =
+                    self.builder
+                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
                 let _ = self
                     .builder
                     .build_store(word_ptr, i64_ty.const_int(0, false))?;
@@ -8527,13 +9045,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[desc_i8.into(), size_v.into()],
                     "resume_box_alloc",
                 )?;
-                let box_raw = alloc_call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let box_raw = alloc_call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "resume box alloc return",
                         at: span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(box_gc_ptr) = box_raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "resume box alloc return type",
@@ -8572,11 +9089,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     i8_ptr_ty,
                     "cont_resume_gc_ref_slot",
                 )?;
-                let box_i8 = self.builder.build_pointer_cast(
-                    box_gc_ptr,
-                    gc_i8_ptr_ty,
-                    "resume_box_i8",
-                )?;
+                let box_i8 =
+                    self.builder
+                        .build_pointer_cast(box_gc_ptr, gc_i8_ptr_ty, "resume_box_i8")?;
                 let _ = self.builder.build_call(
                     wb,
                     &[slot_addr.into(), box_i8.into()],

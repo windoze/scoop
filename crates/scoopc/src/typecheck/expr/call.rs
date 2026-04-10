@@ -15,8 +15,8 @@ use super::util::{
     expr_kind_name, fmt_overload_signature, join_overload_signatures, short_name_from_fqn,
 };
 
-use super::{EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
 use super::collect::build_fun_where_constraints_from_resolve_sig;
+use super::{EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
 
 use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::{
@@ -3205,7 +3205,9 @@ fn infer_class_constructor_call_expr_type(
                     let mut inferred: HashMap<String, TypeId> = HashMap::new();
                     for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                         let Some(arg_idx) = arg_idx else { continue };
-                        let Some(&expected_ty) = param_tys.get(param_idx) else { continue };
+                        let Some(&expected_ty) = param_tys.get(param_idx) else {
+                            continue;
+                        };
                         if let crate::ty::TypeKind::Param(p) = lower.type_kind(expected_ty) {
                             let arg_ty = call_args[arg_idx].ty;
                             inferred.entry(p.name.clone()).or_insert(arg_ty);
@@ -3251,7 +3253,8 @@ fn infer_class_constructor_call_expr_type(
     };
 
     let chosen = matched.swap_remove(idx);
-    let ty = lower.lower_type_fqn_with_args(chosen.ty_fqn, chosen.inferred_type_args, callee.span)?;
+    let ty =
+        lower.lower_type_fqn_with_args(chosen.ty_fqn, chosen.inferred_type_args, callee.span)?;
     Ok(Some(ty))
 }
 
@@ -5451,12 +5454,13 @@ fn infer_member_call_expr_type(
         // spread 实参只能绑定到 vararg 形参。
         for binding in mapping.iter() {
             if let ParamArgBinding::Single(arg_idx) = binding
-                && call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
-                    return Err(ExprTypeError::SpreadArgRequiresVararg {
-                        callee: callee_fqn.clone(),
-                        span: call_args[*arg_idx].expr.span.into(),
-                    });
-                }
+                && call_args.get(*arg_idx).is_some_and(|a| a.is_spread)
+            {
+                return Err(ExprTypeError::SpreadArgRequiresVararg {
+                    callee: callee_fqn.clone(),
+                    span: call_args[*arg_idx].expr.span.into(),
+                });
+            }
         }
         let mapping_pairs = expand_param_arg_pairs(&mapping);
 
@@ -5538,7 +5542,8 @@ fn infer_member_call_expr_type(
         //   receiver 的"期望类型"必须等到 `E` 被实例化后才能确定（T0624）。
         let receiver_uses_eff = sig.eff_param.is_some()
             && sig
-                .param_eff_row_var_subst.first()
+                .param_eff_row_var_subst
+                .first()
                 .is_some_and(|p| p.uses_eff_var());
         if !receiver_uses_eff {
             let expected_receiver_ty = instantiated
@@ -5606,7 +5611,8 @@ fn infer_member_call_expr_type(
 
             // receiver 约束：`ReceiverType<eff Row>`。
             if let Some(base) = sig
-                .param_nominal_eff_eff_base.first()
+                .param_nominal_eff_eff_base
+                .first()
                 .and_then(|b| b.as_ref())
             {
                 let base = substitute_type_args_in_effect_row(
@@ -6027,7 +6033,8 @@ fn infer_member_call_expr_type(
         // 必须等到 `E` 推断/实例化后才能确定 receiver 是否匹配（T0624）。
         let receiver_uses_eff = cand.eff_param.is_some()
             && cand
-                .param_eff_row_var_subst.first()
+                .param_eff_row_var_subst
+                .first()
                 .is_some_and(|p| p.uses_eff_var());
         let mut cand_expected_receiver_ty = instantiated
             .params
@@ -6040,9 +6047,10 @@ fn infer_member_call_expr_type(
                 cand_expected_receiver_ty,
                 lower,
                 builtins,
-            ) {
-                continue;
-            }
+            )
+        {
+            continue;
+        }
 
         // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
         let mut ok = true;
@@ -6093,7 +6101,8 @@ fn infer_member_call_expr_type(
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
             if let Some(base) = cand
-                .param_nominal_eff_eff_base.first()
+                .param_nominal_eff_eff_base
+                .first()
                 .and_then(|b| b.as_ref())
             {
                 let base = match substitute_type_args_in_effect_row(
@@ -6757,21 +6766,15 @@ pub(super) fn substitute_single_type_param(
             // T1011/T1025：`Ptr<T>` 的 pointee 必须是 GC-free 值类型；该门禁必须在泛型实例化/替换时同样生效，
             // 否则可通过 `uintPtrToPtr<String>` / `p.cast<String>()` 等绕过。
             if nominal.fqn == PTR_FQN
-                && let Some(pointee) = args.first().copied() {
-                    // 与 TypeLowering::check_ptr_pointee_gc_free 一致：允许 sysroot 内部未实例化的 `Ptr<T>` 出现在签名中。
-                    if let TypeKind::Param(p) = lower.type_kind(pointee) {
-                        if p.decl_file
-                            .components()
-                            .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
-                        {
-                            // ok
-                        } else if !lower.is_gc_free_value_type(pointee)? {
-                            return Err(TypeLowerError::PtrPointeeMustBeGcFree {
-                                found: lower.fmt_type(pointee),
-                                span: use_span.into(),
-                            }
-                            .into());
-                        }
+                && let Some(pointee) = args.first().copied()
+            {
+                // 与 TypeLowering::check_ptr_pointee_gc_free 一致：允许 sysroot 内部未实例化的 `Ptr<T>` 出现在签名中。
+                if let TypeKind::Param(p) = lower.type_kind(pointee) {
+                    if p.decl_file
+                        .components()
+                        .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
+                    {
+                        // ok
                     } else if !lower.is_gc_free_value_type(pointee)? {
                         return Err(TypeLowerError::PtrPointeeMustBeGcFree {
                             found: lower.fmt_type(pointee),
@@ -6779,7 +6782,14 @@ pub(super) fn substitute_single_type_param(
                         }
                         .into());
                     }
+                } else if !lower.is_gc_free_value_type(pointee)? {
+                    return Err(TypeLowerError::PtrPointeeMustBeGcFree {
+                        found: lower.fmt_type(pointee),
+                        span: use_span.into(),
+                    }
+                    .into());
                 }
+            }
 
             Ok(lower.intern_type_kind(TypeKind::Ref(RefTypeKind::Nominal(
                 crate::ty::NominalType {
@@ -6828,20 +6838,14 @@ pub(super) fn substitute_single_type_param(
 
             // T1011/T1025：同上（value nominal）。
             if nominal.fqn == PTR_FQN
-                && let Some(pointee) = args.first().copied() {
-                    if let TypeKind::Param(p) = lower.type_kind(pointee) {
-                        if p.decl_file
-                            .components()
-                            .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
-                        {
-                            // ok
-                        } else if !lower.is_gc_free_value_type(pointee)? {
-                            return Err(TypeLowerError::PtrPointeeMustBeGcFree {
-                                found: lower.fmt_type(pointee),
-                                span: use_span.into(),
-                            }
-                            .into());
-                        }
+                && let Some(pointee) = args.first().copied()
+            {
+                if let TypeKind::Param(p) = lower.type_kind(pointee) {
+                    if p.decl_file
+                        .components()
+                        .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
+                    {
+                        // ok
                     } else if !lower.is_gc_free_value_type(pointee)? {
                         return Err(TypeLowerError::PtrPointeeMustBeGcFree {
                             found: lower.fmt_type(pointee),
@@ -6849,7 +6853,14 @@ pub(super) fn substitute_single_type_param(
                         }
                         .into());
                     }
+                } else if !lower.is_gc_free_value_type(pointee)? {
+                    return Err(TypeLowerError::PtrPointeeMustBeGcFree {
+                        found: lower.fmt_type(pointee),
+                        span: use_span.into(),
+                    }
+                    .into());
                 }
+            }
 
             Ok(
                 lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(
@@ -7269,7 +7280,13 @@ fn check_fun_where_constraints_after_instantiation(
         .map(|(param_ty, arg_ty)| {
             let name = match lower.type_kind(*param_ty) {
                 TypeKind::Param(p) => p.name.clone(),
-                _ => format!("#{}", sig.type_params.iter().position(|t| t == param_ty).unwrap_or(0)),
+                _ => format!(
+                    "#{}",
+                    sig.type_params
+                        .iter()
+                        .position(|t| t == param_ty)
+                        .unwrap_or(0)
+                ),
             };
             (name, arg_ty)
         })
@@ -7349,11 +7366,10 @@ fn try_infer_where_bound_method_call(
         };
 
         // 从 bound 类型中提取名义 FQN（接口 FQN）。
-        let (bound_fqn, bound_args) =
-            match try_extract_nominal_fqn_and_args(bound_ty, lower) {
-                Some(pair) => pair,
-                None => continue,
-            };
+        let (bound_fqn, bound_args) = match try_extract_nominal_fqn_and_args(bound_ty, lower) {
+            Some(pair) => pair,
+            None => continue,
+        };
 
         // 构造 interface 方法的 FQN：`InterfaceFqn.methodName`。
         let method_fqn = format!("{bound_fqn}.{member_name}");
@@ -7428,19 +7444,18 @@ fn try_infer_where_bound_method_call(
                 continue;
             }
 
-            let instantiated =
-                match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                    &method_fqn,
-                    call_expr.span,
-                    cand,
-                    None,
-                    generic_constraints,
-                    lower,
-                    builtins,
-                ) {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
+            let instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                &method_fqn,
+                call_expr.span,
+                cand,
+                None,
+                generic_constraints,
+                lower,
+                builtins,
+            ) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
 
             let ret = if safe {
                 lower.ty_option(instantiated.return_ty)

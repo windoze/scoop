@@ -309,18 +309,18 @@ pub(super) fn infer_member_access_expr_type(
     //   避免把 enum type name 当作普通顶层值进行推导而报错（`UnsupportedTopLevelValueType`）。
     if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref()
         && let Some((enum_fqn, variant_name)) = fqn.rsplit_once('.')
-            && let Some(decl) = lower.env().enum_decl(enum_fqn)
-                && decl
-                    .variants
-                    .iter()
-                    .any(|v| v.name == variant_name && v.fields.is_empty())
-                {
-                    return Ok(lower.lower_type_fqn_with_args(
-                        enum_fqn.to_string(),
-                        Vec::new(),
-                        member.span,
-                    )?);
-                }
+        && let Some(decl) = lower.env().enum_decl(enum_fqn)
+        && decl
+            .variants
+            .iter()
+            .any(|v| v.name == variant_name && v.fields.is_empty())
+    {
+        return Ok(lower.lower_type_fqn_with_args(
+            enum_fqn.to_string(),
+            Vec::new(),
+            member.span,
+        )?);
+    }
 
     // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖，
     // 并在需要时为 tuple 元素访问提供 receiver 类型信息。
@@ -405,9 +405,10 @@ pub(super) fn infer_member_access_expr_type(
                 };
                 if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
                     lower.type_kind(receiver_ty)
-                    && nominal.fqn == "scoop.core.Platform" {
-                        return Ok(builtins.string);
-                    }
+                    && nominal.fqn == "scoop.core.Platform"
+                {
+                    return Ok(builtins.string);
+                }
             }
 
             // spec §15.10：`Pinned.value`（early stage）。
@@ -425,9 +426,10 @@ pub(super) fn infer_member_access_expr_type(
                 };
                 if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
                     lower.type_kind(receiver_ty)
-                    && nominal.fqn == "scoop.core.Pinned" {
-                        return Ok(builtins.any);
-                    }
+                    && nominal.fqn == "scoop.core.Pinned"
+                {
+                    return Ok(builtins.any);
+                }
             }
 
             // spec §15.10.1：`GcHandle.raw`（early stage）。
@@ -445,13 +447,14 @@ pub(super) fn infer_member_access_expr_type(
                 };
                 if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
                     lower.type_kind(receiver_ty)
-                    && nominal.fqn == "scoop.core.GcHandle" {
-                        return Ok(lower.lower_type_fqn_with_args(
-                            "scoop.core.UIntPtr".to_string(),
-                            Vec::new(),
-                            member.span,
-                        )?);
-                    }
+                    && nominal.fqn == "scoop.core.GcHandle"
+                {
+                    return Ok(lower.lower_type_fqn_with_args(
+                        "scoop.core.UIntPtr".to_string(),
+                        Vec::new(),
+                        member.span,
+                    )?);
+                }
             }
 
             struct_field_types.get(fqn).copied().ok_or_else(|| {
@@ -464,17 +467,17 @@ pub(super) fn infer_member_access_expr_type(
         Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
             // T0112：Extension property getter — look up the getter function's return type.
             if let Some(sigs) = top_level_funs.get(fqn.as_str())
-                && let Some(sig) = sigs.first() {
-                    return Ok(sig.return_ty);
-                }
+                && let Some(sig) = sigs.first()
+            {
+                return Ok(sig.return_ty);
+            }
             Err(ExprTypeError::UnsupportedMemberAccess {
                 fqn: fqn.clone(),
                 span: member.span.into(),
             })
         }
         Some(
-            ast::ResolvedMemberRef::Fun { fqn }
-            | ast::ResolvedMemberRef::ExtensionFun { fqn },
+            ast::ResolvedMemberRef::Fun { fqn } | ast::ResolvedMemberRef::ExtensionFun { fqn },
         ) => Err(ExprTypeError::UnsupportedMemberAccess {
             fqn: fqn.clone(),
             span: member.span.into(),

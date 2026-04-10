@@ -612,13 +612,15 @@ impl<'a> Parser<'a> {
         }
 
         while !self.peek_kind(TokenKind::Eof) {
-            if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+            if depth_paren == 0
+                && depth_brace == 0
+                && depth_bracket == 0
                 && (self.peek_symbol(Symbol::Semicolon)
                     || self.peek_symbol(Symbol::RBrace)
                     || self.is_stmt_start())
-                {
-                    break;
-                }
+            {
+                break;
+            }
 
             let tok = self.bump();
             last_end = tok.span.end;

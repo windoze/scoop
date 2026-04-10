@@ -280,14 +280,15 @@ pub fn inject_cone_dependency_public_api(
 
         // T1302：typealias 需要携带 RHS 才能在下游 typecheck lowering 阶段展开。
         if matches!(ty.kind, IrTypeDeclKind::TypeAlias)
-            && let Some(rhs) = ty.alias_of.as_ref() {
-                env.insert_external_type_alias(
-                    fqn.clone(),
-                    decl_file.clone(),
-                    local_span,
-                    ir_type_to_type_ref(&mut synth, rhs),
-                );
-            }
+            && let Some(rhs) = ty.alias_of.as_ref()
+        {
+            env.insert_external_type_alias(
+                fqn.clone(),
+                decl_file.clone(),
+                local_span,
+                ir_type_to_type_ref(&mut synth, rhs),
+            );
+        }
 
         inject_type_symbol_into_index(
             index,
@@ -365,10 +366,7 @@ pub fn inject_cone_dependency_public_api(
             has_body: false,
         };
 
-        let entry = index
-            .by_fqn
-            .entry(fqn.clone())
-            .or_default();
+        let entry = index.by_fqn.entry(fqn.clone()).or_default();
         entry.fun.push(overload);
 
         // T0322：跨包 extension 导入需要 resolver 能在依赖 cone 的 API 里发现 extension fun。
@@ -426,10 +424,7 @@ fn inject_non_public_symbols_into_index(
         let local = last_segment(fqn);
         let local_span = synth.alloc(local);
 
-        let entry = index
-            .by_fqn
-            .entry(fqn.to_string())
-            .or_default();
+        let entry = index.by_fqn.entry(fqn.to_string()).or_default();
 
         match sym.kind {
             ConeSymbolKind::Type => {
@@ -511,10 +506,7 @@ fn inject_type_symbol_into_index(
     decl_cone: ConeId,
     also_value_namespace: bool,
 ) -> Result<()> {
-    let entry = index
-        .by_fqn
-        .entry(fqn.to_string())
-        .or_default();
+    let entry = index.by_fqn.entry(fqn.to_string()).or_default();
 
     if entry.ty.is_some() {
         return Err(miette!("Index 已存在同名 type 符号：{fqn}"));
@@ -568,90 +560,6 @@ impl SyntheticSourceBuilder {
 
     fn finish(self) -> String {
         self.text
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    use super::*;
-
-    fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir =
-            std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn write_cone_archive_with_api_scoopir(cone_path: &Path, api_json: &[u8]) {
-        let file = std::fs::File::create(cone_path).unwrap();
-        let mut builder = tar::Builder::new(file);
-
-        let mut header = tar::Header::new_gnu();
-        header
-            .set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME)
-            .unwrap();
-        header.set_size(api_json.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-
-        builder.append(&header, api_json).unwrap();
-        builder.finish().unwrap();
-    }
-
-    #[test]
-    fn read_cone_api_scoopir_allows_current_version() {
-        let dir = make_temp_dir("read_cone_api_scoopir_allows_current_version");
-        let cone_path = dir.join("dep.cone");
-
-        let api_json = format!(
-            r#"{{
-  "schema": {{ "name": "{name}", "version": {version} }},
-  "types": [],
-  "funs": []
-}}"#,
-            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
-            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION,
-        );
-        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
-
-        let api = read_cone_api_scoopir_from_archive(&cone_path).unwrap();
-        assert_eq!(
-            api.schema.version,
-            crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION
-        );
-
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn read_cone_api_scoopir_rejects_newer_version_with_stable_code() {
-        let dir = make_temp_dir("read_cone_api_scoopir_rejects_newer_version_with_stable_code");
-        let cone_path = dir.join("dep.cone");
-
-        let api_json = format!(
-            r#"{{
-  "schema": {{ "name": "{name}", "version": {version} }},
-  "types": [],
-  "funs": []
-}}"#,
-            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
-            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION + 1,
-        );
-        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
-
-        let err = read_cone_api_scoopir_from_archive(&cone_path).unwrap_err();
-        assert_eq!(
-            err.code().unwrap().to_string(),
-            "scoop::cone::scoopir_schema_version_not_supported"
-        );
-
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
 
@@ -779,5 +687,89 @@ fn ir_type_to_type_ref(synth: &mut SyntheticSourceBuilder, ty: &IrType) -> ast::
             // 这里把 union 降级为 `Any`（保守）。
             ast::TypeRef::Path(type_path_from_fqn(synth, "scoop.core.Any", Vec::new()))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+
+    fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_cone_archive_with_api_scoopir(cone_path: &Path, api_json: &[u8]) {
+        let file = std::fs::File::create(cone_path).unwrap();
+        let mut builder = tar::Builder::new(file);
+
+        let mut header = tar::Header::new_gnu();
+        header
+            .set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME)
+            .unwrap();
+        header.set_size(api_json.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+
+        builder.append(&header, api_json).unwrap();
+        builder.finish().unwrap();
+    }
+
+    #[test]
+    fn read_cone_api_scoopir_allows_current_version() {
+        let dir = make_temp_dir("read_cone_api_scoopir_allows_current_version");
+        let cone_path = dir.join("dep.cone");
+
+        let api_json = format!(
+            r#"{{
+  "schema": {{ "name": "{name}", "version": {version} }},
+  "types": [],
+  "funs": []
+}}"#,
+            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION,
+        );
+        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
+
+        let api = read_cone_api_scoopir_from_archive(&cone_path).unwrap();
+        assert_eq!(
+            api.schema.version,
+            crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn read_cone_api_scoopir_rejects_newer_version_with_stable_code() {
+        let dir = make_temp_dir("read_cone_api_scoopir_rejects_newer_version_with_stable_code");
+        let cone_path = dir.join("dep.cone");
+
+        let api_json = format!(
+            r#"{{
+  "schema": {{ "name": "{name}", "version": {version} }},
+  "types": [],
+  "funs": []
+}}"#,
+            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION + 1,
+        );
+        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
+
+        let err = read_cone_api_scoopir_from_archive(&cone_path).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::cone::scoopir_schema_version_not_supported"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

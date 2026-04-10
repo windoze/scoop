@@ -290,9 +290,11 @@ impl TypeStore {
     pub fn find_nominal_ref_by_fqn(&self, fqn: &str) -> Option<TypeId> {
         for id in self.iter_ids() {
             if let TypeKind::Ref(RefTypeKind::Nominal(n)) = self.kind(id)
-                && n.fqn == fqn && n.args.is_empty() {
-                    return Some(id);
-                }
+                && n.fqn == fqn
+                && n.args.is_empty()
+            {
+                return Some(id);
+            }
         }
         None
     }
@@ -420,14 +422,22 @@ impl TypeStore {
                     self.ty_option(new_inner)
                 }
                 ValueTypeKind::Tuple(elems) => {
-                    let new_elems: Vec<TypeId> =
-                        elems.iter().map(|&e| self.re_intern_from(other, e)).collect();
+                    let new_elems: Vec<TypeId> = elems
+                        .iter()
+                        .map(|&e| self.re_intern_from(other, e))
+                        .collect();
                     self.ty_tuple(new_elems)
                 }
                 ValueTypeKind::Nominal(n) => {
-                    let new_args: Vec<TypeId> =
-                        n.args.iter().map(|&a| self.re_intern_from(other, a)).collect();
-                    let new_eff = n.eff.as_ref().map(|e| self.re_intern_effect_row_from(other, e));
+                    let new_args: Vec<TypeId> = n
+                        .args
+                        .iter()
+                        .map(|&a| self.re_intern_from(other, a))
+                        .collect();
+                    let new_eff = n
+                        .eff
+                        .as_ref()
+                        .map(|e| self.re_intern_effect_row_from(other, e));
                     self.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
                         fqn: n.fqn.clone(),
                         args: new_args,
@@ -438,9 +448,15 @@ impl TypeStore {
             TypeKind::Ref(r) => match r {
                 RefTypeKind::Any | RefTypeKind::String => self.intern(kind.clone()),
                 RefTypeKind::Nominal(n) => {
-                    let new_args: Vec<TypeId> =
-                        n.args.iter().map(|&a| self.re_intern_from(other, a)).collect();
-                    let new_eff = n.eff.as_ref().map(|e| self.re_intern_effect_row_from(other, e));
+                    let new_args: Vec<TypeId> = n
+                        .args
+                        .iter()
+                        .map(|&a| self.re_intern_from(other, a))
+                        .collect();
+                    let new_eff = n
+                        .eff
+                        .as_ref()
+                        .map(|e| self.re_intern_effect_row_from(other, e));
                     self.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
                         fqn: n.fqn.clone(),
                         args: new_args,
@@ -449,15 +465,27 @@ impl TypeStore {
                 }
                 RefTypeKind::Function(f) => {
                     let new_receiver = f.receiver.map(|r| self.re_intern_from(other, r));
-                    let new_params: Vec<TypeId> =
-                        f.params.iter().map(|&p| self.re_intern_from(other, p)).collect();
+                    let new_params: Vec<TypeId> = f
+                        .params
+                        .iter()
+                        .map(|&p| self.re_intern_from(other, p))
+                        .collect();
                     let new_return = self.re_intern_from(other, f.return_ty);
                     let new_effects = self.re_intern_effect_row_from(other, &f.effects);
-                    self.ty_function(new_receiver, new_params, new_return, new_effects, f.effects_closed)
+                    self.ty_function(
+                        new_receiver,
+                        new_params,
+                        new_return,
+                        new_effects,
+                        f.effects_closed,
+                    )
                 }
                 RefTypeKind::Union(u) => {
-                    let new_variants: Vec<TypeId> =
-                        u.variants.iter().map(|&v| self.re_intern_from(other, v)).collect();
+                    let new_variants: Vec<TypeId> = u
+                        .variants
+                        .iter()
+                        .map(|&v| self.re_intern_from(other, v))
+                        .collect();
                     self.ty_union(new_variants)
                 }
             },

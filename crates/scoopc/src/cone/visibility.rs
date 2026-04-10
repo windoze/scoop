@@ -146,25 +146,25 @@ pub fn collect_non_public_symbols_for_cone_sources(
     for (fqn, ns) in &index.by_fqn {
         if let Some(sym) = ns.ty.as_ref()
             && source_paths.contains(sym.decl_file.as_path())
-                && sym.visibility != Visibility::Public
-            {
-                out.push(ConeSymbolVisibilityEntry {
-                    kind: ConeSymbolKind::Type,
-                    fqn: fqn.clone(),
-                    visibility: sym.visibility.into(),
-                });
-            }
+            && sym.visibility != Visibility::Public
+        {
+            out.push(ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Type,
+                fqn: fqn.clone(),
+                visibility: sym.visibility.into(),
+            });
+        }
 
         if let Some(sym) = ns.value.as_ref()
             && source_paths.contains(sym.decl_file.as_path())
-                && sym.visibility != Visibility::Public
-            {
-                out.push(ConeSymbolVisibilityEntry {
-                    kind: ConeSymbolKind::Value,
-                    fqn: fqn.clone(),
-                    visibility: sym.visibility.into(),
-                });
-            }
+            && sym.visibility != Visibility::Public
+        {
+            out.push(ConeSymbolVisibilityEntry {
+                kind: ConeSymbolKind::Value,
+                fqn: fqn.clone(),
+                visibility: sym.visibility.into(),
+            });
+        }
 
         if !ns.fun.is_empty() {
             let declared = ns

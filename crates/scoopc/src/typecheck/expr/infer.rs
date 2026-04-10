@@ -1733,9 +1733,10 @@ fn infer_if_expr_type(
 
     let mut then_locals = locals.clone();
     if let Some(sc) = smart_cast
-        && sc.narrow_in_then {
-            then_locals.insert(sc.decl_span, sc.target_ty);
-        }
+        && sc.narrow_in_then
+    {
+        then_locals.insert(sc.decl_span, sc.target_ty);
+    }
     let then_ty = infer_expr_type(
         source,
         then_branch,
@@ -1755,9 +1756,10 @@ fn infer_if_expr_type(
 
     let mut else_locals = locals.clone();
     if let Some(sc) = smart_cast
-        && !sc.narrow_in_then {
-            else_locals.insert(sc.decl_span, sc.target_ty);
-        }
+        && !sc.narrow_in_then
+    {
+        else_locals.insert(sc.decl_span, sc.target_ty);
+    }
     let else_ty = infer_expr_type(
         source,
         else_branch,
@@ -1988,48 +1990,54 @@ pub(super) fn infer_expr_type_in_expected_context(
 
     if let ast::ExprKind::Call { callee, args } = &expr.kind
         && let ast::ExprKind::Ident(id) = &callee.kind
-            && id.resolved.is_none()
-                && let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
-                    source,
-                    expr,
-                    id,
-                    args,
-                    expected_ty,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )? {
-                    return Ok(ty);
-                }
+        && id.resolved.is_none()
+        && let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
+            source,
+            expr,
+            id,
+            args,
+            expected_ty,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?
+    {
+        return Ok(ty);
+    }
 
     // T0124: When a struct literal's type path has no type args but the expected type is a
     // generic instantiation of the same struct, use the expected type to drive inference.
     if let ast::ExprKind::StructLit { ty, fields } = &expr.kind
         && ty.args.is_empty()
-            && let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty)
-                && !nominal.args.is_empty() {
-                    let local_name = source.slice(ty.segments.last().map(|s| s.span).unwrap_or(ty.span));
-                    let fqn_matches = nominal.fqn.ends_with(local_name)
-                        && (nominal.fqn.len() == local_name.len()
-                            || nominal.fqn.as_bytes().get(nominal.fqn.len() - local_name.len() - 1) == Some(&b'.'));
-                    if fqn_matches {
-                        return infer_generic_struct_lit_expr_type(
-                            source,
-                            expr,
-                            expected_ty,
-                            fields,
-                            lower,
-                            builtins,
-                            locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        );
-                    }
-                }
+        && let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty)
+        && !nominal.args.is_empty()
+    {
+        let local_name = source.slice(ty.segments.last().map(|s| s.span).unwrap_or(ty.span));
+        let fqn_matches = nominal.fqn.ends_with(local_name)
+            && (nominal.fqn.len() == local_name.len()
+                || nominal
+                    .fqn
+                    .as_bytes()
+                    .get(nominal.fqn.len() - local_name.len() - 1)
+                    == Some(&b'.'));
+        if fqn_matches {
+            return infer_generic_struct_lit_expr_type(
+                source,
+                expr,
+                expected_ty,
+                fields,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            );
+        }
+    }
 
     infer_expr_type(
         source,
@@ -2457,7 +2465,9 @@ fn infer_generic_struct_lit_expr_type(
     let struct_name = lower.fmt_type(expected_ty);
 
     // Build substitution map: type param name → concrete TypeId.
-    let param_names = lower.env().type_symbol(&struct_fqn)
+    let param_names = lower
+        .env()
+        .type_symbol(&struct_fqn)
         .map(|s| s.type_param_names.clone())
         .unwrap_or_default();
     let subst: HashMap<String, TypeId> = param_names

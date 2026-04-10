@@ -18,9 +18,7 @@ use super::ops::{
     collect_unique_zero_arg_member_method_sig, is_integer_type,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
 };
-use super::util::{
-    fmt_effect_row, visibility_from_modifiers,
-};
+use super::util::{fmt_effect_row, visibility_from_modifiers};
 
 use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN};
 
@@ -219,9 +217,10 @@ pub(super) fn check_required_effects_for_fun_decl(
     // - effect row item 必须是 effect 类型
     // - 闭合 row 不能直接引用 row 变量（例如 `E!`，T0628b）
     if matches!(program_boundary, ProgramBoundaryKind::None)
-        && let Some(expr) = fun.effects.as_ref() {
-            let _ = lower.lower_effect_row_expr(Some(expr))?;
-        }
+        && let Some(expr) = fun.effects.as_ref()
+    {
+        let _ = lower.lower_effect_row_expr(Some(expr))?;
+    }
 
     if performed.is_empty() {
         return Ok(());
@@ -431,17 +430,17 @@ pub(super) fn check_fun_body_exprs(
                         if let Some(sigs) = top_level_funs.get_mut(fun_fqn)
                             && let Some(sig) =
                                 sigs.iter_mut().find(|s| s.decl_span == fun.name.span)
-                            {
-                                sig.return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
-                                    lower.lower_type_fqn_with_args(
-                                        TASK_FQN.to_string(),
-                                        vec![inferred],
-                                        fun.name.span,
-                                    )?
-                                } else {
-                                    inferred
-                                };
-                            }
+                        {
+                            sig.return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
+                                lower.lower_type_fqn_with_args(
+                                    TASK_FQN.to_string(),
+                                    vec![inferred],
+                                    fun.name.span,
+                                )?
+                            } else {
+                                inferred
+                            };
+                        }
 
                         inferred
                     }
@@ -739,8 +738,7 @@ pub(super) fn check_stmt_exprs(
             // 型特化で直接要素型を決定し、iterator protocol をバイパスする。
             use crate::ast::{ForLoopIterableKind, ForLoopResolvedInfo};
 
-            let elem_ty = if iter_fqn == "scoop.core.Array"
-                || iter_fqn == "scoop.core.MutableArray"
+            let elem_ty = if iter_fqn == "scoop.core.Array" || iter_fqn == "scoop.core.MutableArray"
             {
                 let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
                     kind: ForLoopIterableKind::ArrayInt,
@@ -1448,26 +1446,27 @@ pub(super) fn check_expr_stmt(
                 callee: inner,
                 args: type_args,
             } = &callee.kind
-                && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind {
-                    let lowered = type_args
-                        .iter()
-                        .map(|a| lower.lower_type_ref(a))
-                        .collect::<Result<Vec<_>, _>>()?;
+                && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind
+            {
+                let lowered = type_args
+                    .iter()
+                    .map(|a| lower.lower_type_ref(a))
+                    .collect::<Result<Vec<_>, _>>()?;
 
-                    let _ = infer_effect_op_call_expr_type(
-                        source,
-                        expr,
-                        member,
-                        args,
-                        Some(lowered.as_slice()),
-                        lower,
-                        builtins,
-                        &*locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    )?;
-                }
+                let _ = infer_effect_op_call_expr_type(
+                    source,
+                    expr,
+                    member,
+                    args,
+                    Some(lowered.as_slice()),
+                    lower,
+                    builtins,
+                    &*locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
 
             Ok(())
         }
@@ -1535,9 +1534,10 @@ fn check_if_expr_stmt(
     let mut then_stable = stable_bindings.clone();
     let mut then_mutable = mutable_bindings.clone();
     if let Some(smart_cast) = smart_cast
-        && smart_cast.narrow_in_then {
-            then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
-        }
+        && smart_cast.narrow_in_then
+    {
+        then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
+    }
     check_expr_stmt(
         source,
         then_branch,
@@ -1560,9 +1560,10 @@ fn check_if_expr_stmt(
         let mut else_stable = stable_bindings.clone();
         let mut else_mutable = mutable_bindings.clone();
         if let Some(smart_cast) = smart_cast
-            && !smart_cast.narrow_in_then {
-                else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
-            }
+            && !smart_cast.narrow_in_then
+        {
+            else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
+        }
 
         check_expr_stmt(
             source,
@@ -1619,8 +1620,6 @@ fn check_assign_expr_stmt(
                             span: id.span.into(),
                         });
                     }
-
-                    
 
                     locals.get(decl_span).copied().ok_or_else(|| {
                         ExprTypeError::UnknownLocalValueType {
@@ -1693,8 +1692,6 @@ fn check_assign_expr_stmt(
                     span: member.span.into(),
                 });
             }
-
-            
 
             struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {

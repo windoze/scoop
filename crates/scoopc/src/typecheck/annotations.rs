@@ -909,14 +909,15 @@ fn check_one_annotation_use(
 
     // T1016a：若注解类声明了 `@Target(...)`，则在使用点强制执行目标限制。
     if let Some(allowed) = &sym.annotation_targets
-        && !allowed.contains(&effective_target) {
-            return Err(AnnotationError::AnnotationInvalidTarget {
-                annotation: fqn,
-                allowed: join_target_list(allowed),
-                found: effective_target.as_str().to_string(),
-                span: name_span.into(),
-            });
-        }
+        && !allowed.contains(&effective_target)
+    {
+        return Err(AnnotationError::AnnotationInvalidTarget {
+            annotation: fqn,
+            allowed: join_target_list(allowed),
+            found: effective_target.as_str().to_string(),
+            span: name_span.into(),
+        });
+    }
 
     // T1019：注解参数的“类型匹配 + 编译期常量”检查。
     check_annotation_args(source, file, index, env, lower, builtins, &fqn, sym, ann)?;
@@ -1550,21 +1551,23 @@ fn check_builtin_annotations_on_fun_decl(
 
     // 2) `@Extern/@Intrinsic`：声明必须省略函数体（实现由外部/编译器提供）。
     if flags.is_extern
-        && let ast::FunBody::Block(b) = &fun.body {
-            let fun_name = source.slice(fun.name.span).to_string();
-            return Err(AnnotationError::ExternFunMustHaveNoBody {
-                fun_name,
-                span: b.span.into(),
-            });
-        }
+        && let ast::FunBody::Block(b) = &fun.body
+    {
+        let fun_name = source.slice(fun.name.span).to_string();
+        return Err(AnnotationError::ExternFunMustHaveNoBody {
+            fun_name,
+            span: b.span.into(),
+        });
+    }
     if flags.is_intrinsic
-        && let ast::FunBody::Block(b) = &fun.body {
-            let fun_name = source.slice(fun.name.span).to_string();
-            return Err(AnnotationError::IntrinsicFunMustHaveNoBody {
-                fun_name,
-                span: b.span.into(),
-            });
-        }
+        && let ast::FunBody::Block(b) = &fun.body
+    {
+        let fun_name = source.slice(fun.name.span).to_string();
+        return Err(AnnotationError::IntrinsicFunMustHaveNoBody {
+            fun_name,
+            span: b.span.into(),
+        });
+    }
 
     // 3) `@Extern`：C ABI 边界禁止直接透传 GC 引用类型（addrspace(1) ref 指针）。
     //
@@ -1747,11 +1750,12 @@ fn check_calling_convention_builtin_annotation_args(
     };
 
     if let Some(key) = key
-        && key != "name" {
-            return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
-                span: key_span.into(),
-            });
-        }
+        && key != "name"
+    {
+        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+            span: key_span.into(),
+        });
+    }
 
     let Some(name) = extract_string_literal_text(source, value) else {
         return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
@@ -1901,12 +1905,13 @@ fn check_clayout_struct_decl(
     }
 
     if let Some(value) = aligned
-        && (value == 0 || !value.is_power_of_two()) {
-            return Err(AnnotationError::CLayoutAlignedValueInvalid {
-                value,
-                span: aligned_span.unwrap_or(ann.span).into(),
-            });
-        }
+        && (value == 0 || !value.is_power_of_two())
+    {
+        return Err(AnnotationError::CLayoutAlignedValueInvalid {
+            value,
+            span: aligned_span.unwrap_or(ann.span).into(),
+        });
+    }
 
     Ok(())
 }

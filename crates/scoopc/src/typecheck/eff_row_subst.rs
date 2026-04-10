@@ -124,7 +124,8 @@ fn option_inner_type_ref(ty_ref: &ast::TypeRef) -> Option<&ast::TypeRef> {
         ast::TypeRef::Nullable { inner, .. } => Some(inner.as_ref()),
         ast::TypeRef::Path(p) => p
             .args
-            .iter().find(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. })),
+            .iter()
+            .find(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. })),
         _ => None,
     }
 }

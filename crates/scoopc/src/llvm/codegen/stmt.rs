@@ -115,16 +115,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 // T0125：同 codegen_member_access，使用局部变量的 hir_ty 获取精确泛型类型。
-                let receiver_hir_ty =
-                    if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
-                    {
-                        self.env
-                            .get(*id)
-                            .and_then(|local| local.hir_ty)
-                            .unwrap_or(receiver.ty)
-                    } else {
-                        receiver.ty
-                    };
+                let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local {
+                    id,
+                    ..
+                }) = &receiver.kind
+                {
+                    self.env
+                        .get(*id)
+                        .and_then(|local| local.hir_ty)
+                        .unwrap_or(receiver.ty)
+                } else {
+                    receiver.ty
+                };
 
                 let Some((class, field_idx, field_cg)) =
                     self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
@@ -207,8 +209,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: (*break_span).into(),
                         },
                     )?;
-                    self.builder
-                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
                     return Ok(());
                 }
