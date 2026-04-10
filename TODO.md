@@ -830,7 +830,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0129、T0130
 
-### T0128 [TODO] 泛型验证与修复：泛型与 GC / 特殊化类型交互
+### T0128 [DONE] 泛型验证与修复：泛型与 GC / 特殊化类型交互
 
 - 描述：泛型类型实例化涉及 GC 管理（class 为堆分配 + GC trace）和编译器特殊化类型（Array/Channel/Task 等）的交互，需要验证正确性。
 - 需验证并修复的场景：

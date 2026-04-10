@@ -1,0 +1,45 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_gc_ref_field.stdout
+// EXPECT-EXIT: 0
+//
+// T0128: Generic class holding reference field — GC trace must scan when T is ref type.
+//
+// Covers:
+// - class Holder<T>(val v: T) instantiated with String (GC ref)
+// - GC trace bitmap must include the ref field
+// - GC collect after construction must not corrupt the object
+// - Multiple Holder<String> instances to stress GC
+
+import scoop.core.*
+
+class Holder<T>(val v: T) {
+    fun get(): T {
+        return this.v
+    }
+}
+
+fun main(): Int {
+    // Scenario 1: Holder<String> — T is reference type, GC must trace the field
+    val h1: Holder<String> = Holder("hello")
+    println(h1.get())
+
+    // Scenario 2: Multiple allocations to trigger GC pressure
+    val h2: Holder<String> = Holder("world")
+    val h3: Holder<String> = Holder("test")
+
+    // Force GC collection
+    __scoop_gc_collect()
+
+    // Verify objects survive GC
+    println(h1.get())
+    println(h2.get())
+    println(h3.get())
+
+    // Scenario 3: Holder<String> field access after more allocations
+    val h4: Holder<String> = Holder("after_gc")
+    __scoop_gc_collect()
+    println(h4.get())
+
+    println("done")
+    0
+}

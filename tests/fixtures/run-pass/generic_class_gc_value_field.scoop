@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_gc_value_field.stdout
+// EXPECT-EXIT: 0
+//
+// T0128: Generic class holding value type field — GC trace must NOT scan Int field.
+//
+// Covers:
+// - class Holder<T>(val v: T) instantiated with Int (value type)
+// - GC trace bitmap should be empty for value-only payload
+// - Holder<Int> and Holder<String> in same program (different trace bitmaps)
+
+import scoop.core.*
+
+class Holder<T>(val v: T) {
+    fun get(): T {
+        return this.v
+    }
+}
+
+fun main(): Int {
+    // Scenario 1: Holder<Int> — T is value type, no GC tracing needed for payload
+    val h1: Holder<Int> = Holder(42)
+    println(h1.get())
+
+    // Scenario 2: Holder<Int> survives GC (trivially, since no GC refs in payload)
+    val h2: Holder<Int> = Holder(100)
+    __scoop_gc_collect()
+    println(h1.get())
+    println(h2.get())
+
+    // Scenario 3: Mixed — Holder<Int> and Holder<String> coexist
+    val h3: Holder<String> = Holder("mixed")
+    __scoop_gc_collect()
+    println(h1.get())
+    println(h3.get())
+
+    // Scenario 4: Multiple Holder<Int> with GC pressure
+    val h4: Holder<Int> = Holder(200)
+    val h5: Holder<Int> = Holder(300)
+    val h6: Holder<String> = Holder("pressure")
+    __scoop_gc_collect()
+    println(h4.get())
+    println(h5.get())
+    println(h6.get())
+
+    println("done")
+    0
+}

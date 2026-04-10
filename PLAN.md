@@ -383,3 +383,12 @@ cargo run -p scoop --features llvm -- test
   - **`typecheck/expr/call.rs`**：新增 `check_fun_where_constraints_after_instantiation`，在 6 个 `instantiate_fun_sig_for_call*` 调用点后验证约束。
   - **4 个新增 fixtures**：单/多约束不满足、满足、泛型传递调用。
   - 139 单元测试 + 823 fixtures 通过。
+
+- DONE（T0128）：泛型验证与修复——泛型与 GC / 特殊化类型交互：
+  - **5 个 run-pass fixtures**（全部在 SCOOP_GC_STRESS=1 下稳定）：
+    - `generic_class_gc_ref_field`：`Holder<String>` — GC trace 扫描引用字段，GC collect 后存活
+    - `generic_class_gc_value_field`：`Holder<Int>` — 值类型 payload 无需 GC trace + 与 `Holder<String>` 混合共存
+    - `generic_class_gc_specialized_type`：`Wrapper<Array<Int>>` — Array 特殊化路径在泛型 class 内正确工作
+    - `generic_class_gc_multi_alloc`：多实例 `Holder<String>` + `Pair<String/Int>` — GC 分配点安全
+    - `generic_class_gc_nullable_ref`：`Holder<String?>` — niche 优化 + nullable GC trace + Some/None 混合
+  - 139 单元测试 + 834 fixtures 通过。

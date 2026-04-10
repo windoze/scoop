@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_gc_multi_alloc.stdout
+// EXPECT-EXIT: 0
+//
+// T0128: GC allocation point safety — multiple allocs in generic class usage.
+//
+// Covers:
+// - Multiple generic class instances created in sequence
+// - Ref-type fields (String) that must survive GC across allocation points
+// - Holder<String> with multiple live instances + GC stress
+
+import scoop.core.*
+
+class Holder<T>(val v: T) {
+    fun get(): T {
+        return this.v
+    }
+}
+
+class Pair<T>(val first: T, val second: T)
+
+fun main(): Int {
+    // Multiple Holder<String> allocations — each alloc is a potential GC safepoint
+    val h1: Holder<String> = Holder("alpha")
+    val h2: Holder<String> = Holder("beta")
+    val h3: Holder<String> = Holder("gamma")
+
+    // Force GC between allocations
+    __scoop_gc_collect()
+
+    val h4: Holder<String> = Holder("delta")
+    val h5: Holder<String> = Holder("epsilon")
+
+    __scoop_gc_collect()
+
+    // Verify all holders survive
+    println(h1.get())
+    println(h2.get())
+    println(h3.get())
+    println(h4.get())
+    println(h5.get())
+
+    // Pair with two ref fields — both must be traced
+    val p1: Pair<String> = Pair("left", "right")
+    __scoop_gc_collect()
+    println(p1.first)
+    println(p1.second)
+
+    // Pair<Int> — no ref tracing needed
+    val p2: Pair<Int> = Pair(10, 20)
+    __scoop_gc_collect()
+    println(p2.first)
+    println(p2.second)
+
+    println("done")
+    0
+}

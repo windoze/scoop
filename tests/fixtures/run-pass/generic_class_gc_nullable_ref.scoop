@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_gc_nullable_ref.stdout
+// EXPECT-EXIT: 0
+//
+// T0128: Generic class holding nullable reference — niche optimization + GC trace.
+//
+// Covers:
+// - class Holder<T>(val v: T) instantiated with String? (nullable ref)
+// - Niche optimization: Option<String> uses null pointer for None
+// - GC trace must handle nullable field correctly (skip null, trace non-null)
+// - Multiple instances with Some/None values + GC pressure
+
+import scoop.core.*
+
+class Holder<T>(val v: T) {
+    fun get(): T {
+        return this.v
+    }
+}
+
+fun showOption(o: String?): String {
+    return when (o) {
+        Some(s) -> s
+        None -> "none"
+    }
+}
+
+fun main(): Int {
+    // Scenario 1: Holder<String?> holding Some value
+    val h1: Holder<String?> = Holder(Some("hello"))
+    val v1: String? = h1.get()
+    println(showOption(v1))
+
+    // Scenario 2: Holder<String?> holding None — use typed local to disambiguate None
+    val noneVal: String? = None()
+    val h2: Holder<String?> = Holder(noneVal)
+    val v2: String? = h2.get()
+    println(showOption(v2))
+
+    // Scenario 3: GC collect with nullable refs
+    __scoop_gc_collect()
+    println(showOption(h1.get()))
+    println(showOption(h2.get()))
+
+    // Scenario 4: Multiple holders with mixed Some/None + GC pressure
+    val h3: Holder<String?> = Holder(Some("world"))
+    val noneVal2: String? = None()
+    val h4: Holder<String?> = Holder(noneVal2)
+    val h5: Holder<String?> = Holder(Some("test"))
+    __scoop_gc_collect()
+    println(showOption(h3.get()))
+    println(showOption(h4.get()))
+    println(showOption(h5.get()))
+
+    println("done")
+    0
+}

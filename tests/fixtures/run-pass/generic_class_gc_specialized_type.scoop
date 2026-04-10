@@ -1,0 +1,44 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_gc_specialized_type.stdout
+// EXPECT-EXIT: 0
+//
+// T0128: Generic class instantiated with specialized types (Array).
+//
+// Covers:
+// - class Wrapper<T>(val items: T) with T = Array<Int>
+// - Array uses compiler-specialized path; verify it works within generic class
+// - GC interaction: Array<Int> is a GC-managed object, trace must include it
+// - Wrapper with multiple different type args in same program
+
+import scoop.core.*
+
+class Wrapper<T>(val items: T) {
+    fun get(): T {
+        return this.items
+    }
+}
+
+fun getLength(arr: Array<Int>): Int {
+    return arr.size()
+}
+
+fun main(): Int {
+    // Scenario 1: Wrapper holding an Array<Int>
+    val arr: Array<Int> = [10, 20, 30]
+    val w1: Wrapper<Array<Int>> = Wrapper(arr)
+    val retrieved: Array<Int> = w1.get()
+    println(getLength(retrieved))
+
+    // Scenario 2: Wrapper holding a String (reference type)
+    val w2: Wrapper<String> = Wrapper("wrapped")
+    __scoop_gc_collect()
+    println(w2.get())
+
+    // Scenario 3: Verify Array wrapper survives GC
+    __scoop_gc_collect()
+    val arr2: Array<Int> = w1.get()
+    println(getLength(arr2))
+
+    println("done")
+    0
+}
