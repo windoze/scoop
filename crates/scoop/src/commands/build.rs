@@ -283,8 +283,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
+                let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
-                    front.main_source(),
+                    &source_map,
+                    entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
@@ -304,8 +306,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
+                let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-                    front.main_source(),
+                    &source_map,
+                    entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
@@ -325,8 +329,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
+                let (source_map, entry_source_id) = build_codegen_source_map(&session, &front);
                 scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
-                    front.main_source(),
+                    &source_map,
+                    entry_source_id,
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
@@ -870,8 +876,10 @@ fn run_codegen_and_link(
     let obj = work_dir.join(layout::obj_file_name("main"));
 
     let lowered = lower_main_hir_for_build(session, front)?;
+    let (source_map, entry_source_id) = build_codegen_source_map(session, front);
     scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-        front.main_source(),
+        &source_map,
+        entry_source_id,
         &lowered,
         &obj,
         front.input.entry_main_fqn.as_deref(),
@@ -992,6 +1000,30 @@ fn lower_main_hir_for_build(
         &front.typecheck_types,
     )
     .map_err(miette::Report::from)
+}
+
+#[cfg(feature = "llvm")]
+fn build_codegen_source_map(
+    session: &scoopc::session::Session,
+    front: &FrontendOutput,
+) -> (scoopc::source::SourceMap, scoopc::source::SourceId) {
+    let mut source_map = scoopc::source::SourceMap::new();
+    for file in &session.sysroot().files {
+        let _ = source_map.add_source_clone(&file.source);
+    }
+
+    let mut entry_source_id = None;
+    for (idx, source) in front.input.sources.iter().enumerate() {
+        let source_id = source_map.add_source_clone(source);
+        if idx == front.input.main_index {
+            entry_source_id = Some(source_id);
+        }
+    }
+
+    (
+        source_map,
+        entry_source_id.expect("main source should always be present in build source map"),
+    )
 }
 
 #[cfg(test)]

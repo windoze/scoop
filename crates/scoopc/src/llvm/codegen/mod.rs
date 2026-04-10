@@ -44,7 +44,7 @@ use sha2::{Digest as _, Sha256};
 use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
-use crate::source::SourceFile;
+use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes,
 };
@@ -161,7 +161,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     builder: &'a Builder<'ctx>,
     target_data: &'a TargetData,
     host: &'a HostTargetInfo,
-    source: &'a SourceFile,
+    source_map: &'a SourceMap,
+    entry_source_id: SourceId,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
@@ -267,7 +268,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         builder: &'a Builder<'ctx>,
         target_data: &'a TargetData,
         host: &'a HostTargetInfo,
-        source: &'a SourceFile,
+        source_map: &'a SourceMap,
+        entry_source_id: SourceId,
         types: &'a TypeStore,
         struct_layouts: &'a hir::StructLayoutIndex,
         enum_layouts: &'a hir::EnumLayoutIndex,
@@ -287,7 +289,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             builder,
             target_data,
             host,
-            source,
+            source_map,
+            entry_source_id,
             types,
             struct_layouts,
             enum_layouts,
@@ -322,6 +325,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             loop_context_stack: Vec::new(),
             return_context: None,
         }
+    }
+
+    /// 当前阶段 HIR span 仍然只携带“文件内 offset”，尚不能直接用 `SourceMap`
+    /// 精确反查所属文件；因此这类旧路径先保留“入口文件回退”语义，
+    /// 只把持有形态切换到 `SourceMap`，为后续 T0150c/T0150d 做铺垫。
+    pub(super) fn entry_source(&self) -> &SourceFile {
+        self.source_map
+            .source(self.entry_source_id)
+            .expect("entry source id should exist in source map")
     }
 
     /// 获取 effect operation 的稳定 op_tag（T1608）。
@@ -9468,7 +9480,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder,
                 self.target_data,
                 self.host,
-                self.source,
+                self.source_map,
+                self.entry_source_id,
                 self.types,
                 self.struct_layouts,
                 self.enum_layouts,
@@ -11316,7 +11329,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for part in parts {
             match part {
                 hir::InterpolatedStringPart::Text { span: text_span } => {
-                    let text = self.source.slice(*text_span);
+                    let text = self.entry_source().slice(*text_span);
                     let bytes = parse_f_string_text_bytes(raw, text).map_err(|_| {
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "invalid interpolated string text",
@@ -12205,7 +12218,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder,
             self.target_data,
             self.host,
-            self.source,
+            self.source_map,
+            self.entry_source_id,
             self.types,
             self.struct_layouts,
             self.enum_layouts,

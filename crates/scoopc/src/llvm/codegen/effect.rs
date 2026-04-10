@@ -577,13 +577,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
     ) -> Result<(u32, u32), LlvmEmitError> {
         // 注意：当前阶段 HIR span 仍是"无 file-id 的 byte offsets"，当 codegen 生成跨文件函数体
-        //（例如 stdlib/helper 被内联为可 codegen 的顶层函数）时，span 可能不属于入口 `source`。
+        //（例如 stdlib/helper 被内联为可 codegen 的顶层函数）时，span 可能不属于入口文件。
         //
-        // 为避免把"诊断辅助信息"升级成 hard error，这里选择在无法映射时降级为 (0, 0)：
+        // T0150b 只把后端的持有形态切到 `SourceMap`，还没有让 span 自带 file-id；
+        // 因此这里继续保留“先按入口文件回退”的旧语义。无法映射时降级为 (0, 0)：
         // - 不影响 non-resuming effect 的语义（仍由 flag+slot 决定）；
         // - fixtures 可选择性断言：对入口文件的 raise/perform，line/col 仍可稳定；
         // - 未来当 span 携带 file-id 后，再把这里升级为精确映射。
-        let Ok((line, col)) = self.source.offset_to_line_col(at.start) else {
+        let Ok((line, col)) = self.entry_source().offset_to_line_col(at.start) else {
             return Ok((0, 0));
         };
         let line_u32 = line.min(u32::MAX as usize) as u32;
@@ -3207,7 +3208,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder,
                 self.target_data,
                 self.host,
-                self.source,
+                self.source_map,
+                self.entry_source_id,
                 self.types,
                 self.struct_layouts,
                 self.enum_layouts,
@@ -6773,7 +6775,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder,
                 self.target_data,
                 self.host,
-                self.source,
+                self.source_map,
+                self.entry_source_id,
                 self.types,
                 self.struct_layouts,
                 self.enum_layouts,

@@ -924,7 +924,7 @@ cargo run -p scoop --features llvm -- test
     - `typecheck/layout.rs`：移除未使用的 `union_payload_layout` helper。
   - **验证**：`cargo test -p scoopc source::tests --no-default-features` 通过。`cargo clippy -p scoopc --no-default-features --lib --tests -- -D warnings` 仍被大量既有、与本任务无关的 repo-wide Clippy 问题阻塞。
 
-### T0150b [TODO] LLVM codegen 接入 SourceMap（保持当前 LiteralKind 存值方案）
+### T0150b [DONE] LLVM codegen 接入 SourceMap（保持当前 LiteralKind 存值方案）
 
 - 描述：在不改变 HIR `LiteralKind::Int/String` 表示的前提下，先把 LLVM 后端的单文件 `&SourceFile` 依赖替换为多文件 `&SourceMap`，为后续恢复 span-backed 字面量铺路。
 - 目标：
@@ -935,6 +935,13 @@ cargo run -p scoop --features llvm -- test
   - 多文件 build/run-pass 行为不变。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150a
+- 完成说明：
+  - `MainCodegen` 与 `llvm/mod.rs` 的 lowered-HIR emission 路径改为持有 `&SourceMap + entry_source_id`，不再把单个入口 `&SourceFile` 作为后端内部的唯一 source 句柄。
+  - `scoop build` 在 codegen 前会用 `sysroot + 当前编译单元全部输入文件` 构建 `SourceMap`，并把入口源文件对应的 `SourceId` 传入 LLVM emission。
+  - 当前仍保留 T0140 的 eager-parsed `LiteralKind::Int/String` 方案；非字面量的旧 `Span -> source text` 路径保持“入口文件回退”语义，留待 T0150c/T0150d 继续切换。
+  - 新增回归测试：`llvm::tests::lowered_hir_codegen_accepts_multi_file_source_map`。
+  - 验证通过：`cargo test --all`、`cargo run -p scoop -- test`。
+  - 额外检查：`cargo clippy --workspace --all-targets -- -D warnings` 仍失败，但失败原因为既有仓库级 warning/clippy baseline（LLVM/inkwell deprecated `ptr_type` 与若干长期 clippy lint），非 T0150b 回归。
 
 ### T0150c [TODO] 回退 Int/String 字面量为 SourceMap-backed 解析
 

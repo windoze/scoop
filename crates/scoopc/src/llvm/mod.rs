@@ -26,7 +26,7 @@ use crate::hir;
 use crate::opt::OptLevel;
 use crate::parser::ParseError;
 use crate::session::Session;
-use crate::source::SourceFile;
+use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::span::Span;
 
 mod codegen;
@@ -158,11 +158,13 @@ pub fn emit_minimal_main_ir(
 /// - `scoop build` 在多包（cone 依赖）场景下，需要复用同一套“已注入 `.cone` 依赖”的编译单元，
 ///   避免后端再次独立 parse/resolve 导致 import 失败或语义分叉。
 pub fn emit_minimal_main_ir_from_lowered_hir(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
+    let module =
+        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
     Ok(module.print_to_string().to_string())
 }
 
@@ -184,11 +186,12 @@ pub fn emit_minimal_main_ir_to_file(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
 pub fn emit_minimal_main_ir_to_file_from_lowered_hir(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
-    let ir = emit_minimal_main_ir_from_lowered_hir(source, lowered)?;
+    let ir = emit_minimal_main_ir_from_lowered_hir(source_map, entry_source_id, lowered)?;
     std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
         path: output.to_path_buf(),
         source: e,
@@ -198,13 +201,20 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
 pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
 ) -> Result<(), LlvmEmitError> {
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+    let module = build_main_module_from_lowered_hir(
+        source_map,
+        entry_source_id,
+        &context,
+        lowered,
+        entry_main_fqn,
+    )?;
     let ir = module.print_to_string().to_string();
 
     std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
@@ -220,14 +230,21 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
 /// - 该版本会按 `opt_level` 运行 LLVM PassBuilder pipeline（包含 statepoint 重写），确保 `--emit-llvm`
 ///   的输出能反映优化等级差异，便于 build fixtures 断言与回归。
 pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+    let module = build_main_module_from_lowered_hir(
+        source_map,
+        entry_source_id,
+        &context,
+        lowered,
+        entry_main_fqn,
+    )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -281,12 +298,14 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
 pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
     emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
-        source,
+        source_map,
+        entry_source_id,
         lowered,
         output,
         OptLevel::O0,
@@ -295,7 +314,8 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
 pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     opt_level: OptLevel,
@@ -307,7 +327,8 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
+    let module =
+        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -322,13 +343,15 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
 pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
 ) -> Result<(), LlvmEmitError> {
     emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-        source,
+        source_map,
+        entry_source_id,
         lowered,
         output,
         entry_main_fqn,
@@ -338,7 +361,8 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
 pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
@@ -351,7 +375,13 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+    let module = build_main_module_from_lowered_hir(
+        source_map,
+        entry_source_id,
+        &context,
+        lowered,
+        entry_main_fqn,
+    )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -405,12 +435,14 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
 pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
     emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
-        source,
+        source_map,
+        entry_source_id,
         lowered,
         output,
         OptLevel::O0,
@@ -419,7 +451,8 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
 pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     opt_level: OptLevel,
@@ -431,7 +464,8 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
+    let module =
+        build_main_module_from_lowered_hir(source_map, entry_source_id, &context, lowered, None)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -446,13 +480,15 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
 pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
 ) -> Result<(), LlvmEmitError> {
     emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
-        source,
+        source_map,
+        entry_source_id,
         lowered,
         output,
         entry_main_fqn,
@@ -462,7 +498,8 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
 
 /// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
 pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     lowered: &hir::LoweredHir,
     output: &Path,
     entry_main_fqn: Option<&str>,
@@ -475,7 +512,13 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+    let module = build_main_module_from_lowered_hir(
+        source_map,
+        entry_source_id,
+        &context,
+        lowered,
+        entry_main_fqn,
+    )?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_pass_pipeline(&module, &target_machine, opt_level)?;
@@ -494,18 +537,21 @@ fn build_minimal_main_module<'ctx>(
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     let lowered = hir::lower_for_dump(session, source)?;
-    build_main_module_from_lowered_hir(source, context, &lowered, None)
+    let (source_map, entry_source_id) = build_single_file_source_map(session, source);
+    build_main_module_from_lowered_hir(&source_map, entry_source_id, context, &lowered, None)
 }
 
 fn build_main_module_from_lowered_hir<'ctx>(
-    source: &SourceFile,
+    source_map: &SourceMap,
+    entry_source_id: SourceId,
     context: &'ctx Context,
     lowered: &hir::LoweredHir,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     configure_llvm_global_options_once();
 
-    let module_name = module_name_from_path(source.path());
+    let entry_source = entry_source(source_map, entry_source_id);
+    let module_name = module_name_from_path(entry_source.path());
     let module = context.create_module(&module_name);
 
     // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
@@ -548,7 +594,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &builder,
         &target_data,
         &target_info,
-        source,
+        source_map,
+        entry_source_id,
         &lowered.types,
         &lowered.struct_layouts,
         &lowered.enum_layouts,
@@ -663,7 +710,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
             &builder,
             &target_data,
             &target_info,
-            source,
+            source_map,
+            entry_source_id,
             &lowered.types,
             &lowered.struct_layouts,
             &lowered.enum_layouts,
@@ -740,7 +788,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &builder,
         &target_data,
         &target_info,
-        source,
+        source_map,
+        entry_source_id,
         &lowered.types,
         &lowered.struct_layouts,
         &lowered.enum_layouts,
@@ -764,6 +813,21 @@ fn build_main_module_from_lowered_hir<'ctx>(
         })?;
 
     Ok(module)
+}
+
+fn build_single_file_source_map(session: &Session, source: &SourceFile) -> (SourceMap, SourceId) {
+    let mut source_map = SourceMap::new();
+    for file in &session.sysroot().files {
+        let _ = source_map.add_source_clone(&file.source);
+    }
+    let entry_source_id = source_map.add_source_clone(source);
+    (source_map, entry_source_id)
+}
+
+fn entry_source(source_map: &SourceMap, entry_source_id: SourceId) -> &SourceFile {
+    source_map
+        .source(entry_source_id)
+        .expect("entry source id should exist in source map")
 }
 
 fn run_pass_pipeline<'ctx>(
@@ -1350,6 +1414,9 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::ty::TypeStore;
     use object::Object;
     use object::ObjectSection;
 
@@ -1379,6 +1446,88 @@ mod tests {
         assert!(ir.contains("ret i32 0"));
         assert!(ir.contains("target datalayout ="));
         assert!(ir.contains("target triple ="));
+    }
+
+    #[test]
+    fn lowered_hir_codegen_accepts_multi_file_source_map() {
+        let session = Session::new().unwrap();
+
+        let src_lib = SourceFile::new_virtual(
+            "<lib>",
+            r#"
+package fixtures.t0150b
+
+import scoop.core.*
+
+fun helper(x: Int): Int { return x + 1 }
+"#,
+        );
+        let src_main = SourceFile::new_virtual(
+            "<main>",
+            r#"
+package fixtures.t0150b
+
+import scoop.core.*
+
+fun main(): Int { return helper(41) }
+"#,
+        );
+
+        let mut ast_lib = parse_file(&src_lib).unwrap();
+        let mut ast_main = parse_file(&src_main).unwrap();
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&src_lib, &ast_lib));
+            pairs.push((&src_main, &ast_main));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &headers_lib).unwrap();
+
+        let headers_main =
+            crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main)
+            .unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&src_lib, &ast_lib));
+        unit.push((&src_main, &ast_main));
+
+        let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+        let typecheck_types = TypeStore::new();
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &src_main,
+            &index,
+            &unit,
+            &files_to_lower,
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+
+        let mut source_map = SourceMap::new();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let _ = source_map.add_source_clone(&src_lib);
+        let entry_source_id = source_map.add_source_clone(&src_main);
+
+        let ir =
+            emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+        assert!(ir.contains("define i32 @main("));
+        assert!(
+            ir.contains("@fixtures.t0150b.helper"),
+            "expected reachable helper from non-entry file to be present in IR"
+        );
     }
 
     #[test]
