@@ -4017,6 +4017,34 @@ fn infer_member_call_expr_type(
         }
     }
 
+    // T0147c: Float 内建 API —— toInt()/toString()/hash()/abs()/isNaN()/isInfinite().
+    if actual_receiver_ty == builtins.float64 || actual_receiver_ty == builtins.float32 {
+        let is_known_float_method = member_name == "toInt"
+            || member_name == "toString"
+            || member_name == "hash"
+            || member_name == "abs"
+            || member_name == "isNaN"
+            || member_name == "isInfinite";
+        if is_known_float_method {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: member_name.to_string(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            return Ok(match member_name {
+                "toInt" | "hash" => builtins.int,
+                "toString" => builtins.string,
+                "abs" => actual_receiver_ty,
+                "isNaN" | "isInfinite" => builtins.bool_,
+                _ => unreachable!("filtered by is_known_float_method"),
+            });
+        }
+    }
+
     // spec §15.10：GC pin/unpin（early stage）。
     //
     // 说明：

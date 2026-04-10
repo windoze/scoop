@@ -1424,7 +1424,7 @@ cargo run -p scoop --features llvm -- test
   - `T0147c-3a ~ T0147c-3c` 已全部完成，`result_large_err` 与剩余结构性 warning 均已清零。
   - 严格 `clippy` gate 已恢复，后续可直接以 `cargo clippy --workspace --all-targets -- -D warnings` 作为基线验收。
 
-### T0147c [TODO] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
+### T0147c [DONE] Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen
 
 - 描述：在类型与 LLVM 标量基础稳定后，补齐 Float 的最小公开 API 表面：sysroot 方法声明、resolver/typecheck builtin 路由、runtime C 符号，以及 codegen dispatch。
 - 目标：
@@ -1448,6 +1448,24 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147a、T0147b、T0147c-1、T0147c-2d、T0147c-3
+- 完成说明：
+  - **Sysroot**：`sysroot/core.scoop` 已将 `Float64` / `Float32` 声明为 `Hashable, ToString`，并补齐 `toInt()` / `toString()` / `hash()` / `abs()` / `isNaN()` / `isInfinite()`。
+  - **Resolver / Typecheck**：`resolve/scopes.rs` 与 `typecheck/expr/call.rs` 已接入 Float builtin member 路由；其中 resolver 会优先把这些调用保留为内建 member call，避免与 `stdlib/math.scoop` 中的 `abs(Int)` 顶层函数混淆。
+  - **Runtime / ABI**：
+    - `runtime/c/scoop_runtime.c` 新增 `scoop_float64_to_string` / `scoop_float32_to_string` / `scoop_float64_to_int` / `scoop_float32_to_int`，并预留 `scoop_string_to_float64`。
+    - `runtime/c/scoop_runtime_api.h`、`llvm/codegen/runtime_symbols.rs`、`llvm/codegen/runtime_abi.rs` 已同步补齐导出符号与 LLVM 声明。
+  - **LLVM codegen**：`llvm/codegen/mod.rs` 已补齐 Float builtin 分发：
+    - `toString()` / `toInt()` 走 runtime；
+    - `hash()` 走浮点位模式重解释后复用现有 `Int.hash()` mixing；
+    - `abs()` / `isNaN()` / `isInfinite()` 走直接 LLVM lowering；
+    - direct `print/println(Float)` 也已接到 Float → String 路径。
+  - **回归**：
+    - 新增 `tests/fixtures/typecheck/float_builtin_methods_ok.scoop`，覆盖 `Float64/Float32` 的 6 个 builtin 方法与 `print/println` 的 `ToString` 约束。
+    - 新增 LLVM 单测 `float_builtin_methods_lower_to_runtime_calls_and_hash_bits`，验证 Float `toString()` / `toInt()` 的 runtime 符号声明与 `hash()` 的位级 lowering。
+  - **验证**：
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (853)`）
 
 ### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
 

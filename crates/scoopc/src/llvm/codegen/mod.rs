@@ -21,6 +21,7 @@ use std::path::Path;
 
 use inkwell::AddressSpace;
 use inkwell::AtomicOrdering;
+use inkwell::FloatPredicate;
 use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -36,6 +37,7 @@ use inkwell::types::StructType;
 use inkwell::values::AggregateValueEnum;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
+use inkwell::values::FloatValue;
 use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
@@ -1324,14 +1326,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_to_string_ext(span, callee.span, args);
             }
 
-            // T0146c2：body-less extension function `toInt()`（当前先覆盖 Char）。
+            // T0146c2/T0147c：body-less extension function `toInt()`（Char / Float / String）。
             if fqn == "scoop.core.toInt" {
                 return self.codegen_sysroot_to_int_ext(span, callee.span, args);
             }
 
-            // T0146c2：body-less extension function `hash()`（当前先覆盖 Char；其余标量可复用）。
+            // T0146c2/T0147c：body-less extension function `hash()`（Char / Float / String / Int）。
             if fqn == "scoop.core.hash" {
                 return self.codegen_sysroot_hash_ext(span, callee.span, args);
+            }
+
+            // T0147c: Float body-less extension functions.
+            if fqn == "scoop.core.abs"
+                && matches!(
+                    args.first(),
+                    Some(hir::CallArg::Positional(expr))
+                        if matches!(
+                            self.types.kind(expr.ty),
+                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                        )
+                )
+            {
+                return self.codegen_sysroot_abs_ext(span, callee.span, args);
+            }
+            if fqn == "scoop.core.isNaN"
+                && matches!(
+                    args.first(),
+                    Some(hir::CallArg::Positional(expr))
+                        if matches!(
+                            self.types.kind(expr.ty),
+                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                        )
+                )
+            {
+                return self.codegen_sysroot_is_nan_ext(span, callee.span, args);
+            }
+            if fqn == "scoop.core.isInfinite"
+                && matches!(
+                    args.first(),
+                    Some(hir::CallArg::Positional(expr))
+                        if matches!(
+                            self.types.kind(expr.ty),
+                            TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                        )
+                )
+            {
+                return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
 
             // T1318e：std v2 io（stdin/stdout/stderr）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
@@ -1587,23 +1627,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
-            // T1811: String P0 methods + T1812 toInt + T0115 extended methods.
-            // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-            // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数。
-            if matches!(
-                member.name.as_str(),
-                "length"
-                    | "toInt"
-                    | "concat"
-                    | "isEmpty"
-                    | "replace"
-                    | "charAt"
-                    | "repeat"
-                    | "compareTo"
-                    | "byteLength"
-                    | "getByte"
-                    | "unsafeSliceBytes"
-            ) {
+            // T1812 / T0146c2 / T0147c: builtin `toInt()` —— Char / Float / String.
+            if member.name == "toInt" {
                 let recv_ty = match &receiver.kind {
                     hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
                         .env
@@ -1615,10 +1640,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if matches!(
                     self.types.kind(recv_ty),
                     TypeKind::Value(ValueTypeKind::Char)
-                ) && member.name == "toInt"
-                {
+                ) {
                     return self.codegen_char_method_to_int(receiver);
                 }
+                if matches!(
+                    self.types.kind(recv_ty),
+                    TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+                ) {
+                    let recv = self.codegen_expr(receiver)?;
+                    return self.codegen_float_to_int_value(span, receiver.span, recv);
+                }
+                return self.codegen_string_method(span, receiver, &member.name, args);
+            }
+            // T1811: String P0 methods + T0115 extended methods.
+            // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
+            // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数。
+            if matches!(
+                member.name.as_str(),
+                "length"
+                    | "concat"
+                    | "isEmpty"
+                    | "replace"
+                    | "charAt"
+                    | "repeat"
+                    | "compareTo"
+                    | "byteLength"
+                    | "getByte"
+                    | "unsafeSliceBytes"
+            ) {
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
             // T0146c2/T1812/T0114: Char/Int/Bool.toString() — route by builtin receiver type.
@@ -1646,10 +1695,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     TypeKind::Value(ValueTypeKind::Int) => {
                         return self.codegen_int_method_hash(span, receiver);
                     }
+                    TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32) => {
+                        let recv = self.codegen_expr(receiver)?;
+                        return self.codegen_float_hash_value(receiver.span, recv);
+                    }
                     _ => {
                         return self.codegen_string_method(span, receiver, "hash", args);
                     }
                 }
+            }
+            if matches!(member.name.as_str(), "abs" | "isNaN" | "isInfinite") {
+                let recv = self.codegen_expr(receiver)?;
+                return match member.name.as_str() {
+                    "abs" => self.codegen_float_abs_value(receiver.span, recv),
+                    "isNaN" => self.codegen_float_is_nan_value(receiver.span, recv),
+                    "isInfinite" => self.codegen_float_is_infinite_value(receiver.span, recv),
+                    _ => unreachable!("filtered by matches!"),
+                };
             }
         }
 
@@ -3285,6 +3347,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(str_ptr.into()),
                 })
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                self.codegen_float_to_string_value(span, receiver.span, recv)
+            }
             CgTy::String => Ok(recv),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "toString() unsupported receiver CgTy",
@@ -3464,6 +3529,305 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ))
     }
 
+    fn unpack_float_cg_value(
+        &self,
+        recv: CgValue<'ctx>,
+        at: crate::span::Span,
+        kind: &'static str,
+    ) -> Result<(FloatValue<'ctx>, CgTy), LlvmEmitError> {
+        if !matches!(recv.ty, CgTy::Float64 | CgTy::Float32) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        }
+        let Some(raw) = recv.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        };
+        let BasicValueEnum::FloatValue(float_val) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            });
+        };
+        Ok((float_val, recv.ty))
+    }
+
+    fn codegen_float_to_string_value(
+        &mut self,
+        span: crate::span::Span,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (float_val, float_ty) =
+            self.unpack_float_cg_value(recv, receiver_span, "Float.toString receiver type")?;
+        let rt_fun = match float_ty {
+            CgTy::Float64 => self.declare_runtime_float64_to_string(),
+            CgTy::Float32 => self.declare_runtime_float32_to_string(),
+            _ => unreachable!("filtered by unpack_float_cg_value"),
+        };
+        let call = self
+            .builder
+            .build_call(rt_fun, &[float_val.into()], "rt_float_to_string")?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "Float.toString return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Float.toString return type",
+                at: span.into(),
+            });
+        };
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
+    }
+
+    fn codegen_float_to_int_value(
+        &mut self,
+        span: crate::span::Span,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (float_val, float_ty) =
+            self.unpack_float_cg_value(recv, receiver_span, "Float.toInt receiver type")?;
+        let rt_fun = match float_ty {
+            CgTy::Float64 => self.declare_runtime_float64_to_int(),
+            CgTy::Float32 => self.declare_runtime_float32_to_int(),
+            _ => unreachable!("filtered by unpack_float_cg_value"),
+        };
+        let call = self
+            .builder
+            .build_call(rt_fun, &[float_val.into()], "rt_float_to_int")?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "Float.toInt return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(int64_val) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Float.toInt return type",
+                at: span.into(),
+            });
+        };
+        let runtime_int = CgValue::int(
+            int64_val,
+            IntTy {
+                bits: 64,
+                signed: true,
+            },
+        );
+        self.coerce_value(
+            span,
+            runtime_int,
+            CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            }),
+        )
+    }
+
+    fn codegen_float_hash_value(
+        &mut self,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (float_val, float_ty) =
+            self.unpack_float_cg_value(recv, receiver_span, "Float.hash receiver type")?;
+        let i64_bits = match float_ty {
+            CgTy::Float64 => {
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i64_type(),
+                    "f64_hash_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float64.hash bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                bits
+            }
+            CgTy::Float32 => {
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i32_type(),
+                    "f32_hash_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits32) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float32.hash bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                self.builder
+                    .build_int_z_extend(bits32, self.context.i64_type(), "f32_hash_zext")?
+            }
+            _ => unreachable!("filtered by unpack_float_cg_value"),
+        };
+        self.codegen_i64_hash_value(i64_bits)
+    }
+
+    fn codegen_float_abs_value(
+        &mut self,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (float_val, float_ty) =
+            self.unpack_float_cg_value(recv, receiver_span, "Float.abs receiver type")?;
+        match float_ty {
+            CgTy::Float64 => {
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i64_type(),
+                    "f64_abs_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float64.abs bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                let masked = self.builder.build_and(
+                    bits,
+                    self.context
+                        .i64_type()
+                        .const_int(0x7fff_ffff_ffff_ffff, false),
+                    "f64_abs_masked",
+                )?;
+                let raw =
+                    self.builder
+                        .build_bit_cast(masked, self.context.f64_type(), "f64_abs")?;
+                let BasicValueEnum::FloatValue(abs_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float64.abs return type",
+                        at: receiver_span.into(),
+                    });
+                };
+                Ok(CgValue::float(abs_val, CgTy::Float64))
+            }
+            CgTy::Float32 => {
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i32_type(),
+                    "f32_abs_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float32.abs bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                let masked = self.builder.build_and(
+                    bits,
+                    self.context.i32_type().const_int(0x7fff_ffff, false),
+                    "f32_abs_masked",
+                )?;
+                let raw =
+                    self.builder
+                        .build_bit_cast(masked, self.context.f32_type(), "f32_abs")?;
+                let BasicValueEnum::FloatValue(abs_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float32.abs return type",
+                        at: receiver_span.into(),
+                    });
+                };
+                Ok(CgValue::float(abs_val, CgTy::Float32))
+            }
+            _ => unreachable!("filtered by unpack_float_cg_value"),
+        }
+    }
+
+    fn codegen_float_is_nan_value(
+        &mut self,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (float_val, _) =
+            self.unpack_float_cg_value(recv, receiver_span, "Float.isNaN receiver type")?;
+        let is_nan = self.builder.build_float_compare(
+            FloatPredicate::UNO,
+            float_val,
+            float_val,
+            "float_is_nan",
+        )?;
+        Ok(CgValue::bool(is_nan))
+    }
+
+    fn codegen_float_is_infinite_value(
+        &mut self,
+        receiver_span: crate::span::Span,
+        recv: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let abs_value = self.codegen_float_abs_value(receiver_span, recv)?;
+        match abs_value.ty {
+            CgTy::Float64 => {
+                let (float_val, _) = self.unpack_float_cg_value(
+                    abs_value,
+                    receiver_span,
+                    "Float.isInfinite receiver type",
+                )?;
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i64_type(),
+                    "f64_inf_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float64.isInfinite bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                let is_inf = self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    bits,
+                    self.context
+                        .i64_type()
+                        .const_int(0x7ff0_0000_0000_0000, false),
+                    "f64_is_infinite",
+                )?;
+                Ok(CgValue::bool(is_inf))
+            }
+            CgTy::Float32 => {
+                let (float_val, _) = self.unpack_float_cg_value(
+                    abs_value,
+                    receiver_span,
+                    "Float.isInfinite receiver type",
+                )?;
+                let raw = self.builder.build_bit_cast(
+                    float_val,
+                    self.context.i32_type(),
+                    "f32_inf_bits",
+                )?;
+                let BasicValueEnum::IntValue(bits) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Float32.isInfinite bits type",
+                        at: receiver_span.into(),
+                    });
+                };
+                let is_inf = self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    bits,
+                    self.context.i32_type().const_int(0x7f80_0000, false),
+                    "f32_is_infinite",
+                )?;
+                Ok(CgValue::bool(is_inf))
+            }
+            _ => unreachable!("Float.abs preserves float CgTy"),
+        }
+    }
+
     fn codegen_sysroot_print_like(
         &mut self,
         span: crate::span::Span,
@@ -3630,6 +3994,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 Ok(CgValue::unit())
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                let str_v = self.codegen_float_to_string_value(expr.span, expr.span, v)?;
+                let Some(raw) = str_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println float arg value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(str_ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println float arg type",
+                        at: expr.span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_print_like(rt_name);
+                let _ = self.builder.build_call(
+                    rt_fun,
+                    &[str_ptr.into()],
+                    "rt_print_float_as_string",
+                )?;
+                Ok(CgValue::unit())
+            }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "sysroot print/println arg type",
                 at: expr.span.into(),
@@ -3730,6 +4116,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(str_ptr.into()),
                 }))
             }
+            CgTy::Float64 | CgTy::Float32 => self
+                .codegen_float_to_string_value(span, expr.span, recv)
+                .map(Some),
             CgTy::String => Ok(Some(recv)),
             _ => Ok(None), // fall-through: let itable/fun_index handle user types
         }
@@ -3892,6 +4281,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(str_ptr.into()),
                 })
             }
+            CgTy::Float64 | CgTy::Float32 => {
+                self.codegen_float_to_string_value(span, expr.span, recv)
+            }
             CgTy::String => {
                 // String.toString() → return self.
                 Ok(recv)
@@ -3932,6 +4324,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_to_int_value(span, expr.span, recv),
             CgTy::String => self.codegen_string_method(span, expr, "toInt", &[]),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "toInt ext unsupported CgTy",
@@ -3971,9 +4364,100 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Int(_) => self.codegen_int_method_hash(span, expr),
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_hash_value(expr.span, recv),
             CgTy::String => self.codegen_string_method(span, expr, "hash", &[]),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "hash ext unsupported CgTy",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_abs_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "abs ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "abs ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_abs_value(expr.span, recv),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "abs ext unsupported CgTy",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_is_nan_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isNaN ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isNaN ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_is_nan_value(expr.span, recv),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isNaN ext unsupported CgTy",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_is_infinite_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isInfinite ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isInfinite ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Float64 | CgTy::Float32 => self.codegen_float_is_infinite_value(expr.span, recv),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "isInfinite ext unsupported CgTy",
                 at: span.into(),
             }),
         }

@@ -78,6 +78,10 @@
   X(scoop_executor_enqueue_resume_u64) \
   X(scoop_executor_run_next) \
   X(scoop_executor_run_until_idle) \
+  X(scoop_float32_to_int) \
+  X(scoop_float32_to_string) \
+  X(scoop_float64_to_int) \
+  X(scoop_float64_to_string) \
   X(scoop_format_i64) \
   X(scoop_format_u64) \
   X(scoop_fs_read_all_text_utf8) \
@@ -144,6 +148,7 @@
   X(scoop_string_length) \
   X(scoop_string_repeat) \
   X(scoop_string_replace) \
+  X(scoop_string_to_float64) \
   X(scoop_string_to_int) \
   X(scoop_string_trim_indent) \
   X(scoop_string_unsafe_slice_bytes) \

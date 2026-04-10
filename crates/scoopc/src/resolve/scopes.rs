@@ -1714,6 +1714,20 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        // T0147c: Float builtin API 需要保留为内建 member call，
+        // 不能先被 extension fun 路径改写为顶层调用，否则会与 stdlib `abs(Int)` 的同名 FQN 混淆。
+        if receiver_ty_fqn == "scoop.core.Float64" || receiver_ty_fqn == "scoop.core.Float32" {
+            let is_known_float_method = member_name == "toInt"
+                || member_name == "toString"
+                || member_name == "hash"
+                || member_name == "abs"
+                || member_name == "isNaN"
+                || member_name == "isInfinite";
+            if is_known_float_method {
+                return Ok(());
+            }
+        }
+
         // T0312：若不存在同名 member，则尝试在同包可见的 extension fun 中按 receiver 类型匹配。
         let ext_candidates =
             self.extension_fun_candidates(receiver_ty_fqn, member_name, member.span)?;

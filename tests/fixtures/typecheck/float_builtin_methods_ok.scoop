@@ -1,0 +1,38 @@
+// EXPECT: pass
+// 目标：T0147c Float builtin methods should resolve/typecheck and satisfy ToString.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun probe64(x: Float64): String {
+    val text: String = x.toString()
+    val number: Int = x.toInt()
+    val hash: Int = x.hash()
+    val magnitude: Float64 = x.abs()
+    val nanFlag: Bool = x.isNaN()
+    val infFlag: Bool = x.isInfinite()
+
+    print(x)
+    println(magnitude)
+    println(nanFlag)
+    println(infFlag)
+
+    return text
+}
+
+fun probe32(x: Float32): String {
+    val text: String = x.toString()
+    val number: Int = x.toInt()
+    val hash: Int = x.hash()
+    val magnitude: Float32 = x.abs()
+    val nanFlag: Bool = x.isNaN()
+    val infFlag: Bool = x.isInfinite()
+
+    print(x)
+    println(magnitude)
+    println(nanFlag)
+    println(infFlag)
+
+    return text
+}

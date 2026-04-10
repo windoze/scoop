@@ -1585,6 +1585,63 @@ fun main() {
     }
 
     #[test]
+    fn float_builtin_methods_lower_to_runtime_calls_and_hash_bits() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_seed64")
+fun seed64(): Float64
+
+@Extern(name = "scoop_test_seed32")
+fun seed32(): Float32
+
+fun main() {
+    val a64: Float64 = seed64()
+    val a32: Float32 = seed32()
+
+    val s64: String = a64.toString()
+    val s32: String = a32.toString()
+    val i64: Int = a64.toInt()
+    val i32: Int = a32.toInt()
+    val h64: Int = a64.hash()
+    val h32: Int = a32.hash()
+}
+"#,
+        );
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_float64_to_string("),
+            "Float64.toString should declare the runtime conversion symbol"
+        );
+        assert!(
+            ir.contains("@scoop_float32_to_string("),
+            "Float32.toString should declare the runtime conversion symbol"
+        );
+        assert!(
+            ir.contains("@scoop_float64_to_int("),
+            "Float64.toInt should declare the runtime conversion symbol"
+        );
+        assert!(
+            ir.contains("@scoop_float32_to_int("),
+            "Float32.toInt should declare the runtime conversion symbol"
+        );
+        assert!(
+            ir.contains("f64_hash_bits"),
+            "Float64.hash should lower via float-bit reinterpretation"
+        );
+        assert!(
+            ir.contains("f32_hash_bits"),
+            "Float32.hash should lower via float-bit reinterpretation"
+        );
+    }
+
+    #[test]
     fn lowered_hir_codegen_accepts_multi_file_source_map() {
         let session = Session::new().unwrap();
 

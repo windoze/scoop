@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdatomic.h>
 #include <inttypes.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2462,6 +2463,76 @@ const ScoopString *scoop_int_to_string(int64_t value) {
   return scoop_string_from_bytes((const uint8_t *)buf, (uint64_t)n);
 }
 
+static const ScoopString *scoop_float_to_string_common(double value, int precision) {
+  static const uint8_t NAN_BYTES[]      = { 'N', 'a', 'N' };
+  static const uint8_t INF_BYTES[]      = { 'I', 'n', 'f', 'i', 'n', 'i', 't', 'y' };
+  static const uint8_t NEG_INF_BYTES[]  = { '-', 'I', 'n', 'f', 'i', 'n', 'i', 't', 'y' };
+
+  if (isnan(value)) {
+    return scoop_string_from_static_bytes(NAN_BYTES, 3);
+  }
+  if (isinf(value)) {
+    if (value < 0.0) {
+      return scoop_string_from_static_bytes(NEG_INF_BYTES, 9);
+    }
+    return scoop_string_from_static_bytes(INF_BYTES, 8);
+  }
+
+  char buf[64];
+  int n = snprintf(buf, sizeof(buf), "%.*g", precision, value);
+  if (n <= 0) {
+    return scoop_string_empty();
+  }
+
+  int has_decimal_or_exp = 0;
+  for (int i = 0; i < n; i++) {
+    if (buf[i] == '.' || buf[i] == 'e' || buf[i] == 'E') {
+      has_decimal_or_exp = 1;
+      break;
+    }
+  }
+  if (!has_decimal_or_exp && n <= (int)(sizeof(buf) - 3)) {
+    buf[n++] = '.';
+    buf[n++] = '0';
+  }
+
+  return scoop_string_from_bytes((const uint8_t *)buf, (uint64_t)n);
+}
+
+// scoop_float64_to_string：将 double 转换为可读十进制字符串。
+// 约定：NaN/Infinity 使用稳定文本；有限值若无小数点/指数，则补 `.0`。
+const ScoopString *scoop_float64_to_string(double value) {
+  return scoop_float_to_string_common(value, 17);
+}
+
+// scoop_float32_to_string：将 float 转换为可读十进制字符串。
+const ScoopString *scoop_float32_to_string(float value) {
+  return scoop_float_to_string_common((double)value, 9);
+}
+
+static int64_t scoop_float_to_int_common(double value) {
+  if (isnan(value)) {
+    return 0;
+  }
+  if (value >= (double)INT64_MAX) {
+    return INT64_MAX;
+  }
+  if (value <= (double)INT64_MIN) {
+    return INT64_MIN;
+  }
+  return (int64_t)value;
+}
+
+// scoop_float64_to_int：double -> Int，NaN 返回 0，越界时饱和到 int64 边界。
+int64_t scoop_float64_to_int(double value) {
+  return scoop_float_to_int_common(value);
+}
+
+// scoop_float32_to_int：float -> Int，NaN 返回 0，越界时饱和到 int64 边界。
+int64_t scoop_float32_to_int(float value) {
+  return scoop_float_to_int_common((double)value);
+}
+
 // scoop_string_to_int：将十进制字符串解析为 int64_t。
 // 对非数字输入返回 0（v0 简单路径；后续可引入 Option<Int>）。
 // 支持可选的前导 '-' 或 '+' 号，跳过前导空白。
@@ -2484,6 +2555,28 @@ int64_t scoop_string_to_int(const ScoopString *s) {
     return 0;
   }
   return (int64_t)result;
+}
+
+// scoop_string_to_float64：为后续 String.toFloat64() 预留 runtime 符号。
+// v0 语义：解析失败时返回 0.0；仅接受当前字节串前缀中的合法十进制浮点表示。
+double scoop_string_to_float64(const ScoopString *s) {
+  if (s == 0 || s->data == 0 || s->len == 0) {
+    return 0.0;
+  }
+
+  uint64_t len = s->len;
+  if (len > 127) len = 127;
+
+  char buf[128];
+  (void)memcpy(buf, s->data, (size_t)len);
+  buf[len] = '\0';
+
+  char *endptr = 0;
+  double result = strtod(buf, &endptr);
+  if (endptr == buf) {
+    return 0.0;
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------

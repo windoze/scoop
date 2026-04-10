@@ -228,6 +228,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// `const ScoopString* scoop_float64_to_string(double value)`
+    pub(super) fn declare_runtime_float64_to_string(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_FLOAT64_TO_STRING;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[self.context.f64_type().into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `const ScoopString* scoop_float32_to_string(float value)`
+    pub(super) fn declare_runtime_float32_to_string(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_FLOAT32_TO_STRING;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[self.context.f32_type().into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // T1812: Int↔String conversion methods.
 
     /// `const ScoopString* scoop_int_to_string(int64_t value)`
@@ -251,6 +273,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `int64_t scoop_float64_to_int(double value)`
+    pub(super) fn declare_runtime_float64_to_int(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_FLOAT64_TO_INT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let fn_ty = self
+            .context
+            .i64_type()
+            .fn_type(&[self.context.f64_type().into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `int64_t scoop_float32_to_int(float value)`
+    pub(super) fn declare_runtime_float32_to_int(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_FLOAT32_TO_INT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let fn_ty = self
+            .context
+            .i64_type()
+            .fn_type(&[self.context.f32_type().into()], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
