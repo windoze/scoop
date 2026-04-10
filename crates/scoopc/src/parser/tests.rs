@@ -318,6 +318,26 @@ fn parse_call_named_args() {
 }
 
 #[test]
+fn parse_prefixed_int_literals_as_single_tokens() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nval hex = 0xFF\nval bin = 0b1010\n");
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(hex) = &file.items[0] else {
+        panic!("期望第一个 item 为 val 声明");
+    };
+    let hex_init = hex.init.as_ref().expect("hex initializer 应存在");
+    assert!(matches!(hex_init.kind, ast::ExprKind::IntLit));
+    assert_eq!(src.slice(hex_init.span), "0xFF");
+
+    let ast::Item::Val(bin) = &file.items[1] else {
+        panic!("期望第二个 item 为 val 声明");
+    };
+    let bin_init = bin.init.as_ref().expect("bin initializer 应存在");
+    assert!(matches!(bin_init.kind, ast::ExprKind::IntLit));
+    assert_eq!(src.slice(bin_init.span), "0b1010");
+}
+
+#[test]
 fn parse_comptime_syntax_and_splice() {
     let src = SourceFile::new_virtual(
         "<mem>",

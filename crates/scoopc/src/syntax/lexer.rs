@@ -230,12 +230,51 @@ impl<'a> Lexer<'a> {
     }
 
     fn lex_int_literal(&mut self) {
-        self.bump_char();
+        let Some(first) = self.bump_char() else {
+            return;
+        };
+        if first == '0' && self.try_lex_prefixed_int_literal() {
+            return;
+        }
         while self
             .peek_char()
             .is_some_and(|c| c.is_ascii_digit() || c == '_')
         {
             self.bump_char();
+        }
+    }
+
+    fn try_lex_prefixed_int_literal(&mut self) -> bool {
+        let Some([prefix, next]) = self.peek_bytes2() else {
+            return false;
+        };
+        if !Self::is_prefixed_int_first_digit(prefix, next) {
+            return false;
+        }
+
+        self.bump_bytes(1);
+        while self
+            .peek_char()
+            .is_some_and(|ch| Self::is_prefixed_int_continue(prefix, ch))
+        {
+            self.bump_char();
+        }
+        true
+    }
+
+    fn is_prefixed_int_first_digit(prefix: u8, next: u8) -> bool {
+        match prefix {
+            b'x' | b'X' => char::from(next).is_ascii_hexdigit(),
+            b'b' | b'B' => matches!(next, b'0' | b'1'),
+            _ => false,
+        }
+    }
+
+    fn is_prefixed_int_continue(prefix: u8, ch: char) -> bool {
+        match prefix {
+            b'x' | b'X' => ch.is_ascii_hexdigit() || ch == '_',
+            b'b' | b'B' => matches!(ch, '0' | '1' | '_'),
+            _ => false,
         }
     }
 
@@ -569,6 +608,20 @@ mod tests {
                 TokenKind::Symbol(Symbol::LtLt),
                 TokenKind::IntLiteral,
                 TokenKind::Symbol(Symbol::GtGt),
+                TokenKind::IntLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_prefixed_int_literals() {
+        assert_eq!(
+            kinds("0xFF 0b1010 0Xca_fe 0B10_01"),
+            vec![
+                TokenKind::IntLiteral,
+                TokenKind::IntLiteral,
+                TokenKind::IntLiteral,
                 TokenKind::IntLiteral,
                 TokenKind::Eof,
             ]

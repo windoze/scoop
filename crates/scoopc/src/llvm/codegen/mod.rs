@@ -46,7 +46,7 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::syntax::int_literal::parse_int_literal_decimal;
+use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
 };
@@ -383,7 +383,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn parse_current_int_literal(&self, span: crate::span::Span) -> Result<u128, LlvmEmitError> {
-        Ok(parse_int_literal_decimal(self.current_source_slice(span)?))
+        Ok(parse_int_literal(self.current_source_slice(span)?))
     }
 
     fn parse_current_string_literal_bytes(

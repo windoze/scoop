@@ -20,6 +20,7 @@ use crate::resolve::ImportTable;
 use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::syntax::int_literal::parse_int_literal;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::is_type_assignable;
@@ -1957,7 +1958,7 @@ fn parse_clayout_args(
         }
 
         let raw = source.slice(span);
-        let value = parse_int_literal_decimal_u64(raw).unwrap_or(0);
+        let value = parse_int_literal_u64(raw).unwrap_or(0);
         // `0` 视为“未指定”；其它值保留（由调用方进一步做合法性验证）。
         let value = if value == 0 { None } else { Some(value) };
 
@@ -1984,16 +1985,8 @@ fn parse_clayout_args(
     ))
 }
 
-fn parse_int_literal_decimal_u64(text: &str) -> Option<u64> {
-    let mut out: u128 = 0;
-    for ch in text.chars() {
-        if ch == '_' {
-            continue;
-        }
-        let d = ch.to_digit(10)?;
-        out = out.saturating_mul(10).saturating_add(u128::from(d));
-    }
-    u64::try_from(out).ok()
+fn parse_int_literal_u64(text: &str) -> Option<u64> {
+    u64::try_from(parse_int_literal(text)).ok()
 }
 
 fn annotation_use_resolves_to_fqn(

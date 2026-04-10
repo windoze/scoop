@@ -983,7 +983,7 @@ cargo run -p scoop --features llvm -- test
   - 验证通过：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`。
   - 补充检查：直接 `cargo run -p scoop -- build ... --emit-llvm` 现分别报出 `literal_parse_error_entry_file.scoop:12:13` 与 `helpers.scoop:6:12`；严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞（`inkwell::ptr_type` deprecated 与长期 clippy lint），当前已无 `InvalidLiteral` / `literal_text_preview` 相关的新回归。
 
-### T0145 [TODO] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
+### T0145 [DONE] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
 
 - 描述：当前词法器 `lex_int_literal`（`syntax/lexer.rs:232-240`）仅消费十进制数字和 `_` 分隔符，不识别 `0x`/`0X`（十六进制）和 `0b`/`0B`（二进制）前缀。解析器 `parse_int_literal_decimal`（`syntax/int_literal.rs`）也仅处理十进制。此外 `comptime/eval.rs:1282-1293` 存在一份重复的解析函数副本，同样仅支持十进制。
 - 目标：
@@ -999,10 +999,21 @@ cargo run -p scoop --features llvm -- test
 - 验收：
   - 新增 run-pass fixture：`val a = 0xFF; val b = 0b1010; println(a.toString()); println(b.toString())`，stdout 断言 `255` 和 `10`。
   - 新增 run-pass fixture：hex/binary 字面量在 `when` pattern 中匹配。
-  - 新增 comptime fixture（或更新现有）：`const val mask = 0xFF` 在编译期正确求值。
-  - 现有 run-pass fixtures 全部通过。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 新增 comptime fixture（或更新现有）：`const val mask = 0xFF` 在编译期正确求值。
+- 现有 run-pass fixtures 全部通过。
+- `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0140（多文件字面量支持，确保新格式在非入口文件中也可用）
+- 完成记录：
+  - **lexer + shared parser**：`syntax/lexer.rs` 现会把 `0x`/`0X` 与 `0b`/`0B` 前缀字面量识别为单个 `IntLiteral` token（要求前缀后至少一个有效 digit）；`syntax/int_literal.rs` 的共享 `parse_int_literal(...)` 覆盖 decimal / hex / binary。
+  - **统一接线**：LLVM `parse_current_int_literal`、`comptime/eval.rs`、HIR lowering 的 `@CLayout(...)` 参数解析、以及 typecheck 注解参数解析都已切到共享 parser，prefixed integer literals 在运行期 codegen、comptime、以及相关整数注解位点上行为一致。
+  - **`when` Int subject**：LLVM `when` codegen 补齐了顶层 `Int` subject 支持，因此 `when (x) { 0xFF -> ... }` 这类模式现在可直接工作；带 guard / `or` 的 Int pattern 也通过同一 predicate 路径获支持。
+  - **回归覆盖**：
+    - `tests/fixtures/run-pass/int_literal_hex_binary_basic.*`：值绑定 + `toString()`，覆盖大/小写前缀与 `_` 分隔符。
+    - `tests/fixtures/run-pass/when_int_literal_hex_binary_patterns.*`：top-level `when (Int)` 上的 hex / binary pattern 匹配。
+    - `tests/fixtures/comptime/int_literal_hex_binary_basic.*`：`const val` 与 `const fun` 中的 prefixed literals 编译期求值。
+    - 单元测试新增 lexer / parser coverage：prefixed literals lex 成单 token，parser span 保留原始 `0xFF` / `0b1010` 文本。
+  - **验证**：`cargo test --all` 通过；`cargo run -p scoop -- test` 通过（`fixtures: ok (841)`）。
+  - **补充检查**：严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞（大量 inkwell `ptr_type` deprecated、`too_many_arguments`、`result_large_err` 等）；针对本任务改动文件的额外 grep 未发现新的 task-specific clippy 失败。
 
 ### T0146 [TODO] Char 类型与 Char 字面量：全管线实现
 

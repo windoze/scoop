@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ast;
 use crate::resolve::Index;
 use crate::source::SourceFile;
+use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
 
@@ -1805,7 +1806,7 @@ fn parse_clayout_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) 
             continue;
         };
         let raw = source.slice(value.span);
-        let Some(v) = parse_int_literal_decimal_u32(raw) else {
+        let Some(v) = parse_int_literal_u32(raw) else {
             continue;
         };
         let v = if v == 0 { None } else { Some(v) };
@@ -1820,16 +1821,8 @@ fn parse_clayout_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) 
     StructCLayout { aligned, packed }
 }
 
-fn parse_int_literal_decimal_u32(text: &str) -> Option<u32> {
-    let mut out: u128 = 0;
-    for ch in text.chars() {
-        if ch == '_' {
-            continue;
-        }
-        let d = ch.to_digit(10)?;
-        out = out.saturating_mul(10).saturating_add(u128::from(d));
-    }
-    u32::try_from(out).ok()
+fn parse_int_literal_u32(text: &str) -> Option<u32> {
+    u32::try_from(parse_int_literal(text)).ok()
 }
 
 /// 收集当前编译单元（sysroot + 当前文件）里出现的 struct 字段布局信息。

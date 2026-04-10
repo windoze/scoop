@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: when_int_literal_hex_binary_patterns.stdout
+//
+// T0145: prefixed integer literals should work in `when` patterns too.
+
+import scoop.core.*
+
+fun classify(value: Int): String {
+    return when (value) {
+        0xFF -> "hex"
+        0b1010 -> "bin"
+        0XCA_FE -> "hex_sep"
+        0B10_01 -> "bin_sep"
+        else -> "other"
+    }
+}
+
+fun main() {
+    println(classify(255))
+    println(classify(10))
+    println(classify(51966))
+    println(classify(9))
+    println(classify(7))
+}

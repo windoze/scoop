@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: int_literal_hex_binary_basic.stdout
+//
+// T0145: hex / binary integer literals.
+
+import scoop.core.*
+
+fun main() {
+    val hex: Int = 0xFF
+    val bin: Int = 0b1010
+    val hexSep: Int = 0XCA_FE
+    val binSep: Int = 0B10_01
+
+    println(hex.toString())
+    println(bin.toString())
+    println(hexSep.toString())
+    println(binSep.toString())
+}

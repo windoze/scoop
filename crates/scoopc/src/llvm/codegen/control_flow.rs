@@ -75,8 +75,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: (*break_span).into(),
                         },
                     )?;
-                    self.builder
-                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
                     return Ok(self.context.i32_type().const_int(0, false));
                 }
@@ -224,8 +223,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_unreachable()?;
                 Ok(CgValue::never())
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "if result slot",
@@ -415,8 +419,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder.build_unreachable()?;
                     Ok(CgValue::never())
                 }
-                CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-                | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                CgTy::Bool
+                | CgTy::Int(_)
+                | CgTy::String
+                | CgTy::Ref
+                | CgTy::Tuple(_)
+                | CgTy::Struct(_)
+                | CgTy::Enum(_) => {
                     // T1610: use alloca/store/load to support compound types (and scalars).
                     let result_ptr = self.create_entry_alloca(span, "when_chain_result", out_ty)?;
                     for (bb, v) in incoming {
@@ -430,7 +439,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                     self.builder.position_at_end(merge_bb);
                     let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
-                    let loaded = self.builder.build_load(llvm_ty, result_ptr, "when_chain_result")?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_ty, result_ptr, "when_chain_result")?;
                     self.cg_value_from_loaded(span, out_ty, loaded)
                 }
             };
@@ -565,6 +576,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.position_at_end(default_bb);
                 self.builder.build_unreachable()?;
             }
+            CgTy::Int(int_ty) => {
+                for arm in arms {
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. }
+                        | hir::WhenPat::IntLit { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when pattern (int)",
+                                at: arm.pat.span().into(),
+                            });
+                        }
+                    }
+                }
+
+                let check_bbs = (0..arms.len())
+                    .map(|i| {
+                        self.context
+                            .append_basic_block(func, &format!("when_check_{i}"))
+                    })
+                    .collect::<Vec<_>>();
+                let no_match_bb = self.context.append_basic_block(func, "when_no_match");
+                let raw = subject_raw.into_int_value();
+
+                self.builder.build_unconditional_branch(check_bbs[0])?;
+
+                for (idx, arm) in arms.iter().enumerate() {
+                    self.builder.position_at_end(check_bbs[idx]);
+
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. } => {
+                            self.builder.build_unconditional_branch(arm_bbs[idx])?;
+                        }
+                        hir::WhenPat::IntLit { .. } => {
+                            let cond = self.codegen_when_pat_cond_for_int_with_value(
+                                span, int_ty, raw, &arm.pat,
+                            )?;
+                            let else_bb = if idx + 1 < arms.len() {
+                                check_bbs[idx + 1]
+                            } else {
+                                no_match_bb
+                            };
+                            self.builder
+                                .build_conditional_branch(cond, arm_bbs[idx], else_bb)?;
+                        }
+                        _ => unreachable!("int patterns validated above"),
+                    }
+                }
+
+                self.builder.position_at_end(no_match_bb);
+                self.builder.build_unreachable()?;
+            }
             CgTy::Tuple(tuple_ty) => {
                 for arm in arms {
                     match &arm.pat {
@@ -694,8 +760,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_unreachable()?;
                 Ok(CgValue::never())
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 // T1610: use alloca/store/load to support compound types (and scalars).
                 let result_ptr = self.create_entry_alloca(span, "when_result", out_ty)?;
                 for (bb, v) in incoming {
@@ -708,7 +779,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 self.builder.position_at_end(merge_bb);
                 let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
-                let loaded = self.builder.build_load(llvm_ty, result_ptr, "when_result")?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, result_ptr, "when_result")?;
                 self.cg_value_from_loaded(span, out_ty, loaded)
             }
         }
@@ -1235,6 +1308,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_when_pat_cond_for_enum(at, enum_ty, pat, subject_ptr)
             }
             CgTy::Bool => self.codegen_when_pat_cond_for_bool(at, pat, subject_ptr),
+            CgTy::Int(int_ty) => self.codegen_when_pat_cond_for_int(at, int_ty, pat, subject_ptr),
             CgTy::Tuple(tuple_ty) => {
                 self.codegen_when_pat_cond_for_tuple(at, tuple_ty, pat, subject_ptr)
             }
@@ -1310,7 +1384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn codegen_when_pat_cond_for_enum_with_tag(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         variants: &[CgEnumVariant],
         tag: IntValue<'ctx>,
         pat: &hir::WhenPat,
@@ -1339,7 +1413,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Or { pats, .. } => {
                 let mut cond = self.context.bool_type().const_int(0, false);
                 for p in pats {
-                    let c = self.codegen_when_pat_cond_for_enum_with_tag(at, variants, tag, p)?;
+                    let c = self.codegen_when_pat_cond_for_enum_with_tag(_at, variants, tag, p)?;
                     cond = self.builder.build_or(cond, c, "when_or")?;
                 }
                 Ok(cond)
@@ -1395,6 +1469,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "when pattern (bool)",
+                at: pat.span().into(),
+            }),
+        }
+    }
+
+    pub(super) fn codegen_when_pat_cond_for_int(
+        &mut self,
+        at: crate::span::Span,
+        int_ty: IntTy,
+        pat: &hir::WhenPat,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let loaded = self
+            .builder
+            .build_load(self.int_type(int_ty), subject_ptr, "load_when_int")?
+            .into_int_value();
+        self.codegen_when_pat_cond_for_int_with_value(at, int_ty, loaded, pat)
+    }
+
+    pub(super) fn codegen_when_pat_cond_for_int_with_value(
+        &self,
+        _at: crate::span::Span,
+        int_ty: IntTy,
+        value: IntValue<'ctx>,
+        pat: &hir::WhenPat,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Else { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            hir::WhenPat::IntLit { .. } => {
+                let expected_raw =
+                    mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
+                let expected = self.int_type(int_ty).const_int(expected_raw, false);
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    value,
+                    expected,
+                    "when_int_eq",
+                )?)
+            }
+            hir::WhenPat::Or { pats, .. } => {
+                let mut cond = self.context.bool_type().const_int(0, false);
+                for p in pats {
+                    let c = self.codegen_when_pat_cond_for_int_with_value(_at, int_ty, value, p)?;
+                    cond = self.builder.build_or(cond, c, "when_or")?;
+                }
+                Ok(cond)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when pattern (int)",
                 at: pat.span().into(),
             }),
         }
@@ -1486,12 +1611,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some(rest) = rest_idx
-            && rest + 1 != elements.len() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when tuple pattern rest position",
-                    at: elements[rest].span().into(),
-                });
-            }
+            && rest + 1 != elements.len()
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when tuple pattern rest position",
+                at: elements[rest].span().into(),
+            });
+        }
 
         let pat_arity = rest_idx.unwrap_or(elements.len());
         if (rest_idx.is_none() && pat_arity != tuple_elems.len())
@@ -1563,7 +1689,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_int_value();
-                let value = mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
+                let value =
+                    mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
                 let expected = self.int_type(int_ty).const_int(value, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -1675,8 +1802,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: (*break_span).into(),
                         },
                     )?;
-                    self.builder
-                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
                     return Ok(self.default_value(declared_return_ty));
                 }
@@ -1779,8 +1905,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: (*break_span).into(),
                         },
                     )?;
-                    self.builder
-                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
                     return Ok(CgValue::unit());
                 }

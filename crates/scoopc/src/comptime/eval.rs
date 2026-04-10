@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::source::SourceFile;
-use crate::syntax::int_literal::parse_int_literal_decimal;
+use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 
 use super::value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue, mask_to_bits};
@@ -318,7 +318,7 @@ pub(crate) fn eval_const_expr_with_host(
         }),
         ast::ExprKind::IntLit => {
             let text = ctx.source.slice(expr.span);
-            let raw = parse_int_literal_decimal(text);
+            let raw = parse_int_literal(text);
             Ok(ConstValue::Int(ConstInt::new(ctx.default_int_ty, raw)))
         }
         ast::ExprKind::StringLit => {
