@@ -1452,6 +1452,7 @@ fn type_layout(types: &TypeStore, target: TargetLayout, ty: TypeId) -> TypeLayou
                 next: 2,
                 end: 256,
             }),
+            ValueTypeKind::Char => TypeLayout::new(4, 4),
             ValueTypeKind::Int | ValueTypeKind::UInt => {
                 TypeLayout::new(target.pointer_size, target.pointer_align)
             }

@@ -6,6 +6,7 @@
 
 use crate::ast;
 use crate::span::Span;
+use crate::syntax::char_literal::parse_char_literal;
 use crate::ty::{TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
@@ -36,7 +37,14 @@ impl<'a> HirLowering<'a> {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
-            ast::ExprKind::CharLit => (ExprKind::Todo("char_lit"), self.builtins.any),
+            ast::ExprKind::CharLit => {
+                let value = parse_char_literal(self.source.slice(e.span))
+                    .expect("lexer validated Char literal before HIR lowering");
+                (
+                    ExprKind::Literal(LiteralKind::Char(value)),
+                    self.builtins.char_,
+                )
+            }
             ast::ExprKind::StringLit => {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
@@ -2480,6 +2488,10 @@ impl<'a> HirLowering<'a> {
         )
     }
 
+    fn is_char_type(&self, ty: TypeId) -> bool {
+        ty == self.builtins.char_
+    }
+
     /// 对齐 typecheck 阶段的最小规则：整数二元运算要求“相同的整数类型”，但允许一侧是整数字面量。
     ///
     /// 说明：HIR lowering 目前仅用于 dump/fixtures 与早期 codegen，因此这里的规则只覆盖：
@@ -2528,16 +2540,21 @@ impl<'a> HirLowering<'a> {
 
             // comparisons: T < T -> Bool
             ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
-                if unify_int_same_type(lhs, rhs).is_some() {
+                if unify_int_same_type(lhs, rhs).is_some()
+                    || (self.is_char_type(lhs.ty) && self.is_char_type(rhs.ty))
+                {
                     self.builtins.bool_
                 } else {
                     self.builtins.any
                 }
             }
 
-            // equality: (T == T) -> Bool; (Bool == Bool) -> Bool
+            // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (Char == Char) -> Bool
             ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
                 if lhs.ty == self.builtins.bool_ && rhs.ty == self.builtins.bool_ {
+                    return self.builtins.bool_;
+                }
+                if self.is_char_type(lhs.ty) && self.is_char_type(rhs.ty) {
                     return self.builtins.bool_;
                 }
                 if unify_int_same_type(lhs, rhs).is_some() {

@@ -672,6 +672,7 @@ fn intern_type_path(
         "Unit" | "scoop.core.Unit" => return Ok(builtins.unit),
         "Nothing" | "scoop.core.Nothing" => return Ok(builtins.nothing),
         "Bool" | "scoop.core.Bool" => return Ok(builtins.bool_),
+        "Char" | "scoop.core.Char" => return Ok(builtins.char_),
         "Int" | "scoop.core.Int" => return Ok(builtins.int),
         "UInt" | "scoop.core.UInt" => return Ok(builtins.uint),
         "Option" | "scoop.core.Option" => {

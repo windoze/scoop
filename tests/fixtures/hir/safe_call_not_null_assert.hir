@@ -10,7 +10,7 @@ File {
                 fqn: "a.f",
                 name: "f",
                 ty: TypeId(
-                    10,
+                    11,
                 ),
                 params: [
                     Param {
@@ -18,12 +18,12 @@ File {
                         id: S0,
                         name: "w",
                         ty: TypeId(
-                            8,
+                            9,
                         ),
                     },
                 ],
                 return_ty: TypeId(
-                    9,
+                    10,
                 ),
                 body: Some(
                     Block {
@@ -160,7 +160,7 @@ File {
                 fqn: "a.g",
                 name: "g",
                 ty: TypeId(
-                    14,
+                    15,
                 ),
                 params: [
                     Param {
@@ -168,7 +168,7 @@ File {
                         id: S2,
                         name: "x",
                         ty: TypeId(
-                            11,
+                            12,
                         ),
                     },
                 ],

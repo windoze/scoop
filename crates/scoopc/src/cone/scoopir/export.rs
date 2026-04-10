@@ -583,6 +583,7 @@ fn collect_type_params_from_type_id(
         | TypeKind::Value(ValueTypeKind::Unit)
         | TypeKind::Value(ValueTypeKind::Nothing)
         | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
         | TypeKind::Value(ValueTypeKind::Int)
         | TypeKind::Value(ValueTypeKind::UInt)
         | TypeKind::Value(ValueTypeKind::IntN(_))
@@ -710,6 +711,11 @@ fn to_ir_type(store: &TypeStore, id: TypeId, depth: usize) -> IrType {
         },
         TypeKind::Value(ValueTypeKind::Bool) => IrType::Named {
             fqn: "scoop.core.Bool".to_string(),
+            args: Vec::new(),
+            eff: None,
+        },
+        TypeKind::Value(ValueTypeKind::Char) => IrType::Named {
+            fqn: "scoop.core.Char".to_string(),
             args: Vec::new(),
             eff: None,
         },

@@ -1,0 +1,25 @@
+// EXPECT: pass
+// 目标：T0146b Char 静态语义：字面量推断为 Char，支持比较与 `when` Char pattern。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val first: Char = 'A'
+val second: Char = '\u0042'
+
+val eq_ok: Bool = first == 'A'
+val ne_ok: Bool = first != second
+val lt_ok: Bool = first < second
+val ge_ok: Bool = second >= first
+
+fun classify(c: Char): Int {
+    return when (c) {
+        'A' -> 1
+        'B' -> 2
+        else -> 0
+    }
+}
+
+val a_kind: Int = classify(first)
+val z_kind: Int = classify('Z')

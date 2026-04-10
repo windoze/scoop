@@ -817,7 +817,7 @@ impl Index {
             }
         }
 
-        None
+        implicit_builtin_type_fqn(&local).map(str::to_string)
     }
 
     fn add_file_in_cone(
@@ -2033,21 +2033,20 @@ fn resolve_type_path(
 }
 
 fn is_implicit_builtin_type_name(local_or_fqn: &str) -> bool {
-    matches!(
-        local_or_fqn,
-        "Unit"
-            | "Nothing"
-            | "Bool"
-            | "String"
-            | "Int"
-            | "UInt"
-            | "scoop.core.Unit"
-            | "scoop.core.Nothing"
-            | "scoop.core.Bool"
-            | "scoop.core.String"
-            | "scoop.core.Int"
-            | "scoop.core.UInt"
-    )
+    implicit_builtin_type_fqn(local_or_fqn).is_some()
+}
+
+fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
+    match local_or_fqn {
+        "Unit" | "scoop.core.Unit" => Some("scoop.core.Unit"),
+        "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
+        "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
+        "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
+        "String" | "scoop.core.String" => Some("scoop.core.String"),
+        "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
+        "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

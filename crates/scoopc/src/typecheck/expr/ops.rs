@@ -80,6 +80,10 @@ pub(super) fn is_integer_type(
     }
 }
 
+fn is_char_type(ty: TypeId, builtins: BuiltinTypes) -> bool {
+    ty == builtins.char_
+}
+
 fn unify_integer_operands_for_same_type_rule(
     lhs: &ast::Expr,
     lhs_ty: TypeId,
@@ -959,6 +963,9 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             {
                 return Ok(builtins.bool_);
             }
+            if is_char_type(lhs_ty, builtins) && is_char_type(rhs_ty, builtins) {
+                return Ok(builtins.bool_);
+            }
             // T0111: compareTo operator overloading for user-defined types.
             // If LHS is a nominal struct/class type, try `compareTo` method.
             //
@@ -1006,7 +1013,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                 span: op_span.into(),
             })
         }
-        // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (String == String) -> Bool
+        // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (String == String) -> Bool; (Char == Char) -> Bool
         ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
             if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
                 return Ok(builtins.bool_);
@@ -1015,12 +1022,15 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             if lhs_ty == builtins.string && rhs_ty == builtins.string {
                 return Ok(builtins.bool_);
             }
+            if is_char_type(lhs_ty, builtins) && is_char_type(rhs_ty, builtins) {
+                return Ok(builtins.bool_);
+            }
             if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
                 .is_some()
             {
                 return Ok(builtins.bool_);
             }
-            Err(mismatch("相同的整数类型、Bool 或 String"))
+            Err(mismatch("相同的整数类型、Bool、Char 或 String"))
         }
         // boolean logic: Bool op Bool -> Bool
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {

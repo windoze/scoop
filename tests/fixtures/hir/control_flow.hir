@@ -6,7 +6,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    7,
+                    8,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -35,7 +35,7 @@ File {
                                         ),
                                         mutable: true,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {

@@ -1772,6 +1772,11 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // T0146b: Char.toInt() — 先走前端 intrinsic 路径；sysroot/runtime 落地留给 T0146c。
+        if receiver_ty_fqn == "scoop.core.Char" && member_name == "toInt" {
+            return Ok(());
+        }
+
         // spec §5.5：`Continuation.resume` 是内建操作。
         //
         // 说明：

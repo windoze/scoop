@@ -216,6 +216,10 @@ pub enum ValueTypeKind {
     ///
     /// 说明：该类型在源级可由 sysroot 声明，但其布局/语义由编译器与运行时固定。
     Bool,
+    /// `Char`：内建 Unicode scalar value（值类型）。
+    ///
+    /// 说明：当前阶段把它建模为独立标量，而不是“某种整数别名”，避免把算术规则与字符语义混在一起。
+    Char,
 
     /// word-sized 整数（随 target 指针宽度变化，spec §2.3.4）。
     Int,
@@ -317,6 +321,8 @@ impl TypeStore {
             bool_: self.intern(TypeKind::Value(ValueTypeKind::Bool)),
             int: self.intern(TypeKind::Value(ValueTypeKind::Int)),
             uint: self.intern(TypeKind::Value(ValueTypeKind::UInt)),
+            // Keep previously existing builtin `TypeId`s stable for HIR/test fixtures.
+            char_: self.intern(TypeKind::Value(ValueTypeKind::Char)),
         }
     }
 
@@ -413,6 +419,7 @@ impl TypeStore {
                 ValueTypeKind::Unit
                 | ValueTypeKind::Nothing
                 | ValueTypeKind::Bool
+                | ValueTypeKind::Char
                 | ValueTypeKind::Int
                 | ValueTypeKind::UInt
                 | ValueTypeKind::IntN(_)
@@ -511,6 +518,7 @@ pub struct BuiltinTypes {
     pub unit: TypeId,
     pub nothing: TypeId,
     pub bool_: TypeId,
+    pub char_: TypeId,
     pub int: TypeId,
     pub uint: TypeId,
 }
@@ -547,6 +555,7 @@ fn format_type(
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),
+        TypeKind::Value(ValueTypeKind::Char) => write!(f, "Char"),
         TypeKind::Value(ValueTypeKind::Int) => write!(f, "Int"),
         TypeKind::Value(ValueTypeKind::UInt) => write!(f, "UInt"),
         TypeKind::Value(ValueTypeKind::IntN(bits)) => write!(f, "Int{bits}"),
@@ -685,6 +694,7 @@ mod tests {
         assert_eq!(tys.display(builtins.unit).to_string(), "Unit");
         assert_eq!(tys.display(builtins.nothing).to_string(), "Nothing");
         assert_eq!(tys.display(builtins.bool_).to_string(), "Bool");
+        assert_eq!(tys.display(builtins.char_).to_string(), "Char");
         assert_eq!(tys.display(builtins.int).to_string(), "Int");
         assert_eq!(tys.display(builtins.uint).to_string(), "UInt");
 

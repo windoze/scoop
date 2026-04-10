@@ -380,6 +380,8 @@ pub struct EffectOpRef {
 pub enum LiteralKind {
     /// Integer literal resolved on demand from source text (`Expr.span` + source provenance).
     Int,
+    /// Char literal fully parsed during HIR lowering so later phases do not need to re-slice source text.
+    Char(char),
     /// String literal resolved on demand from source text (`Expr.span` + source provenance).
     String,
     Unit,
@@ -779,6 +781,7 @@ pub enum WhenPat {
     },
     CharLit {
         span: Span,
+        value: char,
     },
     StringLit {
         span: Span,
@@ -801,7 +804,7 @@ impl WhenPat {
             WhenPat::Tuple { span, .. } => *span,
             WhenPat::Variant { span, .. } => *span,
             WhenPat::IntLit { span, .. } => *span,
-            WhenPat::CharLit { span } => *span,
+            WhenPat::CharLit { span, .. } => *span,
             WhenPat::StringLit { span } => *span,
             WhenPat::BoolLit { span, .. } => *span,
         }

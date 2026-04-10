@@ -10,7 +10,7 @@ File {
                 fqn: "a.takes",
                 name: "takes",
                 ty: TypeId(
-                    8,
+                    9,
                 ),
                 params: [
                     Param {
@@ -18,12 +18,12 @@ File {
                         id: S0,
                         name: "x",
                         ty: TypeId(
-                            7,
+                            8,
                         ),
                     },
                 ],
                 return_ty: TypeId(
-                    0,
+                    2,
                 ),
                 body: Some(
                     Block {
@@ -42,11 +42,11 @@ File {
                 fqn: "a.make",
                 name: "make",
                 ty: TypeId(
-                    10,
+                    11,
                 ),
                 params: [],
                 return_ty: TypeId(
-                    9,
+                    10,
                 ),
                 body: Some(
                     Block {
@@ -65,7 +65,7 @@ File {
                 fqn: "a.id",
                 name: "id",
                 ty: TypeId(
-                    12,
+                    13,
                 ),
                 params: [
                     Param {
@@ -73,12 +73,12 @@ File {
                         id: S1,
                         name: "x",
                         ty: TypeId(
-                            11,
+                            12,
                         ),
                     },
                 ],
                 return_ty: TypeId(
-                    11,
+                    12,
                 ),
                 body: Some(
                     Block {
@@ -119,7 +119,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    13,
+                    14,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -148,7 +148,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         init: Some(
                                             Expr {

@@ -3621,6 +3621,7 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Unit" | "scoop.core.Unit" => Some("scoop.core.Unit"),
         "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
         "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
+        "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
         "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
@@ -4275,6 +4276,19 @@ fn infer_member_call_expr_type(
             });
         }
         return Ok(builtins.string);
+    }
+
+    // T0146b: Char.toInt() — 运行期/sysroot 实现留给 T0146c，当前先补齐静态类型与 comptime。
+    if actual_receiver_ty == builtins.char_ && member_name == "toInt" {
+        if !args.is_empty() {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: "toInt".into(),
+                expected: 0,
+                found: args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+        return Ok(builtins.int);
     }
 
     // spec §15.10：GC pin/unpin（early stage）。
@@ -6699,6 +6713,7 @@ pub(super) fn substitute_single_type_param(
         TypeKind::Value(ValueTypeKind::Unit)
         | TypeKind::Value(ValueTypeKind::Nothing)
         | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
         | TypeKind::Value(ValueTypeKind::Int)
         | TypeKind::Value(ValueTypeKind::UInt)
         | TypeKind::Value(ValueTypeKind::IntN(_))

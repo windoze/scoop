@@ -49,10 +49,16 @@ fn check_when_pat(
         | ast::WhenPat::IntLit { .. }
         | ast::WhenPat::StringLit { .. }
         | ast::WhenPat::BoolLit { .. } => Ok(()),
-        ast::WhenPat::CharLit { span } => Err(ExprTypeError::UnsupportedExpr {
-            kind: "when char literal pattern",
-            span: (*span).into(),
-        }),
+        ast::WhenPat::CharLit { span } => {
+            if expected_ty == builtins.char_ {
+                Ok(())
+            } else {
+                Err(ExprTypeError::WhenCharPatNotChar {
+                    found: lower.fmt_type(expected_ty),
+                    span: (*span).into(),
+                })
+            }
+        }
         ast::WhenPat::Or { span, pats } => {
             // 当前阶段（T0825）后端需要为 or-pattern 生成正确的控制流；
             // 为避免在“不同分支绑定集合不一致”时引入未定义语义，这里先限制：

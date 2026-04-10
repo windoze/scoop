@@ -6,7 +6,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    7,
+                    8,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -21,7 +21,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    8,
+                                    9,
                                 ),
                             },
                             LocalDecl {
@@ -39,7 +39,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    7,
+                                    8,
                                 ),
                             },
                             LocalDecl {
@@ -48,7 +48,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -66,7 +66,7 @@ File {
                                     "g",
                                 ),
                                 ty: TypeId(
-                                    7,
+                                    8,
                                 ),
                             },
                             LocalDecl {
@@ -75,7 +75,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -311,7 +311,7 @@ File {
                         span: 57..78,
                         name: "$env",
                         ty: TypeId(
-                            9,
+                            10,
                         ),
                         local: l0,
                     },
@@ -328,7 +328,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -337,7 +337,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    8,
+                                    9,
                                 ),
                             },
                             LocalDecl {
@@ -446,7 +446,7 @@ File {
                         span: 100..121,
                         name: "$env",
                         ty: TypeId(
-                            9,
+                            10,
                         ),
                         local: l0,
                     },
@@ -463,7 +463,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -472,7 +472,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    8,
+                                    9,
                                 ),
                             },
                             LocalDecl {

@@ -671,6 +671,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`when` 的 Char literal pattern 只能用于 Char，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_char_pat_not_char))]
+    WhenCharPatNotChar {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`when` 的 tuple pattern 长度不匹配：期望 {expected} 个元素，但得到 {found} 个")]
     #[diagnostic(code(scoop::typecheck::when_tuple_pat_arity_mismatch))]
     WhenTuplePatArityMismatch {

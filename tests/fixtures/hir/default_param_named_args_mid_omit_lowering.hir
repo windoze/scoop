@@ -6,7 +6,7 @@ File {
                 fqn: "fixtures.hir.f",
                 name: "f",
                 ty: TypeId(
-                    7,
+                    8,
                 ),
                 params: [
                     Param {

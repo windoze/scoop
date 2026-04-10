@@ -729,6 +729,7 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         let c = match lit {
             hir::LiteralKind::Bool(b) => ConstValue::Bool(*b),
+            hir::LiteralKind::Char(_) => ConstValue::Char,
             hir::LiteralKind::Unit => ConstValue::Unit,
             hir::LiteralKind::Int | hir::LiteralKind::SynthInt(_) => ConstValue::Int,
             hir::LiteralKind::String => ConstValue::String,

@@ -274,6 +274,7 @@ impl RttiContext {
             "String" => Some(self.builtins.string),
             "Unit" => Some(self.builtins.unit),
             "Bool" => Some(self.builtins.bool_),
+            "Char" => Some(self.builtins.char_),
             "Int" => Some(self.builtins.int),
             "UInt" => Some(self.builtins.uint),
             _ => parse_int_width_suffix(name).map(|(signed, bits)| {
@@ -317,6 +318,7 @@ impl RttiContext {
                 ValueTypeKind::Unit
                 | ValueTypeKind::Nothing
                 | ValueTypeKind::Bool
+                | ValueTypeKind::Char
                 | ValueTypeKind::Int
                 | ValueTypeKind::UInt
                 | ValueTypeKind::IntN(_)
@@ -407,6 +409,7 @@ impl RttiContext {
             TypeKind::Value(vk) => match vk {
                 ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
                 ValueTypeKind::Bool => self.bool_layout(),
+                ValueTypeKind::Char => TypeLayout::new(4, 4),
                 ValueTypeKind::Int | ValueTypeKind::UInt => self.word_layout(),
                 ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
                     let size = (bits as u64).div_ceil(8);

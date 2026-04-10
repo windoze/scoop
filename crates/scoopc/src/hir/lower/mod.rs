@@ -1061,6 +1061,7 @@ impl<'a> HirLowering<'a> {
             "scoop.core.Unit" => return self.builtins.unit,
             "scoop.core.Nothing" => return self.builtins.nothing,
             "scoop.core.Bool" => return self.builtins.bool_,
+            "scoop.core.Char" => return self.builtins.char_,
             "scoop.core.Int" => return self.builtins.int,
             // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
             "scoop.unsafe.__AtomicInt" => return self.builtins.int,

@@ -6,7 +6,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    7,
+                    8,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -39,7 +39,7 @@ File {
                                     "f",
                                 ),
                                 ty: TypeId(
-                                    8,
+                                    9,
                                 ),
                             },
                             LocalDecl {
@@ -48,7 +48,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {
@@ -167,7 +167,7 @@ File {
                         span: 60..70,
                         name: "$env",
                         ty: TypeId(
-                            9,
+                            10,
                         ),
                         local: l0,
                     },
@@ -192,7 +192,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    9,
+                                    10,
                                 ),
                             },
                             LocalDecl {

@@ -281,6 +281,7 @@ pub enum Operand {
 #[derive(Debug, Clone)]
 pub enum ConstValue {
     Bool(bool),
+    Char,
     Unit,
     Int,
     String,

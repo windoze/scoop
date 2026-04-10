@@ -14,7 +14,7 @@ File {
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
-                    7,
+                    8,
                 ),
                 params: [],
                 return_ty: TypeId(
@@ -43,7 +43,7 @@ File {
                                         ),
                                         mutable: false,
                                         ty: TypeId(
-                                            8,
+                                            9,
                                         ),
                                         init: Some(
                                             Expr {
@@ -157,7 +157,7 @@ File {
                                                             Expr {
                                                                 span: 281..282,
                                                                 ty: TypeId(
-                                                                    9,
+                                                                    10,
                                                                 ),
                                                                 kind: VarRef(
                                                                     TopLevel {
@@ -250,7 +250,7 @@ File {
                                                     Expr {
                                                         span: 287..288,
                                                         ty: TypeId(
-                                                            9,
+                                                            10,
                                                         ),
                                                         kind: VarRef(
                                                             TopLevel {

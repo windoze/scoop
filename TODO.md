@@ -1051,7 +1051,23 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (846)`）
     - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞（大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err` 等），未发现由本任务新增的 task-specific clippy blocker
 
-### T0146b [TODO] Char 类型语义：type system / HIR / typecheck / comptime
+### T0146b [DONE] Char 类型语义：type system / HIR / typecheck / comptime
+
+- 完成记录：
+  - **builtin type plumbing**：`crates/scoopc/src/ty/mod.rs` 新增 `ValueTypeKind::Char` 与 `BuiltinTypes::char_`，类型显示/布局侧也可识别 `Char`。
+  - **resolver / builtin fallback**：`Char` 现在与 `Int` / `Bool` 一样可作为隐式 builtin 类型解析；静态阶段允许 `Char.toInt()` 作为内建成员调用。
+  - **HIR**：`hir/mod.rs` 新增 `LiteralKind::Char(char)` 与 `WhenPat::CharLit { span, value }`；`hir/lower/*` 统一通过 shared char parser 把 AST Char 字面量/模式降为已解析的 `char` 值，并补齐 `scoop.core.Char` type path lowering。
+  - **typecheck**：Char 字面量推断为 `Char`；补齐 `==` / `!=` / `<` / `<=` / `>` / `>=` 的 Char 比较规则；`when` Char pattern 具备专门类型检查与诊断；`Char.toInt()` 返回 `Int`。
+  - **comptime**：新增 `ConstValue::Char(char)`，支持 Char 字面量求值、Char 比较折叠与 `Char.toInt()` 编译期求值。
+  - **下游接线**：补齐 cone / MIR / RTTI / LLVM 等依赖 `TypeKind` / `LiteralKind` exhaustive match 的最小分支，保持静态阶段与 dump pipeline 可用；真正的运行期 Char emission / codegen 仍留在 T0146c。
+  - **回归覆盖**：
+    - typecheck fixture：`typecheck/char_semantics_basic_ok.scoop`
+    - comptime fixtures：`comptime/char_literal_basic.scoop`、`comptime/char_literal_basic.comptime`
+    - HIR/MIR goldens：刷新受 builtin `TypeId` 漂移影响的 snapshot fixtures
+  - **验证**：
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (848)`）
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞（大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err`），未发现本任务特有的新 clippy blocker
 
 - 描述：在前端语法稳定后，引入真正的 `Char` 类型和 HIR / typecheck / comptime 语义，使 Char 字面量在静态阶段可推断、可比较、可用于 `when` 模式与 const eval。
 - 目标：

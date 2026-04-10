@@ -1039,6 +1039,7 @@ fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
     match v {
         ConstValue::Unit => "()".to_string(),
         ConstValue::Bool(b) => b.to_string(),
+        ConstValue::Char(ch) => format!("{ch:?}"),
         ConstValue::Int(i) => {
             if i.ty.signed {
                 i.as_i128().to_string()

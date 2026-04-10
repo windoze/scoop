@@ -11263,6 +11263,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::LiteralKind::Bool(v) => Ok(CgValue::bool(
                 self.context.bool_type().const_int(*v as u64, false),
             )),
+            hir::LiteralKind::Char(_value) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "char literal",
+                at: span.into(),
+            }),
             hir::LiteralKind::Int => {
                 let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {

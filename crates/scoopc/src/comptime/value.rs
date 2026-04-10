@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 pub enum ConstValue {
     Unit,
     Bool(bool),
+    Char(char),
     Int(ConstInt),
     String(String),
     Tuple(Vec<ConstValue>),

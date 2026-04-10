@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::source::SourceFile;
+use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 
@@ -321,10 +322,15 @@ pub(crate) fn eval_const_expr_with_host(
             let raw = parse_int_literal(text);
             Ok(ConstValue::Int(ConstInt::new(ctx.default_int_ty, raw)))
         }
-        ast::ExprKind::CharLit => Err(ConstEvalError::UnsupportedExpr {
-            kind: "char literal",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::CharLit => {
+            let text = ctx.source.slice(expr.span);
+            let value =
+                parse_char_literal(text).map_err(|_err| ConstEvalError::UnsupportedExpr {
+                    kind: "char literal",
+                    span: expr.span.into(),
+                })?;
+            Ok(ConstValue::Char(value))
+        }
         ast::ExprKind::StringLit => {
             let text = ctx.source.slice(expr.span);
             let bytes = match parse_string_literal_bytes(text) {
@@ -529,6 +535,16 @@ pub(crate) fn eval_const_expr_with_host(
             if let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind {
                 let member_name = ctx.source.slice(member.span);
                 if let Some(result) = try_eval_string_method_intrinsic(
+                    ctx,
+                    host,
+                    expr.span,
+                    receiver,
+                    member_name,
+                    args,
+                )? {
+                    return Ok(result);
+                }
+                if let Some(result) = try_eval_char_method_intrinsic(
                     ctx,
                     host,
                     expr.span,
@@ -847,6 +863,41 @@ fn try_eval_string_method_intrinsic(
     Ok(Some(result))
 }
 
+/// Char 方法 intrinsics（T0146b）。
+///
+/// 当前只补齐 `toInt()` 的编译期求值；运行期/sysroot API 留给 T0146c。
+fn try_eval_char_method_intrinsic(
+    ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
+    call_span: crate::span::Span,
+    receiver_expr: &ast::Expr,
+    method_name: &str,
+    args: &[ast::Expr],
+) -> Result<Option<ConstValue>, ConstEvalError> {
+    if method_name != "toInt" {
+        return Ok(None);
+    }
+
+    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let ConstValue::Char(ch) = recv else {
+        return Ok(None);
+    };
+
+    if !args.is_empty() {
+        return Err(ConstEvalError::ConstFunArityMismatch {
+            name: method_name.to_string(),
+            expected: 0,
+            found: args.len(),
+            span: call_span.into(),
+        });
+    }
+
+    Ok(Some(ConstValue::Int(ConstInt::new(
+        ctx.default_int_ty,
+        ch as u32 as u128,
+    ))))
+}
+
 /// 字节级 indexOf（与 sysroot/string.scoop 语义一致）。
 fn string_index_of(haystack: &str, needle: &str) -> i64 {
     let h = haystack.as_bytes();
@@ -989,6 +1040,7 @@ fn eval_member_access(
             kind: match other {
                 ConstValue::Unit
                 | ConstValue::Bool(_)
+                | ConstValue::Char(_)
                 | ConstValue::Int(_)
                 | ConstValue::String(_) => "member access（非 aggregate）",
                 ConstValue::Tuple(_) | ConstValue::Struct(_) | ConstValue::Enum(_) => {
@@ -1425,11 +1477,21 @@ fn eval_binary_eager(
         | ast::BinaryOp::Le
         | ast::BinaryOp::Gt
         | ast::BinaryOp::Ge => {
+            if let (ConstValue::Char(a), ConstValue::Char(b)) = (&lhs, &rhs) {
+                let ok = match op {
+                    ast::BinaryOp::Lt => a < b,
+                    ast::BinaryOp::Le => a <= b,
+                    ast::BinaryOp::Gt => a > b,
+                    ast::BinaryOp::Ge => a >= b,
+                    _ => unreachable!(),
+                };
+                return Ok(ConstValue::Bool(ok));
+            }
             let (li, ri) = match (lhs, rhs) {
                 (ConstValue::Int(li), ConstValue::Int(ri)) => (li, ri),
                 (l, r) => {
                     return Err(ConstEvalError::OperandTypeMismatch {
-                        expected: "整数",
+                        expected: "整数或 Char",
                         found: binary_found_kind(&l, &r),
                         span: span.into(),
                     });
@@ -1447,6 +1509,11 @@ fn eval_binary_eager(
 
         ast::BinaryOp::Eq | ast::BinaryOp::Ne => match (lhs, rhs) {
             (ConstValue::Bool(a), ConstValue::Bool(b)) => match op {
+                ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
+                ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
+                _ => unreachable!(),
+            },
+            (ConstValue::Char(a), ConstValue::Char(b)) => match op {
                 ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
                 ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
                 _ => unreachable!(),
@@ -1471,7 +1538,7 @@ fn eval_binary_eager(
                 _ => unreachable!(),
             },
             (l, r) => Err(ConstEvalError::OperandTypeMismatch {
-                expected: "相同的 Bool/整数/String",
+                expected: "相同的 Bool/Char/整数/String",
                 found: binary_found_kind(&l, &r),
                 span: span.into(),
             }),
@@ -1616,6 +1683,7 @@ pub(crate) fn value_kind(v: &ConstValue) -> &'static str {
     match v {
         ConstValue::Unit => "Unit",
         ConstValue::Bool(_) => "Bool",
+        ConstValue::Char(_) => "Char",
         ConstValue::Int(_) => "整数",
         ConstValue::String(_) => "String",
         ConstValue::Tuple(_) => "Tuple",
@@ -1628,6 +1696,7 @@ pub(crate) fn value_kind(v: &ConstValue) -> &'static str {
 fn binary_found_kind(lhs: &ConstValue, rhs: &ConstValue) -> &'static str {
     match (lhs, rhs) {
         (ConstValue::Bool(_), ConstValue::Bool(_)) => "Bool",
+        (ConstValue::Char(_), ConstValue::Char(_)) => "Char",
         (ConstValue::Int(_), ConstValue::Int(_)) => "整数",
         (ConstValue::String(_), ConstValue::String(_)) => "String",
         _ => "不匹配的类型组合",

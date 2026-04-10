@@ -45,10 +45,7 @@ pub(super) fn infer_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
-        ast::ExprKind::CharLit => Err(ExprTypeError::UnsupportedExpr {
-            kind: "char literal",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::CharLit => Ok(builtins.char_),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
         ast::ExprKind::Block(b) => infer_block_value_type(

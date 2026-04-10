@@ -1326,6 +1326,10 @@ impl<'a> TypeLowering<'a> {
                 check_arity(&fqn, 0, args.len(), span)?;
                 return Ok(self.builtins.bool_);
             }
+            "scoop.core.Char" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.char_);
+            }
             "scoop.core.Int" => {
                 check_arity(&fqn, 0, args.len(), span)?;
                 return Ok(self.builtins.int);
@@ -1568,6 +1572,7 @@ impl<'a> TypeLowering<'a> {
                 ValueTypeKind::Unit
                 | ValueTypeKind::Nothing
                 | ValueTypeKind::Bool
+                | ValueTypeKind::Char
                 | ValueTypeKind::Int
                 | ValueTypeKind::UInt
                 | ValueTypeKind::IntN(_)
@@ -1826,6 +1831,17 @@ impl<'a> TypeLowering<'a> {
                     });
                 }
                 return Ok(self.builtins.bool_);
+            }
+            // `Char`：内建 Unicode scalar value。
+            "scoop.core.Char" => {
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
+                return Ok(self.builtins.char_);
             }
             // `Int/UInt`：word-sized 整数。
             "scoop.core.Int" => {
@@ -2854,6 +2870,7 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Unit" | "scoop.core.Unit" => Some("scoop.core.Unit"),
         "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
         "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
+        "Char" | "scoop.core.Char" => Some("scoop.core.Char"),
         "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
