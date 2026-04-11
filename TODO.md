@@ -206,7 +206,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_escape_indirect`，build-fail `effect_resume_mixed_escape_direct_indirect_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b0 [TODO] Effect：LLVM immediate-resume tail 中嵌套 `handle` 结果表达式
+### T2003c0b2b0 [DONE] Effect：LLVM immediate-resume tail 中嵌套 `handle` 结果表达式
 - 描述：为实现 `T2003c0b2b1`，尝试把 mixed-arm body 重写成“outer immediate-resume handle + inner single-arm escape-continuation handle tail”。但手写等价程序当前也会在 LLVM codegen 报 `value coercion`，说明“immediate-resume tail 中把嵌套 `handle` 作为结果表达式继续 lowering”本身还是缺口，需要先补。
 - 目标：
   - `codegen_handle_expr_immediate_resume` 的 resumed tail / final value 路径可接受嵌套 `handle` 结果表达式，不再在手写等价程序上报 `value coercion`。
@@ -217,6 +217,10 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2a
+- 完成说明：
+  - `codegen_immediate_resume_top_level_tail_and_finalize` 现已为 tail 中的表达式语句显式传递 expected type：最后一个表达式使用 `Some(out_ty)`，非最后表达式使用 `Some(Unit)`，避免嵌套 `handle` 在 LLVM codegen 中丢失结果类型上下文。
+  - 已新增 run-pass 回归：`effect_resume_nested_escape_handle_tail`，覆盖“outer immediate-resume + inner single-arm escape handle tail”的手写等价程序。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2b1 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
 - 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为单-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；这一步现在依赖 `T2003c0b2b0` 提供 nested-handle result lowering。

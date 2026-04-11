@@ -948,7 +948,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value = CgValue::unit();
                 }
                 hir::StmtKind::Expr(expr) => {
-                    let v = self.codegen_expr(expr)?;
+                    // T2003c0b2b0：tail 的最后一个表达式可能本身就是 `handle`。
+                    // 这里必须向下传递结果期望类型，否则嵌套 `handle` 会在
+                    // `codegen_handle_expr` 中因为缺少 expected type 而退化成后续
+                    // `value coercion` 失败。
+                    let expected = if is_last {
+                        Some(out_ty)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     value = if is_last { v } else { CgValue::unit() };
                 }
                 hir::StmtKind::Return { .. } => {

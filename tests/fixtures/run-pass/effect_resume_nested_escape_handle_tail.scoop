@@ -1,0 +1,64 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_nested_escape_handle_tail.stdout
+//
+// T2003c0b2b0: immediate-resume tail accepts a nested escape-continuation handle
+// as the final result expression.
+// - outer handle first hits an immediate-resume arm;
+// - resumed tail finishes by evaluating an inner single-arm escape handle;
+// - inner handle returns its arm result to the outer handle without LLVM
+//   `value coercion`, and the saved continuation can still resume later.
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): String
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        println("outer_body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        handle {
+            println("inner_body")
+            val msg: String = Ask.ask()
+            println("after_ask")
+            println(msg)
+            x + 1
+        } with {
+            Ask.ask(), k -> {
+                println("ask_arm")
+                saved = Some(k)
+                7
+            }
+        }
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+    }
+
+    println("after_outer")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
