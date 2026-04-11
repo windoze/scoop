@@ -152,8 +152,20 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_while_body_single_perform`、build-fail `effect_resume_while_nested_perform_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003c0 [TODO] Effect：LLVM 多 arm handle dispatch（mixed-arm immediate-resume 前置能力）
+- 描述：审计 `T2003c` 时发现，虽然 typecheck/HIR 已允许 mixed-arm，但 LLVM `codegen_handle_expr` 仍在 `handle.arms.len() != 1` 时直接报 `handle arm count (only 1 supported)`。在这一前置能力落地前，mixed-arm immediate-resume 的 run-pass 回归无法实现。
+- 目标：
+  - LLVM codegen 支持单个 `handle` 中的多 arm dispatch，不再把多 arm 统一拒绝在 `UnsupportedMainBody`。
+  - mixed-arm 下的 dispatch 优先级与源码 arm 顺序一致，且任一 arm body 执行期间同一 source-handle 的 sibling arms 不会发生自捕获。
+  - 至少收口“一个 immediate-resume arm + 其余 non-resuming/escape arms”的最小可运行子集，并对仍未支持的组合给出稳定诊断。
+- 验收：
+  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume 的最小可运行路径与当前阶段明确不支持的组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003b3
+
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
-- 描述：在 `finally` 与控制流主链路落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
+- 描述：在 `finally`、控制流主链路与 `T2003c0` 的 mixed-arm LLVM dispatch 落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
 - 目标：
   - 为 mixed-arm、nested handle、GC stress 等组合补齐端到端回归。
   - 相关 immediate-resume 用例在 `SCOOP_GC_STRESS=1` 下稳定。
@@ -162,7 +174,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003b3
+- 依赖：T2003c0
 
 ## T21：Structured Concurrency / `Task<T>`
 
