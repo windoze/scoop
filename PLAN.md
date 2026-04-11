@@ -68,7 +68,9 @@ cargo run -p scoop --features llvm -- test
   - 已审计 `T2003c0b2c`：确认它同时跨越 nested direct-site replay、while 重入，以及 nested indirect call-site suspension 三类不同实现问题，单轮风险过高，因此继续拆成 `T2003c0b2c1` / `T2003c0b2c2` / `T2003c0b2c3`。
   - 继续审计 `T2003c0b2c1` 后确认，`nested block` 与 `if branch` 的 replay 复杂度也不对称：前者主要是顺序前缀/尾部 replay，后者还需处理双分支拦截与 CFG 合流。因此再拆成 `T2003c0b2c1a` / `T2003c0b2c1b`。
   - T2003c0b2c1a 已完成：mixed-arm site matrix 现已支持 statement-position nested block 中的 direct sibling escape site，覆盖 pre/post-immediate 两侧 replay；block-local body capture/lift 也已接入 continuation state。
-  - 当前下一步调整为 `T2003c0b2c1b`：继续补 sibling escape-continuation 在 if branch 中的 direct site；while body / nested indirect 作为后续子任务承接。
+  - T2003c0b2c1b 已完成：mixed-arm site matrix 现已支持 statement-position if then/else branch 中的 direct sibling escape site；step trampoline、pre-immediate state0 与 post-immediate state1 现已共享条件分派 helper，在命中分支 replay branch tail、未命中分支顺序执行后统一回到 after-if top-level tail。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_if`、`effect_resume_mixed_escape_post_immediate_if`，并把旧的 nested-if 负例替换为 while 负例 `effect_resume_mixed_escape_while_is_error`，继续为 `T2003c0b2c2` 锁住 while body 边界。
+  - 当前下一步调整为 `T2003c0b2c2`：继续补 sibling escape-continuation 在 while body 中的 direct site；nested indirect 作为后续子任务承接。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -86,7 +88,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2b2（已完成）：扩展 sibling escape-continuation 到 post-immediate indirect/direct+indirect site matrix。
   - T2003c0b2b3（已完成）：扩展 sibling escape-continuation 到 pre-immediate top-level sites。
   - T2003c0b2c1a（已完成）：补 sibling escape-continuation 在 nested block 中的 direct site。
-  - T2003c0b2c1b：补 sibling escape-continuation 在 if branch 中的 direct site。
+  - T2003c0b2c1b（已完成）：补 sibling escape-continuation 在 if branch 中的 direct site。
   - T2003c0b2c2：补 sibling escape-continuation 在 while body 中的 direct site。
   - T2003c0b2c3：补 sibling escape-continuation 的 nested indirect call site 与 nested direct/indirect site matrix。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。

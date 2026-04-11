@@ -1,80 +1,47 @@
-# 当前执行记录
+# 当前执行计划
 
-## 约束说明
+## 约束与目标
 
-我不能写出逐字逐句的完整内部推理，但会在这里持续维护一份足够详细的执行计划、决策依据、关键发现与进度记录，便于外部检查。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+- 在开始任何仓库检查与命令执行前，先记录当前计划；后续若计划变化或关键步骤完成，将持续更新此文件。
+- 如果最新提交提到预存问题，需要优先修复这些问题，再进入 `TODO.md` 任务。
+- 如果首个未完成任务过大，需要先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 完成任务后需要补测试、更新文档状态，并提交 Git commit。
 
-## 初始执行计划
+## 当前已知执行步骤
 
-1. 检查最新一次 git 提交，确认提交说明里是否提到已有已知问题；如果有，先定位并修复这些问题。
-2. 阅读 `TODO.md`，找到第一个未完成任务。
-3. 评估该任务是否足够小且可以在当前轮次完整完成。
-4. 如果任务过大：
-   - 拆分为更小的子任务；
-   - 更新 `PLAN.md`；
-   - 在 `TODO.md` 中替换或补充为新的子任务；
-   - 仅执行拆分后的第一个子任务。
-5. 实现当前要执行的任务。
-6. 运行相关格式化、lint、测试，至少覆盖：
-   - `cargo fmt --check` 或必要时 `cargo fmt`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 与变更相关的测试，必要时运行更完整的测试集
-7. 更新文档与任务状态：
-   - 在 `TODO.md` 中将当前任务标记为完成；
-   - 在 `PLAN.md` 中反映当前状态和后续顺序；
-   - 必要时补充 `README.md` 或内联注释。
-8. 检查工作区差异，确认没有遗漏。
-9. 提交 git commit，提交信息应清晰描述本轮完成的任务。
-10. 停止，不继续处理下一个任务。
+1. 检查最新一次 Git 提交信息，确认是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`、必要的相关文档与代码，判断该任务是否足够小且可直接实施。
+4. 如果任务过大，先拆成更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
+5. 实现当前目标任务。
+6. 运行相关测试，并补充缺失测试；同时确保 `cargo fmt`、相关测试以及 `cargo clippy --all-targets -- -D warnings` 不出现问题。
+7. 更新 `TODO.md`、`PLAN.md`、必要文档（含 `README.md`，若本轮改动需要反映）。
+8. 提交本轮改动，提交信息与任务编号或实际改动保持清晰一致。
+9. 停止，不继续处理下一个任务。
 
-## 进度
+## 当前风险与待确认事项
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交：
-  - 最新提交为 `22d9079 [T2003c0b2b3] Support mixed-arm pre-immediate escape sites`。
-  - 提交信息正文未列出“已知遗留问题 / follow-up fix”，因此没有需要在任务前先修的显式 pre-existing issue。
-- 已读取 `TODO.md` / `PLAN.md`：
-  - 第一个未完成任务是 `T2003c0b2c`。
-  - 该任务原始范围同时包含 sibling escape-continuation 的 nested direct site、nested indirect call site，以及 block / if / while 三类控制流形状。
-- 复杂度评估：
-  - 当前 mixed-arm 路径只有 top-level site matrix；nested direct 需要引入类似 single-arm escape continuation 的 resume-path / nested intercept 机制。
-  - nested indirect 目前连扫描器都还是 top-level-only，依赖另一套 call-site suspension / callee-state replay 扩展。
-  - 因此 `T2003c0b2c` 必须拆分，不能作为单轮可安全回归的任务直接实现。
-- 拆分方案（准备同步到 `TODO.md` / `PLAN.md`）：
-  1. `T2003c0b2c1`：mixed-arm sibling escape-continuation 支持 nested block / if 中的 direct site。
-  2. `T2003c0b2c2`：扩展到 while body 中的 direct site。
-  3. `T2003c0b2c3`：补 nested indirect call sites，并收口 direct/indirect 共存语义。
-- 本轮目标：
-  - 先完成任务拆分；
-  - 然后只执行 `T2003c0b2c1`；
-  - 完成后更新 `TODO.md` / `PLAN.md` / 本文件，跑相关测试并提交 commit。
-
-## 进一步评估（继续细拆）
-
-- 在阅读 `single-arm escape continuation` 的 nested direct replay 代码后，确认：
-  - `nested block` 主要是顺序前缀/尾部 replay；
-  - `if then/else` 需要双分支拦截、未命中分支顺序执行与 CFG 合流；
-  - 两者虽然同属 direct control-flow shape，但实现复杂度仍不对称。
-- 因此准备把当前的 `T2003c0b2c1` 再拆成：
-  1. `T2003c0b2c1a`：nested block direct site。
-  2. `T2003c0b2c1b`：if branch direct site。
-- 当前轮次进一步收口为 `T2003c0b2c1a`，避免把 block 与 if 的 replay 逻辑绑在同一提交里。
-
-## 当前结果
-
-- `T2003c0b2c1a` 已实现完成。
-- 代码侧完成项：
-  - mixed-arm escape direct site 新增 block-only 扫描与 resume-path 表示；
-  - mixed-arm site matrix 现可识别 statement-position nested block 中的 direct escape site，并在 pre-immediate / post-immediate 两侧 replay block tail；
-  - nested block 中 perform 前声明且在 resume 后继续使用的 body local，现已纳入 capture/lift 分析与 state 恢复；
-  - `if` / `while` / nested indirect 仍保持稳定诊断，不被本轮误放开。
-- 新增回归：
-  - `tests/fixtures/run-pass/effect_resume_mixed_escape_pre_immediate_block.scoop`
-  - `tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_block.scoop`
-  - 现有负例 `tests/fixtures/build/effect_resume_mixed_escape_pre_immediate_nested_is_error.scoop` 继续失败，确认 if 分支仍留给后续任务。
+- 已检查最新提交：`[T2003c0b2c1a] Support mixed-arm nested-block escape sites`。提交说明未额外列出需要先修复的遗留问题。
+- 已定位 `TODO.md` 中首个未完成任务：`T2003c0b2c1b`，主题是 mixed-arm `handle` 中 sibling escape-continuation 在 `if branch` 的 direct site。
+- 已完成实现面审计：该任务可以直接实现，不需要继续拆分。
+- 计划中的代码改动点：
+  1. 扩展 mixed-arm direct-site 扫描路径，让 `if then/else` branch 内的 direct perform site 能被记录为 resume path。
+  2. 扩展 mixed-arm body decl 收集、used-after 分析，以及 nested prefix/tail replay helper，使其识别 `if` 分支 tail 与分支后的合流。
+  3. 扩展 site-matrix lowering：同一顶层 `if` 语句中允许出现 then/else 两个候选 escape site，并在 `state0`、`state1`、step trampoline 中按运行时条件选择命中的分支。
+  4. 保留 while body 与 nested indirect 的稳定诊断，不把范围扩到 `T2003c0b2c2` / `T2003c0b2c3`。
+  5. 新增/调整 fixtures：补 pre-immediate 与 post-immediate 的 if-branch run-pass 回归，并把旧的 nested-if 负例改成 while body 负例或等价稳定诊断覆盖。
+- 完成代码后将运行格式化、相关测试和 clippy，然后更新 `TODO.md` / `PLAN.md` 并提交。
+- 已完成实现：
+  - `crates/scoopc/src/llvm/codegen/effect.rs` 已支持 mixed-arm sibling escape-continuation 在 statement-position `if` then/else branch 中的 direct site。
+  - step trampoline、pre-immediate `state0`、post-immediate `state1` 已接入共享的 if-branch dispatch helper。
+  - 已新增 fixtures：`effect_resume_mixed_escape_pre_immediate_if`、`effect_resume_mixed_escape_post_immediate_if`；旧的 nested-if 负例已替换为 `effect_resume_mixed_escape_while_is_error`。
 - 已完成验收：
   - `cargo fmt --check`
   - `cargo clippy --workspace --all-targets -- -D warnings`
   - `cargo test --all`
+  - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 下一未完成任务将是 `T2003c0b2c1b`（if branch 的 direct site），本轮到提交后即停止。
+- 当前剩余动作：检查工作区、提交本轮改动，然后停止。
+- 可能存在用户已有未提交改动；执行时需避免覆盖无关修改。
+- 任务可能依赖尚未实现的语言特性；若确认缺失，需要按要求调整 `TODO.md` / `PLAN.md` 后提交并停止。

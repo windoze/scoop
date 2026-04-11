@@ -15,11 +15,11 @@ effect Ask {
 
 fun main() {
     val result: Int = handle {
-        if (true) {
-            val first: String = Ask.ask(0)
+        var i: Int = 0
+        while (i < 1) {
+            val first: String = Ask.ask(i)
             println(first)
-        } else {
-            println("skip")
+            i = i + 1
         }
         val x: Int = Yield.next()
         x + 1
