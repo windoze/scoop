@@ -1334,12 +1334,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         hir::StmtKind::Expr(expr) => {
                             self.scan_expr_stmt(cg, expr, top_level_stmt_idx)?;
                         }
-                        hir::StmtKind::While { body, .. } => {
-                            if cg.block_contains_nested_indirect_perform_call_site(body) {
+                        hir::StmtKind::While { cond, body } => {
+                            if cg.expr_contains_nested_indirect_perform_call_site(cond) {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle mixed-arm escape continuation (while body indirect call site not yet supported)",
-                                    at: body.span.into(),
+                                    kind: "handle mixed-arm escape continuation (while condition with indirect call site not yet supported)",
+                                    at: cond.span.into(),
                                 });
+                            }
+                            if cg.block_contains_nested_indirect_perform_call_site(body) {
+                                self.path.push(MixedEscapeDirectFrame::WhileBody {
+                                    while_cond: cond,
+                                    while_body: body,
+                                    stmt_idx: 0,
+                                });
+                                let result = self.scan_stmts(cg, &body.stmts, top_level_stmt_idx);
+                                self.path.pop();
+                                result?;
                             }
                         }
                         hir::StmtKind::Return { value } => {
@@ -1459,6 +1469,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut seen_nested_block_stmt_idx: HashSet<usize> = HashSet::new();
         let mut seen_if_then_stmt_idx: HashSet<usize> = HashSet::new();
         let mut seen_if_else_stmt_idx: HashSet<usize> = HashSet::new();
+        let mut seen_while_stmt_idx: HashSet<usize> = HashSet::new();
         for site in &state.sites {
             let Some(first_frame) = site.resume_path.first() else {
                 continue;
@@ -1499,10 +1510,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 MixedEscapeDirectFrame::WhileBody { .. } => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape continuation (while body indirect call site not yet supported)",
-                        at: site.decl.span.into(),
-                    });
+                    if !Self::mixed_escape_while_nested_path_supported(&site.resume_path) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                    if !seen_while_stmt_idx.insert(site.top_level_stmt_idx) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (multiple indirect sites in the same while body not yet supported)",
+                            at: site.decl.span.into(),
+                        });
+                    }
                 }
             }
         }
@@ -2192,6 +2211,172 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_mixed_escape_matrix_while_prefix_to_indirect_site<'hir>(
+        &mut self,
+        site: &MixedEscapeIndirectSite<'hir>,
+        top_stmt: &'hir hir::Stmt,
+        body_lift_ids: &HashSet<hir::SymbolId>,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(first_frame) = site.resume_path.first() else {
+            return Ok(());
+        };
+        let MixedEscapeDirectFrame::WhileBody {
+            while_cond: expected_cond,
+            while_body: expected_body,
+            stmt_idx: perform_stmt_idx,
+        } = first_frame
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: site.decl.span.into(),
+            });
+        };
+        if !Self::mixed_escape_while_nested_path_supported(&site.resume_path) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                at: site.decl.span.into(),
+            });
+        }
+
+        let hir::StmtKind::While { cond, body } = &top_stmt.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while statement)",
+                at: top_stmt.span.into(),
+            });
+        };
+        if !std::ptr::eq(cond, *expected_cond) || !std::ptr::eq(body, *expected_body) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (while path mismatch)",
+                at: top_stmt.span.into(),
+            });
+        }
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: top_stmt.span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: top_stmt.span.into(),
+            })?;
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_prefix_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_prefix_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_prefix_after");
+
+        self.builder.build_unconditional_branch(cond_bb)?;
+
+        self.builder.position_at_end(after_bb);
+        self.builder.build_unreachable()?;
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (while condition value)",
+            at: cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        let base_env = self.env.clone();
+        self.builder.position_at_end(body_bb);
+        self.env = base_env;
+        self.env.push_scope();
+
+        for (idx, body_stmt) in body.stmts.iter().enumerate() {
+            if idx < *perform_stmt_idx {
+                self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+                continue;
+            }
+
+            if site.resume_path.len() == 1 {
+                let hir::StmtKind::Val(decl) = &body_stmt.kind else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (expected indirect call binding)",
+                        at: body_stmt.span.into(),
+                    });
+                };
+                if !std::ptr::eq(decl, site.decl) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (while path mismatch)",
+                        at: decl.span.into(),
+                    });
+                }
+                return Ok(());
+            }
+
+            match site.resume_path[1] {
+                MixedEscapeDirectFrame::Block {
+                    block: expected_block,
+                    ..
+                } => {
+                    let hir::StmtKind::Expr(expr) = &body_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (expected block statement)",
+                            at: body_stmt.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (expected block statement)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(block, expected_block) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (while path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+
+                    self.env.push_scope();
+                    return self.codegen_mixed_escape_matrix_prefix_to_indirect_site_from_stmts(
+                        site,
+                        1,
+                        &block.stmts,
+                        body_lift_ids,
+                    );
+                }
+                MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. } => {
+                    let nested_site = MixedEscapeIndirectSite {
+                        top_level_stmt_idx: site.top_level_stmt_idx,
+                        decl: site.decl,
+                        init: site.init,
+                        id: site.id,
+                        resume_path: site.resume_path[1..].to_vec(),
+                    };
+                    return self.codegen_mixed_escape_matrix_if_branch_prefix_to_indirect_site(
+                        &nested_site,
+                        body_stmt,
+                        body_lift_ids,
+                    );
+                }
+                MixedEscapeDirectFrame::WhileBody { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                        at: site.decl.span.into(),
+                    });
+                }
+            }
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (indirect site missing)",
+            at: site.decl.span.into(),
+        })
+    }
+
     fn codegen_mixed_escape_matrix_prefix_to_indirect_site<'hir>(
         &mut self,
         site: &MixedEscapeIndirectSite<'hir>,
@@ -2213,12 +2398,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     body_lift_ids,
                 )
             }
-            Some(MixedEscapeDirectFrame::WhileBody { .. }) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape continuation (while body indirect call site not yet supported)",
-                    at: site.decl.span.into(),
-                })
-            }
+            Some(MixedEscapeDirectFrame::WhileBody { .. }) => self
+                .codegen_mixed_escape_matrix_while_prefix_to_indirect_site(
+                    site,
+                    top_stmt,
+                    body_lift_ids,
+                ),
         }
     }
 
@@ -2242,7 +2427,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             Some(MixedEscapeDirectFrame::WhileBody { .. }) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape continuation (while body indirect call site not yet supported)",
+                    kind: "handle mixed-arm escape continuation (while body indirect re-entry needs dedicated lowering)",
                     at: site.decl.span.into(),
                 })
             }
@@ -2380,6 +2565,229 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: site.decl.span.into(),
             }),
         }
+    }
+
+    fn codegen_mixed_escape_matrix_while_indirect_site_stmt<'hir, F>(
+        &mut self,
+        body_stmt: &'hir hir::Stmt,
+        site_pc: usize,
+        site: &MixedEscapeIndirectSite<'hir>,
+        body_lift_ids: &HashSet<hir::SymbolId>,
+        emit_site: &mut F,
+    ) -> Result<(), LlvmEmitError>
+    where
+        F: FnMut(&mut Self, usize, &MixedEscapeIndirectSite<'hir>) -> Result<(), LlvmEmitError>,
+    {
+        if site.resume_path.len() == 1 {
+            let hir::StmtKind::Val(decl) = &body_stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (expected indirect call binding)",
+                    at: body_stmt.span.into(),
+                });
+            };
+            if !std::ptr::eq(decl, site.decl) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (while path mismatch)",
+                    at: decl.span.into(),
+                });
+            }
+            emit_site(self, site_pc, site)?;
+            return Ok(());
+        }
+
+        match site.resume_path[1] {
+            MixedEscapeDirectFrame::Block {
+                block: expected_block,
+                ..
+            } => {
+                let hir::StmtKind::Expr(expr) = &body_stmt.kind else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (expected block statement)",
+                        at: body_stmt.span.into(),
+                    });
+                };
+                let hir::ExprKind::Block(block) = &expr.kind else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (expected block statement)",
+                        at: expr.span.into(),
+                    });
+                };
+                if !std::ptr::eq(block, expected_block) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (while path mismatch)",
+                        at: expr.span.into(),
+                    });
+                }
+
+                self.env.push_scope();
+                self.codegen_mixed_escape_matrix_prefix_to_indirect_site_from_stmts(
+                    site,
+                    1,
+                    &block.stmts,
+                    body_lift_ids,
+                )?;
+                emit_site(self, site_pc, site)?;
+                Ok(())
+            }
+            MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. } => {
+                let nested_site = MixedEscapeIndirectSite {
+                    top_level_stmt_idx: site.top_level_stmt_idx,
+                    decl: site.decl,
+                    init: site.init,
+                    id: site.id,
+                    resume_path: site.resume_path[1..].to_vec(),
+                };
+                let nested_escape_sites = [MatrixEscapeSite {
+                    stmt_idx: 0,
+                    decl: site.decl,
+                    id: site.id,
+                    kind: MatrixEscapeSiteKind::Indirect { site: nested_site },
+                }];
+                self.codegen_mixed_escape_matrix_if_stmt_indirect_sites(
+                    body_stmt,
+                    &[0],
+                    &nested_escape_sites,
+                    body_lift_ids,
+                    |cg, _nested_pc, _nested_site| emit_site(cg, site_pc, site),
+                )
+            }
+            MixedEscapeDirectFrame::WhileBody { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                at: site.decl.span.into(),
+            }),
+        }
+    }
+
+    fn codegen_mixed_escape_matrix_while_stmt_indirect_site<'hir, F>(
+        &mut self,
+        stmt: &'hir hir::Stmt,
+        site_pc: usize,
+        site: &MixedEscapeIndirectSite<'hir>,
+        body_lift_ids: &HashSet<hir::SymbolId>,
+        mut emit_site: F,
+    ) -> Result<(), LlvmEmitError>
+    where
+        F: FnMut(&mut Self, usize, &MixedEscapeIndirectSite<'hir>) -> Result<(), LlvmEmitError>,
+    {
+        let Some(first_frame) = site.resume_path.first() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (missing while path)",
+                at: site.decl.span.into(),
+            });
+        };
+        let MixedEscapeDirectFrame::WhileBody {
+            while_cond: expected_cond,
+            while_body: expected_body,
+            stmt_idx: perform_stmt_idx,
+        } = first_frame
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: site.decl.span.into(),
+            });
+        };
+        if !Self::mixed_escape_while_nested_path_supported(&site.resume_path) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                at: site.decl.span.into(),
+            });
+        }
+
+        let hir::StmtKind::While { cond, body } = &stmt.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while statement)",
+                at: stmt.span.into(),
+            });
+        };
+        if !std::ptr::eq(cond, *expected_cond) || !std::ptr::eq(body, *expected_body) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (while path mismatch)",
+                at: stmt.span.into(),
+            });
+        }
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: stmt.span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: stmt.span.into(),
+            })?;
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_while_after");
+
+        self.builder.build_unconditional_branch(cond_bb)?;
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (while condition value)",
+            at: cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        let base_env = self.env.clone();
+
+        self.builder.position_at_end(body_bb);
+        self.env = base_env.clone();
+        self.env.push_scope();
+
+        for (idx, body_stmt) in body.stmts.iter().enumerate() {
+            if idx < *perform_stmt_idx {
+                self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+                continue;
+            }
+
+            self.codegen_mixed_escape_matrix_while_indirect_site_stmt(
+                body_stmt,
+                site_pc,
+                site,
+                body_lift_ids,
+                &mut emit_site,
+            )?;
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                if matches!(
+                    site.resume_path.get(1),
+                    Some(MixedEscapeDirectFrame::Block { .. })
+                ) {
+                    self.codegen_mixed_escape_matrix_nested_tail_after_indirect_site_from_depth(
+                        site,
+                        1,
+                        body_lift_ids,
+                    )?;
+                }
+                for body_stmt in body.stmts.iter().skip(*perform_stmt_idx + 1) {
+                    self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+                }
+                self.env.pop_scope();
+                self.builder.build_unconditional_branch(cond_bb)?;
+            }
+            self.env = base_env;
+            self.builder.position_at_end(after_bb);
+            return Ok(());
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (indirect site missing)",
+            at: site.decl.span.into(),
+        })
     }
 
     fn codegen_mixed_escape_matrix_if_stmt_direct_sites<'hir, F>(
@@ -3009,6 +3417,136 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "handle mixed-arm escape continuation (perform site missing)",
+            at: site.decl.span.into(),
+        })
+    }
+
+    fn codegen_mixed_escape_matrix_while_tail_after_indirect_site<'hir, F>(
+        &mut self,
+        site_pc: usize,
+        site: &MixedEscapeIndirectSite<'hir>,
+        body_lift_ids: &HashSet<hir::SymbolId>,
+        mut emit_site: F,
+    ) -> Result<(), LlvmEmitError>
+    where
+        F: FnMut(&mut Self, usize, &MixedEscapeIndirectSite<'hir>) -> Result<(), LlvmEmitError>,
+    {
+        let Some(first_frame) = site.resume_path.first() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (missing while path)",
+                at: site.decl.span.into(),
+            });
+        };
+        let MixedEscapeDirectFrame::WhileBody {
+            while_cond,
+            while_body,
+            stmt_idx: perform_stmt_idx,
+        } = first_frame
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: site.decl.span.into(),
+            });
+        };
+        if !Self::mixed_escape_while_nested_path_supported(&site.resume_path) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (deeper nested indirect site in while body not yet supported)",
+                at: site.decl.span.into(),
+            });
+        }
+
+        if site.resume_path.len() > 1 {
+            self.codegen_mixed_escape_matrix_nested_tail_after_indirect_site_from_depth(
+                site,
+                1,
+                body_lift_ids,
+            )?;
+        }
+        for body_stmt in while_body.stmts.iter().skip(*perform_stmt_idx + 1) {
+            self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+        }
+        self.env.pop_scope();
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: site.decl.span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: site.decl.span.into(),
+            })?;
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_tail_while_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_tail_while_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "mixed_escape_matrix_tail_while_after");
+
+        self.builder.build_unconditional_branch(cond_bb)?;
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(while_cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (while condition value)",
+            at: while_cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        let base_env = self.env.clone();
+
+        self.builder.position_at_end(body_bb);
+        self.env = base_env.clone();
+        self.env.push_scope();
+
+        for (idx, body_stmt) in while_body.stmts.iter().enumerate() {
+            if idx < *perform_stmt_idx {
+                self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+                continue;
+            }
+
+            self.codegen_mixed_escape_matrix_while_indirect_site_stmt(
+                body_stmt,
+                site_pc,
+                site,
+                body_lift_ids,
+                &mut emit_site,
+            )?;
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                if matches!(
+                    site.resume_path.get(1),
+                    Some(MixedEscapeDirectFrame::Block { .. })
+                ) {
+                    self.codegen_mixed_escape_matrix_nested_tail_after_indirect_site_from_depth(
+                        site,
+                        1,
+                        body_lift_ids,
+                    )?;
+                }
+                for body_stmt in while_body.stmts.iter().skip(*perform_stmt_idx + 1) {
+                    self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+                }
+                self.env.pop_scope();
+                self.builder.build_unconditional_branch(cond_bb)?;
+            }
+            self.env = base_env;
+            self.builder.position_at_end(after_bb);
+            return Ok(());
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle mixed-arm escape continuation (indirect site missing)",
             at: site.decl.span.into(),
         })
     }
@@ -8699,11 +9237,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut if_direct_site_pcs_by_stmt_idx: HashMap<usize, Vec<usize>> = HashMap::new();
         let mut if_indirect_site_pcs_by_stmt_idx: HashMap<usize, Vec<usize>> = HashMap::new();
         let mut while_direct_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        let mut while_indirect_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
         let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
         for (stmt_idx, site_pcs) in &escape_site_pcs_by_stmt_idx {
             let mut if_direct_sites: Vec<usize> = Vec::new();
             let mut if_indirect_sites: Vec<usize> = Vec::new();
             let mut while_direct_sites: Vec<usize> = Vec::new();
+            let mut while_indirect_sites: Vec<usize> = Vec::new();
             for &pc in site_pcs {
                 if let MatrixEscapeSiteKind::Direct { site } = &escape_sites[pc].kind
                     && matches!(
@@ -8725,6 +9265,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else if let MatrixEscapeSiteKind::Indirect { site } = &escape_sites[pc].kind
                     && matches!(
                         site.resume_path.first(),
+                        Some(MixedEscapeDirectFrame::WhileBody { .. })
+                    )
+                {
+                    while_indirect_sites.push(pc);
+                } else if let MatrixEscapeSiteKind::Indirect { site } = &escape_sites[pc].kind
+                    && matches!(
+                        site.resume_path.first(),
                         Some(
                             MixedEscapeDirectFrame::IfThen { .. }
                                 | MixedEscapeDirectFrame::IfElse { .. }
@@ -8735,7 +9282,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
             if !if_direct_sites.is_empty() {
-                if !if_indirect_sites.is_empty() || !while_direct_sites.is_empty() {
+                if !if_indirect_sites.is_empty()
+                    || !while_direct_sites.is_empty()
+                    || !while_indirect_sites.is_empty()
+                {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle mixed-arm escape continuation (multiple sites per top-level statement not yet supported)",
                         at: handle.body.stmts[*stmt_idx].span.into(),
@@ -8745,7 +9295,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             if !if_indirect_sites.is_empty() {
-                if !while_direct_sites.is_empty() {
+                if !while_direct_sites.is_empty() || !while_indirect_sites.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle mixed-arm escape continuation (multiple sites per top-level statement not yet supported)",
                         at: handle.body.stmts[*stmt_idx].span.into(),
@@ -8755,13 +9305,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
             if !while_direct_sites.is_empty() {
-                if site_pcs.len() > 1 || while_direct_sites.len() > 1 {
+                if site_pcs.len() > 1
+                    || while_direct_sites.len() > 1
+                    || !while_indirect_sites.is_empty()
+                {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle mixed-arm escape continuation (multiple sites in the same while body not yet supported)",
                         at: handle.body.stmts[*stmt_idx].span.into(),
                     });
                 }
                 while_direct_site_pc_by_stmt_idx.insert(*stmt_idx, while_direct_sites[0]);
+                continue;
+            }
+            if !while_indirect_sites.is_empty() {
+                if site_pcs.len() > 1 || while_indirect_sites.len() > 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (multiple sites in the same while body not yet supported)",
+                        at: handle.body.stmts[*stmt_idx].span.into(),
+                    });
+                }
+                while_indirect_site_pc_by_stmt_idx.insert(*stmt_idx, while_indirect_sites[0]);
                 continue;
             }
             if site_pcs.len() > 1 {
@@ -9571,10 +10134,90 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             escape_resume_value_ty,
                             call_result,
                         )?;
-                        cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
-                            indirect_site,
-                            &body_lift_ids,
-                        )?;
+                        if matches!(
+                            indirect_site.resume_path.first(),
+                            Some(MixedEscapeDirectFrame::WhileBody { .. })
+                        ) {
+                            cg.codegen_mixed_escape_matrix_while_tail_after_indirect_site(
+                                site_pc,
+                                indirect_site,
+                                &body_lift_ids,
+                                |cg, next_pc, next_site| {
+                                    for (field_idx, cap) in
+                                        outer_visible_supported.iter().enumerate()
+                                    {
+                                        let field_ptr = cg.builder.build_struct_gep(
+                                            state_ty,
+                                            state_ptr,
+                                            outer_field_base.saturating_add(field_idx as u32),
+                                            "mixed_escape_matrix_step_capture_outer_gep",
+                                        )?;
+                                        let local = cg.env.get(cap.id).ok_or(
+                                            LlvmEmitError::UnsupportedMainBody {
+                                                kind: "mixed escape capture local not found",
+                                                at: next_site.decl.span.into(),
+                                            },
+                                        )?;
+                                        if local.ty != cap.ty {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "mixed escape capture local type mismatch",
+                                                at: next_site.decl.span.into(),
+                                            });
+                                        }
+                                        cg.write_escape_capture_local_to_state(
+                                            span, field_ptr, local.ptr, cap.ty,
+                                        )?;
+                                    }
+
+                                    for (field_idx, cap) in
+                                        body_visible_supported.iter().enumerate()
+                                    {
+                                        let field_ptr = cg.builder.build_struct_gep(
+                                            state_ty,
+                                            state_ptr,
+                                            body_field_base.saturating_add(field_idx as u32),
+                                            "mixed_escape_matrix_step_capture_body_gep",
+                                        )?;
+                                        let Some(local) = cg.env.get(cap.id) else {
+                                            continue;
+                                        };
+                                        if local.ty != cap.ty {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "mixed escape capture local type mismatch",
+                                                at: next_site.decl.span.into(),
+                                            });
+                                        }
+                                        cg.write_escape_capture_local_to_state(
+                                            span, field_ptr, local.ptr, cap.ty,
+                                        )?;
+                                    }
+
+                                    let pc_ptr = cg.builder.build_struct_gep(
+                                        state_ty,
+                                        state_ptr,
+                                        2,
+                                        "mixed_escape_matrix_step_pc_store_gep",
+                                    )?;
+                                    let _ = cg.builder.build_store(
+                                        pc_ptr,
+                                        i32_ty.const_int(next_pc as u64, false),
+                                    )?;
+
+                                    cg.push_raise_target(escape_dispatch_bb);
+                                    cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                                        next_site,
+                                        &body_lift_ids,
+                                    )?;
+                                    cg.pop_raise_target();
+                                    Ok(())
+                                },
+                            )?;
+                        } else {
+                            cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                indirect_site,
+                                &body_lift_ids,
+                            )?;
+                        }
                     }
                 }
 
@@ -10000,6 +10643,89 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     "mixed_escape_matrix_step_k_unpin",
                                 )?;
                                 cg.builder.build_return(None)?;
+                                Ok(())
+                            },
+                        )?;
+                        continue;
+                    }
+
+                    if let Some(&next_pc) = while_indirect_site_pc_by_stmt_idx.get(&idx) {
+                        let MatrixEscapeSiteKind::Indirect {
+                            site: indirect_site,
+                        } = &escape_sites[next_pc].kind
+                        else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle mixed-arm escape continuation (expected indirect site)",
+                                at: stmt.span.into(),
+                            });
+                        };
+                        cg.codegen_mixed_escape_matrix_while_stmt_indirect_site(
+                            stmt,
+                            next_pc,
+                            indirect_site,
+                            &body_lift_ids,
+                            |cg, next_pc, indirect_site| {
+                                for (field_idx, cap) in outer_visible_supported.iter().enumerate() {
+                                    let field_ptr = cg.builder.build_struct_gep(
+                                        state_ty,
+                                        state_ptr,
+                                        outer_field_base.saturating_add(field_idx as u32),
+                                        "mixed_escape_matrix_step_capture_outer_gep",
+                                    )?;
+                                    let local = cg.env.get(cap.id).ok_or(
+                                        LlvmEmitError::UnsupportedMainBody {
+                                            kind: "mixed escape capture local not found",
+                                            at: indirect_site.decl.span.into(),
+                                        },
+                                    )?;
+                                    if local.ty != cap.ty {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "mixed escape capture local type mismatch",
+                                            at: indirect_site.decl.span.into(),
+                                        });
+                                    }
+                                    cg.write_escape_capture_local_to_state(
+                                        span, field_ptr, local.ptr, cap.ty,
+                                    )?;
+                                }
+
+                                for (field_idx, cap) in body_visible_supported.iter().enumerate() {
+                                    let field_ptr = cg.builder.build_struct_gep(
+                                        state_ty,
+                                        state_ptr,
+                                        body_field_base.saturating_add(field_idx as u32),
+                                        "mixed_escape_matrix_step_capture_body_gep",
+                                    )?;
+                                    let Some(local) = cg.env.get(cap.id) else {
+                                        continue;
+                                    };
+                                    if local.ty != cap.ty {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "mixed escape capture local type mismatch",
+                                            at: indirect_site.decl.span.into(),
+                                        });
+                                    }
+                                    cg.write_escape_capture_local_to_state(
+                                        span, field_ptr, local.ptr, cap.ty,
+                                    )?;
+                                }
+
+                                let pc_ptr = cg.builder.build_struct_gep(
+                                    state_ty,
+                                    state_ptr,
+                                    2,
+                                    "mixed_escape_matrix_step_pc_store_gep",
+                                )?;
+                                let _ = cg
+                                    .builder
+                                    .build_store(pc_ptr, i32_ty.const_int(next_pc as u64, false))?;
+
+                                cg.push_raise_target(escape_dispatch_bb);
+                                cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                                    indirect_site,
+                                    &body_lift_ids,
+                                )?;
+                                cg.pop_raise_target();
                                 Ok(())
                             },
                         )?;
@@ -11058,6 +11784,91 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     continue;
                 }
 
+                if let Some(&site_pc) = while_indirect_site_pc_by_stmt_idx.get(&idx) {
+                    let MatrixEscapeSiteKind::Indirect {
+                        site: indirect_site,
+                    } = &escape_sites[site_pc].kind
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (expected indirect site)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    self.codegen_mixed_escape_matrix_while_stmt_indirect_site(
+                        stmt,
+                        site_pc,
+                        indirect_site,
+                        &body_lift_ids,
+                        |cg, site_pc, indirect_site| {
+                            let pc_ptr = cg.builder.build_struct_gep(
+                                state_ty,
+                                state_gc_ptr,
+                                2,
+                                "mixed_escape_matrix_state0_pc_gep",
+                            )?;
+                            let _ = cg
+                                .builder
+                                .build_store(pc_ptr, i32_ty.const_int(site_pc as u64, false))?;
+
+                            for (field_idx, cap) in outer_visible_supported.iter().enumerate() {
+                                let field_ptr = cg.builder.build_struct_gep(
+                                    state_ty,
+                                    state_gc_ptr,
+                                    outer_field_base.saturating_add(field_idx as u32),
+                                    "mixed_escape_matrix_state0_capture_outer_gep",
+                                )?;
+                                let local = cg.env.get(cap.id).ok_or(
+                                    LlvmEmitError::UnsupportedMainBody {
+                                        kind: "mixed escape capture local not found",
+                                        at: indirect_site.decl.span.into(),
+                                    },
+                                )?;
+                                if local.ty != cap.ty {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "mixed escape capture local type mismatch",
+                                        at: indirect_site.decl.span.into(),
+                                    });
+                                }
+                                cg.write_escape_capture_local_to_state(
+                                    span, field_ptr, local.ptr, cap.ty,
+                                )?;
+                            }
+
+                            for (field_idx, cap) in body_visible_supported.iter().enumerate() {
+                                let field_ptr = cg.builder.build_struct_gep(
+                                    state_ty,
+                                    state_gc_ptr,
+                                    body_field_base.saturating_add(field_idx as u32),
+                                    "mixed_escape_matrix_state0_capture_body_gep",
+                                )?;
+                                let Some(local) = cg.env.get(cap.id) else {
+                                    continue;
+                                };
+                                if local.ty != cap.ty {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "mixed escape capture local type mismatch",
+                                        at: indirect_site.decl.span.into(),
+                                    });
+                                }
+                                cg.write_escape_capture_local_to_state(
+                                    span, field_ptr, local.ptr, cap.ty,
+                                )?;
+                            }
+
+                            cg.pop_raise_target();
+                            cg.push_raise_target(escape_dispatch_bb);
+                            cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                                indirect_site,
+                                &body_lift_ids,
+                            )?;
+                            cg.pop_raise_target();
+                            cg.push_raise_target(finally_unwind_bb);
+                            Ok(())
+                        },
+                    )?;
+                    continue;
+                }
+
                 if let Some(&site_pc) = while_direct_site_pc_by_stmt_idx.get(&idx) {
                     let MatrixEscapeSiteKind::Direct { site: direct_site } =
                         &escape_sites[site_pc].kind
@@ -11583,6 +12394,93 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     stmt,
                     indirect_sites,
                     &escape_sites,
+                    &body_lift_ids,
+                    |cg, site_pc, indirect_site| {
+                        let pc_ptr = cg.builder.build_struct_gep(
+                            state_ty,
+                            state_gc_ptr,
+                            2,
+                            "mixed_escape_matrix_pc_gep",
+                        )?;
+                        let _ = cg
+                            .builder
+                            .build_store(pc_ptr, i32_ty.const_int(site_pc as u64, false))?;
+
+                        for (field_idx, cap) in outer_visible_supported.iter().enumerate() {
+                            let field_ptr = cg.builder.build_struct_gep(
+                                state_ty,
+                                state_gc_ptr,
+                                outer_field_base.saturating_add(field_idx as u32),
+                                "mixed_escape_matrix_capture_outer_gep",
+                            )?;
+                            let local =
+                                cg.env
+                                    .get(cap.id)
+                                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "mixed escape capture local not found",
+                                        at: indirect_site.decl.span.into(),
+                                    })?;
+                            if local.ty != cap.ty {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape capture local type mismatch",
+                                    at: indirect_site.decl.span.into(),
+                                });
+                            }
+                            cg.write_escape_capture_local_to_state(
+                                span, field_ptr, local.ptr, cap.ty,
+                            )?;
+                        }
+
+                        for (field_idx, cap) in body_visible_supported.iter().enumerate() {
+                            let field_ptr = cg.builder.build_struct_gep(
+                                state_ty,
+                                state_gc_ptr,
+                                body_field_base.saturating_add(field_idx as u32),
+                                "mixed_escape_matrix_capture_body_gep",
+                            )?;
+                            let Some(local) = cg.env.get(cap.id) else {
+                                continue;
+                            };
+                            if local.ty != cap.ty {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape capture local type mismatch",
+                                    at: indirect_site.decl.span.into(),
+                                });
+                            }
+                            cg.write_escape_capture_local_to_state(
+                                span, field_ptr, local.ptr, cap.ty,
+                            )?;
+                        }
+
+                        cg.pop_raise_target();
+                        cg.push_raise_target(escape_dispatch_bb);
+                        cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                            indirect_site,
+                            &body_lift_ids,
+                        )?;
+                        cg.pop_raise_target();
+                        cg.push_raise_target(finally_unwind_bb);
+                        Ok(())
+                    },
+                )?;
+                tail_value = CgValue::unit();
+                continue;
+            }
+
+            if let Some(&site_pc) = while_indirect_site_pc_by_stmt_idx.get(&idx) {
+                let MatrixEscapeSiteKind::Indirect {
+                    site: indirect_site,
+                } = &escape_sites[site_pc].kind
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (expected indirect site)",
+                        at: stmt.span.into(),
+                    });
+                };
+                self.codegen_mixed_escape_matrix_while_stmt_indirect_site(
+                    stmt,
+                    site_pc,
+                    indirect_site,
                     &body_lift_ids,
                     |cg, site_pc, indirect_site| {
                         let pc_ptr = cg.builder.build_struct_gep(

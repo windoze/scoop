@@ -1,0 +1,87 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_pre_immediate_while_indirect.stdout
+//
+// T2003c0b2c3c: mixed-arm immediate-resume + sibling escape-continuation
+// supports a flat while-body indirect escape site before the immediate site.
+// - `resume(...)` 会先完成当前迭代尾部；
+// - 然后重新检查 loop condition；
+// - 后续迭代可再次命中同一个 sibling indirect site。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(seed: Int): String / (Ask) {
+    val msg: String = Ask.ask(seed)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = handle {
+        println("body")
+        var i: Int = 0
+        while (i < 2) {
+            println("iter_begin")
+            val first: String = fetch(i)
+            println("after_ask")
+            println(first)
+            i = i + 1
+            println("iter_end")
+        }
+        val x: Int = Yield.next()
+        println("after_yield_done")
+        x + i
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(40)
+        }
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            cell.k = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    val _: Int = result
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("zero")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("one")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

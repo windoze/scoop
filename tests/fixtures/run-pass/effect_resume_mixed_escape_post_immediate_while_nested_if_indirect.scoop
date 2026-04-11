@@ -1,0 +1,78 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_post_immediate_while_nested_if_indirect.stdout
+//
+// T2003c0b2c3c: mixed-arm immediate-resume + sibling escape-continuation
+// supports a nested if-branch indirect escape site inside a while body after
+// the immediate site, while non-matching iterations continue normally.
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(seed: Int): String / (Ask) {
+    val msg: String = Ask.ask(seed)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = handle {
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        var i: Int = 0
+        while (i < 3) {
+            println("iter_begin")
+            if (i == 1) {
+                println("then_enter")
+                val first: String = fetch(i)
+                println("after_ask")
+                println(first)
+            } else {
+                println("skip_branch")
+            }
+            i = i + 1
+            println("iter_end")
+        }
+        println("after_while_done")
+        x + i
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(40)
+        }
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            cell.k = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    val _: Int = result
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("resume_then")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

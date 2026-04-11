@@ -396,7 +396,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_if_indirect`、`effect_resume_mixed_escape_post_immediate_if_indirect`；旧的 build 负例 `effect_resume_mixed_escape_if_indirect_is_error` 已替换为 while 边界负例 `effect_resume_mixed_escape_while_indirect_is_error`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2c3c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 indirect site）
+### T2003c0b2c3c [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 indirect site）
 - 描述：while body indirect 需要把 nested call-site suspension 与 loop re-entry 结合起来：resume 后既要继续当前迭代尾部，又要重新检查 condition，并允许后续迭代再次命中同一 sibling indirect site。
 - 目标：
   - sibling escape-continuation 支持 while body 中的 flat / nested indirect call site。
@@ -407,6 +407,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c3b
+- 完成说明：
+  - `scan_mixed_escape_indirect_sites` 现已允许 while body 中的 flat / nested indirect site，并对 deeper nested while 保持稳定 `unsupported_main_body` 诊断。
+  - mixed-arm escape `site matrix` 已新增 while-indirect 分类与 lowering：state0、state1 与 continuation step 现会共享 while-body indirect 的 prefix / current-tail / loop re-entry helper，后续迭代可再次命中同一 sibling indirect site。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_while_indirect`、`effect_resume_mixed_escape_post_immediate_while_nested_if_indirect`；既有 build 负例 `effect_resume_mixed_escape_while_indirect_is_error` 已更新为更深层 nested while 诊断。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2c3d [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，nested direct / indirect site matrix）
 - 描述：当 nested block / if / while 的 indirect 子集都能独立运行后，再统一收口 nested direct / indirect 共存矩阵，确保 mixed-arm lowering 不再只在 top-level 组合上维持一致性。
