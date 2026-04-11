@@ -361,17 +361,59 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_post_immediate_while_nested_if`；已有 build-fail `effect_resume_mixed_escape_while_is_error` 已更新为锁定更深层 nested while 形状的稳定诊断。
   - `cargo fmt --all`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test` 通过。
 
-### T2003c0b2c3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，nested indirect call site）
-- 描述：当前 indirect perform site 的扫描与 replay 仍是 top-level-only。待 nested direct 形状收口后，再把 call-site suspension 扩到 block / if / while 中的 nested indirect site，并收口与 direct site 共存的 matrix。
+### T2003c0b2c3a [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，nested block 的 indirect site）
+- 描述：继续审计 `T2003c0b2c3` 后确认，nested indirect 至少跨三类 CFG 形状：statement-position nested block、if/branch、while body。其中 nested block 主要是顺序前缀 / 尾部 replay，适合作为第一步先落地。
 - 目标：
-  - sibling escape-continuation 支持 nested block、if/branch、while 中的 indirect call site，不再要求 top-level `val = f(...)`。
-  - nested direct / indirect site 共存时，resume payload、callee suspend state、tail replay 与 sibling handler-scope 语义保持一致。
-  - `only top-level val-bound ... supported` 类诊断仅保留给本阶段之外的更深层未实现形状。
+  - sibling escape-continuation 支持 statement-position nested block 中的 indirect call site，覆盖 pre-immediate / post-immediate 两侧。
+  - continuation step 在 `resume(...)` 后可重新进入命中的 nested block，重放 call-site 之后的 block tail，再继续后续 top-level tail。
+  - if / while 中的 nested indirect 继续保留稳定诊断。
 - 验收：
-  - 新增 run-pass fixtures：覆盖 nested indirect，以及 nested direct + indirect 共存的 mixed-arm 组合。
+  - 新增 run-pass / build fixtures：覆盖 nested block indirect 的 mixed-arm 组合，以及至少一个仍未支持的 if / while nested indirect 形状。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c2b
+- 完成说明：
+  - mixed-arm escape `site matrix` 现已为 indirect site 保留 `resume_path`，并新增 nested-block-only 的 scanner / prefix / tail helper；top-level `val = call(...)` 与 statement-position nested block 中的 `val = call(...)` 现在共享同一套 state0 / state1 / continuation-step lowering。
+  - continuation step 在恢复 nested block indirect site 时，现会先 replay block 前缀、重新调用 callee、再继续 block tail 与后续 top-level tail；pre-immediate / post-immediate 两侧都已接入同一条路径。
+  - if branch / while body 的 nested indirect 现已改成稳定诊断，不再被旧的 top-level-only 扫描器静默漏掉；新增 build 负例 `effect_resume_mixed_escape_if_indirect_is_error` 锁定该边界。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_block_indirect`、`effect_resume_mixed_escape_post_immediate_block_indirect`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0b2c3b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，if branch 的 indirect site）
+- 描述：在 nested block indirect 打通后，继续扩到 if then/else branch。该子集除了 call-site suspension 外，还要处理分支命中、resume 后 branch tail replay，以及 after-if CFG 合流。
+- 目标：
+  - sibling escape-continuation 支持 if then/else branch 中的 indirect call site。
+  - continuation step 在恢复后会先完成命中的 branch tail，再统一继续 after-if top-level tail。
+  - while body 的 nested indirect 继续保留稳定诊断。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖 if branch indirect 的 mixed-arm 组合，以及至少一个仍未支持的 while nested indirect 形状。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2c3a
+
+### T2003c0b2c3c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 indirect site）
+- 描述：while body indirect 需要把 nested call-site suspension 与 loop re-entry 结合起来：resume 后既要继续当前迭代尾部，又要重新检查 condition，并允许后续迭代再次命中同一 sibling indirect site。
+- 目标：
+  - sibling escape-continuation 支持 while body 中的 flat / nested indirect call site。
+  - continuation step 在恢复后能先 replay 当前迭代中命中的 nested path 尾部，再执行剩余 body、loop condition 与后续迭代。
+  - 更深层 nested while 或本阶段之外的 richer loop 形状继续保留稳定诊断。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖 while body indirect 的 mixed-arm 组合，以及至少一个更深层 loop 形状的稳定诊断。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2c3b
+
+### T2003c0b2c3d [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，nested direct / indirect site matrix）
+- 描述：当 nested block / if / while 的 indirect 子集都能独立运行后，再统一收口 nested direct / indirect 共存矩阵，确保 mixed-arm lowering 不再只在 top-level 组合上维持一致性。
+- 目标：
+  - nested direct / indirect site 可在同一个 source-handle 中共存，且 resume payload、callee suspend state、tail replay 与 sibling handler-scope 语义保持一致。
+  - `only top-level val-bound ... supported` 一类诊断仅保留给本阶段之外的更深层未实现形状，不再覆盖已经进入 matrix 的 nested 组合。
+  - 为后续 `T2003c0c1` 提供完整的 nested escape site matrix，而不是让 non-resuming 组合继续建立在 top-level-only 假设上。
+- 验收：
+  - 新增 run-pass fixtures：覆盖 nested direct + indirect 共存的 mixed-arm 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2c3c
 
 ### T2003c0c1 [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming）
 - 描述：当前 multi-arm lowering 在存在 escape-continuation 时仍直接拒绝 sibling non-resuming arms。若 `T2003` 要收口为“合法 perform/handler 组合全部可运行”，就必须补齐 escape-continuation 与 non-resuming 在同一 source-handle 下的 dispatch / handler-scope / self-capture 语义。
@@ -383,7 +425,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：immediate-resume + escape + raise、immediate-resume + escape + custom non-resuming。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0b2c3
+- 依赖：T2003c0b2c3d
 
 ### T2003c0c2 [TODO] Effect：LLVM 多 arm handle dispatch（multiple resuming arms / 无 immediate-resume 的 multi-arm）
 - 描述：当前 mixed-arm lowering 仍假设“恰好一个 immediate-resume arm，最多一个 escape-continuation arm”，并对“没有 immediate-resume 的 multi-arm handle”直接报错。若 `T2003` 完成后要支持任意 perform/handler 组合，这些结构性门禁必须显式去掉。
