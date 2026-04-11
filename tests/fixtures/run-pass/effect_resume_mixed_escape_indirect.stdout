@@ -1,0 +1,17 @@
+body
+yield_arm
+after_yield
+41
+fetch_enter
+ask_arm
+42
+after_handle
+7
+fetch_resume
+hello
+after_fetch
+prefix
+41
+hello
+after_resume
+done

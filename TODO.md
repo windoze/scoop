@@ -188,7 +188,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_escape_direct`；build-fail `effect_resume_mixed_escape_is_error` 已改为覆盖“multiple direct perform points not yet supported”。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2a [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single indirect site）
+### T2003c0b2a [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single indirect site）
 - 描述：`T2003c0b2` 原始范围同时覆盖 indirect perform 与 richer mixed 组合，单轮风险仍偏大。先收口“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect call site”的最小可运行子集。
 - 目标：
   - sibling escape-continuation 不再局限于 direct single-site；至少支持 top-level `val x = f(...)` 形态的单个 indirect perform call site。
@@ -199,6 +199,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b1
+- 完成说明：
+  - mixed-arm 入口现已区分 sibling escape-continuation 的 direct / indirect 子集：direct 继续走 `T2003c0b1` lowering，single indirect site 走新的 dedicated lowering。
+  - LLVM mixed-arm lowering 现已支持“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect call site”的最小子集；continuation step 会写回 callee suspend state 的双通道 resume payload，并在 `resume(...)` 后重新调用 callee 再继续执行 source-handle 的 top-level tail。
+  - 已对 richer mixed 组合补稳定诊断：`direct + indirect sites not yet supported`、`multiple indirect call sites not yet supported`、`indirect perform before immediate site not yet supported`。
+  - 已新增 fixtures：run-pass `effect_resume_mixed_escape_indirect`，build-fail `effect_resume_mixed_escape_direct_indirect_is_error`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，richer mixed）
 - 描述：在 `T2003c0b2a` 的 indirect single-site 子集上，继续扩到更复杂 mixed dispatch/captured-handler-stack 组合。

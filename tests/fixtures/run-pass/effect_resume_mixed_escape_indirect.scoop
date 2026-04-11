@@ -1,0 +1,72 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_indirect.stdout
+//
+// T2003c0b2a: mixed-arm immediate-resume + sibling escape-continuation（single indirect site）。
+// - 先命中 immediate-resume arm；
+// - resume 后执行单个 top-level indirect call site；
+// - indirect call 内部 perform 命中 sibling escape-continuation arm；
+// - continuation 恢复后重新调用 callee，并继续执行 escape call 之后的 top-level tail。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+fun fetch(base: Int): String / (Ask) {
+    println("fetch_enter")
+    val msg: String = Ask.ask(base + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        val reply: String = fetch(x)
+        println("after_fetch")
+        println(prefix)
+        println(x)
+        println(reply)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            saved = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

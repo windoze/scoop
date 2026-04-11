@@ -19,13 +19,13 @@
 
 ### 执行步骤
 
-- [ ] 检查最新提交及其可能提到的遗留问题
-- [ ] 读取 `TODO.md`，确认第一个未完成任务
-- [ ] 读取 `PLAN.md`，确认是否需要拆分任务
-- [ ] 如需拆分，先更新 `TODO.md` / `PLAN.md`
-- [ ] 实现当前目标任务
-- [ ] 运行测试与质量检查
-- [ ] 更新文档与任务状态
+- [x] 检查最新提交及其可能提到的遗留问题
+- [x] 读取 `TODO.md`，确认第一个未完成任务
+- [x] 读取 `PLAN.md`，确认是否需要拆分任务
+- [x] 如需拆分，先更新 `TODO.md` / `PLAN.md`
+- [x] 实现当前目标任务
+- [x] 运行测试与质量检查
+- [x] 更新文档与任务状态
 - [ ] 提交变更并停止
 
 ### 进度日志
@@ -52,3 +52,24 @@
   3. 对 multiple indirect sites、direct+indirect 混用、多 escape sites 等 richer mixed 组合维持稳定诊断。
   4. 补 run-pass / build-fail fixtures。
   5. 跑格式化、测试、clippy 后完成文档与提交。
+- 已完成实现：
+  - mixed-arm 入口已新增 direct / indirect 分流；`T2003c0b1` 的 direct 子集保持原实现，`T2003c0b2a` 的 single indirect site 走新的 dedicated lowering。
+  - 新 lowering 支持：immediate site 为 top-level direct `val = perform`，escape site 为其后的单个 top-level indirect `val = f(...)`。
+  - continuation step 会恢复 pre-call captures，写回 callee suspend state 的 `(resume_word, resume_gc_ref)`，重新调用 callee，并继续执行 escape call 之后的 top-level tail。
+  - richer mixed 组合已补稳定诊断：`direct + indirect sites not yet supported`、`multiple indirect call sites not yet supported`、`indirect perform before immediate site not yet supported`。
+- 已新增 fixtures：
+  - run-pass：`tests/fixtures/run-pass/effect_resume_mixed_escape_indirect.scoop`
+  - build-fail：`tests/fixtures/build/effect_resume_mixed_escape_direct_indirect_is_error.scoop`
+- 已完成验证：
+  - `cargo test -p scoopc --lib --features llvm`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_indirect.scoop`
+  - `cargo run -p scoop --features llvm -- build tests/fixtures/build/effect_resume_mixed_escape_direct_indirect_is_error.scoop --emit-llvm`
+  - `cargo fmt`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 当前剩余动作：
+  - 检查工作区；
+  - 提交 `T2003c0b2a` 结果；
+  - 停止。

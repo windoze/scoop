@@ -3493,7 +3493,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: escape_arm.span.into(),
                 });
             }
-            return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
+            return self.codegen_handle_expr_immediate_resume_with_escape_sibling(
                 span,
                 handle,
                 (immediate_arm, resume_symbol),
@@ -3509,6 +3509,69 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_symbol,
             &nonresuming_arms,
             out_ty,
+        )
+    }
+
+    fn codegen_handle_expr_immediate_resume_with_escape_sibling<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        immediate: (&'hir hir::HandleArm, hir::SymbolId),
+        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (immediate_arm, _) = immediate;
+        let (escape_arm, _) = escape;
+
+        let Some(perform_site) =
+            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
+        else {
+            return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
+                span, handle, immediate, escape, out_ty,
+            );
+        };
+        let perform_idx = perform_site.top_level_stmt_idx;
+
+        let mut has_direct_escape_site = false;
+        let mut has_direct_escape_site_after_immediate = false;
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if self
+                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
+            {
+                has_direct_escape_site = true;
+                if idx > perform_idx {
+                    has_direct_escape_site_after_immediate = true;
+                }
+            }
+        }
+
+        let indirect_sites =
+            self.scan_for_indirect_perform_call_sites(&handle.body, &escape_arm.op.op.fqn);
+        let has_indirect_escape_site_after_immediate = indirect_sites
+            .iter()
+            .any(|site| site.stmt_idx > perform_idx);
+
+        if has_direct_escape_site_after_immediate && has_indirect_escape_site_after_immediate {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (direct + indirect sites not yet supported)",
+                at: escape_arm.span.into(),
+            });
+        }
+
+        if has_direct_escape_site {
+            return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
+                span, handle, immediate, escape, out_ty,
+            );
+        }
+
+        if !indirect_sites.is_empty() {
+            return self.codegen_handle_expr_immediate_resume_with_escape_sibling_indirect(
+                span, handle, immediate, escape, out_ty,
+            );
+        }
+
+        self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
+            span, handle, immediate, escape, out_ty,
         )
     }
 
@@ -4655,7 +4718,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut escape_site: Option<DirectEscapeSite<'hir>> = None;
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if !self.immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
+            if !self
+                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
             {
                 continue;
             }
@@ -4865,7 +4929,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             let ty = self.context.opaque_struct_type(&state_ty_name);
             let header_ty = self.llvm_gc_object_header_type();
-            let mut fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into(), handler_frame_ty.into()];
+            let mut fields: Vec<BasicTypeEnum<'ctx>> =
+                vec![header_ty.into(), handler_frame_ty.into()];
             for cap in &outer_visible_supported {
                 fields.push(match cap.ty {
                     CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
@@ -5035,8 +5100,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let v = if int_ty.bits == 64 {
                             loaded
                         } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "mixed_escape_step_trunc_int")?
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "mixed_escape_step_trunc_int",
+                            )?
                         };
                         let slot_ty = CgTy::Int(int_ty);
                         let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
@@ -5136,8 +5204,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let v = if int_ty.bits == 64 {
                             loaded
                         } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "mixed_escape_step_trunc_int")?
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "mixed_escape_step_trunc_int",
+                            )?
                         };
                         let slot_ty = CgTy::Int(int_ty);
                         let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
@@ -5158,7 +5229,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let resume_ptr = cg.create_entry_alloca(
                 escape_site.decl.span,
-                escape_site.decl.name.as_deref().unwrap_or("mixed_escape_resume_value"),
+                escape_site
+                    .decl
+                    .name
+                    .as_deref()
+                    .unwrap_or("mixed_escape_resume_value"),
                 escape_resume_value_ty,
             )?;
             cg.env.insert(
@@ -5221,9 +5296,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 && bb.get_terminator().is_none()
             {
                 let unpin = cg.declare_runtime_gc_unpin();
-                let _ = cg
-                    .builder
-                    .build_call(unpin, &[state_raw.into()], "mixed_escape_state_unpin")?;
+                let _ = cg.builder.build_call(
+                    unpin,
+                    &[state_raw.into()],
+                    "mixed_escape_state_unpin",
+                )?;
                 cg.builder.build_return(None)?;
             }
         }
@@ -5257,7 +5334,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(func, "handle_mixed_escape_finally_unwind");
 
-        let state_ptr = self.create_entry_alloca_raw(span, "handle_mixed_escape_state", i32_ty.into())?;
+        let state_ptr =
+            self.create_entry_alloca_raw(span, "handle_mixed_escape_state", i32_ty.into())?;
         let resume_used_ptr = self.create_entry_alloca_raw(
             span,
             "handle_mixed_escape_resume_used",
@@ -5311,22 +5389,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ptr,
             });
         }
-        let cont_ptr = self.create_entry_alloca(
-            span,
-            &format!("handle_mixed_escape_k_{seq}"),
-            CgTy::Ref,
-        )?;
+        let cont_ptr =
+            self.create_entry_alloca(span, &format!("handle_mixed_escape_k_{seq}"), CgTy::Ref)?;
 
         let total_size = self.target_data.get_store_size(&state_ty);
         let size_bytes = self.target_data.get_store_size(&state_ty);
-        let trace_start_offset_bytes = if outer_visible_supported.is_empty() && body_visible_supported.is_empty() {
-            size_bytes
-        } else {
-            self.target_data
-                .offset_of_element(&state_ty, outer_field_base)
-                .unwrap_or(size_bytes)
-        };
-        let state_desc_global_name = format!("__scoop_type_desc_mixed_escape_state__{func_name}_{seq}");
+        let trace_start_offset_bytes =
+            if outer_visible_supported.is_empty() && body_visible_supported.is_empty() {
+                size_bytes
+            } else {
+                self.target_data
+                    .offset_of_element(&state_ty, outer_field_base)
+                    .unwrap_or(size_bytes)
+            };
+        let state_desc_global_name =
+            format!("__scoop_type_desc_mixed_escape_state__{func_name}_{seq}");
         let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at: span,
             global_name: &state_desc_global_name,
@@ -5423,11 +5500,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             1,
             "mixed_escape_state_frame_gep",
         )?;
-        let frame_i8 = self.builder.build_address_space_cast(
-            frame_ptr,
-            i8_ptr_ty,
-            "mixed_escape_frame_i8",
-        )?;
+        let frame_i8 =
+            self.builder
+                .build_address_space_cast(frame_ptr, i8_ptr_ty, "mixed_escape_frame_i8")?;
         let escape_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
         let escape_tag_i32 = i32_ty.const_int(escape_tag as u64, false);
         let rt_push = self.declare_runtime_effect_handler_stack_push();
@@ -5448,10 +5523,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
 
         let _ = self.builder.build_store(state_ptr, i32_ty.const_zero())?;
-        let _ = self.builder.build_store(
-            resume_used_ptr,
-            self.context.bool_type().const_zero(),
-        )?;
+        let _ = self
+            .builder
+            .build_store(resume_used_ptr, self.context.bool_type().const_zero())?;
 
         self.builder.build_unconditional_branch(dispatch_bb)?;
 
@@ -5637,9 +5711,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     match cap.ty {
                         CgTy::Ref => {
                             let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_ref")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_ref",
+                            )?;
                             let BasicValueEnum::PointerValue(ptr) = loaded else {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "mixed escape capture ref ptr",
@@ -5663,9 +5739,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         CgTy::String => {
                             let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_str")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_str",
+                            )?;
                             let BasicValueEnum::PointerValue(ptr) = loaded else {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "mixed escape capture str ptr",
@@ -5689,9 +5767,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         CgTy::Bool | CgTy::Int(_) => {
                             let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_word")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_word",
+                            )?;
                             let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
                             let word = self.coerce_u64_word(span, loaded_v)?;
                             let _ = self.builder.build_store(field_ptr, word)?;
@@ -5717,9 +5797,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     match cap.ty {
                         CgTy::Ref => {
                             let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_ref")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_ref",
+                            )?;
                             let BasicValueEnum::PointerValue(ptr) = loaded else {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "mixed escape capture ref ptr",
@@ -5743,9 +5825,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         CgTy::String => {
                             let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_str")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_str",
+                            )?;
                             let BasicValueEnum::PointerValue(ptr) = loaded else {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "mixed escape capture str ptr",
@@ -5769,9 +5853,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         CgTy::Bool | CgTy::Int(_) => {
                             let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded = self
-                                .builder
-                                .build_load(llvm_ty, local.ptr, "mixed_escape_capture_word")?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_capture_word",
+                            )?;
                             let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
                             let word = self.coerce_u64_word(span, loaded_v)?;
                             let _ = self.builder.build_store(field_ptr, word)?;
@@ -5787,13 +5873,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[state_raw.into(), step_ptr.into()],
                     "mixed_escape_cont_alloc",
                 )?;
-                let cont_raw = cont_call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let cont_raw = cont_call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
                         kind: "mixed escape continuation alloc return value",
                         at: decl.span.into(),
-                    })?;
+                    },
+                )?;
                 let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "mixed escape continuation alloc return type",
@@ -5931,12 +6016,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(target) = outer_raise_target {
                 self.builder.build_unconditional_branch(target)?;
             } else {
-                let ret_ty =
-                    self.current_fun_return_ty
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape finally unwind needs function return type",
-                            at: span.into(),
-                        })?;
+                let ret_ty = self.current_fun_return_ty.ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape finally unwind needs function return type",
+                        at: span.into(),
+                    },
+                )?;
                 let v = self.default_value(span, ret_ty)?;
                 self.emit_return(span, ret_ty, v)?;
             }
@@ -5990,6 +6075,1664 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let loaded = self
                     .builder
                     .build_load(llvm_ty, ptr, "handle_mixed_escape_result")?;
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                })
+            }
+        }
+    }
+
+    /// T2003c0b2a：mixed-arm immediate-resume + sibling escape-continuation 的单 indirect-site 子集。
+    ///
+    /// 当前仅支持：
+    /// - 一个 immediate-resume arm + 一个 escape-continuation arm；
+    /// - immediate site 是 top-level `val = perform`；
+    /// - escape site 是 immediate site 之后的单个 top-level `val = f(...)` indirect call site；
+    /// - richer mixed 组合（multiple indirect sites、direct+indirect 共存等）继续稳定诊断。
+    fn codegen_handle_expr_immediate_resume_with_escape_sibling_indirect<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        immediate: (&'hir hir::HandleArm, hir::SymbolId),
+        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        #[derive(Debug)]
+        struct IndirectEscapeSite<'hir> {
+            stmt_idx: usize,
+            decl: &'hir hir::ValDecl,
+            init: &'hir hir::Expr,
+            id: hir::SymbolId,
+        }
+
+        #[derive(Clone, Copy)]
+        struct CaptureMeta {
+            id: hir::SymbolId,
+            hir_ty: Option<TypeId>,
+            ty: CgTy,
+            mutable: bool,
+        }
+
+        fn is_supported_capture_ty(ty: CgTy) -> bool {
+            matches!(ty, CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_))
+        }
+
+        let (immediate_arm, resume_symbol) = immediate;
+        let (escape_arm, continuation_symbol) = escape;
+
+        let Some(perform_site) =
+            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
+                at: span.into(),
+            });
+        };
+        if !perform_site.resume_path.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (nested immediate-resume site not yet supported)",
+                at: perform_site.decl.span.into(),
+            });
+        }
+
+        let perform_idx = perform_site.top_level_stmt_idx;
+        let perform_decl = perform_site.decl;
+        let perform_op = perform_site.op;
+        let perform_args = perform_site.args;
+
+        if perform_op.fqn != immediate_arm.op.op.fqn {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume op mismatch",
+                at: perform_op.span.into(),
+            });
+        }
+
+        let resume_value_ty =
+            self.cg_ty_of(perform_decl.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume perform value type",
+                    at: perform_decl.span.into(),
+                })?;
+
+        if immediate_arm.op.binders.len() != perform_args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume binder arity mismatch",
+                at: immediate_arm.op.span.into(),
+            });
+        }
+
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if !self
+                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
+            {
+                continue;
+            }
+
+            let kind = if idx <= perform_idx {
+                "handle mixed-arm escape continuation (perform before immediate site not yet supported)"
+            } else {
+                "handle mixed-arm escape continuation (direct + indirect sites not yet supported)"
+            };
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: stmt.span.into(),
+            });
+        }
+
+        let indirect_sites =
+            self.scan_for_indirect_perform_call_sites(&handle.body, &escape_arm.op.op.fqn);
+        if indirect_sites
+            .iter()
+            .any(|site| site.stmt_idx <= perform_idx)
+        {
+            let at = handle.body.stmts[indirect_sites
+                .iter()
+                .find(|site| site.stmt_idx <= perform_idx)
+                .map(|site| site.stmt_idx)
+                .unwrap_or(perform_idx)]
+            .span;
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (indirect perform before immediate site not yet supported)",
+                at: at.into(),
+            });
+        }
+
+        let indirect_after: Vec<&IndirectPerformCallSite> = indirect_sites
+            .iter()
+            .filter(|site| site.stmt_idx > perform_idx)
+            .collect();
+        if indirect_after.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (single indirect call site required)",
+                at: escape_arm.span.into(),
+            });
+        }
+        if indirect_after.len() > 1 {
+            let at = handle.body.stmts[indirect_after[1].stmt_idx].span;
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (multiple indirect call sites not yet supported)",
+                at: at.into(),
+            });
+        }
+
+        let indirect_site = indirect_after[0];
+        let call_stmt = &handle.body.stmts[indirect_site.stmt_idx];
+        let hir::StmtKind::Val(escape_decl) = &call_stmt.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (indirect site must be val-bound)",
+                at: call_stmt.span.into(),
+            });
+        };
+        let Some(call_init) = escape_decl.init.as_ref() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (missing indirect call init)",
+                at: escape_decl.span.into(),
+            });
+        };
+        if !matches!(&call_init.kind, hir::ExprKind::Call { .. }) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (indirect site must be call expression)",
+                at: call_init.span.into(),
+            });
+        }
+        let Some(escape_id) = escape_decl.id else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation perform binding id",
+                at: escape_decl.span.into(),
+            });
+        };
+        let escape_site = IndirectEscapeSite {
+            stmt_idx: indirect_site.stmt_idx,
+            decl: escape_decl,
+            init: call_init,
+            id: escape_id,
+        };
+
+        let escape_resume_value_ty =
+            self.cg_ty_of(escape_site.decl.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape perform value type",
+                    at: escape_site.decl.span.into(),
+                })?;
+
+        let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
+        Self::collect_used_locals_in_stmt_static(
+            &handle.body.stmts[escape_site.stmt_idx],
+            &mut used_after,
+        );
+        for stmt in handle.body.stmts.iter().skip(escape_site.stmt_idx + 1) {
+            Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
+        }
+        used_after.remove(&escape_site.id);
+
+        let mut outer_visible_supported: Vec<CaptureMeta> = Vec::new();
+        let mut outer_visible_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
+        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
+        for scope in self.env.scopes.iter().rev() {
+            for (&id, &local) in scope.iter() {
+                if !seen_outer.insert(id) {
+                    continue;
+                }
+                let meta = CaptureMeta {
+                    id,
+                    hir_ty: local.hir_ty,
+                    ty: local.ty,
+                    mutable: local.mutable,
+                };
+                outer_visible_all.insert(id, meta);
+                if is_supported_capture_ty(local.ty) {
+                    outer_visible_supported.push(meta);
+                }
+            }
+        }
+        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+
+        let mut body_decl_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
+        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
+        let mut body_visible_supported: Vec<CaptureMeta> = Vec::new();
+        for stmt in handle.body.stmts.iter().take(escape_site.stmt_idx) {
+            if let hir::StmtKind::Val(decl) = &stmt.kind
+                && let Some(id) = decl.id
+            {
+                let ty = self
+                    .cg_ty_of(decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape capture local type",
+                        at: decl.span.into(),
+                    })?;
+                let meta = CaptureMeta {
+                    id,
+                    hir_ty: Some(decl.ty),
+                    ty,
+                    mutable: decl.mutable,
+                };
+                body_decl_all.insert(id, meta);
+                body_decl_spans.insert(id, decl.span);
+                if is_supported_capture_ty(ty) {
+                    body_visible_supported.push(meta);
+                }
+            }
+        }
+        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+
+        for id in used_after {
+            if let Some(meta) = body_decl_all.get(&id) {
+                if !is_supported_capture_ty(meta.ty) {
+                    let at = body_decl_spans
+                        .get(&id)
+                        .copied()
+                        .unwrap_or(escape_site.decl.span);
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape capture local type",
+                        at: at.into(),
+                    });
+                }
+                continue;
+            }
+            if let Some(meta) = outer_visible_all.get(&id) {
+                if !is_supported_capture_ty(meta.ty) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape capture local type",
+                        at: escape_site.decl.span.into(),
+                    });
+                }
+                continue;
+            }
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape capture local missing",
+                at: escape_site.decl.span.into(),
+            });
+        }
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let outer_raise_target = self.current_raise_target();
+
+        let func_name = func.get_name().to_str().unwrap_or("anonymous").to_string();
+        let func_name = sanitize_llvm_ident(&func_name);
+        let seq = self.escape_continuation_seq;
+        self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
+
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+
+        let state_ty_name = format!("scoop.runtime.MixedEscapeIndirectState__{func_name}_{seq}");
+        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+            existing
+        } else {
+            let ty = self.context.opaque_struct_type(&state_ty_name);
+            let header_ty = self.llvm_gc_object_header_type();
+            let mut fields: Vec<BasicTypeEnum<'ctx>> =
+                vec![header_ty.into(), handler_frame_ty.into()];
+            for cap in &outer_visible_supported {
+                fields.push(match cap.ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("captures filtered by type"),
+                });
+            }
+            for cap in &body_visible_supported {
+                fields.push(match cap.ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("captures filtered by type"),
+                });
+            }
+            ty.set_body(&fields, false);
+            ty
+        };
+
+        let step_name = format!("__scoop_mixed_escape_indirect_step__{func_name}_{seq}");
+        let step_fn_ty = self.context.void_type().fn_type(
+            &[gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
+            false,
+        );
+        let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
+        step_fn.set_linkage(Linkage::Internal);
+        step_fn.set_gc(super::super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+
+        let saved_block = insert_block;
+        let outer_field_base = 2u32;
+        let body_field_base = outer_field_base.saturating_add(outer_visible_supported.len() as u32);
+        {
+            let mut cg = MainCodegen::new(MainCodegenInputs {
+                context: self.context,
+                module: self.module,
+                builder: self.builder,
+                target_data: self.target_data,
+                host: self.host,
+                source_map: self.source_map,
+                entry_source_id: self.entry_source_id,
+                types: self.types,
+                struct_layouts: self.struct_layouts,
+                enum_layouts: self.enum_layouts,
+                top_level_vars: self.top_level_vars,
+                top_level_consts: self.top_level_consts,
+                object_inits: self.object_inits,
+                class_inits: self.class_inits,
+                class_vtables: self.class_vtables,
+                interfaces: self.interfaces,
+                class_itables: self.class_itables,
+                ctor_call_sites: self.ctor_call_sites,
+                extern_funs: self.extern_funs,
+                fun_index: self.fun_index,
+            });
+
+            let entry = self.context.append_basic_block(step_fn, "entry");
+            cg.builder.position_at_end(entry);
+            cg.current_fun_return_ty = Some(CgTy::Unit);
+            cg.env.push_scope();
+
+            let state_raw = step_fn
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect step state param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let state_ptr_ty = cg.llvm_ptr_type(cg.gc_address_space());
+            let state_ptr = cg.builder.build_pointer_cast(
+                state_raw,
+                state_ptr_ty,
+                "mixed_escape_indirect_step_state_ptr",
+            )?;
+
+            let resume_word = step_fn
+                .get_nth_param(1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect step resume_word param",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let resume_gc_ref = step_fn
+                .get_nth_param(2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect step resume_gc_ref param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+
+            for (idx, cap) in outer_visible_supported.iter().enumerate() {
+                let field_idx = outer_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "mixed_escape_indirect_step_outer_gep",
+                )?;
+                let name = format!("mixed_escape_indirect_outer_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Ref => {
+                        let loaded = cg
+                            .builder
+                            .build_load(
+                                gc_i8_ptr_ty,
+                                field_ptr,
+                                "mixed_escape_indirect_step_load_ref",
+                            )?
+                            .into_pointer_value();
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(
+                                gc_i8_ptr_ty,
+                                field_ptr,
+                                "mixed_escape_indirect_step_load_str",
+                            )?
+                            .into_pointer_value();
+                        let casted = cg.builder.build_pointer_cast(
+                            loaded,
+                            cg.llvm_scoop_string_ptr_type(),
+                            "mixed_escape_indirect_step_str",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "mixed_escape_indirect_step_load_bool")?
+                            .into_int_value();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            i64_ty.const_zero(),
+                            "mixed_escape_indirect_step_bool",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Int(int_ty) => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "mixed_escape_indirect_step_load_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "mixed_escape_indirect_step_trunc_int",
+                            )?
+                        };
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("captures filtered by type"),
+                }
+            }
+
+            for (idx, cap) in body_visible_supported.iter().enumerate() {
+                let field_idx = body_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "mixed_escape_indirect_step_body_gep",
+                )?;
+                let name = format!("mixed_escape_indirect_body_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Ref => {
+                        let loaded = cg
+                            .builder
+                            .build_load(
+                                gc_i8_ptr_ty,
+                                field_ptr,
+                                "mixed_escape_indirect_step_load_ref",
+                            )?
+                            .into_pointer_value();
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(
+                                gc_i8_ptr_ty,
+                                field_ptr,
+                                "mixed_escape_indirect_step_load_str",
+                            )?
+                            .into_pointer_value();
+                        let casted = cg.builder.build_pointer_cast(
+                            loaded,
+                            cg.llvm_scoop_string_ptr_type(),
+                            "mixed_escape_indirect_step_str",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "mixed_escape_indirect_step_load_bool")?
+                            .into_int_value();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            i64_ty.const_zero(),
+                            "mixed_escape_indirect_step_bool",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Int(int_ty) => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "mixed_escape_indirect_step_load_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "mixed_escape_indirect_step_trunc_int",
+                            )?
+                        };
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("captures filtered by type"),
+                }
+            }
+
+            let rt_get_callee = cg.declare_runtime_callee_suspend_state_get();
+            let get_call = cg.builder.build_call(
+                rt_get_callee,
+                &[],
+                "mixed_escape_indirect_step_callee_state_get",
+            )?;
+            let callee_state_raw = get_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect step callee_state_get return",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+
+            let callee_prefix_ty = cg.llvm_callee_suspend_state_prefix_type();
+            let callee_state_ptr_ty = cg.llvm_ptr_type(AddressSpace::default());
+            let callee_state_ptr = cg.builder.build_pointer_cast(
+                callee_state_raw,
+                callee_state_ptr_ty,
+                "mixed_escape_indirect_step_callee_state_typed",
+            )?;
+            let callee_rw_ptr = cg.builder.build_struct_gep(
+                callee_prefix_ty,
+                callee_state_ptr,
+                1,
+                "mixed_escape_indirect_step_resume_word_gep",
+            )?;
+            let _ = cg.builder.build_store(callee_rw_ptr, resume_word)?;
+
+            let callee_rg_ptr = cg.builder.build_struct_gep(
+                callee_prefix_ty,
+                callee_state_ptr,
+                2,
+                "mixed_escape_indirect_step_resume_gc_ref_gep",
+            )?;
+            let wb = cg.declare_runtime_gc_write_barrier();
+            let slot_addr = cg.builder.build_pointer_cast(
+                callee_rg_ptr,
+                i8_ptr_ty,
+                "mixed_escape_indirect_step_resume_gc_slot",
+            )?;
+            let _ = cg.builder.build_call(
+                wb,
+                &[slot_addr.into(), resume_gc_ref.into()],
+                "mixed_escape_indirect_step_resume_gc_store",
+            )?;
+
+            let call_result = cg
+                .codegen_expr_in_expected_context(escape_site.init, Some(escape_resume_value_ty))?;
+            let call_result_ptr = cg.create_entry_alloca(
+                escape_site.decl.span,
+                escape_site
+                    .decl
+                    .name
+                    .as_deref()
+                    .unwrap_or("mixed_escape_indirect_result"),
+                escape_resume_value_ty,
+            )?;
+            let _stored = cg.store_local_value(
+                escape_site.decl.span,
+                call_result_ptr,
+                escape_resume_value_ty,
+                call_result,
+            )?;
+            cg.env.insert(
+                escape_site.id,
+                CgLocal {
+                    hir_ty: Some(escape_site.decl.ty),
+                    ty: escape_resume_value_ty,
+                    ptr: call_result_ptr,
+                    mutable: escape_site.decl.mutable,
+                },
+            );
+
+            for stmt in handle.body.stmts.iter().skip(escape_site.stmt_idx + 1) {
+                match &stmt.kind {
+                    hir::StmtKind::Empty => {}
+                    hir::StmtKind::Val(decl) => {
+                        cg.codegen_val_decl(decl)?;
+                    }
+                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    }
+                    hir::StmtKind::Expr(expr) => {
+                        let _ = cg.codegen_expr(expr)?;
+                    }
+                    hir::StmtKind::While { cond, body } => {
+                        cg.codegen_while_stmt(stmt.span, cond, body)?;
+                    }
+                    hir::StmtKind::Return { .. } => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "`return` inside mixed-arm escape continuation step",
+                            at: stmt.span.into(),
+                        });
+                    }
+                    hir::StmtKind::Break { .. }
+                    | hir::StmtKind::Continue { .. }
+                    | hir::StmtKind::Todo(_) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "statement inside mixed-arm escape continuation step",
+                            at: stmt.span.into(),
+                        });
+                    }
+                }
+            }
+
+            cg.env.pop_scope();
+            if let Some(bb) = cg.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                let unpin = cg.declare_runtime_gc_unpin();
+                let _ = cg.builder.build_call(
+                    unpin,
+                    &[state_raw.into()],
+                    "mixed_escape_indirect_state_unpin",
+                )?;
+                cg.builder.build_return(None)?;
+            }
+        }
+        self.builder.position_at_end(saved_block);
+
+        let dispatch_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_resume_dispatch");
+        let state0_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_resume_state0");
+        let state1_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_resume_state1");
+        let arm_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_resume_arm");
+        let escape_dispatch_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_dispatch");
+        let escape_arm_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_arm");
+        let done_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_done");
+        let bad_state_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_bad_state");
+        let finally_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_finally");
+        let finally_unwind_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_finally_unwind");
+
+        let state_ptr = self.create_entry_alloca_raw(
+            span,
+            "handle_mixed_escape_indirect_state",
+            i32_ty.into(),
+        )?;
+        let resume_used_ptr = self.create_entry_alloca_raw(
+            span,
+            "handle_mixed_escape_indirect_resume_used",
+            self.context.bool_type().into(),
+        )?;
+        let resume_value_ptr = if resume_value_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(
+                span,
+                "handle_mixed_escape_indirect_resume_value",
+                resume_value_ty,
+            )?)
+        };
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_mixed_escape_indirect_result", out_ty)?)
+        };
+
+        let mut immediate_binder_slots: Vec<ImmediateResumeBinderSlot<'ctx>> = Vec::new();
+        for binder in &immediate_arm.op.binders {
+            let binder_ty = self
+                .cg_ty_of(binder.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume binder type",
+                    at: binder.span.into(),
+                })?;
+            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
+            immediate_binder_slots.push(ImmediateResumeBinderSlot {
+                id: binder.id,
+                hir_ty: binder.ty,
+                ty: binder_ty,
+                ptr,
+            });
+        }
+
+        let mut escape_binder_slots: Vec<ImmediateResumeBinderSlot<'ctx>> = Vec::new();
+        for binder in &escape_arm.op.binders {
+            let binder_ty = match self.cg_ty_of(binder.ty) {
+                Some(CgTy::Int(int_ty)) => CgTy::Int(int_ty),
+                Some(_) | None => CgTy::Int(IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: true,
+                }),
+            };
+            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
+            escape_binder_slots.push(ImmediateResumeBinderSlot {
+                id: binder.id,
+                hir_ty: binder.ty,
+                ty: binder_ty,
+                ptr,
+            });
+        }
+        let cont_ptr = self.create_entry_alloca(
+            span,
+            &format!("handle_mixed_escape_indirect_k_{seq}"),
+            CgTy::Ref,
+        )?;
+        let _ = self
+            .builder
+            .build_store(cont_ptr, self.llvm_gc_i8_ptr_type().const_null())?;
+
+        let total_size = self.target_data.get_store_size(&state_ty);
+        let size_bytes = self.target_data.get_store_size(&state_ty);
+        let trace_start_offset_bytes =
+            if outer_visible_supported.is_empty() && body_visible_supported.is_empty() {
+                size_bytes
+            } else {
+                self.target_data
+                    .offset_of_element(&state_ty, outer_field_base)
+                    .unwrap_or(size_bytes)
+            };
+        let state_desc_global_name =
+            format!("__scoop_type_desc_mixed_escape_indirect_state__{func_name}_{seq}");
+        let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at: span,
+            global_name: &state_desc_global_name,
+            canonical_name: &state_ty_name,
+            obj_ty: state_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })?;
+
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let size_v = i64_ty.const_int(total_size, false);
+        let state_desc_i8 = self.builder.build_pointer_cast(
+            state_desc.as_pointer_value(),
+            i8_ptr_ty,
+            "mixed_escape_indirect_state_desc_i8",
+        )?;
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[state_desc_i8.into(), size_v.into()],
+            "rt_alloc_mixed_escape_indirect_state",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "mixed escape indirect alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(state_raw) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "mixed escape indirect alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let pin = self.declare_runtime_gc_pin();
+        let _ =
+            self.builder
+                .build_call(pin, &[state_raw.into()], "mixed_escape_indirect_state_pin")?;
+
+        let state_gc_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+        let state_gc_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            state_gc_ptr_ty,
+            "mixed_escape_indirect_state_ptr",
+        )?;
+
+        for (idx, cap) in outer_visible_supported.iter().enumerate() {
+            let field_idx = outer_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_gc_ptr,
+                field_idx,
+                "mixed_escape_indirect_state_outer_init_gep",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
+        for (idx, cap) in body_visible_supported.iter().enumerate() {
+            let field_idx = body_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_gc_ptr,
+                field_idx,
+                "mixed_escape_indirect_state_body_init_gep",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
+
+        let frame_ptr = self.builder.build_struct_gep(
+            state_ty,
+            state_gc_ptr,
+            1,
+            "mixed_escape_indirect_state_frame_gep",
+        )?;
+        let frame_i8 = self.builder.build_address_space_cast(
+            frame_ptr,
+            i8_ptr_ty,
+            "mixed_escape_indirect_frame_i8",
+        )?;
+        let escape_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
+        let escape_tag_i32 = i32_ty.const_int(escape_tag as u64, false);
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), escape_tag_i32.into()],
+            "mixed_escape_indirect_push",
+        )?;
+        let prev_ptr = self.builder.build_struct_gep(
+            handler_frame_ty,
+            frame_ptr,
+            0,
+            "mixed_escape_indirect_prev_gep",
+        )?;
+        let escape_outer_top = self
+            .builder
+            .build_load(i8_ptr_ty, prev_ptr, "mixed_escape_indirect_outer_top")?
+            .into_pointer_value();
+
+        let _ = self.builder.build_store(state_ptr, i32_ty.const_zero())?;
+        let _ = self
+            .builder
+            .build_store(resume_used_ptr, self.context.bool_type().const_zero())?;
+
+        self.builder.build_unconditional_branch(dispatch_bb)?;
+
+        self.builder.position_at_end(dispatch_bb);
+        let state = self
+            .builder
+            .build_load(i32_ty, state_ptr, "mixed_escape_indirect_state")?
+            .into_int_value();
+        let cases = [
+            (i32_ty.const_int(0, false), state0_bb),
+            (i32_ty.const_int(1, false), state1_bb),
+        ];
+        self.builder.build_switch(state, bad_state_bb, &cases)?;
+
+        self.builder.position_at_end(bad_state_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        self.env.push_scope();
+
+        self.builder.position_at_end(state0_bb);
+        self.push_raise_target(finally_unwind_bb);
+        for stmt in handle.body.stmts.iter().take(perform_idx) {
+            self.codegen_immediate_resume_stmt_unit(stmt)?;
+        }
+        let hir::StmtKind::Val(immediate_decl) = &handle.body.stmts[perform_idx].kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm immediate-resume body (expected perform binding)",
+                at: handle.body.stmts[perform_idx].span.into(),
+            });
+        };
+        let target_ptr = self.codegen_immediate_resume_site_binding(
+            &perform_site,
+            immediate_decl,
+            ImmediateResumeArmDispatch {
+                binder_slots: &immediate_binder_slots,
+                resume_used_ptr,
+                arm_bb,
+            },
+            None,
+        )?;
+        self.pop_raise_target();
+
+        self.builder.position_at_end(arm_bb);
+        let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[escape_outer_top.into()],
+            "mixed_escape_indirect_detach_for_immediate_arm",
+        )?;
+
+        self.env.push_scope();
+        for slot in &immediate_binder_slots {
+            self.env.insert(
+                slot.id,
+                CgLocal {
+                    hir_ty: Some(slot.hir_ty),
+                    ty: slot.ty,
+                    ptr: slot.ptr,
+                    mutable: false,
+                },
+            );
+        }
+
+        let resume_ctx = ImmediateResumeCtx {
+            resume_symbol,
+            resume_value_ty,
+            resume_value_ptr,
+            resume_used_ptr,
+            state_ptr,
+            next_state: 1,
+        };
+        self.push_immediate_resume_ctx(resume_ctx);
+        self.push_raise_target(finally_unwind_bb);
+        let _ = self.codegen_expr_in_expected_context(&immediate_arm.body, Some(CgTy::Unit))?;
+        self.pop_raise_target();
+        self.pop_immediate_resume_ctx();
+
+        let arm_insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let arm_func = arm_insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let resume_ok_bb = self
+            .context
+            .append_basic_block(arm_func, "handle_mixed_escape_indirect_resume_arm_ok");
+        let resume_missing_bb = self
+            .context
+            .append_basic_block(arm_func, "handle_mixed_escape_indirect_resume_arm_missing");
+
+        let used = self
+            .builder
+            .build_load(self.context.bool_type(), resume_used_ptr, "resume_used")?
+            .into_int_value();
+        self.builder
+            .build_conditional_branch(used, resume_ok_bb, resume_missing_bb)?;
+
+        self.builder.position_at_end(resume_missing_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        self.builder.position_at_end(resume_ok_bb);
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[frame_i8.into()],
+            "mixed_escape_indirect_restore_after_immediate_arm",
+        )?;
+        self.builder.build_unconditional_branch(dispatch_bb)?;
+        self.env.pop_scope();
+
+        self.builder.position_at_end(state1_bb);
+        self.push_raise_target(finally_unwind_bb);
+        if let Some(ptr) = resume_value_ptr {
+            let llvm_ty = self.llvm_basic_type_of(span, resume_value_ty)?;
+            let loaded = self.builder.build_load(llvm_ty, ptr, "resume_value")?;
+            let v = CgValue {
+                ty: resume_value_ty,
+                value: Some(loaded),
+            };
+            let _stored = self.store_local_value(span, target_ptr, resume_value_ty, v)?;
+        }
+
+        let mut tail_value: CgValue<'ctx> = CgValue::unit();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate().skip(perform_idx + 1) {
+            if idx == escape_site.stmt_idx {
+                for (field_idx, cap) in outer_visible_supported.iter().enumerate() {
+                    let field_ptr = self.builder.build_struct_gep(
+                        state_ty,
+                        state_gc_ptr,
+                        outer_field_base.saturating_add(field_idx as u32),
+                        "mixed_escape_indirect_capture_outer_gep",
+                    )?;
+                    let local = self
+                        .env
+                        .get(cap.id)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "mixed escape indirect capture local not found",
+                            at: escape_site.decl.span.into(),
+                        })?;
+                    match cap.ty {
+                        CgTy::Ref => {
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_ref",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape indirect capture ref ptr",
+                                    at: escape_site.decl.span.into(),
+                                });
+                            };
+                            let casted = self.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "mixed_escape_indirect_capture_ref_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::String => {
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_str",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape indirect capture str ptr",
+                                    at: escape_site.decl.span.into(),
+                                });
+                            };
+                            let casted = self.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "mixed_escape_indirect_capture_str_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::Bool | CgTy::Int(_) => {
+                            let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_word",
+                            )?;
+                            let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
+                            let word = self.coerce_u64_word(span, loaded_v)?;
+                            let _ = self.builder.build_store(field_ptr, word)?;
+                        }
+                        _ => unreachable!("captures filtered by type"),
+                    }
+                }
+
+                for (field_idx, cap) in body_visible_supported.iter().enumerate() {
+                    let field_ptr = self.builder.build_struct_gep(
+                        state_ty,
+                        state_gc_ptr,
+                        body_field_base.saturating_add(field_idx as u32),
+                        "mixed_escape_indirect_capture_body_gep",
+                    )?;
+                    let local = self
+                        .env
+                        .get(cap.id)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "mixed escape indirect capture local not found",
+                            at: escape_site.decl.span.into(),
+                        })?;
+                    match cap.ty {
+                        CgTy::Ref => {
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_ref",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape indirect capture ref ptr",
+                                    at: escape_site.decl.span.into(),
+                                });
+                            };
+                            let casted = self.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "mixed_escape_indirect_capture_ref_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::String => {
+                            let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_str",
+                            )?;
+                            let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "mixed escape indirect capture str ptr",
+                                    at: escape_site.decl.span.into(),
+                                });
+                            };
+                            let casted = self.builder.build_pointer_cast(
+                                ptr,
+                                gc_i8_ptr_ty,
+                                "mixed_escape_indirect_capture_str_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::Bool | CgTy::Int(_) => {
+                            let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
+                            let loaded = self.builder.build_load(
+                                llvm_ty,
+                                local.ptr,
+                                "mixed_escape_indirect_capture_word",
+                            )?;
+                            let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
+                            let word = self.coerce_u64_word(span, loaded_v)?;
+                            let _ = self.builder.build_store(field_ptr, word)?;
+                        }
+                        _ => unreachable!("captures filtered by type"),
+                    }
+                }
+
+                self.pop_raise_target();
+                self.push_raise_target(escape_dispatch_bb);
+                self.codegen_val_decl(escape_site.decl)?;
+                self.pop_raise_target();
+                self.push_raise_target(finally_unwind_bb);
+                tail_value = CgValue::unit();
+                continue;
+            }
+
+            let is_last = idx + 1 == handle.body.stmts.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                    tail_value = CgValue::unit();
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    tail_value = CgValue::unit();
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let v = self.codegen_expr(expr)?;
+                    tail_value = if is_last { v } else { CgValue::unit() };
+                }
+                hir::StmtKind::Return { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "`return` inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+                hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        self.codegen_immediate_resume_finalize_body(
+            handle.body.span,
+            out_ty,
+            tail_value,
+            result_ptr,
+            ImmediateResumeHandlerExit::None,
+            finally_bb,
+        )?;
+        self.pop_raise_target();
+        self.env.pop_scope();
+
+        self.builder.position_at_end(escape_dispatch_bb);
+        let rt_read_tag = self.declare_runtime_effect_perform_slot_read_op_tag();
+        let tag_call = self.builder.build_call(
+            rt_read_tag,
+            &[],
+            "mixed_escape_indirect_dispatch_read_op_tag",
+        )?;
+        let tag_raw =
+            tag_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect dispatch read_op_tag return value",
+                    at: span.into(),
+                })?;
+        let BasicValueEnum::IntValue(slot_tag) = tag_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "mixed escape indirect dispatch read_op_tag return type",
+                at: span.into(),
+            });
+        };
+        let tag_matches = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            slot_tag,
+            escape_tag_i32,
+            "mixed_escape_indirect_dispatch_tag_eq",
+        )?;
+        self.builder
+            .build_conditional_branch(tag_matches, escape_arm_bb, finally_unwind_bb)?;
+
+        self.builder.position_at_end(escape_arm_bb);
+        for (slot_idx, slot) in escape_binder_slots.iter().enumerate() {
+            if slot_idx != 0 {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape binder count (indirect, only 1 supported)",
+                    at: escape_arm.op.span.into(),
+                });
+            }
+            let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+            let read_call =
+                self.builder
+                    .build_call(rt_read, &[], "mixed_escape_indirect_arm_read_binder")?;
+            let raw = read_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect arm read binder return",
+                    at: span.into(),
+                },
+            )?;
+            let BasicValueEnum::IntValue(binder_u64) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect arm read binder type",
+                    at: span.into(),
+                });
+            };
+            let CgTy::Int(int_ty) = slot.ty else {
+                unreachable!("mixed indirect binder slots are normalized to Int");
+            };
+            let to = self.int_type(int_ty);
+            let v = if int_ty.bits == 64 {
+                binder_u64
+            } else {
+                self.builder.build_int_truncate(
+                    binder_u64,
+                    to,
+                    "mixed_escape_indirect_arm_binder_trunc",
+                )?
+            };
+            let _ = self.store_local_value(span, slot.ptr, slot.ty, CgValue::int(v, int_ty))?;
+        }
+
+        let rt_clear = self.declare_runtime_effect_clear();
+        let _ = self
+            .builder
+            .build_call(rt_clear, &[], "mixed_escape_indirect_arm_effect_clear")?;
+
+        let rt_cont_alloc = self.declare_runtime_continuation_alloc();
+        let step_ptr = step_fn.as_global_value().as_pointer_value();
+        let cont_call = self.builder.build_call(
+            rt_cont_alloc,
+            &[state_raw.into(), step_ptr.into()],
+            "mixed_escape_indirect_cont_alloc",
+        )?;
+        let cont_raw =
+            cont_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "mixed escape indirect continuation alloc return value",
+                    at: escape_site.decl.span.into(),
+                })?;
+        let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "mixed escape indirect continuation alloc return type",
+                at: escape_site.decl.span.into(),
+            });
+        };
+
+        let _ = self
+            .builder
+            .build_call(pin, &[k_raw.into()], "mixed_escape_indirect_k_pin")?;
+        let _stored = self.store_local_value(
+            span,
+            cont_ptr,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(k_raw.into()),
+            },
+        )?;
+
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[escape_outer_top.into()],
+            "mixed_escape_indirect_detach_for_escape_arm",
+        )?;
+
+        self.env.push_scope();
+        for slot in &escape_binder_slots {
+            self.env.insert(
+                slot.id,
+                CgLocal {
+                    hir_ty: Some(slot.hir_ty),
+                    ty: slot.ty,
+                    ptr: slot.ptr,
+                    mutable: false,
+                },
+            );
+        }
+        self.env.insert(
+            continuation_symbol,
+            CgLocal {
+                hir_ty: None,
+                ty: CgTy::Ref,
+                ptr: cont_ptr,
+                mutable: false,
+            },
+        );
+
+        self.push_raise_target(finally_unwind_bb);
+        let arm_v = self.codegen_expr_in_expected_context(&escape_arm.body, Some(out_ty))?;
+        self.pop_raise_target();
+        let arm_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(escape_arm.body.span, arm_v, out_ty)?
+        };
+
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(escape_arm.body.span, ptr, out_ty, arm_v)?;
+            }
+            self.builder.build_unconditional_branch(finally_bb)?;
+        }
+        self.env.pop_scope();
+
+        self.builder.position_at_end(finally_unwind_bb);
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[escape_outer_top.into()],
+            "mixed_escape_indirect_finally_unwind_detach",
+        )?;
+        let llvm_ref_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+        let k_loaded = self
+            .builder
+            .build_load(
+                llvm_ref_ty,
+                cont_ptr,
+                "mixed_escape_indirect_k_maybe_unpin_load",
+            )?
+            .into_pointer_value();
+        let k_is_null = self
+            .builder
+            .build_is_null(k_loaded, "mixed_escape_indirect_k_is_null")?;
+        let finally_unwind_state_unpin_bb = self.context.append_basic_block(
+            func,
+            "handle_mixed_escape_indirect_finally_unwind_state_unpin",
+        );
+        let finally_unwind_state_keep_bb = self.context.append_basic_block(
+            func,
+            "handle_mixed_escape_indirect_finally_unwind_state_keep",
+        );
+        let finally_unwind_state_merge_bb = self.context.append_basic_block(
+            func,
+            "handle_mixed_escape_indirect_finally_unwind_state_merge",
+        );
+        self.builder.build_conditional_branch(
+            k_is_null,
+            finally_unwind_state_unpin_bb,
+            finally_unwind_state_keep_bb,
+        )?;
+        self.builder.position_at_end(finally_unwind_state_unpin_bb);
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self.builder.build_call(
+            unpin,
+            &[state_raw.into()],
+            "mixed_escape_indirect_state_unpin_finally_unwind",
+        )?;
+        self.builder
+            .build_unconditional_branch(finally_unwind_state_merge_bb)?;
+        self.builder.position_at_end(finally_unwind_state_keep_bb);
+        self.builder
+            .build_unconditional_branch(finally_unwind_state_merge_bb)?;
+        self.builder.position_at_end(finally_unwind_state_merge_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            if let Some(target) = outer_raise_target {
+                self.builder.build_unconditional_branch(target)?;
+            } else {
+                let ret_ty = self.current_fun_return_ty.ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape finally unwind needs function return type",
+                        at: span.into(),
+                    },
+                )?;
+                let v = self.default_value(span, ret_ty)?;
+                self.emit_return(span, ret_ty, v)?;
+            }
+        }
+
+        self.builder.position_at_end(finally_bb);
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[escape_outer_top.into()],
+            "mixed_escape_indirect_finally_detach",
+        )?;
+        let k_loaded = self
+            .builder
+            .build_load(
+                llvm_ref_ty,
+                cont_ptr,
+                "mixed_escape_indirect_k_maybe_unpin_done_load",
+            )?
+            .into_pointer_value();
+        let k_is_null = self
+            .builder
+            .build_is_null(k_loaded, "mixed_escape_indirect_k_done_is_null")?;
+        let finally_state_unpin_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_finally_state_unpin");
+        let finally_state_keep_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_finally_state_keep");
+        let finally_state_merge_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_finally_state_merge");
+        self.builder.build_conditional_branch(
+            k_is_null,
+            finally_state_unpin_bb,
+            finally_state_keep_bb,
+        )?;
+        self.builder.position_at_end(finally_state_unpin_bb);
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self.builder.build_call(
+            unpin,
+            &[state_raw.into()],
+            "mixed_escape_indirect_state_unpin_finally",
+        )?;
+        self.builder
+            .build_unconditional_branch(finally_state_merge_bb)?;
+        self.builder.position_at_end(finally_state_keep_bb);
+        self.builder
+            .build_unconditional_branch(finally_state_merge_bb)?;
+        self.builder.position_at_end(finally_state_merge_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(done_bb)?;
+        }
+
+        self.builder.position_at_end(done_bb);
+        let k_loaded = self
+            .builder
+            .build_load(llvm_ref_ty, cont_ptr, "mixed_escape_indirect_k_unpin_load")?
+            .into_pointer_value();
+        let k_is_null = self
+            .builder
+            .build_is_null(k_loaded, "mixed_escape_indirect_k_unpin_is_null")?;
+        let k_unpin_skip_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_k_unpin_skip");
+        let k_unpin_do_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_k_unpin_do");
+        let k_unpin_merge_bb = self
+            .context
+            .append_basic_block(func, "handle_mixed_escape_indirect_k_unpin_merge");
+        self.builder
+            .build_conditional_branch(k_is_null, k_unpin_skip_bb, k_unpin_do_bb)?;
+        self.builder.position_at_end(k_unpin_do_bb);
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ =
+            self.builder
+                .build_call(unpin, &[k_loaded.into()], "mixed_escape_indirect_k_unpin")?;
+        self.builder.build_unconditional_branch(k_unpin_merge_bb)?;
+        self.builder.position_at_end(k_unpin_skip_bb);
+        self.builder.build_unconditional_branch(k_unpin_merge_bb)?;
+        self.builder.position_at_end(k_unpin_merge_bb);
+
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded =
+                    self.builder
+                        .build_load(llvm_ty, ptr, "handle_mixed_escape_indirect_result")?;
                 Ok(CgValue {
                     ty: out_ty,
                     value: Some(loaded),
