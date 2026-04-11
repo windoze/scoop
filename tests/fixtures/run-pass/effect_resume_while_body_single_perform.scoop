@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_while_body_single_perform.stdout
+//
+// T2003b3: immediate-resume 支持 while body 中的单 direct perform。
+//
+// 目标覆盖：
+// - 首次命中 perform 后，resume 会继续当前迭代尾部；
+// - 后续迭代再次命中同一 perform 时，继续复用同一 arm / binder / binding slot；
+// - cond=false 时 while 直接退出，arm 不会被误触发。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun run(limit: Int): Int {
+    handle {
+        println("body_start")
+        var i: Int = 0
+        while (i < limit) {
+            println("loop_before")
+            val x: Int = Yield.next()
+            if (x == 1) {
+                println("x_ok")
+            } else {
+                println("x_bad")
+            }
+            println("loop_after")
+            i = i + 1
+        }
+        println("after_loop")
+        i
+    } with {
+        Yield.next() -> resume {
+            println("arm")
+            resume(1)
+        }
+    }
+}
+
+fun main() {
+    println("case_three")
+    println(run(3))
+    println("case_zero")
+    println(run(0))
+}

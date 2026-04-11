@@ -1,0 +1,29 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
+// EXPECT-ERROR: handle resume body (nested perform in while body not yet supported)
+// ARGS: --emit-llvm
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    val result: Int = handle {
+        var keep: Bool = true
+        while (keep) {
+            if (keep) {
+                val x: Int = Yield.next()
+                println(x)
+            }
+            keep = false
+        }
+        0
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    println(result)
+}

@@ -30,7 +30,7 @@ pub(super) struct ImmediateResumeCtx<'ctx> {
 }
 
 /// Immediate-resume 当前阶段支持的嵌套恢复路径：
-/// statement-position `block` + `if` then/else branch。
+/// statement-position `block`、`if` then/else branch、以及 `while` body 中的 direct perform。
 #[derive(Debug, Clone, Copy)]
 enum ImmediateResumeFrame<'hir> {
     Block {
@@ -47,6 +47,11 @@ enum ImmediateResumeFrame<'hir> {
         else_block: &'hir hir::Block,
         stmt_idx: usize,
     },
+    WhileBody {
+        while_cond: &'hir hir::Expr,
+        while_body: &'hir hir::Block,
+        stmt_idx: usize,
+    },
 }
 
 impl<'hir> ImmediateResumeFrame<'hir> {
@@ -54,7 +59,8 @@ impl<'hir> ImmediateResumeFrame<'hir> {
         match self {
             ImmediateResumeFrame::Block { stmt_idx, .. }
             | ImmediateResumeFrame::IfThen { stmt_idx, .. }
-            | ImmediateResumeFrame::IfElse { stmt_idx, .. } => {
+            | ImmediateResumeFrame::IfElse { stmt_idx, .. }
+            | ImmediateResumeFrame::WhileBody { stmt_idx, .. } => {
                 *stmt_idx = idx;
             }
         }
@@ -64,7 +70,8 @@ impl<'hir> ImmediateResumeFrame<'hir> {
         match self {
             ImmediateResumeFrame::Block { stmt_idx, .. }
             | ImmediateResumeFrame::IfThen { stmt_idx, .. }
-            | ImmediateResumeFrame::IfElse { stmt_idx, .. } => *stmt_idx,
+            | ImmediateResumeFrame::IfElse { stmt_idx, .. }
+            | ImmediateResumeFrame::WhileBody { stmt_idx, .. } => *stmt_idx,
         }
     }
 }
@@ -85,6 +92,13 @@ struct ImmediateResumeBinderSlot<'ctx> {
     hir_ty: TypeId,
     ty: CgTy,
     ptr: PointerValue<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeArmDispatch<'a, 'ctx> {
+    binder_slots: &'a [ImmediateResumeBinderSlot<'ctx>],
+    resume_used_ptr: PointerValue<'ctx>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -395,13 +409,104 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         hir::StmtKind::While { cond, body } => {
                             if cg.immediate_resume_expr_contains_matching_direct_perform(
                                 cond, arm_op_fqn,
-                            ) || cg.immediate_resume_block_contains_matching_direct_perform(
-                                body, arm_op_fqn,
                             ) {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle resume body (while not yet supported)",
+                                    kind: "handle resume body (while condition with perform not yet supported)",
                                     at: stmt.span.into(),
                                 });
+                            }
+                            for (body_idx, body_stmt) in body.stmts.iter().enumerate() {
+                                match &body_stmt.kind {
+                                    hir::StmtKind::Empty => {}
+                                    hir::StmtKind::Val(decl) => {
+                                        let Some(init) = decl.init.as_ref() else {
+                                            continue;
+                                        };
+                                        if let hir::ExprKind::Perform { op, args } = &init.kind
+                                            && op.fqn == arm_op_fqn
+                                        {
+                                            self.path.push(ImmediateResumeFrame::WhileBody {
+                                                while_cond: cond,
+                                                while_body: body,
+                                                stmt_idx: body_idx,
+                                            });
+                                            let result = self.record_site(
+                                                decl,
+                                                op,
+                                                args.as_slice(),
+                                                top_level_stmt_idx,
+                                            );
+                                            self.path.pop();
+                                            result?;
+                                            continue;
+                                        }
+                                        if cg.immediate_resume_expr_contains_matching_direct_perform(
+                                            init, arm_op_fqn,
+                                        ) {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (nested perform in while body not yet supported)",
+                                                at: init.span.into(),
+                                            });
+                                        }
+                                    }
+                                    hir::StmtKind::Assign { lhs, rhs, .. } => {
+                                        if cg.immediate_resume_expr_contains_matching_direct_perform(
+                                            lhs, arm_op_fqn,
+                                        ) || cg.immediate_resume_expr_contains_matching_direct_perform(
+                                            rhs, arm_op_fqn,
+                                        ) {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (nested perform in while body not yet supported)",
+                                                at: body_stmt.span.into(),
+                                            });
+                                        }
+                                    }
+                                    hir::StmtKind::Expr(expr) => {
+                                        if let hir::ExprKind::Perform { op, .. } = &expr.kind
+                                            && op.fqn == arm_op_fqn
+                                        {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (perform must be bound to val)",
+                                                at: expr.span.into(),
+                                            });
+                                        }
+                                        if cg.immediate_resume_expr_contains_matching_direct_perform(
+                                            expr, arm_op_fqn,
+                                        ) {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (nested perform in while body not yet supported)",
+                                                at: expr.span.into(),
+                                            });
+                                        }
+                                    }
+                                    hir::StmtKind::While { cond, body } => {
+                                        if cg.immediate_resume_expr_contains_matching_direct_perform(
+                                            cond, arm_op_fqn,
+                                        ) || cg.immediate_resume_block_contains_matching_direct_perform(
+                                            body, arm_op_fqn,
+                                        ) {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (nested perform in while body not yet supported)",
+                                                at: body_stmt.span.into(),
+                                            });
+                                        }
+                                    }
+                                    hir::StmtKind::Return { value } => {
+                                        if value.as_ref().is_some_and(|expr| {
+                                            cg.immediate_resume_expr_contains_matching_direct_perform(
+                                                expr, arm_op_fqn,
+                                            )
+                                        }) {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle resume body (`return` with perform not yet supported)",
+                                                at: body_stmt.span.into(),
+                                            });
+                                        }
+                                    }
+                                    hir::StmtKind::Break { .. }
+                                    | hir::StmtKind::Continue { .. }
+                                    | hir::StmtKind::Todo(_) => {}
+                                }
                             }
                         }
                         hir::StmtKind::Return { value } => {
@@ -573,6 +678,198 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_immediate_resume_site_binding<'hir>(
+        &mut self,
+        site: &'hir ImmediateResumeSite<'hir>,
+        decl: &'hir hir::ValDecl,
+        arm_dispatch: ImmediateResumeArmDispatch<'_, 'ctx>,
+        reuse_target_ptr: Option<PointerValue<'ctx>>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let Some(init) = decl.init.as_ref() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (missing perform init)",
+                at: decl.span.into(),
+            });
+        };
+        let hir::ExprKind::Perform { op, args } = &init.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (expected perform binding)",
+                at: init.span.into(),
+            });
+        };
+        if op.fqn != site.op.fqn {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume op mismatch",
+                at: op.span.into(),
+            });
+        }
+
+        let resume_value_ty = self
+            .cg_ty_of(decl.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume perform value type",
+                at: decl.span.into(),
+            })?;
+
+        let target_ptr = if let Some(ptr) = reuse_target_ptr {
+            self.env.insert(
+                site.id,
+                CgLocal {
+                    hir_ty: Some(decl.ty),
+                    ty: resume_value_ty,
+                    ptr,
+                    mutable: decl.mutable,
+                },
+            );
+            ptr
+        } else if let Some(local) = self.env.get(site.id) {
+            if local.ty != resume_value_ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume perform value type",
+                    at: decl.span.into(),
+                });
+            }
+            local.ptr
+        } else {
+            let name = decl.name.as_deref().unwrap_or("perform_value");
+            let ptr = self.create_entry_alloca(decl.span, name, resume_value_ty)?;
+            self.env.insert(
+                site.id,
+                CgLocal {
+                    hir_ty: Some(decl.ty),
+                    ty: resume_value_ty,
+                    ptr,
+                    mutable: decl.mutable,
+                },
+            );
+            ptr
+        };
+
+        for (slot_idx, arg) in args.iter().enumerate() {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume perform args (named arg not supported)",
+                    at: decl.span.into(),
+                });
+            };
+            let slot = &arm_dispatch.binder_slots[slot_idx];
+            if slot.ty == CgTy::Unit {
+                continue;
+            }
+            let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+            let v = self.coerce_value(expr.span, v, slot.ty)?;
+            let _stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+        }
+
+        let _ = self.builder.build_store(
+            arm_dispatch.resume_used_ptr,
+            self.context.bool_type().const_int(0, false),
+        )?;
+        self.builder
+            .build_unconditional_branch(arm_dispatch.arm_bb)?;
+        Ok(target_ptr)
+    }
+
+    fn codegen_immediate_resume_while_iteration_to_site<'hir>(
+        &mut self,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
+        depth: usize,
+        while_body: &'hir hir::Block,
+        arm_dispatch: ImmediateResumeArmDispatch<'_, 'ctx>,
+        reuse_target_ptr: Option<PointerValue<'ctx>>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let perform_stmt_idx = plan.site.resume_path[depth].stmt_idx();
+        for (idx, stmt) in while_body.stmts.iter().enumerate() {
+            if idx < perform_stmt_idx {
+                self.codegen_immediate_resume_stmt_unit(stmt)?;
+                continue;
+            }
+
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume body (expected perform binding)",
+                    at: stmt.span.into(),
+                });
+            };
+            return self.codegen_immediate_resume_site_binding(
+                plan.site,
+                decl,
+                arm_dispatch,
+                reuse_target_ptr,
+            );
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle resume body (perform site missing)",
+            at: plan.site.decl.span.into(),
+        })
+    }
+
+    fn codegen_immediate_resume_while_tail_and_continue<'hir>(
+        &mut self,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
+        depth: usize,
+        start_idx: usize,
+        while_frame: (&'hir hir::Expr, &'hir hir::Block),
+        target_ptr: PointerValue<'ctx>,
+        arm_dispatch: ImmediateResumeArmDispatch<'_, 'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let (while_cond, while_body) = while_frame;
+        for stmt in while_body.stmts.iter().skip(start_idx) {
+            self.codegen_immediate_resume_stmt_unit(stmt)?;
+        }
+        self.env.pop_scope();
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: while_body.span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: while_body.span.into(),
+            })?;
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "handle_resume_while_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "handle_resume_while_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "handle_resume_while_after");
+
+        self.builder.build_unconditional_branch(cond_bb)?;
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(while_cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle resume body (while condition value)",
+            at: while_cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        self.builder.position_at_end(after_bb);
+        self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+
+        self.builder.position_at_end(body_bb);
+        self.env.push_scope();
+        let _ = self.codegen_immediate_resume_while_iteration_to_site(
+            plan,
+            depth,
+            while_body,
+            arm_dispatch,
+            Some(target_ptr),
+        )?;
+        Ok(())
+    }
+
     fn codegen_immediate_resume_finalize_body(
         &mut self,
         value_span: crate::span::Span,
@@ -694,6 +991,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ImmediateResumeFrame::Block { block, .. } => &block.stmts,
             ImmediateResumeFrame::IfThen { then_block, .. } => &then_block.stmts,
             ImmediateResumeFrame::IfElse { else_block, .. } => &else_block.stmts,
+            ImmediateResumeFrame::WhileBody { while_body, .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume body (while frame needs specialized lowering)",
+                    at: while_body.span.into(),
+                });
+            }
         };
         for stmt in stmts.iter().skip(start_idx) {
             self.codegen_immediate_resume_stmt_unit(stmt)?;
@@ -748,76 +1051,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: stmt.span.into(),
                     });
                 };
-                let Some(init) = decl.init.as_ref() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle resume body (missing perform init)",
-                        at: decl.span.into(),
-                    });
-                };
-                let hir::ExprKind::Perform { op, args } = &init.kind else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle resume body (expected perform binding)",
-                        at: init.span.into(),
-                    });
-                };
-                if op.fqn != plan.site.op.fqn {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle resume op mismatch",
-                        at: op.span.into(),
-                    });
-                }
-                let resume_value_ty =
-                    self.cg_ty_of(decl.ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle resume perform value type",
-                            at: decl.span.into(),
-                        })?;
-
-                let target_ptr = if let Some(local) = self.env.get(plan.site.id) {
-                    if local.ty != resume_value_ty {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle resume perform value type",
-                            at: decl.span.into(),
-                        });
-                    }
-                    local.ptr
-                } else {
-                    let name = decl.name.as_deref().unwrap_or("perform_value");
-                    let ptr = self.create_entry_alloca(decl.span, name, resume_value_ty)?;
-                    self.env.insert(
-                        plan.site.id,
-                        CgLocal {
-                            hir_ty: Some(decl.ty),
-                            ty: resume_value_ty,
-                            ptr,
-                            mutable: decl.mutable,
-                        },
-                    );
-                    ptr
-                };
-
-                for (slot_idx, arg) in args.iter().enumerate() {
-                    let hir::CallArg::Positional(expr) = arg else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle resume perform args (named arg not supported)",
-                            at: stmt.span.into(),
-                        });
-                    };
-                    let slot = &binder_slots[slot_idx];
-                    if slot.ty == CgTy::Unit {
-                        continue;
-                    }
-                    let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                    let v = self.coerce_value(expr.span, v, slot.ty)?;
-                    let _stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
-                }
-
-                let _ = self.builder.build_store(
-                    resume_used_ptr,
-                    self.context.bool_type().const_int(0, false),
-                )?;
-                self.builder.build_unconditional_branch(arm_bb)?;
-                return Ok(target_ptr);
+                return self.codegen_immediate_resume_site_binding(
+                    plan.site,
+                    decl,
+                    ImmediateResumeArmDispatch {
+                        binder_slots,
+                        resume_used_ptr,
+                        arm_bb,
+                    },
+                    None,
+                );
             }
 
             match &plan.site.resume_path[depth] {
@@ -1004,6 +1247,76 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         binder_slots,
                         resume_used_ptr,
                         arm_bb,
+                    );
+                }
+                ImmediateResumeFrame::WhileBody {
+                    while_cond: expected_cond,
+                    while_body: expected_body,
+                    ..
+                } => {
+                    let hir::StmtKind::While { cond, body } = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected while statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(cond, *expected_cond) || !std::ptr::eq(body, *expected_body) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (while path mismatch)",
+                            at: stmt.span.into(),
+                        });
+                    }
+
+                    let insert_block = self.builder.get_insert_block().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no insert block",
+                            at: stmt.span.into(),
+                        },
+                    )?;
+                    let func =
+                        insert_block
+                            .get_parent()
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "builder has no parent function",
+                                at: stmt.span.into(),
+                            })?;
+                    let cond_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_while_cond");
+                    let body_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_while_body");
+                    let after_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_while_after");
+
+                    self.builder.build_unconditional_branch(cond_bb)?;
+
+                    self.builder.position_at_end(cond_bb);
+                    let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+                    let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+                    let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle resume body (while condition value)",
+                        at: cond.span.into(),
+                    })?;
+                    self.builder
+                        .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+                    self.builder.position_at_end(after_bb);
+                    self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+
+                    self.builder.position_at_end(body_bb);
+                    self.env.push_scope();
+                    return self.codegen_immediate_resume_while_iteration_to_site(
+                        plan,
+                        depth,
+                        body,
+                        ImmediateResumeArmDispatch {
+                            binder_slots,
+                            resume_used_ptr,
+                            arm_bb,
+                        },
+                        None,
                     );
                 }
             }
@@ -3440,9 +3753,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             let last_depth = perform_site.resume_path.len() - 1;
             let start_idx = perform_site.resume_path[last_depth].stmt_idx() + 1;
-            self.codegen_immediate_resume_frame_tail_and_continue(
-                exec_plan, last_depth, start_idx,
-            )?;
+            match &perform_site.resume_path[last_depth] {
+                ImmediateResumeFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    ..
+                } => {
+                    self.codegen_immediate_resume_while_tail_and_continue(
+                        exec_plan,
+                        last_depth,
+                        start_idx,
+                        (while_cond, while_body),
+                        target_ptr,
+                        ImmediateResumeArmDispatch {
+                            binder_slots: &binder_slots,
+                            resume_used_ptr,
+                            arm_bb,
+                        },
+                    )?;
+                }
+                _ => {
+                    self.codegen_immediate_resume_frame_tail_and_continue(
+                        exec_plan, last_depth, start_idx,
+                    )?;
+                }
+            }
         }
         self.pop_raise_target();
 

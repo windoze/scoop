@@ -134,7 +134,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_resume_if_then_branch_single_perform`、`effect_resume_if_else_branch_single_perform`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003b3 [TODO] Effect：immediate-resume while 内 direct perform 的恢复与诊断收口
+### T2003b3 [DONE] Effect：immediate-resume while 内 direct perform 的恢复与诊断收口
 - 描述：最后处理 loop 场景，把 direct perform 放进 `while` body，并对本阶段仍未覆盖的嵌套形状统一为稳定诊断。
 - 目标：
   - immediate-resume 可覆盖 `while` body 中的 direct perform，并在 resume 后从循环体内正确位置继续执行。
@@ -145,6 +145,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003b2
+- 完成说明：
+  - immediate-resume 的 `resume_path` 与 lowering 现已支持 statement-position `while` body 中的单 direct perform；resume 后会先完成当前迭代尾部，再按原 `while` 条件决定是否进入下一次迭代。
+  - 同一 `while` 内的 repeated direct perform 现会复用同一 binding slot / arm state machine，多次迭代下的 one-shot `resume(value)` 语义保持稳定。
+  - 对 `while` condition 中的 perform 以及 `while` body 内更深层嵌套 perform，现会稳定报出 `unsupported_main_body`，不再依赖 LLVM 阶段的偶发失败。
+  - 已新增 fixtures：run-pass `effect_resume_while_body_single_perform`、build-fail `effect_resume_while_nested_perform_is_error`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
 - 描述：在 `finally` 与控制流主链路落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
