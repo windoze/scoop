@@ -1,0 +1,31 @@
+// EXPECT: pass
+// RUN-STDOUT: higher_order_aggregate_return_closure_tuple.stdout
+// EXPECT-EXIT: 0
+//
+// T0154：higher-order 间接调用支持 tuple 返回值。
+// - 局部 closure/function value 直接调用返回 tuple；
+// - closure 作为 higher-order 参数再调用时同样返回 tuple。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun combine(seed: Int, builder: (Int) -> (Int, Int)): Int {
+    val first: (Int, Int) = builder(seed)
+    val second: (Int, Int) = builder(seed + 10)
+    println(first._0)
+    println(first._1)
+    println(second._0)
+    println(second._1)
+    return first._0 + second._1
+}
+
+fun main(): Int {
+    val mkPair: (Int) -> (Int, Int) = { n: Int -> (n + 1, n + 2) }
+
+    val direct: (Int, Int) = mkPair(3)
+    println(direct._0)
+    println(direct._1)
+    println(combine(5, mkPair))
+    0
+}

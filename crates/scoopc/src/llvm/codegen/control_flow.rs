@@ -1976,7 +1976,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.codegen_early_return(stmt.span, value.as_ref())?;
                         self.env.pop_scope();
                         // After branch, return a dummy — the normal path won't use it.
-                        return Ok(self.default_value(declared_return_ty));
+                        return self.default_value(stmt.span, declared_return_ty);
                     }
                     let out = match value {
                         Some(expr) => {
@@ -1988,7 +1988,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 self.coerce_value(expr.span, v, declared_return_ty)?
                             }
                         }
-                        None => self.default_value(declared_return_ty),
+                        None => self.default_value(stmt.span, declared_return_ty)?,
                     };
 
                     self.env.pop_scope();
@@ -2008,7 +2008,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
-                    return Ok(self.default_value(declared_return_ty));
+                    return self.default_value(*break_span, declared_return_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
                     let loop_ctx = self.loop_context_stack.last().ok_or(
@@ -2020,7 +2020,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
                     self.env.pop_scope();
-                    return Ok(self.default_value(declared_return_ty));
+                    return self.default_value(*continue_span, declared_return_ty);
                 }
                 hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2038,7 +2038,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.coerce_value(block.span, v, declared_return_ty)?
             }
         } else {
-            self.default_value(declared_return_ty)
+            self.default_value(block.span, declared_return_ty)?
         };
 
         self.env.pop_scope();

@@ -170,7 +170,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "effect unwind needs function return type",
                     at: at.into(),
                 })?;
-            let v = self.default_value(ret_ty);
+            let v = self.default_value(at, ret_ty)?;
             self.emit_return(at, ret_ty, v)?;
         }
 
@@ -754,7 +754,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "Raise<RuntimeError> needs function return type",
                     at: span.into(),
                 })?;
-            let v = self.default_value(ret_ty);
+            let v = self.default_value(span, ret_ty)?;
             self.emit_return(span, ret_ty, v)?;
         }
 
@@ -848,7 +848,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "Raise.raise needs function return type",
                     at: span.into(),
                 })?;
-            let v = self.default_value(ret_ty);
+            let v = self.default_value(span, ret_ty)?;
             self.emit_return(span, ret_ty, v)?;
         }
 
@@ -872,7 +872,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Raise 的返回类型在类型系统里是 `Nothing`，可用于任意期望类型；
         // 这里返回一个"期望类型的默认值"以保持后续 codegen 可继续推进。
         Ok(match expected {
-            Some(ty) => self.default_value(ty),
+            Some(ty) => self.default_value(span, ty)?,
             None => CgValue::unit(),
         })
     }
@@ -974,7 +974,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "effect perform (indirect) needs function return type",
                     at: span.into(),
                 })?;
-            let v = self.default_value(ret_ty);
+            let v = self.default_value(span, ret_ty)?;
             self.emit_return(span, ret_ty, v)?;
         }
 
@@ -996,7 +996,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(dead);
 
         Ok(match expected {
-            Some(ty) => self.default_value(ty),
+            Some(ty) => self.default_value(span, ty)?,
             None => CgValue::unit(),
         })
     }
@@ -1442,7 +1442,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             kind: "handle finally unwind needs function return type",
                             at: span.into(),
                         })?;
-                let v = self.default_value(ret_ty);
+                let v = self.default_value(span, ret_ty)?;
                 self.emit_return(span, ret_ty, v)?;
             }
         }
@@ -1543,7 +1543,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(dead);
             return Ok(match out_ty {
                 CgTy::Unit => CgValue::unit(),
-                other => self.default_value(other),
+                other => self.default_value(span, other)?,
             });
         }
 
@@ -1948,7 +1948,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             kind: "dispatch no-match needs function return type",
                             at: span.into(),
                         })?;
-                let v = self.default_value(ret_ty);
+                let v = self.default_value(span, ret_ty)?;
                 self.emit_return(span, ret_ty, v)?;
             }
         }
@@ -7009,7 +7009,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "handle escape finally unwind needs function return type",
                                 at: span.into(),
                             })?;
-                    let v = self.default_value(ret_ty);
+                    let v = self.default_value(span, ret_ty)?;
                     self.emit_return(span, ret_ty, v)?;
                 }
             }
@@ -8030,7 +8030,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             kind: "dispatch no-match needs function return type",
                             at: span.into(),
                         })?;
-                let v = self.default_value(ret_ty);
+                let v = self.default_value(span, ret_ty)?;
                 self.emit_return(span, ret_ty, v)?;
             }
         }
@@ -8298,7 +8298,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "handle indirect finally unwind needs function return type",
                                 at: span.into(),
                             })?;
-                    let v = self.default_value(ret_ty);
+                    let v = self.default_value(span, ret_ty)?;
                     self.emit_return(span, ret_ty, v)?;
                 }
             }
@@ -8563,7 +8563,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(cont_bb);
 
         Ok(match expected {
-            Some(ty) => self.default_value(ty),
+            Some(ty) => self.default_value(span, ty)?,
             None => CgValue::unit(),
         })
     }

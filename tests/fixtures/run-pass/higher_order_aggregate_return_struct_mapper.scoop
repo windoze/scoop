@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: higher_order_aggregate_return_struct_mapper.stdout
+// EXPECT-EXIT: 0
+// ENV: SCOOP_GC_STRESS=1
+//
+// T0154：higher-order 间接调用支持带 GC ref 字段的 struct 返回值。
+// - mapper 返回 `struct Labelled`，其中含有 `String` 字段；
+// - 在返回后的后续分配与再次 higher-order 调用之后，该 struct 仍需保持可读。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+struct Labelled(val text: String, val score: Int)
+
+fun runMapper(base: String, mapper: (String) -> Labelled): Labelled {
+    val produced: Labelled = mapper(base)
+    val noise: String = produced.text.concat("-noise")
+    println(noise)
+
+    val again: Labelled = mapper(noise)
+    println(again.text)
+
+    return Labelled {
+        text: produced.text.concat("?"),
+        score: produced.score + again.score,
+    }
+}
+
+fun main(): Int {
+    val mapper: (String) -> Labelled = { input: String ->
+        val tagged: String = input.concat("!")
+        Labelled {
+            text: tagged,
+            score: tagged.length(),
+        }
+    }
+
+    val direct: Labelled = mapper("go")
+    println(direct.text)
+    println(direct.score)
+
+    val combined: Labelled = runMapper("abc", mapper)
+    println(combined.text)
+    println(combined.score)
+    0
+}

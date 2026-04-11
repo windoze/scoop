@@ -258,6 +258,7 @@ cargo run -p scoop --features llvm -- test
   - `T0153`：receiver function value invocation
     - 2026-04-11：已完成。局部 receiver function value 调用不再在 typecheck 阶段被拒绝；调用按“receiver 作为第 0 个实参”检查 arity、receiver mismatch 与普通参数类型，并保持既有 effects / `@NoGC` / `const fun` 门禁。LLVM closure/function value 的间接调用 ABI 已扩展为 `env + receiver + params`，receiver lambda codegen 也会跳过 receiver 槽位再绑定显式参数。新增 `receiver_function_value_call_basic`、`receiver_function_value_call_arity_mismatch_is_error`、`receiver_function_value_call_receiver_mismatch_is_error` 回归。
   - `T0154`：higher-order aggregate returns（closure / function value / `FunPtr`）
+    - 2026-04-11：已完成。higher-order 间接调用在返回 LLVM aggregate 时统一改用 hidden sret（`void + sret* + env/params`）；closure / function value / `FunPtr` 调用点与 lambda 定义同步挂 `sret` attribute，避免 `gc.result` 对 aggregate 返回值的限制。closure lambda 现已显式设置 `gc "statepoint-example"`，因此 `String.concat()` 等带分配的 closure 在 `SCOOP_GC_STRESS=1` 下也能稳定返回含 GC ref 字段的 struct。aggregate 默认值/早退路径一并补齐，新增 `higher_order_aggregate_return_closure_tuple`、`higher_order_aggregate_return_struct_mapper`、`unsafe_funptr_aggregate_return_tuple` 回归。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 

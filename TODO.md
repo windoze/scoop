@@ -2026,7 +2026,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 `receiver_function_value_call_basic` run-pass fixture，以及 `receiver_function_value_call_arity_mismatch_is_error`、`receiver_function_value_call_receiver_mismatch_is_error` 两个 typecheck fail fixtures。
 - 依赖：无
 
-### T0154 [TODO] LLVM：higher-order 间接调用支持 aggregate 返回值
+### T0154 [DONE] LLVM：higher-order 间接调用支持 aggregate 返回值
 
 - 描述：当前 LLVM 对 `FunPtr`、closure / function value 的间接调用仍显式拒绝 `Tuple/Struct/Enum` 返回值；实现注释已指出“正确修复应转为 sret”。这会把 higher-order API 限制在标量 / `Ref` / `String` 返回值集合内。
 - 目标：
@@ -2042,6 +2042,15 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 - 依赖：无
+- 完成：
+  - higher-order 间接调用 ABI 已补齐 hidden sret：`FunPtr`、closure / function value 在返回 LLVM aggregate（tuple / struct / tagged enum）时，统一改为 `void + sret* + 原参数列表`，并在函数定义与调用点同时挂上 `sret` type attribute，避免 `gc.result` 对 aggregate 返回值的限制。
+  - closure lambda 本体现在会在 module function 上显式设置 `gc "statepoint-example"`，因此带分配的 closure（例如 `String.concat()`）也会进入 statepoint rewrite，不再在 `SCOOP_GC_STRESS=1` 下破坏 aggregate 返回值中的 GC ref 字段。
+  - aggregate 返回值的默认值/早退路径已补齐：effect unwind、`Raise.raise` 传播、callee-suspend resume 路径和 block/loop 早退分支现在都能为 tuple / struct / enum 生成零值，避免 higher-order aggregate 返回在“非主路径”里再次落回 `return value` 报错。
+  - runtime 测试辅助新增 `scoop_test_get_make_int_pair_funptr`，为 `FunPtr<(Int) -> (Int, Int)>` 提供一个 sret 风格的原生函数地址落点。
+  - 新增 run-pass fixtures：
+    - `higher_order_aggregate_return_closure_tuple`
+    - `higher_order_aggregate_return_struct_mapper`（`SCOOP_GC_STRESS=1`）
+    - `unsafe_funptr_aggregate_return_tuple`
 
 ---
 

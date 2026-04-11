@@ -23,11 +23,13 @@ use inkwell::AddressSpace;
 use inkwell::AtomicOrdering;
 use inkwell::FloatPredicate;
 use inkwell::IntPredicate;
+use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::module::Module;
 use inkwell::targets::TargetData;
+use inkwell::types::AnyType;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
@@ -37,6 +39,7 @@ use inkwell::types::StructType;
 use inkwell::values::AggregateValueEnum;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
+use inkwell::values::CallSiteValue;
 use inkwell::values::FloatValue;
 use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
@@ -249,6 +252,11 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// T0141: Function-level return context for early return support.
     /// When set, `return` statements branch to `return_bb` after storing the value in `return_alloca`.
     return_context: Option<ReturnContext<'ctx>>,
+    /// 当前函数若采用 hidden sret ABI，则这里保存返回槽指针。
+    ///
+    /// 目前仅 higher-order 间接调用生成的 lambda 函数会设置该字段；
+    /// `emit_return` 会据此改为“store 到 sret + ret void”。
+    current_sret_return_ptr: Option<PointerValue<'ctx>>,
     /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
     top_level_const_eval_stack: Vec<String>,
 }
@@ -369,6 +377,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
+            current_sret_return_ptr: None,
             top_level_const_eval_stack: Vec::new(),
         }
     }
@@ -621,6 +630,68 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 其它 calling convention 名称留到后续任务再补齐（spec §15.5.4）。
             _ => 0,
         }
+    }
+
+    fn llvm_type_needs_sret(ty: BasicTypeEnum<'ctx>) -> bool {
+        matches!(
+            ty,
+            BasicTypeEnum::StructType(_)
+                | BasicTypeEnum::ArrayType(_)
+                | BasicTypeEnum::VectorType(_)
+                | BasicTypeEnum::ScalableVectorType(_)
+        )
+    }
+
+    fn hidden_sret_result_ty(
+        &mut self,
+        at: crate::span::Span,
+        ret_cg: CgTy,
+    ) -> Result<Option<BasicTypeEnum<'ctx>>, LlvmEmitError> {
+        let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
+        Ok(Self::llvm_type_needs_sret(llvm_ret_ty).then_some(llvm_ret_ty))
+    }
+
+    fn sret_type_attribute(&self, result_ty: BasicTypeEnum<'ctx>) -> Attribute {
+        let kind_id = Attribute::get_named_enum_kind_id("sret");
+        self.context
+            .create_type_attribute(kind_id, result_ty.as_any_type_enum())
+    }
+
+    fn add_sret_attribute_to_function(
+        &self,
+        llvm_fun: FunctionValue<'ctx>,
+        param_index: u32,
+        result_ty: BasicTypeEnum<'ctx>,
+    ) {
+        llvm_fun.add_attribute(
+            AttributeLoc::Param(param_index),
+            self.sret_type_attribute(result_ty),
+        );
+    }
+
+    fn add_sret_attribute_to_call(
+        &self,
+        call_site: CallSiteValue<'ctx>,
+        param_index: u32,
+        result_ty: BasicTypeEnum<'ctx>,
+    ) {
+        call_site.add_attribute(
+            AttributeLoc::Param(param_index),
+            self.sret_type_attribute(result_ty),
+        );
+    }
+
+    fn load_sret_result_from_ptr(
+        &mut self,
+        at: crate::span::Span,
+        ret_cg: CgTy,
+        result_ptr: PointerValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_ret_ty, result_ptr, "sret_result")?;
+        self.cg_value_from_loaded(at, ret_cg, loaded)
     }
 
     fn declare_top_level_var_global(
@@ -1277,7 +1348,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 self.coerce_value(expr.span, v, declared_return_cg)?
                             }
                         }
-                        None => self.default_value(declared_return_cg),
+                        None => self.default_value(fun.span, declared_return_cg)?,
                     };
                     self.emit_return(fun.span, declared_return_cg, out)?;
                     break;
@@ -1298,7 +1369,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(bb) = self.builder.get_insert_block()
             && bb.get_terminator().is_none()
         {
-            let v = self.default_value(declared_return_cg);
+            let v = self.default_value(fun.span, declared_return_cg)?;
             self.emit_return(fun.span, declared_return_cg, v)?;
         }
 
@@ -9971,23 +10042,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(fun_ty.params.len());
-        for ty in &fun_ty.params {
-            llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
-        }
-
         let ret_cg = self
             .cg_ty_of(fun_ty.return_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "funptr call return type",
                 at: callee_span.into(),
             })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
 
-        let llvm_fun_ty = match ret_cg {
-            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
-            other => self
+        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        if let Some(result_ty) = hidden_sret_result_ty {
+            let _ = result_ty;
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for ty in &fun_ty.params {
+            llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
+        }
+
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
@@ -10016,7 +10094,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 3) 求值实参并执行调用。
         let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(args.len());
+            Vec::with_capacity(args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(callee_span, "funptr_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
         for (idx, arg) in args.iter().enumerate() {
             let hir::CallArg::Positional(expr) = arg else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -10049,6 +10134,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &llvm_args,
             "call_funptr",
         )?;
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_call(call_site, 0, result_ty);
+        }
         call_site.set_call_convention(0);
         self.emit_effect_unwind_if_active(span)?;
 
@@ -10056,13 +10144,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr call return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
+                if let Some(result_ptr) = sret_result_slot {
+                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                }
             }
         }
     }
@@ -10121,9 +10213,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(i8_ptr_ty, fn_ptr_gep, "closure_fn")?
             .into_pointer_value();
 
+        let ret_cg = self
+            .cg_ty_of(fun_ty.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function value call return type",
+                at: callee_span.into(),
+            })?;
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
+
         // 2) 组装 indirect call 的 LLVM 函数类型与参数。
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(1 + expected_arity);
+            Vec::with_capacity(1 + expected_arity + usize::from(hidden_sret_result_ty.is_some()));
+        if let Some(result_ty) = hidden_sret_result_ty {
+            let _ = result_ty;
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
         llvm_param_tys.push(gc_i8_ptr_ty.into());
         if let Some(receiver_ty) = fun_ty.receiver {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
@@ -10132,29 +10236,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
         }
 
-        let ret_cg = self
-            .cg_ty_of(fun_ty.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function value call return type",
-                at: callee_span.into(),
-            })?;
-
-        let llvm_fun_ty = match ret_cg {
-            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
-            CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
-            CgTy::Float64 => self.context.f64_type().fn_type(&llvm_param_tys, false),
-            CgTy::Float32 => self.context.f32_type().fn_type(&llvm_param_tys, false),
-            CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
-            CgTy::String => self
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, CgTy::Bool) => self.context.bool_type().fn_type(&llvm_param_tys, false),
+            (None, CgTy::Float64) => self.context.f64_type().fn_type(&llvm_param_tys, false),
+            (None, CgTy::Float32) => self.context.f32_type().fn_type(&llvm_param_tys, false),
+            (None, CgTy::Int(int_ty)) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
+            (None, CgTy::String) => self
                 .llvm_scoop_string_ptr_type()
                 .fn_type(&llvm_param_tys, false),
-            CgTy::Ref => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function value call return type",
-                    at: callee_span.into(),
-                });
-            }
+            (None, CgTy::Ref) => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
+            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(
+                "aggregate function-value returns should have been lowered through hidden sret"
+            ),
         };
 
         let typed_fn_ptr = self.builder.build_pointer_cast(
@@ -10165,7 +10261,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 3) 求值实参并执行调用（env 作为第一个参数）。
         let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(1 + args.len());
+            Vec::with_capacity(1 + args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(callee_span, "closure_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
         llvm_args.push(env_ptr.into());
         for (idx, arg) in args.iter().enumerate() {
             let hir::CallArg::Positional(expr) = arg else {
@@ -10203,25 +10306,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &llvm_args,
             "call_closure",
         )?;
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_call(call_site, 0, result_ty);
+        }
         self.emit_effect_unwind_if_active(span)?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function value call return type",
-                    at: span.into(),
-                })
-            }
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "function value call return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
+                if let Some(result_ptr) = sret_result_slot {
+                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "function value call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                }
             }
         }
     }
@@ -10265,9 +10369,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             existing
         } else {
             let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+            let ret_cg =
+                self.cg_ty_of(fun_ty.return_ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "lambda return type",
+                        at: span.into(),
+                    })?;
+            let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-                1 + fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()),
+                1 + fun_ty.params.len()
+                    + usize::from(fun_ty.receiver.is_some())
+                    + usize::from(hidden_sret_result_ty.is_some()),
             );
+            if let Some(result_ty) = hidden_sret_result_ty {
+                let _ = result_ty;
+                llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+            }
             // env ptr：GC-managed 引用（closure env 是一个 heap object）。
             llvm_param_tys.push(gc_i8_ptr_ty.into());
             if let Some(receiver_ty) = fun_ty.receiver {
@@ -10277,35 +10394,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
             }
 
-            let ret_cg =
-                self.cg_ty_of(fun_ty.return_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "lambda return type",
-                        at: span.into(),
-                    })?;
-
-            let fn_ty = match ret_cg {
-                CgTy::Unit | CgTy::Never => {
+            let fn_ty = match (hidden_sret_result_ty, ret_cg) {
+                (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
                     self.context.void_type().fn_type(&llvm_param_tys, false)
                 }
-                CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
-                CgTy::Float64 => self.context.f64_type().fn_type(&llvm_param_tys, false),
-                CgTy::Float32 => self.context.f32_type().fn_type(&llvm_param_tys, false),
-                CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
-                CgTy::String => self
+                (None, CgTy::Bool) => self.context.bool_type().fn_type(&llvm_param_tys, false),
+                (None, CgTy::Float64) => self.context.f64_type().fn_type(&llvm_param_tys, false),
+                (None, CgTy::Float32) => self.context.f32_type().fn_type(&llvm_param_tys, false),
+                (None, CgTy::Int(int_ty)) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
+                (None, CgTy::String) => self
                     .llvm_scoop_string_ptr_type()
                     .fn_type(&llvm_param_tys, false),
-                CgTy::Ref => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "lambda return type",
-                        at: span.into(),
-                    });
-                }
+                (None, CgTy::Ref) => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
+                (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(
+                    "aggregate lambda returns should have been lowered through hidden sret"
+                ),
             };
 
             let llvm_fun = self.module.add_function(&fun_name, fn_ty, None);
             llvm_fun.set_call_conventions(0);
+            llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+            if let Some(result_ty) = hidden_sret_result_ty {
+                self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+            }
 
             let mut cg = MainCodegen::new(MainCodegenInputs {
                 context: self.context,
@@ -10623,11 +10734,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: closure.span.into(),
                 })?;
         self.current_fun_return_ty = Some(declared_return_cg);
+        let uses_hidden_sret = self
+            .hidden_sret_result_ty(closure.span, declared_return_cg)?
+            .is_some();
+        self.current_sret_return_ptr = if uses_hidden_sret {
+            Some(
+                llvm_fun
+                    .get_nth_param(0)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "missing llvm lambda sret param",
+                        at: closure.span.into(),
+                    })?
+                    .into_pointer_value(),
+            )
+        } else {
+            None
+        };
+        let env_param_index = u32::from(uses_hidden_sret);
 
         // captures：从 env（第 0 个 LLVM param）读取并绑定为 locals。
         if !capture_bindings.is_empty() {
             let env_i8 = llvm_fun
-                .get_nth_param(0)
+                .get_nth_param(env_param_index)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "missing llvm lambda env param",
                     at: closure.span.into(),
@@ -10689,7 +10817,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // params：env 固定占用第 0 个 LLVM param；若函数类型带 receiver，则第 1 个 LLVM param
         // 为 receiver，用户显式声明的 params 从其后开始。
-        let llvm_param_offset = if fun_ty.receiver.is_some() { 2 } else { 1 };
+        let llvm_param_offset = env_param_index + 1 + u32::from(fun_ty.receiver.is_some());
         for (idx, (id, name, ty_id)) in param_bindings.iter().enumerate() {
             let target_ty = self
                 .cg_ty_of(*ty_id)
@@ -10810,6 +10938,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     declared_return_cg,
                     combined_info,
                 )?;
+                self.current_sret_return_ptr = None;
                 self.env.pop_scope();
                 return Ok(());
             }
@@ -10832,6 +10961,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.emit_return(closure.span, declared_return_cg, ret_v)?;
 
+        self.current_sret_return_ptr = None;
         self.env.pop_scope();
         Ok(())
     }
@@ -11156,7 +11286,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 self.coerce_value(expr.span, v, declared_return_cg)?
                             }
                         }
-                        None => self.default_value(declared_return_cg),
+                        None => self.default_value(span, declared_return_cg)?,
                     };
                     self.emit_return(span, declared_return_cg, out)?;
                     break;
@@ -11177,7 +11307,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(bb) = self.builder.get_insert_block()
             && bb.get_terminator().is_none()
         {
-            let v = self.default_value(declared_return_cg);
+            let v = self.default_value(span, declared_return_cg)?;
             self.emit_return(span, declared_return_cg, v)?;
         }
 
@@ -11872,41 +12002,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn default_value(&self, ty: CgTy) -> CgValue<'ctx> {
+    fn default_value(
+        &mut self,
+        at: crate::span::Span,
+        ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match ty {
-            CgTy::Unit => CgValue::unit(),
-            CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
-            CgTy::Float64 => {
-                CgValue::float(self.context.f64_type().const_float(0.0), CgTy::Float64)
-            }
-            CgTy::Float32 => {
-                CgValue::float(self.context.f32_type().const_float(0.0), CgTy::Float32)
-            }
-            CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
-            CgTy::String => CgValue {
-                ty: CgTy::String,
-                value: Some(self.llvm_scoop_string_ptr_type().const_null().into()),
-            },
-            CgTy::Ref => CgValue {
-                ty: CgTy::Ref,
-                value: Some(self.llvm_gc_i8_ptr_type().const_null().into()),
-            },
-            // 说明：当前阶段不支持 tuple/struct 作为函数返回类型，因此这里仅提供占位值；
-            // 若后续误用，会在 emit/store 阶段触发结构化错误而非 panic。
-            CgTy::Tuple(ty) => CgValue {
-                ty: CgTy::Tuple(ty),
-                value: None,
-            },
-            CgTy::Struct(ty) => CgValue {
-                ty: CgTy::Struct(ty),
-                value: None,
-            },
-            CgTy::Enum(ty) => CgValue {
-                ty: CgTy::Enum(ty),
-                value: None,
-            },
+            CgTy::Unit => Ok(CgValue::unit()),
             // T1612: Nothing/Never has no runtime value.
-            CgTy::Never => CgValue::never(),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let raw = self.zero_initializer_for_basic_type(llvm_ty);
+                self.cg_value_from_loaded(at, ty, raw)
+            }
         }
     }
 
@@ -12009,11 +12118,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Enum(_) => {
                 let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "return value",
+                        kind: if self.current_sret_return_ptr.is_some() {
+                            "sret return value"
+                        } else {
+                            "return value"
+                        },
                         at: span.into(),
                     });
                 };
-                self.builder.build_return(Some(&raw))?;
+                if let Some(sret_ptr) = self.current_sret_return_ptr
+                    && matches!(
+                        declared_return_ty,
+                        CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)
+                    )
+                {
+                    let _ = self.builder.build_store(sret_ptr, raw)?;
+                    self.builder.build_return(None)?;
+                } else {
+                    self.builder.build_return(Some(&raw))?;
+                }
                 Ok(())
             }
         }
@@ -14950,7 +15073,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T1612: Nothing (bottom type) coerces to any target type.
             // This only occurs on unreachable paths (after Raise.raise, etc.),
             // so we return a phantom default value of the target type.
-            (CgTy::Never, _) => Ok(self.default_value(target)),
+            (CgTy::Never, _) => self.default_value(at, target),
             (CgTy::Unit, CgTy::Unit) => Ok(CgValue::unit()),
             (CgTy::Unit, CgTy::Ref) => {
                 // early stage：允许把 `Unit` 装箱到 `Any`。

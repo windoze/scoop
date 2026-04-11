@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: unsafe_funptr_aggregate_return_tuple.stdout
+// EXPECT-EXIT: 0
+//
+// T0154：`FunPtr` 间接调用支持 aggregate 返回值（tuple）。
+
+package fixtures.runpass
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_make_int_pair_funptr")
+fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
+
+fun main(): Int {
+    @Unsafe {
+        val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
+
+        val a: (Int, Int) = fp(7)
+        println(a._0)
+        println(a._1)
+
+        val b: (Int, Int) = fp.invoke(9)
+        println(b._0)
+        println(b._1)
+    }
+    0
+}

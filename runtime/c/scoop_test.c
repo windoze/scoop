@@ -68,6 +68,24 @@ intptr_t scoop_test_add_int(intptr_t a, intptr_t b) {
   return a + b;
 }
 
+typedef struct ScoopTestIntPair {
+  intptr_t first;
+  intptr_t second;
+} ScoopTestIntPair;
+
+// 一个最小的 sret 风格 aggregate 返回 helper。
+//
+// 约定：
+// - `FunPtr<(Int) -> (Int, Int)>` 的 higher-order 间接调用在 LLVM 侧会使用 hidden sret；
+// - 这里用普通 C struct + out-pointer 模拟该 ABI，供 run-pass fixture 回归。
+static void scoop_test_make_int_pair_sret(ScoopTestIntPair *out, intptr_t seed) {
+  if (out == 0) {
+    return;
+  }
+  out->first = seed + 1;
+  out->second = seed + 2;
+}
+
 // 返回 `scoop_test_add_int` 的函数地址，作为 `FunPtr<(Int, Int) -> Int>` 的 runtime 落点。
 //
 // 说明：
@@ -75,6 +93,12 @@ intptr_t scoop_test_add_int(intptr_t a, intptr_t b) {
 // - v0 阶段 `FunPtr<F>` 在 LLVM codegen 中被视为 `word-sized address`（unsigned int）。
 uintptr_t scoop_test_get_add_int_funptr(void) {
   return (uintptr_t)&scoop_test_add_int;
+}
+
+// 返回 `scoop_test_make_int_pair_sret` 的函数地址，作为
+// `FunPtr<(Int) -> (Int, Int)>` 的 runtime 落点。
+uintptr_t scoop_test_get_make_int_pair_funptr(void) {
+  return (uintptr_t)&scoop_test_make_int_pair_sret;
 }
 
 // 捕获当前线程的 backtrace（instruction pointers）。
