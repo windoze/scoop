@@ -85,6 +85,12 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E {
 
 // 注意：`IntProgression` 类型本身在 sysroot 中提供声明表面；stdlib 在此提供可执行实现。
 
+/// 内部 helper：派生默认 range step（`1`），避免在 stdlib 中直接写 Int 字面量。
+fun __scoop_range_default_step(sample: Int): Int {
+    val word: Int = sizeOf(sample)
+    return word / word
+}
+
 /// Kotlin-like：`start.rangeTo(endInclusive, step)`（v0：step 显式传入）。
 fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
     return IntProgression {
@@ -103,6 +109,12 @@ fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
         step: step,
         increasing: false,
     }
+}
+
+/// Kotlin-like：`start.until(endExclusive)`（exclusive end，默认 step = 1）。
+fun Int.until(endExclusive: Int): IntProgression {
+    val one: Int = __scoop_range_default_step(this)
+    return this.rangeTo(endExclusive - one, one)
 }
 
 /// 最小迭代工具：`progression.forEach { ... }`（effect-polymorphic）。

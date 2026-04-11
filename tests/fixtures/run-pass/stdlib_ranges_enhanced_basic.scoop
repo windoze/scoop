@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_ranges_enhanced_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T1819: `..` syntax sugar + `until` + direct `for (x in range)` integration。
+// 额外覆盖：range 两端表达式只求值一次。
+
+import scoop.core.*
+
+fun markAndReturn(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun main(): Int {
+    println("inclusive")
+    val inclusive: IntProgression = 1..5
+    inclusive.forEach { println(it) }
+
+    println("until")
+    val exclusive: IntProgression = 1.until(5)
+    exclusive.forEach { println(it) }
+
+    println("direct-for")
+    for (x in 2..4) {
+        println(x)
+    }
+
+    println("single-eval")
+    for (x in markAndReturn("lhs", 3)..markAndReturn("rhs", 5)) {
+        println(x)
+    }
+
+    println("done")
+    return 0
+}

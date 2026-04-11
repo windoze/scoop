@@ -717,6 +717,9 @@ impl<'a> HirLowering<'a> {
                 op_span,
                 rhs,
             } => {
+                if *op == ast::BinaryOp::RangeInclusive {
+                    return self.lower_range_inclusive_expr(pkg_prefix, e.span, *op_span, lhs, rhs);
+                }
                 let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                 let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
                 let ty = self
@@ -794,6 +797,144 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    /// `lhs .. rhs` → `{ val __range_start = lhs; val __range_end = rhs; rangeTo(__range_start, __range_end, __scoop_range_default_step(__range_start)) }`
+    ///
+    /// 说明：
+    /// - 复用现有 `scoop.core.rangeTo(start, endInclusive, step)` 实现，不在后端新增 special-case；
+    /// - 显式引入临时变量，保证左右端点只求值一次；
+    /// - `step = 1` 通过 stdlib helper `__scoop_range_default_step` 派生，避免在 lowering 中伪造源码字面量。
+    fn lower_range_inclusive_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        op_span: Span,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Expr {
+        let progression_ty = self.typechecked_expr_ty(span).unwrap_or_else(|| {
+            self.intern_nominal(Self::INT_PROGRESSION_FQN.to_string(), Vec::new(), None)
+        });
+
+        let start_expr = self.lower_expr(pkg_prefix, lhs);
+        let end_expr = self.lower_expr(pkg_prefix, rhs);
+
+        let start_decl_span = Span::new(op_span.start, op_span.start + 1);
+        let end_decl_span = Span::new(op_span.start + 1, op_span.start + 2);
+
+        let start_id = self.intern_local_symbol(start_decl_span, false);
+        let end_id = self.intern_local_symbol(end_decl_span, false);
+        let start_name = "__range_start".to_string();
+        let end_name = "__range_end".to_string();
+
+        let start_ty = start_expr.ty;
+        let end_ty = end_expr.ty;
+
+        let start_decl = Stmt {
+            span: start_decl_span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(ValDecl {
+                span: start_decl_span,
+                id: Some(start_id),
+                name: Some(start_name.clone()),
+                mutable: false,
+                ty: start_ty,
+                init: Some(start_expr),
+            }),
+        };
+
+        let end_decl = Stmt {
+            span: end_decl_span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(ValDecl {
+                span: end_decl_span,
+                id: Some(end_id),
+                name: Some(end_name.clone()),
+                mutable: false,
+                ty: end_ty,
+                init: Some(end_expr),
+            }),
+        };
+
+        let start_ref = Expr {
+            span: start_decl_span,
+            ty: start_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: start_id,
+                name: start_name.clone(),
+                decl_span: start_decl_span,
+            }),
+        };
+        let end_ref = Expr {
+            span: end_decl_span,
+            ty: end_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: end_id,
+                name: end_name.clone(),
+                decl_span: end_decl_span,
+            }),
+        };
+
+        let step_helper = Expr {
+            span: op_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self
+                    .symbols
+                    .intern_top_level(Self::RANGE_DEFAULT_STEP_FQN.to_string()),
+                fqn: Self::RANGE_DEFAULT_STEP_FQN.to_string(),
+            }),
+        };
+        let step_expr = Expr {
+            span: op_span,
+            ty: self.builtins.int,
+            kind: ExprKind::Call {
+                callee: Box::new(step_helper),
+                args: vec![CallArg::Positional(start_ref.clone())],
+            },
+        };
+
+        let range_to_callee = Expr {
+            span: op_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self
+                    .symbols
+                    .intern_top_level(Self::RANGE_TO_FQN.to_string()),
+                fqn: Self::RANGE_TO_FQN.to_string(),
+            }),
+        };
+        let range_call = Expr {
+            span,
+            ty: progression_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(range_to_callee),
+                args: vec![
+                    CallArg::Positional(start_ref),
+                    CallArg::Positional(end_ref),
+                    CallArg::Positional(step_expr),
+                ],
+            },
+        };
+
+        Expr {
+            span,
+            ty: progression_ty,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: progression_ty,
+                stmts: vec![
+                    start_decl,
+                    end_decl,
+                    Stmt {
+                        span,
+                        ty: progression_ty,
+                        kind: StmtKind::Expr(range_call),
+                    },
+                ],
+            }),
         }
     }
 
@@ -2883,7 +3024,8 @@ impl<'a> HirLowering<'a> {
                 }
             }
 
-            // range/progression：语义由 stdlib/lowering 补齐；HIR dump 阶段先降级为 Any。
+            // range/progression：正常路径会在 lowering 早期被展开为 `rangeTo(...)` 调用；
+            // 这里保留 `Any` fallback，避免在无 typecheck 上下文的 dump-hir 路径里引入额外 interning 约束。
             ast::BinaryOp::RangeInclusive => self.builtins.any,
 
             // elvis not lowered in current HIR dump mode

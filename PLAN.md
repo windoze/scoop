@@ -324,6 +324,13 @@ cargo run -p scoop --features llvm -- test
   - **回归**：新增 `stdlib_hash_set_map_basic` fixture，覆盖同桶冲突（`0/3/8/24`）、重复插入、删除后重建、map 更新路径与只读视图导出；旧有 `stdlib_set_map_basic` / smoke fixtures 保持通过。
   - **验证**：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (901)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
   - 下一步：T1819（Ranges 增强：`..` / `until` / `for-in` 集成）。
+- DONE（T1819）：Ranges 增强（`..` / `until` / direct `for-in` integration）：
+  - **typecheck**（`typecheck/expr/ops.rs`）：`BinaryOp::RangeInclusive` 现仅接受 `Int` / 可吸收到 `Int` 的整数字面量，并返回 `IntProgression`，使 `for (x in 1..5)` 能直接命中既有 `IntProgression` 专用迭代路径。
+  - **HIR lowering**（`hir/lower/expr.rs`）：`lhs..rhs` 现展开为带临时变量的 block，再调用既有 `scoop.core.rangeTo(__range_start, __range_end, __scoop_range_default_step(__range_start))`；这样既避免端点重复求值，也不需要在 LLVM 后端新增 `range operator` special-case。
+  - **stdlib**（`stdlib/prelude.scoop`）：新增内部 helper `__scoop_range_default_step(sample: Int)` 派生默认步长 `1`；新增 `Int.until(endExclusive)`（exclusive end）。
+  - **回归**：新增 `stdlib_ranges_enhanced_basic` fixture，覆盖 `..`、`until`、直接 `for (x in range)`、以及 range 两端表达式只求值一次；并更新 `kotlin_ranges_progressions_basic` 的过期注释。
+  - **验证**：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (902)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+  - 下一步：T1820（Duration 值类型）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

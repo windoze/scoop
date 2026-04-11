@@ -3,7 +3,9 @@ use crate::resolve::{ConeId, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
+};
 
 use super::call::{
     CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig, check_const_fun_call_gate,
@@ -92,6 +94,23 @@ pub(super) fn is_float_type(ty: TypeId, lower: &TypeLowering<'_>, builtins: Buil
 
 fn is_char_type(ty: TypeId, builtins: BuiltinTypes) -> bool {
     ty == builtins.char_
+}
+
+fn int_progression_ty(lower: &mut TypeLowering<'_>) -> TypeId {
+    lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+        fqn: "scoop.core.IntProgression".to_string(),
+        args: Vec::new(),
+        eff: None,
+    })))
+}
+
+fn is_int_or_int_literal_absorbed_to_int(
+    expr: &ast::Expr,
+    ty: TypeId,
+    other_ty: TypeId,
+    builtins: BuiltinTypes,
+) -> bool {
+    ty == builtins.int || (matches!(expr.kind, ast::ExprKind::IntLit) && other_ty == builtins.int)
 }
 
 fn is_unsuffixed_float_literal(expr: &ast::Expr, source: &SourceFile) -> bool {
@@ -1121,7 +1140,16 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             span: op_span.into(),
         }),
 
-        // range/progression（Appendix B.12）：语义由 stdlib/lowering 补齐；v0 先放行以服务 comptime for（T1207）。
-        ast::BinaryOp::RangeInclusive => Ok(inputs.builtins.any),
+        // range/progression（Appendix B.12）：当前阶段只支持 Int → IntProgression。
+        ast::BinaryOp::RangeInclusive => {
+            let lhs_ok =
+                is_int_or_int_literal_absorbed_to_int(lhs, lhs_ty, rhs_ty, inputs.builtins);
+            let rhs_ok =
+                is_int_or_int_literal_absorbed_to_int(rhs, rhs_ty, lhs_ty, inputs.builtins);
+            if lhs_ok && rhs_ok {
+                return Ok(int_progression_ty(lower));
+            }
+            Err(mismatch("Int"))
+        }
     }
 }

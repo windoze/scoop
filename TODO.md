@@ -2786,7 +2786,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` + `.stdout`，覆盖同桶冲突（`0/3/8/24`）、重复插入、删除后重建、map 更新路径与只读视图导出。
   - 验证：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (901)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
-### T1819 [TODO] Ranges 增强：`..` syntax sugar / `until` / `for (x in range)` integration
+### T1819 [DONE] Ranges 增强：`..` syntax sugar / `until` / `for (x in range)` integration
 - 描述：为 `IntProgression` 补齐语法糖和 for-in 集成。
 - 目标：
   - `..` operator：前端语法糖，`a..b` desugars 为 `a.rangeTo(b, 1)`。
@@ -2798,7 +2798,15 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_ranges_enhanced_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无（`IntProgression` 和 `rangeTo`/`downTo`/`forEach` 已存在）
-- 备注：此任务涉及 parser + lowering 变更，可能较大；可进一步拆分为 T1819a（`..` syntax）、T1819b（`until`）、T1819c（`for-in`）。
+- 完成：
+  - **typecheck**（`typecheck/expr/ops.rs`）：`BinaryOp::RangeInclusive` 现仅接受 `Int` / 可吸收到 `Int` 的整数字面量，并返回 `scoop.core.IntProgression`，使 `for (x in 1..5)` 能直接走既有 `IntProgression` 专用 for-in 路径。
+  - **HIR lowering**（`hir/lower/expr.rs`）：`lhs..rhs` 现展开为带临时变量的 block，再调用既有 `scoop.core.rangeTo(__range_start, __range_end, __scoop_range_default_step(__range_start))`，保证左右端点只求值一次，不新增后端 special-case。
+  - **stdlib**（`stdlib/prelude.scoop`）：新增内部 helper `__scoop_range_default_step(sample: Int)` 派生默认步长 `1`；新增 `Int.until(endExclusive)`（exclusive end）。
+  - **for-in 集成**：`IntProgression` 的 typecheck/lowering 专用路径此前已存在；本任务通过 `..` 返回正确类型并新增直接 `for (x in 2..4)` 回归，把该集成真正打通到用户语法层。
+  - **fixtures**：
+    - 新增 `stdlib_ranges_enhanced_basic.scoop` + `.stdout`，覆盖 `..`、`until`、直接 `for (x in range)`、以及 range 两端表达式只求值一次。
+    - 更新 `kotlin_ranges_progressions_basic.scoop` 注释，移除“尚未打通 `..`/direct for-in integration”的过期说明。
+  - **验证**：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (902)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 ### T1820 [TODO] Duration 值类型
 - 描述：在 `stdlib/` 中实现 `Duration` 值类型。

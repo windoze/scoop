@@ -105,6 +105,9 @@ impl<'a> HirLowering<'a> {
     const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
     const ARRAY_BUILDER_BUILD_ARRAY_FQN: &'static str =
         "scoop.core.__scoop_array_builder_build_array";
+    const INT_PROGRESSION_FQN: &'static str = "scoop.core.IntProgression";
+    const RANGE_TO_FQN: &'static str = "scoop.core.rangeTo";
+    const RANGE_DEFAULT_STEP_FQN: &'static str = "scoop.core.__scoop_range_default_step";
     const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
     const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
     const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";

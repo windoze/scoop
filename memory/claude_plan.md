@@ -1,54 +1,116 @@
-# 当前执行计划
+# 执行计划
 
-## 已确认的上下文
+## 当前目标
 
-1. 已检查最新提交 `307477d [T0154] 支持 higher-order aggregate 返回值`。
-2. 最新提交说明、`TODO.md` 与 `PLAN.md` 中未发现“必须先于新任务修复”的遗留 issue。
-3. 执行开始时，`TODO.md` 中第一个未完成任务是 `T1818 [TODO] Hash-based Set/Map（Int key）`。
-4. 任务规模可控，本次不拆分子任务，直接实现 `T1818`。
+本轮只完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-## 本次目标
+## 已知约束
 
-完成 `T1818`：将当前 `stdlib/collections_set.scoop` 与 `stdlib/collections_map.scoop` 的线性扫描实现替换为基于开放寻址（linear probing）的哈希表实现，并补齐对应回归。
-
-## 最终实现方案
-
-1. 保持现有公开 API 名称不变：
-   - `mutableIntSet` / `MutableSet.add` / `contains` / `remove` / `len` / `asSet`
-   - `mutableIntIntMap` / `MutableMap.put` / `getByKey` / `getOrDefault` / `containsKey` / `removeKey` / `entryCount` / `asMapView`
-2. 继续沿用当前 `typealias` 方案，避免引入新的运行时布局或编译器特殊化。
-3. 将底层 `MutableArray<Int>` 的内容从“顺序元素列表 / flat kv 列表”改为“表头 + 槽位数组”的开放寻址布局：
-   - Set：保存 `size`、`capacity` 与每个槽位的状态位/键值；
-   - Map：保存 `size`、`capacity` 与每个槽位的状态位/键值/值。
-4. 写操作保持既有“返回新集合/新映射”的表面语义；删除通过重建新表清掉 tombstone 需求。
-5. `asSet()` / `asMapView()` 继续导出只读顺序视图，避免把内部槽位布局暴露给外部。
-6. 为兼容当前 `typealias` surface 下只读/可变扩展可能共享路由，mutable 侧查询 API 增加“哈希 backing / 顺序视图”自动识别。
-7. 回归至少覆盖：
-   - 冲突探测；
-   - 重复插入不增 size；
-   - 更新已存在 key；
-   - 删除后继续查询/插入；
-   - `asSet` / `asMapView` 导出结果正确。
+- 在开始执行仓库命令前，先记录计划，并在关键进展后持续更新本文件。
+- 先检查最新一次提交是否提到已有问题；如果有，先修复这些问题，再处理 `TODO.md`。
+- 需要读取 `TODO.md`，找到第一个未完成任务。
+- 如果该任务过大，需要先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 完成实现后，需要运行相关测试，并尽量满足无告警要求，包括 `cargo clippy --all-targets -- -D warnings`。
+- 完成后需要更新 `TODO.md`、`PLAN.md`，并提交 git commit，然后停止。
 
 ## 执行步骤
 
-1. 修改 `stdlib/collections_set.scoop`。
-2. 修改 `stdlib/collections_map.scoop`。
-3. 新增或更新 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` 与 `.stdout`。
-4. 运行格式化与定向/全量验证。
-5. 更新 `TODO.md`、`PLAN.md` 与本文件。
-6. 提交本次变更并停止。
+1. 检查最新一次 git commit，确认是否提到需要先处理的已有问题。
+2. 阅读 `TODO.md`、`PLAN.md`，识别第一个未完成任务及其上下文。
+3. 如任务过大，先制定更小的子任务，更新 `PLAN.md` 与 `TODO.md`，并以第一个子任务作为本轮目标。
+4. 阅读相关代码、测试与文档，确认实现位置与影响范围。
+5. 实现本轮任务，并在必要处补充注释或文档。
+6. 运行格式化、测试、lint/clippy，修复发现的问题。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录结果。
+8. 使用清晰的提交信息创建 git commit。
+9. 停止，不继续处理下一个任务。
 
-## 进度
+## 记录方式
 
-- 已完成：初始计划写入。
-- 已完成：检查最新提交、`TODO.md`、`PLAN.md`，确认本次目标为 `T1818`。
-- 已完成：实现开放寻址版 `HashSet<Int>` / `HashMap<Int, Int>`，并保留只读顺序视图导出。
-- 已完成：新增 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` + `.stdout`，覆盖同桶冲突、重复插入、删除后重建、map 更新与只读视图导出。
-- 已完成：定向验证 `stdlib_hash_set_map_basic.scoop` 单文件 build/run 通过。
-- 已完成：全量验证通过：
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`（`fixtures: ok (901)`）
-  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
-- 已完成：更新 `TODO.md`、`PLAN.md` 与 `STDLIB_COMPLETENESS.md`。
-- 待完成：整理变更并创建本次任务 commit，然后停止。
+- 我不会在这里写出逐字的内部推理草稿，但会持续记录足够复核的决策、步骤、发现的问题和计划变更。
+- 每完成一个关键步骤，或计划发生变化时，都会更新本文件。
+
+## 当前进展
+
+### 2026-04-11 初步检查结论
+
+1. 已检查最新一次提交 `92f3a175cac06198be1ffa556d56d03ed3fe6e40`，提交信息为 `[T1818] 实现 Int key 哈希 Set/Map`。
+2. 该提交信息本身未提到需要优先修复的既有遗留问题；当前未发现“先处理最新提交中明确点名问题”的前置阻塞。
+3. 已定位 `TODO.md` 中第一个未完成任务为 `T1819 [TODO] Ranges 增强：.. syntax sugar / until / for (x in range) integration`。
+
+### 对 T1819 的范围判断
+
+已阅读 `TODO.md`、`PLAN.md` 以及相关代码，结论如下：
+
+- `for (x in range)` 的主体能力其实已经在旧任务中完成：
+  - `typecheck/expr/stmt.rs` 已对 `IntProgression` 写入 `ForLoopIterableKind::IntProgression`。
+  - `hir/lower/stmt.rs` 已实现 `lower_for_int_progression`，会把 `for (x in prog)` 展开为 while 循环。
+- `..` 已经是 parser/AST 里的现有半成品：
+  - `ast::BinaryOp` 已有 `RangeInclusive`。
+  - `parser/expr.rs` 已把 `Symbol::DotDot` 解析为 `BinaryOp::RangeInclusive`。
+  - 但 `typecheck/expr/ops.rs` 目前仅把它放行为 `Any`。
+  - `llvm/codegen/mod.rs` 目前对它直接报 `UnsupportedMainBody { kind: "range operator" }`。
+- `until` 目前在 stdlib 中尚未实现；它看起来只需要纯 Scoop 扩展函数即可，无需新增 runtime 能力。
+
+### 修订后的本轮实现计划
+
+本轮直接完整实现 `T1819`，不拆分 `TODO.md`：
+
+1. 让 `a..b` 在类型检查和 lowering/codegen 路径上落到现有 `Int.rangeTo(endInclusive, step)` 语义。
+2. 在 `stdlib/prelude.scoop` 中补 `Int.until(endExclusive)`。
+3. 新增一个综合 run-pass fixture，同时覆盖：
+   - `..`
+   - `until`
+   - `for (x in range)` 集成
+4. 跑格式化、测试、clippy。
+5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+### 已完成的实现
+
+1. **typecheck**：
+   - `crates/scoopc/src/typecheck/expr/ops.rs`
+   - `BinaryOp::RangeInclusive` 不再返回 `Any`。
+   - 现在仅接受 `Int` / 可吸收到 `Int` 的整数字面量，并返回 `scoop.core.IntProgression`。
+   - 这一步让 `for (x in 1..5)` 能直接复用已有的 `IntProgression` 专用 `for-in` 路径。
+
+2. **HIR lowering**：
+   - `crates/scoopc/src/hir/lower/expr.rs`
+   - `lhs..rhs` 现在会在 lowering 阶段改写为：
+     - 先把 `lhs`、`rhs` 绑定到合成局部变量；
+     - 再调用现有 `scoop.core.rangeTo(start, end, step)`；
+     - `step` 通过新的 stdlib helper 派生默认值 `1`。
+   - 这样避免了两个风险：
+     - 不需要在 LLVM 后端继续保留 `range operator` special-case；
+     - 不会重复求值左右端点表达式。
+
+3. **stdlib**：
+   - `stdlib/prelude.scoop`
+   - 新增内部 helper：`__scoop_range_default_step(sample: Int)`，通过 `sizeOf(sample)` 派生 `1`，避免直接写字面量。
+   - 新增：`Int.until(endExclusive)`，语义为 exclusive end。
+
+4. **fixtures / 文档**：
+   - 新增 `tests/fixtures/run-pass/stdlib_ranges_enhanced_basic.scoop` + `.stdout`
+   - 覆盖：
+     - `..`
+     - `until`
+     - 直接 `for (x in 2..4)`
+     - range 两端表达式只求值一次
+   - 更新 `tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop` 注释
+   - 更新 `STDLIB_COMPLETENESS.md` 中 range 能力状态
+
+### 验证结果
+
+- `cargo fmt --all`：通过
+- 单独编译并运行新 fixture：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/stdlib_ranges_enhanced_basic.scoop -o /tmp/stdlib_ranges_enhanced_basic`
+  - `/tmp/stdlib_ranges_enhanced_basic`
+  - 输出与 `stdlib_ranges_enhanced_basic.stdout` 一致，且 `lhs` / `rhs` 各只打印一次
+- `cargo test --all`：通过
+- `cargo run -p scoop -- test`：通过（`fixtures: ok (902)`）
+- `cargo clippy --workspace --all-targets --message-format short -- -D warnings`：通过
+
+### 收尾状态
+
+- 已将 `TODO.md` 中 `T1819` 标记为完成，并补充完成说明。
+- 已更新 `PLAN.md`，把 `T1819` 记为 DONE，下一步为 `T1820`。
+- 下一步只剩 git diff 复核与 commit。

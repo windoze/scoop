@@ -81,12 +81,12 @@
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
 | `IntProgression` struct | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | `kotlin_ranges_progressions_basic` | `first/last/step/increasing` |
-| `Int.rangeTo(endInclusive, step)` | P0 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `kotlin_ranges_progressions_basic` | step 显式传入 |
+| `Int.rangeTo(endInclusive, step)` | P0 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `kotlin_ranges_progressions_basic`, `stdlib_ranges_enhanced_basic` | step 显式传入 |
 | `Int.downTo(endInclusive, step)` | P0 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `kotlin_ranges_progressions_basic` | step 显式传入 |
-| `IntProgression.forEach(action)` | P0 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `kotlin_ranges_progressions_basic` | effect-polymorphic |
-| `..` operator syntax sugar | P1 | pure_scoop_ok | TODO | — | — | 需前端语法糖/运算符重载 |
-| `until` / implicit `step` | P1 | pure_scoop_ok | TODO | — | — | 可库实现 |
-| `for (x in range)` direct integration | P1 | pure_scoop_ok | TODO | — | — | 依赖 for-in → Iterator 链路（T1508） |
+| `Int.until(endExclusive)` | P1 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `stdlib_ranges_enhanced_basic` | exclusive end；默认 step 由 helper 派生 |
+| `IntProgression.forEach(action)` | P0 | pure_scoop_ok | DONE | `stdlib/prelude.scoop` | `kotlin_ranges_progressions_basic`, `stdlib_ranges_enhanced_basic` | effect-polymorphic |
+| `..` operator syntax sugar | P1 | pure_scoop_ok | DONE | `parser/expr.rs`, `typecheck/expr/ops.rs`, `hir/lower/expr.rs` | `stdlib_ranges_enhanced_basic` | lowering 为现有 `rangeTo(start, end, step)` 调用 |
+| `for (x in range)` direct integration | P1 | pure_scoop_ok | DONE | `typecheck/expr/stmt.rs`, `hir/lower/stmt.rs` | `for_in_int_progression_basic`, `stdlib_ranges_enhanced_basic` | `IntProgression` 直接走专用 lowering |
 
 ---
 
