@@ -375,11 +375,11 @@ cargo run -p scoop --features llvm -- test
 - 完成说明：
   - mixed-arm escape `site matrix` 现已为 indirect site 保留 `resume_path`，并新增 nested-block-only 的 scanner / prefix / tail helper；top-level `val = call(...)` 与 statement-position nested block 中的 `val = call(...)` 现在共享同一套 state0 / state1 / continuation-step lowering。
   - continuation step 在恢复 nested block indirect site 时，现会先 replay block 前缀、重新调用 callee、再继续 block tail 与后续 top-level tail；pre-immediate / post-immediate 两侧都已接入同一条路径。
-  - if branch / while body 的 nested indirect 现已改成稳定诊断，不再被旧的 top-level-only 扫描器静默漏掉；新增 build 负例 `effect_resume_mixed_escape_if_indirect_is_error` 锁定该边界。
+  - if branch / while body 的 nested indirect 当时已统一改成稳定诊断，不再被旧的 top-level-only 扫描器静默漏掉；后续在 `T2003c0b2c3b` 已把 if branch 子集打通，当前由 build 负例 `effect_resume_mixed_escape_while_indirect_is_error` 继续锁住 while 边界。
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_block_indirect`、`effect_resume_mixed_escape_post_immediate_block_indirect`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2c3b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，if branch 的 indirect site）
+### T2003c0b2c3b [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，if branch 的 indirect site）
 - 描述：在 nested block indirect 打通后，继续扩到 if then/else branch。该子集除了 call-site suspension 外，还要处理分支命中、resume 后 branch tail replay，以及 after-if CFG 合流。
 - 目标：
   - sibling escape-continuation 支持 if then/else branch 中的 indirect call site。
@@ -390,6 +390,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c3a
+- 完成说明：
+  - `scan_mixed_escape_indirect_sites` 现已允许 if then/else branch 中的 statement-position val-bound indirect call site，并为 if path 保留 `resume_path`；同分支多 site 仍会给出稳定诊断。
+  - mixed-arm escape `site matrix` 现已新增 if-indirect 分类与 lowering：state0、state1 与 continuation step 都会共享新的 if-branch prefix / tail helper，在恢复后先 replay 命中的 branch tail，再统一继续 after-if top-level tail。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_if_indirect`、`effect_resume_mixed_escape_post_immediate_if_indirect`；旧的 build 负例 `effect_resume_mixed_escape_if_indirect_is_error` 已替换为 while 边界负例 `effect_resume_mixed_escape_while_indirect_is_error`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2c3c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 indirect site）
 - 描述：while body indirect 需要把 nested call-site suspension 与 loop re-entry 结合起来：resume 后既要继续当前迭代尾部，又要重新检查 condition，并允许后续迭代再次命中同一 sibling indirect site。

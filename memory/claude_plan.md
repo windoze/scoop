@@ -1,72 +1,66 @@
 # 本轮执行计划
 
-## 约束说明
+## 说明
 
-- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
-- 先检查最新提交是否提到任何既有问题；若有，先修复这些问题，再进入任务执行。
-- 如果首个未完成任务过大或被缺失特性/缺陷阻塞，则需要先调整 `TODO.md` / `PLAN.md` 的任务拆分与依赖顺序，再提交并停止。
-- 我不会在这里写出逐字逐句的内部推理，但会持续记录可审计的执行计划、关键决策、阻塞原因和完成进度。
+按要求在动手前先记录计划。这里保留可审阅的执行摘要、步骤和关键决策，不写入不适合外露的原始内部思维链。
 
-## 初始步骤
+## 目标
 
-1. 查看最新提交信息，确认是否显式提到需要先处理的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与任务顺序是否一致。
-4. 检查工作区状态，避免覆盖已有未提交修改。
-5. 评估首个未完成任务：
-   - 若可直接完成，则实现、补充测试、运行相关校验、更新文档与任务状态。
-   - 若过大，则拆分成更小子任务，更新 `PLAN.md` 与 `TODO.md`，本轮只做新的第一个子任务。
-   - 若被规范不匹配、缺失特性或现有缺陷阻塞，则先把该阻塞项转化为更前置的任务，更新计划后提交并停止。
-6. 完成后执行必要验证，至少覆盖相关测试；若任务涉及通用编译/静态检查，也运行对应命令。
-7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，然后提交一次清晰的 Git commit。
+本轮只完成 `TODO.md` 中第一个未完成任务；如果发现前置问题、规格不匹配或任务过大，则先调整 `TODO.md` / `PLAN.md`，提交后停止。
 
-## 待补充
+## 预定步骤
 
-## 已确认信息
+1. 检查最新一次 Git 提交，确认提交说明中是否提到遗留问题或已知缺陷。
+2. 如最新提交提到需要先修复的问题，先定位、实现、测试并修复这些问题。
+3. 阅读 `TODO.md`，确定第一个未完成任务。
+4. 阅读 `PLAN.md`、相关模块和测试，判断该任务是否可以在本轮完整完成。
+5. 如果任务过大：
+   - 在 `PLAN.md` 中拆分为更小的子任务；
+   - 在 `TODO.md` 中按依赖顺序加入子任务；
+   - 执行第一个子任务并在完成后停止。
+6. 实现当前目标任务，必要时补充或调整测试。
+7. 运行相关验证，至少覆盖：
+   - 针对改动的测试；
+   - 必要的工作区测试；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`（如果时间与改动范围允许则完整执行；若受阻，会在此文件说明原因）。
+8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
+9. 提交 Git commit，提交信息与任务编号或实际修复内容对应。
+10. 停止，不继续下一个任务。
 
-- 最新提交 `e60d98cf39a82efd4230d30f589d9ab9c21e420c` 的主题是 `Update plan`，未显式引入需要优先修复的既有代码问题。
-- 当前 `TODO.md` 中第一个未完成任务是 `T2003c0b2c3`：mixed-arm immediate-resume + sibling escape-continuation 的 nested indirect call site。
-- 经过代码与计划审计，`T2003c0b2c3` 当前同时覆盖：
-  - nested block / if / while 三类 indirect call-site suspension；
-  - nested direct / indirect site 共存矩阵；
-  - 相关 capture、tail replay、callee suspend state 与 handler-scope 一致性。
-- 这一范围超过单轮安全实现边界，因此需要继续拆分。
+## 关键检查点
 
-## 本轮调整后的执行计划
+- 不接受变通方案、夹层兼容或仅为 fixture 通过而做的规避。
+- 若遇到规范缺口或实现边界，必须先把问题显式写入 `TODO.md` 并调整依赖顺序。
+- 不回退与当前任务无关的用户改动。
 
-1. 把 `T2003c0b2c3` 拆成更小的 nested-indirect 子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
-2. 只实现拆分后的第一个子任务：优先支持 mixed-arm sibling escape-continuation 在 statement-position nested block 中的 indirect call site。
-3. 为该子任务补充回归：
-   - run-pass：覆盖 pre/post-immediate 的 nested block indirect；
-   - build 负例：继续锁住 if / while 或更深层 nested indirect 的未支持边界。
-4. 运行格式化、相关测试与静态检查；若通过，则更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+## 执行日志
 
-## 当前实现判断
-
-- 现有 mixed-arm `site matrix` 已统一 direct / indirect 的 top-level 路径，但 indirect site 的扫描器 `scan_for_indirect_perform_call_sites(...)` 仍只看顶层 `val x = f(...)`。
-- nested direct 已有 block / if / while 的 prefix 与 tail replay helper；nested indirect 需要补：
-  - nested site 的路径表示与扫描；
-  - nested block prefix 到 indirect call site；
-  - resume 后从 nested block indirect site 继续 replay nested tail 与后续 top-level tail。
-
-## 本轮结果
-
-- 已完成任务拆分：`T2003c0b2c3` 已拆为 `T2003c0b2c3a` / `b` / `c` / `d`，并已把后续依赖改接到新的子任务链。
-- 本轮已完成 `T2003c0b2c3a`：
-  - mixed-arm `site matrix` 的 indirect site 现已携带 `resume_path`；
-  - 新增 nested-block-only indirect scanner，并对 if / while nested indirect 给出稳定诊断；
-  - state0 / state1 / continuation step 均已支持 statement-position nested block indirect 的 prefix / tail replay。
-- 已新增回归：
-  - run-pass：`effect_resume_mixed_escape_pre_immediate_block_indirect`
-  - run-pass：`effect_resume_mixed_escape_post_immediate_block_indirect`
-  - build：`effect_resume_mixed_escape_if_indirect_is_error`
-
-## 验证结果
-
-- `cargo fmt --all`
-- `cargo test --all`
-- `cargo run -p scoop -- test`
-- `cargo run -p scoop --features llvm -- test`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-
-以上命令已通过。本轮下一未完成任务已更新为 `T2003c0b2c3b`（if branch 的 indirect site）。
+- 已创建本文件，待开始仓库检查。
+- 已检查最新提交 `dca01f5b2c73ffee7f4a39340d2d8c9b59334951`，提交说明未额外声明需要先修的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务是 `T2003c0b2c3b`：mixed-arm sibling escape-continuation 在 `if` branch 中的 indirect call site。
+- 已完成范围审计：当前任务可以直接实现，不需要再拆子任务。
+- 当前实现缺口已定位为三部分：
+  1. `scan_mixed_escape_indirect_sites` 仍把 `if` branch 中的 indirect call site 统一报错。
+  2. mixed-arm site matrix 只为 `if` 中的 direct site 建了分派路径，缺少 `if` indirect 的分类与执行入口。
+  3. indirect continuation step 仅支持 nested block tail replay，缺少 if branch tail replay / after-if 合流。
+- 下一步实现计划：
+  1. 扩展 indirect site 扫描与校验，允许 `if` then/else branch 中的 statement-position val-bound indirect site。
+  2. 为 mixed-arm site matrix 增加 `if` indirect 的分类与 lowering，覆盖初次执行、resume step、以及 immediate site 前后两侧路径。
+  3. 补 if-indirect run-pass fixtures（pre/post immediate）与 while-nested-indirect build-fail fixture。
+  4. 运行 `cargo fmt --all`、相关测试、`cargo clippy --workspace --all-targets -- -D warnings`。
+  5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+- 已完成代码实现：
+  - indirect scanner 现已接受 if then/else branch 中的 statement-position val-bound indirect call site；
+  - mixed-arm site matrix 新增 if-indirect 分类与 lowering；
+  - continuation step / state0 / state1 现已共享 if branch prefix / tail replay helper。
+- 已完成回归补充：
+  - 新增 run-pass：`effect_resume_mixed_escape_pre_immediate_if_indirect`、`effect_resume_mixed_escape_post_immediate_if_indirect`。
+  - 旧的 if 负例已替换为 while 边界负例：`effect_resume_mixed_escape_while_indirect_is_error`。
+- 已执行验证：
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 已更新 `TODO.md` / `PLAN.md`：`T2003c0b2c3b` 标记为完成，下一步切换为 `T2003c0b2c3c`。

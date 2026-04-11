@@ -77,8 +77,10 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_post_immediate_while_nested_if`，并把 while 负例 `effect_resume_mixed_escape_while_is_error` 更新为更深层 nested 诊断，继续为 `T2003c0b2c3` / 更后续形状锁住边界。
   - 继续审计 `T2003c0b2c3` 后确认，nested indirect 仍同时跨越 statement-position nested block、if branch、while body 三类 CFG，以及 nested direct / indirect 共存矩阵。若继续整包推进，需要同时修改 site 扫描、resume-path 表示、callee suspend state replay 与 loop re-entry，单轮风险过高，因此继续拆成 `T2003c0b2c3a` / `T2003c0b2c3b` / `T2003c0b2c3c` / `T2003c0b2c3d`。
   - T2003c0b2c3a 已完成：mixed-arm escape `site matrix` 现已支持 statement-position nested block 中的 indirect call site；indirect site 现会携带 `resume_path`，并让 state0 / state1 / continuation step 共享 nested block prefix / replay / tail helper。
-  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_block_indirect`、`effect_resume_mixed_escape_post_immediate_block_indirect`，并新增 build 负例 `effect_resume_mixed_escape_if_indirect_is_error`，继续为 `T2003c0b2c3b` 锁住 if-branch nested indirect 边界。
-  - 当前下一步调整为 `T2003c0b2c3b`：继续补 sibling escape-continuation 在 if then/else branch 中的 indirect call site；后续再扩到 while 与 nested direct+indirect matrix。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_block_indirect`、`effect_resume_mixed_escape_post_immediate_block_indirect`；当时新增的 if/while 稳定诊断已在 `T2003c0b2c3b` 收口一部分，当前剩余 while 边界由 build 负例 `effect_resume_mixed_escape_while_indirect_is_error` 继续锁住。
+  - T2003c0b2c3b 已完成：mixed-arm escape `site matrix` 现已支持 if then/else branch 中的 indirect call site；state0、state1 与 continuation step 已共享新的 if-branch prefix / tail helper，恢复后会先 replay 命中的 branch tail，再统一继续 after-if top-level tail。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_if_indirect`、`effect_resume_mixed_escape_post_immediate_if_indirect`；旧的 build 负例 `effect_resume_mixed_escape_if_indirect_is_error` 已被 while 边界负例 `effect_resume_mixed_escape_while_indirect_is_error` 取代。
+  - 当前下一步调整为 `T2003c0b2c3c`：继续补 sibling escape-continuation 在 while body 中的 indirect call site；后续再扩到 nested direct+indirect matrix。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -102,7 +104,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c2a（已完成）：补 sibling escape-continuation 在 while body 中的 flat direct site。
   - T2003c0b2c2b（已完成）：补 sibling escape-continuation 在 while body 中的 nested direct site。
   - T2003c0b2c3a（已完成）：补 sibling escape-continuation 在 nested block 中的 indirect site。
-  - T2003c0b2c3b：补 sibling escape-continuation 在 if branch 中的 indirect site。
+  - T2003c0b2c3b（已完成）：补 sibling escape-continuation 在 if branch 中的 indirect site。
   - T2003c0b2c3c：补 sibling escape-continuation 在 while body 中的 indirect site。
   - T2003c0b2c3d：收口 sibling escape-continuation 的 nested direct/indirect site matrix。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
