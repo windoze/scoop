@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_receiver_type_mismatch
+// EXPECT-ERROR: 期望 receiver 为 String
+// EXPECT-ERROR: 但得到 Int
+// 目标：T0153 receiver function value 的第 0 个实参必须匹配 receiver 类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad() {
+    val f: String.(Int) -> Int = { n: Int -> n }
+    val result: Int = f(1, 2)
+}

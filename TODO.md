@@ -2004,7 +2004,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 `safe_member_access_ref_and_extension_ok` 与 `safe_member_access_ref_and_extension_basic` fixtures，并增加 HIR lowering 回归测试，覆盖 `Option<Class>` / `Option<Object>` 字段访问、safe extension property，以及 `None -> None`。
 - 依赖：无
 
-### T0153 [TODO] Higher-order：receiver function type 的局部函数值调用
+### T0153 [DONE] Higher-order：receiver function type 的局部函数值调用
 
 - 描述：receiver function type 已能出现在类型系统和 scope functions 声明中，但局部函数值调用在 typecheck 阶段仍显式拒绝 `fun.receiver.is_some()`，LLVM closure 间接调用也报 `receiver function value call`。这使 `val f: String.(Int) -> Int = ...` 之类的值“可声明、不可调用”。
 - 目标：
@@ -2019,6 +2019,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 完成：
+  - `typecheck/expr/call.rs` 不再拒绝 receiver function value 调用；调用模型与类型层保持一致，按“receiver 作为第 0 个实参”计算 arity，并对第 0 个实参使用 `CallReceiverTypeMismatch`，其余实参继续沿用既有参数类型检查与 effects / `@NoGC` / `const fun` 门禁。
+  - LLVM closure/function value 的间接调用 ABI 已扩展为 `env + receiver + params`；receiver lambda 的 codegen 现在会保留 receiver 槽位，并把显式 lambda 参数绑定到其后的 LLVM 形参，修复此前 receiver 存在时的局部调用报错。
+  - 保持现有边界：`FunPtr<F>` 仍维持 non-receiver 设计；lambda body 仍不额外注入新的 `this` 绑定。
+  - 新增 `receiver_function_value_call_basic` run-pass fixture，以及 `receiver_function_value_call_arity_mismatch_is_error`、`receiver_function_value_call_receiver_mismatch_is_error` 两个 typecheck fail fixtures。
 - 依赖：无
 
 ### T0154 [TODO] LLVM：higher-order 间接调用支持 aggregate 返回值

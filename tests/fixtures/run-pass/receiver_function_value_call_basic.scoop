@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: receiver_function_value_call_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0153：receiver function value 调用：
+// - 局部 receiver lambda 可按“receiver 作为第 0 个实参”直接调用；
+// - receiver function value 可作为 higher-order 参数传递，并在被调方中再次调用。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun applyTo(base: String, delta: Int, block: String.(Int) -> Int): Int {
+    return block(base, delta) + block(base, delta + 1)
+}
+
+fun main(): Int {
+    val plusOne: String.(Int) -> Int = { n: Int -> n + 1 }
+
+    println(plusOne("hello", 41))
+    println(applyTo("ignored", 2, { n: Int -> n * 3 }))
+    0
+}

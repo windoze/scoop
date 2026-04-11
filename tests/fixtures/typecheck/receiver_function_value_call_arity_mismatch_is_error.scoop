@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arity_mismatch
+// EXPECT-ERROR: 调用参数数量不匹配：f 期望 2 个，但提供了 1 个
+// 目标：T0153 receiver function value 调用按“receiver + 普通参数”共同计入 arity。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad() {
+    val f: String.(Int) -> Int = { n: Int -> n }
+    val result: Int = f("hi")
+}

@@ -256,6 +256,7 @@ cargo run -p scoop --features llvm -- test
   - `T0152`：safe member access parity（ref receiver / extension property）
     - 2026-04-11：已完成。safe member access 的 typecheck 现在会在 unwrap `Option<T>` 后复用普通 member access 的解析结果，并把 ref receiver / extension property 的目标写回 AST side table；`check_expr_stmt` 也补上了 `SafeMemberAccess` 的推导入口，避免 `call(x?.prop)` 这类表达式语句实参跳过补写。HIR lowering 的 `Some(v)` 分支现已复用普通 member access lowering，并覆盖 extension property getter 脱糖。新增 `safe_member_access_ref_and_extension_ok`、`safe_member_access_ref_and_extension_basic` 与 HIR lowering 回归，覆盖 `Option<Class>` / `Option<Object>` 字段访问、safe extension property 与 `None -> None`。
   - `T0153`：receiver function value invocation
+    - 2026-04-11：已完成。局部 receiver function value 调用不再在 typecheck 阶段被拒绝；调用按“receiver 作为第 0 个实参”检查 arity、receiver mismatch 与普通参数类型，并保持既有 effects / `@NoGC` / `const fun` 门禁。LLVM closure/function value 的间接调用 ABI 已扩展为 `env + receiver + params`，receiver lambda codegen 也会跳过 receiver 槽位再绑定显式参数。新增 `receiver_function_value_call_basic`、`receiver_function_value_call_arity_mismatch_is_error`、`receiver_function_value_call_receiver_mismatch_is_error` 回归。
   - `T0154`：higher-order aggregate returns（closure / function value / `FunPtr`）
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）

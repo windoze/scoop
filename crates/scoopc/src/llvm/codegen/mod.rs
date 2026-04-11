@@ -10075,14 +10075,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if fun_ty.receiver.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "receiver function value call",
-                at: callee_span.into(),
-            });
-        }
-
-        if args.len() != fun_ty.params.len() {
+        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+        if args.len() != expected_arity {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function value call arity mismatch",
                 at: span.into(),
@@ -10129,8 +10123,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 2) 组装 indirect call 的 LLVM 函数类型与参数。
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(1 + fun_ty.params.len());
+            Vec::with_capacity(1 + expected_arity);
         llvm_param_tys.push(gc_i8_ptr_ty.into());
+        if let Some(receiver_ty) = fun_ty.receiver {
+            llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
+        }
         for ty in &fun_ty.params {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
         }
@@ -10178,7 +10175,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let param_ty = fun_ty.params[idx];
+            let param_ty = match fun_ty.receiver {
+                Some(receiver_ty) if idx == 0 => receiver_ty,
+                Some(_) => fun_ty.params[idx - 1],
+                None => fun_ty.params[idx],
+            };
             let target_cg = self
                 .cg_ty_of(param_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -10238,13 +10239,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        if fun_ty.receiver.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "receiver lambda (not supported)",
-                at: span.into(),
-            });
-        }
-
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
         let (param_bindings, captures) = self.closure_param_bindings(span, closure, fun_ty)?;
         if captures.iter().any(|c| c.mutable) {
@@ -10271,10 +10265,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             existing
         } else {
             let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-            let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-                Vec::with_capacity(1 + fun_ty.params.len());
+            let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+                1 + fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()),
+            );
             // env ptr：GC-managed 引用（closure env 是一个 heap object）。
             llvm_param_tys.push(gc_i8_ptr_ty.into());
+            if let Some(receiver_ty) = fun_ty.receiver {
+                llvm_param_tys.push(self.llvm_param_ty(span, receiver_ty)?);
+            }
             for ty in &fun_ty.params {
                 llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
             }
@@ -10564,14 +10562,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<ClosureParamBindings, LlvmEmitError> {
-        if fun_ty.receiver.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "receiver lambda",
-                at: at.into(),
-            });
-        }
-
         // 显式 params：`{ x -> ... }`
+        //
+        // 说明：
+        // - receiver function type 的 receiver 不出现在 lambda params 列表里；
+        // - 因此这里始终只按"非 receiver 形参"做显式 params / 隐式 `it` 绑定。
         if closure.params.len() == fun_ty.params.len() {
             let params = closure
                 .params
@@ -10692,7 +10687,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // params：env（第 0 个 LLVM param）；用户 params 从第 1 个开始。
+        // params：env 固定占用第 0 个 LLVM param；若函数类型带 receiver，则第 1 个 LLVM param
+        // 为 receiver，用户显式声明的 params 从其后开始。
+        let llvm_param_offset = if fun_ty.receiver.is_some() { 2 } else { 1 };
         for (idx, (id, name, ty_id)) in param_bindings.iter().enumerate() {
             let target_ty = self
                 .cg_ty_of(*ty_id)
@@ -10708,7 +10705,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CgTy::Never => CgValue::never(),
                 CgTy::Bool => {
                     let raw = llvm_fun
-                        .get_nth_param((idx + 1) as u32)
+                        .get_nth_param(idx as u32 + llvm_param_offset)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "missing llvm lambda param",
                             at: closure.span.into(),
@@ -10718,7 +10715,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 CgTy::Float64 | CgTy::Float32 => {
                     let raw = llvm_fun
-                        .get_nth_param((idx + 1) as u32)
+                        .get_nth_param(idx as u32 + llvm_param_offset)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "missing llvm lambda param",
                             at: closure.span.into(),
@@ -10728,7 +10725,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 CgTy::Int(int_ty) => {
                     let raw = llvm_fun
-                        .get_nth_param((idx + 1) as u32)
+                        .get_nth_param(idx as u32 + llvm_param_offset)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "missing llvm lambda param",
                             at: closure.span.into(),
@@ -10738,7 +10735,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 CgTy::String => {
                     let raw = llvm_fun
-                        .get_nth_param((idx + 1) as u32)
+                        .get_nth_param(idx as u32 + llvm_param_offset)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "missing llvm lambda param",
                             at: closure.span.into(),
@@ -10751,7 +10748,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 CgTy::Ref => {
                     let raw = llvm_fun
-                        .get_nth_param((idx + 1) as u32)
+                        .get_nth_param(idx as u32 + llvm_param_offset)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "missing llvm lambda param",
                             at: closure.span.into(),
