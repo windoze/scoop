@@ -36,11 +36,12 @@ cargo run -p scoop --features llvm -- test
   - T2001 已完成：typecheck/HIR 已允许 mixed arms，`handle` 结果类型按真实返回路径检查，HIR/fixtures 已补齐三类 arm 的稳定回归。
   - 已对原 `T2002` 做范围审计：它同时覆盖 non-resuming payload、escape continuation 的 CalleeSuspendState、以及 `resume(...)` ABI 收口，单轮实现风险过高，已拆为 `T2002a` / `T2002b` 两步推进。
   - T2002a 已完成：runtime perform slot 已增加 `gc_ref` 通道并负责 pin/unpin；non-resuming perform / handler 与 `Continuation.resume` 已共享一套 payload encode/decode helper；新增 String/struct direct+indirect run-pass 回归已通过。
-  - 下一步进入 `T2002b`：继续把 escape continuation 的间接 perform / CalleeSuspendState 恢复值 ABI 从 `resume_word` 标量路径泛化到 ref / aggregate payload。
+  - T2002b 已完成：`CalleeSuspendState` 已升级为双通道 payload；top-level function / closure 的 resume path 与 escape continuation 间接 perform step 均已对齐 `decode_abi_payload_transport` / `resume_gc_ref` 语义；新增间接 `resume(String)` / `resume(struct with ref)` 回归已通过。
+  - 下一步进入 `T2003`：补 immediate-resume 在控制流 / `finally` 组合下的语义回归。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
-  - T2002b：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
+  - T2002b（已完成）：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
   - T2003：补齐 `finally` / 控制流 / GC 压力回归。
 
 ## 2. Structured Concurrency / `Task<T>`（T21）

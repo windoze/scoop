@@ -65,7 +65,7 @@ cargo run -p scoop --features llvm -- test
   - LLVM codegen 已为 non-resuming perform / handler 引入共享 payload encode/decode helper，并让 `Continuation.resume` 复用同一套 ABI 规则。
   - 已新增 run-pass fixtures：`effect_nonresuming_payload_string_direct`、`effect_nonresuming_payload_struct_indirect`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2002b [TODO] Effect：escape continuation / CalleeSuspendState 恢复值 ABI 泛化
+### T2002b [DONE] Effect：escape continuation / CalleeSuspendState 恢复值 ABI 泛化
 - 描述：`Continuation.resume` 本身已能传递 ref / compound payload，但 escape continuation 的间接 perform / call-site suspension 路径仍主要按 `resume_word` / 标量恢复值建模。top-level function 与 closure 的 CalleeSuspendState 还没有和 continuation 的双通道 payload 语义对齐。
 - 目标：
   - top-level function / closure 的 CalleeSuspendState 不再只支持 `resume_word` 标量恢复值；间接 perform 的恢复值可覆盖 `String` / ref / aggregate。
@@ -77,6 +77,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2002a
+- 完成说明：
+  - `CalleeSuspendState` 已统一为 `resume_word + resume_gc_ref + locals...` 形状，并让 GC trace 从 `resume_gc_ref` 起点覆盖恢复值与后续 GC locals。
+  - top-level function / closure 的 callee-suspend resume path 已复用 `decode_abi_payload_transport`，恢复值不再局限于 `resume_word` 标量分支。
+  - 间接 perform 的 escape continuation step 已把双通道 payload 写回 callee state，并对 `resume_gc_ref` 槽位走写屏障。
+  - 已新增 run-pass fixtures：`effect_escape_continuation_indirect_perform_resume_string`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003 [TODO] Effect：immediate-resume / `finally` / 控制流组合语义回归
 - 描述：当前 immediate-resume 路径只支持极窄的 `val x = perform` 形式，并显式禁止与 `finally` 组合。需要把这一路径扩到真实表达式与控制流场景，并用回归锁死 cleanup 语义。

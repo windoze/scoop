@@ -1082,7 +1082,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let i64_ty = self.context.i64_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let header_ty = self.llvm_gc_object_header_type();
 
         // Compute CgTy for saved locals and perform binding.
         let saved_locals: Vec<CalleeSuspendLocal> = info
@@ -1106,32 +1105,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: fun.span.into(),
                 })?;
 
-        // Build CalleeSuspendState struct type: { header, resume_word:i64, locals... }
+        // Build CalleeSuspendState struct type: { header, resume_word, resume_gc_ref, locals... }
         let func_name_str = llvm_fun.get_name().to_str().unwrap_or("anon");
         let func_name_san = sanitize_llvm_ident(func_name_str);
         let state_ty_name = format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
-        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
-            existing
-        } else {
-            let ty = self.context.opaque_struct_type(&state_ty_name);
-            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-            fields.push(header_ty.into()); // field 0: GC header
-            fields.push(i64_ty.into()); // field 1: resume_word
-            for local in &saved_locals {
-                fields.push(match local.cg_ty {
-                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "callee suspend local type (only Int/Bool/Float/Ref/String)",
-                            at: fun.span.into(),
-                        });
-                    }
-                });
-            }
-            ty.set_body(&fields, false);
-            ty
-        };
+        let state_ty =
+            self.get_or_create_callee_suspend_state_type(fun.span, &state_ty_name, &saved_locals)?;
 
         // ── Entry check: is this a resume? ──
         let rt_get = self.declare_runtime_callee_suspend_state_get();
@@ -1193,6 +1172,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_load(i64_ty, rw_ptr, "callee_resume_word")?
             .into_int_value();
+        let rg_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 2, "callee_resume_gc_ref_gep")?;
+        let resume_gc_ref = self
+            .builder
+            .build_load(gc_i8_ptr_ty, rg_ptr, "callee_resume_gc_ref")?
+            .into_pointer_value();
 
         // Unpin state (safe to unpin now; we've loaded all needed values below before any GC).
         // Actually, we unpin AFTER restoring locals from state to avoid GC moving it during loads.
@@ -1200,7 +1186,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Restore saved locals from state into new allocas.
         self.env.push_scope();
         for (idx, local) in saved_locals.iter().enumerate() {
-            let field_idx = 2 + idx as u32; // 0=header, 1=resume_word, 2+=locals
+            let field_idx = Self::callee_suspend_first_local_field_index() + idx as u32;
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
@@ -1275,25 +1261,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // Unpin state now (all fields loaded to stack allocas).
-        // Use inttoptr to create a GC ptr without introducing a trackable GC root
-        // (the statepoint pass can't handle address_space_cast from non-GC to GC).
-        let state_int =
-            self.builder
-                .build_ptr_to_int(state_raw, i64_ty, "callee_state_int_for_unpin")?;
-        let state_gc_for_unpin =
-            self.builder
-                .build_int_to_ptr(state_int, gc_i8_ptr_ty, "callee_state_gc_for_unpin")?;
-        let unpin = self.declare_runtime_gc_unpin();
-        let _ =
-            self.builder
-                .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
-
         // Bind the perform-binding to the resume value.
         let perform_alloca =
             self.create_entry_alloca(fun.span, "callee_resume_val", perform_binding_cg_ty)?;
-        let resume_value =
-            self.decode_u64_word_to_cg_value(fun.span, resume_word, perform_binding_cg_ty)?;
+        let resume_value = self.decode_abi_payload_transport(
+            fun.span,
+            resume_word,
+            resume_gc_ref,
+            perform_binding_cg_ty,
+        )?;
         let _ = self.store_local_value(
             fun.span,
             perform_alloca,
@@ -1309,6 +1285,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mutable: false,
             },
         );
+
+        // Unpin state now that resume payload and saved locals are materialized on the stack.
+        // Use inttoptr to create a GC ptr without introducing a trackable GC root
+        // (the statepoint pass can't handle address_space_cast from non-GC to GC).
+        let state_int =
+            self.builder
+                .build_ptr_to_int(state_raw, i64_ty, "callee_state_int_for_unpin")?;
+        let state_gc_for_unpin =
+            self.builder
+                .build_int_to_ptr(state_int, gc_i8_ptr_ty, "callee_state_gc_for_unpin")?;
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ =
+            self.builder
+                .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
 
         // Re-codegen post-perform stmts.
         let stmts_after = &body.stmts[info.perform_stmt_idx + 1..];
@@ -10979,7 +10969,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let span = closure.span;
         let i64_ty = self.context.i64_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let header_ty = self.llvm_gc_object_header_type();
 
         // Compute CgTy for saved locals and perform binding.
         let saved_locals: Vec<CalleeSuspendLocal> = info
@@ -11003,32 +10992,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
 
-        // Build CalleeSuspendState struct type: { header, resume_word:i64, locals... }
+        // Build CalleeSuspendState struct type: { header, resume_word, resume_gc_ref, locals... }
         let func_name_str = llvm_fun.get_name().to_str().unwrap_or("anon");
         let func_name_san = sanitize_llvm_ident(func_name_str);
         let state_ty_name = format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
-        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
-            existing
-        } else {
-            let ty = self.context.opaque_struct_type(&state_ty_name);
-            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-            fields.push(header_ty.into()); // field 0: GC header
-            fields.push(i64_ty.into()); // field 1: resume_word
-            for local in &saved_locals {
-                fields.push(match local.cg_ty {
-                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "closure callee suspend local type (only Int/Bool/Ref/String)",
-                            at: span.into(),
-                        });
-                    }
-                });
-            }
-            ty.set_body(&fields, false);
-            ty
-        };
+        let state_ty =
+            self.get_or_create_callee_suspend_state_type(span, &state_ty_name, &saved_locals)?;
 
         // ── Entry check: is this a resume? ──
         let rt_get = self.declare_runtime_callee_suspend_state_get();
@@ -11089,11 +11058,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_load(i64_ty, rw_ptr, "callee_resume_word")?
             .into_int_value();
+        let rg_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 2, "callee_resume_gc_ref_gep")?;
+        let resume_gc_ref = self
+            .builder
+            .build_load(gc_i8_ptr_ty, rg_ptr, "callee_resume_gc_ref")?
+            .into_pointer_value();
 
         // Restore saved locals from state into new allocas.
         self.env.push_scope();
         for (idx, local) in saved_locals.iter().enumerate() {
-            let field_idx = 2 + idx as u32; // 0=header, 1=resume_word, 2+=locals
+            let field_idx = Self::callee_suspend_first_local_field_index() + idx as u32;
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
@@ -11102,48 +11078,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let alloca_name = format!("resumed_{}", local.name);
             match local.cg_ty {
-                CgTy::Int(int_ty) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let loaded = self
                         .builder
-                        .build_load(i64_ty, field_ptr, "restore_load_int")?
+                        .build_load(i64_ty, field_ptr, "restore_load_scalar")?
                         .into_int_value();
-                    let to = self.int_type(int_ty);
-                    let v = if int_ty.bits == 64 {
-                        loaded
-                    } else {
-                        self.builder
-                            .build_int_truncate(loaded, to, "restore_trunc")?
-                    };
+                    let restored = self.decode_u64_word_to_cg_value(span, loaded, local.cg_ty)?;
                     let ptr = self.create_entry_alloca(span, &alloca_name, local.cg_ty)?;
-                    let _ = self.builder.build_store(ptr, v)?;
+                    let _ = self.store_local_value(span, ptr, local.cg_ty, restored)?;
                     self.env.insert(
                         local.id,
                         CgLocal {
                             hir_ty: Some(local.hir_ty),
                             ty: local.cg_ty,
-                            ptr,
-                            mutable: local.mutable,
-                        },
-                    );
-                }
-                CgTy::Bool => {
-                    let loaded = self
-                        .builder
-                        .build_load(i64_ty, field_ptr, "restore_load_bool")?
-                        .into_int_value();
-                    let b = self.builder.build_int_compare(
-                        IntPredicate::NE,
-                        loaded,
-                        i64_ty.const_zero(),
-                        "restore_bool",
-                    )?;
-                    let ptr = self.create_entry_alloca(span, &alloca_name, CgTy::Bool)?;
-                    let _ = self.builder.build_store(ptr, b)?;
-                    self.env.insert(
-                        local.id,
-                        CgLocal {
-                            hir_ty: Some(local.hir_ty),
-                            ty: CgTy::Bool,
                             ptr,
                             mutable: local.mutable,
                         },
@@ -11196,7 +11143,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // Unpin state (all fields loaded to stack allocas).
+        // Bind the perform-binding to the resume value.
+        let perform_alloca =
+            self.create_entry_alloca(span, "callee_resume_val", perform_binding_cg_ty)?;
+        let resume_value = self.decode_abi_payload_transport(
+            span,
+            resume_word,
+            resume_gc_ref,
+            perform_binding_cg_ty,
+        )?;
+        let _ =
+            self.store_local_value(span, perform_alloca, perform_binding_cg_ty, resume_value)?;
+        self.env.insert(
+            info.perform_binding_id,
+            CgLocal {
+                hir_ty: Some(info.perform_binding_ty),
+                ty: perform_binding_cg_ty,
+                ptr: perform_alloca,
+                mutable: false,
+            },
+        );
+
+        // Unpin state now that resume payload and saved locals are materialized on the stack.
         let state_int =
             self.builder
                 .build_ptr_to_int(state_raw, i64_ty, "callee_state_int_for_unpin")?;
@@ -11207,46 +11175,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ =
             self.builder
                 .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
-
-        // Bind the perform-binding to the resume value.
-        let perform_alloca =
-            self.create_entry_alloca(span, "callee_resume_val", perform_binding_cg_ty)?;
-        match perform_binding_cg_ty {
-            CgTy::Int(int_ty) => {
-                let to = self.int_type(int_ty);
-                let v = if int_ty.bits == 64 {
-                    resume_word
-                } else {
-                    self.builder
-                        .build_int_truncate(resume_word, to, "resume_trunc")?
-                };
-                let _ = self.builder.build_store(perform_alloca, v)?;
-            }
-            CgTy::Bool => {
-                let b = self.builder.build_int_compare(
-                    IntPredicate::NE,
-                    resume_word,
-                    i64_ty.const_zero(),
-                    "resume_bool_cmp",
-                )?;
-                let _ = self.builder.build_store(perform_alloca, b)?;
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "closure callee suspend resume value type (only Int/Bool supported)",
-                    at: span.into(),
-                });
-            }
-        }
-        self.env.insert(
-            info.perform_binding_id,
-            CgLocal {
-                hir_ty: Some(info.perform_binding_ty),
-                ty: perform_binding_cg_ty,
-                ptr: perform_alloca,
-                mutable: false,
-            },
-        );
 
         // Re-codegen post-perform stmts.
         let stmts_after = &body.stmts[info.perform_stmt_idx + 1..];

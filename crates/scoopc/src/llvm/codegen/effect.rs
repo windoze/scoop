@@ -283,7 +283,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn decode_abi_payload_transport(
+    pub(super) fn decode_abi_payload_transport(
         &mut self,
         at: crate::span::Span,
         word: IntValue<'ctx>,
@@ -334,6 +334,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
         }
+    }
+
+    pub(super) fn llvm_callee_suspend_state_prefix_type(&self) -> inkwell::types::StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.CalleeSuspendStatePrefix";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let header_ty = self.llvm_gc_object_header_type();
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        ty.set_body(
+            &[header_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
+            false,
+        );
+        ty
+    }
+
+    pub(super) fn callee_suspend_first_local_field_index() -> u32 {
+        3
+    }
+
+    pub(super) fn get_or_create_callee_suspend_state_type(
+        &mut self,
+        at: crate::span::Span,
+        state_ty_name: &str,
+        saved_locals: &[CalleeSuspendLocal],
+    ) -> Result<inkwell::types::StructType<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.context.get_struct_type(state_ty_name) {
+            return Ok(existing);
+        }
+
+        let ty = self.context.opaque_struct_type(state_ty_name);
+        let header_ty = self.llvm_gc_object_header_type();
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+        fields.push(header_ty.into()); // 0: GC header
+        fields.push(i64_ty.into()); // 1: resume_word
+        fields.push(gc_i8_ptr_ty.into()); // 2: resume_gc_ref / boxed aggregate payload
+        for local in saved_locals {
+            fields.push(match local.cg_ty {
+                CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "callee suspend local type",
+                        at: at.into(),
+                    });
+                }
+            });
+        }
+        ty.set_body(&fields, false);
+        Ok(ty)
+    }
+
+    pub(super) fn callee_suspend_trace_start_offset(
+        &self,
+        state_ty: inkwell::types::StructType<'ctx>,
+    ) -> u64 {
+        let size_bytes = self.target_data.get_store_size(&state_ty);
+        self.target_data
+            .offset_of_element(&state_ty, 2)
+            .unwrap_or(size_bytes)
     }
 
     /// 在"最近 handler boundary"存在时跳转到 catch；否则返回默认值向外传播。
@@ -398,7 +463,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let header_ty = self.llvm_gc_object_header_type();
 
         // Build (or reuse) the CalleeSuspendState struct type.
         let insert_block =
@@ -417,43 +481,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let func_name = func.get_name().to_str().unwrap_or("anon");
         let func_name_san = sanitize_llvm_ident(func_name);
         let state_ty_name = format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
-        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
-            existing
-        } else {
-            let ty = self.context.opaque_struct_type(&state_ty_name);
-            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-            fields.push(header_ty.into()); // 0: GC header
-            fields.push(i64_ty.into()); // 1: resume_word
-            for local in &ctx.saved_locals {
-                fields.push(match local.cg_ty {
-                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "callee suspend local type",
-                            at: at.into(),
-                        });
-                    }
-                });
-            }
-            ty.set_body(&fields, false);
-            ty
-        };
+        let state_ty =
+            self.get_or_create_callee_suspend_state_type(at, &state_ty_name, &ctx.saved_locals)?;
 
         // Create type descriptor for GC.
         let size_bytes = self.target_data.get_store_size(&state_ty);
-        let has_gc_fields = ctx
-            .saved_locals
-            .iter()
-            .any(|l| matches!(l.cg_ty, CgTy::Ref | CgTy::String));
-        let first_local_field = 2u32; // 0=header, 1=resume_word
-        let trace_start = if has_gc_fields {
-            self.target_data
-                .offset_of_element(&state_ty, first_local_field)
-                .unwrap_or(size_bytes)
-        } else {
-            size_bytes
-        };
+        let trace_start = self.callee_suspend_trace_start_offset(state_ty);
         let desc_name = format!("__scoop_type_desc_callee_suspend__{func_name_san}");
         let state_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
             at,
@@ -504,10 +537,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_struct_gep(state_ty, state_ptr, 1, "callee_state_rw_gep")?;
         let _ = self.builder.build_store(rw_ptr, i64_ty.const_zero())?;
+        let rg_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 2, "callee_state_rg_gep")?;
+        let _ = self
+            .builder
+            .build_store(rg_ptr, gc_i8_ptr_ty.const_null())?;
 
         // Save locals to state.
         for (idx, local_info) in ctx.saved_locals.iter().enumerate() {
-            let field_idx = 2 + idx as u32;
+            let field_idx = Self::callee_suspend_first_local_field_index() + idx as u32;
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
@@ -524,33 +563,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
             match local_info.cg_ty {
-                CgTy::Int(int_ty) => {
+                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
                     let llvm_ty = self.llvm_basic_type_of(at, local_info.cg_ty)?;
-                    let loaded = self
-                        .builder
-                        .build_load(llvm_ty, local.ptr, "callee_save_int")?
-                        .into_int_value();
-                    let extended = if int_ty.bits == 64 {
-                        loaded
-                    } else if int_ty.signed {
+                    let loaded =
                         self.builder
-                            .build_int_s_extend(loaded, i64_ty, "callee_save_sext")?
-                    } else {
-                        self.builder
-                            .build_int_z_extend(loaded, i64_ty, "callee_save_zext")?
-                    };
-                    let _ = self.builder.build_store(field_ptr, extended)?;
-                }
-                CgTy::Bool => {
-                    let llvm_ty = self.llvm_basic_type_of(at, CgTy::Bool)?;
-                    let loaded = self
-                        .builder
-                        .build_load(llvm_ty, local.ptr, "callee_save_bool")?
-                        .into_int_value();
-                    let extended =
-                        self.builder
-                            .build_int_z_extend(loaded, i64_ty, "callee_save_bool_zext")?;
-                    let _ = self.builder.build_store(field_ptr, extended)?;
+                            .build_load(llvm_ty, local.ptr, "callee_save_scalar")?;
+                    let encoded = self.coerce_u64_word(
+                        at,
+                        CgValue {
+                            ty: local_info.cg_ty,
+                            value: Some(loaded),
+                        },
+                    )?;
+                    let _ = self.builder.build_store(field_ptr, encoded)?;
                 }
                 CgTy::Ref => {
                     let llvm_ty = self.llvm_basic_type_of(at, CgTy::Ref)?;
@@ -3828,74 +3853,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ptr
                 };
 
-                // T1607：按 resume_value_ty 从 resume_word（scalar）或 resume_gc_ref（GC ptr / boxed）解码。
-                let resume_value = match resume_value_ty {
-                    CgTy::Unit => CgValue::unit(),
-                    CgTy::Never => CgValue::never(),
-                    CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => cg
-                        .decode_u64_word_to_cg_value(
-                            site.decl.span,
-                            resume_word,
-                            resume_value_ty,
-                        )?,
-                    CgTy::String => {
-                        // resume_gc_ref 直接是 ScoopString* addrspace(1)
-                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
-                        let s = cg.builder.build_pointer_cast(
-                            resume_gc_ref,
-                            str_ptr_ty,
-                            "resume_string",
-                        )?;
-                        CgValue {
-                            ty: CgTy::String,
-                            value: Some(s.into()),
-                        }
-                    }
-                    CgTy::Ref => {
-                        // resume_gc_ref 直接是 i8* addrspace(1)
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(resume_gc_ref.into()),
-                        }
-                    }
-                    CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                        // resume_gc_ref 指向 boxed payload: { GcObjectHeader, <payload> }
-                        let payload_llvm_ty =
-                            cg.llvm_basic_type_of(site.decl.span, resume_value_ty)?;
-                        let header_ty = cg.llvm_gc_object_header_type();
-                        let box_ty_name =
-                            format!("scoop.runtime.ResumeBox__{func_name}_{seq}_pc{pc}");
-                        let box_ty =
-                            if let Some(existing) = cg.context.get_struct_type(&box_ty_name) {
-                                existing
-                            } else {
-                                let t = cg.context.opaque_struct_type(&box_ty_name);
-                                t.set_body(&[header_ty.into(), payload_llvm_ty], false);
-                                t
-                            };
-                        let box_ptr_ty = cg.llvm_ptr_type(cg.gc_address_space());
-                        let box_ptr = cg.builder.build_pointer_cast(
-                            resume_gc_ref,
-                            box_ptr_ty,
-                            "resume_box_ptr",
-                        )?;
-                        let payload_ptr = cg.builder.build_struct_gep(
-                            box_ty,
-                            box_ptr,
-                            1,
-                            "resume_box_payload_gep",
-                        )?;
-                        let loaded = cg.builder.build_load(
-                            payload_llvm_ty,
-                            payload_ptr,
-                            "resume_box_payload",
-                        )?;
-                        CgValue {
-                            ty: resume_value_ty,
-                            value: Some(loaded),
-                        }
-                    }
-                };
+                let resume_value = cg.decode_abi_payload_transport(
+                    site.decl.span,
+                    resume_word,
+                    resume_gc_ref,
+                    resume_value_ty,
+                )?;
 
                 let _stored =
                     cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
@@ -7535,7 +7498,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into_int_value();
-            let _resume_gc_ref = step_fn
+            let resume_gc_ref = step_fn
                 .get_nth_param(2)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "step resume_gc_ref param",
@@ -7690,7 +7653,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // Step function body for pc=0 (indirect perform call-site):
             // 1. Read callee_suspend_state from TLS
-            // 2. Write resume_word into CalleeSuspendState's resume_word field
+            // 2. Write (resume_word, resume_gc_ref) into CalleeSuspendState
             // 3. Re-call the function (with default args since callee resume path ignores them)
             // 4. Continue with post-call stmts
             // 5. Unpin state + return
@@ -7709,33 +7672,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?
                 .into_pointer_value();
 
-            // Write resume_word into callee state's field 1 (resume_word).
-            // CalleeSuspendState: { header, resume_word:i64, locals... }
-            // We access field 1 via a raw GEP on i64 offset.
-            let callee_rw_byte_offset = self
-                .target_data
-                .get_store_size(&self.llvm_gc_object_header_type());
-            let callee_rw_ptr =
-                cg.builder
-                    .build_pointer_cast(callee_state_raw, i8_ptr_ty, "callee_state_i8")?;
-            let offset_val = i64_ty.const_int(callee_rw_byte_offset, false);
-            let callee_rw_gep = unsafe {
-                cg.builder.build_gep(
-                    cg.context.i8_type(),
-                    callee_rw_ptr,
-                    &[offset_val],
-                    "callee_rw_byte_gep",
-                )?
-            };
-            let callee_rw_i64_ptr = cg.builder.build_pointer_cast(
-                callee_rw_gep,
-                self.llvm_ptr_type(AddressSpace::default()),
-                "callee_rw_i64_ptr",
+            let callee_prefix_ty = cg.llvm_callee_suspend_state_prefix_type();
+            let callee_state_ptr_ty = cg.llvm_ptr_type(AddressSpace::default());
+            let callee_state_ptr = cg.builder.build_pointer_cast(
+                callee_state_raw,
+                callee_state_ptr_ty,
+                "callee_state_typed",
             )?;
-            let _ = cg.builder.build_store(callee_rw_i64_ptr, resume_word)?;
+            let callee_rw_ptr = cg.builder.build_struct_gep(
+                callee_prefix_ty,
+                callee_state_ptr,
+                1,
+                "callee_resume_word_gep",
+            )?;
+            let _ = cg.builder.build_store(callee_rw_ptr, resume_word)?;
+
+            let callee_rg_ptr = cg.builder.build_struct_gep(
+                callee_prefix_ty,
+                callee_state_ptr,
+                2,
+                "callee_resume_gc_ref_gep",
+            )?;
+            let wb = cg.declare_runtime_gc_write_barrier();
+            let slot_addr =
+                cg.builder
+                    .build_pointer_cast(callee_rg_ptr, i8_ptr_ty, "callee_resume_gc_slot")?;
+            let _ = cg.builder.build_call(
+                wb,
+                &[slot_addr.into(), resume_gc_ref.into()],
+                "callee_resume_gc_store",
+            )?;
 
             // Re-call the callee function.
-            // The callee will detect its saved state in TLS, use the resume_word, and return the actual result.
+            // The callee will detect its saved state in TLS, decode the transport payload, and return the actual result.
             let site = &indirect_sites[0];
             let call_stmt = &handle.body.stmts[site.stmt_idx];
             let hir::StmtKind::Val(call_decl) = &call_stmt.kind else {

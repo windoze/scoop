@@ -1,0 +1,59 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_resume_struct_with_ref.stdout
+//
+// T2002b: 间接 perform + resume(struct with ref) 经过 CalleeSuspendState 的双通道 payload ABI。
+// - `callIt { ... }` 让 closure 自身成为 suspendable callee。
+// - closure 在 resume 后读取 boxed aggregate payload，并继续使用已恢复的 captures。
+
+import scoop.core.*
+
+struct Reply(val label: String, val score: Int)
+
+effect Ask {
+    fun get(seed: Int): Reply
+}
+
+fun callIt(f: () -> Int / (Ask)): Int / (Ask) {
+    f()
+}
+
+fun main() {
+    var saved_k: Continuation<Reply>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "resume"
+        val bonus: Int = 1
+        println("body_start")
+        val value: Int = callIt {
+            println(prefix)
+            val reply: Reply = Ask.get(bonus)
+            println(prefix)
+            println(reply.label)
+            println(reply.score)
+            reply.score + bonus
+        }
+        println("body_done")
+        println(value)
+        value
+    } with {
+        Ask.get(seed), k -> {
+            println("arm")
+            saved_k = Some(k)
+            0
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(Reply { label: "boxed", score: 41 })
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}

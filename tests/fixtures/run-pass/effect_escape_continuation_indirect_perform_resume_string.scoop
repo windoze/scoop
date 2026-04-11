@@ -1,0 +1,54 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_resume_string.stdout
+//
+// T2002b: 间接 perform + resume(String) 经过 CalleeSuspendState 的双通道 payload ABI。
+// - `fetchGreeting()` 在被调函数中直接 perform，自身需要走 callee-suspend 恢复路径。
+// - `prefix` 是 perform 前保存到 CalleeSuspendState 的 String local。
+// - `name` 的恢复值来自 resume_gc_ref，而不是旧的 resume_word 标量通道。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(key: Int): String
+}
+
+fun fetchGreeting(): String / (Ask) {
+    val key: Int = 7
+    val prefix: String = "prefix"
+    val name: String = Ask.ask(key)
+    println(prefix)
+    println(name)
+    name
+}
+
+fun main() {
+    var saved_k: Continuation<String>? = None()
+
+    val result: String = handle {
+        println("body_start")
+        val value: String = fetchGreeting()
+        println("body_done")
+        println(value)
+        value
+    } with {
+        Ask.ask(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            "fallback"
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("world")
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}
