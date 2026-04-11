@@ -1,73 +1,54 @@
-# 本轮执行计划
+## 当前执行计划
 
-## 说明
+说明：
+- 按要求先记录可审计的执行思路与步骤。
+- 这里记录的是任务分析摘要、执行计划、关键决策与进度更新。
+- 不写入不可验证的内部详细思维链路；后续如计划变化，会继续更新本文件。
 
-用户要求在执行命令前先写入“完整思考过程”。我不会记录不可公开的内部推理细节，但会提供足够详细、可审计的执行计划、假设、决策依据摘要与进度记录，供后续检查。
+### 初始分析摘要
 
-## 当前目标
-
-完成 `TODO.md` 中第一个未完成任务；若该任务过大，则先拆分任务并更新 `PLAN.md` 与 `TODO.md`，本轮只完成拆分后的第一个子任务。完成后测试、更新文档、提交 Git，然后停止。
-
-## 执行步骤
-
-1. 查看最新一次 Git 提交的信息，确认是否提到了需要先修复的既有问题。
+当前尚未读取仓库状态，因此先按固定流程推进：
+1. 查看最新一次 Git 提交，检查提交信息中是否提到已知问题、遗留问题或待补修项。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`、相关上下文文件，以及与该任务直接相关的源码与测试，判断任务边界与依赖。
-4. 若任务过大或存在前置缺失：
-   - 拆分为更小子任务；
-   - 更新 `PLAN.md`；
-   - 调整 `TODO.md` 中的任务顺序与描述；
-   - 本轮只执行新的第一个子任务，或在无法继续实现时仅提交重排结果。
-5. 实现本轮任务，必要时补充或整理代码结构与注释，但避免无关重构。
-6. 运行相关验证：
-   - 先运行与改动直接相关的测试；
-   - 视影响范围运行 `cargo test --all`；
-   - 运行 `cargo clippy --all-targets -- -D warnings`；
-   - 如有需要运行格式化或其他项目规定检查。
-7. 更新进度文件：
-   - 在 `TODO.md` 中标记任务完成，或在阻塞时按要求重排；
-   - 在 `PLAN.md` 中记录当前状态与后续计划；
-   - 持续更新本文件，记录关键进展与计划变化。
-8. 检查工作区改动，确认仅包含本轮相关更改。
-9. 使用清晰提交信息提交本轮结果。
-10. 停止，不继续处理下一个任务。
+3. 阅读 `PLAN.md`，理解现有路线与任务上下文。
+4. 评估该任务是否能在本轮内完整完成；若过大，则将其拆分并更新 `TODO.md` / `PLAN.md`。
+5. 实现当前应执行的第一个任务。
+6. 运行相关测试、格式化、lint，修复发现的问题。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态。
+8. 提交 Git commit，然后停止，不继续做下一个任务。
 
-## 预设决策原则
+### 执行步骤
 
-- 优先修复最新提交明确提到的遗留问题。
-- 不回退用户已有改动。
-- 若缺少语言特性或基础能力，不强行实现上层任务，而是调整任务依赖并记录原因。
-- 所有结论以实际代码、测试结果和仓库文档为准。
+- [ ] 检查最新提交及其可能提到的遗留问题
+- [ ] 读取 `TODO.md`，确认第一个未完成任务
+- [ ] 读取 `PLAN.md`，确认是否需要拆分任务
+- [ ] 如需拆分，先更新 `TODO.md` / `PLAN.md`
+- [ ] 实现当前目标任务
+- [ ] 运行测试与质量检查
+- [ ] 更新文档与任务状态
+- [ ] 提交变更并停止
 
-## 进度记录
+### 进度日志
 
-- 已创建本计划文件，尚未开始仓库检查。
-- 已检查最新提交 `40f7614`，提交标题未额外声明需要先修复的遗留问题。
-- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务是 `T2003c0b`：LLVM mixed-arm `handle` 接入 sibling escape-continuation。
-- 已审阅 `crates/scoopc/src/llvm/codegen/effect.rs` 中的 mixed-arm immediate-resume lowering 与单 arm escape-continuation lowering。
-- 当前判断：`T2003c0b` 原始范围过大，至少同时跨越：
-  - mixed-arm dispatch 入口扩展；
-  - sibling escape handler frame 的 TLS 生命周期管理；
-  - direct / indirect perform 两条 escape 路径；
-  - continuation captured handler stack 与 sibling self-capture 语义。
-- 决策：先把 `T2003c0b` 拆成更小子任务。本轮目标改为实现第一个子任务：
-  - 最小可运行子集：`immediate-resume + 单个 sibling escape-continuation arm`
-  - 限定：先只覆盖 direct perform、单 perform 点、top-level 语句位置；
-  - 对 indirect perform、多 perform、以及更复杂 mixed 组合给出稳定诊断。
-- 已完成任务拆分并更新 `TODO.md` / `PLAN.md`：原 `T2003c0b` 现拆为 `T2003c0b1` / `T2003c0b2`。
-- 已实现 `T2003c0b1` 的 LLVM lowering 子集：
-  - mixed-arm 入口现在支持单个 sibling escape-continuation arm，并对“escape + sibling non-resuming”继续稳定报错；
-  - 当前支持范围为：immediate site 与 escape site 都是 top-level `val = perform`；
-  - continuation step 会恢复 pre-escape captures，并在 `resume(...)` 后继续执行 escape site 之后的 top-level tail。
-- 已新增 / 调整 fixtures：
-  - run-pass：`tests/fixtures/run-pass/effect_resume_mixed_escape_direct.scoop`
-  - build-fail：`tests/fixtures/build/effect_resume_mixed_escape_is_error.scoop`（改为 multiple direct perform points 诊断）
-- 已完成验证：
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 当前待做收尾：
-  - 复查工作区改动；
-  - 提交 `T2003c0b1`；
-  - 停止，等待下一轮处理 `T2003c0b2`。
+- 已创建初始计划文件，下一步将检查最新提交与任务列表。
+- 已检查最新提交 `bd5ca57328cd0687257aee9b3a04b8c5dc560042`，提交信息未额外声明需要先单独修复的遗留 issue。
+- 已读取 `TODO.md` 与 `PLAN.md`；当前第一个未完成任务为 `T2003c0b2`：扩展 LLVM mixed-arm handle dispatch 中 sibling escape-continuation 到 indirect / richer mixed 组合。
+- 下一步：审计相关 codegen / fixtures，判断 `T2003c0b2` 是否需要先拆分为更小的子任务。
+- 审计结果：
+  - mixed-arm escape 当前入口 `codegen_handle_expr_immediate_resume_with_escape_sibling_direct` 只支持 top-level `val = perform` 的 direct single-site。
+  - 单-arm escape continuation 已有较完整的 indirect-perform 路径：`scan_for_indirect_perform_call_sites` + `codegen_handle_expr_escape_continuation_indirect`。
+  - 但 `T2003c0b2` 当前描述把“先补 indirect 单站点”与“再补 richer mixed 组合”绑在一起，单轮改动面过大。
+- 决策：
+  - 先把 `T2003c0b2` 拆成两个子任务：
+    1. `T2003c0b2a`：mixed-arm immediate-resume + sibling escape-continuation 支持单个 top-level indirect perform call site。
+    2. `T2003c0b2b`：继续扩展 richer mixed 组合（多 site / 更复杂 direct+indirect / 与 sibling non-resuming 混用等）。
+  - 本轮执行 `T2003c0b2a`，并保留其余 richer mixed 组合的稳定诊断。
+- 已更新 `TODO.md` / `PLAN.md`：
+  - `T2003c0b2` 已拆为 `T2003c0b2a`（single indirect site）与 `T2003c0b2b`（richer mixed）。
+  - 当前首个未完成任务已变为 `T2003c0b2a`。
+- 当前实现计划：
+  1. 在 mixed-arm 入口先区分 escape sibling 是 direct site 还是 indirect call site。
+  2. 为 `T2003c0b2a` 新增 dedicated lowering，复用单-arm indirect continuation 的 state capture / step resume / callee suspend 写回逻辑。
+  3. 对 multiple indirect sites、direct+indirect 混用、多 escape sites 等 richer mixed 组合维持稳定诊断。
+  4. 补 run-pass / build-fail fixtures。
+  5. 跑格式化、测试、clippy 后完成文档与提交。

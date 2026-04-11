@@ -188,17 +188,29 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_escape_direct`；build-fail `effect_resume_mixed_escape_is_error` 已改为覆盖“multiple direct perform points not yet supported”。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，indirect / richer mixed）
-- 描述：在 `T2003c0b1` 的 direct single-site 子集上，继续把 sibling escape-continuation 扩到 indirect perform 与更复杂 mixed 组合。
+### T2003c0b2a [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single indirect site）
+- 描述：`T2003c0b2` 原始范围同时覆盖 indirect perform 与 richer mixed 组合，单轮风险仍偏大。先收口“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect call site”的最小可运行子集。
 - 目标：
-  - sibling escape-continuation 不再局限于 direct single-site；indirect perform 与更复杂的 mixed dispatch/captured-handler-stack 语义可在 LLVM 路径运行。
-  - 若与 sibling non-resuming arms 同源混用，dispatch scope、captured handler stack 与 sibling self-capture 语义保持稳定。
-  - 对本阶段仍不支持的 mixed 组合给出稳定诊断。
+  - sibling escape-continuation 不再局限于 direct single-site；至少支持 top-level `val x = f(...)` 形态的单个 indirect perform call site。
+  - 复用既有单-arm indirect continuation 的 callee-suspend / captured-handler-stack 语义，并保持 sibling self-capture 语义稳定。
+  - 对 multiple indirect sites、direct+indirect 多 site，以及本阶段仍不支持的 richer mixed 组合给出稳定诊断。
 - 验收：
-  - 新增 run-pass / build-fail fixtures：覆盖 indirect perform 或等价 richer mixed 路径，以及剩余明确不支持的组合。
+  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume + sibling escape-continuation 的单 indirect site 路径，以及至少一个剩余明确不支持的组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b1
+
+### T2003c0b2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，richer mixed）
+- 描述：在 `T2003c0b2a` 的 indirect single-site 子集上，继续扩到更复杂 mixed dispatch/captured-handler-stack 组合。
+- 目标：
+  - 支持 richer mixed 组合，例如多个 escape sites、direct+indirect 共存，及后续需要的更复杂 body 形状。
+  - 若与 sibling non-resuming arms 同源混用，dispatch scope、captured handler stack 与 sibling self-capture 语义保持稳定。
+  - 对剩余仍不支持的 mixed 组合继续给出稳定诊断。
+- 验收：
+  - 新增 run-pass / build-fail fixtures：覆盖 richer mixed 路径，以及剩余明确不支持的组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2a
 
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
 - 描述：在 `finally`、控制流主链路与 `T2003c0` 的 mixed-arm LLVM dispatch 落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
@@ -210,7 +222,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0b2
+- 依赖：T2003c0b2b
 
 ## T21：Structured Concurrency / `Task<T>`
 

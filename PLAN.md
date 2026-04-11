@@ -49,7 +49,8 @@ cargo run -p scoop --features llvm -- test
   - T2003c0a 已完成：mixed-arm lowering 已支持“一个 immediate-resume arm + sibling non-resuming arms”的最小子集；`Raise.raise` 与单 payload custom non-resuming effect 都可以在同一个 source-handle 内参与 dispatch，且 arm body 执行期间会把同一 source-handle 的 custom sibling handler frames 从 TLS handler stack 中摘除，避免 sibling self-capture。
   - 已进一步审计 `T2003c0b`：它同时覆盖 direct/indirect perform、多 perform 点与 richer mixed 组合；若继续整包推进，风险面会再次跨越 direct interception、flag-dispatch 与 continuation captured-handler-stack 三层实现，因此继续拆成 `T2003c0b1` / `T2003c0b2`。
   - T2003c0b1 已完成：mixed-arm lowering 现已支持“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的 direct single-site 子集；当前要求 immediate site 与 escape site 都是 top-level `val = perform`，并让 continuation step 恢复 pre-escape outer/body captures、在 `resume(...)` 后继续执行 escape site 之后的 top-level tail。
-  - 当前下一步进入 `T2003c0b2`：继续扩展 sibling escape-continuation 到 indirect perform、更多 direct site 形状以及 richer mixed dispatch 组合。
+  - 已进一步审计 `T2003c0b2`：它仍同时覆盖 indirect 单站点与 richer mixed 组合；现继续拆成 `T2003c0b2a` / `T2003c0b2b`，先落地 indirect single-site，再扩展更复杂 mixed 形状。
+  - 当前下一步进入 `T2003c0b2a`：扩展 sibling escape-continuation 到单个 top-level indirect perform call site，并保留 richer mixed 组合的稳定诊断。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -60,7 +61,8 @@ cargo run -p scoop --features llvm -- test
   - T2003b3（已完成）：扩展 immediate-resume 到 while 中的 direct perform，并收口剩余稳定诊断。
   - T2003c0a（已完成）：补 mixed-arm immediate-resume + sibling non-resuming 所需的 LLVM 多 arm handle dispatch 最小能力。
   - T2003c0b1（已完成）：把 sibling escape-continuation arm 接入多 arm dispatch 的 direct single-site 子集，并补稳定诊断。
-  - T2003c0b2：扩展 sibling escape-continuation 到 indirect / richer mixed 组合。
+  - T2003c0b2a：扩展 sibling escape-continuation 到 single indirect site。
+  - T2003c0b2b：扩展 sibling escape-continuation 到 richer mixed 组合。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 
 ## 2. Structured Concurrency / `Task<T>`（T21）
