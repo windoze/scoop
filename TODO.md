@@ -257,7 +257,7 @@ cargo run -p scoop --features llvm -- test
   - 已移除旧的 build-fail 回归 `effect_resume_mixed_escape_is_error`，并新增 run-pass 回归 `effect_resume_mixed_escape_direct_multi`，覆盖 post-immediate 两个 direct site、第一次 escape 恢复值跨第二次 suspension 的 body-lift，以及 arm 内 pointer-like enum outer capture。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate indirect/direct+indirect site matrix）
+### T2003c0b2b2 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate indirect/direct+indirect site matrix）
 - 描述：在 post-immediate multiple direct sites 打通后，继续补齐“一个 immediate-resume arm + 一个 sibling escape-continuation arm”在 immediate site 之后的 remaining top-level site matrix：multiple indirect call sites，以及 direct + indirect 共存。
 - 目标：
   - 支持 immediate site 之后的多个 indirect escape sites。
@@ -268,6 +268,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2b1
+- 完成说明：
+  - mixed-arm escape sibling lowering 现已新增统一的 post-immediate site matrix 路径，把 top-level direct / indirect escape sites 接到同一条 continuation step trampoline 上。
+  - 该路径现已支持：multiple indirect sites、direct→indirect、indirect→direct；并继续保留 pre-immediate site 的稳定诊断。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_indirect_multi`、`effect_resume_mixed_escape_direct_indirect`、`effect_resume_mixed_escape_indirect_direct`；同时把旧的 post-immediate 负例替换为 `effect_resume_mixed_escape_pre_immediate_direct_indirect_is_error`。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2b3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，pre-immediate top-level sites）
 - 描述：`perform before immediate site` 不是单纯的 site 扫描问题，而是 continuation step 在恢复后仍需重新命中 sibling immediate-resume state machine 的控制流缺口。把它单独拆出来，避免和 post-immediate site matrix 耦合。

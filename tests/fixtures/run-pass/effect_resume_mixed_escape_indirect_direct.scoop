@@ -1,0 +1,86 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_indirect_direct.stdout
+//
+// T2003c0b2b2: mixed-arm immediate-resume + sibling escape-continuation
+// supports post-immediate indirect + direct site coexistence.
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(base: Int): String / (Ask) {
+    println("fetch_enter")
+    println(base)
+    val msg: String = Ask.ask(base + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = handle {
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        val indirect: String = fetch(x)
+        println("after_indirect")
+        println(indirect)
+        val direct: String = Ask.ask(x + 100)
+        println("after_direct")
+        println(direct)
+        x + 1
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

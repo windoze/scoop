@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle mixed-arm escape continuation (direct + indirect sites not yet supported)
+// EXPECT-ERROR: handle mixed-arm escape continuation (perform before immediate site not yet supported)
 // ARGS: --emit-llvm
 
 import scoop.core.*
@@ -19,11 +19,11 @@ fun fetch(seed: Int): String / (Ask) {
 
 fun main() {
     val result: Int = handle {
+        val first: String = Ask.ask(0)
         val x: Int = Yield.next()
-        val direct: String = Ask.ask(x)
-        println(direct)
-        val indirect: String = fetch(x)
-        println(indirect)
+        val second: String = fetch(x)
+        println(first)
+        println(second)
         x + 1
     } with {
         Yield.next() -> resume {
