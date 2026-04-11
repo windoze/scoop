@@ -237,6 +237,25 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0116）：核心库 hardcoded 类型限制清单——审计 8 项限制并逐项标注归属：4 项有后续任务（T1818/T1822/T0131）、2 项后置（Task<T>/Float print）、1 项后置按需补齐（其他类型 hash）、1 项确认为设计决策（MutableArray COW）。
 - DONE（T0117）：`@Extern(lib=...)` 参数传递到链接器——审计确认链接器传递管线已完整实现（`collect_extern_libs` → `LoweredHir.extern_libs` → `link_objs` → `clang -l<name>`）。新增 `ExternFun.lib: Option<String>` 字段用于诊断追溯，`extern_fun_of_decl` 填充该字段。新增 2 个 fixtures（run-pass + Cone）验证 `@Extern(lib = "c", name = "labs")` 端到端链接。791 fixtures 通过。
 
+## 3.2 编译器限制审计（T0144）
+
+- DONE（T0144）：新增 `COMPILER_LIMITS_AUDIT.md`，系统扫描 `llvm/`、`hir/`、`resolve/`、`typecheck/` 四个目录中的 `UnsupportedMainBody` / `UnsupportedExpr` / HIR `Todo(...)` / `todo!` / `unimplemented!` / `HACK` / `FIXME` / 典型 `Any` fallback。
+- 原始信号统计：
+  - `UnsupportedMainBody`：1325 个原始匹配
+  - `UnsupportedExpr`：77 个原始匹配
+  - HIR `Todo(...)`：13 个原始匹配
+  - `todo!` / `unimplemented!` / `HACK` / `FIXME`：0
+- 分类结论：
+  - `RangeInclusive` / `Elvis` / `with_update` / `array_lit` 等残留信号已归类为“已有任务覆盖”或“dump-hir fallback / 防御性守卫”，不重复排短 TODO。
+  - `class literal` 当前维持“仅注解 / comptime 可用”的阶段性边界；`FunPtr<F>` 维持 non-receiver 设计；function type named args 维持不支持。
+  - runtime/C 剩余依赖当前主要集中在 host/OS 桥接、GC/unsafe 边界、以及格式化/哈希 helper；未发现像旧版 String API 那样值得整组迁移的新目标。
+  - 修正 1 处过期注释：`typecheck/expr/call.rs` 不再错误宣称 interface dispatch 尚未实现。
+- 新增任务入口：
+  - `T0151`：`for (x in iterable)` Custom iterator lowering + codegen
+  - `T0152`：safe member access parity（ref receiver / extension property）
+  - `T0153`：receiver function value invocation
+  - `T0154`：higher-order aggregate returns（closure / function value / `FunPtr`）
+
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 
 - DONE（T1801）：产出 `STDLIB_COMPLETENESS.md`，覆盖 21 个能力领域，每个能力项标注状态/分类/实现位置/fixtures。P0/P1 缺口排序：

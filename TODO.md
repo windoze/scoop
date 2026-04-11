@@ -1928,7 +1928,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all`
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0144 [TODO] 审计：编译器 codegen 限制全面排查与任务拆分
+### T0144 [DONE] 审计：编译器 codegen 限制全面排查与任务拆分
 
 - 描述：T0140-T0142 是从 `stdlib/string.scoop` 中发现的三个 codegen 限制（source-backed literal 单文件限制、block 内 return/break/continue 不支持、if-without-else 非 Unit 报错）。这些限制的发现是偶发的——因为纯 Scoop stdlib 代码恰好触碰到了它们。编译器中可能还存在其它类似的"硬性拒绝"或"降级处理"路径，尚未被用户代码触发但会在语言功能扩展时成为障碍。
   本任务是一个伞型审计任务（umbrella audit），系统性扫描编译器 codegen 及相关阶段，识别所有此类限制，为每个限制创建独立的后续任务。
@@ -1946,6 +1946,88 @@ cargo run -p scoop --features llvm -- test
   - 所有 `UnsupportedMainBody`、`todo!`、`unimplemented!`、`HACK`、`FIXME` 出现点均已分类（已知任务已覆盖 / 新建任务 / 刻意保留）。
   - 新建的后续任务已添加到 TODO.md 对应 section。
 - 依赖：无（可随时执行，建议在 T0140-T0142 完成前开始，以便发现更多类似问题并批量规划）
+- 完成说明：
+  - 新增审计文档：`COMPILER_LIMITS_AUDIT.md`。
+  - 审计覆盖四个主目录，并对以下信号完成分类：
+    - `UnsupportedMainBody`：1325 个原始匹配
+    - `UnsupportedExpr`：77 个原始匹配
+    - HIR `Todo(...)`：13 个原始匹配
+    - `todo!` / `unimplemented!` / `HACK` / `FIXME`：0
+  - 已确认并归类的代表性结论：
+    - `RangeInclusive` 已由 `T1819` 覆盖，不重复建任务。
+    - `Elvis` / `with_update` / `array_lit` 的残留 `Unsupported*` / `Todo(...)` 路径均属已完成任务后的 fallback 或“未跑 typecheck 的 dump-hir 守卫”。
+    - `class literal` 当前刻意仅作为注解 / comptime 的类型名常量存在，不在本轮扩到普通表达式。
+    - `FunPtr<F>` 的 receiver signature 维持 non-receiver 设计，不作为本轮缺口。
+  - 新建后续任务：`T0151`、`T0152`、`T0153`、`T0154`。
+  - 顺手修正 1 处过期注释：`typecheck/expr/call.rs` 中 “interface dispatch 仍留待 T1508c” 的说法已与当前实现对齐。
+
+### T0151 [TODO] `for (x in iterable)` Custom iterator lowering + codegen
+
+- 描述：`typecheck/expr/stmt.rs` 已支持通用迭代协议 `xs.iterator(): Iter` 与 `Iter.next(): Option<Elem>`，并在 `ast::ForStmt.resolved_for_info` 写回 `ForLoopIterableKind::Custom`。但 `hir/lower/stmt.rs` 对 `Custom` 仍直接返回 `StmtKind::Todo("for_custom_iterator")`，导致用户定义 iterable 无法通过 lowering 进入 LLVM。
+- 目标：
+  - 为 `ForLoopIterableKind::Custom` 新增 HIR lowering，展开为稳定的 while-loop 形态。
+  - `iterable` 与 `iterator()` 只求值一次；`next()` 的 `Some/None` 结果按 `Option<T>` 分支驱动 loop。
+  - 不改变 `Array<Int>` / `IntProgression` 的现有特化快路径。
+- 验收：
+  - 新增 run-pass fixtures，至少覆盖：
+    - 自定义 iterator class；
+    - `iterator()` / `next()` 带 effects 的最小场景；
+    - `Some/None` 正常收敛到 loop 退出。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 依赖：无
+
+### T0152 [TODO] Nullable 访问补齐：safe member access 支持 ref receiver / extension property
+
+- 描述：当前 `infer_safe_member_access_expr_type` 只接受 `Option<Struct>` 上的字段访问。`Option<Class>` / `Option<Object>` 上的字段、以及 safe extension property（`x?.prop`）仍会报 `UnsupportedExpr` / `UnsupportedMemberAccess`，与普通 member access 语义不对齐。
+- 目标：
+  - 让 `receiver?.field` 与非 safe 的 `receiver.field` 使用一致的成员解析结果，只在最外层包一层 `Option<_>`。
+  - 覆盖引用接收者上的字段读取，以及已存在 extension property 的 safe 访问。
+  - 保持 `receiver?.method(...)` 现有路径不变，不在本任务扩大到其它 higher-order 语义。
+- 验收：
+  - 新增 typecheck / run-pass fixtures，至少覆盖：
+    - `Option<Class>` / `Option<Object>` 的字段访问；
+    - safe extension property；
+    - `None` 分支返回 `None`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 依赖：无
+
+### T0153 [TODO] Higher-order：receiver function type 的局部函数值调用
+
+- 描述：receiver function type 已能出现在类型系统和 scope functions 声明中，但局部函数值调用在 typecheck 阶段仍显式拒绝 `fun.receiver.is_some()`，LLVM closure 间接调用也报 `receiver function value call`。这使 `val f: String.(Int) -> Int = ...` 之类的值“可声明、不可调用”。
+- 目标：
+  - 定义并实现 receiver function value 的调用模型，沿用类型层“receiver 视为第 0 个参数”的既有约定。
+  - 打通 typecheck 与 LLVM closure 间接调用路径，不改变 `FunPtr<F>` 维持 non-receiver 的现有设计。
+  - 保持 effects / `@NoGC` / `const fun` 等现有门禁语义一致。
+- 验收：
+  - 新增 run-pass fixtures，至少覆盖：
+    - 局部 receiver lambda 直接调用；
+    - receiver function value 作为 higher-order 参数传递再调用；
+    - 错误用法的稳定诊断（arity / receiver type mismatch）。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 依赖：无
+
+### T0154 [TODO] LLVM：higher-order 间接调用支持 aggregate 返回值
+
+- 描述：当前 LLVM 对 `FunPtr`、closure / function value 的间接调用仍显式拒绝 `Tuple/Struct/Enum` 返回值；实现注释已指出“正确修复应转为 sret”。这会把 higher-order API 限制在标量 / `Ref` / `String` 返回值集合内。
+- 目标：
+  - 为 function value / closure / `FunPtr` 间接调用补齐 aggregate 返回值 ABI（必要时转为 sret）。
+  - 复核与 statepoint / `gc.result` 的交互，避免仅对“GC-free aggregate”做脆弱特判。
+  - 让 higher-order 场景可稳定返回 tuple / struct / enum，而不是要求源码绕开。
+- 验收：
+  - 新增 run-pass fixtures，至少覆盖：
+    - closure 返回 tuple；
+    - higher-order mapper 返回 struct；
+    - `unsafe` `FunPtr` 返回 enum 或 tuple。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 依赖：无
 
 ---
 

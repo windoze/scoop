@@ -4374,7 +4374,8 @@ fn infer_member_call_expr_type(
     // - resolver 在 member access 阶段只做"存在性 + FQN 写回"，不会为 member fun call 收集 overload set；
     // - 这里把 `receiver.method(args...)` 降到"对 FQN overload set 的普通调用"来做重载决议，
     //   并把 `receiver` 作为隐式第 0 个参数参与类型检查；
-    // - T1508b 起支持 class virtual dispatch（vtable）；interface dispatch 仍留给 TODO T1508c。
+    // - 当前入口统一覆盖 direct call / class vtable / interface itable 三类成员调用形态；
+    //   具体走哪条后端路径由 receiver 类型与 slot 解析结果决定。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
         // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
         if fqn != "scoop.core.GC.pin"
