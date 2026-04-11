@@ -27,7 +27,7 @@ For the first incomplete task (or subtask) in `TODO.md`:
   5. Commit these changes and stop — the next invocation will pick up from there.
 
 **Missing or Incomplete Language Features:**
-- If you encounter a task that requires a language feature or library that is not currently available, you must:
+- If you encounter a task that requires a language feature or library that is not currently available, you must **not attempt to implement the task without it**. Instead:
   1. Identify the missing feature and research the details of its implementation or availability.
   2. Update `TODO.md` to reflect the dependency on the missing feature, and move the task to the appropriate position in the list, then add a dependency item of the current task on the missing feature.
   3. Update `PLAN.md` to document the issue and any steps taken to address it.
