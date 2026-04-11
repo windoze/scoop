@@ -1,0 +1,51 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_finally_body_raise_after_resume.stdout
+//
+// T2003a: immediate-resume + finally when resumed body raises.
+//
+// 目标覆盖：
+// - arm 正常 `resume(value)`，body 从 perform 点之后继续执行；
+// - resumed body 触发 `Raise.raise` 时，finally 仍恰好执行一次；
+// - outer try/catch 观察到 raise 值，证明 cleanup 后继续向外传播。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun boom(): Int / Raise<Int> {
+    Raise.raise(77)
+    return 0
+}
+
+fun main() {
+    println("before")
+    val result: Int = try {
+        val v: Int = handle {
+            println("body_start")
+            val x: Int = Yield.next()
+            println("body_after")
+            println(x)
+            val y: Int = boom()
+            println("body_unreachable")
+            y
+        } with {
+            Yield.next() -> resume {
+                println("arm_start")
+                resume(41)
+            }
+        } finally {
+            println("finally")
+        }
+        println("handle_unreachable")
+        v
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        e
+    }
+    println("result")
+    println(result)
+    println("done")
+}

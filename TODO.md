@@ -84,7 +84,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_escape_continuation_indirect_perform_resume_string`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003a [TODO] Effect：immediate-resume 单-perform 路径的 `finally` cleanup 语义
+### T2003a [DONE] Effect：immediate-resume 单-perform 路径的 `finally` cleanup 语义
 - 描述：当前 immediate-resume 的 LLVM lowering 仍是“单个 `val x = perform` + 栈 state machine”的最小实现，并在 codegen 入口直接拒绝 `finally`。先在这个已经可运行的单 suspension 子集上补齐 cleanup 语义，再继续扩展控制流恢复。
 - 目标：
   - 现有单个 `val x = perform` immediate-resume handle 可与 `finally` 组合。
@@ -95,6 +95,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2002b
+- 完成说明：
+  - `codegen_handle_expr_immediate_resume` 已新增 `finally` / `finally_unwind` 收口：state0、arm、state1 内的 raise 统一先清理 handler frame，再执行 `finally` 并向外传播。
+  - resumed computation 正常完成后会先退出 handler scope，再执行 `finally`，保持与既有 non-resuming / escape continuation 路径一致的 cleanup 顺序。
+  - 已新增 run-pass fixtures：`effect_resume_finally_normal`、`effect_resume_finally_arm_raise`、`effect_resume_finally_body_raise_after_resume`。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003b [TODO] Effect：immediate-resume 控制流内 perform 扫描与恢复
 - 描述：在补齐单-perform `finally` 之后，把 immediate-resume 从“顶层 `val x = perform`”扩到 branch/loop/block 等真实控制流位置；优先覆盖直接 perform 的嵌套恢复，不把间接 perform 混入同一轮。

@@ -39,3 +39,18 @@
 - 计划调整：
   - 将原 `T2003` 拆为 `T2003a` / `T2003b` / `T2003c`，并同步更新 `TODO.md` / `PLAN.md`。
   - 本轮实际执行目标切换为 `T2003a`：补齐单-perform immediate-resume 的 `finally` cleanup 语义。
+- 已完成实现：
+  - `crates/scoopc/src/llvm/codegen/effect.rs` 中的 immediate-resume lowering 已新增 `finally` / `finally_unwind` 收口。
+  - state0、arm、state1 内的 `Raise.raise` 或经调用传播的 raise 现在会先退出当前 handler frame，再执行 `finally`，随后继续向外传播。
+  - 正常 resume 完成后，resumed computation 会先离开 handler scope，再执行 `finally`。
+- 已补回归：
+  - `effect_resume_finally_normal`
+  - `effect_resume_finally_arm_raise`
+  - `effect_resume_finally_body_raise_after_resume`
+- 范围备注：
+  - 直接在 handle body 中再写一个额外的 `Raise.raise(...)` 仍会触发“perform must be bound to val”的旧门禁；这属于 `T2003b` 的 direct-perform 扫描扩展范围。
+  - 因此“resume 后 raise”回归选择了经函数调用的间接 raise，以验证 T2003a 的 cleanup 语义而不越界到 T2003b。
+- 验证结果：
+  - `cargo test --all` 通过。
+  - `cargo run -p scoop --features llvm -- test` 通过（`fixtures: ok (913)`）。
+  - `cargo clippy --workspace --all-targets -- -D warnings` 通过。

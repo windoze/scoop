@@ -38,12 +38,14 @@ cargo run -p scoop --features llvm -- test
   - T2002a 已完成：runtime perform slot 已增加 `gc_ref` 通道并负责 pin/unpin；non-resuming perform / handler 与 `Continuation.resume` 已共享一套 payload encode/decode helper；新增 String/struct direct+indirect run-pass 回归已通过。
   - T2002b 已完成：`CalleeSuspendState` 已升级为双通道 payload；top-level function / closure 的 resume path 与 escape continuation 间接 perform step 均已对齐 `decode_abi_payload_transport` / `resume_gc_ref` 语义；新增间接 `resume(String)` / `resume(struct with ref)` 回归已通过。
   - 已对原 `T2003` 做范围审计：它同时包含 immediate-resume 的单-perform cleanup、控制流内 perform 恢复，以及 mixed-arm / nested handle / GC stress 回归矩阵，单轮实现与验收面过大，现拆为 `T2003a` / `T2003b` / `T2003c`。
-  - 下一步进入 `T2003a`：先在现有单-perform immediate-resume lowering 上补齐 `finally` cleanup 语义，再向控制流扩展。
+  - T2003a 已完成：现有单-perform immediate-resume lowering 已支持 `finally`，并在正常 resume、arm raise、resume 后间接 raise 三条路径上保持 cleanup 恰好一次。
+  - 当前 immediate-resume handle body 仍只允许那一个直接 `perform`；控制流内 direct perform 扫描与恢复仍留给 `T2003b`。
+  - 下一步进入 `T2003b`：扩展 immediate-resume 到 branch/loop/block 等控制流中的 direct perform。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
   - T2002b（已完成）：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
-  - T2003a：补齐单-perform immediate-resume 的 `finally` cleanup 语义。
+  - T2003a（已完成）：补齐单-perform immediate-resume 的 `finally` cleanup 语义。
   - T2003b：扩展 immediate-resume 到 branch/loop/block 等控制流中的 direct perform。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 

@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_finally_normal.stdout
+//
+// T2003a: immediate-resume + finally 的正常 resume 路径。
+//
+// 目标覆盖：
+// - 单个 `val x = perform` immediate-resume handle 可与 `finally` 组合；
+// - arm 调用 `resume(value)` 后，body 继续执行；
+// - body 正常完成后，finally 恰好执行一次。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    println("before")
+    val result: Int = handle {
+        println("body_start")
+        val x: Int = Yield.next()
+        println("body_after")
+        println(x)
+        x + 1
+    } with {
+        Yield.next() -> resume {
+            println("arm_start")
+            resume(41)
+        }
+    } finally {
+        println("finally")
+    }
+    println("result")
+    println(result)
+    println("done")
+}

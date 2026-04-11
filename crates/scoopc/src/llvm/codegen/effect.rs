@@ -2216,15 +2216,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         resume_symbol: hir::SymbolId,
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // T0616：先实现最小"栈 state machine"版本的 `-> resume`：
+        // T0616/T2003a：当前仍使用最小"栈 state machine"版本的 `-> resume`：
         // - 只支持单个 perform 点（位于一个 `val x: T = Effect.op(...)` 的 init 中）
         // - `resume(value)` 必须恰好一次：重复/缺失先按运行期错误处理（exit(3)）
-        if handle.finally.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle finally (immediate-resume)",
-                at: span.into(),
-            });
-        }
+        // - T2003a：在这个单 suspension 子集上补齐 finally cleanup 语义
+        //   （正常 resume 完成 / raise 传播时都执行一次）。
 
         // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform` 这种形式）。
         let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
@@ -2306,6 +2302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "builder has no parent function",
                 at: span.into(),
             })?;
+        let outer_raise_target = self.current_raise_target();
 
         // TODO T0913：在动态层维护 handler stack（Appendix A）。
         //
@@ -2334,6 +2331,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let bad_state_bb = self
             .context
             .append_basic_block(func, "handle_resume_bad_state");
+        let finally_bb = self
+            .context
+            .append_basic_block(func, "handle_resume_finally");
+        let finally_unwind_bb = self
+            .context
+            .append_basic_block(func, "handle_resume_finally_unwind");
 
         let i32_ty = self.context.i32_type();
         let state_ptr = self.create_entry_alloca_raw(span, "handle_state", i32_ty.into())?;
@@ -2426,6 +2429,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- state0：执行 perform 之前的片段，遇到 perform 则进入 arm ---
         self.builder.position_at_end(state0_bb);
+        self.push_raise_target(finally_unwind_bb);
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
             if idx == perform_idx {
                 break;
@@ -2456,6 +2460,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+        self.pop_raise_target();
 
         // perform 语句本身：当前阶段仅支持 `val x: T = Effect.op(args...)`。
         let target_ptr = {
@@ -2538,7 +2543,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             next_state: 1,
         };
         self.push_immediate_resume_ctx(resume_ctx);
+        self.push_raise_target(finally_unwind_bb);
         let _ = self.codegen_expr_in_expected_context(&arm.body, Some(CgTy::Unit))?;
+        self.pop_raise_target();
         self.pop_immediate_resume_ctx();
 
         // `resume(value)` 必须恰好一次：
@@ -2597,6 +2604,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- state1：恢复 perform 的返回值，并继续执行剩余片段，计算 handle 的结果 ---
         self.builder.position_at_end(state1_bb);
+        self.push_raise_target(finally_unwind_bb);
 
         if let Some(ptr) = resume_value_ptr {
             let llvm_ty = self.llvm_basic_type_of(span, resume_value_ty)?;
@@ -2645,6 +2653,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+        self.pop_raise_target();
 
         let value = if out_ty == CgTy::Unit {
             CgValue::unit()
@@ -2654,12 +2663,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(ptr) = result_ptr {
             let _ = self.store_local_value(handle.body.span, ptr, out_ty, value)?;
         }
-        self.builder.build_unconditional_branch(done_bb)?;
 
-        // --- done：读取并返回结果 ---
-        self.builder.position_at_end(done_bb);
-
-        // handle 结束：pop handler frame（动态上下文）。
+        // resumed computation 正常完成：pop handler frame，使 finally 处于 handler scope 外。
         let rt_pop = self.declare_runtime_effect_handler_stack_pop();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let frame_i8 = self.builder.build_bit_cast(
@@ -2670,8 +2675,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self
             .builder
             .build_call(rt_pop, &[frame_i8.into()], "handle_resume_effect_pop")?;
+        self.builder.build_unconditional_branch(finally_bb)?;
 
+        // handle body locals 对 finally 不可见；在生成 finally blocks 前关闭该 scope。
         self.env.pop_scope();
+
+        // --- finally_unwind ---
+        // state0 / arm / state1 内若发生 Raise：先执行 finally，再向外传播。
+        self.builder.position_at_end(finally_unwind_bb);
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let frame_i8 = self.builder.build_bit_cast(
+            handler_frame_ptr,
+            i8_ptr_ty,
+            "handle_resume_effect_frame_i8",
+        )?;
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_resume_effect_pop")?;
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            if let Some(target) = outer_raise_target {
+                self.builder.build_unconditional_branch(target)?;
+            } else {
+                let ret_ty =
+                    self.current_fun_return_ty
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume finally unwind needs function return type",
+                            at: span.into(),
+                        })?;
+                let v = self.default_value(span, ret_ty)?;
+                self.emit_return(span, ret_ty, v)?;
+            }
+        }
+
+        // --- finally ---
+        self.builder.position_at_end(finally_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(done_bb)?;
+        }
+
+        // --- done：读取并返回结果 ---
+        self.builder.position_at_end(done_bb);
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
