@@ -1,5 +1,6 @@
 // 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
 use scoop_runtime as _;
+use std::ffi::c_void;
 
 unsafe extern "C" {
     fn scoop_runtime_init();
@@ -11,12 +12,20 @@ unsafe extern "C" {
     fn scoop_effect_set_active();
     fn scoop_effect_clear();
 
+    fn scoop_effect_perform_slot_write_u64_with_gc_ref(
+        op_tag: u32,
+        value: u64,
+        gc_ref: *mut c_void,
+    );
     fn scoop_effect_perform_slot_write_u64(op_tag: u32, value: u64);
     fn scoop_effect_perform_slot_write_u64_2(op_tag: u32, word0: u64, word1: u64);
     fn scoop_effect_perform_slot_read_op_tag() -> u32;
     fn scoop_effect_perform_slot_read_len_words() -> u32;
+    fn scoop_effect_perform_slot_read_gc_ref() -> *mut c_void;
     fn scoop_effect_perform_slot_read_u64() -> u64;
     fn scoop_effect_perform_slot_read_u64_at(index: u32) -> u64;
+
+    fn scoop_sync_once_create() -> *mut c_void;
 }
 
 #[test]
@@ -56,6 +65,7 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
@@ -64,6 +74,7 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         scoop_effect_perform_slot_write_u64(7, 123);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 7);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 123);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 123);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
@@ -72,6 +83,7 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         scoop_effect_perform_slot_write_u64_2(9, 11, 22);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 9);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 2);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 11);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 22);
 
@@ -82,6 +94,7 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
@@ -93,7 +106,40 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         scoop_thread_unregister();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
+    }
+}
+
+#[test]
+fn effect_tls_perform_slot_gc_ref_read_write_is_observable() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        scoop_effect_clear();
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
+
+        let once = scoop_sync_once_create();
+        assert!(!once.is_null(), "sync once object must be allocated");
+
+        scoop_effect_perform_slot_write_u64_with_gc_ref(13, 77, once);
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 13);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 77);
+        assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
+
+        scoop_effect_clear();
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
+
+        scoop_effect_perform_slot_write_u64_with_gc_ref(21, 99, once);
+        assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
+        scoop_thread_unregister();
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
+        assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
     }
 }

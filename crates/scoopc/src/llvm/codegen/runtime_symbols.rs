@@ -38,9 +38,13 @@ pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =
     "scoop_effect_perform_slot_read_op_tag";
+pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF: &str =
+    "scoop_effect_perform_slot_read_gc_ref";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64: &str = "scoop_effect_perform_slot_read_u64";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64_AT: &str =
     "scoop_effect_perform_slot_read_u64_at";
+pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_WITH_GC_REF: &str =
+    "scoop_effect_perform_slot_write_u64_with_gc_ref";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64: &str = "scoop_effect_perform_slot_write_u64";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2: &str =
     "scoop_effect_perform_slot_write_u64_2";

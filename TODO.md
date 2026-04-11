@@ -48,18 +48,35 @@ cargo run -p scoop --features llvm -- test
   - 已移除 mixed-arm 的统一 early reject，并把 `handle` 结果类型改成按真实可返回路径确定。
   - 已补 mixed-arm typecheck/HIR fixtures，覆盖合法组合、返回类型不匹配、resume 语义冲突不可达。
 
-### T2002 [TODO] Effect：`perform` / `resume` lowering 与 ABI 泛化（摆脱 `Int` / 同函数硬编码）
-- 描述：当前 non-resuming effect codegen 仍把可执行路径硬编码成 `op(Int)` + 同函数 handle 边界，`resume(...)` 也仍按单个 word-sized `Int` 恢复值建模。需要把值传递与 handler 路由统一到更一般的 continuation payload 模型。
+### T2002a [DONE] Effect：non-resuming 单 payload ABI 泛化（direct + indirect perform）
+- 描述：当前自定义 non-resuming effect 的 codegen 虽然已经能通过 flag-propagation + handler stack 跨函数分发，但 payload / handler binder 仍被硬编码为单个 word-sized `Int`。这使 `String`、引用类型以及含引用字段的聚合值在 non-resuming handler 上仍不可用。
 - 目标：
-  - non-resuming effect 的参数与结果不再硬编码为 word-sized `Int`，可覆盖 reference / aggregate / 泛型实例等常见类型。
-  - 间接或跨函数 perform 不再要求匹配的 `handle` 与 call site 同处一个函数体内；handler dispatch 走统一上下文链路。
-  - `resume(...)` 的检查与 lowering 共享 continuation payload 语义，不再依赖单值 `Int` 特判。
+  - 单 binder / 单 payload 的 non-resuming effect 不再要求 payload 为 `Int`；支持 scalar、`String` / ref，以及常见 aggregate payload。
+  - direct perform 与通过函数/闭包触发的 indirect perform 共享同一套 payload encode/decode 语义，并具备正确的 GC rooting。
+  - 保持既有 non-resuming dispatch 语义不回归：最近 handler 优先、arm body 在自身 handler scope 外执行、flag-propagation 仍可跨函数传播。
 - 验收：
-  - 新增 run-pass fixtures：non-resuming effect 传 `String` / `struct`，以及跨函数 perform / resume。
+  - 新增 run-pass fixtures：non-resuming effect 传 `String` / `struct`，且至少一例经由函数或闭包的 indirect perform。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2001
+- 完成说明：
+  - runtime perform slot 已新增 `gc_ref` 通道，并在 slot 生命周期内负责 pin/unpin，避免 `String` / ref / boxed aggregate payload 成为 TLS roots hole。
+  - LLVM codegen 已为 non-resuming perform / handler 引入共享 payload encode/decode helper，并让 `Continuation.resume` 复用同一套 ABI 规则。
+  - 已新增 run-pass fixtures：`effect_nonresuming_payload_string_direct`、`effect_nonresuming_payload_struct_indirect`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2002b [TODO] Effect：escape continuation / CalleeSuspendState 恢复值 ABI 泛化
+- 描述：`Continuation.resume` 本身已能传递 ref / compound payload，但 escape continuation 的间接 perform / call-site suspension 路径仍主要按 `resume_word` / 标量恢复值建模。top-level function 与 closure 的 CalleeSuspendState 还没有和 continuation 的双通道 payload 语义对齐。
+- 目标：
+  - top-level function / closure 的 CalleeSuspendState 不再只支持 `resume_word` 标量恢复值；间接 perform 的恢复值可覆盖 `String` / ref / aggregate。
+  - 间接 perform + resume 的跨函数路径与 direct continuation step 共享同一套 payload encode/decode helper，而不是继续维护 `Int` 专用分支。
+  - 对既有 `Continuation.resume(...)` lowering 做收口，确保 effect 路径和 continuation 路径的 payload 规则保持一致。
+- 验收：
+  - 新增 run-pass fixtures：间接 perform + `resume(String)`、间接 perform + `resume(struct)` 或等价 aggregate payload。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2002a
 
 ### T2003 [TODO] Effect：immediate-resume / `finally` / 控制流组合语义回归
 - 描述：当前 immediate-resume 路径只支持极窄的 `val x = perform` 形式，并显式禁止与 `finally` 组合。需要把这一路径扩到真实表达式与控制流场景，并用回归锁死 cleanup 语义。
@@ -71,7 +88,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：branch/loop/finally 组合；相关高风险用例在 `SCOOP_GC_STRESS=1` 下稳定。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2002
+- 依赖：T2002b
 
 ## T21：Structured Concurrency / `Task<T>`
 

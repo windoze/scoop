@@ -1518,6 +1518,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_effect_perform_slot_write_u64_with_gc_ref(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_WITH_GC_REF;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag, uint64_t word0, void* gc_ref)`
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [i32_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_effect_perform_slot_write_u64_2(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1552,6 +1570,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_effect_perform_slot_read_len_words(void)`
         let fn_ty = self.context.i32_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_effect_perform_slot_read_gc_ref(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_effect_perform_slot_read_gc_ref(void)`
+        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

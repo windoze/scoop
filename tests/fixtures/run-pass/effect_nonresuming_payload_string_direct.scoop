@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_nonresuming_payload_string_direct.stdout
+//
+// T2002a: non-resuming custom effect payload supports direct String transport.
+// - payload 为 `String`（GC ref），不再要求是 `Int`；
+// - perform 直接出现在 handle body 中；
+// - handler 读取 String binder，并把它作为 handle 结果返回。
+
+import scoop.core.*
+
+effect Message {
+    fun abort(msg: String): Nothing
+}
+
+fun main(): Int {
+    val result: String = handle {
+        println("body")
+        Message.abort("hello effect")
+        println("body_unreachable")
+        "bad"
+    } with {
+        Message.abort(msg: String) -> {
+            println("caught")
+            println(msg)
+            msg
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

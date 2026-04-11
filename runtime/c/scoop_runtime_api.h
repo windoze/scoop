@@ -61,8 +61,10 @@
   X(scoop_effect_is_active) \
   X(scoop_effect_perform_slot_read_len_words) \
   X(scoop_effect_perform_slot_read_op_tag) \
+  X(scoop_effect_perform_slot_read_gc_ref) \
   X(scoop_effect_perform_slot_read_u64) \
   X(scoop_effect_perform_slot_read_u64_at) \
+  X(scoop_effect_perform_slot_write_u64_with_gc_ref) \
   X(scoop_effect_perform_slot_write_u64) \
   X(scoop_effect_perform_slot_write_u64_2) \
   X(scoop_effect_set_active) \

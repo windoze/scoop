@@ -340,6 +340,12 @@ typedef struct ScoopEffectPerformSlot {
 
   // payload words：低层 ABI 以 “word 序列” 形式传递复合数据。
   uint64_t payload_words[SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS];
+
+  // 可选的 GC payload 引用：
+  // - 标量 payload 仍走 payload_words；
+  // - String/ref 或 boxed aggregate payload 走该通道；
+  // - 该槽位在 slot 生命周期内由 runtime 负责 pin/unpin，避免 TLS 裸指针成为 roots hole。
+  void *payload_gc_ref;
 } ScoopEffectPerformSlot;
 
 // non-resuming effect（flag-based unwinding）的“最小诊断信息”TLS。
@@ -375,9 +381,9 @@ _Static_assert(
     offsetof(ScoopEffectPerformSlot, payload_words) == 8,
     "ScoopEffectPerformSlot.payload_words offset must be 8");
 _Static_assert(
-    sizeof(ScoopEffectPerformSlot) ==
+    offsetof(ScoopEffectPerformSlot, payload_gc_ref) ==
         (8u + 8u * SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS),
-    "ScoopEffectPerformSlot size must be 8 + 8*MAX_WORDS bytes");
+    "ScoopEffectPerformSlot.payload_gc_ref offset must follow payload_words");
 #endif
 
 // --- effect runtime：handler stack（TODO T0913 / Appendix A） ---
@@ -430,6 +436,18 @@ SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 // - 存入前该对象应已被 PIN（避免 GC 搬迁），handler 侧取回后负责 unpin。
 // - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
 SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
+
+static void scoop_effect_perform_slot_drop_gc_ref(void) {
+  if (__scoop_effect_perform_slot.payload_gc_ref != 0) {
+    scoop_unpin(__scoop_effect_perform_slot.payload_gc_ref);
+    __scoop_effect_perform_slot.payload_gc_ref = 0;
+  }
+}
+
+static void scoop_effect_perform_slot_reset(void) {
+  scoop_effect_perform_slot_drop_gc_ref();
+  (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
 
 static inline void scoop_effect_trace_reset(uint32_t src_line, uint32_t src_col) {
   scoop_effect_trace.version = 0;
@@ -564,6 +582,12 @@ void scoop_thread_unregister(void) {
 #endif
 
   // 早期阶段：注销时清空 TLS，避免后续测试/手动调试场景出现悬挂状态。
+  // 先释放 effect slot 持有的 pin，再把线程标记为未注册。
+  __scoop_effect_active = 0;
+  __scoop_effect_handler_stack_top = 0;
+  scoop_effect_perform_slot_reset();
+  scoop_effect_trace_reset(0, 0);
+
   scoop_tls.registered = 0;
   scoop_tls.gc_immix_current_block = 0;
   scoop_tls.gc_immix_block_cache = 0;
@@ -575,12 +599,6 @@ void scoop_thread_unregister(void) {
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
-
-  // effect runtime：清空 flag/slot（TODO T0906）。
-  __scoop_effect_active = 0;
-  __scoop_effect_handler_stack_top = 0;
-  (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
-  scoop_effect_trace_reset(0, 0);
 }
 
 // effect runtime（TODO T0906）：set/clear API（仅用于最小回归与后续 lowering 接入）。
@@ -601,7 +619,7 @@ void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col) {
 
 void scoop_effect_clear(void) {
   __scoop_effect_active = 0;
-  (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+  scoop_effect_perform_slot_reset();
 }
 
 // T1606f-2：callee suspend state 访问器。
@@ -640,6 +658,7 @@ uintptr_t scoop_effect_trace_unwind_len(void) {
 // - `op_tag` 用于区分 operation（后续任务会定义稳定的 tag 分配规则）。
 // - 当前阶段不做任何 dispatch/unwind；仅提供 TLS slot 的读写，以便后续 lowering 接入并可回归验证。
 void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
+  scoop_effect_perform_slot_drop_gc_ref();
   __scoop_effect_perform_slot.op_tag = op_tag;
   __scoop_effect_perform_slot.payload_len_words = 1;
   __scoop_effect_perform_slot.payload_words[0] = value;
@@ -649,9 +668,30 @@ void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
   }
 }
 
+void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag,
+                                                     uint64_t word0,
+                                                     void *gc_ref) {
+  scoop_effect_perform_slot_drop_gc_ref();
+
+  __scoop_effect_perform_slot.op_tag = op_tag;
+  __scoop_effect_perform_slot.payload_len_words = 1;
+  __scoop_effect_perform_slot.payload_words[0] = word0;
+  for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
+    __scoop_effect_perform_slot.payload_words[i] = 0;
+  }
+
+  if (gc_ref != 0) {
+    scoop_pin(gc_ref);
+    __scoop_effect_perform_slot.payload_gc_ref = gc_ref;
+  } else {
+    __scoop_effect_perform_slot.payload_gc_ref = 0;
+  }
+}
+
 void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag,
                                           uint64_t word0,
                                           uint64_t word1) {
+  scoop_effect_perform_slot_drop_gc_ref();
   __scoop_effect_perform_slot.op_tag = op_tag;
   __scoop_effect_perform_slot.payload_len_words = 2;
   __scoop_effect_perform_slot.payload_words[0] = word0;
@@ -667,6 +707,10 @@ uint32_t scoop_effect_perform_slot_read_op_tag(void) {
 
 uint32_t scoop_effect_perform_slot_read_len_words(void) {
   return __scoop_effect_perform_slot.payload_len_words;
+}
+
+void *scoop_effect_perform_slot_read_gc_ref(void) {
+  return __scoop_effect_perform_slot.payload_gc_ref;
 }
 
 uint64_t scoop_effect_perform_slot_read_u64(void) {

@@ -27,17 +27,20 @@ cargo run -p scoop --features llvm -- test
 
 ## 1. Effect / Continuation 完整化（T20）
 
-- 背景：当前 effect / continuation 仍是“能跑部分样例”的 v0 子集，`handle` arm 形态、`perform` / `resume` ABI、以及 immediate-resume + `finally` 组合语义都还有明显门禁。
+- 背景：当前 effect / continuation 仍是“能跑部分样例”的 v0 子集，`handle` arm 形态、non-resuming payload ABI、escape continuation 的 call-site suspension ABI，以及 immediate-resume + `finally` 组合语义都还有明显门禁。
 - 目标：
   - 收口 `handle` arm 的类型系统与 HIR 表示，允许合法的 non-resuming / immediate-resume / continuation-binder 组合，不再靠“先拒绝混用”维持实现简单。
-  - 让 non-resuming effect 与 `resume(...)` 的值传递不再硬编码在 word-sized `Int` / 同函数边界；跨函数路径与 aggregate/reference payload 走统一语义。
+  - 让 non-resuming effect 与 escape continuation 的恢复值传递不再硬编码在 word-sized `Int` 分支；跨函数路径与 aggregate/reference payload 走统一语义。
   - 补齐 immediate-resume 在表达式位置、控制流位置、`finally` 组合下的行为，并用复杂 fixtures 锁住语义。
 - 当前进展：
   - T2001 已完成：typecheck/HIR 已允许 mixed arms，`handle` 结果类型按真实返回路径检查，HIR/fixtures 已补齐三类 arm 的稳定回归。
-  - 下一步进入 T2002：继续打通 `perform` / `resume` lowering 与 continuation payload ABI。
+  - 已对原 `T2002` 做范围审计：它同时覆盖 non-resuming payload、escape continuation 的 CalleeSuspendState、以及 `resume(...)` ABI 收口，单轮实现风险过高，已拆为 `T2002a` / `T2002b` 两步推进。
+  - T2002a 已完成：runtime perform slot 已增加 `gc_ref` 通道并负责 pin/unpin；non-resuming perform / handler 与 `Continuation.resume` 已共享一套 payload encode/decode helper；新增 String/struct direct+indirect run-pass 回归已通过。
+  - 下一步进入 `T2002b`：继续把 escape continuation 的间接 perform / CalleeSuspendState 恢复值 ABI 从 `resume_word` 标量路径泛化到 ref / aggregate payload。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
-  - T2002：扩展 `perform` / `resume` lowering、LLVM ABI 与跨函数分发。
+  - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
+  - T2002b：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
   - T2003：补齐 `finally` / 控制流 / GC 压力回归。
 
 ## 2. Structured Concurrency / `Task<T>`（T21）

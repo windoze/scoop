@@ -1,65 +1,94 @@
-# 本轮执行计划（可见摘要）
+# 本轮执行计划
 
-注意：这里记录的是可见的执行计划、决策依据摘要与进度，不包含内部隐藏推理。
+## 约束说明
 
-## 目标
-
-按照 `TODO.md` 的顺序，只完成第一个未完成任务；如果发现前置问题或依赖阻塞，则先处理阻塞并更新计划文件、`TODO.md`、`PLAN.md`，然后提交并停止。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在真正改代码前，先检查最新提交是否提到需要先修复的遗留问题；若有，则这些问题优先于 `TODO.md` 任务。
+- 如首个未完成任务过大，需要先把它拆成更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+- 不记录或暴露内部逐词推理；这里保留的是可审计的高层分析、执行计划和进度更新。
 
 ## 初始步骤
 
-1. 检查最新一次 Git 提交，确认是否明确提到了需要先修复的既有问题。
+1. 查看最新一次 git 提交信息，确认是否提到已有问题、回归、临时修复或后续待补项。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认该任务的上下文、依赖和可能的拆分方式。
-4. 如任务过大或存在缺失前置能力，则把任务拆成更小子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
+3. 阅读 `PLAN.md`、相关模块和测试，判断该任务是否可在本轮完整完成。
+4. 若任务过大，先拆分任务并更新 `PLAN.md` / `TODO.md`；若可直接做，则进入实现。
 
-## 执行步骤
+## 实施步骤
 
-1. 实现当前要做的首个未完成任务。
-2. 运行相关格式化、lint 和测试，至少覆盖：
-   - 与改动直接相关的测试
-   - 必要时运行工作区级检查，如 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`
-3. 修复测试或 lint 中发现的问题，直到结果满足要求。
-4. 更新进度文档：
-   - 在 `TODO.md` 标记任务完成，或在阻塞场景下重排任务顺序
-   - 在 `PLAN.md` 记录当前状态与后续安排
-   - 回写本文件，记录关键进展与计划调整
-5. 提交当前改动并停止，不进入下一个任务。
+1. 修改代码，尽量保持改动局部且模块化。
+2. 为改动补充或更新测试。
+3. 运行相关验证：
+   - 至少运行与任务直接相关的测试；
+   - 如改动范围允许，运行更完整的检查，例如 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+4. 若验证失败，先修复再继续。
 
-## 风险检查
+## 交付步骤
 
-1. 若最新提交暴露了未解决问题，则这些问题优先于 `TODO.md` 任务处理。
-2. 若任务依赖尚未实现的语言特性或库支持，则不强行实现任务，而是调整 `TODO.md` / `PLAN.md` 体现依赖关系。
-3. 不回退用户已有改动；若工作区存在无关脏改动，只在理解影响后规避冲突。
+1. 更新 `TODO.md`，把本轮完成的任务标记为已完成。
+2. 更新 `PLAN.md`，反映当前状态、后续顺序以及必要的任务拆分/依赖说明。
+3. 按需要回写本文件，记录关键进展、计划变化和验证结果。
+4. 提交 git commit，提交信息使用任务编号或清晰描述。
+5. 停止，不继续处理下一个任务。
 
 ## 进度记录
 
-- 已检查最新一次提交：
-  - 提交为 `443ea8b Update plan`
-  - 提交说明本身没有额外描述待修复 bug
-  - 该提交新增/重写了 `ISSUES.md`、`TODO.md`、`PLAN.md`，因此本轮按这些文件定义的缺口推进
-- 已读取 `TODO.md` / `PLAN.md`：
-  - 当前首个未完成任务是 `T2001`：统一 `handle` arm 形态与 typecheck/HIR 不变量
-  - 当前判断：任务边界清晰，先不拆分；如实现中发现规模过大或缺失前置能力，再回写拆分结果
-- 已完成的实现：
-  - `crates/scoopc/src/typecheck/expr/infer.rs`
-    - 删除 mixed-arm 的统一 early reject
-    - `handle` 结果类型改为按真实可返回路径确定，`Nothing` 路径不再把结果类型锁死
-    - 为重复 handler head 增加稳定的不可达诊断
-  - `crates/scoopc/src/hir/mod.rs`
-    - 更新注释，明确 HIR 保留三类 arm 的语义形态与 binder 信息
-  - 新增 fixtures：
-    - `tests/fixtures/typecheck/handle_mixed_arm_kinds_ok.scoop`
-    - `tests/fixtures/typecheck/handle_mixed_arm_return_type_mismatch_is_error.scoop`
-    - `tests/fixtures/typecheck/handle_mixed_arm_resume_mode_unreachable_is_error.scoop`
-    - `tests/fixtures/hir/handle_mixed_arm_kinds.scoop`
-    - `tests/fixtures/hir/handle_mixed_arm_kinds.hir`
-- 已完成的定向验证：
-  - 临时 `typecheck/` fixtures：`fixtures: ok (3)`
-  - 临时 `hir/` fixtures：`fixtures: ok (1)`
-- 已完成的工作区级验证：
-  - `cargo fmt --all`
+- 2026-04-11：已创建本轮计划文件，下一步将检查最新提交与 `TODO.md`。
+- 2026-04-11：已检查最新提交 `53bbee3 [T2001] Allow mixed handle arm kinds`，提交信息本身未携带额外需先修复的遗留问题说明。
+- 2026-04-11：已确认当前首个未完成任务是 `T2002`。
+- 2026-04-11：已阅读 `llvm/codegen/effect.rs`、`llvm/codegen/mod.rs`、`runtime/c/scoop_runtime.c`、相关 fixtures 与 `ISSUES.md`，得到当前状态：
+  - `Continuation.resume` 的 runtime ABI 已是双通道（`resume_word + resume_gc_ref`），支持 ref/复合值；
+  - non-resuming custom effect 仍限制在“单参数 + `Int` payload + 单 word slot”；
+  - non-resuming 的跨函数/间接 perform 分发路径已具备 flag-propagation + handler stack dispatch，但 payload 仍是 `Int`；
+  - call-site suspension / CalleeSuspendState 对 escape continuation 的恢复值仍主要停留在 `resume_word` / 标量路径。
+- 2026-04-11：判断原始 `T2002` 过大，准备拆分为更小子任务后再执行。本轮拟先处理“non-resuming 单 payload ABI 泛化（String/ref/aggregate，覆盖 direct + indirect perform）”，其余 escape-continuation / callee-suspend payload 泛化留给后续子任务。
+- 2026-04-11：已将 `TODO.md` / `PLAN.md` 中的原 `T2002` 拆分为：
+  - `T2002a`：non-resuming 单 payload ABI 泛化（本轮执行）。
+  - `T2002b`：escape continuation / CalleeSuspendState 恢复值 ABI 泛化（留待下轮）。
+- 2026-04-11：`T2002a` 实现已完成，关键改动：
+  - `runtime/c/scoop_runtime.c`：effect perform slot 新增 `payload_gc_ref` 与 `write_u64_with_gc_ref` / `read_gc_ref`，slot 生命周期内自动 pin/unpin；
+  - `crates/scoopc/src/llvm/codegen/effect.rs`：新增共享 ABI payload encode/decode helper；non-resuming perform/handler 改走 `word + gc_ref`；`Continuation.resume` 复用同一编码逻辑；
+  - `crates/scoop_runtime/tests/effect_tls.rs`：补 `gc_ref` 通道可观测性测试；
+  - `tests/fixtures/run-pass/`：新增 `effect_nonresuming_payload_string_direct`、`effect_nonresuming_payload_struct_indirect` 回归。
+- 2026-04-11：验证结果：
+  - `cargo test --all`：通过；
+  - `cargo run -p scoop -- test`：通过，`fixtures: ok (908)`；
+  - `cargo run -p scoop --features llvm -- test`：通过，`fixtures: ok (908)`；
+  - `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+# 2026-04-11 本轮执行计划（续接上一代理）
+
+## 约束与目标
+
+- 本轮只处理 `TODO.md` 中当前第一个未完成任务之前已经拆分并完成实现的 `T2002a` 收尾工作。
+- 不继续实现 `T2002b`。
+- 在任何 shell 命令之前，先把本轮计划和执行意图记录到本文件。
+
+## 已知交接信息
+
+- 上一代理已完成 `T2002a` 的代码实现、测试验证，以及 `TODO.md` / `PLAN.md` / 本文件的阶段性更新。
+- 已通过的验证包括：
   - `cargo test --all`
-  - `cargo run -p scoop -- test` → `fixtures: ok (906)`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 当前状态：准备更新 `TODO.md` / `PLAN.md`，标记 `T2001` 已完成，然后提交并停止。
+- 尚未完成的唯一收尾项是：复核当前工作树后提交 git commit。
+
+## 本轮步骤
+
+1. 复核最新提交信息，确认是否存在必须先处理的遗留问题；若没有，则不做额外修改。
+2. 复核当前工作树，仅确认未提交变更与 `T2002a` 范围一致。
+3. 复核 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 的状态，确保 `T2002a` 已记录为完成，`T2002b` 仍保留待后续轮次处理。
+4. 如工作树内容与交接一致，则以 `[T2002a] Generalize non-resuming effect payload ABI` 提交。
+5. 提交后停止。
+
+## 说明
+
+- 这里记录的是可审计的执行计划与决策摘要，不包含不可审计的内部推理细节。
+
+## 本轮进展补记
+
+- 2026-04-11：已复核最新提交 `53bbee3 [T2001] Allow mixed handle arm kinds`，提交说明未包含需要优先插队修复的遗留问题。
+- 2026-04-11：已复核当前工作树，未提交改动与 `T2002a` 范围一致：
+  - `codegen/mod.rs` 仅为注释中旧函数名更新；
+  - 其余代码、测试与任务文档改动均对应 non-resuming 单 payload ABI 泛化及其验证。
+- 2026-04-11：下一步执行 git commit，提交后停止，不进入 `T2002b`。

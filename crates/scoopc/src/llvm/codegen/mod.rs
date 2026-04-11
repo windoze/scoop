@@ -142,7 +142,7 @@ pub(in crate::llvm::codegen) struct CalleeSuspendLocal {
 }
 
 /// T1606f-2: Context for callee function suspension — set on MainCodegen during fresh-path codegen
-/// to instruct `codegen_perform_expr_nonresuming_custom_int` to save callee state before flag propagation.
+/// to instruct `codegen_perform_expr_nonresuming_single_payload` to save callee state before flag propagation.
 #[derive(Debug, Clone)]
 pub(in crate::llvm::codegen) struct CalleeSuspendSaveCtx {
     /// Locals to save at the perform point.
@@ -236,7 +236,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// 下一个可分配的 effect op_tag（从 2 开始，1 保留给 Raise）。
     effect_op_tag_next: u32,
     /// T1606f-2: when set, the current function is "suspendable" — at the perform point,
-    /// `codegen_perform_expr_nonresuming_custom_int` saves locals to a CalleeSuspendState before
+    /// `codegen_perform_expr_nonresuming_single_payload` saves locals to a CalleeSuspendState before
     /// flag propagation return.
     pub(in crate::llvm::codegen) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を

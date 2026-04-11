@@ -29,6 +29,19 @@ pub(super) struct ImmediateResumeCtx<'ctx> {
     next_state: u32,
 }
 
+/// effect / continuation 共享的双通道 payload 载体。
+///
+/// 说明：
+/// - `word` 承载标量位模式（Int/Bool/Float/Unit）；
+/// - `gc_ref` 承载 GC 引用或 boxed aggregate payload；
+/// - non-resuming perform slot 与 `Continuation.resume` 都复用这套形状，
+///   避免继续维护各自独立的 `Int` 特判。
+#[derive(Debug, Clone, Copy)]
+struct AbiPayloadTransport<'ctx> {
+    word: IntValue<'ctx>,
+    gc_ref: Option<PointerValue<'ctx>>,
+}
+
 /// T1606f-2: Info about a function call site in the handle body that may indirectly perform.
 struct IndirectPerformCallSite {
     /// Index of the stmt in handle.body.stmts.
@@ -128,6 +141,201 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?)
     }
 
+    fn abi_payload_box_name(payload_ty: CgTy) -> String {
+        use std::hash::{Hash, Hasher};
+
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        format!("{payload_ty:?}").hash(&mut h);
+        format!("scoop.runtime.AbiPayloadBox__{}", h.finish())
+    }
+
+    fn get_or_create_abi_payload_box_type(
+        &mut self,
+        at: crate::span::Span,
+        payload_ty: CgTy,
+    ) -> Result<inkwell::types::StructType<'ctx>, LlvmEmitError> {
+        let box_ty_name = Self::abi_payload_box_name(payload_ty);
+        if let Some(existing) = self.context.get_struct_type(&box_ty_name) {
+            return Ok(existing);
+        }
+
+        let payload_llvm_ty = self.llvm_basic_type_of(at, payload_ty)?;
+        let header_ty = self.llvm_gc_object_header_type();
+        let box_ty = self.context.opaque_struct_type(&box_ty_name);
+        box_ty.set_body(&[header_ty.into(), payload_llvm_ty], false);
+        Ok(box_ty)
+    }
+
+    fn encode_abi_payload_transport(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<AbiPayloadTransport<'ctx>, LlvmEmitError> {
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        match value.ty {
+            CgTy::Unit | CgTy::Never => Ok(AbiPayloadTransport {
+                word: i64_ty.const_zero(),
+                gc_ref: None,
+            }),
+            CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
+                let word = self.coerce_u64_word(at, value)?;
+                Ok(AbiPayloadTransport { word, gc_ref: None })
+            }
+            CgTy::String | CgTy::Ref => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ABI payload encode gc ref value",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ABI payload encode gc ref type",
+                        at: at.into(),
+                    });
+                };
+                let ptr_i8 =
+                    self.builder
+                        .build_pointer_cast(ptr, gc_i8_ptr_ty, "abi_payload_gc_ref_i8")?;
+                Ok(AbiPayloadTransport {
+                    word: i64_ty.const_zero(),
+                    gc_ref: Some(ptr_i8),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ABI payload encode aggregate value",
+                        at: at.into(),
+                    });
+                };
+
+                let box_ty = self.get_or_create_abi_payload_box_type(at, value.ty)?;
+                let box_ty_name = Self::abi_payload_box_name(value.ty);
+                let box_size = self.target_data.get_store_size(&box_ty);
+                let trace_start = self
+                    .target_data
+                    .offset_of_element(&box_ty, 1)
+                    .unwrap_or(box_size);
+                let box_desc_name = format!("__scoop_type_desc_abi_payload_box__{box_ty_name}");
+                let box_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+                    at,
+                    global_name: &box_desc_name,
+                    canonical_name: &box_ty_name,
+                    obj_ty: box_ty,
+                    trace_start_offset_bytes: trace_start,
+                    parent: None,
+                    itable: None,
+                    vtable: None,
+                })?;
+
+                let rt_alloc = self.declare_runtime_alloc_typed();
+                let size_v = i64_ty.const_int(box_size, false);
+                let desc_i8 = self.builder.build_pointer_cast(
+                    box_desc.as_pointer_value(),
+                    i8_ptr_ty,
+                    "abi_payload_box_desc_i8",
+                )?;
+                let alloc_call = self.builder.build_call(
+                    rt_alloc,
+                    &[desc_i8.into(), size_v.into()],
+                    "abi_payload_box_alloc",
+                )?;
+                let box_raw = alloc_call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "ABI payload box alloc return",
+                        at: at.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(box_gc_ptr) = box_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ABI payload box alloc return type",
+                        at: at.into(),
+                    });
+                };
+
+                let box_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+                let box_typed = self.builder.build_pointer_cast(
+                    box_gc_ptr,
+                    box_ptr_ty,
+                    "abi_payload_box_typed",
+                )?;
+                let payload_ptr = self.builder.build_struct_gep(
+                    box_ty,
+                    box_typed,
+                    1,
+                    "abi_payload_box_payload_gep",
+                )?;
+                let _ = self.builder.build_store(payload_ptr, raw)?;
+                let box_i8 = self.builder.build_pointer_cast(
+                    box_gc_ptr,
+                    gc_i8_ptr_ty,
+                    "abi_payload_box_i8",
+                )?;
+                Ok(AbiPayloadTransport {
+                    word: i64_ty.const_zero(),
+                    gc_ref: Some(box_i8),
+                })
+            }
+        }
+    }
+
+    fn decode_abi_payload_transport(
+        &mut self,
+        at: crate::span::Span,
+        word: IntValue<'ctx>,
+        gc_ref: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
+                self.decode_u64_word_to_cg_value(at, word, ty)
+            }
+            CgTy::String => {
+                let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+                let s =
+                    self.builder
+                        .build_pointer_cast(gc_ref, str_ptr_ty, "abi_payload_string")?;
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(s.into()),
+                })
+            }
+            CgTy::Ref => Ok(CgValue {
+                ty: CgTy::Ref,
+                value: Some(gc_ref.into()),
+            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let payload_llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let box_ty = self.get_or_create_abi_payload_box_type(at, ty)?;
+                let box_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
+                let box_ptr =
+                    self.builder
+                        .build_pointer_cast(gc_ref, box_ptr_ty, "abi_payload_box_ptr")?;
+                let payload_ptr = self.builder.build_struct_gep(
+                    box_ty,
+                    box_ptr,
+                    1,
+                    "abi_payload_box_payload_gep",
+                )?;
+                let loaded = self.builder.build_load(
+                    payload_llvm_ty,
+                    payload_ptr,
+                    "abi_payload_box_payload",
+                )?;
+                Ok(CgValue {
+                    ty,
+                    value: Some(loaded),
+                })
+            }
+        }
+    }
+
     /// 在"最近 handler boundary"存在时跳转到 catch；否则返回默认值向外传播。
     ///
     /// 用途：
@@ -180,7 +388,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// T1606f-2: Save callee locals to a heap CalleeSuspendState before flag propagation return.
     ///
-    /// Called from `codegen_perform_expr_nonresuming_custom_int` when the function is "suspendable"
+    /// Called from `codegen_perform_expr_nonresuming_single_payload` when the function is "suspendable"
     /// and there's no local handler — i.e., the perform will propagate through flag propagation.
     fn emit_callee_suspend_state_save(
         &mut self,
@@ -793,7 +1001,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if op.fqn != "scoop.core.Raise.raise" {
-            return self.codegen_perform_expr_nonresuming_custom_int(span, op, args, expected);
+            return self.codegen_perform_expr_nonresuming_single_payload(span, op, args, expected);
         }
 
         if args.len() != 1 {
@@ -877,17 +1085,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    /// codegen 一个最小自定义 non-resuming effect `perform`（T0625）。
+    /// codegen 一个最小自定义 non-resuming effect `perform`（T0625/T2002a）。
     ///
     /// 当前阶段约束：
-    /// - 仅支持 `op(arg)` 形式，且 `arg` 必须是 word-sized `Int`；
-    /// - 仅支持在同一函数内存在匹配的 `handle ... with { Effect.op(x) -> ... }` 捕获边界：
-    ///   若不存在，则直接报错（避免与现有 `Raise` 的"返回默认值向外传播"机制混淆）。
-    ///
-    /// 语义：
-    /// - 写入 runtime perform slot（1 word payload）并 set flag；
-    /// - 直接跳转到最近的匹配 catch block（最近匹配：从栈顶向外找）。
-    pub(super) fn codegen_perform_expr_nonresuming_custom_int(
+    /// - 仅支持 `op(arg)` 的单 payload 形式；
+    /// - payload ABI 为双通道：标量走 `word0`，GC ref / boxed aggregate 走 `gc_ref`；
+    /// - flag-propagation / handler stack dispatch 语义保持不变。
+    pub(super) fn codegen_perform_expr_nonresuming_single_payload(
         &mut self,
         span: crate::span::Span,
         op: &hir::EffectOpRef,
@@ -908,33 +1112,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let payload_v = self.codegen_expr(payload_expr)?;
-        let CgTy::Int(from_ty) = payload_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect payload type (custom non-resuming, only Int supported)",
-                at: payload_expr.span.into(),
-            });
-        };
-        let (payload_raw, _) = payload_v
-            .as_int()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect payload value (custom non-resuming)",
-                at: payload_expr.span.into(),
-            })?;
+        let payload = self.encode_abi_payload_transport(payload_expr.span, payload_v)?;
 
         // T1608：使用统一的 op_tag 分配（按 FQN 精确匹配，与 handler_stack_push 一致）。
         let tag = self.effect_op_tag(&op.fqn);
         let op_tag_i32 = self.context.i32_type().const_int(tag as u64, false);
-        let from_u64 = IntTy {
-            bits: 64,
-            signed: false,
-        };
-        let payload_u64 = self.cast_int(payload_raw, from_ty, from_u64)?;
-
-        let rt_write = self.declare_runtime_effect_perform_slot_write_u64();
+        let rt_write = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+        let gc_ref = payload
+            .gc_ref
+            .unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
         let _ = self.builder.build_call(
             rt_write,
-            &[op_tag_i32.into(), payload_u64.into()],
-            "effect_write_slot",
+            &[op_tag_i32.into(), payload.word.into(), gc_ref.into()],
+            "effect_write_slot_payload",
         )?;
         let (src_line, src_col) = self.effect_trace_line_col(span)?;
         let rt_set = self.declare_runtime_effect_set_active_with_trace();
@@ -1051,8 +1241,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         if arm.op.op.fqn != "scoop.core.Raise.raise" {
-            return self
-                .codegen_handle_expr_nonresuming_custom_int_payload(span, handle, arm, out_ty);
+            return self.codegen_handle_expr_nonresuming_single_payload(span, handle, arm, out_ty);
         }
         if arm.op.binders.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1577,19 +1766,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// codegen 一个最小自定义 non-resuming effect 的 `handle`（T0625）。
+    /// codegen 一个最小自定义 non-resuming effect 的 `handle`（T0625/T2002a）。
     ///
     /// 当前阶段约束：
     /// - 仅支持单 arm；
-    /// - binder 仅支持 1 个且类型为 `Int`；
-    /// - payload ABI：`perform` 往 slot 写 1 个 word（u64），catch 读取并清 flag/slot。
+    /// - binder 仅支持单 payload；
+    /// - payload ABI：`perform` 往 slot 写 `word0 + gc_ref` 双通道，catch 读取后再清 flag/slot。
     ///
     /// 关键语义（Appendix A.4）：
     /// - handler arm body 在自身 dispatch scope 外执行：因此 arm codegen 期间不在
     ///   `effect_unwind_target_stack` 中保留 `catch_bb` 入口；
     /// - 但为了确保 `finally` 语义（若有）仍然成立，arm body 内若再次 perform 同一 op，
     ///   会先跳到 `finally_unwind_bb` 执行 finally，再向外层 handler 传播。
-    pub(super) fn codegen_handle_expr_nonresuming_custom_int_payload(
+    pub(super) fn codegen_handle_expr_nonresuming_single_payload(
         &mut self,
         span: crate::span::Span,
         handle: &hir::HandleExpr,
@@ -1598,7 +1787,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if arm.op.binders.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle binder count (custom non-resuming, only 1 supported)",
+                kind: "handle binder count (custom non-resuming, only single payload supported)",
                 at: arm.op.span.into(),
             });
         }
@@ -1731,7 +1920,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_pop, &[frame_i8.into()], "handle_custom_effect_pop")?;
 
-        // 读取 slot（1 word payload）并清除 flag/slot。
+        // 读取 slot（单 payload：word0 + 可选 gc_ref）并清除 flag/slot。
         let rt_len = self.declare_runtime_effect_perform_slot_read_len_words();
         let call = self
             .builder
@@ -1789,9 +1978,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
-
-        let rt_clear = self.declare_runtime_effect_clear();
-        let _ = self.builder.build_call(rt_clear, &[], "custom_clear")?;
+        let rt_read_gc = self.declare_runtime_effect_perform_slot_read_gc_ref();
+        let gc_call = self
+            .builder
+            .build_call(rt_read_gc, &[], "custom_read_slot_gc_ref")?;
+        let gc_raw =
+            gc_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_gc_ref return value",
+                    at: span.into(),
+                })?;
+        let BasicValueEnum::PointerValue(gc_ref_raw) = gc_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_gc_ref return type",
+                at: span.into(),
+            });
+        };
 
         // binder scope：arm body 在 handler scope 之外执行（因此不 push effect_unwind_target_stack 的 catch_bb）。
         self.env.push_scope();
@@ -1802,19 +2006,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "handle binder type (custom non-resuming)",
                 at: binder.span.into(),
             })?;
-        let CgTy::Int(int_ty) = binder_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle binder type (custom non-resuming, only Int supported)",
-                at: binder.span.into(),
-            });
-        };
-
-        let from_u64 = IntTy {
-            bits: 64,
-            signed: false,
-        };
-        let decoded = self.cast_int(value_u64, from_u64, int_ty)?;
-        let binder_value = CgValue::int(decoded, int_ty);
+        let binder_value =
+            self.decode_abi_payload_transport(binder.span, value_u64, gc_ref_raw, binder_cg_ty)?;
 
         let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
         let _stored =
@@ -1828,6 +2021,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mutable: false,
             },
         );
+
+        let rt_clear = self.declare_runtime_effect_clear();
+        let _ = self.builder.build_call(rt_clear, &[], "custom_clear")?;
 
         // catch body 若再次发生 perform：先执行 finally，再向外传播（不在本 handler 内消费 slot）。
         self.push_effect_unwind_target(&arm.op.op.fqn, finally_unwind_bb);
@@ -8608,6 +8804,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let value = self.codegen_expr(value_expr)?;
+        let payload = self.encode_abi_payload_transport(value_expr.span, value)?;
 
         // T1607：获取 continuation 结构体类型，GEP 到 resume_word / resume_gc_ref 槽位。
         let cont_ty = self.llvm_continuation_struct_type();
@@ -8615,247 +8812,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let cont_ptr =
             self.builder
                 .build_pointer_cast(k_ptr, cont_ptr_ty, "cont_resume_k_typed")?;
-
-        let i64_ty = self.context.i64_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let word_ptr =
+            self.builder
+                .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
+        let _ = self.builder.build_store(word_ptr, payload.word)?;
 
-        match value.ty {
-            CgTy::Unit | CgTy::Never => {
-                // Unit/Never：写 0 到 resume_word，resume_gc_ref 置 null。
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self
-                    .builder
-                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
-            }
-            CgTy::Bool => {
-                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "Continuation.resume bool value",
-                    at: value_expr.span.into(),
-                })?;
-                let extended = self
-                    .builder
-                    .build_int_z_extend(b, i64_ty, "resume_bool_to_u64")?;
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self.builder.build_store(word_ptr, extended)?;
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
-            }
-            CgTy::Float64 | CgTy::Float32 => {
-                let word = self.coerce_u64_word(value_expr.span, value)?;
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self.builder.build_store(word_ptr, word)?;
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
-            }
-            CgTy::Int(_) => {
-                let word = self.coerce_u64_word(value_expr.span, value)?;
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self.builder.build_store(word_ptr, word)?;
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let _ = self.builder.build_store(ref_ptr, i8_ptr_ty.const_null())?;
-            }
-            CgTy::String | CgTy::Ref => {
-                // GC reference：写 0 到 resume_word，写 GC ptr 到 resume_gc_ref（with write barrier）。
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self
-                    .builder
-                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
-
-                let Some(raw_val) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Continuation.resume gc ref value",
-                        at: value_expr.span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(gc_val) = raw_val else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Continuation.resume gc ref type",
-                        at: value_expr.span.into(),
-                    });
-                };
-
-                // 使用 write barrier 写入 GC 堆对象的 GC 引用槽位。
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let wb = self.declare_runtime_gc_write_barrier();
-                // slot_addr 必须是 addrspace(0)（见 gc.rs 写屏障约定）。
-                let slot_addr_gc = self.builder.build_pointer_cast(
-                    ref_ptr,
-                    gc_i8_ptr_ty,
-                    "cont_resume_gc_ref_slot_gc",
-                )?;
-                let slot_addr = self.builder.build_address_space_cast(
-                    slot_addr_gc,
-                    i8_ptr_ty,
-                    "cont_resume_gc_ref_slot",
-                )?;
-                let value_i8 = self.builder.build_pointer_cast(
-                    gc_val,
-                    gc_i8_ptr_ty,
-                    "cont_resume_gc_val_i8",
-                )?;
-                let _ = self.builder.build_call(
-                    wb,
-                    &[slot_addr.into(), value_i8.into()],
-                    "cont_resume_wb",
-                )?;
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                // 复合类型：box 到 GC heap，将 box ptr 写入 resume_gc_ref。
-                let word_ptr =
-                    self.builder
-                        .build_struct_gep(cont_ty, cont_ptr, 6, "cont_resume_word_gep")?;
-                let _ = self
-                    .builder
-                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
-
-                let Some(raw_val) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Continuation.resume compound value",
-                        at: value_expr.span.into(),
-                    });
-                };
-
-                // 创建 box type: { GcObjectHeader, <payload_type> }
-                let payload_llvm_ty = self.llvm_basic_type_of(value_expr.span, value.ty)?;
-                let header_ty = self.llvm_gc_object_header_type();
-                let box_ty_name = format!("scoop.runtime.ResumePayloadBox__{}", {
-                    // 使用 payload 类型的哈希作为唯一名称
-                    use std::hash::{Hash, Hasher};
-                    let mut h = std::collections::hash_map::DefaultHasher::new();
-                    format!("{:?}", value.ty).hash(&mut h);
-                    h.finish()
-                });
-                let box_ty = if let Some(existing) = self.context.get_struct_type(&box_ty_name) {
-                    existing
-                } else {
-                    let t = self.context.opaque_struct_type(&box_ty_name);
-                    t.set_body(&[header_ty.into(), payload_llvm_ty], false);
-                    t
-                };
-
-                // 创建 box 的 type descriptor
-                let box_desc_name =
-                    format!("__scoop_type_desc_resume_payload_box__{}", &box_ty_name);
-                let box_size = self.target_data.get_store_size(&box_ty);
-                let trace_start = self
-                    .target_data
-                    .offset_of_element(&box_ty, 1)
-                    .unwrap_or(box_size);
-                let box_desc = self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
-                    at: span,
-                    global_name: &box_desc_name,
-                    canonical_name: &box_ty_name,
-                    obj_ty: box_ty,
-                    trace_start_offset_bytes: trace_start,
-                    parent: None,
-                    itable: None,
-                    vtable: None,
-                })?;
-
-                // 分配 box
-                let rt_alloc = self.declare_runtime_alloc_typed();
-                let size_v = self.context.i64_type().const_int(box_size, false);
-                let desc_i8 = self.builder.build_pointer_cast(
-                    box_desc.as_pointer_value(),
-                    i8_ptr_ty,
-                    "resume_box_desc_i8",
-                )?;
-                let alloc_call = self.builder.build_call(
-                    rt_alloc,
-                    &[desc_i8.into(), size_v.into()],
-                    "resume_box_alloc",
-                )?;
-                let box_raw = alloc_call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "resume box alloc return",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::PointerValue(box_gc_ptr) = box_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "resume box alloc return type",
-                        at: span.into(),
-                    });
-                };
-
-                // 存入 payload
-                let box_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
-                let box_typed =
-                    self.builder
-                        .build_pointer_cast(box_gc_ptr, box_ptr_ty, "resume_box_typed")?;
-                let payload_ptr = self.builder.build_struct_gep(
-                    box_ty,
-                    box_typed,
-                    1,
-                    "resume_box_payload_gep",
-                )?;
-                let _ = self.builder.build_store(payload_ptr, raw_val)?;
-
-                // 写入 continuation 的 resume_gc_ref（with write barrier）
-                let ref_ptr = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    7,
-                    "cont_resume_gc_ref_gep",
-                )?;
-                let wb = self.declare_runtime_gc_write_barrier();
-                let slot_addr_gc = self.builder.build_pointer_cast(
-                    ref_ptr,
-                    gc_i8_ptr_ty,
-                    "cont_resume_gc_ref_slot_gc",
-                )?;
-                let slot_addr = self.builder.build_address_space_cast(
-                    slot_addr_gc,
-                    i8_ptr_ty,
-                    "cont_resume_gc_ref_slot",
-                )?;
-                let box_i8 =
-                    self.builder
-                        .build_pointer_cast(box_gc_ptr, gc_i8_ptr_ty, "resume_box_i8")?;
-                let _ = self.builder.build_call(
-                    wb,
-                    &[slot_addr.into(), box_i8.into()],
-                    "cont_resume_box_wb",
-                )?;
-            }
+        let ref_ptr =
+            self.builder
+                .build_struct_gep(cont_ty, cont_ptr, 7, "cont_resume_gc_ref_gep")?;
+        if let Some(gc_ref) = payload.gc_ref {
+            let wb = self.declare_runtime_gc_write_barrier();
+            // slot_addr 必须是 addrspace(0)（见 gc.rs 写屏障约定）。
+            let slot_addr_gc = self.builder.build_pointer_cast(
+                ref_ptr,
+                gc_i8_ptr_ty,
+                "cont_resume_gc_ref_slot_gc",
+            )?;
+            let slot_addr = self.builder.build_address_space_cast(
+                slot_addr_gc,
+                i8_ptr_ty,
+                "cont_resume_gc_ref_slot",
+            )?;
+            let _ = self.builder.build_call(
+                wb,
+                &[slot_addr.into(), gc_ref.into()],
+                "cont_resume_wb",
+            )?;
+        } else {
+            let _ = self
+                .builder
+                .build_store(ref_ptr, gc_i8_ptr_ty.const_null())?;
         }
 
         // 调用新 ABI：payload 已在 continuation 槽位中。

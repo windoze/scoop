@@ -1,0 +1,44 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_nonresuming_payload_struct_indirect.stdout
+//
+// T2002a: non-resuming custom effect payload supports aggregate values through indirect perform.
+// - payload 为带 String 字段的 struct，验证 aggregate + embedded ref；
+// - perform 经由普通函数调用转发，覆盖 flag-propagation + handler stack dispatch；
+// - handler 能正确读取 struct binder 并返回计算结果。
+
+import scoop.core.*
+
+struct Payload(val label: String, val score: Int)
+
+effect Data {
+    fun fail(payload: Payload): Nothing
+}
+
+fun forward(payload: Payload): Int / Data {
+    println("forward_before")
+    Data.fail(payload)
+    println("forward_unreachable")
+    return 0
+}
+
+fun main(): Int {
+    val payload: Payload = Payload { label: "beta", score: 41 }
+
+    val result: Int = handle {
+        println("body")
+        val v: Int = forward(payload)
+        println("body_unreachable")
+        v
+    } with {
+        Data.fail(p: Payload) -> {
+            println("caught")
+            println(p.label)
+            println(p.score)
+            p.score + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}
