@@ -93,7 +93,7 @@ impl<'a> HirLowering<'a> {
     /// typecheck 写回の `resolved_for_info` に基づき、型別の降糖を行う：
     /// - `ArrayInt`: 索引ベースの while ループ
     /// - `IntProgression`: progression while ループ
-    /// - `Custom`: 未実装（Todo）
+    /// - `Custom`: `iterator()/next(): Option<T>` を while + when に展開
     fn lower_for_stmt(&mut self, pkg_prefix: &str, stmt_span: Span, f: &ast::ForStmt) -> Stmt {
         let info = f.resolved_for_info.get();
         let kind = info.map(|i| &i.kind);
@@ -104,6 +104,16 @@ impl<'a> HirLowering<'a> {
             }
             Some(ast::ForLoopIterableKind::IntProgression) => {
                 self.lower_for_int_progression(pkg_prefix, stmt_span, f)
+            }
+            Some(ast::ForLoopIterableKind::Custom) => {
+                let Some(custom) = info.and_then(|info| info.custom.as_ref()) else {
+                    return Stmt {
+                        span: stmt_span,
+                        ty: self.builtins.unit,
+                        kind: StmtKind::Todo("for_custom_iterator"),
+                    };
+                };
+                self.lower_for_custom_iterator(pkg_prefix, stmt_span, f, custom)
             }
             _ => {
                 // Custom iterator or dump-hir (no typecheck) fallback.
@@ -588,6 +598,308 @@ impl<'a> HirLowering<'a> {
             span,
             ty: unit,
             stmts: vec![prog_decl, cur_decl, if_stmt],
+        };
+
+        Stmt {
+            span: stmt_span,
+            ty: unit,
+            kind: StmtKind::Expr(Expr {
+                span,
+                ty: unit,
+                kind: ExprKind::Block(block),
+            }),
+        }
+    }
+
+    /// `for (x in iterable) { body }` — 自定义 iterator 协议降糖：
+    ///
+    /// ```text
+    /// {
+    ///     val __for_iterable = iterable
+    ///     val __for_iter = __for_iterable.iterator()
+    ///     var __for_running = true
+    ///     while (__for_running) {
+    ///         when (__for_iter.next()) {
+    ///             Some(__for_value) -> {
+    ///                 val x = __for_value
+    ///                 ...body_stmts...
+    ///             }
+    ///             None -> { __for_running = false }
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// 关键约束：
+    /// - `iterable` 与 `iterator()` 只求值一次；
+    /// - `next()` 每轮循环只求值一次，并由 `Option<T>` 驱动退出。
+    fn lower_for_custom_iterator(
+        &mut self,
+        pkg_prefix: &str,
+        stmt_span: Span,
+        f: &ast::ForStmt,
+        info: &ast::ForLoopCustomResolvedInfo,
+    ) -> Stmt {
+        let span = f.span;
+        let for_span = f.for_span;
+        let unit = self.builtins.unit;
+        let bool_ = self.builtins.bool_;
+
+        let iterable_lowered = self.lower_expr(pkg_prefix, &f.iter);
+        let iterable_ty = iterable_lowered.ty;
+        let iterator_ty = self
+            .typecheck_types
+            .map(|typecheck_types| self.types.re_intern_from(typecheck_types, info.iterator_ty))
+            .unwrap_or(self.builtins.any);
+        let elem_ty = self
+            .typecheck_types
+            .map(|typecheck_types| self.types.re_intern_from(typecheck_types, info.elem_ty))
+            .unwrap_or(self.builtins.any);
+        let next_result_ty = self.types.ty_option(elem_ty);
+
+        // 各合成局部使用不同的 span，避免与用户 binder 或其它临时变量复用同一个 SymbolId。
+        let iterable_span = Span::new(for_span.start, for_span.start + 1);
+        let iterator_span = Span::new(for_span.start + 1, for_span.start + 2);
+        let running_span = Span::new(for_span.start + 2, for_span.start + 3);
+        let item_span = Span::new(for_span.start + 3, for_span.start + 4);
+
+        // val __for_iterable = <iterable>
+        let iterable_id = self.intern_local_symbol(iterable_span, false);
+        let iterable_name = "__for_iterable".to_string();
+        let iterable_decl = Stmt {
+            span: iterable_span,
+            ty: unit,
+            kind: StmtKind::Val(ValDecl {
+                span: iterable_span,
+                id: Some(iterable_id),
+                name: Some(iterable_name.clone()),
+                mutable: false,
+                ty: iterable_ty,
+                init: Some(iterable_lowered),
+            }),
+        };
+
+        let iterable_ref = |span: Span| Expr {
+            span,
+            ty: iterable_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: iterable_id,
+                name: iterable_name.clone(),
+                decl_span: iterable_span,
+            }),
+        };
+
+        // val __for_iter = Iterable.iterator(__for_iterable)
+        let iterator_call = Expr {
+            span: for_span,
+            ty: iterator_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span: for_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self
+                            .symbols
+                            .intern_top_level(info.iterator_method_fqn.clone()),
+                        fqn: info.iterator_method_fqn.clone(),
+                    }),
+                }),
+                args: vec![CallArg::Positional(iterable_ref(for_span))],
+            },
+        };
+        let iterator_id = self.intern_local_symbol(iterator_span, false);
+        let iterator_name = "__for_iter".to_string();
+        let iterator_decl = Stmt {
+            span: iterator_span,
+            ty: unit,
+            kind: StmtKind::Val(ValDecl {
+                span: iterator_span,
+                id: Some(iterator_id),
+                name: Some(iterator_name.clone()),
+                mutable: false,
+                ty: iterator_ty,
+                init: Some(iterator_call),
+            }),
+        };
+
+        // var __for_running = true
+        let running_id = self.intern_local_symbol(running_span, true);
+        let running_name = "__for_running".to_string();
+        let running_decl = Stmt {
+            span: running_span,
+            ty: unit,
+            kind: StmtKind::Val(ValDecl {
+                span: running_span,
+                id: Some(running_id),
+                name: Some(running_name.clone()),
+                mutable: true,
+                ty: bool_,
+                init: Some(Expr {
+                    span: running_span,
+                    ty: bool_,
+                    kind: ExprKind::Literal(LiteralKind::Bool(true)),
+                }),
+            }),
+        };
+
+        let iterator_ref = |span: Span| Expr {
+            span,
+            ty: iterator_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: iterator_id,
+                name: iterator_name.clone(),
+                decl_span: iterator_span,
+            }),
+        };
+
+        let running_ref = |span: Span| Expr {
+            span,
+            ty: bool_,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: running_id,
+                name: running_name.clone(),
+                decl_span: running_span,
+            }),
+        };
+
+        // __for_iter.next()
+        let next_call = Expr {
+            span: for_span,
+            ty: next_result_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span: for_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(info.next_method_fqn.clone()),
+                        fqn: info.next_method_fqn.clone(),
+                    }),
+                }),
+                args: vec![CallArg::Positional(iterator_ref(for_span))],
+            },
+        };
+
+        // Some(__for_value) -> { val x = __for_value; ...body... }
+        let item_id = self.intern_local_symbol(item_span, false);
+        let item_name = "__for_value".to_string();
+        let item_ref = |span: Span| Expr {
+            span,
+            ty: elem_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: item_id,
+                name: item_name.clone(),
+                decl_span: item_span,
+            }),
+        };
+
+        let binder_name = self.source.slice(f.binder.span).to_string();
+        let binder_id = self.intern_local_symbol(f.binder.span, false);
+        let binder_decl = Stmt {
+            span: f.binder.span,
+            ty: unit,
+            kind: StmtKind::Val(ValDecl {
+                span: f.binder.span,
+                id: Some(binder_id),
+                name: Some(binder_name),
+                mutable: false,
+                ty: elem_ty,
+                init: Some(item_ref(f.binder.span)),
+            }),
+        };
+
+        let body_block = self.lower_block(pkg_prefix, &f.body);
+        let mut some_body_stmts = Vec::with_capacity(body_block.stmts.len() + 1);
+        some_body_stmts.push(binder_decl);
+        some_body_stmts.extend(body_block.stmts);
+
+        let some_arm = super::super::WhenArm {
+            span: for_span,
+            pat: super::super::WhenPat::Variant {
+                span: for_span,
+                name_span: for_span,
+                name: "Some".to_string(),
+                args: vec![super::super::WhenPat::Bind {
+                    span: item_span,
+                    id: item_id,
+                    name: item_name.clone(),
+                }],
+            },
+            guard: None,
+            arrow_span: for_span,
+            body: Expr {
+                span,
+                ty: unit,
+                kind: ExprKind::Block(Block {
+                    span,
+                    ty: unit,
+                    stmts: some_body_stmts,
+                }),
+            },
+        };
+
+        let none_arm = super::super::WhenArm {
+            span: for_span,
+            pat: super::super::WhenPat::Variant {
+                span: for_span,
+                name_span: for_span,
+                name: "None".to_string(),
+                args: vec![],
+            },
+            guard: None,
+            arrow_span: for_span,
+            body: Expr {
+                span,
+                ty: unit,
+                kind: ExprKind::Block(Block {
+                    span,
+                    ty: unit,
+                    stmts: vec![Stmt {
+                        span: for_span,
+                        ty: unit,
+                        kind: StmtKind::Assign {
+                            lhs: running_ref(for_span),
+                            eq_span: for_span,
+                            rhs: Expr {
+                                span: for_span,
+                                ty: bool_,
+                                kind: ExprKind::Literal(LiteralKind::Bool(false)),
+                            },
+                        },
+                    }],
+                }),
+            },
+        };
+
+        let when_stmt = Stmt {
+            span: for_span,
+            ty: unit,
+            kind: StmtKind::Expr(Expr {
+                span: for_span,
+                ty: unit,
+                kind: ExprKind::When {
+                    subject: Box::new(next_call),
+                    arms: vec![some_arm, none_arm],
+                },
+            }),
+        };
+
+        let while_stmt = Stmt {
+            span,
+            ty: unit,
+            kind: StmtKind::While {
+                cond: running_ref(for_span),
+                body: Block {
+                    span,
+                    ty: unit,
+                    stmts: vec![when_stmt],
+                },
+            },
+        };
+
+        let block = Block {
+            span,
+            ty: unit,
+            stmts: vec![iterable_decl, iterator_decl, running_decl, while_stmt],
         };
 
         Stmt {

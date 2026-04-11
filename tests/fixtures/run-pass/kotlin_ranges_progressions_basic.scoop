@@ -5,7 +5,8 @@
 // T1315c：pure-scoop ranges/progressions 与最小惰性迭代（v0）
 //
 // 说明：
-// - 当前阶段 `..` range operator 与 `for (x in xs)` lowering 尚未打通可执行链路；
+// - 当前阶段 `..` syntax sugar 与直接 `for (x in a..b)` 集成尚未打通；
+// - `for` 本身已支持 `IntProgression` / `Array<Int>` / custom iterator 的 lowering；
 // - v0 先通过 `Int.rangeTo/downTo + forEach` 作为可回归落点；
 // - step 由调用方显式传入，避免 stdlib 在非入口文件中引入 Int 字面量（multi-file lowering 门禁）。
 

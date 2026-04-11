@@ -252,6 +252,7 @@ cargo run -p scoop --features llvm -- test
   - 修正 1 处过期注释：`typecheck/expr/call.rs` 不再错误宣称 interface dispatch 尚未实现。
 - 新增任务入口：
   - `T0151`：`for (x in iterable)` Custom iterator lowering + codegen
+    - 2026-04-11：已完成。typecheck 会把 custom iterator 的 `iterator()/next()` 静态调用目标与类型写回 AST side table；HIR lowering 以 `val __for_iterable` + `val __for_iter` + `var __for_running` + `while/when` 展开，避免 `when` 分支内直接 `break` 触发 LLVM verifier 问题。新增 `for_in_custom_iterator_basic`、`for_in_custom_iterator_effects` 回归，覆盖基本迭代、required effects 传播与 `None()` 正常退出。
   - `T0152`：safe member access parity（ref receiver / extension property）
   - `T0153`：receiver function value invocation
   - `T0154`：higher-order aggregate returns（closure / function value / `FunPtr`）

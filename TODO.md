@@ -1961,7 +1961,7 @@ cargo run -p scoop --features llvm -- test
   - 新建后续任务：`T0151`、`T0152`、`T0153`、`T0154`。
   - 顺手修正 1 处过期注释：`typecheck/expr/call.rs` 中 “interface dispatch 仍留待 T1508c” 的说法已与当前实现对齐。
 
-### T0151 [TODO] `for (x in iterable)` Custom iterator lowering + codegen
+### T0151 [DONE] `for (x in iterable)` Custom iterator lowering + codegen
 
 - 描述：`typecheck/expr/stmt.rs` 已支持通用迭代协议 `xs.iterator(): Iter` 与 `Iter.next(): Option<Elem>`，并在 `ast::ForStmt.resolved_for_info` 写回 `ForLoopIterableKind::Custom`。但 `hir/lower/stmt.rs` 对 `Custom` 仍直接返回 `StmtKind::Todo("for_custom_iterator")`，导致用户定义 iterable 无法通过 lowering 进入 LLVM。
 - 目标：
@@ -1976,6 +1976,10 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 完成：
+  - typecheck 现在会把 custom iterable 的 `iterator()/next()` 静态调用目标与类型信息写回 AST side table，供 lowering 稳定复用。
+  - HIR lowering 已为 `ForLoopIterableKind::Custom` 展开 `val __for_iterable`、`val __for_iter`、`var __for_running` 与 `while + when` 结构，保证 `iterable` / `iterator()` 只求值一次、`next()` 每轮只求值一次。
+  - 新增 `for_in_custom_iterator_basic` 与 `for_in_custom_iterator_effects` 两个 run-pass fixtures，覆盖自定义 iterator 动态分发、required effects 传播、以及 `None()` 收敛退出。
 - 依赖：无
 
 ### T0152 [TODO] Nullable 访问补齐：safe member access 支持 ref receiver / extension property

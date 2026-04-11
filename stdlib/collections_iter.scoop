@@ -5,9 +5,8 @@
 //   以支持调用点 `*view.toArray()` 的 vararg spread 用例。
 //
 // 重要限制（当前阶段）：
-// - “普通成员函数调用”（例如 `it.next()`）与 `for` lowering 尚未在 HIR/LLVM 全链路落地（见 TODO T1508/T0705），
-//   因此这里先落一个**可编译**的最小实现，避免 stdlib 注入后影响 `scoop build/run`。
-// - 真正的 `Iterable<Int>.toArray()` 语义（迭代消费并收集）将在 member call + for lowering 打通后补齐。
+// - 自定义 iterator 的 `for` lowering 已可执行，但 `toArray()` 的完整 collections 语义仍未单独落任务；
+// - 因此这里先保留一个**可编译**的最小实现，避免 stdlib 注入后影响 `scoop build/run`。
 
 package scoop.collections
 
@@ -19,7 +18,7 @@ import scoop.core.*
 /// - 该 helper 的主要用途是“调用点显式分配”：`f(*xs.toArray())`；
 /// - 当前阶段先保证 API surface 可用（typecheck 可通过），并保持实现可编译。
 fun IntIterable.toArray(): Array<Int> {
-    // 最小实现：先返回空数组（避免依赖尚未落地的 iterator/next member call 与 for lowering）。
+    // 最小实现：当前仍先返回空数组；真正的迭代收集逻辑会在后续 collections 任务中补齐。
     val b: Any = __scoop_array_builder_new()
     return __scoop_array_builder_build_array(b)
 }

@@ -1,0 +1,56 @@
+// EXPECT: pass
+// RUN-STDOUT: for_in_custom_iterator_effects.stdout
+// EXPECT-EXIT: 0
+//
+// T0151:
+// - `iterator()` 与 `next()` 的 required effects 会通过 `for` 语法糖计入调用点；
+// - 这里用 `Raise<Int>` 验证 effect row 传播；实现体本身保持纯逻辑，避免把回归绑到其它 effect runtime 路径；
+// - `next()` 返回 `None()` 时循环正常收敛退出。
+
+import scoop.core.*
+
+interface LoggedIterator {
+    fun next(): Option<Int> / Raise<Int>
+}
+
+interface LoggedIterable {
+    fun iterator(): LoggedIterator / Raise<Int>
+}
+
+class LoggedIteratorImpl(var current: Int, val endExclusive: Int) : LoggedIterator {
+    fun next(): Option<Int> / Raise<Int> {
+        if (this.current < this.endExclusive) {
+            val value: Int = this.current
+            this.current = this.current + 1
+            return Some(value)
+        }
+        return None()
+    }
+}
+
+class LoggedIterableImpl(val start: Int, val endExclusive: Int) : LoggedIterable {
+    fun iterator(): LoggedIterator / Raise<Int> {
+        return LoggedIteratorImpl(this.start, this.endExclusive)
+    }
+}
+
+fun consume(xs: LoggedIterable): Int / Raise<Int> {
+    var total: Int = 0
+    for (x in xs) {
+        println(x)
+        total = total + x
+    }
+    return total
+}
+
+fun main(): Int {
+    val total: Int = try {
+        consume(LoggedIterableImpl(4, 6))
+    } catch (code: Int) {
+        println("caught")
+        code
+    }
+
+    println(total)
+    return 0
+}

@@ -1742,6 +1742,8 @@ pub struct ForStmt {
 #[derive(Debug, Clone)]
 pub struct ForLoopResolvedInfo {
     pub kind: ForLoopIterableKind,
+    /// 仅 `Custom` 路径使用：记录 lowering 所需的稳定调用目标与元素类型。
+    pub custom: Option<ForLoopCustomResolvedInfo>,
 }
 
 /// for-in 迭代器的底层类型类别（决定 HIR lowering 的降糖策略）。
@@ -1753,6 +1755,19 @@ pub enum ForLoopIterableKind {
     IntProgression,
     /// 其它实现了 iterator()/next() 协议的类型。
     Custom,
+}
+
+/// 自定义 iterable 在 typecheck 后写回给 HIR lowering 的额外信息。
+#[derive(Debug, Clone)]
+pub struct ForLoopCustomResolvedInfo {
+    /// `iterator()` 的静态调用目标（例如 `pkg.Iterable.iterator`）。
+    pub iterator_method_fqn: String,
+    /// `iterator()` 的返回类型（typecheck `TypeStore` 中的 TypeId）。
+    pub iterator_ty: TypeId,
+    /// `next()` 的静态调用目标（例如 `pkg.Iterator.next`）。
+    pub next_method_fqn: String,
+    /// `next(): Option<T>` 中的 `T`（typecheck `TypeStore` 中的 TypeId）。
+    pub elem_ty: TypeId,
 }
 
 /// 语句（最小骨架）。

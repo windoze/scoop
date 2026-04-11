@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: for_in_custom_iterator_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0151:
+// - `for (x in xs)` 对 custom iterator 走 `iterator()/next(): Option<T>` 协议；
+// - `Some(...)` 驱动循环体执行，`None()` 正常退出循环；
+// - iterable 与 iterator 通过本地自定义接口类型参与动态分发。
+
+import scoop.core.*
+
+interface CounterIteratorLike {
+    fun next(): Option<Int>
+}
+
+interface CounterIterableLike {
+    fun iterator(): CounterIteratorLike
+}
+
+class CounterIterator(var current: Int, val endExclusive: Int) : CounterIteratorLike {
+    fun next(): Option<Int> {
+        if (this.current < this.endExclusive) {
+            val value: Int = this.current
+            this.current = this.current + 1
+            return Some(value)
+        }
+        return None()
+    }
+}
+
+class CounterIterable(val start: Int, val endExclusive: Int) : CounterIterableLike {
+    fun iterator(): CounterIteratorLike {
+        return CounterIterator(this.start, this.endExclusive)
+    }
+}
+
+fun sumAndPrint(xs: CounterIterableLike): Int {
+    var total: Int = 0
+    for (x in xs) {
+        println(x)
+        total = total + x
+    }
+    return total
+}
+
+fun main(): Int {
+    println("non-empty")
+    val values: CounterIterableLike = CounterIterable(2, 5)
+    println(sumAndPrint(values))
+
+    println("empty")
+    val empty: CounterIterableLike = CounterIterable(9, 9)
+    println(sumAndPrint(empty))
+
+    println("done")
+    return 0
+}

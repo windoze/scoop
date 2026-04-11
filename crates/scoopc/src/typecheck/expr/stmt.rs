@@ -724,23 +724,26 @@ pub(super) fn check_stmt_exprs(
 
             // T0110：Array / IntProgression は .iterator() を持たないため、
             // 型特化で直接要素型を決定し、iterator protocol をバイパスする。
-            use crate::ast::{ForLoopIterableKind, ForLoopResolvedInfo};
+            use crate::ast::{ForLoopCustomResolvedInfo, ForLoopIterableKind, ForLoopResolvedInfo};
 
             let elem_ty = if iter_fqn == "scoop.core.Array" || iter_fqn == "scoop.core.MutableArray"
             {
                 let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
                     kind: ForLoopIterableKind::ArrayInt,
+                    custom: None,
                 });
                 // Array<T> — 要素型は最初の型引数
                 iter_args.first().copied().unwrap_or(shared.builtins.any)
             } else if iter_fqn == "scoop.core.IntProgression" {
                 let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
                     kind: ForLoopIterableKind::IntProgression,
+                    custom: None,
                 });
                 // IntProgression — 要素型は常に Int
                 shared.builtins.int
             } else {
                 // Generic iterator protocol: xs.iterator().next(): Option<Elem>
+                let iterator_method_fqn = format!("{iter_fqn}.iterator");
                 let Some(iterator_sig) = collect_unique_zero_arg_member_method_sig(
                     shared.source,
                     NominalReceiverRef {
@@ -778,6 +781,7 @@ pub(super) fn check_stmt_exprs(
                     });
                 };
 
+                let next_method_fqn = format!("{iterator_fqn}.next");
                 let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
                     shared.source,
                     NominalReceiverRef {
@@ -815,6 +819,12 @@ pub(super) fn check_stmt_exprs(
 
                 let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
                     kind: ForLoopIterableKind::Custom,
+                    custom: Some(ForLoopCustomResolvedInfo {
+                        iterator_method_fqn,
+                        iterator_ty,
+                        next_method_fqn,
+                        elem_ty: elem,
+                    }),
                 });
 
                 elem
