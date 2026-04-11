@@ -1,0 +1,92 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_nested_escape_handle_tail_multi_perform_nonunit.stdout
+//
+// T2003c0b2b0c: outer immediate-resume tail can host an inner single-arm
+// escape-continuation handle whose body has multiple top-level direct perform
+// sites and a non-Unit result type.
+// - inner handler arm captures a pointer-like enum outer local (`String?`);
+// - the second perform is intercepted from the step trampoline, so that capture
+//   must be restored into `cg.env` there instead of failing with
+//   `unknown local value`;
+// - caller can still resume both direct sites via a heap cell and observe the
+//   remaining body tail after each resume.
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+    val note: String? = Some("captured_note")
+
+    val result: Int = handle {
+        println("outer_body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        handle {
+            println("inner_body")
+            val first: String = Ask.ask()
+            println("after_first")
+            println(first)
+            val second: String = Ask.ask()
+            println("after_second")
+            println(second)
+            x + 1
+        } with {
+            Ask.ask(), k -> {
+                println("ask_arm")
+                when (note) {
+                    Some(text) -> println(text)
+                    None -> println("missing_note")
+                }
+                cell.k = Some(k)
+                7
+            }
+        }
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+    }
+
+    println("after_outer")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

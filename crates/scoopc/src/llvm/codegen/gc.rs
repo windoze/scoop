@@ -1567,9 +1567,9 @@ fn needs_write_barrier_for_value_ty<'a, 'ctx>(
                 } => {
                     let some_field_is_gc_ptr = layout
                         .variants
-                        .first()
-                        .and_then(|v| v.fields.first())
-                        .is_some_and(|f| matches!(f, CgTy::Ref | CgTy::String));
+                        .iter()
+                        .flat_map(|variant| variant.fields.iter())
+                        .any(|f| matches!(f, CgTy::Ref | CgTy::String));
                     Ok(some_field_is_gc_ptr)
                 }
                 _ => Ok(false),

@@ -148,6 +148,12 @@ struct IndirectEscapeContinuationPlan {
     indirect_sites: Vec<IndirectPerformCallSite>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EscapeCaptureStorageKind {
+    Word,
+    GcRef,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn current_raise_target(&self) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
         self.raise_target_stack.last().copied()
@@ -197,6 +203,156 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn pop_immediate_resume_ctx(&mut self) {
         let _ = self.immediate_resume_ctx_stack.pop();
+    }
+
+    fn escape_capture_storage_kind(
+        &mut self,
+        at: crate::span::Span,
+        ty: CgTy,
+    ) -> Result<Option<EscapeCaptureStorageKind>, LlvmEmitError> {
+        Ok(match ty {
+            CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
+                Some(EscapeCaptureStorageKind::Word)
+            }
+            CgTy::Ref | CgTy::String => Some(EscapeCaptureStorageKind::GcRef),
+            CgTy::Enum(enum_ty) => {
+                let layout = self.cg_enum_layout(at, enum_ty)?;
+                if matches!(
+                    layout.repr,
+                    CgEnumRepr::Niche {
+                        storage: NicheStorage::Pointer,
+                        ..
+                    }
+                ) {
+                    Some(EscapeCaptureStorageKind::GcRef)
+                } else {
+                    None
+                }
+            }
+            CgTy::Unit | CgTy::Never | CgTy::Tuple(_) | CgTy::Struct(_) => None,
+        })
+    }
+
+    fn restore_escape_capture_local_from_state(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let ptr = self.create_entry_alloca(at, name, ty)?;
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let loaded = self
+                    .builder
+                    .build_load(self.context.i64_type(), field_ptr, "escape_cap_word")?
+                    .into_int_value();
+                let restored = self.decode_u64_word_to_cg_value(at, loaded, ty)?;
+                let _ = self.store_local_value(at, ptr, ty, restored)?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let loaded = self
+                    .builder
+                    .build_load(self.llvm_gc_i8_ptr_type(), field_ptr, "escape_cap_gc_ref")?
+                    .into_pointer_value();
+                let _ = self.store_local_value(
+                    at,
+                    ptr,
+                    ty,
+                    CgValue {
+                        ty,
+                        value: Some(loaded.into()),
+                    },
+                )?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(ptr)
+    }
+
+    fn write_escape_capture_local_to_state(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        local_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local_ptr, "escape_cap_load")?;
+                let loaded_v = self.cg_value_from_loaded(at, ty, loaded)?;
+                let word = self.coerce_u64_word(at, loaded_v)?;
+                let _ = self.builder.build_store(field_ptr, word)?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local_ptr, "escape_cap_load_gc")?;
+                let BasicValueEnum::PointerValue(ptr) = loaded else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle escape capture value type (ptr)",
+                        at: at.into(),
+                    });
+                };
+                let casted = self.builder.build_pointer_cast(
+                    ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "escape_cap_gc_ref_i8",
+                )?;
+                let _ = self.store_local_value(
+                    at,
+                    field_ptr,
+                    ty,
+                    CgValue {
+                        ty,
+                        value: Some(casted.into()),
+                    },
+                )?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn zero_init_escape_capture_state_field(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let _ = self
+                    .builder
+                    .build_store(field_ptr, self.context.i64_type().const_zero())?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let _ = self
+                    .builder
+                    .build_store(field_ptr, self.llvm_gc_i8_ptr_type().const_null())?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn immediate_resume_expr_contains_matching_direct_perform(
@@ -8741,22 +8897,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 1) outer locals：来自当前 codegen env
         let mut outer_captures: Vec<CapturedLocal> = Vec::new();
         let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
+        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
         for scope in self.env.scopes.iter().rev() {
             for (&id, &local) in scope.iter() {
                 if !seen_outer.insert(id) {
                     continue;
                 }
-                if matches!(
-                    local.ty,
-                    CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
-                ) {
-                    outer_captures.push(CapturedLocal {
-                        id,
-                        hir_ty: local.hir_ty,
-                        ty: local.ty,
-                        mutable: local.mutable,
-                    });
-                }
+                visible_outer.push((id, local));
+            }
+        }
+        for (id, local) in visible_outer {
+            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
+                outer_captures.push(CapturedLocal {
+                    id,
+                    hir_ty: local.hir_ty,
+                    ty: local.ty,
+                    mutable: local.mutable,
+                });
             }
         }
 
@@ -8870,10 +9027,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: decl.span.into(),
                 })?;
 
-            if !matches!(
-                decl_ty,
-                CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
-            ) {
+            if self
+                .escape_capture_storage_kind(decl.span, decl_ty)?
+                .is_none()
+            {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle escape capture local type",
                     at: decl.span.into(),
@@ -8902,19 +9059,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fields.push(frame_ty.into());
             fields.push(i32_ty.into()); // pc
             for cap in &outer_captures {
-                fields.push(match cap.ty {
-                    CgTy::Ref => gc_i8_ptr_ty.into(),
-                    CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                    _ => unreachable!("captures filtered by type"),
+                fields.push(match self.escape_capture_storage_kind(span, cap.ty)? {
+                    Some(EscapeCaptureStorageKind::Word) => i64_ty.into(),
+                    Some(EscapeCaptureStorageKind::GcRef) => gc_i8_ptr_ty.into(),
+                    None => unreachable!("captures filtered by type"),
                 });
             }
             for cap in &body_lifts {
-                fields.push(match cap.ty {
-                    CgTy::Ref => gc_i8_ptr_ty.into(),
-                    CgTy::String => gc_i8_ptr_ty.into(),
-                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
-                    _ => unreachable!("captures filtered by type"),
+                fields.push(match self.escape_capture_storage_kind(span, cap.ty)? {
+                    Some(EscapeCaptureStorageKind::Word) => i64_ty.into(),
+                    Some(EscapeCaptureStorageKind::GcRef) => gc_i8_ptr_ty.into(),
+                    None => unreachable!("captures filtered by type"),
                 });
             }
             ty.set_body(&fields, false);
@@ -9014,115 +9169,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "cont_step_lift_gep",
                 )?;
                 let name = format!("lift_{}", cap.id.as_u32());
-                match cap.ty {
-                    CgTy::Ref => {
-                        // 注意：这里不能把 "state 字段地址（addrspace(1)）" 直接当作 local slot。
-                        //
-                        // 原因：
-                        // - `field_ptr` 是一个 **derived pointer**（指向 state 对象内部某字段的地址），且位于 GC
-                        //   address space；
-                        // - LLVM statepoint/stackmap 可能把它当作 GC root，进入 roots slots；但 runtime 的 roots 更新
-                        //   当前只支持 "slot value = 对象头指针"，不支持 derived pointer（否则 `--gc-stress` 下会出现
-                        //   invalid root / silent mis-update）。
-                        //
-                        // v0 策略：把外层 capture 的值恢复到本函数栈 slot（alloca）中，依赖 stackmap roots 更新
-                        // 来保持其在 moving GC 下可写回。
-                        let loaded = cg
-                            .builder
-                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_ref")?
-                            .into_pointer_value();
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
-                        let _ = cg.builder.build_store(ptr, loaded)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::Ref,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::String => {
-                        let loaded = cg
-                            .builder
-                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_str")?
-                            .into_pointer_value();
-                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
-                        let casted = cg
-                            .builder
-                            .build_pointer_cast(loaded, str_ptr_ty, "lift_str")?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
-                        let _ = cg.builder.build_store(ptr, casted)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::String,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Bool => {
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "lift_load_bool")?
-                            .into_int_value();
-                        let zero = i64_ty.const_zero();
-                        let b = cg.builder.build_int_compare(
-                            IntPredicate::NE,
-                            loaded,
-                            zero,
-                            "lift_bool",
-                        )?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
-                        let _ = cg.builder.build_store(ptr, b)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::Bool,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Int(int_ty) => {
-                        if int_ty.bits > 64 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "cont state capture int width > 64",
-                                at: span.into(),
-                            });
-                        }
-
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "lift_load_int")?
-                            .into_int_value();
-                        let to = cg.int_type(int_ty);
-                        let v = if int_ty.bits == 64 {
-                            loaded
-                        } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "lift_trunc_int")?
-                        };
-
-                        let slot_ty = CgTy::Int(int_ty);
-                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
-                        let _ = cg.builder.build_store(ptr, v)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: slot_ty,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    _ => unreachable!("captures filtered by type"),
-                }
+                // 注意：这里不能把 "state 字段地址（addrspace(1)）" 直接当作 local slot。
+                //
+                // 原因：
+                // - `field_ptr` 是一个 derived pointer，位于 GC address space；
+                // - LLVM statepoint/stackmap 可能把它当作 GC root，但 runtime 的 roots 更新
+                //   只支持对象头指针，不支持 derived pointer。
+                //
+                // 因此统一把 capture 恢复到本函数栈 slot（alloca）中，再通过 env 参与后续 codegen。
+                let ptr =
+                    cg.restore_escape_capture_local_from_state(span, field_ptr, cap.ty, &name)?;
+                cg.env.insert(
+                    cap.id,
+                    CgLocal {
+                        hir_ty: cap.hir_ty,
+                        ty: cap.ty,
+                        ptr,
+                        mutable: cap.mutable,
+                    },
+                );
             }
 
             for (idx, cap) in body_lifts.iter().enumerate() {
@@ -9134,104 +9199,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "cont_step_lift_gep",
                 )?;
                 let name = format!("lift_{}", cap.id.as_u32());
-                match cap.ty {
-                    CgTy::Ref => {
-                        let loaded = cg
-                            .builder
-                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_ref")?
-                            .into_pointer_value();
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
-                        let _ = cg.builder.build_store(ptr, loaded)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::Ref,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::String => {
-                        let loaded = cg
-                            .builder
-                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_str")?
-                            .into_pointer_value();
-                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
-                        let casted = cg
-                            .builder
-                            .build_pointer_cast(loaded, str_ptr_ty, "lift_str")?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
-                        let _ = cg.builder.build_store(ptr, casted)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::String,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Bool => {
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "lift_load_bool")?
-                            .into_int_value();
-                        let zero = i64_ty.const_zero();
-                        let b = cg.builder.build_int_compare(
-                            IntPredicate::NE,
-                            loaded,
-                            zero,
-                            "lift_bool",
-                        )?;
-                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
-                        let _ = cg.builder.build_store(ptr, b)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: CgTy::Bool,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    CgTy::Int(int_ty) => {
-                        if int_ty.bits > 64 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "cont state capture int width > 64",
-                                at: span.into(),
-                            });
-                        }
-
-                        let loaded = cg
-                            .builder
-                            .build_load(i64_ty, field_ptr, "lift_load_int")?
-                            .into_int_value();
-                        let to = cg.int_type(int_ty);
-                        let v = if int_ty.bits == 64 {
-                            loaded
-                        } else {
-                            cg.builder
-                                .build_int_truncate(loaded, to, "lift_trunc_int")?
-                        };
-
-                        let slot_ty = CgTy::Int(int_ty);
-                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
-                        let _ = cg.builder.build_store(ptr, v)?;
-                        cg.env.insert(
-                            cap.id,
-                            CgLocal {
-                                hir_ty: cap.hir_ty,
-                                ty: slot_ty,
-                                ptr,
-                                mutable: cap.mutable,
-                            },
-                        );
-                    }
-                    _ => unreachable!("captures filtered by type"),
-                }
+                let ptr =
+                    cg.restore_escape_capture_local_from_state(span, field_ptr, cap.ty, &name)?;
+                cg.env.insert(
+                    cap.id,
+                    CgLocal {
+                        hir_ty: cap.hir_ty,
+                        ty: cap.ty,
+                        ptr,
+                        mutable: cap.mutable,
+                    },
+                );
             }
 
             // binder slots：在 perform 点写入，在 arm body 中读取。
@@ -11782,74 +11760,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: span.into(),
                         });
                     }
-                    match cap.ty {
-                        CgTy::Ref => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
-                            let loaded = cg.builder.build_load(
-                                llvm_ty,
-                                local.ptr,
-                                "intercept_cap_load_ref",
-                            )?;
-                            let BasicValueEnum::PointerValue(ptr) = loaded else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: capture ref ptr",
-                                    at: span.into(),
-                                });
-                            };
-                            let casted = cg.builder.build_pointer_cast(
-                                ptr,
-                                gc_i8_ptr_ty,
-                                "intercept_cap_ref_i8",
-                            )?;
-                            let _ = cg.store_local_value(
-                                span,
-                                field_ptr,
-                                CgTy::Ref,
-                                CgValue {
-                                    ty: CgTy::Ref,
-                                    value: Some(casted.into()),
-                                },
-                            )?;
-                        }
-                        CgTy::String => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
-                            let loaded = cg.builder.build_load(
-                                llvm_ty,
-                                local.ptr,
-                                "intercept_cap_load_str",
-                            )?;
-                            let BasicValueEnum::PointerValue(ptr) = loaded else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: capture str ptr",
-                                    at: span.into(),
-                                });
-                            };
-                            let casted = cg.builder.build_pointer_cast(
-                                ptr,
-                                gc_i8_ptr_ty,
-                                "intercept_cap_str_i8",
-                            )?;
-                            let _ = cg.store_local_value(
-                                span,
-                                field_ptr,
-                                CgTy::Ref,
-                                CgValue {
-                                    ty: CgTy::Ref,
-                                    value: Some(casted.into()),
-                                },
-                            )?;
-                        }
-                        CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded =
-                                cg.builder
-                                    .build_load(llvm_ty, local.ptr, "intercept_cap_load")?;
-                            let loaded_v = cg.cg_value_from_loaded(span, cap.ty, loaded)?;
-                            let word = cg.coerce_u64_word(span, loaded_v)?;
-                            let _ = cg.builder.build_store(field_ptr, word)?;
-                        }
-                        _ => unreachable!("captures filtered by type"),
-                    }
+                    cg.write_escape_capture_local_to_state(span, field_ptr, local.ptr, cap.ty)?;
                 }
 
                 for (idx, cap) in body_lifts.iter().enumerate() {
@@ -11873,74 +11784,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: span.into(),
                         });
                     }
-                    match cap.ty {
-                        CgTy::Ref => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
-                            let loaded = cg.builder.build_load(
-                                llvm_ty,
-                                local.ptr,
-                                "intercept_lift_load_ref",
-                            )?;
-                            let BasicValueEnum::PointerValue(ptr) = loaded else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: lift ref ptr",
-                                    at: span.into(),
-                                });
-                            };
-                            let casted = cg.builder.build_pointer_cast(
-                                ptr,
-                                gc_i8_ptr_ty,
-                                "intercept_lift_ref_i8",
-                            )?;
-                            let _ = cg.store_local_value(
-                                span,
-                                field_ptr,
-                                CgTy::Ref,
-                                CgValue {
-                                    ty: CgTy::Ref,
-                                    value: Some(casted.into()),
-                                },
-                            )?;
-                        }
-                        CgTy::String => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
-                            let loaded = cg.builder.build_load(
-                                llvm_ty,
-                                local.ptr,
-                                "intercept_lift_load_str",
-                            )?;
-                            let BasicValueEnum::PointerValue(ptr) = loaded else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "intercept: lift str ptr",
-                                    at: span.into(),
-                                });
-                            };
-                            let casted = cg.builder.build_pointer_cast(
-                                ptr,
-                                gc_i8_ptr_ty,
-                                "intercept_lift_str_i8",
-                            )?;
-                            let _ = cg.store_local_value(
-                                span,
-                                field_ptr,
-                                CgTy::Ref,
-                                CgValue {
-                                    ty: CgTy::Ref,
-                                    value: Some(casted.into()),
-                                },
-                            )?;
-                        }
-                        CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                            let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
-                            let loaded =
-                                cg.builder
-                                    .build_load(llvm_ty, local.ptr, "intercept_lift_load")?;
-                            let loaded_v = cg.cg_value_from_loaded(span, cap.ty, loaded)?;
-                            let word = cg.coerce_u64_word(span, loaded_v)?;
-                            let _ = cg.builder.build_store(field_ptr, word)?;
-                        }
-                        _ => unreachable!("captures filtered by type"),
-                    }
+                    cg.write_escape_capture_local_to_state(span, field_ptr, local.ptr, cap.ty)?;
                 }
 
                 // Update pc in state from the alloca set by each interception point.
@@ -12221,17 +12065,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 field_idx,
                 "cont_state_capture_init_gep",
             )?;
-            match cap.ty {
-                CgTy::Ref | CgTy::String => {
-                    let _ = self
-                        .builder
-                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
-                }
-                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
-                }
-                _ => unreachable!("captures filtered by type"),
-            }
+            self.zero_init_escape_capture_state_field(span, field_ptr, cap.ty)?;
         }
         for (idx, cap) in body_lifts.iter().enumerate() {
             let field_idx = body_field_base.saturating_add(idx as u32);
@@ -12241,17 +12075,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 field_idx,
                 "cont_state_capture_init_gep",
             )?;
-            match cap.ty {
-                CgTy::Ref | CgTy::String => {
-                    let _ = self
-                        .builder
-                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
-                }
-                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
-                }
-                _ => unreachable!("captures filtered by type"),
-            }
+            self.zero_init_escape_capture_state_field(span, field_ptr, cap.ty)?;
         }
 
         // push handler frame（动态上下文）。
@@ -12333,75 +12157,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 });
             }
-
-            match cap.ty {
-                CgTy::Ref => {
-                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
-                    let loaded = self.builder.build_load(
-                        llvm_ty,
-                        local.ptr,
-                        "cont_state_capture_load_ref",
-                    )?;
-                    let BasicValueEnum::PointerValue(ptr) = loaded else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture value type (ref ptr)",
-                            at: span.into(),
-                        });
-                    };
-                    let casted = self.builder.build_pointer_cast(
-                        ptr,
-                        gc_i8_ptr_ty,
-                        "cont_state_capture_ref_i8",
-                    )?;
-                    let _ = self.store_local_value(
-                        span,
-                        field_ptr,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(casted.into()),
-                        },
-                    )?;
-                }
-                CgTy::String => {
-                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
-                    let loaded = self.builder.build_load(
-                        llvm_ty,
-                        local.ptr,
-                        "cont_state_capture_load_str",
-                    )?;
-                    let BasicValueEnum::PointerValue(ptr) = loaded else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture value type (str ptr)",
-                            at: span.into(),
-                        });
-                    };
-                    let casted = self.builder.build_pointer_cast(
-                        ptr,
-                        gc_i8_ptr_ty,
-                        "cont_state_capture_str_i8",
-                    )?;
-                    let _ = self.store_local_value(
-                        span,
-                        field_ptr,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(casted.into()),
-                        },
-                    )?;
-                }
-                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                    let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_ty, local.ptr, "cont_state_capture_load")?;
-                    let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
-                    let word = self.coerce_u64_word(span, loaded_v)?;
-                    let _ = self.builder.build_store(field_ptr, word)?;
-                }
-                _ => unreachable!("captures filtered by type"),
-            }
+            self.write_escape_capture_local_to_state(span, field_ptr, local.ptr, cap.ty)?;
         }
         for (idx, cap) in body_lifts.iter().enumerate() {
             let field_idx = body_field_base.saturating_add(idx as u32);
@@ -12422,75 +12178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 });
             }
-
-            match cap.ty {
-                CgTy::Ref => {
-                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
-                    let loaded = self.builder.build_load(
-                        llvm_ty,
-                        local.ptr,
-                        "cont_state_capture_load_ref",
-                    )?;
-                    let BasicValueEnum::PointerValue(ptr) = loaded else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture value type (ref ptr)",
-                            at: span.into(),
-                        });
-                    };
-                    let casted = self.builder.build_pointer_cast(
-                        ptr,
-                        gc_i8_ptr_ty,
-                        "cont_state_capture_ref_i8",
-                    )?;
-                    let _ = self.store_local_value(
-                        span,
-                        field_ptr,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(casted.into()),
-                        },
-                    )?;
-                }
-                CgTy::String => {
-                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
-                    let loaded = self.builder.build_load(
-                        llvm_ty,
-                        local.ptr,
-                        "cont_state_capture_load_str",
-                    )?;
-                    let BasicValueEnum::PointerValue(ptr) = loaded else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture value type (str ptr)",
-                            at: span.into(),
-                        });
-                    };
-                    let casted = self.builder.build_pointer_cast(
-                        ptr,
-                        gc_i8_ptr_ty,
-                        "cont_state_capture_str_i8",
-                    )?;
-                    let _ = self.store_local_value(
-                        span,
-                        field_ptr,
-                        CgTy::Ref,
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(casted.into()),
-                        },
-                    )?;
-                }
-                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                    let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_ty, local.ptr, "cont_state_capture_load")?;
-                    let loaded_v = self.cg_value_from_loaded(span, cap.ty, loaded)?;
-                    let word = self.coerce_u64_word(span, loaded_v)?;
-                    let _ = self.builder.build_store(field_ptr, word)?;
-                }
-                _ => unreachable!("captures filtered by type"),
-            }
+            self.write_escape_capture_local_to_state(span, field_ptr, local.ptr, cap.ty)?;
         }
 
         // --- perform site：计算 args → 写 binder slots → 创建 continuation ---

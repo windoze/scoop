@@ -222,7 +222,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_nested_escape_handle_tail`，覆盖“outer immediate-resume + inner single-arm escape handle tail”的手写等价程序。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b0c [TODO] Effect：LLVM single-arm escape-continuation 多 direct site 的非 `Unit` 结果 lowering
+### T2003c0b2b0c [DONE] Effect：LLVM single-arm escape-continuation 多 direct site 的非 `Unit` 结果 lowering
 - 描述：尝试实现 `T2003c0b2b1` 时发现，计划复用的“inner single-arm escape handle tail”本身还缺一个前置能力：single-arm escape-continuation 在 top-level multiple direct sites 且 `handle` 结果不是 `Unit` 时，最小样例仍会在 LLVM codegen 报 `unknown local value` / `value coercion`。在 mixed-arm 路径继续下沉 tail 之前，必须先把这个 primitive 打通。
 - 目标：
   - single-arm escape-continuation 在“多个 top-level direct perform sites + 非 `Unit` handle 结果”场景下可稳定通过 LLVM codegen，不再在最小样例上报 `unknown local value` / `value coercion`。
@@ -233,6 +233,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2b0
+- 完成说明：
+  - single-arm escape-continuation 的 multi-perform step trampoline 现已把 pointer-like enum outer capture 视为 `gc_ref` 存储类别；outer/body capture 的筛选、state field 形状、zero-init、restore 与 write-back 路径已统一复用该协议。
+  - 修复了嵌套 tail 里的 inner escape handle 在第二次 direct perform 从 step trampoline 再次进入 arm 时，因 `String?` / `Continuation<T>?` 这类 pointer-like enum 外层局部未恢复进 `cg.env` 而触发的 `unknown local value`。
+  - 已新增 run-pass 回归：`effect_resume_nested_escape_handle_tail_multi_perform_nonunit`，覆盖“outer immediate-resume tail + inner single-arm escape handle + multiple direct sites + non-`Unit` 结果 + pointer-like enum capture”。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2b1 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
 - 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为 single-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；但这一步还依赖 `T2003c0b2b0c` 先补齐 single-arm 多 direct site 的非 `Unit` 结果值 primitive。
