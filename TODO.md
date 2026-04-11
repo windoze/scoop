@@ -84,17 +84,41 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_escape_continuation_indirect_perform_resume_string`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003 [TODO] Effect：immediate-resume / `finally` / 控制流组合语义回归
-- 描述：当前 immediate-resume 路径只支持极窄的 `val x = perform` 形式，并显式禁止与 `finally` 组合。需要把这一路径扩到真实表达式与控制流场景，并用回归锁死 cleanup 语义。
+### T2003a [TODO] Effect：immediate-resume 单-perform 路径的 `finally` cleanup 语义
+- 描述：当前 immediate-resume 的 LLVM lowering 仍是“单个 `val x = perform` + 栈 state machine”的最小实现，并在 codegen 入口直接拒绝 `finally`。先在这个已经可运行的单 suspension 子集上补齐 cleanup 语义，再继续扩展控制流恢复。
 - 目标：
-  - immediate-resume 可出现在赋值、调用、分支、循环等常见表达式位置，而不局限于单个局部绑定。
-  - `finally` 在正常返回、raise、resume 三条路径上都恰好执行一次，不漏跑也不重复跑。
-  - 为 mixed-arm、nested handle、GC stress 等高风险组合补齐端到端回归。
+  - 现有单个 `val x = perform` immediate-resume handle 可与 `finally` 组合。
+  - `finally` 在正常 resume 完成、arm/body raise 向外传播时都恰好执行一次，不漏跑也不重复跑。
+  - 不回归 `resume(value)` 的 one-shot 断言、handler inactive/active 切换与 handler scope 边界。
 - 验收：
-  - 新增 run-pass fixtures：branch/loop/finally 组合；相关高风险用例在 `SCOOP_GC_STRESS=1` 下稳定。
+  - 新增 run-pass fixtures：immediate-resume + `finally` 的正常路径、raise 路径。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2002b
+
+### T2003b [TODO] Effect：immediate-resume 控制流内 perform 扫描与恢复
+- 描述：在补齐单-perform `finally` 之后，把 immediate-resume 从“顶层 `val x = perform`”扩到 branch/loop/block 等真实控制流位置；优先覆盖直接 perform 的嵌套恢复，不把间接 perform 混入同一轮。
+- 目标：
+  - immediate-resume 可覆盖 if/while/block 等控制流中的直接 perform，而不再只接受顶层单个局部绑定。
+  - resume 后控制流能从正确的语句位置继续执行，局部值与 binder 语义保持稳定。
+  - 对当前仍未支持的形状保留稳定诊断，而不是在 LLVM 阶段静默错编。
+- 验收：
+  - 新增 run-pass fixtures：branch/loop/block 中的 immediate-resume 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003a
+
+### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
+- 描述：在 `finally` 与控制流主链路落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
+- 目标：
+  - 为 mixed-arm、nested handle、GC stress 等组合补齐端到端回归。
+  - 相关 immediate-resume 用例在 `SCOOP_GC_STRESS=1` 下稳定。
+  - 明确记录当前阶段仍不支持的组合，避免语义漂移。
+- 验收：
+  - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003b
 
 ## T21：Structured Concurrency / `Task<T>`
 
