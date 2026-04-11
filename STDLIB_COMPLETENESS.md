@@ -59,8 +59,8 @@
 | `MutableList<Int>.add()` | P0 | pure_scoop_ok | DONE | `stdlib/mutable_list.scoop` | `list_and_mutable_list_basic` | 仅 Int |
 | `Array<Int>.forEach/map/filter/fold` | P0 | pure_scoop_ok | DONE | `stdlib/array_iter.scoop` | `stdlib_iter_algorithms_basic` | 仅 Int；effect-polymorphic |
 | `MutableArray<Int>.forEach/map/filter/fold` | P0 | pure_scoop_ok | DONE | `stdlib/mutable_array_iter.scoop` | `stdlib_iter_algorithms_basic` | 仅 Int；effect-polymorphic |
-| `Set` / `MutableSet`（Int-only） | P1 | pure_scoop_ok | PARTIAL | `stdlib/collections_set.scoop` | `stdlib_set_map_basic` | typealias→Array<Int>；线性扫描 |
-| `Map` / `MutableMap`（Int→Int only） | P1 | pure_scoop_ok | PARTIAL | `stdlib/collections_map.scoop` | `stdlib_set_map_basic` | typealias→Array<Int>（flat kv 对）；线性扫描 |
+| `Set` / `MutableSet`（Int-only） | P1 | pure_scoop_ok | DONE | `stdlib/collections_set.scoop` | `stdlib_set_map_basic`, `stdlib_hash_set_map_basic` | typealias surface 保留；`MutableSet` 内部为开放寻址哈希表，`Set` 导出为顺序视图 |
+| `Map` / `MutableMap`（Int→Int only） | P1 | pure_scoop_ok | DONE | `stdlib/collections_map.scoop` | `stdlib_set_map_basic`, `stdlib_hash_set_map_basic` | typealias surface 保留；`MutableMap` 内部为开放寻址哈希表，`MapView` 导出为 flat kv 顺序视图 |
 | `Iterator<T>` / `Iterable<T>` protocol | P0 | pure_scoop_ok | PARTIAL | `sysroot/collections.scoop` | — | 声明完整；`for-in` lowering 尚未全面打通（T1508） |
 | `IntIterable.toArray()` | P1 | pure_scoop_ok | PARTIAL | `stdlib/collections_iter.scoop` | — | **stub**：返回空数组；依赖 member call 链路 |
 | `sort` / `reduce` / `zip` / `flatten` / `chunked` / `windowed` | P1 | pure_scoop_ok | TODO | — | — | 纯 Scoop 可实现；依赖泛型或至少 Int 专用落点 |
@@ -70,7 +70,7 @@
 ### 3.1 Collections 缺口总结
 
 1. **所有集合操作仅 `Int` 专用** — 泛型版本依赖 codegen/monomorph 更完善后补齐
-2. **Set/Map 是 typealias + 线性扫描** — 后续应基于 `Hashable.hash` 实现哈希集合
+2. **Set/Map 已迁移到基于 `Hashable.hash` 的开放寻址实现** — 仍仅 Int/Int→Int 专用，泛型版本后置
 3. **Iterator/Iterable 协议声明存在但 for-in 链路未全面打通** — `IntIterable.toArray()` 为 stub
 4. **缺少 sort/reduce/zip/flatten/chunked/windowed/Sequence** — 纯 Scoop 可实现
 
@@ -140,8 +140,8 @@
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
 | `Hashable` interface | P1 | pure_scoop_ok | PARTIAL | `sysroot/core.scoop` | — | 声明存在；默认 `hash() -> 0`（占位） |
-| Int/String hash 实现 | P1 | pure_scoop_ok / needs_runtime_lib | TODO | — | — | Int 可纯 Scoop；String 可能需 runtime |
-| Hash-based Set/Map | P1 | pure_scoop_ok | TODO | — | — | 依赖 Hashable + 开放寻址/链式 |
+| Int/String hash 实现 | P1 | pure_scoop_ok / needs_runtime_lib | DONE | `crates/scoopc/src/llvm/codegen/mod.rs`, `runtime/c/scoop_runtime.c` | `stdlib_hash_basic` | Int 走 inline bit-mixing；String 走 runtime FNV-1a |
+| Hash-based Set/Map | P1 | pure_scoop_ok | DONE | `stdlib/collections_set.scoop`, `stdlib/collections_map.scoop` | `stdlib_hash_set_map_basic`, `stdlib_set_map_basic` | 开放寻址 + linear probing；保留 typealias surface 与只读导出视图 |
 
 ---
 

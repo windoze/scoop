@@ -1,0 +1,17 @@
+set_collision_insert
+ok
+set_duplicate_noop
+ok
+set_remove_reinsert
+ok
+set_read_only_view
+ok
+map_collision_insert
+ok
+map_update_existing
+ok
+map_remove_reinsert
+ok
+map_read_only_view
+ok
+done

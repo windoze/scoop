@@ -1,0 +1,98 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_hash_set_map_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T1818: Hash-based Set/Map（Int key）
+// - 覆盖开放寻址冲突：`0 / 3 / 8 / 24` 在初始容量 8 下落入同一 bucket；
+// - 覆盖 duplicate add / put update / remove 后重建；
+// - 覆盖 `asSet()` / `asMapView()` 导出的只读顺序视图。
+
+import scoop.core.*
+import scoop.collections.*
+import scoop.test.*
+
+fun main(): Int {
+    println("set_collision_insert")
+    var s: MutableSet = mutableIntSet()
+    s = s.add(0)
+    s = s.add(3)
+    s = s.add(8)
+    assertEqInt(3, s.len())
+    assertEqBool(true, s.contains(0))
+    assertEqBool(true, s.contains(3))
+    assertEqBool(true, s.contains(8))
+    println("ok")
+
+    println("set_duplicate_noop")
+    val beforeDup: Int = s.len()
+    s = s.add(3)
+    assertEqInt(beforeDup, s.len())
+    assertEqBool(true, s.contains(3))
+    println("ok")
+
+    println("set_remove_reinsert")
+    s = s.remove(3)
+    assertEqInt(2, s.len())
+    assertEqBool(false, s.contains(3))
+    assertEqBool(true, s.contains(0))
+    assertEqBool(true, s.contains(8))
+    s = s.add(24)
+    assertEqInt(3, s.len())
+    assertEqBool(true, s.contains(24))
+    println("ok")
+
+    println("set_read_only_view")
+    val ro: Set = s.asSet()
+    assertEqInt(3, ro.len())
+    assertEqBool(true, ro.contains(0))
+    assertEqBool(true, ro.contains(8))
+    assertEqBool(true, ro.contains(24))
+    assertEqBool(false, ro.contains(3))
+    println("ok")
+
+    println("map_collision_insert")
+    var m: MutableMap = mutableIntIntMap()
+    m = m.put(0, 100)
+    m = m.put(3, 300)
+    m = m.put(8, 800)
+    assertEqInt(3, m.entryCount())
+    assertEqBool(true, m.containsKey(0))
+    assertEqBool(true, m.containsKey(3))
+    assertEqBool(true, m.containsKey(8))
+    assertEqInt(100, m.getByKey(0))
+    assertEqInt(300, m.getByKey(3))
+    assertEqInt(800, m.getByKey(8))
+    println("ok")
+
+    println("map_update_existing")
+    m = m.put(3, 333)
+    assertEqInt(3, m.entryCount())
+    assertEqInt(333, m.getByKey(3))
+    println("ok")
+
+    println("map_remove_reinsert")
+    m = m.removeKey(0)
+    assertEqInt(2, m.entryCount())
+    assertEqBool(false, m.containsKey(0))
+    assertEqInt(-1, m.getByKey(0))
+    assertEqInt(333, m.getByKey(3))
+    assertEqInt(800, m.getByKey(8))
+    m = m.put(24, 2400)
+    assertEqInt(3, m.entryCount())
+    assertEqInt(2400, m.getByKey(24))
+    println("ok")
+
+    println("map_read_only_view")
+    val mv: MapView = m.asMapView()
+    assertEqInt(3, mv.entryCount())
+    assertEqBool(true, mv.containsKey(3))
+    assertEqBool(true, mv.containsKey(8))
+    assertEqBool(true, mv.containsKey(24))
+    assertEqInt(333, mv.getOrDefault(3, -2))
+    assertEqInt(2400, mv.getOrDefault(24, -2))
+    assertEqInt(-2, mv.getOrDefault(42, -2))
+    println("ok")
+
+    println("done")
+    return 0
+}

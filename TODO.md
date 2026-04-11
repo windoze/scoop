@@ -2768,7 +2768,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_hash_basic.scoop` + `.stdout`——覆盖 13 个场景：Int 确定性/非零/差异性/负数 + String 确定性/非零/差异性 + 回归值断言。
   - 139 单元测试 + 774 fixtures 通过。
 
-### T1818 [TODO] Hash-based Set/Map（Int key）
+### T1818 [DONE] Hash-based Set/Map（Int key）
 - 描述：基于 T1817 的 hash 实现，用开放寻址（linear probing）替换当前 `collections_set.scoop`/`collections_map.scoop` 的线性扫描实现。
 - 目标：
   - 分类：`pure_scoop_ok`。
@@ -2779,6 +2779,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1817
+- 完成：
+  - `MutableSet` 内部已改为开放寻址哈希表布局：`[entryCount, capacity, state, key, ...]`；`add`/`contains`/`remove` 走 linear probing，写操作仍保持“返回新集合”的表面语义。
+  - `MutableMap` 内部已改为开放寻址哈希表布局：`[entryCount, capacity, state, key, value, ...]`；`put`/`getOrDefault`/`containsKey`/`removeKey` 走 linear probing，更新已有 key 时保持 entryCount 不变。
+  - `asSet()` / `asMapView()` 继续导出紧凑顺序视图；为兼容当前 `typealias` surface 下只读/可变扩展可能共用同一路由，mutable 侧查询函数新增“哈希 backing / 顺序视图”自动识别逻辑，避免只读视图误按哈希布局解释。
+  - 新增 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` + `.stdout`，覆盖同桶冲突（`0/3/8/24`）、重复插入、删除后重建、map 更新路径与只读视图导出。
+  - 验证：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (901)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 ### T1819 [TODO] Ranges 增强：`..` syntax sugar / `until` / `for (x in range)` integration
 - 描述：为 `IntProgression` 补齐语法糖和 for-in 集成。

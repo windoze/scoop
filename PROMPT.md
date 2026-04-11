@@ -26,6 +26,13 @@ For the first incomplete task (or subtask) in `TODO.md`:
   4. Update `PLAN.md` to explain why the task was moved and what it is waiting on.
   5. Commit these changes and stop — the next invocation will pick up from there.
 
+**Missing or Incomplete Language Features:**
+- If you encounter a task that requires a language feature or library that is not currently available, you must:
+  1. Identify the missing feature and research the details of its implementation or availability.
+  2. Update `TODO.md` to reflect the dependency on the missing feature, and move the task to the appropriate position in the list, then add a dependency item of the current task on the missing feature.
+  3. Update `PLAN.md` to document the issue and any steps taken to address it.
+  4. Commit these changes and stop.
+
 **Code Organization & Quality:**
 - **Quality:** Ensure that there is no warning during compilation and linting, e.g. `cargo clippy --all-targets -- -D warnings`.
 - **Completeness:** Make sure that all features are implemented as planned, you must either **fully** complete the task or break it down into smaller subtasks until it is manageable.

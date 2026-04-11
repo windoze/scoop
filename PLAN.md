@@ -317,6 +317,13 @@ cargo run -p scoop --features llvm -- test
   - **Codegen dispatch**：通过 receiver HIR 类型判断路由——`ValueTypeKind::Int` → inline，其它 → `scoop_string_hash` C 调用。
   - Fixture：`stdlib_hash_basic.scoop`（Int 6 + String 4 + 回归值 6 = 13 场景 + 完成标记）。
   - 下一步：T1818（Hash-based Set/Map）。
+- DONE（T1818）：Hash-based Set/Map（Int key）：
+  - **`MutableSet`**（`stdlib/collections_set.scoop`）：内部布局改为 `[entryCount, capacity, state, key, ...]` 的开放寻址哈希表；`add`/`contains`/`remove` 改走 linear probing，写操作仍返回新集合。
+  - **`MutableMap`**（`stdlib/collections_map.scoop`）：内部布局改为 `[entryCount, capacity, state, key, value, ...]` 的开放寻址哈希表；`put`/`getOrDefault`/`containsKey`/`removeKey` 改走 linear probing，更新已有 key 时保持 entryCount 不变。
+  - **兼容层**：`asSet()` / `asMapView()` 继续导出紧凑顺序视图；为兼容当前 `typealias` surface 下只读/可变扩展可能共享路由，mutable 侧查询 API 增加“哈希 backing / 顺序视图”自动识别，避免旧的只读视图调用被误按哈希布局解释。
+  - **回归**：新增 `stdlib_hash_set_map_basic` fixture，覆盖同桶冲突（`0/3/8/24`）、重复插入、删除后重建、map 更新路径与只读视图导出；旧有 `stdlib_set_map_basic` / smoke fixtures 保持通过。
+  - **验证**：`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (901)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+  - 下一步：T1819（Ranges 增强：`..` / `until` / `for-in` 集成）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

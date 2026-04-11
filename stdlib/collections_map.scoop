@@ -1,274 +1,561 @@
-// Scoop stdlib（pure scoop）：Map / MutableMap v0（early stage）
+// Scoop stdlib（pure scoop）：Map / MutableMap
 //
-// 目标（TODO T1317f4）：
-// - 基于 `MutableArray` 在 pure Scoop 中实现最小 `MutableMap<Int, Int>` 落点；
-// - 先以语义正确与可回归为主：线性查找、copy 语义（操作返回新 map）；
-// - 不新增 intrinsic；后续可用 `Hashable.hash` + 开放寻址优化。
+// T1818：
+// - `MutableMap` 的内部表示改为开放寻址（linear probing）哈希表；
+// - 公开表面仍保持 `typealias` + 扩展函数，不新增 intrinsic；
+// - `MapView` 继续导出为紧凑的 flat kv 顺序视图，避免把哈希表内部槽位直接暴露给只读侧。
 //
-// 重要限制（T1315a）：
-// - LLVM 后端 multi-file lowering 仍会拒绝“非入口文件中的 source-backed literals”，
-//   因此本文件中避免出现任何 Int/String 字面量；循环常量通过 `__stdlib_int_zero/one` 派生。
-//
-// 表示方式（v0）：
-// - 以一个 `Array<Int>` / `MutableArray<Int>` 承载键值对序列：`[k0, v0, k1, v1, ...]`（长度恒为偶数）。
+// 说明：
+// - 内部哈希表 helper 继续尽量复用现有 `__stdlib_int_*` 派生风格；
+// - 只读兼容层（`MapView` 视图）使用少量小整数字面量，以避开当前 typealias 扩展上的边角。
 
 package scoop.collections
 
-// 说明：
-// - sysroot 与 stdlib 属于不同 cone；在 resolver 的最小规则下，跨 cone 的声明需要通过 import 引入；
-// - 这里显式 `import scoop.core.*`，用于把 sysroot 的 `Array/MutableArray.size/get` 与 stdlib 的
-//   `__stdlib_int_zero/one` / array builder helpers 引入可见范围。
 import scoop.core.*
 
-/// 只读 `Map` 视图（v0）：`Int -> Int` 专用落点。
-///
-/// 注意：
-/// - 这里不叫 `Map`，避免与 sysroot 中 `scoop.collections.Map<K, V>`（delegated property 表面）重名。
-/// - 0.1 阶段 LLVM codegen 尚未支持“struct 持有 reference fields”（例如 `Array/MutableArray`），
-///   因此这里先把 `MapView/MutableMap` 表示为 `Array<Int>` / `MutableArray<Int>` 的 typealias。
+/// 只读 `Map` 视图（v0）：继续导出为 flat kv 顺序 `Array<Int>`。
 typealias MapView = Array<Int>
 
-/// 可变 `Map`（v0）：`Int -> Int` 专用落点（copy 语义：操作返回新 map）。
+/// 可变 `Map`：内部为哈希表布局，但对外仍保持 `MutableArray<Int>` 别名。
 typealias MutableMap = MutableArray<Int>
 
-/// MapView：键值对个数（v0：Int->Int 专用）。
+/// MapView：键值对个数（顺序 flat kv 视图）。
 ///
 /// 注意：
 /// - 不叫 `size()`：避免与 sysroot 的 `Array<T>.size()` 扩展函数在同一作用域下冲突；
 /// - 不叫 `len()`：避免与 `MutableSet.len()` 在当前 resolver 的 alias 归一化规则下产生重载歧义。
 fun MapView.entryCount(): Int {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    return n / two
+    return this.size() / 2
 }
 
-/// MapView：是否包含 key（v0：Int->Int 专用）。
+/// MapView：是否包含 key（顺序 flat kv 视图，线性扫描）。
 fun MapView.containsKey(key: Int): Bool {
     val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
-
     var found: Bool = false
-    var i: Int = zero
+    var i: Int = 0
     while (i < n) {
         val k: Int = this.get(i)
         when (k == key) {
             true -> {
                 found = true
-                // v0：无 `break`；用 `i = n` 退出循环。
                 i = n
             }
             false -> ()
         }
-        i = i + two
+        i = i + 2
     }
     return found
 }
 
-/// MapView：按 key 查询；若不存在返回 `default`（v0：Int->Int 专用）。
+/// MapView：按 key 查询；若不存在返回 `default`（顺序 flat kv 视图）。
 fun MapView.getOrDefault(key: Int, default: Int): Int {
     val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
-
     var result: Int = default
-    var i: Int = zero
+    var i: Int = 0
     while (i < n) {
         val k: Int = this.get(i)
         when (k == key) {
             true -> {
-                val v: Int = this.get(i + one)
+                val v: Int = this.get(i + 1)
                 result = v
                 i = n
             }
             false -> ()
         }
-        i = i + two
+        i = i + 2
     }
     return result
 }
 
-/// MutableMap：键值对个数（v0：Int->Int 专用）。
+// --- MutableMap：开放寻址哈希表内部 helper ---
+//
+// 布局：
+//   [entry_count, capacity, state0, key0, value0, state1, key1, value1, ...]
+//
+// 状态位：
+// - 0：空槽位
+// - 1：已占用
+//
+// 说明：
+// - 写操作继续保持“返回新 map”的 copy 语义；
+// - 删除不使用 tombstone，而是重建一张新表，保持探测链紧凑。
+
+/// 根据目标 entry 数选择容量，保持负载因子不超过 1/2。
+fun __map_capacity_for_entries(entryCount: Int): Int {
+    val one: Int = __stdlib_int_one(entryCount)
+    val two: Int = one + one
+    val four: Int = two + two
+    val minCap: Int = four + four
+
+    var needed: Int = entryCount * two
+    when (needed < minCap) {
+        true -> {
+            needed = minCap
+        }
+        false -> ()
+    }
+
+    var cap: Int = minCap
+    while (cap < needed) {
+        cap = cap + cap
+    }
+    return cap
+}
+
+/// 槽位 state 的索引。
+fun __map_slot_state_index(slot: Int, sample: Int): Int {
+    val one: Int = __stdlib_int_one(sample)
+    val two: Int = one + one
+    val three: Int = two + one
+    return two + slot * three
+}
+
+/// 槽位 key 的索引。
+fun __map_slot_key_index(slot: Int, sample: Int): Int {
+    val one: Int = __stdlib_int_one(sample)
+    return __map_slot_state_index(slot, sample) + one
+}
+
+/// 槽位 value 的索引。
+fun __map_slot_value_index(slot: Int, sample: Int): Int {
+    val one: Int = __stdlib_int_one(sample)
+    val two: Int = one + one
+    return __map_slot_state_index(slot, sample) + two
+}
+
+/// 申请一张空表，并把所有槽位初始化为 empty。
+fun __map_alloc_empty_table(capacity: Int): MutableMap {
+    val one: Int = __stdlib_int_one(capacity)
+    val zero: Int = __stdlib_int_zero(capacity)
+    val two: Int = one + one
+    val three: Int = two + one
+    val total: Int = two + capacity * three
+
+    val b: Any = __scoop_array_builder_new()
+    var i: Int = zero
+    while (i < total) {
+        __scoop_array_builder_push(b, zero)
+        i = i + one
+    }
+
+    var table: MutableMap = __scoop_array_builder_build_mutable_array(b)
+    table.set(zero, zero)
+    table.set(one, capacity)
+    return table
+}
+
+/// 申请一张足够容纳 `entryCount` 个 entry 的空表。
+fun __map_new_table_for_entries(entryCount: Int): MutableMap {
+    return __map_alloc_empty_table(__map_capacity_for_entries(entryCount))
+}
+
+/// 把 `%` 的结果调整到 `[0, modulus)`。
+fun __map_positive_mod(hash: Int, modulus: Int): Int {
+    val zero: Int = __stdlib_int_zero(modulus)
+
+    var result: Int = hash % modulus
+    when (result < zero) {
+        true -> {
+            result = result + modulus
+        }
+        false -> ()
+    }
+    return result
+}
+
+/// 线性探测的下一个槽位。
+fun __map_next_slot(slot: Int, capacity: Int): Int {
+    val one: Int = __stdlib_int_one(capacity)
+    val zero: Int = __stdlib_int_zero(capacity)
+
+    var next: Int = slot + one
+    when (next == capacity) {
+        true -> {
+            next = zero
+        }
+        false -> ()
+    }
+    return next
+}
+
+/// 在哈希表中查找 key；命中返回槽位索引，未命中返回 `capacity` 作为哨兵。
+fun __map_find_slot(table: MutableMap, key: Int): Int {
+    val rawLen: Int = table.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val capacity: Int = table.get(one)
+    val full: Int = one
+
+    var result: Int = capacity
+    var probes: Int = zero
+    var slot: Int = __map_positive_mod(key.hash(), capacity)
+    while (probes < capacity) {
+        val stateIdx: Int = __map_slot_state_index(slot, capacity)
+        val state: Int = table.get(stateIdx)
+        when (state == full) {
+            true -> {
+                val curKey: Int = table.get(__map_slot_key_index(slot, capacity))
+                when (curKey == key) {
+                    true -> {
+                        result = slot
+                        probes = capacity
+                    }
+                    false -> {
+                        probes = probes + one
+                        slot = __map_next_slot(slot, capacity)
+                    }
+                }
+            }
+            false -> {
+                probes = capacity
+            }
+        }
+    }
+    return result
+}
+
+/// 判断当前底层数组是否符合哈希表布局。
+///
+/// 说明：
+/// - `MapView` / `MutableMap` 当前都是 alias；调用点可能把只读 flat kv 视图路由到 mutable 扩展实现；
+/// - 因此 mutable 路径需要在运行时区分“哈希表 backing”与“顺序只读视图”。
+fun __map_is_hash_layout(table: MutableMap): Bool {
+    val rawLen: Int = table.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val two: Int = one + one
+    val three: Int = two + one
+
+    var hashed: Bool = false
+    when (rawLen > one) {
+        true -> {
+            val entryCount: Int = table.get(zero)
+            val capacity: Int = table.get(one)
+            val expectedTotal: Int = two + capacity * three
+            when (capacity > zero) {
+                true -> {
+                    when (expectedTotal == rawLen) {
+                        true -> {
+                            when (entryCount <= capacity) {
+                                true -> {
+                                    hashed = true
+                                }
+                                false -> ()
+                            }
+                        }
+                        false -> ()
+                    }
+                }
+                false -> ()
+            }
+        }
+        false -> ()
+    }
+    return hashed
+}
+
+/// 向空表或保证不存在重复 key 的表中插入一个 entry。
+fun __map_insert_assume_absent(table: MutableMap, key: Int, value: Int): Unit {
+    val rawLen: Int = table.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val capacity: Int = table.get(one)
+    val full: Int = one
+
+    var probes: Int = zero
+    var slot: Int = __map_positive_mod(key.hash(), capacity)
+    while (probes < capacity) {
+        val stateIdx: Int = __map_slot_state_index(slot, capacity)
+        val state: Int = table.get(stateIdx)
+        when (state == full) {
+            true -> {
+                probes = probes + one
+                slot = __map_next_slot(slot, capacity)
+            }
+            false -> {
+                table.set(stateIdx, full)
+                table.set(__map_slot_key_index(slot, capacity), key)
+                table.set(__map_slot_value_index(slot, capacity), value)
+
+                val entryCount: Int = table.get(zero)
+                table.set(zero, entryCount + one)
+                probes = capacity
+            }
+        }
+    }
+    return ()
+}
+
+/// MutableMap：键值对个数（O(1) header 读取）。
 ///
 /// 注意：
 /// - 不叫 `size()`：避免与 sysroot 的 `MutableArray<T>.size()` 扩展函数在同一作用域下冲突；
 /// - 不叫 `len()`：避免与 `MutableSet.len()` 在当前 resolver 的 alias 归一化规则下产生重载歧义。
 fun MutableMap.entryCount(): Int {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    return n / two
+    val rawLen: Int = this.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    var result: Int = rawLen / 2
+    when (__map_is_hash_layout(this)) {
+        true -> {
+            result = this.get(zero)
+        }
+        false -> {
+            result = rawLen / 2
+        }
+    }
+    return result
 }
 
-/// MutableMap：是否包含 key（v0：Int->Int 专用）。
+/// MutableMap：是否包含 key（开放寻址，O(1) expected）。
 fun MutableMap.containsKey(key: Int): Bool {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
+    val rawLen: Int = this.size()
+    val one: Int = __stdlib_int_one(rawLen)
 
     var found: Bool = false
-    var i: Int = zero
-    while (i < n) {
-        val k: Int = this.get(i)
-        when (k == key) {
-            true -> {
-                found = true
-                i = n
-            }
-            false -> ()
+    when (__map_is_hash_layout(this)) {
+        true -> {
+            val capacity: Int = this.get(one)
+            found = __map_find_slot(this, key) != capacity
         }
-        i = i + two
+        false -> {
+            var i: Int = 0
+            while (i < rawLen) {
+                val curKey: Int = this.get(i)
+                when (curKey == key) {
+                    true -> {
+                        found = true
+                        i = rawLen
+                    }
+                    false -> ()
+                }
+                i = i + 2
+            }
+        }
     }
     return found
 }
 
-/// MutableMap：按 key 查询；若不存在返回 `default`（v0：Int->Int 专用）。
+/// MutableMap：按 key 查询；若不存在返回 `default`（开放寻址，O(1) expected）。
 fun MutableMap.getOrDefault(key: Int, default: Int): Int {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
+    val rawLen: Int = this.size()
+    val one: Int = __stdlib_int_one(rawLen)
 
     var result: Int = default
-    var i: Int = zero
-    while (i < n) {
-        val k: Int = this.get(i)
-        when (k == key) {
-            true -> {
-                val v: Int = this.get(i + one)
-                result = v
-                i = n
+    when (__map_is_hash_layout(this)) {
+        true -> {
+            val capacity: Int = this.get(one)
+            val slot: Int = __map_find_slot(this, key)
+            when (slot == capacity) {
+                true -> {
+                    result = default
+                }
+                false -> {
+                    result = this.get(__map_slot_value_index(slot, capacity))
+                }
             }
-            false -> ()
         }
-        i = i + two
+        false -> {
+            var i: Int = 0
+            while (i < rawLen) {
+                val curKey: Int = this.get(i)
+                when (curKey == key) {
+                    true -> {
+                        result = this.get(i + 1)
+                        i = rawLen
+                    }
+                    false -> ()
+                }
+                i = i + 2
+            }
+        }
     }
     return result
 }
 
-/// MutableMap：按 key 查询；若不存在返回 `-1`（v0：Int->Int 专用）。
+/// MutableMap：按 key 查询；若不存在返回 `-1`。
 ///
-/// 说明：v0 为保持纯函数签名（无 `Option<Int>`/无 `Raise`）先使用一个哨兵值；
-/// 调用方可先用 `containsKey` 判定是否存在。
-///
-/// 注意：不叫 `get()`，避免与 `Array/MutableArray.get(index)` 冲突（当前阶段 Map 以数组为底座）。
+/// 说明：当前阶段继续使用哨兵值；调用方可先用 `containsKey` 判定是否存在。
 fun MutableMap.getByKey(key: Int): Int {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val zero: Int = __stdlib_int_zero(n)
-    val minus_one: Int = zero - one
-    return this.getOrDefault(key, minus_one)
+    val rawLen: Int = this.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val minusOne: Int = zero - one
+    return this.getOrDefault(key, minusOne)
 }
 
-/// MutableMap：插入或更新一个键值对（v0：Int->Int 专用）。
+/// MutableMap：插入或更新一个键值对。
 ///
 /// 语义：
 /// - 若 key 已存在：更新其 value；
-/// - 若 key 不存在：追加 `(key, value)`；
+/// - 若 key 不存在：插入新 entry；
 /// - 返回新 map（copy 语义）。
 fun MutableMap.put(key: Int, value: Int): MutableMap {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
-
-    val b: Any = __scoop_array_builder_new()
-
-    var found: Bool = false
-    var i: Int = zero
-    while (i < n) {
-        val k: Int = this.get(i)
-        val v: Int = this.get(i + one)
-        when (k == key) {
-            true -> {
-                __scoop_array_builder_push(b, k)
-                __scoop_array_builder_push(b, value)
-                found = true
-            }
-            false -> {
-                __scoop_array_builder_push(b, k)
-                __scoop_array_builder_push(b, v)
-            }
-        }
-        i = i + two
-    }
-
-    when (found) {
-        true -> ()
-        false -> {
-            __scoop_array_builder_push(b, key)
-            __scoop_array_builder_push(b, value)
-        }
-    }
-
-    return __scoop_array_builder_build_mutable_array(b)
-}
-
-/// MutableMap：移除一个 key；若 key 不存在则返回自身（v0：Int->Int 专用）。
-///
-/// 注意：不叫 `remove()`，避免与 `MutableSet.remove()` 在当前 resolver 的 alias 归一化规则下产生重载歧义。
-fun MutableMap.removeKey(key: Int): MutableMap {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val two: Int = one + one
-    val zero: Int = __stdlib_int_zero(n)
-
-    val b: Any = __scoop_array_builder_new()
-
-    var removed: Bool = false
-    var i: Int = zero
-    while (i < n) {
-        val k: Int = this.get(i)
-        val v: Int = this.get(i + one)
-        when (k == key) {
-            true -> {
-                removed = true
-            }
-            false -> {
-                __scoop_array_builder_push(b, k)
-                __scoop_array_builder_push(b, v)
-            }
-        }
-        i = i + two
-    }
+    val rawLen: Int = this.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val capacity: Int = this.get(one)
+    val full: Int = one
+    val slot: Int = __map_find_slot(this, key)
 
     var result: MutableMap = this
-    when (removed) {
+    when (slot == capacity) {
         true -> {
-            result = __scoop_array_builder_build_mutable_array(b)
+            val rebuilt: MutableMap = __map_new_table_for_entries(this.entryCount() + one)
+            var curSlot: Int = zero
+            while (curSlot < capacity) {
+                val stateIdx: Int = __map_slot_state_index(curSlot, capacity)
+                val state: Int = this.get(stateIdx)
+                when (state == full) {
+                    true -> {
+                        val curKey: Int = this.get(__map_slot_key_index(curSlot, capacity))
+                        val curValue: Int = this.get(__map_slot_value_index(curSlot, capacity))
+                        __map_insert_assume_absent(rebuilt, curKey, curValue)
+                    }
+                    false -> ()
+                }
+                curSlot = curSlot + one
+            }
+            __map_insert_assume_absent(rebuilt, key, value)
+            result = rebuilt
         }
         false -> {
-            result = this
+            val oldValue: Int = this.get(__map_slot_value_index(slot, capacity))
+            when (oldValue == value) {
+                true -> {
+                    result = this
+                }
+                false -> {
+                    val rebuilt: MutableMap = __map_new_table_for_entries(this.entryCount())
+                    var curSlot: Int = zero
+                    while (curSlot < capacity) {
+                        val stateIdx: Int = __map_slot_state_index(curSlot, capacity)
+                        val state: Int = this.get(stateIdx)
+                        when (state == full) {
+                            true -> {
+                                val curKey: Int = this.get(__map_slot_key_index(curSlot, capacity))
+                                val curValue: Int = this.get(__map_slot_value_index(curSlot, capacity))
+                                when (curKey == key) {
+                                    true -> {
+                                        __map_insert_assume_absent(rebuilt, key, value)
+                                    }
+                                    false -> {
+                                        __map_insert_assume_absent(rebuilt, curKey, curValue)
+                                    }
+                                }
+                            }
+                            false -> ()
+                        }
+                        curSlot = curSlot + one
+                    }
+                    result = rebuilt
+                }
+            }
         }
     }
     return result
 }
 
-/// MutableMap → MapView（只读视图）：复制为 `Array<Int>`（v0：Int->Int 专用）。
-fun MutableMap.asMapView(): MapView {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val zero: Int = __stdlib_int_zero(n)
+/// MutableMap：移除一个 key；若不存在则返回自身。
+///
+/// 注意：不叫 `remove()`，避免与 `MutableSet.remove()` 在当前 resolver 的 alias 归一化规则下产生重载歧义。
+fun MutableMap.removeKey(key: Int): MutableMap {
+    val rawLen: Int = this.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val capacity: Int = this.get(one)
+    val full: Int = one
+    val slot: Int = __map_find_slot(this, key)
+
+    var result: MutableMap = this
+    when (slot == capacity) {
+        true -> {
+            result = this
+        }
+        false -> {
+            val rebuilt: MutableMap = __map_new_table_for_entries(this.entryCount() - one)
+            var curSlot: Int = zero
+            while (curSlot < capacity) {
+                val stateIdx: Int = __map_slot_state_index(curSlot, capacity)
+                val state: Int = this.get(stateIdx)
+                when (state == full) {
+                    true -> {
+                        val curKey: Int = this.get(__map_slot_key_index(curSlot, capacity))
+                        val curValue: Int = this.get(__map_slot_value_index(curSlot, capacity))
+                        when (curKey == key) {
+                            true -> ()
+                            false -> {
+                                __map_insert_assume_absent(rebuilt, curKey, curValue)
+                            }
+                        }
+                    }
+                    false -> ()
+                }
+                curSlot = curSlot + one
+            }
+            result = rebuilt
+        }
+    }
+    return result
+}
+
+/// 把哈希表布局导出为紧凑 flat kv 顺序数组。
+///
+/// 说明：
+/// - 把物化逻辑放在普通 top-level helper 中，避免当前阶段 typealias receiver 扩展在
+///   codegen 上出现额外边角。
+fun __map_export_view(table: MutableMap): Array<Int> {
+    val rawLen: Int = table.size()
+    val zero: Int = __stdlib_int_zero(rawLen)
+    val one: Int = __stdlib_int_one(rawLen)
+    val capacity: Int = table.get(one)
+    val full: Int = one
 
     val b: Any = __scoop_array_builder_new()
-    var i: Int = zero
-    while (i < n) {
-        // 说明：同 `MutableSet.asSet`：避免把 `get(i)` 直接作为 `array_builder_push` 的实参，
-        // 通过显式 `val v: Int = ...` 固化 expected type。
-        val v: Int = this.get(i)
-        __scoop_array_builder_push(b, v)
-        i = i + one
+    var slot: Int = zero
+    while (slot < capacity) {
+        val stateIdx: Int = __map_slot_state_index(slot, capacity)
+        val state: Int = table.get(stateIdx)
+        when (state == full) {
+            true -> {
+                val key: Int = table.get(__map_slot_key_index(slot, capacity))
+                val value: Int = table.get(__map_slot_value_index(slot, capacity))
+                __scoop_array_builder_push(b, key)
+                __scoop_array_builder_push(b, value)
+            }
+            false -> ()
+        }
+        slot = slot + one
     }
 
     return __scoop_array_builder_build_array(b)
 }
 
-/// 创建一个空 `MutableMap`（不使用字面量）。
+/// MutableMap → MapView（只读视图）：导出为紧凑 flat kv 顺序数组。
+fun MutableMap.asMapView(): MapView {
+    var result: MapView = __map_export_view(this)
+    when (__map_is_hash_layout(this)) {
+        true -> {
+            result = __map_export_view(this)
+        }
+        false -> {
+            val rawLen: Int = this.size()
+            val b: Any = __scoop_array_builder_new()
+            var i: Int = 0
+            while (i < rawLen) {
+                val v: Int = this.get(i)
+                __scoop_array_builder_push(b, v)
+                i = i + 1
+            }
+            result = __scoop_array_builder_build_array(b)
+        }
+    }
+    return result
+}
+
+/// 创建一个空 `MutableMap`。
 fun mutableIntIntMap(): MutableMap {
     val b: Any = __scoop_array_builder_new()
-    return __scoop_array_builder_build_mutable_array(b)
+    val empty: MutableArray<Int> = __scoop_array_builder_build_mutable_array(b)
+    val zero: Int = empty.size()
+    return __map_new_table_for_entries(zero)
 }
