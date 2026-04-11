@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_nested_block_single_perform.stdout
+//
+// T2003b1: immediate-resume 支持 statement-position nested block 中的单 direct perform。
+//
+// 目标覆盖：
+// - perform 不再要求位于 handle body 顶层；
+// - resume 后先回到内层 block，随后继续执行外层 block 与 handle body；
+// - block 内 perform 前声明的局部值在 resume 后仍可读取。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    val result: Int = handle {
+        println("body_start")
+        val seed: Int = 1
+        @Safe {
+            println("outer_block")
+            val base: Int = 10
+            @Safe {
+                println("inner_block")
+                val x: Int = Yield.next()
+                println("resumed_sum")
+                println(seed + base + x)
+            }
+            println("after_inner")
+            println(base)
+        }
+        println("after_outer")
+        seed + 100
+    } with {
+        Yield.next() -> resume {
+            println("arm")
+            resume(31)
+        }
+    }
+    println("result")
+    println(result)
+}

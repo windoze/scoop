@@ -101,7 +101,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_resume_finally_normal`、`effect_resume_finally_arm_raise`、`effect_resume_finally_body_raise_after_resume`。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003b1 [TODO] Effect：immediate-resume 嵌套 block 中单 direct perform 的恢复
+### T2003b1 [DONE] Effect：immediate-resume 嵌套 block 中单 direct perform 的恢复
 - 描述：`T2003b` 原始范围同时覆盖 block / branch / while 三类控制流，单轮改动和回归面过大。先收口最小但真实的“statement-position block 嵌套 + 单个 direct perform”路径，验证 immediate-resume 已不再局限于顶层 `val x = perform`。
 - 目标：
   - immediate-resume 允许 `perform` 出现在嵌套 block 的语句列表中，而不再只接受 handle body 顶层局部绑定。
@@ -112,6 +112,10 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003a
+- 完成说明：
+  - LLVM immediate-resume lowering 现已支持 statement-position nested block 中的单个 direct perform，不再只接受 handle body 顶层 `val x = perform`。
+  - resume 后会先继续执行命中的 block tail，再回到外层 handle body；perform 前 block locals 的 slot 会跨 suspend/resume 复用。
+  - 已新增 run-pass fixture：`effect_resume_nested_block_single_perform`；`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003b2 [TODO] Effect：immediate-resume branch 内 direct perform 的恢复
 - 描述：在 block 嵌套恢复打通后，再把 immediate-resume 扩到 `if` 分支中的 direct perform，补齐“分支命中 perform / 未命中 perform”两侧 CFG 与恢复后的合流。

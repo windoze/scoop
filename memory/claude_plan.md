@@ -42,4 +42,10 @@
 - 已完成：检查最新提交、`TODO.md`、`PLAN.md`。最新提交信息未额外标注需优先修复的遗留问题。
 - 已完成：识别到原 `T2003b` 同时覆盖 block / branch / while，单轮实现风险过高。
 - 已完成：决定将 `T2003b` 拆为 `T2003b1`（nested block）、`T2003b2`（if/branch）、`T2003b3`（while + 诊断收口），并将本轮目标固定为 `T2003b1`。
-- 下一步：修改 LLVM immediate-resume lowering，支持 nested block 中的单 direct perform 恢复，并补相应回归。
+- 已完成：修改 LLVM immediate-resume lowering，支持 statement-position nested block 中的单 direct perform 恢复。
+- 已完成：新增 run-pass fixture `effect_resume_nested_block_single_perform`，并修正其语法为 `@Safe { ... }` block 表达式，避免被 parser 误判为 trailing lambda。
+- 已完成：验证通过：
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 下一步：更新 git 状态并提交本轮任务完成 commit，然后停止。

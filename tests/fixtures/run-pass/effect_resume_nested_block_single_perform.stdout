@@ -1,0 +1,11 @@
+body_start
+outer_block
+inner_block
+arm
+resumed_sum
+42
+after_inner
+10
+after_outer
+result
+101

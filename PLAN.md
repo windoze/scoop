@@ -40,13 +40,14 @@ cargo run -p scoop --features llvm -- test
   - 已对原 `T2003` 做范围审计：它同时包含 immediate-resume 的单-perform cleanup、控制流内 perform 恢复，以及 mixed-arm / nested handle / GC stress 回归矩阵，单轮实现与验收面过大，现拆为 `T2003a` / `T2003b*` / `T2003c`。
   - T2003a 已完成：现有单-perform immediate-resume lowering 已支持 `finally`，并在正常 resume、arm raise、resume 后间接 raise 三条路径上保持 cleanup 恰好一次。
   - 已进一步审计 `T2003b`：block / branch / while 的 CFG 形状差异明显，单轮同时推进会把扫描、恢复点、诊断三类改动耦合在一起；现再拆为 `T2003b1`（nested block）、`T2003b2`（if/branch）、`T2003b3`（while + 诊断收口）。
-  - 当前 immediate-resume handle body 仍只允许顶层单个直接 `perform`；本轮先推进 `T2003b1`，把最小真实的 nested block 恢复路径落地。
+  - T2003b1 已完成：immediate-resume 现已支持 statement-position nested block 中的单 direct perform；resume 会先继续 block tail，再回到外层 handle body，并复用 perform 前 block locals。
+  - 当前下一步进入 `T2003b2`：扩展 immediate-resume 到 if/branch 中的 direct perform。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
   - T2002b（已完成）：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
   - T2003a（已完成）：补齐单-perform immediate-resume 的 `finally` cleanup 语义。
-  - T2003b1：扩展 immediate-resume 到 nested block 中的单个 direct perform。
+  - T2003b1（已完成）：扩展 immediate-resume 到 nested block 中的单个 direct perform。
   - T2003b2：扩展 immediate-resume 到 if/branch 中的 direct perform。
   - T2003b3：扩展 immediate-resume 到 while 中的 direct perform，并收口剩余稳定诊断。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
