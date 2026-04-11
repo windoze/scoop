@@ -636,6 +636,60 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.position_at_end(no_match_bb);
                 self.builder.build_unreachable()?;
             }
+            CgTy::String => {
+                for arm in arms {
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. }
+                        | hir::WhenPat::StringLit { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when pattern (string)",
+                                at: arm.pat.span().into(),
+                            });
+                        }
+                    }
+                }
+
+                let check_bbs = (0..arms.len())
+                    .map(|i| {
+                        self.context
+                            .append_basic_block(func, &format!("when_check_{i}"))
+                    })
+                    .collect::<Vec<_>>();
+                let no_match_bb = self.context.append_basic_block(func, "when_no_match");
+                let raw = subject_raw.into_pointer_value();
+
+                self.builder.build_unconditional_branch(check_bbs[0])?;
+
+                for (idx, arm) in arms.iter().enumerate() {
+                    self.builder.position_at_end(check_bbs[idx]);
+
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. } => {
+                            self.builder.build_unconditional_branch(arm_bbs[idx])?;
+                        }
+                        hir::WhenPat::StringLit { .. } => {
+                            let cond = self
+                                .codegen_when_pat_cond_for_string_with_value(span, raw, &arm.pat)?;
+                            let else_bb = if idx + 1 < arms.len() {
+                                check_bbs[idx + 1]
+                            } else {
+                                no_match_bb
+                            };
+                            self.builder
+                                .build_conditional_branch(cond, arm_bbs[idx], else_bb)?;
+                        }
+                        _ => unreachable!("string patterns validated above"),
+                    }
+                }
+
+                self.builder.position_at_end(no_match_bb);
+                self.builder.build_unreachable()?;
+            }
             CgTy::Tuple(tuple_ty) => {
                 for arm in arms {
                     match &arm.pat {
@@ -1342,6 +1396,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             CgTy::Bool => self.codegen_when_pat_cond_for_bool(at, pat, subject_ptr),
             CgTy::Int(int_ty) => self.codegen_when_pat_cond_for_int(at, int_ty, pat, subject_ptr),
+            CgTy::String => self.codegen_when_pat_cond_for_string(at, pat, subject_ptr),
             CgTy::Tuple(tuple_ty) => {
                 self.codegen_when_pat_cond_for_tuple(at, tuple_ty, pat, subject_ptr)
             }
@@ -1569,6 +1624,81 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(super) fn codegen_when_pat_cond_for_string(
+        &mut self,
+        at: crate::span::Span,
+        pat: &hir::WhenPat,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let loaded = self
+            .builder
+            .build_load(
+                self.llvm_scoop_string_ptr_type(),
+                subject_ptr,
+                "load_when_string",
+            )?
+            .into_pointer_value();
+        self.codegen_when_pat_cond_for_string_with_value(at, loaded, pat)
+    }
+
+    pub(super) fn codegen_when_pat_cond_for_string_with_value(
+        &mut self,
+        at: crate::span::Span,
+        value: PointerValue<'ctx>,
+        pat: &hir::WhenPat,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Else { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            hir::WhenPat::StringLit { span } => {
+                let expected = self.codegen_string_literal(*span)?;
+                let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when string pattern literal value",
+                        at: (*span).into(),
+                    });
+                };
+                let fn_val = self.declare_runtime_string_equals();
+                let call = self.builder.build_call(
+                    fn_val,
+                    &[value.into(), expected_ptr.into()],
+                    "when_str_eq",
+                )?;
+                let raw_result = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "when string equals return value",
+                        at: at.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when string equals return type",
+                        at: at.into(),
+                    });
+                };
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    eq_i64,
+                    self.context.i64_type().const_zero(),
+                    "when_str_eq_bool",
+                )?)
+            }
+            hir::WhenPat::Or { pats, .. } => {
+                let mut cond = self.context.bool_type().const_int(0, false);
+                for p in pats {
+                    let c = self.codegen_when_pat_cond_for_string_with_value(at, value, p)?;
+                    cond = self.builder.build_or(cond, c, "when_or")?;
+                }
+                Ok(cond)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when pattern (string)",
+                at: pat.span().into(),
+            }),
+        }
+    }
+
     pub(super) fn codegen_when_pat_cond_for_tuple(
         &mut self,
         at: crate::span::Span,
@@ -1761,6 +1891,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     expected,
                     "when_tuple_char_eq",
                 )?)
+            }
+            hir::WhenPat::StringLit { span } => {
+                let CgTy::String = elem_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem string pattern type",
+                        at: pat.span().into(),
+                    });
+                };
+                let raw = self
+                    .builder
+                    .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
+                    .into_pointer_value();
+                self.codegen_when_pat_cond_for_string_with_value(*span, raw, pat)
             }
             hir::WhenPat::Tuple { elements, .. } => {
                 let CgTy::Tuple(nested_tuple_ty) = elem_ty else {

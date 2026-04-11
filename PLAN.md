@@ -454,6 +454,32 @@ cargo run -p scoop --features llvm -- test
   - 为满足当前仓库“严格 clippy 过零 warning”基线，顺手把 `hir/lower/mod.rs` 的 `HirLowering::new(...)` 收口为 `HirLoweringSetup`，消除一个现存 `too_many_arguments` lint；该改动不改变 lowering 语义。
   - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (868)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
+## 4.5 字面量完整性收尾审计（T0150，当前伞型任务）
+
+> 背景：T0145~T0149 已分别打通 hex/binary、Char、Float、Array 等字面量主路径，但剩余工作已从“单一功能缺失”转为“跨语境完整性审计”。一次性完成所有语境的补齐会把 parser/typecheck/lowering/codegen/comptime/fixtures 全部耦合在同一提交里，因此拆成按语境分层的小任务，逐个落地并回归。
+
+- DONE（T0150e）：`when`/模式匹配字面量完整性
+  - typecheck 现为 `Int/String/Bool` literal pattern 补上 subject 类型约束，新增稳定诊断：`when_int_pat_not_int`、`when_string_pat_not_string`、`when_bool_pat_not_bool`；原有 `when_char_pat_not_char` 保持不变。
+  - LLVM `when` codegen 现支持 `CgTy::String` subject：无 guard fast-path 与 guard/or-pattern 链式路径都会调用 `scoop_string_equals` 做字面量比较；tuple 元素中的 `String` literal pattern 也同步补齐。
+  - 新增 run-pass fixture `when_literal_string_bool_char_basic`，覆盖 String / Bool / Char 顶层 pattern，以及 tuple 内部的 `(String, Char)` literal pattern；新增 typecheck failure fixture `when_string_pattern_not_string_is_error` 锁定错类型诊断。既有 parse fixture `when_float_pattern_is_error` 继续锁定 Float pattern 的单一错误行为。
+  - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (870)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+
+- TODO（T0150f）：comptime / `const` 语境字面量完整性
+  - 审计所有标量字面量在 `const fun` / `const val` / `comptime` 块中的求值行为与错误路径。
+  - 对 Array/Tuple/Unit 在 comptime 中的当前策略给出稳定行为：要么支持，要么报明确错误，不能静默降级。
+
+- TODO（T0150g）：多文件 + 插值字符串 + 直接方法调用语境
+  - 复核 Char/Float/Array 在非入口文件中的运行路径。
+  - 复核 `"${expr}"` 插值与字面量上的直接方法调用（`42.toString()`、`'A'.toInt()`、`[1,2].size()`）的端到端行为。
+
+- TODO（T0150h）：类型上下文吸收与字面量运算语义
+  - 审计整数 / 浮点 absorption、数组字面量上下文推断，以及字面量之间的算术/比较/方法分发组合。
+  - 目标是把“需要显式中间变量才能工作”的剩余缺口收敛成明确的单独任务，而不是隐式留在当前伞型任务里。
+
+- TODO（T0150i）：边界值与词法/诊断审计
+  - 锁定整数溢出、非法 Float/Char/hex/binary 文本的错误路径与定位。
+  - 新增 failure fixtures / 单测，确保诊断码与 source location 稳定。
+
 ## 5. 泛型 where 约束完善
 
 - DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：

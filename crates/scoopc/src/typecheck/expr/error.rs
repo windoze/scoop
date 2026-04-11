@@ -683,6 +683,30 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`when` 的 Int literal pattern 只能用于整数类型，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_int_pat_not_int))]
+    WhenIntPatNotInt {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 String literal pattern 只能用于 String，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_string_pat_not_string))]
+    WhenStringPatNotString {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 Bool literal pattern 只能用于 Bool，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_bool_pat_not_bool))]
+    WhenBoolPatNotBool {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`when` 的 Char literal pattern 只能用于 Char，但 subject 为 {found}")]
     #[diagnostic(code(scoop::typecheck::when_char_pat_not_char))]
     WhenCharPatNotChar {

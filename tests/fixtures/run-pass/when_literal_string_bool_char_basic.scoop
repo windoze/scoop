@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: when_literal_string_bool_char_basic.stdout
+//
+// T0150e: String / Bool / Char literal patterns should work in `when` expressions.
+
+import scoop.core.*
+
+fun classifyText(value: String): String {
+    return when (value) {
+        "yes" -> "Y"
+        "no" -> "N"
+        else -> "?"
+    }
+}
+
+fun classifyBool(value: Bool): String {
+    return when (value) {
+        true -> "T"
+        false -> "F"
+    }
+}
+
+fun classifyChar(value: Char): String {
+    return when (value) {
+        'A' -> "alpha"
+        'Z' -> "omega"
+        else -> "other"
+    }
+}
+
+fun classifyPair(value: (String, Char)): String {
+    return when (value) {
+        ("go", 'A') -> "tuple-hit"
+        else -> "tuple-miss"
+    }
+}
+
+fun main() {
+    println(classifyText("yes"))
+    println(classifyText("maybe"))
+    println(classifyBool(true))
+    println(classifyBool(false))
+    println(classifyChar('A'))
+    println(classifyChar('Q'))
+    println(classifyPair(("go", 'A')))
+    println(classifyPair(("stop", 'A')))
+}

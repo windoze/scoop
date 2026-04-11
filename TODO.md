@@ -1724,7 +1724,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (868)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150 [TODO] 字面量完整性：所有字面量在所有语境下可工作
+### T0150 字面量完整性：所有字面量在所有语境下可工作（伞型任务，已拆分为 T0150e-T0150i）
 
 - 描述：T0145-T0149 分别实现了各类字面量的核心管线。本任务是一个收尾/审计任务，确保**所有字面量类型**（Int/hex/binary、String、Bool、Char、Float64/Float32、Array、Tuple、Unit）在**所有语境**下均可正确工作，消除遗漏的边角场景。
 - 审计与补齐范围：
@@ -1759,6 +1759,79 @@ cargo run -p scoop --features llvm -- test
   - 审计完成后所有字面量类型在所有列出的语境中行为正确。
   - `cargo test --all` + `cargo run -p scoop -- test` + `cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T0145、T0146、T0147、T0148、T0149
+
+### T0150e [DONE] 字面量完整性：`when`/模式匹配语境审计与补齐
+
+- 描述：先收敛最容易在 lowering/codegen 分叉的 `when`/模式匹配语境，覆盖 Int（含 hex/binary）、String、Bool、Char 等可精确比较字面量，并把 Float pattern 锁定为稳定错误。
+- 目标：
+  - `when (x)` 中的 Int（含 `0x`/`0b`）、String、Bool、Char 字面量 pattern 均能稳定工作，不 panic、不退化。
+  - Float 字面量 pattern 给出单一、明确、可定位的错误，不产生级联噪声。
+  - 如发现当前实现存在其它“用户可见但非本子任务范围”的限制，创建后续 TODO，而不是把实现范围继续扩大。
+- 验收：
+  - 新增或更新 run-pass fixtures，至少覆盖：
+    - Int/hex/binary pattern；
+    - String pattern；
+    - Bool pattern；
+    - Char pattern；
+    - 多 arm 组合与默认分支。
+  - 新增或更新 failure fixture，锁定 Float pattern 的错误行为。
+  - `cargo test --all` + `cargo run -p scoop -- test` + `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+- 依赖：T0145、T0146、T0148
+- 完成说明：
+  - **typecheck 约束补齐**：`crates/scoopc/src/typecheck/when_pat.rs` 现为 `Int/String/Bool` literal pattern 校验 subject 类型，并新增诊断 `scoop::typecheck::when_int_pat_not_int`、`scoop::typecheck::when_string_pat_not_string`、`scoop::typecheck::when_bool_pat_not_bool`（`crates/scoopc/src/typecheck/expr/error.rs`）。
+  - **LLVM `when` String pattern codegen**：`crates/scoopc/src/llvm/codegen/control_flow.rs` 新增 `CgTy::String` 的 `when` 分派与 `codegen_when_pat_cond_for_string*` helper，通过 runtime `scoop_string_equals` 比较 subject 与字面量；tuple 元素中的 `String` literal pattern 也同步支持。
+  - **回归覆盖**：新增 `tests/fixtures/run-pass/when_literal_string_bool_char_basic.*`，覆盖 String / Bool / Char 顶层 pattern 与 tuple 内 `(String, Char)` literal pattern；新增 `tests/fixtures/typecheck/when_string_pattern_not_string_is_error.scoop` 锁定错类型诊断。既有 `tests/fixtures/run-pass/when_int_literal_hex_binary_patterns.*` 与 `tests/fixtures/parse/when_float_pattern_is_error.scoop` 继续覆盖 Int/hex/binary 与 Float failure 行为。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (870)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+
+### T0150f [TODO] 字面量完整性：comptime / `const` 语境审计与补齐
+
+- 描述：审计所有标量字面量在 `const fun` / `const val` / `comptime` 块中的求值路径，并确认 Array/Tuple/Unit 的当前行为是“可工作”还是“明确报错”。
+- 目标：
+  - Int/hex/binary、Bool、Char、Float 在 comptime 中有稳定行为与回归覆盖。
+  - Array/Tuple/Unit 在 comptime 中不再静默忽略或 panic。
+- 验收：
+  - 新增 comptime fixtures 与必要的 compile-fail coverage。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150e
+
+### T0150g [TODO] 字面量完整性：多文件 + 插值字符串 + 直接方法调用语境
+
+- 描述：复核字面量在非入口文件、插值字符串以及“字面量直接点方法”这三类容易遗漏的语境中的端到端行为。
+- 目标：
+  - Char/Float/Array 等字面量在 helper 文件中可用。
+  - 插值字符串 `${expr}` 支持各字面量类型。
+  - `42.toString()`、`'A'.toInt()`、`[1, 2, 3].size()` 等直接方法调用路径稳定。
+- 验收：
+  - 新增 run-pass fixtures 覆盖多文件 + 插值 + 直接方法调用组合。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150e
+
+### T0150h [TODO] 字面量完整性：类型上下文吸收与运算语义审计
+
+- 描述：聚焦字面量与 expected type / 运算符 / 方法分发的交互，补齐 Int/Float absorption 与数组上下文推断的残余场景。
+- 目标：
+  - `UInt8`/`Int32`/`Float32` 等目标类型吸收行为稳定。
+  - 数组字面量在函数参数、返回值、嵌套表达式等上下文中行为一致。
+  - 字面量之间的基础算术/比较/方法调用组合受 fixture 保护。
+- 验收：
+  - 新增 run-pass / compile-fail fixtures 覆盖吸收与运算组合。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150e、T0149
+
+### T0150i [TODO] 字面量完整性：边界值与词法/诊断审计
+
+- 描述：锁定所有非法字面量文本和溢出场景的诊断质量，避免 parser/lexer/codegen 错误信息回退。
+- 目标：
+  - 整数溢出、非法 Float、非法 Char、非法 hex/binary 的错误路径都有稳定 fixture 或单测。
+  - 诊断位置、错误码和单一错误行为尽量稳定。
+- 验收：
+  - 新增 parse/build/compile-fail fixtures 与必要单测。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150e
 
 ### T0144 [TODO] 审计：编译器 codegen 限制全面排查与任务拆分
 

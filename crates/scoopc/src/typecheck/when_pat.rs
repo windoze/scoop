@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::expr::{EnumTypeSubstContext, ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
@@ -43,12 +43,39 @@ fn check_when_pat(
     bindings: &mut HashMap<Span, TypeId>,
 ) -> Result<(), ExprTypeError> {
     match pat {
-        ast::WhenPat::Else { .. }
-        | ast::WhenPat::Wildcard { .. }
-        | ast::WhenPat::Rest { .. }
-        | ast::WhenPat::IntLit { .. }
-        | ast::WhenPat::StringLit { .. }
-        | ast::WhenPat::BoolLit { .. } => Ok(()),
+        ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Rest { .. } => {
+            Ok(())
+        }
+        ast::WhenPat::IntLit { span } => {
+            if is_integer_pattern_subject(expected_ty, lower, builtins) {
+                Ok(())
+            } else {
+                Err(ExprTypeError::WhenIntPatNotInt {
+                    found: lower.fmt_type(expected_ty),
+                    span: (*span).into(),
+                })
+            }
+        }
+        ast::WhenPat::StringLit { span } => {
+            if is_string_pattern_subject(expected_ty, lower, builtins) {
+                Ok(())
+            } else {
+                Err(ExprTypeError::WhenStringPatNotString {
+                    found: lower.fmt_type(expected_ty),
+                    span: (*span).into(),
+                })
+            }
+        }
+        ast::WhenPat::BoolLit { span } => {
+            if expected_ty == builtins.bool_ {
+                Ok(())
+            } else {
+                Err(ExprTypeError::WhenBoolPatNotBool {
+                    found: lower.fmt_type(expected_ty),
+                    span: (*span).into(),
+                })
+            }
+        }
         ast::WhenPat::CharLit { span } => {
             if expected_ty == builtins.char_ {
                 Ok(())
@@ -227,6 +254,41 @@ fn check_when_pat(
             Ok(())
         }
     }
+}
+
+fn is_integer_pattern_subject(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    if ty == builtins.int || ty == builtins.uint {
+        return true;
+    }
+
+    match lower.type_kind(ty) {
+        TypeKind::Value(
+            ValueTypeKind::Int
+            | ValueTypeKind::UInt
+            | ValueTypeKind::IntN(_)
+            | ValueTypeKind::UIntN(_),
+        ) => true,
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Int8"
+                | "scoop.core.Int16"
+                | "scoop.core.Int32"
+                | "scoop.core.Int64"
+                | "scoop.core.UInt8"
+                | "scoop.core.UInt16"
+                | "scoop.core.UInt32"
+                | "scoop.core.UInt64"
+        ),
+        _ => false,
+    }
+}
+
+fn is_string_pattern_subject(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+    ty == builtins.string || matches!(lower.type_kind(ty), TypeKind::Ref(RefTypeKind::String))
 }
 
 fn when_pat_contains_bind(pat: &ast::WhenPat) -> bool {

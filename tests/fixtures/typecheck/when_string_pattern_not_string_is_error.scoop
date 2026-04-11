@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_string_pat_not_string
+// EXPECT-ERROR: String literal pattern
+// EXPECT-ERROR-AT: 11:5
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val result: Int = when (42) {
+    "42" -> 1
+    else -> 0
+}
