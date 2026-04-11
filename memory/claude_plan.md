@@ -26,7 +26,7 @@
 - [x] 实现当前目标任务
 - [x] 运行测试与质量检查
 - [x] 更新文档与任务状态
-- [ ] 提交变更并停止
+- [x] 提交变更并停止
 
 ### 进度日志
 
@@ -70,6 +70,10 @@
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 当前剩余动作：
-  - 检查工作区；
-  - 提交 `T2003c0b2a` 结果；
-  - 停止。
+  - 无；本轮已完成并提交，等待下一次调用处理 `T2003c0b2b`。
+- 已完成提交：
+  - 任务拆分提交：`a77fc55` (`[T2003c0b2a] Split mixed escape indirect task`)
+  - 实现提交：`be8e163` (`[T2003c0b2a] Enable mixed escape indirect single-site dispatch`)
+- 当前状态：
+  - 工作区已清理完成。
+  - 本轮到此停止。
