@@ -52,7 +52,9 @@ cargo run -p scoop --features llvm -- test
   - 已进一步审计 `T2003c0b2`：它仍同时覆盖 indirect 单站点与 richer mixed 组合；现继续拆成 `T2003c0b2a` / `T2003c0b2b`，先落地 indirect single-site，再扩展更复杂 mixed 形状。
   - T2003c0b2a 已完成：mixed-arm lowering 现已支持“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect call site”的最小子集；continuation step 会把双通道 resume payload 写回 callee suspend state，并在 `resume(...)` 后重新调用 callee、继续执行 source-handle 的 top-level tail。
   - 同时已补稳定诊断：`direct + indirect sites not yet supported`、`multiple indirect call sites not yet supported`、`indirect perform before immediate site not yet supported`。
-  - 当前下一步进入 `T2003c0b2b`：继续扩展 sibling escape-continuation 到 richer mixed 组合。
+  - 审计 `T2003c0b2b` 后确认它其实跨了两类不同难度的问题：一类是 immediate site 之后的 top-level site matrix（multiple direct / multiple indirect / direct+indirect），另一类是 pre-immediate escape site，它要求 continuation step 在恢复后仍能重新进入 sibling immediate-resume state machine。继续整包推进会把两个状态机问题耦合在一起，因此再拆成 `T2003c0b2b1` / `T2003c0b2b2` / `T2003c0b2b3`。
+  - 进一步尝试 `T2003c0b2b1` 时，用“outer immediate-resume handle + inner single-arm escape handle tail”复用既有 multi-perform lowering，但手写等价程序当前也会在 LLVM codegen 报 `value coercion`。这说明 immediate-resume resumed tail 里把 nested `handle` 当结果表达式继续 lowering 仍是缺口，因此再补一个前置任务 `T2003c0b2b0`。
+  - 当前下一步调整为 `T2003c0b2b0`：先补 immediate-resume tail 中 nested handle result lowering，再回到 `T2003c0b2b1`。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -64,7 +66,11 @@ cargo run -p scoop --features llvm -- test
   - T2003c0a（已完成）：补 mixed-arm immediate-resume + sibling non-resuming 所需的 LLVM 多 arm handle dispatch 最小能力。
   - T2003c0b1（已完成）：把 sibling escape-continuation arm 接入多 arm dispatch 的 direct single-site 子集，并补稳定诊断。
   - T2003c0b2a（已完成）：扩展 sibling escape-continuation 到 single indirect site。
-  - T2003c0b2b：扩展 sibling escape-continuation 到 richer mixed 组合。
+  - T2003c0b2b0：补 immediate-resume tail 中 nested handle result lowering。
+  - T2003c0b2b1：扩展 sibling escape-continuation 到 post-immediate multiple direct sites。
+  - T2003c0b2b2：扩展 sibling escape-continuation 到 post-immediate indirect/direct+indirect site matrix。
+  - T2003c0b2b3：扩展 sibling escape-continuation 到 pre-immediate top-level sites。
+  - T2003c0b2c：补 sibling escape-continuation 的 control-flow / nested body 形状。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 
 ## 2. Structured Concurrency / `Task<T>`（T21）

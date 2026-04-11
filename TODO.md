@@ -206,17 +206,53 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_escape_indirect`，build-fail `effect_resume_mixed_escape_direct_indirect_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single escape-arm 的 richer site matrix）
-- 描述：`T2003c0b2a` 只打通了“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect site”的最小子集。当前仍被稳定诊断拦住的 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites`、`perform before immediate site`，本质上都属于同一 source-handle 内 site 调度与恢复点编排缺口，应在这里转成真实 lowering，而不是作为 `T2003` 的长期终态。
+### T2003c0b2b0 [TODO] Effect：LLVM immediate-resume tail 中嵌套 `handle` 结果表达式
+- 描述：为实现 `T2003c0b2b1`，尝试把 mixed-arm body 重写成“outer immediate-resume handle + inner single-arm escape-continuation handle tail”。但手写等价程序当前也会在 LLVM codegen 报 `value coercion`，说明“immediate-resume tail 中把嵌套 `handle` 作为结果表达式继续 lowering”本身还是缺口，需要先补。
 - 目标：
-  - 在“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的前提下，支持多个 direct escape sites、多个 indirect escape sites、direct+indirect 共存，以及 escape site 位于 immediate site 前后的组合。
-  - 多个 escape sites 共享稳定的 dispatch / suspension / captured-handler-stack / one-shot continuation 语义，不因 site 顺序或 site kind 不同而错编。
-  - 若本任务暂不覆盖更深层 body 形状，必须由显式 follow-up 任务承接，而不是继续停留在“剩余组合仅给稳定诊断”。
+  - `codegen_handle_expr_immediate_resume` 的 resumed tail / final value 路径可接受嵌套 `handle` 结果表达式，不再在手写等价程序上报 `value coercion`。
+  - immediate-resume + nested escape-handle 的结果值、`finally` cleanup 与 raise 传播语义保持稳定。
+  - 为后续 `T2003c0b2b1` 提供可复用的 lowering primitive，而不是在 mixed-arm 专用路径里重复实现一套多 suspension state machine。
 - 验收：
-  - 新增 run-pass fixtures：multiple direct sites、multiple indirect sites、direct+indirect 共存、escape-before-immediate。
+  - 新增 run-pass 或等价回归：手写“outer immediate-resume + inner escape handle tail”最小样例。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2a
+
+### T2003c0b2b1 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
+- 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为单-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；这一步现在依赖 `T2003c0b2b0` 提供 nested-handle result lowering。
+- 目标：
+  - 在“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的前提下，支持 immediate site 之后的多个 top-level direct escape sites。
+  - 多个 direct escape sites 在每次 `resume(...)` 后都能继续命中后续 sibling escape arm，不再停留在 `multiple direct perform points not yet supported` 诊断。
+  - sibling escape arm 的 self-capture、captured locals 与 `finally` cleanup 语义保持与既有 single-arm multi-perform escape-continuation 一致。
+- 验收：
+  - 新增 run-pass fixture：multiple direct sites（all post-immediate）。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2b0
+
+### T2003c0b2b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate indirect/direct+indirect site matrix）
+- 描述：在 post-immediate multiple direct sites 打通后，继续补齐“一个 immediate-resume arm + 一个 sibling escape-continuation arm”在 immediate site 之后的 remaining top-level site matrix：multiple indirect call sites，以及 direct + indirect 共存。
+- 目标：
+  - 支持 immediate site 之后的多个 indirect escape sites。
+  - 支持 immediate site 之后 direct + indirect escape sites 共存，不再依赖 `direct + indirect sites not yet supported` / `multiple indirect call sites not yet supported` 诊断。
+  - direct/indirect 混合 site 在 captured-handler-stack、one-shot continuation 与 tail replay 上保持稳定一致。
+- 验收：
+  - 新增 run-pass fixtures：multiple indirect sites、direct+indirect 共存（all post-immediate）。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2b1
+
+### T2003c0b2b3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，pre-immediate top-level sites）
+- 描述：`perform before immediate site` 不是单纯的 site 扫描问题，而是 continuation step 在恢复后仍需重新命中 sibling immediate-resume state machine 的控制流缺口。把它单独拆出来，避免和 post-immediate site matrix 耦合。
+- 目标：
+  - 支持 escape site 位于 immediate site 之前的 top-level direct/indirect 组合。
+  - continuation step 在恢复 pre-immediate escape site 之后，仍可正确进入后续 immediate-resume site，并保持 sibling handler-scope / one-shot 语义。
+  - `perform before immediate site not yet supported` / `indirect perform before immediate site not yet supported` 仅在更深层 body 形状中保留。
+- 验收：
+  - 新增 run-pass fixture：escape-before-immediate（top-level direct/indirect 至少各一例或等价覆盖）。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2b2
 
 ### T2003c0b2c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，control-flow / nested body 形状）
 - 描述：在单个 escape arm 的 richer site matrix 打通后，继续去掉“top-level `val = perform/call`”门禁，把 sibling escape-continuation 的 perform sites 扩到 block / branch / while 等更真实的 body 形状。
@@ -228,7 +264,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：nested block / if / while 中的 mixed-arm escape direct/indirect 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0b2b
+- 依赖：T2003c0b2b3
 
 ### T2003c0c1 [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming）
 - 描述：当前 multi-arm lowering 在存在 escape-continuation 时仍直接拒绝 sibling non-resuming arms。若 `T2003` 要收口为“合法 perform/handler 组合全部可运行”，就必须补齐 escape-continuation 与 non-resuming 在同一 source-handle 下的 dispatch / handler-scope / self-capture 语义。
