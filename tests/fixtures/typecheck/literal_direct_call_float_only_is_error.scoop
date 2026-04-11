@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_matching_overload
+// EXPECT-ERROR-AT: 11:15
+// EXPECT-ERROR: scoop.core.isInfinite
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    val bad = 1.isInfinite()
+}

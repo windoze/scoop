@@ -1879,7 +1879,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (876)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150h-3 [TODO] 字面量运算/比较/直接方法调用矩阵与诊断锁定
+### T0150h-3 [DONE] 字面量运算/比较/直接方法调用矩阵与诊断锁定
 
 - 描述：补齐 remaining literal arithmetic/comparison/direct-call 组合，并锁定失败路径的诊断行为。
 - 目标：
@@ -1889,6 +1889,16 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass / compile-fail fixtures 与必要单测。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150h-1、T0150h-2
+- 完成说明：
+  - **调用结果类型保真修复**：`crates/scoopc/src/hir/lower/expr.rs` 现会在 call lowering 后优先保留 typecheck side table 写回的真实结果类型，而不再把 extension/member/default-arg/general call 一律写成 `Any`。这修复了 `val x = (-2.5).abs()`、`val x = id(1)` 等“无显式类型标注的局部绑定”在 LLVM 后端触发 `value coercion` / `call callee type` 的问题。
+  - **LLVM 单测补齐**：`crates/scoopc/src/llvm/mod.rs` 新增 `lowered_call_results_keep_concrete_types_for_local_bindings`，通过“parse → resolve → typecheck → lowering → codegen”完整链路锁定 unannotated local call result 仍保持 `Int` / `Float64` / `Bool` 具体类型。
+  - **成功矩阵覆盖**：新增 `tests/fixtures/run-pass/literal_ops_compare_direct_matrix_basic.*`，覆盖 Int/Char/Float/String/Array 字面量与算术、比较、直接方法调用的组合，并显式覆盖 `abs()` / `isInfinite()` / `toInt()` / `compareTo()` / `concat()` / `size()` 的无注解局部绑定路径。
+  - **失败诊断锁定**：新增 `tests/fixtures/typecheck/literal_compare_bool_is_error.scoop` 与 `tests/fixtures/typecheck/literal_direct_call_float_only_is_error.scoop`，分别固定“不支持 Bool 有序比较”和“`Int.isInfinite()` 无匹配重载”的错误码、定位与文案。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (879)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0150i [TODO] 字面量完整性：边界值与词法/诊断审计
 

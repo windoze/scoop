@@ -1,0 +1,33 @@
+// 目标：T0150h-3 字面量运算/比较/直接方法调用矩阵。
+//
+// 说明：
+// - 覆盖 Int/Char/Float/String/Array 字面量与基础运算、比较、直接方法调用的组合；
+// - 特别锁定“无显式类型标注的局部绑定”路径，避免 extension/top-level 调用结果在 lowering 后退化为 `Any`。
+
+import scoop.core.*
+
+fun main() {
+    val intText = (0xF0 + 0b1111).toString()
+    val intEq = (0xF0 + 0b1111) == 255
+    val charCmp = ('A' < 'a') && ('Z' >= 'Y')
+    val charCodeOk = ('A'.toInt() + 1) == 66
+    val floatAbs = (-2.5).abs()
+    val floatInf = (1.0 / 0.0).isInfinite()
+    val floatToInt = (3.5 + 0.5).toInt()
+    val floatEq = (1.5 + 0.5) == 2.0
+    val strCmp = "ab".compareTo("ac") < 0
+    val strEq = "hi".concat("!") == "hi!"
+    val arraySizeOk = [1, 2, 3].size() == 3
+
+    println(intText)
+    println(intEq.toString())
+    println(charCmp.toString())
+    println(charCodeOk.toString())
+    println(floatAbs.toString())
+    println(floatInf.toString())
+    println(floatToInt.toString())
+    println(floatEq.toString())
+    println(strCmp.toString())
+    println(strEq.toString())
+    println(arraySizeOk.toString())
+}

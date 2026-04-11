@@ -151,6 +151,12 @@ impl<'a> HirLowering<'a> {
                 (inner.kind, inner.ty)
             }
             ast::ExprKind::Call { callee, args } => {
+                // 调用表达式在 typecheck 后已经有稳定结果类型；这里即使后续把 member/extension/default-arg
+                // 调用降糖成其它 HIR 形态，也要优先保留该结果类型，避免局部 `val x = call(...)`
+                // 因为中间表达式被写成 `Any` 而在 codegen 时触发错误的 value coercion。
+                let typechecked_call_ty = self.typechecked_expr_ty(e.span);
+                let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
+
                 // T0108：safe call 方法调用：`receiver?.method(args)` → when desugar。
                 if let ast::ExprKind::SafeMemberAccess {
                     receiver: inner_receiver,
@@ -168,7 +174,7 @@ impl<'a> HirLowering<'a> {
                     );
                     return Expr {
                         span: e.span,
-                        ty,
+                        ty: typechecked_call_ty.unwrap_or(ty),
                         kind,
                     };
                 }
@@ -237,14 +243,14 @@ impl<'a> HirLowering<'a> {
                             callee: Box::new(callee),
                             args: lowered_args,
                         },
-                        self.builtins.any,
+                        call_ty,
                     ))
                 })() {
                     (kind, ty)
                 } else if let Some((kind, ty)) =
                     self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
                 {
-                    (kind, ty)
+                    (kind, typechecked_call_ty.unwrap_or(ty))
                 } else if let Some((kind, ty)) = (|| {
                     // T1508a：直连成员函数调用（final/private）：把 `receiver.method(args...)`
                     // 降糖为顶层调用 `Owner.method(receiver, args...)`。
@@ -320,14 +326,14 @@ impl<'a> HirLowering<'a> {
                             callee: Box::new(callee),
                             args: lowered_args,
                         },
-                        self.builtins.any,
+                        call_ty,
                     ))
                 })() {
                     (kind, ty)
                 } else if let Some((kind, ty)) =
                     self.try_lower_default_args_call_expr(pkg_prefix, e.span, callee, args)
                 {
-                    (kind, ty)
+                    (kind, typechecked_call_ty.unwrap_or(ty))
                 } else {
                     // T1312：class ctor call 仍会被降低为 `UnresolvedIdent`，
                     // 但 codegen 需要知道它的 ctor candidates（来自 resolver 的 `ValueIdent.call`）。
@@ -402,7 +408,7 @@ impl<'a> HirLowering<'a> {
                             callee,
                             args: lowered_args,
                         },
-                        self.builtins.any,
+                        call_ty,
                     )
                 }
             }
@@ -2519,6 +2525,9 @@ impl<'a> HirLowering<'a> {
         callee: &ast::Expr,
         args: &[ast::Expr],
     ) -> Option<(ExprKind, TypeId)> {
+        let typechecked_call_ty = self.typechecked_expr_ty(call_span);
+        let call_ty = typechecked_call_ty.unwrap_or(self.builtins.any);
+
         // 仅处理：顶层函数直接调用 `foo(...)`。
         let callee = match &callee.kind {
             // `callee<T>()`：HIR v0 视为透明包装（同 `lower_expr(TypeApply)`）。
@@ -2712,7 +2721,7 @@ impl<'a> HirLowering<'a> {
 
         let call_expr = Expr {
             span: call_span,
-            ty: self.builtins.any,
+            ty: call_ty,
             kind: ExprKind::Call {
                 callee: Box::new(callee_expr),
                 args: full_args,
@@ -2727,10 +2736,10 @@ impl<'a> HirLowering<'a> {
         Some((
             ExprKind::Block(Block {
                 span: call_span,
-                ty: self.builtins.any,
+                ty: call_ty,
                 stmts,
             }),
-            self.builtins.any,
+            call_ty,
         ))
     }
 

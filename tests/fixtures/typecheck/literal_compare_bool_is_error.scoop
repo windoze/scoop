@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::binary_op_operand_type_mismatch
+// EXPECT-ERROR-AT: 11:20
+// EXPECT-ERROR: 二元运算符 `<` 的操作数类型不匹配
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    val bad = true < false
+}

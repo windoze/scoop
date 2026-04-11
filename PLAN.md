@@ -487,8 +487,10 @@ cargo run -p scoop --features llvm -- test
     - HIR lowering 新增 `lower_block_with_expected` 与 when-arm expected 透传；`if` / `when` / block 的结果类型优先复用 typecheck side table，数组字面量中的复杂元素会自动包一层内部绑定，把元素 expected type 继续传给更深层表达式，而不要求用户显式声明中间变量。
     - 同步修复数组 lowering 中 builtin 标量别名规整：`Array<UInt8>` / `Array<Float32>` 等场景会把 nominal alias 规整为真正 builtin scalar，避免后端把元素误降成 struct 并在 coercion 阶段失败。
     - 新增 `typecheck/literal_array_expected_type_nested_ok` 与 `run-pass/literal_array_expected_type_nested_basic`，覆盖嵌套 `if` / `when` / block / nested array / `Array<UInt8>`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (876)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
-  - TODO（T0150h-3）：字面量运算/比较/直接方法调用矩阵与诊断锁定
-    - 为剩余组合补齐 fixture，并把仍不支持的路径固定为稳定错误而非隐式退化。
+  - DONE（T0150h-3）：字面量运算/比较/直接方法调用矩阵与诊断锁定
+    - HIR call lowering 现优先保留 typecheck side table 写回的结果类型；extension/member/default-arg/general call 在降糖成顶层调用后不再把结果退化为 `Any`，修复 `val x = (-2.5).abs()` / `val x = id(1)` 这类无显式类型标注的局部绑定在 LLVM 后端触发 `value coercion` / `call callee type` 的回归。
+    - 新增 LLVM 单测 `lowered_call_results_keep_concrete_types_for_local_bindings`，用完整 parse→resolve→typecheck→lowering→codegen 链路锁定 unannotated local call result 的 concrete type 保真。
+    - 新增 `run-pass/literal_ops_compare_direct_matrix_basic` 覆盖 Int/Char/Float/String/Array 字面量与算术、比较、直接方法调用的组合；新增 `typecheck/literal_compare_bool_is_error` 与 `typecheck/literal_direct_call_float_only_is_error` 锁定仍不支持的失败路径。`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (879)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 - TODO（T0150i）：边界值与词法/诊断审计
   - 锁定整数溢出、非法 Float/Char/hex/binary 文本的错误路径与定位。

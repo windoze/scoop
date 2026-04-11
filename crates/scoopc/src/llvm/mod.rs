@@ -1742,6 +1742,113 @@ fun main() {
     }
 
     #[test]
+    fn lowered_call_results_keep_concrete_types_for_local_bindings() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun id(x: Int): Int { return x }
+
+fun main() {
+    val n = id(1)
+    val mag = (-2.5).abs()
+    val inf = (1.0 / 0.0).isInfinite()
+
+    println(n.toString())
+    println(mag.toString())
+    println(inf.toString())
+}
+"#,
+        );
+
+        let mut ast = parse_file(&source).unwrap();
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        crate::typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+
+        let files_to_lower = vec![(&source, &ast)];
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &files_to_lower,
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+        let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+        let ir =
+            emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+        assert!(
+            ir.contains("@scoop_int_to_string("),
+            "Unannotated local Int call results should keep Int through lowering/codegen"
+        );
+        assert!(
+            ir.contains("@scoop_float64_to_string("),
+            "Unannotated local Float call results should keep Float64 through lowering/codegen"
+        );
+        assert!(
+            ir.contains("@scoop_bool_to_string("),
+            "Unannotated local Bool call results should keep Bool through lowering/codegen"
+        );
+    }
+
+    #[test]
     fn lowered_hir_codegen_accepts_multi_file_source_map() {
         let session = Session::new().unwrap();
 
