@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle mixed-arm escape continuation not yet supported
+// EXPECT-ERROR: handle mixed-arm escape continuation (multiple direct perform points not yet supported)
 // ARGS: --emit-llvm
 
 import scoop.core.*
@@ -10,19 +10,23 @@ effect Yield {
 }
 
 effect Ask {
-    fun current(): Int
+    fun ask(): String
 }
 
 fun main() {
     val result: Int = handle {
         val x: Int = Yield.next()
+        val first: String = Ask.ask()
+        println(first)
+        val second: String = Ask.ask()
+        println(second)
         x + 1
     } with {
         Yield.next() -> resume {
             resume(41)
         }
-        Ask.current(), k -> {
-            val keep: Continuation<Int> = k
+        Ask.ask(), k -> {
+            val keep: Continuation<String> = k
             val _ = keep
             7
         }

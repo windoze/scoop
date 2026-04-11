@@ -170,17 +170,35 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_custom_nonresuming_dispatch`、`effect_resume_mixed_raise_dispatch`，build-fail `effect_resume_mixed_escape_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation）
-- 描述：在 `T2003c0a` 的 shared dispatch 基础上，把 sibling escape-continuation arm 也接入同一个 source-handle，并收口 mixed-arm immediate-resume 当前剩余的不支持组合。
+### T2003c0b1 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single direct site）
+- 描述：`T2003c0b` 原始范围同时覆盖 direct/indirect perform、多 perform 点以及更复杂 mixed 组合，单轮风险过高。先收口“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的最小可运行直连路径。
 - 目标：
-  - mixed-arm immediate-resume + sibling escape-continuation arm 可在 LLVM 端到端路径运行，不再依赖单独的单-arm lowering。
-  - escape-continuation arm 的 suspension / captured handler stack / sibling self-capture 语义与既有单-arm实现保持一致。
-  - 对本阶段仍不支持的 mixed-arm 组合给出稳定诊断，不再回退到通用的 arm-count 门禁。
+  - mixed-arm immediate-resume + 单个 sibling escape-continuation arm 可在 LLVM 端到端路径运行，至少覆盖 direct perform、单 perform 点、top-level statement-position。
+  - escape-continuation arm 的 suspension / captured handler stack / sibling self-capture 语义与既有单-arm 子集保持一致。
+  - 对 indirect perform、多 perform 点以及本阶段仍不支持的复杂 mixed 组合给出稳定诊断，不再回退到通用的 arm-count 门禁。
 - 验收：
-  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume + escape-continuation 的最小可运行路径与剩余明确不支持的组合。
+  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume + sibling escape-continuation 的最小可运行路径，以及至少一个剩余明确不支持的组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0a
+- 完成说明：
+  - LLVM mixed-arm lowering 现已支持“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的最小 direct single-site 子集；当前要求 immediate site 与 escape site 都是 top-level `val = perform` 形态。
+  - sibling escape-continuation 的 continuation step 现会恢复 pre-escape 的 outer/body captures，并在 `resume(...)` 后继续执行 escape perform 之后的 top-level tail。
+  - immediate arm body 与 escape arm body 执行期间，sibling escape handler frame 都会脱离当前 TLS handler stack，避免同源 self-capture；对 multiple direct perform points 等 richer mixed 组合已改为稳定诊断。
+  - 已新增 fixtures：run-pass `effect_resume_mixed_escape_direct`；build-fail `effect_resume_mixed_escape_is_error` 已改为覆盖“multiple direct perform points not yet supported”。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，indirect / richer mixed）
+- 描述：在 `T2003c0b1` 的 direct single-site 子集上，继续把 sibling escape-continuation 扩到 indirect perform 与更复杂 mixed 组合。
+- 目标：
+  - sibling escape-continuation 不再局限于 direct single-site；indirect perform 与更复杂的 mixed dispatch/captured-handler-stack 语义可在 LLVM 路径运行。
+  - 若与 sibling non-resuming arms 同源混用，dispatch scope、captured handler stack 与 sibling self-capture 语义保持稳定。
+  - 对本阶段仍不支持的 mixed 组合给出稳定诊断。
+- 验收：
+  - 新增 run-pass / build-fail fixtures：覆盖 indirect perform 或等价 richer mixed 路径，以及剩余明确不支持的组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b1
 
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
 - 描述：在 `finally`、控制流主链路与 `T2003c0` 的 mixed-arm LLVM dispatch 落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
@@ -192,7 +210,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0b
+- 依赖：T2003c0b2
 
 ## T21：Structured Concurrency / `Task<T>`
 
