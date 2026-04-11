@@ -2806,6 +2806,14 @@ fn shift_lex_error(err: LexError, base_offset: usize) -> LexError {
             reason,
             span: shift_source_span(span, base_offset),
         },
+        LexError::InvalidIntLiteral { reason, span } => LexError::InvalidIntLiteral {
+            reason,
+            span: shift_source_span(span, base_offset),
+        },
+        LexError::InvalidFloatLiteral { reason, span } => LexError::InvalidFloatLiteral {
+            reason,
+            span: shift_source_span(span, base_offset),
+        },
     }
 }
 

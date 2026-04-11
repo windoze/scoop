@@ -8,7 +8,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr: &hir::Expr,
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match &expr.kind {
+        let value = match &expr.kind {
             hir::ExprKind::UnresolvedIdent { name } => {
                 self.codegen_unresolved_ident(expr.span, name, expected)
             }
@@ -38,6 +38,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 expected,
             ),
             _ => self.codegen_expr(expr),
+        }?;
+
+        if let Some(target) = expected {
+            if target == CgTy::Unit {
+                if value.ty == CgTy::Never {
+                    Ok(value)
+                } else {
+                    Ok(CgValue::unit())
+                }
+            } else {
+                self.coerce_value(expr.span, value, target)
+            }
+        } else {
+            Ok(value)
         }
     }
 
@@ -69,7 +83,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::ExprKind::Unary {
                 op, expr: inner, ..
-            } => self.codegen_unary(expr.span, *op, inner),
+            } => self.codegen_unary(expr.span, expr.ty, *op, inner),
             hir::ExprKind::Binary { lhs, op, rhs, .. } => {
                 self.codegen_binary(expr.span, *op, lhs, rhs)
             }

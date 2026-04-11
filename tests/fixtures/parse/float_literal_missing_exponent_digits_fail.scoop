@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::lex::invalid_float_literal
+// EXPECT-ERROR: 指数部分缺少数字
+// EXPECT-ERROR-AT: 6:9
+
+val x = 1e+

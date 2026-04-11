@@ -178,7 +178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
                 }
                 hir::StmtKind::Expr(expr) => {
-                    let _ = self.codegen_expr(expr)?;
+                    let _ = self.codegen_expr_in_expected_context(expr, Some(CgTy::Unit))?;
                 }
                 hir::StmtKind::While { cond, body } => {
                     self.codegen_while_stmt(stmt.span, cond, body)?;

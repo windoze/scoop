@@ -48,7 +48,7 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::syntax::int_literal::parse_int_literal;
+use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
 };
@@ -429,6 +429,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(parse_int_literal(self.current_source_slice(span)?))
     }
 
+    fn int_literal_bits_for_ty(
+        &self,
+        span: crate::span::Span,
+        int_ty: IntTy,
+    ) -> Result<u64, LlvmEmitError> {
+        let source = self.current_source()?;
+        let text = self.current_source_slice(span)?;
+        let raw = self.parse_current_int_literal(span)?;
+        let bits = checked_positive_int_literal_bits(raw, int_ty).ok_or_else(|| {
+            LlvmEmitError::invalid_literal(
+                source,
+                span,
+                "integer literal",
+                "超出目标整数类型可表示范围",
+                text,
+            )
+        })?;
+        Ok(bits as u64)
+    }
+
+    fn negated_int_literal_bits_for_ty(
+        &self,
+        span: crate::span::Span,
+        literal_span: crate::span::Span,
+        int_ty: IntTy,
+    ) -> Result<u64, LlvmEmitError> {
+        let source = self.current_source()?;
+        let text = self.current_source_slice(span)?;
+        let raw = self.parse_current_int_literal(literal_span)?;
+        let bits = checked_negated_int_literal_bits(raw, int_ty).ok_or_else(|| {
+            LlvmEmitError::invalid_literal(
+                source,
+                span,
+                "integer literal",
+                "超出目标整数类型可表示范围",
+                text,
+            )
+        })?;
+        Ok(bits as u64)
+    }
+
+    fn int_literal_bits_from_source_span_if_present(
+        &self,
+        span: crate::span::Span,
+        int_ty: IntTy,
+    ) -> Result<Option<u64>, LlvmEmitError> {
+        let Ok(text) = self.current_source_slice(span) else {
+            return Ok(None);
+        };
+        let source = self.current_source()?;
+        let Some((negative, body)) = source_text_int_literal_body(text) else {
+            return Ok(None);
+        };
+        let raw = parse_int_literal_checked(body).map_err(|err| {
+            LlvmEmitError::invalid_literal(source, span, "integer literal", err.reason(), text)
+        })?;
+        let bits = if negative {
+            checked_negated_int_literal_bits(raw, int_ty)
+        } else {
+            checked_positive_int_literal_bits(raw, int_ty)
+        }
+        .ok_or_else(|| {
+            LlvmEmitError::invalid_literal(
+                source,
+                span,
+                "integer literal",
+                "超出目标整数类型可表示范围",
+                text,
+            )
+        })?;
+        Ok(Some(bits as u64))
+    }
+
     fn parse_current_string_literal_bytes(
         &self,
         span: crate::span::Span,
@@ -615,7 +688,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into()
             }
             CgTy::Int(int_ty) => {
-                let bits = self.const_eval_int_expr_bits(init, int_ty).ok_or(
+                let bits = self.const_eval_int_expr_bits(init, int_ty)?.ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "top-level var initializer (int const)",
                         at: init.span.into(),
@@ -677,32 +750,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn const_eval_int_expr_bits(&self, expr: &hir::Expr, int_ty: IntTy) -> Option<u128> {
+    fn const_eval_int_expr_bits(
+        &self,
+        expr: &hir::Expr,
+        int_ty: IntTy,
+    ) -> Result<Option<u128>, LlvmEmitError> {
         match &expr.kind {
-            hir::ExprKind::Literal(hir::LiteralKind::Int) => self
-                .parse_current_int_literal(expr.span)
-                .ok()
-                .map(|raw_value| mask_to_bits(raw_value, int_ty.bits)),
+            hir::ExprKind::Literal(hir::LiteralKind::Int) => Ok(Some(u128::from(
+                self.int_literal_bits_for_ty(expr.span, int_ty)?,
+            ))),
             hir::ExprKind::Literal(hir::LiteralKind::SynthInt(v)) => {
-                Some(mask_to_bits(*v as u128, int_ty.bits))
+                Ok(Some(mask_to_bits(*v as u128, int_ty.bits)))
             }
             hir::ExprKind::Unary {
                 op: ast::UnaryOp::Neg,
                 expr: inner,
                 ..
-            } => {
-                let v = self.const_eval_int_expr_bits(inner, int_ty)?;
-                Some(mask_to_bits(0u128.wrapping_sub(v), int_ty.bits))
-            }
+            } if matches!(inner.kind, hir::ExprKind::Literal(hir::LiteralKind::Int)) => Ok(Some(
+                u128::from(self.negated_int_literal_bits_for_ty(expr.span, inner.span, int_ty)?),
+            )),
+            hir::ExprKind::Unary {
+                op: ast::UnaryOp::Neg,
+                expr: inner,
+                ..
+            } => Ok(self
+                .const_eval_int_expr_bits(inner, int_ty)?
+                .map(|v| mask_to_bits(0u128.wrapping_sub(v), int_ty.bits))),
             hir::ExprKind::Unary {
                 op: ast::UnaryOp::BitNot,
                 expr: inner,
                 ..
-            } => {
-                let v = self.const_eval_int_expr_bits(inner, int_ty)?;
-                Some(mask_to_bits(!v, int_ty.bits))
-            }
-            _ => None,
+            } => Ok(self
+                .const_eval_int_expr_bits(inner, int_ty)?
+                .map(|v| mask_to_bits(!v, int_ty.bits))),
+            _ => Ok(None),
         }
     }
 
@@ -11966,8 +12047,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                let raw_value = self.parse_current_int_literal(span)?;
-                let value = mask_to_bits(raw_value, int_ty.bits) as u64;
+                let value = self.int_literal_bits_for_ty(span, int_ty)?;
                 Ok(CgValue::int(
                     self.int_type(int_ty).const_int(value, false),
                     int_ty,
@@ -13372,6 +13452,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_unary(
         &mut self,
         span: crate::span::Span,
+        result_ty: TypeId,
         op: ast::UnaryOp,
         expr: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -13387,6 +13468,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::bool(out))
             }
             ast::UnaryOp::Neg => {
+                if matches!(expr.kind, hir::ExprKind::Literal(hir::LiteralKind::Int))
+                    && let Some(CgTy::Int(int_ty)) = self.cg_ty_of(result_ty)
+                {
+                    let bits = self.negated_int_literal_bits_for_ty(span, expr.span, int_ty)?;
+                    return Ok(CgValue::int(
+                        self.int_type(int_ty).const_int(bits, false),
+                        int_ty,
+                    ));
+                }
+
                 let value = self.codegen_expr(expr)?;
                 match value.ty {
                     CgTy::Int(ty) => {
@@ -14922,6 +15013,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::float(out, target))
             }
             (CgTy::Int(from), CgTy::Int(to)) => {
+                if let Some(bits) = self.int_literal_bits_from_source_span_if_present(at, to)? {
+                    return Ok(CgValue::int(self.int_type(to).const_int(bits, false), to));
+                }
                 let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "int value",
                     at: at.into(),
@@ -15437,6 +15531,96 @@ fn mask_to_bits(value: u128, bits: u32) -> u128 {
     }
     let mask = (1u128 << bits) - 1;
     value & mask
+}
+
+fn checked_positive_int_literal_bits(value: u128, int_ty: IntTy) -> Option<u128> {
+    let max = if int_ty.signed {
+        signed_int_max(int_ty.bits)
+    } else {
+        unsigned_int_max(int_ty.bits)
+    };
+    (value <= max).then_some(value)
+}
+
+fn checked_negated_int_literal_bits(value: u128, int_ty: IntTy) -> Option<u128> {
+    if !int_ty.signed {
+        return None;
+    }
+
+    let min_abs = signed_int_min_abs(int_ty.bits);
+    if value > min_abs {
+        return None;
+    }
+
+    Some(mask_to_bits(0u128.wrapping_sub(value), int_ty.bits))
+}
+
+fn unsigned_int_max(bits: u32) -> u128 {
+    if bits == 0 {
+        return 0;
+    }
+    if bits >= 128 {
+        return u128::MAX;
+    }
+    (1u128 << bits) - 1
+}
+
+fn signed_int_max(bits: u32) -> u128 {
+    if bits <= 1 {
+        return 0;
+    }
+    if bits >= 128 {
+        return i128::MAX as u128;
+    }
+    (1u128 << (bits - 1)) - 1
+}
+
+fn signed_int_min_abs(bits: u32) -> u128 {
+    if bits == 0 {
+        return 0;
+    }
+    if bits >= 128 {
+        return 1u128 << 127;
+    }
+    1u128 << (bits - 1)
+}
+
+fn source_text_int_literal_body(text: &str) -> Option<(bool, &str)> {
+    let (negative, body) = if let Some(rest) = text.strip_prefix('-') {
+        (true, rest)
+    } else {
+        (false, text)
+    };
+
+    if body.is_empty() || !body.as_bytes().first().is_some_and(u8::is_ascii_digit) {
+        return None;
+    }
+
+    if let Some(rest) = body.strip_prefix("0x").or_else(|| body.strip_prefix("0X")) {
+        if rest
+            .bytes()
+            .all(|b| char::from(b).is_ascii_hexdigit() || b == b'_')
+        {
+            return Some((negative, body));
+        }
+        return None;
+    }
+
+    if let Some(rest) = body.strip_prefix("0b").or_else(|| body.strip_prefix("0B")) {
+        if rest.bytes().all(|b| matches!(b, b'0' | b'1' | b'_')) {
+            return Some((negative, body));
+        }
+        return None;
+    }
+
+    if body
+        .bytes()
+        .all(|b| char::from(b).is_ascii_digit() || b == b'_')
+    {
+        return Some((negative, body));
+    }
+
+    None
 }
 
 fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLiteralParseError> {

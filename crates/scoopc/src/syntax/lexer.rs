@@ -10,6 +10,8 @@ use thiserror::Error;
 use crate::span::Span;
 
 use super::char_literal::parse_char_literal;
+use super::float_literal::{FloatLiteralParseError, parse_float_literal_checked};
+use super::int_literal::{IntLiteralParseError, parse_int_literal_checked};
 use super::token::{Keyword, StringKind, Symbol, Token, TokenKind};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -46,6 +48,22 @@ pub enum LexError {
     #[error("非法 Char 字面量：{reason}")]
     #[diagnostic(code(scoop::lex::invalid_char_literal))]
     InvalidCharLiteral {
+        reason: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("非法 Int 字面量：{reason}")]
+    #[diagnostic(code(scoop::lex::invalid_int_literal))]
+    InvalidIntLiteral {
+        reason: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("非法 Float 字面量：{reason}")]
+    #[diagnostic(code(scoop::lex::invalid_float_literal))]
+    InvalidFloatLiteral {
         reason: &'static str,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -95,7 +113,7 @@ impl<'a> Lexer<'a> {
 
             // numbers
             if ch.is_ascii_digit() {
-                let kind = self.lex_number_literal();
+                let kind = self.lex_number_literal()?;
                 tokens.push(Token {
                     kind,
                     span: Span::new(start, self.pos),
@@ -254,29 +272,70 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    fn lex_number_literal(&mut self) -> TokenKind {
+    fn lex_number_literal(&mut self) -> Result<TokenKind, LexError> {
+        let start = self.pos;
         let Some(first) = self.bump_char() else {
-            return TokenKind::IntLiteral;
+            return Ok(TokenKind::IntLiteral);
         };
-        if first == '0' && self.try_lex_prefixed_int_literal() {
-            return TokenKind::IntLiteral;
+        if first == '0'
+            && self
+                .peek_char()
+                .is_some_and(|ch| matches!(ch, 'x' | 'X' | 'b' | 'B'))
+        {
+            self.bump_char();
+            while self
+                .peek_char()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                self.bump_char();
+            }
+            return self.finish_int_literal(start);
         }
-        self.lex_decimal_digits();
+        self.lex_decimal_digits_candidate();
 
-        let mut is_float = self.try_lex_float_fraction();
-        if self.try_lex_float_exponent() {
+        let mut is_float = false;
+        if let Some([b'.', next]) = self.peek_bytes2()
+            && char::from(next).is_ascii_digit()
+        {
             is_float = true;
+            self.bump_bytes(1);
+            self.lex_decimal_digits_candidate();
+        }
+
+        if self.peek_char().is_some_and(|ch| matches!(ch, 'e' | 'E')) {
+            is_float = true;
+            self.bump_char();
+            if self.peek_char().is_some_and(|ch| matches!(ch, '+' | '-')) {
+                self.bump_char();
+            }
+            while self
+                .peek_char()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                self.bump_char();
+            }
         }
 
         if is_float {
-            self.lex_float_suffix();
-            TokenKind::FloatLiteral
+            if self.text[self.pos..].starts_with("f32") {
+                self.bump_bytes(3);
+            } else if self.peek_char() == Some('f') {
+                self.bump_char();
+            }
+
+            if self
+                .peek_char()
+                .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+            {
+                self.lex_number_literal_tail_as_ident_candidate();
+            }
+            self.finish_float_literal(start)
         } else {
-            TokenKind::IntLiteral
+            self.finish_int_literal(start)
         }
     }
 
-    fn lex_decimal_digits(&mut self) {
+    fn lex_decimal_digits_candidate(&mut self) {
         while self
             .peek_char()
             .is_some_and(|ch| ch.is_ascii_digit() || ch == '_')
@@ -285,86 +344,33 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn try_lex_float_fraction(&mut self) -> bool {
-        let Some([b'.', next]) = self.peek_bytes2() else {
-            return false;
-        };
-        if !char::from(next).is_ascii_digit() {
-            return false;
-        }
-
-        self.bump_bytes(1);
-        self.lex_decimal_digits();
-        true
-    }
-
-    fn try_lex_float_exponent(&mut self) -> bool {
-        if !self.float_exponent_starts_here() {
-            return false;
-        }
-
-        self.bump_char();
-        if self.peek_char().is_some_and(|ch| matches!(ch, '+' | '-')) {
-            self.bump_char();
-        }
-        self.lex_decimal_digits();
-        true
-    }
-
-    fn float_exponent_starts_here(&self) -> bool {
-        let bytes = self.text.as_bytes();
-        if self.pos >= bytes.len() || !matches!(bytes[self.pos], b'e' | b'E') {
-            return false;
-        }
-
-        let mut idx = self.pos + 1;
-        if idx < bytes.len() && matches!(bytes[idx], b'+' | b'-') {
-            idx += 1;
-        }
-
-        idx < bytes.len() && char::from(bytes[idx]).is_ascii_digit()
-    }
-
-    fn lex_float_suffix(&mut self) {
-        if self.text[self.pos..].starts_with("f32") {
-            self.bump_bytes(3);
-        } else if self.peek_char() == Some('f') {
-            self.bump_char();
-        }
-    }
-
-    fn try_lex_prefixed_int_literal(&mut self) -> bool {
-        let Some([prefix, next]) = self.peek_bytes2() else {
-            return false;
-        };
-        if !Self::is_prefixed_int_first_digit(prefix, next) {
-            return false;
-        }
-
-        self.bump_bytes(1);
+    fn lex_number_literal_tail_as_ident_candidate(&mut self) {
         while self
             .peek_char()
-            .is_some_and(|ch| Self::is_prefixed_int_continue(prefix, ch))
+            .is_some_and(|ch| ch.is_ascii_alphanumeric() || ch == '_')
         {
             self.bump_char();
         }
-        true
     }
 
-    fn is_prefixed_int_first_digit(prefix: u8, next: u8) -> bool {
-        match prefix {
-            b'x' | b'X' => char::from(next).is_ascii_hexdigit(),
-            b'b' | b'B' => matches!(next, b'0' | b'1'),
-            _ => false,
-        }
+    fn finish_int_literal(&self, start: usize) -> Result<TokenKind, LexError> {
+        let span = Span::new(start, self.pos);
+        let text = &self.text[start..self.pos];
+        parse_int_literal_checked(text).map_err(|err| LexError::InvalidIntLiteral {
+            reason: int_literal_reason(err),
+            span: span.into(),
+        })?;
+        Ok(TokenKind::IntLiteral)
     }
 
-    fn is_prefixed_int_continue(prefix: u8, ch: char) -> bool {
-        match prefix {
-            b'x' | b'X' => ch.is_ascii_hexdigit() || ch == '_',
-            b'b' | b'B' => matches!(ch, '0' | '1' | '_'),
-            _ => false,
-        }
+    fn finish_float_literal(&self, start: usize) -> Result<TokenKind, LexError> {
+        let span = Span::new(start, self.pos);
+        let text = &self.text[start..self.pos];
+        parse_float_literal_checked(text).map_err(|err| LexError::InvalidFloatLiteral {
+            reason: float_literal_reason(err),
+            span: span.into(),
+        })?;
+        Ok(TokenKind::FloatLiteral)
     }
 
     fn lex_string(&mut self, interpolated: bool) -> Result<StringKind, LexError> {
@@ -583,6 +589,14 @@ impl<'a> Lexer<'a> {
             None
         }
     }
+}
+
+fn int_literal_reason(err: IntLiteralParseError) -> &'static str {
+    err.reason()
+}
+
+fn float_literal_reason(err: FloatLiteralParseError) -> &'static str {
+    err.reason()
 }
 
 fn is_ident_start(ch: char) -> bool {
@@ -810,6 +824,48 @@ mod tests {
     fn lex_unterminated_char_literal() {
         let err = lex("'a").expect_err("unterminated char literal should fail");
         assert!(matches!(err, LexError::UnterminatedCharLiteral { .. }));
+    }
+
+    #[test]
+    fn lex_invalid_int_literals_report_reason() {
+        let err = lex("0x").expect_err("missing hex digits should fail");
+        match err {
+            LexError::InvalidIntLiteral { reason, .. } => assert_eq!(reason, "前缀后缺少数字"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let err = lex("0b102").expect_err("invalid binary digit should fail");
+        match err {
+            LexError::InvalidIntLiteral { reason, .. } => assert_eq!(reason, "包含无效数字"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let err = lex("1__2").expect_err("invalid separator should fail");
+        match err {
+            LexError::InvalidIntLiteral { reason, .. } => {
+                assert_eq!(reason, "下划线只能出现在数字之间")
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn lex_invalid_float_literals_report_reason() {
+        let err = lex("1e+").expect_err("missing exponent digits should fail");
+        match err {
+            LexError::InvalidFloatLiteral { reason, .. } => {
+                assert_eq!(reason, "指数部分缺少数字")
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        let err = lex("1e9999").expect_err("overflow float should fail");
+        match err {
+            LexError::InvalidFloatLiteral { reason, .. } => {
+                assert_eq!(reason, "超出 Float64 可表示范围")
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 
     #[test]

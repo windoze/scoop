@@ -1900,7 +1900,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (879)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150i [TODO] 字面量完整性：边界值与词法/诊断审计
+### T0150i [DONE] 字面量完整性：边界值与词法/诊断审计
 
 - 描述：锁定所有非法字面量文本和溢出场景的诊断质量，避免 parser/lexer/codegen 错误信息回退。
 - 目标：
@@ -1910,6 +1910,23 @@ cargo run -p scoop --features llvm -- test
   - 新增 parse/build/compile-fail fixtures 与必要单测。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150e
+- 完成说明：
+  - **严格数值字面量校验**：`crates/scoopc/src/syntax/int_literal.rs` / `crates/scoopc/src/syntax/float_literal.rs` 新增 checked parser 与显式错误枚举，覆盖缺失数字、非法 digit、非法分隔符、指数缺失、`f32/f64` 溢出、`u128` 溢出等路径；原先“假定 lexer 已校验”的入口改为只供已验证路径调用。
+  - **lexer 诊断收口**：`crates/scoopc/src/syntax/lexer.rs` 现先吞完整数字候选文本，再统一调用 checked parser 校验；新增 `InvalidIntLiteral` / `InvalidFloatLiteral` 诊断，避免 `0x` / `0b102` / `1e+` / `1__2` 等文本退化成多 token 或 parse error。
+  - **LLVM 整数字面量范围检查**：`crates/scoopc/src/llvm/codegen/mod.rs` 对默认 `Int` 溢出、窄整型初始化、负整数字面量、`when` 整数字面量 pattern 等路径新增目标位宽范围检查，不再静默 wrap/truncate；源码回查仅在 span 可映射到真实源码切片时启用，避免合成 span 触发误报。
+  - **expected-context / statement codegen 稳健性补强**：为让新诊断在全量 fixture 下稳定工作，顺带修复了 3 个既有后端问题：
+    - `codegen_expr_in_expected_context` 现以 `expr.span` 做最终 coercion；当 `expected == Unit` 时仅保留副作用，丢弃返回值。
+    - `codegen_block_value_in_expected_context` 在 `block.ty == Any` 且无显式 `expected` 时不再强制按 `Ref` 收窄 block 尾值。
+    - `codegen_block_stmt` 的表达式语句统一按 `Unit` expected context codegen，避免 `if/when/block` 语句位置生成脆弱 CFG。
+  - **新增 fixtures / 单测**：
+    - parse：`int_literal_hex_missing_digits_fail`、`int_literal_binary_invalid_digit_fail`、`int_literal_invalid_separator_fail`、`float_literal_missing_exponent_digits_fail`、`float_literal_overflow_f64_fail`、`float_literal_overflow_f32_fail`、`char_literal_invalid_escape_fail`
+    - build：`int_literal_default_int_overflow_fail`、`int_literal_uint8_overflow_fail`、`int_literal_neg_int8_overflow_fail`、`when_int_pattern_uint8_overflow_fail`
+    - Rust 单测：整数/浮点 checked parser 与 lexer invalid literal 覆盖
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (890)`）
+    - `cargo test --all`
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0144 [TODO] 审计：编译器 codegen 限制全面排查与任务拆分
 

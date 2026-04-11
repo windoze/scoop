@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::lex::invalid_int_literal
+// EXPECT-ERROR: 包含无效数字
+// EXPECT-ERROR-AT: 6:9
+
+val x = 0b102

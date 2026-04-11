@@ -1588,8 +1588,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | hir::WhenPat::Wildcard { .. }
             | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
             hir::WhenPat::IntLit { .. } => {
-                let expected_raw =
-                    mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
+                let expected_raw = self.int_literal_bits_for_ty(pat.span(), int_ty)?;
                 let expected = self.int_type(int_ty).const_int(expected_raw, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -1863,8 +1862,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_int_value();
-                let value =
-                    mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
+                let value = self.int_literal_bits_for_ty(pat.span(), int_ty)?;
                 let expected = self.int_type(int_ty).const_int(value, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -2060,10 +2058,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.env.push_scope();
-        let expected_block_ty = match expected {
-            Some(t) => t,
-            None => self.cg_ty_of(block.ty).unwrap_or(CgTy::Unit),
-        };
+        let expected_block_ty = expected.or_else(|| {
+            if matches!(
+                self.types.kind(block.ty),
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
+            ) {
+                None
+            } else {
+                self.cg_ty_of(block.ty)
+            }
+        });
 
         let mut value: CgValue<'ctx> = CgValue::unit();
         for (idx, stmt) in block.stmts.iter().enumerate() {
@@ -2080,7 +2084,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 hir::StmtKind::Expr(expr) => {
                     let expected = if is_last {
-                        Some(expected_block_ty)
+                        expected_block_ty
                     } else {
                         Some(CgTy::Unit)
                     };

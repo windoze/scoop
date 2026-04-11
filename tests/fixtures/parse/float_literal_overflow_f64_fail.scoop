@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::lex::invalid_float_literal
+// EXPECT-ERROR: 超出 Float64 可表示范围
+// EXPECT-ERROR-AT: 6:9
+
+val x = 1e9999

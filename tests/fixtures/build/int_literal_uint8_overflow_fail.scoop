@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::llvm::invalid_literal
+// EXPECT-ERROR: 超出目标整数类型可表示范围
+// EXPECT-ERROR: 原文：256
+// EXPECT-ERROR-AT: 13:20
+// ARGS: --emit-llvm
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main() {
+    val x: UInt8 = 256
+    println((x == 0).toString())
+}

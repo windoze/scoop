@@ -492,9 +492,14 @@ cargo run -p scoop --features llvm -- test
     - 新增 LLVM 单测 `lowered_call_results_keep_concrete_types_for_local_bindings`，用完整 parse→resolve→typecheck→lowering→codegen 链路锁定 unannotated local call result 的 concrete type 保真。
     - 新增 `run-pass/literal_ops_compare_direct_matrix_basic` 覆盖 Int/Char/Float/String/Array 字面量与算术、比较、直接方法调用的组合；新增 `typecheck/literal_compare_bool_is_error` 与 `typecheck/literal_direct_call_float_only_is_error` 锁定仍不支持的失败路径。`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (879)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
-- TODO（T0150i）：边界值与词法/诊断审计
-  - 锁定整数溢出、非法 Float/Char/hex/binary 文本的错误路径与定位。
-  - 新增 failure fixtures / 单测，确保诊断码与 source location 稳定。
+- DONE（T0150i）：边界值与词法/诊断审计
+  - `syntax/int_literal.rs` / `syntax/float_literal.rs` 新增 checked parser 与稳定错误枚举；`lexer.rs` 先吞完整候选文本再统一校验，新增 `InvalidIntLiteral` / `InvalidFloatLiteral`，锁定 `0x` / `0b102` / `1__2` / `1e+` / `1e9999` 等文本的单一诊断路径。
+  - LLVM 后端新增整数字面量范围检查：默认 `Int` 溢出、窄整型初始化、负整数字面量、`when` 整数字面量 pattern 均不再静默 wrap/truncate；源码字面量回查遇到合成 span 时安全降级为“非源码字面量”，避免误报。
+  - 为保证 `cargo run -p scoop -- test` 全量回归稳定，同时修复 3 个既有 codegen 稳健性问题：
+    - expected-context 最终 coercion 绑定到 `expr.span`；`expected == Unit` 时仅保留副作用、不要求显式 `T -> Unit` coercion；
+    - `block.ty == Any` 且无显式 expected 时，不再把 block 尾值强制按 `Ref` 收窄；
+    - 普通 statement block 中的表达式语句统一走 `expected = Unit` 的 codegen 路径，避免循环内 `if/break/continue` 生成脆弱 CFG。
+  - 新增 parse/build failure fixtures 与 Rust 单测，验证完成后 `cargo fmt --all`、`cargo run -p scoop -- test`（fixtures `ok (890)`）、`cargo test --all`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 全部通过。
 
 ## 5. 泛型 where 约束完善
 

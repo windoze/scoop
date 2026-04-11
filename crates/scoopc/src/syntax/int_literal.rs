@@ -1,3 +1,23 @@
+/// 整数字面量解析错误。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntLiteralParseError {
+    MissingDigits,
+    InvalidDigit,
+    InvalidSeparator,
+    Overflow,
+}
+
+impl IntLiteralParseError {
+    pub fn reason(self) -> &'static str {
+        match self {
+            IntLiteralParseError::MissingDigits => "前缀后缺少数字",
+            IntLiteralParseError::InvalidDigit => "包含无效数字",
+            IntLiteralParseError::InvalidSeparator => "下划线只能出现在数字之间",
+            IntLiteralParseError::Overflow => "超出编译器支持的整数字面量范围",
+        }
+    }
+}
+
 /// Parse an integer literal (possibly containing `_` separators) into a `u128`.
 ///
 /// Supported forms:
@@ -5,22 +25,56 @@
 /// - hexadecimal: `0xFF`, `0Xca_fe`
 /// - binary: `0b1010`, `0B10_01`
 ///
-/// The parser is intentionally minimal and saturating: callers are expected to run it only on
-/// lexer-validated literal text.
+/// 调用方应只在“词法已验证”的文本上使用该入口；若需要面向用户的错误，请调用
+/// [`parse_int_literal_checked`]。
 pub fn parse_int_literal(text: &str) -> u128 {
+    parse_int_literal_checked(text).unwrap_or_else(|err| {
+        panic!("validated integer literal should parse: text={text:?}, err={err:?}")
+    })
+}
+
+/// 严格解析整数字面量。
+///
+/// 与 `parse_int_literal` 不同，该入口会校验：
+/// - 前缀后是否至少有一个数字；
+/// - 下划线是否只出现在数字之间；
+/// - 数字是否与 radix 匹配；
+/// - 数值是否超出 `u128`。
+pub fn parse_int_literal_checked(text: &str) -> Result<u128, IntLiteralParseError> {
     let (radix, digits) = literal_radix_and_digits(text);
+    if digits.is_empty() {
+        return Err(IntLiteralParseError::MissingDigits);
+    }
+
     let mut out: u128 = 0;
+    let mut prev_was_underscore = false;
+    let mut saw_digit = false;
+
     for ch in digits.chars() {
         if ch == '_' {
+            if !saw_digit || prev_was_underscore {
+                return Err(IntLiteralParseError::InvalidSeparator);
+            }
+            prev_was_underscore = true;
             continue;
         }
-        if let Some(d) = ch.to_digit(radix) {
-            out = out
-                .saturating_mul(u128::from(radix))
-                .saturating_add(u128::from(d));
-        }
+
+        let Some(digit) = ch.to_digit(radix) else {
+            return Err(IntLiteralParseError::InvalidDigit);
+        };
+        out = out
+            .checked_mul(u128::from(radix))
+            .and_then(|value| value.checked_add(u128::from(digit)))
+            .ok_or(IntLiteralParseError::Overflow)?;
+        saw_digit = true;
+        prev_was_underscore = false;
     }
-    out
+
+    if prev_was_underscore {
+        return Err(IntLiteralParseError::InvalidSeparator);
+    }
+
+    Ok(out)
 }
 
 fn literal_radix_and_digits(text: &str) -> (u32, &str) {
@@ -35,7 +89,7 @@ fn literal_radix_and_digits(text: &str) -> (u32, &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_int_literal;
+    use super::{IntLiteralParseError, parse_int_literal, parse_int_literal_checked};
 
     #[test]
     fn parse_decimal_literal_with_separators() {
@@ -52,5 +106,37 @@ mod tests {
     fn parse_binary_literal() {
         assert_eq!(parse_int_literal("0b1010"), 10);
         assert_eq!(parse_int_literal("0B10_01"), 9);
+    }
+
+    #[test]
+    fn reject_invalid_separator_and_digit() {
+        assert_eq!(
+            parse_int_literal_checked("1__2"),
+            Err(IntLiteralParseError::InvalidSeparator)
+        );
+        assert_eq!(
+            parse_int_literal_checked("0x_1"),
+            Err(IntLiteralParseError::InvalidSeparator)
+        );
+        assert_eq!(
+            parse_int_literal_checked("0b102"),
+            Err(IntLiteralParseError::InvalidDigit)
+        );
+    }
+
+    #[test]
+    fn reject_missing_digits_and_overflow() {
+        assert_eq!(
+            parse_int_literal_checked("0x"),
+            Err(IntLiteralParseError::MissingDigits)
+        );
+        assert_eq!(
+            parse_int_literal_checked("0b"),
+            Err(IntLiteralParseError::MissingDigits)
+        );
+        assert_eq!(
+            parse_int_literal_checked("340282366920938463463374607431768211456"),
+            Err(IntLiteralParseError::Overflow)
+        );
     }
 }
