@@ -152,17 +152,35 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_while_body_single_perform`、build-fail `effect_resume_while_nested_perform_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0 [TODO] Effect：LLVM 多 arm handle dispatch（mixed-arm immediate-resume 前置能力）
-- 描述：审计 `T2003c` 时发现，虽然 typecheck/HIR 已允许 mixed-arm，但 LLVM `codegen_handle_expr` 仍在 `handle.arms.len() != 1` 时直接报 `handle arm count (only 1 supported)`。在这一前置能力落地前，mixed-arm immediate-resume 的 run-pass 回归无法实现。
+### T2003c0a [DONE] Effect：LLVM 多 arm handle dispatch（immediate-resume + sibling non-resuming）
+- 描述：审计 `T2003c` 时确认，LLVM `codegen_handle_expr` 仍在 `handle.arms.len() != 1` 时直接报 `handle arm count (only 1 supported)`。一次性把 immediate-resume、non-resuming、escape-continuation 三条 lowering 在同一 source-handle 下打通，风险过高；先落最小可运行子集：一个 immediate-resume arm + 若干 sibling non-resuming arms。
 - 目标：
-  - LLVM codegen 支持单个 `handle` 中的多 arm dispatch，不再把多 arm 统一拒绝在 `UnsupportedMainBody`。
-  - mixed-arm 下的 dispatch 优先级与源码 arm 顺序一致，且任一 arm body 执行期间同一 source-handle 的 sibling arms 不会发生自捕获。
-  - 至少收口“一个 immediate-resume arm + 其余 non-resuming/escape arms”的最小可运行子集，并对仍未支持的组合给出稳定诊断。
+  - LLVM codegen 支持单个 `handle` 中的多 arm dispatch，不再把“一个 immediate-resume arm + sibling non-resuming arms”统一拒绝在 `UnsupportedMainBody`。
+  - mixed-arm 下的 dispatch 与源码 arm 顺序保持一致；任一 arm body 执行期间，同一 source-handle 的 sibling arms 整组处于 handler scope 外，避免 sibling self-capture。
+  - 覆盖 `Raise.raise` 与单 payload custom non-resuming effect 两类 sibling non-resuming arm；对 sibling escape-continuation arm 暂时给出稳定诊断。
 - 验收：
-  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume 的最小可运行路径与当前阶段明确不支持的组合。
+  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume + non-resuming 的最小可运行路径，以及 mixed-arm immediate-resume + escape-continuation 的稳定诊断。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003b3
+- 完成说明：
+  - `codegen_handle_expr` 现已在多 arm 场景下分流到新的 mixed-arm lowering，不再统一报 `handle arm count (only 1 supported)`。
+  - LLVM mixed-arm lowering 现已支持“一个 immediate-resume arm + sibling non-resuming arms”的最小子集：`Raise.raise` 与单 payload custom non-resuming effect 都能在同一个 source-handle 内参与 dispatch。
+  - immediate-resume arm body 与 sibling non-resuming arm body 执行期间，会把同一 source-handle 的 custom sibling handler frames 从 TLS handler stack 中摘除，避免 sibling self-capture；resume 后再恢复 body 阶段所需的 dispatch scope。
+  - 已新增 fixtures：run-pass `effect_resume_mixed_custom_nonresuming_dispatch`、`effect_resume_mixed_raise_dispatch`，build-fail `effect_resume_mixed_escape_is_error`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation）
+- 描述：在 `T2003c0a` 的 shared dispatch 基础上，把 sibling escape-continuation arm 也接入同一个 source-handle，并收口 mixed-arm immediate-resume 当前剩余的不支持组合。
+- 目标：
+  - mixed-arm immediate-resume + sibling escape-continuation arm 可在 LLVM 端到端路径运行，不再依赖单独的单-arm lowering。
+  - escape-continuation arm 的 suspension / captured handler stack / sibling self-capture 语义与既有单-arm实现保持一致。
+  - 对本阶段仍不支持的 mixed-arm 组合给出稳定诊断，不再回退到通用的 arm-count 门禁。
+- 验收：
+  - 新增 run-pass / build-fail fixtures：覆盖 mixed-arm immediate-resume + escape-continuation 的最小可运行路径与剩余明确不支持的组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0a
 
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
 - 描述：在 `finally`、控制流主链路与 `T2003c0` 的 mixed-arm LLVM dispatch 落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
@@ -174,7 +192,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0
+- 依赖：T2003c0b
 
 ## T21：Structured Concurrency / `Task<T>`
 

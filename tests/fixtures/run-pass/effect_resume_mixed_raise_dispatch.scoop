@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_raise_dispatch.stdout
+//
+// T2003c0a: mixed-arm immediate-resume + sibling Raise.raise dispatch.
+// - body 先通过 immediate-resume 恢复；
+// - resume 后触发 Raise.raise；
+// - sibling Raise arm 在同一个 source-handle 内返回最终结果。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        Raise.raise(7)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Raise.raise(err: Int) -> {
+            println("raise_arm")
+            println(err)
+            5
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}
