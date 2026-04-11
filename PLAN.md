@@ -464,9 +464,11 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture `when_literal_string_bool_char_basic`，覆盖 String / Bool / Char 顶层 pattern，以及 tuple 内部的 `(String, Char)` literal pattern；新增 typecheck failure fixture `when_string_pattern_not_string_is_error` 锁定错类型诊断。既有 parse fixture `when_float_pattern_is_error` 继续锁定 Float pattern 的单一错误行为。
   - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (870)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
-- TODO（T0150f）：comptime / `const` 语境字面量完整性
-  - 审计所有标量字面量在 `const fun` / `const val` / `comptime` 块中的求值行为与错误路径。
-  - 对 Array/Tuple/Unit 在 comptime 中的当前策略给出稳定行为：要么支持，要么报明确错误，不能静默降级。
+- DONE（T0150f）：comptime / `const` 语境字面量完整性
+  - 新增 `tests/fixtures/comptime/literal_const_comptime_matrix.*`，统一覆盖 Int（含 `0x` / `0b`）、Bool、Char、Float 在 `const fun + comptime block/if` 中的求值，并锁定 `Unit`、`Tuple`、`Array` 的 comptime 表现。
+  - `crates/scoopc/src/comptime/tests.rs` 新增 `const_eval_literal_matrix_across_const_fun_const_val_and_comptime_paths`，把相同语义落到 Rust 单测。
+  - `crates/scoopc/src/comptime/value.rs` 注释明确：v0 阶段 `ConstValue::Tuple` 也承载 array literal / 常量序列，因此 fixture 输出中的 Array 继续按 tuple 形态呈现。
+  - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (871)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 - TODO（T0150g）：多文件 + 插值字符串 + 直接方法调用语境
   - 复核 Char/Float/Array 在非入口文件中的运行路径。

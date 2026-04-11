@@ -1787,7 +1787,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (870)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150f [TODO] 字面量完整性：comptime / `const` 语境审计与补齐
+### T0150f [DONE] 字面量完整性：comptime / `const` 语境审计与补齐
 
 - 描述：审计所有标量字面量在 `const fun` / `const val` / `comptime` 块中的求值路径，并确认 Array/Tuple/Unit 的当前行为是“可工作”还是“明确报错”。
 - 目标：
@@ -1797,6 +1797,15 @@ cargo run -p scoop --features llvm -- test
   - 新增 comptime fixtures 与必要的 compile-fail coverage。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150e
+- 完成说明：
+  - **回归矩阵补齐**：新增 `tests/fixtures/comptime/literal_const_comptime_matrix.*`，覆盖 Int（含 `0x` / `0b`）、Bool、Char、Float 在 `const fun + comptime block/if` 中的求值；同时锁定 `Unit` 直接绑定与经 `const fun` 返回，以及 `Tuple` / `Array` 顶层 `const val` 与 `comptime for` 迭代的现有行为。
+  - **Rust 单测补齐**：`crates/scoopc/src/comptime/tests.rs` 新增 `const_eval_literal_matrix_across_const_fun_const_val_and_comptime_paths`，把同一组场景落到 `eval_const_bindings_in_file` 级别，避免只靠 golden fixture。
+  - **行为边界显式化**：`crates/scoopc/src/comptime/value.rs` 注释明确 `ConstValue::Tuple` 当前也承载 array literal / 常量序列，因此 comptime fixture 中 `Array` 现阶段按 tuple 形态输出，属于已审计并固定下来的行为，而不是隐式降级。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (871)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0150g [TODO] 字面量完整性：多文件 + 插值字符串 + 直接方法调用语境
 

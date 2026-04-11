@@ -19,6 +19,8 @@ pub enum ConstValue {
     Int(ConstInt),
     Float(ConstFloat),
     String(String),
+    /// tuple 值；当前 v0 也用它承载 array literal / 其它“常量序列”结果，
+    /// 以便在 comptime fixtures 中稳定观察到序列内容。
     Tuple(Vec<ConstValue>),
     Struct(ConstStruct),
     Enum(ConstEnum),

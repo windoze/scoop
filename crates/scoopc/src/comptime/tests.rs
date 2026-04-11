@@ -620,6 +620,143 @@ const val C: Int = lastTuple()
 }
 
 #[test]
+fn const_eval_literal_matrix_across_const_fun_const_val_and_comptime_paths() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+const fun chooseInt(flag: Bool): Int {
+    comptime {
+        val base: Int = 0x20
+        comptime if (flag) {
+            base + 0b1010
+        } else {
+            base - 1
+        }
+    }
+}
+
+const fun chooseBool(flag: Bool): Bool {
+    comptime if (flag) {
+        true
+    } else {
+        false
+    }
+}
+
+const fun chooseChar(flag: Bool): Char {
+    comptime if (flag) {
+        'A'
+    } else {
+        '\n'
+    }
+}
+
+const fun chooseFloat(flag: Bool): Float32 {
+    comptime {
+        val base: Float32 = 1.5
+        comptime if (flag) {
+            base + 0.25f
+        } else {
+            base + 0.75f
+        }
+    }
+}
+
+const fun emitUnit(flag: Bool): Unit {
+    comptime {
+        comptime if (flag) {
+            ()
+        } else {
+            ()
+        }
+    }
+}
+
+const fun lastArray(): Int {
+    comptime {
+        val xs = [0x1, 0b10, 3]
+        comptime for (x in xs) { x }
+    }
+}
+
+const fun lastTuple(): Int {
+    comptime {
+        val xs = (4, 5, 6)
+        comptime for (x in xs) { x }
+    }
+}
+
+const val PICK_INT: Int = chooseInt(true)
+const val PICK_BOOL: Bool = chooseBool(false)
+const val PICK_CHAR: Char = chooseChar(true)
+const val PICK_FLOAT: Float32 = chooseFloat(false)
+const val UNIT_DIRECT: Unit = ()
+const val UNIT_FROM_FUN: Unit = emitUnit(false)
+const val CHAR_CODE: Int = 'A'.toInt()
+const val TUPLE_VAL = (0xF, false, 'Z')
+const val ARRAY_VAL = [0x1, 0b10, 3]
+const val ARRAY_LAST: Int = lastArray()
+const val TUPLE_LAST: Int = lastTuple()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "PICK_INT".to_string(),
+                value: mk_int(ty, 42),
+            },
+            ConstBinding {
+                name: "PICK_BOOL".to_string(),
+                value: ConstValue::Bool(false),
+            },
+            ConstBinding {
+                name: "PICK_CHAR".to_string(),
+                value: ConstValue::Char('A'),
+            },
+            ConstBinding {
+                name: "PICK_FLOAT".to_string(),
+                value: mk_float32(2.25),
+            },
+            ConstBinding {
+                name: "UNIT_DIRECT".to_string(),
+                value: ConstValue::Unit,
+            },
+            ConstBinding {
+                name: "UNIT_FROM_FUN".to_string(),
+                value: ConstValue::Unit,
+            },
+            ConstBinding {
+                name: "CHAR_CODE".to_string(),
+                value: mk_int(ty, 65),
+            },
+            ConstBinding {
+                name: "TUPLE_VAL".to_string(),
+                value: ConstValue::Tuple(vec![
+                    mk_int(ty, 0xF),
+                    ConstValue::Bool(false),
+                    ConstValue::Char('Z'),
+                ]),
+            },
+            ConstBinding {
+                name: "ARRAY_VAL".to_string(),
+                value: ConstValue::Tuple(vec![mk_int(ty, 1), mk_int(ty, 2), mk_int(ty, 3)]),
+            },
+            ConstBinding {
+                name: "ARRAY_LAST".to_string(),
+                value: mk_int(ty, 3),
+            },
+            ConstBinding {
+                name: "TUPLE_LAST".to_string(),
+                value: mk_int(ty, 6),
+            },
+        ]
+    );
+}
+
+#[test]
 fn const_eval_reflection_intrinsics_v0_basic() {
     let ty = ConstIntTy::host_word(true);
 
