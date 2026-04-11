@@ -222,8 +222,20 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_nested_escape_handle_tail`，覆盖“outer immediate-resume + inner single-arm escape handle tail”的手写等价程序。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003c0b2b0c [TODO] Effect：LLVM single-arm escape-continuation 多 direct site 的非 `Unit` 结果 lowering
+- 描述：尝试实现 `T2003c0b2b1` 时发现，计划复用的“inner single-arm escape handle tail”本身还缺一个前置能力：single-arm escape-continuation 在 top-level multiple direct sites 且 `handle` 结果不是 `Unit` 时，最小样例仍会在 LLVM codegen 报 `unknown local value` / `value coercion`。在 mixed-arm 路径继续下沉 tail 之前，必须先把这个 primitive 打通。
+- 目标：
+  - single-arm escape-continuation 在“多个 top-level direct perform sites + 非 `Unit` handle 结果”场景下可稳定通过 LLVM codegen，不再在最小样例上报 `unknown local value` / `value coercion`。
+  - 第一次 suspend 返回 arm result 给 caller、后续 `resume(...)` 继续推进剩余 direct sites 的既有 multi-perform 语义保持不回归。
+  - 为 `T2003c0b2b1` 提供可直接复用的 inner tail primitive，而不是在 mixed-arm 专用路径里另写一套结果值协议。
+- 验收：
+  - 新增 run-pass fixture：single-arm escape-continuation 的 multiple direct sites + 非 `Unit` 结果最小样例。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2b0
+
 ### T2003c0b2b1 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
-- 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为单-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；这一步现在依赖 `T2003c0b2b0` 提供 nested-handle result lowering。
+- 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为 single-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；但这一步还依赖 `T2003c0b2b0c` 先补齐 single-arm 多 direct site 的非 `Unit` 结果值 primitive。
 - 目标：
   - 在“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的前提下，支持 immediate site 之后的多个 top-level direct escape sites。
   - 多个 direct escape sites 在每次 `resume(...)` 后都能继续命中后续 sibling escape arm，不再停留在 `multiple direct perform points not yet supported` 诊断。
@@ -232,7 +244,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture：multiple direct sites（all post-immediate）。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0b2b0
+- 依赖：T2003c0b2b0c
 
 ### T2003c0b2b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate indirect/direct+indirect site matrix）
 - 描述：在 post-immediate multiple direct sites 打通后，继续补齐“一个 immediate-resume arm + 一个 sibling escape-continuation arm”在 immediate site 之后的 remaining top-level site matrix：multiple indirect call sites，以及 direct + indirect 共存。

@@ -1,79 +1,63 @@
 # 执行计划
 
-## 约束说明
+## 目标
 
-- 本文件记录可审阅的执行计划、关键判断依据摘要、执行进展与必要调整。
-- 不记录逐字内部思维，但会完整记录可复现的操作步骤、发现的问题、决策原因与后续动作。
+本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-## 初始步骤
+## 约束与执行顺序
 
-1. 检查最新一次 Git 提交信息，确认是否提到了需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与 `TODO.md` 是否一致。
-4. 如果首个未完成任务过大，先把它拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本次只执行拆分后的第一个子任务。
-5. 阅读与该任务直接相关的代码、测试和文档，确认实现边界与依赖。
-
-## 执行步骤
-
-1. 实现首个未完成任务（或拆分后的首个子任务）。
-2. 运行与改动直接相关的测试；若范围需要，补充运行：
-   - `cargo test --all`
+1. 先检查最新一次 Git 提交，确认是否提到了需要先修复的既有问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，确认该任务是否已有拆分计划或依赖说明。
+4. 如果该任务过大或存在明确前置依赖：
+   - 在 `PLAN.md` 中补充拆分方案或依赖说明；
+   - 在 `TODO.md` 中将该任务替换或扩展为更小的子任务；
+   - 本轮只执行拆分后的第一个子任务。
+5. 实现目标任务。
+6. 运行相关验证，至少覆盖：
+   - `cargo fmt --check`
    - `cargo clippy --all-targets -- -D warnings`
-   - 以及任务相关的专项命令
-3. 如测试失败，先修复失败项，再重新验证。
-4. 更新文档与计划：
-   - 在 `TODO.md` 中将当前任务标记为完成
-   - 在 `PLAN.md` 中更新当前状态与后续安排
-   - 在本文件中补充实际进展与任何计划变化
-5. 提交 Git commit，提交信息使用任务标签或清晰描述。
-6. 完成一个任务后立即停止，不继续下一个任务。
+   - 与改动直接相关的测试；若影响面较大，则运行更完整的测试集。
+7. 更新文档与跟踪文件：
+   - 在 `TODO.md` 中将本轮完成项标记为已完成；
+   - 在 `PLAN.md` 中更新当前状态、后续顺序和必要说明；
+   - 在本文件记录关键进展、计划变更和验证结果。
+8. 使用清晰的 Git 提交信息提交本轮改动。
+9. 停止，不继续处理下一个任务。
 
-## 风险与决策原则
+## 预期检查点
 
-- 如果最新提交提到待修复问题，则这些问题优先于 `TODO.md` 任务处理。
-- 如果任务依赖缺失的语言特性或基础设施，不强行实现；改为调整 `TODO.md` / `PLAN.md` 反映依赖关系，并提交后停止。
-- 不回滚用户已有改动；若遇到与当前任务冲突的现有未提交修改，先评估影响，再决定如何兼容。
+- 检查点 A：确认最新提交是否包含待先修问题。
+- 检查点 B：确认首个未完成任务的具体内容与可执行性。
+- 检查点 C：完成实现并通过格式化、lint 和测试。
+- 检查点 D：更新 `TODO.md`、`PLAN.md`、`memory/claude_plan.md` 并提交。
 
-## 进展记录
+## 进度记录
 
-- 已创建初始计划文件，下一步开始检查最新提交与任务列表。
-- 已检查最新提交 `07cc7aa`，提交标题为 `[T2003c0b2b0] Reorder mixed escape continuation tasks`，提交正文没有额外的“需先修复的既有问题”说明，因此无需在任务前插入提交级 hotfix。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T2003c0b2b0`：补 LLVM immediate-resume tail 中嵌套 `handle` 结果表达式。
-- 已定位相关代码：
-  - `crates/scoopc/src/llvm/codegen/effect.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-- 当前技术判断摘要：
-  - `codegen_handle_expr(...)` 需要显式 `expected` 类型上下文；
-  - `codegen_immediate_resume_top_level_tail_and_finalize(...)` 在处理 tail 的最后一个表达式时使用的是 `codegen_expr(expr)`，没有向下传递 `out_ty`；
-  - 因此若 tail 最后一个表达式本身是嵌套 `handle`，其 codegen 很可能丢失预期结果类型，并在后续 `coerce_value(...)` 时触发 `value coercion`。
-- 下一步具体动作：
-  1. 构造并复现最小“outer immediate-resume + inner escape handle tail”样例。
-  2. 修改 immediate-resume tail lowering，把最后一个表达式改为在 `Some(out_ty)` 期望类型下 codegen；非最后表达式统一走 `Some(Unit)`。
-  3. 视需要补齐 statement-unit helper 对 expression statement 的 expected type 传递，避免同类 nested handle 问题残留。
-  4. 新增 run-pass 回归 fixture。
-  5. 运行定向测试，再跑任务要求的完整验证命令。
-- 复现结果：
-  - 已用 `/tmp/t2003c0b2b0_repro.scoop` 成功复现旧问题。
-  - 复现命令：`cargo run -p scoop --features llvm -- build /tmp/t2003c0b2b0_repro.scoop -o /tmp/t2003c0b2b0_repro.out`
-  - 旧行为：LLVM codegen 失败，报 `暂不支持的 main 代码生成节点：value coercion`。
-- 已实施修复：
-  - 修改 `crates/scoopc/src/llvm/codegen/effect.rs` 中 `codegen_immediate_resume_top_level_tail_and_finalize(...)`。
-  - 现在 tail 的 `Expr` 语句会根据位置传入 expected type：
-    - 最后一个表达式：`Some(out_ty)`
-    - 非最后表达式：`Some(CgTy::Unit)`
-  - 该修改使嵌套 `handle` 能在 outer immediate-resume tail 中获得正确的结果类型上下文。
-- 已补回归：
-  - `tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
-  - `tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.stdout`
-- 定向验证结果：
-  - 新样例已可成功 `build` 并运行，输出与预期一致。
-- 当前进行中：
-  - 运行完整验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-- 完整验证结果：
-  - `cargo test --all`：通过。
-  - `cargo run -p scoop --features llvm -- test`：通过，`fixtures: ok (925)`。
-  - `cargo clippy --workspace --all-targets -- -D warnings`：通过。
-- 收尾动作：
-  - 将 `T2003c0b2b0` 在 `TODO.md` 标记为完成，并补写完成说明。
-  - 更新 `PLAN.md`，把“当前下一步”推进到 `T2003c0b2b1`。
-  - 准备检查工作区 diff 并提交本轮变更。
+- 已创建初始执行计划。
+- 已检查最新提交 `76f63c8f56bace797574cc4e20bb750cadbfd85f`（`[T2003c0b2b0] Fix nested handle result lowering`），提交信息未额外声明需先修复的遗留问题。
+- 已读取 `TODO.md` 与 `PLAN.md`，当前第一个未完成任务为 `T2003c0b2b1`：支持 mixed-arm 场景下 immediate site 之后的多个 top-level direct escape sites。
+- 已检查 `crates/scoopc/src/llvm/codegen/effect.rs`：
+  - 现有 direct mixed-arm 路径在扫描阶段只允许一个 top-level direct escape site；
+  - `T2003c0b2b0` 已提供“immediate-resume tail 中嵌套 handle 结果表达式”的 lowering 前置能力；
+  - HIR 的 `Block` / `Stmt` / `Expr` / `HandleExpr` / `HandleArm` 都支持 `Clone`，可以构造合成的 tail handle。
+- 当前实现方案：
+  1. 保留外层 immediate-resume 状态机；
+  2. 对“immediate site 之后的多个 top-level direct escape sites”新增专用 direct 路径；
+  3. 在 `resume(...)` 后把 tail 合成为单-arm escape `handle`，复用既有 multi-perform escape-continuation lowering；
+  4. 继续保留本阶段门禁：pre-immediate direct site、nested/control-flow direct site、direct+indirect 混合仍报稳定诊断；
+  5. 补 run-pass fixture，并把旧 build-fail fixture 改成仍未支持的组合。
+- 已完成首轮代码修改：
+  - `effect.rs` 新增 mixed direct site 扫描 helper；
+  - single-site direct 路径现会在检测到 post-immediate multiple direct sites 时切换到新的 nested-tail lowering；
+  - 已新增 run-pass fixture `effect_resume_mixed_escape_direct_multiple_post_immediate`；
+  - 已把旧 build-fail fixture 改为覆盖 pre-immediate direct site 的稳定诊断。
+- 验证阶段发现更底层的前置缺口：
+  - 计划复用的 single-arm escape-continuation multi-perform direct primitive 在 `Unit` 结果 handle 上可用；
+  - 但最小 non-`Unit` 结果样例（single-arm + multiple direct sites）仍会在 LLVM codegen 报 `unknown local value` / `value coercion`；
+  - 因此当前 mixed-arm `T2003c0b2b1` 不能按原计划直接落地。
+- 已执行回退：
+  - 撤回未完成的 `effect.rs` / fixture 代码改动；
+  - 恢复仓库到“仅调整任务计划”的状态；
+  - 在 `TODO.md` / `PLAN.md` 中新增前置任务 `T2003c0b2b0c`，并把 `T2003c0b2b1` 移到其后。
+- 本轮结论：按用户约束，本次提交只记录依赖重排与原因说明，停止在这里，等待下次调用先处理 `T2003c0b2b0c`。
