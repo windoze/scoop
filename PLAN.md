@@ -63,7 +63,9 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_resume_mixed_escape_direct_multi`，覆盖 post-immediate multiple direct sites、第一次 escape 恢复值跨第二次 suspension 的 body-lift，以及 arm 内 pointer-like enum outer capture；旧的 build-fail `effect_resume_mixed_escape_is_error` 已移除。
   - T2003c0b2b2 已完成：mixed-arm escape sibling lowering 现已新增统一的 post-immediate site matrix 路径，把 top-level direct / indirect sites 接到同一条 continuation step trampoline 上；现已覆盖 multiple indirect sites 与 direct/indirect 两种混排顺序。
   - 已新增 run-pass 回归 `effect_resume_mixed_escape_indirect_multi`、`effect_resume_mixed_escape_direct_indirect`、`effect_resume_mixed_escape_indirect_direct`，并把旧的 post-immediate build 负例替换为 `effect_resume_mixed_escape_pre_immediate_direct_indirect_is_error`，继续锁住 pre-immediate 边界。
-  - 当前下一步调整为 `T2003c0b2b3`：在 post-immediate site matrix 已打通的基础上，扩展 sibling escape-continuation 到 pre-immediate top-level sites。
+  - T2003c0b2b3 已完成：mixed-arm site-matrix lowering 现已支持 pre-immediate top-level direct / indirect escape sites；continuation step trampoline 可在恢复 pre-immediate escape site 之后重新命中 sibling immediate-resume site，并在 immediate arm `resume(...)` 后继续 replay 剩余 top-level tail 与 post-immediate escape sites。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_direct`、`effect_resume_mixed_escape_pre_immediate_indirect`，并把旧的 top-level pre-immediate 负例替换为 nested-shape 负例 `effect_resume_mixed_escape_pre_immediate_nested_is_error`。
+  - 当前下一步调整为 `T2003c0b2c`：在 top-level pre/post-immediate site matrix 已打通的基础上，扩展 sibling escape-continuation 到 control-flow / nested body 形状。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -79,7 +81,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2b0c（已完成）：补 single-arm escape-continuation 多 direct site 的非 `Unit` 结果 lowering。
   - T2003c0b2b1（已完成）：扩展 sibling escape-continuation 到 post-immediate multiple direct sites。
   - T2003c0b2b2（已完成）：扩展 sibling escape-continuation 到 post-immediate indirect/direct+indirect site matrix。
-  - T2003c0b2b3：扩展 sibling escape-continuation 到 pre-immediate top-level sites。
+  - T2003c0b2b3（已完成）：扩展 sibling escape-continuation 到 pre-immediate top-level sites。
   - T2003c0b2c：补 sibling escape-continuation 的 control-flow / nested body 形状。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 

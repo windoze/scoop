@@ -274,7 +274,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_indirect_multi`、`effect_resume_mixed_escape_direct_indirect`、`effect_resume_mixed_escape_indirect_direct`；同时把旧的 post-immediate 负例替换为 `effect_resume_mixed_escape_pre_immediate_direct_indirect_is_error`。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，pre-immediate top-level sites）
+### T2003c0b2b3 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，pre-immediate top-level sites）
 - 描述：`perform before immediate site` 不是单纯的 site 扫描问题，而是 continuation step 在恢复后仍需重新命中 sibling immediate-resume state machine 的控制流缺口。把它单独拆出来，避免和 post-immediate site matrix 耦合。
 - 目标：
   - 支持 escape site 位于 immediate site 之前的 top-level direct/indirect 组合。
@@ -285,6 +285,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2b2
+- 完成说明：
+  - mixed-arm site-matrix lowering 现已支持 pre-immediate top-level direct / indirect escape sites，不再把这类 top-level 组合回退到 `perform before immediate site not yet supported` / `indirect perform before immediate site not yet supported`。
+  - continuation step trampoline 现可在恢复 pre-immediate escape site 之后重新命中 sibling immediate-resume site，并在 immediate arm `resume(...)` 后继续 replay 后续 top-level tail 与 post-immediate escape sites。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_direct`、`effect_resume_mixed_escape_pre_immediate_indirect`；旧的 top-level pre-immediate build 负例已替换为 nested-shape 负例 `effect_resume_mixed_escape_pre_immediate_nested_is_error`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo fmt --check` 通过。
 
 ### T2003c0b2c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，control-flow / nested body 形状）
 - 描述：在单个 escape arm 的 richer site matrix 打通后，继续去掉“top-level `val = perform/call`”门禁，把 sibling escape-continuation 的 perform sites 扩到 block / branch / while 等更真实的 body 形状。

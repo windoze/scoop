@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle mixed-arm escape continuation (perform before immediate site not yet supported)
+// EXPECT-ERROR: handle mixed-arm escape continuation (only top-level val-bound direct perform supported)
 // ARGS: --emit-llvm
 
 import scoop.core.*
@@ -13,25 +13,21 @@ effect Ask {
     fun ask(seed: Int): String
 }
 
-fun fetch(seed: Int): String / (Ask) {
-    Ask.ask(seed + 1)
-}
-
 fun main() {
     val result: Int = handle {
-        val first: String = Ask.ask(0)
+        if (true) {
+            val first: String = Ask.ask(0)
+            println(first)
+        } else {
+            println("skip")
+        }
         val x: Int = Yield.next()
-        val second: String = fetch(x)
-        println(first)
-        println(second)
         x + 1
     } with {
         Yield.next() -> resume {
             resume(41)
         }
         Ask.ask(seed), k -> {
-            val keepSeed: Int = seed
-            val keep: Continuation<String> = k
             7
         }
     }
