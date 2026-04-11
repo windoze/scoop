@@ -239,7 +239,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_nested_escape_handle_tail_multi_perform_nonunit`，覆盖“outer immediate-resume tail + inner single-arm escape handle + multiple direct sites + non-`Unit` 结果 + pointer-like enum capture”。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b1 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
+### T2003c0b2b1 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate multiple direct sites）
 - 描述：`T2003c0b2b` 原始范围同时要求处理 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites` 与 `perform before immediate site`。其中“escape site 出现在 immediate site 之后，且全部为 top-level direct perform”计划通过把 tail 下沉为 single-arm escape-continuation handle 复用既有 multi-perform lowering 来落地；但这一步还依赖 `T2003c0b2b0c` 先补齐 single-arm 多 direct site 的非 `Unit` 结果值 primitive。
 - 目标：
   - 在“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的前提下，支持 immediate site 之后的多个 top-level direct escape sites。
@@ -250,6 +250,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2b0c
+- 完成说明：
+  - mixed-arm direct sibling escape lowering 现已支持 immediate site 之后的多个 top-level direct escape sites，不再在该子集上回退到 `multiple direct perform points not yet supported`。
+  - mixed escape state 现已新增 `pc` 字段；step trampoline 会按 direct site 序号恢复当前 perform 结果、继续执行 top-level tail，并在命中后续 sibling escape site 时再次分配 continuation。
+  - direct mixed-arm 的 outer/body capture 现已统一复用 `EscapeCaptureStorageKind` 的 `word / gc_ref` 存储协议，因此 step trampoline 中的 arm/body 也能恢复 pointer-like enum 外层捕获。
+  - 已移除旧的 build-fail 回归 `effect_resume_mixed_escape_is_error`，并新增 run-pass 回归 `effect_resume_mixed_escape_direct_multi`，覆盖 post-immediate 两个 direct site、第一次 escape 恢复值跨第二次 suspension 的 body-lift，以及 arm 内 pointer-like enum outer capture。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2b2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，post-immediate indirect/direct+indirect site matrix）
 - 描述：在 post-immediate multiple direct sites 打通后，继续补齐“一个 immediate-resume arm + 一个 sibling escape-continuation arm”在 immediate site 之后的 remaining top-level site matrix：multiple indirect call sites，以及 direct + indirect 共存。

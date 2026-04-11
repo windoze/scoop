@@ -1,43 +1,65 @@
-# 执行计划
+# 执行计划记录
 
-说明：不记录不可审计的内部推理细节；以下内容是本次执行的完整对外计划、检查项与进度记录。
+## 说明
 
-## 初始计划
+按要求，先写入本次执行的计划与过程记录。这里记录的是可审阅的执行思路摘要、步骤、检查点和后续变更，不包含不可审阅的内部完整思维链。
 
-1. 查看最新一次 Git 提交，确认提交信息中是否提到需要先处理的既有问题。
-2. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并核对当前项目状态。
-3. 如果首个未完成任务过大，先将其拆分为更小的可执行子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
-4. 实现当前应执行的首个任务。
-5. 运行相关测试与必要的质量检查，至少覆盖本次改动涉及范围；若可行，补充执行更严格的检查。
-6. 将任务状态回写到 `TODO.md` / `PLAN.md`，记录完成情况与后续影响。
-7. 提交本次变更，提交后停止，不继续处理下一个任务。
+## 当前目标
 
-## 进度记录
+完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交 `0e48ed3`：提交信息未引入额外独立遗留问题；其核心是在计划中把 single-arm escape-continuation 的非 `Unit` 多 direct site lowering 缺口拆成新的前置任务。
-- 已阅读 `TODO.md` / `PLAN.md`：当前首个未完成任务为 `T2003c0b2b0c`，目标是打通 “single-arm escape-continuation + top-level multiple direct perform sites + 非 Unit handle 结果” 的 LLVM lowering。
-- 下一步：定位最小复现、阅读相关 codegen/fixture，并判断该任务是否还能继续细拆。
-- 已完成最小复现收缩：
-  - 独立的 single-arm escape-continuation（multiple direct sites + 非 `Unit` 结果）样例可通过 LLVM build。
-  - 真正失败的形状是：该 single-arm handle 作为 outer immediate-resume tail 中的 inner handle，且多次 direct perform 之间 arm 需要再次访问外层局部 `saved: Continuation<String>?`。
-  - 该失败目前报 `scoop::llvm::unsupported_main_body / unknown local value`。
-- 当前判断的根因：
-  - `codegen_handle_expr_escape_continuation` 的 multi-perform step trampoline 只把 `Ref/String/Bool/Int` 当作可恢复 outer capture / body lift。
-  - `Option<Continuation<String>>` 在 codegen 层是 pointer-like enum；single-site 时 arm 只在 outer function 执行，所以不会暴露问题；multiple-site 时 arm 可能在 step trampoline 的 intercept path 再次执行，此时 `saved` 未被恢复进 `cg.env`，从而触发 `unknown local value`。
-- 接下来要做：
-  1. 为 single-arm escape-continuation 的 capture/filter/state-field/restore/write-back 路径补 pointer-like enum 支持。
-  2. 新增 run-pass fixture，覆盖“outer immediate-resume tail 中的 inner escape handle：multiple direct sites + 非 `Unit` 结果 + `Option<Continuation<_>>` 外层局部捕获”。
-  3. 跑相关 LLVM fixture、全量测试与 clippy。
-- 已完成实现：
-  - 已为 single-arm escape-continuation 的 capture 存储协议新增 pointer-like enum 支持，并把 outer/body capture 的筛选、zero-init、restore、write-back 统一收口到同一套 helper。
-  - 已同时修正 write barrier 对 pointer-niche enum 的判定逻辑，避免只看首个 variant 字段。
-- 已新增回归：
-  - `tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`
-  - 覆盖 outer immediate-resume tail 中的 inner single-arm escape handle：multiple direct sites、non-`Unit` 结果、pointer-like enum outer capture、以及两次 resume 后的剩余 tail 执行。
-- 已完成验证：
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 本轮任务状态：`T2003c0b2b0c` 已完成。
-- 下一步（下次调用再做）：`T2003c0b2b1`，把 sibling escape-continuation 扩展到 post-immediate multiple direct sites。
+## 执行顺序
+
+1. 检查最新一次 Git 提交，确认提交信息里是否提到了已知问题、遗留问题或需要顺带修复的事项。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，理解当前项目计划与该任务上下文。
+4. 判断该任务是否可以在本轮完整落地：
+   - 如果可以，直接实现。
+   - 如果过大，先拆分成更小子任务，并同步更新 `TODO.md` 与 `PLAN.md`，当前只执行拆分后的第一个子任务。
+5. 在实现前梳理受影响模块、测试位置、相关文档（必要时包括 `README.md`）。
+6. 实施代码修改，优先保持模块边界清晰，必要时做小范围重构以支撑任务完成。
+7. 运行与该任务相关的验证：
+   - 至少运行针对性测试；
+   - 若改动影响较大，再补充更广的测试；
+   - 按要求检查无警告，包括 `cargo clippy --all-targets -- -D warnings`（若依赖环境允许）。
+8. 若测试或 lint 失败，立即修复直到通过，或在确认是前置依赖缺失后回退到“依赖调整流程”。
+9. 更新文档与进度：
+   - 在 `TODO.md` 标记当前任务完成；
+   - 在 `PLAN.md` 反映当前状态与剩余计划；
+   - 在本文件追加关键进展记录。
+10. 查看工作区差异，确认不误伤用户已有改动。
+11. 提交 Git commit，提交信息明确对应任务。
+12. 停止，不继续处理下一个任务。
+
+## 风险与处理原则
+
+- 不回退我未创建的现有改动。
+- 如果发现任务依赖尚未实现的语言特性或库能力，不会硬做；会调整 `TODO.md` / `PLAN.md` 反映依赖并提交。
+- 如果最新提交中提到了需要先修复的问题，这些问题优先于当前任务。
+- 若遇到任务范围过大，会先拆分并只完成拆分后的第一项。
+
+## 进度日志
+
+- 2026-04-11：初始化本文件，尚未开始仓库检查。
+- 2026-04-11：已检查最新提交 `5ae52bcee03d0a3b95f85ce53b57b63472a52055`，提交信息未额外声明必须先处理的遗留问题；当前工作区已有对本文件的改动，后续仅在此基础上追加。
+- 2026-04-11：已读取 `TODO.md` / `PLAN.md`，首个未完成任务为 `T2003c0b2b1`：mixed-arm immediate-resume + sibling escape-continuation 的 post-immediate multiple direct sites。
+- 2026-04-11：已完成代码审计，确认现有 direct mixed-arm lowering 仅支持单个 top-level direct escape site；对应限制点在 `crates/scoopc/src/llvm/codegen/effect.rs` 中的 `codegen_handle_expr_immediate_resume_with_escape_sibling_direct(...)`。
+- 2026-04-11：决定不再拆分任务，直接实现当前子任务。计划如下：
+  1. 将 direct mixed-arm 的 escape site 收集从单个站点扩展为多个 top-level `val = perform` 站点，并保留对 pre-immediate / nested / indirect 组合的稳定诊断。
+  2. 把 mixed-arm escape state 从“单 resume site”扩展成带 `pc` 的多站点状态机，让 step trampoline 能在每次 `resume(...)` 后继续跑到下一个 direct site 或 tail 结束。
+  3. 复用统一的 escape capture 存储协议（word / gc_ref），避免继续维持 direct mixed-arm 的手写 `Ref/String/Bool/Int` 分支。
+  4. 增加 run-pass 回归覆盖“immediate site 之后多个 direct escape sites”，并移除旧的 build-fail 预期。
+  5. 运行针对性测试，再补 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+- 2026-04-11：代码实现已完成：
+  - direct mixed-arm escape site 收集已扩展为多个 top-level direct sites；
+  - mixed escape state 已新增 `pc` 字段，step trampoline 现在能在每次 `resume(...)` 后恢复当前 site 的结果并继续推进后续 sibling escape site；
+  - outer/body capture 已改为统一走 `EscapeCaptureStorageKind`，不再局限于 `Ref/String/Bool/Int` 手写分支。
+- 2026-04-11：已删除旧的 build-fail 夹具 `tests/fixtures/build/effect_resume_mixed_escape_is_error.scoop`，新增 run-pass：
+  - `tests/fixtures/run-pass/effect_resume_mixed_escape_direct_multi.scoop`
+  - `tests/fixtures/run-pass/effect_resume_mixed_escape_direct_multi.stdout`
+- 2026-04-11：已完成验证：
+  - 定点验证：`cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_mixed_escape_direct_multi.scoop -o /tmp/effect_resume_mixed_escape_direct_multi` 后运行产物，stdout 与预期一致。
+  - 全量验证：`cargo test --all` 通过。
+  - 全量 LLVM fixtures：`cargo run -p scoop --features llvm -- test` 通过，结果 `fixtures: ok (926)`。
+  - lint：`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+- 2026-04-11：已更新 `TODO.md` / `PLAN.md`，将 `T2003c0b2b1` 标记完成，并把下一步指向 `T2003c0b2b2`。

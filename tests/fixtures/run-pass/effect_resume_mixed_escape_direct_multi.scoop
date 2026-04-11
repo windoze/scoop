@@ -1,0 +1,89 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_direct_multi.stdout
+//
+// T2003c0b2b1: mixed-arm immediate-resume + sibling escape-continuation
+// supports multiple post-immediate top-level direct perform sites.
+// - 第一个 direct escape site 仍让 handle 立即返回 arm result；
+// - resume 第一个 continuation 后，会继续推进到第二个 sibling direct site；
+// - 第二次 resume 时，pre-immediate body local、第一次 escape 的恢复值，以及
+//   arm 中使用的 pointer-like enum outer capture 都能保持可用。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+    val note: String? = Some("captured_note")
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        val first: String = Ask.ask()
+        println("after_first")
+        println(first)
+        val second: String = Ask.ask()
+        println("after_second")
+        println(prefix)
+        println(x)
+        println(first)
+        println(second)
+        x + 1
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Ask.ask(), k -> {
+            println("ask_arm")
+            when (note) {
+                Some(text) -> println(text)
+                None -> println("missing_note")
+            }
+            cell.k = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}
