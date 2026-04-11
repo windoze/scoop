@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle mixed-arm escape continuation (only top-level val-bound direct perform supported)
+// EXPECT-ERROR: handle mixed-arm escape continuation (nested direct site in while body not yet supported)
 // ARGS: --emit-llvm
 
 import scoop.core.*
@@ -17,8 +17,10 @@ fun main() {
     val result: Int = handle {
         var i: Int = 0
         while (i < 1) {
-            val first: String = Ask.ask(i)
-            println(first)
+            if (i == 0) {
+                val first: String = Ask.ask(i)
+                println(first)
+            }
             i = i + 1
         }
         val x: Int = Yield.next()

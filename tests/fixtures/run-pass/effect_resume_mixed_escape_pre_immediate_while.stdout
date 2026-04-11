@@ -1,0 +1,17 @@
+body
+iter_begin
+ask_arm
+after_handle
+after_ask
+zero
+iter_end
+iter_begin
+ask_arm
+after_resume1
+after_ask
+one
+iter_end
+yield_arm
+after_yield_done
+after_resume2
+done

@@ -70,7 +70,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c1a 已完成：mixed-arm site matrix 现已支持 statement-position nested block 中的 direct sibling escape site，覆盖 pre/post-immediate 两侧 replay；block-local body capture/lift 也已接入 continuation state。
   - T2003c0b2c1b 已完成：mixed-arm site matrix 现已支持 statement-position if then/else branch 中的 direct sibling escape site；step trampoline、pre-immediate state0 与 post-immediate state1 现已共享条件分派 helper，在命中分支 replay branch tail、未命中分支顺序执行后统一回到 after-if top-level tail。
   - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_if`、`effect_resume_mixed_escape_post_immediate_if`，并把旧的 nested-if 负例替换为 while 负例 `effect_resume_mixed_escape_while_is_error`，继续为 `T2003c0b2c2` 锁住 while body 边界。
-  - 当前下一步调整为 `T2003c0b2c2`：继续补 sibling escape-continuation 在 while body 中的 direct site；nested indirect 作为后续子任务承接。
+  - 继续审计 `T2003c0b2c2` 后确认，“while body 的 direct site”还跨了两个不同难度的子问题：flat while-body direct site，以及 while 内再嵌 block / if 的 nested direct site。二者都需要 loop re-entry，但后者还额外需要 nested path replay，因此现再拆成 `T2003c0b2c2a` / `T2003c0b2c2b`。
+  - T2003c0b2c2a 已完成：mixed-arm escape site matrix 现已支持 while body 中的 flat direct sibling escape site；state0、state1 与 continuation step trampoline 都会在 `resume(...)` 后先完成当前迭代尾部、重新检查 loop condition，并在后续迭代中再次命中同一个 sibling escape site。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_while`、`effect_resume_mixed_escape_post_immediate_while`，并把 while 负例 `effect_resume_mixed_escape_while_is_error` 更新为 nested direct 诊断，继续为 `T2003c0b2c2b` 锁住 while nested path 边界。
+  - 当前下一步调整为 `T2003c0b2c2b`：继续补 sibling escape-continuation 在 while body 中的 nested direct site；nested indirect 作为后续子任务承接。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -89,7 +92,8 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2b3（已完成）：扩展 sibling escape-continuation 到 pre-immediate top-level sites。
   - T2003c0b2c1a（已完成）：补 sibling escape-continuation 在 nested block 中的 direct site。
   - T2003c0b2c1b（已完成）：补 sibling escape-continuation 在 if branch 中的 direct site。
-  - T2003c0b2c2：补 sibling escape-continuation 在 while body 中的 direct site。
+  - T2003c0b2c2a（已完成）：补 sibling escape-continuation 在 while body 中的 flat direct site。
+  - T2003c0b2c2b：补 sibling escape-continuation 在 while body 中的 nested direct site。
   - T2003c0b2c3：补 sibling escape-continuation 的 nested indirect call site 与 nested direct/indirect site matrix。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 
