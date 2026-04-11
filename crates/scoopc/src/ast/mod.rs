@@ -32,6 +32,15 @@ pub struct File {
     ///   array literal / nested array 等表达式降为可执行 HIR；
     /// - dump-hir 路径不运行完整 typecheck，因此这里允许保持为空。
     pub(crate) inferred_expr_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 补回的 safe member access 解析结果（按 member name 的源码 span 索引）。
+    ///
+    /// 说明：
+    /// - 当 receiver 为 nullable（`T?` / `Option<T>`）时，resolver 往往无法仅凭语法确定
+    ///   `receiver?.member` 的目标；
+    /// - typecheck 在拿到 inner receiver type 后会补做一次成员/extension property 决议，并把结果
+    ///   写回此表，供 HIR lowering / codegen 复用；
+    /// - 该表同样不参与 AST Debug 输出，避免影响 parse fixtures。
+    pub(crate) safe_member_access_resolved: RefCell<HashMap<Span, ResolvedMemberRef>>,
 }
 
 impl std::fmt::Debug for File {
@@ -54,6 +63,17 @@ impl File {
 
     pub fn inferred_expr_ty(&self, span: Span) -> Option<TypeId> {
         self.inferred_expr_tys.borrow().get(&span).copied()
+    }
+
+    pub fn replace_safe_member_access_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {
+        *self.safe_member_access_resolved.borrow_mut() = resolved;
+    }
+
+    pub fn safe_member_access_resolved(&self, span: Span) -> Option<ResolvedMemberRef> {
+        self.safe_member_access_resolved
+            .borrow()
+            .get(&span)
+            .cloned()
     }
 }
 

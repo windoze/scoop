@@ -1127,6 +1127,13 @@ pub(super) fn check_expr_stmt(
             )?;
             Ok(())
         }
+        ast::ExprKind::SafeMemberAccess { .. } => {
+            // T0152：表达式语句中的调用实参会递归走 `check_expr_stmt`；
+            // 若这里跳过 `receiver?.member`，typecheck 就无法补回 safe member access 的解析结果，
+            // 后续 lowering/codegen 也拿不到稳定的成员目标。
+            let _ = expr_infer_inputs(shared, state.locals).infer(lower, expr)?;
+            Ok(())
+        }
         ast::ExprKind::Cast { .. } => {
             // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
             // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与

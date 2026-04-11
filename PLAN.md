@@ -254,6 +254,7 @@ cargo run -p scoop --features llvm -- test
   - `T0151`：`for (x in iterable)` Custom iterator lowering + codegen
     - 2026-04-11：已完成。typecheck 会把 custom iterator 的 `iterator()/next()` 静态调用目标与类型写回 AST side table；HIR lowering 以 `val __for_iterable` + `val __for_iter` + `var __for_running` + `while/when` 展开，避免 `when` 分支内直接 `break` 触发 LLVM verifier 问题。新增 `for_in_custom_iterator_basic`、`for_in_custom_iterator_effects` 回归，覆盖基本迭代、required effects 传播与 `None()` 正常退出。
   - `T0152`：safe member access parity（ref receiver / extension property）
+    - 2026-04-11：已完成。safe member access 的 typecheck 现在会在 unwrap `Option<T>` 后复用普通 member access 的解析结果，并把 ref receiver / extension property 的目标写回 AST side table；`check_expr_stmt` 也补上了 `SafeMemberAccess` 的推导入口，避免 `call(x?.prop)` 这类表达式语句实参跳过补写。HIR lowering 的 `Some(v)` 分支现已复用普通 member access lowering，并覆盖 extension property getter 脱糖。新增 `safe_member_access_ref_and_extension_ok`、`safe_member_access_ref_and_extension_basic` 与 HIR lowering 回归，覆盖 `Option<Class>` / `Option<Object>` 字段访问、safe extension property 与 `None -> None`。
   - `T0153`：receiver function value invocation
   - `T0154`：higher-order aggregate returns（closure / function value / `FunPtr`）
 

@@ -1982,7 +1982,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 `for_in_custom_iterator_basic` 与 `for_in_custom_iterator_effects` 两个 run-pass fixtures，覆盖自定义 iterator 动态分发、required effects 传播、以及 `None()` 收敛退出。
 - 依赖：无
 
-### T0152 [TODO] Nullable 访问补齐：safe member access 支持 ref receiver / extension property
+### T0152 [DONE] Nullable 访问补齐：safe member access 支持 ref receiver / extension property
 
 - 描述：当前 `infer_safe_member_access_expr_type` 只接受 `Option<Struct>` 上的字段访问。`Option<Class>` / `Option<Object>` 上的字段、以及 safe extension property（`x?.prop`）仍会报 `UnsupportedExpr` / `UnsupportedMemberAccess`，与普通 member access 语义不对齐。
 - 目标：
@@ -1997,6 +1997,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 完成：
+  - safe member access 现在会在 typecheck 阶段复用普通 member access 的解析结果：对 `Option<Class>` / `Option<Object>` 会先 unwrap 到 inner receiver type，再把字段或 extension property 的决议写回 AST side table，供 lowering / codegen 稳定复用。
+  - HIR lowering 的 safe member access 分支已改为复用普通 member access lowering 路径；`Some(v)` 分支现在同时支持 class/object 字段访问与 extension property getter 脱糖。
+  - `check_expr_stmt` 现在会在表达式语句递归检查里推导 `SafeMemberAccess`，避免 `main` 这类 `call(x?.prop)` 场景跳过 side table 补写，导致 build/codegen 丢失成员目标。
+  - 新增 `safe_member_access_ref_and_extension_ok` 与 `safe_member_access_ref_and_extension_basic` fixtures，并增加 HIR lowering 回归测试，覆盖 `Option<Class>` / `Option<Object>` 字段访问、safe extension property，以及 `None -> None`。
 - 依赖：无
 
 ### T0153 [TODO] Higher-order：receiver function type 的局部函数值调用

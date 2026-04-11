@@ -121,15 +121,13 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(super) fn lower_lazy_delegated_property_get(
+    pub(super) fn lower_lazy_delegated_property_get_from_receiver(
         &mut self,
         pkg_prefix: &str,
         span: Span,
-        receiver: &ast::Expr,
+        receiver: Expr,
         info: &LazyDelegatedPropertyInfo,
     ) -> ExprKind {
-        let receiver = self.lower_expr(pkg_prefix, receiver);
-
         let inited_name = format!("{}$lazy_inited", info.name);
         let value_name = format!("{}$lazy_value", info.name);
 
@@ -526,11 +524,11 @@ impl<'a> HirLowering<'a> {
         })
     }
 
-    pub(super) fn lower_observable_vetoable_delegated_property_get(
+    pub(super) fn lower_observable_vetoable_delegated_property_get_from_receiver(
         &mut self,
         pkg_prefix: &str,
         span: Span,
-        receiver: &ast::Expr,
+        receiver: Expr,
         property_fqn: &str,
         ty: Option<ast::TypeRef>,
         mutex_field_fqn: Option<String>,
@@ -538,7 +536,6 @@ impl<'a> HirLowering<'a> {
         // observable/vetoable（T1326b）：
         // - 读取需要具备并发可见性（避免 data race）；
         // - 早期阶段通过一个 per-property 的 `Mutex` 保护 backing field 读写。
-        let receiver = self.lower_expr(pkg_prefix, receiver);
         let value_ty = self.delegated_property_ty(ty.as_ref());
         let property_name = property_fqn
             .rsplit('.')

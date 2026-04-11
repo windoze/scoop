@@ -1740,8 +1740,258 @@ pub(crate) fn lower_member_fun_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
+    use crate::resolve::Index;
+    use crate::typecheck;
     use std::collections::HashSet;
     use std::path::PathBuf;
+
+    fn collect_unresolved_member_names_in_expr(expr: &Expr, out: &mut Vec<String>) {
+        match &expr.kind {
+            ExprKind::MemberAccess { receiver, member } => {
+                if member.resolved.is_none() {
+                    out.push(member.name.clone());
+                }
+                collect_unresolved_member_names_in_expr(receiver, out);
+            }
+            ExprKind::Call { callee, args } => {
+                collect_unresolved_member_names_in_expr(callee, out);
+                for arg in args {
+                    match arg {
+                        CallArg::Positional(expr) => {
+                            collect_unresolved_member_names_in_expr(expr, out)
+                        }
+                        CallArg::Named { value, .. } => {
+                            collect_unresolved_member_names_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            ExprKind::When { subject, arms } => {
+                collect_unresolved_member_names_in_expr(subject, out);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        collect_unresolved_member_names_in_expr(guard, out);
+                    }
+                    collect_unresolved_member_names_in_expr(&arm.body, out);
+                }
+            }
+            ExprKind::Block(block) => collect_unresolved_member_names_in_block(block, out),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                collect_unresolved_member_names_in_expr(cond, out);
+                collect_unresolved_member_names_in_expr(then_branch, out);
+                if let Some(else_branch) = else_branch.as_deref() {
+                    collect_unresolved_member_names_in_expr(else_branch, out);
+                }
+            }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. } => collect_unresolved_member_names_in_expr(expr, out),
+            ExprKind::Binary { lhs, rhs, .. } => {
+                collect_unresolved_member_names_in_expr(lhs, out);
+                collect_unresolved_member_names_in_expr(rhs, out);
+            }
+            ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    collect_unresolved_member_names_in_expr(&field.value, out);
+                }
+            }
+            ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    collect_unresolved_member_names_in_expr(element, out);
+                }
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                        collect_unresolved_member_names_in_expr(expr, out);
+                    }
+                }
+            }
+            ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        CallArg::Positional(expr) => {
+                            collect_unresolved_member_names_in_expr(expr, out)
+                        }
+                        CallArg::Named { value, .. } => {
+                            collect_unresolved_member_names_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            ExprKind::Handle(handle) => {
+                collect_unresolved_member_names_in_block(&handle.body, out);
+                for arm in &handle.arms {
+                    collect_unresolved_member_names_in_expr(&arm.body, out);
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    collect_unresolved_member_names_in_block(finally, out);
+                }
+            }
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Closure(_)
+            | ExprKind::Missing
+            | ExprKind::Todo(_) => {}
+        }
+    }
+
+    fn collect_unresolved_member_names_in_block(block: &Block, out: &mut Vec<String>) {
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                StmtKind::Expr(expr) => collect_unresolved_member_names_in_expr(expr, out),
+                StmtKind::Val(val) => {
+                    if let Some(init) = val.init.as_ref() {
+                        collect_unresolved_member_names_in_expr(init, out);
+                    }
+                }
+                StmtKind::Assign { lhs, rhs, .. } => {
+                    collect_unresolved_member_names_in_expr(lhs, out);
+                    collect_unresolved_member_names_in_expr(rhs, out);
+                }
+                StmtKind::While { cond, body } => {
+                    collect_unresolved_member_names_in_expr(cond, out);
+                    collect_unresolved_member_names_in_block(body, out);
+                }
+                StmtKind::Return { value } => {
+                    if let Some(value) = value.as_ref() {
+                        collect_unresolved_member_names_in_expr(value, out);
+                    }
+                }
+                StmtKind::Empty
+                | StmtKind::Break { .. }
+                | StmtKind::Continue { .. }
+                | StmtKind::Todo(_) => {}
+            }
+        }
+    }
+
+    fn collect_top_level_call_fqns_in_expr(expr: &Expr, out: &mut Vec<String>) {
+        match &expr.kind {
+            ExprKind::Call { callee, args } => {
+                if let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+                    out.push(fqn.clone());
+                }
+                collect_top_level_call_fqns_in_expr(callee, out);
+                for arg in args {
+                    match arg {
+                        CallArg::Positional(expr) => collect_top_level_call_fqns_in_expr(expr, out),
+                        CallArg::Named { value, .. } => {
+                            collect_top_level_call_fqns_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            ExprKind::MemberAccess { receiver, .. } => {
+                collect_top_level_call_fqns_in_expr(receiver, out);
+            }
+            ExprKind::When { subject, arms } => {
+                collect_top_level_call_fqns_in_expr(subject, out);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        collect_top_level_call_fqns_in_expr(guard, out);
+                    }
+                    collect_top_level_call_fqns_in_expr(&arm.body, out);
+                }
+            }
+            ExprKind::Block(block) => collect_top_level_call_fqns_in_block(block, out),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                collect_top_level_call_fqns_in_expr(cond, out);
+                collect_top_level_call_fqns_in_expr(then_branch, out);
+                if let Some(else_branch) = else_branch.as_deref() {
+                    collect_top_level_call_fqns_in_expr(else_branch, out);
+                }
+            }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. } => collect_top_level_call_fqns_in_expr(expr, out),
+            ExprKind::Binary { lhs, rhs, .. } => {
+                collect_top_level_call_fqns_in_expr(lhs, out);
+                collect_top_level_call_fqns_in_expr(rhs, out);
+            }
+            ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    collect_top_level_call_fqns_in_expr(&field.value, out);
+                }
+            }
+            ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    collect_top_level_call_fqns_in_expr(element, out);
+                }
+            }
+            ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                        collect_top_level_call_fqns_in_expr(expr, out);
+                    }
+                }
+            }
+            ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        CallArg::Positional(expr) => collect_top_level_call_fqns_in_expr(expr, out),
+                        CallArg::Named { value, .. } => {
+                            collect_top_level_call_fqns_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            ExprKind::Handle(handle) => {
+                collect_top_level_call_fqns_in_block(&handle.body, out);
+                for arm in &handle.arms {
+                    collect_top_level_call_fqns_in_expr(&arm.body, out);
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    collect_top_level_call_fqns_in_block(finally, out);
+                }
+            }
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Closure(_)
+            | ExprKind::Missing
+            | ExprKind::Todo(_) => {}
+        }
+    }
+
+    fn collect_top_level_call_fqns_in_block(block: &Block, out: &mut Vec<String>) {
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                StmtKind::Expr(expr) => collect_top_level_call_fqns_in_expr(expr, out),
+                StmtKind::Val(val) => {
+                    if let Some(init) = val.init.as_ref() {
+                        collect_top_level_call_fqns_in_expr(init, out);
+                    }
+                }
+                StmtKind::Assign { lhs, rhs, .. } => {
+                    collect_top_level_call_fqns_in_expr(lhs, out);
+                    collect_top_level_call_fqns_in_expr(rhs, out);
+                }
+                StmtKind::While { cond, body } => {
+                    collect_top_level_call_fqns_in_expr(cond, out);
+                    collect_top_level_call_fqns_in_block(body, out);
+                }
+                StmtKind::Return { value } => {
+                    if let Some(value) = value.as_ref() {
+                        collect_top_level_call_fqns_in_expr(value, out);
+                    }
+                }
+                StmtKind::Empty
+                | StmtKind::Break { .. }
+                | StmtKind::Continue { .. }
+                | StmtKind::Todo(_) => {}
+            }
+        }
+    }
 
     #[test]
     fn lower_minimal_file_smoke() {
@@ -1983,5 +2233,136 @@ fun main(): Int { return id(1) }
 
         assert!(fun_fqns.contains("fixtures.t1315a.id"));
         assert!(fun_fqns.contains("fixtures.t1315a.main"));
+    }
+
+    #[test]
+    fn lower_for_compilation_unit_multi_files_preserves_safe_member_access_resolution() {
+        let sess = Session::new().unwrap();
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop");
+        let source = SourceFile::load(&fixture_path).unwrap();
+        let mut ast = parse_file(&source).unwrap();
+        crate::comptime::trim_package_level_comptime_ifs(&source, &mut ast).unwrap();
+
+        typecheck::check_file_headers(&source, &ast).unwrap();
+        typecheck::check_file_struct_decls(&source, &ast).unwrap();
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for f in &sess.sysroot().files {
+                unit.push((&f.source, &f.ast));
+            }
+            unit.push((&source, &ast));
+            Index::build(&unit).unwrap()
+        };
+        let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_properties(&source, &ast, &index, &env).unwrap();
+        typecheck::check_file_inheritance(&source, &ast, &index).unwrap();
+        typecheck::check_file_interfaces(&source, &ast, &index, &env).unwrap();
+        typecheck::check_file_override_effects(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_where_clauses(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_overload_conflicts(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
+
+        let safe_debug = format!("{:?}", ast.safe_member_access_resolved.borrow());
+        assert!(safe_debug.contains("User.score"), "{safe_debug}");
+        assert!(safe_debug.contains("Config.port"), "{safe_debug}");
+        assert!(safe_debug.contains("doubleScore"), "{safe_debug}");
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            unit.push((&f.source, &f.ast));
+        }
+        unit.push((&source, &ast));
+
+        let lowered = lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &[(&source, &ast)],
+            &[],
+            &types,
+        )
+        .unwrap();
+
+        let mut unresolved_member_names = Vec::new();
+        let mut top_level_call_fqns = Vec::new();
+        for item in &lowered.file.items {
+            if let Item::Fun(fun) = item
+                && let Some(body) = fun.body.as_ref()
+            {
+                collect_unresolved_member_names_in_block(body, &mut unresolved_member_names);
+                collect_top_level_call_fqns_in_block(body, &mut top_level_call_fqns);
+            }
+        }
+
+        assert!(!unresolved_member_names.iter().any(|name| name == "score"));
+        assert!(!unresolved_member_names.iter().any(|name| name == "port"));
+        assert!(top_level_call_fqns.iter().any(|fqn| fqn == "doubleScore"));
     }
 }

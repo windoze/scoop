@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: safe_member_access_ref_and_extension_basic.stdout
+//
+// T0152: `?.` safe member access
+// - 覆盖 `Option<Class>` 字段访问；
+// - 覆盖 `Option<Object>` 字段访问；
+// - 覆盖 safe extension property；
+// - 覆盖 `None -> None`。
+
+import scoop.core.*
+
+class User(val score: Int)
+
+val User.doubleScore: Int
+    get() = this.score + this.score
+
+object Config {
+    val port: Int = 42
+}
+
+fun printOptInt(label: String, value: Int?) {
+    when (value) {
+        Some(v) -> println(f"{label}=Some({v})")
+        None -> println(f"{label}=None")
+    }
+}
+
+fun main() {
+    val someUser: User? = Some(User(7))
+    val noneUser: User? = None()
+    val someConfig: Config? = Some(Config)
+    val noneConfig: Config? = None()
+
+    printOptInt("user-field", someUser?.score)
+    printOptInt("user-field-none", noneUser?.score)
+    printOptInt("user-ext", someUser?.doubleScore)
+    printOptInt("user-ext-none", noneUser?.doubleScore)
+    printOptInt("config", someConfig?.port)
+    printOptInt("config-none", noneConfig?.port)
+}

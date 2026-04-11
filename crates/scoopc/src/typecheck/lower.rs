@@ -419,6 +419,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - HIR lowering 读取该表，以恢复 `return [..]` / `x = [..]` / 无注解 `val x = [..]`
     ///   这类表达式位置的最终类型。
     inferred_expr_tys: HashMap<Span, TypeId>,
+    /// `receiver?.member` 在 typecheck 阶段补做出的成员解析结果。
+    ///
+    /// 用途：
+    /// - resolver 无法仅凭 nullable receiver 的语法形态写回 `member.resolved`；
+    /// - lowering/codegen 仍需要稳定的成员解析结果，因此这里按 `member.span` 记录。
+    safe_member_access_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
     /// 单态化（monomorphization）请求收集器（T0712）。
     ///
     /// 说明：
@@ -525,6 +531,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
             inferred_expr_tys: HashMap::new(),
+            safe_member_access_resolutions: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
@@ -1164,8 +1171,23 @@ impl<'a> TypeLowering<'a> {
         self.inferred_expr_tys.insert(span, ty);
     }
 
+    pub(super) fn record_safe_member_access_resolution(
+        &mut self,
+        member_span: Span,
+        resolved: ast::ResolvedMemberRef,
+    ) {
+        self.safe_member_access_resolutions
+            .insert(member_span, resolved);
+    }
+
     pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_expr_tys)
+    }
+
+    pub(super) fn take_safe_member_access_resolutions(
+        &mut self,
+    ) -> HashMap<Span, ast::ResolvedMemberRef> {
+        std::mem::take(&mut self.safe_member_access_resolutions)
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {

@@ -1,4 +1,5 @@
 use crate::ast;
+use crate::resolve::Visibility;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
@@ -7,6 +8,11 @@ use super::{ExprInferInputs, ExprTypeError};
 
 use super::super::assignable::is_type_assignable;
 use super::super::lower::TypeLowering;
+
+struct MemberAccessInference {
+    ty: TypeId,
+    resolved: Option<ast::ResolvedMemberRef>,
+}
 
 pub(super) fn infer_safe_member_access_expr_type(
     inputs: ExprInferInputs<'_>,
@@ -27,58 +33,26 @@ pub(super) fn infer_safe_member_access_expr_type(
         }
     };
 
-    // 当前阶段最小规则：
-    // - 仅支持 safe-call 的字段访问：`receiver?.field`，并且 field 必须是 struct 字段（T0408）。
-    // - extension property / method 的语义留给后续任务；safe-call 的“调用”形式在 `Call(SafeMemberAccess)`
-    //   分支中处理。
-    let field_ty = match member.resolved.as_ref() {
-        Some(ast::ResolvedMemberRef::Value { fqn }) => {
-            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
-                ExprTypeError::UnsupportedMemberAccess {
-                    fqn: fqn.clone(),
-                    span: member.span.into(),
-                }
-            })?
-        }
-        Some(ast::ResolvedMemberRef::Fun { fqn })
-        | Some(ast::ResolvedMemberRef::ExtensionValue { fqn })
-        | Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => {
-            return Err(ExprTypeError::UnsupportedMemberAccess {
-                fqn: fqn.clone(),
-                span: member.span.into(),
-            });
-        }
-        None => {
-            // resolver 无法静态确定 receiver 类型（例如 receiver 为 `T?`）时不会写回 resolved；
-            // 这里用“已推导出的 inner_ty”尝试补上最小字段查找。
-            let name = inputs.source.slice(member.span);
-            match lower.type_kind(inner_ty) {
-                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                    let fqn = format!("{}.{}", nominal.fqn, name);
-                    inputs
-                        .struct_field_types
-                        .get(&fqn)
-                        .copied()
-                        .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
-                            fqn,
-                            span: member.span.into(),
-                        })?
-                }
-                other => {
-                    return Err(ExprTypeError::UnsupportedExpr {
-                        kind: match other {
-                            TypeKind::Value(_) => "safe member access（非 struct 字段）",
-                            TypeKind::Ref(_) => "safe member access（引用类型成员尚未支持）",
-                            TypeKind::Param(_) => "safe member access（type param 暂不支持）",
-                        },
-                        span: member.span.into(),
-                    });
-                }
-            }
-        }
-    };
+    // T0152：safe member access 与普通 member access 共享同一套成员解析结果；
+    // `?.` 只负责 unwrap `Option<T>` 并在最外层再包回 `Option<_>`。
+    let resolved = member
+        .resolved
+        .clone()
+        .or_else(|| resolve_safe_member_access_target(inputs, inner_ty, member, lower));
+    let inferred = infer_member_access_with_receiver_ty(
+        inputs,
+        Some(inner_ty),
+        member,
+        resolved.as_ref(),
+        lower,
+    )?;
+    if member.resolved.is_none()
+        && let Some(resolved) = inferred.resolved.clone()
+    {
+        lower.record_safe_member_access_resolution(member.span, resolved);
+    }
 
-    Ok(lower.ty_option(field_ty))
+    Ok(lower.ty_option(inferred.ty))
 }
 
 pub(super) fn infer_elvis_expr_type(
@@ -256,7 +230,24 @@ pub(super) fn infer_member_access_expr_type(
         Some(inputs.infer(lower, receiver)?)
     };
 
-    match member.resolved.as_ref() {
+    Ok(infer_member_access_with_receiver_ty(
+        inputs,
+        receiver_ty,
+        member,
+        member.resolved.as_ref(),
+        lower,
+    )?
+    .ty)
+}
+
+fn infer_member_access_with_receiver_ty(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: Option<TypeId>,
+    member: &ast::MemberIdent,
+    resolved: Option<&ast::ResolvedMemberRef>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<MemberAccessInference, ExprTypeError> {
+    match resolved {
         None => {
             // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
             //
@@ -293,12 +284,15 @@ pub(super) fn infer_member_access_expr_type(
                     kind: "tuple element access（index out of bounds）",
                     span: member.span.into(),
                 })?;
-            Ok(ty)
+            Ok(MemberAccessInference { ty, resolved: None })
         }
         Some(ast::ResolvedMemberRef::Value { fqn }) => {
             // `TypeName.NestedObject` / `Obj.NestedObject`：成员本身是一个 object 单例值。
             if lower.is_object_type(fqn) {
-                return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?);
+                return Ok(MemberAccessInference {
+                    ty: lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?,
+                    resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
+                });
             }
 
             // sysroot 跨文件特判：Platform.*（spec §6.4 / TODO T1219）。
@@ -319,7 +313,10 @@ pub(super) fn infer_member_access_expr_type(
                     lower.type_kind(receiver_ty)
                     && nominal.fqn == "scoop.core.Platform"
                 {
-                    return Ok(inputs.builtins.string);
+                    return Ok(MemberAccessInference {
+                        ty: inputs.builtins.string,
+                        resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
+                    });
                 }
             }
 
@@ -340,7 +337,10 @@ pub(super) fn infer_member_access_expr_type(
                     lower.type_kind(receiver_ty)
                     && nominal.fqn == "scoop.core.Pinned"
                 {
-                    return Ok(inputs.builtins.any);
+                    return Ok(MemberAccessInference {
+                        ty: inputs.builtins.any,
+                        resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
+                    });
                 }
             }
 
@@ -361,19 +361,26 @@ pub(super) fn infer_member_access_expr_type(
                     lower.type_kind(receiver_ty)
                     && nominal.fqn == "scoop.core.GcHandle"
                 {
-                    return Ok(lower.lower_type_fqn_with_args(
-                        "scoop.core.UIntPtr".to_string(),
-                        Vec::new(),
-                        member.span,
-                    )?);
+                    return Ok(MemberAccessInference {
+                        ty: lower.lower_type_fqn_with_args(
+                            "scoop.core.UIntPtr".to_string(),
+                            Vec::new(),
+                            member.span,
+                        )?,
+                        resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
+                    });
                 }
             }
 
-            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
+            let ty = inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
                     span: member.span.into(),
                 }
+            })?;
+            Ok(MemberAccessInference {
+                ty,
+                resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
             })
         }
         Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
@@ -381,7 +388,10 @@ pub(super) fn infer_member_access_expr_type(
             if let Some(sigs) = inputs.top_level_funs.get(fqn.as_str())
                 && let Some(sig) = sigs.first()
             {
-                return Ok(sig.return_ty);
+                return Ok(MemberAccessInference {
+                    ty: sig.return_ty,
+                    resolved: Some(ast::ResolvedMemberRef::ExtensionValue { fqn: fqn.clone() }),
+                });
             }
             Err(ExprTypeError::UnsupportedMemberAccess {
                 fqn: fqn.clone(),
@@ -395,6 +405,128 @@ pub(super) fn infer_member_access_expr_type(
             span: member.span.into(),
         }),
     }
+}
+
+fn resolve_safe_member_access_target(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: TypeId,
+    member: &ast::MemberIdent,
+    lower: &TypeLowering<'_>,
+) -> Option<ast::ResolvedMemberRef> {
+    let receiver_ty_fqn = match lower.type_kind(receiver_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) | TypeKind::Ref(RefTypeKind::Nominal(n)) => {
+            n.fqn
+        }
+        _ => return None,
+    };
+
+    let member_name = inputs.source.slice(member.span);
+    let direct_fqn = format!("{receiver_ty_fqn}.{member_name}");
+    let direct_exists = member_value_exists(inputs, lower, &receiver_ty_fqn, &direct_fqn);
+    let ext_candidate =
+        find_extension_property_candidate(inputs, lower, &receiver_ty_fqn, member_name);
+
+    if direct_exists {
+        return Some(ast::ResolvedMemberRef::Value { fqn: direct_fqn });
+    }
+
+    ext_candidate.map(|fqn| ast::ResolvedMemberRef::ExtensionValue { fqn })
+}
+
+fn member_value_exists(
+    inputs: ExprInferInputs<'_>,
+    lower: &TypeLowering<'_>,
+    receiver_ty_fqn: &str,
+    direct_fqn: &str,
+) -> bool {
+    inputs.struct_field_types.contains_key(direct_fqn)
+        || lower.is_object_type(direct_fqn)
+        || direct_fqn == "scoop.core.Pinned.value"
+        || direct_fqn == "scoop.core.GcHandle.raw"
+        || (receiver_ty_fqn == "scoop.core.Platform"
+            && direct_fqn.starts_with("scoop.core.Platform."))
+}
+
+fn find_extension_property_candidate(
+    inputs: ExprInferInputs<'_>,
+    lower: &TypeLowering<'_>,
+    receiver_ty_fqn: &str,
+    member_name: &str,
+) -> Option<String> {
+    fn normalize_collections_alias(fqn: &str) -> &str {
+        match fqn {
+            "scoop.core.List" => "scoop.core.Array",
+            "scoop.core.MutableList" => "scoop.core.MutableArray",
+            "scoop.collections.Set" => "scoop.core.Array",
+            "scoop.collections.MapView" => "scoop.core.Array",
+            "scoop.collections.MutableSet" => "scoop.core.MutableArray",
+            "scoop.collections.MutableMap" => "scoop.core.MutableArray",
+            _ => fqn,
+        }
+    }
+
+    let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn);
+    let use_cone = lower.index().cone_of_source(inputs.source);
+    let imports = lower.imports();
+    let is_visible = |ext: &crate::resolve::ExtensionPropertySymbol| -> bool {
+        match ext.visibility {
+            Visibility::Public => true,
+            Visibility::Internal => ext.decl_cone == use_cone,
+            Visibility::Private => ext.decl_file == inputs.source.path(),
+        }
+    };
+    let receiver_matches =
+        |ext: &crate::resolve::ExtensionPropertySymbol| match ext.receiver_ty_fqn.as_deref() {
+            Some(ext_receiver) => {
+                ext_receiver == "scoop.core.Any"
+                    || normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+            }
+            None => false,
+        };
+
+    let mut candidates: Vec<String> = Vec::new();
+
+    for ext in &lower.index().extension_properties {
+        if ext.decl_cone == use_cone
+            && ext.pkg_prefix == lower.pkg_prefix()
+            && ext.name == member_name
+            && receiver_matches(ext)
+            && is_visible(ext)
+        {
+            candidates.push(ext.fqn.clone());
+        }
+    }
+
+    for prefix in &imports.star {
+        for ext in &lower.index().extension_properties {
+            if ext.pkg_prefix == *prefix
+                && ext.name == member_name
+                && receiver_matches(ext)
+                && is_visible(ext)
+            {
+                candidates.push(ext.fqn.clone());
+            }
+        }
+    }
+
+    if let Some(imported) = imports.value.explicit.get(member_name) {
+        for imported_fqn in imported {
+            for ext in lower
+                .index()
+                .extension_properties
+                .iter()
+                .filter(|ext| ext.fqn == *imported_fqn)
+            {
+                if receiver_matches(ext) && is_visible(ext) {
+                    candidates.push(ext.fqn.clone());
+                }
+            }
+        }
+    }
+
+    candidates.sort();
+    candidates.dedup();
+    candidates.into_iter().next()
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {

@@ -1857,15 +1857,27 @@ impl<'a> HirLowering<'a> {
         receiver: &ast::Expr,
         member: &ast::MemberIdent,
     ) -> (ExprKind, TypeId) {
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member)
+    }
+
+    fn lower_member_access_expr_from_receiver(
+        &mut self,
+        pkg_prefix: &str,
+        receiver: Expr,
+        member: &ast::MemberIdent,
+    ) -> (ExprKind, TypeId) {
+        let resolved = self.resolved_member_for_lowering(member);
+
         // delegated property lowering（spec §10.4）：
         // `receiver.prop` → `receiver.prop$delegate.getValue(receiver, <PropertyMeta const>)`
-        if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref()
+        if let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref()
             && let Some(info) = self.delegated_properties.get(fqn).cloned()
         {
             match info {
                 DelegatedPropertyInfo::Lazy(info) => {
                     return (
-                        self.lower_lazy_delegated_property_get(
+                        self.lower_lazy_delegated_property_get_from_receiver(
                             pkg_prefix,
                             member.span,
                             receiver,
@@ -1875,7 +1887,6 @@ impl<'a> HirLowering<'a> {
                     );
                 }
                 DelegatedPropertyInfo::Generic(info) => {
-                    let receiver = self.lower_expr(pkg_prefix, receiver);
                     let this_ref = receiver.clone();
 
                     let delegate = self.lower_generic_delegated_property_delegate_access_expr(
@@ -1907,7 +1918,7 @@ impl<'a> HirLowering<'a> {
                     );
                 }
                 DelegatedPropertyInfo::Observable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get(
+                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
                         pkg_prefix,
                         member.span,
                         receiver,
@@ -1917,7 +1928,7 @@ impl<'a> HirLowering<'a> {
                     );
                 }
                 DelegatedPropertyInfo::Vetoable(info) => {
-                    return self.lower_observable_vetoable_delegated_property_get(
+                    return self.lower_observable_vetoable_delegated_property_get_from_receiver(
                         pkg_prefix,
                         member.span,
                         receiver,
@@ -1935,8 +1946,7 @@ impl<'a> HirLowering<'a> {
 
         // T0112：extension property access → desugar to getter call.
         // `receiver.extProp` → `extPropGetterFqn(receiver)`
-        if let Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) = member.resolved.as_ref() {
-            let receiver = self.lower_expr(pkg_prefix, receiver);
+        if let Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) = resolved.as_ref() {
             let callee_id = self.symbols.intern_top_level(fqn.clone());
             let callee = Expr {
                 span: member.span,
@@ -1955,12 +1965,9 @@ impl<'a> HirLowering<'a> {
             );
         }
 
-        let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let receiver = Box::new(receiver);
 
-        let resolved = member
-            .resolved
-            .as_ref()
-            .map(|r| self.lower_resolved_member_ref(r));
+        let resolved = resolved.as_ref().map(|r| self.lower_resolved_member_ref(r));
 
         let member = MemberAccess {
             span: member.span,
@@ -1993,6 +2000,16 @@ impl<'a> HirLowering<'a> {
                 fqn: fqn.clone(),
             },
         }
+    }
+
+    fn resolved_member_for_lowering(
+        &self,
+        member: &ast::MemberIdent,
+    ) -> Option<ast::ResolvedMemberRef> {
+        member
+            .resolved
+            .clone()
+            .or_else(|| self.file.safe_member_access_resolved(member.span))
     }
 
     fn try_lower_effect_op_call_expr(
@@ -2103,13 +2120,6 @@ impl<'a> HirLowering<'a> {
         let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
         let v_sym = self.intern_local_symbol(op_span, false);
 
-        // Lower the member access info for the inner `v.field` expression.
-        let resolved = member
-            .resolved
-            .as_ref()
-            .map(|r| self.lower_resolved_member_ref(r));
-        let member_name = self.source.slice(member.span).to_string();
-
         let v_ref = Expr {
             span: op_span,
             ty: self.builtins.any,
@@ -2120,18 +2130,14 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        // Some(v) -> Some(v.field)
+        // T0152：Some 分支内与普通 member access 共享同一条 lowering 路径；
+        // `?.` 只负责在外层包一层 `Some(...)` 并处理 `None` 分支。
+        let (inner_kind, inner_ty) =
+            self.lower_member_access_expr_from_receiver(pkg_prefix, v_ref.clone(), member);
         let inner_access = Expr {
             span: member.span,
-            ty: self.builtins.any,
-            kind: ExprKind::MemberAccess {
-                receiver: Box::new(v_ref),
-                member: MemberAccess {
-                    span: member.span,
-                    name: member_name,
-                    resolved,
-                },
-            },
+            ty: inner_ty,
+            kind: inner_kind,
         };
 
         let some_arm = WhenArm {
@@ -2255,9 +2261,10 @@ impl<'a> HirLowering<'a> {
             .iter()
             .map(|arg| self.lower_call_arg(pkg_prefix, arg))
             .collect();
+        let resolved = self.resolved_member_for_lowering(member);
 
         // Extension function: `receiver?.ext(args)` → `ext(v, args...)`
-        if let Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) = member.resolved.as_ref() {
+        if let Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) = resolved.as_ref() {
             let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
             all_args.push(CallArg::Positional(v_ref.clone()));
             all_args.extend(lowered_args_without_receiver);
@@ -2279,7 +2286,7 @@ impl<'a> HirLowering<'a> {
         }
 
         // Class/interface member function: `receiver?.method(args)` → `Owner.method(v, args...)`
-        if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref()
+        if let Some(ast::ResolvedMemberRef::Fun { fqn }) = resolved.as_ref()
             && let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.')
         {
             let owner_is_class =
@@ -2312,10 +2319,7 @@ impl<'a> HirLowering<'a> {
         }
 
         // Fallback: `v.method(args)` as MemberAccess call.
-        let resolved = member
-            .resolved
-            .as_ref()
-            .map(|r| self.lower_resolved_member_ref(r));
+        let resolved = resolved.as_ref().map(|r| self.lower_resolved_member_ref(r));
         let member_name = self.source.slice(member.span).to_string();
         let callee = Expr {
             span: member.span,

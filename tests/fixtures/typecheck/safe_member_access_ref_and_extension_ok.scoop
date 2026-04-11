@@ -1,0 +1,27 @@
+// EXPECT: pass
+// 目标：T0152 `?.` safe member access 在 ref receiver / object / extension property 上与普通 member access 保持一致。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class User(val score: Int)
+
+val User.doubleScore: Int
+  get() = this.score + this.score
+
+object Config {
+  val port: Int = 8080
+}
+
+val maybeUser: User? = Some(User(7))
+val maybeConfig: Config? = Some(Config)
+
+val score: Int? = maybeUser?.score
+val doubleScore: Int? = maybeUser?.doubleScore
+val port: Int? = maybeConfig?.port
+
+val noneUser: User? = None()
+
+val noneScore: Int? = noneUser?.score
+val noneDoubleScore: Int? = noneUser?.doubleScore
