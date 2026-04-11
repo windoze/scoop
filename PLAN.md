@@ -37,16 +37,18 @@ cargo run -p scoop --features llvm -- test
   - 已对原 `T2002` 做范围审计：它同时覆盖 non-resuming payload、escape continuation 的 CalleeSuspendState、以及 `resume(...)` ABI 收口，单轮实现风险过高，已拆为 `T2002a` / `T2002b` 两步推进。
   - T2002a 已完成：runtime perform slot 已增加 `gc_ref` 通道并负责 pin/unpin；non-resuming perform / handler 与 `Continuation.resume` 已共享一套 payload encode/decode helper；新增 String/struct direct+indirect run-pass 回归已通过。
   - T2002b 已完成：`CalleeSuspendState` 已升级为双通道 payload；top-level function / closure 的 resume path 与 escape continuation 间接 perform step 均已对齐 `decode_abi_payload_transport` / `resume_gc_ref` 语义；新增间接 `resume(String)` / `resume(struct with ref)` 回归已通过。
-  - 已对原 `T2003` 做范围审计：它同时包含 immediate-resume 的单-perform cleanup、控制流内 perform 恢复，以及 mixed-arm / nested handle / GC stress 回归矩阵，单轮实现与验收面过大，现拆为 `T2003a` / `T2003b` / `T2003c`。
+  - 已对原 `T2003` 做范围审计：它同时包含 immediate-resume 的单-perform cleanup、控制流内 perform 恢复，以及 mixed-arm / nested handle / GC stress 回归矩阵，单轮实现与验收面过大，现拆为 `T2003a` / `T2003b*` / `T2003c`。
   - T2003a 已完成：现有单-perform immediate-resume lowering 已支持 `finally`，并在正常 resume、arm raise、resume 后间接 raise 三条路径上保持 cleanup 恰好一次。
-  - 当前 immediate-resume handle body 仍只允许那一个直接 `perform`；控制流内 direct perform 扫描与恢复仍留给 `T2003b`。
-  - 下一步进入 `T2003b`：扩展 immediate-resume 到 branch/loop/block 等控制流中的 direct perform。
+  - 已进一步审计 `T2003b`：block / branch / while 的 CFG 形状差异明显，单轮同时推进会把扫描、恢复点、诊断三类改动耦合在一起；现再拆为 `T2003b1`（nested block）、`T2003b2`（if/branch）、`T2003b3`（while + 诊断收口）。
+  - 当前 immediate-resume handle body 仍只允许顶层单个直接 `perform`；本轮先推进 `T2003b1`，把最小真实的 nested block 恢复路径落地。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
   - T2002b（已完成）：escape continuation / CalleeSuspendState 恢复值 ABI 泛化。
   - T2003a（已完成）：补齐单-perform immediate-resume 的 `finally` cleanup 语义。
-  - T2003b：扩展 immediate-resume 到 branch/loop/block 等控制流中的 direct perform。
+  - T2003b1：扩展 immediate-resume 到 nested block 中的单个 direct perform。
+  - T2003b2：扩展 immediate-resume 到 if/branch 中的 direct perform。
+  - T2003b3：扩展 immediate-resume 到 while 中的 direct perform，并收口剩余稳定诊断。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
 
 ## 2. Structured Concurrency / `Task<T>`（T21）

@@ -101,17 +101,41 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_resume_finally_normal`、`effect_resume_finally_arm_raise`、`effect_resume_finally_body_raise_after_resume`。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003b [TODO] Effect：immediate-resume 控制流内 perform 扫描与恢复
-- 描述：在补齐单-perform `finally` 之后，把 immediate-resume 从“顶层 `val x = perform`”扩到 branch/loop/block 等真实控制流位置；优先覆盖直接 perform 的嵌套恢复，不把间接 perform 混入同一轮。
+### T2003b1 [TODO] Effect：immediate-resume 嵌套 block 中单 direct perform 的恢复
+- 描述：`T2003b` 原始范围同时覆盖 block / branch / while 三类控制流，单轮改动和回归面过大。先收口最小但真实的“statement-position block 嵌套 + 单个 direct perform”路径，验证 immediate-resume 已不再局限于顶层 `val x = perform`。
 - 目标：
-  - immediate-resume 可覆盖 if/while/block 等控制流中的直接 perform，而不再只接受顶层单个局部绑定。
-  - resume 后控制流能从正确的语句位置继续执行，局部值与 binder 语义保持稳定。
-  - 对当前仍未支持的形状保留稳定诊断，而不是在 LLVM 阶段静默错编。
+  - immediate-resume 允许 `perform` 出现在嵌套 block 的语句列表中，而不再只接受 handle body 顶层局部绑定。
+  - `resume(value)` 后可从该 block 内正确语句位置继续执行，并继续回到外层 handle body。
+  - 对 if / while / value-position 嵌套 perform 先保留稳定诊断，不在本子任务里混入。
 - 验收：
-  - 新增 run-pass fixtures：branch/loop/block 中的 immediate-resume 组合。
+  - 新增 run-pass fixture：nested block 中 direct perform 的 immediate-resume。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003a
+
+### T2003b2 [TODO] Effect：immediate-resume branch 内 direct perform 的恢复
+- 描述：在 block 嵌套恢复打通后，再把 immediate-resume 扩到 `if` 分支中的 direct perform，补齐“分支命中 perform / 未命中 perform”两侧 CFG 与恢复后的合流。
+- 目标：
+  - immediate-resume 可覆盖 `if` then/else block 中的 direct perform。
+  - resume 后能从命中的 branch 内正确位置继续执行，并在 branch 结束后回到外层后续语句。
+  - 未命中 perform 的分支仍按普通控制流执行，不引入伪 suspension。
+- 验收：
+  - 新增 run-pass fixtures：then/else branch 中的 immediate-resume 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003b1
+
+### T2003b3 [TODO] Effect：immediate-resume while 内 direct perform 的恢复与诊断收口
+- 描述：最后处理 loop 场景，把 direct perform 放进 `while` body，并对本阶段仍未覆盖的嵌套形状统一为稳定诊断。
+- 目标：
+  - immediate-resume 可覆盖 `while` body 中的 direct perform，并在 resume 后从循环体内正确位置继续执行。
+  - loop locals / binder / one-shot resume 语义在多次迭代下保持稳定。
+  - 对当前仍未支持的形状给出稳定诊断，而不是在 LLVM 阶段静默错编。
+- 验收：
+  - 新增 run-pass fixture：while body 中的 immediate-resume 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003b2
 
 ### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
 - 描述：在 `finally` 与控制流主链路落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
@@ -123,7 +147,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003b
+- 依赖：T2003b3
 
 ## T21：Structured Concurrency / `Task<T>`
 
