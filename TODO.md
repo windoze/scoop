@@ -206,29 +206,65 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_resume_mixed_escape_indirect`，build-fail `effect_resume_mixed_escape_direct_indirect_is_error`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，richer mixed）
-- 描述：在 `T2003c0b2a` 的 indirect single-site 子集上，继续扩到更复杂 mixed dispatch/captured-handler-stack 组合。
+### T2003c0b2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，single escape-arm 的 richer site matrix）
+- 描述：`T2003c0b2a` 只打通了“一个 immediate-resume arm + 一个 sibling escape-continuation arm + 一个 top-level indirect site”的最小子集。当前仍被稳定诊断拦住的 `multiple direct perform points`、`multiple indirect call sites`、`direct + indirect sites`、`perform before immediate site`，本质上都属于同一 source-handle 内 site 调度与恢复点编排缺口，应在这里转成真实 lowering，而不是作为 `T2003` 的长期终态。
 - 目标：
-  - 支持 richer mixed 组合，例如多个 escape sites、direct+indirect 共存，及后续需要的更复杂 body 形状。
-  - 若与 sibling non-resuming arms 同源混用，dispatch scope、captured handler stack 与 sibling self-capture 语义保持稳定。
-  - 对剩余仍不支持的 mixed 组合继续给出稳定诊断。
+  - 在“一个 immediate-resume arm + 一个 sibling escape-continuation arm”的前提下，支持多个 direct escape sites、多个 indirect escape sites、direct+indirect 共存，以及 escape site 位于 immediate site 前后的组合。
+  - 多个 escape sites 共享稳定的 dispatch / suspension / captured-handler-stack / one-shot continuation 语义，不因 site 顺序或 site kind 不同而错编。
+  - 若本任务暂不覆盖更深层 body 形状，必须由显式 follow-up 任务承接，而不是继续停留在“剩余组合仅给稳定诊断”。
 - 验收：
-  - 新增 run-pass / build-fail fixtures：覆盖 richer mixed 路径，以及剩余明确不支持的组合。
+  - 新增 run-pass fixtures：multiple direct sites、multiple indirect sites、direct+indirect 共存、escape-before-immediate。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2a
 
-### T2003c [TODO] Effect：immediate-resume 高风险组合回归矩阵
-- 描述：在 `finally`、控制流主链路与 `T2003c0` 的 mixed-arm LLVM dispatch 落地后，补 mixed-arm、nested handle、GC stress 等高风险组合回归，锁定语义边界并防止后续 ABI / lowering 调整回归。
+### T2003c0b2c [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，control-flow / nested body 形状）
+- 描述：在单个 escape arm 的 richer site matrix 打通后，继续去掉“top-level `val = perform/call`”门禁，把 sibling escape-continuation 的 perform sites 扩到 block / branch / while 等更真实的 body 形状。
 - 目标：
-  - 为 mixed-arm、nested handle、GC stress 等组合补齐端到端回归。
-  - 相关 immediate-resume 用例在 `SCOOP_GC_STRESS=1` 下稳定。
-  - 明确记录当前阶段仍不支持的组合，避免语义漂移。
+  - sibling escape-continuation 可覆盖 nested block、if/branch、while 中的 direct/indirect perform site，不再要求 top-level val-bound site。
+  - resume 后的 CFG 合流、captured locals、finally cleanup 与 one-shot continuation 语义在上述 body 形状下保持稳定。
+  - 当前 codegen 中与 `nested immediate-resume site not yet supported`、`only top-level val-bound ... supported` 对应的合法形状都有明确实现，不再依赖实现门禁。
 - 验收：
-  - 新增 run-pass fixtures：mixed-arm / nested handle / GC stress 组合。
+  - 新增 run-pass fixtures：nested block / if / while 中的 mixed-arm escape direct/indirect 组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2b
+
+### T2003c0c1 [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming）
+- 描述：当前 multi-arm lowering 在存在 escape-continuation 时仍直接拒绝 sibling non-resuming arms。若 `T2003` 要收口为“合法 perform/handler 组合全部可运行”，就必须补齐 escape-continuation 与 non-resuming 在同一 source-handle 下的 dispatch / handler-scope / self-capture 语义。
+- 目标：
+  - 单个 source-handle 支持 immediate-resume arm + escape-continuation arm + 若干 sibling non-resuming arms 同时共存。
+  - non-resuming、immediate-resume、escape-continuation 三类 arm 在任一 arm body / continuation step 执行期间都遵守一致的 handler-scope 与 sibling self-capture 规则。
+  - `Raise.raise` 与 custom non-resuming effects 可与 richer escape site matrix 组合运行，不因 arm body 嵌套或 resume 路径而丢失 dispatch 优先级。
+- 验收：
+  - 新增 run-pass fixtures：immediate-resume + escape + raise、immediate-resume + escape + custom non-resuming。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0b2c
+
+### T2003c0c2 [TODO] Effect：LLVM 多 arm handle dispatch（multiple resuming arms / 无 immediate-resume 的 multi-arm）
+- 描述：当前 mixed-arm lowering 仍假设“恰好一个 immediate-resume arm，最多一个 escape-continuation arm”，并对“没有 immediate-resume 的 multi-arm handle”直接报错。若 `T2003` 完成后要支持任意 perform/handler 组合，这些结构性门禁必须显式去掉。
+- 目标：
+  - 同一个 `handle` 支持多个 immediate-resume arms、多个 escape-continuation arms，以及不含 immediate-resume 的 multi-arm 组合。
+  - 多个 resuming arms 的 dispatch 顺序、resume target 选择、captured-handler-stack / continuation 生命周期语义与源码 arm 顺序一致。
+  - multi non-resuming、escape-only、escape+non-resuming、multi-immediate、multi-escape 等当前实现层门禁全部转成真实 lowering；仅对真正非法的语义冲突保留诊断。
+- 验收：
+  - 新增 run-pass fixtures：multiple immediate arms、multiple escape arms、multiple non-resuming arms、escape-only multi-arm、escape+non-resuming without immediate。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c1
+
+### T2003c [TODO] Effect：perform / handler 完整组合回归矩阵
+- 描述：在 `T2003c0*` 的 mixed-arm LLVM dispatch 全部落地后，补 full matrix 回归，确保 `T2003` 的终态不是“剩余组合继续稳定诊断”，而是合法的 perform/handler 组合都已有实现与回归覆盖。
+- 目标：
+  - 为 single/multiple direct perform、single/multiple indirect perform、direct+indirect 共存、multi-arm kind 任意组合、nested handle、GC stress 补齐端到端回归。
+  - 相关用例在 `SCOOP_GC_STRESS=1` 下稳定，且 handler stack、continuation pinning、captured locals / cleanup 语义不回归。
+  - `T2003` 完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法 mixed 组合”的长期 TODO；若仍有限制，必须是语言语义层面的真实非法组合。
+- 验收：
+  - 新增 run-pass fixtures：覆盖 full mixed-arm / nested handle / GC stress matrix。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2
 
 ## T21：Structured Concurrency / `Task<T>`
 
@@ -336,17 +372,54 @@ cargo run -p scoop --features llvm -- test
 
 ## T23：泛型约束 / Pattern / 值类型能力补齐
 
-### T2301 [TODO] 泛型：`where` nominal bound 支持类型实参
-- 描述：当前 `where` 约束一旦写成带类型实参的 nominal bound（例如 `where T: Box<Int>`）就会被直接拒绝。需要把这类 bound 贯通到解析、解析后表示、检查与诊断。
+### T2301 [TODO] 泛型：`where` nominal bound 支持类型实参与 instantiated supertype 满足性
+- 描述：当前 `where` 约束一旦写成带类型实参的 nominal bound（例如 `where T: Box<Int>`）就会被直接拒绝；即便后续把 bound 本身 lower 成实例化类型，类/接口经由“已实例化的 supertype”满足该 bound 的场景也还没有被显式承接。需要把这类 bound 贯通到解析、解析后表示、检查、子类型关系与诊断。
 - 目标：
   - 支持带类型实参的 nominal `where` bound，并正确解析到已实例化的 bound type。
+  - 类/接口若通过已实例化 supertype 满足该 bound（例如 `Sub : Base<Int>` 满足 `where T: Base<Int>`），实例化处检查可正确通过，而不是只接受“exact same nominal type”。
   - 实例化处 bound 检查、函数体内成员分发、错误消息都基于实例化后的 bound，而不是回退到未参数化 nominal type。
   - 对不满足或不可解析的 bound 给出稳定诊断。
 - 验收：
-  - 新增 typecheck fixtures：正例 `where T: Box<Int>`、反例 `where T: Box<String>`、体内通过 bound 调方法。
+  - 新增 typecheck fixtures：正例 `where T: Box<Int>`、经由 instantiated supertype 满足 `where T: Base<Int>`、反例 `where T: Box<String>`、体内通过 bound 调方法。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：无
+
+### T2301a [TODO] 泛型：`where` nominal bound 的子类型满足性回归矩阵
+- 描述：当前 use-site `where` 检查已通过 `is_type_assignable` + `direct_supertypes` 支持最小 nominal 上转，但仓库里还没有专门锁定“接口/类继承链上的实例满足 generic bound”这条语义。像 `interface Sub : Base`、`class Impl : Sub`、`fun <T> f(x: T) where T: Base` 这样的路径，不应只依赖当前实现细节“碰巧有效”。
+- 目标：
+  - 为当前已支持的非参数化 nominal bound 语义补齐回归：类实现接口、类继承基类、子接口及其实现类型传给父接口 bound。
+  - 覆盖变量持有子类型实例、参数透传、泛型 passthrough 等常见入口，而不只断言字面量/构造表达式直传。
+  - 对 builtin/value 类型通过 boxing 满足 interface bound 的既有语义也补专门回归，避免后续 `assignable` 调整回退。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：`Sub : Base`、`Impl : Sub` 满足 `where T: Base`，以及 `Int` / `Bool` 满足 `Hashable` 或等价 interface bound。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T2301b [TODO] 泛型：`where` bound 驱动的方法分发补齐接口继承链与多 bound 歧义
+- 描述：当前 `where` bound 驱动的方法分发只会从声明的 bound 本身构造 `Bound.method` 并在首个命中的 bound 上提前返回，没有沿接口 supertype 链查找继承成员，也不会对多个 bounds 提供的同名成员做歧义诊断。这会把合法语义错判成“方法不存在”，或者把本该报歧义的场景静默绑定到声明顺序。
+- 目标：
+  - `where T: Sub` 可调用 `Base` 上声明的方法，接口继承链上的成员对 bound receiver 可见。
+  - `where T: A, T: B` 下的同名成员遵守明确的候选集/歧义规则，不再按遍历顺序抢先返回。
+  - 对“继承成员可见”“多 bound 歧义”“确实不存在该成员”三类场景给出稳定回归与诊断。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：通过 `where T: Sub` 调用 `Base` 方法、多 bound 同名成员的歧义报错。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T2301a
+
+### T2301c [TODO] 调用/泛型：成员方法签名收集与 `where` bound 分发对齐 richer generic/effect 调用
+- 描述：当前共享的成员方法签名收集路径仍会直接跳过“2 个以上 type params”与带 `<eff E>` 的成员方法；`where` bound 驱动的方法分发还会忽略显式类型实参。这使 `x.method<U>()`、多 type param 成员方法、effect-generic 成员方法在普通 member call 与 bound member call 上都存在实现层缺口。
+- 目标：
+  - 普通成员调用与 `where` bound 驱动的成员调用都支持显式类型实参，不再把 `member<T>(...)` silently 降格成“只能靠推断”。
+  - 成员方法签名收集、实例化与诊断支持 2+ type params 与 `<eff E>` 成员方法，不再在候选收集阶段直接跳过。
+  - 成员方法调用的 type arg / effect arg 规则与顶层函数调用尽量对齐，避免 shared helper 与 top-level call 各走一套缩水语义。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：普通 member call 与 `where` bound member call 的显式类型实参、2+ type params 成员方法、带 `<eff E>` 的成员方法。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T2301b
 
 ### T2302 [TODO] Pattern：顶层 `val` 支持 pattern binding
 - 描述：局部 destructuring 已逐步落地，但顶层 `val (a, b) = ...` 仍在声明头检查阶段被直接拒绝，导致同一套 pattern 语法在顶层与局部语义不一致。
