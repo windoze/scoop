@@ -335,8 +335,10 @@ pub enum ExprKind {
     /// effect handler 表达式：`handle { ... } with { ... }`（spec §5.4）。
     ///
     /// 当前阶段：
-    /// - 支持 non-resuming arms（`->`）与 immediate-resume arms（`-> resume`，T0616）；
-    /// - escape continuation（`, k ->`）相关字段留待后续任务补齐。
+    /// - 支持 non-resuming arms（`->`）、
+    ///   immediate-resume arms（`-> resume`，T0616）
+    ///   与 escape-continuation arms（`, k ->`，T0617）；
+    /// - HIR 保留 arm 语义形态与隐式/显式 binder 符号，供后续 lowering/codegen 识别。
     Handle(HandleExpr),
     Todo(&'static str),
 }

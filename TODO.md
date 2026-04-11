@@ -33,7 +33,7 @@ cargo run -p scoop --features llvm -- test
 
 ## T20：Effect / Continuation 完整化
 
-### T2001 [TODO] Effect：统一 `handle` arm 形态与 typecheck/HIR 不变量
+### T2001 [DONE] Effect：统一 `handle` arm 形态与 typecheck/HIR 不变量
 - 描述：当前 `handle` 仍直接拒绝在同一个表达式里混用 `->`、`-> resume`、`, k ->` 等 arm 形态，导致语言语义被实现层的早期门禁截断。先收口 arm 的表示与兼容性检查，再推进后端链路。
 - 目标：
   - typecheck 不再用“是否混用 arm 形态”作为直接拒绝条件，而是按 op 签名、resume 模式、binder 约束做真实兼容性检查。
@@ -44,6 +44,9 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：无
+- 完成说明：
+  - 已移除 mixed-arm 的统一 early reject，并把 `handle` 结果类型改成按真实可返回路径确定。
+  - 已补 mixed-arm typecheck/HIR fixtures，覆盖合法组合、返回类型不匹配、resume 语义冲突不可达。
 
 ### T2002 [TODO] Effect：`perform` / `resume` lowering 与 ABI 泛化（摆脱 `Int` / 同函数硬编码）
 - 描述：当前 non-resuming effect codegen 仍把可执行路径硬编码成 `op(Int)` + 同函数 handle 边界，`resume(...)` 也仍按单个 word-sized `Int` 恢复值建模。需要把值传递与 handler 路由统一到更一般的 continuation payload 模型。

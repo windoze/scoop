@@ -1,0 +1,45 @@
+// EXPECT: pass
+// 目标：T2001：同一个 `handle` 中允许混用 `->` / `-> resume` / `, k ->`，
+// 并且 non-resuming / escape-continuation arm 会按真实返回路径参与结果类型检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(mode: Int): Int {
+    val result: Int = handle {
+        if (mode == 0) {
+            val x: Int = Yield.next()
+            x + 1
+        } else if (mode == 1) {
+            val y: Int = Ask.current()
+            y + 2
+        } else {
+            Boom.boom(10)
+            0
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+        Ask.current(), k -> {
+            val keep: Continuation<Int> = k
+            val _ = keep
+            7
+        }
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}

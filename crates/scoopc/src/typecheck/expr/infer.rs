@@ -841,16 +841,18 @@ fn infer_assign_expr_type(
     Ok(inputs.builtins.unit)
 }
 
-/// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606）。
+/// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606/T2001）。
 ///
-/// 当前阶段目标（与 TODO T0606 对齐）：
-/// - 只支持 non-resuming handler arm（AST 已保证只有 `->` 形态）；
+/// 当前阶段目标：
+/// - 支持同一个 `handle` 中混用 non-resuming / immediate-resume / escape-continuation arms；
 /// - handler arm head 只支持 effect operation（`Effect.op(...)`）；
 /// - effect type param 的推断只支持单一 type param（例如 sysroot 的 `Raise<E>`）；
+/// - `-> resume` arm 只负责恢复 handled computation，本身不直接决定 `handle` 表达式的结果类型；
+/// - non-resuming / escape-continuation arm 的返回类型需要与 `handle` 的可返回结果保持一致；
 /// - required effects：body 内 perform 的 effect 若被某个 arm 捕获，则不向外层传播。
 pub(super) fn infer_handle_expr_type(
     inputs: ExprInferInputs<'_>,
-    handle_expr: &ast::Expr,
+    _handle_expr: &ast::Expr,
     body: &ast::Block,
     arms: &[ast::HandleArm],
     finally: Option<&ast::Block>,
@@ -1241,24 +1243,35 @@ pub(super) fn infer_handle_expr_type(
         })
     }
 
-    let has_non_resuming = arms
-        .iter()
-        .any(|a| matches!(a.kind, ast::HandleArmKind::NonResuming));
-    let has_immediate_resume = arms
-        .iter()
-        .any(|a| matches!(a.kind, ast::HandleArmKind::ImmediateResume { .. }));
-    let has_escape_continuation = arms
-        .iter()
-        .any(|a| matches!(a.kind, ast::HandleArmKind::EscapeContinuation { .. }));
+    fn record_handle_return_path(
+        result_ty: &mut Option<TypeId>,
+        found: TypeId,
+        lower: &mut TypeLowering<'_>,
+        builtins: BuiltinTypes,
+        span: Span,
+    ) -> Result<(), ExprTypeError> {
+        // `Nothing` 表示该路径不会正常返回，不应该把 handle 的结果类型锁死。
+        if found == builtins.nothing {
+            return Ok(());
+        }
 
-    if (has_non_resuming && has_immediate_resume)
-        || (has_escape_continuation && (has_non_resuming || has_immediate_resume))
-    {
-        // 早期阶段先拒绝“同一个 handle 中混用 `->` 与 `-> resume`”，避免把结果类型/控制流语义搞混。
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "handle（暂不支持混用 `->` / `-> resume` / `, k ->` arms）",
-            span: handle_expr.span.into(),
-        });
+        match *result_ty {
+            Some(expected) => {
+                if is_type_assignable(found, expected, lower, builtins) {
+                    return Ok(());
+                }
+
+                Err(ExprTypeError::HandleArmReturnTypeMismatch {
+                    expected: lower.fmt_type(expected),
+                    found: lower.fmt_type(found),
+                    span: span.into(),
+                })
+            }
+            None => {
+                *result_ty = Some(found);
+                Ok(())
+            }
+        }
     }
 
     // 1) 先在嵌套 effect collection 中 typecheck handle body，
@@ -1274,14 +1287,14 @@ pub(super) fn infer_handle_expr_type(
     // - 若某个 arm 的 handled effect 已被更早的 arm 覆盖，则该 arm 不可达（T0631）。
     let mut handled_effects: Vec<TypeId> = Vec::new();
     let mut seen_by_callee: HashMap<String, Vec<TypeId>> = HashMap::new();
+    let mut seen_head_by_callee: HashMap<String, Vec<(String, TypeId)>> = HashMap::new();
 
     // handle 表达式的“期望结果类型”：
-    // - 若 body 可正常返回（非 Nothing），则 arm body 必须可赋值到该类型；
-    // - 若 body 为 Nothing（不可达，例如以 `Raise.raise` 结尾），则以第一个 arm body 的类型作为结果类型。
-    let mut result_ty: Option<TypeId> = if has_immediate_resume {
-        // `-> resume`：handled computation 会继续执行，因此结果类型固定为 body 的类型。
-        Some(body_ty)
-    } else if body_ty != builtins.nothing {
+    // - 若 body 可正常返回（非 Nothing），则它给出 handle 的主结果类型；
+    // - `-> resume` arm 仅恢复 body，不直接贡献结果类型；
+    // - 若 body 为 Nothing，则由 non-resuming / escape-continuation arm 中第一个“可正常返回”的
+    //   路径确定结果类型；返回 `Nothing` 的 arm 视为“不贡献结果类型”。
+    let mut result_ty: Option<TypeId> = if body_ty != builtins.nothing {
         Some(body_ty)
     } else {
         None
@@ -1294,17 +1307,38 @@ pub(super) fn infer_handle_expr_type(
         let seen = seen_by_callee
             .entry(lowered.callee_fqn.clone())
             .or_default();
-        if let Some(prev) = seen
+        let seen_heads = seen_head_by_callee
+            .entry(lowered.callee_fqn.clone())
+            .or_default();
+        let current_head = source.slice(arm.op.span).to_string();
+        if let Some((_, prev)) = seen_heads
             .iter()
-            .copied()
-            .find(|prev| is_type_assignable(*prev, lowered.handled_effect, lower, builtins))
+            .find(|(prev_head, _)| *prev_head == current_head)
         {
             return Err(ExprTypeError::HandleArmUnreachable {
-                previous: lower.fmt_type(prev),
+                previous: lower.fmt_type(*prev),
                 current: lower.fmt_type(lowered.handled_effect),
                 span: arm.arrow_span.into(),
             });
         }
+        let current_effect = lower.fmt_type(lowered.handled_effect);
+        let mut shadowed_by: Option<TypeId> = None;
+        for prev in seen.iter().copied() {
+            if lower.fmt_type(prev) == current_effect
+                || is_type_assignable(prev, lowered.handled_effect, lower, builtins)
+            {
+                shadowed_by = Some(prev);
+                break;
+            }
+        }
+        if let Some(prev) = shadowed_by {
+            return Err(ExprTypeError::HandleArmUnreachable {
+                previous: lower.fmt_type(prev),
+                current: current_effect,
+                span: arm.arrow_span.into(),
+            });
+        }
+        seen_heads.push((current_head, lowered.handled_effect));
         seen.push(lowered.handled_effect);
         handled_effects.push(lowered.handled_effect);
 
@@ -1347,88 +1381,46 @@ pub(super) fn infer_handle_expr_type(
                 arm_locals.insert(k_span, cont_ty);
                 let arm_inputs = inputs.with_locals(&arm_locals);
 
-                // arm body 的类型必须与 handle 的结果类型一致（与 non-resuming 等价：perform 时 handle 立即返回 arm 值）。
+                // arm body 的类型必须与 handle 的可返回结果一致
+                // （与 non-resuming 等价：perform 时 handle 立即返回 arm 值）。
                 let arm_body_ty = match result_ty {
-                    Some(expected) => {
-                        let found = arm_inputs.infer_in_expected(
-                            lower,
-                            &arm.body,
-                            expected,
-                            ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
-                        )?;
-                        if !is_type_assignable(found, expected, lower, builtins) {
-                            return Err(ExprTypeError::HandleArmReturnTypeMismatch {
-                                expected: lower.fmt_type(expected),
-                                found: lower.fmt_type(found),
-                                span: arm.body.span.into(),
-                            });
-                        }
-                        found
-                    }
-                    None => {
-                        let found = arm_inputs.infer(lower, &arm.body)?;
-                        result_ty = Some(found);
-                        found
-                    }
+                    Some(expected) => arm_inputs.infer_in_expected(
+                        lower,
+                        &arm.body,
+                        expected,
+                        ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
+                    )?,
+                    None => arm_inputs.infer(lower, &arm.body)?,
                 };
 
-                // 若 body 为 Nothing 且 result_ty 刚刚由该 arm 决定，后续 arms 仍需做一致性校验。
-                if let Some(expected) = result_ty {
-                    if expected == arm_body_ty {
-                        continue;
-                    }
-                    if is_type_assignable(arm_body_ty, expected, lower, builtins) {
-                        continue;
-                    }
-                    return Err(ExprTypeError::HandleArmReturnTypeMismatch {
-                        expected: lower.fmt_type(expected),
-                        found: lower.fmt_type(arm_body_ty),
-                        span: arm.body.span.into(),
-                    });
-                }
+                record_handle_return_path(
+                    &mut result_ty,
+                    arm_body_ty,
+                    lower,
+                    builtins,
+                    arm.body.span,
+                )?;
             }
             ast::HandleArmKind::NonResuming => {
                 let arm_inputs = inputs.with_locals(&arm_locals);
-                // arm body 的类型必须与 handle 的结果类型一致（try/catch 等价语义）。
+                // arm body 的类型必须与 handle 的可返回结果一致（try/catch 等价语义）。
                 let arm_body_ty = match result_ty {
-                    Some(expected) => {
-                        let found = arm_inputs.infer_in_expected(
-                            lower,
-                            &arm.body,
-                            expected,
-                            ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
-                        )?;
-                        if !is_type_assignable(found, expected, lower, builtins) {
-                            return Err(ExprTypeError::HandleArmReturnTypeMismatch {
-                                expected: lower.fmt_type(expected),
-                                found: lower.fmt_type(found),
-                                span: arm.body.span.into(),
-                            });
-                        }
-                        found
-                    }
-                    None => {
-                        // body 不可达：用第一个 arm body 的类型作为结果类型。
-                        let found = arm_inputs.infer(lower, &arm.body)?;
-                        result_ty = Some(found);
-                        found
-                    }
+                    Some(expected) => arm_inputs.infer_in_expected(
+                        lower,
+                        &arm.body,
+                        expected,
+                        ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
+                    )?,
+                    None => arm_inputs.infer(lower, &arm.body)?,
                 };
 
-                // 若 body 为 Nothing 且 result_ty 刚刚由该 arm 决定，后续 arms 仍需做一致性校验。
-                if let Some(expected) = result_ty {
-                    if expected == arm_body_ty {
-                        continue;
-                    }
-                    if is_type_assignable(arm_body_ty, expected, lower, builtins) {
-                        continue;
-                    }
-                    return Err(ExprTypeError::HandleArmReturnTypeMismatch {
-                        expected: lower.fmt_type(expected),
-                        found: lower.fmt_type(arm_body_ty),
-                        span: arm.body.span.into(),
-                    });
-                }
+                record_handle_return_path(
+                    &mut result_ty,
+                    arm_body_ty,
+                    lower,
+                    builtins,
+                    arm.body.span,
+                )?;
             }
         }
     }
