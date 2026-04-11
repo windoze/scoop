@@ -1831,17 +1831,53 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (872)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150h [TODO] 字面量完整性：类型上下文吸收与运算语义审计
+### T0150h 字面量完整性：类型上下文吸收与运算语义审计（已拆分）
 
-- 描述：聚焦字面量与 expected type / 运算符 / 方法分发的交互，补齐 Int/Float absorption 与数组上下文推断的残余场景。
-- 目标：
-  - `UInt8`/`Int32`/`Float32` 等目标类型吸收行为稳定。
-  - 数组字面量在函数参数、返回值、嵌套表达式等上下文中行为一致。
-  - 字面量之间的基础算术/比较/方法调用组合受 fixture 保护。
-- 验收：
-  - 新增 run-pass / compile-fail fixtures 覆盖吸收与运算组合。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 描述：该项覆盖 expected type、运算符和数组上下文三类交叉语境，范围过大；现拆分为下列可独立回归的子任务，按顺序执行。
+- 目标：逐步收敛“字面量需要额外中间变量或显式标注才能工作”的残余缺口，并把剩余限制固定为明确后续任务。
 - 依赖：T0150e、T0149
+
+### T0150h-1 [DONE] 数值字面量运算表达式的 expected-type absorption
+
+- 描述：补齐 `1 + 2`、`1.5 + 2.5` 这类“纯字面量算术表达式”在外层存在明确期望类型时的吸收行为。
+- 目标：
+  - `UInt8`/`Int32`/`Float32` 等目标类型下，纯字面量算术表达式可用于局部/顶层初始化、`return`、函数实参与数组元素。
+  - 不改变“无 expected type 时，整数字面量默认 `Int`、无后缀浮点默认 `Float64`”的既有规则。
+  - 若比较或直接方法分发仍存在独立缺口，保留给后续子任务，不在本步隐式扩大范围。
+- 验收：
+  - 新增 run-pass / typecheck fixtures 覆盖赋值、`return`、call、array element 等 expected-type 语境。
+  - `cargo test --all` + `cargo run -p scoop -- test` + `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+- 依赖：T0150e、T0149
+- 完成说明：
+  - **typecheck expected-type 下传补齐**：`crates/scoopc/src/typecheck/expr/infer.rs` 现会在 expected numeric type 语境下，向数值一元/二元运算表达式继续下传目标类型。直接 `Int` 字面量与无后缀 `Float` 字面量在可吸收时会记录为目标类型；`-` / `~` / `+ - * / % & ^ | << >>` 组合也会递归检查其子表达式是否满足目标类型。
+  - **HIR lowering 与运行期位宽对齐**：`crates/scoopc/src/hir/lower/expr.rs` 现会优先复用 typecheck side table 中的数值类型。被吸收为窄整型的 `Int` literal 会保留目标整数类型；被吸收为 `Float32` 的无后缀浮点字面量会 lowering 为 `LiteralKind::Float32`；一元/二元表达式也优先采用 typecheck 推导结果，避免嵌套 `Float32` 表达式在 codegen 时误退化。
+  - **回归覆盖**：新增 `tests/fixtures/typecheck/literal_numeric_expected_type_absorption_ok.scoop` 与 `tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.*`，覆盖局部/顶层初始化、`return`、函数实参、数组元素、嵌套数值表达式，以及此前复现为 `Array<Float32> = [1.5, 2.5f]` 首元素运行期错误输出 `0.0` 的编码问题。
+  - **验证**：
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (874)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+
+### T0150h-2 [TODO] 数组字面量目标类型向更深嵌套表达式传播
+
+- 描述：继续收敛数组字面量在嵌套 `if` / 嵌套数组 / 组合表达式中的目标类型传播，避免只在一层语境可用。
+- 目标：
+  - 数组字面量在函数参数、返回值、条件分支、嵌套数组等上下文中行为一致。
+  - 现有 array lowering / typecheck side table 不再要求为复杂组合额外引入中间变量。
+- 验收：
+  - 新增 run-pass / typecheck fixtures 覆盖更深嵌套表达式。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150h-1
+
+### T0150h-3 [TODO] 字面量运算/比较/直接方法调用矩阵与诊断锁定
+
+- 描述：补齐 remaining literal arithmetic/comparison/direct-call 组合，并锁定失败路径的诊断行为。
+- 目标：
+  - 字面量之间的基础算术、比较、直接方法调用组合有稳定 fixture 覆盖。
+  - 对仍不支持的组合给出单一、明确、可定位的错误。
+- 验收：
+  - 新增 run-pass / compile-fail fixtures 与必要单测。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150h-1、T0150h-2
 
 ### T0150i [TODO] 字面量完整性：边界值与词法/诊断审计
 

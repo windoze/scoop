@@ -476,9 +476,16 @@ cargo run -p scoop --features llvm -- test
   - 新增 `run_pass_cone/literal_multi_file_interpolation_direct_basic`：在同一多文件 fixture 中锁定 helper 文件的 Char / Float / Array 字面量、`f-string` 插值（Bool/Char/Float/array-literal method result）以及 `42.toString()` / `'A'.toInt()` / `[1,2,3].size()`。
   - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (872)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
-- TODO（T0150h）：类型上下文吸收与字面量运算语义
-  - 审计整数 / 浮点 absorption、数组字面量上下文推断，以及字面量之间的算术/比较/方法分发组合。
-  - 目标是把“需要显式中间变量才能工作”的剩余缺口收敛成明确的单独任务，而不是隐式留在当前伞型任务里。
+- TODO（T0150h，已拆分）：类型上下文吸收与字面量运算语义
+  - 该项已拆为 3 个顺序子任务，避免把数值吸收、数组上下文传播和字面量运算矩阵混在同一提交中回归。
+  - DONE（T0150h-1）：数值字面量运算表达式的 expected-type absorption
+    - typecheck 现会把 expected numeric type 下传到数值一元/二元运算表达式；直接 `Int` / 无后缀 `Float` 字面量在可吸收时会记录为目标类型。
+    - HIR lowering 现会优先复用 typecheck side table 中的数值类型：窄整型 `Int` literal 保留目标整数类型，吸收到 `Float32` 的无后缀浮点字面量 lowering 为 `LiteralKind::Float32`，一元/二元表达式也优先采用 typecheck 推导结果。
+    - 新增 `typecheck/literal_numeric_expected_type_absorption_ok` 与 `run-pass/literal_numeric_expected_type_absorption_basic`，覆盖局部/顶层初始化、`return`、call、array element、嵌套表达式，以及 `Array<Float32> = [1.5, 2.5f]` 运行期编码回归。`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (874)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+  - TODO（T0150h-2）：数组字面量目标类型向更深嵌套表达式传播
+    - 收敛嵌套 `if` / 嵌套数组 / 组合表达式里的 array expected type 传播，减少对显式中间变量的依赖。
+  - TODO（T0150h-3）：字面量运算/比较/直接方法调用矩阵与诊断锁定
+    - 为剩余组合补齐 fixture，并把仍不支持的路径固定为稳定错误而非隐式退化。
 
 - TODO（T0150i）：边界值与词法/诊断审计
   - 锁定整数溢出、非法 Float/Char/hex/binary 文本的错误路径与定位。

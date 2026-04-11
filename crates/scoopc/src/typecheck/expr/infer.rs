@@ -17,7 +17,7 @@ use super::member::{
 };
 use super::ops::{
     infer_builtin_scalar_binary_expr_type, infer_operator_overload_binary_expr_type,
-    infer_unary_expr_type, literal_absorbs_to_expected,
+    infer_unary_expr_type, is_float_type, is_integer_type, literal_absorbs_to_expected,
 };
 use super::stmt::{
     StmtExprShared, StmtExprState, check_local_val_decl_exprs, detect_smart_cast_for_if_condition,
@@ -1486,6 +1486,174 @@ impl ExpectedTypeFrom {
     }
 }
 
+fn expr_matches_expected_type(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    expected_ty: TypeId,
+    expected_from: ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<bool, ExprTypeError> {
+    let found_ty = inputs.infer_in_expected(lower, expr, expected_ty, expected_from)?;
+    Ok(
+        is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+            || literal_absorbs_to_expected(
+                expr,
+                expected_ty,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            ),
+    )
+}
+
+fn try_infer_numeric_unary_expr_type_by_expected(
+    inputs: ExprInferInputs<'_>,
+    op: ast::UnaryOp,
+    inner: &ast::Expr,
+    expected_ty: TypeId,
+    expected_from: &ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let accepts_same_numeric = match op {
+        ast::UnaryOp::Neg => {
+            is_integer_type(expected_ty, lower, inputs.builtins)
+                || is_float_type(expected_ty, lower, inputs.builtins)
+        }
+        ast::UnaryOp::BitNot => is_integer_type(expected_ty, lower, inputs.builtins),
+        ast::UnaryOp::Not => false,
+    };
+    if !accepts_same_numeric {
+        return Ok(None);
+    }
+
+    let operand_matches = expr_matches_expected_type(
+        inputs,
+        inner,
+        expected_ty,
+        ExpectedTypeFrom::new(format!(
+            "一元运算操作数（约束来源：{}）",
+            expected_from.desc
+        )),
+        lower,
+    )?;
+
+    if operand_matches {
+        Ok(Some(expected_ty))
+    } else {
+        Ok(None)
+    }
+}
+
+fn try_infer_numeric_binary_expr_type_by_expected(
+    inputs: ExprInferInputs<'_>,
+    op: ast::BinaryOp,
+    lhs: &ast::Expr,
+    rhs: &ast::Expr,
+    expected_ty: TypeId,
+    expected_from: &ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    if is_integer_type(expected_ty, lower, inputs.builtins) {
+        match op {
+            ast::BinaryOp::Add
+            | ast::BinaryOp::Sub
+            | ast::BinaryOp::Mul
+            | ast::BinaryOp::Div
+            | ast::BinaryOp::Rem
+            | ast::BinaryOp::BitAnd
+            | ast::BinaryOp::BitXor
+            | ast::BinaryOp::BitOr => {
+                let lhs_matches = expr_matches_expected_type(
+                    inputs,
+                    lhs,
+                    expected_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "二元运算左操作数（约束来源：{}）",
+                        expected_from.desc
+                    )),
+                    lower,
+                )?;
+                let rhs_matches = expr_matches_expected_type(
+                    inputs,
+                    rhs,
+                    expected_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "二元运算右操作数（约束来源：{}）",
+                        expected_from.desc
+                    )),
+                    lower,
+                )?;
+                if lhs_matches && rhs_matches {
+                    return Ok(Some(expected_ty));
+                }
+            }
+            ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                let lhs_matches = expr_matches_expected_type(
+                    inputs,
+                    lhs,
+                    expected_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "移位左操作数（约束来源：{}）",
+                        expected_from.desc
+                    )),
+                    lower,
+                )?;
+                let rhs_matches = expr_matches_expected_type(
+                    inputs,
+                    rhs,
+                    inputs.builtins.int,
+                    ExpectedTypeFrom::new(format!(
+                        "移位右操作数（约束来源：{}）",
+                        expected_from.desc
+                    )),
+                    lower,
+                )?;
+                if lhs_matches && rhs_matches {
+                    return Ok(Some(expected_ty));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if is_float_type(expected_ty, lower, inputs.builtins)
+        && matches!(
+            op,
+            ast::BinaryOp::Add
+                | ast::BinaryOp::Sub
+                | ast::BinaryOp::Mul
+                | ast::BinaryOp::Div
+                | ast::BinaryOp::Rem
+        )
+    {
+        let lhs_matches = expr_matches_expected_type(
+            inputs,
+            lhs,
+            expected_ty,
+            ExpectedTypeFrom::new(format!(
+                "浮点二元运算左操作数（约束来源：{}）",
+                expected_from.desc
+            )),
+            lower,
+        )?;
+        let rhs_matches = expr_matches_expected_type(
+            inputs,
+            rhs,
+            expected_ty,
+            ExpectedTypeFrom::new(format!(
+                "浮点二元运算右操作数（约束来源：{}）",
+                expected_from.desc
+            )),
+            lower,
+        )?;
+        if lhs_matches && rhs_matches {
+            return Ok(Some(expected_ty));
+        }
+    }
+
+    Ok(None)
+}
+
 /// 在“存在明确期望类型”的语境下推导表达式类型。
 ///
 /// 目前该入口只做一件事（T0456）：
@@ -1502,6 +1670,12 @@ pub(super) fn infer_expr_type_in_expected_context(
     let source = inputs.source;
     let builtins = inputs.builtins;
 
+    if matches!(expr.kind, ast::ExprKind::IntLit | ast::ExprKind::FloatLit)
+        && literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins)
+    {
+        return Ok(expected_ty);
+    }
+
     // T0504：lambda 参数类型下推（spec §14.7.2）。
     //
     // 说明：lambda 的参数类型通常由“期望的函数类型”向下传播而来，因此这里在存在 expected type 时
@@ -1517,6 +1691,35 @@ pub(super) fn infer_expr_type_in_expected_context(
         {
             return Ok(ty);
         }
+    }
+
+    if let ast::ExprKind::Unary {
+        op, expr: inner, ..
+    } = &expr.kind
+        && let Some(ty) = try_infer_numeric_unary_expr_type_by_expected(
+            inputs,
+            *op,
+            inner.as_ref(),
+            expected_ty,
+            &expected_from,
+            lower,
+        )?
+    {
+        return Ok(ty);
+    }
+
+    if let ast::ExprKind::Binary { lhs, op, rhs, .. } = &expr.kind
+        && let Some(ty) = try_infer_numeric_binary_expr_type_by_expected(
+            inputs,
+            *op,
+            lhs.as_ref(),
+            rhs.as_ref(),
+            expected_ty,
+            &expected_from,
+            lower,
+        )?
+    {
+        return Ok(ty);
     }
 
     if let ast::ExprKind::ArrayLit { elements } = &expr.kind {

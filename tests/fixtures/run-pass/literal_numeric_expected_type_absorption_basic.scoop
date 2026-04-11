@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: literal_numeric_expected_type_absorption_basic.stdout
+// 目标：T0150h-1 数值字面量运算表达式在赋值 / return / call / array element 语境下吸收 expected type。
+
+import scoop.core.*
+
+fun narrowReturn(): Float32 {
+    return 1.25 + 2.75
+}
+
+fun takeNarrow(x: Float32): String {
+    return x.toString()
+}
+
+fun takeByte(x: UInt8): Bool {
+    return x == 3
+}
+
+fun main(): Int {
+    val topFloat: Float32 = 1.5 + 2.5
+    val topByte: UInt8 = 1 + 2
+    val nestedFloat: Float32 = (1.0 + 2.0) + (0.5 + 0.5)
+    val directFloats: Array<Float32> = [1.5, 2.5f]
+    val floats: Array<Float32> = [1.5 + 2.5, -(1.0 + 0.5)]
+    val bytes: Array<UInt8> = [1 + 2, 1 << 3]
+
+    println(topFloat.toString())
+    println((topByte == 3).toString())
+    println(nestedFloat.toString())
+    println(narrowReturn().toString())
+    println(takeNarrow(0.25 + 0.5))
+    println(takeByte(1 + 2).toString())
+    println(directFloats.get(0).toString())
+    println(floats.get(0).toString())
+    println(floats.get(1).toString())
+    println((bytes.get(0) == 3).toString())
+    println((bytes.get(1) == 8).toString())
+
+    return 0
+}

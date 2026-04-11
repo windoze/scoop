@@ -1,0 +1,37 @@
+// EXPECT: pass
+// 目标：T0150h-1 数值字面量运算表达式在 expected type 语境下可被吸收。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val topFloat: Float32 = 1.5 + 2.5
+val topByte: UInt8 = 1 + 2
+val nestedFloat: Float32 = (1.0 + 2.0) + (0.5 + 0.5)
+val negFloat: Float32 = -(1.0 + 0.5)
+val bytes: Array<UInt8> = [1 + 2, 1 << 3]
+val floats: Array<Float32> = [1.5 + 2.5, -(1.0 + 0.5)]
+
+fun takeFloat(x: Float32): Float32 {
+    return x
+}
+
+fun takeByte(x: UInt8): UInt8 {
+    return x
+}
+
+fun retFloat(): Float32 {
+    return 1.25 + 2.75
+}
+
+fun retByte(): UInt8 {
+    return 1 + 2
+}
+
+fun probe(): Bool {
+    val localFloat: Float32 = 0.25 + 0.5
+    val localByte: UInt8 = 1 + 2
+    val viaCallFloat: Float32 = takeFloat(0.25 + 0.5)
+    val viaCallByte: UInt8 = takeByte(1 + 2)
+    return localFloat == viaCallFloat && localByte == viaCallByte
+}

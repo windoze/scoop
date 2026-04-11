@@ -37,18 +37,31 @@ impl<'a> HirLowering<'a> {
     ) -> Expr {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
-            ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
+            ast::ExprKind::IntLit => {
+                let ty = self
+                    .typechecked_expr_ty(e.span)
+                    .filter(|ty| self.is_integer_type(*ty))
+                    .unwrap_or(self.builtins.int);
+                (ExprKind::Literal(LiteralKind::Int), ty)
+            }
             ast::ExprKind::FloatLit => {
                 let parsed = parse_float_literal(self.source.slice(e.span));
-                match parsed.suffix {
-                    FloatLiteralSuffix::Float64 => (
-                        ExprKind::Literal(LiteralKind::Float64(parsed.value)),
-                        self.builtins.float64,
-                    ),
-                    FloatLiteralSuffix::Float32 => (
+                if self.typechecked_expr_ty(e.span) == Some(self.builtins.float32) {
+                    (
                         ExprKind::Literal(LiteralKind::Float32(parsed.value as f32)),
                         self.builtins.float32,
-                    ),
+                    )
+                } else {
+                    match parsed.suffix {
+                        FloatLiteralSuffix::Float64 => (
+                            ExprKind::Literal(LiteralKind::Float64(parsed.value)),
+                            self.builtins.float64,
+                        ),
+                        FloatLiteralSuffix::Float32 => (
+                            ExprKind::Literal(LiteralKind::Float32(parsed.value as f32)),
+                            self.builtins.float32,
+                        ),
+                    }
                 }
             }
             ast::ExprKind::CharLit => {
@@ -655,7 +668,7 @@ impl<'a> HirLowering<'a> {
             }
             ast::ExprKind::Unary { op, op_span, expr } => {
                 let expr = Box::new(self.lower_expr(pkg_prefix, expr));
-                let ty = match op {
+                let heuristic_ty = match op {
                     ast::UnaryOp::Not => {
                         if expr.ty == self.builtins.bool_ {
                             self.builtins.bool_
@@ -671,6 +684,7 @@ impl<'a> HirLowering<'a> {
                         }
                     }
                 };
+                let ty = self.typechecked_expr_ty(e.span).unwrap_or(heuristic_ty);
                 (
                     ExprKind::Unary {
                         op: *op,
@@ -688,7 +702,9 @@ impl<'a> HirLowering<'a> {
             } => {
                 let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                 let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
-                let ty = self.lower_binary_expr_type(&lhs, &rhs, *op);
+                let ty = self
+                    .typechecked_expr_ty(e.span)
+                    .unwrap_or_else(|| self.lower_binary_expr_type(&lhs, &rhs, *op));
                 (
                     ExprKind::Binary {
                         lhs,
