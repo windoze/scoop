@@ -482,8 +482,11 @@ cargo run -p scoop --features llvm -- test
     - typecheck 现会把 expected numeric type 下传到数值一元/二元运算表达式；直接 `Int` / 无后缀 `Float` 字面量在可吸收时会记录为目标类型。
     - HIR lowering 现会优先复用 typecheck side table 中的数值类型：窄整型 `Int` literal 保留目标整数类型，吸收到 `Float32` 的无后缀浮点字面量 lowering 为 `LiteralKind::Float32`，一元/二元表达式也优先采用 typecheck 推导结果。
     - 新增 `typecheck/literal_numeric_expected_type_absorption_ok` 与 `run-pass/literal_numeric_expected_type_absorption_basic`，覆盖局部/顶层初始化、`return`、call、array element、嵌套表达式，以及 `Array<Float32> = [1.5, 2.5f]` 运行期编码回归。`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (874)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
-  - TODO（T0150h-2）：数组字面量目标类型向更深嵌套表达式传播
-    - 收敛嵌套 `if` / 嵌套数组 / 组合表达式里的 array expected type 传播，减少对显式中间变量的依赖。
+  - DONE（T0150h-2）：数组字面量目标类型向更深嵌套表达式传播
+    - typecheck `infer_expr_type_in_expected_context` 现覆盖 `Block` / `UnsafeBlock` / `SafeBlock` / `When`，block tail value 与 when arm value 会继续接收数组元素的目标类型，避免 expected type 在组合表达式边界丢失。
+    - HIR lowering 新增 `lower_block_with_expected` 与 when-arm expected 透传；`if` / `when` / block 的结果类型优先复用 typecheck side table，数组字面量中的复杂元素会自动包一层内部绑定，把元素 expected type 继续传给更深层表达式，而不要求用户显式声明中间变量。
+    - 同步修复数组 lowering 中 builtin 标量别名规整：`Array<UInt8>` / `Array<Float32>` 等场景会把 nominal alias 规整为真正 builtin scalar，避免后端把元素误降成 struct 并在 coercion 阶段失败。
+    - 新增 `typecheck/literal_array_expected_type_nested_ok` 与 `run-pass/literal_array_expected_type_nested_basic`，覆盖嵌套 `if` / `when` / block / nested array / `Array<UInt8>`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (876)`）与 `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
   - TODO（T0150h-3）：字面量运算/比较/直接方法调用矩阵与诊断锁定
     - 为剩余组合补齐 fixture，并把仍不支持的路径固定为稳定错误而非隐式退化。
 

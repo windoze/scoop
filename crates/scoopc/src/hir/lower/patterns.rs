@@ -9,17 +9,23 @@ use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 
 use super::HirLowering;
+use super::types::ExpectedExpr;
 
 use super::super::{WhenArm, WhenPat};
 
 impl<'a> HirLowering<'a> {
-    pub(super) fn lower_when_arm(&mut self, pkg_prefix: &str, arm: &ast::WhenArm) -> WhenArm {
+    pub(super) fn lower_when_arm(
+        &mut self,
+        pkg_prefix: &str,
+        arm: &ast::WhenArm,
+        expected: ExpectedExpr,
+    ) -> WhenArm {
         WhenArm {
             span: arm.span,
             pat: self.lower_when_pat(&arm.pat),
             guard: arm.guard.as_ref().map(|e| self.lower_expr(pkg_prefix, e)),
             arrow_span: arm.arrow_span,
-            body: self.lower_expr(pkg_prefix, &arm.body),
+            body: self.lower_expr_with_expected(pkg_prefix, &arm.body, expected),
         }
     }
 

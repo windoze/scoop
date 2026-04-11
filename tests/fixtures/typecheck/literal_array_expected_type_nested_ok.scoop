@@ -1,0 +1,59 @@
+// EXPECT: pass
+// 目标：T0150h-2 数组字面量元素的 expected type 能继续传播到 if / when / 嵌套数组 / 函数参数 / 返回值。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun takeByte(xs: Array<UInt8>): UInt8 {
+    return xs.get(0)
+}
+
+fun takeFloat(xs: Array<Float32>): Float32 {
+    return xs.get(0)
+}
+
+val topBytes: Array<UInt8> = [if (true) { 1 + 2 } else { 9 }]
+val topFloats: Array<Float32> = [when (true) {
+    true -> 1.5
+    false -> 2.5f
+}]
+
+fun retBytes(flag: Bool): Array<UInt8> {
+    return [if (flag) { 1 + 2 } else { 4 }]
+}
+
+fun retMatrix(flag: Bool): Array<Array<Float32>> {
+    return [
+        [if (flag) { 1.5 } else { 2.5f }],
+        [when (flag) {
+            true -> 3.5
+            false -> 4.5f
+        }],
+    ]
+}
+
+fun probe(flag: Bool): Bool {
+    val localBytes: Array<UInt8> = [if (flag) { 1 + 2 } else { 8 }]
+    val localFloats: Array<Float32> = [when (flag) {
+        true -> 1.5
+        false -> 2.5f
+    }]
+    val viaArgByte: UInt8 = takeByte([if (flag) { 3 } else { 4 }])
+    val viaArgFloat: Float32 = takeFloat([if (flag) { 0.25 + 0.5 } else { 1.0f }])
+    val nested: Array<Array<Float32>> = [
+        [if (flag) { 1.5 } else { 2.5f }],
+        [when (flag) {
+            true -> 3.5
+            false -> 4.5f
+        }],
+    ]
+    val viaReturn: Array<UInt8> = retBytes(true)
+
+    return localBytes.size() == 1
+        && localFloats.size() == 1
+        && viaArgByte == 3
+        && viaArgFloat > 0.0f
+        && nested.size() == 2
+        && viaReturn.size() == 1
+}

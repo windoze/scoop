@@ -1,70 +1,57 @@
-# 本轮执行计划
+# T0150h-2 执行计划
 
-## 约束说明
+## 背景
 
-- 按要求先记录本轮计划，再执行任何命令。
-- 出于安全与工程实践考虑，此文件记录的是可审计的决策摘要、执行步骤、检查项与进度更新，不包含逐字内部推理。
-- 本轮目标是：先检查最新提交是否提到需先修复的既有问题；然后识别 `TODO.md` 中第一个未完成任务；只完成这一个任务（或在必要时将其拆分并执行第一个子任务）；完成后测试、更新文档、提交并停止。
+- 最新提交信息为 `[T0150h-1] 修复数值字面量运算的 expected-type absorption`，未在提交说明中发现需要先处理的遗留问题。
+- `TODO.md` 当前首个未完成任务是 `T0150h-2 数组字面量目标类型向更深嵌套表达式传播`。
+- 该任务的核心缺口已经实现到代码中，当前主要剩余回归验证、文档状态同步、清理临时文件与提交。
 
-## 初始执行步骤
+## 已完成实现摘要
 
-1. 查看最新一次 Git 提交信息，确认是否提到需要先处理的遗留问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`、`README.md` 以及与该任务直接相关的代码与测试，确认上下文。
-4. 判断该任务是否可在本轮完整完成：
-   - 若可以，直接实现。
-   - 若过大或依赖不清，先拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-5. 实现改动时保持模块化，必要时补充注释与文档。
-6. 运行针对性测试，并在需要时运行更完整的校验：
-   - 至少运行与改动直接相关的测试。
-   - 若改动影响面较大，补充运行 `cargo test --all`。
-   - 在合理范围内运行 `cargo clippy --all-targets -- -D warnings`，确保无告警。
-7. 更新进度文件：
-   - 在 `TODO.md` 中标记该任务完成，或在无法直接完成时按要求重排待办顺序并记录依赖。
-   - 更新 `PLAN.md` 反映当前状态。
-   - 按阶段更新本文件，记录关键进展与计划变化。
-8. 提交本轮变更，提交信息与任务编号保持一致，然后停止。
+- 在 typecheck 阶段补齐 expected type 向更深层表达式传播：
+  - `block` / `unsafe block` / `safe block`
+  - `when`
+  - 相关 block tail value 推断路径
+- 在 HIR lowering 阶段补齐 expected type 继续下传：
+  - block 末尾表达式
+  - `if` / `when` 分支
+  - 数组字面量中复杂元素表达式
+- 针对 `Array<UInt8>` 这类 builtin 标量别名场景，补齐 lowering 时的类型规整，避免后端把 builtin 标量误当作 nominal struct，导致 coercion 失败。
+- 已补充 typecheck / run-pass fixtures 覆盖数组字面量中的深层嵌套 expected-type 传播。
 
-## 关键检查项
+## 待执行步骤
 
-- 不回退或覆盖与本轮任务无关的现有修改。
-- 只完成一个任务，不进入下一个待办。
-- 若发现最新提交中明确提到的既有问题，优先修复后再处理待办。
-- 若 `PROMPT.md` 在过程中发生变动，需要一并纳入提交。
-- 若所有任务已完成，则执行最终审查、必要修正、提交并打 `v0.1.0` 标签。
+1. 运行 fixture 全量回归：`cargo run -p scoop -- test`
+2. 运行严格 clippy：`cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+3. 若检查通过，更新项目文档状态：
+   - `TODO.md` 把 `T0150h-2` 标记为完成
+   - `PLAN.md` 记录该任务已完成及实现要点
+   - 继续更新本文件，记录关键步骤完成情况
+4. 删除本轮排障产生的临时复现文件 `memory/repro_t0150h2.scoop`（若仍存在）
+5. 检查工作区差异，确认没有残留调试代码或意外文件
+6. 提交本轮改动，提交信息使用 `[T0150h-2] 补齐数组字面量深层 expected-type 传播`
+7. 停止，不继续执行下一个任务
 
-## 进度更新
+## 风险与关注点
 
-- 已完成：初始化计划文件。
-- 已完成：检查最新提交，未发现提交说明中要求优先修复的遗留问题。
-- 已完成：定位 `TODO.md` 中第一个未完成任务为 `T0150h`。
-- 已完成：对 `T0150h` 做快速盘点，确认其范围过大，需拆分。
-- 已完成：用最小样例复现首个明确缺口：
-  - `val a: Float32 = 1.5 + 2.5` 当前报 `initializer_type_mismatch`（结果先被推导为 `Float64`）。
-  - `val b: UInt8 = 1 + 2` 当前报 `initializer_type_mismatch`（结果先被推导为 `Int`）。
-  - `val xs: Array<UInt8> = [1 + 2, 3]` 当前报 `array_lit_element_type_mismatch`。
-- 结论：本轮将把 `T0150h` 拆为更小子任务，并执行第一个子任务：修复“数值字面量运算表达式在 expected type 语境下的 absorption”。
-- 下一步：
-  1. 更新 `TODO.md` / `PLAN.md`，把 `T0150h` 拆分为多个子任务并将第一个子任务置于首位。
-  2. 修改 typecheck 中 expected type 向纯字面量算术表达式传播的规则。
-  3. 为赋值 / return / call / array element 增加回归 fixture。
-  4. 运行测试与 clippy，更新进度文件并提交。
-- 已完成：把 `T0150h` 拆分为 `T0150h-1` / `T0150h-2` / `T0150h-3`，并更新 `TODO.md`、`PLAN.md`。
-- 已完成：实现 `T0150h-1` 的核心修复：
-  - typecheck：expected type 现在会向数值字面量的一元/二元运算表达式下传；
-  - HIR lowering：在 typecheck 已吸收为窄类型时，数值字面量与一元/二元表达式会保留正确的 HIR 类型，避免 `Array<Float32>` 元素按 `Float64` 错位编码。
-- 已完成：新增回归覆盖：
-  - `tests/fixtures/typecheck/literal_numeric_expected_type_absorption_ok.scoop`
-  - `tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.*`
-- 已验证（针对性）：
-  - `literal_numeric_expected_type_absorption_basic.scoop` 可构建并输出期望结果；
-  - 其中显式覆盖了先前复现的 `Array<Float32> = [1.5, 2.5f]` 首元素错误输出 `0.0` 的问题，现已修复。
-- 已完成：全量验证
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`（`fixtures: ok (874)`）
-  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
-- 已完成：更新 `TODO.md` / `PLAN.md`，将 `T0150h-1` 标记为完成。
-- 下一步：
-  1. 复核本轮 diff 与工作区状态。
-  2. 以 `T0150h-1` 为主题提交 Git commit。
-  3. 停止，等待下一轮调用。
+- 需要确认 fixture 全量回归不会暴露新的 expected-type 回归。
+- 需要确认 clippy 在新增辅助函数与控制流分支上不会报出告警。
+- 若回归失败，先修复失败点，再继续状态同步与提交。
+
+## 当前状态
+
+- 代码实现：已完成
+- 单测与工作区测试：`cargo test --all` 已通过
+- 格式化：`cargo fmt --all` 已通过
+- fixture 全量回归：`cargo run -p scoop -- test` 已通过（`fixtures: ok (876)`）
+- 严格 clippy：`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 已通过
+- 文档状态同步：进行中
+- 待完成：清理工作区、检查差异、提交
+
+## 进度记录
+
+- 已完成全量 fixture 回归，未出现失败；仅有既有 warning，不影响任务验收。
+- 已完成严格 `clippy` 检查，无新增 warning。
+- 正在把 `T0150h-2` 的完成说明回写到 `TODO.md` 与 `PLAN.md`，并清理排障临时文件。
+- 已完成工作区差异检查：`git diff --check` 通过，目标源码文件内未发现残留调试输出。
+- 下一步为提交本轮任务，提交后停止，不继续处理下一个 TODO。

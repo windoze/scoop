@@ -1857,7 +1857,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (874)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150h-2 [TODO] 数组字面量目标类型向更深嵌套表达式传播
+### T0150h-2 [DONE] 数组字面量目标类型向更深嵌套表达式传播
 
 - 描述：继续收敛数组字面量在嵌套 `if` / 嵌套数组 / 组合表达式中的目标类型传播，避免只在一层语境可用。
 - 目标：
@@ -1865,8 +1865,19 @@ cargo run -p scoop --features llvm -- test
   - 现有 array lowering / typecheck side table 不再要求为复杂组合额外引入中间变量。
 - 验收：
   - 新增 run-pass / typecheck fixtures 覆盖更深嵌套表达式。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` + `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 - 依赖：T0150h-1
+- 完成说明：
+  - **typecheck 深层 expected-type 下传**：`crates/scoopc/src/typecheck/expr/infer.rs` 新增 expected-context 专用路径，`Block` / `UnsafeBlock` / `SafeBlock` / `When` 会继续把目标类型传给更深层 tail 表达式与 arm value，避免数组元素一进入组合表达式就丢失上下文。
+  - **HIR lowering 保留目标类型语境**：`crates/scoopc/src/hir/lower/block.rs` 与 `crates/scoopc/src/hir/lower/expr.rs` 现会把 `ExpectedExpr` 继续传入 block 尾表达式、`if`/`when` 分支以及数组字面量中的复杂元素；对 `if` / `when` 的结果类型优先复用 typecheck side table，减少 lowering 阶段回退推断。
+  - **数组复杂元素免中间变量**：数组字面量 lowering 新增复杂元素包装逻辑，会为 `if` / `when` / `block` / `unsafe` / `safe` / `handle` 等元素自动引入内部绑定，从而把元素 expected type 稳定传播到更深层表达式，而不要求用户手写临时变量。
+  - **builtin 标量别名规整修复**：在数组元素类型与容器类型 lowering 中，`scoop.core.UInt8` / `Int8` / `Float32` 等 nominal alias 会规整回真正 builtin 标量类型，修复 `Array<UInt8>` 等场景此前在后端被误判为 struct 并触发 `value coercion` 失败的问题。
+  - **回归覆盖**：新增 `tests/fixtures/typecheck/literal_array_expected_type_nested_ok.scoop` 与 `tests/fixtures/run-pass/literal_array_expected_type_nested_basic.*`，覆盖数组字面量中嵌套 `if` / `when` / `block`、嵌套数组、`Float32` 吸收以及 `Array<UInt8>` 元素语境传播。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (876)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0150h-3 [TODO] 字面量运算/比较/直接方法调用矩阵与诊断锁定
 

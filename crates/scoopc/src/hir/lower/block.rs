@@ -8,14 +8,43 @@ use crate::ast;
 use crate::span::Span;
 
 use super::HirLowering;
+use super::types::ExpectedExpr;
 
-use super::super::{Block, CallArg, Expr, ExprKind, StmtKind, ValueRef};
+use super::super::{Block, CallArg, Expr, ExprKind, Stmt, StmtKind, ValueRef};
 
 impl<'a> HirLowering<'a> {
     pub(super) fn lower_block(&mut self, pkg_prefix: &str, b: &ast::Block) -> Block {
+        self.lower_block_with_expected(pkg_prefix, b, ExpectedExpr::default())
+    }
+
+    pub(super) fn lower_block_with_expected(
+        &mut self,
+        pkg_prefix: &str,
+        b: &ast::Block,
+        expected: ExpectedExpr,
+    ) -> Block {
         let mut stmts = Vec::with_capacity(b.stmts.len());
-        for s in &b.stmts {
-            stmts.push(self.lower_stmt(pkg_prefix, s));
+        for (index, s) in b.stmts.iter().enumerate() {
+            let is_last = index + 1 == b.stmts.len();
+            let stmt = if is_last {
+                match &s.kind {
+                    ast::StmtKind::Expr(expr)
+                        if !matches!(expr.kind, ast::ExprKind::Assign { .. }) =>
+                    {
+                        Stmt {
+                            span: s.span,
+                            ty: self.builtins.unit,
+                            kind: StmtKind::Expr(
+                                self.lower_expr_with_expected(pkg_prefix, expr, expected),
+                            ),
+                        }
+                    }
+                    _ => self.lower_stmt(pkg_prefix, s),
+                }
+            } else {
+                self.lower_stmt(pkg_prefix, s)
+            };
+            stmts.push(stmt);
         }
 
         // 当前阶段：用 block 最后一条“表达式语句”的类型作为 block 类型，否则视为 Unit。

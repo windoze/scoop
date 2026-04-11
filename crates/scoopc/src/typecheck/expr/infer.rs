@@ -612,6 +612,25 @@ fn infer_block_value_type(
     block: &ast::Block,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
+    infer_block_value_type_with_expected(inputs, block, None, lower)
+}
+
+fn infer_block_value_type_in_expected_context(
+    inputs: ExprInferInputs<'_>,
+    block: &ast::Block,
+    expected_ty: TypeId,
+    expected_from: ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    infer_block_value_type_with_expected(inputs, block, Some((expected_ty, expected_from)), lower)
+}
+
+fn infer_block_value_type_with_expected(
+    inputs: ExprInferInputs<'_>,
+    block: &ast::Block,
+    tail_expected: Option<(TypeId, ExpectedTypeFrom)>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
     // 这里用“进入时克隆 + 本地更新”的方式实现最小作用域，不要求外层维护 stable/mutable 信息。
     let mut block_locals = inputs.locals.clone();
@@ -644,7 +663,30 @@ fn infer_block_value_type(
                 check_local_val_decl_exprs(shared, v, lower, &mut state)?;
             }
             ast::StmtKind::Expr(e) => {
-                let ty = inputs.with_locals(&block_locals).infer(lower, e)?;
+                let block_inputs = inputs.with_locals(&block_locals);
+                let ty = if is_last {
+                    if let Some((expected_ty, expected_from)) = tail_expected.clone() {
+                        let found_ty =
+                            block_inputs.infer_in_expected(lower, e, expected_ty, expected_from)?;
+                        if is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+                            || literal_absorbs_to_expected(
+                                e,
+                                expected_ty,
+                                inputs.source,
+                                lower,
+                                inputs.builtins,
+                            )
+                        {
+                            expected_ty
+                        } else {
+                            found_ty
+                        }
+                    } else {
+                        block_inputs.infer(lower, e)?
+                    }
+                } else {
+                    block_inputs.infer(lower, e)?
+                };
                 if is_last {
                     tail_expr_ty = Some(ty);
                 }
@@ -1656,10 +1698,14 @@ fn try_infer_numeric_binary_expr_type_by_expected(
 
 /// 在“存在明确期望类型”的语境下推导表达式类型。
 ///
-/// 目前该入口只做一件事（T0456）：
-/// - 当 `Some(x)` 这类 enum variant ctor 在全局存在多个同名候选时，
-///   尝试用期望类型（例如 `Option<Int>`）来消歧并继续类型检查；
-/// - 若无法消歧，则回退到常规推导逻辑，由原有路径给出稳定的歧义诊断。
+/// 当前该入口会优先尝试把 expected type 向下传播到：
+/// - block / `@Unsafe` / `@Safe` 的 tail expr；
+/// - `if` / `when` 等控制流表达式；
+/// - 数值一元/二元运算、数组字面量、lambda 等已支持 expected-type 吸收的节点；
+/// - 同名 enum variant ctor 的期望类型消歧。
+///
+/// 若某个节点当前无法从 expected type 中获益，则回退到常规推导路径，
+/// 保持既有诊断行为稳定。
 pub(super) fn infer_expr_type_in_expected_context(
     inputs: ExprInferInputs<'_>,
     expr: &ast::Expr,
@@ -1674,6 +1720,42 @@ pub(super) fn infer_expr_type_in_expected_context(
         && literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins)
     {
         return Ok(expected_ty);
+    }
+
+    match &expr.kind {
+        ast::ExprKind::Block(block) => {
+            return infer_block_value_type_in_expected_context(
+                inputs,
+                block,
+                expected_ty,
+                expected_from,
+                lower,
+            );
+        }
+        ast::ExprKind::UnsafeBlock { body, .. } => {
+            lower.push_unsafe_context();
+            let result = infer_block_value_type_in_expected_context(
+                inputs,
+                body,
+                expected_ty,
+                expected_from,
+                lower,
+            );
+            lower.pop_unsafe_context();
+            return result;
+        }
+        ast::ExprKind::SafeBlock { body, .. } => {
+            return lower.with_unsafe_context_suspended(|lower| {
+                infer_block_value_type_in_expected_context(
+                    inputs,
+                    body,
+                    expected_ty,
+                    expected_from,
+                    lower,
+                )
+            });
+        }
+        _ => {}
     }
 
     // T0504：lambda 参数类型下推（spec §14.7.2）。
@@ -1735,6 +1817,18 @@ pub(super) fn infer_expr_type_in_expected_context(
         }
 
         return inputs.infer(lower, expr);
+    }
+
+    if let ast::ExprKind::When { subject, arms } = &expr.kind {
+        return infer_when_expr_type_in_expected_context(
+            inputs,
+            expr,
+            subject,
+            arms,
+            expected_ty,
+            &expected_from,
+            lower,
+        );
     }
 
     // T0510：分支类型不一致时，把推断失败精确映射到具体分支表达式。
@@ -1837,6 +1931,84 @@ pub(super) fn infer_expr_type_in_expected_context(
     }
 
     inputs.infer(lower, expr)
+}
+
+fn infer_when_expr_type_in_expected_context(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    subject: &ast::Expr,
+    arms: &[ast::WhenArm],
+    expected_ty: TypeId,
+    expected_from: &ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+    let subject_ty = inputs.infer(lower, subject)?;
+
+    let arm_expected_from = ExpectedTypeFrom::new(format!(
+        "when 分支结果类型（约束来源：{}）",
+        expected_from.desc
+    ));
+
+    let mut result: Option<TypeId> = None;
+    let mut all_match_expected = true;
+
+    for arm in arms {
+        let mut arm_locals: HashMap<Span, TypeId> = inputs.locals.clone();
+        for (decl_span, ty) in
+            when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
+        {
+            arm_locals.insert(decl_span, ty);
+        }
+        let arm_inputs = inputs.with_locals(&arm_locals);
+
+        if let Some(guard) = &arm.guard {
+            let guard_ty = arm_inputs.infer(lower, guard)?;
+            if !is_type_assignable(guard_ty, builtins.bool_, lower, builtins) {
+                return Err(ExprTypeError::WhenGuardNotBool {
+                    found: lower.fmt_type(guard_ty),
+                    span: guard.span.into(),
+                });
+            }
+        }
+
+        let arm_ty = arm_inputs.infer_in_expected(
+            lower,
+            &arm.body,
+            expected_ty,
+            arm_expected_from.clone(),
+        )?;
+        let arm_matches_expected = arm_ty == builtins.nothing
+            || is_type_assignable(arm_ty, expected_ty, lower, builtins)
+            || literal_absorbs_to_expected(&arm.body, expected_ty, source, lower, builtins);
+        if !arm_matches_expected {
+            all_match_expected = false;
+        }
+
+        if arm_ty == builtins.nothing {
+            continue;
+        }
+
+        match result {
+            None => result = Some(arm_ty),
+            Some(prev) => {
+                result = Some(branch_merge::merge_branch_result_type(
+                    prev, arm_ty, lower, builtins,
+                ));
+            }
+        }
+    }
+
+    when_exhaustiveness::check_when_exhaustiveness(
+        source, expr, subject_ty, arms, lower, builtins,
+    )?;
+
+    if all_match_expected {
+        Ok(expected_ty)
+    } else {
+        Ok(result.unwrap_or(builtins.nothing))
+    }
 }
 
 fn try_infer_lambda_expr_type_by_expected(

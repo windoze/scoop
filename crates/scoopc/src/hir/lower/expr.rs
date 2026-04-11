@@ -126,21 +126,21 @@ impl<'a> HirLowering<'a> {
             }
             ast::ExprKind::Ident(id) => self.lower_ident_expr(id),
             ast::ExprKind::Block(b) => {
-                let b = self.lower_block(pkg_prefix, b);
+                let b = self.lower_block_with_expected(pkg_prefix, b, expected);
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::UnsafeBlock { body, .. } => {
                 // `@Unsafe { ... }` 仅影响 typecheck 的 unsafe context，
                 // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1004）。
-                let b = self.lower_block(pkg_prefix, body);
+                let b = self.lower_block_with_expected(pkg_prefix, body, expected);
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::SafeBlock { body, .. } => {
                 // `@Safe { ... }` 同样仅影响 typecheck 的 unsafe context，
                 // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1021）。
-                let b = self.lower_block(pkg_prefix, body);
+                let b = self.lower_block_with_expected(pkg_prefix, body, expected);
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
@@ -431,26 +431,37 @@ impl<'a> HirLowering<'a> {
                 else_branch,
             } => {
                 let cond = Box::new(self.lower_expr(pkg_prefix, cond));
-                let then_branch = Box::new(self.lower_expr(pkg_prefix, then_branch));
+                let then_branch =
+                    Box::new(self.lower_expr_with_expected(pkg_prefix, then_branch, expected));
                 let else_branch = else_branch
                     .as_ref()
-                    .map(|e| Box::new(self.lower_expr(pkg_prefix, e)));
+                    .map(|e| Box::new(self.lower_expr_with_expected(pkg_prefix, e, expected)));
+                let ty = self
+                    .typechecked_expr_ty(e.span)
+                    .or(expected.array_lit_ty)
+                    .or(expected.struct_lit_ty)
+                    .unwrap_or(self.builtins.any);
                 (
                     ExprKind::If {
                         cond,
                         then_branch,
                         else_branch,
                     },
-                    self.builtins.any,
+                    ty,
                 )
             }
             ast::ExprKind::When { subject, arms } => {
                 let subject = Box::new(self.lower_expr(pkg_prefix, subject));
                 let arms = arms
                     .iter()
-                    .map(|a| self.lower_when_arm(pkg_prefix, a))
+                    .map(|a| self.lower_when_arm(pkg_prefix, a, expected))
                     .collect();
-                (ExprKind::When { subject, arms }, self.builtins.any)
+                let ty = self
+                    .typechecked_expr_ty(e.span)
+                    .or(expected.array_lit_ty)
+                    .or(expected.struct_lit_ty)
+                    .unwrap_or(self.builtins.any);
+                (ExprKind::When { subject, arms }, ty)
             }
             ast::ExprKind::Handle {
                 body,
@@ -861,12 +872,16 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    fn array_lit_element_ty_from_type_id(&self, ty: TypeId) -> Option<TypeId> {
+    fn array_lit_element_ty_from_type_id(&mut self, ty: TypeId) -> Option<TypeId> {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return None;
         };
         self.array_lit_target_from_type_id(ty)?;
-        nominal.args.first().copied()
+        nominal
+            .args
+            .first()
+            .copied()
+            .map(|arg| self.canonicalize_builtin_scalar_alias_ty(arg))
     }
 
     fn array_lit_lowering_hint(
@@ -874,15 +889,66 @@ impl<'a> HirLowering<'a> {
         span: Span,
         expected: ExpectedExpr,
     ) -> Option<(ArrayLitTarget, TypeId, Option<TypeId>)> {
-        let result_ty = self
+        let raw_result_ty = self
             .typechecked_expr_ty(span)
             .or(expected.array_lit_ty)
             .or(expected.struct_lit_ty)?;
+        let result_ty = self.canonicalize_array_like_type_args(raw_result_ty);
         let target = self
             .array_lit_target_from_type_id(result_ty)
             .or(expected.array_lit_target)?;
         let element_ty = self.array_lit_element_ty_from_type_id(result_ty);
         Some((target, result_ty, element_ty))
+    }
+
+    fn canonicalize_array_like_type_args(&mut self, ty: TypeId) -> TypeId {
+        let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty).clone()
+        else {
+            return ty;
+        };
+        if self.array_lit_target_from_type_id(ty).is_none() || nominal.args.len() != 1 {
+            return ty;
+        }
+
+        let canonical_arg = self.canonicalize_builtin_scalar_alias_ty(nominal.args[0]);
+        if canonical_arg == nominal.args[0] {
+            return ty;
+        }
+
+        self.intern_nominal(nominal.fqn, vec![canonical_arg], nominal.eff)
+    }
+
+    fn canonicalize_builtin_scalar_alias_ty(&mut self, ty: TypeId) -> TypeId {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty).clone() else {
+            return ty;
+        };
+        if !nominal.args.is_empty() {
+            return ty;
+        }
+
+        match nominal.fqn.as_str() {
+            "scoop.core.Bool" => self.builtins.bool_,
+            "scoop.core.Char" => self.builtins.char_,
+            "scoop.core.Float64" => self.builtins.float64,
+            "scoop.core.Float32" => self.builtins.float32,
+            "scoop.core.Int" => self.builtins.int,
+            "scoop.core.UInt" => self.builtins.uint,
+            fqn => {
+                if let Some(bits) = fqn
+                    .strip_prefix("scoop.core.Int")
+                    .and_then(|s| s.parse::<u16>().ok())
+                {
+                    return self.types.ty_int_n(bits);
+                }
+                if let Some(bits) = fqn
+                    .strip_prefix("scoop.core.UInt")
+                    .and_then(|s| s.parse::<u16>().ok())
+                {
+                    return self.types.ty_uint_n(bits);
+                }
+                ty
+            }
+        }
     }
 
     fn infer_array_lit_ty_from_lowered_elements(&mut self, elements: &[Expr]) -> Option<TypeId> {
@@ -996,7 +1062,8 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let lowered_elements: Vec<Expr> = elements
             .iter()
-            .map(|element| {
+            .enumerate()
+            .map(|(index, element)| {
                 let expected = element_expected_ty
                     .map(|ty| ExpectedExpr {
                         array_lit_target: self.array_lit_target_from_type_id(ty),
@@ -1004,10 +1071,85 @@ impl<'a> HirLowering<'a> {
                         struct_lit_ty: Some(ty),
                     })
                     .unwrap_or_default();
-                self.lower_expr_with_expected(pkg_prefix, element, expected)
+                let lowered = self.lower_expr_with_expected(pkg_prefix, element, expected);
+                match element_expected_ty {
+                    Some(expected_ty)
+                        if Self::array_lit_element_needs_expected_binding(element) =>
+                    {
+                        self.wrap_array_lit_element_with_expected_binding(
+                            element.span,
+                            index,
+                            expected_ty,
+                            lowered,
+                        )
+                    }
+                    _ => lowered,
+                }
             })
             .collect();
         self.build_array_lit_expr(span, lowered_elements, target, result_ty)
+    }
+
+    fn array_lit_element_needs_expected_binding(element: &ast::Expr) -> bool {
+        matches!(
+            element.kind,
+            ast::ExprKind::If { .. }
+                | ast::ExprKind::When { .. }
+                | ast::ExprKind::Block(_)
+                | ast::ExprKind::UnsafeBlock { .. }
+                | ast::ExprKind::SafeBlock { .. }
+                | ast::ExprKind::Handle { .. }
+        )
+    }
+
+    fn wrap_array_lit_element_with_expected_binding(
+        &mut self,
+        span: Span,
+        index: usize,
+        expected_ty: TypeId,
+        init: Expr,
+    ) -> Expr {
+        let decl_span = Span::new(span.start, span.start);
+        let temp_id = self.intern_local_symbol(decl_span, false);
+        let temp_name = format!("__array_elem_{index}");
+
+        let val_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(ValDecl {
+                span,
+                id: Some(temp_id),
+                name: Some(temp_name.clone()),
+                mutable: false,
+                ty: expected_ty,
+                init: Some(init),
+            }),
+        };
+
+        let temp_ref = Expr {
+            span,
+            ty: expected_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: temp_id,
+                name: temp_name,
+                decl_span,
+            }),
+        };
+        let temp_expr_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(temp_ref),
+        };
+
+        Expr {
+            span,
+            ty: expected_ty,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: expected_ty,
+                stmts: vec![val_stmt, temp_expr_stmt],
+            }),
+        }
     }
 
     fn build_array_lit_expr(
