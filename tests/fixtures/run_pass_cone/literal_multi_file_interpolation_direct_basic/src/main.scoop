@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+//
+// 目标：T0150g
+// - 多文件 helper 中的 Char / Float / Array 字面量可走完整运行路径；
+// - f-string 现支持 Bool / Char / Int / Float 混合插值；
+// - 字面量直接方法调用（`42.toString()` / `'A'.toInt()` / `[1,2,3].size()`）稳定。
+
+package fixtures.run_pass_cone.literal_multi_file_interpolation_direct_basic
+
+import scoop.core.*
+
+fun main() {
+    println(helperArraySize())
+    println(helperFloatText())
+    println(helperCharCode())
+    println(helperSummary(true))
+
+    println(42.toString())
+    println('A'.toInt())
+    println([1, 2, 3].size())
+    println(f"entry ok={false} char={'B'} size={[4, 5].size()} float={1.25}")
+}

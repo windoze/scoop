@@ -1,0 +1,8 @@
+3
+3.25
+90
+helper flag=true glyph=Z count=3 frac=0.5
+42
+65
+3
+entry ok=false char=B size=2 float=1.25

@@ -1807,7 +1807,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (871)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0150g [TODO] 字面量完整性：多文件 + 插值字符串 + 直接方法调用语境
+### T0150g [DONE] 字面量完整性：多文件 + 插值字符串 + 直接方法调用语境
 
 - 描述：复核字面量在非入口文件、插值字符串以及“字面量直接点方法”这三类容易遗漏的语境中的端到端行为。
 - 目标：
@@ -1818,6 +1818,18 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures 覆盖多文件 + 插值 + 直接方法调用组合。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150e
+- 完成说明：
+  - **f-string codegen 补齐**：`crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_interpolated_string` 现新增 `Bool` / `Char` 分支。`Bool` 通过 runtime `scoop_bool_to_string` 转成 `String`，`Char` 复用 `codegen_char_method_to_string`，随后统一走现有字符串分片拼接路径。
+  - **多文件 f-string 取源修复**：同一函数原先错误地用 `entry_source().slice(span)` 读取 f-string 文本片段，导致 helper 文件里的插值字符串静态文本串到入口文件源码。现改为 `current_source_slice(span)`，使非入口文件按当前 codegen source context 正确取片。
+  - **回归覆盖**：新增 `tests/fixtures/run_pass_cone/literal_multi_file_interpolation_direct_basic/**`，在单个多文件 cone fixture 中同时覆盖：
+    - helper 文件中的 Char / Float / Array 字面量；
+    - `f"{true}"` / `f"{'Z'}"` / `f"{1.25}"` / `f"{[...].size()}"` 组合；
+    - `42.toString()`、`'A'.toInt()`、`[1, 2, 3].size()` 等字面量直接方法调用。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (872)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0150h [TODO] 字面量完整性：类型上下文吸收与运算语义审计
 

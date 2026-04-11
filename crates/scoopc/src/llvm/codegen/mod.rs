@@ -12119,7 +12119,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 返回一个 GC-managed `ScoopString` 对象（addrspace(1)），其 `data` 指向 `malloc` 的 bytes buffer。
         //
         // 约束（与 TODO T0823 对齐）：
-        // - 目前支持 `{Int}` / `{String}` / `{Float}`；
+        // - 目前支持 `{Bool}` / `{Char}` / `{Int}` / `{String}` / `{Float}`；
         // - 先不支持 format spec / locale；
         // - 当前阶段不接入 type descriptor/release：`data` 的释放留给后续任务补齐（T1507/T1514）。
 
@@ -12141,7 +12141,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for part in parts {
             match part {
                 hir::InterpolatedStringPart::Text { span: text_span } => {
-                    let text = self.entry_source().slice(*text_span);
+                    let text = self.current_source_slice(*text_span)?;
                     let bytes = parse_f_string_text_bytes(raw, text).map_err(|_| {
                         LlvmEmitError::UnsupportedMainBody {
                             kind: "invalid interpolated string text",
@@ -12163,6 +12163,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_int_add(total_len, len, "fstr_total_len")?;
                 }
                 hir::InterpolatedStringPart::Expr { expr } => {
+                    if self.expr_is_builtin_char(expr) {
+                        let str_v = self.codegen_char_method_to_string(expr.span, expr)?;
+                        let Some(raw) = str_v.value else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "string interpolation char expr value",
+                                at: expr.span.into(),
+                            });
+                        };
+                        let BasicValueEnum::PointerValue(str_obj_ptr) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "string interpolation char expr type",
+                                at: expr.span.into(),
+                            });
+                        };
+
+                        let (len, data) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+
+                        segments.push(Segment { ptr: data, len });
+                        total_len = self
+                            .builder
+                            .build_int_add(total_len, len, "fstr_total_len")?;
+                        continue;
+                    }
+
                     let v = self.codegen_expr(expr)?;
 
                     match v.ty {
@@ -12177,6 +12201,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let BasicValueEnum::PointerValue(str_obj_ptr) = raw else {
                                 return Err(LlvmEmitError::UnsupportedMainBody {
                                     kind: "string interpolation expr type",
+                                    at: expr.span.into(),
+                                });
+                            };
+
+                            let (len, data) = self.load_scoop_string_len_and_data(str_obj_ptr)?;
+
+                            segments.push(Segment { ptr: data, len });
+                            total_len =
+                                self.builder
+                                    .build_int_add(total_len, len, "fstr_total_len")?;
+                        }
+                        CgTy::Bool => {
+                            let Some(raw) = v.value else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation bool expr value",
+                                    at: expr.span.into(),
+                                });
+                            };
+                            let BasicValueEnum::IntValue(bool_val) = raw else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation bool expr type",
+                                    at: expr.span.into(),
+                                });
+                            };
+
+                            let bool_as_i64 = self.builder.build_int_z_extend(
+                                bool_val,
+                                i64_ty,
+                                "fstr_bool_zext",
+                            )?;
+                            let rt_bool = self.declare_runtime_bool_to_string();
+                            let call = self.builder.build_call(
+                                rt_bool,
+                                &[bool_as_i64.into()],
+                                "rt_bool_to_string_for_fstr",
+                            )?;
+                            let ret = call.try_as_basic_value().basic().ok_or(
+                                LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation bool return value",
+                                    at: expr.span.into(),
+                                },
+                            )?;
+                            let BasicValueEnum::PointerValue(str_obj_ptr) = ret else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation bool return type",
                                     at: expr.span.into(),
                                 });
                             };

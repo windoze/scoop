@@ -1,0 +1,19 @@
+package fixtures.run_pass_cone.literal_multi_file_interpolation_direct_basic
+
+import scoop.core.*
+
+public fun helperArraySize(): Int {
+    return ['x', 'y', 'z'].size()
+}
+
+public fun helperFloatText(): String {
+    return 3.25.toString()
+}
+
+public fun helperCharCode(): Int {
+    return 'Z'.toInt()
+}
+
+public fun helperSummary(flag: Bool): String {
+    return f"helper flag={flag} glyph={'Z'} count={[10, 20, 30].size()} frac={0.5f}"
+}

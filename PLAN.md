@@ -470,9 +470,11 @@ cargo run -p scoop --features llvm -- test
   - `crates/scoopc/src/comptime/value.rs` 注释明确：v0 阶段 `ConstValue::Tuple` 也承载 array literal / 常量序列，因此 fixture 输出中的 Array 继续按 tuple 形态呈现。
   - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (871)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
-- TODO（T0150g）：多文件 + 插值字符串 + 直接方法调用语境
-  - 复核 Char/Float/Array 在非入口文件中的运行路径。
-  - 复核 `"${expr}"` 插值与字面量上的直接方法调用（`42.toString()`、`'A'.toInt()`、`[1,2].size()`）的端到端行为。
+- DONE（T0150g）：多文件 + 插值字符串 + 直接方法调用语境
+  - LLVM `codegen_interpolated_string` 已补齐 `Bool` / `Char` 插值：`Bool` 走 `scoop_bool_to_string`，`Char` 复用 `codegen_char_method_to_string`，随后统一读取 `ScoopString.len/data` 参与拼接。
+  - 同时修复多文件 f-string 文本片段取源错误：原先错误使用 `entry_source()`，导致 helper 文件的静态文本从 `main.scoop` 切片；现改为 `current_source_slice()`，与当前 codegen source context 对齐。
+  - 新增 `run_pass_cone/literal_multi_file_interpolation_direct_basic`：在同一多文件 fixture 中锁定 helper 文件的 Char / Float / Array 字面量、`f-string` 插值（Bool/Char/Float/array-literal method result）以及 `42.toString()` / `'A'.toInt()` / `[1,2,3].size()`。
+  - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (872)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 - TODO（T0150h）：类型上下文吸收与字面量运算语义
   - 审计整数 / 浮点 absorption、数组字面量上下文推断，以及字面量之间的算术/比较/方法分发组合。
