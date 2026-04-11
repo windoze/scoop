@@ -76,7 +76,8 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c2b 已完成：mixed-arm while site matrix 现已支持 while body 中的 nested block / nested if direct sibling escape site；首次命中 direct site 时可进入 nested path 前缀，`resume(...)` 后也会先 replay 命中的 nested path 尾部，再执行当前迭代余下语句、loop condition 与后续迭代。
   - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_post_immediate_while_nested_if`，并把 while 负例 `effect_resume_mixed_escape_while_is_error` 更新为更深层 nested 诊断，继续为 `T2003c0b2c3` / 更后续形状锁住边界。
   - 当前下一步调整为 `T2003c0b2c3`：继续补 sibling escape-continuation 在 nested block / if / while 中的 indirect call site，并收口 nested direct + indirect 共存矩阵。
-  - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后补上的前端缺口：statement-position 裸 `{ ... }` block 目前仍会被 parser 优先解释成 lambda / trailing lambda，导致若要在 effect fixtures 里表达 nested block 只能临时写成 `@Safe { ... }`。该缺口已登记为 `T2004`，范围包括 parser/typecheck/HIR 收口与相关 effect fixtures 去 workaround。
+  - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
+  - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -99,9 +100,22 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c2b（已完成）：补 sibling escape-continuation 在 while body 中的 nested direct site。
   - T2003c0b2c3：补 sibling escape-continuation 的 nested indirect call site 与 nested direct/indirect site matrix。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
-  - T2004：补 statement-position 裸 block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。
+  - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 
-## 2. Structured Concurrency / `Task<T>`（T21）
+## 2. 语句语义 / Rust 风格分号规则（T22）
+
+- 背景：Scoop 不保留换行语义，却已支持 Kotlin-like trailing lambda 与 multiple trailing lambdas；当前 `;` 仍只是可选分隔符，block tail 也尚未按 Rust 区分 terminated expr stmt 与 tail expr。这让 statement-position block、trailing lambda 与 effect nested-block fixtures 的边界不够稳定。
+- 目标：
+  - 引入 Rust 风格语句终止与 expression statement 语义：显式 `;` 切断前一条表达式，block 只有未 terminated 的 tail expr 才产生值。
+  - 保持 trailing lambda / multiple trailing lambdas 作为 call 后缀语法不回归，并用显式 statement boundary 区分后续 block statement。
+  - 把 effect fixtures 中仅用于 nested block 的 `@Safe` workaround 切回 plain block，并同步更新 `SCOOP_FULL_SPEC.md` / doctest fixtures / 相关说明文档。
+- 落地顺序：
+  - T2201：parser / AST 引入 Rust 风格语句终止规则与 `{}` / trailing lambda 消歧。
+  - T2202：typecheck / HIR 收口 expression statement / block tail value 语义。
+  - T2203：effect / regression fixtures 切到 plain block + semicolon fence。
+  - T2204：spec / doc / doctest sync。
+
+## 3. Structured Concurrency / `Task<T>`（T21）
 
 - 背景：`spawn` / `join` 已有语法外壳，但执行链路仍按 `Int` 句柄与 `Int` 结果建模，不是真正的 `Task<T>`。
 - 已确认的后端缺口：
@@ -119,7 +133,7 @@ cargo run -p scoop --features llvm -- test
   - T2104：补齐 runtime executor / `onComplete` / `await` 的泛型 payload 模型。
   - T2105：用结构化并发 fixtures 锁定语义边界与 GC 行为。
 
-## 3. Lambda 推断与调用语义补齐（T22）
+## 4. Lambda 推断与调用语义补齐（T23）
 
 - 背景：lambda 已具备基础语法，但 expected-type 向下传播仍只覆盖 0/1/2 参数，receiver lambda 体内也还拿不到 `this`；调用规则在函数值 / funptr / ctor delegation 上仍有分叉。
 - 目标：
@@ -127,11 +141,11 @@ cargo run -p scoop --features llvm -- test
   - receiver lambda 体内自动注入 `this` / 成员查找环境，消除“类型系统可表示、lambda 内却不可用”的断层。
   - 统一函数值调用、函数指针调用、`super(...)` / `this(...)` 构造器委托调用的实参匹配规则，消除命名实参与 receiver function type 的早期门禁。
 - 落地顺序：
-  - T2201：扩 expected-type propagation。
-  - T2202：receiver lambda 的 `this` 语义。
-  - T2203：调用语义统一与命名实参放行。
+  - T2301：扩 expected-type propagation。
+  - T2302：receiver lambda 的 `this` 语义。
+  - T2303：调用语义统一与命名实参放行。
 
-## 4. 泛型约束 / Pattern / 值类型能力补齐（T23）
+## 5. 泛型约束 / Pattern / 值类型能力补齐（T24）
 
 - 背景：当前缺口集中在三个方向：`where` bound 只能写浅层 nominal type、pattern 在顶层与 `when` or-pattern 上仍不一致、值类型声明与 `with` 更新仍有硬限制。
 - 目标：
@@ -139,13 +153,13 @@ cargo run -p scoop --features llvm -- test
   - 让顶层 `val` 可复用既有 pattern binding 语义；`when` or-pattern 可在 binder 集一致时共享绑定。
   - 补齐值类型声明与更新主路径：`struct` 字段默认值 / `var` 支持、`with` 的 base 类型扩展、嵌套路径更新 desugar。
 - 落地顺序：
-  - T2301：`where` nominal bound with type args。
-  - T2302：顶层 pattern binding。
-  - T2303：`struct` 字段模型（`var` / 默认值）。
-  - T2304：`with` 更新扩展到更完整的值类型语义。
-  - T2305：`when` or-pattern binder。
+  - T2401：`where` nominal bound with type args。
+  - T2402：顶层 pattern binding。
+  - T2403：`struct` 字段模型（`var` / 默认值）。
+  - T2404：`with` 更新扩展到更完整的值类型语义。
+  - T2405：`when` or-pattern binder。
 
-## 5. `const fun` 与 MIR 完整化（T24）
+## 6. `const fun` 与 MIR 完整化（T25）
 
 - 背景：`const fun` 目前仍停留在“纯函数签名”最小子集；MIR 路径里常见表达式与 effect 结构仍大量落到 `Todo`，还不能作为稳定的中端基础。
 - 目标：
@@ -153,16 +167,16 @@ cargo run -p scoop --features llvm -- test
   - 消除 MIR 在 struct/tuple/interpolated string/member access/call/cast/type check 等常见路径上的 `Todo` 占位。
   - 为 `perform` / `handle` 提供最小但真实的 MIR 表示，使 MIR 至少可以承担结构化验证与后续优化入口，而不是纯占位视图。
 - 落地顺序：
-  - T2401：`const fun` 签名模型扩展。
-  - T2402：常见表达式 MIR lowering 去 `Todo`。
-  - T2403：effect/control-flow MIR lowering 去占位。
+  - T2501：`const fun` 签名模型扩展。
+  - T2502：常见表达式 MIR lowering 去 `Todo`。
+  - T2503：effect/control-flow MIR lowering 去占位。
 
-## 6. 低优先级：Annotation / FFI ABI（T25）
+## 7. 低优先级：Annotation / FFI ABI（T26）
 
 - 说明：`ISSUES.md` 第 9、10 点不阻塞当前主线，统一放到文件末尾；只有前述主线进入稳定回归后再推进。
 - 目标：
   - annotation class 从 data-only 子集扩展到更完整的声明模型。
   - `@CallingConvention` 与 extern side table 不再只认 C ABI，为后续宿主互操作预留可验证的 ABI 表达能力。
 - 落地顺序：
-  - T2501：annotation class richer model。
-  - T2502：FFI / calling convention 扩展。
+  - T2601：annotation class richer model。
+  - T2602：FFI / calling convention 扩展。
