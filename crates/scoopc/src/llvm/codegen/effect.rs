@@ -29,16 +29,43 @@ pub(super) struct ImmediateResumeCtx<'ctx> {
     next_state: u32,
 }
 
-/// Immediate-resume 当前阶段支持的嵌套恢复路径：statement-position block。
+/// Immediate-resume 当前阶段支持的嵌套恢复路径：
+/// statement-position `block` + `if` then/else branch。
 #[derive(Debug, Clone, Copy)]
-struct ImmediateResumeBlockFrame<'hir> {
-    block: &'hir hir::Block,
-    stmt_idx: usize,
+enum ImmediateResumeFrame<'hir> {
+    Block {
+        block: &'hir hir::Block,
+        stmt_idx: usize,
+    },
+    IfThen {
+        if_expr: &'hir hir::Expr,
+        then_block: &'hir hir::Block,
+        stmt_idx: usize,
+    },
+    IfElse {
+        if_expr: &'hir hir::Expr,
+        else_block: &'hir hir::Block,
+        stmt_idx: usize,
+    },
 }
 
-impl<'hir> ImmediateResumeBlockFrame<'hir> {
+impl<'hir> ImmediateResumeFrame<'hir> {
     fn set_stmt_idx(&mut self, idx: usize) {
-        self.stmt_idx = idx;
+        match self {
+            ImmediateResumeFrame::Block { stmt_idx, .. }
+            | ImmediateResumeFrame::IfThen { stmt_idx, .. }
+            | ImmediateResumeFrame::IfElse { stmt_idx, .. } => {
+                *stmt_idx = idx;
+            }
+        }
+    }
+
+    fn stmt_idx(&self) -> usize {
+        match self {
+            ImmediateResumeFrame::Block { stmt_idx, .. }
+            | ImmediateResumeFrame::IfThen { stmt_idx, .. }
+            | ImmediateResumeFrame::IfElse { stmt_idx, .. } => *stmt_idx,
+        }
     }
 }
 
@@ -49,7 +76,7 @@ struct ImmediateResumeSite<'hir> {
     op: &'hir hir::EffectOpRef,
     args: &'hir [hir::CallArg],
     id: hir::SymbolId,
-    resume_path: Vec<ImmediateResumeBlockFrame<'hir>>,
+    resume_path: Vec<ImmediateResumeFrame<'hir>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -58,6 +85,16 @@ struct ImmediateResumeBinderSlot<'ctx> {
     hir_ty: TypeId,
     ty: CgTy,
     ptr: PointerValue<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeExecPlan<'hir, 'ctx> {
+    handle: &'hir hir::HandleExpr,
+    site: &'hir ImmediateResumeSite<'hir>,
+    out_ty: CgTy,
+    result_ptr: Option<PointerValue<'ctx>>,
+    handler_frame_ptr: PointerValue<'ctx>,
+    finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
 }
 
 /// effect / continuation 共享的双通道 payload 载体。
@@ -273,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         arm_op_fqn: &str,
     ) -> Result<Option<ImmediateResumeSite<'hir>>, LlvmEmitError> {
         struct ScanState<'hir> {
-            path: Vec<ImmediateResumeBlockFrame<'hir>>,
+            path: Vec<ImmediateResumeFrame<'hir>>,
             site: Option<ImmediateResumeSite<'hir>>,
         }
 
@@ -403,23 +440,84 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                     hir::ExprKind::Block(block) => {
                         self.path
-                            .push(ImmediateResumeBlockFrame { block, stmt_idx: 0 });
+                            .push(ImmediateResumeFrame::Block { block, stmt_idx: 0 });
                         let result =
                             self.scan_stmts(cg, &block.stmts, arm_op_fqn, top_level_stmt_idx);
                         self.path.pop();
                         result
                     }
-                    hir::ExprKind::If { .. } => {
+                    hir::ExprKind::If {
+                        cond,
+                        then_branch,
+                        else_branch,
+                    } => {
                         if cg.immediate_resume_expr_contains_matching_direct_perform(
-                            expr, arm_op_fqn,
+                            cond, arm_op_fqn,
                         ) {
-                            Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle resume body (if not yet supported)",
-                                at: expr.span.into(),
-                            })
-                        } else {
-                            Ok(())
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle resume body (if condition with perform not yet supported)",
+                                at: cond.span.into(),
+                            });
                         }
+
+                        if let hir::ExprKind::Block(block) = &then_branch.kind {
+                            if cg.immediate_resume_block_contains_matching_direct_perform(
+                                block, arm_op_fqn,
+                            ) {
+                                self.path.push(ImmediateResumeFrame::IfThen {
+                                    if_expr: expr,
+                                    then_block: block,
+                                    stmt_idx: 0,
+                                });
+                                let result = self.scan_stmts(
+                                    cg,
+                                    &block.stmts,
+                                    arm_op_fqn,
+                                    top_level_stmt_idx,
+                                );
+                                self.path.pop();
+                                result?;
+                            }
+                        } else if cg.immediate_resume_expr_contains_matching_direct_perform(
+                            then_branch,
+                            arm_op_fqn,
+                        ) {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle resume body (if branch value with perform not yet supported)",
+                                at: then_branch.span.into(),
+                            });
+                        }
+
+                        if let Some(else_expr) = else_branch.as_deref() {
+                            if let hir::ExprKind::Block(block) = &else_expr.kind {
+                                if cg.immediate_resume_block_contains_matching_direct_perform(
+                                    block, arm_op_fqn,
+                                ) {
+                                    self.path.push(ImmediateResumeFrame::IfElse {
+                                        if_expr: expr,
+                                        else_block: block,
+                                        stmt_idx: 0,
+                                    });
+                                    let result = self.scan_stmts(
+                                        cg,
+                                        &block.stmts,
+                                        arm_op_fqn,
+                                        top_level_stmt_idx,
+                                    );
+                                    self.path.pop();
+                                    result?;
+                                }
+                            } else if cg.immediate_resume_expr_contains_matching_direct_perform(
+                                else_expr, arm_op_fqn,
+                            ) {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle resume body (if branch value with perform not yet supported)",
+                                    at: else_expr.span.into(),
+                                });
+                            }
+                        }
+
+                        Ok(())
                     }
                     _ => {
                         if cg.immediate_resume_expr_contains_matching_direct_perform(
@@ -475,9 +573,157 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_immediate_resume_finalize_body(
+        &mut self,
+        value_span: crate::span::Span,
+        out_ty: CgTy,
+        value: CgValue<'ctx>,
+        result_ptr: Option<PointerValue<'ctx>>,
+        handler_frame_ptr: PointerValue<'ctx>,
+        finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let value = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(value_span, value, out_ty)?
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(value_span, ptr, out_ty, value)?;
+        }
+
+        // resumed computation / no-perform 路径正常完成：pop handler frame，使 finally 处于 handler scope 外。
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let frame_i8 = self.builder.build_bit_cast(
+            handler_frame_ptr,
+            i8_ptr_ty,
+            "handle_resume_effect_frame_i8",
+        )?;
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_resume_effect_pop")?;
+        self.builder.build_unconditional_branch(finally_bb)?;
+        Ok(())
+    }
+
+    fn codegen_immediate_resume_top_level_tail_and_finalize(
+        &mut self,
+        handle: &hir::HandleExpr,
+        start_idx: usize,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        handler_frame_ptr: PointerValue<'ctx>,
+        finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let mut value: CgValue<'ctx> = CgValue::unit();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate().skip(start_idx) {
+            let is_last = idx + 1 == handle.body.stmts.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                    value = CgValue::unit();
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    value = CgValue::unit();
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let v = self.codegen_expr(expr)?;
+                    value = if is_last { v } else { CgValue::unit() };
+                }
+                hir::StmtKind::Return { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "`return` inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+                hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        self.codegen_immediate_resume_finalize_body(
+            handle.body.span,
+            out_ty,
+            value,
+            result_ptr,
+            handler_frame_ptr,
+            finally_bb,
+        )
+    }
+
+    fn codegen_immediate_resume_continue_after_frame_and_finalize<'hir>(
+        &mut self,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
+        completed_depth: usize,
+    ) -> Result<(), LlvmEmitError> {
+        if completed_depth == 0 {
+            return self.codegen_immediate_resume_top_level_tail_and_finalize(
+                plan.handle,
+                plan.site.top_level_stmt_idx + 1,
+                plan.out_ty,
+                plan.result_ptr,
+                plan.handler_frame_ptr,
+                plan.finally_bb,
+            );
+        }
+
+        let parent_start_idx = plan.site.resume_path[completed_depth - 1].stmt_idx() + 1;
+        self.codegen_immediate_resume_frame_tail_and_continue(
+            plan,
+            completed_depth - 1,
+            parent_start_idx,
+        )
+    }
+
+    fn codegen_immediate_resume_frame_tail_and_continue<'hir>(
+        &mut self,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
+        depth: usize,
+        start_idx: usize,
+    ) -> Result<(), LlvmEmitError> {
+        let stmts = match &plan.site.resume_path[depth] {
+            ImmediateResumeFrame::Block { block, .. } => &block.stmts,
+            ImmediateResumeFrame::IfThen { then_block, .. } => &then_block.stmts,
+            ImmediateResumeFrame::IfElse { else_block, .. } => &else_block.stmts,
+        };
+        for stmt in stmts.iter().skip(start_idx) {
+            self.codegen_immediate_resume_stmt_unit(stmt)?;
+        }
+        self.env.pop_scope();
+        self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)
+    }
+
+    fn codegen_immediate_resume_non_intercept_branch_and_continue<'hir>(
+        &mut self,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
+        depth: usize,
+        branch_expr: Option<&'hir hir::Expr>,
+    ) -> Result<(), LlvmEmitError> {
+        let saved_env = self.env.clone();
+        if let Some(expr) = branch_expr {
+            let _ = self.codegen_expr(expr)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+        }
+        self.env = saved_env;
+        Ok(())
+    }
+
     fn codegen_immediate_resume_prefix_to_site<'hir>(
         &mut self,
-        site: &ImmediateResumeSite<'hir>,
+        plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         depth: usize,
         stmts: &'hir [hir::Stmt],
         binder_slots: &[ImmediateResumeBinderSlot<'ctx>],
@@ -485,9 +731,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let target_stmt_idx = if depth == 0 {
-            site.top_level_stmt_idx
+            plan.site.top_level_stmt_idx
         } else {
-            site.resume_path[depth - 1].stmt_idx
+            plan.site.resume_path[depth - 1].stmt_idx()
         };
         for (idx, stmt) in stmts.iter().enumerate() {
             if idx < target_stmt_idx {
@@ -495,7 +741,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
 
-            if depth == site.resume_path.len() {
+            if depth == plan.site.resume_path.len() {
                 let hir::StmtKind::Val(decl) = &stmt.kind else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle resume body (expected perform binding)",
@@ -514,7 +760,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: init.span.into(),
                     });
                 };
-                if op.fqn != site.op.fqn {
+                if op.fqn != plan.site.op.fqn {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle resume op mismatch",
                         at: op.span.into(),
@@ -527,7 +773,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: decl.span.into(),
                         })?;
 
-                let target_ptr = if let Some(local) = self.env.get(site.id) {
+                let target_ptr = if let Some(local) = self.env.get(plan.site.id) {
                     if local.ty != resume_value_ty {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "handle resume perform value type",
@@ -539,7 +785,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let name = decl.name.as_deref().unwrap_or("perform_value");
                     let ptr = self.create_entry_alloca(decl.span, name, resume_value_ty)?;
                     self.env.insert(
-                        site.id,
+                        plan.site.id,
                         CgLocal {
                             hir_ty: Some(decl.ty),
                             ty: resume_value_ty,
@@ -574,52 +820,199 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(target_ptr);
             }
 
-            let expected_block = site.resume_path[depth].block;
-            let hir::StmtKind::Expr(expr) = &stmt.kind else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle resume body (expected block statement)",
-                    at: stmt.span.into(),
-                });
-            };
-            let hir::ExprKind::Block(block) = &expr.kind else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle resume body (expected block statement)",
-                    at: expr.span.into(),
-                });
-            };
-            if !std::ptr::eq(block, expected_block) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle resume body (block path mismatch)",
-                    at: expr.span.into(),
-                });
-            }
+            match &plan.site.resume_path[depth] {
+                ImmediateResumeFrame::Block {
+                    block: expected_block,
+                    ..
+                } => {
+                    let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected block statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected block statement)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(block, *expected_block) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (block path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
 
-            self.env.push_scope();
-            return self.codegen_immediate_resume_prefix_to_site(
-                site,
-                depth + 1,
-                &block.stmts,
-                binder_slots,
-                resume_used_ptr,
-                arm_bb,
-            );
+                    self.env.push_scope();
+                    return self.codegen_immediate_resume_prefix_to_site(
+                        plan,
+                        depth + 1,
+                        &block.stmts,
+                        binder_slots,
+                        resume_used_ptr,
+                        arm_bb,
+                    );
+                }
+                ImmediateResumeFrame::IfThen {
+                    if_expr,
+                    then_block,
+                    ..
+                } => {
+                    let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(expr, *if_expr) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If {
+                        cond,
+                        then_branch: _,
+                        else_branch,
+                    } = &expr.kind
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if statement)",
+                            at: expr.span.into(),
+                        });
+                    };
+
+                    let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+                    let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+                    let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle resume body (if condition value)",
+                        at: cond.span.into(),
+                    })?;
+
+                    let insert_block = self.builder.get_insert_block().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no insert block",
+                            at: expr.span.into(),
+                        },
+                    )?;
+                    let func =
+                        insert_block
+                            .get_parent()
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "builder has no parent function",
+                                at: expr.span.into(),
+                            })?;
+                    let then_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_if_then");
+                    let else_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_if_else");
+                    self.builder
+                        .build_conditional_branch(cond_i1, then_bb, else_bb)?;
+
+                    self.builder.position_at_end(else_bb);
+                    self.codegen_immediate_resume_non_intercept_branch_and_continue(
+                        plan,
+                        depth,
+                        else_branch.as_deref(),
+                    )?;
+
+                    self.builder.position_at_end(then_bb);
+                    self.env.push_scope();
+                    return self.codegen_immediate_resume_prefix_to_site(
+                        plan,
+                        depth + 1,
+                        &then_block.stmts,
+                        binder_slots,
+                        resume_used_ptr,
+                        arm_bb,
+                    );
+                }
+                ImmediateResumeFrame::IfElse {
+                    if_expr,
+                    else_block,
+                    ..
+                } => {
+                    let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(expr, *if_expr) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If {
+                        cond,
+                        then_branch,
+                        else_branch: _,
+                    } = &expr.kind
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if statement)",
+                            at: expr.span.into(),
+                        });
+                    };
+
+                    let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+                    let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+                    let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle resume body (if condition value)",
+                        at: cond.span.into(),
+                    })?;
+
+                    let insert_block = self.builder.get_insert_block().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no insert block",
+                            at: expr.span.into(),
+                        },
+                    )?;
+                    let func =
+                        insert_block
+                            .get_parent()
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "builder has no parent function",
+                                at: expr.span.into(),
+                            })?;
+                    let then_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_if_then");
+                    let else_bb = self
+                        .context
+                        .append_basic_block(func, "handle_resume_if_else");
+                    self.builder
+                        .build_conditional_branch(cond_i1, then_bb, else_bb)?;
+
+                    self.builder.position_at_end(then_bb);
+                    self.codegen_immediate_resume_non_intercept_branch_and_continue(
+                        plan,
+                        depth,
+                        Some(then_branch),
+                    )?;
+
+                    self.builder.position_at_end(else_bb);
+                    self.env.push_scope();
+                    return self.codegen_immediate_resume_prefix_to_site(
+                        plan,
+                        depth + 1,
+                        &else_block.stmts,
+                        binder_slots,
+                        resume_used_ptr,
+                        arm_bb,
+                    );
+                }
+            }
         }
 
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "handle resume body (perform site missing)",
-            at: site.decl.span.into(),
+            at: plan.site.decl.span.into(),
         })
-    }
-
-    fn codegen_immediate_resume_block_tail(
-        &mut self,
-        block: &hir::Block,
-        start_idx: usize,
-    ) -> Result<(), LlvmEmitError> {
-        for stmt in block.stmts.iter().skip(start_idx) {
-            self.codegen_immediate_resume_stmt_unit(stmt)?;
-        }
-        Ok(())
     }
 
     /// 读取运行时 TLS effect flag，并返回 `i1`（是否 active）。
@@ -2728,9 +3121,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         resume_symbol: hir::SymbolId,
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // T0616/T2003b1：当前仍使用最小"栈 state machine"版本的 `-> resume`：
+        // T0616/T2003b2：当前仍使用最小"栈 state machine"版本的 `-> resume`：
         // - 只支持单个 direct perform 点；
-        // - 当前新增支持 statement-position nested block 中的单个 direct perform；
+        // - 当前新增支持 statement-position nested block / if-branch 中的单个 direct perform；
         // - `resume(value)` 必须恰好一次：重复/缺失先按运行期错误处理（exit(3)）
         // - T2003a：在这个单 suspension 子集上补齐 finally cleanup 语义
         //   （正常 resume 完成 / raise 传播时都执行一次）。
@@ -2836,6 +3229,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Some(self.create_entry_alloca(span, "handle_result", out_ty)?)
         };
+        let exec_plan = ImmediateResumeExecPlan {
+            handle,
+            site: &perform_site,
+            out_ty,
+            result_ptr,
+            handler_frame_ptr,
+            finally_bb,
+        };
 
         // binder locals：提前在 entry block 分配 slot；在 perform 点写入，在 arm body 内读取。
         let mut binder_slots: Vec<ImmediateResumeBinderSlot<'ctx>> = Vec::new();
@@ -2905,7 +3306,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(state0_bb);
         self.push_raise_target(finally_unwind_bb);
         let target_ptr = self.codegen_immediate_resume_prefix_to_site(
-            &perform_site,
+            exec_plan,
             0,
             &handle.body.stmts,
             &binder_slots,
@@ -3027,72 +3428,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _stored = self.store_local_value(span, target_ptr, resume_value_ty, v)?;
         }
 
-        // 若 perform 位于 nested block 中，先在 block scope 内继续执行，再回到外层 handle body。
-        for frame in perform_site.resume_path.iter().rev() {
-            self.codegen_immediate_resume_block_tail(frame.block, frame.stmt_idx + 1)?;
-            self.env.pop_scope();
-        }
-
-        let mut value: CgValue<'ctx> = CgValue::unit();
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if idx <= perform_idx {
-                continue;
-            }
-            let is_last = idx + 1 == handle.body.stmts.len();
-            match &stmt.kind {
-                hir::StmtKind::Empty => {}
-                hir::StmtKind::Val(decl) => {
-                    self.codegen_val_decl(decl)?;
-                    value = CgValue::unit();
-                }
-                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                    value = CgValue::unit();
-                }
-                hir::StmtKind::Expr(expr) => {
-                    let v = self.codegen_expr(expr)?;
-                    value = if is_last { v } else { CgValue::unit() };
-                }
-                hir::StmtKind::Return { .. } => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "`return` inside handle resume body",
-                        at: stmt.span.into(),
-                    });
-                }
-                hir::StmtKind::While { .. }
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "statement inside handle resume body",
-                        at: stmt.span.into(),
-                    });
-                }
-            }
+        if perform_site.resume_path.is_empty() {
+            self.codegen_immediate_resume_top_level_tail_and_finalize(
+                handle,
+                perform_idx + 1,
+                out_ty,
+                result_ptr,
+                handler_frame_ptr,
+                finally_bb,
+            )?;
+        } else {
+            let last_depth = perform_site.resume_path.len() - 1;
+            let start_idx = perform_site.resume_path[last_depth].stmt_idx() + 1;
+            self.codegen_immediate_resume_frame_tail_and_continue(
+                exec_plan, last_depth, start_idx,
+            )?;
         }
         self.pop_raise_target();
-
-        let value = if out_ty == CgTy::Unit {
-            CgValue::unit()
-        } else {
-            self.coerce_value(handle.body.span, value, out_ty)?
-        };
-        if let Some(ptr) = result_ptr {
-            let _ = self.store_local_value(handle.body.span, ptr, out_ty, value)?;
-        }
-
-        // resumed computation 正常完成：pop handler frame，使 finally 处于 handler scope 外。
-        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let frame_i8 = self.builder.build_bit_cast(
-            handler_frame_ptr,
-            i8_ptr_ty,
-            "handle_resume_effect_frame_i8",
-        )?;
-        let _ = self
-            .builder
-            .build_call(rt_pop, &[frame_i8.into()], "handle_resume_effect_pop")?;
-        self.builder.build_unconditional_branch(finally_bb)?;
 
         // handle body locals 对 finally 不可见；在生成 finally blocks 前关闭该 scope。
         self.env.pop_scope();

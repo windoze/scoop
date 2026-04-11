@@ -101,7 +101,7 @@ enum AtomicIntLvalueMode {
     ReadWrite,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Env<'ctx> {
     scopes: Vec<HashMap<hir::SymbolId, CgLocal<'ctx>>>,
 }

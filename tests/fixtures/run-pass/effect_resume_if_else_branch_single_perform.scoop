@@ -1,0 +1,45 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_if_else_branch_single_perform.stdout
+//
+// T2003b2: immediate-resume 支持 if else-branch 中的单 direct perform。
+//
+// 目标覆盖：
+// - cond=false 时命中 else 分支内的 perform，并在 resume 后继续执行 else tail；
+// - cond=true 时不命中 perform，then 分支按普通控制流执行，arm 不会被调用；
+// - if 结束后能回到外层 handle body 的后续语句。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun run(flag: Bool): Int {
+    handle {
+        println("body_start")
+        val seed: Int = 7
+        if (flag) {
+            println("then_plain")
+        } else {
+            println("else_before")
+            val base: Int = 4
+            val x: Int = Yield.next()
+            println("else_after")
+            println(seed + base + x)
+        }
+        println("after_if")
+        seed + 200
+    } with {
+        Yield.next() -> resume {
+            println("arm_else")
+            resume(30)
+        }
+    }
+}
+
+fun main() {
+    println("case_false")
+    println(run(false))
+    println("case_true")
+    println(run(true))
+}
