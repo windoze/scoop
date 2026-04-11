@@ -1,7 +1,11 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle mixed-arm escape continuation (nested direct site in while body not yet supported)
+// EXPECT-ERROR: handle mixed-arm escape continuation (deeper nested direct site in while body not yet supported)
 // ARGS: --emit-llvm
+//
+// Current `@Safe { ... }` is only a temporary naked-block workaround until
+// T2004 lands; this fixture is locking the mixed-arm while-nested-shape
+// diagnostic, not safe-region semantics.
 
 import scoop.core.*
 
@@ -17,9 +21,11 @@ fun main() {
     val result: Int = handle {
         var i: Int = 0
         while (i < 1) {
-            if (i == 0) {
-                val first: String = Ask.ask(i)
-                println(first)
+            @Safe {
+                if (i == 0) {
+                    val first: String = Ask.ask(i)
+                    println(first)
+                }
             }
             i = i + 1
         }

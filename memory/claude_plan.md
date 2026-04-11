@@ -1,43 +1,73 @@
-# Claude Plan
+# 执行记录与计划
 
-## 约束说明
+说明：本文件记录可执行计划、关键决策、进度与变更；不记录冗长的内部推理草稿。
 
-用户要求先把“完整思考过程”写入本文件。出于安全与协作边界，我不会记录逐字逐句的内部推理，但会完整记录可执行的分析结论、假设、步骤、决策依据和进度更新，保证你可以检查我的工作路径。
+## 初始计划
+1. 检查最新一次 Git 提交，确认提交信息中是否提到已知问题、遗留修复或必须先处理的事项。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 结合代码库现状评估该任务复杂度：
+   - 如果任务足够清晰且可在本轮完整交付，直接实现。
+   - 如果任务过大或前置条件不满足，则拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并执行拆分后的第一个子任务。
+4. 在实现前阅读相关代码、测试、文档与计划文件，避免与现有结构冲突。
+5. 完成实现后运行相关测试；如果任务影响范围较大，补充运行更广泛的校验，包括格式化、测试、`clippy` 零警告检查。
+6. 更新文档与计划记录：
+   - 在 `TODO.md` 中标记当前任务完成，或在阻塞情况下重新排序并注明依赖。
+   - 在 `PLAN.md` 中记录当前状态、拆分结果、风险与下一步。
+   - 视需要补充 `README.md` 或代码注释。
+7. 使用清晰的提交信息提交本轮变更，然后停止，不继续处理下一个任务。
 
-## 初始执行计划
+## 进度日志
+- 已创建初始计划，等待开始仓库检查。
+- 已检查最新提交 `b36ddc46da9b149612aee136cfa86018941859b1`（`[T2003c0b2c2a] Support mixed-arm while-body flat escape sites`），提交信息未额外声明必须先修的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md` / `README.md`，确认当前第一个未完成任务为 `T2003c0b2c2b`：`Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 nested direct site）`。
+- 当前执行重点：
+  1. 阅读 `crates/scoopc/src/llvm/codegen/effect.rs` 中 mixed-arm while-body 相关 lowering。
+  2. 阅读现有 `tests/fixtures/run-pass/effect_resume_mixed_escape_*while*.scoop` 与失败夹具，确认当前仅支持 flat site 的边界。
+  3. 判断 `T2003c0b2c2b` 是否可直接在本轮完成；若范围仍过大，则按要求继续拆分并更新 `PLAN.md` / `TODO.md`。
+- 已确认工作区存在与当前任务直接相关的未提交改动：`crates/scoopc/src/llvm/codegen/effect.rs`、两个新的 while-nested run-pass fixtures，以及文档/注释更新。当前策略是先审读这些现有改动，判断其完成度，再在其基础上补齐实现与验证，不回退已有工作。
 
-1. 检查最近一次 git 提交信息与差异，确认是否明确提到现存问题或遗留修复项。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`、`README.md` 及与该任务直接相关的代码与测试，建立上下文。
-4. 判断该任务是否能在本轮完整落地。
-   - 如果可以：直接实现。
-   - 如果过大或存在前置依赖：把任务拆分为更小的子任务，更新 `PLAN.md` 与 `TODO.md`，并只执行拆分后的第一个子任务。
-5. 实现任务，同时保持代码结构清晰；必要时补充模块拆分、注释和 README 更新。
-6. 运行相关格式化、检查与测试，至少覆盖：
-   - `cargo fmt --check` 或 `cargo fmt`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 与当前任务相关的最小充分测试
-   - 若影响范围较大，再补充更广泛测试
-7. 更新文档与计划：
-   - 在 `TODO.md` 中标记本轮完成项
-   - 在 `PLAN.md` 中记录当前状态和后续项
-   - 在本文件中记录关键进展与必要的计划调整
-8. 提交 git commit，提交信息聚焦本轮任务。
-9. 停止，不继续处理下一个任务。
+## 当前实现方案
+结论：`T2003c0b2c2b` 当前范围可在本轮直接完成，不再继续拆分。
 
-## 初始假设
+计划中的代码改动：
+1. 调整 mixed-arm direct-site 扫描后的校验逻辑：
+   - 去掉“while body 中只要 `resume_path.len() > 1` 就统一拒绝”的门禁。
+   - 把本轮支持范围收口为：`while` 外层 + 单个 nested `block` 或 `if` direct site。
+   - 对更深层形状继续给出稳定诊断，避免半支持状态。
+2. 扩展 while direct-site lowering：
+   - 让 `codegen_mixed_escape_matrix_while_stmt_direct_site` 支持命中 while body 内的 nested `block` / `if` 路径。
+   - 让 `codegen_mixed_escape_matrix_while_tail_after_site` 在 `resume(...)` 后先 replay 命中的 nested path 尾部，再执行当前迭代余下语句、loop condition 与后续迭代。
+3. 视需要抽取小型 helper，减少 while 初次命中与 tail replay 的重复逻辑。
+4. 更新 fixtures：
+   - 新增 while body nested `block` / nested `if` 的 run-pass 回归。
+   - 把现有 while 负例改成“更深层 nested 形状仍不支持”的稳定诊断。
+5. 验证：
+   - `cargo fmt --all`
+   - `cargo test --all`
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
-- 当前仓库可能存在未提交变更；除非它们与本轮任务直接冲突，否则不回滚。
-- “最新提交提到的 pre-existing issue” 需要以最近一次提交消息和必要的改动内容为准进行核查。
-- 若用户要求与系统安全边界冲突，以安全边界为准，并在本文件中给出可审计的替代记录。
+## 本轮补充计划
+1. 审读现有未提交 diff，确认 `effect.rs` 与新增 fixtures 已经覆盖了哪些 while-nested 形状。
+2. 若实现只差收口或修补，则直接补齐代码与 diagnostics；若仍存在未覆盖的 nested replay 路径，再最小化扩展 helper。
+3. 用新增/现有 fixtures 先做 LLVM 定向验证，再决定是否补跑更大范围测试。
+4. 完成后更新 `TODO.md` / `PLAN.md` 的完成说明，并保持 `T2004` 继续留作后续前端任务。
 
-## 进度记录
-
-- 2026-04-12: 已创建计划文件，准备开始检查最新提交与任务列表。
-- 2026-04-12: 已检查最新提交 `9a27408c46c08fee6fa3a397fd925fb0e4485882`，提交消息仅为 `[T2003c0b2c1b] Support mixed-arm if-branch escape sites`，未显式提及额外 pre-existing issue，暂未发现需要在本轮任务前先独立处理的遗留修复项。
-- 2026-04-12: 已定位 `TODO.md` 中首个未完成任务为 `T2003c0b2c2`：`Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 direct site）`。
-- 2026-04-12: 阅读 mixed-arm matrix lowering 后确认，原 `T2003c0b2c2` 实际跨了“flat while-body direct site”与“while 内 nested block/if direct site”两个不同复杂度的问题。已按用户流程将其拆为 `T2003c0b2c2a` / `T2003c0b2c2b`，本轮只执行新的首个未完成任务 `T2003c0b2c2a`。
-- 2026-04-12: 当前实现计划收口为：1) 扩展 mixed escape direct-site 扫描/used-after/body-decl 分析到 flat while body；2) 在 matrix lowering 的 `state0` / `state1` / step trampoline 中加入 while-body direct-site 的进入、恢复与 loop re-entry helper；3) 新增 run-pass fixture 覆盖 pre/post-immediate 的 while-body flat direct site，并把旧 while 负例改成新的剩余稳定诊断。
-- 2026-04-12: 实现已完成。`effect.rs` 已新增 while-body flat direct site 的扫描、capture 分析与 lowering helper；`state0` / `state1` / step trampoline 现已支持 resume 后完成当前迭代尾部并在后续迭代再次命中 sibling escape site。
-- 2026-04-12: 已新增 fixtures：`effect_resume_mixed_escape_pre_immediate_while`、`effect_resume_mixed_escape_post_immediate_while`；并把 `effect_resume_mixed_escape_while_is_error` 改为 nested direct 负例，作为后续 `T2003c0b2c2b` 的稳定诊断。
-- 2026-04-12: 已完成验证：`cargo fmt --all --check`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo run -p scoop --features llvm -- test` 均通过。
+## 本轮结果
+- 已确认并保留现有 `effect.rs` 草稿实现，在其基础上完成 while-body nested direct site 支持：
+  - 允许的最小路径为 `while -> block -> block*` 与 `while -> if-branch -> block*`；
+  - `resume(...)` 后会先 replay nested path 尾部，再继续 while 当前迭代尾部与 loop re-entry；
+  - 更深层 `while -> block -> if` / nested while 继续报稳定诊断。
+- 已验证新增 run-pass：
+  - `effect_resume_mixed_escape_pre_immediate_while_nested_block`
+  - `effect_resume_mixed_escape_post_immediate_while_nested_if`
+- 已验证 build-fail：
+  - `effect_resume_mixed_escape_while_is_error`
+- 全量验证通过：
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+- 已更新 `TODO.md` / `PLAN.md`：`T2003c0b2c2b` 标记完成，下一步推进到 `T2003c0b2c3`；`T2004` 保留为后续前端裸 block 语法任务。

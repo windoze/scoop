@@ -1,11 +1,9 @@
 // EXPECT: pass
-// RUN-STDOUT: effect_resume_mixed_escape_pre_immediate_block.stdout
+// RUN-STDOUT: effect_resume_mixed_escape_post_immediate_while_nested_if.stdout
 //
-// T2003c0b2c1a: mixed-arm immediate-resume + sibling escape-continuation
-// supports a statement-position nested block direct escape site before the
-// immediate site.
-// Current `@Safe { ... }` is only a temporary naked-block workaround until
-// T2004 lands; this fixture does not depend on safe-region semantics.
+// T2003c0b2c2b: mixed-arm immediate-resume + sibling escape-continuation
+// supports a nested if-branch direct escape site inside a while body after the
+// immediate site, while non-matching iterations continue normally.
 
 import scoop.core.*
 
@@ -25,23 +23,28 @@ fun main() {
 
     val result: Int = handle {
         println("body")
-        @Safe {
-            println("block_enter")
-            val seed: Int = 10
-            val tag: String = "pre_block"
-            val first: String = Ask.ask(seed)
-            println("after_first")
-            println(first)
-            println(tag)
-        }
         val x: Int = Yield.next()
         println("after_yield")
-        println(x)
-        x + 1
+        var i: Int = 0
+        while (i < 3) {
+            println("iter_begin")
+            if (i == 1) {
+                println("then_enter")
+                val first: String = Ask.ask(i)
+                println("after_ask")
+                println(first)
+            } else {
+                println("skip_branch")
+            }
+            i = i + 1
+            println("iter_end")
+        }
+        println("after_while_done")
+        x + i
     } with {
         Yield.next() -> resume {
             println("yield_arm")
-            resume(41)
+            resume(40)
         }
         Ask.ask(seed), k -> {
             println("ask_arm")
@@ -51,13 +54,13 @@ fun main() {
     }
 
     println("after_handle")
-    println(result)
+    val _: Int = result
 
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
             val _: Unit = try {
-                k1.resume("hello")
+                k1.resume("resume_then")
             } catch (e: RuntimeError) {
                 println("unexpected_error")
             }

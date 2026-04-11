@@ -344,7 +344,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_while`、`effect_resume_mixed_escape_post_immediate_while`；旧的 while 负例已改为 nested direct 负例 `effect_resume_mixed_escape_while_is_error`，锁住 `T2003c0b2c2b` 之前仍不支持的 while nested path。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo run -p scoop --features llvm -- test` 通过。
 
-### T2003c0b2c2b [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 nested direct site）
+### T2003c0b2c2b [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 nested direct site）
 - 描述：在 flat while-body direct site 打通后，继续扩展到 while 内再嵌 block / if 的 direct site。该子集除了 while 重入外，还需要让 continuation step 在恢复后重新回到命中的 nested path，并在 loop re-entry 中继续参与分派。
 - 目标：
   - sibling escape-continuation 支持 while body 中嵌套 block / if 的 direct perform site。
@@ -355,6 +355,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c2a
+- 完成说明：
+  - mixed-arm while direct-site 扫描现已接受最小 nested path 子集：`while -> block -> block*` 与 `while -> if-branch -> block*`；更深层 `while -> block -> if` / nested while 仍保留稳定诊断 `deeper nested direct site in while body not yet supported`。
+  - while-body 的 intercept 与 tail replay 现已复用新的 nested helper：首次命中 direct site 时可先走 while-body 前缀，再进入 nested block / if path；`resume(...)` 后会先 replay 命中的 nested path 尾部，再执行当前迭代剩余语句、loop condition 与后续迭代。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_post_immediate_while_nested_if`；已有 build-fail `effect_resume_mixed_escape_while_is_error` 已更新为锁定更深层 nested while 形状的稳定诊断。
+  - `cargo fmt --all`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test` 通过。
 
 ### T2003c0b2c3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，nested indirect call site）
 - 描述：当前 indirect perform site 的扫描与 replay 仍是 top-level-only。待 nested direct 形状收口后，再把 call-site suspension 扩到 block / if / while 中的 nested indirect site，并收口与 direct site 共存的 matrix。
@@ -403,6 +408,20 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2
+
+### T2004 [TODO] 前端：statement-position 裸 block 语法与 effect fixture 去 `@Safe` workaround
+- 描述：当前语句位置缺少稳定的裸 `{ ... }` block 语法，普通 `{ ... }` 在表达式起始位置会优先落入 lambda / trailing lambda 解析，因此 effect fixtures 若要表达 nested block，只能临时写成 `@Safe { ... }`。这让 `T2003b1`、`T2003c0b2c1a`、`T2003c0b2c2b` 等回归覆盖到的是 “SafeBlock 经 HIR lowering 退化成普通 Block” 的替代路径，而不是语言本应直接支持的裸 block 形状。
+- 目标：
+  - 支持 statement-position 裸 block `{ ... }` 作为普通 block 解析与 typecheck，不再误判成 lambda 或 trailing lambda。
+  - 在不回归 lambda / trailing lambda / 结构体字面量歧义消解的前提下，明确控制流 / 语句语境里 `{ ... }` 的优先级与 AST/HIR 形状。
+  - 把相关 effect fixtures 中仅用于制造 nested block 的 `@Safe` workaround 全部切回裸 block；真正依赖 safe-region 语义的测试继续保留 `@Safe`。
+- 验收：
+  - 新增 parser / typecheck / HIR fixtures：statement-position naked block、`println(\"x\") { ... }` 仍按 trailing lambda 解析、expected-function 语境下的 lambda 不回归。
+  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_while_is_error` 改用裸 block，行为或诊断保持不变。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c
 
 ## T21：Structured Concurrency / `Task<T>`
 

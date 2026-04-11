@@ -26,10 +26,21 @@ For the first incomplete task (or subtask) in `TODO.md`:
   4. Update `PLAN.md` to explain why the task was moved and what it is waiting on.
   5. Commit these changes and stop — the next invocation will pick up from there.
 
+**No Workarounds, No Spec Deviations:**
+- We do **not** tolerate workarounds, shims, fixture-only hacks, or “good enough for now” behavior when the implementation still does not match the spec.
+- If you hit **anything** that does not work as the spec says — parser gaps, typecheck mismatches, lowering/codegen limitations, runtime bugs, stdlib gaps, incorrect diagnostics, or tests that only pass via workaround — you must treat that as a real project issue, not something to paper over.
+- You must **not** continue by relying on a workaround unless the work of removing that workaround is itself explicitly tracked as a task in `TODO.md`.
+- Instead, you must:
+  1. Identify the spec mismatch precisely and determine whether it is a missing feature, a bug, or an incomplete implementation boundary.
+  2. Create a corresponding task (or task decomposition) in `TODO.md` to fix that issue, place it before any task that depends on it, and update ordering/dependencies accordingly.
+  3. Update the currently blocked task in `TODO.md` so it explicitly depends on the newly added fix task, if applicable.
+  4. Update `PLAN.md` to document the mismatch, why it blocks correct progress, and what task(s) were added to resolve it.
+  5. Commit these changes and stop.
+
 **Missing or Incomplete Language Features:**
-- If you encounter a task that requires a language feature or library that is not currently available, you must **not attempt to implement the task without it**. Instead:
-  1. Identify the missing feature and research the details of its implementation or availability.
-  2. Update `TODO.md` to reflect the dependency on the missing feature, and move the task to the appropriate position in the list, then add a dependency item of the current task on the missing feature.
+- If you encounter a task that requires a language feature or library that is not currently available, or any other implementation gap that prevents the spec-correct behavior, you must **not attempt to implement the task around that gap**. Instead:
+  1. Identify the missing feature or incorrect behavior and research the details of its implementation or availability.
+  2. Update `TODO.md` to reflect the dependency on the missing feature or bug fix, move the task to the appropriate position in the list, and add a dependency item from the current task to the newly added prerequisite task.
   3. Update `PLAN.md` to document the issue and any steps taken to address it.
   4. Commit these changes and stop.
 
@@ -54,4 +65,5 @@ For the first incomplete task (or subtask) in `TODO.md`:
 - Always read `TODO.md` first to identify the first incomplete task.
 - Complete exactly one task per invocation, then stop.
 - Use Git commits after every logical step (including plan updates or task decomposition) to maintain a clear history.
+- Never accept a workaround as “done”: every spec mismatch or workaround must be turned into an explicit `TODO.md` task before proceeding.
 - If `PROMPT.md` is changed unexpectedly, include it in your commit as well, do not ignore or revert changes to it.
