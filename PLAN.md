@@ -203,7 +203,11 @@ cargo run -p scoop --features llvm -- test
   - T2003u2 还补了稳定的 pretty dump 与单元测试：覆盖 direct + branch/loop/finally、call-state-machine callee + indirect local function call、nested handle + multiple arms，确保不同源码形状先共享同一套 plan 层表示。
   - T2003u2 已把统一 plan builder 接入 `codegen_handle_expr` 的迁移前置步骤：现有 specialized lowering 在真正发射 LLVM 前会先构建统一 plan 并消费结构签名，后续新增合法组合不再以“继续扩 scanner”作为默认落点。
   - 该轮实现验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003u3`：在统一 plan 之上实现 never-resume / immediate-resume / continuation 的 mode-specific simplification。
+  - 已审计 `T2003u3`：原始范围同时覆盖 simplification 抽象、`codegen_handle_expr` 入口选路与代表性 LLVM 验证；若单轮整包推进，会同时跨 plan 层与 emitter 入口，回归面过大，因此拆成 `T2003u3a` / `T2003u3b` 两步。
+  - T2003u3a 已完成：已新增 `state_machine_simplify.rs`，让 full plan 能派生稳定的 `HandleModeSpecificSimplification`；该层显式记录 never-resume / immediate-resume / escape-continuation 对应的 `flag-unwind` / `stack-reenter` / `heap-continuation` 决策，并递归覆盖 nested handle。
+  - T2003u3a 还把 simplification 接入了现有 `codegen_handle_expr` 迁移前置步骤：当前在构建 full plan 后会额外构建 simplification 并消费结构签名；同时新增单测覆盖三种模式与 mixed representative sample，验证同一 full plan dump 与 simplification dump 可并行存在。
+  - 该轮实现验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003u3b`：把 `codegen_handle_expr` 入口选路切到消费 simplification 输出，并补代表性的 LLVM 路径验证。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -261,7 +265,8 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2d2b（已完成）：补多个 escape-continuation arms + `finally`（pure escape-only，top-level direct single-site）。
   - T2003u1（已完成）：统一状态机 pass 设计定稿，明确输入/输出、不变量、state table / cleanup edge / capture model，以及 never-resume / immediate-resume / escape-continuation 的化简规则。
   - T2003u2（已完成）：实现统一的 suspension-aware state machine plan，覆盖 direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch，不再按语法形状分多套 scanner。
-  - T2003u3：在统一状态机之上实现 mode-specific simplification：never-resume 化简、immediate-resume 化简、escape-continuation continuation materialization。
+  - T2003u3a（已完成）：先定义 mode-specific simplification 输出与 pretty dump，显式记录 flag-unwind / stack reentry / heap continuation materialization 决策，并补单元测试。
+  - T2003u3b：再把 `codegen_handle_expr` 入口选路切到 simplification 输出，完成代表性 never-resume / immediate-resume / escape-continuation LLVM 验证。
   - T2003u4：把 LLVM codegen 主路径切到统一状态机输入，收口 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 中重复的 replay、capture、cleanup 逻辑。
   - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。

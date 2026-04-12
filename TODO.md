@@ -1069,19 +1069,33 @@ cargo run -p scoop --features llvm -- test
   - 已把统一 plan builder 接入 `codegen_handle_expr` 的迁移前置步骤；现有 specialized lowering 在真正发射 LLVM 前会先构建统一 plan 并消费结构签名，后续新增合法组合不再以“继续扩 scanner”作为默认落点。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u3 [TODO] Effect：在完整状态机之上实现 never-resume / immediate-resume / continuation 化简
-- 描述：统一状态机 plan 落地后，next step 不是再补 case，而是把三类运行模式都定义成同一状态机上的化简结果。
+### T2003u3a [DONE] Effect：定义 mode-specific simplification 输出与 pretty dump
+- 描述：`T2003u3` 原始范围同时覆盖 simplification 抽象、codegen 入口选路与代表性 LLVM 验证，单轮跨度过大。先在统一状态机 plan 之上增加稳定的 simplification 输出层，不直接切换 LLVM emitter。
 - 目标：
-  - never-resume：从完整状态机化简出“无 continuation 逃逸”的路径，允许消掉 continuation 分配，但不改变先建完整状态机这一前提。
-  - immediate-resume：从完整状态机化简出“同步 resume 可直接折返”的路径，允许把 heap state / continuation materialization 降成栈上或局部跳转，但状态切分与 cleanup 语义仍来自统一 plan。
-  - escape-continuation：保留完整 continuation materialization，并与前两者共享 capture / payload / cleanup 定义。
-  - 多个 resuming arms 的 dispatch 顺序、resume target 选择与源码顺序一致，不再由 `single-site` / `same-stmt mixed` 之类专门路径决定。
+  - 从完整 `HandleStateMachinePlan` 派生稳定的 mode-specific simplification 输出，显式记录 never-resume / immediate-resume / escape-continuation 各自的 lowering 决策。
+  - 保持 frame / payload / cleanup 的统一不变量；simplification 只能消费完整 plan，不能重新引入按源码形状分流的 scanner。
+  - 为 simplification 提供可测试的 dump / signature，能验证同一完整 plan 可派生出不同 mode-specific 输出。
 - 验收：
-  - 为同一组代表性样例同时验证“完整状态机计划一致、mode-specific 输出不同”。
-  - 删除或弃用一批仅用于 specialized lowering 的结构性假设，不再要求“先挑简单形状再生成状态机”。
+  - 新增单元测试：覆盖 never-resume、immediate-resume、escape-continuation，以及至少一个 mixed representative sample 的 simplification dump。
+  - `cargo test --all`
+- 依赖：T2003u2
+- 完成说明：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/state_machine_simplify.rs`，定义 `HandleModeSpecificSimplification`、site/arm lowering 决策与稳定 signature / pretty dump；never-resume / immediate-resume / escape-continuation 分别显式映射到 `flag-unwind`、`stack-reenter`、`heap-continuation`。
+  - `codegen_handle_expr` 的迁移前置步骤现已在统一 full plan 之后额外构建 simplification 并消费结构签名，为下一步 `T2003u3b` 的入口选路接线提供固定接口。
+  - 已新增单元测试：覆盖 never-resume、immediate-resume、escape-continuation 以及 mixed representative sample 的 simplification dump，并验证 full plan dump 与 simplification dump 同步存在。
+  - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+
+### T2003u3b [TODO] Effect：用 simplification 收口 `codegen_handle_expr` 入口选路
+- 描述：有了 simplification 输出后，再把 `codegen_handle_expr` 的模式识别与基础 dispatch/resume-target 决策改为消费该输出；此阶段仍允许旧 emitter 作为过渡实现继续存在。
+- 目标：
+  - `codegen_handle_expr` 不再仅靠“arm 数量 + arm kind”的手写主分支决定 lowering 主路径，而是先读取统一 simplification 结果。
+  - never-resume / immediate-resume / escape-continuation 至少各有一组代表性样例通过 simplification-driven 入口走通现有 LLVM lowering。
+  - 为 `T2003u4` 的统一状态机 emitter 切换保留清晰边界：本任务只负责选路与结构性假设收口，不要求主 emitter 全量改写。
+- 验收：
+  - 代表性单/多 arm 样例会先构建 simplification，再进入现有 specialized lowering。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u2
+- 依赖：T2003u3a
 
 ### T2003u4 [TODO] Effect：LLVM codegen 主路径切换到统一状态机输入
 - 描述：当前 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 都在各自重建 replay、capture、cleanup。此任务把 LLVM 侧主路径切换到统一状态机输入，保留旧路径仅作过渡对照。
@@ -1094,7 +1108,7 @@ cargo run -p scoop --features llvm -- test
   - 不再为新的 legal shape 在 `mixed.rs` / `matrix.rs` 中追加新的 shape-specific 主线逻辑。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u3
+- 依赖：T2003u3b
 
 ### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
 - 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。

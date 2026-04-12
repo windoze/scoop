@@ -223,6 +223,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
         let state_machine_plan = self.build_handle_state_machine_plan(handle);
         let _plan_signature = state_machine_plan.structural_signature();
+        let mode_specific_simplification = state_machine_plan.build_mode_specific_simplification();
+        let _simplification_signature = mode_specific_simplification.structural_signature();
 
         // T1604：无 perform（含 effectful call）时不生成 handler frame/stack 链接。
         //

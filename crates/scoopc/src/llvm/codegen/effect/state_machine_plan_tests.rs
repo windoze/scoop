@@ -144,12 +144,160 @@ fun demo(mode: Int): Int {
         assert!(dump.contains("dispatch:\n  a.Ask.current => [arm0]\n  a.Boom.boom => [arm1]"));
     }
 
+    #[test]
+    fn simplification_dump_marks_never_resume_as_flag_unwind() {
+        let dump = build_mode_specific_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int) -> seed + 10
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("payload=yes"));
+        assert!(dump.contains("stack-reentry=no"));
+        assert!(dump.contains("heap-continuation=no"));
+        assert!(dump.contains("lowering=flag-unwind"));
+        assert!(dump.contains("target=-"));
+    }
+
+    #[test]
+    fn simplification_dump_marks_immediate_resume_as_stack_reentry() {
+        let dump = build_mode_specific_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("stack-reentry=yes"));
+        assert!(dump.contains("heap-continuation=no"));
+        assert!(dump.contains("one-shot=no"));
+        assert!(dump.contains("lowering=stack-reenter"));
+        assert!(dump.contains("target=s"));
+    }
+
+    #[test]
+    fn simplification_dump_marks_escape_continuation_as_heap_materialization() {
+        let dump = build_mode_specific_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int), k -> seed + 10
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("stack-reentry=no"));
+        assert!(dump.contains("heap-continuation=yes"));
+        assert!(dump.contains("one-shot=yes"));
+        assert!(dump.contains("lowering=heap-continuation"));
+        assert!(dump.contains("target=s"));
+    }
+
+    #[test]
+    fn mixed_representative_sample_keeps_full_plan_and_simplification_in_sync() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        if (flag) {
+            val second: Int = Ask.ask(first)
+            first + second
+        } else {
+            first
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 2
+    }
+    result
+}
+"#;
+        let plan_dump = build_plan_dump(source);
+        let simplification_dump = build_mode_specific_dump(source);
+
+        assert!(plan_dump.contains("mode=immediate-resume"));
+        assert!(plan_dump.contains("mode=escape-continuation"));
+        assert!(simplification_dump.contains("lowering=stack-reenter"));
+        assert!(simplification_dump.contains("lowering=heap-continuation"));
+        assert!(simplification_dump.contains("stack-reentry=yes"));
+        assert!(simplification_dump.contains("heap-continuation=yes"));
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
             .pretty_dump(&lowered.types)
+    }
+
+    fn build_mode_specific_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .build_mode_specific_simplification()
+            .pretty_dump()
     }
 
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
