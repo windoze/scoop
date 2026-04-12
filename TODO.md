@@ -559,6 +559,7 @@ cargo run -p scoop --features llvm -- test
   - richer site-matrix 打通后，再把当前 `handle multi-arm without immediate-resume not yet supported` 收口为真实 lowering；multiple escape-continuation arms 仍留给 `T2003c0c2d`。
 - 拆分顺序：
   - `T2003c0c2b1`：无 immediate-resume 的 single direct escape site（允许 sibling non-resuming）。
+  - `T2003c0c2b1a`：修正 indirect escape-continuation arm binder 的真实类型与 payload decode。
   - `T2003c0c2b2`：无 immediate-resume 的 single indirect escape site（允许 sibling non-resuming）。
   - `T2003c0c2b3`：无 immediate-resume 的 richer escape site-matrix（多 site / nested / direct+indirect mixed）。
 - 依赖：T2003c0c2a
@@ -581,8 +582,20 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_multi_escape_raise_direct_single_site`、`effect_multi_escape_custom_nonresuming_direct_single_site`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003c0c2b1a [TODO] Effect：indirect escape-continuation arm binder 的真实类型与 payload decode
+- 描述：在尝试实现 `T2003c0c2b2` 时发现，现有 single-arm indirect escape-continuation 本身还有一个前置缺口：arm binder 在 LLVM codegen 中没有以真实 op 参数类型 materialize。最小变体里，`println(key)` 会报 `sysroot print/println arg type`，`key + 1` 会报 `integer binary op lhs`，说明 indirect perform → arm binder 的 local typing / payload decode 还不正确，而且并非 multi-arm 特有问题。
+- 目标：
+  - single-arm indirect escape-continuation 的 arm binder 在 arm body 中具备真实 `CgTy` 与可用值语义，不再停留在“可声明但不可直接使用”。
+  - 至少覆盖一个 `Int` binder 的直接打印或算术，以及一个 `String` / ref binder 的直接使用或等价覆盖。
+  - 为 `T2003c0c2b2` 提供可复用的 binder materialization 基线，避免 multi-arm indirect path 复制当前错误语义。
+- 验收：
+  - 新增 run-pass fixtures：single-arm indirect escape-continuation 直接使用 arm binder（至少一例 `Int`；若实现允许，再补 `String` / ref 或等价覆盖）。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b1
+
 ### T2003c0c2b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）
-- 描述：在 direct 单站点打通后，再把无-immediate 的 escape 子集扩到 top-level single indirect call site，并让 callee suspend state replay 与 sibling non-resuming dispatch 对齐。
+- 描述：在 direct 单站点打通且 `T2003c0c2b1a` 修正了 indirect escape arm binder materialization 之后，再把无-immediate 的 escape 子集扩到 top-level single indirect call site，并让 callee suspend state replay 与 sibling non-resuming dispatch 对齐。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 top-level single indirect call site。
   - continuation step 会把 resume payload 写回 callee suspend state，并在 no-match / resume replay 时保留 sibling non-resuming 的 dispatch 优先级。
@@ -591,7 +604,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：无 immediate-resume 的 escape-only indirect single-site、escape + sibling non-resuming indirect single-site。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2b1
+- 依赖：T2003c0c2b1a
 
 ### T2003c0c2b3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，escape site-matrix）
 - 描述：最后收口无-immediate 的 richer escape site-matrix，包括多 site、nested block / if / while，以及 direct + indirect mixed。该阶段统一处理 state0 / continuation step 的 nested replay、loop re-entry 与 sibling dispatch。
