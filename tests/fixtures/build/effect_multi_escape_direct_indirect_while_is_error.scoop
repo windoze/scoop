@@ -3,13 +3,13 @@
 // EXPECT-ERROR: handle multi-arm without immediate-resume (escape site matrix not yet supported)
 // ARGS: --emit-llvm
 //
-// T2003c0c2b3b3 先补 while body direct site；
-// while body 的 indirect site-matrix 继续留给后续 `T2003c0c2b3c4`。
+// T2003c0c2b3c4 放开 pure indirect while body；
+// direct + indirect mixed while body 继续留给后续 `T2003c0c2b3d`。
 
 import scoop.core.*
 
 effect Ask {
-    fun ask(label: String): String
+    fun ask(seed: Int): String
 }
 
 effect Abort {
@@ -17,22 +17,24 @@ effect Abort {
 }
 
 fun fetch(i: Int): String / (Ask) {
-    val reply: String = Ask.ask(if (i == 0) "first" else "second")
-    reply
+    val msg: String = Ask.ask(i + 10)
+    msg
 }
 
 fun main() {
     val _: Unit = handle {
         var i: Int = 0
         while (i < 1) {
-            val reply: String = fetch(i)
-            println(reply)
+            val direct: String = Ask.ask(1)
+            println(direct)
+            val indirect: String = fetch(i)
+            println(indirect)
             i = i + 1
-            Abort.stop(reply)
+            Abort.stop(indirect)
         }
     } with {
-        Ask.ask(label: String), k -> {
-            println(label)
+        Ask.ask(seed), k -> {
+            println(seed)
         }
         Abort.stop(text: String) -> {
             println(text)

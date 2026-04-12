@@ -1,0 +1,98 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_indirect_while_multi.stdout
+//
+// T2003c0c2b3c4: 无 immediate-resume 的 multi-arm handle
+// 支持 while body 中的 indirect escape site。
+// - 第一次 `resume(...)` 会完成当前迭代尾部，然后再次命中同一个 while-body indirect site；
+// - 第二次 `resume(...)` 会完成当前迭代、重检 loop condition，并继续 after-while tail；
+// - after-while tail 仍可命中 sibling custom non-resuming arm。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun fetch(i: Int): String / (Ask) {
+    println("fetch_enter")
+    println(i)
+    val msg: String = Ask.ask(i + 10)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        var i: Int = 0
+        while (i < 2) {
+            println("iter_begin")
+            println(i)
+            val tag: String = if (i == 0) "zero_tag" else "one_tag"
+            val reply: String = fetch(i)
+            println("after_fetch")
+            println(tag)
+            println(reply)
+            i = i + 1
+            println("iter_end")
+            println(i)
+        }
+        println("after_while")
+        Abort.stop(if (i == 2) "stop_done" else "stop_bad")
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

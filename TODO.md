@@ -827,10 +827,10 @@ cargo run -p scoop --features llvm -- test
 - 完成说明：
   - no-immediate indirect lowering 现已放开 if-branch `resume_path`，并在 initial body / continuation step 统一复用 `codegen_mixed_escape_matrix_if_stmt_indirect_sites`，处理分支命中、branch tail replay 与 after-if merge。
   - 已新增 run-pass fixture：`effect_multi_escape_custom_nonresuming_indirect_if_multi`，覆盖 then/else 两个分支的 indirect escape site，以及 after-if sibling custom non-resuming dispatch。
-  - 旧的 if-branch build-fail fixture 已移除；while body indirect 的稳定诊断继续由 `effect_multi_escape_indirect_while_is_error` 锁定，留待 `T2003c0c2b3c4`。
+  - 旧的 if-branch build-fail fixture 已移除；当时 while body indirect 仍由 `effect_multi_escape_indirect_while_is_error` 锁定，该负例已在 `T2003c0c2b3c4` 中删除并转为正例回归。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c4 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body indirect escape sites）
+### T2003c0c2b3c4 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body indirect escape sites）
 - 描述：最后补 nested indirect 里的 while body 子集。该阶段需要把当前迭代 tail replay、loop condition 重检与 loop re-entry 接到 no-immediate indirect lowering。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 while body 中的 indirect escape site。
@@ -841,6 +841,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c3
+- 完成说明：
+  - `mixed.rs` 的 no-immediate indirect 路径现已允许 while-body `resume_path`，并在 initial body / continuation step 统一接入 `codegen_mixed_escape_matrix_while_stmt_indirect_site` 与 `codegen_mixed_escape_matrix_while_tail_after_indirect_site`。
+  - `resume(...)` 后会先 replay 当前 indirect site 的 nested tail 与当前迭代尾部，再重检 loop condition，并在后续迭代中重新命中同一个 while-body indirect site。
+  - 已新增 run-pass fixture：`effect_multi_escape_custom_nonresuming_indirect_while_multi`；旧的 while-indirect build-fail 已删除，并新增 build-fail `effect_multi_escape_direct_indirect_while_is_error` 继续锁住下一步 `T2003c0c2b3d` 的 direct+indirect mixed 边界。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3d [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，direct + indirect mixed site-matrix）
 - 描述：最后收口 no-immediate richer matrix 中 direct + indirect mixed 的组合，包括 top-level mixed 与 nested same-stmt mixed。该阶段统一处理 next/prev replay、same-stmt 路由与 sibling dispatch。
