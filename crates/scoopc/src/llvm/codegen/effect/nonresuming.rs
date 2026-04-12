@@ -327,7 +327,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                return self.codegen_handle_expr_immediate_resume(span, handle, arm, resume, out_ty);
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (immediate-resume arm id)",
+                        at: arm.span.into(),
+                    });
+                };
+                return self.codegen_handle_expr_immediate_resume(
+                    span,
+                    ImmediateResumeHandleLowering {
+                        handle,
+                        state_machine_plan: &state_machine_plan,
+                        arm_id: arm_id as ArmPlanId,
+                        arm,
+                        resume_symbol: resume,
+                        out_ty,
+                    },
+                );
             }
             SimplifiedCodegenEntrypoint::SingleEscapeContinuation => {
                 let Some((arm, continuation)) =

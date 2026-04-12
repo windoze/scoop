@@ -218,7 +218,14 @@ cargo run -p scoop --features llvm -- test
   - T2003u4a 已完成：unified plan 现已显式覆盖 `as` runtime raise、class ctor init、object/companion object once-init access、nested handle boundary，以及 builtin `Continuation.resume(...)` 的 hidden runtime raise；纯 non-resuming handle 在 simplification 判定 `NoSuspendSites` 时已直接走 `codegen_handle_expr_no_perform`，不再依赖 `block_may_perform`。
   - 本轮同时修复了 object init hidden unwind 的真实传播缺口：object value/property access 在 init 调用后会显式执行 `emit_effect_unwind_if_active`，因此外层 `try/catch` 现在能稳定捕获 object init 期间的 `Raise.raise(...)`。
   - 已新增 unified plan 单测与 LLVM run-pass 回归，并重新验证 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u4b`：迁移 single-arm immediate-resume / escape-continuation 主 emitter 到统一状态机输入，再继续 mixed-arm / site-matrix 主 emitter 收口。
+  - 本轮进一步审计确认：原 `T2003u4b` 同时要求迁移 single-arm immediate-resume 与 escape-continuation 两条 emitter，但 unified plan 目前还没有显式带出旧 replay/capture helper 复用所需的 single-site/source-path 元数据；若继续整包推进，会把“补 plan 元数据”和“两条 emitter 迁移”三件事再次耦合到同一轮里。
+  - 因此原 `T2003u4b` 再拆为 `T2003u4b1` / `T2003u4b2`：
+    - `T2003u4b1`：先补 unified plan 的 single-site/source-path 元数据，并把 single-arm immediate-resume 主 emitter 切到 plan-driven 输入；
+    - `T2003u4b2`：再在同一套元数据基础上迁移 single-arm escape-continuation（direct/indirect）主 emitter。
+  - T2003u4b1 已完成：unified plan 现已为 statement-position val-bound direct perform 记录 single-site/source-path 元数据（top-level stmt + `block` / `if` / `while` 路径），`codegen_handle_expr_immediate_resume` 则改为直接从 plan 解析 perform-site，不再调用 `scan_immediate_resume_site`。
+  - 本轮同时补回了 plan-driven immediate resolver 的既有稳定诊断：`while body` 中的 nested perform 仍保持 `handle resume body (nested perform in while body not yet supported)`，没有因新路径解析而漂移成更泛化的内部错误。
+  - 已新增 unified plan 单测，并用既有 immediate fixtures 覆盖 top-level、nested block、if then/else、while body、finally 路径；重新验证 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u4b2`：继续迁移 single-arm escape-continuation 主 emitter 到统一状态机输入，再收口 mixed-arm / site-matrix 主 emitter。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -279,7 +286,8 @@ cargo run -p scoop --features llvm -- test
   - T2003u3a（已完成）：先定义 mode-specific simplification 输出与 pretty dump，显式记录 flag-unwind / stack reentry / heap continuation materialization 决策，并补单元测试。
   - T2003u3b（已完成）：把 `codegen_handle_expr` 入口选路切到 simplification 输出，并用代表性 single/mixed 样例与 LLVM fixture 验证接线稳定。
   - T2003u4a（已完成）：先把 non-resuming / no-suspend 入口切到统一状态机输入，补 hidden unwind site 的 unified plan 表示，并移除该子路径对 `block_may_perform` 的依赖。
-  - T2003u4b：迁移 single-arm immediate-resume / escape-continuation 主 emitter 到统一状态机输入。
+  - T2003u4b1（已完成）：迁移 single-arm immediate-resume 主 emitter 到统一状态机输入，并补 unified plan 的 single-site/source-path 元数据。
+  - T2003u4b2：迁移 single-arm escape-continuation（direct/indirect）主 emitter 到统一状态机输入。
   - T2003u4c：迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
   - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。

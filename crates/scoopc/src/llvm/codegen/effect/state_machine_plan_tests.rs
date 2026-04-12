@@ -54,6 +54,41 @@ fun demo(flag: Bool): Int {
         assert!(dump.contains("loop re-entry"));
         assert!(dump.contains("cleanup0 kind=finally"));
         assert!(dump.contains("mode=immediate-resume"));
+        assert!(dump.contains("path=top[1] -> if-then[0]"));
+    }
+
+    #[test]
+    fn plan_dump_records_single_immediate_resume_while_body_path() {
+        let dump = build_plan_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        while (sum == 0) {
+            val x: Int = Yield.next()
+            sum = x
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(7)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=direct-perform"));
+        assert!(dump.contains("path=top[1] -> while-body[0]"));
     }
 
     #[test]

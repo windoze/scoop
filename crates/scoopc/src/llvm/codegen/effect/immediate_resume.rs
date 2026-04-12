@@ -1,3 +1,13 @@
+#[derive(Debug, Clone, Copy)]
+pub(super) struct ImmediateResumeHandleLowering<'hir> {
+    handle: &'hir hir::HandleExpr,
+    state_machine_plan: &'hir HandleStateMachinePlan,
+    arm_id: ArmPlanId,
+    arm: &'hir hir::HandleArm,
+    resume_symbol: hir::SymbolId,
+    out_ty: CgTy,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_immediate_resume_stmt_unit(
         &mut self,
@@ -701,15 +711,283 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn resolve_immediate_resume_stmt_from_source_path<'hir>(
+        &self,
+        handle: &'hir hir::HandleExpr,
+        source_path: &SuspendSourcePath,
+        site_span: crate::span::Span,
+    ) -> Result<(&'hir hir::Stmt, Vec<ImmediateResumeFrame<'hir>>), LlvmEmitError> {
+        let mut current_stmt = handle.body.stmts.get(source_path.top_level_stmt_idx).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (invalid top-level perform path)",
+                at: site_span.into(),
+            },
+        )?;
+        let mut resume_path = Vec::with_capacity(source_path.frames.len());
+
+        for frame in &source_path.frames {
+            match frame {
+                SuspendSourceFramePath::Block { block_span, stmt_idx } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected block expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected block expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    if block.span != *block_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (block path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (invalid block stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ImmediateResumeFrame::Block {
+                        block,
+                        stmt_idx: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::IfThen {
+                    if_span,
+                    then_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if expr.span != *if_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If { then_branch, .. } = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &then_branch.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if-then block)",
+                            at: then_branch.span.into(),
+                        });
+                    };
+                    if block.span != *then_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if-then path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (invalid if-then stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ImmediateResumeFrame::IfThen {
+                        if_expr: expr,
+                        then_block: block,
+                        stmt_idx: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::IfElse {
+                    if_span,
+                    else_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if expr.span != *if_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If { else_branch, .. } = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let Some(else_expr) = else_branch.as_deref() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (missing if-else branch)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &else_expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected if-else block)",
+                            at: else_expr.span.into(),
+                        });
+                    };
+                    if block.span != *else_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (if-else path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (invalid if-else stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ImmediateResumeFrame::IfElse {
+                        if_expr: expr,
+                        else_block: block,
+                        stmt_idx: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::WhileBody {
+                    while_cond_span,
+                    while_body_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::While { cond, body } = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (expected while statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if cond.span != *while_cond_span || body.span != *while_body_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (while path mismatch)",
+                            at: current_stmt.span.into(),
+                        });
+                    }
+                    current_stmt = body.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (invalid while stmt path)",
+                            at: body.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ImmediateResumeFrame::WhileBody {
+                        while_cond: cond,
+                        while_body: body,
+                        stmt_idx: *stmt_idx,
+                    });
+                }
+            }
+        }
+
+        Ok((current_stmt, resume_path))
+    }
+
+    fn resolve_immediate_resume_site_from_plan<'hir>(
+        &self,
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        arm_id: ArmPlanId,
+        arm_op_fqn: &str,
+    ) -> Result<Option<ImmediateResumeSite<'hir>>, LlvmEmitError> {
+        let mut matching_sites = state_machine_plan.suspend_sites.iter().filter(|site| {
+            matches!(
+                &site.kind,
+                SuspendSiteKind::DirectPerform { op_fqn } if op_fqn == arm_op_fqn
+            ) && site.matching_arms.contains(&arm_id)
+        });
+        let Some(site) = matching_sites.next() else {
+            return Ok(None);
+        };
+        if matching_sites.next().is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (multiple perform points)",
+                at: site.span.into(),
+            });
+        }
+        let Some(source_path) = &site.source_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (missing unified source path)",
+                at: site.span.into(),
+            });
+        };
+        if matches!(
+            source_path.frames.first(),
+            Some(SuspendSourceFramePath::WhileBody { .. })
+        ) && source_path.frames.len() > 1
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (nested perform in while body not yet supported)",
+                at: site.span.into(),
+            });
+        }
+        let (stmt, resume_path) =
+            self.resolve_immediate_resume_stmt_from_source_path(handle, source_path, site.span)?;
+        let hir::StmtKind::Val(decl) = &stmt.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (perform must be bound to val)",
+                at: stmt.span.into(),
+            });
+        };
+        let Some(init) = decl.init.as_ref() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (missing perform init)",
+                at: decl.span.into(),
+            });
+        };
+        let hir::ExprKind::Perform { op, args } = &init.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (expected direct perform)",
+                at: init.span.into(),
+            });
+        };
+        if init.span != site.span || op.fqn != arm_op_fqn {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (unified plan/source mismatch)",
+                at: init.span.into(),
+            });
+        }
+        let Some(id) = decl.id else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume perform binding id",
+                at: decl.span.into(),
+            });
+        };
+
+        Ok(Some(ImmediateResumeSite {
+            top_level_stmt_idx: source_path.top_level_stmt_idx,
+            decl,
+            op,
+            args: args.as_slice(),
+            id,
+            resume_path,
+        }))
+    }
+
 
     pub(super) fn codegen_handle_expr_immediate_resume(
         &mut self,
         span: crate::span::Span,
-        handle: &hir::HandleExpr,
-        arm: &hir::HandleArm,
-        resume_symbol: hir::SymbolId,
-        out_ty: CgTy,
+        lowering: ImmediateResumeHandleLowering<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let ImmediateResumeHandleLowering {
+            handle,
+            state_machine_plan,
+            arm_id,
+            arm,
+            resume_symbol,
+            out_ty,
+        } = lowering;
+
         // T0616/T2003b2：当前仍使用最小"栈 state machine"版本的 `-> resume`：
         // - 只支持单个 direct perform 点；
         // - 当前新增支持 statement-position nested block / if-branch 中的单个 direct perform；
@@ -718,7 +996,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   （正常 resume 完成 / raise 传播时都执行一次）。
 
         // 1) 在 handle body 中找到唯一的 perform 点。
-        let Some(perform_site) = self.scan_immediate_resume_site(handle, &arm.op.op.fqn)? else {
+        let Some(perform_site) = self.resolve_immediate_resume_site_from_plan(
+            handle,
+            state_machine_plan,
+            arm_id,
+            &arm.op.op.fqn,
+        )?
+        else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle resume body (missing perform)",
                 at: span.into(),

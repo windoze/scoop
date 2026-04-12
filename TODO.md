@@ -1122,18 +1122,43 @@ cargo run -p scoop --features llvm -- test
   - 已新增单测：cast runtime raise、class ctor init、object init access、nested handle boundary、`Continuation.resume` hidden runtime raise；已新增 run-pass 回归 `object_init_raise_try_catch_basic`。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4b [TODO] Effect：single-arm immediate-resume / escape-continuation 主 emitter 切到统一状态机输入
-- 描述：在 non-resuming / no-suspend 入口完成 plan 驱动后，再迁移单 arm 的 immediate-resume 与 escape-continuation 主 emitter，去掉它们对源码形状扫描与“missing perform 时特殊退化”的旧耦合。
+### T2003u4b（拆分）Effect：single-arm resuming emitter 切到统一状态机输入
+- 拆分说明：
+  - 原任务同时要求迁移 single-arm immediate-resume 与 escape-continuation 两条 emitter，但 unified plan 目前还没有把 single-arm emitter 复用旧 replay/capture helper 所需的源码路径元数据显式带出。
+  - 两条 emitter 当前都仍依赖各自 scanner 重新发现 site；其中 immediate-resume 只覆盖 direct perform + nested control-flow，范围明显更窄，适合作为先行收口子任务。
+  - 因此先做 `T2003u4b1`：补 unified plan 的 single-site 源码路径元数据，并让 single-arm immediate-resume 主 emitter 改走 plan-driven 输入；再做 `T2003u4b2`：迁移 single-arm escape-continuation（direct/indirect）主 emitter。
+
+### T2003u4b1 [DONE] Effect：single-arm immediate-resume 主 emitter 切到统一状态机输入
+- 描述：为 unified plan 补齐 single-arm immediate-resume 复用旧 replay helper 所需的 site/source-path 元数据，并把 `codegen_handle_expr_immediate_resume` 改为从 unified plan 派生 perform-site，而不是重新调用 `scan_immediate_resume_site`。
 - 目标：
-  - single-arm immediate-resume / escape-continuation 的主 lowering 直接消费 unified state-machine plan，而不是继续以 `scan.rs` 的 shape-specific 扫描结果作为终态输入。
-  - 单 arm 路径的 replay、capture、cleanup、resume-target 由统一 plan 提供，不再在 `immediate_resume.rs` / `escape_continuation.rs` 中重复重建。
-  - 保持现有 single-arm direct/indirect/nested-control-flow 回归不回退。
+  - unified plan 能稳定表示 single-arm immediate-resume direct perform 的源码路径、resume-target 与匹配 arm 关系。
+  - `codegen_handle_expr_immediate_resume` 的主入口直接消费 unified state-machine plan，不再把 `scan.rs` 的 immediate scanner 结果当作终态输入。
+  - 保持现有 single-arm immediate-resume direct/nested-control-flow 回归不回退。
 - 验收：
-  - 至少一组现有 immediate-resume 与 escape-continuation single-arm 回归切到 unified emitter 主路径。
+  - 至少一组现有 single-arm immediate-resume 回归切到 unified emitter 主路径。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4a
+- 完成说明：
+  - unified plan 已新增 direct perform source-path 元数据：为 statement-position val-bound direct perform 记录 top-level stmt 索引与 `block` / `if` / `while` 嵌套路径，并写入 pretty dump / structural signature。
+  - `codegen_handle_expr_immediate_resume` 现已直接从 unified plan 解析匹配 site，不再调用 `scan_immediate_resume_site`；旧 replay helper 继续复用，但 perform-site 由 plan 驱动派生。
+  - 已在新的 plan-driven resolver 中补回既有稳定诊断：`while body` 中的 nested perform 仍保持 `handle resume body (nested perform in while body not yet supported)`，避免 build-fail fixture 漂移。
+  - 已新增 unified plan 单测：锁定 if-then / while-body 的 source-path dump；并用既有 immediate fixtures 覆盖 top-level、nested block、if then/else、while body、finally 路径。
+  - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+
+### T2003u4b2 [TODO] Effect：single-arm escape-continuation 主 emitter 切到统一状态机输入
+- 描述：在 `T2003u4b1` 完成 unified plan 的 single-site/source-path 基础后，再迁移 single-arm escape-continuation 主 emitter，覆盖 direct/indirect perform 的 plan-driven 入口。
+- 目标：
+  - single-arm escape-continuation 的主 lowering 直接消费 unified state-machine plan，而不是继续以 `scan.rs` 的 direct/indirect site 扫描结果作为终态输入。
+  - escape-continuation 单 arm 路径的 replay、capture、cleanup、resume-target 由统一 plan 提供，不再在 `escape_continuation.rs` 中重复重建。
+  - 保持现有 single-arm escape-continuation direct/indirect/nested-control-flow 回归不回退。
+- 验收：
+  - 至少一组现有 single-arm escape-continuation 回归切到 unified emitter 主路径。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4b1
 
 ### T2003u4c [TODO] Effect：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
 - 描述：最后迁移 mixed-arm、multiple-resuming 与 site-matrix 组合，把 `mixed.rs` / `matrix.rs` 的 shape-specific 主线收口为统一状态机 emitter。
@@ -1147,7 +1172,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u4b
+- 依赖：T2003u4b2
 
 ### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
 - 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。

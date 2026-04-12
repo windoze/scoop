@@ -201,6 +201,9 @@ impl HandleStateMachinePlan {
                 if let Some(detail) = site.kind.detail() {
                     out.push_str(&format!("{pad}    detail={detail}\n"));
                 }
+                if let Some(source_path) = &site.source_path {
+                    out.push_str(&format!("{pad}    path={}\n", source_path.label()));
+                }
             }
         }
 
@@ -315,6 +318,115 @@ struct SuspendSitePlan {
     matching_arms: Vec<ArmPlanId>,
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
+    source_path: Option<SuspendSourcePath>,
+}
+
+/// direct perform 在 `handle` body 中的源码路径。
+///
+/// 当前只补 single-arm immediate-resume 复用旧 replay helper 所需的 statement-position
+/// val-bound 路径；其它仍由旧 scanner 承接的 direct site 形状可以暂时保持缺失。
+#[derive(Debug, Clone)]
+struct SuspendSourcePath {
+    top_level_stmt_idx: usize,
+    frames: Vec<SuspendSourceFramePath>,
+}
+
+impl SuspendSourcePath {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        let mut parts = vec![format!("top[{}]", self.top_level_stmt_idx)];
+        parts.extend(self.frames.iter().map(SuspendSourceFramePath::label));
+        parts.join(" -> ")
+    }
+
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.top_level_stmt_idx;
+        for frame in &self.frames {
+            acc ^= frame.structural_signature();
+        }
+        acc
+    }
+}
+
+#[derive(Debug, Clone)]
+enum SuspendSourceFramePath {
+    Block {
+        block_span: Span,
+        stmt_idx: usize,
+    },
+    IfThen {
+        if_span: Span,
+        then_span: Span,
+        stmt_idx: usize,
+    },
+    IfElse {
+        if_span: Span,
+        else_span: Span,
+        stmt_idx: usize,
+    },
+    WhileBody {
+        while_cond_span: Span,
+        while_body_span: Span,
+        stmt_idx: usize,
+    },
+}
+
+impl SuspendSourceFramePath {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        match self {
+            SuspendSourceFramePath::Block { stmt_idx, .. } => format!("block[{stmt_idx}]"),
+            SuspendSourceFramePath::IfThen { stmt_idx, .. } => format!("if-then[{stmt_idx}]"),
+            SuspendSourceFramePath::IfElse { stmt_idx, .. } => format!("if-else[{stmt_idx}]"),
+            SuspendSourceFramePath::WhileBody { stmt_idx, .. } => {
+                format!("while-body[{stmt_idx}]")
+            }
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            SuspendSourceFramePath::Block { block_span, stmt_idx } => {
+                0x101 ^ block_span.start ^ (block_span.end << 1) ^ stmt_idx
+            }
+            SuspendSourceFramePath::IfThen {
+                if_span,
+                then_span,
+                stmt_idx,
+            } => {
+                0x202
+                    ^ if_span.start
+                    ^ (if_span.end << 1)
+                    ^ (then_span.start << 2)
+                    ^ (then_span.end << 3)
+                    ^ stmt_idx
+            }
+            SuspendSourceFramePath::IfElse {
+                if_span,
+                else_span,
+                stmt_idx,
+            } => {
+                0x303
+                    ^ if_span.start
+                    ^ (if_span.end << 1)
+                    ^ (else_span.start << 2)
+                    ^ (else_span.end << 3)
+                    ^ stmt_idx
+            }
+            SuspendSourceFramePath::WhileBody {
+                while_cond_span,
+                while_body_span,
+                stmt_idx,
+            } => {
+                0x404
+                    ^ while_cond_span.start
+                    ^ (while_cond_span.end << 1)
+                    ^ (while_body_span.start << 2)
+                    ^ (while_body_span.end << 3)
+                    ^ stmt_idx
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -521,6 +633,9 @@ impl SuspendSitePlan {
         for id in &self.capture_locals {
             acc ^= (id.as_u32() as usize) << 1;
         }
+        if let Some(source_path) = &self.source_path {
+            acc ^= source_path.structural_signature();
+        }
         acc
     }
 }
@@ -702,6 +817,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let dispatch_plan = self.build_dispatch_plan();
         self.build_arm_states();
         self.compute_capture_sets();
+        self.attach_direct_perform_source_paths();
         let frame_layout = self.build_frame_layout();
 
         let _ = final_exit_state;
@@ -1359,6 +1475,134 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
+    fn attach_direct_perform_source_paths(&mut self) {
+        let mut path = Vec::new();
+        for (top_level_stmt_idx, stmt) in self.handle.body.stmts.iter().enumerate() {
+            self.attach_direct_perform_source_paths_in_stmt(stmt, top_level_stmt_idx, &mut path);
+        }
+    }
+
+    fn attach_direct_perform_source_paths_in_stmt(
+        &mut self,
+        stmt: &'hir hir::Stmt,
+        top_level_stmt_idx: usize,
+        path: &mut Vec<SuspendSourceFramePath>,
+    ) {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Val(decl) => {
+                let Some(init) = decl.init.as_ref() else {
+                    return;
+                };
+                if matches!(init.kind, hir::ExprKind::Perform { .. }) {
+                    self.record_direct_perform_source_path(init.span, top_level_stmt_idx, path);
+                } else {
+                    self.attach_direct_perform_source_paths_in_expr(init, top_level_stmt_idx, path);
+                }
+            }
+            hir::StmtKind::Expr(expr) => {
+                self.attach_direct_perform_source_paths_in_expr(expr, top_level_stmt_idx, path);
+            }
+            hir::StmtKind::Assign { .. } | hir::StmtKind::Return { .. } => {}
+            hir::StmtKind::While { cond, body } => {
+                for (stmt_idx, body_stmt) in body.stmts.iter().enumerate() {
+                    path.push(SuspendSourceFramePath::WhileBody {
+                        while_cond_span: cond.span,
+                        while_body_span: body.span,
+                        stmt_idx,
+                    });
+                    self.attach_direct_perform_source_paths_in_stmt(
+                        body_stmt,
+                        top_level_stmt_idx,
+                        path,
+                    );
+                    let _ = path.pop();
+                }
+            }
+        }
+    }
+
+    fn attach_direct_perform_source_paths_in_expr(
+        &mut self,
+        expr: &'hir hir::Expr,
+        top_level_stmt_idx: usize,
+        path: &mut Vec<SuspendSourceFramePath>,
+    ) {
+        match &expr.kind {
+            hir::ExprKind::Block(block) => {
+                for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
+                    path.push(SuspendSourceFramePath::Block {
+                        block_span: block.span,
+                        stmt_idx,
+                    });
+                    self.attach_direct_perform_source_paths_in_stmt(stmt, top_level_stmt_idx, path);
+                    let _ = path.pop();
+                }
+            }
+            hir::ExprKind::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                if let hir::ExprKind::Block(block) = &then_branch.kind {
+                    for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
+                        path.push(SuspendSourceFramePath::IfThen {
+                            if_span: expr.span,
+                            then_span: block.span,
+                            stmt_idx,
+                        });
+                        self.attach_direct_perform_source_paths_in_stmt(
+                            stmt,
+                            top_level_stmt_idx,
+                            path,
+                        );
+                        let _ = path.pop();
+                    }
+                }
+                if let Some(else_expr) = else_branch.as_deref()
+                    && let hir::ExprKind::Block(block) = &else_expr.kind
+                {
+                    for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
+                        path.push(SuspendSourceFramePath::IfElse {
+                            if_span: expr.span,
+                            else_span: block.span,
+                            stmt_idx,
+                        });
+                        self.attach_direct_perform_source_paths_in_stmt(
+                            stmt,
+                            top_level_stmt_idx,
+                            path,
+                        );
+                        let _ = path.pop();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn record_direct_perform_source_path(
+        &mut self,
+        site_span: Span,
+        top_level_stmt_idx: usize,
+        path: &[SuspendSourceFramePath],
+    ) {
+        let Some(site) = self.suspend_sites.iter_mut().find(|site| {
+            matches!(site.kind, SuspendSiteKind::DirectPerform { .. })
+                && site.span == site_span
+                && site.source_path.is_none()
+        }) else {
+            return;
+        };
+        site.source_path = Some(SuspendSourcePath {
+            top_level_stmt_idx,
+            frames: path.to_vec(),
+        });
+    }
+
     fn new_state(&mut self, label: impl Into<String>) -> PlanStateId {
         let id = self.next_state_id;
         self.next_state_id = self.next_state_id.saturating_add(1);
@@ -1403,6 +1647,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             matching_arms: Vec::new(),
             available_locals,
             capture_locals: Vec::new(),
+            source_path: None,
         });
         id
     }
