@@ -8582,6 +8582,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
+        if immediate_arm.is_none() && escape_arm.is_none() {
+            return self.codegen_handle_expr_nonresuming_multi_arm(
+                span,
+                handle,
+                &nonresuming_arms,
+                out_ty,
+            );
+        }
+
         let Some((immediate_arm, resume_symbol)) = immediate_arm else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle multi-arm without immediate-resume not yet supported",
@@ -8618,6 +8627,701 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &nonresuming_arms,
             out_ty,
         )
+    }
+
+    fn codegen_handle_expr_nonresuming_multi_arm<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        nonresuming_arms: &[&'hir hir::HandleArm],
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        #[derive(Clone, Copy)]
+        struct MultiCustomArm<'hir, 'ctx> {
+            arm: &'hir hir::HandleArm,
+            frame_ptr: PointerValue<'ctx>,
+            catch_bb: inkwell::basic_block::BasicBlock<'ctx>,
+            op_tag: u32,
+        }
+
+        if nonresuming_arms.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle arm count (only 1 supported)",
+                at: span.into(),
+            });
+        }
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let outer_raise_target = self.current_raise_target();
+
+        let body_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_body");
+        let dispatch_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_dispatch");
+        let dispatch_no_match_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_dispatch_nomatch");
+        let finally_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_finally");
+        let finally_unwind_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_finally_unwind");
+        let merge_bb = self
+            .context
+            .append_basic_block(func, "handle_multi_nonresuming_merge");
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_multi_nonresuming_result", out_ty)?)
+        };
+
+        let i32_ty = self.context.i32_type();
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let mut raise_arm: Option<(&'hir hir::HandleArm, inkwell::basic_block::BasicBlock<'ctx>)> =
+            None;
+        let mut custom_arms: Vec<MultiCustomArm<'hir, 'ctx>> = Vec::new();
+
+        for (idx, arm) in nonresuming_arms.iter().enumerate() {
+            if arm.op.binders.len() != 1 {
+                let kind = if arm.op.op.fqn == "scoop.core.Raise.raise" {
+                    "handle binder count (only 1 supported)"
+                } else {
+                    "handle binder count (custom non-resuming, only single payload supported)"
+                };
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: arm.op.span.into(),
+                });
+            }
+
+            if arm.op.op.fqn == "scoop.core.Raise.raise" {
+                if raise_arm.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed Raise arms (only 1 supported)",
+                        at: arm.span.into(),
+                    });
+                }
+                let catch_bb = self
+                    .context
+                    .append_basic_block(func, "handle_multi_nonresuming_raise_catch");
+                raise_arm = Some((arm, catch_bb));
+                continue;
+            }
+
+            let catch_bb = self.context.append_basic_block(
+                func,
+                &format!("handle_multi_nonresuming_custom_catch_{idx}"),
+            );
+            let frame_ptr = self.create_entry_alloca_raw(
+                span,
+                &format!("handle_multi_nonresuming_custom_frame_{idx}"),
+                handler_frame_ty.into(),
+            )?;
+            custom_arms.push(MultiCustomArm {
+                arm,
+                frame_ptr,
+                catch_bb,
+                op_tag: self.effect_op_tag(&arm.op.op.fqn),
+            });
+        }
+
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        for custom in &custom_arms {
+            let frame_i8 = self.builder.build_bit_cast(
+                custom.frame_ptr,
+                i8_ptr_ty,
+                "handle_multi_nonresuming_frame_i8",
+            )?;
+            let tag_i32 = i32_ty.const_int(custom.op_tag as u64, false);
+            let _ = self.builder.build_call(
+                rt_push,
+                &[frame_i8.into(), tag_i32.into()],
+                "handle_multi_nonresuming_push",
+            )?;
+        }
+
+        let custom_outer_top = if let Some(first) = custom_arms.first() {
+            let prev_ptr = self.builder.build_struct_gep(
+                handler_frame_ty,
+                first.frame_ptr,
+                0,
+                "handle_multi_nonresuming_prev_gep",
+            )?;
+            Some(
+                self.builder
+                    .build_load(i8_ptr_ty, prev_ptr, "handle_multi_nonresuming_outer_top")?
+                    .into_pointer_value(),
+            )
+        } else {
+            None
+        };
+
+        self.builder.build_unconditional_branch(body_bb)?;
+
+        self.builder.position_at_end(body_bb);
+        for custom in &custom_arms {
+            self.push_effect_unwind_target(&custom.arm.op.op.fqn, custom.catch_bb);
+        }
+        self.push_raise_target(dispatch_bb);
+        let body_v = self.codegen_block_value_in_expected_context(&handle.body, Some(out_ty))?;
+        self.pop_raise_target();
+        for _ in custom_arms.iter().rev() {
+            self.pop_effect_unwind_target();
+        }
+
+        let body_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(handle.body.span, body_v, out_ty)?
+        };
+
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            if let Some(custom_outer_top) = custom_outer_top {
+                let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+                let _ = self.builder.build_call(
+                    rt_swap,
+                    &[custom_outer_top.into()],
+                    "handle_multi_nonresuming_body_detach",
+                )?;
+            }
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
+            }
+            self.builder.build_unconditional_branch(finally_bb)?;
+        }
+
+        self.builder.position_at_end(dispatch_bb);
+        let rt_read_tag = self.declare_runtime_effect_perform_slot_read_op_tag();
+        let tag_call = self.builder.build_call(
+            rt_read_tag,
+            &[],
+            "handle_multi_nonresuming_dispatch_read_op_tag",
+        )?;
+        let tag_raw =
+            tag_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch read_op_tag return value",
+                    at: span.into(),
+                })?;
+        let BasicValueEnum::IntValue(slot_tag) = tag_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "dispatch read_op_tag return type",
+                at: span.into(),
+            });
+        };
+        let mut dispatch_cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+            Vec::new();
+        if let Some((_, catch_bb)) = raise_arm {
+            let raise_tag = self.effect_op_tag("scoop.core.Raise.raise");
+            dispatch_cases.push((i32_ty.const_int(raise_tag as u64, false), catch_bb));
+        }
+        for custom in &custom_arms {
+            dispatch_cases.push((
+                i32_ty.const_int(custom.op_tag as u64, false),
+                custom.catch_bb,
+            ));
+        }
+        self.builder
+            .build_switch(slot_tag, dispatch_no_match_bb, &dispatch_cases)?;
+
+        self.builder.position_at_end(dispatch_no_match_bb);
+        if let Some(custom_outer_top) = custom_outer_top {
+            let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+            let _ = self.builder.build_call(
+                rt_swap,
+                &[custom_outer_top.into()],
+                "handle_multi_nonresuming_dispatch_detach",
+            )?;
+        }
+        self.builder.build_unconditional_branch(finally_unwind_bb)?;
+
+        if let Some((raise_arm, raise_catch_bb)) = raise_arm {
+            let binder = &raise_arm.op.binders[0];
+            self.builder.position_at_end(raise_catch_bb);
+
+            if let Some(custom_outer_top) = custom_outer_top {
+                let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+                let _ = self.builder.build_call(
+                    rt_swap,
+                    &[custom_outer_top.into()],
+                    "handle_multi_nonresuming_raise_detach",
+                )?;
+            }
+
+            let rt_len = self.declare_runtime_effect_perform_slot_read_len_words();
+            let call = self.builder.build_call(
+                rt_len,
+                &[],
+                "multi_nonresuming_raise_read_slot_len_words",
+            )?;
+            let raw =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_len_words return value",
+                        at: span.into(),
+                    })?;
+            let BasicValueEnum::IntValue(len_words_i32) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_len_words return type",
+                    at: span.into(),
+                });
+            };
+
+            let expected_len = i32_ty.const_int(2, false);
+            let len_ok = self.builder.build_int_compare(
+                IntPredicate::EQ,
+                len_words_i32,
+                expected_len,
+                "multi_nonresuming_raise_slot_len_ok",
+            )?;
+            let len_ok_bb = self
+                .context
+                .append_basic_block(func, "multi_nonresuming_raise_slot_len_ok_bb");
+            let len_bad_bb = self
+                .context
+                .append_basic_block(func, "multi_nonresuming_raise_slot_len_bad_bb");
+            self.builder
+                .build_conditional_branch(len_ok, len_ok_bb, len_bad_bb)?;
+
+            self.builder.position_at_end(len_bad_bb);
+            self.emit_exit_with_code(span, 3)?;
+
+            self.builder.position_at_end(len_ok_bb);
+            let rt_read_at = self.declare_runtime_effect_perform_slot_read_u64_at();
+            let idx0 = i32_ty.const_int(0, false);
+            let idx1 = i32_ty.const_int(1, false);
+
+            let kind_call = self.builder.build_call(
+                rt_read_at,
+                &[idx0.into()],
+                "multi_nonresuming_raise_read_slot_word0",
+            )?;
+            let kind_raw = kind_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word0 return value",
+                    at: span.into(),
+                },
+            )?;
+            let BasicValueEnum::IntValue(kind_u64) = kind_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word0 return type",
+                    at: span.into(),
+                });
+            };
+
+            let value_call = self.builder.build_call(
+                rt_read_at,
+                &[idx1.into()],
+                "multi_nonresuming_raise_read_slot_word1",
+            )?;
+            let value_raw = value_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word1 return value",
+                    at: span.into(),
+                },
+            )?;
+            let BasicValueEnum::IntValue(value_u64) = value_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word1 return type",
+                    at: span.into(),
+                });
+            };
+
+            let rt_clear = self.declare_runtime_effect_clear();
+            let _ = self
+                .builder
+                .build_call(rt_clear, &[], "multi_nonresuming_raise_clear")?;
+
+            self.env.push_scope();
+
+            let binder_cg_ty =
+                self.cg_ty_of(binder.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle binder type",
+                        at: binder.span.into(),
+                    })?;
+            let binder_value = match binder_cg_ty {
+                CgTy::Int(int_ty) => {
+                    let expected = self.context.i64_type().const_int(1, false);
+                    let ok = self.builder.build_int_compare(
+                        IntPredicate::EQ,
+                        kind_u64,
+                        expected,
+                        "multi_nonresuming_raise_kind_is_int",
+                    )?;
+                    let ok_bb = self
+                        .context
+                        .append_basic_block(func, "multi_nonresuming_raise_kind_int_ok");
+                    let bad_bb = self
+                        .context
+                        .append_basic_block(func, "multi_nonresuming_raise_kind_int_bad");
+                    self.builder.build_conditional_branch(ok, ok_bb, bad_bb)?;
+
+                    self.builder.position_at_end(bad_bb);
+                    self.emit_exit_with_code(span, 3)?;
+
+                    self.builder.position_at_end(ok_bb);
+                    let from_u64 = IntTy {
+                        bits: 64,
+                        signed: false,
+                    };
+                    let decoded = self.cast_int(value_u64, from_u64, int_ty)?;
+                    CgValue::int(decoded, int_ty)
+                }
+                CgTy::Enum(enum_ty) if self.is_sysroot_runtime_error_enum(enum_ty) => {
+                    let expected = self.context.i64_type().const_int(2, false);
+                    let ok = self.builder.build_int_compare(
+                        IntPredicate::EQ,
+                        kind_u64,
+                        expected,
+                        "multi_nonresuming_raise_kind_is_runtime_error",
+                    )?;
+                    let ok_bb = self
+                        .context
+                        .append_basic_block(func, "multi_nonresuming_raise_kind_runtime_error_ok");
+                    let bad_bb = self
+                        .context
+                        .append_basic_block(func, "multi_nonresuming_raise_kind_runtime_error_bad");
+                    self.builder.build_conditional_branch(ok, ok_bb, bad_bb)?;
+
+                    self.builder.position_at_end(bad_bb);
+                    self.emit_exit_with_code(span, 3)?;
+
+                    self.builder.position_at_end(ok_bb);
+                    let repr = self.cg_enum_layout(span, enum_ty)?.repr;
+                    if !matches!(repr, CgEnumRepr::TaggedUnion) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "Raise<RuntimeError> niche repr (not supported)",
+                            at: span.into(),
+                        });
+                    }
+
+                    let tag_i32 = self.builder.build_int_truncate(
+                        value_u64,
+                        i32_ty,
+                        "multi_nonresuming_raise_runtime_error_tag_i32",
+                    )?;
+                    let payload_word_zero =
+                        self.int_type(self.enum_payload_ty()).const_int(0, false);
+                    let payload_ptr_zero = self.llvm_gc_i8_ptr_type().const_null();
+
+                    let llvm_enum_ty = self.llvm_enum_value_type(span, enum_ty)?;
+                    let llvm_enum_ty = llvm_enum_ty.into_struct_type();
+                    let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
+                    agg = self.builder.build_insert_value(
+                        agg,
+                        tag_i32,
+                        0,
+                        "multi_nonresuming_raise_runtime_error_tag",
+                    )?;
+                    agg = self.builder.build_insert_value(
+                        agg,
+                        payload_word_zero,
+                        1,
+                        "multi_nonresuming_raise_runtime_error_payload_word",
+                    )?;
+                    agg = self.builder.build_insert_value(
+                        agg,
+                        payload_ptr_zero,
+                        2,
+                        "multi_nonresuming_raise_runtime_error_payload_ptr",
+                    )?;
+                    CgValue {
+                        ty: CgTy::Enum(enum_ty),
+                        value: Some(agg.as_basic_value_enum()),
+                    }
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle binder type (Raise payload decode)",
+                        at: binder.span.into(),
+                    });
+                }
+            };
+
+            let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
+            let _ = self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
+            self.env.insert(
+                binder.id,
+                CgLocal {
+                    hir_ty: Some(binder.ty),
+                    ty: binder_cg_ty,
+                    ptr: binder_ptr,
+                    mutable: false,
+                },
+            );
+
+            for custom in &custom_arms {
+                self.push_effect_unwind_target(&custom.arm.op.op.fqn, finally_unwind_bb);
+            }
+            self.push_raise_target(finally_unwind_bb);
+            let arm_v = self.codegen_expr_in_expected_context(&raise_arm.body, Some(out_ty))?;
+            self.pop_raise_target();
+            for _ in custom_arms.iter().rev() {
+                self.pop_effect_unwind_target();
+            }
+            let arm_v = if out_ty == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(raise_arm.body.span, arm_v, out_ty)?
+            };
+
+            let catch_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: span.into(),
+                    })?;
+            if catch_end.get_terminator().is_none() {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(raise_arm.body.span, ptr, out_ty, arm_v)?;
+                }
+                self.builder.build_unconditional_branch(finally_bb)?;
+            }
+            self.env.pop_scope();
+        }
+
+        for custom in &custom_arms {
+            let arm = custom.arm;
+            let binder = &arm.op.binders[0];
+            self.builder.position_at_end(custom.catch_bb);
+
+            if let Some(custom_outer_top) = custom_outer_top {
+                let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+                let _ = self.builder.build_call(
+                    rt_swap,
+                    &[custom_outer_top.into()],
+                    "handle_multi_nonresuming_custom_detach",
+                )?;
+            }
+
+            let rt_len = self.declare_runtime_effect_perform_slot_read_len_words();
+            let call = self.builder.build_call(
+                rt_len,
+                &[],
+                "multi_nonresuming_custom_read_slot_len_words",
+            )?;
+            let raw =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_len_words return value",
+                        at: span.into(),
+                    })?;
+            let BasicValueEnum::IntValue(len_words_i32) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_len_words return type",
+                    at: span.into(),
+                });
+            };
+
+            let expected_len = i32_ty.const_int(1, false);
+            let len_ok = self.builder.build_int_compare(
+                IntPredicate::EQ,
+                len_words_i32,
+                expected_len,
+                "multi_nonresuming_custom_slot_len_ok",
+            )?;
+            let len_ok_bb = self
+                .context
+                .append_basic_block(func, "multi_nonresuming_custom_slot_len_ok_bb");
+            let len_bad_bb = self
+                .context
+                .append_basic_block(func, "multi_nonresuming_custom_slot_len_bad_bb");
+            self.builder
+                .build_conditional_branch(len_ok, len_ok_bb, len_bad_bb)?;
+
+            self.builder.position_at_end(len_bad_bb);
+            self.emit_exit_with_code(span, 3)?;
+
+            self.builder.position_at_end(len_ok_bb);
+            let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+            let value_call = self.builder.build_call(
+                rt_read,
+                &[],
+                "multi_nonresuming_custom_read_slot_word0",
+            )?;
+            let value_raw = value_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word0 return value",
+                    at: span.into(),
+                },
+            )?;
+            let BasicValueEnum::IntValue(value_u64) = value_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_word0 return type",
+                    at: span.into(),
+                });
+            };
+            let rt_read_gc = self.declare_runtime_effect_perform_slot_read_gc_ref();
+            let gc_call = self.builder.build_call(
+                rt_read_gc,
+                &[],
+                "multi_nonresuming_custom_read_slot_gc_ref",
+            )?;
+            let gc_raw =
+                gc_call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_gc_ref return value",
+                        at: span.into(),
+                    })?;
+            let BasicValueEnum::PointerValue(gc_ref_raw) = gc_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_read_gc_ref return type",
+                    at: span.into(),
+                });
+            };
+
+            self.env.push_scope();
+
+            let binder_cg_ty =
+                self.cg_ty_of(binder.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle binder type (custom non-resuming)",
+                        at: binder.span.into(),
+                    })?;
+            let binder_value = self.decode_abi_payload_transport(
+                binder.span,
+                value_u64,
+                gc_ref_raw,
+                binder_cg_ty,
+            )?;
+            let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
+            let _ = self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
+            self.env.insert(
+                binder.id,
+                CgLocal {
+                    hir_ty: Some(binder.ty),
+                    ty: binder_cg_ty,
+                    ptr: binder_ptr,
+                    mutable: false,
+                },
+            );
+
+            let rt_clear = self.declare_runtime_effect_clear();
+            let _ = self
+                .builder
+                .build_call(rt_clear, &[], "multi_nonresuming_custom_clear")?;
+
+            for nested_custom in &custom_arms {
+                self.push_effect_unwind_target(&nested_custom.arm.op.op.fqn, finally_unwind_bb);
+            }
+            self.push_raise_target(finally_unwind_bb);
+            let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+            self.pop_raise_target();
+            for _ in custom_arms.iter().rev() {
+                self.pop_effect_unwind_target();
+            }
+            let arm_v = if out_ty == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(arm.body.span, arm_v, out_ty)?
+            };
+
+            let catch_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: span.into(),
+                    })?;
+            if catch_end.get_terminator().is_none() {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+                }
+                self.builder.build_unconditional_branch(finally_bb)?;
+            }
+            self.env.pop_scope();
+        }
+
+        self.builder.position_at_end(finally_unwind_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            if let Some(target) = outer_raise_target {
+                self.builder.build_unconditional_branch(target)?;
+            } else {
+                let ret_ty = self.current_fun_return_ty.ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi nonresuming finally unwind needs function return type",
+                        at: span.into(),
+                    },
+                )?;
+                let v = self.default_value(span, ret_ty)?;
+                self.emit_return(span, ret_ty, v)?;
+            }
+        }
+
+        self.builder.position_at_end(finally_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(merge_bb)?;
+        }
+
+        self.builder.position_at_end(merge_bb);
+
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(
+                    llvm_ty,
+                    ptr,
+                    "handle_multi_nonresuming_result_value",
+                )?;
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                })
+            }
+        }
     }
 
     fn codegen_handle_expr_immediate_resume_with_escape_sibling<'hir>(

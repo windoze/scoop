@@ -1,0 +1,84 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_nonresuming_raise_custom_finally.stdout
+//
+// T2003c0c2a: pure non-resuming multi-arm with Raise + custom + finally.
+// - body 内直接 Raise.raise 仍命中同一个 source-handle 的 Raise arm；
+// - custom arm body 再次 Raise.raise 时，sibling Raise arm 必须处于 handler scope 外，
+//   因此应先执行 finally，再向外层 try/catch 传播；
+// - 验证 pure non-resuming multi-arm 的 finally cleanup 与 sibling self-capture 语义。
+
+import scoop.core.*
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun throwAlarm(seed: Int): Int / Alarm {
+    println("throw_alarm")
+    Alarm.trip(seed + 1)
+    println("throw_alarm_unreachable")
+    return 0
+}
+
+fun customThenOuterRaise(): Int {
+    return try {
+        val handled: Int = handle {
+            println("mixed_body_custom")
+            val x: Int = throwAlarm(7)
+            println("mixed_unreachable")
+            x
+        } with {
+            Alarm.trip(code: Int) -> {
+                println("alarm_catch")
+                println(code)
+                Raise.raise(code + 10)
+            }
+            Raise.raise(err: Int) -> {
+                println("inner_raise_should_not_catch")
+                println(err)
+                0
+            }
+        } finally {
+            println("mixed_finally")
+        }
+        handled
+    } catch (e: Int) {
+        println("outer_raise_catch")
+        println(e)
+        e + 1
+    }
+}
+
+fun bodyRaise(): Int {
+    val handled: Int = handle {
+        println("mixed_body_raise")
+        Raise.raise(5)
+        println("mixed_body_raise_unreachable")
+        0
+    } with {
+        Alarm.trip(code: Int) -> {
+            println("alarm_should_not_catch")
+            println(code)
+            0
+        }
+        Raise.raise(err: Int) -> {
+            println("inner_raise_catch")
+            println(err)
+            err + 2
+        }
+    } finally {
+        println("mixed_raise_finally")
+    }
+    return handled
+}
+
+fun main(): Int {
+    val first: Int = customThenOuterRaise()
+    println("custom_then_outer_raise_result")
+    println(first)
+
+    val second: Int = bodyRaise()
+    println("body_raise_result")
+    println(second)
+    return 0
+}

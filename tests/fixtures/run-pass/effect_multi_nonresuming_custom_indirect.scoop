@@ -1,0 +1,75 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_nonresuming_custom_indirect.stdout
+//
+// T2003c0c2a: pure non-resuming multi-arm without immediate-resume.
+// - 同一个 handle 同时处理两个 custom non-resuming effect；
+// - Alpha.fail 经由普通函数调用间接触发，Beta.stop 直接触发；
+// - 验证 multi-arm dispatch 不再要求 immediate-resume arm。
+
+import scoop.core.*
+
+effect Alpha {
+    fun fail(code: Int): Nothing
+}
+
+effect Beta {
+    fun stop(msg: String): Nothing
+}
+
+fun forwardAlpha(base: Int): Int / Alpha {
+    println("forward_alpha")
+    Alpha.fail(base + 1)
+    println("forward_alpha_unreachable")
+    return 0
+}
+
+fun runAlpha(): Int {
+    return handle {
+        println("alpha_body")
+        val x: Int = forwardAlpha(40)
+        println("alpha_unreachable")
+        x
+    } with {
+        Alpha.fail(code: Int) -> {
+            println("alpha_catch")
+            println(code)
+            code + 1
+        }
+        Beta.stop(msg: String) -> {
+            println("beta_wrong_catch")
+            println(msg)
+            0
+        }
+    }
+}
+
+fun runBeta(): Int {
+    return handle {
+        println("beta_body")
+        Beta.stop("done")
+        println("beta_unreachable")
+        0
+    } with {
+        Alpha.fail(code: Int) -> {
+            println("alpha_wrong_catch")
+            println(code)
+            0
+        }
+        Beta.stop(msg: String) -> {
+            println("beta_catch")
+            println(msg)
+            7
+        }
+    }
+}
+
+fun main(): Int {
+    val alpha: Int = runAlpha()
+    println("alpha_result")
+    println(alpha)
+
+    val beta: Int = runBeta()
+    println("beta_result")
+    println(beta)
+    return 0
+}
