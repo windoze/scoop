@@ -705,7 +705,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_if_multi`，build-fail `effect_multi_escape_direct_while_is_error`；旧的 build-fail `effect_multi_escape_direct_if_is_error` 已移除。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3b3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct escape sites）
+### T2003c0c2b3b3 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct escape sites）
 - 描述：最后补 nested direct 里的 while body 子集。该阶段需要把当前迭代尾部 replay、loop condition 重检与 loop re-entry 接到 no-immediate multi-arm direct lowering。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 while body 中的 direct escape site。
@@ -716,6 +716,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3b2
+- 完成说明：
+  - no-immediate direct lowering 现已接受 while body direct site；初次执行与 `resume(...)` step 都会复用现有 while replay helper，先完成当前迭代尾部，再重检 loop condition，并在后续迭代中重新命中同一个 direct site。
+  - 继续同一个 while-body direct site 时，不再要求“至少两个 escape site”才创建下一次 continuation；single-site while re-entry 现已走共享 `intercept_bb`，修正了首次 `resume(...)` 后错误落入死循环 replay 的缺口。
+  - 已新增/调整 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_while_multi`，build-fail `effect_multi_escape_indirect_while_is_error`；旧的 build-fail `effect_multi_escape_direct_while_is_error` 已移除。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，indirect escape site-matrix）
 - 描述：在 direct site-matrix 打通后，再把 no-immediate multi-arm escape 扩到 indirect site-matrix，包括 top-level multiple indirect，以及 nested block / if / while 的 indirect call site。
