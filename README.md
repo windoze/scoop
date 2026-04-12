@@ -11,6 +11,7 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
+effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。
 
 ## 快速开始
 

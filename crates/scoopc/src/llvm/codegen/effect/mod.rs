@@ -1,4 +1,10 @@
 //! effect/continuation codegen（T0102e：从 `codegen/mod.rs` 拆分）。
+//!
+//! 现状说明（T2003u1）：
+//! - 当前 `immediate_resume` / `escape_continuation` / `mixed` / `matrix` 仍是按源码形状拆开的过渡 lowering；
+//! - effect 主线已改为“先构建统一的 suspension-aware state-machine plan，再做 never-resume /
+//!   immediate-resume / escape-continuation 的 mode-specific simplification”；
+//! - 设计基线见仓库文档 `docs/effect_unified_state_machine.md`。
 
 use super::*;
 
@@ -17,7 +23,8 @@ pub(super) struct EffectUnwindTarget<'ctx> {
 /// `-> resume` lowering（T0616）在 codegen 阶段使用的"立即恢复"上下文。
 ///
 /// 说明：
-/// - 当前实现先只覆盖"单个 perform 点"的最小栈上 state machine；
+/// - 当前实现仍是统一状态机 pass 落地前的过渡路径；
+/// - 现有字段围绕"单个 distinguished immediate site"组织，后续应由统一 plan/frame layout 取代；
 /// - `resume(value)` 会写入 `resume_value_ptr`、更新 `state_ptr`，并跳回 `dispatch_bb`。
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ImmediateResumeCtx<'ctx> {
@@ -29,8 +36,10 @@ pub(super) struct ImmediateResumeCtx<'ctx> {
     next_state: u32,
 }
 
-/// Immediate-resume 当前阶段支持的嵌套恢复路径：
-/// statement-position `block`、`if` then/else branch、以及 `while` body 中的 direct perform。
+/// Immediate-resume 当前阶段保留的语法形状恢复路径。
+///
+/// 这些枚举只服务于旧的过渡 lowering；`T2003u2` 起应改由统一 plan 中的 state/edge
+/// 与 suspend site 描述恢复路径，而不是继续扩这组源码形状枚举。
 #[derive(Debug, Clone, Copy)]
 enum ImmediateResumeFrame<'hir> {
     Block {
@@ -76,6 +85,10 @@ impl<'hir> ImmediateResumeFrame<'hir> {
     }
 }
 
+/// Mixed escape-continuation 当前阶段保留的语法形状恢复路径。
+///
+/// 与 `ImmediateResumeFrame` 一样，这只是旧 lowering 的临时描述；统一状态机 pass
+/// 落地后应收口到统一的 suspend site / resume target / cleanup edge 模型。
 #[derive(Debug, Clone, Copy)]
 enum MixedEscapeDirectFrame<'hir> {
     Block {

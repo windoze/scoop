@@ -1,71 +1,52 @@
-# 执行计划与进度记录
+# 本轮执行计划
 
-## 说明
+## 约束说明
 
-按要求先落盘计划。这里记录的是可共享的推理摘要、执行步骤、风险判断与进度更新，不包含原始内部思维链。
+- 按用户要求，本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+- 在开始仓库检查前，先记录本计划；随着执行推进，会持续更新本文件。
+- 不在实现缺口上做绕过；如果发现规范不匹配或前置依赖缺失，会先调整 `TODO.md`/`PLAN.md`，提交后停止。
 
-## 当前目标
+## 初始步骤
 
-完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
+1. 检查最新一次 Git 提交，确认是否提到已有问题需要优先修复。
+2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务。
+3. 判断该任务是否过大；若过大，则拆分为更小子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
+4. 实施当前应执行的首个任务，必要时补充或调整测试。
+5. 运行相关验证，至少覆盖受影响范围；如有必要，运行更完整测试与 `clippy`。
+6. 将任务完成状态回写到 `TODO.md`/`PLAN.md`，并更新本文件记录结果。
+7. 生成一次 Git 提交，然后停止，不继续后续任务。
 
-## 初始执行步骤
+## 当前状态
 
-1. 检查最新一次 Git 提交的信息，确认是否提到任何已知遗留问题。
-2. 若最新提交提到遗留问题，先定位并修复这些问题，再继续后续步骤。
-3. 阅读 `TODO.md`，找出第一个未完成任务。
-4. 阅读 `PLAN.md`，确认该任务的上下文、依赖和当前计划状态。
-5. 判断该任务是否过大：
-   - 若可直接完成，则进入实现。
-   - 若过大，则将其拆分为更小的子任务，更新 `PLAN.md` 与 `TODO.md`，并执行拆分后的第一个子任务。
-6. 在实现前检查相关代码、测试和规格，避免用临时绕过方案掩盖真实缺陷。
-7. 实现该任务。
-8. 运行相关测试，并至少补充或更新必要测试；同时检查编译、格式化与告警情况。
-9. 更新文档与计划：
-   - 在 `TODO.md` 中标记该任务完成，或若受阻则按依赖顺序重排。
-   - 在 `PLAN.md` 中记录当前状态、拆分结果、阻塞原因或后续顺序调整。
-   - 在本文件中同步记录关键进展和计划变更。
-10. 使用清晰的提交信息提交本次变更，然后停止。
+- 已检查最新提交：`01f9ceb Update plan`，提交说明未直接提到需要先修复的遗留 bug。
+- 已定位本轮首个未完成任务：`T2003u1`（Effect：统一状态机 pass 设计定稿与不变量收口）。
+- 判断结果：`T2003u1` 是可在单轮内完成的设计/文档收口任务，不需要继续拆分子任务。
 
-## 风险与约束
+## T2003u1 执行计划
 
-- 不接受规避式实现、夹带兼容层或仅为夹具通过而写的特判。
-- 若发现规格不匹配、缺失语言特性、运行时缺陷或诊断错误，必须先把问题转化为 `TODO.md` 中的显式任务，并调整任务顺序。
-- 若工作树存在与当前任务无关的脏改动，不回退它们，只在必要范围内谨慎协作。
+1. 审阅 `TODO.md` / `PLAN.md` 中 `T2003u1` 的目标与依赖，确认验收要求。
+2. 审阅 effect 现有代码注释与规范里关于 stack/heap state machine、runtime ABI 的现状描述。
+3. 在仓库中新增统一状态机设计文档，明确：
+   - 输入与输出；
+   - 状态表示、suspend site、cleanup edge、capture/body-lift；
+   - never-resume / immediate-resume / escape-continuation 的统一关系与化简；
+   - 与现有 runtime ABI、payload transport、handler stack、one-shot continuation 的对接。
+4. 更新 `PLAN.md` / `TODO.md` / 相关注释，使主线表述统一为“先构建完整状态机，再做 mode-specific simplification”。
+5. 运行验证命令，至少覆盖 `cargo test --all`；如无额外阻碍，补跑 `cargo clippy --workspace --all-targets -- -D warnings`。
+6. 回写完成状态到 `TODO.md` / `PLAN.md` / 本文件，提交 Git commit，然后停止。
 
-## 进度记录
+## 已完成的关键步骤
 
-- 已创建本文件并写入初始计划，尚未开始仓库检查。
-- 已检查最新提交 `025e229edd3ce9f82d4c600f4eaa750b8000c439`（`[T2003c0c2d2a] Support sibling non-resuming multiple escape direct`）。
-- 最新提交信息未直接声明需要先修复的遗留缺陷；当前未发现“提交信息里已点名但未修”的前置问题。
-- 已读取 `TODO.md` / `PLAN.md` / `README.md`。
-- 已确认 `TODO.md` 中第一个未完成任务是 `T2003c0c2d2b`：`多个 escape-continuation arms + finally`，范围限定为 pure direct、top-level direct、single-site。
-- 下一步：读取该任务的详细描述、依赖与前一个已完成任务 `T2003c0c2d2a` 的实现上下文，判断是否需要再拆分。
-- 已完成上下文核对：该任务不再拆分，直接在 `crates/scoopc/src/llvm/codegen/effect/multi_escape.rs` 上实现。
-- 语义基线已确认：沿用既有 `T1609` 的 escape-continuation `finally` 规则，即 `finally` 在 handle 表达式完成时执行一次；后续 continuation `resume(...)` 进入的 step trampoline 不重复执行 `finally`。
-- 计划中的代码改动：
-  1. 去掉 pure multiple-escape direct 路径对 `handle.finally` 的统一 early reject，但继续保留“sibling non-resuming + finally”边界诊断。
-  2. 在主 handle 路径新增 `finally_bb` / `finally_unwind_bb`，让初始 body 前缀与首个命中的 escape arm 在正常完成或 `Raise.raise` 向外传播时都经过 cleanup。
-  3. 不改 step trampoline 的 `finally` 语义，保持与既有单 arm multi-perform escape-continuation 一致。
-  4. 把旧的 pure-finally build 负例改成正例 run-pass，并新增 outward-raise run-pass 与一个新的 sibling+finally build 负例。
-- 代码实现已完成：
-  - `codegen_handle_expr_multiple_escape_top_level_direct` 已支持 pure direct top-level direct single-site 的 `multiple escape arms + finally`。
-  - 初始 body 前缀与首个 escape arm 现在会通过 `finally_unwind` 处理向外传播的 `Raise.raise`。
-  - `step trampoline` 未引入新的 `finally`，保持 `T1609` 的既有一次性 cleanup 语义。
-- 新增/调整回归：
-  - run-pass：`effect_multi_escape_multi_arm_with_finally`
-  - run-pass：`effect_multi_escape_multi_arm_with_finally_raise`
-  - build：`effect_multi_escape_multi_arm_with_nonresuming_finally_is_error`
-- 定向验证已通过：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_multi_arm_with_finally.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_multi_arm_with_finally_raise.scoop`
-  - `cargo run -p scoop --features llvm -- build tests/fixtures/build/effect_multi_escape_multi_arm_with_nonresuming_finally_is_error.scoop -o /tmp/multi_escape_nonresuming_finally.out`
-- 全量验证已通过：
-  - `cargo fmt --all`
+- 已确认 `T2003u1` 不需要继续拆分。
+- 已审阅 `TODO.md` / `PLAN.md` 与 effect 代码注释，确定本轮输出物应为“设计定稿文档 + 主线表述收口”。
+- 已新增 `docs/effect_unified_state_machine.md`，写明统一状态机 pass 的输入/输出、状态表示、不变量、化简规则与 runtime ABI 对接。
+- 已更新 `TODO.md`、`PLAN.md`、`README.md`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`，将主线统一为“先构建完整状态机，再做 mode-specific simplification”。
+- 已完成验证：
   - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 文档状态已更新：
-  - `TODO.md` 已将 `T2003c0c2d2b` 标记为完成，并澄清 `finally` 的一次性语义。
-  - `PLAN.md` 已记录本轮实现、回归与新的下一步任务 `T2003c0c2d2c`。
-- 下一步：检查最终 diff，提交 git commit，然后停止。
+  - 结果：均通过。
+
+## 待执行
+
+1. 检查工作树并提交 Git commit。
+2. 提交后停止，不继续后续任务。

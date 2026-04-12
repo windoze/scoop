@@ -1033,7 +1033,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`，并把旧的 pure-finally build 负例替换为新的 sibling 边界负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error`，继续锁住后续 `T2003c0c2d2f`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003u1 [TODO] Effect：统一状态机 pass 设计定稿与不变量收口
+### T2003u1 [DONE] Effect：统一状态机 pass 设计定稿与不变量收口
 - 描述：现确认继续沿 `T2003c0*` 路线按源码形状补 site-matrix / mixed-arm 组合，不是可收敛的终态。先把 effect lowering 的架构目标收口为“统一的 resumable state-machine pass”，明确输入/输出、不变量与化简边界。
 - 目标：
   - 明确统一 pass 的输入：typed HIR / 后续中端中的 `handle` body、direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch 信息。
@@ -1045,6 +1045,10 @@ cargo run -p scoop --features llvm -- test
   - `PLAN.md` / `TODO.md` / 相关注释中不再把“继续扩 top-level / nested / same-stmt mixed 组合”写成主线目标。
   - `cargo test --all`
 - 依赖：T2003c0c2d2b
+- 完成说明：
+  - 已新增 `docs/effect_unified_state_machine.md`，明确统一 pass 的输入/输出、`HandleStateMachinePlan` 抽象、state/suspend site/cleanup/frame layout 不变量，以及 never-resume / immediate-resume / escape-continuation 的化简边界。
+  - 已明确统一 pass 与现有 runtime ABI 的对接约束：双通道 payload transport、TLS handler stack / perform slot、captured handler stack、one-shot continuation 继续共享同一套语义。
+  - `PLAN.md`、`README.md` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 已同步收口到“先构建完整状态机，再做 mode-specific simplification”的主线表述。
 
 ### T2003u2 [TODO] Effect：实现统一的 suspension-aware state machine plan
 - 描述：在设计定稿后，先实现“构建完整状态机计划”的中间层，不直接生成 LLVM。重点是把 direct/indirect perform、branch/loop、nested handle、multi-arm dispatch 统一编码，而不是继续维护多套 scanner / replay helper。
@@ -1057,7 +1061,7 @@ cargo run -p scoop --features llvm -- test
   - 新增单元测试或 dump fixtures：覆盖 direct、indirect、if、while、nested handle、multiple arms 的状态机计划输出。
   - 现有 effect scanner/analysis 中与统一 plan 重复的核心路径有明确迁移入口，不再为新组合继续新增 scanner。
   - `cargo test --all`
-- 依赖：T2003u1
+- 依赖：无
 
 ### T2003u3 [TODO] Effect：在完整状态机之上实现 never-resume / immediate-resume / continuation 化简
 - 描述：统一状态机 plan 落地后，next step 不是再补 case，而是把三类运行模式都定义成同一状态机上的化简结果。

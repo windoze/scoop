@@ -198,7 +198,8 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`；原先的 pure-finally build 负例已转成正例，并由新的 build 负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 继续锁住 sibling non-resuming + `finally` 的后续边界。
   - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
   - 2026-04-13 起停止继续推进 `T2003c0c2d2c`～`T2003c` 这条“按 site matrix / arm 组合逐项扩面”的旧路线；它们改由统一状态机 pass 主线吸收，现有实现仅作为过渡与回归基线保留。
-  - 当前下一步调整为 `T2003u1`：先定义统一状态机 pass 的输入/输出、不变量、化简边界与对 runtime ABI 的要求，再据此迁移现有 lowering。
+  - T2003u1 已完成：已新增 `docs/effect_unified_state_machine.md`，明确统一 pass 的输入/输出、`HandleStateMachinePlan` 的 state/suspend-site/cleanup/frame-layout 结构、三类 mode-specific simplification 的边界，以及与现有 runtime ABI（双通道 payload、TLS handler stack、captured handler stack、one-shot continuation）的对接要求。
+  - 当前下一步调整为 `T2003u2`：实现统一的 suspension-aware state machine plan，并给 direct/indirect perform、control-flow、nested handle、multi-arm dispatch 提供可 dump 的统一计划输出。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -254,7 +255,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2d1（已完成）：补多个 escape-continuation arms（纯 escape-only，top-level direct single-site；暂不混入 `finally`）。
   - T2003c0c2d2a（已完成）：补多个 escape-continuation arms + sibling non-resuming（top-level direct single-site，暂不混入 `finally`）。
   - T2003c0c2d2b（已完成）：补多个 escape-continuation arms + `finally`（pure escape-only，top-level direct single-site）。
-  - T2003u1：统一状态机 pass 设计定稿，明确输入/输出、不变量、state table / cleanup edge / capture model，以及 never-resume / immediate-resume 的化简规则。
+  - T2003u1（已完成）：统一状态机 pass 设计定稿，明确输入/输出、不变量、state table / cleanup edge / capture model，以及 never-resume / immediate-resume / escape-continuation 的化简规则。
   - T2003u2：实现统一的 suspension-aware state machine plan，覆盖 direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch，不再按语法形状分多套 scanner。
   - T2003u3：在统一状态机之上实现 mode-specific simplification：never-resume 化简、immediate-resume 化简、escape-continuation continuation materialization。
   - T2003u4：把 LLVM codegen 主路径切到统一状态机输入，收口 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 中重复的 replay、capture、cleanup 逻辑。
