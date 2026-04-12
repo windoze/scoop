@@ -402,140 +402,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - step trampoline 执行在"原函数栈已不存在"的异步时刻；
         // - 因此：perform 之后引用到的"外层 locals / perform 前 locals"必须从 heap state 恢复；
         // - perform 之后新引入的 locals（val/var）会在 step 内按顺序声明，不需要 capture。
-        fn collect_used_locals_in_block(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
-            for stmt in &block.stmts {
-                collect_used_locals_in_stmt(stmt, out);
-            }
-        }
-
-        fn collect_used_locals_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
-            match &stmt.kind {
-                hir::StmtKind::Empty
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {}
-                hir::StmtKind::Expr(expr) => collect_used_locals_in_expr(expr, out),
-                hir::StmtKind::Val(decl) => {
-                    if let Some(init) = &decl.init {
-                        collect_used_locals_in_expr(init, out);
-                    }
-                }
-                hir::StmtKind::Assign { lhs, rhs, .. } => {
-                    collect_used_locals_in_expr(lhs, out);
-                    collect_used_locals_in_expr(rhs, out);
-                }
-                hir::StmtKind::While { cond, body } => {
-                    collect_used_locals_in_expr(cond, out);
-                    collect_used_locals_in_block(body, out);
-                }
-                hir::StmtKind::Return { value } => {
-                    if let Some(v) = value {
-                        collect_used_locals_in_expr(v, out);
-                    }
-                }
-            }
-        }
-
-        fn collect_used_locals_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
-            match &expr.kind {
-                hir::ExprKind::Missing
-                | hir::ExprKind::Literal(_)
-                | hir::ExprKind::UnresolvedIdent { .. }
-                | hir::ExprKind::Todo(_) => {}
-                hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                    out.insert(*id);
-                }
-                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {}
-                hir::ExprKind::StructLit { fields, .. } => {
-                    for f in fields {
-                        collect_used_locals_in_expr(&f.value, out);
-                    }
-                }
-                hir::ExprKind::TupleLit { elements } => {
-                    for e in elements {
-                        collect_used_locals_in_expr(e, out);
-                    }
-                }
-                hir::ExprKind::InterpolatedString { parts, .. } => {
-                    for p in parts {
-                        if let hir::InterpolatedStringPart::Expr { expr } = p {
-                            collect_used_locals_in_expr(expr, out);
-                        }
-                    }
-                }
-                hir::ExprKind::Unary { expr, .. } => {
-                    collect_used_locals_in_expr(expr.as_ref(), out)
-                }
-                hir::ExprKind::Binary { lhs, rhs, .. } => {
-                    collect_used_locals_in_expr(lhs.as_ref(), out);
-                    collect_used_locals_in_expr(rhs.as_ref(), out);
-                }
-                hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
-                    collect_used_locals_in_expr(expr.as_ref(), out);
-                }
-                hir::ExprKind::Block(block) => collect_used_locals_in_block(block, out),
-                hir::ExprKind::Closure(closure) => {
-                    collect_used_locals_in_expr(closure.body.as_ref(), out);
-                }
-                hir::ExprKind::If {
-                    cond,
-                    then_branch,
-                    else_branch,
-                } => {
-                    collect_used_locals_in_expr(cond, out);
-                    collect_used_locals_in_expr(then_branch, out);
-                    if let Some(e) = else_branch.as_deref() {
-                        collect_used_locals_in_expr(e, out);
-                    }
-                }
-                hir::ExprKind::When { subject, arms } => {
-                    collect_used_locals_in_expr(subject, out);
-                    for arm in arms {
-                        if let Some(g) = &arm.guard {
-                            collect_used_locals_in_expr(g, out);
-                        }
-                        collect_used_locals_in_expr(&arm.body, out);
-                    }
-                }
-                hir::ExprKind::MemberAccess { receiver, .. } => {
-                    collect_used_locals_in_expr(receiver, out)
-                }
-                hir::ExprKind::Call { callee, args } => {
-                    collect_used_locals_in_expr(callee, out);
-                    for arg in args {
-                        match arg {
-                            hir::CallArg::Positional(expr) => {
-                                collect_used_locals_in_expr(expr, out)
-                            }
-                            hir::CallArg::Named { value, .. } => {
-                                collect_used_locals_in_expr(value, out)
-                            }
-                        }
-                    }
-                }
-                hir::ExprKind::Perform { args, .. } => {
-                    for arg in args {
-                        match arg {
-                            hir::CallArg::Positional(expr) => {
-                                collect_used_locals_in_expr(expr, out)
-                            }
-                            hir::CallArg::Named { value, .. } => {
-                                collect_used_locals_in_expr(value, out)
-                            }
-                        }
-                    }
-                }
-                hir::ExprKind::Handle(handle) => {
-                    collect_used_locals_in_block(&handle.body, out);
-                    for arm in &handle.arms {
-                        collect_used_locals_in_expr(&arm.body, out);
-                    }
-                    if let Some(finally) = &handle.finally {
-                        collect_used_locals_in_block(finally, out);
-                    }
-                }
-            }
-        }
 
         // T1606e：top-level 拦截表 — 映射 top_level_stmt_idx -> [(pc, resume_path)]。
         // 对于 flat performs，resume_path 为空；对于嵌套 performs，resume_path 描述控制流嵌套。
@@ -613,7 +479,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ..
                     } => {
                         for stmt in then_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            collect_used_locals_in_stmt(stmt, used_after);
+                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
                         }
                     }
                     ResumeFrame::IfElse {
@@ -622,7 +488,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ..
                     } => {
                         for stmt in else_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            collect_used_locals_in_stmt(stmt, used_after);
+                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
                         }
                     }
                     ResumeFrame::WhenArm {
@@ -631,7 +497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ..
                     } => {
                         for stmt in arm_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            collect_used_locals_in_stmt(stmt, used_after);
+                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
                         }
                     }
                     ResumeFrame::WhileBody {
@@ -641,25 +507,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     } => {
                         // 本次迭代的 continuation。
                         for stmt in while_body.stmts.iter().skip(*resume_after_stmt + 1) {
-                            collect_used_locals_in_stmt(stmt, used_after);
+                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
                         }
                         // 循环重执行：整个 while body + condition。
-                        collect_used_locals_in_block(while_body, used_after);
-                        collect_used_locals_in_expr(while_cond, used_after);
+                        MainCodegen::collect_used_locals_in_block_static(while_body, used_after);
+                        MainCodegen::collect_used_locals_in_expr_static(while_cond, used_after);
                     }
                     ResumeFrame::Block {
                         block,
                         resume_after_stmt,
                     } => {
                         for stmt in block.stmts.iter().skip(*resume_after_stmt + 1) {
-                            collect_used_locals_in_stmt(stmt, used_after);
+                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
                         }
                     }
                 }
             }
             // 顶层 handle.body.stmts 中位于 top_level_stmt_idx 之后的部分。
             for stmt in top_level_stmts.iter().skip(site.top_level_stmt_idx + 1) {
-                collect_used_locals_in_stmt(stmt, used_after);
+                MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
             }
         }
 

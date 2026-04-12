@@ -775,7 +775,7 @@ cargo run -p scoop --features llvm -- test
   - 为保持纯重构语义，本轮采用 `include!` 方式把分片重新组合回同一个 `effect` 模块作用域，保留了原有私有 helper、相对路径和 `codegen/mod.rs` 对 `effect::EffectUnwindTarget`、`effect::ImmediateResumeCtx` 的引用形态，不需要联动调整父模块状态字段或方法可见性。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c2-2 [TODO] Effect：抽取 effect site 扫描与 used-local/capture 分析 helper
+### T2003c0c2b3c2-2 [DONE] Effect：抽取 effect site 扫描与 used-local/capture 分析 helper
 - 描述：当前 `scan_immediate_resume_site`、`scan_mixed_escape_direct_sites`、`scan_mixed_escape_indirect_sites` 以及多套 `collect_used_locals_*` 递归遍历在 effect codegen 内重复实现。目录模块拆开后，继续收口这些静态分析 helper，减少后续 if/while/mixed 功能任务需要同步修改的重复面。
 - 目标：
   - 把 immediate-resume、mixed-escape 与 no-immediate indirect 路径共享的 HIR 遍历，收拢为共享 helper 或少数职责明确的 visitor，减少复制的递归结构。
@@ -788,6 +788,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c2-1
+- 完成说明：
+  - `effect/scan.rs` 现已新增共享的 path-state 扫描骨架：`scan_stmt_slice_with_state` 与 `with_scoped_scan_frame`，`scan_immediate_resume_site`、`scan_mixed_escape_direct_sites`、`scan_mixed_escape_indirect_sites` 都已改为复用这套“更新当前 stmt_idx + push/pop 嵌套 frame”的分析脚手架。
+  - `effect/scan.rs` 现已收口 used-local 静态分析入口：新增 `collect_used_locals_in_block_static`、`collect_used_locals_in_call_args_static`、`collect_used_locals_in_handle_static`，并补齐 `perform`、`handle`、closure captures 等 HIR 形态。
+  - `escape_continuation.rs` 与 `mixed.rs` 中各自内嵌的 `collect_used_locals_in_(block|stmt|expr)` 递归实现已删除，统一改为复用 `scan.rs` 的共享静态 helper。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c2-3 [TODO] Effect：拆分超长 lowering 并收口 handler scaffold/helper
 - 描述：effect codegen 的复杂度并不是均匀分布，而是集中在少数超长入口，尤其是 site-matrix、escape-continuation 与 mixed immediate-resume lowering；同时 `body/catch/finally/merge/dispatch` block 组装、handler frame push/pop/set_active 与 cleanup 逻辑在多条路径里反复展开。继续在这些巨型函数上叠功能任务，会显著提高回归风险。
