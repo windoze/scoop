@@ -1,109 +1,42 @@
-# 本轮执行计划
+# 执行计划
 
-## 约束说明
+## 约束与执行原则
 
-- 按用户要求，本文件在任何进一步仓库检查或实现动作前创建。
-- 这里记录可公开的分析摘要、执行计划、关键决策与进度。
-- 不记录逐字内部思维链路，但会记录足够详细的步骤、依据与后续更新。
+- 本轮只处理 `TODO.md` 中第一个未完成任务；若发现其依赖缺失或任务过大，则先更新 `TODO.md`/`PLAN.md` 做任务拆分或依赖重排，再停止在当前应执行的第一个子任务上。
+- 在继续任何功能开发前，先检查最新提交是否提到必须先修复的既有问题；若存在，则这些问题优先于 `TODO.md` 当前任务。
+- 所有变更必须包含实现、测试、文档/计划同步、Git 提交四部分；除非被新的前置缺陷阻塞，否则不接受半完成状态。
+- 如遇到规范不匹配、语言能力缺失、实现边界不完整或依赖任务遗漏，不做规避实现；而是把缺口转为新的前置任务，更新 `TODO.md`/`PLAN.md` 后提交并停止。
 
-## 目标
+## 初始步骤
 
-完成 `TODO.md` 中第一个未完成任务，然后停止。本轮还需要先检查最新提交中是否提到既有问题；若有，需先修复这些问题，再进入 `TODO.md` 的首个任务。
+1. 检查最新一次 Git 提交的提交信息与变更上下文，确认是否提到了尚未修复的问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`、必要的仓库说明与相关代码，判断该任务是否可直接完成，或需要拆分为更小的可执行子任务。
+4. 若任务需要拆分：
+   - 更新 `PLAN.md` 记录拆分后的执行路径与依赖。
+   - 更新 `TODO.md`，将原任务替换或扩展为更细的子任务，并保证第一个子任务成为当前轮要执行的事项。
+5. 实现当前首个可执行任务，修改相关代码与测试。
+6. 运行与该任务相关的验证，至少包括针对性测试；若变更范围触及通用编译/静态检查路径，则补充运行 `cargo test` / `cargo clippy --all-targets -- -D warnings` / 相关夹具测试中的必要子集或全量命令。
+7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成状态、依赖调整、测试结果及剩余风险。
+8. 使用清晰的提交信息提交本轮所有变更，然后停止。
 
-## 初始执行步骤
+## 进度记录
 
-1. 检查最新一次 git 提交信息与相关改动，确认是否明确提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认当前计划与 `TODO.md` 是否一致。
-4. 若首个未完成任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
-5. 实现该任务所需改动。
-6. 运行相关测试，并补充必要测试；同时运行格式化、lint 与必要的全量或定向校验，确保无警告。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或阻塞原因。
-8. 以清晰的提交信息提交本轮改动。
-9. 停止，不继续处理下一个任务。
-
-## 决策分支
-
-### 若最新提交提到既有问题
-
-- 优先定位并修复这些问题。
-- 修复后运行对应测试。
-- 只有在这些问题被修复后，才继续处理 `TODO.md` 的首个未完成任务。
-
-### 若首个任务无法在当前实现边界内按规范完成
-
-- 不采用绕过方案。
-- 精确识别缺失能力或规范不匹配点。
-- 在 `TODO.md` 中插入新的前置修复任务，并调整依赖顺序。
-- 在 `PLAN.md` 与本文件中记录阻塞原因。
-- 提交这些计划性变更后停止。
-
-## 预期检查项
-
-- `cargo fmt`
-- `cargo test --all`
-- `cargo clippy --all-targets -- -D warnings`
-- 若任务涉及夹具或规范同步，补充：
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop_tools -- spec-fixtures check`
-
-## 进度日志
-
-- 2026-04-12：已创建本文件并写入初始计划，下一步将检查最新提交与任务列表。
-- 2026-04-12：已检查最新提交 `016d2e30f016c21a977b2a9df382addd5ac6e7ef`，提交信息未显式声明需要先修复的既有问题，因此继续按 `TODO.md` 主线推进。
-- 2026-04-12：已定位首个未完成任务为 `T2003c0c1`（LLVM 多 arm handle dispatch：escape-continuation + sibling non-resuming）。
-
-## 范围审计结论
-
-- `T2003c0c1` 当前范围过大，不适合单轮直接实现。
-- 依据：
-  - 现有代码把 “immediate-resume + sibling escape-continuation” 分成三条独立 lowering：
-    - direct-site 路径
-    - indirect-site 路径
-    - site-matrix 路径（pre/post-immediate、多 site、nested block/if/while、direct/indirect mixed）
-  - 当前门禁位于 `codegen_handle_expr_multi_arm`，但真正需要改动的不是单一点，而是这三条 lowering 及其 continuation step 中的 dispatch / handler-stack 摘除与恢复逻辑。
-  - sibling non-resuming arms 不仅要在主 body / resumed main path 中参与 dispatch，还要在 immediate arm body、escape arm body、continuation step 执行期间遵守“同源 sibling handler 处于 scope 外”的规则，意味着需要分路径分别处理。
-
-## 拆分方案
-
-- 计划把 `T2003c0c1` 拆成三个子任务：
-  1. `T2003c0c1a`：top-level direct single-site 的 escape + sibling non-resuming。
-  2. `T2003c0c1b`：single indirect-site 的 escape + sibling non-resuming。
-  3. `T2003c0c1c`：site-matrix（pre/post-immediate、多 site、nested block/if/while、direct/indirect mixed）上的 escape + sibling non-resuming。
-- 本轮只执行拆分后的第一个子任务 `T2003c0c1a`。
-
-## 当前执行步骤
-
-1. 更新 `TODO.md` 和 `PLAN.md`，把 `T2003c0c1` 拆成子任务并调整依赖顺序。
-2. 在 direct single-site 的 mixed-arm escape lowering 中接入 sibling non-resuming dispatch。
-3. 补充最小 run-pass 回归，至少覆盖：
-   - immediate-resume + escape + `Raise.raise`
-   - immediate-resume + escape + custom non-resuming effect
-4. 运行针对性测试、全量测试与 lint。
-5. 更新计划文件并提交。
-
-## 实施结果
-
-- 已完成 `T2003c0c1a`。
-- 入口分流：
-  - `codegen_handle_expr_multi_arm` 已新增 `escape + sibling non-resuming` 的子路径选择器。
-  - 当前只对 top-level post-immediate single direct escape site 放行；single indirect-site 与 richer site-matrix 继续留给 `T2003c0c1b` / `T2003c0c1c`。
-- lowering 改动：
-  - top-level single direct escape-site 路径已支持 sibling `Raise.raise` 与 custom non-resuming。
-  - 主 body、resumed main path、以及 single-site continuation step 已接入 sibling non-resuming dispatch。
-  - immediate arm body、escape arm body，以及 sibling raise/custom catch body 期间，custom sibling direct perform 现会走 cleanup / unwind 路径，避免同源 sibling self-capture。
-- 新增回归：
-  - `tests/fixtures/run-pass/effect_resume_mixed_escape_raise_direct_single_site.scoop`
-  - `tests/fixtures/run-pass/effect_resume_mixed_escape_custom_nonresuming_direct_single_site.scoop`
-
-## 验证结果
-
-- 已通过：
-  - `cargo run -p scoop --features llvm -- test`
+- 已完成：建立本计划文件。
+- 已完成：检查最新提交 `cd3e025952e0d2017507093ed0fb3af9f0754826`。提交信息为 `[T2003c0c1a] Support escape sibling non-resuming direct site`，未额外提到需要先修复的遗留问题。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T2003c0c1b`，即“LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，single indirect site）”。
+- 已观察到：当前工作树在 `crates/scoopc/src/llvm/codegen/effect.rs` 与本文件上有未提交改动；其中 `effect.rs` 的差异高度聚焦在 `T2003c0c1b` 对应的 indirect mixed-arm lowering。
+- 当前判断：先审阅 `effect.rs` 的现有未提交实现，确认它是否已经基本覆盖 `T2003c0c1b`，再决定是补完实现还是先修正设计/测试缺口。
+- 已完成：审阅 `effect.rs` 中的 indirect mixed-arm 改动。确认 step trampoline 已接入 sibling non-resuming dispatch，但 source-handle main path 的 `effect_dispatch_nomatch_bb` / `raise_catch_bb` / custom catch blocks 仍未落地，因此任务尚未完成。
+- 已完成：补上 `codegen_handle_expr_immediate_resume_with_escape_sibling_indirect` main path 的 sibling non-resuming dispatch / detach / catch lowering，覆盖 `Raise.raise` 与 custom non-resuming 两条路径。
+- 已完成：新增 run-pass fixtures：
+  - `tests/fixtures/run-pass/effect_resume_mixed_escape_raise_indirect_single_site.scoop`
+  - `tests/fixtures/run-pass/effect_resume_mixed_escape_custom_nonresuming_indirect_single_site.scoop`
+- 已完成：通过单夹具构建/运行确认两条新增回归的期望输出。
+- 已发现并修复：effect `op_tag` 之前按单个 `MainCodegen` 实例局部分配，导致 caller / callee / nested step trampoline 对同一个 effect FQN 产生不同 tag；现已改为整个编译单元共享状态。
+- 已发现并修复：第一次补丁把一整段 indirect `effect_dispatch` 块误插入 direct lowering，造成 direct single-site fixture 在 LLVM verifier 上报 “Terminator found in the middle of a basic block”；重复块已删除，并重新验证 direct / indirect 子集。
+- 已完成验证：
   - `cargo test --all`
-  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`（`fixtures: ok (957)`）
   - `cargo clippy --workspace --all-targets -- -D warnings`
-
-## 下一步
-
-- 下一轮应从 `T2003c0c1b` 开始：把 sibling non-resuming 扩展到 single indirect-site 的 escape lowering。
+- 下一步：更新 `TODO.md` / `PLAN.md` 为完成状态，整理变更后提交本轮 commit 并停止。

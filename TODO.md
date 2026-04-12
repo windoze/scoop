@@ -484,7 +484,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_raise_direct_single_site`、`effect_resume_mixed_escape_custom_nonresuming_direct_single_site`。
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c1b [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，single indirect site）
+### T2003c0c1b [DONE] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，single indirect site）
 - 描述：在 direct single-site 子集打通后，再把 sibling non-resuming 接到 single indirect-site 的 escape lowering。该路径需要同时处理 callee suspend state、dispatch no-match 与 continuation step 恢复后的 handler-scope。
 - 目标：
   - immediate-resume arm + sibling escape-continuation arm + 若干 sibling non-resuming arms 可覆盖单个 top-level indirect call site。
@@ -495,6 +495,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c1a
+- 完成说明：
+  - `codegen_handle_expr_immediate_resume_with_escape_sibling_indirect` 的 source-handle main path、indirect call-site no-match dispatch 与 continuation step 现已统一接入 sibling non-resuming 的 dispatch / detach / cleanup 逻辑，覆盖 `Raise.raise` 与 custom non-resuming 两条路径。
+  - LLVM codegen 的 effect `op_tag` 状态已提升为整个编译单元共享，修复了跨函数 perform 在 caller / callee / step trampoline 之间因局部分配顺序不同而发生的 tag 漂移。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_raise_indirect_single_site`、`effect_resume_mixed_escape_custom_nonresuming_indirect_single_site`。
+  - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c1c [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，site-matrix）
 - 描述：最后把 sibling non-resuming 扩到 richer escape site matrix，包括 pre/post-immediate、多 site、nested block/if/while，以及 direct/indirect mixed。该阶段才统一处理 matrix state0/state1/continuation step 的 sibling detach/restore。

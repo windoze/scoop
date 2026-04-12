@@ -10,8 +10,10 @@
 //! - 目前仍只支持“表达式/语句最小子集”；复杂控制流需要 MIR/CFG codegen（后续任务）。
 //! - 目前只编译单模块：不会做跨文件/跨包的泛型实例化与链接管理（后续任务）。
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::Arc;
 
 use inkwell::context::Context;
@@ -623,6 +625,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
+    let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
@@ -648,6 +651,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         ctor_call_sites: &lowered.ctor_call_sites,
         extern_funs: &lowered.extern_funs,
         fun_index: &fun_index,
+        effect_op_tags: Rc::clone(&effect_op_tags),
     });
 
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
@@ -766,6 +770,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
             ctor_call_sites: &lowered.ctor_call_sites,
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
+            effect_op_tags: Rc::clone(&effect_op_tags),
         })
         .codegen_top_level_fun(fun, llvm_fun)?;
     }
@@ -844,6 +849,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         ctor_call_sites: &lowered.ctor_call_sites,
         extern_funs: &lowered.extern_funs,
         fun_index: &fun_index,
+        effect_op_tags: Rc::clone(&effect_op_tags),
     })
     .codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;

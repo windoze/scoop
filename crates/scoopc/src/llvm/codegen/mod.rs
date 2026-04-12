@@ -16,8 +16,10 @@
 //! 非目标（后续任务逐步补齐）：
 //! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::rc::Rc;
 
 use inkwell::AddressSpace;
 use inkwell::AtomicOrdering;
@@ -225,16 +227,15 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     immediate_resume_ctx_stack: Vec<effect::ImmediateResumeCtx<'ctx>>,
     /// `, k ->`（escape continuation，T0617）在单个函数内生成 step trampoline 时使用的序号。
     escape_continuation_seq: u32,
-    /// Effect op_tag 分配表（T1608）：FQN → 稳定的 u32 tag。
+    /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
     /// 说明：
     /// - 每个 effect operation 的 FQN 在单次编译中对应唯一的 `op_tag`；
     /// - `scoop.core.Raise.raise` 固定为 1（与 runtime 约定兼容）；
     /// - 其余 effect op 从 2 开始递增分配；
-    /// - runtime handler stack 的 `find_nearest(op_tag)` 以此做精确匹配。
-    effect_op_tag_map: HashMap<String, u32>,
-    /// 下一个可分配的 effect op_tag（从 2 开始，1 保留给 Raise）。
-    effect_op_tag_next: u32,
+    /// - 所有顶层函数 / nested helper / step trampoline 都必须共享同一份状态，
+    ///   否则跨函数 perform 的 op_tag 会错位。
+    effect_op_tags: Rc<RefCell<EffectOpTagState>>,
     /// T1606f-2: when set, the current function is "suspendable" — at the perform point,
     /// `codegen_perform_expr_nonresuming_single_payload` saves locals to a CalleeSuspendState before
     /// flag propagation return.
@@ -276,6 +277,21 @@ struct ReturnContext<'ctx> {
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
 }
 
+#[derive(Debug)]
+pub(super) struct EffectOpTagState {
+    map: HashMap<String, u32>,
+    next: u32,
+}
+
+impl EffectOpTagState {
+    pub(super) fn new() -> Self {
+        let mut map = HashMap::new();
+        // Raise.raise 固定为 1（与 runtime `scoop_continuation_resume_u64` 等约定兼容）。
+        map.insert("scoop.core.Raise.raise".to_string(), 1u32);
+        Self { map, next: 2 }
+    }
+}
+
 pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) context: &'ctx Context,
     pub(super) module: &'a Module<'ctx>,
@@ -297,6 +313,7 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
 
 pub(super) struct TypeDescriptorSpec<'ctx, 'a> {
@@ -333,6 +350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ctor_call_sites,
             extern_funs,
             fun_index,
+            effect_op_tags,
         } = inputs;
         Self {
             context,
@@ -366,13 +384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             effect_unwind_target_stack: Vec::new(),
             immediate_resume_ctx_stack: Vec::new(),
             escape_continuation_seq: 0,
-            effect_op_tag_map: {
-                let mut m = HashMap::new();
-                // Raise.raise 固定为 1（与 runtime `scoop_continuation_resume_u64` 等约定兼容）。
-                m.insert("scoop.core.Raise.raise".to_string(), 1u32);
-                m
-            },
-            effect_op_tag_next: 2,
+            effect_op_tags,
             callee_suspend_save_ctx: None,
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
@@ -535,12 +547,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - 其余 effect op：首次出现时分配递增编号（从 2 开始），后续查表复用。
     /// - 同一编译单元内 tag 稳定（相同 FQN 总是得到相同 tag）。
     pub(super) fn effect_op_tag(&mut self, fqn: &str) -> u32 {
-        if let Some(&tag) = self.effect_op_tag_map.get(fqn) {
+        let mut state = self.effect_op_tags.borrow_mut();
+        if let Some(&tag) = state.map.get(fqn) {
             return tag;
         }
-        let tag = self.effect_op_tag_next;
-        self.effect_op_tag_next = self.effect_op_tag_next.saturating_add(1);
-        self.effect_op_tag_map.insert(fqn.to_string(), tag);
+        let tag = state.next;
+        state.next = state.next.saturating_add(1);
+        state.map.insert(fqn.to_string(), tag);
         tag
     }
 
@@ -10429,6 +10442,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ctor_call_sites: self.ctor_call_sites,
                 extern_funs: self.extern_funs,
                 fun_index: self.fun_index,
+                effect_op_tags: Rc::clone(&self.effect_op_tags),
             });
             // 说明：closure 捕获信息里没有类型；这里在外层 codegen 阶段用 env 中的 locals 恢复 type id，
             // 再传给 closure fun body 用于 env layout 与绑定。
@@ -13263,6 +13277,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ctor_call_sites: self.ctor_call_sites,
             extern_funs: self.extern_funs,
             fun_index: self.fun_index,
+            effect_op_tags: Rc::clone(&self.effect_op_tags),
         });
         init_codegen.codegen_object_init_fun_body(obj, llvm_fun)?;
 
