@@ -13311,6 +13311,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+        self.emit_effect_unwind_if_active(at)?;
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
@@ -13527,11 +13528,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_object_value_access(
         &mut self,
-        _at: crate::span::Span,
+        at: crate::span::Span,
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+        self.emit_effect_unwind_if_active(at)?;
 
         let instance = self.declare_object_instance_global(object_fqn);
         Ok(CgValue {

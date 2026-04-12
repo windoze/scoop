@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: object_init_raise_try_catch_basic.stdout
+//
+// T2003u4a：object/companion object 的 once-init 是隐藏 unwind 边界。
+// - 访问 object 属性会先执行 init；
+// - init 内触发 Raise.raise(RuntimeError.*) 时，外层 try/catch 仍必须命中；
+// - 该路径不能被 unified plan 误判成 no-perform 纯顺序 handle。
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        println("boom.init")
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+fun main(): Int {
+    val code: Int = try {
+        println("before_access")
+        val _x: Int = BoomObject.x
+        println("unreachable_after_access")
+        0
+    } catch (e: RuntimeError) {
+        println("caught")
+        when (e) {
+            NullAssertionFailed -> 10
+            ClassCastFailed -> 20
+            ContinuationAlreadyResumed -> 30
+        }
+    }
+
+    println(code)
+    println("done")
+    return 0
+}

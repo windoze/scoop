@@ -1,3 +1,4 @@
+use crate::ast;
 use std::collections::{HashMap, HashSet};
 
 use crate::hir;
@@ -13,6 +14,9 @@ type CleanupScopeId = u32;
 struct HandlePlanContext {
     known_fun_effects: HashMap<String, bool>,
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
+    ctor_call_targets: HashMap<Span, Vec<String>>,
+    object_value_fqns: HashSet<String>,
+    object_property_fqns: HashSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +72,14 @@ impl HandleStateMachinePlan {
             acc ^= nested.structural_signature();
         }
         acc
+    }
+
+    fn contains_suspend_subtree(&self) -> bool {
+        !self.suspend_sites.is_empty()
+            || self
+                .nested_handles
+                .iter()
+                .any(Self::contains_suspend_subtree)
     }
 
     #[cfg(test)]
@@ -310,6 +322,10 @@ enum SuspendSiteKind {
     DirectPerform { op_fqn: String },
     IndirectCallMaySuspend { callee: String },
     CallStateMachineCallee { callee: String },
+    RuntimeRaise { reason: String },
+    ObjectInitAccess { target: String },
+    ClassCtorInit { class_name: String },
+    NestedHandleBoundary { detail: String },
 }
 
 impl SuspendSiteKind {
@@ -319,6 +335,10 @@ impl SuspendSiteKind {
             SuspendSiteKind::DirectPerform { .. } => "direct-perform",
             SuspendSiteKind::IndirectCallMaySuspend { .. } => "indirect-call-may-suspend",
             SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
+            SuspendSiteKind::RuntimeRaise { .. } => "runtime-raise",
+            SuspendSiteKind::ObjectInitAccess { .. } => "object-init-access",
+            SuspendSiteKind::ClassCtorInit { .. } => "class-ctor-init",
+            SuspendSiteKind::NestedHandleBoundary { .. } => "nested-handle-boundary",
         }
     }
 
@@ -327,7 +347,11 @@ impl SuspendSiteKind {
         match self {
             SuspendSiteKind::DirectPerform { op_fqn }
             | SuspendSiteKind::IndirectCallMaySuspend { callee: op_fqn }
-            | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn } => {
+            | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn }
+            | SuspendSiteKind::RuntimeRaise { reason: op_fqn }
+            | SuspendSiteKind::ObjectInitAccess { target: op_fqn }
+            | SuspendSiteKind::ClassCtorInit { class_name: op_fqn }
+            | SuspendSiteKind::NestedHandleBoundary { detail: op_fqn } => {
                 Some(op_fqn.clone())
             }
         }
@@ -338,6 +362,10 @@ impl SuspendSiteKind {
             SuspendSiteKind::DirectPerform { op_fqn } => 0x11 ^ op_fqn.len(),
             SuspendSiteKind::IndirectCallMaySuspend { callee } => 0x22 ^ callee.len(),
             SuspendSiteKind::CallStateMachineCallee { callee } => 0x33 ^ callee.len(),
+            SuspendSiteKind::RuntimeRaise { reason } => 0x44 ^ reason.len(),
+            SuspendSiteKind::ObjectInitAccess { target } => 0x55 ^ target.len(),
+            SuspendSiteKind::ClassCtorInit { class_name } => 0x66 ^ class_name.len(),
+            SuspendSiteKind::NestedHandleBoundary { detail } => 0x77 ^ detail.len(),
         }
     }
 }
@@ -847,7 +875,25 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.record_expr_reads(current_state, expr);
                 current_state
             }
-            hir::ExprKind::VarRef(_) | hir::ExprKind::UnresolvedIdent { .. } => {
+            hir::ExprKind::VarRef(value_ref) => {
+                if let Some(kind) = self.classify_hidden_suspend_var_ref(value_ref) {
+                    self.record_expr_reads(current_state, expr);
+                    let site_id =
+                        self.new_suspend_site(expr.span, kind, env.available_ids());
+                    self.push_action(current_state, format!("object init access site{site_id}"));
+                    self.set_terminator(current_state, StateTerminator::Suspend { site_id });
+                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.push_action(
+                        resume_state,
+                        format!("resume target for site{site_id} after object init access"),
+                    );
+                    self.set_suspend_resume_target(site_id, resume_state);
+                    return resume_state;
+                }
+                self.push_action(current_state, "var-ref");
+                current_state
+            }
+            hir::ExprKind::UnresolvedIdent { .. } => {
                 self.push_action(current_state, "var-ref");
                 current_state
             }
@@ -878,12 +924,52 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::ExprKind::Unary { expr: inner, .. }
-            | hir::ExprKind::Cast { expr: inner, .. }
-            | hir::ExprKind::TypeCheck { expr: inner, .. }
-            | hir::ExprKind::MemberAccess {
-                receiver: inner, ..
-            } => {
+            | hir::ExprKind::TypeCheck { expr: inner, .. } => {
                 let state = self.build_expr(inner, current_state, env);
+                self.record_expr_reads(state, expr);
+                self.push_action(state, "expr");
+                state
+            }
+            hir::ExprKind::Cast { expr: inner, op, .. } => {
+                let state = self.build_expr(inner, current_state, env);
+                if matches!(op, ast::CastOp::As) {
+                    self.record_expr_reads(state, expr);
+                    let site_id = self.new_suspend_site(
+                        expr.span,
+                        SuspendSiteKind::RuntimeRaise {
+                            reason: "ClassCastFailed".to_string(),
+                        },
+                        env.available_ids(),
+                    );
+                    self.push_action(state, format!("runtime raise site{site_id}"));
+                    self.set_terminator(state, StateTerminator::Suspend { site_id });
+                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.push_action(
+                        resume_state,
+                        format!("resume target for site{site_id} after runtime raise boundary"),
+                    );
+                    self.set_suspend_resume_target(site_id, resume_state);
+                    return resume_state;
+                }
+                self.record_expr_reads(state, expr);
+                self.push_action(state, "expr");
+                state
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let state = self.build_expr(receiver, current_state, env);
+                if let Some(kind) = self.classify_hidden_suspend_member_access(member) {
+                    self.record_expr_reads(state, expr);
+                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
+                    self.push_action(state, format!("object init access site{site_id}"));
+                    self.set_terminator(state, StateTerminator::Suspend { site_id });
+                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.push_action(
+                        resume_state,
+                        format!("resume target for site{site_id} after object init access"),
+                    );
+                    self.set_suspend_resume_target(site_id, resume_state);
+                    return resume_state;
+                }
                 self.record_expr_reads(state, expr);
                 self.push_action(state, "expr");
                 state
@@ -994,7 +1080,29 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::ExprKind::Handle(handle) => {
                 let nested_id = self.nested_handles.len();
                 let nested = HandleStateMachinePlan::build_with_context(self.types, handle, self.context);
+                let nested_may_suspend = nested.contains_suspend_subtree();
                 self.nested_handles.push(nested);
+                if nested_may_suspend {
+                    self.record_expr_reads(current_state, expr);
+                    let site_id = self.new_suspend_site(
+                        expr.span,
+                        SuspendSiteKind::NestedHandleBoundary {
+                            detail: format!("nested#{nested_id}"),
+                        },
+                        env.available_ids(),
+                    );
+                    self.push_action(current_state, format!("nested handle boundary site{site_id}"));
+                    self.set_terminator(current_state, StateTerminator::Suspend { site_id });
+                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.push_action(
+                        resume_state,
+                        format!(
+                            "resume target for site{site_id} after nested handle boundary"
+                        ),
+                    );
+                    self.set_suspend_resume_target(site_id, resume_state);
+                    return resume_state;
+                }
                 self.push_action(current_state, format!("nested handle nested#{nested_id}"));
                 current_state
             }
@@ -1015,6 +1123,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         expr: &hir::Expr,
         callee: &hir::Expr,
     ) -> Option<SuspendSiteKind> {
+        if let Some(kind) = self.classify_builtin_suspend_call(callee) {
+            return Some(kind);
+        }
+
         if let Some(fqn) = try_extract_callee_fqn(callee)
             && let Some(effectful) = self.context.known_fun_effects.get(&fqn).copied()
         {
@@ -1037,6 +1149,18 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             };
         }
 
+        if let Some(targets) = self.context.ctor_call_targets.get(&callee.span) {
+            let mut stable_targets = targets.clone();
+            stable_targets.sort();
+            stable_targets.dedup();
+            let class_name = if stable_targets.is_empty() {
+                format!("ctor@{:?}", callee.span)
+            } else {
+                stable_targets.join("|")
+            };
+            return Some(SuspendSiteKind::ClassCtorInit { class_name });
+        }
+
         if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee.ty) {
             if fun_ty.effects.is_pure() {
                 return None;
@@ -1051,6 +1175,54 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             );
         }
         None
+    }
+
+    fn classify_builtin_suspend_call(&self, callee: &hir::Expr) -> Option<SuspendSiteKind> {
+        let hir::ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            return None;
+        };
+
+        if member.name != "resume" {
+            return None;
+        }
+
+        // 保持与现有 codegen 入口一致：当前阶段尚未支持真实的实例方法分派，
+        // `member.name == "resume"` 会被当作 builtin `Continuation.resume(...)`。
+        //
+        // 这里若额外依赖 receiver 的 HIR 类型，会比 codegen 本身更严格，导致
+        // `try/catch { k.resume(...) }` 在 plan 侧误判为 no-suspend。
+        Some(SuspendSiteKind::RuntimeRaise {
+            reason: "Continuation.resume".to_string(),
+        })
+    }
+
+    fn classify_hidden_suspend_var_ref(
+        &self,
+        value_ref: &hir::ValueRef,
+    ) -> Option<SuspendSiteKind> {
+        let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
+            return None;
+        };
+        self.context
+            .object_value_fqns
+            .contains(fqn)
+            .then(|| SuspendSiteKind::ObjectInitAccess {
+                target: fqn.clone(),
+            })
+    }
+
+    fn classify_hidden_suspend_member_access(
+        &self,
+        member: &hir::MemberAccess,
+    ) -> Option<SuspendSiteKind> {
+        let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref()? else {
+            return None;
+        };
+        (self.context.object_value_fqns.contains(fqn)
+            || self.context.object_property_fqns.contains(fqn))
+        .then(|| SuspendSiteKind::ObjectInitAccess {
+            target: fqn.clone(),
+        })
     }
 
     fn build_dispatch_plan(&self) -> DispatchPlan {
@@ -1271,8 +1443,16 @@ fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {
             .filter(|arm| arm.op_fqn == *op_fqn)
             .map(|arm| arm.id)
             .collect(),
+        SuspendSiteKind::RuntimeRaise { .. } => arms
+            .iter()
+            .filter(|arm| arm.op_fqn == "scoop.core.Raise.raise")
+            .map(|arm| arm.id)
+            .collect(),
         SuspendSiteKind::IndirectCallMaySuspend { .. }
-        | SuspendSiteKind::CallStateMachineCallee { .. } => Vec::new(),
+        | SuspendSiteKind::CallStateMachineCallee { .. }
+        | SuspendSiteKind::ObjectInitAccess { .. }
+        | SuspendSiteKind::ClassCtorInit { .. }
+        | SuspendSiteKind::NestedHandleBoundary { .. } => Vec::new(),
     }
 }
 
@@ -1654,9 +1834,35 @@ impl HandlePlanContext {
             }
         }
 
+        let ctor_call_targets = cg
+            .ctor_call_sites
+            .iter()
+            .map(|(span, targets)| {
+                let mut stable_targets = targets.clone();
+                stable_targets.sort();
+                stable_targets.dedup();
+                (*span, stable_targets)
+            })
+            .collect();
+        let object_value_fqns = cg.object_inits.keys().cloned().collect();
+        let object_property_fqns = cg
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .keys()
+                    .map(|name| format!("{owner_fqn}.{name}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
         Self {
             known_fun_effects,
             known_local_fun_effects,
+            ctor_call_targets,
+            object_value_fqns,
+            object_property_fqns,
         }
     }
 }

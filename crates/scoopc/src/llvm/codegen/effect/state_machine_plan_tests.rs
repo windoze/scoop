@@ -1,5 +1,5 @@
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use crate::ast;
     use crate::hir;
@@ -393,6 +393,154 @@ fun demo(flag: Bool): Int {
         assert_eq!(build_codegen_entrypoint_label(source), "immediate-with-escape");
     }
 
+    #[test]
+    fn plan_dump_marks_cast_as_runtime_raise_site() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+interface Marker {}
+
+class Impl() : Marker
+
+class Other()
+
+fun demo(value: Any): Int {
+    val result: Int = try {
+        val _other: Other = value as Other
+        1
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#;
+
+        let dump = build_plan_dump(source);
+        assert!(dump.contains("kind=runtime-raise"));
+        assert!(dump.contains("detail=ClassCastFailed"));
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+    }
+
+    #[test]
+    fn plan_dump_marks_class_ctor_init_as_hidden_suspend_site() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+class Boom() {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+fun demo(): Int {
+    val result: Int = try {
+        val _boom: Boom = Boom()
+        1
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#;
+
+        let dump = build_plan_dump(source);
+        assert!(dump.contains("kind=class-ctor-init"));
+        assert!(dump.contains("detail=a.Boom"));
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+    }
+
+    #[test]
+    fn plan_dump_marks_object_init_access_as_hidden_suspend_site() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+fun demo(): Int {
+    val result: Int = try {
+        BoomObject.x
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#;
+
+        let dump = build_plan_dump(source);
+        assert!(dump.contains("kind=object-init-access"));
+        assert!(dump.contains("detail=a.BoomObject.x"));
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+    }
+
+    #[test]
+    fn plan_dump_marks_nested_handle_boundary_when_inner_handle_may_suspend() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            Boom.boom(1)
+            11
+        } with {
+            Boom.boom(code: Int) -> 22
+        }
+        inner
+    } with {
+        Boom.boom(code: Int) -> 33
+    }
+    result
+}
+"#;
+
+        let dump = build_plan_dump(source);
+        assert!(dump.contains("kind=nested-handle-boundary"));
+        assert!(dump.contains("detail=nested#0"));
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+    }
+
+    #[test]
+    fn plan_dump_marks_continuation_resume_as_runtime_raise_site() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+fun demo(k: Continuation<Int>): Int {
+    val result: Int = try {
+        k.resume(1)
+        11
+    } catch (e: RuntimeError) {
+        22
+    }
+    result
+}
+"#;
+
+        let dump = build_plan_dump(source);
+        assert!(dump.contains("kind=runtime-raise"), "{dump}");
+        assert!(dump.contains("detail=Continuation.resume"), "{dump}");
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -587,7 +735,10 @@ fun demo(flag: Bool): Int {
         }
     }
 
-    fn collect_plan_context(lowered: &hir::LoweredHir, owner_fun: &hir::FunDecl) -> HandlePlanContext {
+    fn collect_plan_context(
+        lowered: &hir::LoweredHir,
+        owner_fun: &hir::FunDecl,
+    ) -> HandlePlanContext {
         let mut known_fun_effects = HashMap::new();
         for item in &lowered.file.items {
             if let hir::Item::Fun(fun) = item {
@@ -615,9 +766,35 @@ fun demo(flag: Bool): Int {
             collect_local_fun_effects_in_block(body, &lowered.types, &mut known_local_fun_effects);
         }
 
+        let ctor_call_targets = lowered
+            .ctor_call_sites
+            .iter()
+            .map(|(span, targets)| {
+                let mut stable_targets = targets.clone();
+                stable_targets.sort();
+                stable_targets.dedup();
+                (*span, stable_targets)
+            })
+            .collect();
+        let object_value_fqns: HashSet<String> = lowered.object_inits.keys().cloned().collect();
+        let object_property_fqns: HashSet<String> = lowered
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .keys()
+                    .map(|name| format!("{owner_fqn}.{name}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
         HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
+            ctor_call_targets,
+            object_value_fqns,
+            object_property_fqns,
         }
     }
 

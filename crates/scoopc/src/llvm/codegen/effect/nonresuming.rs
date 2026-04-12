@@ -279,23 +279,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _plan_signature = state_machine_plan.structural_signature();
         let mode_specific_simplification = state_machine_plan.build_mode_specific_simplification();
         let _simplification_signature = mode_specific_simplification.structural_signature();
-
-        // T2003u3b：arm 模式选路改走 simplification，但 no-perform 早退暂时保留旧的保守 gate。
-        // 统一 plan 目前还没有完整覆盖 ctor/init block 这类“调用点本身看似纯，但内部仍可能
-        // 通过 Raise/effect unwinding 逃逸”的路径；在 T2003u4 真正切主 emitter 前，先保持
-        // 原有 handler 安装边界不回归。
-        if !self.block_may_perform(&handle.body) {
-            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
-        }
-
         let handle_arm_buckets = self.collect_handle_arm_buckets(handle);
+        let has_resuming_arms = !handle_arm_buckets.immediate_arms.is_empty()
+            || !handle_arm_buckets.escape_arms.is_empty();
+
         self.ensure_simplification_matches_handle_arms(
             span,
             &mode_specific_simplification,
             &handle_arm_buckets,
         )?;
+
+        // T2003u4a：对纯 non-resuming handle，`NoSuspendSites` 现在直接信任 unified plan，
+        // 不再额外依赖 `block_may_perform` 这个旧 gate。
+        if !has_resuming_arms
+            && matches!(
+                mode_specific_simplification.codegen_entrypoint(),
+                SimplifiedCodegenEntrypoint::NoSuspendSites
+            )
+        {
+            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+        }
+
+        // immediate-resume / escape-continuation / mixed-arm 仍保留旧 gate：
+        // 它们当前的 specialized emitter 还没有完全吸收“0 matching perform + hidden unwind”
+        // 这类边界，待 T2003u4b / T2003u4c 再继续迁移。
+        if has_resuming_arms && !self.block_may_perform(&handle.body) {
+            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+        }
+
         let codegen_entrypoint = match mode_specific_simplification.codegen_entrypoint() {
-            SimplifiedCodegenEntrypoint::NoSuspendSites => {
+            SimplifiedCodegenEntrypoint::NoSuspendSites if has_resuming_arms => {
                 mode_specific_simplification.codegen_entrypoint_from_arm_mix()
             }
             route => route,

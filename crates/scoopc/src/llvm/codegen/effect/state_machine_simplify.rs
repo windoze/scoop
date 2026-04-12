@@ -367,6 +367,10 @@ enum SimplifiedSuspendSiteKind {
     DirectPerform,
     IndirectCallMaySuspend,
     CallStateMachineCallee,
+    RuntimeRaise,
+    ObjectInitAccess,
+    ClassCtorInit,
+    NestedHandleBoundary,
 }
 
 impl SimplifiedSuspendSiteKind {
@@ -379,6 +383,14 @@ impl SimplifiedSuspendSiteKind {
             SuspendSiteKind::CallStateMachineCallee { .. } => {
                 SimplifiedSuspendSiteKind::CallStateMachineCallee
             }
+            SuspendSiteKind::RuntimeRaise { .. } => SimplifiedSuspendSiteKind::RuntimeRaise,
+            SuspendSiteKind::ObjectInitAccess { .. } => {
+                SimplifiedSuspendSiteKind::ObjectInitAccess
+            }
+            SuspendSiteKind::ClassCtorInit { .. } => SimplifiedSuspendSiteKind::ClassCtorInit,
+            SuspendSiteKind::NestedHandleBoundary { .. } => {
+                SimplifiedSuspendSiteKind::NestedHandleBoundary
+            }
         }
     }
 
@@ -386,7 +398,11 @@ impl SimplifiedSuspendSiteKind {
         match kind {
             SuspendSiteKind::DirectPerform { op_fqn }
             | SuspendSiteKind::IndirectCallMaySuspend { callee: op_fqn }
-            | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn } => op_fqn.clone(),
+            | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn }
+            | SuspendSiteKind::RuntimeRaise { reason: op_fqn }
+            | SuspendSiteKind::ObjectInitAccess { target: op_fqn }
+            | SuspendSiteKind::ClassCtorInit { class_name: op_fqn }
+            | SuspendSiteKind::NestedHandleBoundary { detail: op_fqn } => op_fqn.clone(),
         }
     }
 
@@ -395,6 +411,10 @@ impl SimplifiedSuspendSiteKind {
             SimplifiedSuspendSiteKind::DirectPerform => 1,
             SimplifiedSuspendSiteKind::IndirectCallMaySuspend => 2,
             SimplifiedSuspendSiteKind::CallStateMachineCallee => 3,
+            SimplifiedSuspendSiteKind::RuntimeRaise => 4,
+            SimplifiedSuspendSiteKind::ObjectInitAccess => 5,
+            SimplifiedSuspendSiteKind::ClassCtorInit => 6,
+            SimplifiedSuspendSiteKind::NestedHandleBoundary => 7,
         }
     }
 
@@ -404,6 +424,10 @@ impl SimplifiedSuspendSiteKind {
             SimplifiedSuspendSiteKind::DirectPerform => "direct-perform",
             SimplifiedSuspendSiteKind::IndirectCallMaySuspend => "indirect-call-may-suspend",
             SimplifiedSuspendSiteKind::CallStateMachineCallee => "call-state-machine-callee",
+            SimplifiedSuspendSiteKind::RuntimeRaise => "runtime-raise",
+            SimplifiedSuspendSiteKind::ObjectInitAccess => "object-init-access",
+            SimplifiedSuspendSiteKind::ClassCtorInit => "class-ctor-init",
+            SimplifiedSuspendSiteKind::NestedHandleBoundary => "nested-handle-boundary",
         }
     }
 }

@@ -1,80 +1,100 @@
-# 执行计划
+# 本轮执行计划（初始版）
 
-1. 先检查最新一次 Git 提交，确认是否提到了需要先修复的既有问题；如果有，优先处理这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 结合代码现状评估该任务是否足够小且能在一次迭代内完整交付；如果过大，就把它拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前应执行的首个任务，只做与该任务直接相关且必要的代码修改。
-5. 运行相关测试、格式化与静态检查；若发现问题，继续修复直到结果稳定。
-6. 更新 `memory/claude_plan.md` 记录关键进展，更新 `TODO.md`/`PLAN.md` 标记状态与依赖关系。
-7. 检查工作区变更，使用清晰的提交信息提交本轮修改。
-8. 完成一个任务后立即停止，不继续处理下一个任务。
+## 说明
 
-# 说明
+按要求先写入可审阅的分析摘要与执行计划，再开始读取仓库信息并执行任务。这里记录的是面向实施的分析摘要、约束、决策依据与分步计划，不包含冗长的内部推演。
 
-- 这里记录的是可审阅的执行方案与关键决策摘要，不包含逐字的内部推理。
-- 如果执行过程中发现规范缺口、已有缺陷或任务依赖未满足，会先补充/重排 `TODO.md` 与 `PLAN.md`，再决定是否继续实现。
+## 目标
 
-## 当前进展（2026-04-13）
+本轮只完成 `TODO.md` 中**第一个未完成任务**，并在完成后停止。
 
-- 已检查最新提交 `2aee6aaacec68fab0416f08b1fd527f6e4ec1486`（`[T2003u3a] Add effect mode-specific simplification dump`）。
-- 该提交说明中没有显式列出必须先处理的既有问题，因此当前按 `TODO.md` 的任务顺序继续执行。
-- 已定位首个未完成任务为 `T2003u3b`：`Effect：用 simplification 收口 codegen_handle_expr 入口选路`。
+## 约束与执行原则
 
-## T2003u3b 细化执行步骤
+1. 先检查最新提交信息，若其中提到已有问题，则这些问题优先纳入本轮范围并先修复。
+2. 然后读取 `TODO.md`，定位第一个未完成任务。
+3. 若该任务过大，需要先拆分：
+   - 更新 `PLAN.md`
+   - 更新 `TODO.md`
+   - 使新的第一个子任务成为本轮执行目标
+4. 实施时不得采用规避性方案、临时垫片、仅针对夹具的 hack，必须符合规范。
+5. 若发现规范缺口、实现边界缺失或阻塞性 bug：
+   - 在 `TODO.md` 中新增前置修复任务
+   - 调整依赖顺序
+   - 更新 `PLAN.md`
+   - 提交并停止
+6. 代码变更后必须进行相关验证，至少包括必要测试；若适用，还要跑 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
+7. 完成后：
+   - 更新 `TODO.md`
+   - 更新 `PLAN.md`
+   - 提交 git commit
+   - 停止，不继续下一个任务
 
-1. 阅读 `TODO.md` / `PLAN.md` 中 `T2003u3b` 的目标与验收要求。
-2. 检查 `crates/scoopc/src/llvm/codegen/effect/` 下与统一 plan、simplification、`codegen_handle_expr` 入口选路相关的实现。
-3. 判断 `T2003u3b` 是否仍然是可在单轮内完整完成的任务；如果范围已膨胀，则先拆分并更新 `TODO.md` / `PLAN.md`。
-4. 若任务范围可控，则把 `codegen_handle_expr` 的入口分流改为以 simplification 结果为主，收口遗留的结构性假设。
-5. 为代表性的 never-resume / immediate-resume / escape-continuation 路径补或更新 LLVM 级验证。
-6. 运行格式化、测试与静态检查，至少覆盖本任务要求的命令；若失败则继续修复。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，随后提交一次 Git commit 并停止。
+## 初始分步计划
 
-## 当前实现状态
+1. 检查仓库状态与最新提交说明，确认是否存在最新提交中明确提到的待修复问题。
+2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
+3. 判断该任务是否可在一轮内完整交付；如果不能，则先拆分并回写计划文件。
+4. 阅读相关代码、测试、规范与最近改动，定位实现入口与潜在依赖。
+5. 实施代码修改，必要时同步补充测试与文档/注释。
+6. 运行格式化、测试、lint，修复发现的问题直到通过。
+7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，记录完成情况或阻塞原因。
+8. 生成一次清晰的提交，并结束本轮。
 
-- 已在 `state_machine_simplify.rs` 中补充 root-arm 汇总与 `codegen_entrypoint` 分类，入口分类现在可区分：
-  - no-suspend；
-  - single non-resuming / immediate-resume / escape-continuation；
-  - multi non-resuming；
-  - multiple immediate / multiple escape；
-  - immediate+non-resuming、escape+non-resuming、immediate+escape(+non-resuming)；
-  - 当前仍未支持的“multiple immediate + escape”与“immediate + multiple escape”混合形态。
-- 已把 `codegen_handle_expr` 与 `codegen_handle_expr_multi_arm` 改为消费上述分类来选择现有 specialized lowering，并增加 simplification 分类与 HIR arm 形态的一致性校验。
-- 已新增单元测试，直接验证 simplification 对 single-mode 与 mixed representative sample 的入口分类结果。
+## 需要重点核查的内容
 
-## 下一步
+- 最新提交是否声明了已知缺陷、遗漏修复、后续待办。
+- 第一个未完成任务是否依赖尚未完成的语言特性、运行时能力、标准库支持或诊断修复。
+- 当前工作树是否已有用户未提交改动，避免误覆盖。
+- 根目录 `README.md` 是否因本轮改动需要同步更新。
 
-1. 重新运行 `cargo fmt --all`。
-2. 重新跑最相关测试与失败回归：
-   - `cargo test -p scoopc simplification_codegen_entrypoint -- --nocapture`
-   - `cargo run -p scoop --features llvm -- test`（重点确认 `class_init_raise_cleanup_init_block_gc_basic` 不再回归）
-3. 若通过，再跑：
-   - `cargo test --all`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-4. 最后更新 `TODO.md` / `PLAN.md` 标记 `T2003u3b` 完成并提交。
+## 当前判断
 
-## 已发现并处理的回归
+- 最新提交说明本身没有单独挂出必须先修复的“已知问题”，但在代码与计划里明确留下了一个迁移边界：
+  - 统一 state-machine plan/simplification 已接到 `codegen_handle_expr` 入口分类；
+  - 但 `NoSuspendSites` 仍不可信，当前 no-perform 早退继续依赖 `block_may_perform`；
+  - 原因是 plan 尚未覆盖若干“隐藏 unwind / hidden suspend”路径，例如：
+    - `x as T` 失败触发的 `Raise.raise(RuntimeError.ClassCastFailed)`；
+    - class ctor / property initializer / `init {}`；
+    - object / companion object 的 once-init 访问。
+- 进一步审计后确认：`T2003u4` 原始范围过大，且 immediate-resume / escape-continuation / mixed-arm 在“0 matching perform 时如何退化”为 no-perform 上仍存在模式差异，不能在一轮里安全完成。
 
-- 首轮把 `NoSuspendSites` 直接作为 no-perform 早退条件后，`cargo run -p scoop --features llvm -- test` 在
-  `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop` 上回归：
-  类初始化中的 `Raise.raise` 没有被外层 `try/catch` 捕获，程序提前返回，stdout 变为空。
-- 原因分析：
-  - 统一 plan/simplification 当前仍未完整覆盖某些“调用点表面纯，但内部会通过 Raise/effect unwinding 逃逸”的路径；
-  - 该 fixture 正好命中 class init block 的隐藏 unwind 形态；
-  - 因而 `NoSuspendSites` 目前不能独自承担 no-perform 早退判定。
-- 修正：
-  - 恢复旧的 `block_may_perform` 保守 gate 作为 no-perform 早退前置条件；
-  - 当 simplification 仍给出 `NoSuspendSites` 但旧 gate 判断“可能 perform”时，不再早退，而是继续按 simplification 的 arm 模式分类选旧 emitter。
+## 拆分决策
 
-## 当前结论
+将 `T2003u4` 拆为以下子任务，并只执行第一个：
 
-- 所有本轮验收已通过：
-  - `cargo test -p scoopc simplification_codegen_entrypoint -- --nocapture`
+1. `T2003u4a`：non-resuming / no-suspend 入口切到统一状态机输入
+   - 补 unified plan 对隐藏 unwind 边界的识别（cast / class ctor / object init）
+   - 让纯 non-resuming handle 的 no-perform 决策直接信任 unified plan，而不是旧的 `block_may_perform`
+   - 保留 immediate-resume / escape-continuation / mixed-arm 的旧 gate，留待后续子任务继续迁移
+2. `T2003u4b`：single-arm immediate-resume / escape-continuation 主 emitter 切到统一状态机输入
+3. `T2003u4c`：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
+
+## 本轮实现计划（更新版）
+
+1. 更新 `TODO.md` / `PLAN.md`，把 `T2003u4` 拆成 `T2003u4a`～`T2003u4c`，并把 `T2003u4a` 设为当前首个未完成任务。
+2. 扩展 `HandlePlanContext` 与 `HandleStateMachinePlan`：
+   - 记录 ctor call-site side table、object init 元数据；
+   - 为 hidden unwind / init boundary 引入统一的 suspend-site 表示。
+3. 调整 non-resuming 模式的 `codegen_handle_expr` 入口：
+   - 对“仅 non-resuming arms 且 unified plan 判定 `NoSuspendSites`”的场景，直接走 `codegen_handle_expr_no_perform`；
+   - 对 resuming / mixed 路径暂时保留旧 `block_may_perform` gate。
+4. 补测试：
+   - state machine plan 单元测试：覆盖 `as`、class ctor、object init 的 hidden site 识别；
+   - LLVM run-pass：补 object init + try/catch 的端到端回归（cast 与 class ctor 已有现成覆盖）。
+5. 运行格式化、测试、LLVM fixture、clippy。
+6. 回写 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 完成状态，提交后停止。
+
+## 进度记录
+
+- 已完成：初始计划写入；检查最新提交、`TODO.md`、`PLAN.md`；确认首个未完成任务为 `T2003u4`；完成拆分设计。
+- 进行中：准备把 `T2003u4` 拆为 `T2003u4a`～`T2003u4c`，并执行 `T2003u4a`。
+- 已完成：`T2003u4a` 主体改动已落地，包括 unified plan 对 `as`/class ctor/object init/nested handle boundary 的 hidden suspend 建模，以及 pure non-resuming handle 入口改为在 `NoSuspendSites` 时直接信任 unified plan。
+- 新发现并处理中：全量 fixture 暴露 `effect_escape_continuation_resume_later_exit.scoop` 回归。根因判断为 `try/catch`（lower 后是 `Raise.raise` 的 non-resuming handle）包裹 `Continuation.resume(...)` 时，unified plan 没把 builtin `resume` 识别为 hidden suspend/unwind site，导致错误走了 no-suspend fast path。
+- 刚完成：在 `state_machine_plan.rs` 中把 builtin `Continuation.resume(...)` 分类为 `RuntimeRaise("Continuation.resume")` suspend site，并补了对应的 plan 单测，下一步重新跑定向与全量验证。
+- 已完成：定向验证全部通过。新增单测 `plan_dump_marks_continuation_resume_as_runtime_raise_site` 通过；回归 fixture `effect_escape_continuation_resume_later_exit.scoop` 已恢复期望输出；此前新增的 object-init/cast/class-init/nested-handle 相关单测与 run-pass 路径也保持稳定。
+- 已完成：全量验证通过：
   - `cargo test --all`
+  - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- `TODO.md` / `PLAN.md` 已更新，`T2003u3b` 标记为完成，下一步顺延到 `T2003u4`。
-- 剩余动作：
-  1. 检查工作区 diff；
-  2. 使用 `T2003u3b` 对应的提交信息提交；
-  3. 停止，不进入下一任务。
+- 已完成：`TODO.md` / `PLAN.md` 将 `T2003u4a` 标记为完成；下轮应从 `T2003u4b` 开始，继续把 single-arm immediate-resume / escape-continuation 主 emitter 切到统一状态机输入。

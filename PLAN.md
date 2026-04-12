@@ -208,9 +208,17 @@ cargo run -p scoop --features llvm -- test
   - T2003u3a 还把 simplification 接入了现有 `codegen_handle_expr` 迁移前置步骤：当前在构建 full plan 后会额外构建 simplification 并消费结构签名；同时新增单测覆盖三种模式与 mixed representative sample，验证同一 full plan dump 与 simplification dump 可并行存在。
   - 该轮实现验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
   - T2003u3b 已完成：`state_machine_simplify.rs` 现已为 root handle 汇总 arm lowering，并新增 `SimplifiedCodegenEntrypoint`；`codegen_handle_expr` 与多 arm dispatch 已改为按 simplification 结果选择现有 specialized lowering，同时增加 simplification ↔ HIR arm 形态的一致性校验。
-  - 本轮同时确认统一 plan 的 `NoSuspendSites` 仍未完整覆盖 class init 等隐藏 unwind 路径；因此 no-perform 早退暂时保留 `block_may_perform` 这个保守 gate，arm 模式入口仍由 simplification 驱动，待 `T2003u4` 切主 emitter 时再把该边界彻底吸收。
+  - 本轮进一步审计确认：统一 plan 的 `NoSuspendSites` 不只缺 class init，还缺 `as` 失败触发的 runtime raise、object/companion object once-init access 等 hidden unwind 边界；同时 immediate-resume / escape-continuation / mixed-arm 在“0 matching perform 时如何退化”为 no-perform 上仍存在模式差异。
+  - 因此原 `T2003u4` 再拆为 `T2003u4a` / `T2003u4b` / `T2003u4c`：
+    - `T2003u4a`：先收口 non-resuming / no-suspend 入口，补 unified plan 对 hidden unwind site 的识别，并让纯 non-resuming handle 的 no-perform 判定直接信任 unified plan；
+    - `T2003u4b`：再迁移 single-arm immediate-resume / escape-continuation 主 emitter；
+    - `T2003u4c`：最后迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter。
+  - 这意味着 `block_may_perform` 这个旧 gate 先只在 resuming / mixed 路径保留，待 `T2003u4b` / `T2003u4c` 完成后彻底删除；non-resuming / no-suspend 路径则由 `T2003u4a` 率先切到 plan-driven 判定。
   - 已新增单测覆盖 single non-resuming / immediate-resume / escape-continuation 与 mixed representative sample 的 codegen entrypoint 分类；并完成 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 验证。
-  - 当前下一步调整为 `T2003u4`：把 LLVM codegen 主路径切到统一状态机输入，并把当前保留的 no-perform 保守 gate 一并收口到统一 plan/emitter。
+  - T2003u4a 已完成：unified plan 现已显式覆盖 `as` runtime raise、class ctor init、object/companion object once-init access、nested handle boundary，以及 builtin `Continuation.resume(...)` 的 hidden runtime raise；纯 non-resuming handle 在 simplification 判定 `NoSuspendSites` 时已直接走 `codegen_handle_expr_no_perform`，不再依赖 `block_may_perform`。
+  - 本轮同时修复了 object init hidden unwind 的真实传播缺口：object value/property access 在 init 调用后会显式执行 `emit_effect_unwind_if_active`，因此外层 `try/catch` 现在能稳定捕获 object init 期间的 `Raise.raise(...)`。
+  - 已新增 unified plan 单测与 LLVM run-pass 回归，并重新验证 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u4b`：迁移 single-arm immediate-resume / escape-continuation 主 emitter 到统一状态机输入，再继续 mixed-arm / site-matrix 主 emitter 收口。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -270,7 +278,9 @@ cargo run -p scoop --features llvm -- test
   - T2003u2（已完成）：实现统一的 suspension-aware state machine plan，覆盖 direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch，不再按语法形状分多套 scanner。
   - T2003u3a（已完成）：先定义 mode-specific simplification 输出与 pretty dump，显式记录 flag-unwind / stack reentry / heap continuation materialization 决策，并补单元测试。
   - T2003u3b（已完成）：把 `codegen_handle_expr` 入口选路切到 simplification 输出，并用代表性 single/mixed 样例与 LLVM fixture 验证接线稳定。
-  - T2003u4：把 LLVM codegen 主路径切到统一状态机输入，收口 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 中重复的 replay、capture、cleanup 逻辑。
+  - T2003u4a（已完成）：先把 non-resuming / no-suspend 入口切到统一状态机输入，补 hidden unwind site 的 unified plan 表示，并移除该子路径对 `block_may_perform` 的依赖。
+  - T2003u4b：迁移 single-arm immediate-resume / escape-continuation 主 emitter 到统一状态机输入。
+  - T2003u4c：迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
   - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。

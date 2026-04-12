@@ -1102,18 +1102,52 @@ cargo run -p scoop --features llvm -- test
   - 统一 plan 当前仍未完整覆盖 class init 等隐藏 unwind 路径，因此 no-perform 早退继续保留 `block_may_perform` 作为保守 gate；arm 模式选路仍由 simplification 驱动，这个边界留待 `T2003u4` 的统一状态机 emitter 切换时彻底收口。
   - 验证已通过：`cargo test -p scoopc simplification_codegen_entrypoint -- --nocapture`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4 [TODO] Effect：LLVM codegen 主路径切换到统一状态机输入
-- 描述：当前 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 都在各自重建 replay、capture、cleanup。此任务把 LLVM 侧主路径切换到统一状态机输入，保留旧路径仅作过渡对照。
+### T2003u4a [DONE] Effect：non-resuming / no-suspend 入口切到统一状态机输入
+- 描述：当前 unified plan 已接到 `codegen_handle_expr` 入口，但纯 non-resuming handle 的 no-perform 决策仍靠 `block_may_perform`。根因是 plan 还没覆盖 `as` 运行期 raise、class ctor、object init 这些“不是显式 perform/call、但会触发 unwind”的隐藏边界。
 - 目标：
-  - LLVM emitter 从统一状态机读取 state table / dispatch / cleanup，而不是继续在 codegen 阶段按源码形状重跑专门扫描。
-  - payload transport、handler stack、continuation alloc/resume、finally/unwind 语义在 LLVM 层只有一套主实现。
-  - 旧的 specialized lowering 可以暂时保留，但不再作为新增合法组合的唯一落点；新组合一律先接统一 pass。
+  - unified plan / simplification 能显式标记 `x as T` 的 runtime raise、class ctor init、object/companion object init access 等 hidden unwind site。
+  - 对“只有 non-resuming arms 且 unified plan 判定 `NoSuspendSites`”的 handle，LLVM 入口直接走 `codegen_handle_expr_no_perform`，不再依赖旧 `block_may_perform` gate。
+  - 既有 `try/catch` / custom non-resuming 回归保持稳定；cast/class init/object init 的隐藏 unwind 不会被误当成 no-perform 纯路径。
 - 验收：
-  - 至少一组现有 single-arm、multi-arm、nested control-flow 回归切到统一状态机 codegen 路径。
+  - 新增 unified plan 单测：覆盖 runtime raise、class ctor、object init 的 hidden site 识别。
+  - 新增或更新 LLVM run-pass 回归：覆盖 object init + try/catch 的隐藏 unwind。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u3b
+- 完成说明：
+  - unified plan / simplification 已新增 hidden suspend/unwind site：`as` 失败触发的 `Raise<RuntimeError.ClassCastFailed>`、class ctor init、object/companion object once-init access，以及可能 suspend 的 nested handle boundary；同时把 builtin `Continuation.resume(...)` 的 one-shot runtime raise 也纳入 hidden suspend site，避免包裹它的 `try/catch` 被误判为 no-suspend。
+  - 纯 non-resuming handle 在 simplification 返回 `NoSuspendSites` 时，现已直接走 `codegen_handle_expr_no_perform`，不再依赖旧的 `block_may_perform` gate；resuming / mixed 路径暂时保留旧 gate，留待 `T2003u4b` / `T2003u4c` 继续迁移。
+  - 修复了 object init 调用边界未传播 `Raise.raise` 的真实 bug：`codegen_object_property_access` / `codegen_object_value_access` 现在会在 init 调用后执行 `emit_effect_unwind_if_active`，确保外层 `try/catch` 能捕获 object init 期间的 runtime raise。
+  - 已新增单测：cast runtime raise、class ctor init、object init access、nested handle boundary、`Continuation.resume` hidden runtime raise；已新增 run-pass 回归 `object_init_raise_try_catch_basic`。
+  - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+
+### T2003u4b [TODO] Effect：single-arm immediate-resume / escape-continuation 主 emitter 切到统一状态机输入
+- 描述：在 non-resuming / no-suspend 入口完成 plan 驱动后，再迁移单 arm 的 immediate-resume 与 escape-continuation 主 emitter，去掉它们对源码形状扫描与“missing perform 时特殊退化”的旧耦合。
+- 目标：
+  - single-arm immediate-resume / escape-continuation 的主 lowering 直接消费 unified state-machine plan，而不是继续以 `scan.rs` 的 shape-specific 扫描结果作为终态输入。
+  - 单 arm 路径的 replay、capture、cleanup、resume-target 由统一 plan 提供，不再在 `immediate_resume.rs` / `escape_continuation.rs` 中重复重建。
+  - 保持现有 single-arm direct/indirect/nested-control-flow 回归不回退。
+- 验收：
+  - 至少一组现有 immediate-resume 与 escape-continuation single-arm 回归切到 unified emitter 主路径。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4a
+
+### T2003u4c [TODO] Effect：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
+- 描述：最后迁移 mixed-arm、multiple-resuming 与 site-matrix 组合，把 `mixed.rs` / `matrix.rs` 的 shape-specific 主线收口为统一状态机 emitter。
+- 目标：
+  - mixed-arm / multiple-resuming 组合从统一 state-machine plan 读取 state table / dispatch / cleanup，而不是继续在 `mixed.rs` / `matrix.rs` 里按 top-level / block / if / while / same-stmt 形状重建主线。
+  - payload transport、handler stack、continuation alloc/resume、finally/unwind 在 LLVM 层只保留统一主实现。
+  - 旧 specialized lowering 可以暂时保留作对照，但不再是新增合法组合的唯一落点；新组合一律先接 unified emitter。
+- 验收：
+  - 至少一组现有 mixed-arm、multiple-resuming、nested control-flow 回归切到 unified state-machine codegen 路径。
   - 不再为新的 legal shape 在 `mixed.rs` / `matrix.rs` 中追加新的 shape-specific 主线逻辑。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u3b
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4b
 
 ### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
 - 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。
@@ -1126,7 +1160,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u4
+- 依赖：T2003u4c
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
 - 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。
