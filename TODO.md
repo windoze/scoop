@@ -740,7 +740,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_multi_escape_indirect_multi`、`effect_multi_escape_custom_nonresuming_indirect_multi`。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，nested block indirect escape sites）
+### T2003c0c2b3c2 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，nested block indirect escape sites）
 - 描述：在 top-level multiple indirect 打通后，再扩到 statement-position nested block 中的 indirect site。该子集主要解决 nested block prefix / tail replay 与 body-lift 在 no-immediate indirect 路径上的复用。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 statement-position nested block indirect site。
@@ -751,6 +751,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c1
+- 完成说明：
+  - no-immediate multi-arm indirect 分流现已放行 top-level / block-only nested block indirect site，不再把这类路径统一拦在 `escape site matrix not yet supported`。
+  - `codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi` 现已在初次执行与 continuation step 中复用 nested block indirect 的 prefix / tail helper；`resume(...)` 后会先 replay 当前 block tail，再继续离开 block 后的 top-level tail。
+  - continuation step 现会为“当前正恢复的 nested block indirect site”补齐 block scope，再执行 tail replay，避免恢复后跳过 block 尾部或在离开 block 后丢失外层 locals。
+  - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_indirect_block_single_site`、build `effect_multi_escape_indirect_if_is_error`；既有 while 边界负例 `effect_multi_escape_indirect_while_is_error` 继续锁住 `T2003c0c2b3c4` 前仍未支持的 while indirect。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）
 - 描述：在 nested block indirect 打通后，再扩到 if then/else branch indirect site。该子集需要把命中分支 replay 与 after-if merge 接到 no-immediate indirect lowering。

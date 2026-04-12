@@ -1,0 +1,88 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_indirect_block_single_site.stdout
+//
+// T2003c0c2b3c2: 无 immediate-resume 的 multi-arm handle
+// 支持 statement-position nested block indirect escape site。
+// - nested block 中的 indirect site 初次执行时创建 continuation；
+// - `resume(...)` 后会先 replay block tail，再离开 block 继续后续 top-level tail；
+// - nested block locals / outer locals 都能在 replay 后继续使用，且 sibling custom non-resuming
+//   仍由同一个 source-handle 接住。
+// Current `@Safe { ... }` is only a temporary naked-block workaround until
+// T2203/T2204 lands; this fixture is locking nested-block indirect replay,
+// not safe-region semantics.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(seed: Int): String / (Ask) {
+    println("fetch_enter")
+    println(seed)
+    val msg: String = Ask.ask(seed + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = handle {
+        println("body")
+        val prefix: String = "outer"
+
+        @Safe {
+            println("block_enter")
+            val label: String = "inner"
+            val reply: String = fetch(20)
+            println("after_fetch")
+            println(label)
+            println(reply)
+            println(prefix)
+        }
+
+        println("after_block")
+        println(prefix)
+        Abort.stop(prefix)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

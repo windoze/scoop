@@ -9425,14 +9425,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        if direct_sites.is_empty()
-            && !indirect_sites.is_empty()
-            && indirect_sites
+        if direct_sites.is_empty() && !indirect_sites.is_empty() {
+            if indirect_sites
                 .iter()
                 .all(|site| site.resume_path.is_empty())
-        {
-            if indirect_sites.len() == 1 {
-                return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect(
+            {
+                if indirect_sites.len() == 1 {
+                    return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect(
+                        span,
+                        handle,
+                        escape,
+                        sibling_nonresuming_arms,
+                        out_ty,
+                    );
+                }
+                return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
                     span,
                     handle,
                     escape,
@@ -9440,13 +9447,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     out_ty,
                 );
             }
-            return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
-                span,
-                handle,
-                escape,
-                sibling_nonresuming_arms,
-                out_ty,
-            );
+
+            if indirect_sites.iter().all(|site| {
+                site.resume_path.is_empty()
+                    || Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            }) {
+                return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
+                    span,
+                    handle,
+                    escape,
+                    sibling_nonresuming_arms,
+                    out_ty,
+                );
+            }
         }
 
         let at = direct_sites
@@ -11641,12 +11654,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
         let mut indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
-        if !direct_sites.is_empty()
-            || indirect_sites.is_empty()
-            || indirect_sites
-                .iter()
-                .any(|site| !site.resume_path.is_empty())
-        {
+        if !direct_sites.is_empty() || indirect_sites.is_empty() {
             let at = direct_sites
                 .first()
                 .map(|site| site.decl.span)
@@ -11659,9 +11667,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         indirect_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
 
-        let mut escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
         for (pc, site) in indirect_sites.iter().enumerate() {
-            if escape_site_pc_by_stmt_idx
+            if !site.resume_path.is_empty()
+                && !Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-arm without immediate-resume (only top-level or statement-position nested block indirect sites supported)",
+                    at: site.decl.span.into(),
+                });
+            }
+            if simple_escape_site_pc_by_stmt_idx
                 .insert(site.top_level_stmt_idx, pc)
                 .is_some()
             {
@@ -12158,7 +12174,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     cg.push_raise_target(step_effect_dispatch_bb);
                 }
 
+                for _ in &site.resume_path {
+                    cg.env.push_scope();
+                }
                 cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(site, &body_lift_ids)?;
+                if let Some(bb) = cg.builder.get_insert_block()
+                    && bb.get_terminator().is_none()
+                {
+                    cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                        site,
+                        &body_lift_ids,
+                    )?;
+                }
 
                 for (idx, stmt) in handle
                     .body
@@ -12167,8 +12194,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .enumerate()
                     .skip(site.top_level_stmt_idx + 1)
                 {
-                    if let Some(&next_pc) = escape_site_pc_by_stmt_idx.get(&idx) {
+                    if let Some(&next_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx) {
                         let next_site = &indirect_sites[next_pc];
+                        if !next_site.resume_path.is_empty() {
+                            cg.codegen_mixed_escape_matrix_prefix_to_indirect_site(
+                                next_site,
+                                stmt,
+                                &body_lift_ids,
+                            )?;
+                        }
                         cg.capture_escape_state_with_pc(
                             next_site.decl.span,
                             state_ty,
@@ -12192,6 +12226,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         cg.pop_raise_target();
                         if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
                             cg.push_raise_target(step_effect_dispatch_bb);
+                        }
+                        if let Some(bb) = cg.builder.get_insert_block()
+                            && bb.get_terminator().is_none()
+                        {
+                            cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                next_site,
+                                &body_lift_ids,
+                            )?;
                         }
                         continue;
                     }
@@ -13217,8 +13259,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut body_tail: Option<CgValue<'ctx>> = None;
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if let Some(&site_pc) = escape_site_pc_by_stmt_idx.get(&idx) {
+            if let Some(&site_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx) {
                 let site = &indirect_sites[site_pc];
+                if !site.resume_path.is_empty() {
+                    self.codegen_mixed_escape_matrix_prefix_to_indirect_site(
+                        site,
+                        stmt,
+                        &body_lift_ids,
+                    )?;
+                }
                 self.capture_escape_state_with_pc(
                     site.decl.span,
                     state_ty,
@@ -13235,6 +13284,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mixed_escape_matrix_emit_indirect_site_binding(site, &body_lift_ids)?;
                 self.pop_raise_target();
                 self.push_raise_target(main_raise_target);
+                if let Some(bb) = self.builder.get_insert_block()
+                    && bb.get_terminator().is_none()
+                {
+                    self.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                        site,
+                        &body_lift_ids,
+                    )?;
+                }
                 body_tail = None;
                 continue;
             }
