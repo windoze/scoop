@@ -293,5 +293,6 @@ include!("scan.rs");
 include!("nonresuming.rs");
 include!("immediate_resume.rs");
 include!("escape_continuation.rs");
+include!("multi_escape.rs");
 include!("mixed.rs");
 include!("matrix.rs");

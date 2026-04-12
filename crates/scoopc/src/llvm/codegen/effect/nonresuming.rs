@@ -1201,7 +1201,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let mut immediate_arms: Vec<(&hir::HandleArm, hir::SymbolId)> = Vec::new();
-        let mut escape_arm: Option<(&hir::HandleArm, hir::SymbolId)> = None;
+        let mut escape_arms: Vec<(&hir::HandleArm, hir::SymbolId)> = Vec::new();
         let mut nonresuming_arms: Vec<&hir::HandleArm> = Vec::new();
 
         for arm in &handle.arms {
@@ -1210,19 +1210,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     immediate_arms.push((arm, resume));
                 }
                 hir::HandleArmKind::EscapeContinuation { continuation } => {
-                    if escape_arm.is_some() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed escape-continuation arms (only 1 supported)",
-                            at: arm.span.into(),
-                        });
-                    }
-                    escape_arm = Some((arm, continuation));
+                    escape_arms.push((arm, continuation));
                 }
                 hir::HandleArmKind::NonResuming => nonresuming_arms.push(arm),
             }
         }
 
-        if immediate_arms.is_empty() && escape_arm.is_none() {
+        if immediate_arms.is_empty() && escape_arms.is_empty() {
             return self.codegen_handle_expr_nonresuming_multi_arm(
                 span,
                 handle,
@@ -1231,7 +1225,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let Some((escape_arm, continuation_symbol)) = escape_arm else {
+        if immediate_arms.is_empty() && escape_arms.len() > 1 {
+            if !nonresuming_arms.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multiple escape-continuation arms with sibling non-resuming not yet supported",
+                    at: escape_arms[1].0.span.into(),
+                });
+            }
+            return self.codegen_handle_expr_multiple_escape_top_level_direct_pure(
+                span,
+                handle,
+                &escape_arms,
+                out_ty,
+            );
+        }
+
+        let Some((escape_arm, continuation_symbol)) = escape_arms.first().copied() else {
             if immediate_arms.len() > 1 {
                 return self.codegen_handle_expr_multiple_immediate_resume_top_level(
                     span,
@@ -1265,6 +1274,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &nonresuming_arms,
                 out_ty,
             );
+        }
+
+        if escape_arms.len() > 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed multiple escape-continuation arms with immediate-resume not yet supported",
+                at: escape_arms[1].0.span.into(),
+            });
         }
 
         if immediate_arms.len() > 1 {

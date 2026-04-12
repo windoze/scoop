@@ -947,17 +947,72 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixtures：`effect_resume_multi_immediate_top_level`、`effect_resume_multi_immediate_custom_nonresuming`。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2d [TODO] Effect：LLVM 多 arm handle dispatch（multiple escape-continuation arms / richer multi-resuming mixed-arm）
-- 描述：最后收口 multiple escape-continuation arms，以及 immediate-resume + multiple escape-continuation 的 richer multi-resuming mixed-arm。该阶段需要统一多个 continuation 的 dispatch、resume target、captured locals 与 nested replay 规则。
+### T2003c0c2d Effect：LLVM 多 arm handle dispatch（multiple escape-continuation arms / richer multi-resuming mixed-arm，已拆分）
+- 描述：进一步审计后确认，原始 `T2003c0c2d` 同时跨了两条不同 lowering 主线：一条是“无 immediate-resume 的 multiple escape-continuation arms”，另一条是“single/multiple immediate-resume + multiple escape-continuation”的 richer multi-resuming mixed-arm。若继续整包推进，会把 no-immediate continuation step、immediate state machine、resume target 选择与 sibling detach/restore 一次性耦合，因此继续拆成 `T2003c0c2d1`～`T2003c0c2d4`。
+- 总目标：
+  - 同一个 handle 最终支持多个 escape-continuation arms，以及 immediate/multiple-immediate + multiple escape-continuation 的 mixed-arm 组合。
+  - 多个 resuming arms 的 dispatch 顺序、resume target 选择、captured locals / continuation 生命周期语义与源码 arm 顺序一致。
+  - 把 `handle mixed escape-continuation arms (only 1 supported)`、`handle mixed multiple immediate-resume arms with escape-continuation not yet supported` 等剩余结构性门禁全部转成真实 lowering。
+- 拆分顺序：
+  - `T2003c0c2d1`：无 immediate-resume、纯 escape-only、top-level direct single-site 的多个 escape-continuation arms。
+  - `T2003c0c2d2`：无 immediate-resume 的多个 escape-continuation arms 余下矩阵（sibling non-resuming / indirect / nested site / richer replay）。
+  - `T2003c0c2d3`：single immediate-resume + 多个 escape-continuation arms。
+  - `T2003c0c2d4`：multiple immediate-resume + escape-continuation 的 richer multi-resuming mixed-arm。
+- 依赖：T2003c0c2c
+
+### T2003c0c2d1 [DONE] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，纯 escape-only，top-level direct single-site）
+- 描述：先收口 multiple escape-continuation arms 的最小但真实子集：不混入 immediate-resume，也不混入 sibling non-resuming；handle body 中每个命中的 escape op 先只要求 top-level、`val` 绑定、direct single-site，并且暂不混入 `finally` cleanup。
 - 目标：
-  - 同一个 handle 支持多个 escape-continuation arms，以及 immediate-resume + multiple escape-continuation 的 mixed-arm 组合。
-  - 多个 resuming arms 的 dispatch 顺序、resume target 选择、captured-handler-stack / continuation 生命周期语义与源码 arm 顺序一致。
-  - 把 `handle mixed escape-continuation arms (only 1 supported)` 等剩余结构性门禁全部转成真实 lowering；仅对真实非法语义保留诊断。
+  - 无 immediate-resume、无 sibling non-resuming、无 `finally` 的 multi-arm handle 支持多个 escape-continuation arms。
+  - 不同 escape arm 可以按源码顺序依次命中；`resume(...)` 后继续推进到后续 top-level direct escape site 或 body tail。
+  - continuation one-shot、captured locals 与 arm body 不自捕获同源 sibling 的语义保持稳定。
 - 验收：
-  - 新增 run-pass fixtures：multiple escape arms、multiple immediate + multiple escape 的最小可运行组合。
+  - 新增 run-pass / build fixtures：覆盖至少一例多个 escape arms 的 top-level direct single-site 正例，以及至少一例仍未支持的 richer 组合边界。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2c
+- 完成说明：
+  - `codegen_handle_expr_multi_arm` 已不再把“多个 escape-continuation arms”统一挡在 `handle mixed escape-continuation arms (only 1 supported)`；当无 immediate-resume、无 sibling non-resuming 时，会分流到新的 pure direct multiple-escape lowering。
+  - 新 lowering 已支持 pure escape-only、top-level `val = perform` direct single-site 的多个 escape arms：同一个 source-handle 可按 body 中的 site 顺序依次命中不同 escape arm，并在 `resume(...)` 后继续推进到后续 top-level direct site 或 body tail。
+  - 该路径对不同 site 的恢复值类型已按 site 逐个 decode，不再要求多个 escape site 共享同一返回类型；新增 run-pass `effect_multi_escape_multi_arm_top_level_direct` 覆盖 `String` / `Int` 两种恢复值。
+  - richer no-immediate 组合仍保持稳定边界：`finally`、sibling non-resuming、indirect call site、nested replay 继续留给 `T2003c0c2d2`；已新增 build fixture `effect_multi_escape_multi_arm_with_nonresuming_is_error` 锁住其中一类边界。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0c2d2 [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，no-immediate 余下矩阵）
+- 描述：在 `T2003c0c2d1` 的纯 escape-only top-level direct 基线上，继续收口 no-immediate multiple escape 的剩余组合：`finally` cleanup、sibling non-resuming、indirect call site、nested block / if / while，以及更完整的 replay 语义。
+- 目标：
+  - 无 immediate-resume 的 multiple escape-continuation arms 不再局限于 pure direct top-level 子集。
+  - sibling non-resuming dispatch、indirect callee replay、nested replay 与 cleanup 语义稳定。
+  - 只对真实非法组合保留诊断，不再靠“multiple escape arms”结构性门禁兜底。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖 sibling non-resuming、indirect 或 nested 的至少一个 multiple-escape 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2d1
+
+### T2003c0c2d3 [TODO] Effect：LLVM 多 arm handle dispatch（single immediate-resume + 多个 escape-continuation arms）
+- 描述：在 no-immediate multiple escape 收口后，继续把 single immediate-resume handle 扩到多个 sibling escape-continuation arms。该阶段需要把现有 single-immediate mixed-arm state machine 与多个 continuation 的 dispatch / resume target 对齐。
+- 目标：
+  - 一个 immediate-resume arm + 多个 sibling escape-continuation arms 可在 LLVM 端到端路径运行。
+  - 多个 escape arm 的后续 resume 会回到正确的 immediate-resume source-handle tail，不发生 sibling self-capture。
+  - `handle mixed escape-continuation arms (only 1 supported)` 不再阻塞 single-immediate mixed-arm。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖 single immediate + multiple escape 的最小可运行组合，以及至少一个仍未支持的 richer 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2d2
+
+### T2003c0c2d4 [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume + escape-continuation richer mixed-arm）
+- 描述：最后收口 richer multi-resuming mixed-arm：multiple immediate-resume + single/multiple escape-continuation。该阶段要统一多个 immediate arm 与多个 escape arm 的 site 扫描、resume target、cleanup 与 dispatch 规则。
+- 目标：
+  - multiple immediate-resume + escape-continuation 的 mixed-arm 组合不再报结构性未实现诊断。
+  - 多个 immediate arm 与多个 escape arm 的 dispatch / replay / cleanup 语义一致，并与源码顺序对齐。
+  - `T2003c0c2d` 完成时，不再存在“因为 multiple resuming arms 组合尚未 lowering”而拒绝合法 mixed-arm 的长期 TODO。
+- 验收：
+  - 新增 run-pass fixtures：覆盖 multiple immediate + escape 的最小可运行组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2d3
 
 ### T2003c [TODO] Effect：perform / handler 完整组合回归矩阵
 - 描述：在 `T2003c0*` 的 mixed-arm LLVM dispatch 全部落地后，补 full matrix 回归，确保 `T2003` 的终态不是“剩余组合继续稳定诊断”，而是合法的 perform/handler 组合都已有实现与回归覆盖。
@@ -969,7 +1024,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：覆盖 full mixed-arm / nested handle / GC stress matrix。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d
+- 依赖：T2003c0c2d4
 
 ### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
