@@ -1,4 +1,4 @@
-// EXPECT-ERROR: handle multiple escape-continuation arms with sibling non-resuming not yet supported
+// EXPECT-ERROR: handle multiple escape-continuation arms (finally not yet supported)
 
 import scoop.core.*
 
@@ -10,17 +10,12 @@ effect Count {
     fun next(): Int
 }
 
-effect Abort {
-    fun stop(text: String): Nothing
-}
-
 fun main() {
     val _: Unit = handle {
         val a: String = Ask.ask()
         println(a)
         val b: Int = Count.next()
         println(b)
-        Abort.stop("bye")
     } with {
         Ask.ask(), k -> {
             println("ask_arm")
@@ -28,8 +23,7 @@ fun main() {
         Count.next(), k -> {
             println("count_arm")
         }
-        Abort.stop(text: String) -> {
-            println(text)
-        }
+    } finally {
+        println("cleanup")
     }
 }

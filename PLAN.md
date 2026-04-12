@@ -181,9 +181,15 @@ cargo run -p scoop --features llvm -- test
   - 若继续整包推进 `T2003c0c2d`，会把 no-immediate continuation step、immediate state machine、resume target 选择，以及 sibling detach/restore 一次性耦合到同一轮实现中，风险与回归面都过大。
   - 因此把原 `T2003c0c2d` 继续拆成 `T2003c0c2d1`～`T2003c0c2d4`：先收口无 immediate、无 sibling non-resuming、无 `finally` 的 pure escape-only top-level direct single-site 子集，再补 no-immediate 的剩余 matrix，随后推进 single immediate + multiple escape，最后收口 multiple immediate + escape 的 richer multi-resuming mixed-arm。
   - T2003c0c2d1 已完成：`codegen_handle_expr_multi_arm` 现已对“多个 escape-continuation arms + 无 immediate-resume + 无 sibling non-resuming”分流到新的 pure-direct lowering；该路径会扫描 top-level `val = perform` site，按 site 顺序捕获/恢复 continuation state，并允许不同 site 各自按真实恢复值类型 decode payload。
-  - 已新增回归：run-pass `effect_multi_escape_multi_arm_top_level_direct` 覆盖 `String` / `Int` 两种恢复值的 multiple escape arms；build `effect_multi_escape_multi_arm_with_nonresuming_is_error` 继续锁住 `T2003c0c2d2` 前仍未支持的 sibling non-resuming 边界。
+  - 已新增回归：run-pass `effect_multi_escape_multi_arm_top_level_direct` 覆盖 `String` / `Int` 两种恢复值的 multiple escape arms；原先用于锁 sibling 边界的 build 负例已在后续 `T2003c0c2d2a` 转为正例，当前由 build `effect_multi_escape_multi_arm_with_finally_is_error` 继续锁住 `T2003c0c2d2b` 前的 `finally` 边界。
   - 该轮实现验证已通过：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2d2`：继续补 no-immediate multiple escape arms 的 `finally` / sibling non-resuming / indirect / nested replay 矩阵。
+  - 继续审计 `T2003c0c2d2` 后确认，它仍同时跨了 5 类相对独立的 no-immediate 缺口：sibling non-resuming、`finally` cleanup、top-level indirect、多种 nested replay，以及这些能力的组合收口。
+  - 若继续把 `T2003c0c2d2` 整包推进，会把多个 continuation step / cleanup 路径再次耦合到同一轮改动里，风险和回归面仍然过大。
+  - 因此把原 `T2003c0c2d2` 继续拆成 `T2003c0c2d2a`～`T2003c0c2d2f`：先补 multiple escape arms + sibling non-resuming 的 top-level direct single-site，再补 pure direct `finally`，随后推进 pure escape-only 的 top-level indirect、nested direct、nested indirect / direct+indirect richer replay，最后把 sibling non-resuming / `finally` 接回 richer matrix。
+  - T2003c0c2d2a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 现已支持“multiple escape arms + sibling non-resuming”的 no-immediate top-level direct single-site 子集；handle body 与 continuation step 都已接入 sibling custom non-resuming / `Raise.raise` dispatch，而 escape arm body / sibling catch body 内若再次触发同源 sibling non-resuming，则会走 cleanup/unwind 向外传播，避免 self-capture。
+  - 已新增 run-pass `effect_multi_escape_multi_arm_with_nonresuming`，覆盖两个 escape arms 顺序命中、两次 `resume(...)` 后继续进入 sibling custom non-resuming，以及 first arm 先返回 handle 结果的子集；旧的 sibling build 负例已替换为 build `effect_multi_escape_multi_arm_with_finally_is_error`，继续锁住下一步 `T2003c0c2d2b` 的 `finally` 边界。
+  - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2d2b`：补 pure direct top-level direct single-site multiple escape arms 的 `finally` cleanup。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -237,7 +243,12 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3d4（已完成）：补无 immediate-resume 的 while body direct + indirect same-stmt mixed。
   - T2003c0c2c（已完成）：补 multiple immediate-resume arms。
   - T2003c0c2d1（已完成）：补多个 escape-continuation arms（纯 escape-only，top-level direct single-site；暂不混入 `finally`）。
-  - T2003c0c2d2：补多个 escape-continuation arms 的 no-immediate 余下矩阵（`finally` / sibling non-resuming / indirect / nested site / richer replay）。
+  - T2003c0c2d2a（已完成）：补多个 escape-continuation arms + sibling non-resuming（top-level direct single-site，暂不混入 `finally`）。
+  - T2003c0c2d2b：补多个 escape-continuation arms + `finally`（pure escape-only，top-level direct single-site）。
+  - T2003c0c2d2c：补多个 escape-continuation arms 的 pure escape-only top-level indirect site matrix。
+  - T2003c0c2d2d：补多个 escape-continuation arms 的 pure escape-only nested direct replay。
+  - T2003c0c2d2e：补多个 escape-continuation arms 的 pure escape-only nested indirect / direct+indirect richer replay。
+  - T2003c0c2d2f：补 richer no-immediate multiple escape matrix 与 sibling non-resuming / `finally` 的组合收口。
   - T2003c0c2d3：补 single immediate-resume + 多个 escape-continuation arms。
   - T2003c0c2d4：补 multiple immediate-resume + escape-continuation 的 richer multi-resuming mixed-arm。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。

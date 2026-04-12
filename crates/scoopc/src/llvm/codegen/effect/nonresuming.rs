@@ -1226,16 +1226,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if immediate_arms.is_empty() && escape_arms.len() > 1 {
-            if !nonresuming_arms.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multiple escape-continuation arms with sibling non-resuming not yet supported",
-                    at: escape_arms[1].0.span.into(),
-                });
-            }
-            return self.codegen_handle_expr_multiple_escape_top_level_direct_pure(
+            return self.codegen_handle_expr_multiple_escape_top_level_direct(
                 span,
                 handle,
                 &escape_arms,
+                &nonresuming_arms,
                 out_ty,
             );
         }

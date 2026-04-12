@@ -1,0 +1,96 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_multi_arm_with_nonresuming.stdout
+//
+// T2003c0c2d2a: 无 immediate-resume 的 multiple escape-continuation arms
+// 与 sibling custom non-resuming 在 top-level direct single-site 子集上共存。
+// - 第一个 escape arm 先返回 handle 结果；
+// - 两次 `resume(...)` 之后继续推进到第二个 escape arm 与后续 sibling custom non-resuming；
+// - sibling custom arm 只在 resumed body 中生效，不自捕获同源 escape arm body。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(
+    var ask_k: Continuation<String>?,
+    var count_k: Continuation<Int>?,
+)
+
+fun main() {
+    val ask_none: Continuation<String>? = None()
+    val count_none: Continuation<Int>? = None()
+    val cell: Cell = Cell(ask_none, count_none)
+
+    val result: Int = handle {
+        println("body")
+
+        val a: String = Ask.ask("first")
+        println("after_ask")
+        println(a)
+
+        val b: Int = Count.next(4)
+        println("after_count")
+        println(b)
+
+        Abort.stop(a)
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            println("ask_arm")
+            println(label)
+            cell.ask_k = Some(k)
+            11
+        }
+        Count.next(seed: Int), k -> {
+            println("count_arm")
+            println(seed)
+            cell.count_k = Some(k)
+            22
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            33
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.ask_k) {
+        Some(k1) -> {
+            cell.ask_k = ask_none
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_ask")
+            }
+        }
+        None -> println("missing_ask")
+    }
+    println("after_resume1")
+
+    when (cell.count_k) {
+        Some(k2) -> {
+            cell.count_k = count_none
+            val _: Unit = try {
+                k2.resume(9)
+            } catch (e: RuntimeError) {
+                println("unexpected_count")
+            }
+        }
+        None -> println("missing_count")
+    }
+    println("after_resume2")
+    println("done")
+}

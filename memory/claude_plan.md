@@ -1,66 +1,73 @@
-# 执行计划与进度记录
+## 当前执行记录
 
-## 约束说明
+### 约束说明
+- 按要求先记录执行计划，再进行仓库检查与代码/命令操作。
+- 这里记录的是可审计的执行计划、决策依据和进度，不包含不可审计的内部推理细节。
 
-- 按要求先记录可公开的执行计划与关键决策，再开始仓库检查与实现工作。
-- 这里记录的是面向协作的计划、假设、发现和进度更新，不包含逐字内部思维过程。
-- 本轮目标：只完成 `TODO.md` 中第一个未完成任务，然后提交并停止。
-
-## 初始执行计划
-
-1. 检查最新一次 Git 提交，确认提交信息或改动中是否明确提到仍未修复的既有问题。
+### 初始计划
+1. 检查最新一次 Git 提交的标题、正文与变更范围，确认是否提到需要先修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认当前计划与任务是否一致。
-4. 如果首个未完成任务过大，先拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-5. 实现当前要处理的首个任务或子任务。
-6. 运行相关测试、格式化、`clippy`，修复发现的问题，直到相关检查通过。
-7. 更新文档与任务状态：修改 `TODO.md`、`PLAN.md`，必要时补充 `README.md` 或代码注释。
-8. 提交本轮变更，提交信息清晰描述本轮完成内容，然后停止。
+3. 如首个未完成任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+4. 实现当前应执行的任务，并补充或调整相关测试。
+5. 运行必要验证，至少覆盖：
+   - 相关针对性测试；
+   - `cargo test --all`（若耗时或依赖过大，则先跑受影响范围，再评估是否补全全量）；
+   - `cargo clippy --all-targets -- -D warnings`（若本次改动影响到对应 crate）。
+6. 更新文档与任务状态：
+   - 在 `TODO.md` 中将已完成任务标记完成，或在阻塞时调整任务顺序并说明依赖；
+   - 更新 `PLAN.md`；
+   - 继续维护本文件中的进度记录。
+7. 使用清晰的提交信息提交本轮改动，然后停止，不继续后续任务。
 
-## 进度
+### 待确认事项
+- 最新提交是否显式提到未修复问题。
+- `TODO.md` 中第一个未完成任务的具体范围与依赖。
+- 当前仓库是否已有未提交改动，需要避免覆盖。
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交：`579eff66002c280ec266e5bf24f177d322aa60c6 [T2003c0c2c] Support multiple immediate-resume arms`。提交标题未显式留下“仍未修复的问题”说明。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T2003c0c2d`。
+### 当前结论（已确认）
+- 最新提交标题为 `[T2003c0c2d1] Support pure direct multiple escape arms`，提交正文未附带“已知问题待补”说明，因此没有额外的“先修提交中注明问题”事项。
+- `TODO.md` 中第一个未完成任务是 `T2003c0c2d2`。
+- 该任务当前同时覆盖：
+  - multiple escape arms + sibling non-resuming；
+  - multiple escape arms + `finally`；
+  - indirect call site；
+  - nested block / if / while replay；
+  - 上述能力的组合收口。
+- 这些维度分别落在不同 lowering 路径与 cleanup 语义上，单轮实现和回归面过大，必须先拆分。
 
-## 现状判断
+### 已调整计划
+1. 先更新 `TODO.md` / `PLAN.md`，把 `T2003c0c2d2` 拆成更小子任务。
+2. 将本轮执行目标固定为拆分后的第一个子任务：`T2003c0c2d2a`。
+3. 读取现有 `multi_escape` / `mixed` / `shared` lowering，复用现成的 sibling non-resuming dispatch helper，避免重复实现。
+4. 实现 `T2003c0c2d2a`，范围限定为：
+   - 无 immediate-resume；
+   - 多个 escape-continuation arms；
+   - 允许 sibling non-resuming；
+   - 仅 top-level direct single-site；
+   - 继续保留 `finally` / indirect / nested replay 的稳定边界。
+5. 新增或改造 fixtures，优先把现有 sibling non-resuming build-fail 边界转为 run-pass，并补一个仍未支持组合的负例锁边界。
+6. 运行格式化、相关测试、全量测试/LLVM fixture/clippy，更新 `TODO.md`、`PLAN.md` 与本文件后提交。
 
-- `T2003c0c2d` 当前范围同时覆盖：
-  1. 无 `immediate-resume` 时的 multiple escape-continuation arms。
-  2. `immediate-resume` / multiple-immediate 与 multiple escape-continuation 的 richer mixed-arm。
-- 代码入口也印证这是两条不同主线：
-  - `crates/scoopc/src/llvm/codegen/effect/nonresuming.rs` 的 `codegen_handle_expr_multi_arm` 仍对 multiple escape arms 直接报 `handle mixed escape-continuation arms (only 1 supported)`。
-  - 无 immediate 的 escape 路径走 `mixed.rs` 中的 `codegen_handle_expr_escape_with_nonresuming_siblings*`。
-  - immediate + escape 路径走 `mixed.rs` 中的 `codegen_handle_expr_immediate_resume_with_escape_sibling*` 与 `codegen_handle_expr_multiple_immediate_resume_top_level`。
-- 判断：该任务需要先拆分，否则本轮会把两套状态机与站点扫描规则耦合到一次提交里，风险过高，不符合当前仓库既有的任务拆分粒度。
-
-## 更新后的执行计划
-
-1. 先把 `T2003c0c2d` 拆成更小子任务，并同步更新 `TODO.md` / `PLAN.md`。
-2. 执行拆分后的第一个子任务，优先选择最小且真实可运行子集。
-3. 为该子任务补充或调整 fixtures。
-4. 跑格式化、测试、LLVM fixture、`clippy`。
-5. 回写 `TODO.md` / `PLAN.md` / 本文件，提交并停止。
-
-## 已完成的计划调整
-
-- 已把 `T2003c0c2d` 拆成 `T2003c0c2d1`～`T2003c0c2d4`，并更新 `TODO.md` 与 `PLAN.md`。
-- 当前执行目标已变为 `T2003c0c2d1`：
-  - 范围：无 `immediate-resume`、无 sibling non-resuming、无 `finally` cleanup、纯 escape-only、top-level `val = perform` direct single-site 的多个 escape-continuation arms。
-  - 本轮先实现这个最小子集，再用新回归锁住剩余 richer 组合边界。
-
-## 本轮实现结果
-
-- 已新增 `multiple escape-continuation arms` 的 pure-direct lowering，并接入 multi-arm 入口：
-  - 仅在无 `immediate-resume`、无 sibling non-resuming、无 `finally` 时启用。
-  - 支持多个 top-level direct site 按 body 顺序依次命中不同 escape arm。
-  - 支持不同 site 各自按真实恢复值类型 decode `resume(...)` payload。
-- 已新增回归：
-  - run-pass：`effect_multi_escape_multi_arm_top_level_direct`
-  - build：`effect_multi_escape_multi_arm_with_nonresuming_is_error`
+### 当前进度（已完成）
+- 已把 `T2003c0c2d2` 拆成 `T2003c0c2d2a`～`T2003c0c2d2f`，并同步更新 `TODO.md` / `PLAN.md`。
+- 已完成 `T2003c0c2d2a` 的实现：
+  - 删除了 `handle multiple escape-continuation arms with sibling non-resuming not yet supported` 的入口门禁。
+  - `codegen_handle_expr_multiple_escape_top_level_direct` 现已支持 no-immediate multiple escape arms + sibling non-resuming 的 top-level direct single-site 子集。
+  - handle body 与 continuation step 已接入 sibling custom non-resuming / `Raise.raise` dispatch。
+  - escape arm body 与 sibling catch body 若再次触发同源 sibling non-resuming，会走 cleanup/unwind 向外传播，不再自捕获。
+- 已更新 fixtures：
+  - 新增 run-pass：`effect_multi_escape_multi_arm_with_nonresuming`
+  - 新增 build：`effect_multi_escape_multi_arm_with_finally_is_error`
+  - 删除旧的 sibling 边界 build fixture：`effect_multi_escape_multi_arm_with_nonresuming_is_error`
 - 已完成验证：
-  - `cargo fmt --all --check`
+  - `cargo fmt --all`
+  - `cargo check -p scoopc`
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
+
+### 收尾步骤
+1. 检查工作区 diff，确认只包含本轮任务与计划/记录更新。
+2. 将 `T2003c0c2d2a` 标记完成并确认 `T2003c0c2d2b` 成为首个未完成任务。
+3. 提交本轮改动，提交后停止。
