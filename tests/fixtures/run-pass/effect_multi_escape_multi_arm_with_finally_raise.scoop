@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_multi_arm_with_finally_raise.stdout
+//
+// T2003c0c2d2b: multiple escape-continuation arms + finally 的向外传播路径。
+// - 入口仍是 pure direct top-level direct multi-arm lowering；
+// - 第一个 escape arm 通过 Raise.raise 向外传播；
+// - finally 在 raise 传播前执行一次。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+fun main() {
+    println("before")
+    val result: Int = try {
+        val value: Int = handle {
+            println("body")
+            val a: String = Ask.ask("first")
+            println("body_unreachable_after_ask")
+            val b: Int = Count.next(4)
+            println("body_unreachable_after_count")
+            println(a)
+            println(b)
+            0
+        } with {
+            Count.next(seed: Int), k -> {
+                println("count_arm_unreachable")
+                println(seed)
+                22
+            }
+            Ask.ask(label: String), k -> {
+                println("ask_arm")
+                println(label)
+                Raise.raise(77)
+                println("ask_unreachable")
+                11
+            }
+        } finally {
+            println("finally")
+        }
+        println("handle_unreachable")
+        value
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        e
+    }
+    println("result")
+    println(result)
+    println("done")
+}

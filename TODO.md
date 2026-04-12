@@ -1011,17 +1011,22 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_multi_arm_with_nonresuming`，并把旧的 sibling 负例替换为新的 `finally` 负例 `effect_multi_escape_multi_arm_with_finally_is_error`，继续锁住 `T2003c0c2d2b` 边界。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2d2b [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms + `finally`，pure direct top-level direct single-site）
+### T2003c0c2d2b [DONE] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms + `finally`，pure direct top-level direct single-site）
 - 描述：在 `T2003c0c2d1` 的 pure direct top-level direct 单站点基线上补齐 `finally` cleanup，先不混入 sibling non-resuming / indirect / nested replay。
 - 目标：
   - multiple escape arms + `finally` 在 pure direct top-level direct single-site 子集上可稳定运行。
-  - `finally` 在正常 arm 完成、后续 resume 全部完成、以及 arm/body 向外传播 `Raise.raise` 时恰好执行一次。
+  - `finally` 沿用 `T1609` 的 escape-continuation 规则：在 handle 表达式完成时执行一次。对该 pure direct 子集而言，初始 arm 正常完成或向外传播 `Raise.raise` 时会执行 `finally`；后续 continuation step 的 `resume(...)` / replay 不重复执行 `finally`。
   - 不回归多个 escape arms 的 continuation one-shot、不同恢复值类型与 body-lift 语义。
 - 验收：
   - 新增 run-pass fixtures：覆盖 multiple escape arms + `finally` 的正常路径与向外传播路径。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2d2a
+- 完成说明：
+  - `codegen_handle_expr_multiple_escape_top_level_direct` 现已允许 pure direct top-level direct single-site 的 `multiple escape arms + finally`，并在主 handle 路径新增 `finally` / `finally_unwind` 收口。
+  - 初始 body 前缀与首个命中的 escape arm 现在都会把向外传播的 `Raise.raise` 导向 `finally_unwind`；而 continuation step trampoline 继续保持 `T1609` 既有语义，不在后续 `resume(...)` / replay 中重复执行 `finally`。
+  - 已新增 run-pass 回归 `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`，并把旧的 pure-finally build 负例替换为新的 sibling 边界负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error`，继续锁住后续 `T2003c0c2d2f`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2d2c [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，pure escape-only top-level indirect site matrix）
 - 描述：在 pure direct 子集之外，继续把 multiple escape arms 扩到 top-level indirect call sites；先不混入 sibling non-resuming / `finally` / nested replay。

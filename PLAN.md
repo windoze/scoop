@@ -189,7 +189,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2d2a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 现已支持“multiple escape arms + sibling non-resuming”的 no-immediate top-level direct single-site 子集；handle body 与 continuation step 都已接入 sibling custom non-resuming / `Raise.raise` dispatch，而 escape arm body / sibling catch body 内若再次触发同源 sibling non-resuming，则会走 cleanup/unwind 向外传播，避免 self-capture。
   - 已新增 run-pass `effect_multi_escape_multi_arm_with_nonresuming`，覆盖两个 escape arms 顺序命中、两次 `resume(...)` 后继续进入 sibling custom non-resuming，以及 first arm 先返回 handle 结果的子集；旧的 sibling build 负例已替换为 build `effect_multi_escape_multi_arm_with_finally_is_error`，继续锁住下一步 `T2003c0c2d2b` 的 `finally` 边界。
   - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2d2b`：补 pure direct top-level direct single-site multiple escape arms 的 `finally` cleanup。
+  - T2003c0c2d2b 已完成：pure direct top-level direct single-site 的 `multiple escape arms + finally` 现已接入主 handle 路径的 `finally` / `finally_unwind` 收口；初始 body 前缀与首个命中的 escape arm 向外传播 `Raise.raise` 时都会先执行 `finally`，而 continuation step trampoline 则继续沿用 `T1609` 既有语义，不在后续 `resume(...)` / replay 中重复执行 `finally`。
+  - 已新增 run-pass `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`；原先的 pure-finally build 负例已转成正例，并由新的 build 负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 继续锁住 sibling non-resuming + `finally` 的后续边界。
+  - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2d2c`：补 pure escape-only multiple escape arms 的 top-level indirect site matrix。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：

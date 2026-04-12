@@ -44,11 +44,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
         let has_sibling_nonresuming = sibling_plan.has_any();
+        let has_finally = handle.finally.is_some();
         let outer_raise_target = self.current_raise_target();
 
-        if handle.finally.is_some() {
+        if has_finally && has_sibling_nonresuming {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multiple escape-continuation arms (finally not yet supported)",
+                kind: "handle multiple escape-continuation arms with sibling non-resuming and finally not yet supported",
                 at: span.into(),
             });
         }
@@ -204,6 +205,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     sibling_nonresuming_arms,
                     out_ty,
                 );
+            }
+            if has_finally {
+                return self.codegen_handle_expr_no_perform(span, handle, out_ty);
             }
             let body_v = self.codegen_block_value(&handle.body)?;
             return match out_ty {
@@ -1273,6 +1277,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self
             .context
             .append_basic_block(func, "handle_multi_escape_pure_direct_done");
+        let finally_bb = if has_finally {
+            Some(
+                self.context
+                    .append_basic_block(func, "handle_multi_escape_pure_direct_finally"),
+            )
+        } else {
+            None
+        };
+        let finally_unwind_bb = if has_finally {
+            Some(
+                self.context.append_basic_block(
+                    func,
+                    "handle_multi_escape_pure_direct_finally_unwind",
+                ),
+            )
+        } else {
+            None
+        };
         let sibling_dispatch = self.build_sibling_nonresuming_dispatch_blocks(
             func,
             "handle_multi_escape_pure_direct",
@@ -1418,6 +1440,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.push_effect_unwind_target(&custom.arm.op.op.fqn, custom_catch_bbs[idx]);
             }
             self.push_raise_target(effect_dispatch_bb);
+        } else if let Some(finally_unwind_bb) = finally_unwind_bb {
+            self.push_raise_target(finally_unwind_bb);
         }
         for (stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
             if let Some(&site_idx) = site_pc_by_stmt_idx.get(&stmt_idx) {
@@ -1516,6 +1540,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for _ in custom_siblings.iter().rev() {
                 self.pop_effect_unwind_target();
             }
+        } else if finally_unwind_bb.is_some() {
+            self.pop_raise_target();
         }
         self.env.pop_scope();
 
@@ -2004,6 +2030,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     );
                 }
                 self.push_raise_target(arm_unwind_bbs[site_idx]);
+            } else if let Some(finally_unwind_bb) = finally_unwind_bb {
+                self.push_raise_target(finally_unwind_bb);
             }
             let arm_v = self.codegen_expr_in_expected_context(&plan.arm.body, Some(out_ty))?;
             if has_sibling_nonresuming {
@@ -2011,6 +2039,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 for _ in custom_siblings.iter().rev() {
                     self.pop_effect_unwind_target();
                 }
+            } else if finally_unwind_bb.is_some() {
+                self.pop_raise_target();
             }
             let arm_v = if out_ty == CgTy::Unit {
                 CgValue::unit()
@@ -2027,7 +2057,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(ptr) = result_ptr {
                     let _ = self.store_local_value(plan.arm.body.span, ptr, out_ty, arm_v)?;
                 }
-                self.builder.build_unconditional_branch(done_bb)?;
+                let target = finally_bb.unwrap_or(done_bb);
+                self.builder.build_unconditional_branch(target)?;
             }
 
             if has_sibling_nonresuming {
@@ -2066,6 +2097,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for unwind_bb in &arm_unwind_bbs {
                 self.builder.position_at_end(*unwind_bb);
                 self.builder.build_unreachable()?;
+            }
+        }
+
+        if let Some(finally_unwind_bb) = finally_unwind_bb {
+            self.builder.position_at_end(finally_unwind_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                let created = self
+                    .builder
+                    .build_load(
+                        self.context.bool_type(),
+                        continuation_created_ptr,
+                        "multi_escape_pure_direct_unwind_cont_created",
+                    )?
+                    .into_int_value();
+                let unwind_propagate_bb = self.context.append_basic_block(
+                    func,
+                    "handle_multi_escape_pure_direct_finally_unwind_propagate",
+                );
+                let unwind_unpin_bb = self.context.append_basic_block(
+                    func,
+                    "handle_multi_escape_pure_direct_finally_unwind_unpin",
+                );
+                self.builder
+                    .build_conditional_branch(created, unwind_propagate_bb, unwind_unpin_bb)?;
+
+                self.builder.position_at_end(unwind_unpin_bb);
+                let unpin = self.declare_runtime_gc_unpin();
+                let _ = self.builder.build_call(
+                    unpin,
+                    &[state_raw.into()],
+                    "multi_escape_pure_direct_state_unpin_unwind",
+                )?;
+                self.builder
+                    .build_unconditional_branch(unwind_propagate_bb)?;
+
+                self.builder.position_at_end(unwind_propagate_bb);
+                if let Some(target) = outer_raise_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    let ret_ty =
+                        self.current_fun_return_ty
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multiple escape-continuation arms finally unwind needs function return type",
+                                at: span.into(),
+                            })?;
+                    let v = self.default_value(span, ret_ty)?;
+                    self.emit_return(span, ret_ty, v)?;
+                }
+            }
+        }
+
+        if let Some(finally_bb) = finally_bb {
+            self.builder.position_at_end(finally_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                self.builder.build_unconditional_branch(done_bb)?;
             }
         }
 
