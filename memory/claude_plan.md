@@ -1,73 +1,59 @@
-# 执行计划
+# 本轮执行计划（外显版）
 
-## 说明
+## 目标
 
-按要求先记录可审计的高层推理摘要与执行步骤，不记录原始逐字思维过程。后续如计划调整、发现阻塞、完成关键步骤，都会同步更新本文件。
+完成并收尾首个未完成任务 `T2003c0c2b3d4`，确保代码、测试、任务文档、计划文档和进度记录一致，然后提交一次 git commit，提交后立即停止，不继续处理后续任务。
 
-## 初始理解
+## 已知前置上下文
 
-本轮目标是：
+- 交接信息表明：`T2003c0c2b3d4` 的代码实现、fixture 更新、`TODO.md` / `PLAN.md` / `memory/claude_plan.md` 的部分更新，以及全量测试都已完成。
+- 交接信息同时表明：尚未做最终收尾确认和 git commit。
+- 本轮优先级因此是“验证收尾状态并提交”，而不是继续实现新功能。
 
-1. 检查最新提交是否提到任何既有问题；若有，则这些问题优先于 `TODO.md` 中的任务处理。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 如该任务过大，则拆解任务，并更新 `PLAN.md` 与 `TODO.md`。
-4. 完成当前首个可执行任务的实现、测试、文档更新与提交。
-5. 完成一个任务后立即停止。
+## 执行步骤
 
-## 当前任务定位
+1. 检查最新一次提交说明，确认是否提到需要先修复的既有问题。
+2. 检查工作区状态，确认当前改动是否只包含本轮任务相关文件。
+3. 打开并核对 `TODO.md`、`PLAN.md`、`memory/claude_plan.md`：
+   - `TODO.md` 中 `T2003c0c2b3d4` 是否已标记完成。
+   - `PLAN.md` 是否已记录本轮完成情况，并把下一步指向后续任务。
+   - `memory/claude_plan.md` 是否需要补上最终完成与验证结果。
+4. 若上述文档有缺口，补齐并保存。
+5. 复查 `git diff --stat` / `git status --short`，确认无异常改动。
+6. 如有必要，补充一次轻量确认；若交接中的测试结果已充分且工作区未再变化，则不重复跑全量重测试。
+7. 提交本轮改动，提交信息使用：
+   - `[T2003c0c2b3d4] Support while-body mixed direct/indirect escape dispatch`
+8. 提交后停止，不继续处理下一个任务。
 
-- 最新提交信息未额外声明需要先修复的既有问题。
-- `TODO.md` 中首个未完成任务是 `T2003c0c2b3d3`：
-  - 主题：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct + indirect same-stmt mixed）
-  - 当前边界：nested block same-stmt mixed 已支持；if branch same-stmt mixed 仍由 `tests/fixtures/build/effect_multi_escape_direct_indirect_if_is_error.scoop` 锁定为失败。
+## 判断原则
 
-## 当前实施计划
+- 只完成一个任务：本轮只收尾并提交 `T2003c0c2b3d4`。
+- 不回滚不属于本轮的用户改动。
+- 若发现文档状态与交接不一致，先修正文档，再提交。
+- 若发现最新提交明确提到未修复问题，先修该问题；如果没有，则继续本轮任务收尾。
 
-1. 读取现有 no-immediate mixed lowering、if-branch direct-only / indirect-only 子路径，以及 nested block same-stmt mixed 的实现。
-2. 找到当前拒绝 if branch same-stmt mixed 的分流或扫描门禁，并确认需要复用的 replay/helper。
-3. 实现 if branch same-stmt mixed lowering，优先复用已有：
-   - if branch direct site replay；
-   - if branch indirect site replay；
-   - same-stmt next/prev mixed route；
-   - sibling non-resuming dispatch / cleanup。
-4. 将现有 build-fail `effect_multi_escape_direct_indirect_if_is_error` 转为 run-pass 或新增 run-pass 覆盖 if branch mixed。
-5. 新增或保留一个 while mixed 边界 fixture，继续锁住 `T2003c0c2b3d4`。
-6. 运行格式化、测试、LLVM fixture、clippy。
-7. 更新 `TODO.md`、`PLAN.md`、本文件并提交。
+## 过程中需要持续更新的内容
 
-## 当前结果
+- 如果发现文档缺口或执行步骤变化，更新本文件。
+- 在确认任务完成、测试状态明确、提交完成后，把最终状态补写到本文件中。
 
-- `T2003c0c2b3d3` 已完成。
-- 代码层面：
-  - no-immediate mixed lowering 现已支持 if branch direct + indirect same-stmt mixed；
-  - initial body / continuation step 已接入 if-branch prefix、same-branch next/prev replay 与 after-if tail；
-  - 同时放通了 mixed handle 内单个 if stmt 仅 direct-only / indirect-only 的分流，避免被 top-level mixed 入口误拒绝。
-- fixture 层面：
-  - 删除 `tests/fixtures/build/effect_multi_escape_direct_indirect_if_is_error.scoop`；
-  - 新增 run-pass `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`；
-  - 保留 `tests/fixtures/build/effect_multi_escape_direct_indirect_while_is_error.scoop` 作为 `T2003c0c2b3d4` 边界。
-- 已完成验证：
+## 当前检查结果
+
+- 最新提交 `a812b07` 为 `[T2003c0c2b3d3] Support if-branch mixed escape dispatch`，提交说明中未发现需要先于本轮任务处理的既有问题。
+- 工作区改动与交接一致，集中在：
+  - `mixed.rs` 的 while mixed lowering 修复；
+  - `TODO.md` / `PLAN.md` / 本文件的收尾更新；
+  - while mixed 新增 run-pass fixture；
+  - block / if mixed 既有 fixture 的 golden 同步更新；
+  - while mixed build 负例文本更新。
+- `TODO.md` 已把 `T2003c0c2b3d4` 标记为 `[DONE]`，并附完成说明与验证命令结果。
+- `PLAN.md` 已记录本轮完成情况，当前下一步为 `T2003c0c2c`；顺序列表中的 `T2003c0c2b3d4` 状态也已同步为“已完成”。
+- 交接信息表明以下验证已完成且当前工作区未再出现超出本轮范围的新改动，因此本轮不重复跑全量测试：
   - `cargo fmt --all`
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 下一步（不在本轮继续执行）：
-  - `T2003c0c2b3d4`：while body direct + indirect same-stmt mixed
-
-## 执行步骤
-
-1. 检查工作区状态，避免误覆盖现有改动。
-2. 查看最新一次 git 提交的提交信息与改动内容，确认是否明确提到待修复问题。
-3. 读取 `TODO.md` 与 `PLAN.md`，识别首个未完成任务及其上下文。
-4. 若存在更基础的阻塞问题或规范偏差，先在 `TODO.md` / `PLAN.md` 中重排任务。
-5. 对当前目标任务进行代码实现。
-6. 运行相关格式化、lint、单测/集成测试，修复发现的问题。
-7. 更新 `TODO.md`、`PLAN.md`、必要文档以及本计划文件。
-8. 使用清晰的提交信息提交本轮变更并停止。
-
-## 风险与约束
-
-- 不回退用户已有改动。
-- 不以临时绕过方式满足任务；若遇到规范缺口，必须显式建任务并调整依赖。
-- 尽量将改动控制在本轮首个任务范围内，但会修复其所暴露的前置缺陷。
+- 当前待完成事项只剩：
+  - 最终复查 `git status --short` / `git diff --stat`
+  - 提交 git commit

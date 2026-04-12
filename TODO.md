@@ -912,7 +912,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi`；旧的 build-fail `effect_multi_escape_direct_indirect_if_is_error` 已删除；while 边界继续由 build-fail `effect_multi_escape_direct_indirect_while_is_error` 锁定。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3d4 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct + indirect same-stmt mixed）
+### T2003c0c2b3d4 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct + indirect same-stmt mixed）
 - 描述：最后补 while body 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。该子集需要把 same-stmt next/prev replay、当前迭代尾部 replay、loop condition 重检与 loop re-entry 统一接到 no-immediate mixed lowering。
 - 目标：
   - 支持 while body 中的 direct + indirect same-stmt mixed。
@@ -923,6 +923,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3d3
+- 完成说明：
+  - `mixed.rs` 的 no-immediate mixed lowering 现已支持 while body 中的 direct + indirect same-stmt mixed，并为 while-site 记录独立的 next/prev 关系，接入当前迭代 tail replay、loop condition 重检与 loop re-entry。
+  - 已补 current indirect site 的 prefix reconstruction：第二次 `resume(...)` 前会先重放 direct 与 indirect 之间的 prefix，再继续 indirect result；该修正同时让既有 block/if mixed fixtures 的 golden 输出与 matrix 语义对齐。
+  - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_while_multi`，并保留 build 负例 `effect_multi_escape_direct_indirect_while_is_error` 锁定 separate-stmt while mixed 边界。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2c [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume arms）
 - 描述：当前 immediate-resume lowering 整体以“单个 distinguished immediate site + 单个 arm state machine”为中心组织。multiple immediate-resume arms 需要把 perform-site 扫描、arm dispatch、resume target 选择与 `finally` cleanup 从“单个 op”扩到“按 op tag / 源码顺序选择多个 immediate arm”，但暂不把 multiple escape 一起混入。

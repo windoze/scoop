@@ -6,8 +6,8 @@
 // - direct site 初次执行时先创建 continuation；
 // - 第一次 `resume(...)` 后会 replay 同一个 block 内 direct 之后、indirect 之前的 tail，
 //   然后继续命中同一个 block 里的 indirect site；
-// - 第二次 `resume(...)` 后会先 replay indirect 之后的 block tail，再命中 sibling custom
-//   non-resuming arm。
+// - 第二次 `resume(...)` 前会先重放 direct 与 indirect 之间的 prefix，
+//   然后 replay indirect 之后的 block tail，再命中 sibling custom non-resuming arm。
 // Current `@Safe { ... }` is only a temporary naked-block workaround until
 // T2203/T2204 lands; this fixture is locking nested-block mixed replay,
 // not safe-region semantics.

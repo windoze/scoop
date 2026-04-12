@@ -14,6 +14,9 @@ ask_arm
 2
 21
 after_resume1
+then_after_direct
+then_label
+resume_then_1
 fetch_resume
 resume_then_2
 then_after_indirect
@@ -42,6 +45,9 @@ ask_arm
 2
 41
 after_resume1
+else_after_direct
+else_label
+resume_else_1
 fetch_resume
 resume_else_2
 else_after_indirect

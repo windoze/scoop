@@ -169,7 +169,11 @@ cargo run -p scoop --features llvm -- test
   - if branch 中的 direct→indirect / indirect→direct 两种顺序现都会记录 next/prev 关系，并把 body-lift / used-between 分析扩到 if branch；同时“整体是 mixed handle，但单个 if stmt 仅 direct-only / indirect-only”的形状也会走对应的 if helper，而不再被 top-level mixed 入口误拒绝。
   - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi`；旧的 build-fail `effect_multi_escape_direct_indirect_if_is_error` 已删除；while mixed 负例 `effect_multi_escape_direct_indirect_while_is_error` 继续保留，锁住下一步 `T2003c0c2b3d4`。
   - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2b3d4`：继续补无 immediate-resume 的 while body direct + indirect same-stmt mixed。
+  - T2003c0c2b3d4 已完成：`mixed.rs` 的 no-immediate mixed lowering 现已支持 while body 中的 direct + indirect same-stmt mixed；while-site 现会记录独立的 next/prev 关系，并在 initial body / continuation step 上统一接入当前迭代 tail replay、loop condition 重检与 loop re-entry。
+  - 已补 current indirect site 的 prefix reconstruction：second resume 现会先重放 direct→indirect 之间的 prefix，再继续 indirect result；这同时把既有 block/if mixed fixtures 的 golden 输出收口到与 matrix helper 一致的 replay 语义。
+  - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_while_multi`，并把 build 负例 `effect_multi_escape_direct_indirect_while_is_error` 改为继续锁定 separate-stmt while mixed 边界。
+  - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2c`：继续补 multiple immediate-resume arms。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -220,7 +224,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3d1（已完成）：补无 immediate-resume 的 top-level direct + indirect mixed site-matrix。
   - T2003c0c2b3d2（已完成）：补无 immediate-resume 的 nested block direct + indirect same-stmt mixed。
   - T2003c0c2b3d3（已完成）：补无 immediate-resume 的 if branch direct + indirect same-stmt mixed。
-  - T2003c0c2b3d4：补无 immediate-resume 的 while body direct + indirect same-stmt mixed。
+  - T2003c0c2b3d4（已完成）：补无 immediate-resume 的 while body direct + indirect same-stmt mixed。
   - T2003c0c2c：补 multiple immediate-resume arms。
   - T2003c0c2d：补 multiple escape-continuation arms 与 richer multi-resuming mixed-arm。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。

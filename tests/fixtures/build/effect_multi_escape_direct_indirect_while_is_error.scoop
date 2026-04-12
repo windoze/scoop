@@ -1,10 +1,10 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle multi-arm without immediate-resume (escape site matrix not yet supported)
+// EXPECT-ERROR: handle multi-arm without immediate-resume (only same-body-stmt direct / indirect coexistence in while body supported)
 // ARGS: --emit-llvm
 //
-// T2003c0c2b3d3 已放开 if branch direct + indirect mixed；
-// direct + indirect mixed while body 继续留给后续 `T2003c0c2b3d4`。
+// T2003c0c2b3d4 已放开 while body 里“同一个 statement”的 direct + indirect mixed；
+// 这个负例继续锁定 separate-stmt while mixed 边界。
 
 import scoop.core.*
 

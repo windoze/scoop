@@ -5,8 +5,9 @@
 // 支持同一个 statement-position if 里的 direct + indirect same-stmt mixed。
 // - then/else 命中的分支都会先创建 direct continuation；
 // - 第一次 `resume(...)` 后会 replay 命中的 branch tail，并继续命中同分支里的 indirect site；
-// - 第二次 `resume(...)` 后会先 replay indirect 之后的 branch tail，再继续 after-if
-//   top-level tail 与 sibling custom non-resuming arm。
+// - 第二次 `resume(...)` 前会先重放 direct 与 indirect 之间的 branch prefix，
+//   然后 replay indirect 之后的 branch tail，再继续 after-if top-level tail
+//   与 sibling custom non-resuming arm。
 
 import scoop.core.*
 

@@ -14,6 +14,9 @@ ask_arm
 2
 21
 after_resume1
+after_direct
+inner
+alpha
 fetch_resume
 beta
 after_indirect
