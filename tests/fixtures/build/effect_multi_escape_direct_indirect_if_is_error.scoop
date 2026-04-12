@@ -1,0 +1,44 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
+// EXPECT-ERROR: handle multi-arm without immediate-resume (escape site matrix not yet supported)
+// ARGS: --emit-llvm
+//
+// T2003c0c2b3d2 仅放开 statement-position nested block mixed；
+// if branch 中的 direct + indirect same-stmt mixed 继续留给后续 `T2003c0c2b3d3`。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun fetch(i: Int): String / (Ask) {
+    val msg: String = Ask.ask(i + 10)
+    msg
+}
+
+fun main() {
+    val flag: Bool = true
+    val _: Unit = handle {
+        if (flag) {
+            val direct: String = Ask.ask(1)
+            println(direct)
+            val indirect: String = fetch(2)
+            println(indirect)
+            Abort.stop(indirect)
+        } else {
+            println("else")
+        }
+    } with {
+        Ask.ask(seed), k -> {
+            println(seed)
+        }
+        Abort.stop(text: String) -> {
+            println(text)
+        }
+    }
+}

@@ -11,18 +11,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
         let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
 
-        if !direct_sites.is_empty()
-            && !indirect_sites.is_empty()
-            && direct_sites.iter().all(|site| site.resume_path.is_empty())
-            && indirect_sites.iter().all(|site| site.resume_path.is_empty())
-        {
-            return self.codegen_handle_expr_escape_with_nonresuming_siblings_top_level_mixed(
-                span,
-                handle,
-                escape,
-                sibling_nonresuming_arms,
-                out_ty,
-            );
+        if !direct_sites.is_empty() && !indirect_sites.is_empty() {
+            let direct_supported = direct_sites.iter().all(|site| {
+                site.resume_path.is_empty()
+                    || Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            });
+            let indirect_supported = indirect_sites.iter().all(|site| {
+                site.resume_path.is_empty()
+                    || Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            });
+            if direct_supported && indirect_supported {
+                return self.codegen_handle_expr_escape_with_nonresuming_siblings_top_level_mixed(
+                    span,
+                    handle,
+                    escape,
+                    sibling_nonresuming_arms,
+                    out_ty,
+                );
+            }
         }
 
         if !direct_sites.is_empty() && indirect_sites.is_empty() {
@@ -104,8 +110,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
         if direct_sites.is_empty()
             || indirect_sites.is_empty()
-            || direct_sites.iter().any(|site| !site.resume_path.is_empty())
-            || indirect_sites.iter().any(|site| !site.resume_path.is_empty())
+            || direct_sites.iter().any(|site| {
+                !site.resume_path.is_empty()
+                    && !Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            })
+            || indirect_sites.iter().any(|site| {
+                !site.resume_path.is_empty()
+                    && !Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            })
         {
             let at = direct_sites
                 .first()
@@ -113,7 +125,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .or_else(|| indirect_sites.first().map(|site| site.decl.span))
                 .unwrap_or(span);
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites supported)",
+                kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites or statement-position nested block direct / indirect coexistence supported)",
                 at: at.into(),
             });
         }
@@ -161,16 +173,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        let mut escape_site_pcs_by_stmt_idx: HashMap<usize, Vec<usize>> = HashMap::new();
         for (pc, site) in escape_sites.iter().enumerate() {
-            if simple_escape_site_pc_by_stmt_idx
-                .insert(site.stmt_idx, pc)
-                .is_some()
-            {
+            escape_site_pcs_by_stmt_idx
+                .entry(site.stmt_idx)
+                .or_default()
+                .push(pc);
+        }
+
+        let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        let mut block_next_site_pc_by_pc: HashMap<usize, usize> = HashMap::new();
+        let mut block_prev_site_pc_by_pc: HashMap<usize, usize> = HashMap::new();
+        for (stmt_idx, site_pcs) in &escape_site_pcs_by_stmt_idx {
+            let mut simple_site_pc: Option<usize> = None;
+            let mut block_sites: Vec<usize> = Vec::new();
+            for &pc in site_pcs {
+                let resume_path = Self::mixed_escape_matrix_site_resume_path(&escape_sites[pc]);
+                if resume_path.is_empty() {
+                    if simple_site_pc.replace(pc).is_some() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
+                            at: handle.body.stmts[*stmt_idx].span.into(),
+                        });
+                    }
+                    continue;
+                }
+
+                if Self::mixed_escape_block_only_path_supported(resume_path) {
+                    block_sites.push(pc);
+                    continue;
+                }
+
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
-                    at: handle.body.stmts[site.stmt_idx].span.into(),
+                    kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites or statement-position nested block direct / indirect coexistence supported)",
+                    at: handle.body.stmts[*stmt_idx].span.into(),
                 });
+            }
+
+            if !block_sites.is_empty() {
+                if simple_site_pc.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
+                        at: handle.body.stmts[*stmt_idx].span.into(),
+                    });
+                }
+                if block_sites.len() > 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-arm without immediate-resume (multiple nested block mixed sites per top-level statement not yet supported)",
+                        at: handle.body.stmts[*stmt_idx].span.into(),
+                    });
+                }
+                let direct_count = block_sites
+                    .iter()
+                    .filter(|&&pc| matches!(escape_sites[pc].kind, MatrixEscapeSiteKind::Direct { .. }))
+                    .count();
+                let indirect_count = block_sites
+                    .iter()
+                    .filter(|&&pc| matches!(escape_sites[pc].kind, MatrixEscapeSiteKind::Indirect { .. }))
+                    .count();
+                if block_sites.len() == 2 && (direct_count != 1 || indirect_count != 1) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-arm without immediate-resume (multiple nested block mixed sites per top-level statement not yet supported)",
+                        at: handle.body.stmts[*stmt_idx].span.into(),
+                    });
+                }
+                simple_escape_site_pc_by_stmt_idx.insert(*stmt_idx, block_sites[0]);
+                if block_sites.len() == 2 {
+                    block_next_site_pc_by_pc.insert(block_sites[0], block_sites[1]);
+                    block_prev_site_pc_by_pc.insert(block_sites[1], block_sites[0]);
+                }
+                continue;
+            }
+
+            if let Some(pc) = simple_site_pc {
+                simple_escape_site_pc_by_stmt_idx.insert(*stmt_idx, pc);
             }
         }
 
@@ -234,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for site in &escape_sites {
+        for (site_pc, site) in escape_sites.iter().enumerate() {
             let Some(&site_order) = body_decl_order.get(&site.id) else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle mixed-arm escape continuation perform binding id",
@@ -257,6 +333,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         &handle.body.stmts,
                         &mut used_after,
                     );
+                    if let Some(&prev_pc) = block_prev_site_pc_by_pc.get(&site_pc) {
+                        let MatrixEscapeSiteKind::Direct {
+                            site: prev_direct_site,
+                        } = &escape_sites[prev_pc].kind
+                        else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (expected previous direct site)",
+                                at: site.decl.span.into(),
+                            });
+                        };
+                        Self::collect_mixed_escape_used_between_block_sites(
+                            prev_direct_site,
+                            indirect_site,
+                            &mut used_after,
+                        )?;
+                    }
                 }
             }
 
@@ -730,6 +822,160 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 let mut terminated = false;
+                if let Some(&next_pc) = block_next_site_pc_by_pc.get(&site_pc) {
+                    let next_site = &escape_sites[next_pc];
+                    match &site.kind {
+                        MatrixEscapeSiteKind::Direct { site: direct_site } => {
+                            let mut unexpected_direct = |_cg: &mut Self,
+                                                         _next_pc: usize,
+                                                         _next_direct: &MixedEscapeDirectSite<'hir>| {
+                                Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle multi-arm without immediate-resume (unexpected direct site while continuing mixed block)",
+                                    at: site.decl.span.into(),
+                                })
+                            };
+                            let mut emit_next_indirect = |cg: &mut Self,
+                                                         next_pc: usize,
+                                                         next_indirect_site: &MixedEscapeIndirectSite<'hir>| {
+                                cg.capture_escape_state_with_pc(
+                                    next_indirect_site.decl.span,
+                                    state_ty,
+                                    state_ptr,
+                                    &outer_visible_supported,
+                                    outer_field_base,
+                                    &body_visible_supported,
+                                    body_field_base,
+                                    2,
+                                    next_pc,
+                                )?;
+                                if step_effect_dispatch_bb.is_some() {
+                                    cg.pop_raise_target();
+                                }
+                                cg.push_raise_target(step_escape_dispatch_bb);
+                                cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                                    next_indirect_site,
+                                    &body_lift_ids,
+                                )?;
+                                cg.pop_raise_target();
+                                if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
+                                    cg.push_raise_target(step_effect_dispatch_bb);
+                                }
+                                Ok(())
+                            };
+                            cg.codegen_mixed_escape_matrix_continue_to_next_block_site_after_direct(
+                                direct_site,
+                                next_pc,
+                                next_site,
+                                &body_lift_ids,
+                                &mut unexpected_direct,
+                                &mut emit_next_indirect,
+                            )?;
+                            if let MatrixEscapeSiteKind::Indirect {
+                                site: next_indirect_site,
+                            } = &next_site.kind
+                                && let Some(bb) = cg.builder.get_insert_block()
+                                && bb.get_terminator().is_none()
+                            {
+                                cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                    next_indirect_site,
+                                    &body_lift_ids,
+                                )?;
+                            }
+                        }
+                        MatrixEscapeSiteKind::Indirect { site: indirect_site } => {
+                            let mut emit_next_direct = |cg: &mut Self,
+                                                       next_pc: usize,
+                                                       next_direct_site: &MixedEscapeDirectSite<'hir>| {
+                                cg.capture_escape_state_with_pc(
+                                    next_direct_site.decl.span,
+                                    state_ty,
+                                    state_ptr,
+                                    &outer_visible_supported,
+                                    outer_field_base,
+                                    &body_visible_supported,
+                                    body_field_base,
+                                    2,
+                                    next_pc,
+                                )?;
+                                let _ = cg.builder.build_store(
+                                    step_escape_binder_from_slot_ptr,
+                                    cg.context.bool_type().const_zero(),
+                                )?;
+                                for (slot, arg) in
+                                    step_escape_binder_slots.iter().zip(next_direct_site.args.iter())
+                                {
+                                    let hir::CallArg::Positional(expr) = arg else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "handle mixed-arm escape named perform arg",
+                                            at: span.into(),
+                                        });
+                                    };
+                                    let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+                                    let _ = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                                }
+                                cg.builder.build_unconditional_branch(step_escape_arm_bb)?;
+                                Ok(())
+                            };
+                            let mut unexpected_indirect = |_cg: &mut Self,
+                                                           _next_pc: usize,
+                                                           _next_indirect: &MixedEscapeIndirectSite<
+                                'hir,
+                            >| {
+                                Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle multi-arm without immediate-resume (unexpected indirect site while continuing mixed block)",
+                                    at: site.decl.span.into(),
+                                })
+                            };
+                            cg.codegen_mixed_escape_matrix_continue_to_next_block_site_after_indirect(
+                                indirect_site,
+                                next_pc,
+                                next_site,
+                                &body_lift_ids,
+                                &mut emit_next_direct,
+                                &mut unexpected_indirect,
+                            )?;
+                            if let MatrixEscapeSiteKind::Indirect {
+                                site: next_indirect_site,
+                            } = &next_site.kind
+                                && let Some(bb) = cg.builder.get_insert_block()
+                                && bb.get_terminator().is_none()
+                            {
+                                cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                    next_indirect_site,
+                                    &body_lift_ids,
+                                )?;
+                            }
+                        }
+                    }
+                    if let Some(bb) = cg.builder.get_insert_block()
+                        && bb.get_terminator().is_some()
+                    {
+                        terminated = true;
+                    }
+                } else {
+                    match &site.kind {
+                        MatrixEscapeSiteKind::Direct { site: direct_site }
+                            if !direct_site.resume_path.is_empty() =>
+                        {
+                            cg.codegen_mixed_escape_matrix_nested_block_tail_after_site(
+                                direct_site,
+                                &body_lift_ids,
+                            )?;
+                        }
+                        MatrixEscapeSiteKind::Indirect { site: indirect_site }
+                            if !indirect_site.resume_path.is_empty() =>
+                        {
+                            for _ in &indirect_site.resume_path {
+                                cg.env.push_scope();
+                            }
+                            cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                indirect_site,
+                                &body_lift_ids,
+                            )?;
+                        }
+                        _ => {}
+                    }
+                }
                 for (idx, stmt) in handle
                     .body
                     .stmts
@@ -737,21 +983,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .enumerate()
                     .skip(site.stmt_idx + 1)
                 {
+                    if terminated {
+                        break;
+                    }
                     if let Some(next_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx).copied() {
                         let next_site = &escape_sites[next_pc];
-                        cg.capture_escape_state_with_pc(
-                            next_site.decl.span,
-                            state_ty,
-                            state_ptr,
-                            &outer_visible_supported,
-                            outer_field_base,
-                            &body_visible_supported,
-                            body_field_base,
-                            2,
-                            next_pc,
-                        )?;
                         match &next_site.kind {
                             MatrixEscapeSiteKind::Direct { site: direct_site } => {
+                                if !direct_site.resume_path.is_empty() {
+                                    cg.codegen_mixed_escape_matrix_nested_block_prefix_to_site(
+                                        direct_site,
+                                        stmt,
+                                        &body_lift_ids,
+                                    )?;
+                                }
+                                cg.capture_escape_state_with_pc(
+                                    next_site.decl.span,
+                                    state_ty,
+                                    state_ptr,
+                                    &outer_visible_supported,
+                                    outer_field_base,
+                                    &body_visible_supported,
+                                    body_field_base,
+                                    2,
+                                    next_pc,
+                                )?;
                                 let _ = cg.builder.build_store(
                                     step_escape_binder_from_slot_ptr,
                                     cg.context.bool_type().const_zero(),
@@ -770,11 +1026,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     let _ =
                                         cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
                                 }
+                                for _ in 0..direct_site.resume_path.len() {
+                                    cg.env.pop_scope();
+                                }
                                 cg.builder.build_unconditional_branch(step_escape_arm_bb)?;
                                 terminated = true;
                                 break;
                             }
                             MatrixEscapeSiteKind::Indirect { site: indirect_site } => {
+                                if !indirect_site.resume_path.is_empty() {
+                                    cg.codegen_mixed_escape_matrix_prefix_to_indirect_site(
+                                        indirect_site,
+                                        stmt,
+                                        &body_lift_ids,
+                                    )?;
+                                }
+                                cg.capture_escape_state_with_pc(
+                                    next_site.decl.span,
+                                    state_ty,
+                                    state_ptr,
+                                    &outer_visible_supported,
+                                    outer_field_base,
+                                    &body_visible_supported,
+                                    body_field_base,
+                                    2,
+                                    next_pc,
+                                )?;
                                 if step_effect_dispatch_bb.is_some() {
                                     cg.pop_raise_target();
                                 }
@@ -786,6 +1063,89 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 cg.pop_raise_target();
                                 if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
                                     cg.push_raise_target(step_effect_dispatch_bb);
+                                }
+                                if let Some(&block_next_pc) =
+                                    block_next_site_pc_by_pc.get(&next_pc)
+                                {
+                                    let block_next_site = &escape_sites[block_next_pc];
+                                    let mut emit_next_direct = |cg: &mut Self,
+                                                               next_pc: usize,
+                                                               next_direct_site: &MixedEscapeDirectSite<'hir>| {
+                                        cg.capture_escape_state_with_pc(
+                                            next_direct_site.decl.span,
+                                            state_ty,
+                                            state_ptr,
+                                            &outer_visible_supported,
+                                            outer_field_base,
+                                            &body_visible_supported,
+                                            body_field_base,
+                                            2,
+                                            next_pc,
+                                        )?;
+                                        let _ = cg.builder.build_store(
+                                            step_escape_binder_from_slot_ptr,
+                                            cg.context.bool_type().const_zero(),
+                                        )?;
+                                        for (slot, arg) in step_escape_binder_slots
+                                            .iter()
+                                            .zip(next_direct_site.args.iter())
+                                        {
+                                            let hir::CallArg::Positional(expr) = arg else {
+                                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                                    kind: "handle mixed-arm escape named perform arg",
+                                                    at: span.into(),
+                                                });
+                                            };
+                                            let v = cg.codegen_expr_in_expected_context(
+                                                expr,
+                                                Some(slot.ty),
+                                            )?;
+                                            let _ = cg.store_local_value(
+                                                expr.span,
+                                                slot.ptr,
+                                                slot.ty,
+                                                v,
+                                            )?;
+                                        }
+                                        cg.builder.build_unconditional_branch(step_escape_arm_bb)?;
+                                        Ok(())
+                                    };
+                                    let mut unexpected_indirect = |_cg: &mut Self,
+                                                                   _next_pc: usize,
+                                                                   _next_indirect: &MixedEscapeIndirectSite<
+                                        'hir,
+                                    >| {
+                                        Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "handle multi-arm without immediate-resume (unexpected indirect site while continuing mixed block)",
+                                            at: next_site.decl.span.into(),
+                                        })
+                                    };
+                                    cg.codegen_mixed_escape_matrix_continue_to_next_block_site_after_indirect(
+                                        indirect_site,
+                                        block_next_pc,
+                                        block_next_site,
+                                        &body_lift_ids,
+                                        &mut emit_next_direct,
+                                        &mut unexpected_indirect,
+                                    )?;
+                                    if let MatrixEscapeSiteKind::Indirect {
+                                        site: next_indirect_site,
+                                    } = &block_next_site.kind
+                                        && let Some(bb) = cg.builder.get_insert_block()
+                                        && bb.get_terminator().is_none()
+                                    {
+                                        cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                            next_indirect_site,
+                                            &body_lift_ids,
+                                        )?;
+                                    }
+                                } else if let Some(bb) = cg.builder.get_insert_block()
+                                    && bb.get_terminator().is_none()
+                                {
+                                    cg.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                        indirect_site,
+                                        &body_lift_ids,
+                                    )?;
                                 }
                                 if let Some(bb) = cg.builder.get_insert_block()
                                     && bb.get_terminator().is_some()
@@ -1856,19 +2216,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             if let Some(&site_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx) {
                 let site = &escape_sites[site_pc];
-                self.capture_escape_state_with_pc(
-                    site.decl.span,
-                    state_ty,
-                    state_gc_ptr,
-                    &outer_visible_supported,
-                    outer_field_base,
-                    &body_visible_supported,
-                    body_field_base,
-                    2,
-                    site_pc,
-                )?;
                 match &site.kind {
                     MatrixEscapeSiteKind::Direct { site: direct_site } => {
+                        if !direct_site.resume_path.is_empty() {
+                            self.codegen_mixed_escape_matrix_nested_block_prefix_to_site(
+                                direct_site,
+                                stmt,
+                                &body_lift_ids,
+                            )?;
+                        }
+                        self.capture_escape_state_with_pc(
+                            site.decl.span,
+                            state_ty,
+                            state_gc_ptr,
+                            &outer_visible_supported,
+                            outer_field_base,
+                            &body_visible_supported,
+                            body_field_base,
+                            2,
+                            site_pc,
+                        )?;
                         let _ = self.builder.build_store(
                             escape_binder_from_slot_ptr,
                             self.context.bool_type().const_zero(),
@@ -1883,9 +2250,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
                             let _ = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
                         }
+                        for _ in 0..direct_site.resume_path.len() {
+                            self.env.pop_scope();
+                        }
                         self.builder.build_unconditional_branch(escape_arm_bb)?;
                     }
                     MatrixEscapeSiteKind::Indirect { site: indirect_site } => {
+                        if !indirect_site.resume_path.is_empty() {
+                            self.codegen_mixed_escape_matrix_prefix_to_indirect_site(
+                                indirect_site,
+                                stmt,
+                                &body_lift_ids,
+                            )?;
+                        }
+                        self.capture_escape_state_with_pc(
+                            site.decl.span,
+                            state_ty,
+                            state_gc_ptr,
+                            &outer_visible_supported,
+                            outer_field_base,
+                            &body_visible_supported,
+                            body_field_base,
+                            2,
+                            site_pc,
+                        )?;
                         self.pop_raise_target();
                         self.push_raise_target(escape_dispatch_bb);
                         self.codegen_mixed_escape_matrix_emit_indirect_site_binding(
@@ -1894,6 +2282,78 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )?;
                         self.pop_raise_target();
                         self.push_raise_target(main_raise_target);
+                        if let Some(&next_pc) = block_next_site_pc_by_pc.get(&site_pc) {
+                            let next_site = &escape_sites[next_pc];
+                            self.codegen_mixed_escape_matrix_continue_to_next_block_site_after_indirect(
+                                indirect_site,
+                                next_pc,
+                                next_site,
+                                &body_lift_ids,
+                                &mut |cg, next_pc, direct_site| {
+                                    cg.capture_escape_state_with_pc(
+                                        direct_site.decl.span,
+                                        state_ty,
+                                        state_gc_ptr,
+                                        &outer_visible_supported,
+                                        outer_field_base,
+                                        &body_visible_supported,
+                                        body_field_base,
+                                        2,
+                                        next_pc,
+                                    )?;
+                                    let _ = cg.builder.build_store(
+                                        escape_binder_from_slot_ptr,
+                                        cg.context.bool_type().const_zero(),
+                                    )?;
+                                    for (slot, arg) in
+                                        escape_binder_slots.iter().zip(direct_site.args.iter())
+                                    {
+                                        let hir::CallArg::Positional(expr) = arg else {
+                                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                                kind: "handle mixed-arm escape named perform arg",
+                                                at: span.into(),
+                                            });
+                                        };
+                                        let v = cg.codegen_expr_in_expected_context(
+                                            expr,
+                                            Some(slot.ty),
+                                        )?;
+                                        let _ = cg.store_local_value(
+                                            expr.span,
+                                            slot.ptr,
+                                            slot.ty,
+                                            v,
+                                        )?;
+                                    }
+                                    cg.builder.build_unconditional_branch(escape_arm_bb)?;
+                                    Ok(())
+                                },
+                                &mut |_cg, _next_pc, _next_indirect_site| {
+                                    Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "handle multi-arm without immediate-resume (unexpected indirect site while continuing mixed block)",
+                                        at: site.decl.span.into(),
+                                    })
+                                },
+                            )?;
+                            if let MatrixEscapeSiteKind::Indirect {
+                                site: next_indirect_site,
+                            } = &next_site.kind
+                                && let Some(bb) = self.builder.get_insert_block()
+                                && bb.get_terminator().is_none()
+                            {
+                                self.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                    next_indirect_site,
+                                    &body_lift_ids,
+                                )?;
+                            }
+                        } else if let Some(bb) = self.builder.get_insert_block()
+                            && bb.get_terminator().is_none()
+                        {
+                            self.codegen_mixed_escape_matrix_continue_after_indirect_site(
+                                indirect_site,
+                                &body_lift_ids,
+                            )?;
+                        }
                     }
                 }
                 body_tail = None;

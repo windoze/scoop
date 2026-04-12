@@ -1,78 +1,95 @@
-## 说明
+# 本轮执行计划
 
-按要求先记录执行计划。出于安全与协作边界，这里记录的是可审计的决策摘要、假设、检查项与步骤计划，而不是逐字内部推理。
+## 约束说明
 
-## 当前目标
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在开始实现任务前，先检查最新提交是否提到既有问题；若存在，优先修复。
+- 若首个未完成任务过大，则先拆分任务并更新 `PLAN.md` 与 `TODO.md`，随后只执行拆分后的第一个子任务。
+- 在执行过程中持续更新本文件，记录关键步骤、计划变更、阻塞和完成状态。
 
-本次调用只完成 `TODO.md` 中第一个未完成任务，完成后更新计划与任务状态，运行必要验证，提交 git commit，然后停止。
+## 初始步骤
 
-## 执行步骤
+1. 查看最新一次 git 提交信息，确认是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解当前项目计划与任务上下文。
+4. 如有必要，检查相关代码、测试、规范文档与最近变更，判断该任务是否可直接完成，或是否需要拆分/前置修复。
 
-1. 检查最新一次 git 提交：
-   - 查看提交说明与改动摘要。
-   - 判断是否明确提到任何现存问题、已知缺陷、待修复项。
-   - 如果发现属于“提交中提到的既有问题”，优先修复并验证，再继续后续步骤。
-2. 读取任务与计划文档：
-   - 读取 `TODO.md`，定位第一个未完成任务。
-   - 读取 `PLAN.md`，理解现有阶段划分、依赖与约束。
-   - 视情况读取与该任务直接相关的规范、README、代码位置与测试。
-3. 复杂度判断与任务细化：
-   - 判断首个未完成任务是否能在本轮完整落地。
-   - 如果任务过大或依赖不清，拆成可执行子任务。
-   - 更新 `PLAN.md` 与 `TODO.md`，让首个子任务成为当前执行项。
-   - 若因依赖阻塞，明确新增前置任务并重排顺序，但不把原任务标记为 blocked。
-4. 实现当前任务：
-   - 先阅读相关代码与测试，定位修改点。
-   - 按最小充分改动原则实现，不引入 workaround，不偏离规范。
-   - 如发现新的规范缺口或实现边界问题，立即转化为更前置的 TODO 任务，更新计划并停止本轮。
-5. 验证：
-   - 运行与改动直接相关的测试。
-   - 运行必要的质量检查，至少覆盖：
-     - `cargo test --all`（若成本过高，先运行相关子集，再决定是否补全）
-     - `cargo clippy --all-targets -- -D warnings`
-     - 任务所需的额外命令（例如 fixture/spec 检查）
-   - 若失败，先修复再重跑。
-6. 文档与状态更新：
-   - 更新 `TODO.md`，把本轮完成的任务标记为完成。
-   - 更新 `PLAN.md`，记录当前状态、后续顺序、任何新增依赖或风险。
-   - 在关键进展发生时同步更新本文件。
-7. 提交与停止：
-   - 检查工作区改动，确保只包含本轮相关变更和必要的计划文档更新。
-   - 使用清晰提交信息创建 commit。
-   - 停止，不继续处理下一个任务。
+## 执行策略
 
-## 关键约束
-
-- 不使用临时兼容、测试专用 hack、fixture-only 绕过方案来冒充完成。
-- 如果实现中暴露出规范不匹配，必须先把该缺口转成更前置的任务并更新计划。
-- 不回退或覆盖用户已有未说明改动。
-- 每到关键里程碑后更新本文件，便于外部检查当前进度。
+1. 若发现最新提交中提到的既有问题，先复现并修复该问题，再继续主任务判定。
+2. 若首个未完成任务需要拆分：
+   - 更新 `PLAN.md`，写明拆分理由与子任务顺序。
+   - 更新 `TODO.md`，将原任务替换或扩展为更细的子任务，并确保依赖顺序正确。
+   - 只执行新的第一个子任务。
+3. 对当前要执行的任务进行实现，避免规避规范缺口；若发现规范不匹配，必须把修复缺口作为前置任务写入 `TODO.md`/`PLAN.md`，提交后停止。
+4. 完成实现后运行相关验证：
+   - 至少运行与改动直接相关的测试。
+   - 若改动影响通用编译路径，补充运行 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或更小但足够覆盖的命令。
+5. 更新文档与计划：
+   - 在 `TODO.md` 标记该任务完成。
+   - 在 `PLAN.md` 反映当前进展与后续顺序。
+   - 在本文件补充执行结果与关键决策。
+6. 使用清晰的提交信息提交本轮所有变更，然后停止。
 
 ## 当前状态
 
-- 已完成：初始计划写入。
-- 已完成：检查最新提交、`TODO.md`、`PLAN.md`。
-- 已确认：
-  - 最新提交 `[T2003c0c2b3c4] Support no-immediate while-body indirect escape sites` 的提交说明本身未额外登记“必须先修”的既有问题。
-  - 初始读取时，`TODO.md` 中首个未完成任务是 `T2003c0c2b3d`：无 immediate-resume 的 multi-arm handle 支持 direct + indirect mixed site-matrix。
-  - 通过阅读 `crates/scoopc/src/llvm/codegen/effect/{mixed.rs,matrix.rs}`，确认仓库内已经存在一批通用的 mixed matrix helper；当前缺口主要是 no-immediate 路径的接线与回归，而不是还缺底层基础设施。
-- 决策：
-  - 进一步审计后改变复杂度判断：原始 `T2003c0c2b3d` 同时覆盖 top-level mixed 与 nested same-stmt mixed（block / if / while），单轮实现面仍然过大。
-  - 已按仓库既有拆分模式，把 `T2003c0c2b3d` 细化为 `T2003c0c2b3d1`～`T2003c0c2b3d4`，当前执行项改为 `T2003c0c2b3d1`：top-level direct + indirect mixed site-matrix。
-  - `T2003c0c2b3d2`～`T2003c0c2b3d4` 继续留待后续调用处理。
-- 已完成：在 `crates/scoopc/src/llvm/codegen/effect/mixed.rs` 为“无 immediate-resume + direct/indirect mixed + top-level only”新增专用 lowering 分流，并通过 `cargo check -p scoopc --features llvm` 验证编译通过。
-- 已完成：新增 run-pass fixture `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`，同一文件覆盖：
-  - direct -> indirect -> direct 的 multiple mixed top-level 序列；
-  - indirect -> direct 的 top-level mixed 顺序；
-  - sibling custom non-resuming arm（`Abort.stop`）以及前一 escape site 结果跨后续 mixed suspension 的保留语义。
-- 已完成：用 `cargo run -p scoop --features llvm -- build ...` + 直接执行产物验证新 fixture，输出已固化到对应 `.stdout`。
-- 已完成：手工验证 `tests/fixtures/build/effect_multi_escape_direct_indirect_while_is_error.scoop` 仍保持原有失败诊断，说明 while mixed 边界还锁在后续 `T2003c0c2b3d4`。
-- 已完成：全量质量门禁通过：
+- 已创建本计划文件。
+- 已检查最新提交：`ff67b7da4bd526c5f3c4dfc8e44fb71fd3912248`，提交信息为 `Update plan`，未在提交信息中提到需要先修的既有缺陷。
+- 已读取 `TODO.md` / `PLAN.md`。
+- 已定位首个未完成任务：`T2003c0c2b3d2`，内容为“无 immediate-resume，nested block direct + indirect same-stmt mixed”。
+
+## 当前任务理解
+
+- 现状并不是 parser/typecheck 缺口，而是 LLVM no-immediate mixed lowering 的分流和 continuation step 仍只支持：
+  - top-level direct + indirect mixed；
+  - direct-only nested block / if / while；
+  - indirect-only nested block / if / while。
+- 对于“同一个 statement-position nested block 内 direct / indirect 共存”的 mixed 路径，当前仍在入口报：
+  - `handle multi-arm without immediate-resume (escape site matrix not yet supported)`
+- 已做最小复现：
+  - 临时文件：`/tmp/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  - 复现命令：`cargo run -p scoop --features llvm -- build ...`
+  - 结果：稳定复现上述 `unsupported_main_body` 报错。
+
+## 细化执行步骤
+
+1. 修改 `crates/scoopc/src/llvm/codegen/effect/mixed.rs` 的 no-immediate mixed 分流：
+   - 保留现有 top-level mixed 路径；
+   - 放开并接入“top-level 或 statement-position nested block”这一级 mixed 子集；
+   - 继续让 if / while mixed 保持稳定拒绝。
+2. 扩展 no-immediate mixed lowering 的状态机：
+   - 为 nested block mixed 记录同 statement 的前后 site 关系；
+   - 在 initial body 与 continuation step 中接入 block prefix / next-site replay / indirect-site continue helper；
+   - 确保 block locals 的 capture / restore 与 top-level tail 继续执行正确。
+3. 新增回归 fixtures：
+   - run-pass：nested block direct + indirect same-stmt mixed；
+   - build：至少一个仍未支持的 if 或 while mixed 边界。
+4. 运行验证：
+   - `cargo fmt --all`
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+5. 若通过：
+   - 更新 `TODO.md` / `PLAN.md` / 本文件；
+   - 提交 git commit；
+   - 停止。
+
+## 执行结果
+
+- 已完成 `T2003c0c2b3d2`。
+- 已修改 `crates/scoopc/src/llvm/codegen/effect/mixed.rs`：
+  - no-immediate mixed 分流不再只接受 top-level direct+indirect mixed；
+  - 现已支持 statement-position nested block 的 direct + indirect same-stmt mixed；
+  - initial body / continuation step 都已接入 block prefix、same-block next-site replay 与 indirect tail replay；
+  - 修复了 second indirect step replay 时未补回 block scope、导致外层 handle-body 局部（例如 `prefix`）在 replay 中触发 `unknown local value` 的问题。
+- 已新增回归：
+  - run-pass：`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  - build：`tests/fixtures/build/effect_multi_escape_direct_indirect_if_is_error.scoop`
+- 已完成验证：
+  - `cargo fmt --all`
   - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`（`fixtures: ok (982)`）
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 已完成：`TODO.md` 已将 `T2003c0c2b3d1` 标记为完成，并记录实现/回归摘要；`PLAN.md` 已把下一步切换为 `T2003c0c2b3d2`。
-- 下一步：
-  1. 检查最终 diff，确认仅包含 `T2003c0c2b3d1` 实现、回归与计划文档更新。
-  2. 创建本轮 git commit。
-  3. 停止，等待下一次调用处理 `T2003c0c2b3d2`。
+- 下一步应切换到 `T2003c0c2b3d3`（if branch direct + indirect same-stmt mixed）。

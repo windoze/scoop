@@ -877,7 +877,7 @@ cargo run -p scoop --features llvm -- test
   - 旧的 build-fail `effect_multi_escape_direct_indirect_while_is_error` 仍保持失败，继续锁住后续 `T2003c0c2b3d4` 的 while mixed 边界。
   - 已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003c0c2b3d2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，nested block direct + indirect same-stmt mixed）
+### T2003c0c2b3d2 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，nested block direct + indirect same-stmt mixed）
 - 描述：在 top-level mixed 打通后，再扩到 statement-position nested block 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。
 - 目标：
   - 支持 statement-position nested block 中的 direct + indirect same-stmt mixed。
@@ -888,6 +888,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3d1
+- 完成说明：
+  - `mixed.rs` 的 no-immediate mixed lowering 现已从“仅 top-level direct+indirect mixed”扩到“top-level mixed + statement-position nested block direct/indirect same-stmt mixed”子集；同一 top-level statement 内的 nested block mixed 会记录前后 site 的 next/prev 关系，并继续对 if / while mixed 保持稳定拒绝。
+  - initial body 与 continuation step 现已在 direct→indirect、indirect→direct 两种顺序上接入 block prefix、same-block next-site replay 与 indirect tail replay；并修复了 second indirect step 继续 block tail 时未补回 block scope 导致的 `unknown local value`。
+  - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi`、build `effect_multi_escape_direct_indirect_if_is_error`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3d3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct + indirect same-stmt mixed）
 - 描述：在 nested block mixed 打通后，再扩到 if then/else branch 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。
