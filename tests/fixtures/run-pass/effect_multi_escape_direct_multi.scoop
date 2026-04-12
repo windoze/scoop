@@ -1,0 +1,71 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_direct_multi.stdout
+//
+// T2003c0c2b3a: 无 immediate-resume 的 multi-arm handle（multiple top-level direct escape sites）。
+// - 同一个 source-handle 里命中两个 top-level direct escape site；
+// - `resume(...)` 后会继续执行第一个 site 之后的 tail，并再次命中第二个 site；
+// - 第二次 `resume(...)` 后顺序完成剩余 body。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+class Cell(var k: Continuation<String>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body")
+
+        val first: String = Ask.ask("first")
+        println("after1")
+        println(first)
+
+        val second: String = Ask.ask("second")
+        println("after2")
+        println(second)
+
+        println("body_done")
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.n = cell.n + 1
+            println("ask_arm")
+            println(cell.n)
+            println(label)
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

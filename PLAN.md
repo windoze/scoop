@@ -120,7 +120,11 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_escape_continuation_indirect_perform_tail_return_int`、`effect_escape_continuation_indirect_perform_closure_tail_return_string`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
   - T2003c0c2b2 已完成：`codegen_handle_expr_escape_with_nonresuming_siblings` 已确认会在“无 immediate-resume + 单个 top-level indirect escape site”场景下分流到 dedicated no-immediate indirect lowering；该路径的 continuation step 会把恢复值写回 callee suspend state、重新调用 callee，并在 no-match / replay 过程中继续保留 sibling `Raise.raise` / custom non-resuming 的 dispatch 优先级。
   - 已新增 run-pass 回归 `effect_multi_escape_indirect_single_site`、`effect_multi_escape_custom_nonresuming_indirect_single_site`、`effect_multi_escape_raise_indirect_single_site`；`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c2b3`：继续收口无-immediate 的 richer escape site-matrix（多 site / nested / direct+indirect mixed）。
+  - 继续审计 `T2003c0c2b3` 后确认，它并不只是“把 sibling dispatch 接到已有 matrix”这么简单：当前 no-immediate multi-arm 只有 direct/indirect single-site lowering，而 richer matrix 至少还跨 `multiple top-level direct`、`nested direct`、`indirect site-matrix`、`direct+indirect mixed` 四类独立实现。
+  - 若继续把 `T2003c0c2b3` 整包推进，会把多站点 `pc` 状态机、nested replay、callee suspend replay 与 same-stmt mixed next/prev 路由一次性耦合；因此继续拆成 `T2003c0c2b3a` / `T2003c0c2b3b` / `T2003c0c2b3c` / `T2003c0c2b3d`。
+  - T2003c0c2b3a 已完成：`codegen_handle_expr_escape_with_nonresuming_siblings` 现已把“无 immediate-resume + 无 indirect site + 全部为 top-level direct site”的 multi-arm escape 组合统一接到 no-immediate direct lowering；continuation state 新增 `pc` 字段，step trampoline 会按 `pc` 恢复当前 direct site、replay top-level tail，并在命中后续 direct site 时重新分配 continuation。
+  - top-level body-lift 分析现已覆盖多 site：较早 direct site 的结果与 pre-site locals 可以跨后续 suspension 保留到最终 tail；新增 run-pass 回归 `effect_multi_escape_direct_multi`、`effect_multi_escape_custom_nonresuming_direct_multi`，并通过 `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2b3b`：继续把 no-immediate multi-arm escape 扩到 nested direct sites（block / if / while）。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -157,7 +161,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b1a（已完成）：修正 indirect escape-continuation arm binder 的真实类型与 payload decode。
   - T2003c0c2b1b（已完成）：补 single-arm indirect escape-continuation 的 callee tail-perform resume path。
   - T2003c0c2b2（已完成）：补无 immediate-resume 的 single indirect escape site（允许 sibling non-resuming）。
-  - T2003c0c2b3：补无 immediate-resume 的 richer escape site-matrix（多 site / nested / direct+indirect mixed）。
+  - T2003c0c2b3a（已完成）：补无 immediate-resume 的 multiple top-level direct escape sites。
+  - T2003c0c2b3b：补无 immediate-resume 的 nested direct escape sites。
+  - T2003c0c2b3c：补无 immediate-resume 的 indirect escape site-matrix。
+  - T2003c0c2b3d：补无 immediate-resume 的 direct+indirect mixed site-matrix。
   - T2003c0c2c：补 multiple immediate-resume arms。
   - T2003c0c2d：补 multiple escape-continuation arms 与 richer multi-resuming mixed-arm。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。

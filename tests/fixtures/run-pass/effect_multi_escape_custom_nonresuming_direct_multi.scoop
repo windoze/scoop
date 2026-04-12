@@ -1,0 +1,85 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_direct_multi.stdout
+//
+// T2003c0c2b3a: 无 immediate-resume 的 multi-arm handle（multiple top-level direct escape sites + sibling custom non-resuming）。
+// - 两个 top-level direct escape site 共享同一个 escape arm；
+// - 第一次 resume 之后继续命中第二个 direct site；
+// - 第二次 resume 之后的 tail 会命中 sibling custom non-resuming arm；
+// - 第一个 escape site 的结果会跨第二次 suspension 保留到 tail。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+
+        val first: String = Ask.ask("first")
+        println("after1")
+        println(first)
+
+        val second: String = Ask.ask("second")
+        println("after2")
+        println(first)
+        println(second)
+
+        Abort.stop(second)
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.n = cell.n + 1
+            println("ask_arm")
+            println(cell.n)
+            println(label)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}
