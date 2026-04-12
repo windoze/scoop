@@ -684,10 +684,10 @@ cargo run -p scoop --features llvm -- test
   - `codegen_handle_expr_escape_with_nonresuming_siblings` 现已把“无 immediate-resume + direct-only”的 multi-arm 组合统一分流到 no-immediate direct lowering，不再要求 direct sites 全部是 top-level。
   - no-immediate direct lowering 现已接受 statement-position nested block direct site，并在初次执行与 `resume(...)` step 中分别复用 nested block prefix / tail replay helper。
   - body-lift 分析已从 top-level `val` 扩到递归 block 声明收集；nested block 中在 suspension 前声明、在 replay 后继续使用的 locals 现可正确 capture / restore。
-  - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_block_multi`，build-fail `effect_multi_escape_direct_if_is_error`。
+  - 已新增 run-pass fixture：`effect_multi_escape_custom_nonresuming_direct_block_multi`；当时用于锁边界的 if build-fail 已由后续 `T2003c0c2b3b2` 改为正例。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct escape sites）
+### T2003c0c2b3b2 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct escape sites）
 - 描述：在 nested block direct 打通后，再扩到 if then/else branch。该子集需要把分支前缀、命中分支 tail replay 与 after-if merge 接入 no-immediate multi-arm direct lowering。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 if then/else branch 中的 direct escape site。
@@ -698,6 +698,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3b1
+- 完成说明：
+  - no-immediate direct lowering 现已接受 statement-position `if` then/else branch direct site；初次执行与 `resume(...)` step 都会复用现有 `if` dispatch helper，在运行时按命中的分支选择 site。
+  - `resume(...)` 后会先 replay 命中的 branch tail，再继续 after-if top-level tail；after-if tail 里的 sibling custom non-resuming dispatch 与 detach / self-capture 语义保持稳定。
+  - 当前 if 子集按“paired then/else direct sites”收口；while body direct site 继续留给 `T2003c0c2b3b3`。
+  - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_if_multi`，build-fail `effect_multi_escape_direct_while_is_error`；旧的 build-fail `effect_multi_escape_direct_if_is_error` 已移除。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3b3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct escape sites）
 - 描述：最后补 nested direct 里的 while body 子集。该阶段需要把当前迭代尾部 replay、loop condition 重检与 loop re-entry 接到 no-immediate multi-arm direct lowering。

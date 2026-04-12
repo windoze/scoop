@@ -127,8 +127,10 @@ cargo run -p scoop --features llvm -- test
   - 继续审计 `T2003c0c2b3b` 后确认，它仍同时覆盖 nested block / if / while 三类 direct replay：block 主要是 prefix/tail replay，if 需要分支命中与 merge，while 还要再叠 loop re-entry。若单轮整包推进，风险面仍然过大。
   - 因此将 `T2003c0c2b3b` 继续拆成 `T2003c0c2b3b1` / `T2003c0c2b3b2` / `T2003c0c2b3b3`：先补 nested block direct，再补 if branch direct，最后补 while body direct。
   - T2003c0c2b3b1 已完成：no-immediate direct lowering 现已支持 statement-position nested block direct site；初次执行与 `resume(...)` step 会分别复用 nested block prefix / tail replay helper，递归 body-lift 分析也已覆盖 nested block locals。
-  - 已新增 run-pass / build 回归：`effect_multi_escape_custom_nonresuming_direct_block_multi`、`effect_multi_escape_direct_if_is_error`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c2b3b2`：继续把 no-immediate multi-arm escape 扩到 if branch direct site。
+  - 已新增 run-pass 回归 `effect_multi_escape_custom_nonresuming_direct_block_multi`；当时用于锁边界的 if build-fail 已由后续 `T2003c0c2b3b2` 改为正例。
+  - T2003c0c2b3b2 已完成：no-immediate direct lowering 现已支持 statement-position if then/else direct site；初次执行与 `resume(...)` step 都会复用现有 if-dispatch helper，在运行时按命中的分支创建 continuation、replay branch tail，并在 after-if top-level tail 中继续 sibling custom non-resuming dispatch。
+  - 已新增回归：run-pass `effect_multi_escape_custom_nonresuming_direct_if_multi`、build-fail `effect_multi_escape_direct_while_is_error`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003c0c2b3b3`：继续把 no-immediate multi-arm escape 扩到 while body direct site。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -167,7 +169,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b2（已完成）：补无 immediate-resume 的 single indirect escape site（允许 sibling non-resuming）。
   - T2003c0c2b3a（已完成）：补无 immediate-resume 的 multiple top-level direct escape sites。
   - T2003c0c2b3b1（已完成）：补无 immediate-resume 的 nested block direct escape sites。
-  - T2003c0c2b3b2：补无 immediate-resume 的 if branch direct escape sites。
+  - T2003c0c2b3b2（已完成）：补无 immediate-resume 的 if branch direct escape sites。
   - T2003c0c2b3b3：补无 immediate-resume 的 while body direct escape sites。
   - T2003c0c2b3c：补无 immediate-resume 的 indirect escape site-matrix。
   - T2003c0c2b3d：补无 immediate-resume 的 direct+indirect mixed site-matrix。

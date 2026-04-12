@@ -1,10 +1,10 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::llvm::unsupported_main_body
-// EXPECT-ERROR: handle multi-arm without immediate-resume (only top-level or statement-position nested block direct sites supported)
+// EXPECT-ERROR: handle multi-arm without immediate-resume (only top-level, statement-position nested block, or paired if-branch direct sites supported)
 // ARGS: --emit-llvm
 //
-// T2003c0c2b3b1 只补 statement-position nested block direct site；
-// if branch direct site 留给后续 `T2003c0c2b3b2`。
+// T2003c0c2b3b2 先补 if-branch direct site；
+// while body direct site 留给后续 `T2003c0c2b3b3`。
 
 import scoop.core.*
 
@@ -18,11 +18,10 @@ effect Abort {
 
 fun main() {
     val _: Unit = handle {
-        if (true) {
+        while (true) {
             val first: String = Ask.ask("first")
             println(first)
-        } else {
-            println("else")
+            Abort.stop(first)
         }
     } with {
         Ask.ask(label: String), k -> {
