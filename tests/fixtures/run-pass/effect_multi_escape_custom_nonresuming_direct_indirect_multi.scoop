@@ -1,0 +1,184 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_direct_indirect_multi.stdout
+//
+// T2003c0c2b3d1: 无 immediate-resume 的 multi-arm handle
+// 支持 top-level direct + indirect mixed site-matrix。
+// - `run_direct_indirect_direct` 覆盖 direct -> indirect -> direct 的 multiple mixed 序列；
+// - `run_indirect_direct` 覆盖 indirect -> direct 顺序；
+// - 前一个 escape site 的结果会跨后续 mixed suspension 保留到 tail，
+//   且最终 tail 的 sibling custom non-resuming arm 仍由同一个 source-handle 接住。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var count: Int)
+
+fun fetch(tag: Int): String / (Ask) {
+    println("fetch_enter")
+    println(tag)
+    val msg: String = Ask.ask(tag + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
+    cell.k = none_k
+    cell.count = 0
+
+    val result: Int = handle {
+        println("body_a")
+        val prefix: String = "prefix_a"
+        val first: String = Ask.ask(11)
+        println("after_a1")
+        println(first)
+        val second: String = fetch(20)
+        println("after_a2")
+        println(prefix)
+        println(first)
+        println(second)
+        val third: String = Ask.ask(33)
+        println("after_a3")
+        println(prefix)
+        println(first)
+        println(second)
+        println(third)
+        Abort.stop(third)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.count = cell.count + 1
+            println("ask_arm")
+            println(cell.count)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle_a")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume_a1")
+            }
+        }
+        None -> println("missing_a1")
+    }
+    println("after_resume_a1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume_a2")
+            }
+        }
+        None -> println("missing_a2")
+    }
+    println("after_resume_a2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k3.resume("gamma")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume_a3")
+            }
+        }
+        None -> println("missing_a3")
+    }
+    println("after_resume_a3")
+}
+
+fun run_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
+    cell.k = none_k
+    cell.count = 0
+
+    val result: Int = handle {
+        println("body_b")
+        val prefix: String = "prefix_b"
+        val first: String = fetch(40)
+        println("after_b1")
+        println(prefix)
+        println(first)
+        val second: String = Ask.ask(55)
+        println("after_b2")
+        println(prefix)
+        println(first)
+        println(second)
+        Abort.stop(first)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.count = cell.count + 1
+            println("ask_arm")
+            println(cell.count)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle_b")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume_b1")
+            }
+        }
+        None -> println("missing_b1")
+    }
+    println("after_resume_b1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume_b2")
+            }
+        }
+        None -> println("missing_b2")
+    }
+    println("after_resume_b2")
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+    run_direct_indirect_direct(cell, none_k)
+    run_indirect_direct(cell, none_k)
+    println("done")
+}

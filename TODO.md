@@ -647,7 +647,7 @@ cargo run -p scoop --features llvm -- test
   - `T2003c0c2b3a`：multiple top-level direct escape sites。
   - `T2003c0c2b3b`：nested direct escape sites（block / if / while）。
   - `T2003c0c2b3c`：indirect escape site-matrix（top-level multiple + nested block / if / while）。
-  - `T2003c0c2b3d`：direct + indirect mixed site-matrix。
+  - `T2003c0c2b3d`：direct + indirect mixed site-matrix（top-level + nested same-stmt，后续再拆）。
 - 依赖：T2003c0c2b2
 
 ### T2003c0c2b3a [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，multiple top-level direct escape sites）
@@ -847,17 +847,71 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixture：`effect_multi_escape_custom_nonresuming_indirect_while_multi`；旧的 while-indirect build-fail 已删除，并新增 build-fail `effect_multi_escape_direct_indirect_while_is_error` 继续锁住下一步 `T2003c0c2b3d` 的 direct+indirect mixed 边界。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3d [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，direct + indirect mixed site-matrix）
-- 描述：最后收口 no-immediate richer matrix 中 direct + indirect mixed 的组合，包括 top-level mixed 与 nested same-stmt mixed。该阶段统一处理 next/prev replay、same-stmt 路由与 sibling dispatch。
+### T2003c0c2b3d Effect：LLVM 多 arm handle dispatch（无 immediate-resume，direct + indirect mixed site-matrix，已拆分）
+- 描述：进一步审计后确认，原始 `T2003c0c2b3d` 同时跨 top-level mixed 与 nested same-stmt mixed（block / if / while）四类实现。若继续整包推进，会把 top-level mixed `pc` 状态机、same-stmt next/prev replay、callee suspend replay 与 while re-entry 一次性耦合，因此继续拆成 `T2003c0c2b3d1`～`T2003c0c2b3d4`。
+- 总目标：
+  - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 最终支持 direct + indirect mixed site-matrix，不再停留在 direct-only / indirect-only 子集。
+  - top-level mixed 与 nested same-stmt mixed 下的 next/prev replay、captured locals、sibling self-capture 与 dispatch 语义保持稳定。
+  - 为后续 `T2003c0c2c` / `T2003c0c2d` 提供已收口的 no-immediate mixed escape lowering 基线。
+- 拆分顺序：
+  - `T2003c0c2b3d1`：top-level direct + indirect mixed site-matrix。
+  - `T2003c0c2b3d2`：statement-position nested block direct + indirect same-stmt mixed。
+  - `T2003c0c2b3d3`：if branch direct + indirect same-stmt mixed。
+  - `T2003c0c2b3d4`：while body direct + indirect same-stmt mixed。
+- 依赖：T2003c0c2b3c4
+
+### T2003c0c2b3d1 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，top-level direct + indirect mixed site-matrix）
+- 描述：先收口 no-immediate mixed 的最小但真实子集：所有 mixed escape sites 都位于 top-level statement 顺序上，不再同时处理 nested same-stmt path replay。
 - 目标：
-  - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 direct + indirect mixed site-matrix，不再停留在同类 site 子集。
-  - same-stmt mixed、pre/post site replay、captured locals 与 sibling self-capture 语义保持稳定。
-  - 完成后再进入 `T2003c0c2c` / `T2003c0c2d`，避免它们继续依赖 no-immediate escape 的结构性门禁。
+  - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 top-level direct + indirect mixed site-matrix，覆盖 direct→indirect、indirect→direct 与 multiple mixed 组合。
+  - continuation step 在 top-level mixed 序列中正确维护 `pc`、callee suspend replay、future direct re-intercept 与 sibling non-resuming dispatch。
+  - 捕获 locals、first-site / later-site replay 与 escape arm detach / self-capture 语义保持稳定。
 - 验收：
-  - 新增 run-pass fixtures：至少一例 direct+indirect mixed + sibling non-resuming。
+  - 新增 run-pass fixtures：至少一例 top-level direct+indirect mixed + sibling non-resuming。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c4
+- 完成说明：
+  - `codegen_handle_expr_escape_with_nonresuming_siblings(...)` 现已在“存在 direct + indirect mixed site，且所有 site 都是 top-level `resume_path=[]`”时分流到新的专用 lowering；该 lowering 会统一建立 mixed `pc` 状态机，并在 continuation step 中同时处理 future direct re-intercept、indirect callee replay 与 sibling non-resuming dispatch。
+  - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_multi`，同一用例覆盖 direct→indirect→direct 的 multiple mixed 序列、indirect→direct 顺序，以及前一 escape site 结果跨后续 mixed suspension 的保留语义。
+  - 旧的 build-fail `effect_multi_escape_direct_indirect_while_is_error` 仍保持失败，继续锁住后续 `T2003c0c2b3d4` 的 while mixed 边界。
+  - 已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+
+### T2003c0c2b3d2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，nested block direct + indirect same-stmt mixed）
+- 描述：在 top-level mixed 打通后，再扩到 statement-position nested block 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。
+- 目标：
+  - 支持 statement-position nested block 中的 direct + indirect same-stmt mixed。
+  - `resume(...)` 后会先 replay 命中的 block tail，再继续 block 外 top-level tail。
+  - block locals 在 mixed next/prev replay 中可稳定 capture / restore。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖至少一例 nested block mixed，以及至少一个仍未支持的 if / while mixed 边界。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3d1
+
+### T2003c0c2b3d3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct + indirect same-stmt mixed）
+- 描述：在 nested block mixed 打通后，再扩到 if then/else branch 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。
+- 目标：
+  - 支持 if branch 中的 direct + indirect same-stmt mixed。
+  - `resume(...)` 后会先 replay 命中的 branch tail，再继续 after-if top-level tail。
+  - same-branch mixed next/prev replay 与 sibling dispatch 语义保持稳定。
+- 验收：
+  - 新增 run-pass / build fixtures：覆盖至少一例 if branch mixed，以及至少一个仍未支持的 while mixed 边界。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3d2
+
+### T2003c0c2b3d4 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct + indirect same-stmt mixed）
+- 描述：最后补 while body 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。该子集需要把 same-stmt next/prev replay、当前迭代尾部 replay、loop condition 重检与 loop re-entry 统一接到 no-immediate mixed lowering。
+- 目标：
+  - 支持 while body 中的 direct + indirect same-stmt mixed。
+  - `resume(...)` 后会先 replay 当前站点的 nested tail 与当前迭代尾部，再重检 loop condition，并在后续迭代中重新命中 mixed site。
+  - sibling non-resuming 在 while mixed replay / arm body / continuation step 中保持一致的 dispatch 与 self-capture 语义。
+- 验收：
+  - 新增 run-pass fixtures：至少一例 while body mixed + sibling non-resuming。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3d3
 
 ### T2003c0c2c [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume arms）
 - 描述：当前 immediate-resume lowering 整体以“单个 distinguished immediate site + 单个 arm state machine”为中心组织。multiple immediate-resume arms 需要把 perform-site 扫描、arm dispatch、resume target 选择与 `finally` cleanup 从“单个 op”扩到“按 op tag / 源码顺序选择多个 immediate arm”，但暂不把 multiple escape 一起混入。
@@ -869,7 +923,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：multiple immediate arms、multiple immediate + sibling non-resuming。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2b3d
+- 依赖：T2003c0c2b3d4
 
 ### T2003c0c2d [TODO] Effect：LLVM 多 arm handle dispatch（multiple escape-continuation arms / richer multi-resuming mixed-arm）
 - 描述：最后收口 multiple escape-continuation arms，以及 immediate-resume + multiple escape-continuation 的 richer multi-resuming mixed-arm。该阶段需要统一多个 continuation 的 dispatch、resume target、captured locals 与 nested replay 规则。
