@@ -1050,7 +1050,7 @@ cargo run -p scoop --features llvm -- test
   - 已明确统一 pass 与现有 runtime ABI 的对接约束：双通道 payload transport、TLS handler stack / perform slot、captured handler stack、one-shot continuation 继续共享同一套语义。
   - `PLAN.md`、`README.md` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 已同步收口到“先构建完整状态机，再做 mode-specific simplification”的主线表述。
 
-### T2003u2 [TODO] Effect：实现统一的 suspension-aware state machine plan
+### T2003u2 [DONE] Effect：实现统一的 suspension-aware state machine plan
 - 描述：在设计定稿后，先实现“构建完整状态机计划”的中间层，不直接生成 LLVM。重点是把 direct/indirect perform、branch/loop、nested handle、multi-arm dispatch 统一编码，而不是继续维护多套 scanner / replay helper。
 - 目标：
   - 用单一计划结构表达所有 suspension point，而不是分别维护 `ImmediateResumeFrame`、`MixedEscapeDirectFrame`、`ResumeFrame` 这类彼此不兼容的路径表示。
@@ -1062,6 +1062,12 @@ cargo run -p scoop --features llvm -- test
   - 现有 effect scanner/analysis 中与统一 plan 重复的核心路径有明确迁移入口，不再为新组合继续新增 scanner。
   - `cargo test --all`
 - 依赖：无
+- 完成说明：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`，定义统一的 `HandleStateMachinePlan`、`states`、`suspend_sites`、`arm_plans`、`cleanup_scopes`、`frame_layout`、`dispatch_plan` 与 nested-handle plan 表示。
+  - 统一 plan builder 已覆盖 direct perform、effectful callee call-site、本地函数值 call-site、`if` / `while` / block 控制流、`finally` cleanup scope、nested handle 与 multiple arms；direct/indirect/callee-state-machine 挂起边界统一落到同一套 site 抽象。
+  - 已新增单元测试：验证 direct + branch/loop/finally、call-state-machine callee + indirect local function call、nested handle + multiple arms 的 pretty dump 输出。
+  - 已把统一 plan builder 接入 `codegen_handle_expr` 的迁移前置步骤；现有 specialized lowering 在真正发射 LLVM 前会先构建统一 plan 并消费结构签名，后续新增合法组合不再以“继续扩 scanner”作为默认落点。
+  - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
 ### T2003u3 [TODO] Effect：在完整状态机之上实现 never-resume / immediate-resume / continuation 化简
 - 描述：统一状态机 plan 落地后，next step 不是再补 case，而是把三类运行模式都定义成同一状态机上的化简结果。

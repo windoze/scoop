@@ -1,52 +1,86 @@
-# 本轮执行计划
+# 执行计划与进度记录
 
-## 约束说明
+## 说明
 
-- 按用户要求，本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
-- 在开始仓库检查前，先记录本计划；随着执行推进，会持续更新本文件。
-- 不在实现缺口上做绕过；如果发现规范不匹配或前置依赖缺失，会先调整 `TODO.md`/`PLAN.md`，提交后停止。
+按要求先记录执行计划、关键判断依据和后续进度。这里提供的是可审计的高层计划与决策摘要，不包含不可共享的内部详细推理。
+
+## 当前目标
+
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前发现最新提交遗留问题或规格不匹配，则先修复这些前置问题，必要时更新 `TODO.md` / `PLAN.md` 后停止。
 
 ## 初始步骤
 
-1. 检查最新一次 Git 提交，确认是否提到已有问题需要优先修复。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务。
-3. 判断该任务是否过大；若过大，则拆分为更小子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
-4. 实施当前应执行的首个任务，必要时补充或调整测试。
-5. 运行相关验证，至少覆盖受影响范围；如有必要，运行更完整测试与 `clippy`。
-6. 将任务完成状态回写到 `TODO.md`/`PLAN.md`，并更新本文件记录结果。
-7. 生成一次 Git 提交，然后停止，不继续后续任务。
+1. 检查最新一次提交，确认是否明确提到已知问题、待修复项或回归。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖和既有分解。
+4. 如任务过大或存在前置缺口：
+   - 将任务拆分为更小的可执行子任务；
+   - 更新 `PLAN.md`；
+   - 调整 `TODO.md` 的顺序和依赖；
+   - 本轮只执行拆分后的第一个子任务。
+5. 实现任务并补充/调整测试。
+6. 运行相关验证，优先确保：
+   - 相关测试通过；
+   - `cargo fmt` 通过；
+   - `cargo clippy --all-targets -- -D warnings` 无告警；
+   - 必要时运行更广的 `cargo test --all` 或目标化测试。
+7. 更新文档与跟踪文件：
+   - 在 `TODO.md` 中标记已完成任务；
+   - 在 `PLAN.md` 中更新状态；
+   - 在本文件记录关键进展和计划变化。
+8. 提交一次 git commit，然后停止，不继续下一个任务。
 
-## 当前状态
+## 进度日志
 
-- 已检查最新提交：`01f9ceb Update plan`，提交说明未直接提到需要先修复的遗留 bug。
-- 已定位本轮首个未完成任务：`T2003u1`（Effect：统一状态机 pass 设计定稿与不变量收口）。
-- 判断结果：`T2003u1` 是可在单轮内完成的设计/文档收口任务，不需要继续拆分子任务。
+- 2026-04-13：已创建本计划文件，准备开始检查最新提交与任务列表。
+- 2026-04-13：已检查最新提交 `0e366d52d9a11485e06ce200452ccb9ec5c8ff2d`。提交说明仅包含 `T2003u1` 统一状态机设计定稿，没有额外注明需要先修的遗留缺陷。
+- 2026-04-13：已确认 `TODO.md` 中第一个未完成任务是 `T2003u2 Effect：实现统一的 suspension-aware state machine plan`。
+- 2026-04-13：已审阅 `PLAN.md`、`docs/effect_unified_state_machine.md` 与现有 `crates/scoopc/src/llvm/codegen/effect/*`。判断本轮可以直接完成 `T2003u2`，不必再拆子任务；范围聚焦于“统一 plan builder + pretty dump + 覆盖性单元测试”，暂不切换 LLVM 主 emitter（那是 `T2003u3`/`T2003u4` 的范围）。
 
-## T2003u1 执行计划
+## 本轮实现细化
 
-1. 审阅 `TODO.md` / `PLAN.md` 中 `T2003u1` 的目标与依赖，确认验收要求。
-2. 审阅 effect 现有代码注释与规范里关于 stack/heap state machine、runtime ABI 的现状描述。
-3. 在仓库中新增统一状态机设计文档，明确：
-   - 输入与输出；
-   - 状态表示、suspend site、cleanup edge、capture/body-lift；
-   - never-resume / immediate-resume / escape-continuation 的统一关系与化简；
-   - 与现有 runtime ABI、payload transport、handler stack、one-shot continuation 的对接。
-4. 更新 `PLAN.md` / `TODO.md` / 相关注释，使主线表述统一为“先构建完整状态机，再做 mode-specific simplification”。
-5. 运行验证命令，至少覆盖 `cargo test --all`；如无额外阻碍，补跑 `cargo clippy --workspace --all-targets -- -D warnings`。
-6. 回写完成状态到 `TODO.md` / `PLAN.md` / 本文件，提交 Git commit，然后停止。
+1. 在 effect codegen 模块内新增统一 `HandleStateMachinePlan` 数据结构。
+2. 实现 plan builder：
+   - 统一扫描 `handle` body 的 direct perform、可能挂起的调用点、control-flow（`if` / `while` / block）、nested handle；
+   - 为 handle arms 建立统一 dispatch / arm-plan 元数据；
+   - 建模 frame layout、resume target、cleanup/finally scope、loop re-entry 与 branch merge。
+3. 提供稳定的 pretty dump 输出，便于 golden/字符串断言测试。
+4. 新增单元测试，至少覆盖：
+   - direct perform；
+   - effectful call / indirect suspend 边界；
+   - `if`；
+   - `while`；
+   - nested handle；
+   - multiple arms / mixed arm kinds。
+5. 更新 `TODO.md` / `PLAN.md`，将 `T2003u2` 标记为完成并记录落地结果。
+6. 运行格式化、测试和 lint。
+7. 提交 git commit 后停止。
 
-## 已完成的关键步骤
+## 当前已完成的关键实现
 
-- 已确认 `T2003u1` 不需要继续拆分。
-- 已审阅 `TODO.md` / `PLAN.md` 与 effect 代码注释，确定本轮输出物应为“设计定稿文档 + 主线表述收口”。
-- 已新增 `docs/effect_unified_state_machine.md`，写明统一状态机 pass 的输入/输出、状态表示、不变量、化简规则与 runtime ABI 对接。
-- 已更新 `TODO.md`、`PLAN.md`、`README.md`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`，将主线统一为“先构建完整状态机，再做 mode-specific simplification”。
-- 已完成验证：
+- 已新增统一 plan builder：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`。
+- 已实现统一 `HandleStateMachinePlan` 输出，包含：
+  - `states`
+  - `suspend_sites`
+  - `arm_plans`
+  - `cleanup_scopes`
+  - `frame_layout`
+  - `dispatch_plan`
+  - nested-handle 子计划
+- 已实现 pretty dump，便于直接做字符串断言。
+- 已补 3 组单元测试，覆盖：
+  - direct perform + `if` / `while` / `finally`
+  - effectful callee call-site + 本地函数值 indirect call-site
+  - nested handle + multiple arms
+- 已完成首轮定向验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc plan_dump_ --lib`
+- 已完成完整验证：
   - `cargo test --all`
+  - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-  - 结果：均通过。
 
-## 待执行
+## 待完成事项
 
-1. 检查工作树并提交 Git commit。
-2. 提交后停止，不继续后续任务。
+1. 检查最终 diff，确认 `TODO.md` / `PLAN.md` / 代码变更一致。
+2. 提交 git commit 并停止。

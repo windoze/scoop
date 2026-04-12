@@ -1,0 +1,1672 @@
+use std::collections::{HashMap, HashSet};
+
+use crate::hir;
+use crate::span::Span;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+
+type PlanStateId = u32;
+type SuspendSiteId = u32;
+type ArmPlanId = u32;
+type CleanupScopeId = u32;
+
+#[derive(Debug, Clone, Default)]
+struct HandlePlanContext {
+    known_fun_effects: HashMap<String, bool>,
+    known_local_fun_effects: HashMap<hir::SymbolId, bool>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct HandleStateMachinePlan {
+    handle_span: Span,
+    result_ty: TypeId,
+    entry_state: PlanStateId,
+    states: Vec<PlanState>,
+    suspend_sites: Vec<SuspendSitePlan>,
+    arm_plans: Vec<ArmPlan>,
+    cleanup_scopes: Vec<CleanupScopePlan>,
+    frame_layout: FrameLayoutPlan,
+    dispatch_plan: DispatchPlan,
+    nested_handles: Vec<HandleStateMachinePlan>,
+}
+
+impl HandleStateMachinePlan {
+    fn build_with_context(
+        types: &TypeStore,
+        handle: &hir::HandleExpr,
+        context: &HandlePlanContext,
+    ) -> Self {
+        HandlePlanBuilder::new(types, handle, context).build()
+    }
+
+    #[cfg(test)]
+    pub(super) fn pretty_dump(&self, types: &TypeStore) -> String {
+        let mut out = String::new();
+        self.write_pretty_dump(types, 0, &mut out);
+        out
+    }
+
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.handle_span.start
+            ^ self.handle_span.end
+            ^ self.result_ty.as_u32() as usize
+            ^ self.entry_state as usize;
+        for state in &self.states {
+            acc ^= state.structural_signature();
+        }
+        for site in &self.suspend_sites {
+            acc ^= site.structural_signature();
+        }
+        for arm in &self.arm_plans {
+            acc ^= arm.structural_signature();
+        }
+        for scope in &self.cleanup_scopes {
+            acc ^= scope.structural_signature();
+        }
+        acc ^= self.frame_layout.structural_signature();
+        acc ^= self.dispatch_plan.structural_signature();
+        for nested in &self.nested_handles {
+            acc ^= nested.structural_signature();
+        }
+        acc
+    }
+
+    #[cfg(test)]
+    fn write_pretty_dump(&self, types: &TypeStore, indent: usize, out: &mut String) {
+        let pad = " ".repeat(indent);
+        out.push_str(&format!(
+            "{pad}handle span={:?} result={} entry=s{}\n",
+            self.handle_span,
+            types.display(self.result_ty),
+            self.entry_state
+        ));
+
+        out.push_str(&format!("{pad}dispatch:\n"));
+        for entry in &self.dispatch_plan.entries {
+            let arm_ids = entry
+                .arm_ids
+                .iter()
+                .map(|id| format!("arm{id}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!(
+                "{pad}  {} => [{}]\n",
+                entry.op_fqn,
+                arm_ids
+            ));
+        }
+
+        out.push_str(&format!("{pad}frame-layout:\n"));
+        out.push_str(&format!(
+            "{pad}  state_slot=yes resume_payload=yes cleanup_flag={} one_shot_flag={}\n",
+            yes_no(self.frame_layout.has_cleanup_flag),
+            yes_no(self.frame_layout.has_one_shot_flag)
+        ));
+        if self.frame_layout.lifted_locals.is_empty() && self.frame_layout.arm_binders.is_empty() {
+            out.push_str(&format!("{pad}  slots=[]\n"));
+        } else {
+            for slot in &self.frame_layout.lifted_locals {
+                out.push_str(&format!(
+                    "{pad}  lifted {}:{}\n",
+                    slot.display_name(),
+                    types.display(slot.ty)
+                ));
+            }
+            for slot in &self.frame_layout.arm_binders {
+                out.push_str(&format!(
+                    "{pad}  binder arm{} {}:{}\n",
+                    slot.owner_arm.unwrap_or(0),
+                    slot.display_name(),
+                    types.display(slot.ty)
+                ));
+            }
+        }
+
+        out.push_str(&format!("{pad}arms:\n"));
+        for arm in &self.arm_plans {
+            let binders = if arm.binder_slots.is_empty() {
+                "[]".to_string()
+            } else {
+                format!(
+                    "[{}]",
+                    arm.binder_slots
+                        .iter()
+                        .map(|slot| format!("{}:{}", slot.display_name(), types.display(slot.ty)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+            out.push_str(&format!(
+                "{pad}  arm{} op={} mode={} body_entry=s{} body_exit={} detach={}\n",
+                arm.id,
+                arm.op_fqn,
+                arm.resume_mode.label(),
+                arm.body_entry_state,
+                arm.body_exit.label(),
+                arm.detach_policy
+            ));
+            out.push_str(&format!("{pad}    binders={binders}\n"));
+        }
+
+        out.push_str(&format!("{pad}cleanup-scopes:\n"));
+        if self.cleanup_scopes.is_empty() {
+            out.push_str(&format!("{pad}  []\n"));
+        } else {
+            for scope in &self.cleanup_scopes {
+                out.push_str(&format!(
+                    "{pad}  cleanup{} kind={} entry=s{} exit=s{} note={}\n",
+                    scope.id,
+                    scope.kind.label(),
+                    scope.entry_state,
+                    scope.exit_state,
+                    scope.note
+                ));
+            }
+        }
+
+        out.push_str(&format!("{pad}suspend-sites:\n"));
+        if self.suspend_sites.is_empty() {
+            out.push_str(&format!("{pad}  []\n"));
+        } else {
+            for site in &self.suspend_sites {
+                let available = render_symbol_list(&site.available_locals, &self.frame_layout.slots);
+                let captures = render_symbol_list(&site.capture_locals, &self.frame_layout.slots);
+                let matching = site
+                    .matching_arms
+                    .iter()
+                    .map(|id| format!("arm{id}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push_str(&format!(
+                    "{pad}  site{} kind={} span={:?} resume=s{} arms=[{}]\n",
+                    site.id,
+                    site.kind.label(),
+                    site.span,
+                    site.resume_target,
+                    matching
+                ));
+                out.push_str(&format!("{pad}    available=[{available}]\n"));
+                out.push_str(&format!("{pad}    captures=[{captures}]\n"));
+                if let Some(detail) = site.kind.detail() {
+                    out.push_str(&format!("{pad}    detail={detail}\n"));
+                }
+            }
+        }
+
+        out.push_str(&format!("{pad}states:\n"));
+        for state in &self.states {
+            out.push_str(&format!("{pad}  s{} {}:\n", state.id, state.label));
+            for action in &state.actions {
+                out.push_str(&format!("{pad}    {action}\n"));
+            }
+            out.push_str(&format!(
+                "{pad}    terminator={}\n",
+                state.terminator.label()
+            ));
+        }
+
+        out.push_str(&format!("{pad}nested-handles:\n"));
+        if self.nested_handles.is_empty() {
+            out.push_str(&format!("{pad}  []\n"));
+        } else {
+            for (idx, nested) in self.nested_handles.iter().enumerate() {
+                out.push_str(&format!("{pad}  nested#{idx}\n"));
+                nested.write_pretty_dump(types, indent + 4, out);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PlanState {
+    id: PlanStateId,
+    label: String,
+    actions: Vec<String>,
+    terminator: StateTerminator,
+    reads: Vec<hir::SymbolId>,
+}
+
+#[derive(Debug, Clone)]
+enum StateTerminator {
+    Goto(PlanStateId),
+    Branch {
+        condition: String,
+        then_state: PlanStateId,
+        else_state: PlanStateId,
+        merge_state: PlanStateId,
+    },
+    Suspend {
+        site_id: SuspendSiteId,
+    },
+    CleanupEnter {
+        scope_id: CleanupScopeId,
+        next_state: PlanStateId,
+    },
+    ReturnHandle,
+    ReturnFromFunction,
+    ArmExit(ArmBodyExit),
+}
+
+impl StateTerminator {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        match self {
+            StateTerminator::Goto(state) => format!("goto s{state}"),
+            StateTerminator::Branch {
+                condition,
+                then_state,
+                else_state,
+                merge_state,
+            } => format!(
+                "branch cond={condition} then=s{then_state} else=s{else_state} merge=s{merge_state}"
+            ),
+            StateTerminator::Suspend { site_id } => format!("suspend site{site_id}"),
+            StateTerminator::CleanupEnter { scope_id, next_state } => {
+                format!("cleanup scope{scope_id} -> s{next_state}")
+            }
+            StateTerminator::ReturnHandle => "return handle".to_string(),
+            StateTerminator::ReturnFromFunction => "return function".to_string(),
+            StateTerminator::ArmExit(exit) => format!("arm-exit {}", exit.label()),
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            StateTerminator::Goto(state) => *state as usize,
+            StateTerminator::Branch {
+                condition,
+                then_state,
+                else_state,
+                merge_state,
+            } => {
+                condition.len()
+                    ^ (*then_state as usize)
+                    ^ ((*else_state as usize) << 1)
+                    ^ ((*merge_state as usize) << 2)
+            }
+            StateTerminator::Suspend { site_id } => 0x1000 ^ (*site_id as usize),
+            StateTerminator::CleanupEnter { scope_id, next_state } => {
+                0x2000 ^ (*scope_id as usize) ^ ((*next_state as usize) << 1)
+            }
+            StateTerminator::ReturnHandle => 0x3000,
+            StateTerminator::ReturnFromFunction => 0x4000,
+            StateTerminator::ArmExit(exit) => 0x5000 ^ exit.structural_signature(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SuspendSitePlan {
+    id: SuspendSiteId,
+    span: Span,
+    kind: SuspendSiteKind,
+    resume_target: PlanStateId,
+    matching_arms: Vec<ArmPlanId>,
+    available_locals: Vec<hir::SymbolId>,
+    capture_locals: Vec<hir::SymbolId>,
+}
+
+#[derive(Debug, Clone)]
+enum SuspendSiteKind {
+    DirectPerform { op_fqn: String },
+    IndirectCallMaySuspend { callee: String },
+    CallStateMachineCallee { callee: String },
+}
+
+impl SuspendSiteKind {
+    #[cfg(test)]
+    fn label(&self) -> &'static str {
+        match self {
+            SuspendSiteKind::DirectPerform { .. } => "direct-perform",
+            SuspendSiteKind::IndirectCallMaySuspend { .. } => "indirect-call-may-suspend",
+            SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
+        }
+    }
+
+    #[cfg(test)]
+    fn detail(&self) -> Option<String> {
+        match self {
+            SuspendSiteKind::DirectPerform { op_fqn }
+            | SuspendSiteKind::IndirectCallMaySuspend { callee: op_fqn }
+            | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn } => {
+                Some(op_fqn.clone())
+            }
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            SuspendSiteKind::DirectPerform { op_fqn } => 0x11 ^ op_fqn.len(),
+            SuspendSiteKind::IndirectCallMaySuspend { callee } => 0x22 ^ callee.len(),
+            SuspendSiteKind::CallStateMachineCallee { callee } => 0x33 ^ callee.len(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ArmPlan {
+    id: ArmPlanId,
+    op_fqn: String,
+    binder_slots: Vec<FrameSlot>,
+    resume_mode: ArmResumeMode,
+    body_entry_state: PlanStateId,
+    body_exit: ArmBodyExit,
+    detach_policy: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ArmResumeMode {
+    NeverResume,
+    ImmediateResume,
+    EscapeContinuation,
+}
+
+impl ArmResumeMode {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            ArmResumeMode::NeverResume => "never-resume",
+            ArmResumeMode::ImmediateResume => "immediate-resume",
+            ArmResumeMode::EscapeContinuation => "escape-continuation",
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            ArmResumeMode::NeverResume => 1,
+            ArmResumeMode::ImmediateResume => 2,
+            ArmResumeMode::EscapeContinuation => 3,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ArmBodyExit {
+    ReturnHandle,
+    ResumeMatchedSite,
+    MaterializeContinuation,
+}
+
+impl ArmBodyExit {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            ArmBodyExit::ReturnHandle => "return-handle",
+            ArmBodyExit::ResumeMatchedSite => "resume-matched-site",
+            ArmBodyExit::MaterializeContinuation => "materialize-continuation",
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            ArmBodyExit::ReturnHandle => 1,
+            ArmBodyExit::ResumeMatchedSite => 2,
+            ArmBodyExit::MaterializeContinuation => 3,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CleanupScopePlan {
+    id: CleanupScopeId,
+    kind: CleanupScopeKind,
+    entry_state: PlanStateId,
+    exit_state: PlanStateId,
+    note: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum CleanupScopeKind {
+    Finally,
+}
+
+impl CleanupScopeKind {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            CleanupScopeKind::Finally => "finally",
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            CleanupScopeKind::Finally => 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct FrameLayoutPlan {
+    slots: HashMap<hir::SymbolId, FrameSlot>,
+    lifted_locals: Vec<FrameSlot>,
+    arm_binders: Vec<FrameSlot>,
+    has_cleanup_flag: bool,
+    has_one_shot_flag: bool,
+}
+
+#[derive(Debug, Clone)]
+struct FrameSlot {
+    id: hir::SymbolId,
+    name: String,
+    ty: TypeId,
+    owner_arm: Option<ArmPlanId>,
+}
+
+impl FrameSlot {
+    fn display_name(&self) -> String {
+        format!("{}#{}", self.name, self.id.as_u32())
+    }
+
+    fn structural_signature(&self) -> usize {
+        self.id.as_u32() as usize
+            ^ self.name.len()
+            ^ ((self.ty.as_u32() as usize) << 1)
+            ^ self.owner_arm.unwrap_or(0) as usize
+    }
+}
+
+impl PlanState {
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.id as usize ^ self.label.len();
+        for action in &self.actions {
+            acc ^= action.len();
+        }
+        for id in &self.reads {
+            acc ^= id.as_u32() as usize;
+        }
+        acc ^ self.terminator.structural_signature()
+    }
+}
+
+impl SuspendSitePlan {
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.id as usize
+            ^ self.span.start
+            ^ self.span.end
+            ^ self.resume_target as usize
+            ^ self.kind.structural_signature();
+        for arm in &self.matching_arms {
+            acc ^= *arm as usize;
+        }
+        for id in &self.available_locals {
+            acc ^= id.as_u32() as usize;
+        }
+        for id in &self.capture_locals {
+            acc ^= (id.as_u32() as usize) << 1;
+        }
+        acc
+    }
+}
+
+impl ArmPlan {
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.id as usize
+            ^ self.op_fqn.len()
+            ^ self.resume_mode.structural_signature()
+            ^ self.body_entry_state as usize
+            ^ self.body_exit.structural_signature()
+            ^ self.detach_policy.len();
+        for slot in &self.binder_slots {
+            acc ^= slot.structural_signature();
+        }
+        acc
+    }
+}
+
+impl CleanupScopePlan {
+    fn structural_signature(&self) -> usize {
+        self.id as usize
+            ^ self.kind.structural_signature()
+            ^ self.entry_state as usize
+            ^ self.exit_state as usize
+            ^ self.note.len()
+    }
+}
+
+impl FrameLayoutPlan {
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.slots.len()
+            ^ self.lifted_locals.len()
+            ^ self.arm_binders.len()
+            ^ usize::from(self.has_cleanup_flag)
+            ^ (usize::from(self.has_one_shot_flag) << 1);
+        for slot in self.slots.values() {
+            acc ^= slot.structural_signature();
+        }
+        acc
+    }
+}
+
+impl DispatchPlan {
+    fn structural_signature(&self) -> usize {
+        self.entries
+            .iter()
+            .fold(self.entries.len(), |acc, entry| acc ^ entry.structural_signature())
+    }
+}
+
+impl DispatchEntry {
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.op_fqn.len();
+        for arm_id in &self.arm_ids {
+            acc ^= *arm_id as usize;
+        }
+        acc
+    }
+}
+
+#[derive(Debug, Clone)]
+struct DispatchPlan {
+    entries: Vec<DispatchEntry>,
+}
+
+#[derive(Debug, Clone)]
+struct DispatchEntry {
+    op_fqn: String,
+    arm_ids: Vec<ArmPlanId>,
+}
+
+#[derive(Clone, Default)]
+struct ScopeEnv {
+    slots: Vec<FrameSlot>,
+}
+
+impl ScopeEnv {
+    fn with_outer(slots: Vec<FrameSlot>) -> Self {
+        Self { slots }
+    }
+
+    fn push(&mut self, slot: FrameSlot) {
+        self.slots.push(slot);
+    }
+
+    fn available_ids(&self) -> Vec<hir::SymbolId> {
+        self.slots.iter().map(|slot| slot.id).collect()
+    }
+}
+
+struct HandlePlanBuilder<'a, 'hir> {
+    types: &'a TypeStore,
+    handle: &'hir hir::HandleExpr,
+    context: &'a HandlePlanContext,
+    next_state_id: PlanStateId,
+    next_site_id: SuspendSiteId,
+    next_cleanup_id: CleanupScopeId,
+    states: Vec<PlanState>,
+    suspend_sites: Vec<SuspendSitePlan>,
+    arm_plans: Vec<ArmPlan>,
+    cleanup_scopes: Vec<CleanupScopePlan>,
+    frame_slots: HashMap<hir::SymbolId, FrameSlot>,
+    nested_handles: Vec<HandleStateMachinePlan>,
+}
+
+impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
+    fn new(
+        types: &'a TypeStore,
+        handle: &'hir hir::HandleExpr,
+        context: &'a HandlePlanContext,
+    ) -> Self {
+        Self {
+            types,
+            handle,
+            context,
+            next_state_id: 0,
+            next_site_id: 0,
+            next_cleanup_id: 0,
+            states: Vec::new(),
+            suspend_sites: Vec::new(),
+            arm_plans: Vec::new(),
+            cleanup_scopes: Vec::new(),
+            frame_slots: HashMap::new(),
+            nested_handles: Vec::new(),
+        }
+    }
+
+    fn build(mut self) -> HandleStateMachinePlan {
+        let outer_slots = collect_outer_scope_slots(self.handle.body.stmts.as_slice());
+        let mut env = ScopeEnv::with_outer(outer_slots.clone());
+        for slot in &outer_slots {
+            self.frame_slots.insert(slot.id, slot.clone());
+        }
+
+        let entry_state = self.new_state("body.entry");
+        let exit_state = self.new_state("body.exit");
+        let body_end_state = self.build_block(&self.handle.body, entry_state, &mut env);
+
+        let final_exit_state = if let Some(finally_block) = &self.handle.finally {
+            let cleanup_entry = self.new_state("cleanup.finally.entry");
+            let cleanup_exit = self.new_state("cleanup.finally.exit");
+            let cleanup_scope_id = self.next_cleanup_id;
+            self.next_cleanup_id = self.next_cleanup_id.saturating_add(1);
+            self.cleanup_scopes.push(CleanupScopePlan {
+                id: cleanup_scope_id,
+                kind: CleanupScopeKind::Finally,
+                entry_state: cleanup_entry,
+                exit_state: cleanup_exit,
+                note: "normal/raise edges converge through a single finally scope".to_string(),
+            });
+
+            self.set_terminator(
+                body_end_state,
+                StateTerminator::CleanupEnter {
+                    scope_id: cleanup_scope_id,
+                    next_state: cleanup_entry,
+                },
+            );
+
+            let mut cleanup_env = ScopeEnv::with_outer(outer_slots);
+            let cleanup_end = self.build_block(finally_block, cleanup_entry, &mut cleanup_env);
+            self.state_mut(cleanup_end)
+                .actions
+                .push("cleanup edge completes here".to_string());
+            self.set_terminator(cleanup_end, StateTerminator::Goto(cleanup_exit));
+            self.set_terminator(cleanup_exit, StateTerminator::Goto(exit_state));
+            cleanup_exit
+        } else {
+            self.set_terminator(body_end_state, StateTerminator::Goto(exit_state));
+            exit_state
+        };
+
+        self.state_mut(exit_state)
+            .actions
+            .push("handle result returns to enclosing expression".to_string());
+        self.set_terminator(exit_state, StateTerminator::ReturnHandle);
+
+        let dispatch_plan = self.build_dispatch_plan();
+        self.build_arm_states();
+        self.compute_capture_sets();
+        let frame_layout = self.build_frame_layout();
+
+        let _ = final_exit_state;
+
+        HandleStateMachinePlan {
+            handle_span: self.handle.body.span,
+            result_ty: self.handle.body.ty,
+            entry_state,
+            states: self.states,
+            suspend_sites: self.suspend_sites,
+            arm_plans: self.arm_plans,
+            cleanup_scopes: self.cleanup_scopes,
+            frame_layout,
+            dispatch_plan,
+            nested_handles: self.nested_handles,
+        }
+    }
+
+    fn build_block(
+        &mut self,
+        block: &'hir hir::Block,
+        start_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        let mut state = start_state;
+        let saved_len = env.slots.len();
+        for stmt in &block.stmts {
+            state = self.build_stmt(stmt, state, env);
+        }
+        env.slots.truncate(saved_len);
+        state
+    }
+
+    fn build_stmt(
+        &mut self,
+        stmt: &'hir hir::Stmt,
+        current_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        match &stmt.kind {
+            hir::StmtKind::Empty => {
+                self.push_action(current_state, "stmt empty");
+                current_state
+            }
+            hir::StmtKind::Expr(expr) => self.build_expr(expr, current_state, env),
+            hir::StmtKind::Val(decl) => {
+                let mut state = current_state;
+                if let Some(init) = decl.init.as_ref() {
+                    state = self.build_expr(init, state, env);
+                }
+                if let Some(id) = decl.id {
+                    let slot = FrameSlot {
+                        id,
+                        name: decl
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| format!("local{}", id.as_u32())),
+                        ty: decl.ty,
+                        owner_arm: None,
+                    };
+                    self.frame_slots.entry(id).or_insert_with(|| slot.clone());
+                    env.push(slot.clone());
+                    self.push_action(
+                        state,
+                        format!(
+                            "bind local {}:{}",
+                            slot.display_name(),
+                            self.types.display(slot.ty)
+                        ),
+                    );
+                } else {
+                    self.push_action(state, "declare anonymous val");
+                }
+                state
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                let mut state = self.build_expr(lhs, current_state, env);
+                state = self.build_expr(rhs, state, env);
+                self.record_stmt_reads(state, stmt);
+                self.push_action(state, "assign");
+                state
+            }
+            hir::StmtKind::While { cond, body } => self.build_while(stmt.span, cond, body, current_state, env),
+            hir::StmtKind::Break { .. } => {
+                self.push_action(current_state, "break");
+                self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
+                self.new_state("unreachable.after.break")
+            }
+            hir::StmtKind::Continue { .. } => {
+                self.push_action(current_state, "continue");
+                self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
+                self.new_state("unreachable.after.continue")
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value {
+                    let state = self.build_expr(expr, current_state, env);
+                    self.push_action(state, "return");
+                    self.set_terminator(state, StateTerminator::ReturnFromFunction);
+                    self.new_state("unreachable.after.return")
+                } else {
+                    self.push_action(current_state, "return");
+                    self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
+                    self.new_state("unreachable.after.return")
+                }
+            }
+            hir::StmtKind::Todo(kind) => {
+                self.push_action(current_state, format!("todo stmt {kind}"));
+                current_state
+            }
+        }
+    }
+
+    fn build_while(
+        &mut self,
+        span: Span,
+        cond: &'hir hir::Expr,
+        body: &'hir hir::Block,
+        current_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        let cond_state = self.new_state("while.cond");
+        self.push_action(cond_state, format!("while cond span={span:?}"));
+        self.set_terminator(current_state, StateTerminator::Goto(cond_state));
+
+        let cond_eval_state = self.build_expr(cond, cond_state, env);
+        let body_state = self.new_state("while.body");
+        let exit_state = self.new_state("while.exit");
+        self.set_terminator(
+            cond_eval_state,
+            StateTerminator::Branch {
+                condition: format!("while-cond@{:?}", cond.span),
+                then_state: body_state,
+                else_state: exit_state,
+                merge_state: exit_state,
+            },
+        );
+
+        let mut body_env = env.clone();
+        let body_end = self.build_block(body, body_state, &mut body_env);
+        self.push_action(body_end, format!("loop re-entry -> s{cond_state}"));
+        self.set_terminator(body_end, StateTerminator::Goto(cond_state));
+        exit_state
+    }
+
+    fn build_expr(
+        &mut self,
+        expr: &'hir hir::Expr,
+        current_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        match &expr.kind {
+            hir::ExprKind::Missing => {
+                self.push_action(current_state, "expr missing");
+                current_state
+            }
+            hir::ExprKind::Literal(_) => {
+                self.push_action(current_state, "literal");
+                current_state
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
+                self.frame_slots.entry(*id).or_insert_with(|| FrameSlot {
+                    id: *id,
+                    name: name.clone(),
+                    ty: expr.ty,
+                    owner_arm: None,
+                });
+                self.push_action(
+                    current_state,
+                    format!("read local {}#{}", name, id.as_u32()),
+                );
+                self.record_expr_reads(current_state, expr);
+                current_state
+            }
+            hir::ExprKind::VarRef(_) | hir::ExprKind::UnresolvedIdent { .. } => {
+                self.push_action(current_state, "var-ref");
+                current_state
+            }
+            hir::ExprKind::StructLit { fields, .. } => {
+                let mut state = current_state;
+                for field in fields {
+                    state = self.build_expr(&field.value, state, env);
+                }
+                self.push_action(state, "struct-lit");
+                state
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                let mut state = current_state;
+                for element in elements {
+                    state = self.build_expr(element, state, env);
+                }
+                self.push_action(state, "tuple-lit");
+                state
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                let mut state = current_state;
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        state = self.build_expr(expr, state, env);
+                    }
+                }
+                self.push_action(state, "interpolated-string");
+                state
+            }
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => {
+                let state = self.build_expr(inner, current_state, env);
+                self.record_expr_reads(state, expr);
+                self.push_action(state, "expr");
+                state
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                let state = self.build_expr(lhs, current_state, env);
+                let state = self.build_expr(rhs, state, env);
+                self.record_expr_reads(state, expr);
+                self.push_action(state, "binary-expr");
+                state
+            }
+            hir::ExprKind::Block(block) => self.build_block(block, current_state, env),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let cond_state = self.build_expr(cond, current_state, env);
+                let then_state = self.new_state("if.then");
+                let else_state = self.new_state("if.else");
+                let merge_state = self.new_state("if.merge");
+                self.set_terminator(
+                    cond_state,
+                    StateTerminator::Branch {
+                        condition: format!("if-cond@{:?}", cond.span),
+                        then_state,
+                        else_state,
+                        merge_state,
+                    },
+                );
+
+                let mut then_env = env.clone();
+                let then_end = self.build_expr(then_branch, then_state, &mut then_env);
+                self.set_terminator(then_end, StateTerminator::Goto(merge_state));
+
+                let mut else_env = env.clone();
+                if let Some(else_branch) = else_branch.as_deref() {
+                    let else_end = self.build_expr(else_branch, else_state, &mut else_env);
+                    self.set_terminator(else_end, StateTerminator::Goto(merge_state));
+                } else {
+                    self.push_action(else_state, "implicit else unit");
+                    self.set_terminator(else_state, StateTerminator::Goto(merge_state));
+                }
+                merge_state
+            }
+            hir::ExprKind::When { subject, arms } => {
+                let mut state = self.build_expr(subject, current_state, env);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        state = self.build_expr(guard, state, env);
+                    }
+                    state = self.build_expr(&arm.body, state, env);
+                }
+                self.push_action(state, "when-expr");
+                state
+            }
+            hir::ExprKind::Call { callee, args } => {
+                let mut state = self.build_expr(callee, current_state, env);
+                for arg in args {
+                    state = match arg {
+                        hir::CallArg::Positional(expr) => self.build_expr(expr, state, env),
+                        hir::CallArg::Named { value, .. } => self.build_expr(value, state, env),
+                    };
+                }
+                if let Some(kind) = self.classify_suspend_call(expr, callee) {
+                    self.record_expr_reads(state, expr);
+                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
+                    self.push_action(state, format!("suspend call site{site_id}"));
+                    self.set_terminator(state, StateTerminator::Suspend { site_id });
+                    let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.push_action(
+                        resume_state,
+                        format!("resume target for site{site_id} after call"),
+                    );
+                    self.set_suspend_resume_target(site_id, resume_state);
+                    return resume_state;
+                }
+                self.record_expr_reads(state, expr);
+                self.push_action(state, "call");
+                state
+            }
+            hir::ExprKind::Perform { op, args } => {
+                let mut state = current_state;
+                for arg in args {
+                    state = match arg {
+                        hir::CallArg::Positional(expr) => self.build_expr(expr, state, env),
+                        hir::CallArg::Named { value, .. } => self.build_expr(value, state, env),
+                    };
+                }
+                self.record_expr_reads(state, expr);
+                let site_id = self.new_suspend_site(
+                    expr.span,
+                    SuspendSiteKind::DirectPerform {
+                        op_fqn: op.fqn.clone(),
+                    },
+                    env.available_ids(),
+                );
+                self.push_action(state, format!("perform {}", op.fqn));
+                self.set_terminator(state, StateTerminator::Suspend { site_id });
+                let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                self.push_action(
+                    resume_state,
+                    format!("resume target for site{site_id} after perform"),
+                );
+                self.set_suspend_resume_target(site_id, resume_state);
+                resume_state
+            }
+            hir::ExprKind::Handle(handle) => {
+                let nested_id = self.nested_handles.len();
+                let nested = HandleStateMachinePlan::build_with_context(self.types, handle, self.context);
+                self.nested_handles.push(nested);
+                self.push_action(current_state, format!("nested handle nested#{nested_id}"));
+                current_state
+            }
+            hir::ExprKind::Closure(closure) => {
+                self.push_action(current_state, "closure");
+                self.record_expr_reads(current_state, &closure.body);
+                current_state
+            }
+            hir::ExprKind::Todo(kind) => {
+                self.push_action(current_state, format!("todo expr {kind}"));
+                current_state
+            }
+        }
+    }
+
+    fn classify_suspend_call(
+        &self,
+        expr: &hir::Expr,
+        callee: &hir::Expr,
+    ) -> Option<SuspendSiteKind> {
+        if let Some(fqn) = try_extract_callee_fqn(callee)
+            && let Some(effectful) = self.context.known_fun_effects.get(&fqn).copied()
+        {
+            return if effectful {
+                Some(SuspendSiteKind::CallStateMachineCallee { callee: fqn })
+            } else {
+                None
+            };
+        }
+
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
+            && let Some(effectful) = self.context.known_local_fun_effects.get(id).copied()
+        {
+            return if effectful {
+                Some(SuspendSiteKind::IndirectCallMaySuspend {
+                    callee: format!("local#{}", id.as_u32()),
+                })
+            } else {
+                None
+            };
+        }
+
+        if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee.ty) {
+            if fun_ty.effects.is_pure() {
+                return None;
+            }
+            return try_extract_callee_fqn(callee).map_or_else(
+                || {
+                    Some(SuspendSiteKind::IndirectCallMaySuspend {
+                        callee: format!("expr@{:?}", expr.span),
+                    })
+                },
+                |fqn| Some(SuspendSiteKind::CallStateMachineCallee { callee: fqn }),
+            );
+        }
+        None
+    }
+
+    fn build_dispatch_plan(&self) -> DispatchPlan {
+        let mut by_op: HashMap<String, Vec<ArmPlanId>> = HashMap::new();
+        for (idx, arm) in self.handle.arms.iter().enumerate() {
+            by_op.entry(arm.op.op.fqn.clone()).or_default().push(idx as u32);
+        }
+        let mut entries = by_op
+            .into_iter()
+            .map(|(op_fqn, arm_ids)| DispatchEntry { op_fqn, arm_ids })
+            .collect::<Vec<_>>();
+        entries.sort_by(|a, b| a.op_fqn.cmp(&b.op_fqn));
+        DispatchPlan { entries }
+    }
+
+    fn build_arm_states(&mut self) {
+        for (idx, arm) in self.handle.arms.iter().enumerate() {
+            let arm_id = idx as ArmPlanId;
+            let binder_slots = arm
+                .op
+                .binders
+                .iter()
+                .map(|binder| FrameSlot {
+                    id: binder.id,
+                    name: binder.name.clone(),
+                    ty: binder.ty,
+                    owner_arm: Some(arm_id),
+                })
+                .collect::<Vec<_>>();
+            for slot in &binder_slots {
+                self.frame_slots.insert(slot.id, slot.clone());
+            }
+
+            let body_entry_state = self.new_state(format!("arm{arm_id}.body"));
+            self.push_action(
+                body_entry_state,
+                format!(
+                    "execute arm body op={} span={:?}",
+                    arm.op.op.fqn,
+                    arm.body.span
+                ),
+            );
+
+            let (resume_mode, body_exit, detach_policy) = match arm.kind {
+                hir::HandleArmKind::NonResuming => (
+                    ArmResumeMode::NeverResume,
+                    ArmBodyExit::ReturnHandle,
+                    "detach matching frame; arm body runs outside handler scope".to_string(),
+                ),
+                hir::HandleArmKind::ImmediateResume { .. } => (
+                    ArmResumeMode::ImmediateResume,
+                    ArmBodyExit::ResumeMatchedSite,
+                    "detach sibling frames; resume writes payload back to matched site".to_string(),
+                ),
+                hir::HandleArmKind::EscapeContinuation { .. } => (
+                    ArmResumeMode::EscapeContinuation,
+                    ArmBodyExit::MaterializeContinuation,
+                    "detach source frames; continuation reinstalls captured handler stack".to_string(),
+                ),
+            };
+            self.set_terminator(body_entry_state, StateTerminator::ArmExit(body_exit));
+
+            self.arm_plans.push(ArmPlan {
+                id: arm_id,
+                op_fqn: arm.op.op.fqn.clone(),
+                binder_slots,
+                resume_mode,
+                body_entry_state,
+                body_exit,
+                detach_policy,
+            });
+        }
+    }
+
+    fn build_frame_layout(&self) -> FrameLayoutPlan {
+        let mut lifted_ids = self
+            .suspend_sites
+            .iter()
+            .flat_map(|site| site.capture_locals.iter().copied())
+            .collect::<Vec<_>>();
+        lifted_ids.sort_by_key(|id| id.as_u32());
+        lifted_ids.dedup_by_key(|id| id.as_u32());
+
+        let mut lifted_locals = lifted_ids
+            .into_iter()
+            .filter_map(|id| self.frame_slots.get(&id).cloned())
+            .collect::<Vec<_>>();
+        lifted_locals.sort_by_key(|slot| slot.id.as_u32());
+
+        let mut arm_binders = self
+            .arm_plans
+            .iter()
+            .flat_map(|arm| arm.binder_slots.clone())
+            .collect::<Vec<_>>();
+        arm_binders.sort_by_key(|slot| (slot.owner_arm.unwrap_or(0), slot.id.as_u32()));
+
+        FrameLayoutPlan {
+            slots: self.frame_slots.clone(),
+            lifted_locals,
+            arm_binders,
+            has_cleanup_flag: !self.cleanup_scopes.is_empty(),
+            has_one_shot_flag: self
+                .arm_plans
+                .iter()
+                .any(|arm| matches!(arm.resume_mode, ArmResumeMode::EscapeContinuation)),
+        }
+    }
+
+    fn compute_capture_sets(&mut self) {
+        let successors = build_successor_map(&self.states);
+        let state_reads = self
+            .states
+            .iter()
+            .map(|state| (state.id, state.reads.clone()))
+            .collect::<HashMap<_, _>>();
+        for site in &mut self.suspend_sites {
+            let reachable = reachable_states(site.resume_target, &successors);
+            let mut used_after = reachable
+                .into_iter()
+                .flat_map(|state_id| state_reads.get(&state_id).cloned().unwrap_or_default())
+                .collect::<Vec<_>>();
+            used_after.sort_by_key(|id| id.as_u32());
+            used_after.dedup_by_key(|id| id.as_u32());
+
+            let used_set = used_after.into_iter().collect::<HashSet<_>>();
+            site.capture_locals = site
+                .available_locals
+                .iter()
+                .copied()
+                .filter(|id| used_set.contains(id))
+                .collect::<Vec<_>>();
+            site.capture_locals.sort_by_key(|id| id.as_u32());
+            site.matching_arms = matching_arms(&self.arm_plans, &site.kind);
+        }
+    }
+
+    fn new_state(&mut self, label: impl Into<String>) -> PlanStateId {
+        let id = self.next_state_id;
+        self.next_state_id = self.next_state_id.saturating_add(1);
+        self.states.push(PlanState {
+            id,
+            label: label.into(),
+            actions: Vec::new(),
+            terminator: StateTerminator::ReturnHandle,
+            reads: Vec::new(),
+        });
+        id
+    }
+
+    fn push_action(&mut self, state_id: PlanStateId, action: impl Into<String>) {
+        self.state_mut(state_id).actions.push(action.into());
+    }
+
+    fn state_mut(&mut self, state_id: PlanStateId) -> &mut PlanState {
+        self.states
+            .iter_mut()
+            .find(|state| state.id == state_id)
+            .expect("state should exist")
+    }
+
+    fn set_terminator(&mut self, state_id: PlanStateId, terminator: StateTerminator) {
+        self.state_mut(state_id).terminator = terminator;
+    }
+
+    fn new_suspend_site(
+        &mut self,
+        span: Span,
+        kind: SuspendSiteKind,
+        available_locals: Vec<hir::SymbolId>,
+    ) -> SuspendSiteId {
+        let id = self.next_site_id;
+        self.next_site_id = self.next_site_id.saturating_add(1);
+        self.suspend_sites.push(SuspendSitePlan {
+            id,
+            span,
+            kind,
+            resume_target: 0,
+            matching_arms: Vec::new(),
+            available_locals,
+            capture_locals: Vec::new(),
+        });
+        id
+    }
+
+    fn set_suspend_resume_target(&mut self, site_id: SuspendSiteId, resume_target: PlanStateId) {
+        let site = self
+            .suspend_sites
+            .iter_mut()
+            .find(|site| site.id == site_id)
+            .expect("site should exist");
+        site.resume_target = resume_target;
+    }
+
+    fn record_stmt_reads(&mut self, state_id: PlanStateId, stmt: &hir::Stmt) {
+        let mut used = HashSet::new();
+        MainCodegen::collect_used_locals_in_stmt_static(stmt, &mut used);
+        self.add_reads(state_id, used);
+    }
+
+    fn record_expr_reads(&mut self, state_id: PlanStateId, expr: &hir::Expr) {
+        let mut used = HashSet::new();
+        MainCodegen::collect_used_locals_in_expr_static(expr, &mut used);
+        self.add_reads(state_id, used);
+    }
+
+    fn add_reads(&mut self, state_id: PlanStateId, used: HashSet<hir::SymbolId>) {
+        let state = self.state_mut(state_id);
+        state.reads.extend(used);
+        state.reads.sort_by_key(|id| id.as_u32());
+        state.reads.dedup_by_key(|id| id.as_u32());
+    }
+}
+
+fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {
+    match kind {
+        SuspendSiteKind::DirectPerform { op_fqn } => arms
+            .iter()
+            .filter(|arm| arm.op_fqn == *op_fqn)
+            .map(|arm| arm.id)
+            .collect(),
+        SuspendSiteKind::IndirectCallMaySuspend { .. }
+        | SuspendSiteKind::CallStateMachineCallee { .. } => Vec::new(),
+    }
+}
+
+fn build_successor_map(states: &[PlanState]) -> HashMap<PlanStateId, Vec<PlanStateId>> {
+    states
+        .iter()
+        .map(|state| {
+            let succs = match &state.terminator {
+                StateTerminator::Goto(next) => vec![*next],
+                StateTerminator::Branch {
+                    then_state,
+                    else_state,
+                    ..
+                } => vec![*then_state, *else_state],
+                StateTerminator::CleanupEnter { next_state, .. } => vec![*next_state],
+                StateTerminator::Suspend { site_id } => {
+                    let _ = site_id;
+                    Vec::new()
+                }
+                StateTerminator::ReturnHandle
+                | StateTerminator::ReturnFromFunction
+                | StateTerminator::ArmExit(_) => Vec::new(),
+            };
+            (state.id, succs)
+        })
+        .collect()
+}
+
+fn reachable_states(
+    start: PlanStateId,
+    successors: &HashMap<PlanStateId, Vec<PlanStateId>>,
+) -> HashSet<PlanStateId> {
+    let mut seen = HashSet::new();
+    let mut stack = vec![start];
+    while let Some(state) = stack.pop() {
+        if !seen.insert(state) {
+            continue;
+        }
+        if let Some(nexts) = successors.get(&state) {
+            stack.extend(nexts.iter().copied());
+        }
+    }
+    seen
+}
+
+fn try_extract_callee_fqn(callee: &hir::Expr) -> Option<String> {
+    match &callee.kind {
+        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.clone()),
+        hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+            hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. } => {
+                Some(fqn.clone())
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn collect_outer_scope_slots(stmts: &[hir::Stmt]) -> Vec<FrameSlot> {
+    let mut declared = HashSet::new();
+    for stmt in stmts {
+        collect_declared_local_ids_in_stmt(stmt, &mut declared);
+    }
+
+    let mut used = HashMap::new();
+    for stmt in stmts {
+        collect_local_refs_in_stmt_skip_nested_handles(stmt, &mut used);
+    }
+
+    let mut slots = used
+        .into_iter()
+        .filter(|(id, _)| !declared.contains(id))
+        .map(|(id, (name, ty))| FrameSlot {
+            id,
+            name,
+            ty,
+            owner_arm: None,
+        })
+        .collect::<Vec<_>>();
+    slots.sort_by_key(|slot| slot.id.as_u32());
+    slots
+}
+
+fn collect_declared_local_ids_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
+    match &stmt.kind {
+        hir::StmtKind::Val(decl) => {
+            if let Some(id) = decl.id {
+                out.insert(id);
+            }
+            if let Some(init) = decl.init.as_ref() {
+                collect_declared_local_ids_in_expr(init, out);
+            }
+        }
+        hir::StmtKind::Expr(expr) => collect_declared_local_ids_in_expr(expr, out),
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_declared_local_ids_in_expr(lhs, out);
+            collect_declared_local_ids_in_expr(rhs, out);
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_declared_local_ids_in_expr(cond, out);
+            for stmt in &body.stmts {
+                collect_declared_local_ids_in_stmt(stmt, out);
+            }
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value {
+                collect_declared_local_ids_in_expr(expr, out);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
+    match &expr.kind {
+        hir::ExprKind::Block(block) => {
+            for stmt in &block.stmts {
+                collect_declared_local_ids_in_stmt(stmt, out);
+            }
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_declared_local_ids_in_expr(cond, out);
+            collect_declared_local_ids_in_expr(then_branch, out);
+            if let Some(else_branch) = else_branch.as_deref() {
+                collect_declared_local_ids_in_expr(else_branch, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_declared_local_ids_in_expr(subject, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_declared_local_ids_in_expr(guard, out);
+                }
+                collect_declared_local_ids_in_expr(&arm.body, out);
+            }
+        }
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_declared_local_ids_in_expr(&field.value, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_declared_local_ids_in_expr(element, out);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_declared_local_ids_in_expr(expr, out);
+                }
+            }
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. }
+        | hir::ExprKind::MemberAccess {
+            receiver: inner, ..
+        } => collect_declared_local_ids_in_expr(inner, out),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_declared_local_ids_in_expr(lhs, out);
+            collect_declared_local_ids_in_expr(rhs, out);
+        }
+        hir::ExprKind::Call { callee, args } => {
+            collect_declared_local_ids_in_expr(callee, out);
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_declared_local_ids_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => {
+                        collect_declared_local_ids_in_expr(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Closure(closure) => collect_declared_local_ids_in_expr(&closure.body, out),
+        hir::ExprKind::Handle(_) => {}
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_declared_local_ids_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => {
+                        collect_declared_local_ids_in_expr(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Todo(_) => {}
+    }
+}
+
+fn collect_local_refs_in_stmt_skip_nested_handles(
+    stmt: &hir::Stmt,
+    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
+) {
+    match &stmt.kind {
+        hir::StmtKind::Expr(expr) => collect_local_refs_in_expr_skip_nested_handles(expr, out),
+        hir::StmtKind::Val(decl) => {
+            if let Some(init) = decl.init.as_ref() {
+                collect_local_refs_in_expr_skip_nested_handles(init, out);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_local_refs_in_expr_skip_nested_handles(lhs, out);
+            collect_local_refs_in_expr_skip_nested_handles(rhs, out);
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_local_refs_in_expr_skip_nested_handles(cond, out);
+            for stmt in &body.stmts {
+                collect_local_refs_in_stmt_skip_nested_handles(stmt, out);
+            }
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value {
+                collect_local_refs_in_expr_skip_nested_handles(expr, out);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_local_refs_in_expr_skip_nested_handles(
+    expr: &hir::Expr,
+    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
+) {
+    match &expr.kind {
+        hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
+            out.entry(*id).or_insert_with(|| (name.clone(), expr.ty));
+        }
+        hir::ExprKind::Block(block) => {
+            for stmt in &block.stmts {
+                collect_local_refs_in_stmt_skip_nested_handles(stmt, out);
+            }
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_local_refs_in_expr_skip_nested_handles(cond, out);
+            collect_local_refs_in_expr_skip_nested_handles(then_branch, out);
+            if let Some(else_branch) = else_branch.as_deref() {
+                collect_local_refs_in_expr_skip_nested_handles(else_branch, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_local_refs_in_expr_skip_nested_handles(subject, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_local_refs_in_expr_skip_nested_handles(guard, out);
+                }
+                collect_local_refs_in_expr_skip_nested_handles(&arm.body, out);
+            }
+        }
+        hir::ExprKind::Call { callee, args } => {
+            collect_local_refs_in_expr_skip_nested_handles(callee, out);
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => {
+                        collect_local_refs_in_expr_skip_nested_handles(expr, out)
+                    }
+                    hir::CallArg::Named { value, .. } => {
+                        collect_local_refs_in_expr_skip_nested_handles(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_local_refs_in_expr_skip_nested_handles(&field.value, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_local_refs_in_expr_skip_nested_handles(element, out);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_local_refs_in_expr_skip_nested_handles(expr, out);
+                }
+            }
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. }
+        | hir::ExprKind::MemberAccess {
+            receiver: inner, ..
+        } => collect_local_refs_in_expr_skip_nested_handles(inner, out),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_local_refs_in_expr_skip_nested_handles(lhs, out);
+            collect_local_refs_in_expr_skip_nested_handles(rhs, out);
+        }
+        hir::ExprKind::Closure(closure) => {
+            collect_local_refs_in_expr_skip_nested_handles(&closure.body, out);
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => {
+                        collect_local_refs_in_expr_skip_nested_handles(expr, out)
+                    }
+                    hir::CallArg::Named { value, .. } => {
+                        collect_local_refs_in_expr_skip_nested_handles(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Handle(_) => {}
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Todo(_) => {}
+    }
+}
+
+#[cfg(test)]
+fn render_symbol_list(
+    ids: &[hir::SymbolId],
+    slots: &HashMap<hir::SymbolId, FrameSlot>,
+) -> String {
+    let mut labels = ids
+        .iter()
+        .map(|id| {
+            slots
+                .get(id)
+                .map_or_else(|| format!("unknown#{}", id.as_u32()), FrameSlot::display_name)
+        })
+        .collect::<Vec<_>>();
+    labels.sort();
+    labels.join(", ")
+}
+
+#[cfg(test)]
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+impl HandlePlanContext {
+    fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
+        let known_fun_effects = cg
+            .fun_index
+            .iter()
+            .map(|(fqn, fun)| {
+                (
+                    fqn.clone(),
+                    match cg.types.kind(fun.ty) {
+                        TypeKind::Ref(RefTypeKind::Function(fun_ty)) => !fun_ty.effects.is_pure(),
+                        _ => false,
+                    },
+                )
+            })
+            .collect();
+
+        let mut known_local_fun_effects = HashMap::new();
+        for scope in &cg.env.scopes {
+            for (&id, local) in scope {
+                let Some(hir_ty) = local.hir_ty else {
+                    continue;
+                };
+                if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = cg.types.kind(hir_ty) {
+                    known_local_fun_effects.insert(id, !fun_ty.effects.is_pure());
+                }
+            }
+        }
+
+        Self {
+            known_fun_effects,
+            known_local_fun_effects,
+        }
+    }
+}
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn build_handle_state_machine_plan(&self, handle: &hir::HandleExpr) -> HandleStateMachinePlan {
+        let context = HandlePlanContext::from_codegen(self);
+        HandleStateMachinePlan::build_with_context(self.types, handle, &context)
+    }
+}
+
+#[cfg(test)]
+include!("state_machine_plan_tests.rs");

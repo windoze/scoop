@@ -302,6 +302,7 @@ struct MixedEscapeResumeBlocks<'ctx> {
 }
 
 include!("shared.rs");
+include!("state_machine_plan.rs");
 include!("scan.rs");
 include!("nonresuming.rs");
 include!("immediate_resume.rs");
