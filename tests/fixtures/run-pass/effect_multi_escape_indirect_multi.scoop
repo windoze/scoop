@@ -1,0 +1,80 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_indirect_multi.stdout
+//
+// T2003c0c2b3c1: 无 immediate-resume 的 escape-only multiple indirect sites。
+// - body 通过多个 top-level indirect call 依次命中同一个 escape arm；
+// - 每次 `k.resume(...)` 都会先恢复对应 callee，再继续后续 top-level tail；
+// - 第二个 site 仍会重新分配 continuation，而不是退回 single-site 门禁。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(tag: Int): String / (Ask) {
+    println("fetch_enter")
+    println(tag)
+    val msg: String = Ask.ask(tag + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = handle {
+        println("body")
+        val base: Int = 40
+        val first: String = fetch(base)
+        println("after_first")
+        println(first)
+        val second: String = fetch(base + 10)
+        println("after_second")
+        println(first)
+        println(second)
+        9
+    } with {
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

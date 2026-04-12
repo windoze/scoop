@@ -4,7 +4,7 @@
 // ARGS: --emit-llvm
 //
 // T2003c0c2b3b3 先补 while body direct site；
-// while body 的 indirect site-matrix 继续留给后续 `T2003c0c2b3c`。
+// while body 的 indirect site-matrix 继续留给后续 `T2003c0c2b3c4`。
 
 import scoop.core.*
 

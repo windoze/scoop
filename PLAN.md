@@ -133,7 +133,12 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3b3 已完成：no-immediate direct lowering 现已支持 while body direct site；初次执行与 `resume(...)` step 都会复用现有 while replay helper，在当前迭代尾部 replay 之后重检 loop condition，并在后续迭代中重新命中同一个 direct site。
   - 该轮实现还修正了一个真实 lowering bug：single while-body direct site 在首次 `resume(...)` 后原本不会重新走 `intercept_bb`，从而错误落入无限 replay。现在 single-site while re-entry 也会复用共享 intercept path，能够再次分配 continuation 并进入 escape arm。
   - 已新增回归：run-pass `effect_multi_escape_custom_nonresuming_direct_while_multi`，build-fail `effect_multi_escape_indirect_while_is_error`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c2b3c`：继续把 no-immediate multi-arm escape 扩到 indirect site-matrix。
+  - 审计 `T2003c0c2b3c` 后确认，它和此前的 direct site-matrix 一样也跨了四类独立 replay 形状：top-level multiple indirect、nested block indirect、if branch indirect、while body indirect。若整包推进，会把 no-immediate indirect `pc` 状态机、nested replay 与 callee-resume 路径再次耦合，回归面过大。
+  - 因此把 `T2003c0c2b3c` 拆成 `T2003c0c2b3c1` / `T2003c0c2b3c2` / `T2003c0c2b3c3` / `T2003c0c2b3c4`：先补 top-level multiple indirect，再扩到 nested block、if branch、while body。
+  - T2003c0c2b3c1 已完成：no-immediate indirect 路径现已支持多个 top-level indirect escape call site；新增 `pc` 状态字段后，continuation step 会在 `resume(...)` 后重放当前 callee，并在后续 top-level indirect site 再次命中时重建 continuation。
+  - 该轮同时修掉了一个旧分流缺口：单 escape arm 的 escape-only multiple indirect 之前仍会走旧的 single-site indirect 计划，导致第二个 site 在 runtime 退出；现在也统一复用新的 top-level indirect multi lowering。
+  - 已新增 run-pass 回归 `effect_multi_escape_indirect_multi`、`effect_multi_escape_custom_nonresuming_indirect_multi`，并通过 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2b3c2`：把 no-immediate multi-arm escape 扩到 statement-position nested block indirect site。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -174,7 +179,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3b1（已完成）：补无 immediate-resume 的 nested block direct escape sites。
   - T2003c0c2b3b2（已完成）：补无 immediate-resume 的 if branch direct escape sites。
   - T2003c0c2b3b3（已完成）：补无 immediate-resume 的 while body direct escape sites。
-  - T2003c0c2b3c：补无 immediate-resume 的 indirect escape site-matrix。
+  - T2003c0c2b3c1：补无 immediate-resume 的 top-level multiple indirect escape sites。
+  - T2003c0c2b3c2：补无 immediate-resume 的 nested block indirect escape sites。
+  - T2003c0c2b3c3：补无 immediate-resume 的 if branch indirect escape sites。
+  - T2003c0c2b3c4：补无 immediate-resume 的 while body indirect escape sites。
   - T2003c0c2b3d：补无 immediate-resume 的 direct+indirect mixed site-matrix。
   - T2003c0c2c：补 multiple immediate-resume arms。
   - T2003c0c2d：补 multiple escape-continuation arms 与 richer multi-resuming mixed-arm。
