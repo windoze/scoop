@@ -449,7 +449,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_if_indirect_direct`、`effect_resume_mixed_escape_post_immediate_if_direct_indirect`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2c3d3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 direct / indirect 共存）
+### T2003c0b2c3d3 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 direct / indirect 共存）
 - 描述：最后把同 stmt mixed site replay 扩到 `while` body，让 direct / indirect 共存在 loop re-entry、当前迭代 tail 与后续迭代再命中的语义下保持一致。
 - 目标：
   - 同一个 `while` 语句内的 nested direct / indirect site 可共存，resume 后既能继续当前迭代剩余路径，也能在需要时命中同 stmt 的后续 mixed site。
@@ -460,6 +460,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c3d2
+- 完成说明：
+  - mixed-arm `site matrix` 现已支持同一个 `while` 语句里的 direct / indirect mixed site：分类阶段会为同 stmt 的 while mixed route 建立 `next/prev` 关系，并对“不同 while-body stmt 共存”保留稳定诊断 `only same-body-stmt direct / indirect coexistence in while body supported`。
+  - state0、state1 与 continuation step 现已共享新的 while mixed helper；恢复后既能继续当前迭代尾部，也能在需要时命中同 stmt 的 sibling mixed site，并在 direct→indirect 的场景下于后续迭代重新从 sibling direct site 进入，而不会把它错误地当成普通 replay 语句。
+  - 已新增 run-pass / build 回归：`effect_resume_mixed_escape_pre_immediate_while_indirect_direct`、`effect_resume_mixed_escape_post_immediate_while_direct_indirect`、`effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c1 [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming）
 - 描述：当前 multi-arm lowering 在存在 escape-continuation 时仍直接拒绝 sibling non-resuming arms。若 `T2003` 要收口为“合法 perform/handler 组合全部可运行”，就必须补齐 escape-continuation 与 non-resuming 在同一 source-handle 下的 dispatch / handler-scope / self-capture 语义。

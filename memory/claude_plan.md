@@ -1,58 +1,60 @@
-# 执行计划
+## 当前任务
 
-## 约束与工作方式
+- 目标：完成 `TODO.md` 中首个未完成任务 `T2003c0b2c3d3`，然后停止。
+- 已知上下文：前一轮工作已经在 `crates/scoopc/src/llvm/codegen/effect.rs` 中接入了一部分 `while` body 内 single direct + single indirect mixed-site continuation replay 支持，但尚未完成状态机所有路径，也未完成最终验收、文档更新和提交。
+- 约束：如果发现该任务依赖尚未实现的语言特性、运行时能力或规范不匹配，必须先把阻塞项前置到 `TODO.md` / `PLAN.md`，提交后停止，不能绕过。
 
-- 本次只处理 `TODO.md` 中第一个未完成任务，完成后即停止。
-- 在继续任务前，先检查最新提交是否提到已知遗留问题；若提到，则这些问题优先纳入本次范围。
-- 若当前首个未完成任务过大，会先把它拆成更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
-- 实施过程中如发现任何与规范不一致、不能通过正确实现完成、或需要依赖缺失语言特性的情况，不做规避实现；而是把缺口前置为新的待办，更新 `TODO.md` / `PLAN.md` 后提交并停止。
-- 变更后需要做充分验证，至少覆盖相关测试；若适用，还会运行格式化、`clippy`、以及针对任务的最小充分测试集合。
-- 完成后会更新 `TODO.md`、`PLAN.md`，提交 git commit，然后停止，不继续处理下一个任务。
+## 已知事实
 
-## 当前阶段计划
+- 最新摘要显示：尚未发现最新提交说明中的额外遗留问题，但仍需在正式执行前重新核对最新提交信息。
+- 当前改动集中在 `crates/scoopc/src/llvm/codegen/effect.rs`。
+- `TODO.md` / `PLAN.md` 尚未更新，当前任务也还没有提交。
+- 之前中途有一次 `cargo check -p scoopc --features llvm` 通过到只剩 warning；后续又继续接了逻辑，因此当前编译状态未知。
 
-1. 查看最新提交，确认是否提到需要先修复的遗留问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对任务背景、依赖关系和是否需要拆分。
-4. 结合相关源码与测试，确认任务边界、现状和缺口。
-5. 如任务过大，先拆分任务并更新 `PLAN.md` / `TODO.md`，然后以新的首个子任务为当前执行目标。
-6. 实现当前目标任务，并补充或调整测试。
-7. 运行相关验证；若发现问题，先修复再重复验证。
-8. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或阻塞原因。
-9. 提交本次变更，提交信息对应当前任务，然后停止。
+## 执行计划
 
-## 执行记录
+1. 读取最新提交说明、`TODO.md`、`PLAN.md` 与 `effect.rs` 当前状态，确认没有遗漏的 pre-existing issue，并重新锁定首个未完成任务确实仍是 `T2003c0b2c3d3`。
+2. 在 `effect.rs` 中完成 while mixed-site 逻辑缺口，重点检查并补齐：
+   - `state0` 路径；
+   - `state1` 路径；
+   - step trampoline 中 direct/indirect mixed 续跑尾部；
+   - 与 `if_mixed_site_pcs_by_stmt_idx` 对应的 while 镜像分支是否齐全；
+   - `used_after` / body-lift / prefix replay 的 while-specific helper 是否一致使用。
+3. 先跑最小编译验证：`cargo check -p scoopc --features llvm`。
+   - 若出现类型、借用、控制流或 warning 问题，立即修复直到通过。
+4. 根据实现结果补充/调整 fixtures：
+   - 为 while mixed direct+indirect 的支持路径新增 run-pass；
+   - 为不支持边界保留或新增 build-fail；
+   - 若发现规范边界与当前任务假设不一致，转为更新 `TODO.md` / `PLAN.md` 并停止。
+5. 跑完整验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+6. 通过后更新：
+   - `TODO.md`：把当前任务标记完成；
+   - `PLAN.md`：记录完成情况与剩余计划；
+   - 本文件：记录关键步骤完成情况和必要的计划调整。
+7. 提交一次 git commit，然后停止，不继续做下一个任务。
 
-- 已写入初始计划，尚未开始仓库检查。
-- 已检查最新提交 `fa6bf49`，未发现提交说明中额外声明的遗留问题；当前仍按 `TODO.md` 主线继续。
-- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T2003c0b2c3d2`：在同一个 `if` 语句里支持 sibling escape-continuation 的 direct / indirect 共存。
-- 已验证该任务当前的最小失败形态会在 LLVM codegen 报：
-  - `handle mixed-arm escape continuation (multiple sites per top-level statement not yet supported)`
-- 已完成当前任务的实现边界审计：
-  - 任务已经足够具体，不再继续拆分。
-  - 当前缺口主要有四处：
-    1. mixed-arm site matrix 的 top-level 分类逻辑把同一个 `if` 语句里的 direct / indirect site 视为互斥类别，直接提前拒绝。
-    2. body-lift 分析只有 nested block 的 direct->indirect pair 特判，没有 if-branch 对应分支。
-    3. state0 / step / main-body 三条 lowering 路径都只接了 direct-only 或 indirect-only 的 `if` helper，没有 mixed helper。
-    4. current-site 恢复后“继续命中同一 if 分支里的下一个 site”的 next/prev 映射只为 nested block 建了路由，没有 if 分支对应路由。
-- 下一步具体执行：
-  1. 为 same-`if` mixed site 增加分类与 next/prev 路由，并限制在“同分支、tail 仅为空或 block-only”这一可验证子集。
-  2. 增加 if-branch 的 used-between / continue-to-next-site helper，复用已有 block replay primitive。
-  3. 打通 state0 / step / main-body 中 mixed-if 的入口与恢复续跑。
-  4. 新增 run-pass fixtures，至少覆盖 pre-immediate 与 post-immediate 两条 mixed-if 路径。
-  5. 运行格式化、相关测试、全量测试与 `clippy`，然后更新 `TODO.md` / `PLAN.md` 并提交。
-- 已完成实现：
-  - `effect.rs` 已新增 same-`if` mixed site 的分类、顺序判定、next/prev replay 路由，以及 if-branch 的 used-between / continue-to-next-site helper。
-  - state0、state1 与 resumed main tail 已接入 mixed-if lowering；post-immediate direct→indirect 续跑中缺失的 branch scope 已修复。
-  - 已新增 fixtures：
-    - `effect_resume_mixed_escape_pre_immediate_if_indirect_direct`
-    - `effect_resume_mixed_escape_post_immediate_if_direct_indirect`
-- 已完成验证：
+## 风险与检查点
+
+- 风险 1：while mixed-site 续跑在 `state0` / `state1` / resumed main tail 的控制流分支可能没有完全镜像 block/if，导致编译错误或运行时恢复错误。
+- 风险 2：新加 helper 可能只接入了 step path，没有接入其他恢复阶段，导致特定 fixture 通过、全量测试失败。
+- 风险 3：如果 while body mixed-site 的语义实际上需要跨 statement 支持，而当前实现只覆盖 same-body-stmt，则需要先回到任务拆解，而不是把缩小语义范围当作完成。
+
+## 进度记录
+
+- 已完成：按要求先写入本计划文件。
+- 已完成：已核对最新提交、`TODO.md`、`PLAN.md` 与当前工作树状态，确认本轮首个未完成任务仍是 `T2003c0b2c3d3`，且最新提交说明没有额外 pre-existing issue。
+- 已完成：已在 `crates/scoopc/src/llvm/codegen/effect.rs` 为 mixed escape matrix 的 `state0` / `state1` 补上 `while_mixed_site_pcs_by_stmt_idx` 分支，沿用现有 direct/indirect intercept 协议并接入 while 专用调度 helper。
+- 已完成：`cargo check -p scoopc --features llvm` 已通过，`state0` / `state1` 接线没有引入新的编译错误。
+- 已完成：已新增本任务 fixtures（2 个 run-pass + 1 个 build-fail）并手工试跑。
+- 已完成：已定位并修复 post-immediate `while` mixed direct→indirect 的 loop re-entry 缺口。根因是 current indirect 完成后缺少“下一迭代从 sibling direct site 重新进入”的 dedicated lowering，且新 helper 初版少了一层 while-body scope，导致 `i` 在重新检查 loop condition 前被误弹栈。现已补专用 helper 并修正 scope 生命周期。
+- 已完成：已补 `.stdout`、复测 targeted run-pass/build-fail，并通过以下全量验收：
   - `cargo fmt --all`
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 剩余收尾：
-  1. 提交当前变更。
-  2. 停止，本轮不继续处理下一个任务。
+- 进行中：更新 `TODO.md` / `PLAN.md` / 本文件的完成状态，随后提交本轮变更并停止。
