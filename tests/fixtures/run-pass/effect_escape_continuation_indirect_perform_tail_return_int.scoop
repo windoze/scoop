@@ -1,0 +1,51 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_tail_return_int.stdout
+//
+// T2003c0c2b1b: single-arm indirect escape-continuation supports a callee
+// whose block tail expression is the perform itself.
+// - `fetch()` saves `key` before a tail-position `Ask.get(key)`.
+// - `resume(32)` should restore the callee, return 32 to the handle body,
+//   and continue the handle body tail instead of crashing or exiting early.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun fetch(): Int / (Ask) {
+    val key: Int = 7
+    Ask.get(key)
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        println("body_start")
+        val value: Int = fetch()
+        println("body_tail")
+        println(value)
+        value
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            99
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(32)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}

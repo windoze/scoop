@@ -1,0 +1,54 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_closure_tail_return_string.stdout
+//
+// T2003c0c2b1b: closure callee-suspend resume path also supports
+// tail-position perform.
+// - The closure captures `key` from the handle body and tail-returns
+//   `Ask.ask(key)` through `callIt`.
+// - `resume("world")` should restore the closure, return the resumed value
+//   to the handle body, and continue the handle body tail.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(key: Int): String
+}
+
+fun callIt(f: () -> String / (Ask)): String / (Ask) {
+    f()
+}
+
+fun main() {
+    var saved_k: Continuation<String>? = None()
+
+    val result: String = handle {
+        println("body_start")
+        val key: Int = 7
+        val value: String = callIt {
+            Ask.ask(key)
+        }
+        println("body_tail")
+        println(value)
+        value
+    } with {
+        Ask.ask(id), k -> {
+            println("arm")
+            saved_k = Some(k)
+            "fallback"
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("world")
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}

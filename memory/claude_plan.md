@@ -1,57 +1,63 @@
-# 本轮执行记录（摘要版）
+# 本轮执行计划
+
+更新时间：2026-04-12
+
+说明：
+- 按要求先写入执行计划，再进行任何仓库检查或命令执行。
+- 我不会记录逐字的内部推理细节，但会持续记录可审计的执行步骤、依据、决策和进展。
 
 ## 目标
 
-按 `TODO.md` 的顺序处理第一个未完成任务；若发现最新提交中提到的遗留问题，先修复这些问题，再继续当前轮次任务。整个过程中同步更新 `PLAN.md`、`TODO.md` 与本文件，并在本轮结束前完成测试与提交。
-
-## 当前判断依据摘要
-
-- 需要先检查最新一次 Git 提交，确认提交说明里是否提到了尚未修复的问题。
-- 需要读取 `TODO.md` 与 `PLAN.md`，定位当前第一个未完成任务，并判断该任务是否需要进一步拆分。
-- 如果执行过程中发现任何规范不匹配、实现缺口或前置依赖缺失，不能绕过，必须先把问题转写进 `TODO.md`/`PLAN.md`，调整顺序后提交并停止。
-- 本轮只完成一个任务或一个新拆出的首个子任务，完成后立即停止。
+本轮只完成 `TODO.md` 中第一个未完成任务；如果发现该任务被前置缺陷阻塞，则先把阻塞项整理进 `TODO.md` / `PLAN.md`，提交后停止。
 
 ## 执行步骤
 
-1. 检查最新 Git 提交信息，确认是否存在提交中明确提到但尚未解决的问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，核对该任务的上下文、依赖与已有计划。
-4. 若任务过大，先在 `PLAN.md` 和 `TODO.md` 中拆分出更小的子任务，并以第一个子任务作为本轮执行目标。
-5. 实现本轮目标，必要时补充或整理相关代码结构与注释。
-6. 运行与本任务直接相关的测试、格式化和必要的质量检查；若任务改动范围较大，再考虑更广的回归验证。
-7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况、测试结果与任何计划调整。
-8. 生成一次 Git 提交，提交信息应明确对应任务。
-9. 停止，不继续处理下一个任务。
+1. 查看最新一次 Git 提交，确认是否提到了需要先处理的遗留问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`、相关代码与测试，判断该任务是否足够明确且可在一轮内完整完成。
+4. 如果任务过大或被前置问题阻塞：
+   - 细化成更小子任务，更新 `PLAN.md` 与 `TODO.md`；
+   - 或把发现的规范缺陷/缺失能力转成新的前置任务并调整顺序；
+   - 提交这些规划性修改后停止。
+5. 如果任务可执行：
+   - 实现任务；
+   - 运行相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，必要时补测；
+   - 修复测试/告警问题直到通过。
+6. 更新文档与任务状态：
+   - 在 `TODO.md` 标记完成；
+   - 在 `PLAN.md` 记录已完成内容和后续状态；
+   - 在本文件中追加进展记录。
+7. 提交本轮变更，提交信息应清晰描述本轮完成的任务。
+8. 停止，不继续处理下一个任务。
 
-## 记录约定
+## 进展记录
 
-- 这里只记录摘要、决策、步骤与状态，不写冗长推演。
-- 每当任务目标、依赖判断、实现方案或完成状态发生关键变化时，立即更新本文件。
-
-## 最新进展
-
-- 已检查最新提交：`62869425787259558cc3a49aebeda0e49a27b87c`，提交信息为 `[T2003c0c2b1a] Add indirect escape binder prerequisite`。
-- 该提交没有修复实现，只是在 `TODO.md` / `PLAN.md` 中把一个更底层前置问题插入到主线之前。
-- 已定位 `TODO.md` 首个未完成任务为 `T2003c0c2b1a`，其内容是修复 indirect escape-continuation arm binder 在 LLVM codegen 中未按真实 op 参数类型 materialize、payload decode 不正确的问题。
-- 当前判断：最新提交中提到的遗留问题与 `TODO.md` 的首个未完成任务一致，因此本轮直接处理 `T2003c0c2b1a`，不需要额外插入更前的任务。
-- 已定位根因：typecheck 只把表达式类型写回 AST side table，HIR lowering 的 `lower_handle_binder` 在无显式注解时会退回 `Any`，导致 indirect escape-continuation arm binder 在 codegen 中被当作 `Ref/Any` 使用。
-- 已实现修复：新增 “binding span -> TypeId” side table；typecheck 在计算 handle arm binder 类型时写回；HIR lowering 在无显式 binder 注解时优先读取 typecheck 写回类型。
-- LLVM 端的 indirect escape arm binder 读取路径也已确认切到统一的 `word + gc_ref + decode_abi_payload_transport`，不再保留 `Int-only` 手写 decode 旧分支。
-- 已补/修 run-pass 回归：
-  - `effect_escape_continuation_indirect_perform_binder_int_use`
-  - `effect_escape_continuation_indirect_perform_binder_string_use`
-- 说明：最初新增的两个夹具把“callee 直接以 perform 作为尾返回”的额外形状混入了当前任务，导致提前退出；该形状不属于本任务要验证的 binder materialization 主体，因此已改回既有 indirect-resume 主链路支持的“val 绑定后 resume”形状，只保留 binder 直接使用断言。
-- 定向验证已通过：两个夹具都能正确打印 arm binder，并在 `resume(...)` 后继续完成 callee/handle body。
-- 已完成全量验证：
-  - `cargo fmt --all`
+- 已创建本文件，尚未开始仓库检查。
+- 已检查最新提交：提交信息仅为 `[T2003c0c2b1a] Materialize indirect escape arm binders`，未额外声明需要先修的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T2003c0c2b1b`：single-arm indirect escape-continuation 的 callee tail-perform resume path。
+- 已完成初步代码审计：
+  - `scan_for_callee_suspend` 目前只识别 `val x = perform(...)` 形状；
+  - top-level function / closure 的 suspendable resume path 目前只会重放 `perform` 之后的语句；
+  - 若 `perform` 是 callee block 的尾表达式，现有实现没有建立对应的 suspend/resume 语义。
+- 已用最小样例复现当前缺陷：
+  - 样例：`fun fetch(): Int / (Ask) { val key: Int = 7; Ask.get(key) }`
+  - 行为：程序打印 `body_start / arm / result / 99` 后在 `k.resume(...)` 崩溃，退出码 `139`。
+  - 结论：tail-return indirect perform 没有正确准备/恢复 callee suspend state，属于真实后端缺口。
+- 下一步：
+  - 扩展 callee suspend 的预扫描与信息结构，识别 block 尾表达式 `perform`；
+  - 同步修正 top-level function 与 closure 的 resume path，使 tail-perform 在恢复后直接产出函数返回值而不是走默认返回/空状态；
+  - 补 run-pass 回归并跑格式化、测试、clippy。
+- 已完成实现：
+  - `scan_for_callee_suspend` 已扩展到 `val x = perform(...)` 之外的 tail-return 形状，包括 block 尾表达式与 `return perform(...)`。
+  - top-level function / closure 的 callee resume path 已区分“恢复值绑定到局部”与“恢复值直接返回”两种模式。
+  - closure expression-body（例如 `{ Ask.ask(key) }`）现会合成最小 block 并复用同一套 callee-suspend 扫描与 resume lowering。
+- 已新增回归：
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_tail_return_int.scoop`
+  - `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
+- 已完成验收：
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 已更新 `TODO.md` / `PLAN.md`：
-  - `T2003c0c2b1a` 已标记完成；
-  - 新增下一轮前置任务 `T2003c0c2b1b`，用于跟踪“single-arm indirect escape-continuation 的 callee tail-perform resume path”缺口；
-  - `T2003c0c2b2` 依赖已顺延到 `T2003c0c2b1b`。
-
-## 当前状态
-
-- 状态：代码、测试与文档更新已完成；正在整理最终 diff 并创建本轮提交。
+- 本轮任务状态：
+  - `T2003c0c2b1b` 已完成。
+  - 下一轮首个未完成任务将是 `T2003c0c2b2`。

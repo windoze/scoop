@@ -602,7 +602,7 @@ cargo run -p scoop --features llvm -- test
   - 在为上述回归尝试“callee 直接以 perform 作为尾返回”的最小形状时，确认还存在独立的 tail-resume 缺口，已另拆为后续 `T2003c0c2b1b` 跟踪，不再把该额外形状混入当前 binder materialization 任务。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b1b [TODO] Effect：single-arm indirect escape-continuation 的 callee tail-perform resume path
+### T2003c0c2b1b [DONE] Effect：single-arm indirect escape-continuation 的 callee tail-perform resume path
 - 描述：在为 `T2003c0c2b1a` 补 binder-use 回归时，尝试使用 `fun fetch() { Ask.ask(...) }` / `fun compute() { Ask.get(...) }` 这类“callee 直接以 perform 作为尾返回”的间接 perform 形状，发现 handle 会在打印 arm/result 后提前退出，`resume(...)` 没有继续执行 callee/handle body tail。既有 single-arm indirect escape 回归主要覆盖“callee 先把 perform 绑定到局部，再在 resume 后继续使用该局部”的形状，因此该 tail-return 子集仍是独立缺口。
 - 目标：
   - single-arm indirect escape-continuation 支持 callee body 直接以 perform 作为 tail return，不再在 `resume(...)` 后提前退出。
@@ -613,6 +613,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b1a
+- 完成说明：
+  - `scan_for_callee_suspend` 现已识别 `val x = perform(...)` 之外的两类 tail-return 形状：block 尾表达式 `perform(...)` 与 `return perform(...)`。
+  - top-level function / closure 的 suspendable resume path 现已区分“恢复值绑定到局部后继续执行”与“恢复值直接成为当前返回值”两类模式；tail-return 子集不再在 resume 后走默认返回或空状态。
+  - closure expression-body 形状（如 `{ Ask.ask(key) }`）现会合成最小 block 进入同一套 callee-suspend 扫描与 resume lowering，不再漏掉 tail-perform 路径。
+  - 已新增 run-pass 回归：`effect_escape_continuation_indirect_perform_tail_return_int`、`effect_escape_continuation_indirect_perform_closure_tail_return_string`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）
 - 描述：在 direct 单站点打通、`T2003c0c2b1a` 修正了 indirect escape arm binder materialization，且 `T2003c0c2b1b` 收口了 single-arm indirect escape 的 tail-return resume path 之后，再把无-immediate 的 escape 子集扩到 top-level single indirect call site，并让 callee suspend state replay 与 sibling non-resuming dispatch 对齐。
