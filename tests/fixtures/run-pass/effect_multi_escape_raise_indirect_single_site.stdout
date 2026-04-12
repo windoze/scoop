@@ -1,0 +1,16 @@
+body
+fetch_enter
+ask_arm
+31
+after_handle
+7
+fetch_resume
+hello
+after_fetch
+prefix
+30
+hello
+raise_arm
+32
+after_resume
+done

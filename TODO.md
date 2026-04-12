@@ -620,7 +620,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_escape_continuation_indirect_perform_tail_return_int`、`effect_escape_continuation_indirect_perform_closure_tail_return_string`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）
+### T2003c0c2b2 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）
 - 描述：在 direct 单站点打通、`T2003c0c2b1a` 修正了 indirect escape arm binder materialization，且 `T2003c0c2b1b` 收口了 single-arm indirect escape 的 tail-return resume path 之后，再把无-immediate 的 escape 子集扩到 top-level single indirect call site，并让 callee suspend state replay 与 sibling non-resuming dispatch 对齐。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 top-level single indirect call site。
@@ -631,6 +631,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b1b
+- 完成说明：
+  - `codegen_handle_expr_escape_with_nonresuming_siblings` 现已确认会在“无 immediate-resume + 单个 top-level indirect escape site”场景下分流到 dedicated no-immediate indirect lowering，不再回退到统一门禁。
+  - no-immediate indirect continuation step 已对齐既有 single-arm indirect escape 的 callee suspend state replay：`resume(...)` 会把恢复值写回 callee state，重新调用 callee，并在 no-match / replay 路径中保留 sibling `Raise.raise` / custom non-resuming 的 dispatch 优先级。
+  - 已新增 run-pass 回归：`effect_multi_escape_indirect_single_site`、`effect_multi_escape_custom_nonresuming_indirect_single_site`、`effect_multi_escape_raise_indirect_single_site`。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，escape site-matrix）
 - 描述：最后收口无-immediate 的 richer escape site-matrix，包括多 site、nested block / if / while，以及 direct + indirect mixed。该阶段统一处理 state0 / continuation step 的 nested replay、loop re-entry 与 sibling dispatch。

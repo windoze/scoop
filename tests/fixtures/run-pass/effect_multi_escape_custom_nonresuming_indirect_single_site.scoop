@@ -1,0 +1,71 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_indirect_single_site.stdout
+//
+// T2003c0c2b2: 无 immediate-resume 的 multi-arm handle（single indirect escape site）。
+// - body 通过单个 top-level indirect call 命中 escape arm；
+// - `k.resume(...)` 后恢复 callee，并继续执行 indirect call 之后的 tail；
+// - tail 里的 custom non-resuming effect 由同一个 source-handle 的 sibling custom arm 接住。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun fetch(base: Int): String / (Ask) {
+    println("fetch_enter")
+    val msg: String = Ask.ask(base + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        val base: Int = 20
+        println("body")
+        val reply: String = fetch(base)
+        println("after_fetch")
+        println(prefix)
+        println(base)
+        println(reply)
+        Abort.stop(reply)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            saved = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
