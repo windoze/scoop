@@ -283,6 +283,116 @@ fun demo(flag: Bool): Int {
         assert!(simplification_dump.contains("heap-continuation=yes"));
     }
 
+    #[test]
+    fn simplification_codegen_entrypoint_classifies_single_modes() {
+        let never_resume = build_codegen_entrypoint_label(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int) -> seed + 10
+    }
+    result
+}
+"#,
+        );
+        let immediate_resume = build_codegen_entrypoint_label(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+        let escape_continuation = build_codegen_entrypoint_label(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int), k -> seed + 10
+    }
+    result
+}
+"#,
+        );
+
+        assert_eq!(never_resume, "single-nonresuming");
+        assert_eq!(immediate_resume, "single-immediate-resume");
+        assert_eq!(escape_continuation, "single-escape-continuation");
+    }
+
+    #[test]
+    fn simplification_codegen_entrypoint_classifies_mixed_representative_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        if (flag) {
+            val second: Int = Ask.ask(first)
+            first + second
+        } else {
+            first
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 2
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "immediate-with-escape");
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -298,6 +408,16 @@ fun demo(flag: Bool): Int {
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
             .build_mode_specific_simplification()
             .pretty_dump()
+    }
+
+    fn build_codegen_entrypoint_label(source_text: &str) -> &'static str {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .build_mode_specific_simplification()
+            .codegen_entrypoint()
+            .label()
     }
 
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {

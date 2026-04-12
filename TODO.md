@@ -1085,7 +1085,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增单元测试：覆盖 never-resume、immediate-resume、escape-continuation 以及 mixed representative sample 的 simplification dump，并验证 full plan dump 与 simplification dump 同步存在。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u3b [TODO] Effect：用 simplification 收口 `codegen_handle_expr` 入口选路
+### T2003u3b [DONE] Effect：用 simplification 收口 `codegen_handle_expr` 入口选路
 - 描述：有了 simplification 输出后，再把 `codegen_handle_expr` 的模式识别与基础 dispatch/resume-target 决策改为消费该输出；此阶段仍允许旧 emitter 作为过渡实现继续存在。
 - 目标：
   - `codegen_handle_expr` 不再仅靠“arm 数量 + arm kind”的手写主分支决定 lowering 主路径，而是先读取统一 simplification 结果。
@@ -1096,6 +1096,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003u3a
+- 完成说明：
+  - `state_machine_simplify.rs` 现已为 root handle 额外汇总 arm lowering 信息，并新增 `SimplifiedCodegenEntrypoint`；`codegen_handle_expr` / `codegen_handle_expr_multi_arm` 已改为消费该分类来选择现有 specialized lowering，不再只靠“arm 数量 + arm kind”的手写入口分支。
+  - 已新增 simplification 与 HIR arm 形态的一致性校验，以及单元测试：覆盖 single non-resuming / immediate-resume / escape-continuation 与 mixed representative sample 的入口分类。
+  - 统一 plan 当前仍未完整覆盖 class init 等隐藏 unwind 路径，因此 no-perform 早退继续保留 `block_may_perform` 作为保守 gate；arm 模式选路仍由 simplification 驱动，这个边界留待 `T2003u4` 的统一状态机 emitter 切换时彻底收口。
+  - 验证已通过：`cargo test -p scoopc simplification_codegen_entrypoint -- --nocapture`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
 ### T2003u4 [TODO] Effect：LLVM codegen 主路径切换到统一状态机输入
 - 描述：当前 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 都在各自重建 replay、capture、cleanup。此任务把 LLVM 侧主路径切换到统一状态机输入，保留旧路径仅作过渡对照。

@@ -9,6 +9,7 @@ pub(super) struct HandleModeSpecificSimplification {
     frame_requirements: SimplifiedFrameRequirements,
     cleanup_strategy: SimplifiedCleanupStrategy,
     suspend_sites: Vec<SimplifiedSuspendSite>,
+    arm_summaries: Vec<SimplifiedArmSummary>,
     nested_handles: Vec<HandleModeSpecificSimplification>,
 }
 
@@ -37,6 +38,11 @@ impl HandleModeSpecificSimplification {
                 .iter()
                 .map(|site| SimplifiedSuspendSite::from_full_plan(plan, site))
                 .collect(),
+            arm_summaries: plan
+                .arm_plans
+                .iter()
+                .map(SimplifiedArmSummary::from_full_plan_arm)
+                .collect(),
             nested_handles: plan
                 .nested_handles
                 .iter()
@@ -52,10 +58,67 @@ impl HandleModeSpecificSimplification {
         for site in &self.suspend_sites {
             acc ^= site.structural_signature();
         }
+        for arm in &self.arm_summaries {
+            acc ^= arm.structural_signature();
+        }
         for nested in &self.nested_handles {
             acc ^= nested.structural_signature();
         }
         acc
+    }
+
+    fn has_suspend_sites(&self) -> bool {
+        !self.suspend_sites.is_empty()
+    }
+
+    fn arm_lowering_counts(&self) -> SimplifiedArmLoweringCounts {
+        let mut counts = SimplifiedArmLoweringCounts::default();
+        for arm in &self.arm_summaries {
+            counts.record(arm.lowering);
+        }
+        counts
+    }
+
+    fn codegen_entrypoint(&self) -> SimplifiedCodegenEntrypoint {
+        if !self.has_suspend_sites() {
+            return SimplifiedCodegenEntrypoint::NoSuspendSites;
+        }
+
+        self.codegen_entrypoint_from_arm_mix()
+    }
+
+    fn codegen_entrypoint_from_arm_mix(&self) -> SimplifiedCodegenEntrypoint {
+        let counts = self.arm_lowering_counts();
+        if counts.stack_reenter > 0 && counts.heap_continuation > 1 {
+            return SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate;
+        }
+        if counts.stack_reenter > 1 && counts.heap_continuation > 0 {
+            return SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape;
+        }
+
+        match (
+            counts.flag_unwind,
+            counts.stack_reenter,
+            counts.heap_continuation,
+        ) {
+            (1, 0, 0) => SimplifiedCodegenEntrypoint::SingleNonResuming,
+            (_, 0, 0) => SimplifiedCodegenEntrypoint::MultiNonResuming,
+            (0, 1, 0) => SimplifiedCodegenEntrypoint::SingleImmediateResume,
+            (_, 1, 0) => SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings,
+            (_, count, 0) if count > 1 => {
+                SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel
+            }
+            (0, 0, 1) => SimplifiedCodegenEntrypoint::SingleEscapeContinuation,
+            (_, 0, 1) => SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings,
+            (_, 0, count) if count > 1 => {
+                SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect
+            }
+            (0, 1, 1) => SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling,
+            (_, 1, 1) => {
+                SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings
+            }
+            _ => SimplifiedCodegenEntrypoint::NoSuspendSites,
+        }
     }
 
     #[cfg(test)]
@@ -77,6 +140,27 @@ impl HandleModeSpecificSimplification {
             yes_no(self.frame_requirements.needs_heap_continuation),
             yes_no(self.frame_requirements.needs_one_shot_flag),
         ));
+        out.push_str(&format!(
+            "{pad}  entrypoint={}\n",
+            self.codegen_entrypoint().label()
+        ));
+
+        out.push_str(&format!("{pad}  arms:\n"));
+        if self.arm_summaries.is_empty() {
+            out.push_str(&format!("{pad}    []\n"));
+        } else {
+            for arm in &self.arm_summaries {
+                out.push_str(&format!(
+                    "{pad}    arm{} op={} mode={} lowering={} exit={}\n",
+                    arm.arm_id,
+                    arm.op_fqn,
+                    arm.resume_mode.label(),
+                    arm.lowering.label(),
+                    arm.body_exit.label(),
+                ));
+                out.push_str(&format!("{pad}      detach={}\n", arm.detach_policy));
+            }
+        }
 
         out.push_str(&format!("{pad}  suspend-sites:\n"));
         if self.suspend_sites.is_empty() {
@@ -119,6 +203,77 @@ impl HandleModeSpecificSimplification {
             for (idx, nested) in self.nested_handles.iter().enumerate() {
                 out.push_str(&format!("{pad}    nested#{idx}\n"));
                 nested.write_pretty_dump(indent + 6, out);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct SimplifiedArmLoweringCounts {
+    flag_unwind: usize,
+    stack_reenter: usize,
+    heap_continuation: usize,
+}
+
+impl SimplifiedArmLoweringCounts {
+    fn record(&mut self, lowering: SimplifiedArmLowering) {
+        match lowering {
+            SimplifiedArmLowering::FlagUnwind => self.flag_unwind += 1,
+            SimplifiedArmLowering::StackReenter => self.stack_reenter += 1,
+            SimplifiedArmLowering::HeapContinuation => self.heap_continuation += 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SimplifiedCodegenEntrypoint {
+    NoSuspendSites,
+    SingleNonResuming,
+    SingleImmediateResume,
+    SingleEscapeContinuation,
+    MultiNonResuming,
+    MultipleEscapeTopLevelDirect,
+    MultipleImmediateResumeTopLevel,
+    ImmediateResumeWithNonResumingSiblings,
+    EscapeContinuationWithNonResumingSiblings,
+    ImmediateResumeWithEscapeSibling,
+    ImmediateResumeWithEscapeAndNonResumingSiblings,
+    UnsupportedMixedMultipleEscapeWithImmediate,
+    UnsupportedMixedMultipleImmediateWithEscape,
+}
+
+impl SimplifiedCodegenEntrypoint {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            SimplifiedCodegenEntrypoint::NoSuspendSites => "no-suspend-sites",
+            SimplifiedCodegenEntrypoint::SingleNonResuming => "single-nonresuming",
+            SimplifiedCodegenEntrypoint::SingleImmediateResume => "single-immediate-resume",
+            SimplifiedCodegenEntrypoint::SingleEscapeContinuation => "single-escape-continuation",
+            SimplifiedCodegenEntrypoint::MultiNonResuming => "multi-nonresuming",
+            SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
+                "multiple-escape-top-level-direct"
+            }
+            SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel => {
+                "multiple-immediate-top-level"
+            }
+            SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings => {
+                "immediate-with-nonresuming"
+            }
+            SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings => {
+                "escape-with-nonresuming"
+            }
+            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling => {
+                "immediate-with-escape"
+            }
+            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
+                "immediate-with-escape-and-nonresuming"
+            }
+            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
+                "unsupported-mixed-multiple-escape-with-immediate"
+            }
+            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
+                "unsupported-mixed-multiple-immediate-with-escape"
             }
         }
     }
@@ -297,6 +452,42 @@ impl SimplifiedArmDispatch {
             ^ self.lowering.structural_signature()
             ^ self.body_exit.structural_signature()
             ^ ((self.resume_target.unwrap_or(0) as usize) << 1)
+            ^ self.detach_policy.len()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SimplifiedArmSummary {
+    arm_id: ArmPlanId,
+    op_fqn: String,
+    resume_mode: ArmResumeMode,
+    lowering: SimplifiedArmLowering,
+    body_exit: ArmBodyExit,
+    detach_policy: String,
+}
+
+impl SimplifiedArmSummary {
+    fn from_full_plan_arm(arm: &ArmPlan) -> Self {
+        Self {
+            arm_id: arm.id,
+            op_fqn: arm.op_fqn.clone(),
+            resume_mode: arm.resume_mode,
+            lowering: match arm.resume_mode {
+                ArmResumeMode::NeverResume => SimplifiedArmLowering::FlagUnwind,
+                ArmResumeMode::ImmediateResume => SimplifiedArmLowering::StackReenter,
+                ArmResumeMode::EscapeContinuation => SimplifiedArmLowering::HeapContinuation,
+            },
+            body_exit: arm.body_exit,
+            detach_policy: arm.detach_policy.clone(),
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        self.arm_id as usize
+            ^ self.op_fqn.len()
+            ^ self.resume_mode.structural_signature()
+            ^ self.lowering.structural_signature()
+            ^ self.body_exit.structural_signature()
             ^ self.detach_policy.len()
     }
 }
