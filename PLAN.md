@@ -31,7 +31,12 @@ cargo run -p scoop --features llvm -- test
 - 目标：
   - 收口 `handle` arm 的类型系统与 HIR 表示，允许合法的 non-resuming / immediate-resume / continuation-binder 组合，不再靠“先拒绝混用”维持实现简单。
   - 让 non-resuming effect 与 escape continuation 的恢复值传递不再硬编码在 word-sized `Int` 分支；跨函数路径与 aggregate/reference payload 走统一语义。
-  - 补齐 immediate-resume 在表达式位置、控制流位置、`finally` 组合下的行为，并用复杂 fixtures 锁住语义。
+  - 把 LLVM effect lowering 收口到“统一的 resumable state-machine pass”：先为可恢复计算生成完整状态机，再按 never-resume / immediate-resume / escape-continuation 的使用方式做化简；不再把语法形状分流当成终态设计。
+- 架构重定向（2026-04-13）：
+  - 现有 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 的分流式 lowering 继续保留为过渡实现与已通过回归的行为基线，但不再作为后续主线继续扩面。
+  - 后续 effect 主链路的硬目标是统一状态机 pass：direct perform、indirect perform、branch/loop、nested handle、multi-arm dispatch 必须先落到同一份 suspension-aware state machine 表示，再做 mode-specific simplification。
+  - 对 never-resume / immediate-resume 的要求是“先生成完整状态机，再证明并化简”；不允许继续以“当前只是 single-site / top-level / same-stmt mixed”之类形状门禁来替代通用实现。
+  - 因此，自本次调整起，不再新增按 `top-level / block / if / while / same-stmt mixed` 维度继续拆分的 effect lowering 主线任务；后续未完成事项统一转入状态机重写路线。
 - 当前进展：
   - T2001 已完成：typecheck/HIR 已允许 mixed arms，`handle` 结果类型按真实返回路径检查，HIR/fixtures 已补齐三类 arm 的稳定回归。
   - 已对原 `T2002` 做范围审计：它同时覆盖 non-resuming payload、escape continuation 的 CalleeSuspendState、以及 `resume(...)` ABI 收口，单轮实现风险过高，已拆为 `T2002a` / `T2002b` 两步推进。
@@ -192,8 +197,9 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2d2b 已完成：pure direct top-level direct single-site 的 `multiple escape arms + finally` 现已接入主 handle 路径的 `finally` / `finally_unwind` 收口；初始 body 前缀与首个命中的 escape arm 向外传播 `Raise.raise` 时都会先执行 `finally`，而 continuation step trampoline 则继续沿用 `T1609` 既有语义，不在后续 `resume(...)` / replay 中重复执行 `finally`。
   - 已新增 run-pass `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`；原先的 pure-finally build 负例已转成正例，并由新的 build 负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 继续锁住 sibling non-resuming + `finally` 的后续边界。
   - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2d2c`：补 pure escape-only multiple escape arms 的 top-level indirect site matrix。
-  - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
+  - 2026-04-13 起停止继续推进 `T2003c0c2d2c`～`T2003c` 这条“按 site matrix / arm 组合逐项扩面”的旧路线；它们改由统一状态机 pass 主线吸收，现有实现仅作为过渡与回归基线保留。
+  - 当前下一步调整为 `T2003u1`：先定义统一状态机 pass 的输入/输出、不变量、化简边界与对 runtime ABI 的要求，再据此迁移现有 lowering。
+  - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
@@ -247,14 +253,13 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2c（已完成）：补 multiple immediate-resume arms。
   - T2003c0c2d1（已完成）：补多个 escape-continuation arms（纯 escape-only，top-level direct single-site；暂不混入 `finally`）。
   - T2003c0c2d2a（已完成）：补多个 escape-continuation arms + sibling non-resuming（top-level direct single-site，暂不混入 `finally`）。
-  - T2003c0c2d2b：补多个 escape-continuation arms + `finally`（pure escape-only，top-level direct single-site）。
-  - T2003c0c2d2c：补多个 escape-continuation arms 的 pure escape-only top-level indirect site matrix。
-  - T2003c0c2d2d：补多个 escape-continuation arms 的 pure escape-only nested direct replay。
-  - T2003c0c2d2e：补多个 escape-continuation arms 的 pure escape-only nested indirect / direct+indirect richer replay。
-  - T2003c0c2d2f：补 richer no-immediate multiple escape matrix 与 sibling non-resuming / `finally` 的组合收口。
-  - T2003c0c2d3：补 single immediate-resume + 多个 escape-continuation arms。
-  - T2003c0c2d4：补 multiple immediate-resume + escape-continuation 的 richer multi-resuming mixed-arm。
-  - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
+  - T2003c0c2d2b（已完成）：补多个 escape-continuation arms + `finally`（pure escape-only，top-level direct single-site）。
+  - T2003u1：统一状态机 pass 设计定稿，明确输入/输出、不变量、state table / cleanup edge / capture model，以及 never-resume / immediate-resume 的化简规则。
+  - T2003u2：实现统一的 suspension-aware state machine plan，覆盖 direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch，不再按语法形状分多套 scanner。
+  - T2003u3：在统一状态机之上实现 mode-specific simplification：never-resume 化简、immediate-resume 化简、escape-continuation continuation materialization。
+  - T2003u4：把 LLVM codegen 主路径切到统一状态机输入，收口 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 中重复的 replay、capture、cleanup 逻辑。
+  - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
+  - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 
 ## 2. 语句语义 / Rust 风格分号规则（T22）

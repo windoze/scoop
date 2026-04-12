@@ -33,6 +33,11 @@ cargo run -p scoop --features llvm -- test
 
 ## T20：Effect / Continuation 完整化
 
+- 2026-04-13 架构重定向：
+  - `T2003c0*` 已完成事项继续保留为过渡实现与回归基线，但未完成事项不再沿“按 top-level / block / if / while / same-stmt mixed 逐项扩面”的路线推进。
+  - 后续 effect 主线的硬目标改为“统一的 resumable state-machine pass”：先生成完整状态机，再按 never-resume / immediate-resume / escape-continuation 做化简；不再根据源码形状分别生成多套状态机。
+  - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线全部由新的 `T2003u*` 主线替代。
+
 ### T2001 [DONE] Effect：统一 `handle` arm 形态与 typecheck/HIR 不变量
 - 描述：当前 `handle` 仍直接拒绝在同一个表达式里混用 `->`、`-> resume`、`, k ->` 等 arm 形态，导致语言语义被实现层的早期门禁截断。先收口 arm 的表示与兼容性检查，再推进后端链路。
 - 目标：
@@ -1028,89 +1033,84 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_multi_arm_with_finally`、`effect_multi_escape_multi_arm_with_finally_raise`，并把旧的 pure-finally build 负例替换为新的 sibling 边界负例 `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error`，继续锁住后续 `T2003c0c2d2f`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2d2c [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，pure escape-only top-level indirect site matrix）
-- 描述：在 pure direct 子集之外，继续把 multiple escape arms 扩到 top-level indirect call sites；先不混入 sibling non-resuming / `finally` / nested replay。
+### T2003u1 [TODO] Effect：统一状态机 pass 设计定稿与不变量收口
+- 描述：现确认继续沿 `T2003c0*` 路线按源码形状补 site-matrix / mixed-arm 组合，不是可收敛的终态。先把 effect lowering 的架构目标收口为“统一的 resumable state-machine pass”，明确输入/输出、不变量与化简边界。
 - 目标：
-  - pure escape-only 的 multiple escape arms 支持 top-level indirect single / multiple sites。
-  - continuation step 可按 site 顺序重放当前 callee，并在后续 indirect site 再次命中不同 escape arm。
-  - `handle multiple escape-continuation arms (indirect call site not yet supported)` 不再阻塞 top-level indirect 子集。
+  - 明确统一 pass 的输入：typed HIR / 后续中端中的 `handle` body、direct perform、indirect perform、control-flow、nested handle、multi-arm dispatch 信息。
+  - 明确统一 pass 的输出：完整状态机表示，至少包含 state table、resume target、cleanup edge、capture/body-lift 集合、effect dispatch 入口。
+  - 明确 never-resume / immediate-resume / escape-continuation 的关系：三者都先落到完整状态机，再由后续 pass 做“不分配 continuation”“同步 resume 直接折返”“暴露 continuation API”之类化简。
+  - 明确 runtime ABI 约束：统一 payload transport、handler stack、continuation one-shot、cleanup/finally 语义不能再由多套 lowering 分别定义。
 - 验收：
-  - 新增 run-pass / build fixtures：覆盖 top-level indirect 的 multiple escape arms 正例，以及至少一个仍未支持的 nested 边界。
+  - 在仓库内补一份统一状态机设计说明，明确状态表示、化简规则、与现有 runtime ABI 的对接方式。
+  - `PLAN.md` / `TODO.md` / 相关注释中不再把“继续扩 top-level / nested / same-stmt mixed 组合”写成主线目标。
   - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2d2b
 
-### T2003c0c2d2d [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，pure escape-only nested direct replay）
-- 描述：在 top-level direct / indirect 打通后，继续把 pure escape-only multiple escape arms 扩到 nested direct replay：statement-position block、if branch、while body。
+### T2003u2 [TODO] Effect：实现统一的 suspension-aware state machine plan
+- 描述：在设计定稿后，先实现“构建完整状态机计划”的中间层，不直接生成 LLVM。重点是把 direct/indirect perform、branch/loop、nested handle、multi-arm dispatch 统一编码，而不是继续维护多套 scanner / replay helper。
 - 目标：
-  - multiple escape arms 的 pure escape-only 路径支持 nested direct site，不再局限于 top-level `val = perform`。
-  - continuation step 在恢复后能先 replay 命中的 nested path 尾部，再继续后续 top-level tail / loop re-entry。
-  - nested direct 的 capture / body-lift / replay 语义与既有 no-immediate matrix helper 对齐。
+  - 用单一计划结构表达所有 suspension point，而不是分别维护 `ImmediateResumeFrame`、`MixedEscapeDirectFrame`、`ResumeFrame` 这类彼此不兼容的路径表示。
+  - direct perform、indirect perform、以及“调用一个已状态机化 callee”的挂起边界走同一套 site 抽象。
+  - capture/body-lift、cleanup/finally edge、loop re-entry、branch merge 在 plan 层统一建模，而不是在 LLVM emitter 中按语法形状重建。
+  - 为 plan 层提供可测试的 dump / pretty-print / golden 输出，便于验证同一程序形状不会因 top-level / nested 差异而走不同主算法。
 - 验收：
-  - 新增 run-pass / build fixtures：覆盖 nested direct 的 multiple escape arms 正例，以及至少一个仍未支持的 nested indirect 边界。
+  - 新增单元测试或 dump fixtures：覆盖 direct、indirect、if、while、nested handle、multiple arms 的状态机计划输出。
+  - 现有 effect scanner/analysis 中与统一 plan 重复的核心路径有明确迁移入口，不再为新组合继续新增 scanner。
   - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d2c
+- 依赖：T2003u1
 
-### T2003c0c2d2e [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，pure escape-only nested indirect / direct+indirect richer replay）
-- 描述：继续把 pure escape-only 的 multiple escape arms 扩到 nested indirect 与 direct+indirect richer replay，收口“不是 top-level direct/indirect 单站点”的剩余 pure escape-only 组合。
+### T2003u3 [TODO] Effect：在完整状态机之上实现 never-resume / immediate-resume / continuation 化简
+- 描述：统一状态机 plan 落地后，next step 不是再补 case，而是把三类运行模式都定义成同一状态机上的化简结果。
 - 目标：
-  - pure escape-only 的 multiple escape arms 支持 nested indirect，以及 direct+indirect 共存的 richer no-immediate replay。
-  - continuation step 可在 nested call-site replay、same-stmt next/prev replay 与 loop re-entry 下继续选择正确的 escape arm。
-  - `multiple escape arms` 在 pure escape-only 维度上不再保留 structural not yet supported 诊断。
+  - never-resume：从完整状态机化简出“无 continuation 逃逸”的路径，允许消掉 continuation 分配，但不改变先建完整状态机这一前提。
+  - immediate-resume：从完整状态机化简出“同步 resume 可直接折返”的路径，允许把 heap state / continuation materialization 降成栈上或局部跳转，但状态切分与 cleanup 语义仍来自统一 plan。
+  - escape-continuation：保留完整 continuation materialization，并与前两者共享 capture / payload / cleanup 定义。
+  - 多个 resuming arms 的 dispatch 顺序、resume target 选择与源码顺序一致，不再由 `single-site` / `same-stmt mixed` 之类专门路径决定。
 - 验收：
-  - 新增 run-pass / build fixtures：覆盖 nested indirect 或 direct+indirect richer replay 的 multiple escape arms 正例。
+  - 为同一组代表性样例同时验证“完整状态机计划一致、mode-specific 输出不同”。
+  - 删除或弃用一批仅用于 specialized lowering 的结构性假设，不再要求“先挑简单形状再生成状态机”。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d2d
+- 依赖：T2003u2
 
-### T2003c0c2d2f [TODO] Effect：LLVM 多 arm handle dispatch（多个 escape-continuation arms，richer no-immediate matrix 与 sibling non-resuming / `finally` 收口）
-- 描述：在 pure escape-only richer no-immediate matrix 打通后，再把 sibling non-resuming 与 `finally` 接回 indirect / nested replay 子集，完成 `T2003c0c2d2` 的组合收口。
+### T2003u4 [TODO] Effect：LLVM codegen 主路径切换到统一状态机输入
+- 描述：当前 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 都在各自重建 replay、capture、cleanup。此任务把 LLVM 侧主路径切换到统一状态机输入，保留旧路径仅作过渡对照。
 - 目标：
-  - richer no-immediate multiple escape matrix 可与 sibling non-resuming、`finally` 稳定组合。
-  - sibling dispatch、cleanup、captured locals 与 nested / indirect replay 在多个 escape arms 下保持一致。
-  - `T2003c0c2d2` 完成时，不再保留“multiple escape arms + sibling non-resuming / finally / nested / indirect”这一类结构性长期 TODO。
+  - LLVM emitter 从统一状态机读取 state table / dispatch / cleanup，而不是继续在 codegen 阶段按源码形状重跑专门扫描。
+  - payload transport、handler stack、continuation alloc/resume、finally/unwind 语义在 LLVM 层只有一套主实现。
+  - 旧的 specialized lowering 可以暂时保留，但不再作为新增合法组合的唯一落点；新组合一律先接统一 pass。
 - 验收：
-  - 新增 run-pass / build fixtures：覆盖 richer no-immediate multiple escape arms + sibling non-resuming 或 `finally` 的组合正例。
+  - 至少一组现有 single-arm、multi-arm、nested control-flow 回归切到统一状态机 codegen 路径。
+  - 不再为新的 legal shape 在 `mixed.rs` / `matrix.rs` 中追加新的 shape-specific 主线逻辑。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d2e
+- 依赖：T2003u3
 
-### T2003c0c2d3 [TODO] Effect：LLVM 多 arm handle dispatch（single immediate-resume + 多个 escape-continuation arms）
-- 描述：在 no-immediate multiple escape 收口后，继续把 single immediate-resume handle 扩到多个 sibling escape-continuation arms。该阶段需要把现有 single-immediate mixed-arm state machine 与多个 continuation 的 dispatch / resume target 对齐。
+### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
+- 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。
 - 目标：
-  - 一个 immediate-resume arm + 多个 sibling escape-continuation arms 可在 LLVM 端到端路径运行。
-  - 多个 escape arm 的后续 resume 会回到正确的 immediate-resume source-handle tail，不发生 sibling self-capture。
-  - `handle mixed escape-continuation arms (only 1 supported)` 不再阻塞 single-immediate mixed-arm。
+  - single/multiple immediate-resume、single/multiple escape-continuation、sibling non-resuming、`finally`、direct/indirect perform、nested control-flow 全部走统一 pass 主线。
+  - 删除 `top-level only`、`nested ... not yet supported`、`same-stmt mixed only`、`multiple ... arms not yet supported` 这类因 lowering 形状缺口产生的长期门禁。
+  - 若仍需保留 unsupported 诊断，必须能说明它是 runtime ABI 未接线或语言语义明确非法，而不是“当前还没给这个语法形状补特判”。
 - 验收：
-  - 新增 run-pass / build fixtures：覆盖 single immediate + multiple escape 的最小可运行组合，以及至少一个仍未支持的 richer 组合。
+  - build-fail fixtures 中凡是仅用于锁 lowering 形状边界的条目，要么转成 run-pass，要么替换成新的统一 pass 真实边界。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d2f
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4
 
-### T2003c0c2d4 [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume + escape-continuation richer mixed-arm）
-- 描述：最后收口 richer multi-resuming mixed-arm：multiple immediate-resume + single/multiple escape-continuation。该阶段要统一多个 immediate arm 与多个 escape arm 的 site 扫描、resume target、cleanup 与 dispatch 规则。
+### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
+- 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。
 - 目标：
-  - multiple immediate-resume + escape-continuation 的 mixed-arm 组合不再报结构性未实现诊断。
-  - 多个 immediate arm 与多个 escape arm 的 dispatch / replay / cleanup 语义一致，并与源码顺序对齐。
-  - `T2003c0c2d` 完成时，不再存在“因为 multiple resuming arms 组合尚未 lowering”而拒绝合法 mixed-arm 的长期 TODO。
+  - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm kind 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
+  - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，且 continuation pinning、capture 恢复、cleanup/finally 语义不回归。
+  - 统一状态机主线完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法组合”的长期 TODO。
 - 验收：
-  - 新增 run-pass fixtures：覆盖 multiple immediate + escape 的最小可运行组合。
+  - 新增 run-pass / stress fixtures：覆盖 unified pass full matrix。
   - `cargo test --all`
+  - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d3
-
-### T2003c [TODO] Effect：perform / handler 完整组合回归矩阵
-- 描述：在 `T2003c0*` 的 mixed-arm LLVM dispatch 全部落地后，补 full matrix 回归，确保 `T2003` 的终态不是“剩余组合继续稳定诊断”，而是合法的 perform/handler 组合都已有实现与回归覆盖。
-- 目标：
-  - 为 single/multiple direct perform、single/multiple indirect perform、direct+indirect 共存、multi-arm kind 任意组合、nested handle、GC stress 补齐端到端回归。
-  - 相关用例在 `SCOOP_GC_STRESS=1` 下稳定，且 handler stack、continuation pinning、captured locals / cleanup 语义不回归。
-  - `T2003` 完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法 mixed 组合”的长期 TODO；若仍有限制，必须是语言语义层面的真实非法组合。
-- 验收：
-  - 新增 run-pass fixtures：覆盖 full mixed-arm / nested handle / GC stress matrix。
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c2d4
+- 依赖：T2003u5
 
 ### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
@@ -1119,7 +1119,7 @@ cargo run -p scoop --features llvm -- test
   - 由 `T2201`～`T2204` 统一承接：显式 `do` block 语法、block tail value / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 验收：
   - `T2201`～`T2204` 进入主线落地顺序；`T2004` 不再作为独立实现项继续展开。
-- 依赖：T2003c
+- 依赖：无（已废弃，改由 `T2201`～`T2204` 承接）
 
 ## T22：前端 `do` block / closure 消歧与 block 语义收口
 
@@ -1159,7 +1159,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2202, T2003c
+- 依赖：T2202, T2003u6
 
 ### T2204 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
 - 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 仍保留“裸 `{ ... }` 可能同时像 block / lambda”的旧叙述；若只改实现不改规范，后续 fixtures 与文档示例会继续漂移。
