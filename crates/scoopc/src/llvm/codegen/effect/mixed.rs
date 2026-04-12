@@ -8446,44 +8446,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mutable: bool,
         }
 
-        #[derive(Clone, Copy)]
-        struct CustomSiblingArm<'hir> {
-            arm: &'hir hir::HandleArm,
-            op_tag: u32,
-        }
-
         let (immediate_arm, resume_symbol) = immediate;
         let (escape_arm, continuation_symbol) = escape;
-        let mut raise_sibling: Option<&'hir hir::HandleArm> = None;
-        let mut custom_siblings: Vec<CustomSiblingArm<'hir>> = Vec::new();
-        for arm in sibling_nonresuming_arms {
-            if arm.op.binders.len() != 1 {
-                let kind = if arm.op.op.fqn == "scoop.core.Raise.raise" {
-                    "handle binder count (only 1 supported)"
-                } else {
-                    "handle binder count (custom non-resuming, only single payload supported)"
-                };
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: arm.op.span.into(),
-                });
-            }
-            if arm.op.op.fqn == "scoop.core.Raise.raise" {
-                if raise_sibling.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed Raise arms (only 1 supported)",
-                        at: arm.span.into(),
-                    });
-                }
-                raise_sibling = Some(*arm);
-                continue;
-            }
-            custom_siblings.push(CustomSiblingArm {
-                arm,
-                op_tag: self.effect_op_tag(&arm.op.op.fqn),
-            });
-        }
-        let has_sibling_nonresuming = raise_sibling.is_some() || !custom_siblings.is_empty();
+        let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
+        let raise_sibling = sibling_plan.raise_arm;
+        let custom_siblings = sibling_plan.custom_arms.clone();
 
         let Some(perform_site) =
             self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
@@ -8943,40 +8910,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             let cont_ptr =
                 cg.create_entry_alloca(span, &format!("handle_mixed_escape_k_{seq}"), CgTy::Ref)?;
-            let step_has_sibling_dispatch = has_sibling_nonresuming;
-            let step_effect_dispatch_bb = if step_has_sibling_dispatch {
-                Some(
-                    self.context
-                        .append_basic_block(step_fn, "mixed_escape_step_effect_dispatch"),
-                )
-            } else {
-                None
-            };
-            let step_effect_dispatch_nomatch_bb = if step_has_sibling_dispatch {
-                Some(
-                    self.context
-                        .append_basic_block(step_fn, "mixed_escape_step_effect_dispatch_nomatch"),
-                )
-            } else {
-                None
-            };
-            let step_raise_catch_bb = if raise_sibling.is_some() {
-                Some(
-                    self.context
-                        .append_basic_block(step_fn, "mixed_escape_step_raise_catch"),
-                )
-            } else {
-                None
-            };
-            let mut step_custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
-            for (idx, _) in custom_siblings.iter().enumerate() {
-                step_custom_catch_bbs.push(
-                    self.context.append_basic_block(
-                        step_fn,
-                        &format!("mixed_escape_step_custom_catch_{idx}"),
-                    ),
-                );
-            }
+            let step_sibling_dispatch = self.build_sibling_nonresuming_dispatch_blocks(
+                step_fn,
+                "mixed_escape_step",
+                &sibling_plan,
+            );
+            let step_effect_dispatch_bb = step_sibling_dispatch.effect_dispatch_bb;
+            let step_effect_dispatch_nomatch_bb =
+                step_sibling_dispatch.effect_dispatch_nomatch_bb;
+            let step_raise_catch_bb = step_sibling_dispatch.raise_catch_bb;
+            let step_custom_catch_bbs = step_sibling_dispatch.custom_catch_bbs;
 
             let dispatch_bb = self
                 .context
@@ -9858,64 +9801,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.builder.position_at_end(saved_block);
 
-        let dispatch_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_resume_dispatch");
-        let state0_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_resume_state0");
-        let state1_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_resume_state1");
-        let arm_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_resume_arm");
+        let resume_blocks = self.build_mixed_escape_resume_blocks(func, "handle_mixed_escape");
+        let dispatch_bb = resume_blocks.dispatch_bb;
+        let state0_bb = resume_blocks.state0_bb;
+        let state1_bb = resume_blocks.state1_bb;
+        let arm_bb = resume_blocks.arm_bb;
         let escape_arm_bb = self
             .context
             .append_basic_block(func, "handle_mixed_escape_arm");
-        let done_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_done");
-        let bad_state_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_bad_state");
-        let finally_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_finally");
-        let finally_unwind_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_finally_unwind");
-        let effect_dispatch_bb = if has_sibling_nonresuming {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_mixed_escape_effect_dispatch"),
-            )
-        } else {
-            None
-        };
-        let effect_dispatch_nomatch_bb = if has_sibling_nonresuming {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_mixed_escape_effect_dispatch_nomatch"),
-            )
-        } else {
-            None
-        };
-        let raise_catch_bb = if raise_sibling.is_some() {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_mixed_escape_raise_catch"),
-            )
-        } else {
-            None
-        };
-        let mut custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
-        for (idx, _) in custom_siblings.iter().enumerate() {
-            custom_catch_bbs.push(
-                self.context
-                    .append_basic_block(func, &format!("handle_mixed_escape_custom_catch_{idx}")),
-            );
-        }
+        let done_bb = resume_blocks.done_bb;
+        let bad_state_bb = resume_blocks.bad_state_bb;
+        let finally_bb = resume_blocks.finally_bb;
+        let finally_unwind_bb = resume_blocks.finally_unwind_bb;
+        let sibling_dispatch =
+            self.build_sibling_nonresuming_dispatch_blocks(func, "handle_mixed_escape", &sibling_plan);
+        let effect_dispatch_bb = sibling_dispatch.effect_dispatch_bb;
+        let effect_dispatch_nomatch_bb = sibling_dispatch.effect_dispatch_nomatch_bb;
+        let raise_catch_bb = sibling_dispatch.raise_catch_bb;
+        let custom_catch_bbs = sibling_dispatch.custom_catch_bbs;
 
         let state_ptr =
             self.create_entry_alloca_raw(span, "handle_mixed_escape_state", i32_ty.into())?;
@@ -11010,48 +10913,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mutable: bool,
         }
 
-        #[derive(Clone, Copy)]
-        struct CustomSiblingArm<'hir> {
-            arm: &'hir hir::HandleArm,
-            op_tag: u32,
-        }
-
         fn is_supported_capture_ty(ty: CgTy) -> bool {
             matches!(ty, CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_))
         }
 
         let (immediate_arm, resume_symbol) = immediate;
         let (escape_arm, continuation_symbol) = escape;
-        let mut raise_sibling: Option<&'hir hir::HandleArm> = None;
-        let mut custom_siblings: Vec<CustomSiblingArm<'hir>> = Vec::new();
-        for arm in sibling_nonresuming_arms {
-            if arm.op.binders.len() != 1 {
-                let kind = if arm.op.op.fqn == "scoop.core.Raise.raise" {
-                    "handle binder count (only 1 supported)"
-                } else {
-                    "handle binder count (custom non-resuming, only single payload supported)"
-                };
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: arm.op.span.into(),
-                });
-            }
-            if arm.op.op.fqn == "scoop.core.Raise.raise" {
-                if raise_sibling.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed Raise arms (only 1 supported)",
-                        at: arm.span.into(),
-                    });
-                }
-                raise_sibling = Some(*arm);
-                continue;
-            }
-            custom_siblings.push(CustomSiblingArm {
-                arm,
-                op_tag: self.effect_op_tag(&arm.op.op.fqn),
-            });
-        }
-        let has_sibling_nonresuming = raise_sibling.is_some() || !custom_siblings.is_empty();
+        let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
+        let raise_sibling = sibling_plan.raise_arm;
+        let custom_siblings = sibling_plan.custom_arms.clone();
 
         let Some(perform_site) =
             self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
@@ -11624,38 +11494,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let step_has_sibling_dispatch = has_sibling_nonresuming;
-            let step_effect_dispatch_bb = if step_has_sibling_dispatch {
-                Some(
-                    self.context
-                        .append_basic_block(step_fn, "mixed_escape_indirect_step_effect_dispatch"),
-                )
-            } else {
-                None
-            };
-            let step_effect_dispatch_nomatch_bb = if step_has_sibling_dispatch {
-                Some(self.context.append_basic_block(
-                    step_fn,
-                    "mixed_escape_indirect_step_effect_dispatch_nomatch",
-                ))
-            } else {
-                None
-            };
-            let step_raise_catch_bb = if raise_sibling.is_some() {
-                Some(
-                    self.context
-                        .append_basic_block(step_fn, "mixed_escape_indirect_step_raise_catch"),
-                )
-            } else {
-                None
-            };
-            let mut step_custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
-            for (idx, _) in custom_siblings.iter().enumerate() {
-                step_custom_catch_bbs.push(self.context.append_basic_block(
-                    step_fn,
-                    &format!("mixed_escape_indirect_step_custom_catch_{idx}"),
-                ));
-            }
+            let step_sibling_dispatch = self.build_sibling_nonresuming_dispatch_blocks(
+                step_fn,
+                "mixed_escape_indirect_step",
+                &sibling_plan,
+            );
+            let step_effect_dispatch_bb = step_sibling_dispatch.effect_dispatch_bb;
+            let step_effect_dispatch_nomatch_bb =
+                step_sibling_dispatch.effect_dispatch_nomatch_bb;
+            let step_raise_catch_bb = step_sibling_dispatch.raise_catch_bb;
+            let step_custom_catch_bbs = step_sibling_dispatch.custom_catch_bbs;
 
             let rt_get_callee = cg.declare_runtime_callee_suspend_state_get();
             let get_call = cg.builder.build_call(
@@ -12308,68 +12156,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.builder.position_at_end(saved_block);
 
-        let dispatch_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_resume_dispatch");
-        let state0_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_resume_state0");
-        let state1_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_resume_state1");
-        let arm_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_resume_arm");
+        let resume_blocks =
+            self.build_mixed_escape_resume_blocks(func, "handle_mixed_escape_indirect");
+        let dispatch_bb = resume_blocks.dispatch_bb;
+        let state0_bb = resume_blocks.state0_bb;
+        let state1_bb = resume_blocks.state1_bb;
+        let arm_bb = resume_blocks.arm_bb;
         let escape_dispatch_bb = self
             .context
             .append_basic_block(func, "handle_mixed_escape_indirect_dispatch");
         let escape_arm_bb = self
             .context
             .append_basic_block(func, "handle_mixed_escape_indirect_arm");
-        let done_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_done");
-        let bad_state_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_bad_state");
-        let finally_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_finally");
-        let finally_unwind_bb = self
-            .context
-            .append_basic_block(func, "handle_mixed_escape_indirect_finally_unwind");
-        let effect_dispatch_bb = if has_sibling_nonresuming {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_mixed_escape_indirect_effect_dispatch"),
-            )
-        } else {
-            None
-        };
-        let effect_dispatch_nomatch_bb =
-            if has_sibling_nonresuming {
-                Some(self.context.append_basic_block(
-                    func,
-                    "handle_mixed_escape_indirect_effect_dispatch_nomatch",
-                ))
-            } else {
-                None
-            };
-        let raise_catch_bb = if raise_sibling.is_some() {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_mixed_escape_indirect_raise_catch"),
-            )
-        } else {
-            None
-        };
-        let mut custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
-        for (idx, _) in custom_siblings.iter().enumerate() {
-            custom_catch_bbs.push(self.context.append_basic_block(
-                func,
-                &format!("handle_mixed_escape_indirect_custom_catch_{idx}"),
-            ));
-        }
+        let done_bb = resume_blocks.done_bb;
+        let bad_state_bb = resume_blocks.bad_state_bb;
+        let finally_bb = resume_blocks.finally_bb;
+        let finally_unwind_bb = resume_blocks.finally_unwind_bb;
+        let sibling_dispatch = self.build_sibling_nonresuming_dispatch_blocks(
+            func,
+            "handle_mixed_escape_indirect",
+            &sibling_plan,
+        );
+        let effect_dispatch_bb = sibling_dispatch.effect_dispatch_bb;
+        let effect_dispatch_nomatch_bb = sibling_dispatch.effect_dispatch_nomatch_bb;
+        let raise_catch_bb = sibling_dispatch.raise_catch_bb;
+        let custom_catch_bbs = sibling_dispatch.custom_catch_bbs;
 
         let state_ptr = self.create_entry_alloca_raw(
             span,

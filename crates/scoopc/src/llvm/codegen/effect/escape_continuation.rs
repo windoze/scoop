@@ -1,4 +1,287 @@
+#[derive(Debug, Clone, Copy)]
+enum ResumeFrame<'hir> {
+    /// Perform is in the then-branch of an if expression.
+    IfThen {
+        if_expr: &'hir hir::Expr,
+        then_block_stmts: &'hir [hir::Stmt],
+        resume_after_stmt: usize,
+    },
+    /// Perform is in the else-branch of an if expression.
+    IfElse {
+        if_expr: &'hir hir::Expr,
+        else_block_stmts: &'hir [hir::Stmt],
+        resume_after_stmt: usize,
+    },
+    /// Perform is inside a when arm body.
+    WhenArm {
+        when_expr: &'hir hir::Expr,
+        arm_index: usize,
+        arm_block_stmts: &'hir [hir::Stmt],
+        resume_after_stmt: usize,
+    },
+    /// Perform is inside a while loop body.
+    WhileBody {
+        while_cond: &'hir hir::Expr,
+        while_body: &'hir hir::Block,
+        resume_after_stmt: usize,
+    },
+    /// Perform is inside a block expression.
+    Block {
+        block: &'hir hir::Block,
+        resume_after_stmt: usize,
+    },
+}
+
+impl<'hir> ResumeFrame<'hir> {
+    fn set_resume_after_stmt(&mut self, idx: usize) {
+        match self {
+            ResumeFrame::IfThen {
+                resume_after_stmt, ..
+            }
+            | ResumeFrame::IfElse {
+                resume_after_stmt, ..
+            }
+            | ResumeFrame::WhenArm {
+                resume_after_stmt, ..
+            }
+            | ResumeFrame::WhileBody {
+                resume_after_stmt, ..
+            }
+            | ResumeFrame::Block {
+                resume_after_stmt, ..
+            } => {
+                *resume_after_stmt = idx;
+            }
+        }
+    }
+}
+
+/// Compare two ResumeFrame variants by HIR pointer identity (ignoring resume_after_stmt).
+/// Used to determine if two perform sites share the same nesting context at a given level.
+fn resume_frame_same_structure<'a>(a: &ResumeFrame<'a>, b: &ResumeFrame<'a>) -> bool {
+    match (a, b) {
+        (
+            ResumeFrame::IfThen { if_expr: a_e, .. },
+            ResumeFrame::IfThen { if_expr: b_e, .. },
+        ) => std::ptr::eq(*a_e, *b_e),
+        (
+            ResumeFrame::IfElse { if_expr: a_e, .. },
+            ResumeFrame::IfElse { if_expr: b_e, .. },
+        ) => std::ptr::eq(*a_e, *b_e),
+        (
+            ResumeFrame::WhenArm {
+                when_expr: a_e,
+                arm_index: a_i,
+                ..
+            },
+            ResumeFrame::WhenArm {
+                when_expr: b_e,
+                arm_index: b_i,
+                ..
+            },
+        ) => std::ptr::eq(*a_e, *b_e) && a_i == b_i,
+        (
+            ResumeFrame::WhileBody { while_body: a_b, .. },
+            ResumeFrame::WhileBody { while_body: b_b, .. },
+        ) => std::ptr::eq(*a_b, *b_b),
+        (ResumeFrame::Block { block: a_b, .. }, ResumeFrame::Block { block: b_b, .. }) => {
+            std::ptr::eq(*a_b, *b_b)
+        }
+        _ => false,
+    }
+}
+
+/// Declaration info for lift analysis: tracks all val decls in handle body (at any nesting depth).
+struct DeclInfo<'hir> {
+    decl: &'hir hir::ValDecl,
+    /// Pre-order traversal position across the entire handle body tree.
+    order: usize,
+}
+
+#[derive(Debug)]
+struct NestedPerformSite<'hir> {
+    pc: usize,
+    decl: &'hir hir::ValDecl,
+    op: &'hir hir::EffectOpRef,
+    args: &'hir [hir::CallArg],
+    id: hir::SymbolId,
+    /// Outermost-first stack of enclosing control flow frames.
+    /// Empty for top-level performs (no nesting).
+    resume_path: Vec<ResumeFrame<'hir>>,
+    /// Index in handle.body.stmts of the top-level stmt that transitively contains this perform.
+    top_level_stmt_idx: usize,
+}
+
+/// T1606e：递归扫描 handle body 内所有 perform 点（含嵌套在 if/while/when/block 内的）。
+///
+/// 算法：用 path 栈（outermost-first）追踪当前嵌套上下文。
+/// 在每一层 block 迭代时，先更新最顶层 frame 的 resume_after_stmt 为当前 stmt index，
+/// 再递归进入子结构。当找到 perform 时，clone 当前 path 作为 resume_path。
+struct NestedPerformScanState<'hir> {
+    path: Vec<ResumeFrame<'hir>>,
+    pc: usize,
+    sites: Vec<NestedPerformSite<'hir>>,
+    decl_order: usize,
+    decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
+}
+
+impl<'hir> NestedPerformScanState<'hir> {
+    fn scan_stmts(
+        &mut self,
+        stmts: &'hir [hir::Stmt],
+        arm_op_fqn: &str,
+        top_level_stmt_idx: usize,
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, stmt) in stmts.iter().enumerate() {
+            if let Some(frame) = self.path.last_mut() {
+                frame.set_resume_after_stmt(idx);
+            }
+            match &stmt.kind {
+                hir::StmtKind::Val(decl) => {
+                    if let Some(id) = decl.id {
+                        self.decl_map.insert(
+                            id,
+                            DeclInfo {
+                                decl,
+                                order: self.decl_order,
+                            },
+                        );
+                        self.decl_order += 1;
+                    }
+                    if let Some(init) = &decl.init
+                        && let hir::ExprKind::Perform { op, args } = &init.kind
+                        && op.fqn == arm_op_fqn
+                    {
+                        let Some(id) = decl.id else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle escape perform binding id",
+                                at: decl.span.into(),
+                            });
+                        };
+                        let this_pc = self.pc;
+                        self.pc += 1;
+                        self.sites.push(NestedPerformSite {
+                            pc: this_pc,
+                            decl,
+                            op,
+                            args: args.as_slice(),
+                            id,
+                            resume_path: self.path.clone(),
+                            top_level_stmt_idx,
+                        });
+                    }
+                }
+                hir::StmtKind::Expr(expr) => {
+                    if let hir::ExprKind::Perform { op, .. } = &expr.kind
+                        && op.fqn == arm_op_fqn
+                    {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (perform must be bound to val)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    self.scan_expr(expr, arm_op_fqn, top_level_stmt_idx)?;
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.path.push(ResumeFrame::WhileBody {
+                        while_cond: cond,
+                        while_body: body,
+                        resume_after_stmt: 0,
+                    });
+                    self.scan_stmts(&body.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                    self.path.pop();
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn scan_expr(
+        &mut self,
+        expr: &'hir hir::Expr,
+        arm_op_fqn: &str,
+        top_level_stmt_idx: usize,
+    ) -> Result<(), LlvmEmitError> {
+        match &expr.kind {
+            hir::ExprKind::If {
+                cond: _,
+                then_branch,
+                else_branch,
+            } => {
+                if let hir::ExprKind::Block(block) = &then_branch.kind {
+                    self.path.push(ResumeFrame::IfThen {
+                        if_expr: expr,
+                        then_block_stmts: &block.stmts,
+                        resume_after_stmt: 0,
+                    });
+                    self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                    self.path.pop();
+                }
+                if let Some(else_expr) = else_branch.as_deref()
+                    && let hir::ExprKind::Block(block) = &else_expr.kind
+                {
+                    self.path.push(ResumeFrame::IfElse {
+                        if_expr: expr,
+                        else_block_stmts: &block.stmts,
+                        resume_after_stmt: 0,
+                    });
+                    self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                    self.path.pop();
+                }
+            }
+            hir::ExprKind::When { subject: _, arms } => {
+                for (arm_idx, when_arm) in arms.iter().enumerate() {
+                    if let hir::ExprKind::Block(block) = &when_arm.body.kind {
+                        self.path.push(ResumeFrame::WhenArm {
+                            when_expr: expr,
+                            arm_index: arm_idx,
+                            arm_block_stmts: &block.stmts,
+                            resume_after_stmt: 0,
+                        });
+                        self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                        self.path.pop();
+                    }
+                }
+            }
+            hir::ExprKind::Block(block) => {
+                self.path.push(ResumeFrame::Block {
+                    block,
+                    resume_after_stmt: 0,
+                });
+                self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
+                self.path.pop();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn scan_escape_perform_sites<'hir>(
+        handle: &'hir hir::HandleExpr,
+        arm_op_fqn: &str,
+    ) -> Result<
+        (
+            Vec<NestedPerformSite<'hir>>,
+            HashMap<hir::SymbolId, DeclInfo<'hir>>,
+        ),
+        LlvmEmitError,
+    > {
+        let mut scan_state = NestedPerformScanState {
+            path: Vec::new(),
+            pc: 0,
+            sites: Vec::new(),
+            decl_order: 0,
+            decl_map: HashMap::new(),
+        };
+        for (top_idx, stmt) in handle.body.stmts.iter().enumerate() {
+            scan_state.scan_stmts(std::slice::from_ref(stmt), arm_op_fqn, top_idx)?;
+        }
+        Ok((scan_state.sites, scan_state.decl_map))
+    }
+
     pub(super) fn codegen_handle_expr_escape_continuation(
         &mut self,
         span: crate::span::Span,
@@ -21,285 +304,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
 
         // 1) 扫描 handle body：递归收集所有匹配该 arm 的 perform 点（含嵌套在控制流内的）。
-        //
-        // T1606e 数据结构：ResumeFrame 描述 perform 点所在的一层控制流嵌套。
-        // resume_path（outermost-first）记录从 handle body 顶层到 perform 点的嵌套路径。
-        #[derive(Debug, Clone, Copy)]
-        enum ResumeFrame<'hir> {
-            /// Perform is in the then-branch of an if expression.
-            IfThen {
-                if_expr: &'hir hir::Expr,
-                then_block_stmts: &'hir [hir::Stmt],
-                resume_after_stmt: usize,
-            },
-            /// Perform is in the else-branch of an if expression.
-            IfElse {
-                if_expr: &'hir hir::Expr,
-                else_block_stmts: &'hir [hir::Stmt],
-                resume_after_stmt: usize,
-            },
-            /// Perform is inside a when arm body.
-            WhenArm {
-                when_expr: &'hir hir::Expr,
-                arm_index: usize,
-                arm_block_stmts: &'hir [hir::Stmt],
-                resume_after_stmt: usize,
-            },
-            /// Perform is inside a while loop body.
-            WhileBody {
-                while_cond: &'hir hir::Expr,
-                while_body: &'hir hir::Block,
-                resume_after_stmt: usize,
-            },
-            /// Perform is inside a block expression.
-            Block {
-                block: &'hir hir::Block,
-                resume_after_stmt: usize,
-            },
-        }
-
-        impl<'hir> ResumeFrame<'hir> {
-            fn set_resume_after_stmt(&mut self, idx: usize) {
-                match self {
-                    ResumeFrame::IfThen {
-                        resume_after_stmt, ..
-                    }
-                    | ResumeFrame::IfElse {
-                        resume_after_stmt, ..
-                    }
-                    | ResumeFrame::WhenArm {
-                        resume_after_stmt, ..
-                    }
-                    | ResumeFrame::WhileBody {
-                        resume_after_stmt, ..
-                    }
-                    | ResumeFrame::Block {
-                        resume_after_stmt, ..
-                    } => {
-                        *resume_after_stmt = idx;
-                    }
-                }
-            }
-        }
-
-        /// Compare two ResumeFrame variants by HIR pointer identity (ignoring resume_after_stmt).
-        /// Used to determine if two perform sites share the same nesting context at a given level.
-        fn resume_frame_same_structure<'a>(a: &ResumeFrame<'a>, b: &ResumeFrame<'a>) -> bool {
-            match (a, b) {
-                (
-                    ResumeFrame::IfThen { if_expr: a_e, .. },
-                    ResumeFrame::IfThen { if_expr: b_e, .. },
-                ) => std::ptr::eq(*a_e, *b_e),
-                (
-                    ResumeFrame::IfElse { if_expr: a_e, .. },
-                    ResumeFrame::IfElse { if_expr: b_e, .. },
-                ) => std::ptr::eq(*a_e, *b_e),
-                (
-                    ResumeFrame::WhenArm {
-                        when_expr: a_e,
-                        arm_index: a_i,
-                        ..
-                    },
-                    ResumeFrame::WhenArm {
-                        when_expr: b_e,
-                        arm_index: b_i,
-                        ..
-                    },
-                ) => std::ptr::eq(*a_e, *b_e) && a_i == b_i,
-                (
-                    ResumeFrame::WhileBody {
-                        while_body: a_b, ..
-                    },
-                    ResumeFrame::WhileBody {
-                        while_body: b_b, ..
-                    },
-                ) => std::ptr::eq(*a_b, *b_b),
-                (ResumeFrame::Block { block: a_b, .. }, ResumeFrame::Block { block: b_b, .. }) => {
-                    std::ptr::eq(*a_b, *b_b)
-                }
-                _ => false,
-            }
-        }
-
-        /// Declaration info for lift analysis: tracks all val decls in handle body (at any nesting depth).
-        struct DeclInfo<'hir> {
-            decl: &'hir hir::ValDecl,
-            /// Pre-order traversal position across the entire handle body tree.
-            order: usize,
-        }
-
-        #[derive(Debug)]
-        struct NestedPerformSite<'hir> {
-            pc: usize,
-            decl: &'hir hir::ValDecl,
-            op: &'hir hir::EffectOpRef,
-            args: &'hir [hir::CallArg],
-            id: hir::SymbolId,
-            /// Outermost-first stack of enclosing control flow frames.
-            /// Empty for top-level performs (no nesting).
-            resume_path: Vec<ResumeFrame<'hir>>,
-            /// Index in handle.body.stmts of the top-level stmt that transitively contains this perform.
-            top_level_stmt_idx: usize,
-        }
-
-        // T1606e：递归扫描 handle body 内所有 perform 点（含嵌套在 if/while/when/block 内的）。
-        //
-        // 算法：用 path 栈（outermost-first）追踪当前嵌套上下文。
-        // 在每一层 block 迭代时，先更新最顶层 frame 的 resume_after_stmt 为当前 stmt index，
-        // 再递归进入子结构。当找到 perform 时，clone 当前 path 作为 resume_path。
-        struct NestedPerformScanState<'hir> {
-            path: Vec<ResumeFrame<'hir>>,
-            pc: usize,
-            sites: Vec<NestedPerformSite<'hir>>,
-            decl_order: usize,
-            decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
-        }
-
-        impl<'hir> NestedPerformScanState<'hir> {
-            fn scan_stmts(
-                &mut self,
-                stmts: &'hir [hir::Stmt],
-                arm_op_fqn: &str,
-                top_level_stmt_idx: usize,
-            ) -> Result<(), LlvmEmitError> {
-                for (idx, stmt) in stmts.iter().enumerate() {
-                    if let Some(frame) = self.path.last_mut() {
-                        frame.set_resume_after_stmt(idx);
-                    }
-                    match &stmt.kind {
-                        hir::StmtKind::Val(decl) => {
-                            if let Some(id) = decl.id {
-                                self.decl_map.insert(
-                                    id,
-                                    DeclInfo {
-                                        decl,
-                                        order: self.decl_order,
-                                    },
-                                );
-                                self.decl_order += 1;
-                            }
-                            if let Some(init) = &decl.init
-                                && let hir::ExprKind::Perform { op, args } = &init.kind
-                                && op.fqn == arm_op_fqn
-                            {
-                                let Some(id) = decl.id else {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "handle escape perform binding id",
-                                        at: decl.span.into(),
-                                    });
-                                };
-                                let this_pc = self.pc;
-                                self.pc += 1;
-                                self.sites.push(NestedPerformSite {
-                                    pc: this_pc,
-                                    decl,
-                                    op,
-                                    args: args.as_slice(),
-                                    id,
-                                    resume_path: self.path.clone(),
-                                    top_level_stmt_idx,
-                                });
-                            }
-                        }
-                        hir::StmtKind::Expr(expr) => {
-                            if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                                && op.fqn == arm_op_fqn
-                            {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle escape body (perform must be bound to val)",
-                                    at: expr.span.into(),
-                                });
-                            }
-                            self.scan_expr(expr, arm_op_fqn, top_level_stmt_idx)?;
-                        }
-                        hir::StmtKind::While { cond, body } => {
-                            self.path.push(ResumeFrame::WhileBody {
-                                while_cond: cond,
-                                while_body: body,
-                                resume_after_stmt: 0,
-                            });
-                            self.scan_stmts(&body.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                            self.path.pop();
-                        }
-                        _ => {}
-                    }
-                }
-                Ok(())
-            }
-
-            fn scan_expr(
-                &mut self,
-                expr: &'hir hir::Expr,
-                arm_op_fqn: &str,
-                top_level_stmt_idx: usize,
-            ) -> Result<(), LlvmEmitError> {
-                match &expr.kind {
-                    hir::ExprKind::If {
-                        cond: _,
-                        then_branch,
-                        else_branch,
-                    } => {
-                        if let hir::ExprKind::Block(block) = &then_branch.kind {
-                            self.path.push(ResumeFrame::IfThen {
-                                if_expr: expr,
-                                then_block_stmts: &block.stmts,
-                                resume_after_stmt: 0,
-                            });
-                            self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                            self.path.pop();
-                        }
-                        if let Some(else_expr) = else_branch.as_deref()
-                            && let hir::ExprKind::Block(block) = &else_expr.kind
-                        {
-                            self.path.push(ResumeFrame::IfElse {
-                                if_expr: expr,
-                                else_block_stmts: &block.stmts,
-                                resume_after_stmt: 0,
-                            });
-                            self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                            self.path.pop();
-                        }
-                    }
-                    hir::ExprKind::When { subject: _, arms } => {
-                        for (arm_idx, when_arm) in arms.iter().enumerate() {
-                            if let hir::ExprKind::Block(block) = &when_arm.body.kind {
-                                self.path.push(ResumeFrame::WhenArm {
-                                    when_expr: expr,
-                                    arm_index: arm_idx,
-                                    arm_block_stmts: &block.stmts,
-                                    resume_after_stmt: 0,
-                                });
-                                self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                                self.path.pop();
-                            }
-                        }
-                    }
-                    hir::ExprKind::Block(block) => {
-                        self.path.push(ResumeFrame::Block {
-                            block,
-                            resume_after_stmt: 0,
-                        });
-                        self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                        self.path.pop();
-                    }
-                    _ => {}
-                }
-                Ok(())
-            }
-        }
-
-        let mut scan_state = NestedPerformScanState {
-            path: Vec::new(),
-            pc: 0,
-            sites: Vec::new(),
-            decl_order: 0,
-            decl_map: HashMap::new(),
-        };
-        for (top_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            scan_state.scan_stmts(std::slice::from_ref(stmt), &arm.op.op.fqn, top_idx)?;
-        }
-        let perform_sites = scan_state.sites;
-        let decl_map = scan_state.decl_map;
+        let (perform_sites, decl_map) = Self::scan_escape_perform_sites(handle, &arm.op.op.fqn)?;
 
         let Some(first_site) = perform_sites.first() else {
             // T1606f-2: No direct performs found. Check for indirect performs through function calls.
@@ -3446,28 +3451,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(saved_block);
 
         // 3) 生成 handle 的初始执行：push handler frame → 在 perform 点创建 continuation → 执行 arm → 返回。
-        let body_bb = self.context.append_basic_block(func, "handle_escape_body");
-        let arm_bb = self.context.append_basic_block(func, "handle_escape_arm");
-        let done_bb = self.context.append_basic_block(func, "handle_escape_done");
-
-        // T1609: finally blocks for escape continuation.
         let has_finally = handle.finally.is_some();
-        let finally_bb = if has_finally {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_escape_finally"),
-            )
-        } else {
-            None
-        };
-        let finally_unwind_bb = if has_finally {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_escape_finally_unwind"),
-            )
-        } else {
-            None
-        };
+        let handle_blocks = self.build_escape_handle_blocks(func, "handle_escape", false, has_finally);
+        let body_bb = handle_blocks.body_bb;
+        let arm_bb = handle_blocks.arm_bb;
+        let done_bb = handle_blocks.done_bb;
+        let finally_bb = handle_blocks.finally_bb;
+        let finally_unwind_bb = handle_blocks.finally_unwind_bb;
         let outer_raise_target = self.current_raise_target();
 
         let result_ptr = if out_ty == CgTy::Unit {
@@ -4463,38 +4453,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(saved_block);
 
         // ── Handle body: initial execution ──
-        let body_bb = self
-            .context
-            .append_basic_block(func, "handle_indirect_body");
-        let dispatch_bb = self
-            .context
-            .append_basic_block(func, "handle_indirect_dispatch");
-        let dispatch_no_match_bb = self
-            .context
-            .append_basic_block(func, "handle_indirect_dispatch_nomatch");
-        let arm_bb = self.context.append_basic_block(func, "handle_indirect_arm");
-        let done_bb = self
-            .context
-            .append_basic_block(func, "handle_indirect_done");
-
-        // T1609: finally blocks for indirect escape continuation.
         let has_finally = handle.finally.is_some();
-        let finally_bb = if has_finally {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_indirect_finally"),
-            )
-        } else {
-            None
-        };
-        let finally_unwind_bb = if has_finally {
-            Some(
-                self.context
-                    .append_basic_block(func, "handle_indirect_finally_unwind"),
-            )
-        } else {
-            None
-        };
+        let handle_blocks =
+            self.build_escape_handle_blocks(func, "handle_indirect", true, has_finally);
+        let body_bb = handle_blocks.body_bb;
+        let dispatch_bb = handle_blocks
+            .dispatch_bb
+            .expect("handle indirect scaffold should allocate dispatch");
+        let dispatch_no_match_bb = handle_blocks
+            .dispatch_nomatch_bb
+            .expect("handle indirect scaffold should allocate nomatch dispatch");
+        let arm_bb = handle_blocks.arm_bb;
+        let done_bb = handle_blocks.done_bb;
+        let finally_bb = handle_blocks.finally_bb;
+        let finally_unwind_bb = handle_blocks.finally_unwind_bb;
 
         let result_ptr = if out_ty == CgTy::Unit {
             None

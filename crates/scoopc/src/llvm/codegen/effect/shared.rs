@@ -49,6 +49,175 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.immediate_resume_ctx_stack.pop();
     }
 
+    fn collect_sibling_nonresuming_plan<'hir>(
+        &mut self,
+        sibling_nonresuming_arms: &[&'hir hir::HandleArm],
+    ) -> Result<SiblingNonresumingPlan<'hir>, LlvmEmitError> {
+        let mut raise_arm: Option<&'hir hir::HandleArm> = None;
+        let mut custom_arms: Vec<SiblingNonresumingArm<'hir>> = Vec::new();
+        for arm in sibling_nonresuming_arms {
+            if arm.op.binders.len() != 1 {
+                let kind = if arm.op.op.fqn == "scoop.core.Raise.raise" {
+                    "handle binder count (only 1 supported)"
+                } else {
+                    "handle binder count (custom non-resuming, only single payload supported)"
+                };
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: arm.op.span.into(),
+                });
+            }
+            if arm.op.op.fqn == "scoop.core.Raise.raise" {
+                if raise_arm.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed Raise arms (only 1 supported)",
+                        at: arm.span.into(),
+                    });
+                }
+                raise_arm = Some(*arm);
+                continue;
+            }
+            custom_arms.push(SiblingNonresumingArm {
+                arm,
+                op_tag: self.effect_op_tag(&arm.op.op.fqn),
+            });
+        }
+        Ok(SiblingNonresumingPlan {
+            raise_arm,
+            custom_arms,
+        })
+    }
+
+    fn build_sibling_nonresuming_dispatch_blocks(
+        &self,
+        func: FunctionValue<'ctx>,
+        prefix: &str,
+        plan: &SiblingNonresumingPlan<'_>,
+    ) -> SiblingNonresumingDispatchBlocks<'ctx> {
+        let effect_dispatch_bb = if plan.has_any() {
+            Some(
+                self.context
+                    .append_basic_block(func, &format!("{prefix}_effect_dispatch")),
+            )
+        } else {
+            None
+        };
+        let effect_dispatch_nomatch_bb = if plan.has_any() {
+            Some(
+                self.context
+                    .append_basic_block(func, &format!("{prefix}_effect_dispatch_nomatch")),
+            )
+        } else {
+            None
+        };
+        let raise_catch_bb = if plan.raise_arm.is_some() {
+            Some(
+                self.context
+                    .append_basic_block(func, &format!("{prefix}_raise_catch")),
+            )
+        } else {
+            None
+        };
+        let mut custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+        for idx in 0..plan.custom_arms.len() {
+            custom_catch_bbs.push(
+                self.context
+                    .append_basic_block(func, &format!("{prefix}_custom_catch_{idx}")),
+            );
+        }
+        SiblingNonresumingDispatchBlocks {
+            effect_dispatch_bb,
+            effect_dispatch_nomatch_bb,
+            raise_catch_bb,
+            custom_catch_bbs,
+        }
+    }
+
+    fn build_escape_handle_blocks(
+        &self,
+        func: FunctionValue<'ctx>,
+        prefix: &str,
+        with_dispatch: bool,
+        has_finally: bool,
+    ) -> EscapeHandleBlocks<'ctx> {
+        EscapeHandleBlocks {
+            body_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_body")),
+            dispatch_bb: if with_dispatch {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_dispatch")),
+                )
+            } else {
+                None
+            },
+            dispatch_nomatch_bb: if with_dispatch {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_dispatch_nomatch")),
+                )
+            } else {
+                None
+            },
+            arm_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_arm")),
+            done_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_done")),
+            finally_bb: if has_finally {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_finally")),
+                )
+            } else {
+                None
+            },
+            finally_unwind_bb: if has_finally {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_finally_unwind")),
+                )
+            } else {
+                None
+            },
+        }
+    }
+
+    fn build_mixed_escape_resume_blocks(
+        &self,
+        func: FunctionValue<'ctx>,
+        prefix: &str,
+    ) -> MixedEscapeResumeBlocks<'ctx> {
+        MixedEscapeResumeBlocks {
+            dispatch_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_dispatch")),
+            state0_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_state0")),
+            state1_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_state1")),
+            arm_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_arm")),
+            done_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_done")),
+            bad_state_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_bad_state")),
+            finally_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_finally")),
+            finally_unwind_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_finally_unwind")),
+        }
+    }
+
     fn escape_capture_storage_kind(
         &mut self,
         at: crate::span::Span,

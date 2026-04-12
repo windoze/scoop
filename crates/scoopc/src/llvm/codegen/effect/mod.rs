@@ -239,6 +239,55 @@ enum EscapeCaptureStorageKind {
     GcRef,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SiblingNonresumingArm<'hir> {
+    arm: &'hir hir::HandleArm,
+    op_tag: u32,
+}
+
+#[derive(Debug, Clone)]
+struct SiblingNonresumingPlan<'hir> {
+    raise_arm: Option<&'hir hir::HandleArm>,
+    custom_arms: Vec<SiblingNonresumingArm<'hir>>,
+}
+
+impl SiblingNonresumingPlan<'_> {
+    fn has_any(&self) -> bool {
+        self.raise_arm.is_some() || !self.custom_arms.is_empty()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SiblingNonresumingDispatchBlocks<'ctx> {
+    effect_dispatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    effect_dispatch_nomatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    raise_catch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    custom_catch_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EscapeHandleBlocks<'ctx> {
+    body_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    dispatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    dispatch_nomatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    done_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    finally_unwind_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MixedEscapeResumeBlocks<'ctx> {
+    dispatch_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    state0_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    state1_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    done_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    bad_state_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_unwind_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
 include!("shared.rs");
 include!("scan.rs");
 include!("nonresuming.rs");

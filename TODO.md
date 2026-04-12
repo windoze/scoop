@@ -794,7 +794,7 @@ cargo run -p scoop --features llvm -- test
   - `escape_continuation.rs` 与 `mixed.rs` 中各自内嵌的 `collect_used_locals_in_(block|stmt|expr)` 递归实现已删除，统一改为复用 `scan.rs` 的共享静态 helper。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c2-3 [TODO] Effect：拆分超长 lowering 并收口 handler scaffold/helper
+### T2003c0c2b3c2-3 [DONE] Effect：拆分超长 lowering 并收口 handler scaffold/helper
 - 描述：effect codegen 的复杂度并不是均匀分布，而是集中在少数超长入口，尤其是 site-matrix、escape-continuation 与 mixed immediate-resume lowering；同时 `body/catch/finally/merge/dispatch` block 组装、handler frame push/pop/set_active 与 cleanup 逻辑在多条路径里反复展开。继续在这些巨型函数上叠功能任务，会显著提高回归风险。
 - 目标：
   - 拆分 `codegen_handle_expr_immediate_resume_with_escape_sibling_site_matrix`、`codegen_handle_expr_escape_continuation` 及同类超长入口，把 site 分类、capture 计划、state0/state1、continuation step、sibling dispatch、finally cleanup 下沉为可单独阅读的 helper 组。
@@ -807,6 +807,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c2-2
+- 完成说明：
+  - `effect/shared.rs` 已新增共享 scaffold helper：收口 sibling non-resuming arm 分类、dispatch/catch block 组装、escape handle blocks 与 mixed-escape resume blocks，`mixed.rs`、`matrix.rs`、`escape_continuation.rs` 已改为复用这些 helper。
+  - `escape_continuation.rs` 的 nested perform site 扫描与 `ResumeFrame` / `NestedPerformScanState` 结构已提升为模块级 helper，并通过 `scan_escape_perform_sites` 把主入口改成“扫描 + 生成”的分段式组织。
+  - `mixed.rs` / `matrix.rs` 已把 immediate-resume + escape sibling 以及 site-matrix 路径的 step/main handler scaffold 下沉到共享 helper，保留现有诊断与 lowering 边界不变。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）
 - 描述：在 nested block indirect 打通后，再扩到 if then/else branch indirect site。该子集需要把命中分支 replay 与 after-if merge 接到 no-immediate indirect lowering。

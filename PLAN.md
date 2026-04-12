@@ -147,7 +147,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3c2-2 已完成：`effect/scan.rs` 现已新增共享的 path-state 扫描骨架 `scan_stmt_slice_with_state` / `with_scoped_scan_frame`，并让 immediate-resume、mixed direct、mixed indirect 三类 scanner 复用同一套 stmt-idx 更新与嵌套 frame 进出脚手架。
   - `effect/scan.rs` 现已统一提供 `collect_used_locals_in_block_static`、`collect_used_locals_in_call_args_static`、`collect_used_locals_in_handle_static`；`escape_continuation.rs` 与 `mixed.rs` 内嵌的 used-local 递归实现已删除，统一复用共享静态 helper，同时保留 closure captures、nested block/if/while、handle body/finally 的分析覆盖。
   - helper 收口回归已通过：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2b3c2-3`：拆分超长 lowering 并收口 handler scaffold/helper。
+  - T2003c0c2b3c2-3 已完成：`effect/shared.rs` 已新增 sibling non-resuming 分类、dispatch/catch block scaffold、escape handle blocks 与 mixed-escape resume blocks 等共享 helper；`mixed.rs`、`matrix.rs`、`escape_continuation.rs` 已改为复用这些 helper，收口 `dispatch/finally/catch` 骨架。
+  - `escape_continuation.rs` 的 nested perform site 扫描与 `ResumeFrame` / `NestedPerformScanState` 已提升为模块级 helper，并通过 `scan_escape_perform_sites` 把主入口改成“扫描 + 生成”的分段式组织，保持现有诊断与 lowering 边界不变。
+  - 该轮纯重构验证已通过：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2b3c3`：补无 immediate-resume 的 if branch indirect escape sites。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -192,7 +195,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3c2：补无 immediate-resume 的 nested block indirect escape sites。
   - T2003c0c2b3c2-1（已完成）：`effect.rs` 目录模块化拆分（纯重构，无语义变化）。
   - T2003c0c2b3c2-2（已完成）：抽取 effect site 扫描与 used-local/capture 分析 helper。
-  - T2003c0c2b3c2-3：拆分超长 lowering 并收口 handler scaffold/helper。
+  - T2003c0c2b3c2-3（已完成）：拆分超长 lowering 并收口 handler scaffold/helper。
   - T2003c0c2b3c3：补无 immediate-resume 的 if branch indirect escape sites。
   - T2003c0c2b3c4：补无 immediate-resume 的 while body indirect escape sites。
   - T2003c0c2b3d：补无 immediate-resume 的 direct+indirect mixed site-matrix。
