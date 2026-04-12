@@ -758,6 +758,47 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_indirect_block_single_site`、build `effect_multi_escape_indirect_if_is_error`；既有 while 边界负例 `effect_multi_escape_indirect_while_is_error` 继续锁住 `T2003c0c2b3c4` 前仍未支持的 while indirect。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003c0c2b3c2-1 [TODO] Effect：`effect.rs` 目录模块化拆分（纯重构，无语义变化）
+- 描述：`crates/scoopc/src/llvm/codegen/effect.rs` 当前已膨胀到约 3.8 万行，同时承载 non-resuming、immediate-resume、escape-continuation、mixed-arm 与 site-matrix 多套 lowering。继续直接在单文件上推进 `T2003c0c2b3c3+` 会显著放大 review、merge 与回归定位成本。先做纯结构重排：把单文件改为目录模块，保持现有语义与诊断不变。
+- 目标：
+  - 将 effect codegen 从单文件改为目录模块，至少拆出 `shared`、`scan`、`nonresuming`、`immediate_resume`、`escape_continuation`、`mixed`、`matrix` 或等价结构。
+  - 保留 `codegen/mod.rs` 对 `effect::EffectUnwindTarget`、`effect::ImmediateResumeCtx` 的现有引用形态，避免父模块状态字段被迫联动重写。
+  - 搬迁过程中优先做“函数原样搬家”，不在本任务混入扫描器抽象、行为修复或新功能放宽。
+- 验收：
+  - `crates/scoopc/src/llvm/codegen/effect.rs` 不再以 3 万行单文件承载全部 effect lowering，而是改为目录模块组织。
+  - `cargo fmt --all --check`
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3c2
+
+### T2003c0c2b3c2-2 [TODO] Effect：抽取 effect site 扫描与 used-local/capture 分析 helper
+- 描述：当前 `scan_immediate_resume_site`、`scan_mixed_escape_direct_sites`、`scan_mixed_escape_indirect_sites` 以及多套 `collect_used_locals_*` 递归遍历在 effect codegen 内重复实现。目录模块拆开后，继续收口这些静态分析 helper，减少后续 if/while/mixed 功能任务需要同步修改的重复面。
+- 目标：
+  - 把 immediate-resume、mixed-escape 与 no-immediate indirect 路径共享的 HIR 遍历，收拢为共享 helper 或少数职责明确的 visitor，减少复制的递归结构。
+  - 把至少两套函数内局部 `collect_used_locals_in_(block|stmt|expr)` helper 收口为模块级共享实现，并保留现有 closure capture、nested block/if/while、handle body / finally 的分析覆盖。
+  - 保持现有 `unsupported_main_body` 边界与诊断文本稳定，不把“统一扫描器”误做成语义放宽。
+- 验收：
+  - effect codegen 内不再并存三套近似 `collect_used_locals_in_(block|stmt|expr)` 递归实现。
+  - immediate-resume / mixed-escape / no-immediate indirect 的 site 扫描入口改为复用共享 helper、共享 visitor 或共享分析骨架。
+  - `cargo fmt --all --check`
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3c2-1
+
+### T2003c0c2b3c2-3 [TODO] Effect：拆分超长 lowering 并收口 handler scaffold/helper
+- 描述：effect codegen 的复杂度并不是均匀分布，而是集中在少数超长入口，尤其是 site-matrix、escape-continuation 与 mixed immediate-resume lowering；同时 `body/catch/finally/merge/dispatch` block 组装、handler frame push/pop/set_active 与 cleanup 逻辑在多条路径里反复展开。继续在这些巨型函数上叠功能任务，会显著提高回归风险。
+- 目标：
+  - 拆分 `codegen_handle_expr_immediate_resume_with_escape_sibling_site_matrix`、`codegen_handle_expr_escape_continuation` 及同类超长入口，把 site 分类、capture 计划、state0/state1、continuation step、sibling dispatch、finally cleanup 下沉为可单独阅读的 helper 组。
+  - 为重复出现的 handler scaffold 引入小型 plan/context/helper，统一封装 `dispatch_bb`、`finally_bb`、`finally_unwind_bb`、`merge_bb` 等 block 组装与 frame push/pop/set_active 协议。
+  - 保持现有 lowering 语义、诊断文本与测试矩阵不变，不在本任务中放宽 mixed-site / multiple-arm 支持边界。
+- 验收：
+  - 当前最重的 site-matrix / escape-continuation lowering 不再由单个 2k～8k 行函数承载；主要入口只保留分流与编排，细节下沉到 helper。
+  - handler frame / cleanup / dispatch 骨架不再在多个 lowering 中以大段近似代码重复展开。
+  - `cargo fmt --all --check`
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b3c2-2
+
 ### T2003c0c2b3c3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）
 - 描述：在 nested block indirect 打通后，再扩到 if then/else branch indirect site。该子集需要把命中分支 replay 与 after-if merge 接到 no-immediate indirect lowering。
 - 目标：
