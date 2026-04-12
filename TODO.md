@@ -929,7 +929,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_while_multi`，并保留 build 负例 `effect_multi_escape_direct_indirect_while_is_error` 锁定 separate-stmt while mixed 边界。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2c [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume arms）
+### T2003c0c2c [DONE] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume arms）
 - 描述：当前 immediate-resume lowering 整体以“单个 distinguished immediate site + 单个 arm state machine”为中心组织。multiple immediate-resume arms 需要把 perform-site 扫描、arm dispatch、resume target 选择与 `finally` cleanup 从“单个 op”扩到“按 op tag / 源码顺序选择多个 immediate arm”，但暂不把 multiple escape 一起混入。
 - 目标：
   - 同一个 handle 支持多个 immediate-resume arms；至少覆盖 top-level direct site，并保持源码 arm 顺序与 one-shot `resume(value)` 语义稳定。
@@ -940,6 +940,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3d4
+- 完成说明：
+  - `codegen_handle_expr_multi_arm` 现已把“多个 immediate-resume arms + 可选 sibling non-resuming”分流到新的 top-level direct lowering，不再在入口直接报 `handle mixed immediate-resume arms (only 1 supported)`。
+  - 新 lowering 会扫描同一 handle body 里的多个 top-level `val = perform` site，按源码 site 顺序推进 resumed tail，并按 op tag 选择对应的 immediate arm；`finally`、sibling custom non-resuming / `Raise.raise` cleanup 复用既有 mixed-arm cleanup 路径。
+  - richer multi-resuming 组合仍保持稳定边界：`multiple immediate + escape-continuation` 继续报专用诊断，留给后续 `T2003c0c2d` 收口。
+  - 已新增 run-pass fixtures：`effect_resume_multi_immediate_top_level`、`effect_resume_multi_immediate_custom_nonresuming`。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2d [TODO] Effect：LLVM 多 arm handle dispatch（multiple escape-continuation arms / richer multi-resuming mixed-arm）
 - 描述：最后收口 multiple escape-continuation arms，以及 immediate-resume + multiple escape-continuation 的 richer multi-resuming mixed-arm。该阶段需要统一多个 continuation 的 dispatch、resume target、captured locals 与 nested replay 规则。

@@ -1,0 +1,54 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_multi_immediate_custom_nonresuming.stdout
+//
+// T2003c0c2c: multiple immediate-resume arms + sibling custom non-resuming。
+// - body 先后命中两个 immediate arm；
+// - resumed tail 里的 sibling custom non-resuming 仍由同一个 source-handle 接住；
+// - sibling arm 返回的值成为整个 handle 的结果。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Step {
+    fun take(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(code: Int): Nothing
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("body")
+        val first: Int = Step.take(3)
+        println("after_step")
+        println(first)
+        val second: Int = Yield.next()
+        println("after_yield")
+        println(second)
+        Abort.stop(first + second)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(7)
+        }
+        Abort.stop(code: Int) -> {
+            println("abort_arm")
+            println(code)
+            5
+        }
+        Step.take(seed: Int) -> resume {
+            println("step_arm")
+            println(seed)
+            resume(seed + 4)
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

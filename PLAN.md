@@ -173,7 +173,11 @@ cargo run -p scoop --features llvm -- test
   - 已补 current indirect site 的 prefix reconstruction：second resume 现会先重放 direct→indirect 之间的 prefix，再继续 indirect result；这同时把既有 block/if mixed fixtures 的 golden 输出收口到与 matrix helper 一致的 replay 语义。
   - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_while_multi`，并把 build 负例 `effect_multi_escape_direct_indirect_while_is_error` 改为继续锁定 separate-stmt while mixed 边界。
   - 该轮实现验证已通过：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003c0c2c`：继续补 multiple immediate-resume arms。
+  - T2003c0c2c 已完成：`codegen_handle_expr_multi_arm` 现已支持“多个 immediate-resume arms + 可选 sibling non-resuming”的 top-level direct 子集；新的 multi-immediate lowering 会扫描多个 top-level `val = perform` site，按源码 site 顺序推进 resumed tail，并按 op tag 选择对应的 immediate arm。
+  - 该路径现已统一复用既有 mixed-arm cleanup：`finally`、sibling custom non-resuming / `Raise.raise` dispatch，以及 arm body 的 detach/restore 都已接到同一个 state machine；`multiple immediate + escape-continuation` 仍保留稳定诊断，留给下一步 `T2003c0c2d`。
+  - 已新增 run-pass 回归 `effect_resume_multi_immediate_top_level`、`effect_resume_multi_immediate_custom_nonresuming`，覆盖纯 multiple immediate 与 multiple immediate + sibling custom non-resuming。
+  - 该轮实现验证已通过：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2d`：继续补 multiple escape-continuation arms 与 richer multi-resuming mixed-arm。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -225,7 +229,7 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3d2（已完成）：补无 immediate-resume 的 nested block direct + indirect same-stmt mixed。
   - T2003c0c2b3d3（已完成）：补无 immediate-resume 的 if branch direct + indirect same-stmt mixed。
   - T2003c0c2b3d4（已完成）：补无 immediate-resume 的 while body direct + indirect same-stmt mixed。
-  - T2003c0c2c：补 multiple immediate-resume arms。
+  - T2003c0c2c（已完成）：补 multiple immediate-resume arms。
   - T2003c0c2d：补 multiple escape-continuation arms 与 richer multi-resuming mixed-arm。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。

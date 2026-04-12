@@ -1,0 +1,11 @@
+body_start
+yield_arm
+after_first
+10
+step_arm
+11
+after_second
+22
+finally
+result
+32
