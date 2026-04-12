@@ -1468,6 +1468,36 @@ val bad: () -> Unit / Raise<RuntimeError> = {
 val b: Any = bad                  // ❌ compile error: cannot erase effects into Any
 ```
 
+### 7.6 Closure Literals and `do` Blocks
+
+Scoop distinguishes ordinary local blocks from closure literals syntactically.
+
+In ordinary expression position:
+
+- A bare `{ ... }` is always a closure literal.
+- A plain local block used for scoping or to compute a value must be written `do { ... }`.
+- `TypeName { field: expr, ... }` remains a struct literal (§2.3.1); the type name / constructor before `{` disambiguates it from a closure literal.
+- Constructs that introduce their own braced bodies (`if`, `when`, `handle`, `try`, `async`, `comptime`, declarations, etc.) are unaffected; this rule only governs ordinary brace-delimited expression/block forms.
+
+Examples:
+
+```kotlin
+val f = { println("hello") }      // closure value
+val u = do { println("hello") }   // evaluates immediately; u: Unit
+
+val n = do {
+    val base = 40
+    base + 2
+}
+
+users.filter { it.age >= 18 }     // trailing lambda
+consume(do { computeValue() })    // ordinary argument value, not a closure
+```
+
+A `do { ... }` block may appear in statement position or wherever an expression is permitted. Its value is the final expression that is not terminated by `;`; if the block has no such tail expression, its value is `Unit`.
+
+Closure bodies use the same tail-expression rule as `do` blocks. Therefore `{ 1 }` is a closure returning `1`, while `do { 1 }` is a block expression whose value is `1`.
+
 ## 8. String Literals
 
 ### 8.1 Regular Strings
@@ -1740,18 +1770,24 @@ fun <T, eff E = Pure> T.also(block: (T) -> Unit / E): T / E
 fun <T, eff E = Pure> T.apply(block: T.() -> Unit / E): T / E
 ```
 
-## 12. Disambiguation: Struct Literal vs Lambda
+## 12. Disambiguation: Struct Literal vs Closure vs `do` Block
 
-Both struct literals and lambdas use `{ }` syntax. The parser distinguishes them by content:
+In ordinary expression position, Scoop does not infer a plain local block from bare braces. The forms are distinguished syntactically:
 
-- **Struct literal**: `{ identifier: expr, ... }` — contains colon-separated field-value pairs, no `->`.
-- **Lambda**: `{ params -> body }` or `{ body }` — contains `->` or plain expressions.
+- **Struct literal**: `TypeName { identifier: expr, ... }` — brace body follows a type/constructor name and contains field-value pairs.
+- **Closure**: `{ params -> body }` or `{ body }` — bare braces, optionally with a parameter list / `->`.
+- **Local block**: `do { ... }` — explicit `do` introducer.
 
 ```kotlin
-Point { x: 1, y: 2 }          // struct literal
-list.map { it * 2 }            // lambda (plain expression body)
-list.map { x: Int -> x * 2 }  // lambda (typed parameter with ->)
+Point { x: 1, y: 2 }            // struct literal
+val f = { println("hello") }    // closure
+val u = do { println("hello") } // local block, result is Unit
+
+list.map { it * 2 }             // trailing lambda (closure)
+list.map { x: Int -> x * 2 }    // trailing lambda with typed parameter
 ```
+
+Because plain local blocks require `do`, `val a = { println("hello") }` is always interpreted as assigning a closure. To assign the evaluated block result, write `val a = do { println("hello") }`.
 
 ## 13. Package System (Cone)
 
@@ -2527,7 +2563,7 @@ A `@NoGC` function may only call:
 
 This restriction is transitive: calling into non-`@NoGC` Scoop code is forbidden.
 
-Note: calling an `@Extern` function still requires an unsafe context (see §15.9). Use an `@Unsafe` block to localize the unsafe call when needed.
+Note: calling an `@Extern` function still requires an unsafe context (see §15.9). Use an `@Unsafe do { ... }` block to localize the unsafe call when needed.
 
 #### 15.8.2 Allocation restrictions
 
@@ -2584,7 +2620,7 @@ The exact set of unsafe primitives is defined by the sysroot API surface (§15.7
 Scoop defines an **unsafe context** as either:
 
 - The body of a function annotated `@Unsafe`, or
-- The body of a block annotated `@Unsafe` (see §15.9.2)
+- The body of a `do` block annotated `@Unsafe` (see §15.9.2)
 
 Unsafe primitives are only permitted within an unsafe context. Using an unsafe primitive outside an unsafe context is a compile error.
 
@@ -2594,12 +2630,12 @@ Calling an `@Extern` function is only permitted within an unsafe context. (Exter
 
 #### 15.9.2 `@Unsafe` blocks
 
-`@Unsafe` may be applied to a block to create a localized unsafe context without marking the entire enclosing function as unsafe:
+`@Unsafe` may be applied to a `do` block to create a localized unsafe context without marking the entire enclosing function as unsafe:
 
 ```kotlin
 fun doIO(): Unit / Async {
     val buf = ByteBuffer.allocate(4096)
-    @Unsafe {
+    @Unsafe do {
         // Call to @Extern and raw pointer operations are allowed here.
         submitToKernel(buf)
     }
@@ -2607,11 +2643,11 @@ fun doIO(): Unit / Async {
 }
 ```
 
-An unsafe block has the form `@Unsafe { ... }` and may appear wherever a block is permitted in a statement position. The annotation scopes to the immediately following `{ ... }` block.
+An unsafe block has the form `@Unsafe do { ... }`. Because bare `{ ... }` is reserved for closure literals (§7.6), the `do` introducer is required for a localized unsafe block. The annotation scopes to the immediately following `do { ... }` block.
 
 #### 15.9.3 Relationship to `@NoGC`
 
-`@Unsafe` does not imply `@NoGC`. Functions (or blocks) that require both properties may be annotated with both.
+`@Unsafe` does not imply `@NoGC`. Functions (or `do` blocks) that require both properties may be annotated with both.
 
 #### 15.9.4 Raw pointers (`Ptr<T>`) and address integers (`UIntPtr`)
 
@@ -2698,7 +2734,7 @@ Example:
 @CallingConvention("stdcall")
 typealias MyFuncPtr = FunPtr<(Int, Int) -> Int>
 
-@Unsafe {
+@Unsafe do {
     val funcPtr: MyFuncPtr = /* get function pointer from somewhere */
     val result = funcPtr.invoke(1, 2)
 }
@@ -2712,26 +2748,28 @@ Internal atomic value types (FFI-oriented):
 
 #### 15.9.5 `@Safe` (Safe Regions Inside Unsafe Context)
 
-`@Safe` marks a function body or block as **safe**, even if it appears syntactically inside an enclosing unsafe context.
+`@Safe` marks a function body, `do` block, or closure body as **safe**, even if it appears syntactically inside an enclosing unsafe context.
 
-This is useful for APIs that accept callbacks and want to guarantee that the callback itself does not perform unsafe operations, even if the caller is currently in unsafe code.
+This is useful when a mostly-unsafe function wants to carve out a local safe region, or when an API wants a callback body to be checked as safe. For a local block region, use `@Safe do { ... }`; a bare `{ ... }` without `do` remains a closure literal (§7.6).
 
 ```kotlin
 @Unsafe
 fun unsafeFunction() {
     // unsafe operations allowed here
 
-    someFunTakesTrailingLambda @Safe {
+    @Safe do {
         // Unsafe operations are NOT allowed here.
-        // Calling @Extern or @Unsafe functions is a compile error unless re-wrapped in @Unsafe { ... }.
+        // Calling @Extern or @Unsafe functions is a compile error unless re-wrapped in @Unsafe do { ... }.
     }
 }
 ```
 
+Note: `someFunTakesTrailingLambda(@Safe { ... })` continues to annotate a closure literal. Use `@Safe do { ... }`, not `@Safe { ... }`, when the intent is a local safe block.
+
 Rules:
 
-- The body of a `@Safe` function or block is type-checked as if it were **not** in an unsafe context.
-- Nested `@Unsafe { ... }` blocks inside a `@Safe` region re-enable unsafe operations locally.
+- The body of a `@Safe` function, `@Safe do { ... }` block, or `@Safe { ... }` closure is type-checked as if it were **not** in an unsafe context.
+- Nested `@Unsafe do { ... }` blocks inside a `@Safe` region re-enable unsafe operations locally.
 
 ### 15.10 GC Pinning API (`pin` / `unpin`)
 
@@ -3088,6 +3126,7 @@ The following Kotlin-like rules apply.
 
 - `fun f(): T = expr` is an expression-body function.
 - `fun f(): T { ... }` is a block-body function.
+- Local blocks outside declaration bodies use `do { ... }`; bare `{ ... }` remains a closure literal (§7.6).
 
 #### B.5.2 Default arguments
 
@@ -3106,6 +3145,8 @@ When the last parameter of a call is a function type, the trailing lambda may be
 ```kotlin
 users.filter { it.age >= 18 }
 ```
+
+Since bare `{ ... }` is always a closure literal (§7.6), `foo { ... }` is always a call with a trailing lambda, not a plain local block. Use `foo(do { ... })` when the intent is to pass the evaluated result of a local block instead of a closure.
 
 #### B.5.5 Varargs
 

@@ -949,60 +949,60 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2d
 
-### T2004 [BLOCKED] 前端：裸 block-only 方案已改由 Rust 风格分号 / expression statement 语义统一承接
-- 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认 Scoop 不采用 Kotlin / Swift 式 whitespace-sensitive 语句边界；同时由于 trailing lambda 已支持多段出现，若只补“裸 block 优先级”而不统一收口语句终止与 expression statement 语义，歧义仍会散落在 call / lambda / block tail 各处。
+### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
+- 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
 - 目标：
-  - 不再单独推进“保持当前可选分号语义，仅补 naked block”的方案。
-  - 由 `T2201`～`T2204` 统一承接：显式分号边界、Rust 风格 expression statement / block tail 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
+  - 不再推进“恢复裸 `{ ... }` block”或“继续依赖 `@Safe` workaround 给普通 nested block 消歧”的方案。
+  - 由 `T2201`～`T2204` 统一承接：显式 `do` block 语法、block tail value / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 验收：
   - `T2201`～`T2204` 进入主线落地顺序；`T2004` 不再作为独立实现项继续展开。
 - 依赖：T2003c
 
-## T22：前端语句语义 / Rust 风格分号规则收口
+## T22：前端 `do` block / closure 消歧与 block 语义收口
 
-### T2201 [TODO] Parser / AST：引入 Rust 风格语句终止规则与 `{}` / trailing lambda 消歧
-- 描述：当前 parser 把 `;` 当作可选分隔符，表达式语句默认尽量向右吞 postfix，因此 `{ ... }` 在表达式起始位置会优先落入 lambda，而在 call 之后又会被解释成 trailing lambda。Scoop 既不保留换行语义，又已支持多个 trailing lambdas，继续沿用 Kotlin-like optional-semicolon 规则会让 statement-position block 与 trailing lambda 的边界越来越不透明。
+### T2201 [TODO] Parser / AST：引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
+- 描述：当前 parser 在普通表达式位置把 `{ ... }` 同时暴露给 local block、lambda 与 trailing lambda 相关路径，导致 `val a = { println("hello") }` 之类写法无法从语法上判断是“把 closure 赋给 `a`”还是“先执行 block 再把结果赋给 `a`”。现行实现里部分 effect fixtures 只能借 `@Safe { ... }` 绕过该缺口，但这不是规范想要的语义。Scoop 改采 Swift 风格：普通局部 block 必须由 `do` 引入。
 - 目标：
-  - 明确 `;` 是语句终止符而不是“纯可选装饰”；以前一条表达式结束、且下一条以 `{` 或其它仍可能续接 postfix 的 token 起始时，必须依赖显式 `;` 切断。
-  - statement boundary 之后的 `{ ... }` 可作为新的 block 起始；`callee { ... }`、`callee(args) { ... }`、多个 trailing lambdas 仍按调用后缀解析，不因新规则回退。
-  - parser / AST 为表达式语句保留“是否以 `;` 终止”的信息，供后续 block tail / expression statement 语义使用。
+  - statement-position / expression-position 的普通局部 block 统一写作 `do { ... }`；parser 不再把裸 `{ ... }` 解析为 plain block。
+  - 没有 `do` 的 `{ ... }` 统一按 closure 解析；`callee { ... }`、`callee(args) { ... }`、multiple trailing lambdas 继续按调用后缀 / closure 规则工作。
+  - parser / AST 为 `DoBlock` 与 `Closure` 保留稳定且可区分的形状，避免后续阶段继续依赖 `@Safe` 或上下文猜测。
 - 验收：
-  - 新增 parser fixtures：`foo(); { ... }` 解析为两条语句、`foo() { ... }` 仍为 trailing lambda、多个 trailing lambdas + `;` fence、缺少 `;` 时的稳定诊断或歧义分流。
+  - 新增 parser fixtures：`val f = { 1 }` 为 closure、`val x = do { 1 }` 为 block、`foo { 1 }` 仍为 trailing lambda、`foo(do { 1 })` 为普通实参、缺少 `do` 时的稳定诊断或按 closure 分流。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：无
 
-### T2202 [TODO] Typecheck / HIR：引入 Rust 风格 expression statement 与 block tail value 语义
-- 描述：当前 block 的值语义只看“最后一条是不是 `StmtKind::Expr`”，并不区分该表达式是否由 `;` 终止。这与 Rust 风格“无分号 tail expr 才产生 block 值；有分号则是 expression statement，结果视为 `Unit`”并不一致，也会让后续 naked block / lambda 消歧缺乏统一语义基础。
+### T2202 [TODO] Typecheck / HIR：收口 `do` block 的 expression statement 与 tail value 语义
+- 描述：当前 block 的值语义只看“最后一条是不是 `StmtKind::Expr`”，并不区分该表达式是否由 `;` 终止。即使语法层把普通 block / closure 消歧改成 `do`，类型系统和 lowering 仍需要统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”的规则。
 - 目标：
-  - block 仅在最后一个表达式语句未以 `;` 终止时才产生 tail value；`expr;` 作为 expression statement，其结果不再参与 block 值推导。
-  - `if` / `when` / `handle` / lambda block body / 局部 block 的值语义统一按上述规则工作，避免“parser 看起来像 Rust，typecheck 仍按旧规则取尾值”。
-  - HIR / MIR / diagnostics 对“tail expr”和“terminated expr stmt”保持可区分形状，不再依赖 AST 阶段的隐式约定。
+  - `do` block 仅在最后一个表达式语句未以 `;` 终止时才产生 tail value；`do { expr; }` 作为 expression statement 结果视为 `Unit`。
+  - `if` / `when` / `handle` / lambda body / `do` block 的值语义统一按上述规则工作，避免“语法已切到 `do`，typecheck 仍按旧规则取尾值”。
+  - HIR / MIR / diagnostics 对 `do` block / closure body 中的 tail expr 与 terminated expr stmt 保持可区分形状，不再依赖 AST 阶段的隐式约定。
 - 验收：
-  - 新增 typecheck / HIR fixtures：`{ 1 }` 得 `Int`、`{ 1; }` 得 `Unit`、控制流 / handler / lambda body 的 tail expr 与 terminated expr stmt 区分、相关稳定诊断。
+  - 新增 typecheck / HIR fixtures：`do { 1 }` 得 `Int`、`do { 1; }` 得 `Unit`、控制流 / handler / lambda body 的 tail expr 与 terminated expr stmt 区分、相关稳定诊断。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T2201
 
-### T2203 [TODO] 回归迁移：effect nested-block fixtures 切到 plain block + semicolon fence
-- 描述：`T2003b1`、`T2003c0b2c1a`、`T2003c0b2c2b` 等回归当前借 `@Safe { ... }` 表达 statement-position nested block；这在 HIR lowering 后虽然会退化成普通 `Block`，但源码层并没有真正覆盖新的语句边界语义。引入 Rust 风格分号规则后，需要把这些回归切回 plain block，并显式补上必要的 `;` fence。
+### T2203 [TODO] 回归迁移：effect nested-block fixtures 切到 plain `do` block
+- 描述：`T2003b1`、`T2003c0b2c1a`、`T2003c0b2c2b` 等回归当前借 `@Safe { ... }` 表达 statement-position nested block；这只是实现缺口下的语法绕路，并没有真正覆盖“普通局部 block 必须写 `do { ... }`”的新规则。引入显式 `do` 后，需要把这些回归切到 plain `do` block。
 - 目标：
-  - 把仅用于制造 nested block 的 `@Safe` workaround 切回普通 `{ ... }`，并在前一条 expr-ended statement 之后按新规则补显式 `;`。
-  - 真正依赖 safe-region 语义的测试继续保留 `@Safe`，避免把 unsafe 语义回归误混进 parser / stmt 语义任务。
-  - 锁定 trailing lambda / multiple trailing lambdas 与 block statement 并存时的行为，避免 effect fixture 迁移顺手改变调用语义。
+  - 把仅用于制造 nested block 的 `@Safe` workaround 切回普通 `do { ... }`。
+  - 真正依赖 safe-region 语义的测试继续保留 `@Safe` 相关写法，避免把 unsafe 语义回归误混进 parser / block 语义任务。
+  - 锁定 trailing lambda / multiple trailing lambdas 与后续 `do` block 并存时的行为，避免 effect fixture 迁移顺手改变调用语义。
 - 验收：
-  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_while_is_error` 改为 plain block + 必要分号，行为或诊断保持不变。
-  - 新增 parser / typecheck / HIR / run-pass 回归：multiple trailing lambdas 与后续 block statement 的 fence 规则。
+  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_while_is_error` 改为 `do { ... }`，行为或诊断保持不变。
+  - 新增 parser / typecheck / HIR / run-pass 回归：multiple trailing lambdas 与后续 `do` block 的边界规则。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2202, T2003c
 
-### T2204 [TODO] 规范 / 文档：同步 Rust 风格分号、expression statement 与 trailing-lambda 消歧规则
-- 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 采用 Kotlin-like 表述，但尚未把“非 whitespace-sensitive + Rust 风格分号 / expression statement 语义”的最终语法边界写实；若只改实现不改规范，后续 fixtures 与文档示例会持续漂移。
+### T2204 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
+- 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 仍保留“裸 `{ ... }` 可能同时像 block / lambda”的旧叙述；若只改实现不改规范，后续 fixtures 与文档示例会继续漂移。
 - 目标：
-  - 更新 `SCOOP_FULL_SPEC.md` 的 statements / block expression / trailing lambda / lambda body 相关章节，明确 `;` 的语义、tail expr 规则、statement-position block 的 fence 规则，以及 multiple trailing lambdas 的优先级。
-  - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少 `README.md` / `PLAN.md` / `TODO.md` 中相关描述）。
+  - 更新 `SCOOP_FULL_SPEC.md` 的 statements / local block / closure / trailing lambda / `@Safe` / `@Unsafe` 相关章节，明确普通 block 必须写 `do { ... }`、裸 `{ ... }` 一律视为 closure，以及 `@Safe do { ... }` / `@Unsafe do { ... }` 才是局部 annotated block 形式。
+  - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少 `TODO.md` 中相关描述；若有其它命中文档也一并更新）。
   - 若规范代码块发生变更，补 `spec-fixtures sync/check` 所需的生成文件与说明，保证规范与回归继续一致。
 - 验收：
   - `SCOOP_FULL_SPEC.md` 与相关文档更新完成；必要时运行 `cargo run -p scoop_tools -- spec-fixtures sync` 后再 `cargo run -p scoop_tools -- spec-fixtures check`。
