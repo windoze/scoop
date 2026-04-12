@@ -1,0 +1,72 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_custom_nonresuming_direct_single_site.stdout
+//
+// T2003c0c1a: mixed-arm immediate-resume + sibling escape-continuation +
+// sibling custom non-resuming（top-level direct single escape site）。
+// - body 先命中 immediate-resume arm，再命中 sibling escape arm；
+// - `k.resume(...)` 后继续执行 escape site 之后的 tail；
+// - tail 里的 custom non-resuming effect 由同一个 source-handle 的 sibling custom arm 接住。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        val msg: String = Ask.ask()
+        println("after_ask")
+        println(prefix)
+        println(x)
+        Abort.stop(msg)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(40)
+        }
+        Ask.ask(), k -> {
+            println("ask_arm")
+            saved = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

@@ -92,7 +92,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c3d3 已完成：mixed-arm `site matrix` 现已支持同一个 `while` 语句里的 single direct + single indirect mixed site；分类阶段会为 same-body-stmt while mixed route 建立 `next/prev` replay 关系，并对跨 while-body stmt 的 richer 组合保留稳定诊断。
   - state0、state1 与 continuation step 现已共享新的 while mixed helper；恢复后既能 replay 当前迭代尾部，又能在 direct→indirect 场景下于后续迭代重新从 sibling direct site 进入，避免把 future iteration 的 first direct site 错误当成普通 replay 语句。
   - 已新增 run-pass / build 回归 `effect_resume_mixed_escape_pre_immediate_while_indirect_direct`、`effect_resume_mixed_escape_post_immediate_while_direct_indirect`、`effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c1`：补 escape-continuation 与 sibling non-resuming arms 的多 arm dispatch 组合。
+  - 审计 `T2003c0c1` 后确认，它并不是单一路径门禁，而是横跨三条独立 lowering：top-level direct single-site、single indirect-site、以及 richer site-matrix（pre/post-immediate、多 site、nested block/if/while、direct/indirect mixed）。若整包推进，会把 dispatch、continuation step 与 nested replay 三层改动耦合，因此继续拆成 `T2003c0c1a` / `T2003c0c1b` / `T2003c0c1c`。
+  - T2003c0c1a 已完成：mixed-arm immediate-resume + sibling escape-continuation 的 top-level single direct-site lowering 现已支持 sibling `Raise.raise` 与 custom non-resuming；入口分流只对该子集放行，并让主 body、resumed main path 与单-site continuation step 共享 sibling op-tag dispatch / cleanup 路径。
+  - immediate arm body、escape arm body，以及 sibling raise/custom catch body 现已统一把同源 sibling non-resuming 导向 `finally_unwind` 或 step cleanup，避免自捕获；新增回归 `effect_resume_mixed_escape_raise_direct_single_site`、`effect_resume_mixed_escape_custom_nonresuming_direct_single_site`，`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003c0c1b`：扩展 sibling non-resuming 到 single indirect-site 的 escape lowering。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -121,6 +124,9 @@ cargo run -p scoop --features llvm -- test
   - T2003c0b2c3d1（已完成）：补 sibling escape-continuation 在 same-top-level nested block 中的 single direct + single indirect 共存。
   - T2003c0b2c3d2（已完成）：补 sibling escape-continuation 在同一个 if 语句中的 direct / indirect 共存。
   - T2003c0b2c3d3（已完成）：补 sibling escape-continuation 在同一个 while 语句中的 direct / indirect 共存。
+  - T2003c0c1a（已完成）：补 top-level direct single-site 的 escape-continuation + sibling non-resuming 多 arm dispatch。
+  - T2003c0c1b：扩展到 single indirect-site 的 escape-continuation + sibling non-resuming。
+  - T2003c0c1c：扩展到 richer site-matrix 的 escape-continuation + sibling non-resuming。
   - T2003c：补 mixed-arm / nested handle / GC stress 回归矩阵。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 

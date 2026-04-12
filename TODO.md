@@ -466,17 +466,47 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass / build 回归：`effect_resume_mixed_escape_pre_immediate_while_indirect_direct`、`effect_resume_mixed_escape_post_immediate_while_direct_indirect`、`effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c1 [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming）
-- 描述：当前 multi-arm lowering 在存在 escape-continuation 时仍直接拒绝 sibling non-resuming arms。若 `T2003` 要收口为“合法 perform/handler 组合全部可运行”，就必须补齐 escape-continuation 与 non-resuming 在同一 source-handle 下的 dispatch / handler-scope / self-capture 语义。
+### T2003c0c1a [DONE] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，top-level direct single-site）
+- 描述：审计 `T2003c0c1` 后确认，当前 escape + sibling non-resuming 组合横跨 direct-site、single indirect-site 与 site-matrix 三条独立 lowering；若整包推进，会把 dispatch、continuation step 与 nested replay 三层改动耦合。先收口最小可运行子集：top-level direct single-site 的 sibling escape + sibling non-resuming。
 - 目标：
-  - 单个 source-handle 支持 immediate-resume arm + escape-continuation arm + 若干 sibling non-resuming arms 同时共存。
-  - non-resuming、immediate-resume、escape-continuation 三类 arm 在任一 arm body / continuation step 执行期间都遵守一致的 handler-scope 与 sibling self-capture 规则。
-  - `Raise.raise` 与 custom non-resuming effects 可与 richer escape site matrix 组合运行，不因 arm body 嵌套或 resume 路径而丢失 dispatch 优先级。
+  - immediate-resume arm + sibling escape-continuation arm + 若干 sibling non-resuming arms 可在 top-level direct single-site 组合下共存。
+  - 主 body / resumed main path 中，`Raise.raise` 与 custom non-resuming effects 能参与同一 source-handle 的 dispatch。
+  - immediate arm body、escape arm body 与 direct continuation step 执行期间，会把同源 sibling non-resuming handler frames 摘出当前 handler scope，避免 sibling self-capture。
 - 验收：
-  - 新增 run-pass fixtures：immediate-resume + escape + raise、immediate-resume + escape + custom non-resuming。
+  - 新增 run-pass fixtures：top-level direct single-site 的 `immediate-resume + escape + raise`、`immediate-resume + escape + custom non-resuming`。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c3d3
+- 完成说明：
+  - `codegen_handle_expr_multi_arm` 不再把 `escape-continuation + sibling non-resuming` 一刀切拒绝；当前已新增 `T2003c0c1a` 的 direct single-site 分流，只对 single indirect / richer site-matrix 保留稳定诊断，交给后续 `T2003c0c1b` / `T2003c0c1c`。
+  - top-level single direct escape site 的 mixed-arm lowering 现已支持 sibling `Raise.raise` 与 custom non-resuming：主 body、resumed main path 与单-site continuation step 都已接入 op-tag dispatch / catch blocks。
+  - immediate arm body、escape arm body，以及 sibling raise/custom catch body 现在都会把同源 sibling non-resuming 路由到 `finally_unwind` 或 step cleanup 路径，避免 sibling self-capture。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_raise_direct_single_site`、`effect_resume_mixed_escape_custom_nonresuming_direct_single_site`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0c1b [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，single indirect site）
+- 描述：在 direct single-site 子集打通后，再把 sibling non-resuming 接到 single indirect-site 的 escape lowering。该路径需要同时处理 callee suspend state、dispatch no-match 与 continuation step 恢复后的 handler-scope。
+- 目标：
+  - immediate-resume arm + sibling escape-continuation arm + 若干 sibling non-resuming arms 可覆盖单个 top-level indirect call site。
+  - indirect call-site suspension、resume payload 写回与 no-match dispatch 期间，sibling non-resuming 的 dispatch / detach / restore 语义保持稳定。
+  - immediate arm body、escape arm body 与 indirect continuation step 期间继续避免 sibling self-capture。
+- 验收：
+  - 新增 run-pass fixtures：single indirect-site 的 `immediate-resume + escape + raise` 或等价 custom non-resuming 组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c1a
+
+### T2003c0c1c [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，site-matrix）
+- 描述：最后把 sibling non-resuming 扩到 richer escape site matrix，包括 pre/post-immediate、多 site、nested block/if/while，以及 direct/indirect mixed。该阶段才统一处理 matrix state0/state1/continuation step 的 sibling detach/restore。
+- 目标：
+  - site-matrix 形态下的 escape-continuation 与 sibling non-resuming 共存可运行，不再被 “escape + non-resuming not supported” 门禁截断。
+  - pre/post-immediate、多 site、nested path replay 与 loop re-entry 期间，non-resuming、immediate-resume、escape-continuation 三类 arms 都遵守一致的 handler-scope / sibling self-capture 规则。
+  - `Raise.raise` 与 custom non-resuming effects 可与 richer escape site matrix 组合运行，不因 nested replay 或 resume 路径而丢失 dispatch 优先级。
+- 验收：
+  - 新增 run-pass fixtures：至少覆盖一例 pre/post-immediate 的 matrix 组合，以及一例 nested / direct+indirect mixed 与 sibling non-resuming 共存的组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c1b
 
 ### T2003c0c2 [TODO] Effect：LLVM 多 arm handle dispatch（multiple resuming arms / 无 immediate-resume 的 multi-arm）
 - 描述：当前 mixed-arm lowering 仍假设“恰好一个 immediate-resume arm，最多一个 escape-continuation arm”，并对“没有 immediate-resume 的 multi-arm handle”直接报错。若 `T2003` 完成后要支持任意 perform/handler 组合，这些结构性门禁必须显式去掉。
@@ -488,7 +518,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：multiple immediate arms、multiple escape arms、multiple non-resuming arms、escape-only multi-arm、escape+non-resuming without immediate。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003c0c1
+- 依赖：T2003c0c1c
 
 ### T2003c [TODO] Effect：perform / handler 完整组合回归矩阵
 - 描述：在 `T2003c0*` 的 mixed-arm LLVM dispatch 全部落地后，补 full matrix 回归，确保 `T2003` 的终态不是“剩余组合继续稳定诊断”，而是合法的 perform/handler 组合都已有实现与回归覆盖。
