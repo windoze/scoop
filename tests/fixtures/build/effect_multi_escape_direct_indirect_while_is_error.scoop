@@ -3,8 +3,8 @@
 // EXPECT-ERROR: handle multi-arm without immediate-resume (escape site matrix not yet supported)
 // ARGS: --emit-llvm
 //
-// T2003c0c2b3c4 放开 pure indirect while body；
-// direct + indirect mixed while body 继续留给后续 `T2003c0c2b3d`。
+// T2003c0c2b3d3 已放开 if branch direct + indirect mixed；
+// direct + indirect mixed while body 继续留给后续 `T2003c0c2b3d4`。
 
 import scoop.core.*
 

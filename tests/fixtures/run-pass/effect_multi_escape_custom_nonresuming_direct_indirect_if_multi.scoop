@@ -1,0 +1,125 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.stdout
+//
+// T2003c0c2b3d3: 无 immediate-resume 的 multi-arm handle
+// 支持同一个 statement-position if 里的 direct + indirect same-stmt mixed。
+// - then/else 命中的分支都会先创建 direct continuation；
+// - 第一次 `resume(...)` 后会 replay 命中的 branch tail，并继续命中同分支里的 indirect site；
+// - 第二次 `resume(...)` 后会先 replay indirect 之后的 branch tail，再继续 after-if
+//   top-level tail 与 sibling custom non-resuming arm。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var count: Int, var seen: Int)
+
+fun fetch(seed: Int): String / (Ask) {
+    println("fetch_enter")
+    println(seed)
+    val msg: String = Ask.ask(seed + 1)
+    println("fetch_resume")
+    println(msg)
+    msg
+}
+
+fun run(flag: Bool, cell: Cell, none_k: Continuation<String>?) {
+    cell.k = none_k
+    cell.count = 0
+    cell.seen = 0
+
+    val result: Int = handle {
+        println("body")
+        val prefix: String = "outer"
+        if (flag) {
+            println("then_enter")
+            val label: String = "then_label"
+            val first: String = Ask.ask(10)
+            println("then_after_direct")
+            println(label)
+            println(first)
+            val second: String = fetch(20)
+            println("then_after_indirect")
+            println(prefix)
+            println(label)
+            println(first)
+            println(second)
+            cell.seen = 11
+        } else {
+            println("else_enter")
+            val label: String = "else_label"
+            val first: String = Ask.ask(30)
+            println("else_after_direct")
+            println(label)
+            println(first)
+            val second: String = fetch(40)
+            println("else_after_indirect")
+            println(prefix)
+            println(label)
+            println(first)
+            println(second)
+            cell.seen = 21
+        }
+        println("after_if")
+        println(cell.seen)
+        Abort.stop(if (flag) "then_abort" else "else_abort")
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.count = cell.count + 1
+            println("ask_arm")
+            println(cell.count)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume(if (flag) "resume_then_1" else "resume_else_1")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume(if (flag) "resume_then_2" else "resume_else_2")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0, 0)
+    run(true, cell, none_k)
+    run(false, cell, none_k)
+    println("done")
+}

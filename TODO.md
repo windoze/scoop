@@ -894,7 +894,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi`、build `effect_multi_escape_direct_indirect_if_is_error`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3d3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct + indirect same-stmt mixed）
+### T2003c0c2b3d3 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch direct + indirect same-stmt mixed）
 - 描述：在 nested block mixed 打通后，再扩到 if then/else branch 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。
 - 目标：
   - 支持 if branch 中的 direct + indirect same-stmt mixed。
@@ -905,6 +905,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3d2
+- 完成说明：
+  - `mixed.rs` 的 no-immediate mixed lowering 现已支持 statement-position if branch 中的 direct + indirect same-stmt mixed；initial body 与 continuation step 都会复用 if-branch prefix / next-site replay / after-if tail helper。
+  - same-branch direct→indirect 与 indirect→direct 两种顺序现都能记录 if-site 的 next/prev 关系；用于 second site replay 的 body-lift / used-between 分析也已扩到 if branch。
+  - 在“整体为 mixed handle，但单个 if stmt 仅包含 direct 或仅包含 indirect”时，现也会分流到对应的 if-branch direct-only / indirect-only helper，而不再被 top-level mixed 入口误拒绝。
+  - 已新增 run-pass fixture `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi`；旧的 build-fail `effect_multi_escape_direct_indirect_if_is_error` 已删除；while 边界继续由 build-fail `effect_multi_escape_direct_indirect_while_is_error` 锁定。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3d4 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body direct + indirect same-stmt mixed）
 - 描述：最后补 while body 中“同一个 top-level statement 内 direct / indirect 共存”的 mixed path。该子集需要把 same-stmt next/prev replay、当前迭代尾部 replay、loop condition 重检与 loop re-entry 统一接到 no-immediate mixed lowering。
