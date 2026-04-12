@@ -551,17 +551,59 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_multi_nonresuming_custom_indirect`、`effect_multi_nonresuming_raise_custom_finally`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume 的 escape-only / escape+non-resuming）
-- 描述：在 pure non-resuming multi-arm 打通后，再处理“没有 immediate-resume，但含一个或多个 escape-continuation arm”的子集。该阶段需要把现有单-arm escape continuation lowering 扩到 multi-arm dispatch，并与 sibling non-resuming 的 detach/restore 规则对齐。
+### T2003c0c2b Effect：LLVM 多 arm handle dispatch（无 immediate-resume 的 escape-only / escape+non-resuming）
+- 描述：审计 `T2003c0c2b` 后确认，无 immediate-resume 的 escape 路径并不是单一门禁，而是至少跨三个独立 lowering：top-level single direct site、single indirect site，以及 richer site-matrix（多 site / nested block / if / while / direct+indirect mixed）。若整包推进，会把 multi-arm dispatch、continuation step 与 nested replay 一次性耦合，因此继续拆成 `T2003c0c2b1`～`T2003c0c2b3`。
+- 总目标：
+  - 支持“一个 escape-continuation arm + 0..N 个 sibling non-resuming arms”的无-immediate multi-arm handle，并让 sibling non-resuming 在 arm body / continuation step 中遵守一致的 detach / restore / self-capture 规则。
+  - escape continuation 的 captured-handler-stack / one-shot 生命周期 / resume 后 tail replay 与既有单-arm、以及已完成的 immediate mixed-arm 子集保持一致。
+  - richer site-matrix 打通后，再把当前 `handle multi-arm without immediate-resume not yet supported` 收口为真实 lowering；multiple escape-continuation arms 仍留给 `T2003c0c2d`。
+- 拆分顺序：
+  - `T2003c0c2b1`：无 immediate-resume 的 single direct escape site（允许 sibling non-resuming）。
+  - `T2003c0c2b2`：无 immediate-resume 的 single indirect escape site（允许 sibling non-resuming）。
+  - `T2003c0c2b3`：无 immediate-resume 的 richer escape site-matrix（多 site / nested / direct+indirect mixed）。
+- 依赖：T2003c0c2a
+
+### T2003c0c2b1 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single direct escape site）
+- 描述：先收口最小可运行子集：top-level、`val` 绑定、single direct escape site。该阶段聚焦“一个 escape-continuation arm + sibling non-resuming arms”的无-immediate direct 单站点组合；true multiple escape-only 仍留给 `T2003c0c2d`。
 - 目标：
-  - 支持 escape-only multi-arm，以及一个 escape-continuation arm + sibling non-resuming arms 的无-immediate 组合。
-  - escape continuation 的 captured-handler-stack / one-shot 生命周期 / resume 后 tail replay 与现有单-arm 语义一致。
-  - sibling non-resuming 与 escape-continuation arm 在 arm body / continuation step 中都遵守一致的 handler-scope 与 self-capture 规则。
+  - `codegen_handle_expr_multi_arm` 不再把“无 immediate-resume + single direct escape site”统一拒绝；至少支持一个 escape arm，且可选 sibling `Raise.raise` / custom non-resuming arms。
+  - escape continuation 的 captured-handler-stack、one-shot 生命周期、resume 后 top-level tail replay 与现有 single-arm direct escape 语义一致。
+  - sibling non-resuming 在 escape arm body 与 continuation step 中都遵守一致的 handler-scope / self-capture 规则。
 - 验收：
-  - 新增 run-pass fixtures：escape-only multi-arm、escape+non-resuming without immediate。
+  - 新增 run-pass fixtures：无 immediate-resume 的 `escape + Raise.raise` direct single-site、`escape + sibling custom non-resuming` direct single-site。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2a
+- 完成说明：
+  - `codegen_handle_expr_multi_arm` 现已在“无 immediate-resume + 单个 top-level direct escape site”场景下分流到新的 no-immediate escape lowering；single indirect site 与 richer site-matrix 仍保留稳定诊断，交给后续 `T2003c0c2b2` / `T2003c0c2b3`。
+  - LLVM codegen 已新增 `codegen_handle_expr_escape_with_nonresuming_siblings_direct`：支持一个 escape-continuation arm + sibling `Raise.raise` / custom non-resuming arms 的 no-immediate direct single-site 子集。
+  - handle 主 body 的 pre-escape prefix 与 continuation step 现已共享 sibling op-tag dispatch / catch blocks；escape arm body 与 sibling catch body 继续把同源 sibling non-resuming 导向 `finally_unwind` 或 step cleanup，避免 self-capture。
+  - 已新增 run-pass 回归：`effect_multi_escape_raise_direct_single_site`、`effect_multi_escape_custom_nonresuming_direct_single_site`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003c0c2b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）
+- 描述：在 direct 单站点打通后，再把无-immediate 的 escape 子集扩到 top-level single indirect call site，并让 callee suspend state replay 与 sibling non-resuming dispatch 对齐。
+- 目标：
+  - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 top-level single indirect call site。
+  - continuation step 会把 resume payload 写回 callee suspend state，并在 no-match / resume replay 时保留 sibling non-resuming 的 dispatch 优先级。
+  - escape-only 与 escape+non-resuming 的 indirect 单站点都不再回退到统一门禁。
+- 验收：
+  - 新增 run-pass fixtures：无 immediate-resume 的 escape-only indirect single-site、escape + sibling non-resuming indirect single-site。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b1
+
+### T2003c0c2b3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，escape site-matrix）
+- 描述：最后收口无-immediate 的 richer escape site-matrix，包括多 site、nested block / if / while，以及 direct + indirect mixed。该阶段统一处理 state0 / continuation step 的 nested replay、loop re-entry 与 sibling dispatch。
+- 目标：
+  - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 richer site-matrix，不再停留在 direct / indirect 单站点子集。
+  - pre/post site replay、多 site、nested path 与 direct+indirect mixed 下的 captured locals / handler-scope / sibling self-capture 语义保持稳定。
+  - 为后续 `T2003c0c2c` / `T2003c0c2d` 提供已收口的无-immediate escape lowering 基线。
+- 验收：
+  - 新增 run-pass fixtures：至少一例无 immediate-resume 的 multiple/nested escape site，以及一例 direct+indirect mixed + sibling non-resuming。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T2003c0c2b2
 
 ### T2003c0c2c [TODO] Effect：LLVM 多 arm handle dispatch（multiple immediate-resume arms）
 - 描述：当前 immediate-resume lowering 整体以“单个 distinguished immediate site + 单个 arm state machine”为中心组织。multiple immediate-resume arms 需要把 perform-site 扫描、arm dispatch、resume target 选择与 `finally` cleanup 从“单个 op”扩到“按 op tag / 源码顺序选择多个 immediate arm”，但暂不把 multiple escape 一起混入。

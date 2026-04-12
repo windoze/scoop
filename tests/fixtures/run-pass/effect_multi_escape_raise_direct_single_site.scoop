@@ -1,0 +1,56 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_raise_direct_single_site.stdout
+//
+// T2003c0c2b1: 无 immediate-resume 的 multi-arm handle（single direct escape site）。
+// - body 直接命中 escape-continuation arm；
+// - `k.resume(...)` 后继续执行 escape site 之后的 tail；
+// - tail 里的 `Raise.raise` 由同一个 source-handle 的 sibling raise arm 接住。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        println("body")
+        val msg: String = Ask.ask()
+        println("after_ask")
+        println(prefix)
+        println(msg)
+        Raise.raise(42)
+        99
+    } with {
+        Ask.ask(), k -> {
+            println("ask_arm")
+            saved = Some(k)
+            7
+        }
+        Raise.raise(err: Int) -> {
+            println("raise_arm")
+            println(err)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
