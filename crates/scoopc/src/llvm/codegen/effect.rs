@@ -9345,10 +9345,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
         let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
 
-        if !direct_sites.is_empty()
-            && indirect_sites.is_empty()
-            && direct_sites.iter().all(|site| site.resume_path.is_empty())
-        {
+        if !direct_sites.is_empty() && indirect_sites.is_empty() {
             return self.codegen_handle_expr_escape_with_nonresuming_siblings_direct(
                 span,
                 handle,
@@ -11571,15 +11568,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut escape_sites =
             self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        if escape_sites.is_empty() || escape_sites.iter().any(|site| !site.resume_path.is_empty()) {
+        if escape_sites.is_empty() {
             let at = escape_sites
                 .first()
                 .map(|site| site.decl.span)
                 .unwrap_or(span);
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multi-arm without immediate-resume (only top-level direct sites supported)",
+                kind: "handle multi-arm without immediate-resume (only top-level or statement-position nested block direct sites supported)",
                 at: at.into(),
             });
+        }
+        for site in &escape_sites {
+            if !site.resume_path.is_empty()
+                && !Self::mixed_escape_block_only_path_supported(&site.resume_path)
+            {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-arm without immediate-resume (only top-level or statement-position nested block direct sites supported)",
+                    at: site.decl.span.into(),
+                });
+            }
         }
         escape_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
         let escape_site = &escape_sites[0];
@@ -11641,37 +11648,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
 
-        let mut body_decl_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
+        let mut body_decl_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
         let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        let mut body_decl_stmt_idx: HashMap<hir::SymbolId, usize> = HashMap::new();
-        for (stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if let hir::StmtKind::Val(decl) = &stmt.kind
-                && let Some(id) = decl.id
-            {
-                let ty = self
-                    .cg_ty_of(decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape capture local type",
-                        at: decl.span.into(),
-                    })?;
-                let meta = CaptureMeta {
-                    id,
-                    hir_ty: Some(decl.ty),
-                    ty,
-                    mutable: decl.mutable,
-                };
-                body_decl_all.insert(id, meta);
-                body_decl_spans.insert(id, decl.span);
-                body_decl_stmt_idx.insert(id, stmt_idx);
-            }
-        }
+        let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
+        let mut next_decl_order = 0usize;
+        self.collect_mixed_escape_matrix_body_decls(
+            &handle.body.stmts,
+            &mut body_decl_all,
+            &mut body_decl_spans,
+            &mut body_decl_order,
+            &mut next_decl_order,
+        )?;
 
         let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
         for site in &escape_sites {
+            let Some(&site_order) = body_decl_order.get(&site.id) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation perform binding id",
+                    at: site.decl.span.into(),
+                });
+            };
             let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            for stmt in handle.body.stmts.iter().skip(site.top_level_stmt_idx + 1) {
-                Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
-            }
+            Self::collect_mixed_escape_used_after_site(site, &handle.body.stmts, &mut used_after);
             for id in used_after {
                 if let Some(meta) = body_decl_all.get(&id) {
                     let at = body_decl_spans.get(&id).copied().unwrap_or(site.decl.span);
@@ -11681,11 +11679,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: at.into(),
                         });
                     }
-                    let decl_stmt_idx = body_decl_stmt_idx
-                        .get(&id)
-                        .copied()
-                        .unwrap_or(site.top_level_stmt_idx);
-                    if decl_stmt_idx < site.top_level_stmt_idx {
+                    if let Some(&decl_order) = body_decl_order.get(&id)
+                        && decl_order < site_order
+                    {
                         body_lift_ids.insert(id);
                     }
                     continue;
@@ -11709,10 +11705,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let mut body_visible_supported: Vec<CaptureMeta> = body_lift_ids
-            .into_iter()
-            .filter_map(|id| body_decl_all.get(&id).copied())
-            .collect();
+        let mut body_visible_supported: Vec<CaptureMeta> = Vec::new();
+        for &id in &body_lift_ids {
+            let Some(meta) = body_decl_all.get(&id).copied() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape capture local missing",
+                    at: escape_site.decl.span.into(),
+                });
+            };
+            body_visible_supported.push(CaptureMeta {
+                id: meta.id,
+                hir_ty: meta.hir_ty,
+                ty: meta.ty,
+                mutable: meta.mutable,
+            });
+        }
         body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
         let escape_site_pc_by_stmt_idx: HashMap<usize, usize> = escape_sites
             .iter()
@@ -12045,6 +12052,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     escape_resume_value_ty,
                     resume_value,
                 )?;
+                if !site.resume_path.is_empty() {
+                    cg.codegen_mixed_escape_matrix_nested_block_tail_after_site(
+                        site,
+                        &body_lift_ids,
+                    )?;
+                }
 
                 let mut terminated = false;
                 for (idx, stmt) in handle.body.stmts.iter().enumerate() {
@@ -12053,6 +12066,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                     if let Some(next_pc) = escape_site_pc_by_stmt_idx.get(&idx).copied() {
                         let next_site = &escape_sites[next_pc];
+                        if !next_site.resume_path.is_empty() {
+                            cg.codegen_mixed_escape_matrix_nested_block_prefix_to_site(
+                                next_site,
+                                stmt,
+                                &body_lift_ids,
+                            )?;
+                        }
                         for (slot, arg) in
                             step_escape_binder_slots.iter().zip(next_site.args.iter())
                         {
@@ -12064,6 +12084,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             };
                             let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
                             let _ = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                        }
+                        for _ in 0..next_site.resume_path.len() {
+                            cg.env.pop_scope();
                         }
                         let _ = cg.builder.build_store(
                             intercept_next_pc_ptr,
@@ -13079,6 +13102,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
         let body_terminated = body_insert_block.get_terminator().is_some();
         if !body_terminated {
+            if !escape_site.resume_path.is_empty() {
+                self.codegen_mixed_escape_matrix_nested_block_prefix_to_site(
+                    escape_site,
+                    &handle.body.stmts[escape_stmt_idx],
+                    &body_lift_ids,
+                )?;
+            }
             for (idx, cap) in outer_visible_supported.iter().enumerate() {
                 let field_idx = outer_field_base.saturating_add(idx as u32);
                 let field_ptr = self.builder.build_struct_gep(
@@ -13177,6 +13207,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.context.bool_type().const_all_ones(),
             )?;
 
+            for _ in 0..escape_site.resume_path.len() {
+                self.env.pop_scope();
+            }
             let _ = self.builder.build_call(
                 rt_swap,
                 &[escape_outer_top.into()],

@@ -1,0 +1,100 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_custom_nonresuming_direct_block_multi.stdout
+//
+// T2003c0c2b3b1: 无 immediate-resume 的 multi-arm handle
+// 支持 statement-position nested block direct escape site。
+// - 第一个 nested block direct site 在初次执行时创建 continuation；
+// - `resume(...)` 后先 replay 第一个 block 尾部，再继续命中第二个 nested block direct site；
+// - 第二次 `resume(...)` 后第二个 block 尾部命中 sibling custom non-resuming arm。
+// Current `@Safe { ... }` is only a temporary naked-block workaround until
+// T2203/T2204 lands; this fixture is locking nested-block escape replay,
+// not safe-region semantics.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+
+        @Safe {
+            println("block1")
+            val label1: String = "block1_label"
+            val first: String = Ask.ask("first")
+            println("after1")
+            println(label1)
+            println(first)
+        }
+
+        println("after_block1")
+
+        @Safe {
+            println("block2")
+            val label2: String = "block2_label"
+            val second: String = Ask.ask("second")
+            println("after2")
+            println(label2)
+            println(second)
+            Abort.stop(second)
+        }
+
+        println("after_block2")
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.n = cell.n + 1
+            println("ask_arm")
+            println(cell.n)
+            println(label)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}
