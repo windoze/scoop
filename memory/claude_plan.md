@@ -1,64 +1,58 @@
 # 执行计划
 
-说明：我不能写出“完整内部思维链”，但会在此文件持续记录可审阅的执行计划、关键判断依据、进度和变更。
+## 约束与工作方式
 
-## 当前目标
+- 本次只处理 `TODO.md` 中第一个未完成任务，完成后即停止。
+- 在继续任务前，先检查最新提交是否提到已知遗留问题；若提到，则这些问题优先纳入本次范围。
+- 若当前首个未完成任务过大，会先把它拆成更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
+- 实施过程中如发现任何与规范不一致、不能通过正确实现完成、或需要依赖缺失语言特性的情况，不做规避实现；而是把缺口前置为新的待办，更新 `TODO.md` / `PLAN.md` 后提交并停止。
+- 变更后需要做充分验证，至少覆盖相关测试；若适用，还会运行格式化、`clippy`、以及针对任务的最小充分测试集合。
+- 完成后会更新 `TODO.md`、`PLAN.md`，提交 git commit，然后停止，不继续处理下一个任务。
 
-按 `TODO.md` 的顺序完成第一个未完成任务；如果发现前置缺陷、规范不匹配或任务过大，则先调整 `TODO.md` / `PLAN.md`，提交后停止。
+## 当前阶段计划
 
-## 初始步骤
-
-1. 检查最新一次 Git 提交，确认提交信息或上下文里是否提到已知遗留问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，核对该任务的上下文、依赖和现有计划。
-4. 评估该任务是否可以在本轮完整落地。
-   - 如果过大：把任务拆成更小子任务，更新 `PLAN.md` 和 `TODO.md`，本轮执行第一个子任务。
-   - 如果被规范缺口或实现缺陷阻塞：先把阻塞项显式写入 `TODO.md` 并调整顺序，更新 `PLAN.md`，提交后停止。
-5. 若可执行：实现任务并补充/修正必要测试。
-6. 运行相关验证，至少覆盖直接相关测试；如任务影响面较大，再补跑更广的测试与 `cargo clippy --all-targets -- -D warnings`。
-7. 更新文档与计划：
-   - 在 `TODO.md` 中标记任务完成或重排阻塞依赖。
-   - 在 `PLAN.md` 中记录当前状态与后续影响。
-   - 在本文件中记录关键进展。
-8. 用清晰的 Git 提交信息提交本轮变更，然后停止。
+1. 查看最新提交，确认是否提到需要先修复的遗留问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对任务背景、依赖关系和是否需要拆分。
+4. 结合相关源码与测试，确认任务边界、现状和缺口。
+5. 如任务过大，先拆分任务并更新 `PLAN.md` / `TODO.md`，然后以新的首个子任务为当前执行目标。
+6. 实现当前目标任务，并补充或调整测试。
+7. 运行相关验证；若发现问题，先修复再重复验证。
+8. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或阻塞原因。
+9. 提交本次变更，提交信息对应当前任务，然后停止。
 
 ## 执行记录
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交 `79867e80b1e51d0deb9e4e964508ac82d0a0b3a6`，提交信息未显式声明新的遗留缺陷。
-- 已定位 `TODO.md` 首个未完成任务原为 `T2003c0b2c3d`。
-- 经过代码审计，确认该任务当前同时跨越三类不同 CFG / replay 问题：
-  1. 同一个 top-level nested block 语句中的 mixed direct / indirect site 续跑；
-  2. 同一个 `if` 语句中的 mixed direct / indirect site 合流；
-  3. 同一个 `while` 语句中的 mixed direct / indirect site + loop re-entry。
-- 现有 `mixed_escape_matrix` 还存在两类具体门禁：
-  1. `escape_site_pcs_by_stmt_idx` 分类阶段直接拒绝 `multiple sites per top-level statement`；
-  2. state0/state1/step 对同一语句索引默认只处理一种 site 类型。
-- 已据此把 `T2003c0b2c3d` 拆为 `T2003c0b2c3d1` / `d2` / `d3`，本轮执行 `T2003c0b2c3d1`：
-  same-top-level nested block 中的 single direct + single indirect 共存。
-- `T2003c0b2c3d1` 当前实现思路：
-  1. 保留 richer mixed 形状的稳定诊断，只放开同一个 nested block 语句里的 single direct + single indirect。
-  2. 在 mixed escape site 分类阶段保留源码顺序，并记录“当前 block-site 的下一个同 stmt site”。
-  3. 为 state0/state1/step 增加 block 专用续跑 helper：从当前 nested block site 继续走到同 stmt 的下一个 mixed site。
-  4. 新增 pre-immediate / post-immediate run-pass fixtures，验证 direct-first 与 indirect-first 的最小闭环。
-
-## 接手续跑记录
-
-- 已接手上一轮未完成状态，当前仍以 `T2003c0b2c3d1` 为唯一执行目标。
-- 已知最新阻塞不是语法/类型问题，而是 LLVM IR 在 `__scoop_mixed_escape_matrix_step__main_0` 中出现无终结符 basic block。
-- 上一轮已经在 `step trampoline` 的 `current indirect -> next direct` 分支上引入 `current_site_escaped = true`，意图让该路径在命中下一个 direct site 后不再落入当前 site 的 no-escape 尾收口。
-- 我本轮的执行顺序：
-  1. 先重新格式化并重新编译 `effect_resume_mixed_escape_pre_immediate_block_indirect_direct.scoop`，验证无终结符问题是否已消失。
-  2. 如果首个样例通过，再编译 `effect_resume_mixed_escape_post_immediate_block_direct_indirect.scoop`，检查另一种顺序是否仍有 IR 或行为问题。
-  3. 若编译通过，则运行两个新样例，生成并写入对应 `.stdout`。
-  4. 移除 `crates/scoopc/src/llvm/mod.rs` 中的临时 IR 调试输出，避免污染正常失败路径。
-  5. 跑相关验证：至少覆盖新样例、相关 `scoop -- test`、`cargo test --all` 与 `cargo clippy --workspace --all-targets -- -D warnings`。
-  6. 全部通过后，更新 `TODO.md` / `PLAN.md` / 本文件，标记 `T2003c0b2c3d1` 完成并提交。
-- 进展更新：
-  1. 已修复 step trampoline 中 `current indirect -> next direct` 路径在已有 terminator 后继续发射后续 stmt IR 的问题；最小 `pre` 样例已不再触发 LLVM verifier 的无终结符错误。
-  2. `post` 样例随后暴露出更细的 body-lift 缺口：第二个 sibling site 为 indirect 时，恢复该 site 需要 replay “前一个 direct 之后到当前 indirect 之前”的 block 前缀，但原分析没有把这段前缀用到的 locals 纳入 `body_lift_ids`。
-  3. 已新增静态分析 helper，把上述 block-prefix 依赖并入 `body_lift_ids`；`post` 样例第二次恢复现已能正确 replay `after_direct` 前缀并继续进入 `fetch_resume`。
-  4. 两个新 fixture 已改成与现有 multi-step mixed-escape 回归一致的 `Cell.k` 观测方式，避免把“step 函数写回主函数栈上局部变量”这一独立语义混入当前任务验收面。
-  5. 已补新 fixture 的 `.stdout`，并移除了 `crates/scoopc/src/llvm/mod.rs` 中的临时 IR 调试输出。当前进入完整测试 / lint / 文档更新阶段。
-  6. 全量验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 均成功。
-  7. `T2003c0b2c3d1` 现可视为完成；下一轮首个未完成任务应为 `T2003c0b2c3d2`。
+- 已写入初始计划，尚未开始仓库检查。
+- 已检查最新提交 `fa6bf49`，未发现提交说明中额外声明的遗留问题；当前仍按 `TODO.md` 主线继续。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务是 `T2003c0b2c3d2`：在同一个 `if` 语句里支持 sibling escape-continuation 的 direct / indirect 共存。
+- 已验证该任务当前的最小失败形态会在 LLVM codegen 报：
+  - `handle mixed-arm escape continuation (multiple sites per top-level statement not yet supported)`
+- 已完成当前任务的实现边界审计：
+  - 任务已经足够具体，不再继续拆分。
+  - 当前缺口主要有四处：
+    1. mixed-arm site matrix 的 top-level 分类逻辑把同一个 `if` 语句里的 direct / indirect site 视为互斥类别，直接提前拒绝。
+    2. body-lift 分析只有 nested block 的 direct->indirect pair 特判，没有 if-branch 对应分支。
+    3. state0 / step / main-body 三条 lowering 路径都只接了 direct-only 或 indirect-only 的 `if` helper，没有 mixed helper。
+    4. current-site 恢复后“继续命中同一 if 分支里的下一个 site”的 next/prev 映射只为 nested block 建了路由，没有 if 分支对应路由。
+- 下一步具体执行：
+  1. 为 same-`if` mixed site 增加分类与 next/prev 路由，并限制在“同分支、tail 仅为空或 block-only”这一可验证子集。
+  2. 增加 if-branch 的 used-between / continue-to-next-site helper，复用已有 block replay primitive。
+  3. 打通 state0 / step / main-body 中 mixed-if 的入口与恢复续跑。
+  4. 新增 run-pass fixtures，至少覆盖 pre-immediate 与 post-immediate 两条 mixed-if 路径。
+  5. 运行格式化、相关测试、全量测试与 `clippy`，然后更新 `TODO.md` / `PLAN.md` 并提交。
+- 已完成实现：
+  - `effect.rs` 已新增 same-`if` mixed site 的分类、顺序判定、next/prev replay 路由，以及 if-branch 的 used-between / continue-to-next-site helper。
+  - state0、state1 与 resumed main tail 已接入 mixed-if lowering；post-immediate direct→indirect 续跑中缺失的 branch scope 已修复。
+  - 已新增 fixtures：
+    - `effect_resume_mixed_escape_pre_immediate_if_indirect_direct`
+    - `effect_resume_mixed_escape_post_immediate_if_direct_indirect`
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 剩余收尾：
+  1. 提交当前变更。
+  2. 停止，本轮不继续处理下一个任务。

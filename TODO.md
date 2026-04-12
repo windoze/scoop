@@ -431,7 +431,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_block_indirect_direct`、`effect_resume_mixed_escape_post_immediate_block_direct_indirect`。
   - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0b2c3d2 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，if branch 的 direct / indirect 共存）
+### T2003c0b2c3d2 [DONE] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，if branch 的 direct / indirect 共存）
 - 描述：在 nested block 的同 stmt mixed site 续跑语义打通后，再把 direct / indirect 共存扩到同一个 `if` 语句的 then/else branch，补齐 branch 条件、命中分支 tail 与 after-if 合流下的 mixed replay。
 - 目标：
   - 同一个 `if` 语句内的 nested direct / indirect site 可共存，不再被 `multiple sites per top-level statement not yet supported` 提前拒绝。
@@ -442,6 +442,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0b2c3d1
+- 完成说明：
+  - mixed-arm `site matrix` 现已支持同一个 `if` 语句里的 direct / indirect mixed site：分类阶段会为 then/else branch 建立独立 mixed route，并在同分支 direct↔indirect 间维护 next/prev replay 关系，不再统一回退到 `multiple sites per top-level statement not yet supported`。
+  - state0、state1 与 resumed main tail 现已共享新的 if-branch mixed helper；current-site 恢复后可先 replay 命中 branch 的 tail，再在需要时继续命中同分支 sibling mixed site，并在最终完成后统一回到 after-if tail。
+  - direct-first / indirect-second 路径已补上 if-branch 的 used-between body-lift 与 branch-scope re-entry，修复 post-immediate 续跑时的 lifted local 缺口（例如 `x` / `label` / `direct`）。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_if_indirect_direct`、`effect_resume_mixed_escape_post_immediate_if_direct_indirect`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0b2c3d3 [TODO] Effect：LLVM 多 arm handle dispatch（sibling escape-continuation，while body 的 direct / indirect 共存）
 - 描述：最后把同 stmt mixed site replay 扩到 `while` body，让 direct / indirect 共存在 loop re-entry、当前迭代 tail 与后续迭代再命中的语义下保持一致。
