@@ -32,6 +32,13 @@ pub struct File {
     ///   array literal / nested array 等表达式降为可执行 HIR；
     /// - dump-hir 路径不运行完整 typecheck，因此这里允许保持为空。
     pub(crate) inferred_expr_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 写回的“局部绑定 span -> 推导后的 TypeId” side table。
+    ///
+    /// 说明：
+    /// - 用于保存不依赖显式类型注解、但后端仍需要精确类型的局部绑定（例如 `handle` arm binder）；
+    /// - HIR lowering 在 build/test 路径下会读取该表，避免这类 binder 退回到 `Any`；
+    /// - 该表不参与 AST Debug 输出，避免影响 parse fixtures。
+    pub(crate) inferred_binding_tys: RefCell<HashMap<Span, TypeId>>,
     /// typecheck 补回的 safe member access 解析结果（按 member name 的源码 span 索引）。
     ///
     /// 说明：
@@ -63,6 +70,14 @@ impl File {
 
     pub fn inferred_expr_ty(&self, span: Span) -> Option<TypeId> {
         self.inferred_expr_tys.borrow().get(&span).copied()
+    }
+
+    pub fn replace_inferred_binding_tys(&self, inferred: HashMap<Span, TypeId>) {
+        *self.inferred_binding_tys.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_binding_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_binding_tys.borrow().get(&span).copied()
     }
 
     pub fn replace_safe_member_access_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {

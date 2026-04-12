@@ -1,0 +1,53 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_binder_int_use.stdout
+//
+// T2003c0c2b1a: single-arm indirect escape-continuation arm binder should
+// materialize as the real Int payload type inside the arm body.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun compute(): Int / (Ask) {
+    val seed: Int = 41
+    val resumed: Int = Ask.get(seed)
+    println("compute_resumed")
+    println(resumed)
+    resumed
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        println("body_start")
+        val value: Int = compute()
+        println("body_done")
+        println(value)
+        value
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            println(key)
+            println(key + 1)
+            saved_k = Some(k);
+            -1
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(9)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}

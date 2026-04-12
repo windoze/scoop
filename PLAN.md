@@ -112,7 +112,11 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_raise_direct_single_site`、`effect_multi_escape_custom_nonresuming_direct_single_site`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
   - 审计 `T2003c0c2b2` 时又暴露出一个更基础的既有缺口：现有 single-arm indirect escape-continuation 的 arm binder 在 LLVM codegen 中并没有以真实 op 参数类型 materialize。最小变体里，`println(key)` 会报 `sysroot print/println arg type`，`key + 1` 会报 `integer binary op lhs`；这说明 indirect perform → arm binder 的 local typing / payload decode 本身就还不正确，而且并非 multi-arm 特有问题。
   - 因此在 `T2003c0c2b2` 前新增前置任务 `T2003c0c2b1a`：先修 single-arm indirect escape-continuation 的 arm binder materialization / payload decode，再继续无-immediate multi-arm 的 single indirect-site。
-  - 当前下一步调整为 `T2003c0c2b1a`：修正 indirect escape-continuation arm binder 的真实类型与 payload decode；`T2003c0c2b2` 顺延依赖它。
+  - T2003c0c2b1a 已完成：AST/typecheck/HIR 之间现已新增 `binding span -> TypeId` side table；typecheck 会写回 handle arm binder 的最终类型，HIR lowering 在无显式注解时会优先读取该结果；同时 `codegen_handle_expr_escape_continuation_indirect` 的 arm binder 读取路径也已统一切到 `perform_slot_read_u64 + perform_slot_read_gc_ref + decode_abi_payload_transport`，因此 single-arm indirect escape-continuation 的 arm binder 不再退回 `Any` / `Int-only` 旧分支，`println(key)` / `key + 1` 这类直接使用已能在 LLVM codegen 中按真实 payload 类型 materialize。
+  - 已新增 run-pass 回归 `effect_escape_continuation_indirect_perform_binder_int_use`、`effect_escape_continuation_indirect_perform_binder_string_use`，并通过 `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 在为 `T2003c0c2b1a` 设计回归时，又确认了另一个独立缺口：若 suspendable callee 直接以 `perform` 作为 tail return（例如 `fun fetch() { Ask.ask(...) }`），single-arm indirect escape 会在 `resume(...)` 后提前退出，未继续执行 callee/handle body tail。该问题不属于 binder materialization 本体，但会影响后续 multi-arm indirect 子集的基线完整性。
+  - 因此再在 `T2003c0c2b2` 前插入 `T2003c0c2b1b`：先补 single-arm indirect escape-continuation 的 callee tail-perform resume path，再继续无-immediate multi-arm 的 single indirect-site。
+  - 当前下一步调整为 `T2003c0c2b1b`：修正 single-arm indirect escape-continuation 的 callee tail-perform resume path；`T2003c0c2b2` 顺延依赖它。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -146,7 +150,8 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c1c（已完成）：扩展到 richer site-matrix 的 escape-continuation + sibling non-resuming。
   - T2003c0c2a（已完成）：补无 immediate-resume 的 pure non-resuming multi-arm。
   - T2003c0c2b1（已完成）：补无 immediate-resume 的 single direct escape site（允许 sibling non-resuming）。
-  - T2003c0c2b1a：修正 indirect escape-continuation arm binder 的真实类型与 payload decode。
+  - T2003c0c2b1a（已完成）：修正 indirect escape-continuation arm binder 的真实类型与 payload decode。
+  - T2003c0c2b1b：补 single-arm indirect escape-continuation 的 callee tail-perform resume path。
   - T2003c0c2b2：补无 immediate-resume 的 single indirect escape site（允许 sibling non-resuming）。
   - T2003c0c2b3：补无 immediate-resume 的 richer escape site-matrix（多 site / nested / direct+indirect mixed）。
   - T2003c0c2c：补 multiple immediate-resume arms。

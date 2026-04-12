@@ -419,6 +419,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - HIR lowering 读取该表，以恢复 `return [..]` / `x = [..]` / 无注解 `val x = [..]`
     ///   这类表达式位置的最终类型。
     inferred_expr_tys: HashMap<Span, TypeId>,
+    /// 当前文件中“局部绑定 span -> 推导后的 TypeId”。
+    ///
+    /// 用途：
+    /// - 保存 `handle` arm binder 这类不一定有显式类型注解、但 HIR/codegen 仍需要真实类型的绑定；
+    /// - typecheck 成功后写回到 `ast::File` 的 side table，供 HIR lowering 复用。
+    inferred_binding_tys: HashMap<Span, TypeId>,
     /// `receiver?.member` 在 typecheck 阶段补做出的成员解析结果。
     ///
     /// 用途：
@@ -531,6 +537,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
             inferred_expr_tys: HashMap::new(),
+            inferred_binding_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
@@ -1171,6 +1178,10 @@ impl<'a> TypeLowering<'a> {
         self.inferred_expr_tys.insert(span, ty);
     }
 
+    pub(super) fn record_inferred_binding_ty(&mut self, span: Span, ty: TypeId) {
+        self.inferred_binding_tys.insert(span, ty);
+    }
+
     pub(super) fn record_safe_member_access_resolution(
         &mut self,
         member_span: Span,
@@ -1182,6 +1193,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_expr_tys)
+    }
+
+    pub(super) fn take_inferred_binding_tys(&mut self) -> HashMap<Span, TypeId> {
+        std::mem::take(&mut self.inferred_binding_tys)
     }
 
     pub(super) fn take_safe_member_access_resolutions(

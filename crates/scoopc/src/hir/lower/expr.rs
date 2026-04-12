@@ -1002,6 +1002,12 @@ impl<'a> HirLowering<'a> {
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
+    fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
+        let typecheck_types = self.typecheck_types?;
+        let ty = self.file.inferred_binding_ty(span)?;
+        Some(self.types.re_intern_from(typecheck_types, ty))
+    }
+
     fn array_lit_target_from_type_id(&self, ty: TypeId) -> Option<ArrayLitTarget> {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return None;
@@ -2626,6 +2632,7 @@ impl<'a> HirLowering<'a> {
         let ty =
             b.ty.as_ref()
                 .map(|t| self.lower_type_ref(t))
+                .or_else(|| self.typechecked_binding_ty(b.name.span))
                 .unwrap_or(self.builtins.any);
         HandleBinder {
             span: b.span,

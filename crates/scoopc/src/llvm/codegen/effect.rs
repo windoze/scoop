@@ -34142,41 +34142,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // Read binder values from perform slot (for arm pattern binders).
             for (slot_idx, slot) in binder_slots.iter().enumerate() {
-                // Read from perform slot. For single-arg effects, read slot_read_u64.
-                if slot_idx == 0 {
-                    let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
-                    let read_call = self.builder.build_call(rt_read, &[], "arm_read_binder")?;
-                    let raw = read_call.try_as_basic_value().basic().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "arm read binder return",
-                            at: span.into(),
-                        },
-                    )?;
-                    let BasicValueEnum::IntValue(binder_u64) = raw else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "arm read binder type",
-                            at: span.into(),
-                        });
-                    };
-                    // Decode binder value.
-                    let binder_v = match slot.ty {
-                        CgTy::Int(int_ty) => {
-                            let to = self.int_type(int_ty);
-                            let v = if int_ty.bits == 64 {
-                                binder_u64
-                            } else {
-                                self.builder.build_int_truncate(
-                                    binder_u64,
-                                    to,
-                                    "arm_binder_trunc",
-                                )?
-                            };
-                            CgValue::int(v, int_ty)
-                        }
-                        _ => CgValue::unit(), // For now, unsupported
-                    };
-                    let _ = self.store_local_value(span, slot.ptr, slot.ty, binder_v)?;
+                if slot_idx != 0 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle indirect binder count (only 1 supported)",
+                        at: arm.op.span.into(),
+                    });
                 }
+                let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+                let word_call = self
+                    .builder
+                    .build_call(rt_read, &[], "arm_read_binder_word")?;
+                let word_raw = word_call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm read binder return",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(word_u64) = word_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm read binder type",
+                        at: span.into(),
+                    });
+                };
+                let rt_read_gc = self.declare_runtime_effect_perform_slot_read_gc_ref();
+                let gc_call = self
+                    .builder
+                    .build_call(rt_read_gc, &[], "arm_read_binder_gc")?;
+                let gc_raw = gc_call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm read binder gc value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(gc_ref_raw) = gc_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm read binder gc type",
+                        at: span.into(),
+                    });
+                };
+                let binder_value =
+                    self.decode_abi_payload_transport(span, word_u64, gc_ref_raw, slot.ty)?;
+                let _ = self.store_local_value(span, slot.ptr, slot.ty, binder_value)?;
             }
 
             // Clear effect active flag (the dispatch caught it).

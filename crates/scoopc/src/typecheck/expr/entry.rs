@@ -210,6 +210,7 @@ fn check_file_exprs_impl(
     let file = request.file;
     let builtins = request.builtins;
     file.replace_inferred_expr_tys(HashMap::new());
+    file.replace_inferred_binding_tys(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     if request.collect_monomorph {
@@ -315,6 +316,9 @@ fn check_file_exprs_impl(
     request
         .file
         .replace_inferred_expr_tys(lower.take_inferred_expr_tys());
+    request
+        .file
+        .replace_inferred_binding_tys(lower.take_inferred_binding_tys());
     request
         .file
         .replace_safe_member_access_resolved(lower.take_safe_member_access_resolutions());

@@ -1,104 +1,57 @@
-# 本轮执行计划
+# 本轮执行记录（摘要版）
 
-## 约束说明
+## 目标
 
-- 按用户要求，本文件会先于其他命令/代码执行被创建。
-- 我不会写出不可审计的私有推理细节，但会持续记录可核查的思路摘要、执行步骤、关键判断与进度变更。
-- 本轮目标是：先处理最新提交中提到的既有问题，再完成 `TODO.md` 中第一个未完成任务，然后停止。
+按 `TODO.md` 的顺序处理第一个未完成任务；若发现最新提交中提到的遗留问题，先修复这些问题，再继续当前轮次任务。整个过程中同步更新 `PLAN.md`、`TODO.md` 与本文件，并在本轮结束前完成测试与提交。
 
-## 初始步骤
+## 当前判断依据摘要
 
-1. 检查最新一次 Git 提交的信息与改动，判断是否提到了需要先修复的既有问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 如该任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前应执行的首个任务或子任务。
-5. 运行相关测试与质量检查，至少覆盖受影响范围；若需要，补充或修复测试。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-7. 提交本轮改动，提交后停止，不继续下一个任务。
+- 需要先检查最新一次 Git 提交，确认提交说明里是否提到了尚未修复的问题。
+- 需要读取 `TODO.md` 与 `PLAN.md`，定位当前第一个未完成任务，并判断该任务是否需要进一步拆分。
+- 如果执行过程中发现任何规范不匹配、实现缺口或前置依赖缺失，不能绕过，必须先把问题转写进 `TODO.md`/`PLAN.md`，调整顺序后提交并停止。
+- 本轮只完成一个任务或一个新拆出的首个子任务，完成后立即停止。
 
-## 关键检查点
+## 执行步骤
 
-- 若发现规范不匹配、缺失能力、已有缺陷或依赖顺序错误：
-  - 不做规避性实现；
-  - 在 `TODO.md` 中添加/重排前置任务；
-  - 在 `PLAN.md` 与本文件中记录原因；
-  - 提交后停止。
+1. 检查最新 Git 提交信息，确认是否存在提交中明确提到但尚未解决的问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，核对该任务的上下文、依赖与已有计划。
+4. 若任务过大，先在 `PLAN.md` 和 `TODO.md` 中拆分出更小的子任务，并以第一个子任务作为本轮执行目标。
+5. 实现本轮目标，必要时补充或整理相关代码结构与注释。
+6. 运行与本任务直接相关的测试、格式化和必要的质量检查；若任务改动范围较大，再考虑更广的回归验证。
+7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况、测试结果与任何计划调整。
+8. 生成一次 Git 提交，提交信息应明确对应任务。
+9. 停止，不继续处理下一个任务。
 
-## 进度
+## 记录约定
 
-- 已创建本计划文件。
-- 已检查最新提交 `af013aa7cac2e05d2f86232ceb2c843174e76f37`：
-  - 提交说明为 `[T2003c0c2b1] Support no-immediate direct escape multi-arm dispatch`。
-  - 提交本身没有额外声明一个尚未修复的既有缺陷；它主要完成了 `T2003c0c2b1` 并把后续工作拆分为 `T2003c0c2b2` / `T2003c0c2b3`。
-- 已读取 `TODO.md` / `PLAN.md` 并确认首个未完成任务为：
-  - `T2003c0c2b2 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，single indirect escape site）`
-- 当前判断：该任务规模可直接实现，不需要继续拆分。
+- 这里只记录摘要、决策、步骤与状态，不写冗长推演。
+- 每当任务目标、依赖判断、实现方案或完成状态发生关键变化时，立即更新本文件。
 
-## 当前任务理解
+## 最新进展
 
-- 目标子集：
-  - 无 immediate-resume；
-  - 一个 escape-continuation arm；
-  - 允许 0..N 个 sibling non-resuming arms；
-  - body 中仅支持一个 top-level indirect call site 触发 escape effect；
-  - continuation step 需要把 resume payload 写回 callee suspend state，并在 replay 期间继续支持 sibling non-resuming dispatch。
-- 现状：
-  - direct single-site 版本已存在：`codegen_handle_expr_escape_with_nonresuming_siblings_direct`。
-  - mixed-arm immediate+escape 的 indirect 版本已存在，可复用其 callee-suspend replay 结构。
-  - 当前无-immediate single indirect site 仍直接报错：`handle multi-arm without immediate-resume (single indirect escape site not yet supported)`。
-
-## 实现计划（细化）
-
-1. 在 `crates/scoopc/src/llvm/codegen/effect.rs` 中新增无-immediate + single indirect escape site 的 lowering 函数，并在 `codegen_handle_expr_escape_with_nonresuming_siblings` 中接入分派。
-2. 复用现有 no-immediate direct 版本的 sibling non-resuming dispatch / cleanup 语义：
-   - 主 body 中 sibling `Raise.raise` / custom non-resuming 的 dispatch；
-   - continuation step 中 sibling dispatch；
-   - `finally`、state/k 的 pin/unpin 与 detach/restore。
-3. 复用 indirect continuation 现有 callee-suspend replay 语义：
-   - step trampoline 写回 `resume_word + resume_gc_ref`；
-   - 重新调用 indirect call site；
-   - 继续执行 site 之后的 tail。
-4. 新增 run-pass fixtures，至少覆盖：
-   - escape-only indirect single-site；
-   - escape + sibling non-resuming indirect single-site。
-5. 运行 `cargo fmt`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
-
-## 风险点
-
-- indirect site 的 body-lift/capture 集需要覆盖 call-site 本身，否则 closure 或 call 实参中的局部可能在 step replay 时丢失。
-- body 执行期与 continuation step 都可能触发 sibling non-resuming，需要分别保证 dispatch/no-match/cleanup 语义一致。
-
-## 执行记录
-
-- 已在 `crates/scoopc/src/llvm/codegen/effect.rs` 中做了一轮无-immediate + single indirect escape multi-arm lowering 的探索性接线，并让工作树保持可编译。
-- 为定位回归，我临时构造并编译了多组最小变体，得到关键结论：
-  - 新路径样例里若在 indirect escape arm body 中直接使用 binder，例如 `println(seed)`，会报 `sysroot print/println arg type`；
-  - 若改成 `seed + 1`，会报 `integer binary op lhs`；
-  - 同样的 binder 使用方式在既有的 direct mixed-arm 路径可正常编译；
-  - 但在既有 single-arm indirect escape-continuation 路径中也会复现同类错误。
-- 结论：
-  - 这不是本轮新增 multi-arm indirect lowering 独有的问题；
-  - 真正的前置缺口是：**single-arm indirect escape-continuation 的 arm binder 并没有以真实 op 参数类型 materialize 到 LLVM codegen 环境中**。
-  - 因此 `T2003c0c2b2` 被一个更基础、且此前未显式登记的既有问题阻塞。
-
-## 已采取的调整
-
-1. 在 `TODO.md` 中新增前置任务 `T2003c0c2b1a`：
-   - 修正 indirect escape-continuation arm binder 的真实类型与 payload decode。
-2. 将 `T2003c0c2b2` 的依赖改为 `T2003c0c2b1a`，并保留其为 `[TODO]`。
-3. 在 `PLAN.md` 中记录本次阻塞原因与新的执行顺序。
-4. 删除了本轮草拟但依赖该缺口被绕开的新 fixture 文件，避免把 workaround 留在仓库里。
-
-## 已验证
-
-- `cargo fmt --all`
-- `cargo test -p scoopc --lib`
-- `cargo run -p scoop --features llvm -- test`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-
-以上均已通过。
+- 已检查最新提交：`62869425787259558cc3a49aebeda0e49a27b87c`，提交信息为 `[T2003c0c2b1a] Add indirect escape binder prerequisite`。
+- 该提交没有修复实现，只是在 `TODO.md` / `PLAN.md` 中把一个更底层前置问题插入到主线之前。
+- 已定位 `TODO.md` 首个未完成任务为 `T2003c0c2b1a`，其内容是修复 indirect escape-continuation arm binder 在 LLVM codegen 中未按真实 op 参数类型 materialize、payload decode 不正确的问题。
+- 当前判断：最新提交中提到的遗留问题与 `TODO.md` 的首个未完成任务一致，因此本轮直接处理 `T2003c0c2b1a`，不需要额外插入更前的任务。
+- 已定位根因：typecheck 只把表达式类型写回 AST side table，HIR lowering 的 `lower_handle_binder` 在无显式注解时会退回 `Any`，导致 indirect escape-continuation arm binder 在 codegen 中被当作 `Ref/Any` 使用。
+- 已实现修复：新增 “binding span -> TypeId” side table；typecheck 在计算 handle arm binder 类型时写回；HIR lowering 在无显式 binder 注解时优先读取 typecheck 写回类型。
+- LLVM 端的 indirect escape arm binder 读取路径也已确认切到统一的 `word + gc_ref + decode_abi_payload_transport`，不再保留 `Int-only` 手写 decode 旧分支。
+- 已补/修 run-pass 回归：
+  - `effect_escape_continuation_indirect_perform_binder_int_use`
+  - `effect_escape_continuation_indirect_perform_binder_string_use`
+- 说明：最初新增的两个夹具把“callee 直接以 perform 作为尾返回”的额外形状混入了当前任务，导致提前退出；该形状不属于本任务要验证的 binder materialization 主体，因此已改回既有 indirect-resume 主链路支持的“val 绑定后 resume”形状，只保留 binder 直接使用断言。
+- 定向验证已通过：两个夹具都能正确打印 arm binder，并在 `resume(...)` 后继续完成 callee/handle body。
+- 已完成全量验证：
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 已更新 `TODO.md` / `PLAN.md`：
+  - `T2003c0c2b1a` 已标记完成；
+  - 新增下一轮前置任务 `T2003c0c2b1b`，用于跟踪“single-arm indirect escape-continuation 的 callee tail-perform resume path”缺口；
+  - `T2003c0c2b2` 依赖已顺延到 `T2003c0c2b1b`。
 
 ## 当前状态
 
-- 本轮不继续推进 `T2003c0c2b2`。
-- 按流程，当前应提交“新增前置任务并顺延当前任务”的变更，然后停止。
+- 状态：代码、测试与文档更新已完成；正在整理最终 diff 并创建本轮提交。

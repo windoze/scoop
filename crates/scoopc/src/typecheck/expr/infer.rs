@@ -1233,6 +1233,7 @@ pub(super) fn infer_handle_expr_type(
                 None => expected,
             };
             binder_tys.push((binder.name.span, binder_ty));
+            lower.record_inferred_binding_ty(binder.name.span, binder_ty);
         }
 
         Ok(HandleArmLowered {
