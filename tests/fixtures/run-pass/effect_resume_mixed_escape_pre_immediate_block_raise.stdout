@@ -1,0 +1,15 @@
+body
+block_enter
+ask_arm
+after_handle
+7
+after_first
+hello
+pre_block
+yield_arm
+after_yield
+41
+raise_arm
+42
+after_resume
+done

@@ -1,0 +1,126 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming.stdout
+//
+// T2003c0c1c: mixed-arm immediate-resume + sibling escape-continuation +
+// sibling custom non-resuming supports a post-immediate if-branch site matrix
+// with one direct site followed by one indirect site in the same branch.
+// After the second resume, the continuation step must still dispatch the
+// sibling custom non-resuming effect instead of losing matrix replay state.
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun fetch(base: Int, label: String): String / (Ask) {
+    println("fetch_enter")
+    println(label)
+    val msg: String = Ask.ask(base + 1)
+    println("fetch_resume")
+    println(msg)
+    println(label)
+    msg
+}
+
+fun run(flag: Bool, cell: Cell, none_k: Continuation<String>?) {
+    cell.k = none_k
+
+    val result: Int = handle {
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        if (flag) {
+            println("then_enter")
+            val label: String = "then"
+            val direct: String = Ask.ask(x)
+            println("after_direct")
+            println(direct)
+            println(label)
+            val indirect: String = fetch(x + 10, label)
+            println("after_indirect")
+            println(indirect)
+            println(label)
+            Abort.stop(label)
+        } else {
+            println("else_enter")
+            val label: String = "else"
+            val direct: String = Ask.ask(x + 20)
+            println("after_direct")
+            println(direct)
+            println(label)
+            val indirect: String = fetch(x + 30, label)
+            println("after_indirect")
+            println(indirect)
+            println(label)
+            Abort.stop(label)
+        }
+        println(if (flag) "then_done" else "else_done")
+        x + 1
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Ask.ask(seed), k -> {
+            println("ask_arm")
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume(if (flag) "hello_then" else "hello_else")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume(if (flag) "world_then" else "world_else")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println(if (flag) "run_true_done" else "run_false_done")
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+    run(true, cell, none_k)
+    run(false, cell, none_k)
+}

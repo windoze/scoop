@@ -501,7 +501,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归：`effect_resume_mixed_escape_raise_indirect_single_site`、`effect_resume_mixed_escape_custom_nonresuming_indirect_single_site`。
   - `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c1c [TODO] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，site-matrix）
+### T2003c0c1c [DONE] Effect：LLVM 多 arm handle dispatch（escape-continuation + sibling non-resuming，site-matrix）
 - 描述：最后把 sibling non-resuming 扩到 richer escape site matrix，包括 pre/post-immediate、多 site、nested block/if/while，以及 direct/indirect mixed。该阶段才统一处理 matrix state0/state1/continuation step 的 sibling detach/restore。
 - 目标：
   - site-matrix 形态下的 escape-continuation 与 sibling non-resuming 共存可运行，不再被 “escape + non-resuming not supported” 门禁截断。
@@ -512,6 +512,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c1b
+- 完成说明：
+  - `codegen_handle_expr_immediate_resume_with_escape_and_nonresuming_siblings` 不再把 non-single-site matrix 组合统一拒绝；现已在 richer site-matrix 下接入 sibling non-resuming lowering。
+  - site-matrix 的 state0 / state1 / continuation step 现已共享 sibling dispatch：普通 replay、indirect no-match fallback、以及 nested block/if/while 的 direct+indirect mixed replay 都会先尝试 sibling `Raise.raise` / custom non-resuming，再按既有 escape/outer unwind 语义继续。
+  - immediate arm body、escape arm body，以及 matrix 下 sibling raise/custom catch body 现已统一导向 `finally_unwind` 或 step cleanup，保持 handler-scope 与 sibling self-capture 规则一致。
+  - 已新增 run-pass 回归：`effect_resume_mixed_escape_pre_immediate_block_raise`、`effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming`。
+  - `cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2 [TODO] Effect：LLVM 多 arm handle dispatch（multiple resuming arms / 无 immediate-resume 的 multi-arm）
 - 描述：当前 mixed-arm lowering 仍假设“恰好一个 immediate-resume arm，最多一个 escape-continuation arm”，并对“没有 immediate-resume 的 multi-arm handle”直接报错。若 `T2003` 完成后要支持任意 perform/handler 组合，这些结构性门禁必须显式去掉。

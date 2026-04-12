@@ -98,7 +98,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c1b 已完成：mixed-arm immediate-resume + sibling escape-continuation 的 top-level single indirect-site lowering 现已支持 sibling `Raise.raise` 与 custom non-resuming；source-handle main path、indirect call-site no-match dispatch 与 continuation step 都已统一接入 sibling non-resuming 的 dispatch / detach / cleanup。
   - 本轮同时修复了一个直接阻塞 `T2003c0c1b` 的实现缺口：effect `op_tag` 不再按单个 `MainCodegen` 实例局部分配，而是改为整个编译单元共享，避免 caller / callee / nested step trampoline 对同一个 effect FQN 产生不同 tag。
   - 已新增回归 `effect_resume_mixed_escape_raise_indirect_single_site`、`effect_resume_mixed_escape_custom_nonresuming_indirect_single_site`；并重新验证 direct 子集不回归。`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c1c`：扩展 sibling non-resuming 到 richer escape site matrix。
+  - T2003c0c1c 已完成：richer site-matrix（pre/post-immediate、多 site、nested block/if/while、direct+indirect mixed）的 state0 / state1 / continuation step 现已统一接入 sibling non-resuming dispatch；indirect no-match fallback 会优先尝试 sibling `Raise.raise` / custom non-resuming，再回到既有 escape / outer unwind 路径。
+  - immediate arm body、escape arm body，以及 matrix 下 sibling raise/custom catch body 都已统一导向 `finally_unwind` 或 step cleanup，避免同源 sibling self-capture。
+  - 已新增 run-pass 回归 `effect_resume_mixed_escape_pre_immediate_block_raise`、`effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming`；`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003c0c2`：去掉“恰好一个 immediate-resume arm”的结构性门禁，扩展到 multiple resuming arms / 无 immediate-resume 的 multi-arm。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
