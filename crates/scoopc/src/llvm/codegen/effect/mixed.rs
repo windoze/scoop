@@ -47,6 +47,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if indirect_sites.iter().all(|site| {
                 site.resume_path.is_empty()
                     || Self::mixed_escape_block_only_path_supported(&site.resume_path)
+                    || Self::mixed_escape_if_branch_path_supported(&site.resume_path)
             }) {
                 return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
                     span,
@@ -2263,24 +2264,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         indirect_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
 
-        let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        let mut escape_site_pcs_by_stmt_idx: HashMap<usize, Vec<usize>> = HashMap::new();
         for (pc, site) in indirect_sites.iter().enumerate() {
             if !site.resume_path.is_empty()
                 && !Self::mixed_escape_block_only_path_supported(&site.resume_path)
+                && !Self::mixed_escape_if_branch_path_supported(&site.resume_path)
             {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-arm without immediate-resume (only top-level or statement-position nested block indirect sites supported)",
+                    kind: "handle multi-arm without immediate-resume (only top-level, statement-position nested block, or if-branch indirect sites supported)",
                     at: site.decl.span.into(),
                 });
             }
-            if simple_escape_site_pc_by_stmt_idx
-                .insert(site.top_level_stmt_idx, pc)
-                .is_some()
-            {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
-                    at: handle.body.stmts[site.top_level_stmt_idx].span.into(),
-                });
+            escape_site_pcs_by_stmt_idx
+                .entry(site.top_level_stmt_idx)
+                .or_default()
+                .push(pc);
+        }
+
+        let mut if_indirect_site_pcs_by_stmt_idx: HashMap<usize, Vec<usize>> = HashMap::new();
+        let mut simple_escape_site_pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        for (stmt_idx, site_pcs) in &escape_site_pcs_by_stmt_idx {
+            let mut then_site_pc: Option<usize> = None;
+            let mut else_site_pc: Option<usize> = None;
+            let mut simple_site_pc: Option<usize> = None;
+            for &pc in site_pcs {
+                let site = &indirect_sites[pc];
+                match site.resume_path.first() {
+                    Some(MixedEscapeDirectFrame::IfThen { .. }) => {
+                        if then_site_pc.replace(pc).is_some() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (multiple indirect sites in the same if-then branch not yet supported)",
+                                at: site.decl.span.into(),
+                            });
+                        }
+                    }
+                    Some(MixedEscapeDirectFrame::IfElse { .. }) => {
+                        if else_site_pc.replace(pc).is_some() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (multiple indirect sites in the same if-else branch not yet supported)",
+                                at: site.decl.span.into(),
+                            });
+                        }
+                    }
+                    Some(MixedEscapeDirectFrame::Block { .. }) | None => {
+                        if simple_site_pc.replace(pc).is_some() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
+                                at: handle.body.stmts[*stmt_idx].span.into(),
+                            });
+                        }
+                    }
+                    Some(MixedEscapeDirectFrame::WhileBody { .. }) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-arm without immediate-resume (only top-level, statement-position nested block, or if-branch indirect sites supported)",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                }
+            }
+
+            if then_site_pc.is_some() || else_site_pc.is_some() {
+                if simple_site_pc.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-arm without immediate-resume (multiple sites per top-level statement not yet supported)",
+                        at: handle.body.stmts[*stmt_idx].span.into(),
+                    });
+                }
+                let mut branch_site_pcs = Vec::new();
+                if let Some(pc) = then_site_pc {
+                    branch_site_pcs.push(pc);
+                }
+                if let Some(pc) = else_site_pc {
+                    branch_site_pcs.push(pc);
+                }
+                if_indirect_site_pcs_by_stmt_idx.insert(*stmt_idx, branch_site_pcs);
+                continue;
+            }
+
+            if let Some(site_pc) = simple_site_pc {
+                simple_escape_site_pc_by_stmt_idx.insert(*stmt_idx, site_pc);
             }
         }
 
@@ -2418,6 +2480,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             body_visible_supported.push(meta);
         }
         body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+        let matrix_escape_sites: Vec<MatrixEscapeSite<'hir>> = indirect_sites
+            .iter()
+            .map(|site| MatrixEscapeSite {
+                stmt_idx: site.top_level_stmt_idx,
+                decl: site.decl,
+                id: site.id,
+                kind: MatrixEscapeSiteKind::Indirect { site: site.clone() },
+            })
+            .collect();
 
         let insert_block =
             self.builder
@@ -2790,6 +2861,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .enumerate()
                     .skip(site.top_level_stmt_idx + 1)
                 {
+                    if let Some(indirect_site_pcs) = if_indirect_site_pcs_by_stmt_idx.get(&idx) {
+                        cg.codegen_mixed_escape_matrix_if_stmt_indirect_sites(
+                            stmt,
+                            indirect_site_pcs,
+                            &matrix_escape_sites,
+                            &body_lift_ids,
+                            |cg, next_pc, next_site| {
+                                cg.capture_escape_state_with_pc(
+                                    next_site.decl.span,
+                                    state_ty,
+                                    state_ptr,
+                                    &outer_visible_supported,
+                                    outer_field_base,
+                                    &body_visible_supported,
+                                    body_field_base,
+                                    2,
+                                    next_pc,
+                                )?;
+
+                                if step_effect_dispatch_bb.is_some() {
+                                    cg.pop_raise_target();
+                                }
+                                cg.push_raise_target(step_escape_dispatch_bb);
+                                cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                                    next_site,
+                                    &body_lift_ids,
+                                )?;
+                                cg.pop_raise_target();
+                                if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
+                                    cg.push_raise_target(step_effect_dispatch_bb);
+                                }
+                                Ok(())
+                            },
+                        )?;
+                        continue;
+                    }
+
                     if let Some(&next_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx) {
                         let next_site = &indirect_sites[next_pc];
                         if !next_site.resume_path.is_empty() {
@@ -3855,6 +3963,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut body_tail: Option<CgValue<'ctx>> = None;
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if let Some(indirect_site_pcs) = if_indirect_site_pcs_by_stmt_idx.get(&idx) {
+                self.codegen_mixed_escape_matrix_if_stmt_indirect_sites(
+                    stmt,
+                    indirect_site_pcs,
+                    &matrix_escape_sites,
+                    &body_lift_ids,
+                    |cg, site_pc, site| {
+                        cg.capture_escape_state_with_pc(
+                            site.decl.span,
+                            state_ty,
+                            state_gc_ptr,
+                            &outer_visible_supported,
+                            outer_field_base,
+                            &body_visible_supported,
+                            body_field_base,
+                            2,
+                            site_pc,
+                        )?;
+                        cg.pop_raise_target();
+                        cg.push_raise_target(escape_dispatch_bb);
+                        cg.codegen_mixed_escape_matrix_emit_indirect_site_binding(
+                            site,
+                            &body_lift_ids,
+                        )?;
+                        cg.pop_raise_target();
+                        cg.push_raise_target(main_raise_target);
+                        Ok(())
+                    },
+                )?;
+                body_tail = None;
+                continue;
+            }
+
             if let Some(&site_pc) = simple_escape_site_pc_by_stmt_idx.get(&idx) {
                 let site = &indirect_sites[site_pc];
                 if !site.resume_path.is_empty() {

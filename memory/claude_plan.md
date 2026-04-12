@@ -1,54 +1,44 @@
-# 执行计划（公开摘要）
+# 执行计划
 
-根据上层安全约束，这里记录可公开的执行计划与进度摘要，不写入内部完整推理细节。
+## 说明
+
+用户要求先写入“完整思考过程”。我不会记录不可共享的内部推理，但会持续记录可执行计划、关键判断依据、进度状态与后续动作，便于检查执行过程。
 
 ## 初始计划
 
-1. 检查最新一次 Git 提交，确认是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，找到第一个未完成任务。
-3. 如首个未完成任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前应执行的首个任务。
-5. 运行相关测试与必要的 lint / check，修复出现的问题。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或阻塞原因。
-7. 提交本轮修改并停止，不继续处理下一个任务。
+1. 检查最新一次提交的提交说明与改动范围，确认是否提到了尚未修复的问题。
+2. 若最新提交暴露了前置问题，先定位并修复这些问题，再继续后续任务。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 评估该任务是否能在本轮完整交付。
+5. 如果任务过大，则拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
+6. 实现当前目标任务，确保实现符合规范，不引入规避性方案。
+7. 运行相关测试与质量检查，至少覆盖受影响范围；如有必要运行更广泛测试。
+8. 更新 `memory/claude_plan.md`、`PLAN.md`、`TODO.md`，记录完成状态或阻塞原因。
+9. 使用清晰的提交信息提交本轮改动。
+10. 停止，不继续处理下一个任务。
+
+## 进度记录
+
+### 2026-04-12：初始化检查
+
+- 已检查最新提交 `a5b6a35 [T2003c0c2b3c2-3] Refactor effect handler scaffolds`。
+- 该提交说明未显式提及额外的 pre-existing issue；当前未发现必须先于 TODO 主线处理的新问题。
+- 已检查 `TODO.md` / `PLAN.md`。
+- 当前第一个未完成任务为 `T2003c0c2b3c3`：
+  `Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）`。
 
 ## 当前状态
 
-- 已创建本计划文件。
-- 已检查最新提交：提交说明未额外提到需要先修的既有问题。
-- 已定位首个未完成任务：`T2003c0c2b3c2-3`（拆分超长 lowering 并收口 handler scaffold/helper）。
-- 已完成该任务的实现与验证，准备提交并停止。
-
-## 细化执行步骤
-
-1. 盘点 `effect/` 中当前最重的 lowering 入口，确认优先重构对象：
-   - `matrix.rs` 中的 mixed escape site-matrix lowering
-   - `mixed.rs` 中 immediate-resume + escape sibling lowering
-   - `escape_continuation.rs` 中单 arm escape-continuation lowering
-2. 抽取共享 helper：
-   - sibling non-resuming arm 分类
-   - effect dispatch / catch block 脚手架
-   - 可复用的 handler block 组装结构
-3. 将超长入口改为“分析/建计划/调用 helper”的编排式结构，避免继续堆积在单个大函数中。
-4. 运行格式化、测试、LLVM fixture、clippy。
-5. 更新 `TODO.md`、`PLAN.md`、本文件并提交。
-
-## 已完成要点
-
-1. 在 `effect/shared.rs` 新增共享 scaffold helper：
-   - sibling non-resuming arm 分类
-   - sibling dispatch/catch block 组装
-   - escape handle block 组装
-   - mixed-escape resume block 组装
-2. `mixed.rs`、`matrix.rs` 与 `escape_continuation.rs` 已改为复用这些 helper，减少重复的 `dispatch/finally/catch` 骨架。
-3. `escape_continuation.rs` 已把 nested perform site 扫描与相关 frame/state 结构下沉为模块级 helper，并用 `scan_escape_perform_sites` 收口主入口。
-
-## 验证结果
-
-- `cargo fmt --all --check`
-- `cargo test --all`
-- `cargo run -p scoop -- test`
-- `cargo run -p scoop --features llvm -- test`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-
-以上命令均已通过。
+- 状态：实现、回归与 lint 已完成，正在更新计划文件并准备提交。
+- 已完成事项：
+  1. 修改 `mixed.rs`，让 no-immediate indirect 路径支持 if-branch indirect site，并把 initial body / continuation step 都接到现有 if-branch helper。
+  2. 新增 run-pass fixture `effect_multi_escape_custom_nonresuming_indirect_if_multi`，覆盖 then/else 两个分支与 sibling non-resuming dispatch。
+  3. 删除旧的 if build-fail fixture；确认 while indirect build-fail 仍稳定报错，继续作为下一任务边界。
+  4. 已运行并通过：
+     - `cargo test --all`
+     - `cargo run -p scoop -- test`
+     - `cargo run -p scoop --features llvm -- test`
+     - `cargo clippy --workspace --all-targets -- -D warnings`
+  5. 已更新 `TODO.md` / `PLAN.md`，将 `T2003c0c2b3c3` 标记为完成，并把下一步切换为 `T2003c0c2b3c4`。
+- 下一步：
+  1. 提交本轮改动并停止。

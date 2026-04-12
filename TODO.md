@@ -813,7 +813,7 @@ cargo run -p scoop --features llvm -- test
   - `mixed.rs` / `matrix.rs` 已把 immediate-resume + escape sibling 以及 site-matrix 路径的 step/main handler scaffold 下沉到共享 helper，保留现有诊断与 lowering 边界不变。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c3 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）
+### T2003c0c2b3c3 [DONE] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，if branch indirect escape sites）
 - 描述：在 nested block indirect 打通后，再扩到 if then/else branch indirect site。该子集需要把命中分支 replay 与 after-if merge 接到 no-immediate indirect lowering。
 - 目标：
   - 无 immediate-resume 的一个 escape arm + 0..N sibling non-resuming arms 支持 if then/else branch 中的 indirect escape site。
@@ -824,6 +824,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c2
+- 完成说明：
+  - no-immediate indirect lowering 现已放开 if-branch `resume_path`，并在 initial body / continuation step 统一复用 `codegen_mixed_escape_matrix_if_stmt_indirect_sites`，处理分支命中、branch tail replay 与 after-if merge。
+  - 已新增 run-pass fixture：`effect_multi_escape_custom_nonresuming_indirect_if_multi`，覆盖 then/else 两个分支的 indirect escape site，以及 after-if sibling custom non-resuming dispatch。
+  - 旧的 if-branch build-fail fixture 已移除；while body indirect 的稳定诊断继续由 `effect_multi_escape_indirect_while_is_error` 锁定，留待 `T2003c0c2b3c4`。
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c4 [TODO] Effect：LLVM 多 arm handle dispatch（无 immediate-resume，while body indirect escape sites）
 - 描述：最后补 nested indirect 里的 while body 子集。该阶段需要把当前迭代 tail replay、loop condition 重检与 loop re-entry 接到 no-immediate indirect lowering。
