@@ -758,7 +758,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 fixtures：run-pass `effect_multi_escape_custom_nonresuming_indirect_block_single_site`、build `effect_multi_escape_indirect_if_is_error`；既有 while 边界负例 `effect_multi_escape_indirect_while_is_error` 继续锁住 `T2003c0c2b3c4` 前仍未支持的 while indirect。
   - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003c0c2b3c2-1 [TODO] Effect：`effect.rs` 目录模块化拆分（纯重构，无语义变化）
+### T2003c0c2b3c2-1 [DONE] Effect：`effect.rs` 目录模块化拆分（纯重构，无语义变化）
 - 描述：`crates/scoopc/src/llvm/codegen/effect.rs` 当前已膨胀到约 3.8 万行，同时承载 non-resuming、immediate-resume、escape-continuation、mixed-arm 与 site-matrix 多套 lowering。继续直接在单文件上推进 `T2003c0c2b3c3+` 会显著放大 review、merge 与回归定位成本。先做纯结构重排：把单文件改为目录模块，保持现有语义与诊断不变。
 - 目标：
   - 将 effect codegen 从单文件改为目录模块，至少拆出 `shared`、`scan`、`nonresuming`、`immediate_resume`、`escape_continuation`、`mixed`、`matrix` 或等价结构。
@@ -770,6 +770,10 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T2003c0c2b3c2
+- 完成说明：
+  - `crates/scoopc/src/llvm/codegen/effect.rs` 已改为 `crates/scoopc/src/llvm/codegen/effect/` 目录模块；`effect/mod.rs` 保留共享类型定义，并拆出 `shared.rs`、`scan.rs`、`nonresuming.rs`、`immediate_resume.rs`、`escape_continuation.rs`、`mixed.rs`、`matrix.rs` 七个分片。
+  - 为保持纯重构语义，本轮采用 `include!` 方式把分片重新组合回同一个 `effect` 模块作用域，保留了原有私有 helper、相对路径和 `codegen/mod.rs` 对 `effect::EffectUnwindTarget`、`effect::ImmediateResumeCtx` 的引用形态，不需要联动调整父模块状态字段或方法可见性。
+  - `cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003c0c2b3c2-2 [TODO] Effect：抽取 effect site 扫描与 used-local/capture 分析 helper
 - 描述：当前 `scan_immediate_resume_site`、`scan_mixed_escape_direct_sites`、`scan_mixed_escape_indirect_sites` 以及多套 `collect_used_locals_*` 递归遍历在 effect codegen 内重复实现。目录模块拆开后，继续收口这些静态分析 helper，减少后续 if/while/mixed 功能任务需要同步修改的重复面。

@@ -1,58 +1,40 @@
-# 执行计划与进度记录
+# 本轮执行计划（摘要）
 
-## 说明
+## 约束
+- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+- 在开始实现任务前，先检查最新提交是否提到已有问题；若有，优先修复。
+- 若首个任务过大，需要先拆分并更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+- 任何与规范不符的实现缺口、缺失特性、测试缺陷或运行时问题，都必须先记录为前置任务，不能用绕过方案继续推进。
 
-本文件记录本轮可公开的执行思路摘要、步骤计划、关键判断与进度更新，用于在执行过程中持续同步状态。
+## 初始步骤
+1. 查看最新提交信息，确认是否提到需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认现有计划、依赖关系与任务上下文。
+4. 结合代码与测试现状，判断该任务是否可在本轮完整落地；若过大，则拆分任务并同步更新计划文件。
 
-## 初始目标
+## 执行步骤
+1. 实现当前目标任务所需的代码修改。
+2. 运行相关测试，并补充必要测试。
+3. 运行格式化、必要检查以及 `cargo clippy --all-targets -- -D warnings`，确保无告警。
+4. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或阻塞依赖调整。
+5. 提交本轮变更，提交后停止，不进入下一个任务。
 
-按仓库根目录 `TODO.md` 的顺序，只完成第一个未完成任务，然后停止。在开始具体实现前，先检查最新提交是否提到既有问题；若有，先修复这些问题，再继续当前任务。
+## 进度记录规则
+- 若任务边界、依赖关系或实施方案发生变化，及时更新本文件。
+- 若完成关键阶段（定位任务、开始实现、完成测试、准备提交），及时更新本文件。
 
-## 初始执行步骤
+## 当前进度
+- 已检查最新提交：`c843eee7f437e805fa91aa8ae2c10a8d21ad8069` 仅为 `Update plan`，未提到需要先修复的既有问题。
+- 已定位 `TODO.md` 中首个未完成任务：`T2003c0c2b3c2-1`，内容为将 `crates/scoopc/src/llvm/codegen/effect.rs` 拆为目录模块，要求纯重构、无语义变化。
+- 已确认 `PLAN.md` 的“当前下一步”仍停留在旧的 `T2003c0c2b3c3`，本轮完成任务后需要同步更新计划文件，使其与 `TODO.md` 的新顺序一致。
+- 已完成实现：`effect.rs` 已拆为 `effect/` 目录模块，采用 `effect/mod.rs` + `include!` 分片组合的方式保留原有模块作用域与私有 helper 可见性。
+- 已完成验收：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+- 已完成收尾文档同步：`TODO.md` 已将 `T2003c0c2b3c2-1` 标为完成，`PLAN.md` 已记录目录模块化成果并把下一步切到 `T2003c0c2b3c2-2`。
+- 当前剩余动作：检查 git diff、提交本轮改动并停止。
 
-1. 检查当前工作树状态，确认是否存在未提交改动，避免覆盖用户已有工作。
-2. 查看最新一次提交的提交信息与改动内容，判断是否提到了尚未解决的已知问题。
-3. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并理解当前计划上下文。
-4. 如该任务过大，先把它拆分成更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；当前只执行拆分后的第一个子任务。
-5. 实现当前目标任务，必要时补充或调整测试。
-6. 运行与变更相关的验证命令；若任务触及通用基础设施，则补充更广泛验证，并确保 `cargo clippy --all-targets -- -D warnings` 无警告。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-8. 使用清晰的提交信息创建一次 git 提交，然后停止，不继续后续任务。
-
-## 当前已知约束
-
-- 需要使用中文输出说明与进度记录。
-- 不应回退或覆盖与当前任务无关的现有修改。
-- 若遇到规范不匹配、缺失特性或已有缺陷，必须先把它们转化为明确任务并调整优先级，不能绕过。
-
-## 进度
-
-- 已创建本文件并写入初始计划。
-- 已检查 `git status`：当前只有本文件存在未提交修改，暂无与本轮任务冲突的用户改动。
-- 已检查最新提交 `afa4feb003009e7124eb1b2336075cf1ae94b965`，提交信息为 `[T2003c0c2b3c1] Support no-immediate top-level multiple indirect escape sites`；提交说明本身未额外标记需先修复的既有问题。
-- 已阅读 `TODO.md` / `PLAN.md` 并定位当前首个未完成任务为 `T2003c0c2b3c2`：无 immediate-resume 的多 arm handle，在 nested block 中支持 indirect escape sites。
-- 已完成任务细节与代码审计，当前判断不需要再拆分：
-  - 分流入口过早把所有带 `resume_path` 的 no-immediate indirect site 一律挡在 `escape site matrix not yet supported`；
-  - no-immediate indirect-matrix 内部又额外要求所有 indirect site 必须是 top-level；
-  - 但仓库里已经存在可复用的 nested block indirect prefix / tail replay helper，可直接接入该路径。
-- 当前实现计划：
-  1. 放宽 no-immediate 多 arm 的入口分流，让“纯 indirect + top-level / block-only nested block”进入 indirect-matrix lowering。
-  2. 在 no-immediate indirect-matrix 中新增按 top-level 语句分类的 simple site 索引，允许 top-level 与 block-only nested block indirect；`if` / `while` indirect 继续保留稳定诊断。
-  3. 在初次执行与 continuation step 中，为 nested block indirect 站点接上 prefix replay、tail replay 与 scope pop。
-  4. 新增 run-pass fixture 覆盖 nested block local capture/restore + sibling non-resuming dispatch；保留并更新 while indirect build fixture。
-  5. 跑格式化/测试/LLVM fixture/clippy，随后回写 `TODO.md`、`PLAN.md` 与本文件并提交。
-- 实施过程中补充确认：
-  - 第一次实现后，run-pass 新 fixture 的 stdout 缺少 block tail 内容；原因是 continuation step 只会 replay 后续 top-level 语句，没有先 replay “当前正在恢复的 nested block indirect site” 自己的 block tail。
-  - 修复方式：在 step trampoline 恢复当前 nested block indirect site 时先补齐 block scope，再在当前 site 的 indirect binding 返回后执行 `continue_after_indirect_site(...)`，之后才继续后续 top-level tail。
-- 最终结果：
-  - `T2003c0c2b3c2` 已完成。
-  - 已新增回归：
-    - run-pass `effect_multi_escape_custom_nonresuming_indirect_block_single_site`
-    - build `effect_multi_escape_indirect_if_is_error`
-  - 已完成验证：
-    - `cargo fmt --all --check`
-    - `cargo test --all`
-    - `cargo run -p scoop -- test`
-    - `cargo run -p scoop --features llvm -- test`
-    - `cargo clippy --workspace --all-targets -- -D warnings`
-  - 下一轮首个未完成任务将是 `T2003c0c2b3c3`（if branch indirect escape sites）。
+## 当前实施细化
+1. 检查 `crates/scoopc/src/llvm/codegen/` 目录结构，以及 `effect.rs` 对父模块和同级模块的可见性依赖。
+2. 评估 `effect.rs` 的内部结构，设计目录模块边界，尽量按“函数原样搬迁”拆到 `shared`、`scan`、`nonresuming`、`immediate_resume`、`escape_continuation`、`mixed`、`matrix` 或等价模块。
+3. 完成模块迁移，并确保 `codegen/mod.rs` 仍可按现有形态引用 `effect::EffectUnwindTarget`、`effect::ImmediateResumeCtx`。
+4. 运行格式化、测试、LLVM 端到端与 clippy，验证重构未引入语义变化。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，然后提交本轮改动。

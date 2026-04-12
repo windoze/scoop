@@ -141,7 +141,10 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3c2 已完成：no-immediate indirect-matrix lowering 现已支持 statement-position nested block indirect site；入口分流会把 top-level / block-only nested block indirect 一并送入 multi lowering，而不是继续早退到 `escape site matrix not yet supported`。
   - continuation step 现已为“当前正在恢复的 nested block indirect site”补齐 block scope，并在 `resume(...)` 后先 replay 当前 block tail，再继续 block 外的 top-level tail；初次执行路径与后续 future-site replay 则统一复用既有 nested block prefix / tail helper。
   - 已新增 run-pass / build 回归 `effect_multi_escape_custom_nonresuming_indirect_block_single_site`、`effect_multi_escape_indirect_if_is_error`；while indirect 边界继续由 `effect_multi_escape_indirect_while_is_error` 锁住。`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003c0c2b3c3`：把 no-immediate multi-arm escape 扩到 if branch indirect site。
+  - 为降低后续 effect lowering 的 review / merge / 回归定位成本，已在 `T2003c0c2b3c2` 与 `T2003c0c2b3c3` 之间插入三个纯重构子任务：`T2003c0c2b3c2-1`（目录模块化）、`T2003c0c2b3c2-2`（收口扫描与 capture 分析 helper）、`T2003c0c2b3c2-3`（拆分超长 lowering 与 handler scaffold）。
+  - T2003c0c2b3c2-1 已完成：`crates/scoopc/src/llvm/codegen/effect.rs` 已改为 `effect/` 目录模块；`effect/mod.rs` 保留共享类型，并通过 `include!` 组合 `shared` / `scan` / `nonresuming` / `immediate_resume` / `escape_continuation` / `mixed` / `matrix` 七个分片，保持原有私有 helper 与父模块引用形态不变。
+  - 目录模块化回归已通过：`cargo fmt --all --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003c0c2b3c2-2`：抽取 effect site 扫描与 used-local/capture 分析 helper。
   - 另已确认一个不阻塞 `T2003c` 主链、但必须在其后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -184,6 +187,9 @@ cargo run -p scoop --features llvm -- test
   - T2003c0c2b3b3（已完成）：补无 immediate-resume 的 while body direct escape sites。
   - T2003c0c2b3c1：补无 immediate-resume 的 top-level multiple indirect escape sites。
   - T2003c0c2b3c2：补无 immediate-resume 的 nested block indirect escape sites。
+  - T2003c0c2b3c2-1（已完成）：`effect.rs` 目录模块化拆分（纯重构，无语义变化）。
+  - T2003c0c2b3c2-2：抽取 effect site 扫描与 used-local/capture 分析 helper。
+  - T2003c0c2b3c2-3：拆分超长 lowering 并收口 handler scaffold/helper。
   - T2003c0c2b3c3：补无 immediate-resume 的 if branch indirect escape sites。
   - T2003c0c2b3c4：补无 immediate-resume 的 while body indirect escape sites。
   - T2003c0c2b3d：补无 immediate-resume 的 direct+indirect mixed site-matrix。
