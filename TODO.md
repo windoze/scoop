@@ -1309,7 +1309,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_indirect_direct_while`。
   - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5d1 [TODO] Effect：mixed-arm immediate+escape 的 while separate-stmt mixed replay
+### T2003u5d1 [DONE] Effect：mixed-arm immediate+escape 的 while separate-stmt mixed replay
 - 描述：审计 `T2003u5d` 后确认，当前 immediate+escape 的 site-matrix while 分类仍把 direct/indirect coexistence 锁成 same-body-stmt；但 `matrix.rs` 已有 direct/indirect 的 current-site tail 与 future-iteration re-entry helper，可先独立迁移 same-stmt 之外的 separate-stmt ordering。
 - 目标：
   - immediate+escape mixed-arm 在 while body 中 direct/indirect 分居不同 statement 时，direct -> indirect 与 indirect -> direct ordering 统一走 plan-driven matrix helper。
@@ -1320,6 +1320,14 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5c2
+- 完成说明：
+  - `matrix.rs` 的 immediate+escape site-matrix 现已允许 top-level while body 中 direct/indirect 的 separate-stmt coexistence；direct -> indirect 与 indirect -> direct 两种 ordering 都会建立 `while_next_site_pc_by_pc` / `while_prev_site_pc_by_pc` 并走统一的 while mixed helper。
+  - direct -> indirect 的 capture 收集现已支持 top-level while separate-stmt；reverse-order 的 future-iteration re-entry 则补齐了 dedicated `while_tail_after_mixed_direct_site` 接线，并只对 earliest while indirect re-entry 使用 lexical-scope-only 恢复，避免错误重放当前 while 前缀。
+  - 已删除 build-fail `effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`，新增 run-pass：
+    - `effect_resume_mixed_escape_post_immediate_while_direct_indirect_separate_stmt`
+    - `effect_resume_mixed_escape_post_immediate_while_indirect_direct_separate_stmt`
+  - 现有回归 `effect_resume_mixed_escape_pre_immediate_while_indirect_direct.stdout` 已同步到新语义：恢复 earliest indirect continuation 时不再重复 replay 当前 while 前缀。
+  - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5d2 [TODO] Effect：mixed-arm immediate+escape 的 while deeper nested block/if replay
 - 描述：在 while body 中，如果 escape site 落在 statement-position block 之后再进入更深一层 block/if，当前 immediate+escape matrix 仍会在 prefix/scan/tail 的 block-only 假设上报稳定诊断；这与 no-immediate 路线的 richer nested 递归能力还未对齐。

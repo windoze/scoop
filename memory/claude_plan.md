@@ -43,3 +43,20 @@
 - 本轮执行目标已切换为首个子任务 `T2003u5d1`：
   - 收口 immediate+escape mixed-arm 的 while separate-stmt direct/indirect mixed replay。
   - 转正 `effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`，并补 ordering 回归。
+- 已完成 `T2003u5d1` 实现：
+  - `matrix.rs` 的 immediate+escape site-matrix while 分类现已支持 top-level separate-stmt `direct -> indirect` / `indirect -> direct`。
+  - direct->indirect 的 capture 收集已补齐；reverse-order 的 future-iteration re-entry 已接到 `while_tail_after_mixed_direct_site`。
+  - earliest while indirect re-entry 现仅恢复 lexical scopes，不再错误重放当前 while 前缀。
+- 已新增 / 更新回归：
+  - 新增 run-pass：
+    - `tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_while_direct_indirect_separate_stmt.scoop`
+    - `tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_while_indirect_direct_separate_stmt.scoop`
+  - 删除 build-fail：
+    - `tests/fixtures/build/effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error.scoop`
+  - 更新既有 golden：
+    - `tests/fixtures/run-pass/effect_resume_mixed_escape_pre_immediate_while_indirect_direct.stdout`
+- 最终验证结果：
+  - `cargo test --all` 通过。
+  - `cargo run -p scoop -- test` 通过（`fixtures: ok (997)`）。
+  - `cargo run -p scoop --features llvm -- test` 通过（`fixtures: ok (997)`）。
+  - `cargo clippy --workspace --all-targets -- -D warnings` 通过。

@@ -7,8 +7,6 @@ ask_arm
 11
 after_handle
 7
-iter_begin
-block_enter
 fetch_resume
 hello
 loop0
