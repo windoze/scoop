@@ -1,67 +1,73 @@
 # 本轮执行计划
 
+## 说明
+
+按要求，我先记录一份可审阅的执行计划与决策摘要。这里包含高层步骤、检查点、潜在分支与更新规则，不包含不可验证的内部长链路思考。
+
 ## 目标
 
-完成 `TODO.md` 中第一个未完成任务；如果存在更基础的既有问题或规范缺口，先修复或将其前置为任务，再停止。
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行该任务前发现最新提交中提到的遗留问题，先修复这些问题，再继续当前任务。完成后更新文档、运行测试并提交一次 git commit，然后停止。
 
-## 约束与执行原则
+## 执行步骤
 
-- 先检查最新提交是否提到遗留问题；若有，优先修复。
-- 只处理一个任务（或当前任务拆分后的第一个子任务）。
-- 不接受规避方案；若发现规范不匹配，必须在 `TODO.md` / `PLAN.md` 中显式建模依赖关系。
-- 完成后必须更新 `TODO.md`、`PLAN.md`，运行相关测试，并提交 git commit。
-- 变更过程中如果计划发生调整，会继续更新本文件。
+1. 检查最新一次 git commit 的提交信息与变更内容，确认是否明确提到已知问题、临时修复、后续待办或遗留缺陷。
+2. 如果最新提交存在必须先处理的遗留问题：
+   - 定位相关代码与测试；
+   - 实现修复；
+   - 运行相关测试与必要的质量检查；
+   - 更新本文件、`PLAN.md`、`TODO.md`（如需要）；
+   - 将遗留问题修复与文档更新纳入本轮提交。
+3. 读取 `TODO.md`，识别第一个未完成任务。
+4. 判断该任务是否足够具体、可在本轮完整完成。
+   - 如果可以：直接实施。
+   - 如果过大或依赖缺失：分解为更小子任务，更新 `PLAN.md` 与 `TODO.md`，将新的首个子任务作为本轮目标。
+5. 实施当前目标任务：
+   - 先阅读相关模块与测试；
+   - 再修改实现；
+   - 必要时补充或调整测试；
+   - 避免引入规避性实现、临时 hack 或与规范不一致的行为。
+6. 执行验证：
+   - 先跑与改动直接相关的测试；
+   - 再根据影响范围决定是否执行更完整的测试集；
+   - 按要求执行 `cargo clippy --all-targets -- -D warnings`，若成本可控则执行；
+   - 若发现规范缺口或实现边界不足以正确完成任务，不绕过，转为前置任务并更新 `TODO.md` / `PLAN.md`。
+7. 更新项目文档状态：
+   - 在 `TODO.md` 中标记本轮完成的任务；
+   - 在 `PLAN.md` 中记录当前状态、依赖变动与后续顺序；
+   - 在本文件中追加本轮关键结论、偏差与完成情况。
+8. 检查 git 工作区，只提交本轮相关改动，使用清晰提交信息提交一次，然后停止。
 
-## 初始步骤
+## 约束与判定标准
 
-1. 查看最新一次 git 提交信息，确认是否提到需要先处理的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前任务背景、依赖和已有拆分。
-4. 结合相关代码与测试评估任务复杂度。
-5. 若任务过大，先拆分任务并更新 `TODO.md` / `PLAN.md`，本轮只执行拆分后的第一个子任务。
-6. 实现当前目标任务。
-7. 运行必要的格式化、测试、lint（至少覆盖受影响范围，并满足无 warning 约束）。
-8. 更新 `TODO.md`、`PLAN.md`、本文件，记录已完成内容或阻塞原因。
-9. 使用清晰的提交信息创建 git commit，然后停止。
+- 不在未解决规范偏差的前提下继续依赖 workaround。
+- 不回退用户已有改动。
+- 如遇阻塞，保持任务为 TODO，并把真正前置依赖放到更靠前的位置。
+- 优先保证测试、lint、实现一致性，其次再考虑额外整理。
 
-## 预期检查项
+## 进度更新规则
 
-- 最新提交是否提到 bug / follow-up / known issue。
-- 当前首个未完成任务是否依赖尚未实现的语言特性、运行时能力或规范修复。
-- 相关模块是否已有测试覆盖；若没有，需要补充测试。
-- 是否需要同步更新根 `README.md` 或内联注释以保持文档完整性。
+- 当我确认最新提交是否存在遗留问题后，更新本文件。
+- 当我确认首个未完成任务并决定是否分解后，更新本文件。
+- 当我完成实现、测试、文档更新、提交前检查时，更新本文件。
 
-## 当前判断
+## 当前进展
 
-- 最新提交 `6d4d15c44759b45e087f571fe2d1ed5e607727ee` 的 commit message 未显式声明新的 follow-up issue；当前没有发现必须先于 `TODO.md` 主线处理的“提交中自带遗留问题”。
-- `TODO.md` 中首个未完成任务是 `T2003r1c`：`Effect：segmenting 覆盖 nested-while / richer matrix，并冻结 builder 输入契约`。
-- 结合 `PLAN.md` 与现有代码，`T2003r1c` 当前更像“补全 segment 阶段覆盖面并显式锁定 segment list 不变量”，而不是继续扩旧 shape-based lowering，因此本轮可以直接实现，不需要再拆子任务。
-
-## 本轮实施方案
-
-1. 审阅 `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 与 `state_machine_plan_tests.rs`，确认现有 segment dump 已覆盖的场景与仍缺的 nested-while / richer mixed representative samples。
-2. 在 `state_machine_segments.rs` 中补充“builder 输入契约”层面的显式校验逻辑，确保下一阶段 builder 可只依赖 `HandleSegmentList` 的 segment id / edge / suspend / dispatch / cleanup / arm-body 关系，而不需要回看源码形状。
-3. 在 `state_machine_plan_tests.rs` 中新增 segment dump / contract 回归：
-   - nested-while representative sample；
-   - richer mixed direct/indirect representative sample；
-   - 必要时增加 contract 校验断言，锁定 builder-only input 约束。
-4. 运行定向测试与 lint，至少覆盖：
-   - `cargo test -p scoopc segment_dump_`
-   - 视新增命名再补 `cargo test -p scoopc segment_contract_` 或更具体过滤
-   - `cargo test -p scoopc plan_dump_`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-5. 任务完成后更新 `TODO.md`、`PLAN.md`、本文件，并创建对应 git commit，然后停止。
-
-## 状态
-
-- 已完成 `T2003r1c` 代码修改：
-  - 在 `state_machine_segments.rs` 中新增 `HandleSegmentList::validate_builder_contract`，显式校验 segment / edge / suspend-site / dispatch-entry / arm-body / cleanup-scope 的引用完整性与上下文一致性。
-  - 在 `state_machine_plan.rs` 的 `build_handle_state_machine_plan` 中加入 debug 校验，确保统一 segment projection 在 ground-up rewrite 期间持续满足 builder-only 输入契约。
-  - 在 `state_machine_plan_tests.rs` 中新增 nested-while 与 richer mixed while（direct + indirect）segment dump 回归，并让 `build_segment_dump` 统一执行 contract 校验。
-- 已完成验证：
-  - `cargo test -p scoopc segment_dump_`
-  - `cargo test -p scoopc plan_dump_`
-  - `cargo fmt --all`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 已完成状态同步：`TODO.md` / `PLAN.md` 已将 `T2003r1c` 标记为完成，并记录新增的 builder contract 校验与回归测试。
-- 下一步：检查最终 diff，提交 git commit，然后停止。
+- 已检查最新提交 `718f20c5912acc0ccb2636506e3b8bc3061ca213`：
+  - 提交信息为 `[T2003r1c] Freeze handle segment builder contract`。
+  - 提交信息未显式声明新的遗留 bug / known issue / follow-up。
+  - 额外检索最新 diff 中的 `TODO/FIXME/not yet` 仅发现对已完成任务与流程说明的更新，没有发现“必须先于主线修复的提交自带遗留问题”。
+- 已读取 `TODO.md` / `PLAN.md`：
+  - 当前首个未完成任务为 `T2003r2`：`Effect：从零开始实现统一 state-machine builder，只消费 HandleSegmentList`。
+  - 在继续实现前，还需要审阅 `state_machine_plan.rs`、`state_machine_segments.rs` 及其测试，判断 `T2003r2` 是否应先拆分为更小子任务。
+- 已完成 `T2003r2` 可行性审计，结论如下：
+  - 当前 `HandleSegmentList` 只为 arm binder 保存了完整 `FrameSlot`；普通 lifted locals 仍只有 `SymbolId` 引用。
+  - 因此，若严格要求 builder 只消费 segment list，就无法无损重建 `FrameLayoutPlan.slots` / `lifted_locals`；尤其 outer-scope capture 若只在 handle 内被读取、不在 handle 内声明，现有 segment contract 中拿不到它的稳定 name/type。
+  - 继续硬做 `T2003r2` 将迫使 builder 回读 HIR 或解析 action string，这违反了“只消费 `HandleSegmentList`”的任务约束，因此判定为真实的前置 contract 缺口，而不是可接受的实现细节。
+- 已据此更新 `TODO.md` / `PLAN.md`：
+  - 在 `T2003r2` 前新增 `T2003r1d`：`Effect：segment contract 补齐 frame-slot / lifted-local 元数据`。
+  - 将 `T2003r2` 的依赖改为 `T2003r1d`。
+  - `PLAN.md` 已记录阻塞原因与新的执行顺序，当前下一步调整为 `T2003r1d`。
+- 本轮后续动作：
+  - 不继续实现代码。
+  - 检查工作区。
+  - 提交 `TODO.md` / `PLAN.md` / 本文件的调整，然后停止，等待下一次调用处理新的首个未完成任务 `T2003r1d`。

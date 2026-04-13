@@ -1404,6 +1404,21 @@ cargo run -p scoop --features llvm -- test
   - 已新增 segment dump 回归：`segment_dump_records_nested_while_source_path`、`segment_dump_covers_richer_mixed_while_direct_and_indirect_sites`，覆盖 nested-while 与 while 中 direct/indirect mixed representative samples。
   - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003r1d [TODO] Effect：segment contract 补齐 frame-slot / lifted-local 元数据
+- 描述：审计 `T2003r2` 时确认，当前 `HandleSegmentList` 只为 arm binder 保留了完整 `FrameSlot`，而 suspend-site `available_locals` / `capture_locals` 与 arm capture 仍只有 `SymbolId`。这不足以让 builder 仅凭 segment list 无损重建 `FrameLayoutPlan`：尤其 outer-scope capture 若只在 handle 内被读取、不在 handle 内声明，segment list 里拿不到它的稳定 name/type。必须先把这部分 builder-facing 元数据补进 segment contract，再切 builder 主输入。
+- 目标：
+  - `HandleSegmentList` 显式携带重建 `FrameLayoutPlan.slots` / `lifted_locals` 所需的稳定 slot 元数据，而不是要求后续 builder 回读 HIR 或解析 action string。
+  - suspend-site `available_locals` / `capture_locals`、arm `capture_locals` 与 frame slot 表之间存在可校验的一一引用关系；outer captures、局部 `val`、arm binder 都走同一套 metadata。
+  - `validate_builder_contract` 扩展到校验 slot metadata 的完整性与引用闭包，确保下一阶段 builder 真正只依赖 segment list。
+- 验收：
+  - 新增 segment dump / 单测：覆盖 outer-scope capture、局部 `val`、arm binder 与 nested handle representative samples，并能直接看见稳定 slot metadata。
+  - `validate_builder_contract` 对缺失 slot metadata、悬空 local 引用给出稳定失败。
+  - 不新增 shape-based builder / replay planner / legacy emitter 功能。
+  - `cargo test -p scoopc segment_dump_`
+  - `cargo test -p scoopc plan_dump_`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r1c
+
 ### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
 - 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。
 - 目标：
@@ -1414,7 +1429,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 plan dump / 单测：证明 representative samples 的状态机都只从 segment list 推导。
   - 不新增新的 shape-based builder / replay planner / dedicated nested-while planner。
   - 本阶段允许只运行 builder 相关定向单测 / fixture；不要求 full suite。
-- 依赖：T2003r1c
+- 依赖：T2003r1d
 
 ### T2003r3 [TODO] Effect：从零开始实现统一 emitter，接管全部合法 effect lowering
 - 描述：第三阶段才进入 emitting。此阶段的唯一目标是：LLVM effect lowering 只消费统一状态机与 simplification 结果。不得再按 `single arm`、`perform inside while`、`top-level direct`、`nested-while indirect` 等源码形状选择主 emitter。
