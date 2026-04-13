@@ -1425,7 +1425,7 @@ cargo run -p scoop --features llvm -- test
   - 同时修复了一个阻塞本任务的真实缺口：outer-scope local 若只在 arm body 中读取、未出现在 handle body 中，plan 现在也会为其补齐 `FrameSlot` metadata，不再让 nested handle / arm-only capture 在 segment contract 中悬空。
   - 已验证：`cargo test -p scoopc segment_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
+### T2003r2 [DONE] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
 - 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。
 - 目标：
   - `HandleStateMachinePlan` 只由 `HandleSegmentList` 推导，direct / indirect / single / multi-arm / nested control-flow 都走同一套 builder。
@@ -1436,6 +1436,11 @@ cargo run -p scoop --features llvm -- test
   - 不新增新的 shape-based builder / replay planner / dedicated nested-while planner。
   - 本阶段允许只运行 builder 相关定向单测 / fixture；不要求 full suite。
 - 依赖：T2003r1d
+- 完成说明：
+  - 已新增 segment-only builder：`HandleSegmentList` 现可递归反建完整 `HandleStateMachinePlan`，覆盖 state、dispatch、arm body、suspend-site、cleanup、frame layout 与 nested handle，不再回读 HIR 或解析 action string。
+  - `MainCodegen::build_handle_state_machine_plan` 现已切到 `HIR -> segment list -> rebuilt plan` 主线，并在 debug 构建中校验 segment round-trip 与 simplification parity，确保后续 emitter 实际消费的是由 segment contract 重建的 plan。
+  - 已新增 round-trip 回归：覆盖 direct/branch/while/finally、indirect + state-machine callee、nested handle + multi-arm representative samples，证明 plan dump / simplification / codegen entrypoint 与重建前保持一致。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3 [TODO] Effect：从零开始实现统一 emitter，接管全部合法 effect lowering
 - 描述：第三阶段才进入 emitting。此阶段的唯一目标是：LLVM effect lowering 只消费统一状态机与 simplification 结果。不得再按 `single arm`、`perform inside while`、`top-level direct`、`nested-while indirect` 等源码形状选择主 emitter。

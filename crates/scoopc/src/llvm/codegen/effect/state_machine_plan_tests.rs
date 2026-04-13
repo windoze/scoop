@@ -1564,6 +1564,143 @@ fun demo(seed: Int): Int {
         );
     }
 
+    #[test]
+    fn plan_round_trip_from_segments_preserves_direct_branch_loop_finally_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_mode_specific_dump(source),
+            build_mode_specific_dump(source)
+        );
+        assert_eq!(
+            build_round_tripped_codegen_entrypoint_label(source),
+            build_codegen_entrypoint_label(source)
+        );
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_indirect_suspend_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(thunk: () -> Int / (Ask)): Int {
+    val result: Int = handle {
+        val a: Int = fetch(1)
+        val b: Int = thunk()
+        a + b
+    } with {
+        Ask.ask(seed) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_mode_specific_dump(source),
+            build_mode_specific_dump(source)
+        );
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_nested_handle_multi_arm_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(mode: Int): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            val x: Int = Yield.next()
+            x + mode
+        } with {
+            Yield.next() -> resume {
+                resume(10)
+            }
+        }
+        if (mode == 0) {
+            val y: Int = Ask.current()
+            inner + y
+        } else {
+            Boom.boom(mode)
+            0
+        }
+    } with {
+        Ask.current(), k -> 7
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+        assert_eq!(
+            build_round_tripped_mode_specific_dump(source),
+            build_mode_specific_dump(source)
+        );
+        assert_eq!(
+            build_round_tripped_codegen_entrypoint_label(source),
+            build_codegen_entrypoint_label(source)
+        );
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -1589,11 +1726,23 @@ fun demo(seed: Int): Int {
         segment_list.pretty_dump(&lowered.types)
     }
 
+    fn build_round_tripped_plan_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let plan = build_round_tripped_plan(source_text);
+        plan.pretty_dump(&lowered.types)
+    }
+
     fn build_mode_specific_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .build_mode_specific_simplification()
+            .pretty_dump()
+    }
+
+    fn build_round_tripped_mode_specific_dump(source_text: &str) -> String {
+        build_round_tripped_plan(source_text)
             .build_mode_specific_simplification()
             .pretty_dump()
     }
@@ -1606,6 +1755,26 @@ fun demo(seed: Int): Int {
             .build_mode_specific_simplification()
             .codegen_entrypoint()
             .label()
+    }
+
+    fn build_round_tripped_codegen_entrypoint_label(source_text: &str) -> &'static str {
+        build_round_tripped_plan(source_text)
+            .build_mode_specific_simplification()
+            .codegen_entrypoint()
+            .label()
+    }
+
+    fn build_round_tripped_plan(source_text: &str) -> HandleStateMachinePlan {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let source_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let segment_list = source_plan.build_segment_list();
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        HandleStateMachinePlan::build_from_segments(&segment_list)
+            .expect("segment-only builder should reconstruct full plan")
     }
 
     fn segment_slot_id_named(segment_list: &HandleSegmentList, name: &str) -> hir::SymbolId {

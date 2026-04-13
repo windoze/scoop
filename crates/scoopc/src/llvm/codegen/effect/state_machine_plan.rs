@@ -2298,17 +2298,41 @@ impl HandlePlanContext {
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn build_handle_state_machine_plan(&self, handle: &hir::HandleExpr) -> HandleStateMachinePlan {
         let context = HandlePlanContext::from_codegen(self);
-        let plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
+        let source_plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
         // Keep the phase-1 segment projection and its builder-facing invariants in sync
         // during the ground-up rewrite, even before the builder fully switches to it as
         // the only input.
-        let segment_list = plan.build_segment_list();
+        let segment_list = source_plan.build_segment_list();
         #[cfg(debug_assertions)]
         if let Err(message) = segment_list.validate_builder_contract() {
             panic!("invalid handle segment builder contract: {message}");
         }
-        let _segment_signature = segment_list.structural_signature();
-        plan
+        let segment_signature = segment_list.structural_signature();
+        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
+            .unwrap_or_else(|message| panic!("failed to rebuild handle state machine plan: {message}"));
+        #[cfg(debug_assertions)]
+        {
+            let rebuilt_segment_list = rebuilt_plan.build_segment_list();
+            let rebuilt_segment_signature = rebuilt_segment_list.structural_signature();
+            if rebuilt_segment_signature != segment_signature {
+                panic!(
+                    "segment round-trip mismatch: source={segment_signature} rebuilt={rebuilt_segment_signature}"
+                );
+            }
+
+            let source_simplification_signature = source_plan
+                .build_mode_specific_simplification()
+                .structural_signature();
+            let rebuilt_simplification_signature = rebuilt_plan
+                .build_mode_specific_simplification()
+                .structural_signature();
+            if source_simplification_signature != rebuilt_simplification_signature {
+                panic!(
+                    "mode-specific simplification mismatch after segment rebuild: source={source_simplification_signature} rebuilt={rebuilt_simplification_signature}"
+                );
+            }
+        }
+        rebuilt_plan
     }
 }
 

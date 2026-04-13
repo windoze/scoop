@@ -137,9 +137,102 @@ impl HandleStateMachinePlan {
     fn build_segment_list(&self) -> HandleSegmentList {
         HandleSegmentList::from_plan(self)
     }
+
+    fn build_from_segments(segment_list: &HandleSegmentList) -> Result<Self, String> {
+        segment_list.build_state_machine_plan()
+    }
 }
 
 impl HandleSegmentList {
+    // T2003r2: the unified builder stage must reconstruct the full
+    // HandleStateMachinePlan from the frozen segment contract alone.
+    fn build_state_machine_plan(&self) -> Result<HandleStateMachinePlan, String> {
+        self.validate_builder_contract()?;
+
+        let frame_slots = self
+            .frame_slots
+            .iter()
+            .cloned()
+            .map(|slot| (slot.id, slot))
+            .collect::<HashMap<_, _>>();
+
+        let lifted_locals = self
+            .lifted_locals
+            .iter()
+            .map(|local_id| {
+                frame_slots.get(local_id).cloned().ok_or_else(|| {
+                    format!(
+                        "segment builder input missing slot metadata for lifted local local#{}",
+                        local_id.as_u32()
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let arm_plans = self
+            .arm_bodies
+            .iter()
+            .map(|arm| arm.to_plan(&frame_slots))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut arm_binders = arm_plans
+            .iter()
+            .flat_map(|arm| arm.binder_slots.clone())
+            .collect::<Vec<_>>();
+        arm_binders.sort_by_key(|slot| (slot.owner_arm.unwrap_or(0), slot.id.as_u32()));
+
+        let states = self
+            .segments
+            .iter()
+            .map(HandleSegment::to_plan_state)
+            .collect::<Vec<_>>();
+        let suspend_sites = self
+            .suspend_sites
+            .iter()
+            .map(HandleSegmentSuspendSite::to_plan)
+            .collect::<Vec<_>>();
+        let cleanup_scopes = self
+            .cleanup_scopes
+            .iter()
+            .map(HandleSegmentCleanupScope::to_plan)
+            .collect::<Vec<_>>();
+        let nested_handles = self
+            .nested_handles
+            .iter()
+            .map(Self::build_state_machine_plan)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let dispatch_plan = DispatchPlan {
+            entries: self
+                .dispatch_entries
+                .iter()
+                .map(HandleSegmentDispatchEntry::to_plan)
+                .collect(),
+        };
+        let has_one_shot_flag = arm_plans
+            .iter()
+            .any(|arm| matches!(arm.resume_mode, ArmResumeMode::EscapeContinuation));
+
+        Ok(HandleStateMachinePlan {
+            handle_span: self.handle_span,
+            result_ty: self.result_ty,
+            entry_state: self.entry_segment,
+            states,
+            suspend_sites,
+            arm_plans,
+            cleanup_scopes,
+            frame_layout: FrameLayoutPlan {
+                slots: frame_slots,
+                lifted_locals,
+                arm_binders,
+                has_cleanup_flag: !self.cleanup_scopes.is_empty(),
+                has_one_shot_flag,
+            },
+            dispatch_plan,
+            nested_handles,
+        })
+    }
+
     fn from_plan(plan: &HandleStateMachinePlan) -> Self {
         let segment_successors = build_segment_successor_map(&plan.states, &plan.suspend_sites);
         let state_cleanup_execution_scopes = build_state_cleanup_execution_scopes(
@@ -1214,6 +1307,20 @@ impl HandleSegment {
         self.terminator.outgoing_edges(self.id)
     }
 
+    fn to_plan_state(&self) -> PlanState {
+        PlanState {
+            id: self.id,
+            label: self.label.clone(),
+            actions: self.ops.clone(),
+            terminator: self.terminator.to_plan(),
+            // reads are only needed while deriving captures in the legacy
+            // HIR-driven builder. The frozen segment contract already carries
+            // the computed suspend-site / arm capture sets, so round-tripping
+            // the executable plan does not need to recover them.
+            reads: Vec::new(),
+        }
+    }
+
     fn structural_signature(&self) -> usize {
         let mut acc = self.id as usize ^ self.label.len();
         if let Some(span) = self.source_span {
@@ -1391,6 +1498,34 @@ impl HandleSegmentTerminator {
             Self::ArmExit { exit } => format!("arm-exit {}", exit.label()),
         }
     }
+
+    fn to_plan(&self) -> StateTerminator {
+        match self {
+            Self::Goto { next_segment } => StateTerminator::Goto(*next_segment),
+            Self::Branch {
+                condition,
+                then_segment,
+                else_segment,
+                merge_segment,
+            } => StateTerminator::Branch {
+                condition: condition.clone(),
+                then_state: *then_segment,
+                else_state: *else_segment,
+                merge_state: *merge_segment,
+            },
+            Self::Suspend { site_id, .. } => StateTerminator::Suspend { site_id: *site_id },
+            Self::CleanupEnter {
+                scope_id,
+                next_segment,
+            } => StateTerminator::CleanupEnter {
+                scope_id: *scope_id,
+                next_state: *next_segment,
+            },
+            Self::ReturnHandle => StateTerminator::ReturnHandle,
+            Self::ReturnFromFunction => StateTerminator::ReturnFromFunction,
+            Self::ArmExit { exit } => StateTerminator::ArmExit(*exit),
+        }
+    }
 }
 
 impl HandleSegmentEdgeKind {
@@ -1424,6 +1559,13 @@ impl HandleSegmentEdge {
 }
 
 impl HandleSegmentDispatchEntry {
+    fn to_plan(&self) -> DispatchEntry {
+        DispatchEntry {
+            op_fqn: self.op_fqn.clone(),
+            arm_ids: self.arm_ids.clone(),
+        }
+    }
+
     fn structural_signature(&self) -> usize {
         let mut acc = self.op_fqn.len();
         for arm_id in &self.arm_ids {
@@ -1457,6 +1599,33 @@ impl HandleSegmentDispatchTarget {
 }
 
 impl HandleSegmentArmBody {
+    fn to_plan(&self, frame_slots: &HashMap<hir::SymbolId, FrameSlot>) -> Result<ArmPlan, String> {
+        let binder_slots = self
+            .binder_slots
+            .iter()
+            .map(|slot_id| {
+                frame_slots.get(slot_id).cloned().ok_or_else(|| {
+                    format!(
+                        "segment builder input missing slot metadata for arm{} binder local#{}",
+                        self.arm_id,
+                        slot_id.as_u32()
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ArmPlan {
+            id: self.arm_id,
+            op_fqn: self.op_fqn.clone(),
+            binder_slots,
+            capture_locals: self.capture_locals.clone(),
+            resume_mode: self.resume_mode,
+            body_entry_state: self.body_entry_segment,
+            body_exit: self.body_exit,
+            detach_policy: self.detach_policy.clone(),
+        })
+    }
+
     fn structural_signature(&self) -> usize {
         let mut acc = self.arm_id as usize
             ^ self.op_fqn.len()
@@ -1516,6 +1685,19 @@ impl HandleSegmentSuspendSite {
         }
         acc
     }
+
+    fn to_plan(&self) -> SuspendSitePlan {
+        SuspendSitePlan {
+            id: self.id,
+            span: self.span,
+            kind: self.kind.clone(),
+            resume_target: self.resume_segment,
+            matching_arms: self.matching_arms.clone(),
+            available_locals: self.available_locals.clone(),
+            capture_locals: self.capture_locals.clone(),
+            source_path: self.source_path.clone(),
+        }
+    }
 }
 
 impl HandleSegmentCleanupScope {
@@ -1535,6 +1717,16 @@ impl HandleSegmentCleanupScope {
             ^ self.entry_segment as usize
             ^ self.exit_segment as usize
             ^ self.note.len()
+    }
+
+    fn to_plan(&self) -> CleanupScopePlan {
+        CleanupScopePlan {
+            id: self.id,
+            kind: self.kind,
+            entry_state: self.entry_segment,
+            exit_state: self.exit_segment,
+            note: self.note.clone(),
+        }
     }
 }
 
