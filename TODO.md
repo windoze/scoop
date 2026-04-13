@@ -1547,17 +1547,72 @@ cargo run -p scoop --features llvm -- test
   - 已新增定向单测：`unified_single_resuming_entrypoint_marks_single_immediate_resume_while_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_direct_if_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_indirect_nested_handle_sample`，覆盖 single immediate / escape 的 direct、indirect、`if` / `while` / nested handle representative samples。
   - 已验证：`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d [TODO] Effect：统一 emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换
-- 描述：最后把 multiple immediate、multiple escape、non-resuming siblings、immediate+escape mixed 与 richer nested matrix 全部切到 unified emitter，并收口 `codegen_handle_expr` 的 effect lowering 主入口。
+### T2003r3d Effect：统一 emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换（已拆分，见 `T2003r3d1`～`T2003r3d4`）
+- 拆分说明：
+  - 审计现状后确认，本任务同时横跨三类复杂度明显不同的工作：
+    1. root `codegen_handle_expr` 对 multi-site / mixed-resuming 的 unified 主入口收口；
+    2. `ImmediateResumeWithEscapeSibling` 里仍存在已知合法缺口：`tests/fixtures/build/effect_resume_mixed_escape_while_indirect_is_error.scoop` 对应的 `while` deeper nested indirect site 仍停留在 build-fail；
+    3. simplification 仍把“一个 immediate-resume arm + 多个 escape-continuation arms”与“多个 immediate-resume arms + 一个 escape-continuation arm”归为 `Unsupported*`，说明多 resuming-arm mix 还有真实 lowering 缺口。
+  - 若继续整包推进，会把主入口收口、nested-while mixed 恢复边，以及 richer mixed-arm arm-count 扩展耦合到同一轮里，风险过高，因此拆成以下四个子任务并按依赖顺序推进。
+
+### T2003r3d1 [DONE] Effect：统一 multi-resuming 主入口并接管当前已支持 legal shapes
+- 描述：先把 root `codegen_handle_expr` 对 multi-site / mixed-resuming 的主选路收口到新的 unified 入口；当前已经有 run-pass 覆盖的 legal 子集继续复用既有 leaf helper，但 root 不再直接把这些组合分发到 `codegen_handle_expr_multi_arm(...)`。
 - 目标：
-  - single-arm、multiple arms、immediate-resume、escape-continuation、mixed-arm、direct/indirect perform、nested control-flow、nested handle 全部接到统一 emitter 主线。
-  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 不再承接任何合法组合的主 lowering。
-  - build-fail 中仍属于“合法但尚未实现”的 lowering 形状缺口全部清空；剩余限制只能是真实语言语义非法组合。
+  - `MultipleImmediateResumeTopLevel`、`MultipleEscapeTopLevelDirect`、`ImmediateResumeWithNonResumingSiblings`、`EscapeContinuationWithNonResumingSiblings`、`ImmediateResumeWithEscapeSibling`、`ImmediateResumeWithEscapeAndNonResumingSiblings` 全部先通过 unified multi-resuming 入口进入。
+  - root `codegen_handle_expr` 不再直接以 `codegen_handle_expr_multi_arm(...)` 作为这些 legal 组合的主选路；multi-resuming 的显式 contract 校验统一前移到新入口，现有 mixed no-perform early gate 则继续保留为 hidden-unwind / zero-match 过渡边界。
+  - 对当前仍未完成的合法组合继续给出稳定、显式的 unified 入口诊断，而不是把它们隐含在旧主路径里。
 - 验收：
-  - 新增 LLVM fixture：覆盖 direct/indirect、single/multi-arm、`if` / `while` / nested handle / nested-while representative samples，且全部走统一 emitter。
-  - 不再为新的合法组合新增 shape-specific 主路径。
-  - 本阶段允许只运行 unified emitter 相关定向单测 / fixture；不要求 full suite。
+  - 新增 plan / LLVM 定向单测：覆盖 `multiple-immediate-top-level`、`multiple-escape-top-level-direct`、`immediate-with-nonresuming`、`escape-with-nonresuming`、`immediate-with-escape`、`immediate-with-escape-and-nonresuming` 的 unified entrypoint 分类。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_multi_immediate_top_level.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_multi_arm_with_nonresuming.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming.scoop`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3c
+- 完成说明：
+  - `codegen_handle_expr` 现已新增 `UnifiedMultiResumingEntrypoint` 分类，并通过 `codegen_handle_expr_unified_multi_resuming(...)` 接管 `MultipleImmediateResumeTopLevel`、`MultipleEscapeTopLevelDirect`、`ImmediateResumeWithNonResumingSiblings`、`EscapeContinuationWithNonResumingSiblings`、`ImmediateResumeWithEscapeSibling`、`ImmediateResumeWithEscapeAndNonResumingSiblings` 的 root 主选路；root 不再直接把这些类别分发到 `codegen_handle_expr_multi_arm(...)`。
+  - unified multi-resuming 入口现已补上 plan 级 contract 校验：arm mode / body exit 的一致性会在进入 leaf helper 前验证；对当前仍未完成的 “1 immediate + N escape” / “N immediate + 1 escape” 组合，则继续在 unified 入口下给出显式 `Unsupported*` 路由，而不是静默落回旧 root match。
+  - 已新增定向单测：`unified_multi_resuming_entrypoint_marks_multiple_immediate_top_level_sample`、`unified_multi_resuming_entrypoint_marks_multiple_escape_top_level_direct_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_nonresuming_sample`、`unified_multi_resuming_entrypoint_marks_escape_with_nonresuming_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_escape_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_escape_and_nonresuming_sample`。
+  - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_multi_immediate_top_level.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_multi_arm_with_nonresuming.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming.scoop`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --all` 通过。
+
+### T2003r3d2 [TODO] Effect：补齐 immediate+escape mixed 在 nested `while` deeper indirect site 的合法 lowering
+- 描述：当前唯一仍留在 `tests/fixtures/build/` 的 effect build-fail 是 `effect_resume_mixed_escape_while_indirect_is_error.scoop`；它属于合法的 immediate+escape mixed 组合，但在 `while -> while` 的 deeper indirect site 仍会触发旧 gate，需要单独补齐。
+- 目标：
+  - `ImmediateResumeWithEscapeSibling` / `ImmediateResumeWithEscapeAndNonResumingSiblings` 在 `while` body deeper nested indirect site 上不再报 `not yet supported`。
+  - 现有 mixed-arm direct / indirect / block / if / while representative sample 不回归，且 nested-while call-site replay 与 cleanup 语义稳定。
+  - 原 build fixture 转为 run-pass 或等价的正向回归，剩余 build-fail 不再把该合法形状当作 unsupported。
+- 验收：
+  - 将 `effect_resume_mixed_escape_while_indirect_is_error.scoop` 转为 run-pass 或新增等价正向回归。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run <新增或迁移后的 fixture>`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d1
+
+### T2003r3d3 [TODO] Effect：补齐一个 immediate-resume arm + 多个 escape-continuation arms 的 mixed-resuming
+- 描述：当前 simplification 仍把“一个 immediate-resume arm + 多个 escape-continuation arms”归为 `UnsupportedMixedMultipleEscapeWithImmediate`。这是合法 mixed-arm 组合，不应继续停留在 hard-coded unsupported。
+- 目标：
+  - simplification / unified multi-resuming 入口不再把该 arm-count 组合归类为 `UnsupportedMixedMultipleEscapeWithImmediate`。
+  - 多个 escape arms 的 continuation materialization、dispatch、resume replay、`finally` / sibling non-resuming 语义与既有单 escape mixed 路径保持一致。
+  - 新增 representative run-pass fixture，覆盖至少一个 direct 或 indirect 的 multi-escape + immediate 样例。
+- 验收：
+  - 新增 plan / LLVM 定向单测与 representative run-pass fixture，覆盖 “1 immediate + N escape” mixed-resuming。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d2
+
+### T2003r3d4 [TODO] Effect：补齐多个 immediate-resume arms + 一个 escape-continuation arm，并清空剩余合法 mixed lowering 缺口
+- 描述：在 `T2003r3d3` 之后，最后清掉 simplification 中剩余的 `UnsupportedMixedMultipleImmediateWithEscape`，并确认 multi-site / mixed-resuming 不再存在已知“合法但尚未实现”的 lowering 形状缺口。
+- 目标：
+  - simplification / unified multi-resuming 入口支持“多个 immediate-resume arms + 一个 escape-continuation arm”，不再走 `UnsupportedMixedMultipleImmediateWithEscape`。
+  - 到本任务结束时，`T2003r3d` 范围内已知的 legal multi-site / mixed-resuming 组合全部有稳定 lowering，不再依赖 build-fail 占位。
+  - `T2003r4` 所需的 full matrix / full suite / GC stress 验收不再被已知的 legal lowering 缺口阻塞。
+- 验收：
+  - 新增 plan / LLVM 定向单测与 representative run-pass fixture，覆盖 “N immediate + 1 escape” mixed-resuming。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d3
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
 - 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，才进入这一任务；在此之前，不再要求每轮都跑 full suite。
@@ -1571,7 +1626,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `SCOOP_GC_STRESS=1` 或等价压力模式下的 full matrix 通过。
-- 依赖：T2003r3d
+- 依赖：T2003r3d4
 
 ### T2003r5 [TODO] Effect：删除全部旧 shape-based lowering 主实现
 - 描述：`T2003r4` 通过后，不再保留“以防万一”的旧实现。旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 中承载形状分流 lowering 的主路径必须整体移除。

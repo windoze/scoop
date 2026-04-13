@@ -1,54 +1,82 @@
-# 执行计划与进度记录
+## 本轮执行计划
 
-## 说明
+### 约束与执行原则
+- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+- 在真正实现任务前，先检查最新提交中是否提到了需要先修复的既有问题；若有，则这些问题优先处理。
+- 任何与规范不一致、需要新增前置依赖、或当前任务过大无法一次完成的情况，都必须先更新 `TODO.md` 与 `PLAN.md`，并据此调整执行顺序。
+- 在执行过程中持续更新本文件，记录关键决策、已完成步骤、测试结果与计划变更。
 
-应要求先写入本文件，再开始执行任何命令。这里记录的是可审计的执行计划、关键决策和进度更新，不包含不可审计的内部推理原文。
+### 初始步骤
+1. 查看最新提交信息，确认是否提到已有问题、待修复事项或需要优先处理的回归。
+2. 阅读 `TODO.md`，识别第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前计划与 `TODO.md` 是否一致。
+4. 如首个未完成任务过大，则将其拆分为更小的可执行子任务，并更新 `PLAN.md` / `TODO.md`。
 
-## 初始计划
+### 实施步骤
+1. 分析目标任务涉及的代码路径、规范、测试位置与潜在依赖。
+2. 实现任务，必要时补充或重构代码以保持模块清晰、无临时性绕过方案。
+3. 运行相关测试，随后运行更广覆盖的校验命令，至少包括与本任务相关的测试，以及在可行情况下执行格式化、lint 和必要的全量测试。
+4. 若发现规范缺口、语言特性缺失或既有 bug 阻塞当前任务：
+   - 精确记录阻塞点；
+   - 在 `TODO.md` 中添加或重排前置任务；
+   - 更新 `PLAN.md` 说明阻塞原因与依赖关系；
+   - 本轮只提交这些计划调整并停止。
 
-1. 检查最新一次 Git 提交，确认提交信息或变更中是否提到已知遗留问题。
-2. 若最新提交暴露了需先修复的既有问题，优先修复这些问题，并补充测试。
-3. 读取 `TODO.md`，定位第一个未完成任务。
-4. 评估该任务的范围与依赖：
-   - 如果任务足够明确且可在本轮完整完成，则直接实现。
-   - 如果任务过大或存在前置缺口，则更新 `PLAN.md` 与 `TODO.md`，将其拆成更小的子任务，并只执行新的第一个子任务。
-5. 实现当前应执行的首个任务。
-6. 运行相关验证：
-   - 至少运行与改动直接相关的测试。
-   - 若改动影响面较广，补充运行更完整的测试集。
-   - 按要求关注无警告构建与 `cargo clippy --all-targets -- -D warnings`。
-7. 更新文档与计划：
-   - 在 `TODO.md` 中标记当前任务完成，或在受阻时调整其顺序与依赖。
-   - 在 `PLAN.md` 中同步当前状态。
-   - 按需要更新本文件，记录关键步骤完成情况与计划变化。
-8. 使用清晰的提交信息提交本轮改动。
-9. 停止，不继续执行下一个任务。
+### 收尾步骤
+1. 更新 `TODO.md`，将本轮完成的任务标记为已完成。
+2. 更新 `PLAN.md`，反映当前状态、后续任务与任何新增依赖。
+3. 更新本文件，记录最终执行结果与验证情况。
+4. 使用清晰的提交信息创建 git commit。
+5. 停止，不进入下一个任务。
 
-## 进度
+### 已完成的关键检查
+- 已查看最新提交：`bcf8c43 [T2003r3c] Route single resuming handles through unified emitter`。提交信息本身没有额外点名“必须先修的既有问题”。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务原本是 `T2003r3d`。
+- 已进一步审计 effect lowering 主入口与现有 fixture：
+  - `codegen_handle_expr` 目前已统一接管 `NoSuspendSites`、`SingleNonResuming`、`MultiNonResuming`、`SingleImmediateResume`、`SingleEscapeContinuation`；
+  - multi-site / mixed-resuming 仍通过 `codegen_handle_expr_multi_arm(...)` 落回旧分流；
+  - `tests/fixtures/build/effect_resume_mixed_escape_while_indirect_is_error.scoop` 仍暴露合法但未完成的 mixed nested-while indirect lowering；
+  - simplification 仍显式保留 `UnsupportedMixedMultipleEscapeWithImmediate` 与 `UnsupportedMixedMultipleImmediateWithEscape` 两类未实现合法组合。
 
-- 已完成：创建本计划文件。
-- 已完成：检查最新提交 `366136afa5a69a78bb1a61fe1e47a6707141267d`。提交标题为 `[T2003r3b3] Route multi nonresuming handles through unified emitter`，未在提交信息中显式声明需要先修复的遗留问题。
-- 已完成：读取 `TODO.md` 与 `PLAN.md`，定位首个未完成任务为 `T2003r3c`。
-- 任务评估：`T2003r3c` 当前可在本轮完成，不再拆分。原因是 single immediate-resume / single escape-continuation 的 leaf lowering 已存在，本轮主要缺口是把 `codegen_handle_expr` 的主入口切到统一 entrypoint，并补上 contract 校验与定向回归。
-- 当前执行计划：
-  1. 在 effect codegen 中新增 unified single-resuming entrypoint 分类与校验逻辑。
-  2. 让 `codegen_handle_expr` 先走 unified single-resuming 入口，再分发到 immediate/escape leaf helper。
-  3. 新增或更新定向单测，覆盖 single immediate / single escape 的 representative samples。
-  4. 运行 `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、代表性 LLVM fixture，以及 `cargo clippy --workspace --all-targets -- -D warnings`。
-  5. 若验证通过，更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-- 已完成：实现 `UnifiedSingleResumingEntrypoint`，并让 `codegen_handle_expr` 通过 `codegen_handle_expr_unified_single_resuming(...)` 统一接管 `SingleImmediateResume` / `SingleEscapeContinuation` 主选路。
-- 已完成：补 single immediate / escape 的 plan contract 校验，以及基于 unified plan suspend-site 形态的 zero-match/no-suspend 顺序回退。
-- 已完成：新增定向单测：
-  - `unified_single_resuming_entrypoint_marks_single_immediate_resume_while_nested_handle_sample`
-  - `unified_single_resuming_entrypoint_marks_single_escape_direct_if_nested_handle_sample`
-  - `unified_single_resuming_entrypoint_marks_single_escape_indirect_nested_handle_sample`
-- 已完成：验证通过的命令：
-  - `cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 待执行：检查工作区差异，完成提交，然后停止。
+### 计划调整
+- 结论：原始 `T2003r3d` 范围过大，必须拆分。
+- 已决定把 `T2003r3d` 拆为四个子任务：
+  1. `T2003r3d1`：统一 multi-resuming 主入口，先接管当前已支持的 legal shapes。
+  2. `T2003r3d2`：补 immediate+escape mixed 在 nested `while` deeper indirect site 的合法 lowering。
+  3. `T2003r3d3`：补“一个 immediate + 多个 escape arms” mixed-resuming。
+  4. `T2003r3d4`：补“多个 immediate arms + 一个 escape”，并清空剩余已知合法 mixed lowering 缺口。
+- 当前本轮执行目标切换为：完成 `T2003r3d1`。
+
+### 当前执行步骤
+1. 更新 `TODO.md` / `PLAN.md`，把 `T2003r3d` 拆为 `T2003r3d1`～`T2003r3d4`。已完成。
+2. 实现 `T2003r3d1`：为 multi-site / mixed-resuming 增加 unified 主入口分类、contract 校验与 root 路由切换。已完成。
+3. 补充对应单测与 representative LLVM fixture 验证。已完成。
+4. 运行相关测试与 `clippy`。已完成。
+5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。进行中。
+
+### 本轮实现结果
+- 已新增 `UnifiedMultiResumingEntrypoint`，并把 root `codegen_handle_expr` 对以下类别的主选路统一收口到 `codegen_handle_expr_unified_multi_resuming(...)`：
+  - `MultipleImmediateResumeTopLevel`
+  - `MultipleEscapeTopLevelDirect`
+  - `ImmediateResumeWithNonResumingSiblings`
+  - `EscapeContinuationWithNonResumingSiblings`
+  - `ImmediateResumeWithEscapeSibling`
+  - `ImmediateResumeWithEscapeAndNonResumingSiblings`
+- `codegen_handle_expr_multi_arm(...)` 仍作为 leaf helper 保留，但 root 不再直接依赖它做这些 legal 组合的主选路。
+- unified multi-resuming 入口现已在进入 leaf helper 前校验 plan 中各 arm 的 `resume_mode` / `body_exit` 契约；对于尚未实现的 “1 immediate + N escape” / “N immediate + 1 escape” 组合，继续在 unified 入口下给出显式 `Unsupported*` 路由。
+
+### 本轮验证结果
+- `cargo fmt --all`：通过。
+- `cargo test -p scoopc unified_multi_resuming_entrypoint_ -- --nocapture`：通过，6 个新增入口分类测试全部通过。
+- `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`：通过。
+- representative LLVM fixtures：
+  - `effect_resume_multi_immediate_top_level.scoop`：通过。
+  - `effect_multi_escape_multi_arm_with_nonresuming.scoop`：通过。
+  - `effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming.scoop`：通过。
+- `cargo clippy --workspace --all-targets -- -D warnings`：通过。
+- `cargo test --all`：最终通过。
+  - 第一次全套运行曾在 `commands::build::tests::build_produces_executable_and_it_runs` 上出现一次性失败（链接阶段找不到临时 `main.o`）。
+  - 随后单独重跑该测试通过，再次执行 `cargo test --all` 也全部通过，因此本轮未对该测试额外改动。
+
+### 下一步
+- 当前第一个未完成任务已变为 `T2003r3d2`：补 immediate+escape mixed 在 nested `while` deeper indirect site 的合法 lowering。

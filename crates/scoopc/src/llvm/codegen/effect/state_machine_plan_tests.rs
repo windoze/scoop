@@ -1078,6 +1078,232 @@ fun demo(flag: Bool): Unit {
     }
 
     #[test]
+    fn unified_multi_resuming_entrypoint_marks_multiple_immediate_top_level_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Step {
+    fun take(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        val second: Int = Step.take(first + 1)
+        first + second
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Step.take(seed: Int) -> resume {
+            resume(seed * 2)
+        }
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("multiple-immediate-top-level")
+        );
+    }
+
+    #[test]
+    fn unified_multi_resuming_entrypoint_marks_multiple_escape_top_level_direct_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Ask.ask(1)
+        val second: Int = Count.next(first + 1)
+        first + second
+    } with {
+        Ask.ask(seed: Int), k -> seed + 10
+        Count.next(seed: Int), k -> seed + 20
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("multiple-escape-top-level-direct")
+        );
+    }
+
+    #[test]
+    fn unified_multi_resuming_entrypoint_marks_immediate_with_nonresuming_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Abort {
+    fun stop(seed: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        if (first > 0) {
+            Abort.stop(first)
+        }
+        first
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Abort.stop(seed: Int) -> 0
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("immediate-with-nonresuming")
+        );
+    }
+
+    #[test]
+    fn unified_multi_resuming_entrypoint_marks_escape_with_nonresuming_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(seed: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Ask.ask(1)
+        if (first > 0) {
+            Abort.stop(first)
+        }
+        first
+    } with {
+        Ask.ask(seed: Int), k -> seed + 1
+        Abort.stop(seed: Int) -> 0
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("escape-with-nonresuming")
+        );
+    }
+
+    #[test]
+    fn unified_multi_resuming_entrypoint_marks_immediate_with_escape_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        val second: Int = Ask.ask(first)
+        first + second
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 1
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("immediate-with-escape")
+        );
+    }
+
+    #[test]
+    fn unified_multi_resuming_entrypoint_marks_immediate_with_escape_and_nonresuming_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(seed: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        val second: Int = Ask.ask(first)
+        if (second > 0) {
+            Abort.stop(second)
+        }
+        first + second
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 1
+        Abort.stop(seed: Int) -> 0
+    }
+    result
+}
+"#;
+
+        assert_eq!(
+            build_unified_multi_resuming_entrypoint_label(source),
+            Some("immediate-with-escape-and-nonresuming")
+        );
+    }
+
+    #[test]
     fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
         let lowered = lower_typed_single_source(
             r#"
@@ -2193,6 +2419,13 @@ fun demo(flag: Bool): Int {
     ) -> Option<&'static str> {
         let plan = build_source_plan(source_text);
         MainCodegen::unified_single_resuming_entrypoint_label_for_plan(&plan)
+    }
+
+    fn build_unified_multi_resuming_entrypoint_label(
+        source_text: &str,
+    ) -> Option<&'static str> {
+        let plan = build_source_plan(source_text);
+        MainCodegen::unified_multi_resuming_entrypoint_label_for_plan(&plan)
     }
 
     fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
