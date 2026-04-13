@@ -10,7 +10,7 @@ mod tests {
     use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
     use crate::typecheck;
 
-    use super::{HandlePlanContext, HandleStateMachinePlan};
+    use super::{HandlePlanContext, HandleStateMachinePlan, MainCodegen, ResumeFrame};
 
     #[test]
     fn plan_dump_covers_direct_branch_loop_and_finally() {
@@ -125,6 +125,42 @@ fun demo(thunk: () -> Int / (Ask)): Int {
         assert!(dump.contains("kind=call-state-machine-callee"));
         assert!(dump.contains("detail=a.fetch"));
         assert!(dump.contains("kind=indirect-call-may-suspend"));
+        assert!(dump.contains("path=top[0]"));
+        assert!(dump.contains("path=top[1]"));
+    }
+
+    #[test]
+    fn plan_dump_indirect_call_captures_call_site_reads() {
+        let dump = build_plan_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val base: Int = 1
+        val value: Int = fetch(base)
+        base + value
+    } with {
+        Ask.ask(seed: Int), k -> 0
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=call-state-machine-callee"));
+        assert!(dump.contains("captures=[base#"), "{dump}");
+        assert!(dump.contains("path=top[1]"));
     }
 
     #[test]
@@ -272,6 +308,215 @@ fun demo(): Int {
         assert!(dump.contains("one-shot=yes"));
         assert!(dump.contains("lowering=heap-continuation"));
         assert!(dump.contains("target=s"));
+    }
+
+    #[test]
+    fn resolve_escape_direct_sites_from_plan_recovers_nested_paths() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+fun demo(): Unit {
+    val _: Unit = handle {
+        val threshold: Int = Suspend.fetch()
+        while (threshold > 0) {
+            if (threshold > 1) {
+                val bonus: Int = Suspend.fetch()
+                println(bonus)
+            }
+        }
+    } with {
+        Suspend.fetch(), k -> { () }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resolved = MainCodegen::resolve_escape_direct_sites_from_plan(
+            handle,
+            &plan,
+            0,
+            &handle.arms[0].op.op.fqn,
+        )
+        .expect("plan-driven direct escape resolution should succeed");
+
+        assert_eq!(resolved.perform_sites.len(), 2);
+        assert!(resolved.perform_sites[0].resume_path.is_empty());
+        assert!(matches!(
+            resolved.perform_sites[1].resume_path.as_slice(),
+            [ResumeFrame::WhileBody { .. }, ResumeFrame::IfThen { .. }]
+        ));
+    }
+
+    #[test]
+    fn resolve_escape_indirect_sites_from_plan_preserves_call_site_captures() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val base: Int = 1
+        val value: Int = fetch(base)
+        base + value
+    } with {
+        Ask.ask(seed: Int), k -> 0
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resolved = MainCodegen::resolve_escape_indirect_sites_from_plan(handle, &plan)
+            .expect("plan-driven indirect escape resolution should succeed");
+        let base_id = find_handle_local_id_by_name(handle, "base").expect("expected local `base`");
+
+        assert_eq!(resolved.indirect_sites.len(), 1);
+        assert_eq!(resolved.indirect_sites[0].stmt_idx, 1);
+        assert!(resolved.capture_ids.contains(&base_id));
+    }
+
+    #[test]
+    fn resolve_escape_direct_sites_from_plan_captures_prior_resumed_ref_local() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+effect Provide {
+    fun provide(): Box
+}
+
+fun demo(): Unit {
+    val _: Unit = handle {
+        val b1: Box = Provide.provide()
+        val b2: Box = Provide.provide()
+        println(b1.value + b2.value)
+    } with {
+        Provide.provide(), k -> { () }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resolved = MainCodegen::resolve_escape_direct_sites_from_plan(
+            handle,
+            &plan,
+            0,
+            &handle.arms[0].op.op.fqn,
+        )
+        .expect("plan-driven direct escape resolution should succeed");
+        let b1_id = find_handle_local_id_by_name(handle, "b1").expect("expected local `b1`");
+
+        assert_eq!(resolved.perform_sites.len(), 2);
+        assert!(resolved.capture_ids.contains(&b1_id));
+    }
+
+    #[test]
+    fn escape_arm_capture_locals_include_outer_scope_reads() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Provide {
+    fun provide(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun demo(): Unit {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+    val _: Unit = handle {
+        val first: Int = Provide.provide()
+        val second: Int = Provide.provide()
+        println(first + second)
+    } with {
+        Provide.provide(), k -> {
+            cell.k = Some(k)
+        }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let cell_id = find_fun_local_id_by_name(fun, "cell").expect("expected outer local `cell`");
+
+        assert!(plan.arm_capture_locals(0).contains(&cell_id));
+    }
+
+    #[test]
+    fn resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+effect Ask {
+    fun ask(): Int
+}
+
+fun demo(): Unit {
+    val box: Box = Box(10)
+    val _: Unit = handle {
+        val v1: Int = Ask.ask()
+        val _: Unit = handle {
+            val v2: Int = Ask.ask()
+            println(box.value + v2)
+        } with {
+            Ask.ask(), k -> { () }
+        }
+    } with {
+        Ask.ask(), k -> { () }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let resolved = MainCodegen::resolve_escape_direct_sites_from_plan(
+            handle,
+            &plan,
+            0,
+            &handle.arms[0].op.op.fqn,
+        )
+        .expect("plan-driven direct escape resolution should succeed");
+        let box_id = find_fun_local_id_by_name(fun, "box").expect("expected outer local `box`");
+
+        assert!(resolved.capture_ids.contains(&box_id));
     }
 
     #[test]
@@ -831,6 +1076,182 @@ fun demo(k: Continuation<Int>): Int {
             object_value_fqns,
             object_property_fqns,
         }
+    }
+
+    fn find_handle_local_id_by_name(handle: &hir::HandleExpr, name: &str) -> Option<hir::SymbolId> {
+        fn find_in_stmts(stmts: &[hir::Stmt], name: &str) -> Option<hir::SymbolId> {
+            for stmt in stmts {
+                match &stmt.kind {
+                    hir::StmtKind::Val(decl) => {
+                        if decl.name.as_deref() == Some(name) {
+                            return decl.id;
+                        }
+                    }
+                    hir::StmtKind::Expr(expr) => {
+                        if let Some(id) = find_in_expr(expr, name) {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::While { body, .. } => {
+                        if let Some(id) = find_in_stmts(&body.stmts, name) {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::Assign { .. }
+                    | hir::StmtKind::Return { .. }
+                    | hir::StmtKind::Empty
+                    | hir::StmtKind::Break { .. }
+                    | hir::StmtKind::Continue { .. }
+                    | hir::StmtKind::Todo(_) => {}
+                }
+            }
+            None
+        }
+
+        fn find_in_expr(expr: &hir::Expr, name: &str) -> Option<hir::SymbolId> {
+            match &expr.kind {
+                hir::ExprKind::Block(block) => find_in_stmts(&block.stmts, name),
+                hir::ExprKind::If {
+                    then_branch,
+                    else_branch,
+                    ..
+                } => find_in_expr(then_branch, name)
+                    .or_else(|| else_branch.as_deref().and_then(|expr| find_in_expr(expr, name))),
+                hir::ExprKind::When { arms, .. } => arms
+                    .iter()
+                    .find_map(|arm| find_in_expr(&arm.body, name)),
+                _ => None,
+            }
+        }
+
+        find_in_stmts(&handle.body.stmts, name)
+    }
+
+    fn find_fun_local_id_by_name(fun: &hir::FunDecl, name: &str) -> Option<hir::SymbolId> {
+        let body = fun.body.as_ref()?;
+
+        fn find_in_stmts(stmts: &[hir::Stmt], name: &str) -> Option<hir::SymbolId> {
+            for stmt in stmts {
+                match &stmt.kind {
+                    hir::StmtKind::Val(decl) => {
+                        if decl.name.as_deref() == Some(name) {
+                            return decl.id;
+                        }
+                        if let Some(init) = decl.init.as_ref()
+                            && let Some(id) = find_in_expr(init, name)
+                        {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::Expr(expr) => {
+                        if let Some(id) = find_in_expr(expr, name) {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::Assign { lhs, rhs, .. } => {
+                        if let Some(id) = find_in_expr(lhs, name) {
+                            return Some(id);
+                        }
+                        if let Some(id) = find_in_expr(rhs, name) {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::Return { value } => {
+                        if let Some(expr) = value
+                            && let Some(id) = find_in_expr(expr, name)
+                        {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::While { cond, body } => {
+                        if let Some(id) = find_in_expr(cond, name) {
+                            return Some(id);
+                        }
+                        if let Some(id) = find_in_stmts(&body.stmts, name) {
+                            return Some(id);
+                        }
+                    }
+                    hir::StmtKind::Empty
+                    | hir::StmtKind::Break { .. }
+                    | hir::StmtKind::Continue { .. }
+                    | hir::StmtKind::Todo(_) => {}
+                }
+            }
+            None
+        }
+
+        fn find_in_expr(expr: &hir::Expr, name: &str) -> Option<hir::SymbolId> {
+            match &expr.kind {
+                hir::ExprKind::Block(block) => find_in_stmts(&block.stmts, name),
+                hir::ExprKind::If {
+                    cond,
+                    then_branch,
+                    else_branch,
+                } => find_in_expr(cond, name)
+                    .or_else(|| find_in_expr(then_branch, name))
+                    .or_else(|| else_branch.as_deref().and_then(|expr| find_in_expr(expr, name))),
+                hir::ExprKind::When { subject, arms } => find_in_expr(subject, name).or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| find_in_expr(guard, name))
+                            .or_else(|| find_in_expr(&arm.body, name))
+                    })
+                }),
+                hir::ExprKind::Handle(handle) => find_in_stmts(&handle.body.stmts, name)
+                    .or_else(|| {
+                        handle
+                            .arms
+                            .iter()
+                            .find_map(|arm| find_in_expr(&arm.body, name))
+                    })
+                    .or_else(|| {
+                        handle
+                            .finally
+                            .as_ref()
+                            .and_then(|block| find_in_stmts(&block.stmts, name))
+                    }),
+                hir::ExprKind::Call { callee, args } => find_in_expr(callee, name).or_else(|| {
+                    args.iter().find_map(|arg| match arg {
+                        hir::CallArg::Positional(expr) => find_in_expr(expr, name),
+                        hir::CallArg::Named { value, .. } => find_in_expr(value, name),
+                    })
+                }),
+                hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => find_in_expr(expr, name),
+                    hir::CallArg::Named { value, .. } => find_in_expr(value, name),
+                }),
+                hir::ExprKind::Binary { lhs, rhs, .. } => {
+                    find_in_expr(lhs, name).or_else(|| find_in_expr(rhs, name))
+                }
+                hir::ExprKind::Unary { expr: inner, .. }
+                | hir::ExprKind::Cast { expr: inner, .. }
+                | hir::ExprKind::TypeCheck { expr: inner, .. }
+                | hir::ExprKind::MemberAccess {
+                    receiver: inner, ..
+                } => find_in_expr(inner, name),
+                hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                    match part {
+                        hir::InterpolatedStringPart::Expr { expr } => find_in_expr(expr, name),
+                        _ => None,
+                    }
+                }),
+                hir::ExprKind::StructLit { fields, .. } => fields
+                    .iter()
+                    .find_map(|field| find_in_expr(&field.value, name)),
+                hir::ExprKind::TupleLit { elements } => {
+                    elements.iter().find_map(|element| find_in_expr(element, name))
+                }
+                hir::ExprKind::Closure(closure) => find_in_expr(&closure.body, name),
+                hir::ExprKind::Missing
+                | hir::ExprKind::Literal(_)
+                | hir::ExprKind::VarRef(_)
+                | hir::ExprKind::UnresolvedIdent { .. }
+                | hir::ExprKind::Todo(_) => None,
+            }
+        }
+
+        find_in_stmts(&body.stmts, name)
     }
 
     fn fun_effects_are_non_pure(types: &TypeStore, ty: TypeId) -> bool {

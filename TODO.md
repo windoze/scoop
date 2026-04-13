@@ -1147,7 +1147,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 unified plan 单测：锁定 if-then / while-body 的 source-path dump；并用既有 immediate fixtures 覆盖 top-level、nested block、if then/else、while body、finally 路径。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4b2 [TODO] Effect：single-arm escape-continuation 主 emitter 切到统一状态机输入
+### T2003u4b2 [DONE] Effect：single-arm escape-continuation 主 emitter 切到统一状态机输入
 - 描述：在 `T2003u4b1` 完成 unified plan 的 single-site/source-path 基础后，再迁移 single-arm escape-continuation 主 emitter，覆盖 direct/indirect perform 的 plan-driven 入口。
 - 目标：
   - single-arm escape-continuation 的主 lowering 直接消费 unified state-machine plan，而不是继续以 `scan.rs` 的 direct/indirect site 扫描结果作为终态输入。
@@ -1159,6 +1159,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4b1
+- 完成说明：
+  - `codegen_handle_expr_escape_continuation` 现已直接从 unified state-machine plan 解析 single-arm direct / indirect suspend site，不再把旧的 direct / indirect scanner 结果当作主 emitter 的终态输入；旧 replay helper 只保留为 source-path / stmt replay 复用。
+  - unified plan 现已为 escape arm 记录 free-local capture 集合；single-arm escape direct / indirect emitter 会把 arm-body outer captures 与 suspend-site capture 集合合并，保证 step trampoline 在第二次及后续 perform 重新进入 arm body 时仍能读取外层局部。
+  - unified plan 的 outer-scope slot / declared-local 收集现已穿过 nested handle，并排除 inner handle 的 binders、`resume` / continuation 符号和内部 `val`，因此外层 continuation step 可以稳定保留“只在 nested handle 中使用”的外层局部，不再把它们漏成 `handle escape capture local decl`。
+  - 已新增单测：`escape_arm_capture_locals_include_outer_scope_reads`、`resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle`；并修复 / 验证回归：`continuation_resume_ref_class.scoop`、`std_task_async_adapters_basic.scoop`。
+  - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
 ### T2003u4c [TODO] Effect：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
 - 描述：最后迁移 mixed-arm、multiple-resuming 与 site-matrix 组合，把 `mixed.rs` / `matrix.rs` 的 shape-specific 主线收口为统一状态机 emitter。

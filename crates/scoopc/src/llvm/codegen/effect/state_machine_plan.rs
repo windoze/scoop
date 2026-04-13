@@ -42,6 +42,14 @@ impl HandleStateMachinePlan {
         HandlePlanBuilder::new(types, handle, context).build()
     }
 
+    pub(super) fn arm_capture_locals(&self, arm_id: ArmPlanId) -> &[hir::SymbolId] {
+        self.arm_plans
+            .iter()
+            .find(|arm| arm.id == arm_id)
+            .map(|arm| arm.capture_locals.as_slice())
+            .unwrap_or(&[])
+    }
+
     #[cfg(test)]
     pub(super) fn pretty_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
@@ -157,6 +165,8 @@ impl HandleStateMachinePlan {
                 arm.detach_policy
             ));
             out.push_str(&format!("{pad}    binders={binders}\n"));
+            let captures = render_symbol_list(&arm.capture_locals, &self.frame_layout.slots);
+            out.push_str(&format!("{pad}    captures={captures}\n"));
         }
 
         out.push_str(&format!("{pad}cleanup-scopes:\n"));
@@ -321,10 +331,12 @@ struct SuspendSitePlan {
     source_path: Option<SuspendSourcePath>,
 }
 
-/// direct perform 在 `handle` body 中的源码路径。
+/// statement-position `val` 绑定 suspend site 在 `handle` body 中的源码路径。
 ///
-/// 当前只补 single-arm immediate-resume 复用旧 replay helper 所需的 statement-position
-/// val-bound 路径；其它仍由旧 scanner 承接的 direct site 形状可以暂时保持缺失。
+/// 当前用于 single-arm immediate-resume / escape-continuation 复用旧 replay helper：
+/// - direct perform 会从这里恢复 `perform` 所在 stmt 与嵌套控制流路径；
+/// - effectful call site（indirect / state-machine callee）也会从这里恢复
+///   对应的 top-level `val x = f(...)` 语句位置。
 #[derive(Debug, Clone)]
 struct SuspendSourcePath {
     top_level_stmt_idx: usize,
@@ -354,6 +366,12 @@ enum SuspendSourceFramePath {
         block_span: Span,
         stmt_idx: usize,
     },
+    WhenArm {
+        when_span: Span,
+        arm_index: usize,
+        arm_span: Span,
+        stmt_idx: usize,
+    },
     IfThen {
         if_span: Span,
         then_span: Span,
@@ -376,6 +394,9 @@ impl SuspendSourceFramePath {
     fn label(&self) -> String {
         match self {
             SuspendSourceFramePath::Block { stmt_idx, .. } => format!("block[{stmt_idx}]"),
+            SuspendSourceFramePath::WhenArm {
+                arm_index, stmt_idx, ..
+            } => format!("when-arm#{arm_index}[{stmt_idx}]"),
             SuspendSourceFramePath::IfThen { stmt_idx, .. } => format!("if-then[{stmt_idx}]"),
             SuspendSourceFramePath::IfElse { stmt_idx, .. } => format!("if-else[{stmt_idx}]"),
             SuspendSourceFramePath::WhileBody { stmt_idx, .. } => {
@@ -388,6 +409,20 @@ impl SuspendSourceFramePath {
         match self {
             SuspendSourceFramePath::Block { block_span, stmt_idx } => {
                 0x101 ^ block_span.start ^ (block_span.end << 1) ^ stmt_idx
+            }
+            SuspendSourceFramePath::WhenArm {
+                when_span,
+                arm_index,
+                arm_span,
+                stmt_idx,
+            } => {
+                0x151
+                    ^ when_span.start
+                    ^ (when_span.end << 1)
+                    ^ arm_index
+                    ^ (arm_span.start << 2)
+                    ^ (arm_span.end << 3)
+                    ^ stmt_idx
             }
             SuspendSourceFramePath::IfThen {
                 if_span,
@@ -487,6 +522,7 @@ struct ArmPlan {
     id: ArmPlanId,
     op_fqn: String,
     binder_slots: Vec<FrameSlot>,
+    capture_locals: Vec<hir::SymbolId>,
     resume_mode: ArmResumeMode,
     body_entry_state: PlanStateId,
     body_exit: ArmBodyExit,
@@ -650,6 +686,9 @@ impl ArmPlan {
             ^ self.detach_policy.len();
         for slot in &self.binder_slots {
             acc ^= slot.structural_signature();
+        }
+        for id in &self.capture_locals {
+            acc ^= (id.as_u32() as usize) << 2;
         }
         acc
     }
@@ -817,7 +856,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let dispatch_plan = self.build_dispatch_plan();
         self.build_arm_states();
         self.compute_capture_sets();
-        self.attach_direct_perform_source_paths();
+        self.attach_suspend_source_paths();
         let frame_layout = self.build_frame_layout();
 
         let _ = final_exit_state;
@@ -1372,6 +1411,29 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.frame_slots.insert(slot.id, slot.clone());
             }
 
+            let mut declared = binder_slots
+                .iter()
+                .map(|slot| slot.id)
+                .collect::<HashSet<_>>();
+            match arm.kind {
+                hir::HandleArmKind::NonResuming => {}
+                hir::HandleArmKind::ImmediateResume { resume } => {
+                    declared.insert(resume);
+                }
+                hir::HandleArmKind::EscapeContinuation { continuation } => {
+                    declared.insert(continuation);
+                }
+            }
+            collect_declared_local_ids_in_expr(&arm.body, &mut declared);
+
+            let mut used = HashSet::new();
+            MainCodegen::collect_used_locals_in_expr_static(&arm.body, &mut used);
+            let mut capture_locals = used
+                .into_iter()
+                .filter(|id| !declared.contains(id))
+                .collect::<Vec<_>>();
+            capture_locals.sort_by_key(|id| id.as_u32());
+
             let body_entry_state = self.new_state(format!("arm{arm_id}.body"));
             self.push_action(
                 body_entry_state,
@@ -1405,6 +1467,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 id: arm_id,
                 op_fqn: arm.op.op.fqn.clone(),
                 binder_slots,
+                capture_locals,
                 resume_mode,
                 body_entry_state,
                 body_exit,
@@ -1419,6 +1482,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .iter()
             .flat_map(|site| site.capture_locals.iter().copied())
             .collect::<Vec<_>>();
+        lifted_ids.extend(
+            self.arm_plans
+                .iter()
+                .flat_map(|arm| arm.capture_locals.iter().copied()),
+        );
         lifted_ids.sort_by_key(|id| id.as_u32());
         lifted_ids.dedup_by_key(|id| id.as_u32());
 
@@ -1454,12 +1522,32 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .iter()
             .map(|state| (state.id, state.reads.clone()))
             .collect::<HashMap<_, _>>();
+        let suspend_state_reads = self
+            .states
+            .iter()
+            .filter_map(|state| match state.terminator {
+                StateTerminator::Suspend { site_id } => Some((site_id, state.reads.clone())),
+                _ => None,
+            })
+            .collect::<HashMap<_, _>>();
         for site in &mut self.suspend_sites {
             let reachable = reachable_states(site.resume_target, &successors);
             let mut used_after = reachable
                 .into_iter()
                 .flat_map(|state_id| state_reads.get(&state_id).cloned().unwrap_or_default())
                 .collect::<Vec<_>>();
+            if matches!(
+                site.kind,
+                SuspendSiteKind::IndirectCallMaySuspend { .. }
+                    | SuspendSiteKind::CallStateMachineCallee { .. }
+            ) {
+                used_after.extend(
+                    suspend_state_reads
+                        .get(&site.id)
+                        .cloned()
+                        .unwrap_or_default(),
+                );
+            }
             used_after.sort_by_key(|id| id.as_u32());
             used_after.dedup_by_key(|id| id.as_u32());
 
@@ -1475,14 +1563,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
-    fn attach_direct_perform_source_paths(&mut self) {
+    fn attach_suspend_source_paths(&mut self) {
         let mut path = Vec::new();
         for (top_level_stmt_idx, stmt) in self.handle.body.stmts.iter().enumerate() {
-            self.attach_direct_perform_source_paths_in_stmt(stmt, top_level_stmt_idx, &mut path);
+            self.attach_suspend_source_paths_in_stmt(stmt, top_level_stmt_idx, &mut path);
         }
     }
 
-    fn attach_direct_perform_source_paths_in_stmt(
+    fn attach_suspend_source_paths_in_stmt(
         &mut self,
         stmt: &'hir hir::Stmt,
         top_level_stmt_idx: usize,
@@ -1497,14 +1585,17 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let Some(init) = decl.init.as_ref() else {
                     return;
                 };
-                if matches!(init.kind, hir::ExprKind::Perform { .. }) {
-                    self.record_direct_perform_source_path(init.span, top_level_stmt_idx, path);
+                if matches!(
+                    init.kind,
+                    hir::ExprKind::Perform { .. } | hir::ExprKind::Call { .. }
+                ) {
+                    self.record_suspend_source_path(init, top_level_stmt_idx, path);
                 } else {
-                    self.attach_direct_perform_source_paths_in_expr(init, top_level_stmt_idx, path);
+                    self.attach_suspend_source_paths_in_expr(init, top_level_stmt_idx, path);
                 }
             }
             hir::StmtKind::Expr(expr) => {
-                self.attach_direct_perform_source_paths_in_expr(expr, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(expr, top_level_stmt_idx, path);
             }
             hir::StmtKind::Assign { .. } | hir::StmtKind::Return { .. } => {}
             hir::StmtKind::While { cond, body } => {
@@ -1514,7 +1605,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         while_body_span: body.span,
                         stmt_idx,
                     });
-                    self.attach_direct_perform_source_paths_in_stmt(
+                    self.attach_suspend_source_paths_in_stmt(
                         body_stmt,
                         top_level_stmt_idx,
                         path,
@@ -1525,7 +1616,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
-    fn attach_direct_perform_source_paths_in_expr(
+    fn attach_suspend_source_paths_in_expr(
         &mut self,
         expr: &'hir hir::Expr,
         top_level_stmt_idx: usize,
@@ -1538,7 +1629,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         block_span: block.span,
                         stmt_idx,
                     });
-                    self.attach_direct_perform_source_paths_in_stmt(stmt, top_level_stmt_idx, path);
+                    self.attach_suspend_source_paths_in_stmt(stmt, top_level_stmt_idx, path);
                     let _ = path.pop();
                 }
             }
@@ -1554,7 +1645,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             then_span: block.span,
                             stmt_idx,
                         });
-                        self.attach_direct_perform_source_paths_in_stmt(
+                        self.attach_suspend_source_paths_in_stmt(
                             stmt,
                             top_level_stmt_idx,
                             path,
@@ -1571,7 +1662,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             else_span: block.span,
                             stmt_idx,
                         });
-                        self.attach_direct_perform_source_paths_in_stmt(
+                        self.attach_suspend_source_paths_in_stmt(
                             stmt,
                             top_level_stmt_idx,
                             path,
@@ -1580,20 +1671,50 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     }
                 }
             }
+            hir::ExprKind::When { arms, .. } => {
+                for (arm_index, when_arm) in arms.iter().enumerate() {
+                    if let hir::ExprKind::Block(block) = &when_arm.body.kind {
+                        for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
+                            path.push(SuspendSourceFramePath::WhenArm {
+                                when_span: expr.span,
+                                arm_index,
+                                arm_span: block.span,
+                                stmt_idx,
+                            });
+                            self.attach_suspend_source_paths_in_stmt(
+                                stmt,
+                                top_level_stmt_idx,
+                                path,
+                            );
+                            let _ = path.pop();
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
 
-    fn record_direct_perform_source_path(
+    fn record_suspend_source_path(
         &mut self,
-        site_span: Span,
+        expr: &'hir hir::Expr,
         top_level_stmt_idx: usize,
         path: &[SuspendSourceFramePath],
     ) {
         let Some(site) = self.suspend_sites.iter_mut().find(|site| {
-            matches!(site.kind, SuspendSiteKind::DirectPerform { .. })
-                && site.span == site_span
-                && site.source_path.is_none()
+            let kind_matches = matches!(
+                (&site.kind, &expr.kind),
+                (SuspendSiteKind::DirectPerform { .. }, hir::ExprKind::Perform { .. })
+                    | (
+                        SuspendSiteKind::IndirectCallMaySuspend { .. },
+                        hir::ExprKind::Call { .. },
+                    )
+                    | (
+                        SuspendSiteKind::CallStateMachineCallee { .. },
+                        hir::ExprKind::Call { .. },
+                    )
+            );
+            kind_matches && site.span == expr.span && site.source_path.is_none()
         }) else {
             return;
         };
@@ -1764,7 +1885,7 @@ fn collect_outer_scope_slots(stmts: &[hir::Stmt]) -> Vec<FrameSlot> {
 
     let mut used = HashMap::new();
     for stmt in stmts {
-        collect_local_refs_in_stmt_skip_nested_handles(stmt, &mut used);
+        collect_local_refs_in_stmt(stmt, &mut used);
     }
 
     let mut slots = used
@@ -1835,6 +1956,7 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
         hir::ExprKind::When { subject, arms } => {
             collect_declared_local_ids_in_expr(subject, out);
             for arm in arms {
+                collect_declared_local_ids_in_when_pat(&arm.pat, out);
                 if let Some(guard) = arm.guard.as_ref() {
                     collect_declared_local_ids_in_expr(guard, out);
                 }
@@ -1880,7 +2002,31 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
             }
         }
         hir::ExprKind::Closure(closure) => collect_declared_local_ids_in_expr(&closure.body, out),
-        hir::ExprKind::Handle(_) => {}
+        hir::ExprKind::Handle(handle) => {
+            for stmt in &handle.body.stmts {
+                collect_declared_local_ids_in_stmt(stmt, out);
+            }
+            for arm in &handle.arms {
+                for binder in &arm.op.binders {
+                    out.insert(binder.id);
+                }
+                match arm.kind {
+                    hir::HandleArmKind::NonResuming => {}
+                    hir::HandleArmKind::ImmediateResume { resume } => {
+                        out.insert(resume);
+                    }
+                    hir::HandleArmKind::EscapeContinuation { continuation } => {
+                        out.insert(continuation);
+                    }
+                }
+                collect_declared_local_ids_in_expr(&arm.body, out);
+            }
+            if let Some(finally) = handle.finally.as_ref() {
+                for stmt in &finally.stmts {
+                    collect_declared_local_ids_in_stmt(stmt, out);
+                }
+            }
+        }
         hir::ExprKind::Perform { args, .. } => {
             for arg in args {
                 match arg {
@@ -1899,30 +2045,58 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
     }
 }
 
-fn collect_local_refs_in_stmt_skip_nested_handles(
-    stmt: &hir::Stmt,
-    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
-) {
+fn collect_declared_local_ids_in_when_pat(pat: &hir::WhenPat, out: &mut HashSet<hir::SymbolId>) {
+    match pat {
+        hir::WhenPat::Or { pats, .. } => {
+            for pat in pats {
+                collect_declared_local_ids_in_when_pat(pat, out);
+            }
+        }
+        hir::WhenPat::Bind { id, .. } => {
+            out.insert(*id);
+        }
+        hir::WhenPat::Tuple { elements, .. } => {
+            for pat in elements {
+                collect_declared_local_ids_in_when_pat(pat, out);
+            }
+        }
+        hir::WhenPat::Variant { args, .. } => {
+            for pat in args {
+                collect_declared_local_ids_in_when_pat(pat, out);
+            }
+        }
+        hir::WhenPat::Else { .. }
+        | hir::WhenPat::Wildcard { .. }
+        | hir::WhenPat::Rest { .. }
+        | hir::WhenPat::Is { .. }
+        | hir::WhenPat::IntLit { .. }
+        | hir::WhenPat::CharLit { .. }
+        | hir::WhenPat::StringLit { .. }
+        | hir::WhenPat::BoolLit { .. } => {}
+    }
+}
+
+fn collect_local_refs_in_stmt(stmt: &hir::Stmt, out: &mut HashMap<hir::SymbolId, (String, TypeId)>) {
     match &stmt.kind {
-        hir::StmtKind::Expr(expr) => collect_local_refs_in_expr_skip_nested_handles(expr, out),
+        hir::StmtKind::Expr(expr) => collect_local_refs_in_expr(expr, out),
         hir::StmtKind::Val(decl) => {
             if let Some(init) = decl.init.as_ref() {
-                collect_local_refs_in_expr_skip_nested_handles(init, out);
+                collect_local_refs_in_expr(init, out);
             }
         }
         hir::StmtKind::Assign { lhs, rhs, .. } => {
-            collect_local_refs_in_expr_skip_nested_handles(lhs, out);
-            collect_local_refs_in_expr_skip_nested_handles(rhs, out);
+            collect_local_refs_in_expr(lhs, out);
+            collect_local_refs_in_expr(rhs, out);
         }
         hir::StmtKind::While { cond, body } => {
-            collect_local_refs_in_expr_skip_nested_handles(cond, out);
+            collect_local_refs_in_expr(cond, out);
             for stmt in &body.stmts {
-                collect_local_refs_in_stmt_skip_nested_handles(stmt, out);
+                collect_local_refs_in_stmt(stmt, out);
             }
         }
         hir::StmtKind::Return { value } => {
             if let Some(expr) = value {
-                collect_local_refs_in_expr_skip_nested_handles(expr, out);
+                collect_local_refs_in_expr(expr, out);
             }
         }
         hir::StmtKind::Empty
@@ -1932,17 +2106,14 @@ fn collect_local_refs_in_stmt_skip_nested_handles(
     }
 }
 
-fn collect_local_refs_in_expr_skip_nested_handles(
-    expr: &hir::Expr,
-    out: &mut HashMap<hir::SymbolId, (String, TypeId)>,
-) {
+fn collect_local_refs_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolId, (String, TypeId)>) {
     match &expr.kind {
         hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
             out.entry(*id).or_insert_with(|| (name.clone(), expr.ty));
         }
         hir::ExprKind::Block(block) => {
             for stmt in &block.stmts {
-                collect_local_refs_in_stmt_skip_nested_handles(stmt, out);
+                collect_local_refs_in_stmt(stmt, out);
             }
         }
         hir::ExprKind::If {
@@ -1950,48 +2121,44 @@ fn collect_local_refs_in_expr_skip_nested_handles(
             then_branch,
             else_branch,
         } => {
-            collect_local_refs_in_expr_skip_nested_handles(cond, out);
-            collect_local_refs_in_expr_skip_nested_handles(then_branch, out);
+            collect_local_refs_in_expr(cond, out);
+            collect_local_refs_in_expr(then_branch, out);
             if let Some(else_branch) = else_branch.as_deref() {
-                collect_local_refs_in_expr_skip_nested_handles(else_branch, out);
+                collect_local_refs_in_expr(else_branch, out);
             }
         }
         hir::ExprKind::When { subject, arms } => {
-            collect_local_refs_in_expr_skip_nested_handles(subject, out);
+            collect_local_refs_in_expr(subject, out);
             for arm in arms {
                 if let Some(guard) = arm.guard.as_ref() {
-                    collect_local_refs_in_expr_skip_nested_handles(guard, out);
+                    collect_local_refs_in_expr(guard, out);
                 }
-                collect_local_refs_in_expr_skip_nested_handles(&arm.body, out);
+                collect_local_refs_in_expr(&arm.body, out);
             }
         }
         hir::ExprKind::Call { callee, args } => {
-            collect_local_refs_in_expr_skip_nested_handles(callee, out);
+            collect_local_refs_in_expr(callee, out);
             for arg in args {
                 match arg {
-                    hir::CallArg::Positional(expr) => {
-                        collect_local_refs_in_expr_skip_nested_handles(expr, out)
-                    }
-                    hir::CallArg::Named { value, .. } => {
-                        collect_local_refs_in_expr_skip_nested_handles(value, out)
-                    }
+                    hir::CallArg::Positional(expr) => collect_local_refs_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => collect_local_refs_in_expr(value, out),
                 }
             }
         }
         hir::ExprKind::StructLit { fields, .. } => {
             for field in fields {
-                collect_local_refs_in_expr_skip_nested_handles(&field.value, out);
+                collect_local_refs_in_expr(&field.value, out);
             }
         }
         hir::ExprKind::TupleLit { elements } => {
             for element in elements {
-                collect_local_refs_in_expr_skip_nested_handles(element, out);
+                collect_local_refs_in_expr(element, out);
             }
         }
         hir::ExprKind::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_local_refs_in_expr_skip_nested_handles(expr, out);
+                    collect_local_refs_in_expr(expr, out);
                 }
             }
         }
@@ -2000,27 +2167,35 @@ fn collect_local_refs_in_expr_skip_nested_handles(
         | hir::ExprKind::TypeCheck { expr: inner, .. }
         | hir::ExprKind::MemberAccess {
             receiver: inner, ..
-        } => collect_local_refs_in_expr_skip_nested_handles(inner, out),
+        } => collect_local_refs_in_expr(inner, out),
         hir::ExprKind::Binary { lhs, rhs, .. } => {
-            collect_local_refs_in_expr_skip_nested_handles(lhs, out);
-            collect_local_refs_in_expr_skip_nested_handles(rhs, out);
+            collect_local_refs_in_expr(lhs, out);
+            collect_local_refs_in_expr(rhs, out);
         }
         hir::ExprKind::Closure(closure) => {
-            collect_local_refs_in_expr_skip_nested_handles(&closure.body, out);
+            collect_local_refs_in_expr(&closure.body, out);
         }
         hir::ExprKind::Perform { args, .. } => {
             for arg in args {
                 match arg {
-                    hir::CallArg::Positional(expr) => {
-                        collect_local_refs_in_expr_skip_nested_handles(expr, out)
-                    }
-                    hir::CallArg::Named { value, .. } => {
-                        collect_local_refs_in_expr_skip_nested_handles(value, out)
-                    }
+                    hir::CallArg::Positional(expr) => collect_local_refs_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => collect_local_refs_in_expr(value, out),
                 }
             }
         }
-        hir::ExprKind::Handle(_) => {}
+        hir::ExprKind::Handle(handle) => {
+            for stmt in &handle.body.stmts {
+                collect_local_refs_in_stmt(stmt, out);
+            }
+            for arm in &handle.arms {
+                collect_local_refs_in_expr(&arm.body, out);
+            }
+            if let Some(finally) = handle.finally.as_ref() {
+                for stmt in &finally.stmts {
+                    collect_local_refs_in_stmt(stmt, out);
+                }
+            }
+        }
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)

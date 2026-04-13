@@ -32,30 +32,6 @@ enum ResumeFrame<'hir> {
     },
 }
 
-impl<'hir> ResumeFrame<'hir> {
-    fn set_resume_after_stmt(&mut self, idx: usize) {
-        match self {
-            ResumeFrame::IfThen {
-                resume_after_stmt, ..
-            }
-            | ResumeFrame::IfElse {
-                resume_after_stmt, ..
-            }
-            | ResumeFrame::WhenArm {
-                resume_after_stmt, ..
-            }
-            | ResumeFrame::WhileBody {
-                resume_after_stmt, ..
-            }
-            | ResumeFrame::Block {
-                resume_after_stmt, ..
-            } => {
-                *resume_after_stmt = idx;
-            }
-        }
-    }
-}
-
 /// Compare two ResumeFrame variants by HIR pointer identity (ignoring resume_after_stmt).
 /// Used to determine if two perform sites share the same nesting context at a given level.
 fn resume_frame_same_structure<'a>(a: &ResumeFrame<'a>, b: &ResumeFrame<'a>) -> bool {
@@ -92,10 +68,9 @@ fn resume_frame_same_structure<'a>(a: &ResumeFrame<'a>, b: &ResumeFrame<'a>) -> 
 }
 
 /// Declaration info for lift analysis: tracks all val decls in handle body (at any nesting depth).
+#[derive(Debug)]
 struct DeclInfo<'hir> {
     decl: &'hir hir::ValDecl,
-    /// Pre-order traversal position across the entire handle body tree.
-    order: usize,
 }
 
 #[derive(Debug)]
@@ -112,185 +87,501 @@ struct NestedPerformSite<'hir> {
     top_level_stmt_idx: usize,
 }
 
-/// T1606e：递归扫描 handle body 内所有 perform 点（含嵌套在 if/while/when/block 内的）。
-///
-/// 算法：用 path 栈（outermost-first）追踪当前嵌套上下文。
-/// 在每一层 block 迭代时，先更新最顶层 frame 的 resume_after_stmt 为当前 stmt index，
-/// 再递归进入子结构。当找到 perform 时，clone 当前 path 作为 resume_path。
-struct NestedPerformScanState<'hir> {
-    path: Vec<ResumeFrame<'hir>>,
-    pc: usize,
-    sites: Vec<NestedPerformSite<'hir>>,
-    decl_order: usize,
-    decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
+#[derive(Debug, Clone, Copy)]
+pub(super) struct EscapeContinuationHandleLowering<'hir> {
+    handle: &'hir hir::HandleExpr,
+    state_machine_plan: &'hir HandleStateMachinePlan,
+    arm_id: ArmPlanId,
+    arm: &'hir hir::HandleArm,
+    continuation_symbol: hir::SymbolId,
+    seq: u32,
+    out_ty: CgTy,
 }
 
-impl<'hir> NestedPerformScanState<'hir> {
-    fn scan_stmts(
-        &mut self,
+#[derive(Debug)]
+struct ResolvedEscapeDirectSites<'hir> {
+    perform_sites: Vec<NestedPerformSite<'hir>>,
+    decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
+#[derive(Debug)]
+struct ResolvedEscapeIndirectSites {
+    indirect_sites: Vec<IndirectPerformCallSite>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn record_escape_decl_info_in_stmts<'hir>(
         stmts: &'hir [hir::Stmt],
-        arm_op_fqn: &str,
-        top_level_stmt_idx: usize,
-    ) -> Result<(), LlvmEmitError> {
-        for (idx, stmt) in stmts.iter().enumerate() {
-            if let Some(frame) = self.path.last_mut() {
-                frame.set_resume_after_stmt(idx);
-            }
+        decl_map: &mut HashMap<hir::SymbolId, DeclInfo<'hir>>,
+    ) {
+        for stmt in stmts {
             match &stmt.kind {
                 hir::StmtKind::Val(decl) => {
                     if let Some(id) = decl.id {
-                        self.decl_map.insert(
-                            id,
-                            DeclInfo {
-                                decl,
-                                order: self.decl_order,
-                            },
-                        );
-                        self.decl_order += 1;
-                    }
-                    if let Some(init) = &decl.init
-                        && let hir::ExprKind::Perform { op, args } = &init.kind
-                        && op.fqn == arm_op_fqn
-                    {
-                        let Some(id) = decl.id else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle escape perform binding id",
-                                at: decl.span.into(),
-                            });
-                        };
-                        let this_pc = self.pc;
-                        self.pc += 1;
-                        self.sites.push(NestedPerformSite {
-                            pc: this_pc,
-                            decl,
-                            op,
-                            args: args.as_slice(),
-                            id,
-                            resume_path: self.path.clone(),
-                            top_level_stmt_idx,
-                        });
+                        decl_map.entry(id).or_insert(DeclInfo { decl });
                     }
                 }
-                hir::StmtKind::Expr(expr) => {
-                    if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                        && op.fqn == arm_op_fqn
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle escape body (perform must be bound to val)",
-                            at: expr.span.into(),
-                        });
-                    }
-                    self.scan_expr(expr, arm_op_fqn, top_level_stmt_idx)?;
+                hir::StmtKind::Expr(expr) => Self::record_escape_decl_info_in_expr(expr, decl_map),
+                hir::StmtKind::While { body, .. } => {
+                    Self::record_escape_decl_info_in_stmts(&body.stmts, decl_map);
                 }
-                hir::StmtKind::While { cond, body } => {
-                    self.path.push(ResumeFrame::WhileBody {
-                        while_cond: cond,
-                        while_body: body,
-                        resume_after_stmt: 0,
-                    });
-                    self.scan_stmts(&body.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                    self.path.pop();
-                }
-                _ => {}
+                hir::StmtKind::Assign { .. }
+                | hir::StmtKind::Return { .. }
+                | hir::StmtKind::Empty
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {}
             }
         }
-        Ok(())
     }
 
-    fn scan_expr(
-        &mut self,
+    fn record_escape_decl_info_in_expr<'hir>(
         expr: &'hir hir::Expr,
-        arm_op_fqn: &str,
-        top_level_stmt_idx: usize,
-    ) -> Result<(), LlvmEmitError> {
+        decl_map: &mut HashMap<hir::SymbolId, DeclInfo<'hir>>,
+    ) {
         match &expr.kind {
             hir::ExprKind::If {
-                cond: _,
                 then_branch,
                 else_branch,
+                ..
             } => {
                 if let hir::ExprKind::Block(block) = &then_branch.kind {
-                    self.path.push(ResumeFrame::IfThen {
-                        if_expr: expr,
-                        then_block_stmts: &block.stmts,
-                        resume_after_stmt: 0,
-                    });
-                    self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                    self.path.pop();
+                    Self::record_escape_decl_info_in_stmts(&block.stmts, decl_map);
                 }
                 if let Some(else_expr) = else_branch.as_deref()
                     && let hir::ExprKind::Block(block) = &else_expr.kind
                 {
-                    self.path.push(ResumeFrame::IfElse {
-                        if_expr: expr,
-                        else_block_stmts: &block.stmts,
-                        resume_after_stmt: 0,
-                    });
-                    self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                    self.path.pop();
+                    Self::record_escape_decl_info_in_stmts(&block.stmts, decl_map);
                 }
             }
-            hir::ExprKind::When { subject: _, arms } => {
-                for (arm_idx, when_arm) in arms.iter().enumerate() {
+            hir::ExprKind::When { arms, .. } => {
+                for when_arm in arms {
                     if let hir::ExprKind::Block(block) = &when_arm.body.kind {
-                        self.path.push(ResumeFrame::WhenArm {
-                            when_expr: expr,
-                            arm_index: arm_idx,
-                            arm_block_stmts: &block.stmts,
-                            resume_after_stmt: 0,
-                        });
-                        self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                        self.path.pop();
+                        Self::record_escape_decl_info_in_stmts(&block.stmts, decl_map);
                     }
                 }
             }
             hir::ExprKind::Block(block) => {
-                self.path.push(ResumeFrame::Block {
-                    block,
-                    resume_after_stmt: 0,
-                });
-                self.scan_stmts(&block.stmts, arm_op_fqn, top_level_stmt_idx)?;
-                self.path.pop();
+                Self::record_escape_decl_info_in_stmts(&block.stmts, decl_map);
             }
             _ => {}
         }
-        Ok(())
     }
-}
 
-impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn scan_escape_perform_sites<'hir>(
+    fn collect_escape_decl_map<'hir>(
         handle: &'hir hir::HandleExpr,
-        arm_op_fqn: &str,
-    ) -> Result<
-        (
-            Vec<NestedPerformSite<'hir>>,
-            HashMap<hir::SymbolId, DeclInfo<'hir>>,
-        ),
-        LlvmEmitError,
-    > {
-        let mut scan_state = NestedPerformScanState {
-            path: Vec::new(),
-            pc: 0,
-            sites: Vec::new(),
-            decl_order: 0,
-            decl_map: HashMap::new(),
-        };
-        for (top_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            scan_state.scan_stmts(std::slice::from_ref(stmt), arm_op_fqn, top_idx)?;
+    ) -> HashMap<hir::SymbolId, DeclInfo<'hir>> {
+        let mut decl_map = HashMap::new();
+        Self::record_escape_decl_info_in_stmts(&handle.body.stmts, &mut decl_map);
+        decl_map
+    }
+
+    fn resolve_escape_stmt_from_source_path<'hir>(
+        handle: &'hir hir::HandleExpr,
+        source_path: &SuspendSourcePath,
+        site_span: crate::span::Span,
+    ) -> Result<(&'hir hir::Stmt, Vec<ResumeFrame<'hir>>), LlvmEmitError> {
+        let mut current_stmt = handle.body.stmts.get(source_path.top_level_stmt_idx).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape body (invalid top-level suspend path)",
+                at: site_span.into(),
+            },
+        )?;
+        let mut resume_path = Vec::with_capacity(source_path.frames.len());
+
+        for frame in &source_path.frames {
+            match frame {
+                SuspendSourceFramePath::Block { block_span, stmt_idx } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected block expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected block expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    if block.span != *block_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (block path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid block stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ResumeFrame::Block {
+                        block,
+                        resume_after_stmt: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::WhenArm {
+                    when_span,
+                    arm_index,
+                    arm_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected when expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if expr.span != *when_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (when path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::When { arms, .. } = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected when expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let when_arm = arms.get(*arm_index).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid when arm path)",
+                            at: expr.span.into(),
+                        },
+                    )?;
+                    let hir::ExprKind::Block(block) = &when_arm.body.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected when arm block)",
+                            at: when_arm.body.span.into(),
+                        });
+                    };
+                    if block.span != *arm_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (when arm path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid when arm stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ResumeFrame::WhenArm {
+                        when_expr: expr,
+                        arm_index: *arm_index,
+                        arm_block_stmts: &block.stmts,
+                        resume_after_stmt: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::IfThen {
+                    if_span,
+                    then_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if expr.span != *if_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If { then_branch, .. } = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &then_branch.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if-then block)",
+                            at: then_branch.span.into(),
+                        });
+                    };
+                    if block.span != *then_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (if-then path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid if-then stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ResumeFrame::IfThen {
+                        if_expr: expr,
+                        then_block_stmts: &block.stmts,
+                        resume_after_stmt: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::IfElse {
+                    if_span,
+                    else_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::Expr(expr) = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if expression statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if expr.span != *if_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (if path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If { else_branch, .. } = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let Some(else_expr) = else_branch.as_deref() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (missing if-else branch)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(block) = &else_expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected if-else block)",
+                            at: else_expr.span.into(),
+                        });
+                    };
+                    if block.span != *else_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (if-else path mismatch)",
+                            at: block.span.into(),
+                        });
+                    }
+                    current_stmt = block.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid if-else stmt path)",
+                            at: block.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ResumeFrame::IfElse {
+                        if_expr: expr,
+                        else_block_stmts: &block.stmts,
+                        resume_after_stmt: *stmt_idx,
+                    });
+                }
+                SuspendSourceFramePath::WhileBody {
+                    while_cond_span,
+                    while_body_span,
+                    stmt_idx,
+                } => {
+                    let hir::StmtKind::While { cond, body } = &current_stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (expected while statement)",
+                            at: current_stmt.span.into(),
+                        });
+                    };
+                    if cond.span != *while_cond_span || body.span != *while_body_span {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (while path mismatch)",
+                            at: current_stmt.span.into(),
+                        });
+                    }
+                    current_stmt = body.stmts.get(*stmt_idx).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (invalid while stmt path)",
+                            at: body.span.into(),
+                        },
+                    )?;
+                    resume_path.push(ResumeFrame::WhileBody {
+                        while_cond: cond,
+                        while_body: body,
+                        resume_after_stmt: *stmt_idx,
+                    });
+                }
+            }
         }
-        Ok((scan_state.sites, scan_state.decl_map))
+
+        Ok((current_stmt, resume_path))
+    }
+
+    fn resolve_escape_direct_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        arm_id: ArmPlanId,
+        arm_op_fqn: &str,
+    ) -> Result<ResolvedEscapeDirectSites<'hir>, LlvmEmitError> {
+        let decl_map = Self::collect_escape_decl_map(handle);
+        let mut capture_ids = HashSet::new();
+        let mut matching_sites = state_machine_plan
+            .suspend_sites
+            .iter()
+            .filter(|site| {
+                matches!(
+                    &site.kind,
+                    SuspendSiteKind::DirectPerform { op_fqn } if op_fqn == arm_op_fqn
+                ) && site.matching_arms.contains(&arm_id)
+            })
+            .collect::<Vec<_>>();
+        matching_sites.sort_by_key(|site| site.id);
+
+        let mut perform_sites = Vec::with_capacity(matching_sites.len());
+        for (pc, site) in matching_sites.into_iter().enumerate() {
+            capture_ids.extend(site.capture_locals.iter().copied());
+
+            let Some(source_path) = &site.source_path else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape body (missing unified source path)",
+                    at: site.span.into(),
+                });
+            };
+            let (stmt, resume_path) =
+                Self::resolve_escape_stmt_from_source_path(handle, source_path, site.span)?;
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape body (perform must be bound to val)",
+                    at: stmt.span.into(),
+                });
+            };
+            let Some(init) = decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape body (missing perform init)",
+                    at: decl.span.into(),
+                });
+            };
+            let hir::ExprKind::Perform { op, args } = &init.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape body (expected direct perform)",
+                    at: init.span.into(),
+                });
+            };
+            if init.span != site.span || op.fqn != arm_op_fqn {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape body (unified plan/source mismatch)",
+                    at: init.span.into(),
+                });
+            }
+            let Some(id) = decl.id else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape perform binding id",
+                    at: decl.span.into(),
+                });
+            };
+
+            perform_sites.push(NestedPerformSite {
+                pc,
+                decl,
+                op,
+                args: args.as_slice(),
+                id,
+                resume_path,
+                top_level_stmt_idx: source_path.top_level_stmt_idx,
+            });
+        }
+
+        Ok(ResolvedEscapeDirectSites {
+            perform_sites,
+            decl_map,
+            capture_ids,
+        })
+    }
+
+    fn resolve_escape_indirect_sites_from_plan(
+        handle: &hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<ResolvedEscapeIndirectSites, LlvmEmitError> {
+        let mut capture_ids = HashSet::new();
+        let mut matching_sites = state_machine_plan
+            .suspend_sites
+            .iter()
+            .filter(|site| {
+                matches!(
+                    site.kind,
+                    SuspendSiteKind::IndirectCallMaySuspend { .. }
+                        | SuspendSiteKind::CallStateMachineCallee { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+        matching_sites.sort_by_key(|site| site.id);
+
+        let mut indirect_sites = Vec::with_capacity(matching_sites.len());
+        for site in matching_sites {
+            capture_ids.extend(site.capture_locals.iter().copied());
+
+            let Some(source_path) = &site.source_path else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (missing unified source path)",
+                    at: site.span.into(),
+                });
+            };
+            if !source_path.frames.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (only top-level call sites supported)",
+                    at: site.span.into(),
+                });
+            }
+            let (stmt, _) =
+                Self::resolve_escape_stmt_from_source_path(handle, source_path, site.span)?;
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (call must be bound to val)",
+                    at: stmt.span.into(),
+                });
+            };
+            let Some(init) = decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (missing call init)",
+                    at: decl.span.into(),
+                });
+            };
+            if !matches!(init.kind, hir::ExprKind::Call { .. }) || init.span != site.span {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (unified plan/source mismatch)",
+                    at: init.span.into(),
+                });
+            }
+            let Some(id) = decl.id else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape continuation indirect site (call result id)",
+                    at: decl.span.into(),
+                });
+            };
+
+            indirect_sites.push(IndirectPerformCallSite {
+                stmt_idx: source_path.top_level_stmt_idx,
+                _result_id: id,
+                result_ty: decl.ty,
+            });
+        }
+
+        Ok(ResolvedEscapeIndirectSites {
+            indirect_sites,
+            capture_ids,
+        })
     }
 
     pub(super) fn codegen_handle_expr_escape_continuation(
         &mut self,
         span: crate::span::Span,
-        handle: &hir::HandleExpr,
-        arm: &hir::HandleArm,
-        continuation_symbol: hir::SymbolId,
-        seq: u32,
-        out_ty: CgTy,
+        lowering: EscapeContinuationHandleLowering<'_>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let EscapeContinuationHandleLowering {
+            handle,
+            state_machine_plan,
+            arm_id,
+            arm,
+            continuation_symbol,
+            seq,
+            out_ty,
+        } = lowering;
         // T0617：`Effect.op(...), k -> { ... }`
         //
         // 当前阶段（可回归语义子集）：
@@ -303,13 +594,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - heap state machine 以 `{ frame, pc, lifted locals... }` 表达可重入执行；
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
 
-        // 1) 扫描 handle body：递归收集所有匹配该 arm 的 perform 点（含嵌套在控制流内的）。
-        let (perform_sites, decl_map) = Self::scan_escape_perform_sites(handle, &arm.op.op.fqn)?;
+        // 1) 从 unified plan 恢复 direct / indirect suspend site。
+        let arm_capture_ids = state_machine_plan.arm_capture_locals(arm_id);
+        let ResolvedEscapeDirectSites {
+            perform_sites,
+            decl_map,
+            mut capture_ids,
+        } = Self::resolve_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            arm_id,
+            &arm.op.op.fqn,
+        )?;
+        capture_ids.extend(arm_capture_ids.iter().copied());
 
         let Some(first_site) = perform_sites.first() else {
             // T1606f-2: No direct performs found. Check for indirect performs through function calls.
-            let indirect_sites =
-                self.scan_for_indirect_perform_call_sites(&handle.body, &arm.op.op.fqn);
+            let ResolvedEscapeIndirectSites {
+                indirect_sites,
+                mut capture_ids,
+            } = Self::resolve_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+            capture_ids.extend(arm_capture_ids.iter().copied());
             if !indirect_sites.is_empty() {
                 if indirect_sites.len() > 1 {
                     return self
@@ -330,6 +635,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         seq,
                         out_ty,
                         indirect_sites,
+                        capture_ids,
                     },
                 );
             }
@@ -435,129 +741,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mutable: bool,
         }
 
-        // 1) outer locals：来自当前 codegen env
-        let mut outer_captures: Vec<CapturedLocal> = Vec::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_captures.push(CapturedLocal {
-                    id,
-                    hir_ty: local.hir_ty,
-                    ty: local.ty,
-                    mutable: local.mutable,
-                });
-            }
-        }
+        // 1) unified plan 已为匹配的 suspend sites 计算 capture 集合。这里仅把这些
+        //    capture ids 映射回“外层 env local”与“handle body local”两类存储来源。
+        let mut capture_ids = capture_ids.into_iter().collect::<Vec<_>>();
+        capture_ids.sort_by_key(|id| id.as_u32());
 
-        outer_captures.sort_by_key(|c| c.id.as_u32());
+        let mut outer_captures: Vec<CapturedLocal> = Vec::new();
+        let mut body_lift_ids: Vec<hir::SymbolId> = Vec::new();
+        for id in capture_ids {
+            if let Some(local) = self.env.get(id) {
+                if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
+                    outer_captures.push(CapturedLocal {
+                        id,
+                        hir_ty: local.hir_ty,
+                        ty: local.ty,
+                        mutable: local.mutable,
+                    });
+                }
+            } else {
+                body_lift_ids.push(id);
+            }
+        }
 
         // 2) body lifted locals：跨 suspension 使用的 handle body locals（Ref/String/Bool/Int）。
-        //
-        // T1606e：使用 decl_map（递归扫描中收集）进行嵌套感知的 lift analysis：
-        // - 对每个 perform 点 p：
-        //   - 计算 "p 之后可达代码中会用到的 locals 集合" used_after[p]：
-        //     - resume_path 每层 frame 的 continuation（stmts[ras+1..]）；
-        //     - WhileBody 额外包含整个 while body + condition（循环重执行）；
-        //     - 顶层 handle.body.stmts[top_level_stmt_idx+1..]；
-        //   - 若某 local 在 used_after[p] 中，且 decl_map[id].order < decl_map[p.id].order，则必须 lift；
-        // - 取并集，得到 state machine 生命周期内需要保存/恢复的 locals。
-        fn collect_used_after_perform(
-            site: &NestedPerformSite<'_>,
-            top_level_stmts: &[hir::Stmt],
-            used_after: &mut HashSet<hir::SymbolId>,
-        ) {
-            // resume_path 每层的 continuation（stmts after the frame's resume_after_stmt）。
-            for frame in &site.resume_path {
-                match frame {
-                    ResumeFrame::IfThen {
-                        then_block_stmts,
-                        resume_after_stmt,
-                        ..
-                    } => {
-                        for stmt in then_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-                        }
-                    }
-                    ResumeFrame::IfElse {
-                        else_block_stmts,
-                        resume_after_stmt,
-                        ..
-                    } => {
-                        for stmt in else_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-                        }
-                    }
-                    ResumeFrame::WhenArm {
-                        arm_block_stmts,
-                        resume_after_stmt,
-                        ..
-                    } => {
-                        for stmt in arm_block_stmts.iter().skip(*resume_after_stmt + 1) {
-                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-                        }
-                    }
-                    ResumeFrame::WhileBody {
-                        while_cond,
-                        while_body,
-                        resume_after_stmt,
-                    } => {
-                        // 本次迭代的 continuation。
-                        for stmt in while_body.stmts.iter().skip(*resume_after_stmt + 1) {
-                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-                        }
-                        // 循环重执行：整个 while body + condition。
-                        MainCodegen::collect_used_locals_in_block_static(while_body, used_after);
-                        MainCodegen::collect_used_locals_in_expr_static(while_cond, used_after);
-                    }
-                    ResumeFrame::Block {
-                        block,
-                        resume_after_stmt,
-                    } => {
-                        for stmt in block.stmts.iter().skip(*resume_after_stmt + 1) {
-                            MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-                        }
-                    }
-                }
-            }
-            // 顶层 handle.body.stmts 中位于 top_level_stmt_idx 之后的部分。
-            for stmt in top_level_stmts.iter().skip(site.top_level_stmt_idx + 1) {
-                MainCodegen::collect_used_locals_in_stmt_static(stmt, used_after);
-            }
-        }
-
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for site in &perform_sites {
-            let Some(site_decl_info) = decl_map.get(&site.id) else {
-                continue;
-            };
-            let site_order = site_decl_info.order;
-
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            collect_used_after_perform(site, &handle.body.stmts, &mut used_after);
-
-            for id in used_after {
-                let Some(info) = decl_map.get(&id) else {
-                    continue;
-                };
-                if info.order < site_order {
-                    body_lift_ids.insert(id);
-                }
-            }
-        }
-
         let mut body_lifts: Vec<CapturedLocal> = Vec::new();
         for &id in &body_lift_ids {
             let Some(info) = decl_map.get(&id) else {
-                continue;
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local decl",
+                    at: span.into(),
+                });
             };
             let decl = info.decl;
 
@@ -3950,6 +4163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             seq,
             out_ty,
             indirect_sites,
+            capture_ids,
         } = plan;
         let insert_block =
             self.builder
@@ -3988,13 +4202,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy,
             mutable: bool,
         }
-        let mut outer_used: HashSet<hir::SymbolId> = HashSet::new();
-        for stmt in &handle.body.stmts {
-            Self::collect_used_locals_in_stmt_static(stmt, &mut outer_used);
-        }
+        let decl_map = Self::collect_escape_decl_map(handle);
+        let mut capture_ids = capture_ids.into_iter().collect::<Vec<_>>();
+        capture_ids.sort_by_key(|id| id.as_u32());
+
         let mut outer_captures: Vec<CapturedLocal> = Vec::new();
-        for id in &outer_used {
-            if let Some(local) = self.env.get(*id)
+        let mut body_lift_ids: Vec<hir::SymbolId> = Vec::new();
+        for id in capture_ids {
+            if let Some(local) = self.env.get(id)
                 && matches!(
                     local.ty,
                     CgTy::Ref
@@ -4006,73 +4221,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )
             {
                 outer_captures.push(CapturedLocal {
-                    id: *id,
+                    id,
                     hir_ty: local.hir_ty,
                     ty: local.ty,
                     mutable: local.mutable,
                 });
+            } else if self.env.get(id).is_none() {
+                body_lift_ids.push(id);
             }
         }
         outer_captures.sort_by_key(|c| c.id.as_u32());
 
-        // Compute body lifts: locals declared before the indirect perform that are used after.
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        {
-            // Collect locals declared before each indirect perform site.
-            let mut decls_before: Vec<(hir::SymbolId, usize)> = Vec::new();
-            for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-                if idx >= first_site.stmt_idx {
-                    break;
-                }
-                if let hir::StmtKind::Val(decl) = &stmt.kind
-                    && let Some(id) = decl.id
-                {
-                    decls_before.push((id, idx));
-                }
-            }
-            // Collect locals used at and after the indirect perform site.
-            // T1606f-3: The step function re-codegens the call expression at the
-            // perform site (e.g., `callIt { Ask.get(x) }` where the closure captures
-            // handle body locals), so we must include locals used within the call
-            // expression itself, not just stmts after it.
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            Self::collect_used_locals_in_stmt_static(
-                &handle.body.stmts[first_site.stmt_idx],
-                &mut used_after,
-            );
-            for stmt in handle.body.stmts.iter().skip(first_site.stmt_idx + 1) {
-                Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
-            }
-            for (id, _) in &decls_before {
-                if used_after.contains(id) {
-                    body_lift_ids.insert(*id);
-                }
-            }
-        }
-
         let mut body_lifts: Vec<CapturedLocal> = Vec::new();
-        for &id in &body_lift_ids {
-            // These locals haven't been codegen'd yet (body hasn't run), so we can't look them up.
-            // We need their type info from the HIR decls.
-            for stmt in &handle.body.stmts {
-                if let hir::StmtKind::Val(decl) = &stmt.kind
-                    && decl.id == Some(id)
-                {
-                    let decl_ty =
-                        self.cg_ty_of(decl.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "indirect perform body lift type",
-                                at: decl.span.into(),
-                            })?;
-                    body_lifts.push(CapturedLocal {
-                        id,
-                        hir_ty: Some(decl.ty),
-                        ty: decl_ty,
-                        mutable: decl.mutable,
-                    });
-                    break;
-                }
-            }
+        for id in body_lift_ids {
+            let Some(info) = decl_map.get(&id) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "indirect perform body lift decl",
+                    at: span.into(),
+                });
+            };
+            let decl = info.decl;
+            let decl_ty =
+                self.cg_ty_of(decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "indirect perform body lift type",
+                        at: decl.span.into(),
+                    })?;
+            body_lifts.push(CapturedLocal {
+                id,
+                hir_ty: Some(decl.ty),
+                ty: decl_ty,
+                mutable: decl.mutable,
+            });
         }
         body_lifts.sort_by_key(|c| c.id.as_u32());
 

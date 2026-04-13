@@ -757,6 +757,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         stmt_idx: *stmt_idx,
                     });
                 }
+                SuspendSourceFramePath::WhenArm { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle resume body (when arm with perform not yet supported)",
+                        at: site_span.into(),
+                    });
+                }
                 SuspendSourceFramePath::IfThen {
                     if_span,
                     then_span,

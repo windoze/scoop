@@ -358,15 +358,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (escape-continuation arm id)",
+                        at: arm.span.into(),
+                    });
+                };
                 let seq = self.escape_continuation_seq;
                 self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
                 return self.codegen_handle_expr_escape_continuation(
                     span,
-                    handle,
-                    arm,
-                    continuation,
-                    seq,
-                    out_ty,
+                    EscapeContinuationHandleLowering {
+                        handle,
+                        state_machine_plan: &state_machine_plan,
+                        arm_id: arm_id as ArmPlanId,
+                        arm,
+                        continuation_symbol: continuation,
+                        seq,
+                        out_ty,
+                    },
                 );
             }
             SimplifiedCodegenEntrypoint::MultiNonResuming

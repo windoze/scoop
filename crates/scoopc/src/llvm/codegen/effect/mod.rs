@@ -230,6 +230,7 @@ struct AbiPayloadTransport<'ctx> {
 }
 
 /// T1606f-2: Info about a function call site in the handle body that may indirectly perform.
+#[derive(Debug)]
 struct IndirectPerformCallSite {
     /// Index of the stmt in handle.body.stmts.
     stmt_idx: usize,
@@ -244,6 +245,7 @@ struct IndirectEscapeContinuationPlan {
     seq: u32,
     out_ty: CgTy,
     indirect_sites: Vec<IndirectPerformCallSite>,
+    capture_ids: std::collections::HashSet<hir::SymbolId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
