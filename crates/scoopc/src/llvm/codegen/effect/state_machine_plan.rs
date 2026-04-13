@@ -529,7 +529,7 @@ struct ArmPlan {
     detach_policy: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ArmResumeMode {
     NeverResume,
     ImmediateResume,
@@ -537,7 +537,6 @@ enum ArmResumeMode {
 }
 
 impl ArmResumeMode {
-    #[cfg(test)]
     fn label(self) -> &'static str {
         match self {
             ArmResumeMode::NeverResume => "never-resume",
@@ -555,7 +554,7 @@ impl ArmResumeMode {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ArmBodyExit {
     ReturnHandle,
     ResumeMatchedSite,
@@ -563,7 +562,6 @@ enum ArmBodyExit {
 }
 
 impl ArmBodyExit {
-    #[cfg(test)]
     fn label(self) -> &'static str {
         match self {
             ArmBodyExit::ReturnHandle => "return-handle",
@@ -590,13 +588,12 @@ struct CleanupScopePlan {
     note: String,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CleanupScopeKind {
     Finally,
 }
 
 impl CleanupScopeKind {
-    #[cfg(test)]
     fn label(self) -> &'static str {
         match self {
             CleanupScopeKind::Finally => "finally",
@@ -2291,9 +2288,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn build_handle_state_machine_plan(&self, handle: &hir::HandleExpr) -> HandleStateMachinePlan {
         let context = HandlePlanContext::from_codegen(self);
         let plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
-        // Keep the phase-1 segment projection in sync during the ground-up rewrite,
-        // even before the builder fully switches to consuming it as the only input.
-        let _segment_signature = plan.build_segment_list().structural_signature();
+        // Keep the phase-1 segment projection and its builder-facing invariants in sync
+        // during the ground-up rewrite, even before the builder fully switches to it as
+        // the only input.
+        let segment_list = plan.build_segment_list();
+        #[cfg(debug_assertions)]
+        if let Err(message) = segment_list.validate_builder_contract() {
+            panic!("invalid handle segment builder contract: {message}");
+        }
+        let _segment_signature = segment_list.structural_signature();
         plan
     }
 }

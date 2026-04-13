@@ -100,7 +100,7 @@ struct HandleSegmentEdge {
     kind: HandleSegmentEdgeKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum HandleSegmentEdgeKind {
     Goto,
     BranchThen,
@@ -257,6 +257,532 @@ impl HandleSegmentList {
             acc ^= nested.structural_signature();
         }
         acc
+    }
+
+    // Freeze the phase-1 segment contract before T2003r2 switches the builder
+    // to consume HandleSegmentList as its only input.
+    fn validate_builder_contract(&self) -> Result<(), String> {
+        self.validate_builder_contract_with_path("root")
+    }
+
+    fn validate_builder_contract_with_path(&self, path: &str) -> Result<(), String> {
+        let mut segment_by_id = HashMap::<HandleSegmentId, &HandleSegment>::new();
+        for segment in &self.segments {
+            if segment_by_id.insert(segment.id, segment).is_some() {
+                return Err(format!("{path}: duplicate segment id seg{}", segment.id));
+            }
+        }
+        if !segment_by_id.contains_key(&self.entry_segment) {
+            return Err(format!(
+                "{path}: entry segment seg{} is missing from segments[]",
+                self.entry_segment
+            ));
+        }
+
+        let mut arm_bodies_by_id = HashMap::<ArmPlanId, &HandleSegmentArmBody>::new();
+        for arm in &self.arm_bodies {
+            if arm_bodies_by_id.insert(arm.arm_id, arm).is_some() {
+                return Err(format!("{path}: duplicate arm body arm{}", arm.arm_id));
+            }
+        }
+
+        let mut cleanup_scopes_by_id = HashMap::<CleanupScopeId, &HandleSegmentCleanupScope>::new();
+        for scope in &self.cleanup_scopes {
+            if cleanup_scopes_by_id.insert(scope.id, scope).is_some() {
+                return Err(format!("{path}: duplicate cleanup scope cleanup{}", scope.id));
+            }
+        }
+
+        let mut suspend_sites_by_id = HashMap::<SuspendSiteId, &HandleSegmentSuspendSite>::new();
+        for site in &self.suspend_sites {
+            if suspend_sites_by_id.insert(site.id, site).is_some() {
+                return Err(format!("{path}: duplicate suspend site site{}", site.id));
+            }
+        }
+
+        let mut edge_keys = HashSet::<(HandleSegmentId, HandleSegmentId, HandleSegmentEdgeKind)>::new();
+        for edge in &self.edges {
+            if !segment_by_id.contains_key(&edge.from) {
+                return Err(format!(
+                    "{path}: edge source seg{} is missing from segments[]",
+                    edge.from
+                ));
+            }
+            if !segment_by_id.contains_key(&edge.to) {
+                return Err(format!(
+                    "{path}: edge target seg{} is missing from segments[]",
+                    edge.to
+                ));
+            }
+            if !edge_keys.insert((edge.from, edge.to, edge.kind)) {
+                return Err(format!(
+                    "{path}: duplicate edge seg{} -{}-> seg{}",
+                    edge.from,
+                    edge.kind.label(),
+                    edge.to
+                ));
+            }
+
+            let from_segment = segment_by_id
+                .get(&edge.from)
+                .expect("validated edge source should exist");
+            let matches_terminator = match &from_segment.terminator {
+                HandleSegmentTerminator::Goto { next_segment } => {
+                    edge.kind == HandleSegmentEdgeKind::Goto && edge.to == *next_segment
+                }
+                HandleSegmentTerminator::Branch {
+                    then_segment,
+                    else_segment,
+                    ..
+                } => {
+                    (edge.kind == HandleSegmentEdgeKind::BranchThen && edge.to == *then_segment)
+                        || (edge.kind == HandleSegmentEdgeKind::BranchElse
+                            && edge.to == *else_segment)
+                }
+                HandleSegmentTerminator::Suspend { resume_segment, .. } => {
+                    edge.kind == HandleSegmentEdgeKind::SuspendResume
+                        && edge.to == *resume_segment
+                }
+                HandleSegmentTerminator::CleanupEnter { next_segment, .. } => {
+                    edge.kind == HandleSegmentEdgeKind::CleanupEnter
+                        && edge.to == *next_segment
+                }
+                HandleSegmentTerminator::ReturnHandle
+                | HandleSegmentTerminator::ReturnFromFunction
+                | HandleSegmentTerminator::ArmExit { .. } => false,
+            };
+            if !matches_terminator {
+                return Err(format!(
+                    "{path}: edge seg{} -{}-> seg{} does not match terminator {}",
+                    edge.from,
+                    edge.kind.label(),
+                    edge.to,
+                    from_segment.terminator.label()
+                ));
+            }
+        }
+
+        let mut dispatched_arm_ids = HashSet::<ArmPlanId>::new();
+        let mut dispatch_ops = HashSet::<&str>::new();
+        for entry in &self.dispatch_entries {
+            if !dispatch_ops.insert(entry.op_fqn.as_str()) {
+                return Err(format!(
+                    "{path}: duplicate dispatch entry for {}",
+                    entry.op_fqn
+                ));
+            }
+            if entry.arm_ids.len() != entry.targets.len() {
+                return Err(format!(
+                    "{path}: dispatch entry {} has {} arm ids but {} targets",
+                    entry.op_fqn,
+                    entry.arm_ids.len(),
+                    entry.targets.len()
+                ));
+            }
+
+            let mut arm_ids = HashSet::<ArmPlanId>::new();
+            for (idx, (arm_id, target)) in entry.arm_ids.iter().zip(&entry.targets).enumerate() {
+                if !arm_ids.insert(*arm_id) {
+                    return Err(format!(
+                        "{path}: dispatch entry {} repeats arm{}",
+                        entry.op_fqn,
+                        arm_id
+                    ));
+                }
+                if *arm_id != target.arm_id {
+                    return Err(format!(
+                        "{path}: dispatch entry {} target#{idx} points to arm{} but arm_ids[{idx}] is arm{}",
+                        entry.op_fqn,
+                        target.arm_id,
+                        arm_id
+                    ));
+                }
+
+                let arm = arm_bodies_by_id.get(arm_id).ok_or_else(|| {
+                    format!(
+                        "{path}: dispatch entry {} references missing arm{}",
+                        entry.op_fqn,
+                        arm_id
+                    )
+                })?;
+                if arm.op_fqn != entry.op_fqn {
+                    return Err(format!(
+                        "{path}: dispatch entry {} points to arm{} for {}",
+                        entry.op_fqn,
+                        arm_id,
+                        arm.op_fqn
+                    ));
+                }
+                if target.entry_segment != arm.body_entry_segment {
+                    return Err(format!(
+                        "{path}: dispatch entry {} arm{} entry seg{} does not match arm body seg{}",
+                        entry.op_fqn,
+                        arm_id,
+                        target.entry_segment,
+                        arm.body_entry_segment
+                    ));
+                }
+                if target.resume_mode != arm.resume_mode {
+                    return Err(format!(
+                        "{path}: dispatch entry {} arm{} resume mode does not match arm body",
+                        entry.op_fqn,
+                        arm_id
+                    ));
+                }
+                if target.body_exit != arm.body_exit {
+                    return Err(format!(
+                        "{path}: dispatch entry {} arm{} exit does not match arm body",
+                        entry.op_fqn,
+                        arm_id
+                    ));
+                }
+
+                dispatched_arm_ids.insert(*arm_id);
+            }
+        }
+
+        if dispatched_arm_ids.len() != arm_bodies_by_id.len() {
+            let missing = arm_bodies_by_id
+                .keys()
+                .copied()
+                .filter(|arm_id| !dispatched_arm_ids.contains(arm_id))
+                .map(|arm_id| format!("arm{arm_id}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(format!(
+                "{path}: dispatch metadata is missing [{}]",
+                missing
+            ));
+        }
+
+        for scope in &self.cleanup_scopes {
+            if !segment_by_id.contains_key(&scope.entry_segment) {
+                return Err(format!(
+                    "{path}: cleanup{} entry seg{} is missing from segments[]",
+                    scope.id,
+                    scope.entry_segment
+                ));
+            }
+            if !segment_by_id.contains_key(&scope.exit_segment) {
+                return Err(format!(
+                    "{path}: cleanup{} exit seg{} is missing from segments[]",
+                    scope.id,
+                    scope.exit_segment
+                ));
+            }
+        }
+
+        for arm in &self.arm_bodies {
+            if !segment_by_id.contains_key(&arm.body_entry_segment) {
+                return Err(format!(
+                    "{path}: arm{} entry seg{} is missing from segments[]",
+                    arm.arm_id,
+                    arm.body_entry_segment
+                ));
+            }
+            if !arm.body_segments.contains(&arm.body_entry_segment) {
+                return Err(format!(
+                    "{path}: arm{} body does not include its entry seg{}",
+                    arm.arm_id,
+                    arm.body_entry_segment
+                ));
+            }
+
+            let mut body_segment_ids = HashSet::<HandleSegmentId>::new();
+            for segment_id in &arm.body_segments {
+                if !body_segment_ids.insert(*segment_id) {
+                    return Err(format!(
+                        "{path}: arm{} body repeats seg{}",
+                        arm.arm_id,
+                        segment_id
+                    ));
+                }
+                let segment = segment_by_id.get(segment_id).ok_or_else(|| {
+                    format!(
+                        "{path}: arm{} body references missing seg{}",
+                        arm.arm_id,
+                        segment_id
+                    )
+                })?;
+                match segment.dispatch_context {
+                    HandleSegmentDispatchContext::Arm {
+                        arm_id,
+                        resume_mode,
+                    } if arm_id == arm.arm_id && resume_mode == arm.resume_mode => {}
+                    _ => {
+                        return Err(format!(
+                            "{path}: arm{} body segment seg{} has mismatched dispatch context {}",
+                            arm.arm_id,
+                            segment_id,
+                            segment.dispatch_context.label()
+                        ));
+                    }
+                }
+                if segment.cleanup_scope_stack != arm.cleanup_scope_stack {
+                    return Err(format!(
+                        "{path}: arm{} body segment seg{} has cleanup stack [{}] but arm body expects [{}]",
+                        arm.arm_id,
+                        segment_id,
+                        render_segment_cleanup_scope_ids(&segment.cleanup_scope_stack),
+                        render_segment_cleanup_scope_ids(&arm.cleanup_scope_stack)
+                    ));
+                }
+            }
+        }
+
+        for site in &self.suspend_sites {
+            if !segment_by_id.contains_key(&site.owner_segment) {
+                return Err(format!(
+                    "{path}: site{} owner seg{} is missing from segments[]",
+                    site.id,
+                    site.owner_segment
+                ));
+            }
+            if !segment_by_id.contains_key(&site.resume_segment) {
+                return Err(format!(
+                    "{path}: site{} resume seg{} is missing from segments[]",
+                    site.id,
+                    site.resume_segment
+                ));
+            }
+
+            let owner = segment_by_id
+                .get(&site.owner_segment)
+                .expect("validated owner segment should exist");
+            match owner.terminator {
+                HandleSegmentTerminator::Suspend {
+                    site_id,
+                    resume_segment,
+                } if site_id == site.id && resume_segment == site.resume_segment => {}
+                _ => {
+                    return Err(format!(
+                        "{path}: site{} owner seg{} terminator does not point back to site",
+                        site.id,
+                        site.owner_segment
+                    ));
+                }
+            }
+
+            let mut matching_arms = HashSet::<ArmPlanId>::new();
+            for arm_id in &site.matching_arms {
+                if !matching_arms.insert(*arm_id) {
+                    return Err(format!(
+                        "{path}: site{} repeats matching arm{}",
+                        site.id,
+                        arm_id
+                    ));
+                }
+                if !arm_bodies_by_id.contains_key(arm_id) {
+                    return Err(format!(
+                        "{path}: site{} references missing arm{}",
+                        site.id,
+                        arm_id
+                    ));
+                }
+            }
+        }
+
+        for segment in &self.segments {
+            for scope_id in &segment.cleanup_scope_stack {
+                if !cleanup_scopes_by_id.contains_key(scope_id) {
+                    return Err(format!(
+                        "{path}: seg{} references missing cleanup{} in cleanup stack",
+                        segment.id,
+                        scope_id
+                    ));
+                }
+            }
+
+            match &segment.terminator {
+                HandleSegmentTerminator::Goto { next_segment } => {
+                    if !segment_by_id.contains_key(next_segment) {
+                        return Err(format!(
+                            "{path}: seg{} goto target seg{} is missing from segments[]",
+                            segment.id,
+                            next_segment
+                        ));
+                    }
+                    if !edge_keys.contains(&(segment.id, *next_segment, HandleSegmentEdgeKind::Goto))
+                    {
+                        return Err(format!(
+                            "{path}: seg{} goto target seg{} is missing from edges[]",
+                            segment.id,
+                            next_segment
+                        ));
+                    }
+                }
+                HandleSegmentTerminator::Branch {
+                    then_segment,
+                    else_segment,
+                    merge_segment,
+                    ..
+                } => {
+                    for target in [then_segment, else_segment, merge_segment] {
+                        if !segment_by_id.contains_key(target) {
+                            return Err(format!(
+                                "{path}: seg{} branch target seg{} is missing from segments[]",
+                                segment.id,
+                                target
+                            ));
+                        }
+                    }
+                    if !edge_keys.contains(&(
+                        segment.id,
+                        *then_segment,
+                        HandleSegmentEdgeKind::BranchThen,
+                    )) {
+                        return Err(format!(
+                            "{path}: seg{} missing branch-then edge to seg{}",
+                            segment.id,
+                            then_segment
+                        ));
+                    }
+                    if !edge_keys.contains(&(
+                        segment.id,
+                        *else_segment,
+                        HandleSegmentEdgeKind::BranchElse,
+                    )) {
+                        return Err(format!(
+                            "{path}: seg{} missing branch-else edge to seg{}",
+                            segment.id,
+                            else_segment
+                        ));
+                    }
+                }
+                HandleSegmentTerminator::Suspend {
+                    site_id,
+                    resume_segment,
+                } => {
+                    let site = suspend_sites_by_id.get(site_id).ok_or_else(|| {
+                        format!(
+                            "{path}: seg{} suspend site{} is missing from suspend_sites[]",
+                            segment.id,
+                            site_id
+                        )
+                    })?;
+                    if site.owner_segment != segment.id {
+                        return Err(format!(
+                            "{path}: seg{} points to site{} but site owner is seg{}",
+                            segment.id,
+                            site_id,
+                            site.owner_segment
+                        ));
+                    }
+                    if site.resume_segment != *resume_segment {
+                        return Err(format!(
+                            "{path}: seg{} resume seg{} disagrees with site{} resume seg{}",
+                            segment.id,
+                            resume_segment,
+                            site_id,
+                            site.resume_segment
+                        ));
+                    }
+                    if !edge_keys.contains(&(
+                        segment.id,
+                        *resume_segment,
+                        HandleSegmentEdgeKind::SuspendResume,
+                    )) {
+                        return Err(format!(
+                            "{path}: seg{} missing suspend-resume edge to seg{}",
+                            segment.id,
+                            resume_segment
+                        ));
+                    }
+                }
+                HandleSegmentTerminator::CleanupEnter {
+                    scope_id,
+                    next_segment,
+                } => {
+                    if !cleanup_scopes_by_id.contains_key(scope_id) {
+                        return Err(format!(
+                            "{path}: seg{} cleanup enter references missing cleanup{}",
+                            segment.id,
+                            scope_id
+                        ));
+                    }
+                    if !segment_by_id.contains_key(next_segment) {
+                        return Err(format!(
+                            "{path}: seg{} cleanup target seg{} is missing from segments[]",
+                            segment.id,
+                            next_segment
+                        ));
+                    }
+                    if !edge_keys.contains(&(
+                        segment.id,
+                        *next_segment,
+                        HandleSegmentEdgeKind::CleanupEnter,
+                    )) {
+                        return Err(format!(
+                            "{path}: seg{} missing cleanup-enter edge to seg{}",
+                            segment.id,
+                            next_segment
+                        ));
+                    }
+                }
+                HandleSegmentTerminator::ReturnHandle
+                | HandleSegmentTerminator::ReturnFromFunction
+                | HandleSegmentTerminator::ArmExit { .. } => {}
+            }
+
+            match segment.dispatch_context {
+                HandleSegmentDispatchContext::Main => {}
+                HandleSegmentDispatchContext::Cleanup { scope_id, kind } => {
+                    let scope = cleanup_scopes_by_id.get(&scope_id).ok_or_else(|| {
+                        format!(
+                            "{path}: seg{} cleanup-body references missing cleanup{}",
+                            segment.id,
+                            scope_id
+                        )
+                    })?;
+                    if scope.kind != kind {
+                        return Err(format!(
+                            "{path}: seg{} cleanup-body kind mismatch for cleanup{}",
+                            segment.id,
+                            scope_id
+                        ));
+                    }
+                    if segment.cleanup_scope_stack.contains(&scope_id) {
+                        return Err(format!(
+                            "{path}: seg{} cleanup-body still lists cleanup{} in cleanup stack",
+                            segment.id,
+                            scope_id
+                        ));
+                    }
+                }
+                HandleSegmentDispatchContext::Arm {
+                    arm_id,
+                    resume_mode,
+                } => {
+                    let arm = arm_bodies_by_id.get(&arm_id).ok_or_else(|| {
+                        format!(
+                            "{path}: seg{} arm-body references missing arm{}",
+                            segment.id,
+                            arm_id
+                        )
+                    })?;
+                    if arm.resume_mode != resume_mode {
+                        return Err(format!(
+                            "{path}: seg{} arm-body mode mismatch for arm{}",
+                            segment.id,
+                            arm_id
+                        ));
+                    }
+                    if !arm.body_segments.contains(&segment.id) {
+                        return Err(format!(
+                            "{path}: seg{} is marked as arm{} body but arm metadata does not include it",
+                            segment.id,
+                            arm_id
+                        ));
+                    }
+                }
+            }
+        }
+
+        for (idx, nested) in self.nested_handles.iter().enumerate() {
+            nested.validate_builder_contract_with_path(&format!("{path}/nested#{idx}"))?;
+        }
+
+        Ok(())
     }
 
     #[cfg(test)]
@@ -489,7 +1015,6 @@ impl HandleSegmentDispatchContext {
         }
     }
 
-    #[cfg(test)]
     fn label(self) -> String {
         match self {
             Self::Main => "handle-body".to_string(),
@@ -613,7 +1138,6 @@ impl HandleSegmentTerminator {
         }
     }
 
-    #[cfg(test)]
     fn label(&self) -> String {
         match self {
             Self::Goto { next_segment } => format!("goto seg{next_segment}"),
@@ -651,7 +1175,6 @@ impl HandleSegmentEdgeKind {
         }
     }
 
-    #[cfg(test)]
     fn label(self) -> &'static str {
         match self {
             Self::Goto => "goto",
@@ -796,7 +1319,6 @@ fn render_segment_symbol_ids(ids: &[hir::SymbolId]) -> String {
     labels.join(", ")
 }
 
-#[cfg(test)]
 fn render_segment_cleanup_scope_ids(ids: &[CleanupScopeId]) -> String {
     ids.iter()
         .map(|id| format!("cleanup{id}"))

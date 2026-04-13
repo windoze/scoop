@@ -1387,7 +1387,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 mixed-arm + sibling non-resuming 的 segment dump 单测，并扩展 multi-arm / nested-handle dump 断言以覆盖 dispatch / arm-body metadata。
   - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r1c [TODO] Effect：segmenting 覆盖 nested-while / richer matrix，并冻结 builder 输入契约
+### T2003r1c [DONE] Effect：segmenting 覆盖 nested-while / richer matrix，并冻结 builder 输入契约
 - 描述：最后补齐 nested-while 与 richer mixed representative samples，并把统一 segment list 的输入契约冻结下来，确保下一阶段 `T2003r2` 只能消费这份 segment list，而不是再回头看源码形状。
 - 目标：
   - nested-while、direct/indirect mixed、nested control-flow representative samples 都能产出统一 segment dump。
@@ -1398,6 +1398,11 @@ cargo run -p scoop --features llvm -- test
   - 不新增 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 的新功能。
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r1b
+- 完成说明：
+  - `HandleSegmentList` 已新增 `validate_builder_contract`，显式校验 segment id、edge kind、suspend-site owner/resume、dispatch entry、arm body、cleanup scope 与 nested handle 的 builder-facing 引用契约。
+  - `build_handle_state_machine_plan` 现会在 debug 构建中校验 segment builder contract；`build_segment_dump` 测试辅助也会统一执行同一份校验，避免 segment dump golden 只锁字符串、不锁输入不变量。
+  - 已新增 segment dump 回归：`segment_dump_records_nested_while_source_path`、`segment_dump_covers_richer_mixed_while_direct_and_indirect_sites`，覆盖 nested-while 与 while 中 direct/indirect mixed representative samples。
+  - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
 - 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。
