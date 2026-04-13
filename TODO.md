@@ -1291,7 +1291,7 @@ cargo run -p scoop --features llvm -- test
   - 原 build-fail `effect_multi_escape_direct_indirect_while_is_error` 已删除，新增 run-pass 回归 `effect_multi_escape_direct_indirect_while`。
   - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5c2 [TODO] Effect：no-immediate multiple-escape 的 while separate-stmt mixed replay（indirect 在 direct 之前 / richer ordering）
+### T2003u5c2 [DONE] Effect：no-immediate multiple-escape 的 while separate-stmt mixed replay（indirect 在 direct 之前 / richer ordering）
 - 描述：`T2003u5c1` 只先打通 `direct -> indirect`。但当 while body 中的 first mixed site 改成 indirect 时，future-iteration re-entry 需要重新回到 earlier indirect site，而不是沿用当前 direct-first tail helper；这部分仍需单独收口。
 - 目标：
   - no-immediate multiple-escape 的 unified emitter 覆盖 while body 中 separate-stmt 的 `indirect -> direct` mixed replay。
@@ -1302,6 +1302,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5c1
+- 完成说明：
+  - `mixed.rs` 的 no-immediate top-level mixed 分类已允许 while body 中 one direct + one indirect 的 `indirect -> direct` separate-stmt 顺序，并把相关诊断从“仅 direct-before-indirect”收口为真正的 while mixed ordering 检查。
+  - `matrix.rs` 已补齐两个对称 helper：当前 indirect 可继续 replay 到后续 statement 的 direct site；later direct 完成当前迭代后，future iteration 会重新回到 earlier indirect site。
+  - mixed step 对 earliest indirect site 的恢复现已改成“只恢复 lexical scope，再在写入 callee resume payload 后执行一次 call-site init”，避免重复 replay 当前 while 前缀副作用。
+  - 已新增 run-pass 回归 `effect_multi_escape_indirect_direct_while`。
+  - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5d [TODO] Effect：mixed-arm immediate+escape 的 while richer matrix replay
 - 描述：当前 immediate+escape mixed-arm 的 unified emitter 仍保留 3 个 while 形状门禁：deeper nested direct site、deeper nested indirect site，以及 separate-stmt direct/indirect coexistence。

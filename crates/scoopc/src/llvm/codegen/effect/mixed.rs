@@ -257,7 +257,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .or_else(|| indirect_sites.first().map(|site| site.decl.span))
                 .unwrap_or(span);
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites, statement-position nested block direct / indirect coexistence, if-branch direct / indirect coexistence, or while-body same-stmt direct / indirect coexistence supported)",
+                kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites, statement-position nested block direct / indirect coexistence, if-branch direct / indirect coexistence, or while-body same-stmt / separate-stmt direct / indirect coexistence supported)",
                 at: at.into(),
             });
         }
@@ -382,7 +382,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 if !resume_path.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites, statement-position nested block direct / indirect coexistence, if-branch direct / indirect coexistence, or while-body same-stmt direct / indirect coexistence supported)",
+                        kind: "handle multi-arm without immediate-resume (only top-level direct+indirect mixed sites, statement-position nested block direct / indirect coexistence, if-branch direct / indirect coexistence, or while-body same-stmt / separate-stmt direct / indirect coexistence supported)",
                         at: handle.body.stmts[*stmt_idx].span.into(),
                     });
                 }
@@ -612,9 +612,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if Self::mixed_escape_while_separate_stmt_order_supported(
                     &direct_site.resume_path,
                     &indirect_site.resume_path,
+                ) || Self::mixed_escape_while_separate_stmt_order_supported(
+                    &indirect_site.resume_path,
+                    &direct_site.resume_path,
                 ) {
-                    while_next_site_pc_by_pc.insert(direct_pc, indirect_pc);
-                    while_prev_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                    match Self::mixed_escape_matrix_stmt_path_cmp(
+                        &direct_site.resume_path,
+                        &indirect_site.resume_path,
+                    ) {
+                        std::cmp::Ordering::Less => {
+                            while_next_site_pc_by_pc.insert(direct_pc, indirect_pc);
+                            while_prev_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                        }
+                        std::cmp::Ordering::Greater => {
+                            while_next_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                            while_prev_site_pc_by_pc.insert(direct_pc, indirect_pc);
+                        }
+                        std::cmp::Ordering::Equal => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (while mixed site order ambiguous)",
+                                at: direct_site.decl.span.into(),
+                            });
+                        }
+                    }
                     let mut mixed_sites = while_direct_sites.clone();
                     mixed_sites.extend(while_indirect_sites.iter().copied());
                     while_mixed_site_pcs_by_stmt_idx.insert(*stmt_idx, mixed_sites);
@@ -622,7 +642,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-arm without immediate-resume (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
+                    kind: "handle multi-arm without immediate-resume (only same-body-stmt or separate-stmt direct / indirect coexistence in while body supported)",
                     at: handle.body.stmts[*stmt_idx].span.into(),
                 });
             }
@@ -1062,11 +1082,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 )?;
                             }
                         } else {
-                            cg.codegen_mixed_escape_matrix_prefix_to_indirect_site(
-                                indirect_site,
-                                &handle.body.stmts[site.stmt_idx],
-                                &body_lift_ids,
-                            )?;
+                            for _ in &indirect_site.resume_path {
+                                cg.env.push_scope();
+                            }
                         }
 
                         let rt_get_callee = cg.declare_runtime_callee_suspend_state_get();
@@ -1443,20 +1461,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 Some(MixedEscapeDirectFrame::WhileBody { .. })
                             ) =>
                         {
-                            cg.codegen_mixed_escape_matrix_while_tail_after_site(
-                                &handle.body.stmts[site.stmt_idx],
-                                site_pc,
-                                direct_site,
-                                &body_lift_ids,
-                                |cg, reenter_pc, future_direct_site| {
-                                    emit_step_direct_site(
-                                        cg,
-                                        reenter_pc,
-                                        future_direct_site,
-                                        0,
-                                    )
-                                },
-                            )?;
+                            if let Some(prev_pc) = while_prev_pc {
+                                let MatrixEscapeSiteKind::Indirect {
+                                    site: prev_indirect_site,
+                                } = &escape_sites[prev_pc].kind
+                                else {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "handle multi-arm without immediate-resume (expected previous indirect site)",
+                                        at: site.decl.span.into(),
+                                    });
+                                };
+                                cg.codegen_mixed_escape_matrix_while_tail_after_mixed_direct_site(
+                                    direct_site,
+                                    prev_pc,
+                                    prev_indirect_site,
+                                    &body_lift_ids,
+                                    |cg, reenter_pc, future_indirect_site| {
+                                        emit_step_indirect_site(
+                                            cg,
+                                            reenter_pc,
+                                            future_indirect_site,
+                                        )
+                                    },
+                                )?;
+                            } else {
+                                cg.codegen_mixed_escape_matrix_while_tail_after_site(
+                                    &handle.body.stmts[site.stmt_idx],
+                                    site_pc,
+                                    direct_site,
+                                    &body_lift_ids,
+                                    |cg, reenter_pc, future_direct_site| {
+                                        emit_step_direct_site(
+                                            cg,
+                                            reenter_pc,
+                                            future_direct_site,
+                                            0,
+                                        )
+                                    },
+                                )?;
+                            }
                         }
                         MatrixEscapeSiteKind::Direct { site: direct_site }
                             if !direct_site.resume_path.is_empty() =>

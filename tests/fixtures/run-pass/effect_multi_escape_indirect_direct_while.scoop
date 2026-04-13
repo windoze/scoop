@@ -1,0 +1,132 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_indirect_direct_while.stdout
+//
+// T2003u5c2: 无 immediate-resume 的 multi-arm handle
+// 支持 while body 中 separate-stmt 的 indirect -> direct mixed。
+// - indirect `resume(...)` 后会 replay indirect 与 direct 之间的 while tail，
+//   然后命中同一迭代里后续 statement 的 direct site；
+// - direct `resume(...)` 后会完成当前迭代尾部，并在后续迭代重新命中 earlier indirect site；
+// - after-while tail 仍可命中 sibling custom non-resuming arm。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var count: Int)
+
+fun fetch(seed: Int, label: String): String / (Ask) {
+    println("fetch_enter")
+    println(seed)
+    println(label)
+    val msg: String = Ask.ask(seed + 10)
+    println("fetch_resume")
+    println(msg)
+    println(label)
+    msg
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        var i: Int = 0
+        while (i < 2) {
+            println("iter_begin")
+            println(i)
+            val label: String = if (i == 0) "iter0" else "iter1"
+            val indirect: String = fetch(i + 20, label)
+            println("after_indirect")
+            println(label)
+            println(indirect)
+            val direct: String = Ask.ask(i + 1)
+            println("after_direct")
+            println(label)
+            println(indirect)
+            println(direct)
+            i = i + 1
+            println("iter_end")
+            println(i)
+        }
+        println("after_while")
+        Abort.stop(if (i == 2) "stop_done" else "stop_bad")
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.count = cell.count + 1
+            println("ask_arm")
+            println(cell.count)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k3.resume("gamma")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+
+    when (cell.k) {
+        Some(k4) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k4.resume("delta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume4")
+            }
+        }
+        None -> println("missing4")
+    }
+    println("after_resume4")
+    println("done")
+}
