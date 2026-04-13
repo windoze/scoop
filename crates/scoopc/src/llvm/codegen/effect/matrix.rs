@@ -4075,10 +4075,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - immediate site 是 top-level `val = perform`；
     /// - escape sites 可位于 immediate site 之前或之后，且允许 top-level direct / indirect 混合；
     /// - indirect path 仍只支持单 binder payload；nested site 继续稳定诊断。
+    #[allow(clippy::too_many_arguments)]
     fn codegen_handle_expr_immediate_resume_with_escape_sibling_site_matrix<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate: (&'hir hir::HandleArm, hir::SymbolId),
         escape: (&'hir hir::HandleArm, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
@@ -4090,14 +4092,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
 
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
-                at: span.into(),
-            });
-        };
+        let ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites,
+            indirect_sites,
+            ..
+        } = Self::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm,
+            escape_arm,
+        )?;
         if !perform_site.resume_path.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (nested immediate-resume site not yet supported)",
@@ -4131,7 +4136,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
         let mut indirect_sites_by_stmt_idx: HashMap<usize, Vec<&MixedEscapeIndirectSite<'hir>>> =
             HashMap::new();
         for site in &indirect_sites {
@@ -4140,7 +4144,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .or_default()
                 .push(site);
         }
-        let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
         let mut direct_sites_by_stmt_idx: HashMap<usize, Vec<&MixedEscapeDirectSite<'hir>>> =
             HashMap::new();
         for site in &direct_sites {

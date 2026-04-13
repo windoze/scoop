@@ -1452,6 +1452,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_handle_expr_immediate_resume_with_escape_sibling(
                     span,
                     handle,
+                    state_machine_plan,
                     (immediate_arm, resume_symbol),
                     (escape_arm, continuation_symbol),
                     out_ty,
@@ -1473,6 +1474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_handle_expr_immediate_resume_with_escape_and_nonresuming_siblings(
                     span,
                     handle,
+                    state_machine_plan,
                     (immediate_arm, resume_symbol),
                     (escape_arm, continuation_symbol),
                     nonresuming_arms,

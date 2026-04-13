@@ -240,7 +240,11 @@ cargo run -p scoop --features llvm -- test
   - 已新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，并重新验证 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
   - T2003u4c2 已完成：已新增 plan-driven mixed-escape direct / indirect resolver 与 capture-meta helper；`codegen_handle_expr_multiple_escape_top_level_direct`、`codegen_handle_expr_escape_with_nonresuming_siblings` 及其 direct / indirect / top-level-mixed 子路径现已直接消费 unified plan 的 suspend-site/source-path/capture 元数据，不再把 `scan_mixed_escape_*` 结果当作主输入。
   - 本轮还补了两个解析层单测：`resolve_mixed_escape_direct_sites_from_plan_keeps_source_order_and_arm_ids`、`resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures`，并重新验证 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u4c3`：继续迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到 unified plan。
+  - T2003u4c3 已完成：已新增 plan-driven helper `resolve_immediate_resume_with_escape_sites_from_plan`，并把 `codegen_handle_expr_immediate_resume_with_escape_sibling*` 的 direct / indirect / site-matrix 路由，以及 `matrix.rs` 中的 immediate+escape site-matrix 主线，统一切到 `HandleStateMachinePlan` 恢复出的 immediate/escape suspend-site 与 nested source-path；旧 scanner 不再作为这些 legal shape 的 source-of-truth。
+  - 本轮新增了解析层单测 `resolve_immediate_resume_with_escape_sites_from_plan_recovers_nested_mixed_matrix`，锁住 immediate+escape 在 nested `if` 中的 direct / indirect mixed-site 恢复。
+  - 由于旧 `scan.rs` 现在只保留为 legacy helper / 参考实现，本轮同时对其 dead-code lint 做了最小范围收口；行为未变，但 `cargo clippy --workspace --all-targets -- -D warnings` 继续保持通过。
+  - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u5`：继续迁移 mixed-arm / multiple-resuming 剩余组合并删除结构性门禁。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -305,7 +309,7 @@ cargo run -p scoop --features llvm -- test
   - T2003u4b2（已完成）：迁移 single-arm escape-continuation（direct/indirect）主 emitter 到统一状态机输入。
   - T2003u4c1（已完成）：迁移 `multiple immediate-resume` / `immediate + sibling non-resuming` 主 emitter 到统一状态机输入。
   - T2003u4c2（已完成）：迁移 `multiple escape-continuation` / `escape + sibling non-resuming` 主 emitter 到统一状态机输入。
-  - T2003u4c3：迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
+  - T2003u4c3（已完成）：迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
   - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。

@@ -64,6 +64,7 @@ enum ImmediateResumeFrame<'hir> {
 }
 
 impl<'hir> ImmediateResumeFrame<'hir> {
+    #[allow(dead_code)]
     fn set_stmt_idx(&mut self, idx: usize) {
         match self {
             ImmediateResumeFrame::Block { stmt_idx, .. }
@@ -113,6 +114,7 @@ enum MixedEscapeDirectFrame<'hir> {
 }
 
 impl<'hir> MixedEscapeDirectFrame<'hir> {
+    #[allow(dead_code)]
     fn set_stmt_idx(&mut self, idx: usize) {
         match self {
             MixedEscapeDirectFrame::Block { stmt_idx, .. }

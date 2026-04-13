@@ -805,6 +805,74 @@ fun demo(): Int {
     }
 
     #[test]
+    fn resolve_immediate_resume_with_escape_sites_from_plan_recovers_nested_mixed_matrix() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun askIndirect(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val base: Int = Yield.next()
+        if (flag) {
+            val direct: Int = Ask.ask(base)
+            direct
+        } else {
+            val indirect: Int = askIndirect(base)
+            indirect
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 2
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+
+        let resolved = MainCodegen::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            &plan,
+            &handle.arms[0],
+            &handle.arms[1],
+        )
+        .expect("plan-driven immediate+escape resolution should succeed");
+
+        assert_eq!(resolved.perform_site.top_level_stmt_idx, 0);
+        assert_eq!(resolved.perform_site.op.fqn, "a.Yield.next");
+        assert_eq!(resolved.direct_sites.len(), 1);
+        assert_eq!(resolved.indirect_sites.len(), 1);
+        assert_eq!(resolved.direct_sites[0].top_level_stmt_idx, 1);
+        assert_eq!(resolved.indirect_sites[0].top_level_stmt_idx, 1);
+        assert!(matches!(
+            resolved.direct_sites[0].resume_path.as_slice(),
+            [MixedEscapeDirectFrame::IfThen { .. }]
+        ));
+        assert!(matches!(
+            resolved.indirect_sites[0].resume_path.as_slice(),
+            [MixedEscapeDirectFrame::IfElse { .. }]
+        ));
+    }
+
+    #[test]
     fn simplification_codegen_entrypoint_classifies_mixed_representative_sample() {
         let source = r#"
 package a

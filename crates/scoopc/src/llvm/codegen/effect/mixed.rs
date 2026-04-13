@@ -1,4 +1,90 @@
+#[derive(Debug)]
+struct ResolvedPlanImmediateEscapeSites<'hir> {
+    perform_site: ImmediateResumeSite<'hir>,
+    direct_sites: Vec<MixedEscapeDirectSite<'hir>>,
+    indirect_sites: Vec<MixedEscapeIndirectSite<'hir>>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn resolve_handle_arm_plan_id<'hir>(
+        handle: &'hir hir::HandleExpr,
+        arm: &'hir hir::HandleArm,
+        kind: &'static str,
+    ) -> Result<ArmPlanId, LlvmEmitError> {
+        handle
+            .arms
+            .iter()
+            .position(|candidate| std::ptr::eq(candidate, arm))
+            .map(|idx| idx as ArmPlanId)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: arm.span.into(),
+            })
+    }
+
+    fn resolve_immediate_resume_with_escape_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        immediate_arm: &'hir hir::HandleArm,
+        escape_arm: &'hir hir::HandleArm,
+    ) -> Result<ResolvedPlanImmediateEscapeSites<'hir>, LlvmEmitError> {
+        let immediate_arm_id = Self::resolve_handle_arm_plan_id(
+            handle,
+            immediate_arm,
+            "handle arm dispatch (immediate-resume arm id)",
+        )?;
+        let escape_arm_id = Self::resolve_handle_arm_plan_id(
+            handle,
+            escape_arm,
+            "handle arm dispatch (escape-continuation arm id)",
+        )?;
+        let Some(perform_site) = Self::resolve_immediate_resume_site_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm_id,
+            &immediate_arm.op.op.fqn,
+        )?
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
+                at: handle.body.span.into(),
+            });
+        };
+
+        let plan_escape_arms = [(escape_arm, escape_arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        let mut direct_sites = Vec::with_capacity(resolved_direct_sites.len());
+        for resolved in resolved_direct_sites {
+            if resolved.arm_id != escape_arm_id {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (escape-continuation arm id)",
+                    at: resolved.site.decl.span.into(),
+                });
+            }
+            direct_sites.push(resolved.site);
+        }
+        direct_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
+
+        let ResolvedPlanMixedEscapeIndirectSites {
+            mut indirect_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        indirect_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
+
+        Ok(ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites,
+            indirect_sites,
+        })
+    }
+
     fn codegen_handle_expr_escape_with_nonresuming_siblings<'hir>(
         &mut self,
         span: crate::span::Span,
@@ -11070,55 +11156,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate: (&'hir hir::HandleArm, hir::SymbolId),
         escape: (&'hir hir::HandleArm, hir::SymbolId),
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (immediate_arm, _) = immediate;
         let (escape_arm, _) = escape;
-
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
-        else {
-            return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
-                span,
-                handle,
-                immediate,
-                escape,
-                &[],
-                out_ty,
-            );
-        };
+        let ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites,
+            indirect_sites,
+            ..
+        } = Self::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm,
+            escape_arm,
+        )?;
         let perform_idx = perform_site.top_level_stmt_idx;
 
-        let mut has_direct_escape_site = false;
-        let mut has_direct_escape_site_before_immediate = false;
-        let mut has_direct_escape_site_after_immediate = false;
-        let mut has_nested_block_direct_escape_site = false;
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if self
-                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
-            {
-                has_direct_escape_site = true;
-                if idx < perform_idx {
-                    has_direct_escape_site_before_immediate = true;
-                }
-                if idx > perform_idx {
-                    has_direct_escape_site_after_immediate = true;
-                }
-            }
-        }
-        if has_direct_escape_site {
-            let direct_sites =
-                self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-            has_nested_block_direct_escape_site =
-                direct_sites.iter().any(|site| !site.resume_path.is_empty());
-        }
-
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
-        let has_nested_block_indirect_escape_site = indirect_sites
+        let has_direct_escape_site = !direct_sites.is_empty();
+        let has_direct_escape_site_before_immediate = direct_sites
             .iter()
-            .any(|site| !site.resume_path.is_empty());
+            .any(|site| site.top_level_stmt_idx < perform_idx);
+        let has_direct_escape_site_after_immediate = direct_sites
+            .iter()
+            .any(|site| site.top_level_stmt_idx > perform_idx);
+        let has_nested_block_direct_escape_site =
+            direct_sites.iter().any(|site| !site.resume_path.is_empty());
+        let has_nested_block_indirect_escape_site =
+            indirect_sites.iter().any(|site| !site.resume_path.is_empty());
         let has_indirect_escape_site_before_immediate = indirect_sites
             .iter()
             .any(|site| site.top_level_stmt_idx < perform_idx);
@@ -11140,6 +11208,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_immediate_resume_with_escape_sibling_site_matrix(
                 span,
                 handle,
+                state_machine_plan,
                 immediate,
                 escape,
                 &[],
@@ -11151,6 +11220,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
                 span,
                 handle,
+                state_machine_plan,
                 immediate,
                 escape,
                 &[],
@@ -11162,6 +11232,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_immediate_resume_with_escape_sibling_indirect(
                 span,
                 handle,
+                state_machine_plan,
                 immediate,
                 escape,
                 &[],
@@ -11172,6 +11243,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
             span,
             handle,
+            state_machine_plan,
             immediate,
             escape,
             &[],
@@ -11179,10 +11251,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_handle_expr_immediate_resume_with_escape_and_nonresuming_siblings<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate: (&'hir hir::HandleArm, hir::SymbolId),
         escape: (&'hir hir::HandleArm, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
@@ -11190,15 +11264,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (immediate_arm, _) = immediate;
         let (escape_arm, _) = escape;
-
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
-                at: span.into(),
-            });
-        };
+        let ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites,
+            indirect_sites,
+            ..
+        } = Self::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm,
+            escape_arm,
+        )?;
         if !perform_site.resume_path.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation with sibling non-resuming (only top-level direct single-site supported)",
@@ -11206,8 +11282,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
         if direct_sites.len() == 1
             && indirect_sites.is_empty()
             && direct_sites[0].resume_path.is_empty()
@@ -11216,6 +11290,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_immediate_resume_with_escape_sibling_direct(
                 span,
                 handle,
+                state_machine_plan,
                 immediate,
                 escape,
                 sibling_nonresuming_arms,
@@ -11231,6 +11306,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_immediate_resume_with_escape_sibling_indirect(
                 span,
                 handle,
+                state_machine_plan,
                 immediate,
                 escape,
                 sibling_nonresuming_arms,
@@ -11241,6 +11317,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_handle_expr_immediate_resume_with_escape_sibling_site_matrix(
             span,
             handle,
+            state_machine_plan,
             immediate,
             escape,
             sibling_nonresuming_arms,
@@ -13224,10 +13301,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - immediate site 是 top-level `val = perform`；
     /// - escape sites 是 immediate site 之后的 1..N 个 top-level `val = perform` direct sites；
     /// - indirect / pre-immediate / nested direct-site 组合继续稳定诊断。
+    #[allow(clippy::too_many_arguments)]
     fn codegen_handle_expr_immediate_resume_with_escape_sibling_direct<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate: (&'hir hir::HandleArm, hir::SymbolId),
         escape: (&'hir hir::HandleArm, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
@@ -13256,18 +13335,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
 
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
-                at: span.into(),
-            });
-        };
+        let ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites: resolved_direct_sites,
+            indirect_sites,
+            ..
+        } = Self::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm,
+            escape_arm,
+        )?;
         if !perform_site.resume_path.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (nested immediate-resume site not yet supported)",
                 at: perform_site.decl.span.into(),
+            });
+        }
+        if let Some(first_indirect_site) = indirect_sites.first() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (direct + indirect sites not yet supported)",
+                at: first_indirect_site.decl.span.into(),
             });
         }
 
@@ -13301,8 +13389,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
         let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
         let mut next_decl_order = 0usize;
-        let mut escape_sites: Vec<DirectEscapeSite<'hir>> = Vec::new();
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+        for stmt in &handle.body.stmts {
             if let hir::StmtKind::Val(decl) = &stmt.kind
                 && let Some(id) = decl.id
             {
@@ -13323,72 +13410,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 body_decl_order.insert(id, next_decl_order);
                 next_decl_order += 1;
             }
+        }
 
-            if !self
-                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
-            {
-                continue;
-            }
-
-            if idx <= perform_idx {
+        let mut escape_sites: Vec<DirectEscapeSite<'hir>> =
+            Vec::with_capacity(resolved_direct_sites.len());
+        for site in resolved_direct_sites {
+            if site.top_level_stmt_idx <= perform_idx {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle mixed-arm escape continuation (perform before immediate site not yet supported)",
-                    at: stmt.span.into(),
+                    at: site.decl.span.into(),
                 });
             }
-
-            match &stmt.kind {
-                hir::StmtKind::Val(decl) => {
-                    let Some(init) = decl.init.as_ref() else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape continuation (missing perform init)",
-                            at: decl.span.into(),
-                        });
-                    };
-                    let hir::ExprKind::Perform { op, args } = &init.kind else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
-                            at: init.span.into(),
-                        });
-                    };
-                    if op.fqn != escape_arm.op.op.fqn {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
-                            at: init.span.into(),
-                        });
-                    }
-                    let Some(id) = decl.id else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape continuation perform binding id",
-                            at: decl.span.into(),
-                        });
-                    };
-                    escape_sites.push(DirectEscapeSite {
-                        stmt_idx: idx,
-                        decl,
-                        op,
-                        args: args.as_slice(),
-                        id,
-                    });
-                }
-                hir::StmtKind::Expr(expr)
-                    if matches!(
-                        &expr.kind,
-                        hir::ExprKind::Perform { op, .. } if op.fqn == escape_arm.op.op.fqn
-                    ) =>
-                {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape continuation (perform must be bound to val)",
-                        at: expr.span.into(),
-                    });
-                }
-                _ => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
-                        at: stmt.span.into(),
-                    });
-                }
+            if !site.resume_path.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
+                    at: site.decl.span.into(),
+                });
             }
+            let Some(init) = site.decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (missing perform init)",
+                    at: site.decl.span.into(),
+                });
+            };
+            let hir::ExprKind::Perform { op, .. } = &init.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
+                    at: init.span.into(),
+                });
+            };
+            if op.fqn != escape_arm.op.op.fqn {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (only top-level val-bound direct perform supported)",
+                    at: init.span.into(),
+                });
+            }
+            escape_sites.push(DirectEscapeSite {
+                stmt_idx: site.top_level_stmt_idx,
+                decl: site.decl,
+                op,
+                args: site.args,
+                id: site.id,
+            });
         }
 
         let Some(first_escape_site) = escape_sites.first() else {
@@ -15692,10 +15755,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - immediate site 是 top-level `val = perform`；
     /// - escape site 是 immediate site 之后的单个 top-level `val = f(...)` indirect call site；
     /// - richer mixed 组合（multiple indirect sites、direct+indirect 共存等）继续稳定诊断。
+    #[allow(clippy::too_many_arguments)]
     fn codegen_handle_expr_immediate_resume_with_escape_sibling_indirect<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate: (&'hir hir::HandleArm, hir::SymbolId),
         escape: (&'hir hir::HandleArm, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
@@ -15727,14 +15792,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
 
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm immediate-resume body (missing direct perform)",
-                at: span.into(),
-            });
-        };
+        let ResolvedPlanImmediateEscapeSites {
+            perform_site,
+            direct_sites,
+            indirect_sites,
+            ..
+        } = Self::resolve_immediate_resume_with_escape_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm,
+            escape_arm,
+        )?;
         if !perform_site.resume_path.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (nested immediate-resume site not yet supported)",
@@ -15768,45 +15836,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if !self
-                .immediate_resume_stmt_contains_matching_direct_perform(stmt, &escape_arm.op.op.fqn)
-            {
-                continue;
-            }
-
-            let kind = if idx <= perform_idx {
+        if let Some(first_direct_site) = direct_sites.first() {
+            let kind = if first_direct_site.top_level_stmt_idx <= perform_idx {
                 "handle mixed-arm escape continuation (perform before immediate site not yet supported)"
             } else {
                 "handle mixed-arm escape continuation (direct + indirect sites not yet supported)"
             };
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind,
-                at: stmt.span.into(),
+                at: first_direct_site.decl.span.into(),
             });
         }
 
-        let indirect_sites =
-            self.scan_for_indirect_perform_call_sites(&handle.body, &escape_arm.op.op.fqn);
         if indirect_sites
             .iter()
-            .any(|site| site.stmt_idx <= perform_idx)
+            .any(|site| site.top_level_stmt_idx <= perform_idx)
         {
-            let at = handle.body.stmts[indirect_sites
+            let at = indirect_sites
                 .iter()
-                .find(|site| site.stmt_idx <= perform_idx)
-                .map(|site| site.stmt_idx)
-                .unwrap_or(perform_idx)]
-            .span;
+                .find(|site| site.top_level_stmt_idx <= perform_idx)
+                .map(|site| site.decl.span)
+                .unwrap_or(perform_decl.span);
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (indirect perform before immediate site not yet supported)",
                 at: at.into(),
             });
         }
 
-        let indirect_after: Vec<&IndirectPerformCallSite> = indirect_sites
+        let indirect_after: Vec<&MixedEscapeIndirectSite<'hir>> = indirect_sites
             .iter()
-            .filter(|site| site.stmt_idx > perform_idx)
+            .filter(|site| site.top_level_stmt_idx > perform_idx)
             .collect();
         if indirect_after.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -15815,25 +15874,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         if indirect_after.len() > 1 {
-            let at = handle.body.stmts[indirect_after[1].stmt_idx].span;
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (multiple indirect call sites not yet supported)",
-                at: at.into(),
+                at: indirect_after[1].decl.span.into(),
             });
         }
 
         let indirect_site = indirect_after[0];
-        let call_stmt = &handle.body.stmts[indirect_site.stmt_idx];
-        let hir::StmtKind::Val(escape_decl) = &call_stmt.kind else {
+        if !indirect_site.resume_path.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation (indirect site must be val-bound)",
-                at: call_stmt.span.into(),
+                kind: "handle mixed-arm escape continuation (single indirect call site required)",
+                at: indirect_site.decl.span.into(),
             });
-        };
-        let Some(call_init) = escape_decl.init.as_ref() else {
+        }
+        let Some(call_init) = indirect_site.decl.init.as_ref() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm escape continuation (missing indirect call init)",
-                at: escape_decl.span.into(),
+                at: indirect_site.decl.span.into(),
             });
         };
         if !matches!(&call_init.kind, hir::ExprKind::Call { .. }) {
@@ -15842,17 +15899,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: call_init.span.into(),
             });
         }
-        let Some(escape_id) = escape_decl.id else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation perform binding id",
-                at: escape_decl.span.into(),
-            });
-        };
         let escape_site = IndirectEscapeSite {
-            stmt_idx: indirect_site.stmt_idx,
-            decl: escape_decl,
+            stmt_idx: indirect_site.top_level_stmt_idx,
+            decl: indirect_site.decl,
             init: call_init,
-            id: escape_id,
+            id: indirect_site.id,
         };
 
         let escape_resume_value_ty =

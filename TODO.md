@@ -1204,7 +1204,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增单测：`resolve_mixed_escape_direct_sites_from_plan_keeps_source_order_and_arm_ids`、`resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures`。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u4c3 [TODO] Effect：immediate+escape / site-matrix 路由切到统一状态机输入
+### T2003u4c3 [DONE] Effect：immediate+escape / site-matrix 路由切到统一状态机输入
 - 描述：最后迁移 `codegen_handle_expr_immediate_resume_with_escape_*` 与 `matrix.rs` 剩余 site-matrix 主线，把 immediate+escape mixed-arm / multiple-resuming 组合的 dispatch、cleanup、resume-target 收口到 unified emitter。
 - 目标：
   - immediate+escape mixed-arm / site-matrix 组合从 unified state-machine plan 读取 state table / dispatch / cleanup，而不是继续在 `mixed.rs` / `matrix.rs` 里按 top-level / block / if / while / same-stmt 形状重建主线。
@@ -1217,6 +1217,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4c2
+- 完成说明：
+  - 已新增 plan-driven helper：`resolve_immediate_resume_with_escape_sites_from_plan`；immediate arm 的 direct perform site、escape sibling 的 direct / indirect sites 现在统一从 `HandleStateMachinePlan` 恢复，并保持 source order 与 nested source-path。
+  - `codegen_handle_expr_immediate_resume_with_escape_sibling*` 的 direct / indirect / site-matrix 路由，及 `matrix.rs` 中的 immediate+escape site-matrix 主线，现已直接消费 unified plan 输入，不再以 `scan_immediate_resume_site` / `scan_mixed_escape_*` 作为 source-of-truth。
+  - 已新增解析层单测：`resolve_immediate_resume_with_escape_sites_from_plan_recovers_nested_mixed_matrix`，覆盖 nested `if` 中 direct / indirect mixed site 的恢复。
+  - 旧 `scan.rs` 保留为 legacy helper / 参考实现，但已明确降级为非主路径；新增的 immediate+escape 合法组合不再依赖它来决定主 emitter。
+  - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
 - 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。

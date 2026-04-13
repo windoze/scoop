@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 trait ScanStmtPathFrame {
     fn set_stmt_idx(&mut self, idx: usize);
 }
@@ -14,10 +15,12 @@ impl<'hir> ScanStmtPathFrame for MixedEscapeDirectFrame<'hir> {
     }
 }
 
+#[allow(dead_code)]
 trait PathScanState<Frame> {
     fn path_mut(&mut self) -> &mut Vec<Frame>;
 }
 
+#[allow(dead_code)]
 fn scan_stmt_slice_with_state<'hir, Frame, State, F>(
     state: &mut State,
     stmts: &'hir [hir::Stmt],
@@ -37,6 +40,7 @@ where
     Ok(())
 }
 
+#[allow(dead_code)]
 fn with_scoped_scan_frame<State, Frame, T, F>(
     state: &mut State,
     frame: Frame,
@@ -52,6 +56,7 @@ where
     result
 }
 
+#[allow(dead_code)]
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn immediate_resume_expr_contains_matching_direct_perform(
         &self,
@@ -1499,5 +1504,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
     }
-
 }
