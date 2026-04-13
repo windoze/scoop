@@ -796,7 +796,7 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
-    fn unified_no_continuation_entrypoint_skips_single_nonresuming_sample() {
+    fn unified_no_continuation_entrypoint_marks_single_nonresuming_sample() {
         let source = r#"
 package a
 
@@ -818,7 +818,49 @@ fun demo(): Int {
 "#;
 
         assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
-        assert_eq!(build_unified_no_continuation_entrypoint_label(source), None);
+        assert_eq!(
+            build_unified_no_continuation_entrypoint_label(source),
+            Some("single-nonresuming")
+        );
+    }
+
+    #[test]
+    fn unified_no_continuation_entrypoint_marks_single_nonresuming_finally_nested_handle_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            Raise.raise(7)
+            0
+        } with {
+            Raise.raise(err: Int) -> err + 1
+        } finally {
+            println("inner finally")
+        }
+        Alarm.trip(inner + 1)
+        0
+    } with {
+        Alarm.trip(code: Int) -> code + 10
+    } finally {
+        println("outer finally")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+        assert_eq!(
+            build_unified_no_continuation_entrypoint_label(source),
+            Some("single-nonresuming")
+        );
     }
 
     #[test]

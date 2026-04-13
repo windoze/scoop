@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_single_nonresuming_finally_nested_handle.stdout
+//
+// T2003r3b2: unified emitter 接管 single non-resuming representative sample。
+// - outer handle 只有一个 custom non-resuming arm；
+// - body 同时包含 nested handle 与 outer finally；
+// - nested handle 命中 Raise.raise 后先完成 inner finally，再回到 outer custom catch。
+
+import scoop.core.*
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("outer_body")
+        val inner: Int = handle {
+            println("inner_body")
+            Raise.raise(7)
+            0
+        } with {
+            Raise.raise(err: Int) -> {
+                println("inner_catch")
+                println(err)
+                err + 1
+            }
+        } finally {
+            println("inner_finally")
+        }
+
+        println("after_inner")
+        Alarm.trip(inner + 1)
+        0
+    } with {
+        Alarm.trip(code: Int) -> {
+            println("outer_catch")
+            println(code)
+            code + 10
+        }
+    } finally {
+        println("outer_finally")
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

@@ -8,6 +8,7 @@ struct HandleArmBuckets<'hir> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UnifiedNoContinuationEntrypoint {
     NoSuspendSites,
+    SingleNonResuming,
 }
 
 impl UnifiedNoContinuationEntrypoint {
@@ -15,6 +16,7 @@ impl UnifiedNoContinuationEntrypoint {
     fn label(self) -> &'static str {
         match self {
             Self::NoSuspendSites => "no-suspend-sites",
+            Self::SingleNonResuming => "single-nonresuming",
         }
     }
 }
@@ -285,6 +287,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             SimplifiedCodegenEntrypoint::NoSuspendSites => {
                 Some(UnifiedNoContinuationEntrypoint::NoSuspendSites)
             }
+            SimplifiedCodegenEntrypoint::SingleNonResuming => {
+                Some(UnifiedNoContinuationEntrypoint::SingleNonResuming)
+            }
             _ => None,
         }
     }
@@ -315,18 +320,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn codegen_handle_expr_unified_no_continuation(
+    fn validate_unified_single_nonresuming_plan(
+        &self,
+        span: crate::span::Span,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<(), LlvmEmitError> {
+        if state_machine_plan.arm_plans.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-nonresuming plan arm count mismatch",
+                at: span.into(),
+            });
+        }
+
+        if state_machine_plan
+            .arm_plans
+            .iter()
+            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume))
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-nonresuming plan contains resuming arm",
+                at: span.into(),
+            });
+        }
+
+        Ok(())
+    }
+
+    fn codegen_handle_expr_unified_no_continuation<'hir>(
         &mut self,
         span: crate::span::Span,
-        handle: &hir::HandleExpr,
+        handle: &'hir hir::HandleExpr,
         out_ty: CgTy,
         state_machine_plan: &HandleStateMachinePlan,
+        handle_arm_buckets: &HandleArmBuckets<'hir>,
         entrypoint: UnifiedNoContinuationEntrypoint,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match entrypoint {
             UnifiedNoContinuationEntrypoint::NoSuspendSites => {
                 self.validate_unified_no_suspend_plan(span, state_machine_plan)?;
                 self.codegen_handle_expr_no_suspend_sequential(span, handle, out_ty)
+            }
+            UnifiedNoContinuationEntrypoint::SingleNonResuming => {
+                self.validate_unified_single_nonresuming_plan(span, state_machine_plan)?;
+                self.codegen_handle_expr_single_nonresuming_leaf(
+                    span,
+                    handle,
+                    handle_arm_buckets,
+                    out_ty,
+                )
             }
         }
     }
@@ -383,6 +424,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 handle,
                 out_ty,
                 &state_machine_plan,
+                &handle_arm_buckets,
                 entrypoint,
             );
         }
@@ -490,11 +532,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let Some(arm) = handle_arm_buckets.nonresuming_arms.first().copied() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle arm dispatch (missing non-resuming arm)",
-                at: span.into(),
-            });
+        self.codegen_handle_expr_single_nonresuming_leaf(span, handle, &handle_arm_buckets, out_ty)
+    }
+
+    fn codegen_handle_expr_single_nonresuming_leaf<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        handle_arm_buckets: &HandleArmBuckets<'hir>,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let arm = match handle_arm_buckets.nonresuming_arms.as_slice() {
+            [arm] => *arm,
+            [] => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (missing non-resuming arm)",
+                    at: span.into(),
+                });
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (expected single non-resuming arm)",
+                    at: span.into(),
+                });
+            }
         };
         if arm.op.op.fqn != "scoop.core.Raise.raise" {
             return self.codegen_handle_expr_nonresuming_single_payload(span, handle, arm, out_ty);

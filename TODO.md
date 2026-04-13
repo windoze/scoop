@@ -1490,10 +1490,10 @@ cargo run -p scoop --features llvm -- test
 - 完成说明：
   - `codegen_handle_expr` 现已先通过新的 `UnifiedNoContinuationEntrypoint::NoSuspendSites` 统一入口处理 no-suspend handle；旧 `codegen_handle_expr_no_perform` 已退化为共享 leaf helper，不再承担该子集的主选路职责。
   - unified no-suspend 入口现会显式校验 plan 中不存在 suspend subtree 或 resuming arm，再进入顺序 body/finally 发射，锁住 `T2003r3b1` 的入口契约。
-  - 已新增定向单测：`unified_no_continuation_entrypoint_marks_nosuspend_finally_nested_handle_sample`、`unified_no_continuation_entrypoint_skips_single_nonresuming_sample`；并新增 run-pass fixture：`effect_nosuspend_finally_nested_handle`。
+  - 已新增定向单测：`unified_no_continuation_entrypoint_marks_nosuspend_finally_nested_handle_sample`、`unified_no_continuation_entrypoint_marks_single_nonresuming_sample`；并新增 run-pass fixture：`effect_nosuspend_finally_nested_handle`。
   - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3b2 [TODO] Effect：统一 emitter 接管 `SingleNonResuming`
+### T2003r3b2 [DONE] Effect：统一 emitter 接管 `SingleNonResuming`
 - 描述：在 `T2003r3b1` 的统一 CFG / cleanup 发射骨架上，接入单 arm non-resuming dispatch 与 payload decode。
 - 目标：
   - `SingleNonResuming` 不再以 dedicated main emitter 作为主入口。
@@ -1505,6 +1505,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test --fixtures tests/fixtures/run-pass`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3b1
+- 完成说明：
+  - unified no-continuation 主入口现已扩展到 `UnifiedNoContinuationEntrypoint::SingleNonResuming`，并对 root plan 施加显式 contract 校验：必须恰好一个 `NeverResume` arm，避免 `SingleNonResuming` 静默落回旧 specialized main path。
+  - 原先塞在 `codegen_handle_expr` 中的 single non-resuming 主路径已收口为局部 leaf helper `codegen_handle_expr_single_nonresuming_leaf`；`Raise.raise` 与 custom single-payload non-resuming effect 继续复用既有 lowering 细节，但不再承担主选路职责。
+  - 已新增定向单测：`unified_no_continuation_entrypoint_marks_single_nonresuming_sample`、`unified_no_continuation_entrypoint_marks_single_nonresuming_finally_nested_handle_sample`；并新增 run-pass fixture：`effect_single_nonresuming_finally_nested_handle`，覆盖 outer single non-resuming + `finally` + nested handle representative sample。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_single_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3b3 [TODO] Effect：统一 emitter 接管 `MultiNonResuming` 并退化旧 specialized entry
 - 描述：最后把 multi-arm pure flag-unwind handle 切到 unified emitter，并收口旧 non-resuming specialized entry 的主路由职责。

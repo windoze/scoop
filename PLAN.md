@@ -329,9 +329,12 @@ cargo run -p scoop --features llvm -- test
     - `T2003r3b3`：最后接 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
   - T2003r3b1 已完成：`codegen_handle_expr` 现已通过新的 `UnifiedNoContinuationEntrypoint::NoSuspendSites` 统一入口接管 no-suspend handle；旧 `codegen_handle_expr_no_perform` 已退化为共享 leaf helper，不再承担该子集的主选路职责。
   - 本轮同时为 unified no-suspend 入口补了显式 contract 校验：若 plan 里仍含 suspend subtree 或 resuming arm，会稳定报错而不是静默落回旧路径；并新增定向单测与 run-pass fixture `effect_nosuspend_finally_nested_handle`，覆盖 no-suspend + `finally` + nested handle representative sample。
-  - 由于 `scoop test` 当前只接受目录路径、不支持基于名称的 `--filter`，本轮也把 `T2003r3b*` / `T2003r3c` 的验收命令修正为仓库实际支持的命令形态，避免后续执行时再被无效命令阻塞。
+  - 另外确认了 `scoop test --fixtures` 里的 `--fixtures` 参数表示“fixture 根目录”，不是 phase/filter 选择器；因此目录级 `tests/fixtures/run-pass` 不能当成“只跑 run-pass 子集”的稳定验收命令，后续相关任务统一改用仓库实际支持的 `cargo run -p scoop --features llvm -- test` 或定向 `run` 命令。
   - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3b2`：在统一 CFG / cleanup 发射骨架稳定后，接管 `SingleNonResuming`。
+  - T2003r3b2 已完成：unified no-continuation 主入口现已扩展到 `UnifiedNoContinuationEntrypoint::SingleNonResuming`，并对 root plan 施加“恰好一个 never-resume arm”的显式 contract 校验；原本塞在 `codegen_handle_expr` 中的 single non-resuming 主路径已收口为局部 leaf helper，不再承担主选路职责。
+  - 本轮同时新增定向单测 `unified_no_continuation_entrypoint_marks_single_nonresuming_sample`、`unified_no_continuation_entrypoint_marks_single_nonresuming_finally_nested_handle_sample`，以及 run-pass fixture `effect_single_nonresuming_finally_nested_handle`，覆盖 outer single non-resuming + `finally` + nested handle representative sample。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_single_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3b3`：在 single non-resuming 已接入统一入口后，继续让 unified emitter 接管 `MultiNonResuming` 并退化旧 pure flag-unwind specialized entry。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
