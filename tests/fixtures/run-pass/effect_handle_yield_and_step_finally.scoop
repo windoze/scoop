@@ -1,0 +1,50 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handle_yield_and_step_finally.stdout
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Step {
+    fun take(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(code: Int): Nothing
+}
+
+fun main() {
+    val result: Int = handle {
+        println("body")
+        val first: Int = Yield.next()
+        println("after_first")
+        println(first)
+        val second: Int = Step.take(first + 1)
+        println("after_second")
+        println(second)
+        Abort.stop(second + 3)
+        0
+    } with {
+        Step.take(seed: Int) -> resume {
+            println("step_arm")
+            println(seed)
+            resume(seed * 2)
+        }
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(10)
+        }
+        Abort.stop(code: Int) -> {
+            println("abort_arm")
+            println(code)
+            code + 100
+        }
+    } finally {
+        println("finally")
+    }
+
+    println("result")
+    println(result)
+}

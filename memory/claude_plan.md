@@ -38,4 +38,16 @@
   1. `T2003r3d2c1`：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线，覆盖多个 immediate-resume arms 以及 sibling non-resuming / `finally` 的 representative sample。
   2. `T2003r3d2c2`：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线，覆盖多个 escape-continuation arms 以及 sibling non-resuming / `finally` 的 representative sample。
   3. `T2003r3d2c3`：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线，并为后续 `T2003r3d3` / `T2003r3d4` 保留 arm-count 扩展空间。
-- 下一步：更新 `TODO.md` / `PLAN.md` 反映上述拆分，然后实现 `T2003r3d2c1`。
+- 已完成 `T2003r3d2c1` 代码接线：
+  - 新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming.rs`，把 unified `stack-reentry-only` multi-resuming leaf 独立出来；
+  - 在 `mod.rs` / `shared.rs` 中恢复 generic sibling non-resuming dispatch metadata 与 block helper；
+  - `nonresuming.rs` 的 `MultiResuming` 分支已对 `stack-reentry-only` route 走新 leaf，对剩余 pure escape-only 与 `1 immediate + 1 escape` mixed route 改成稳定显式诊断。
+- 已补测试与 representative fixture：
+  - LLVM 定向单测：一个正向 stack-reentry-only sample，两个 pending-route 诊断 sample；
+  - run-pass fixture：`tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`。
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 下一步：回写 `TODO.md` / `PLAN.md` 的完成状态，检查最终 diff，然后提交本轮 `T2003r3d2c1` 实现并停止。

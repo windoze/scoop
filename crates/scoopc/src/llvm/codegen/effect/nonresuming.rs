@@ -1869,16 +1869,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match entrypoint {
             UnifiedMultiResumingEntrypoint::MultiResuming => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    immediate_arms,
-                    escape_arms,
-                    nonresuming_arms,
-                    out_ty,
-                );
-                unimplemented!("unified multi-resuming leaf not yet connected")
+                if immediate_arms.len() >= 2 && escape_arms.is_empty() {
+                    return self
+                        .codegen_handle_expr_unified_stack_reentry_only_multi_resuming_leaf(
+                            span,
+                            handle,
+                            state_machine_plan,
+                            immediate_arms,
+                            nonresuming_arms,
+                            out_ty,
+                        );
+                }
+
+                let (kind, at) = if immediate_arms.is_empty() && !escape_arms.is_empty() {
+                    (
+                        "handle unified multi-resuming leaf (heap-continuation-only route not yet connected)",
+                        escape_arms[0].0.span,
+                    )
+                } else if immediate_arms.len() == 1 && escape_arms.len() == 1 {
+                    (
+                        "handle unified multi-resuming leaf (single immediate + single escape route not yet connected)",
+                        escape_arms[0].0.span,
+                    )
+                } else {
+                    (
+                        "handle unified multi-resuming leaf (route not yet connected)",
+                        span,
+                    )
+                };
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                })
             }
             UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
                 let at = escape_arms

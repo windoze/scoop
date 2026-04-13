@@ -1668,7 +1668,7 @@ cargo run -p scoop --features llvm -- test
   - 三类路径分别依赖 immediate replay、continuation materialization / resume graph，以及 mixed dispatch 的不同组合；若继续整包推进，会把三套 leaf 接线与回归面再次耦合到同一轮里，风险过高。
   - 因此继续拆成以下三个子任务，先把 `stack-reentry-only` 基线接回，再逐步补齐剩余 legal route。
 
-### T2003r3d2c1 [TODO] Effect：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线
+### T2003r3d2c1 [DONE] Effect：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线
 - 描述：先把只包含 immediate-resume arms 的 multi-resuming 组合接回 unified leaf，并让 sibling non-resuming / `finally` 组合重新走 unified plan metadata，而不是停留在 `MultiResuming` 的 build-only 占位。
 - 目标：
   - `counts.stack_reenter >= 2 && counts.heap_continuation == 0` 的 unified multi-resuming route 不再停留在 build-only `unimplemented!`。
@@ -1682,6 +1682,12 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <multi-immediate representative fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2b
+- 完成说明：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming.rs`，把 unified `stack-reentry-only` multi-resuming leaf 单独收口为 plan-driven immediate replay helper，不再在 `MultiResuming` 分支保留 build-only `unimplemented!`。
+  - 已恢复 generic sibling non-resuming dispatch metadata / block helper，并让多个 immediate-resume arms 的 sibling custom non-resuming / `Raise` / `finally` 组合继续直接消费 unified metadata，而不是回流任何已删除的 shape-based 路由命名。
+  - `nonresuming.rs` 的 `MultiResuming` 入口现已对当前未完成的 pure escape-only 与 `1 immediate + 1 escape` mixed route 给出稳定显式诊断，不再保留 `unimplemented!` 占位。
+  - 已新增 LLVM 定向单测：一个正向 stack-reentry-only sample，以及两个 pending route 诊断 sample；并新增 representative run-pass fixture `effect_handle_yield_and_step_finally`，覆盖两个 immediate-resume arms + sibling non-resuming + `finally`。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d2c2 [TODO] Effect：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线
 - 描述：在 `stack-reentry-only` 基线接回后，再把只包含 escape-continuation arms 的 multi-resuming 组合接回 unified leaf，并重新打通 sibling non-resuming / `finally` 的 representative 路径。
