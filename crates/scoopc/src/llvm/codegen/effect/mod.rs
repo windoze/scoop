@@ -202,6 +202,19 @@ struct ImmediateResumeArmDispatch<'a, 'ctx> {
 }
 
 #[derive(Debug, Clone, Copy)]
+struct ImmediateResumeWhileIteration<'ctx> {
+    frame_depth: usize,
+    cond_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeReentryContext<'a, 'ctx> {
+    arm_dispatch: ImmediateResumeArmDispatch<'a, 'ctx>,
+    reuse_target_ptr: Option<PointerValue<'ctx>>,
+    current_while_iteration: Option<ImmediateResumeWhileIteration<'ctx>>,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct ImmediateResumeExecPlan<'hir, 'ctx> {
     handle: &'hir hir::HandleExpr,
     site: &'hir ImmediateResumeSite<'hir>,

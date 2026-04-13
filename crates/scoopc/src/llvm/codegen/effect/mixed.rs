@@ -12632,13 +12632,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.push_effect_unwind_target(&custom.arm.op.op.fqn, custom.catch_bb);
         }
         self.push_raise_target(effect_dispatch_bb);
+        let arm_dispatch = ImmediateResumeArmDispatch {
+            binder_slots: &binder_slots,
+            resume_used_ptr,
+            arm_bb,
+        };
+        let state0_reentry_ctx = ImmediateResumeReentryContext {
+            arm_dispatch,
+            reuse_target_ptr: None,
+            current_while_iteration: None,
+        };
         let target_ptr = self.codegen_immediate_resume_prefix_to_site(
             exec_plan,
             0,
             &handle.body.stmts,
-            &binder_slots,
-            resume_used_ptr,
-            arm_bb,
+            state0_reentry_ctx,
         )?;
         self.pop_raise_target();
         for _ in custom_siblings.iter().rev() {
@@ -12759,6 +12767,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             let last_depth = perform_site.resume_path.len() - 1;
             let start_idx = perform_site.resume_path[last_depth].stmt_idx() + 1;
+            let resumed_reentry_ctx = ImmediateResumeReentryContext {
+                arm_dispatch,
+                reuse_target_ptr: Some(target_ptr),
+                current_while_iteration: None,
+            };
             match &perform_site.resume_path[last_depth] {
                 ImmediateResumeFrame::WhileBody {
                     while_cond,
@@ -12770,17 +12783,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         last_depth,
                         start_idx,
                         (while_cond, while_body),
-                        target_ptr,
-                        ImmediateResumeArmDispatch {
-                            binder_slots: &binder_slots,
-                            resume_used_ptr,
-                            arm_bb,
-                        },
+                        resumed_reentry_ctx,
                     )?;
                 }
                 _ => {
                     self.codegen_immediate_resume_frame_tail_and_continue(
-                        exec_plan, last_depth, start_idx,
+                        exec_plan,
+                        last_depth,
+                        start_idx,
+                        resumed_reentry_ctx,
                     )?;
                 }
             }

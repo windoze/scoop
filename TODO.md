@@ -1250,7 +1250,7 @@ cargo run -p scoop --features llvm -- test
   - 原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 已删除，新增 run-pass 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally` 与 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`。
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5b [TODO] Effect：single-arm immediate-resume 的 while-nested replay 去形状门禁
+### T2003u5b [DONE] Effect：single-arm immediate-resume 的 while-nested replay 去形状门禁
 - 描述：plan-driven immediate-resume 主 emitter 已不再依赖旧 scanner 作为主输入，但 `resolve_immediate_resume_site_from_plan` 仍把 while body 中的 deeper nested perform 统一拒绝为 `handle resume body (nested perform in while body not yet supported)`。
 - 目标：
   - single-arm immediate-resume 在 while body 内的 nested block / nested if perform 走 unified pass replay，不再要求 perform 只能停在 while body 的平坦语句层。
@@ -1261,6 +1261,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5a
+- 完成说明：
+  - `resolve_immediate_resume_site_from_plan` 已删除 while body deeper nested perform 的显式拒绝，single-arm immediate-resume 现在可从 unified plan 恢复 `WhileBody -> Block / IfThen / IfElse` source-path。
+  - immediate-resume 的 while replay helper 已新增“当前 while 迭代 re-entry”上下文：未命中 nested `if` 的分支现在会直接回到现有 loop condition，而不是递归展开 future iteration CFG；resume 后的 nested frame tail 也会在命中 `WhileBody` 父帧时正确回到 loop re-entry。
+  - 原 build-fail `effect_resume_while_nested_perform_is_error` 已删除，新增 run-pass 回归 `effect_resume_while_nested_perform`、`effect_resume_while_nested_block_perform`；另补解析层单测 `resolve_immediate_resume_site_from_plan_accepts_nested_while_path`。
+  - 其中 nested block 回归当前仍使用 `@Safe { ... }` 作为 statement-position block 的临时语法绕路；该 fixture 迁移已由 `T2203` 明确追踪。
+  - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5c [TODO] Effect：no-immediate multiple-escape 的 while direct/indirect mixed replay
 - 描述：无 immediate-resume 的 while mixed path 仍只支持“同一个 while-body statement 内”的 direct / indirect coexistence；separate-stmt 组合仍报 `only same-body-stmt direct / indirect coexistence in while body supported`。

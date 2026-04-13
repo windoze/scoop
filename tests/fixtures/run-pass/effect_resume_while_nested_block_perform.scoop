@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_while_nested_block_perform.stdout
+//
+// T2003u5b: single-arm immediate-resume 允许 while body 内 nested block 中的 perform。
+// 该回归同时覆盖：
+// - nested block 的 site 进入；
+// - resume 后 replay 当前迭代的 block tail；
+// - 下一次迭代再次命中同一路径时复用同一 perform binding slot。
+//
+// 当前 `@Safe { ... }` 仅是 statement-position 裸 block 尚未切到 `do { ... }`
+// 前的临时语法绕路；后续由 T2203 统一迁移。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun run(): Int {
+    handle {
+        var i: Int = 0
+        var total: Int = 0
+        while (i < 2) {
+            @Safe {
+                val x: Int = Yield.next()
+                println("block")
+                println(x)
+                total = total + x
+            }
+            i = i + 1
+        }
+        total + i
+    } with {
+        Yield.next() -> resume {
+            println("arm")
+            resume(3)
+        }
+    }
+}
+
+fun main() {
+    println(run())
+}

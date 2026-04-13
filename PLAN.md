@@ -253,7 +253,10 @@ cargo run -p scoop --features llvm -- test
   - T2003u5a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 已移除“multiple escape arms + sibling non-resuming + finally”显式门禁，并把主 body no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径统一接到 `finally` 收口。
   - 本轮同时把原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally`，并新增 raise 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`，锁住 escape arm 向外传播时的 `finally` 语义。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u5b`：迁移 single-arm immediate-resume 的 while-nested replay，删除 `nested perform in while body not yet supported` 门禁。
+  - T2003u5b 已完成：single-arm immediate-resume 的 plan-driven while replay 现已支持 nested `if` / nested block perform；`resolve_immediate_resume_site_from_plan` 不再拒绝 while body deeper nested source-path，而 while replay helper 则新增“当前迭代 re-entry”上下文，避免未命中 nested branch 时递归展开 future iteration CFG。
+  - 本轮同时新增了解析层单测 `resolve_immediate_resume_site_from_plan_accepts_nested_while_path`，并把原 build-fail `effect_resume_while_nested_perform_is_error` 转成 run-pass `effect_resume_while_nested_perform`；另新增 block 回归 `effect_resume_while_nested_block_perform`。其中 block 回归仍临时沿用 `@Safe { ... }` 语法绕路，后续由 `T2203` 统一迁移。
+  - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u5c`：迁移 no-immediate multiple-escape 的 while direct/indirect separate-stmt mixed replay。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -320,7 +323,7 @@ cargo run -p scoop --features llvm -- test
   - T2003u4c2（已完成）：迁移 `multiple escape-continuation` / `escape + sibling non-resuming` 主 emitter 到统一状态机输入。
   - T2003u4c3（已完成）：迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
   - T2003u5a（已完成）：打通 `multiple escape-continuation arms + sibling non-resuming + finally` 的 unified-plan emitter，并移除对应 top-level direct 门禁。
-  - T2003u5b：迁移 single-arm immediate-resume 的 while-nested replay，删除 `nested perform in while body not yet supported` 门禁。
+  - T2003u5b（已完成）：迁移 single-arm immediate-resume 的 while-nested replay，删除 `nested perform in while body not yet supported` 门禁。
   - T2003u5c：迁移 no-immediate multiple-escape 的 while direct/indirect separate-stmt mixed replay。
   - T2003u5d：迁移 immediate+escape mixed-arm 的 while richer matrix replay，删除 deeper nested / separate-stmt 门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。

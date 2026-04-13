@@ -140,34 +140,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         depth: usize,
         while_body: &'hir hir::Block,
-        arm_dispatch: ImmediateResumeArmDispatch<'_, 'ctx>,
-        reuse_target_ptr: Option<PointerValue<'ctx>>,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let perform_stmt_idx = plan.site.resume_path[depth].stmt_idx();
-        for (idx, stmt) in while_body.stmts.iter().enumerate() {
-            if idx < perform_stmt_idx {
-                self.codegen_immediate_resume_stmt_unit(stmt)?;
-                continue;
-            }
-
-            let hir::StmtKind::Val(decl) = &stmt.kind else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle resume body (expected perform binding)",
-                    at: stmt.span.into(),
-                });
-            };
-            return self.codegen_immediate_resume_site_binding(
-                plan.site,
-                decl,
-                arm_dispatch,
-                reuse_target_ptr,
-            );
-        }
-
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "handle resume body (perform site missing)",
-            at: plan.site.decl.span.into(),
-        })
+        // while body 内的 nested block / if 继续沿 unified source-path 下降，
+        // 避免把 while 单独退化成“只支持平坦 val = perform”的专用扫描器。
+        self.codegen_immediate_resume_prefix_to_site(
+            plan,
+            depth + 1,
+            &while_body.stmts,
+            reentry_ctx,
+        )
     }
 
     fn codegen_immediate_resume_while_tail_and_continue<'hir>(
@@ -176,8 +158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         depth: usize,
         start_idx: usize,
         while_frame: (&'hir hir::Expr, &'hir hir::Block),
-        target_ptr: PointerValue<'ctx>,
-        arm_dispatch: ImmediateResumeArmDispatch<'_, 'ctx>,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let (while_cond, while_body) = while_frame;
         for stmt in while_body.stmts.iter().skip(start_idx) {
@@ -221,7 +202,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_conditional_branch(cond_i1, body_bb, after_bb)?;
 
         self.builder.position_at_end(after_bb);
-        self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+        self.codegen_immediate_resume_continue_after_frame_and_finalize(
+            plan,
+            depth,
+            reentry_ctx,
+        )?;
 
         self.builder.position_at_end(body_bb);
         self.env.push_scope();
@@ -229,8 +214,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             plan,
             depth,
             while_body,
-            arm_dispatch,
-            Some(target_ptr),
+            ImmediateResumeReentryContext {
+                current_while_iteration: Some(ImmediateResumeWhileIteration {
+                    frame_depth: depth,
+                    cond_bb,
+                }),
+                ..reentry_ctx
+            },
         )?;
         Ok(())
     }
@@ -350,6 +340,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         completed_depth: usize,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<(), LlvmEmitError> {
         if completed_depth == 0 {
             return self.codegen_immediate_resume_top_level_tail_and_finalize(
@@ -367,6 +358,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             plan,
             completed_depth - 1,
             parent_start_idx,
+            reentry_ctx,
         )
     }
 
@@ -375,23 +367,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         depth: usize,
         start_idx: usize,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let stmts = match &plan.site.resume_path[depth] {
-            ImmediateResumeFrame::Block { block, .. } => &block.stmts,
-            ImmediateResumeFrame::IfThen { then_block, .. } => &then_block.stmts,
-            ImmediateResumeFrame::IfElse { else_block, .. } => &else_block.stmts,
-            ImmediateResumeFrame::WhileBody { while_body, .. } => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle resume body (while frame needs specialized lowering)",
-                    at: while_body.span.into(),
-                });
+        match &plan.site.resume_path[depth] {
+            ImmediateResumeFrame::Block { block, .. } => {
+                for stmt in block.stmts.iter().skip(start_idx) {
+                    self.codegen_immediate_resume_stmt_unit(stmt)?;
+                }
+                self.env.pop_scope();
+                self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth, reentry_ctx)
             }
-        };
-        for stmt in stmts.iter().skip(start_idx) {
-            self.codegen_immediate_resume_stmt_unit(stmt)?;
+            ImmediateResumeFrame::IfThen { then_block, .. } => {
+                for stmt in then_block.stmts.iter().skip(start_idx) {
+                    self.codegen_immediate_resume_stmt_unit(stmt)?;
+                }
+                self.env.pop_scope();
+                self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth, reentry_ctx)
+            }
+            ImmediateResumeFrame::IfElse { else_block, .. } => {
+                for stmt in else_block.stmts.iter().skip(start_idx) {
+                    self.codegen_immediate_resume_stmt_unit(stmt)?;
+                }
+                self.env.pop_scope();
+                self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth, reentry_ctx)
+            }
+            ImmediateResumeFrame::WhileBody {
+                while_cond,
+                while_body,
+                ..
+            } => {
+                if let Some(reentry) = reentry_ctx.current_while_iteration
+                    && reentry.frame_depth == depth
+                {
+                    for stmt in while_body.stmts.iter().skip(start_idx) {
+                        self.codegen_immediate_resume_stmt_unit(stmt)?;
+                    }
+                    self.env.pop_scope();
+                    self.builder.build_unconditional_branch(reentry.cond_bb)?;
+                    Ok(())
+                } else {
+                    self.codegen_immediate_resume_while_tail_and_continue(
+                        plan,
+                        depth,
+                        start_idx,
+                        (while_cond, while_body),
+                        reentry_ctx,
+                    )
+                }
+            }
         }
-        self.env.pop_scope();
-        self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)
     }
 
     fn codegen_immediate_resume_non_intercept_branch_and_continue<'hir>(
@@ -399,6 +423,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         depth: usize,
         branch_expr: Option<&'hir hir::Expr>,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let saved_env = self.env.clone();
         if let Some(expr) = branch_expr {
@@ -407,7 +432,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(bb) = self.builder.get_insert_block()
             && bb.get_terminator().is_none()
         {
-            self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+            self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth, reentry_ctx)?;
         }
         self.env = saved_env;
         Ok(())
@@ -418,9 +443,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         plan: ImmediateResumeExecPlan<'hir, 'ctx>,
         depth: usize,
         stmts: &'hir [hir::Stmt],
-        binder_slots: &[ImmediateResumeBinderSlot<'ctx>],
-        resume_used_ptr: PointerValue<'ctx>,
-        arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+        reentry_ctx: ImmediateResumeReentryContext<'_, 'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let target_stmt_idx = if depth == 0 {
             plan.site.top_level_stmt_idx
@@ -443,12 +466,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_immediate_resume_site_binding(
                     plan.site,
                     decl,
-                    ImmediateResumeArmDispatch {
-                        binder_slots,
-                        resume_used_ptr,
-                        arm_bb,
-                    },
-                    None,
+                    reentry_ctx.arm_dispatch,
+                    reentry_ctx.reuse_target_ptr,
                 );
             }
 
@@ -481,9 +500,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth + 1,
                         &block.stmts,
-                        binder_slots,
-                        resume_used_ptr,
-                        arm_bb,
+                        reentry_ctx,
                     );
                 }
                 ImmediateResumeFrame::IfThen {
@@ -549,6 +566,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth,
                         else_branch.as_deref(),
+                        reentry_ctx,
                     )?;
 
                     self.builder.position_at_end(then_bb);
@@ -557,9 +575,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth + 1,
                         &then_block.stmts,
-                        binder_slots,
-                        resume_used_ptr,
-                        arm_bb,
+                        reentry_ctx,
                     );
                 }
                 ImmediateResumeFrame::IfElse {
@@ -625,6 +641,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth,
                         Some(then_branch),
+                        reentry_ctx,
                     )?;
 
                     self.builder.position_at_end(else_bb);
@@ -633,9 +650,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth + 1,
                         &else_block.stmts,
-                        binder_slots,
-                        resume_used_ptr,
-                        arm_bb,
+                        reentry_ctx,
                     );
                 }
                 ImmediateResumeFrame::WhileBody {
@@ -692,7 +707,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_conditional_branch(cond_i1, body_bb, after_bb)?;
 
                     self.builder.position_at_end(after_bb);
-                    self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth)?;
+                    self.codegen_immediate_resume_continue_after_frame_and_finalize(plan, depth, reentry_ctx)?;
 
                     self.builder.position_at_end(body_bb);
                     self.env.push_scope();
@@ -700,12 +715,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         plan,
                         depth,
                         body,
-                        ImmediateResumeArmDispatch {
-                            binder_slots,
-                            resume_used_ptr,
-                            arm_bb,
+                        ImmediateResumeReentryContext {
+                            current_while_iteration: Some(ImmediateResumeWhileIteration {
+                                frame_depth: depth,
+                                cond_bb,
+                            }),
+                            ..reentry_ctx
                         },
-                        None,
                     );
                 }
             }
@@ -1034,16 +1050,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: site.span.into(),
             });
         };
-        if matches!(
-            source_path.frames.first(),
-            Some(SuspendSourceFramePath::WhileBody { .. })
-        ) && source_path.frames.len() > 1
-        {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle resume body (nested perform in while body not yet supported)",
-                at: site.span.into(),
-            });
-        }
         let (stmt, resume_path) =
             Self::resolve_immediate_resume_stmt_from_source_path(handle, source_path, site.span)?;
         let hir::StmtKind::Val(decl) = &stmt.kind else {
@@ -1292,13 +1298,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // --- state0：执行 perform 之前的片段，遇到 perform 则进入 arm ---
         self.builder.position_at_end(state0_bb);
         self.push_raise_target(finally_unwind_bb);
+        let arm_dispatch = ImmediateResumeArmDispatch {
+            binder_slots: &binder_slots,
+            resume_used_ptr,
+            arm_bb,
+        };
+        let state0_reentry_ctx = ImmediateResumeReentryContext {
+            arm_dispatch,
+            reuse_target_ptr: None,
+            current_while_iteration: None,
+        };
         let target_ptr = self.codegen_immediate_resume_prefix_to_site(
             exec_plan,
             0,
             &handle.body.stmts,
-            &binder_slots,
-            resume_used_ptr,
-            arm_bb,
+            state0_reentry_ctx,
         )?;
         self.pop_raise_target();
 
@@ -1427,6 +1441,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             let last_depth = perform_site.resume_path.len() - 1;
             let start_idx = perform_site.resume_path[last_depth].stmt_idx() + 1;
+            let resumed_reentry_ctx = ImmediateResumeReentryContext {
+                arm_dispatch,
+                reuse_target_ptr: Some(target_ptr),
+                current_while_iteration: None,
+            };
             match &perform_site.resume_path[last_depth] {
                 ImmediateResumeFrame::WhileBody {
                     while_cond,
@@ -1438,17 +1457,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         last_depth,
                         start_idx,
                         (while_cond, while_body),
-                        target_ptr,
-                        ImmediateResumeArmDispatch {
-                            binder_slots: &binder_slots,
-                            resume_used_ptr,
-                            arm_bb,
-                        },
+                        resumed_reentry_ctx,
                     )?;
                 }
                 _ => {
                     self.codegen_immediate_resume_frame_tail_and_continue(
-                        exec_plan, last_depth, start_idx,
+                        exec_plan,
+                        last_depth,
+                        start_idx,
+                        resumed_reentry_ctx,
                     )?;
                 }
             }

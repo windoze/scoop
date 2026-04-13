@@ -11,7 +11,8 @@ mod tests {
     use crate::typecheck;
 
     use super::{
-        HandlePlanContext, HandleStateMachinePlan, MainCodegen, MixedEscapeDirectFrame,
+        HandlePlanContext, HandleStateMachinePlan, ImmediateResumeFrame, MainCodegen,
+        MixedEscapeDirectFrame,
         ResumeFrame,
     };
 
@@ -802,6 +803,59 @@ fun demo(): Int {
         assert_eq!(resolved[0].site.top_level_stmt_idx, 0);
         assert_eq!(resolved[1].site.top_level_stmt_idx, 1);
         assert!(resolved.iter().all(|site| site.site.resume_path.is_empty()));
+    }
+
+    #[test]
+    fn resolve_immediate_resume_site_from_plan_accepts_nested_while_path() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var keep: Bool = true
+        while (keep) {
+            if (flag) {
+                val x: Int = Yield.next()
+                println(x)
+            }
+            keep = false
+        }
+        0
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+
+        let resolved = MainCodegen::resolve_immediate_resume_site_from_plan(
+            handle,
+            &plan,
+            0,
+            "a.Yield.next",
+        )
+        .expect("plan-driven immediate resolution should succeed")
+        .expect("expected a direct immediate-resume perform site");
+
+        assert_eq!(resolved.top_level_stmt_idx, 1);
+        assert_eq!(resolved.op.fqn, "a.Yield.next");
+        assert!(matches!(
+            resolved.resume_path.as_slice(),
+            [ImmediateResumeFrame::WhileBody { .. }, ImmediateResumeFrame::IfThen { .. }]
+        ));
     }
 
     #[test]

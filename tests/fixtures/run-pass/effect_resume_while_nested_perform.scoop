@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_resume_while_nested_perform.stdout
+//
+// T2003u5b: single-arm immediate-resume 允许 while body 内 nested if 中的 perform。
+// 该回归同时覆盖：
+// - 某次迭代未命中 nested path 时，while 会继续运行；
+// - 后续迭代命中 perform 后，resume 会先回到命中的 branch tail；
+// - 当前迭代完成后还能继续进入后续 while 迭代。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun run(): Int {
+    handle {
+        var i: Int = 0
+        var total: Int = 0
+        while (i < 3) {
+            if (i == 1) {
+                val x: Int = Yield.next()
+                println("got")
+                println(x)
+                total = total + x
+            } else {
+                println("skip")
+                println(i)
+            }
+            i = i + 1
+        }
+        total + i
+    } with {
+        Yield.next() -> resume {
+            println("arm")
+            resume(7)
+        }
+    }
+}
+
+fun main() {
+    println(run())
+}
