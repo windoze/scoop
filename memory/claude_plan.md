@@ -1,89 +1,41 @@
-# 当前执行计划
+# 执行摘要与计划
 
 ## 约束说明
 
-- 不记录不可审计的完整内部推理；此文件记录可执行步骤、判断依据摘要、进度与变更。
-- 本轮只处理 `TODO.md` 中第一个未完成任务；若被前置缺陷阻塞，则先把阻塞项整理进 `TODO.md` / `PLAN.md`，提交后停止。
+- 按用户要求，本次只处理 `TODO.md` 中第一个未完成任务，完成后即停止。
+- 在继续任务前，先检查最新提交是否提到需要先修复的既有问题；若有，则这些问题优先。
+- 若当前首个未完成任务过大或被前置缺陷阻塞，需要先更新 `PLAN.md` 与 `TODO.md`，把问题拆分或重排后再执行当前最前面的可执行子任务。
+- 代码修改后必须运行充分测试，并确保无新的编译 / clippy 警告。
+- 本文件将持续记录关键决策、执行步骤与进度变化。
 
-## 执行步骤
+## 初始执行计划
 
-1. 检查最近一次 Git 提交信息，确认是否提到已有已知问题；若有，先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`、必要的规范/相关代码，判断该任务是否可直接完成。
-4. 如果任务过大或存在明确前置依赖：
-   - 将任务拆分为更小子任务；
-   - 更新 `PLAN.md`；
-   - 更新 `TODO.md` 的顺序与依赖；
-   - 本轮执行拆分后的第一个子任务，或若被阻塞则提交规划调整后停止。
-5. 实现当前目标任务，修改最小必要代码，避免引入规避性方案。
-6. 运行相关测试，并补充/修复必要测试。
-7. 运行质量检查，至少包括与改动相关的测试；若可行，执行 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-8. 更新文档与进度：
-   - 在 `TODO.md` 中标记完成或调整顺序；
-   - 在 `PLAN.md` 中记录当前状态；
-   - 在本文件补充已完成步骤与任何计划变更。
-9. 检查工作区差异，确认只包含本轮需要提交的变更。
-10. 使用清晰的提交信息提交改动，然后停止，不继续下一个任务。
+1. 查看最新一次 git 提交，确认提交说明里是否提到仍需先处理的既有问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md` 与相关上下文，确认任务背景、依赖和验收标准。
+4. 判断该任务是否可以直接完成：
+   - 若可以，直接实现；
+   - 若过大或被阻塞，则先拆分 / 重排 `TODO.md` 与 `PLAN.md`，并把新的最前子任务作为本次目标。
+5. 阅读相关代码与测试，定位需要修改的模块、现有行为和潜在风险。
+6. 实施代码修改，并在必要时补充或调整测试。
+7. 运行相关验证：
+   - 最小相关测试；
+   - 必要时运行更广的测试集；
+   - `cargo clippy --all-targets -- -D warnings`（若工作量和影响面需要）。
+8. 更新文档状态：
+   - 在 `TODO.md` 中标记完成，或在阻塞时重排任务；
+   - 在 `PLAN.md` 中记录当前状态和后续计划；
+   - 回写本文件，记录关键步骤和结果。
+9. 使用清晰的提交信息提交本次变更，然后停止。
 
 ## 进度记录
 
-- 已创建计划文件，待开始检查最新提交与任务列表。
-- 已检查最新提交 `9fd284bbf0febff7583195e7662ba45552e683ce`；提交说明未显式提到需要先修复的遗留 issue。
-- 已定位首个未完成任务：`T2003r3d2b`。
-- 已阅读 `TODO.md` / `PLAN.md` 对应段落，确认 `T2003r3d2b` 已拆分得足够细，本轮直接执行，不再继续拆分。
-- 已定位当前真实缺口：
-  - `crates/scoopc/src/llvm/codegen/effect/nonresuming.rs` 中 unified single-resuming 入口仍对 `SingleImmediateResume` / `SingleEscapeContinuation` 执行 `unimplemented!`。
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 中 `resume(value)` 与 `k.resume(value)` builtin lowering 仍是 `unimplemented!`。
-- 已确认 metadata / resolver 前置条件已经存在：
-  - `resolve_immediate_resume_site_from_plan(...)`
-  - `resolve_escape_direct_sites_from_plan(...)`
-  - `resolve_escape_indirect_sites_from_plan(...)`
-  - `collect_escape_capture_metas_from_plan(...)`
-- 当前执行细化计划：
-  1. 参考历史实现，提炼 single immediate-resume 与 single escape-continuation 的 leaf/helper。
-  2. 以统一 single-resuming helper 的形式接回当前 unified 入口，避免恢复旧 shape-based route 名称或旧主选路。
-  3. 接回 `resume(value)` 与 `k.resume(value)` builtin lowering。
-  4. 运行定向测试与 representative LLVM fixture。
-  5. 若定向验证通过，再更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-- 已完成 unified single-resuming 主线接回：
-  - `codegen_handle_expr_unified_single_resuming(...)` 已能分流到 single immediate-resume / single escape-continuation leaf，不再对这两个 unified 形态 `unimplemented!`。
-  - `resume(value)` 与 `k.resume(value)` builtin lowering 已接回 unified helper，不再保留占位实现。
-  - 已补 `single_resuming.rs` / `single_escape.rs` 以及对应 shared helper，使 unified plan 的 metadata / resolver 能直接驱动 single leaf。
-- 已完成的验证摘要：
-  - `cargo build -p scoopc`
-  - `cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo test --all`
-  - representative LLVM 运行：
-    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`
-    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`
-    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
-    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
-- 当前剩余步骤：
-  1. 运行 `cargo fmt --all`。
-  2. 运行 `cargo clippy --workspace --all-targets -- -D warnings`，修复任何新增 warning。
-  3. 更新 `TODO.md` / `PLAN.md`，把 `T2003r3d2b` 标记完成并记录验证结果。
-  4. 再次更新本文件的最终状态，然后提交并停止。
-- `cargo fmt --all` 已通过。
-- `cargo clippy --workspace --all-targets -- -D warnings` 首轮发现两个真实接口问题：
-  - `single_resuming.rs` / `single_escape.rs` 新接回的 unified leaf 函数参数过多；
-  - 收口参数后，新上下文结构的可见性不足以支撑 `pub(super)` 方法签名。
-- 已修复上述问题：
-  - 新增 `UnifiedSingleResumingLeafCtx`，把 single-resuming leaf 的共享输入收口为统一上下文，而不是保留 7+ 个散落参数；
-  - 已把上下文结构可见性提升到与调用边界匹配的层级；
-  - 重新运行 `cargo fmt --all` 与 `cargo clippy --workspace --all-targets -- -D warnings`，现已通过。
-- 任务验收相关验证已重新跑完：
-  - `cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 文档同步状态：
-  - `TODO.md` 已将 `T2003r3d2b` 标记为完成，并补入完成说明与实际验收命令。
-  - `PLAN.md` 已记录本轮 single-resuming leaf 接回、lint 收口与验证结果，并将下一步调整为 `T2003r3d2c`。
-- 当前最终待办：
-  1. 检查工作区差异，确认本轮只包含 `T2003r3d2b` 所需变更。
-  2. 提交 git commit。
-  3. 停止，不继续下一个任务。
+- 已创建本文件，准备开始检查最新提交与任务列表。
+- 已检查最新提交：最近一次提交为 `[T2003r3d2b] Reconnect unified single-resuming leaves`，提交说明中未额外标出需要优先修复的既有 issue。
+- 已读取 `TODO.md` / `PLAN.md`，当前最前未完成任务为 `T2003r3d2c`。
+- 经过代码审计，确认 `T2003r3d2c` 当前实际同时覆盖三类 multi-resuming leaf 接线工作：`stack-reentry-only`、`heap-continuation-only`、以及 `1 immediate + 1 escape` 当前 legal mixed。三者依赖的 emitter / dispatch / sibling non-resuming 复用面不同，单轮继续整包推进风险过高。
+- 决策：先把 `T2003r3d2c` 细分为三个子任务，并在本轮执行第一个子任务：
+  1. `T2003r3d2c1`：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线，覆盖多个 immediate-resume arms 以及 sibling non-resuming / `finally` 的 representative sample。
+  2. `T2003r3d2c2`：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线，覆盖多个 escape-continuation arms 以及 sibling non-resuming / `finally` 的 representative sample。
+  3. `T2003r3d2c3`：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线，并为后续 `T2003r3d3` / `T2003r3d4` 保留 arm-count 扩展空间。
+- 下一步：更新 `TODO.md` / `PLAN.md` 反映上述拆分，然后实现 `T2003r3d2c1`。

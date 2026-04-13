@@ -345,7 +345,7 @@ cargo run -p scoop --features llvm -- test
     - 已有 run-pass 覆盖的 multiple-immediate / multiple-escape / mixed-resuming legal 子集，首先需要把 root `codegen_handle_expr` 的主选路收口到统一入口；
     - unified resuming 主线本身仍存在一整层尚未补齐的 plan contract：`record_stmt_reads` / `record_expr_reads`、`collect_escape_capture_metas_from_plan` 仍是占位，tests 也已开始引用尚未定义的 plan-driven resolver helper；
     - 在 metadata contract 之后，single-resuming leaf 与当前 legal multi-resuming leaf 仍各自保留 `unimplemented!`，而 simplification 还把“一个 immediate + 多个 escape arms”与“多个 immediate arms + 一个 escape”归为 `Unsupported*`，说明 arm-count generality 仍是独立的真实实现面。
-  - 若继续把 `T2003r3d` 整包推进，会把主入口收口、metadata contract、single/multi resuming leaf 接线，以及 richer mixed-arm arm-count 扩展重新耦合到同一轮里，风险过高，因此拆成 `T2003r3d1`～`T2003r3d4`，其中 `T2003r3d2` 再细分为 `a`～`c` 三步：
+  - 若继续把 `T2003r3d` 整包推进，会把主入口收口、metadata contract、single/multi resuming leaf 接线，以及 richer mixed-arm arm-count 扩展重新耦合到同一轮里，风险过高，因此拆成 `T2003r3d1`～`T2003r3d4`，其中 `T2003r3d2` 先细分为 `a`～`c` 三步：
     - `T2003r3d1`：先新增 unified multi-resuming 入口，接管当前已支持 legal shapes 的 root 主选路，并把 zero-match / no-perform fallback 收口到统一入口；
     - `T2003r3d2a`：先补齐 plan-owned metadata 与 plan-driven resolver/helper，让 unified resuming leaf 具备稳定输入；
     - `T2003r3d2b`：再接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`；
@@ -363,7 +363,12 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2b 已完成：unified single-resuming 入口现已真正接回 `single_resuming.rs` / `single_escape.rs` 中的 immediate / escape leaf；`codegen_handle_expr_unified_single_resuming(...)` 不再对 `SingleImmediateResume` / `SingleEscapeContinuation` 停留在 build-only 占位，`codegen/mod.rs` 中 `resume(value)` 与 `k.resume(value)` 也已改为调用 unified resuming helper。
   - 本轮同时补了 unified single-resuming 的 LLVM 定向发射测试：`state_machine_plan_tests.rs` 已新增 immediate direct、escape direct、escape indirect 三个 codegen 成功样例；另外为满足 `clippy -D warnings`，把 single-resuming leaf 的共享输入收口为 `UnifiedSingleResumingLeafCtx`，避免新接回的 leaf 接口继续散落 7+ 位置参数。
   - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3d2c`：接回 unified multi-resuming leaf，并禁止任何 shape-based route 名称回流。
+  - 进一步审计 `T2003r3d2c` 后确认，它仍然不是单一 leaf 接线：当前 `MultiResuming` legal route 同时覆盖 `stack-reentry-only`、`heap-continuation-only`，以及当前 legal 的 `1 immediate + 1 escape` mixed 三类路径；三者对 immediate replay、continuation materialization 与 sibling non-resuming / `finally` 收口的依赖不同，继续整包推进风险仍偏高。
+  - 因此把 `T2003r3d2c` 再拆成 `T2003r3d2c1`～`T2003r3d2c3`：
+    - `T2003r3d2c1`：先接回 `stack-reentry-only` 的 multi-resuming leaf，覆盖多个 immediate-resume arms 与 sibling non-resuming / `finally` 的 representative 基线；
+    - `T2003r3d2c2`：再接回 `heap-continuation-only` 的 multi-resuming leaf，覆盖多个 escape-continuation arms 与 sibling non-resuming / `finally`；
+    - `T2003r3d2c3`：最后接回当前 legal 的 `1 immediate + 1 escape` mixed 基线，为 `T2003r3d3` / `T2003r3d4` 保留 arm-count generality 扩展空间。
+  - 当前下一步调整为 `T2003r3d2c1`：先清掉 unified `stack-reentry-only` multi-resuming route 的 build-only 占位。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -448,7 +453,9 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d1（已完成）：由 unified multi-resuming 入口接管当前已支持 legal shapes 的 root 主选路。
   - T2003r3d2a（已完成）：补齐 unified resuming 的 plan-owned metadata 与 resolver helper。
   - T2003r3d2b（已完成）：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
-  - T2003r3d2c：清掉当前 legal multi-resuming 路径的 build-only 占位。
+  - T2003r3d2c1：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线。
+  - T2003r3d2c2：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线。
+  - T2003r3d2c3：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线。
   - T2003r3d3：补“一个 immediate-resume arm + 多个 escape-continuation arms”的 mixed-resuming。
   - T2003r3d4：补“多个 immediate-resume arms + 一个 escape-continuation arm”，并清空已知 legal mixed lowering 缺口。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。
