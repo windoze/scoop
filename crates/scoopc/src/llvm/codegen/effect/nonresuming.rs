@@ -9,6 +9,7 @@ struct HandleArmBuckets<'hir> {
 enum UnifiedNoContinuationEntrypoint {
     NoSuspendSites,
     SingleNonResuming,
+    MultiNonResuming,
 }
 
 impl UnifiedNoContinuationEntrypoint {
@@ -17,6 +18,7 @@ impl UnifiedNoContinuationEntrypoint {
         match self {
             Self::NoSuspendSites => "no-suspend-sites",
             Self::SingleNonResuming => "single-nonresuming",
+            Self::MultiNonResuming => "multi-nonresuming",
         }
     }
 }
@@ -290,6 +292,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             SimplifiedCodegenEntrypoint::SingleNonResuming => {
                 Some(UnifiedNoContinuationEntrypoint::SingleNonResuming)
             }
+            SimplifiedCodegenEntrypoint::MultiNonResuming => {
+                Some(UnifiedNoContinuationEntrypoint::MultiNonResuming)
+            }
             _ => None,
         }
     }
@@ -346,6 +351,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn validate_unified_multi_nonresuming_plan(
+        &self,
+        span: crate::span::Span,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<(), LlvmEmitError> {
+        if state_machine_plan.arm_plans.len() < 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified multi-nonresuming plan arm count mismatch",
+                at: span.into(),
+            });
+        }
+
+        if state_machine_plan
+            .arm_plans
+            .iter()
+            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume))
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified multi-nonresuming plan contains resuming arm",
+                at: span.into(),
+            });
+        }
+
+        Ok(())
+    }
+
     fn codegen_handle_expr_unified_no_continuation<'hir>(
         &mut self,
         span: crate::span::Span,
@@ -366,6 +397,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     handle,
                     handle_arm_buckets,
+                    out_ty,
+                )
+            }
+            UnifiedNoContinuationEntrypoint::MultiNonResuming => {
+                self.validate_unified_multi_nonresuming_plan(span, state_machine_plan)?;
+                self.codegen_handle_expr_multi_nonresuming_leaf(
+                    span,
+                    handle,
+                    handle_arm_buckets.nonresuming_arms.as_slice(),
                     out_ty,
                 )
             }
@@ -1523,14 +1563,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let nonresuming_arms = arm_buckets.nonresuming_arms.as_slice();
 
         match codegen_entrypoint {
-            SimplifiedCodegenEntrypoint::MultiNonResuming => {
-                self.codegen_handle_expr_nonresuming_multi_arm(
-                    span,
-                    handle,
-                    nonresuming_arms,
-                    out_ty,
-                )
-            }
             SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
                 self.codegen_handle_expr_multiple_escape_top_level_direct(
                     span,
@@ -1658,6 +1690,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })
             }
+            SimplifiedCodegenEntrypoint::MultiNonResuming
+            |
             SimplifiedCodegenEntrypoint::NoSuspendSites
             | SimplifiedCodegenEntrypoint::SingleNonResuming
             | SimplifiedCodegenEntrypoint::SingleImmediateResume
@@ -1670,7 +1704,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_handle_expr_nonresuming_multi_arm<'hir>(
+    fn codegen_handle_expr_multi_nonresuming_leaf<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
@@ -1687,7 +1721,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if nonresuming_arms.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle arm count (only 1 supported)",
+                kind: "handle arm dispatch (missing non-resuming arm)",
                 at: span.into(),
             });
         }

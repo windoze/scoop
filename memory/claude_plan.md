@@ -1,56 +1,64 @@
-## 执行计划（公开版）
+# 执行计划
 
-说明：我不会写出不可公开的完整内部推理，但会在此持续记录可公开的执行计划、关键判断、进度与变更原因。
+## 当前目标
 
-### 初始步骤
+本轮只完成 `TODO.md` 中第一项未完成任务；如果发现前置缺陷、规范不匹配或任务过大，需要先调整 `TODO.md` / `PLAN.md`，提交后停止。
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到任何已知遗留问题。
-2. 如果最新提交提到遗留问题，先定位并修复这些问题，再继续后续任务。
-3. 阅读 `TODO.md`，找出第一个未完成任务。
-4. 阅读 `PLAN.md`，核对现有计划与任务依赖。
-5. 判断该任务是否可以在本轮完整完成：
-   - 若可以，直接实现。
-   - 若过大或存在前置缺口，则把任务细分，并同步更新 `PLAN.md` 与 `TODO.md`，随后只执行新的第一个子任务。
-6. 对本轮目标进行实现、测试、文档更新、提交。
-7. 完成本轮后立即停止，不继续处理下一个任务。
+## 已知约束
 
-### 执行约束
+- 先检查最新一次 Git 提交，确认是否提到需要先修复的既有问题；若有，优先修复。
+- 只能处理一项任务（或拆分后的第一项子任务），完成后必须测试、更新文档并提交 Git。
+- 不能通过变通方案绕过规范缺口；如果存在缺失能力或错误实现，必须先把修复任务写入 `TODO.md` 并调整依赖顺序。
+- 过程中需要持续更新本文件，记录关键判断、计划调整和完成状态。
 
-- 优先修复最新提交中明确提到的遗留问题。
-- 不接受规避式实现；若遇到规范缺口、实现边界或阻塞问题，必须先在 `TODO.md`/`PLAN.md` 中显式建模并调整顺序。
-- 本轮只完成一个任务或一个新拆出的首个子任务。
-- 代码修改后需要运行相关验证，目标包含无警告构建与必要测试。
+## 执行步骤
 
-### 进度记录
+1. 检查最新提交内容，确认是否存在提交中明确提到的遗留问题需要先修复。
+2. 阅读 `TODO.md`，定位第一项未完成任务。
+3. 评估该任务是否可在本轮完整落地：
+   - 若可完成，直接实现。
+   - 若过大或被前置问题阻塞，拆分任务并更新 `TODO.md` / `PLAN.md`，然后执行新的第一项子任务；若仍因前置缺陷无法继续，则只记录依赖调整并提交。
+4. 实现任务时同步检查相关规范、现有实现与测试覆盖，避免引入临时性兼容方案。
+5. 运行相关验证：
+   - 至少执行与改动直接相关的测试。
+   - 若改动影响通用编译/静态检查，补跑 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或更精确但充分的等价检查。
+6. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
+7. 使用清晰的提交信息创建 Git 提交，然后停止，不继续处理下一项任务。
 
-- 2026-04-14：已创建本计划文件，准备开始检查最新提交与任务列表。
-- 2026-04-14：已检查最新提交 `c9b00143e3a064fa366278bfbdd783254bb19e85`，提交主题为 `[T2003r3b1] Route no-suspend handles through unified emitter`，提交说明未额外提及待补遗留问题，因此继续按 `TODO.md` 主线推进。
-- 2026-04-14：已读取 `TODO.md` 与 `PLAN.md`，当前第一个未完成任务是 `T2003r3b2`：由 unified emitter 接管 `SingleNonResuming`。
-- 2026-04-14：已确认本任务无需再拆分。当前代码里 unified no-continuation 入口只覆盖 `NoSuspendSites`，而 `SingleNonResuming` 仍在 `codegen_handle_expr` 中走旧的单 arm specialized 主路径。
+## 进度记录
 
-### 当前实施方案
-
-1. 扩展 unified no-continuation 入口分类，使 `SingleNonResuming` 进入统一入口。
-2. 为该入口补充最小 plan 校验，确认其只包含 non-resuming arm、且与 simplification 分类一致。
-3. 把现有 single non-resuming 旧主路径收口成局部 helper，由 unified 入口调用；保留现有 `Raise.raise` 与 custom single-payload non-resuming 行为。
-4. 更新 LLVM 定向单测，验证 single non-resuming representative sample 已被 unified 入口选中，不再返回 `None`。
-5. 视需要补充或复用 run-pass fixture，随后执行格式化、定向测试、LLVM run-pass 验收、`clippy -D warnings`。
-6. 通过后更新 `TODO.md` / `PLAN.md`、提交 git commit，并停止。
-
-### 本轮结果
-
-- 2026-04-14：已完成代码实现。
-  - `UnifiedNoContinuationEntrypoint` 已扩展到 `SingleNonResuming`。
-  - `codegen_handle_expr` 中原 single non-resuming 主路径已收口为局部 helper，由 unified no-continuation 入口调用。
-  - 新增定向单测与 run-pass fixture，覆盖 single non-resuming + `finally` + nested handle representative sample。
-- 2026-04-14：已完成验证。
+- 已创建初始执行计划，下一步检查最新提交与任务列表。
+- 已检查最新提交 `93a52648d9fea6de59d762a922702a8ed869a26c`，提交说明未显式提到需要先修复的遗留问题；未发现必须先于 `TODO.md` 执行的提交内问题。
+- 已定位 `TODO.md` 第一项未完成任务为 `T2003r3b3`：让 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized 主入口。
+- 已阅读 `TODO.md` / `PLAN.md` 与当前 LLVM effect lowering 代码：
+  - `NoSuspendSites` 与 `SingleNonResuming` 已通过 `UnifiedNoContinuationEntrypoint` 进入统一主线；
+  - `MultiNonResuming` 仍从 `codegen_handle_expr_multi_arm(...)` 进入旧的 `codegen_handle_expr_nonresuming_multi_arm(...)` specialized 主路径；
+  - 现有结构允许沿用 `T2003r3b1/b2` 的模式，把 `MultiNonResuming` 纳入 unified no-continuation 主入口，同时把旧 multi non-resuming lowering 收口为 leaf helper。
+- 当前执行方案：
+  1. 扩展 unified no-continuation 入口与 plan contract 校验，纳入 `MultiNonResuming`。
+  2. 调整 `codegen_handle_expr` 选路，让 pure multi non-resuming handle 优先走 unified emitter 主线。
+  3. 将旧 multi non-resuming lowering 明确退化为 leaf helper，避免继续作为主路由入口。
+  4. 新增定向单测与 run-pass fixture，覆盖 multi non-resuming + `finally` + nested handle representative sample。
+  5. 跑相关测试与 lint，更新 `TODO.md` / `PLAN.md` / 本文件后提交。
+- 代码实现已完成：
+  - `UnifiedNoContinuationEntrypoint` 已新增 `MultiNonResuming`；
+  - unified 入口已新增 multi non-resuming plan contract 校验，并在 root handle 上优先接管 pure multi non-resuming 主路由；
+  - 原 pure multi non-resuming lowering 已更名并收口为 `codegen_handle_expr_multi_nonresuming_leaf`，保留为局部 helper；
+  - `multi_escape.rs` 的 no-escape fallback 已同步改调新 helper，避免旧命名残留。
+- 回归已补齐：
+  - 定向单测：`unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample`
+  - LLVM run-pass fixture：`tests/fixtures/run-pass/effect_multi_nonresuming_finally_nested_handle.scoop`
+- 已完成验证：
   - `cargo fmt --all`
+  - `cargo test -p scoopc unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample -- --nocapture`
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_single_nonresuming_finally_nested_handle.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_finally_nested_handle.scoop`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo test --all`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 2026-04-14：额外确认了一个文档/命令语义细节：
-  - `scoop test --fixtures <PATH>` 中的 `--fixtures` 表示 fixture 根目录，不是 phase 过滤器。
-  - 因此把 `tests/fixtures/run-pass` 作为 `--fixtures` 参数时，会改变根目录语义，不能稳定表达“只跑 run-pass 子集”。
-  - 本轮已经在 `PLAN.md` 中记录该事实，并在完成说明中写入实际执行的验收命令。
+- 文档状态已完成：
+  - `TODO.md` 已将 `T2003r3b3` 标记为完成并补充完成说明；
+  - `PLAN.md` 已记录本轮迁移、验证结果，并把当前下一步更新为 `T2003r3c`。
+- 当前收尾步骤：
+  - 检查 diff 后创建 Git 提交；
+  - 本轮到此停止，不进入 `T2003r3c`。

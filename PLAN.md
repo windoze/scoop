@@ -334,7 +334,10 @@ cargo run -p scoop --features llvm -- test
   - T2003r3b2 已完成：unified no-continuation 主入口现已扩展到 `UnifiedNoContinuationEntrypoint::SingleNonResuming`，并对 root plan 施加“恰好一个 never-resume arm”的显式 contract 校验；原本塞在 `codegen_handle_expr` 中的 single non-resuming 主路径已收口为局部 leaf helper，不再承担主选路职责。
   - 本轮同时新增定向单测 `unified_no_continuation_entrypoint_marks_single_nonresuming_sample`、`unified_no_continuation_entrypoint_marks_single_nonresuming_finally_nested_handle_sample`，以及 run-pass fixture `effect_single_nonresuming_finally_nested_handle`，覆盖 outer single non-resuming + `finally` + nested handle representative sample。
   - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_single_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3b3`：在 single non-resuming 已接入统一入口后，继续让 unified emitter 接管 `MultiNonResuming` 并退化旧 pure flag-unwind specialized entry。
+  - T2003r3b3 已完成：unified no-continuation 主入口现已扩展到 `UnifiedNoContinuationEntrypoint::MultiNonResuming`，并对 root plan 施加“至少两个 never-resume arms”的显式 contract 校验；pure multi non-resuming handle 不再通过 `codegen_handle_expr_multi_arm(...)` 选主路由。
+  - 本轮同时把原先承担 pure multi non-resuming 主路径的 lowering 收口为局部 leaf helper `codegen_handle_expr_multi_nonresuming_leaf`，保留给 mixed/escape 路径的 no-escape fallback 复用；并新增定向单测 `unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample` 与 run-pass fixture `effect_multi_nonresuming_finally_nested_handle`，覆盖 multi non-resuming + `finally` + nested handle representative sample。
+  - 已验证：`cargo test -p scoopc unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3c`：在 pure flag-unwind 的 no-continuation 子集全部接入统一入口后，继续让 unified emitter 接管 single immediate-resume / single escape-continuation 主路径。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -413,8 +416,8 @@ cargo run -p scoop --features llvm -- test
   - T2003r2（已完成）：从 `HandleSegmentList` 构建统一 state-machine builder，不再按源码形状分主构造器。
   - T2003r3a（已完成）：为 unified emitter 补齐 typed/source-linked emit contract，冻结可执行的 plan/segment 元数据。
   - T2003r3b1（已完成）：由 unified emitter 先接管 `NoSuspendSites`，锁定统一 CFG / cleanup 发射骨架。
-  - T2003r3b2：由 unified emitter 接管 `SingleNonResuming`。
-  - T2003r3b3：由 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
+  - T2003r3b2（已完成）：由 unified emitter 接管 `SingleNonResuming`。
+  - T2003r3b3（已完成）：由 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
   - T2003r3c：由 unified emitter 接管 single immediate-resume / single escape-continuation。
   - T2003r3d：由 unified emitter 接管 multiple immediate / multiple escape / mixed-resuming，并完成 effect lowering 主入口切换。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。

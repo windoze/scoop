@@ -136,7 +136,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if scanned_sites.is_empty() {
             if has_sibling_nonresuming {
-                return self.codegen_handle_expr_nonresuming_multi_arm(
+                return self.codegen_handle_expr_multi_nonresuming_leaf(
                     span,
                     handle,
                     sibling_nonresuming_arms,

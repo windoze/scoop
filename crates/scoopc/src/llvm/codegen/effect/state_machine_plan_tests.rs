@@ -864,6 +864,52 @@ fun demo(): Int {
     }
 
     #[test]
+    fn unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            Raise.raise(4)
+            0
+        } with {
+            Raise.raise(err: Int) -> err + 1
+        } finally {
+            println("inner finally")
+        }
+
+        if (flag) {
+            Alarm.trip(inner + 1)
+            0
+        } else {
+            Raise.raise(inner + 2)
+            0
+        }
+    } with {
+        Alarm.trip(code: Int) -> code + 10
+        Raise.raise(err: Int) -> err + 20
+    } finally {
+        println("outer finally")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "multi-nonresuming");
+        assert_eq!(
+            build_unified_no_continuation_entrypoint_label(source),
+            Some("multi-nonresuming")
+        );
+    }
+
+    #[test]
     fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
         let lowered = lower_typed_single_source(
             r#"

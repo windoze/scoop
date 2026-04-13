@@ -1,0 +1,104 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_nonresuming_finally_nested_handle.stdout
+//
+// T2003r3b3: unified emitter 接管 multi non-resuming representative sample。
+// - outer handle 同时包含 custom non-resuming arm 与 Raise.raise arm；
+// - body 包含 nested handle，并分别覆盖 outer custom dispatch 与 outer Raise dispatch；
+// - outer finally 需要在两个分支都恰好执行一次，且 sibling arm 在 arm body 中必须处于 handler scope 外。
+
+import scoop.core.*
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun customPath(): Int {
+    return try {
+        val handled: Int = handle {
+            println("custom_outer_body")
+            val inner: Int = handle {
+                println("custom_inner_body")
+                Raise.raise(4)
+                0
+            } with {
+                Raise.raise(err: Int) -> {
+                    println("custom_inner_catch")
+                    println(err)
+                    err + 1
+                }
+            } finally {
+                println("custom_inner_finally")
+            }
+            println("custom_after_inner")
+            Alarm.trip(inner + 1)
+            println("custom_unreachable")
+            0
+        } with {
+            Alarm.trip(code: Int) -> {
+                println("custom_alarm_catch")
+                println(code)
+                Raise.raise(code + 10)
+            }
+            Raise.raise(err: Int) -> {
+                println("custom_outer_raise_should_not_catch")
+                println(err)
+                0
+            }
+        } finally {
+            println("custom_outer_finally")
+        }
+        handled
+    } catch (e: Int) {
+        println("custom_outer_try_catch")
+        println(e)
+        e + 1
+    }
+}
+
+fun raisePath(): Int {
+    val handled: Int = handle {
+        println("raise_outer_body")
+        val inner: Int = handle {
+            println("raise_inner_body")
+            Raise.raise(8)
+            0
+        } with {
+            Raise.raise(err: Int) -> {
+                println("raise_inner_catch")
+                println(err)
+                err + 1
+            }
+        } finally {
+            println("raise_inner_finally")
+        }
+        println("raise_after_inner")
+        Raise.raise(inner + 2)
+        println("raise_unreachable")
+        0
+    } with {
+        Alarm.trip(code: Int) -> {
+            println("raise_alarm_should_not_catch")
+            println(code)
+            0
+        }
+        Raise.raise(err: Int) -> {
+            println("raise_outer_catch")
+            println(err)
+            err + 3
+        }
+    } finally {
+        println("raise_outer_finally")
+    }
+    handled
+}
+
+fun main(): Int {
+    val first: Int = customPath()
+    println("custom_path_result")
+    println(first)
+
+    val second: Int = raisePath()
+    println("raise_path_result")
+    println(second)
+    return 0
+}
