@@ -101,23 +101,12 @@ impl HandleModeSpecificSimplification {
             counts.stack_reenter,
             counts.heap_continuation,
         ) {
+            (0, 0, 0) => SimplifiedCodegenEntrypoint::NoSuspendSites,
             (1, 0, 0) => SimplifiedCodegenEntrypoint::SingleNonResuming,
             (_, 0, 0) => SimplifiedCodegenEntrypoint::MultiNonResuming,
             (0, 1, 0) => SimplifiedCodegenEntrypoint::SingleImmediateResume,
-            (_, 1, 0) => SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings,
-            (_, count, 0) if count > 1 => {
-                SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel
-            }
             (0, 0, 1) => SimplifiedCodegenEntrypoint::SingleEscapeContinuation,
-            (_, 0, 1) => SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings,
-            (_, 0, count) if count > 1 => {
-                SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect
-            }
-            (0, 1, 1) => SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling,
-            (_, 1, 1) => {
-                SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings
-            }
-            _ => SimplifiedCodegenEntrypoint::NoSuspendSites,
+            _ => SimplifiedCodegenEntrypoint::MultiResuming,
         }
     }
 
@@ -232,12 +221,7 @@ enum SimplifiedCodegenEntrypoint {
     SingleImmediateResume,
     SingleEscapeContinuation,
     MultiNonResuming,
-    MultipleEscapeTopLevelDirect,
-    MultipleImmediateResumeTopLevel,
-    ImmediateResumeWithNonResumingSiblings,
-    EscapeContinuationWithNonResumingSiblings,
-    ImmediateResumeWithEscapeSibling,
-    ImmediateResumeWithEscapeAndNonResumingSiblings,
+    MultiResuming,
     UnsupportedMixedMultipleEscapeWithImmediate,
     UnsupportedMixedMultipleImmediateWithEscape,
 }
@@ -251,24 +235,7 @@ impl SimplifiedCodegenEntrypoint {
             SimplifiedCodegenEntrypoint::SingleImmediateResume => "single-immediate-resume",
             SimplifiedCodegenEntrypoint::SingleEscapeContinuation => "single-escape-continuation",
             SimplifiedCodegenEntrypoint::MultiNonResuming => "multi-nonresuming",
-            SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
-                "multiple-escape-top-level-direct"
-            }
-            SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel => {
-                "multiple-immediate-top-level"
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings => {
-                "immediate-with-nonresuming"
-            }
-            SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings => {
-                "escape-with-nonresuming"
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling => {
-                "immediate-with-escape"
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                "immediate-with-escape-and-nonresuming"
-            }
+            SimplifiedCodegenEntrypoint::MultiResuming => "multi-resuming",
             SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
                 "unsupported-mixed-multiple-escape-with-immediate"
             }

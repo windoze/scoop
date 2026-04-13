@@ -1597,7 +1597,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增定向单测：`unified_multi_resuming_entrypoint_marks_multiple_immediate_top_level_sample`、`unified_multi_resuming_entrypoint_marks_multiple_escape_top_level_direct_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_nonresuming_sample`、`unified_multi_resuming_entrypoint_marks_escape_with_nonresuming_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_escape_sample`、`unified_multi_resuming_entrypoint_marks_immediate_with_escape_and_nonresuming_sample`。
   - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_multi_immediate_top_level.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_multi_arm_with_nonresuming.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_if_direct_indirect_custom_nonresuming.scoop`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --all` 通过。
 
-### T2003r3d2 [TODO] Effect：先物理删除所有 shape-based resuming legacy 与旧测试，再继续 unified 重写
+### T2003r3d2 [DONE] Effect：先物理删除所有 shape-based resuming legacy 与旧测试，再继续 unified 重写
 - 描述：`T2003r3d1` 虽然已经把 multi-resuming 的 root 入口收口到 unified entrypoint，但仓库里仍残留一批以 shape-based 分类命名的 legacy：`MultipleImmediateResumeTopLevel`、`MultipleEscapeTopLevelDirect`、`ImmediateResumeWithNonResumingSiblings`、`EscapeContinuationWithNonResumingSiblings`、`ImmediateResumeWithEscapeSibling`、`ImmediateResumeWithEscapeAndNonResumingSiblings`，以及围绕这些名称生长出来的 match arm、helper、测试名、fixture 名。继续在这些壳层上补 metadata / leaf，只会把旧模型继续固化，所以本阶段必须先做 hard cleanup：把它们从代码与测试里彻底物理删除，再往下推进 unified transformation。
 - 目标：
   - 上述 shape-based legacy 及其直接派生物从仓库中物理删除：包括 enum variant、route 分类、match arm、helper、fixture、单测、注释中的执行路径约定；不允许仅注释掉、移动、重命名后保留同义层、加 gate / `cfg`、包一层 wrapper，或改成 `todo!` / `unimplemented!` 继续占位。
@@ -1611,9 +1611,15 @@ cargo run -p scoop --features llvm -- test
     - `cargo build -p scoopc`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d1
+- 完成说明：
+  - `state_machine_simplify.rs` 与 `nonresuming.rs` 已删除上述 shape-based multi-resuming route 枚举 / match arm / label，只保留统一的 `MultiResuming` 入口占位以及后续 `T2003r3d4` 仍需清空的 `UnsupportedMixedMultiple*`。
+  - 仅用于承载旧 multiple-escape resuming 壳层的 `crates/scoopc/src/llvm/codegen/effect/multi_escape.rs` 已物理删除；`mod.rs` / `shared.rs` 中与旧 route 绑定的形状 helper 也已一并删除或收口。
+  - `state_machine_plan_tests.rs` 中依赖旧 frame / resolver / route label 的定向单测与 helper 已删除，不再保留 shape-based multi-resuming entrypoint 测试 API。
+  - `tests/fixtures` 下以 `effect_resume_multi_immediate_*`、`effect_multi_escape_multi_arm_*`、`effect_resume_mixed_escape_*` 命名的旧 fixture / stdout 已物理删除。
+  - 已做最小验证：`cargo fmt --all`、`cargo build -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d2a [TODO] Effect：补齐 unified resuming 的 plan-owned metadata 与 resolver helper
-- 描述：在 `T2003r3d2` 完成 hard cleanup 后，当前最先阻塞 unified resuming 主线的已不再是 shape-based 旧路由，而是 metadata contract 本身还没补齐：`state_machine_plan.rs` 的 `record_stmt_reads` / `record_expr_reads` 仍是 `todo!`，`shared.rs` 的 `collect_escape_capture_metas_from_plan` 仍是 `unimplemented!`，而 tests 也已经开始引用尚未落地的 plan-driven resolver helper。必须先把这些“只依赖 `HandleSegmentList` / `HandleStateMachinePlan` 的元数据恢复层”补齐，后续 single/multi resuming leaf 才有稳定输入可接。
+- 描述：在 `T2003r3d2` 完成 hard cleanup 后，当前最先阻塞 unified resuming 主线的已不再是 shape-based 旧路由，而是 metadata contract 本身还没补齐：`state_machine_plan.rs` 的 `record_stmt_reads` / `record_expr_reads` 仍是 `todo!`，`shared.rs` 的 `collect_escape_capture_metas_from_plan` 仍是 `unimplemented!`，而 single/multi resuming leaf 后续需要的 plan-driven resolver helper 也尚未落地。必须先把这些“只依赖 `HandleSegmentList` / `HandleStateMachinePlan` 的元数据恢复层”补齐，后续 single/multi resuming leaf 才有稳定输入可接。
 - 目标：
   - `record_stmt_reads` / `record_expr_reads` 不再依赖已删除的 legacy scanner；state read tracking 只从统一 plan / segment 可得的数据恢复。
   - `collect_escape_capture_metas_from_plan` 与 resuming leaf 后续需要的 plan-driven resolver helper（single-resuming、pure multi-resuming、mixed immediate+escape）全部落地，并只消费 unified metadata。
@@ -1646,7 +1652,7 @@ cargo run -p scoop --features llvm -- test
 ### T2003r3d2c [TODO] Effect：接回 unified multi-resuming leaf，并禁止任何 shape-based route 名称回流
 - 描述：在 single-resuming leaf 接回后，再把当前 unified 入口下已知 legal 的 multi-resuming 组合从 build-only 状态接回真实 leaf。这里的组合表达只能来自 unified plan 中的 arm resume mode / suspend-site / cleanup / sibling non-resuming / `finally` 数据；`T2003r3d2` 已删除的 `MultipleImmediateResumeTopLevel` 等 shape-based 名称不得以任何形式恢复。此阶段的重点是“清掉占位并恢复当前 legal route”，不是继续扩 arm-count generality。
 - 目标：
-  - 当前 legal multi-resuming route 不再停留在 `nonresuming.rs` / `multi_escape.rs` 的 `unimplemented!`。
+  - 当前 legal multi-resuming route 不再停留在 unified multi-resuming leaf 的 build-only `unimplemented!`；仓库中不再保留任何已删除 legacy 文件作为过渡落点。
   - 若 multi-resuming 的 no-perform early gate 仍需暂时保留，必须以 unified plan contract 的明确缺口说明原因；若 leaf 已可自行判断 zero-match / hidden-unwind，则在本任务内删除该 gate。
   - direct / indirect / `if` / `while` / nested handle 只作为 representative coverage 维度，不得再次把某个源码 shape 变成专用 emitter / helper 分流条件。
   - 代码、tests、fixture、helper 命名不得重新引入 `T2003r3d2` 已删除的任何 shape-based legacy。
@@ -1663,8 +1669,8 @@ cargo run -p scoop --features llvm -- test
 - 描述：在 `T2003r3d2c` 把当前 legal resuming leaf 的 build-only 占位清掉后，下一步应让 mixed immediate+escape 与 multi-escape 的合法子集全部通过同一套 plan-driven dispatch / capture / cleanup / resume graph 发射，而不是再把 `nested while indirect`、`block/if/while`、`same-stmt` 等源码位置当成任务拆分维度。之前留在 build-fail 的 representative sample 只应作为 coverage case，被统一 emitter 自然覆盖。
 - 目标：
   - 含 immediate-resume 与 escape-continuation 共存的 legal mixed 组合，以及带 sibling non-resuming / `finally` 的 legal multi-escape 子集，共享同一套 plan-driven emitter contract；差异只来自 plan 中的 state / suspend-site / arm / cleanup 数据，不再来自源码 shape 分流。
-  - 当前仍以 build-fail 代表的 legal mixed sample（例如旧的 `effect_resume_mixed_escape_while_indirect_is_error.scoop` 所覆盖的问题域）转为 run-pass 或等价正向回归，但它只是统一 mixed matrix 的一个 representative sample，而不是单独的算法分支。
-  - `multi_escape.rs` 现有 build-only placeholder 被真实 unified leaf 替换；heap continuation materialization、dispatch、resume replay 与 sibling non-resuming / `finally` 组合都直接消费 unified plan metadata。
+  - 当前仍以 build-fail 代表的 legal mixed sample 转为 run-pass 或等价正向回归，但它只是统一 mixed matrix 的一个 representative sample，而不是单独的算法分支。
+  - 当前 unified multi-resuming leaf 中与 mixed immediate+escape / multi-escape 相关的 build-only placeholder 被真实 unified leaf 替换；heap continuation materialization、dispatch、resume replay 与 sibling non-resuming / `finally` 组合都直接消费 unified plan metadata。
 - 验收：
   - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
   - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖 legal mixed immediate+escape / multi-escape 的 direct、indirect、branch、loop、nested-handle 组合。
@@ -1758,7 +1764,7 @@ cargo run -p scoop --features llvm -- test
   - 真正依赖 safe-region 语义的测试继续保留 `@Safe` 相关写法，避免把 unsafe 语义回归误混进 parser / block 语义任务。
   - 锁定 trailing lambda / multiple trailing lambdas 与后续 `do` block 并存时的行为，避免 effect fixture 迁移顺手改变调用语义。
 - 验收：
-  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block_if`、`effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect` 改为 `do { ... }`，行为保持不变。
+  - 更新 effect fixtures：至少覆盖 `effect_resume_nested_block_single_perform`、`effect_resume_while_nested_block_perform`，以及届时仍保留的 unified effect nested-block representative samples，统一改为 `do { ... }`，行为保持不变。
   - 新增 parser / typecheck / HIR / run-pass 回归：multiple trailing lambdas 与后续 `do` block 的边界规则。
   - `cargo test --all`
   - `cargo run -p scoop -- test`

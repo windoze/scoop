@@ -41,65 +41,9 @@ impl UnifiedSingleResumingEntrypoint {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UnifiedMultiResumingEntrypoint {
-    MultipleImmediateResumeTopLevel,
-    MultipleEscapeTopLevelDirect,
-    ImmediateResumeWithNonResumingSiblings,
-    EscapeContinuationWithNonResumingSiblings,
-    ImmediateResumeWithEscapeSibling,
-    ImmediateResumeWithEscapeAndNonResumingSiblings,
+    MultiResuming,
     UnsupportedMixedMultipleEscapeWithImmediate,
     UnsupportedMixedMultipleImmediateWithEscape,
-}
-
-impl UnifiedMultiResumingEntrypoint {
-    #[cfg(test)]
-    fn label(self) -> &'static str {
-        match self {
-            Self::MultipleImmediateResumeTopLevel => "multiple-immediate-top-level",
-            Self::MultipleEscapeTopLevelDirect => "multiple-escape-top-level-direct",
-            Self::ImmediateResumeWithNonResumingSiblings => "immediate-with-nonresuming",
-            Self::EscapeContinuationWithNonResumingSiblings => "escape-with-nonresuming",
-            Self::ImmediateResumeWithEscapeSibling => "immediate-with-escape",
-            Self::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                "immediate-with-escape-and-nonresuming"
-            }
-            Self::UnsupportedMixedMultipleEscapeWithImmediate => {
-                "unsupported-mixed-multiple-escape-with-immediate"
-            }
-            Self::UnsupportedMixedMultipleImmediateWithEscape => {
-                "unsupported-mixed-multiple-immediate-with-escape"
-            }
-        }
-    }
-
-    fn route(self) -> SimplifiedCodegenEntrypoint {
-        match self {
-            Self::MultipleImmediateResumeTopLevel => {
-                SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel
-            }
-            Self::MultipleEscapeTopLevelDirect => {
-                SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect
-            }
-            Self::ImmediateResumeWithNonResumingSiblings => {
-                SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings
-            }
-            Self::EscapeContinuationWithNonResumingSiblings => {
-                SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings
-            }
-            Self::ImmediateResumeWithEscapeSibling => {
-                SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling
-            }
-            Self::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings
-            }
-            Self::UnsupportedMixedMultipleEscapeWithImmediate => {
-                SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate
-            }
-            Self::UnsupportedMixedMultipleImmediateWithEscape => {
-                SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape
-            }
-        }
-    }
 }
 
 impl<'hir> HandleArmBuckets<'hir> {
@@ -416,24 +360,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         match entrypoint {
-            SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel => {
-                Some(UnifiedMultiResumingEntrypoint::MultipleImmediateResumeTopLevel)
+            SimplifiedCodegenEntrypoint::MultiResuming => {
+                Some(UnifiedMultiResumingEntrypoint::MultiResuming)
             }
-            SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
-                Some(UnifiedMultiResumingEntrypoint::MultipleEscapeTopLevelDirect)
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings => Some(
-                UnifiedMultiResumingEntrypoint::ImmediateResumeWithNonResumingSiblings,
-            ),
-            SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings => Some(
-                UnifiedMultiResumingEntrypoint::EscapeContinuationWithNonResumingSiblings,
-            ),
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling => {
-                Some(UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeSibling)
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => Some(
-                UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings,
-            ),
             SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => Some(
                 UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate,
             ),
@@ -656,32 +585,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         entrypoint: UnifiedMultiResumingEntrypoint,
     ) -> Result<(), LlvmEmitError> {
         let counts = Self::collect_unified_plan_arm_lowering_counts(span, state_machine_plan)?;
+        let resuming_arms = counts.stack_reenter + counts.heap_continuation;
         let contract_ok = match entrypoint {
-            UnifiedMultiResumingEntrypoint::MultipleImmediateResumeTopLevel => {
-                counts.stack_reenter > 1 && counts.heap_continuation == 0
-            }
-            UnifiedMultiResumingEntrypoint::MultipleEscapeTopLevelDirect => {
-                counts.stack_reenter == 0 && counts.heap_continuation > 1
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithNonResumingSiblings => {
-                counts.flag_unwind > 0
-                    && counts.stack_reenter == 1
-                    && counts.heap_continuation == 0
-            }
-            UnifiedMultiResumingEntrypoint::EscapeContinuationWithNonResumingSiblings => {
-                counts.flag_unwind > 0
-                    && counts.stack_reenter == 0
-                    && counts.heap_continuation == 1
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeSibling => {
-                counts.flag_unwind == 0
-                    && counts.stack_reenter == 1
-                    && counts.heap_continuation == 1
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                counts.flag_unwind > 0
-                    && counts.stack_reenter == 1
-                    && counts.heap_continuation == 1
+            UnifiedMultiResumingEntrypoint::MultiResuming => {
+                state_machine_plan.arm_plans.len() >= 2 && resuming_arms >= 1
             }
             UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
                 counts.stack_reenter > 0 && counts.heap_continuation > 1
@@ -695,23 +602,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let kind = match entrypoint {
-            UnifiedMultiResumingEntrypoint::MultipleImmediateResumeTopLevel => {
-                "unified multi-resuming plan multiple-immediate route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::MultipleEscapeTopLevelDirect => {
-                "unified multi-resuming plan multiple-escape route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithNonResumingSiblings => {
-                "unified multi-resuming plan immediate-with-nonresuming route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::EscapeContinuationWithNonResumingSiblings => {
-                "unified multi-resuming plan escape-with-nonresuming route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeSibling => {
-                "unified multi-resuming plan immediate-with-escape route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                "unified multi-resuming plan immediate-with-escape-and-nonresuming route mismatch"
+            UnifiedMultiResumingEntrypoint::MultiResuming => {
+                "unified multi-resuming plan route mismatch"
             }
             UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
                 "unified multi-resuming plan mixed multiple-escape-with-immediate route mismatch"
@@ -772,11 +664,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match entrypoint {
             UnifiedSingleResumingEntrypoint::SingleImmediateResume => {
-                let _ = (span, handle, out_ty, state_machine_plan, handle_arm_buckets);
+                self.validate_unified_single_immediate_resume_plan(span, state_machine_plan)?;
+                let arm_id = state_machine_plan.arm_plans[0].id;
+                if !Self::unified_single_immediate_resume_plan_has_matching_site(
+                    state_machine_plan,
+                    arm_id,
+                ) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "unified single-immediate-resume plan missing matching site",
+                        at: span.into(),
+                    });
+                }
+                let _ = (handle, out_ty, handle_arm_buckets);
                 unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
             }
             UnifiedSingleResumingEntrypoint::SingleEscapeContinuation => {
-                let _ = (span, handle, out_ty, state_machine_plan, handle_arm_buckets);
+                self.validate_unified_single_escape_continuation_plan(span, state_machine_plan)?;
+                let arm_id = state_machine_plan.arm_plans[0].id;
+                if !Self::unified_single_escape_plan_has_supported_suspend_site(
+                    state_machine_plan,
+                    arm_id,
+                ) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "unified single-escape-continuation plan missing supported suspend site",
+                        at: span.into(),
+                    });
+                }
+                let _ = (handle, out_ty, handle_arm_buckets);
                 unimplemented!(
                     "legacy escape_continuation.rs 已删除；需改走 unified emitter"
                 )
@@ -800,7 +714,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             out_ty,
             state_machine_plan,
             handle_arm_buckets,
-            entrypoint.route(),
+            entrypoint,
         )
     }
 
@@ -828,19 +742,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume));
         Self::classify_unified_single_resuming_entrypoint(&simplification, has_resuming_arms)
             .map(UnifiedSingleResumingEntrypoint::label)
-    }
-
-    #[cfg(test)]
-    pub(super) fn unified_multi_resuming_entrypoint_label_for_plan(
-        plan: &HandleStateMachinePlan,
-    ) -> Option<&'static str> {
-        let simplification = plan.build_mode_specific_simplification();
-        let has_resuming_arms = plan
-            .arm_plans
-            .iter()
-            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume));
-        Self::classify_unified_multi_resuming_entrypoint(&simplification, has_resuming_arms)
-            .map(UnifiedMultiResumingEntrypoint::label)
     }
 
     /// codegen 一个 `handle { ... } with { Raise.raise(e) -> ... }`（`try/catch` 的 lowering 产物）。
@@ -938,12 +839,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             SimplifiedCodegenEntrypoint::MultiNonResuming
-            | SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect
-            | SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel
-            | SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings
-            | SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings
-            | SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling
-            | SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings
+            | SimplifiedCodegenEntrypoint::MultiResuming
             | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate
             | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => Err(
                 LlvmEmitError::UnsupportedMainBody {
@@ -1935,73 +1831,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: CgTy,
         state_machine_plan: &HandleStateMachinePlan,
         arm_buckets: &HandleArmBuckets<'hir>,
-        codegen_entrypoint: SimplifiedCodegenEntrypoint,
+        entrypoint: UnifiedMultiResumingEntrypoint,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let immediate_arms = arm_buckets.immediate_arms.as_slice();
         let escape_arms = arm_buckets.escape_arms.as_slice();
         let nonresuming_arms = arm_buckets.nonresuming_arms.as_slice();
 
-        match codegen_entrypoint {
-            SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    escape_arms,
-                    nonresuming_arms,
-                    out_ty,
-                );
-                unimplemented!("legacy mixed.rs/matrix.rs 已删除；需改走 unified emitter")
-            }
-            SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    immediate_arms,
-                    nonresuming_arms,
-                    out_ty,
-                );
-                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    immediate_arms,
-                    nonresuming_arms,
-                    out_ty,
-                );
-                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
-            }
-            SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    escape_arms,
-                    nonresuming_arms,
-                    out_ty,
-                );
-                unimplemented!(
-                    "legacy escape_continuation.rs 已删除；需改走 unified emitter"
-                )
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling => {
-                let _ = (
-                    span,
-                    handle,
-                    state_machine_plan,
-                    immediate_arms,
-                    escape_arms,
-                    out_ty,
-                );
-                unimplemented!(
-                    "legacy immediate_resume.rs 与 escape_continuation.rs 已删除；需改走 unified emitter"
-                )
-            }
-            SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
+        match entrypoint {
+            UnifiedMultiResumingEntrypoint::MultiResuming => {
                 let _ = (
                     span,
                     handle,
@@ -2011,11 +1848,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     nonresuming_arms,
                     out_ty,
                 );
-                unimplemented!(
-                    "legacy immediate_resume.rs / escape_continuation.rs / mixed.rs 已删除；需改走 unified emitter"
-                )
+                unimplemented!("unified multi-resuming leaf not yet connected")
             }
-            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
+            UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
                 let at = escape_arms
                     .get(1)
                     .map(|(arm, _)| arm.span)
@@ -2025,7 +1860,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })
             }
-            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
+            UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
                 let at = escape_arms
                     .first()
                     .map(|(arm, _)| arm.span)
@@ -2033,17 +1868,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle mixed multiple immediate-resume arms with escape-continuation not yet supported",
                     at: at.into(),
-                })
-            }
-            SimplifiedCodegenEntrypoint::MultiNonResuming
-            |
-            SimplifiedCodegenEntrypoint::NoSuspendSites
-            | SimplifiedCodegenEntrypoint::SingleNonResuming
-            | SimplifiedCodegenEntrypoint::SingleImmediateResume
-            | SimplifiedCodegenEntrypoint::SingleEscapeContinuation => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-arm route mismatch",
-                    at: span.into(),
                 })
             }
         }

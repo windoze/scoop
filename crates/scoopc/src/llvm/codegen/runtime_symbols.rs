@@ -23,11 +23,14 @@ pub(super) const SCOOP_CHANNELS_CHANNEL_CREATE: &str = "scoop_channels_channel_c
 pub(super) const SCOOP_CHANNELS_CLOSE: &str = "scoop_channels_close";
 pub(super) const SCOOP_CHANNELS_RECV_U64: &str = "scoop_channels_recv_u64";
 pub(super) const SCOOP_CHANNELS_SEND_U64: &str = "scoop_channels_send_u64";
+#[allow(dead_code)]
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
+#[allow(dead_code)]
 pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
+#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE: &str =
     "scoop_effect_handler_stack_set_active";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";

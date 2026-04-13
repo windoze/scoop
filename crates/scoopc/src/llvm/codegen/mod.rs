@@ -235,8 +235,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///
     /// 说明：handle arm body 内的 `resume(value)` 需要引用该上下文，因此用栈来支持嵌套 handle。
     immediate_resume_ctx_stack: Vec<effect::ImmediateResumeCtx<'ctx>>,
-    /// `, k ->`（escape continuation，T0617）在单个函数内生成 step trampoline 时使用的序号。
-    escape_continuation_seq: u32,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
     /// 说明：
@@ -393,7 +391,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             raise_target_stack: Vec::new(),
             effect_unwind_target_stack: Vec::new(),
             immediate_resume_ctx_stack: Vec::new(),
-            escape_continuation_seq: 0,
             effect_op_tags,
             callee_suspend_save_ctx: None,
             pack_field_indices: HashMap::new(),
@@ -1475,7 +1472,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && *id == ctx.resume_symbol
         {
             let _ = (span, args, expected, ctx);
-            unimplemented!("legacy immediate_resume.rs 已删除；resume(value) 需改走 unified emitter");
+            unimplemented!(
+                "legacy immediate_resume.rs 已删除；resume(value) 需改走 unified emitter"
+            );
         }
 
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。

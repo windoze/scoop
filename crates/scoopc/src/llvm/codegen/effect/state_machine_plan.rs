@@ -42,6 +42,7 @@ impl HandleStateMachinePlan {
         HandlePlanBuilder::new(types, handle, context).build()
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn arm_capture_locals(&self, arm_id: ArmPlanId) -> &[hir::SymbolId] {
         self.arm_plans
             .iter()
@@ -2046,6 +2047,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         todo!("legacy scan.rs 已删除；state read tracking 需改走 unified data source");
     }
 
+    #[allow(dead_code)]
     fn add_reads(&mut self, state_id: PlanStateId, used: HashSet<hir::SymbolId>) {
         let state = self.state_mut(state_id);
         state.reads.extend(used);
