@@ -34,7 +34,7 @@ cargo run -p scoop --features llvm -- test
 ## T20：Effect / Continuation 完整化
 
 - 2026-04-13 架构重定向：
-  - `T2003c0*` 已完成事项继续保留为过渡实现与回归基线，但未完成事项不再沿“按 top-level / block / if / while / same-stmt mixed 逐项扩面”的路线推进。
+  - `T2003c0*` 已完成事项只允许作为短期过渡实现与回归基线保留；`T2003u*` 的目标不是把这些 case-by-case 路径“迁移后继续并存”，而是逐步用统一状态机主线替换它们。除非为当轮落地绝对必要，旧代码不应继续保留以增加复杂度。
   - 后续 effect 主线的硬目标改为“统一的 resumable state-machine pass”：先生成完整状态机，再按 never-resume / immediate-resume / escape-continuation 做化简；不再根据源码形状分别生成多套状态机。
   - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线全部由新的 `T2003u*` 主线替代。
 
@@ -1059,14 +1059,14 @@ cargo run -p scoop --features llvm -- test
   - 为 plan 层提供可测试的 dump / pretty-print / golden 输出，便于验证同一程序形状不会因 top-level / nested 差异而走不同主算法。
 - 验收：
   - 新增单元测试或 dump fixtures：覆盖 direct、indirect、if、while、nested handle、multiple arms 的状态机计划输出。
-  - 现有 effect scanner/analysis 中与统一 plan 重复的核心路径有明确迁移入口，不再为新组合继续新增 scanner。
+  - 现有 effect scanner/analysis 中与统一 plan 重复的核心路径有明确的替换 / 删除边界，不再为新组合继续新增 scanner，也不把旧 scanner 长期保留为第二套主实现。
   - `cargo test --all`
 - 依赖：无
 - 完成说明：
   - 已新增 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`，定义统一的 `HandleStateMachinePlan`、`states`、`suspend_sites`、`arm_plans`、`cleanup_scopes`、`frame_layout`、`dispatch_plan` 与 nested-handle plan 表示。
   - 统一 plan builder 已覆盖 direct perform、effectful callee call-site、本地函数值 call-site、`if` / `while` / block 控制流、`finally` cleanup scope、nested handle 与 multiple arms；direct/indirect/callee-state-machine 挂起边界统一落到同一套 site 抽象。
   - 已新增单元测试：验证 direct + branch/loop/finally、call-state-machine callee + indirect local function call、nested handle + multiple arms 的 pretty dump 输出。
-  - 已把统一 plan builder 接入 `codegen_handle_expr` 的迁移前置步骤；现有 specialized lowering 在真正发射 LLVM 前会先构建统一 plan 并消费结构签名，后续新增合法组合不再以“继续扩 scanner”作为默认落点。
+  - 已把统一 plan builder 接入 `codegen_handle_expr` 的统一主线接线点；现有 specialized lowering 在真正发射 LLVM 前会先构建统一 plan 并消费结构签名，后续新增合法组合不再以“继续扩 scanner”作为默认落点，剩余 scanner 只允许作为待删过渡物短期存在。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
 ### T2003u3a [DONE] Effect：定义 mode-specific simplification 输出与 pretty dump
@@ -1081,16 +1081,16 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003u2
 - 完成说明：
   - 已新增 `crates/scoopc/src/llvm/codegen/effect/state_machine_simplify.rs`，定义 `HandleModeSpecificSimplification`、site/arm lowering 决策与稳定 signature / pretty dump；never-resume / immediate-resume / escape-continuation 分别显式映射到 `flag-unwind`、`stack-reenter`、`heap-continuation`。
-  - `codegen_handle_expr` 的迁移前置步骤现已在统一 full plan 之后额外构建 simplification 并消费结构签名，为下一步 `T2003u3b` 的入口选路接线提供固定接口。
+  - `codegen_handle_expr` 的统一主线接线点现已在完整 full plan 之后额外构建 simplification 并消费结构签名，为下一步 `T2003u3b` 的入口选路与旧分支替换提供固定接口。
   - 已新增单元测试：覆盖 never-resume、immediate-resume、escape-continuation 以及 mixed representative sample 的 simplification dump，并验证 full plan dump 与 simplification dump 同步存在。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
 ### T2003u3b [DONE] Effect：用 simplification 收口 `codegen_handle_expr` 入口选路
-- 描述：有了 simplification 输出后，再把 `codegen_handle_expr` 的模式识别与基础 dispatch/resume-target 决策改为消费该输出；此阶段仍允许旧 emitter 作为过渡实现继续存在。
+- 描述：有了 simplification 输出后，再把 `codegen_handle_expr` 的模式识别与基础 dispatch/resume-target 决策改为消费该输出；此阶段若仍需复用旧 emitter，也只允许作为短期落地脚手架，不把双轨并存当成终态。
 - 目标：
   - `codegen_handle_expr` 不再仅靠“arm 数量 + arm kind”的手写主分支决定 lowering 主路径，而是先读取统一 simplification 结果。
   - never-resume / immediate-resume / escape-continuation 至少各有一组代表性样例通过 simplification-driven 入口走通现有 LLVM lowering。
-  - 为 `T2003u4` 的统一状态机 emitter 切换保留清晰边界：本任务只负责选路与结构性假设收口，不要求主 emitter 全量改写。
+  - 为 `T2003u4` 的统一状态机主线接管保留清晰边界：本任务只负责选路与结构性假设收口，不要求主 emitter 在这一轮全量改写，但后续目标明确是替换旧主线而不是长期并存。
 - 验收：
   - 代表性单/多 arm 样例会先构建 simplification，再进入现有 specialized lowering。
   - `cargo test --all`
@@ -1099,10 +1099,10 @@ cargo run -p scoop --features llvm -- test
 - 完成说明：
   - `state_machine_simplify.rs` 现已为 root handle 额外汇总 arm lowering 信息，并新增 `SimplifiedCodegenEntrypoint`；`codegen_handle_expr` / `codegen_handle_expr_multi_arm` 已改为消费该分类来选择现有 specialized lowering，不再只靠“arm 数量 + arm kind”的手写入口分支。
   - 已新增 simplification 与 HIR arm 形态的一致性校验，以及单元测试：覆盖 single non-resuming / immediate-resume / escape-continuation 与 mixed representative sample 的入口分类。
-  - 统一 plan 当前仍未完整覆盖 class init 等隐藏 unwind 路径，因此 no-perform 早退继续保留 `block_may_perform` 作为保守 gate；arm 模式选路仍由 simplification 驱动，这个边界留待 `T2003u4` 的统一状态机 emitter 切换时彻底收口。
+  - 统一 plan 当前仍未完整覆盖 class init 等隐藏 unwind 路径，因此 no-perform 早退继续保留 `block_may_perform` 作为保守 gate；arm 模式选路仍由 simplification 驱动，这个边界留待 `T2003u4` 的统一状态机主线接管时彻底收口。
   - 验证已通过：`cargo test -p scoopc simplification_codegen_entrypoint -- --nocapture`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4a [DONE] Effect：non-resuming / no-suspend 入口切到统一状态机输入
+### T2003u4a [DONE] Effect：用统一状态机主线接管 non-resuming / no-suspend 入口
 - 描述：当前 unified plan 已接到 `codegen_handle_expr` 入口，但纯 non-resuming handle 的 no-perform 决策仍靠 `block_may_perform`。根因是 plan 还没覆盖 `as` 运行期 raise、class ctor、object init 这些“不是显式 perform/call、但会触发 unwind”的隐藏边界。
 - 目标：
   - unified plan / simplification 能显式标记 `x as T` 的 runtime raise、class ctor init、object/companion object init access 等 hidden unwind site。
@@ -1117,22 +1117,22 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003u3b
 - 完成说明：
   - unified plan / simplification 已新增 hidden suspend/unwind site：`as` 失败触发的 `Raise<RuntimeError.ClassCastFailed>`、class ctor init、object/companion object once-init access，以及可能 suspend 的 nested handle boundary；同时把 builtin `Continuation.resume(...)` 的 one-shot runtime raise 也纳入 hidden suspend site，避免包裹它的 `try/catch` 被误判为 no-suspend。
-  - 纯 non-resuming handle 在 simplification 返回 `NoSuspendSites` 时，现已直接走 `codegen_handle_expr_no_perform`，不再依赖旧的 `block_may_perform` gate；resuming / mixed 路径暂时保留旧 gate，留待 `T2003u4b` / `T2003u4c` 继续迁移。
+  - 纯 non-resuming handle 在 simplification 返回 `NoSuspendSites` 时，现已直接走 `codegen_handle_expr_no_perform`，不再依赖旧的 `block_may_perform` gate；resuming / mixed 路径暂时保留旧 gate，留待 `T2003u4b` / `T2003u4c` 继续被统一主线替换。
   - 修复了 object init 调用边界未传播 `Raise.raise` 的真实 bug：`codegen_object_property_access` / `codegen_object_value_access` 现在会在 init 调用后执行 `emit_effect_unwind_if_active`，确保外层 `try/catch` 能捕获 object init 期间的 runtime raise。
   - 已新增单测：cast runtime raise、class ctor init、object init access、nested handle boundary、`Continuation.resume` hidden runtime raise；已新增 run-pass 回归 `object_init_raise_try_catch_basic`。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4b（拆分）Effect：single-arm resuming emitter 切到统一状态机输入
+### T2003u4b（拆分）Effect：用统一状态机主线接管 single-arm resuming emitter
 - 拆分说明：
-  - 原任务同时要求迁移 single-arm immediate-resume 与 escape-continuation 两条 emitter，但 unified plan 目前还没有把 single-arm emitter 复用旧 replay/capture helper 所需的源码路径元数据显式带出。
+  - 原任务同时要求替换 single-arm immediate-resume 与 escape-continuation 两条 emitter，但 unified plan 目前还没有把 single-arm emitter 复用旧 replay/capture helper 所需的源码路径元数据显式带出。
   - 两条 emitter 当前都仍依赖各自 scanner 重新发现 site；其中 immediate-resume 只覆盖 direct perform + nested control-flow，范围明显更窄，适合作为先行收口子任务。
-  - 因此先做 `T2003u4b1`：补 unified plan 的 single-site 源码路径元数据，并让 single-arm immediate-resume 主 emitter 改走 plan-driven 输入；再做 `T2003u4b2`：迁移 single-arm escape-continuation（direct/indirect）主 emitter。
+  - 因此先做 `T2003u4b1`：补 unified plan 的 single-site 源码路径元数据，并让 single-arm immediate-resume 主 emitter 改走 plan-driven 输入、替换旧 scanner 的终态职责；再做 `T2003u4b2`：用同一套元数据替换 single-arm escape-continuation（direct/indirect）主 emitter 的旧主线。
 
-### T2003u4b1 [DONE] Effect：single-arm immediate-resume 主 emitter 切到统一状态机输入
-- 描述：为 unified plan 补齐 single-arm immediate-resume 复用旧 replay helper 所需的 site/source-path 元数据，并把 `codegen_handle_expr_immediate_resume` 改为从 unified plan 派生 perform-site，而不是重新调用 `scan_immediate_resume_site`。
+### T2003u4b1 [DONE] Effect：用统一状态机主线接管 single-arm immediate-resume 主 emitter
+- 描述：为 unified plan 补齐 single-arm immediate-resume 复用旧 replay helper 所需的 site/source-path 元数据，并把 `codegen_handle_expr_immediate_resume` 改为从 unified plan 派生 perform-site，以替换 `scan_immediate_resume_site` 的终态职责。
 - 目标：
   - unified plan 能稳定表示 single-arm immediate-resume direct perform 的源码路径、resume-target 与匹配 arm 关系。
-  - `codegen_handle_expr_immediate_resume` 的主入口直接消费 unified state-machine plan，不再把 `scan.rs` 的 immediate scanner 结果当作终态输入。
+  - `codegen_handle_expr_immediate_resume` 的主入口直接消费 unified state-machine plan，不再把 `scan.rs` 的 immediate scanner 结果当作终态输入；旧 helper 若继续存在，也只能是待删的过渡拼装层。
   - 保持现有 single-arm immediate-resume direct/nested-control-flow 回归不回退。
 - 验收：
   - 至少一组现有 single-arm immediate-resume 回归切到 unified emitter 主路径。
@@ -1142,13 +1142,13 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003u4a
 - 完成说明：
   - unified plan 已新增 direct perform source-path 元数据：为 statement-position val-bound direct perform 记录 top-level stmt 索引与 `block` / `if` / `while` 嵌套路径，并写入 pretty dump / structural signature。
-  - `codegen_handle_expr_immediate_resume` 现已直接从 unified plan 解析匹配 site，不再调用 `scan_immediate_resume_site`；旧 replay helper 继续复用，但 perform-site 由 plan 驱动派生。
+  - `codegen_handle_expr_immediate_resume` 现已直接从 unified plan 解析匹配 site，不再调用 `scan_immediate_resume_site`；旧 replay helper 当前只作为过渡拼装层临时复用，perform-site 已由 plan 驱动派生。
   - 已在新的 plan-driven resolver 中补回既有稳定诊断：`while body` 中的 nested perform 仍保持 `handle resume body (nested perform in while body not yet supported)`，避免 build-fail fixture 漂移。
   - 已新增 unified plan 单测：锁定 if-then / while-body 的 source-path dump；并用既有 immediate fixtures 覆盖 top-level、nested block、if then/else、while body、finally 路径。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4b2 [DONE] Effect：single-arm escape-continuation 主 emitter 切到统一状态机输入
-- 描述：在 `T2003u4b1` 完成 unified plan 的 single-site/source-path 基础后，再迁移 single-arm escape-continuation 主 emitter，覆盖 direct/indirect perform 的 plan-driven 入口。
+### T2003u4b2 [DONE] Effect：用统一状态机主线接管 single-arm escape-continuation 主 emitter
+- 描述：在 `T2003u4b1` 完成 unified plan 的 single-site/source-path 基础后，再用统一状态机主线替换 single-arm escape-continuation 主 emitter，覆盖 direct/indirect perform 的 plan-driven 入口。
 - 目标：
   - single-arm escape-continuation 的主 lowering 直接消费 unified state-machine plan，而不是继续以 `scan.rs` 的 direct/indirect site 扫描结果作为终态输入。
   - escape-continuation 单 arm 路径的 replay、capture、cleanup、resume-target 由统一 plan 提供，不再在 `escape_continuation.rs` 中重复重建。
@@ -1160,17 +1160,17 @@ cargo run -p scoop --features llvm -- test
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4b1
 - 完成说明：
-  - `codegen_handle_expr_escape_continuation` 现已直接从 unified state-machine plan 解析 single-arm direct / indirect suspend site，不再把旧的 direct / indirect scanner 结果当作主 emitter 的终态输入；旧 replay helper 只保留为 source-path / stmt replay 复用。
+  - `codegen_handle_expr_escape_continuation` 现已直接从 unified state-machine plan 解析 single-arm direct / indirect suspend site，不再把旧的 direct / indirect scanner 结果当作主 emitter 的终态输入；旧 replay helper 若继续存在，也只剩 source-path / stmt replay 的待删辅助职责。
   - unified plan 现已为 escape arm 记录 free-local capture 集合；single-arm escape direct / indirect emitter 会把 arm-body outer captures 与 suspend-site capture 集合合并，保证 step trampoline 在第二次及后续 perform 重新进入 arm body 时仍能读取外层局部。
   - unified plan 的 outer-scope slot / declared-local 收集现已穿过 nested handle，并排除 inner handle 的 binders、`resume` / continuation 符号和内部 `val`，因此外层 continuation step 可以稳定保留“只在 nested handle 中使用”的外层局部，不再把它们漏成 `handle escape capture local decl`。
   - 已新增单测：`escape_arm_capture_locals_include_outer_scope_reads`、`resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle`；并修复 / 验证回归：`continuation_resume_ref_class.scoop`、`std_task_async_adapters_basic.scoop`。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4c 任务拆分：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
-- 说明：原任务同时覆盖 `mixed.rs` / `multi_escape.rs` / `matrix.rs` 三组 emitter；若继续整包推进，会把 multiple immediate 的 top-level replay、multiple escape 的 continuation capture，以及 immediate+escape site-matrix 的 cleanup/dispatch 一起耦合进同一轮，验收面仍然过大。现拆为 `T2003u4c1`～`T2003u4c3` 顺序推进。
+### T2003u4c 任务拆分：用统一状态机主线接管 mixed-arm / site-matrix / multiple-resuming 主 emitter
+- 说明：原任务同时覆盖 `mixed.rs` / `multi_escape.rs` / `matrix.rs` 三组 emitter；终态目标不是在这些 case-by-case 实现前再套一层 unified plan，而是让统一状态机主线接管它们并逐步删除不再必要的旧主逻辑。若继续整包推进，会把 multiple immediate 的 top-level replay、multiple escape 的 continuation capture，以及 immediate+escape site-matrix 的 cleanup/dispatch 一起耦合进同一轮，验收面仍然过大。现拆为 `T2003u4c1`～`T2003u4c3` 顺序推进。
 
-### T2003u4c1 [DONE] Effect：multiple immediate-resume / sibling non-resuming 路由切到统一状态机输入
-- 描述：先迁移 `codegen_handle_expr_multiple_immediate_resume_top_level` 与 `codegen_handle_expr_immediate_resume_with_nonresuming_siblings`，让 multiple immediate 的 top-level direct site 与 single immediate + sibling non-resuming 都直接消费 unified plan 的 direct suspend-site / source-path 元数据。
+### T2003u4c1 [DONE] Effect：用统一状态机主线接管 `multiple immediate-resume` / `sibling non-resuming` 路由
+- 描述：先用 unified plan 接管 `codegen_handle_expr_multiple_immediate_resume_top_level` 与 `codegen_handle_expr_immediate_resume_with_nonresuming_siblings`，让 multiple immediate 的 top-level direct site 与 single immediate + sibling non-resuming 都直接消费 unified plan 的 direct suspend-site / source-path 元数据。
 - 目标：
   - multiple immediate-resume / immediate + sibling non-resuming 不再重新 scan handle body 查找 direct perform site；改由 unified plan 驱动 site 顺序与 arm 匹配。
   - 现有 top-level direct 子集的稳定诊断保持不漂移：`perform must be bound to val`、`only top-level val-bound direct perform supported` 等边界继续存在，直到 `T2003u5` 统一收口。
@@ -1186,8 +1186,8 @@ cargo run -p scoop --features llvm -- test
   - `codegen_handle_expr_multiple_immediate_resume_top_level` 不再重新 scan handle body；`codegen_handle_expr_immediate_resume_with_nonresuming_siblings` 也已改为复用 unified plan 的 single-site resolver。
   - 已新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，并重新验证 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u4c2 [DONE] Effect：multiple escape-continuation / sibling non-resuming 路由切到统一状态机输入
-- 描述：再迁移 `codegen_handle_expr_multiple_escape_top_level_direct` 与 `codegen_handle_expr_escape_with_nonresuming_siblings*`，把 pure multiple escape 与 escape + sibling non-resuming 的 direct/indirect site 解析切到 unified plan。
+### T2003u4c2 [DONE] Effect：用统一状态机主线接管 `multiple escape-continuation` / `sibling non-resuming` 路由
+- 描述：再用 unified plan 接管 `codegen_handle_expr_multiple_escape_top_level_direct` 与 `codegen_handle_expr_escape_with_nonresuming_siblings*`，把 pure multiple escape 与 escape + sibling non-resuming 的 direct/indirect site 解析切到 unified plan。
 - 目标：
   - pure multiple escape 与 escape + sibling non-resuming 的 direct / indirect site 不再依赖 `scan_mixed_escape_*` 作为主输入；统一从 plan 读取 site 顺序、capture locals 与 dispatch arm 集合。
   - 旧 top-level / nested control-flow 的 direct/indirect 子集继续走既有 replay helper，但 source-of-truth 改为 unified plan。
@@ -1200,16 +1200,16 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003u4c1
 - 完成说明：
   - 已新增 plan-driven helper：`resolve_mixed_escape_direct_sites_from_plan`、`resolve_mixed_escape_indirect_sites_from_plan`、`collect_escape_capture_metas_from_plan`；pure multiple escape 与 escape+sibling non-resuming 的 direct / indirect site 顺序、nested source-path 与 capture locals 现在统一从 `HandleStateMachinePlan` 恢复。
-  - `codegen_handle_expr_multiple_escape_top_level_direct`、`codegen_handle_expr_escape_with_nonresuming_siblings` 及其 direct / indirect / top-level-mixed 子路径已切到 unified plan 输入；旧 replay helper 继续保留，但不再以 `scan_mixed_escape_*` 作为主输入。
+  - `codegen_handle_expr_multiple_escape_top_level_direct`、`codegen_handle_expr_escape_with_nonresuming_siblings` 及其 direct / indirect / top-level-mixed 子路径已切到 unified plan 输入；旧 replay helper 若继续存在，也只允许作为待删辅助，不再以 `scan_mixed_escape_*` 作为主输入。
   - 已新增单测：`resolve_mixed_escape_direct_sites_from_plan_keeps_source_order_and_arm_ids`、`resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures`。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u4c3 [DONE] Effect：immediate+escape / site-matrix 路由切到统一状态机输入
-- 描述：最后迁移 `codegen_handle_expr_immediate_resume_with_escape_*` 与 `matrix.rs` 剩余 site-matrix 主线，把 immediate+escape mixed-arm / multiple-resuming 组合的 dispatch、cleanup、resume-target 收口到 unified emitter。
+### T2003u4c3 [DONE] Effect：用统一状态机主线接管 immediate+escape / site-matrix 路由
+- 描述：最后用统一状态机主线接管 `codegen_handle_expr_immediate_resume_with_escape_*` 与 `matrix.rs` 剩余 site-matrix 主线，把 immediate+escape mixed-arm / multiple-resuming 组合的 dispatch、cleanup、resume-target 收口到 unified emitter。
 - 目标：
   - immediate+escape mixed-arm / site-matrix 组合从 unified state-machine plan 读取 state table / dispatch / cleanup，而不是继续在 `mixed.rs` / `matrix.rs` 里按 top-level / block / if / while / same-stmt 形状重建主线。
   - payload transport、handler stack、continuation alloc/resume、finally/unwind 在 LLVM 层只保留统一主实现。
-  - 旧 specialized lowering 可以暂时保留作对照，但不再是新增合法组合的唯一落点；新组合一律先接 unified emitter。
+  - 只有为当轮替换绝对必要的过渡 helper 才允许短期保留；不接受让旧 specialized lowering 与统一主线长期双轨并存，新组合一律先接 unified emitter。
 - 验收：
   - 至少一组现有 mixed-arm、multiple-resuming、nested control-flow 回归切到 unified state-machine codegen 路径。
   - 不再为新的 legal shape 在 `mixed.rs` / `matrix.rs` 中追加新的 shape-specific 主线逻辑。
@@ -1221,10 +1221,10 @@ cargo run -p scoop --features llvm -- test
   - 已新增 plan-driven helper：`resolve_immediate_resume_with_escape_sites_from_plan`；immediate arm 的 direct perform site、escape sibling 的 direct / indirect sites 现在统一从 `HandleStateMachinePlan` 恢复，并保持 source order 与 nested source-path。
   - `codegen_handle_expr_immediate_resume_with_escape_sibling*` 的 direct / indirect / site-matrix 路由，及 `matrix.rs` 中的 immediate+escape site-matrix 主线，现已直接消费 unified plan 输入，不再以 `scan_immediate_resume_site` / `scan_mixed_escape_*` 作为 source-of-truth。
   - 已新增解析层单测：`resolve_immediate_resume_with_escape_sites_from_plan_recovers_nested_mixed_matrix`，覆盖 nested `if` 中 direct / indirect mixed site 的恢复。
-  - 旧 `scan.rs` 保留为 legacy helper / 参考实现，但已明确降级为非主路径；新增的 immediate+escape 合法组合不再依赖它来决定主 emitter。
+  - 旧 `scan.rs` 即使暂时保留，也只应作为待删 legacy helper，而不是长期参考实现；新增的 immediate+escape 合法组合不再依赖它来决定主 emitter。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5 Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁（已拆分）
+### T2003u5 Effect：用统一状态机主线替换剩余 mixed-arm / multiple-resuming case-by-case 路径并删除结构性门禁（已拆分）
 - 说明：`T2003u4c3` 完成后，统一 plan 已接管大部分 mixed-arm / multiple-resuming emitter，但剩余门禁并不是同一种实现缺口，而是 4 类彼此独立的问题：
   - pure direct top-level `multiple escape arms + sibling non-resuming + finally`
   - single-arm immediate-resume 在 while body 中的 deeper nested replay
@@ -1310,7 +1310,7 @@ cargo run -p scoop --features llvm -- test
   - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5d1 [DONE] Effect：mixed-arm immediate+escape 的 while separate-stmt mixed replay
-- 描述：审计 `T2003u5d` 后确认，当前 immediate+escape 的 site-matrix while 分类仍把 direct/indirect coexistence 锁成 same-body-stmt；但 `matrix.rs` 已有 direct/indirect 的 current-site tail 与 future-iteration re-entry helper，可先独立迁移 same-stmt 之外的 separate-stmt ordering。
+- 描述：审计 `T2003u5d` 后确认，当前 immediate+escape 的 site-matrix while 分类仍把 direct/indirect coexistence 锁成 same-body-stmt；但 `matrix.rs` 已有 direct/indirect 的 current-site tail 与 future-iteration re-entry helper，可先独立用统一主线替换 same-stmt 之外的 separate-stmt ordering。
 - 目标：
   - immediate+escape mixed-arm 在 while body 中 direct/indirect 分居不同 statement 时，direct -> indirect 与 indirect -> direct ordering 统一走 plan-driven matrix helper。
   - 删除仅锁 same-body-stmt 限制的 build-fail `effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`，并补足必要的 ordering 回归。
@@ -1353,6 +1353,7 @@ cargo run -p scoop --features llvm -- test
 - 目标：
   - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的 direct / indirect escape site replay，current iteration 与 future iteration re-entry 都复用统一 plan 驱动路径。
   - 删除 build-fail `effect_resume_mixed_escape_while_indirect_is_error`，并在需要时补足 direct nested-while 对称回归。
+  - 完成后不再保留 inner-while dedicated lowering 作为独立长期分支；若仍需局部 helper，也必须是统一状态机主线内部的实现细节，而不是第二套 case-by-case 主实现。
 - 验收：
   - `effect_resume_mixed_escape_while_indirect_is_error` 转 run-pass，或以新的 nested-while 统一回归替代。
   - `cargo test --all`
@@ -1361,13 +1362,15 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003u5d2
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
-- 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。
+- 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性，并作为删除剩余旧主线的收尾门槛。
 - 目标：
   - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm kind 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
   - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，且 continuation pinning、capture 恢复、cleanup/finally 语义不回归。
   - 统一状态机主线完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法组合”的长期 TODO。
+  - `T2003u` 主线收尾后，不应再保留按 `top-level / block / if / while / same-stmt mixed` 等源码形状拆开的独立 lowering 主实现；旧 scanner / legacy emitter / dedicated matrix 路径若无绝对必要必须删除，而不是继续保留来增加复杂度。
 - 验收：
   - 新增 run-pass / stress fixtures：覆盖 unified pass full matrix。
+  - `mixed.rs` / `matrix.rs` / `scan.rs` 等旧 shape-specific 路径若仍有残余代码，必须能证明只是统一主线内部复用的局部 helper，而不是并存的第二套 effect lowering 主线。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
