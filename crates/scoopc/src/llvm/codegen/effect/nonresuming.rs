@@ -772,83 +772,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match entrypoint {
             UnifiedSingleResumingEntrypoint::SingleImmediateResume => {
-                self.validate_unified_single_immediate_resume_plan(span, state_machine_plan)?;
-                let Some((arm, resume_symbol)) = handle_arm_buckets.immediate_arms.first().copied()
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing immediate-resume arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some(arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (immediate-resume arm id)",
-                        at: arm.span.into(),
-                    });
-                };
-                let arm_id = arm_id as ArmPlanId;
-                if !Self::unified_single_immediate_resume_plan_has_matching_site(
-                    state_machine_plan,
-                    arm_id,
-                ) {
-                    return self.codegen_handle_expr_no_perform(span, handle, out_ty);
-                }
-                self.codegen_handle_expr_immediate_resume(
-                    span,
-                    ImmediateResumeHandleLowering {
-                        handle,
-                        state_machine_plan,
-                        arm_id,
-                        arm,
-                        resume_symbol,
-                        out_ty,
-                    },
-                )
+                let _ = (span, handle, out_ty, state_machine_plan, handle_arm_buckets);
+                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
             }
             UnifiedSingleResumingEntrypoint::SingleEscapeContinuation => {
-                self.validate_unified_single_escape_continuation_plan(span, state_machine_plan)?;
-                let Some((arm, continuation_symbol)) =
-                    handle_arm_buckets.escape_arms.first().copied()
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing escape-continuation arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some(arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (escape-continuation arm id)",
-                        at: arm.span.into(),
-                    });
-                };
-                let arm_id = arm_id as ArmPlanId;
-                if !Self::unified_single_escape_plan_has_supported_suspend_site(
-                    state_machine_plan,
-                    arm_id,
-                ) {
-                    return self.codegen_handle_expr_no_perform(span, handle, out_ty);
-                }
-                let seq = self.escape_continuation_seq;
-                self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
-                self.codegen_handle_expr_escape_continuation(
-                    span,
-                    EscapeContinuationHandleLowering {
-                        handle,
-                        state_machine_plan,
-                        arm_id,
-                        arm,
-                        continuation_symbol,
-                        seq,
-                        out_ty,
-                    },
+                let _ = (span, handle, out_ty, state_machine_plan, handle_arm_buckets);
+                unimplemented!(
+                    "legacy escape_continuation.rs 已删除；需改走 unified emitter"
                 )
             }
         }
@@ -2013,110 +1943,76 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match codegen_entrypoint {
             SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect => {
-                self.codegen_handle_expr_multiple_escape_top_level_direct(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
                     escape_arms,
                     nonresuming_arms,
                     out_ty,
-                )
+                );
+                unimplemented!("legacy mixed.rs/matrix.rs 已删除；需改走 unified emitter")
             }
             SimplifiedCodegenEntrypoint::MultipleImmediateResumeTopLevel => {
-                self.codegen_handle_expr_multiple_immediate_resume_top_level(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
                     immediate_arms,
                     nonresuming_arms,
                     out_ty,
-                )
+                );
+                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
             }
             SimplifiedCodegenEntrypoint::ImmediateResumeWithNonResumingSiblings => {
-                let Some((immediate_arm, resume_symbol)) = immediate_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing immediate-resume arm)",
-                        at: span.into(),
-                    });
-                };
-                self.codegen_handle_expr_immediate_resume_with_nonresuming_siblings(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
-                    (immediate_arm, resume_symbol),
+                    immediate_arms,
                     nonresuming_arms,
                     out_ty,
-                )
+                );
+                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
             }
             SimplifiedCodegenEntrypoint::EscapeContinuationWithNonResumingSiblings => {
-                let Some((escape_arm, continuation_symbol)) = escape_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing escape-continuation arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some(escape_arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, escape_arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (escape-continuation arm id)",
-                        at: escape_arm.span.into(),
-                    });
-                };
-                self.codegen_handle_expr_escape_with_nonresuming_siblings(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
-                    (escape_arm, escape_arm_id as ArmPlanId, continuation_symbol),
+                    escape_arms,
                     nonresuming_arms,
                     out_ty,
+                );
+                unimplemented!(
+                    "legacy escape_continuation.rs 已删除；需改走 unified emitter"
                 )
             }
             SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeSibling => {
-                let Some((immediate_arm, resume_symbol)) = immediate_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing immediate-resume arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some((escape_arm, continuation_symbol)) = escape_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing escape-continuation arm)",
-                        at: span.into(),
-                    });
-                };
-                self.codegen_handle_expr_immediate_resume_with_escape_sibling(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
-                    (immediate_arm, resume_symbol),
-                    (escape_arm, continuation_symbol),
+                    immediate_arms,
+                    escape_arms,
                     out_ty,
+                );
+                unimplemented!(
+                    "legacy immediate_resume.rs 与 escape_continuation.rs 已删除；需改走 unified emitter"
                 )
             }
             SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings => {
-                let Some((immediate_arm, resume_symbol)) = immediate_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing immediate-resume arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some((escape_arm, continuation_symbol)) = escape_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing escape-continuation arm)",
-                        at: span.into(),
-                    });
-                };
-                self.codegen_handle_expr_immediate_resume_with_escape_and_nonresuming_siblings(
+                let _ = (
                     span,
                     handle,
                     state_machine_plan,
-                    (immediate_arm, resume_symbol),
-                    (escape_arm, continuation_symbol),
+                    immediate_arms,
+                    escape_arms,
                     nonresuming_arms,
                     out_ty,
+                );
+                unimplemented!(
+                    "legacy immediate_resume.rs / escape_continuation.rs / mixed.rs 已删除；需改走 unified emitter"
                 )
             }
             SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {

@@ -2038,16 +2038,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         site.resume_target = resume_target;
     }
 
-    fn record_stmt_reads(&mut self, state_id: PlanStateId, stmt: &hir::Stmt) {
-        let mut used = HashSet::new();
-        MainCodegen::collect_used_locals_in_stmt_static(stmt, &mut used);
-        self.add_reads(state_id, used);
+    fn record_stmt_reads(&mut self, _state_id: PlanStateId, _stmt: &hir::Stmt) {
+        todo!("legacy scan.rs 已删除；state read tracking 需改走 unified data source");
     }
 
-    fn record_expr_reads(&mut self, state_id: PlanStateId, expr: &hir::Expr) {
-        let mut used = HashSet::new();
-        MainCodegen::collect_used_locals_in_expr_static(expr, &mut used);
-        self.add_reads(state_id, used);
+    fn record_expr_reads(&mut self, _state_id: PlanStateId, _expr: &hir::Expr) {
+        todo!("legacy scan.rs 已删除；state read tracking 需改走 unified data source");
     }
 
     fn add_reads(&mut self, state_id: PlanStateId, used: HashSet<hir::SymbolId>) {
