@@ -1353,17 +1353,46 @@ cargo run -p scoop --features llvm -- test
     - `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003r1 [TODO] Effect：从零开始实现统一 segmenting，先产出完整 `HandleSegmentList`
-- 描述：下一步不再沿旧 `T2003u5d3*` 继续按 nested-while / direct / indirect 子形状补洞，而是从 ground up 重做第一阶段：统一分段。目标是让一个 `handle` 的可恢复 region 先稳定落成 `HandleSegmentList`，direct/indirect perform、single/multi-arm、`if`/`while`/nested handle/`finally` 都只作为同一套控制流分段规则下的普通输入。
+### T2003r1a [DONE] Effect：定义统一 `HandleSegmentList` 与第一版 segment dump
+- 描述：`T2003r1` 原始范围同时要求完成 segment IR 设计、全量合法组合分段和 nested-while coverage，单轮风险过高。先收口第一步：把统一分段结果本身落成稳定的数据结构与 pretty dump，并用同一套分段遍历覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的代表性样例。
 - 目标：
-  - 为所有当前合法 effect 组合生成统一的 `HandleSegmentList`，不再依赖 `single arm`、`perform inside while`、`same-stmt mixed`、nested-while 等源码形状分类。
-  - segment 边界只由控制流与恢复语义决定：branch split/merge、loop head/back-edge/exit、suspend site、arm dispatch entry/exit、nested handle boundary、cleanup entry/exit。
-  - 现有 plan/source-path 辅助结构若仍保留，也只能作为迁移脚手架；统一分段结果必须成为下一阶段唯一输入。
+  - 新增专用 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge` / `HandleSegmentTerminator` 表示，而不是继续只用 `HandleStateMachinePlan` 充当阶段 1 输出。
+  - segment dump 能稳定反映控制流边界与恢复边界：至少覆盖 branch split/merge、loop head/back-edge/exit、suspend site、nested handle boundary、cleanup entry/exit。
+  - 现有 plan/source-path 结构在本轮只允许作为迁移脚手架；不得给 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 新增功能。
 - 验收：
-  - 新增 segment dump / 单测：覆盖 direct/indirect、single/multi-arm、`if` / `while` / nested handle / `finally` / nested-while representative samples。
-  - 不新增 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 的新功能。
-  - 本阶段允许只运行 segmenting 相关定向单测 / fixture；不要求 full suite。
+  - 新增 segment dump / 单测：覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的 representative samples。
+  - 仅运行 segmenting 相关定向单测 / fixture 即可；不要求 full suite。
+  - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5d2
+- 完成说明：
+  - 已新增 `state_machine_segments.rs`，定义统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge` / `HandleSegmentTerminator`，并允许从现有 `HandleStateMachinePlan` 投影出第一版 segment list。
+  - 已新增 segment pretty dump 与定向单测，覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的 representative samples。
+  - `MainCodegen::build_handle_state_machine_plan` 现会同步构建 segment projection 的结构签名，确保阶段 1 输出在正常构建中也持续跟随统一 plan 演化，而不是只在测试里存在。
+  - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003r1b [TODO] Effect：segment list 补齐 multi-arm dispatch / arm body / cleanup context
+- 描述：在第一版 segment dump 落地后，再补齐 multi-arm 相关的 segment metadata。该阶段重点不是扩更多源码形状，而是让 dispatch entry/exit、arm body、cleanup scope stack 与 dispatch context 都进入统一 segment list，而不是继续散落在 plan builder 的隐式规则中。
+- 目标：
+  - multi-arm / sibling non-resuming / immediate-resume / escape-continuation 的 arm dispatch entry/exit 都进入统一 segment list。
+  - segment metadata 明确记录 cleanup scope stack 与 dispatch context，避免 builder 之后再靠源码形状回推这些关系。
+  - nested handle 与 arm body 的边界在 segment dump 中可直接辨认。
+- 验收：
+  - 新增 segment dump / 单测：覆盖 single/multi-arm、mixed-arm、sibling non-resuming 的 representative samples。
+  - 不新增 shape-based scanner / replay planner / legacy emitter 功能。
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r1a
+
+### T2003r1c [TODO] Effect：segmenting 覆盖 nested-while / richer matrix，并冻结 builder 输入契约
+- 描述：最后补齐 nested-while 与 richer mixed representative samples，并把统一 segment list 的输入契约冻结下来，确保下一阶段 `T2003r2` 只能消费这份 segment list，而不是再回头看源码形状。
+- 目标：
+  - nested-while、direct/indirect mixed、nested control-flow representative samples 都能产出统一 segment dump。
+  - 为下一阶段 builder 明确 segment ids、edge kinds、dispatch / cleanup metadata 的稳定契约。
+  - 结束时不再存在“这个合法形状先不进 segmenter、留给 builder/emitter 特判”的缺口。
+- 验收：
+  - 新增 segment dump / 单测：覆盖 nested-while 与 richer mixed representative samples。
+  - 不新增 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 的新功能。
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r1b
 
 ### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
 - 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。
@@ -1375,7 +1404,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 plan dump / 单测：证明 representative samples 的状态机都只从 segment list 推导。
   - 不新增新的 shape-based builder / replay planner / dedicated nested-while planner。
   - 本阶段允许只运行 builder 相关定向单测 / fixture；不要求 full suite。
-- 依赖：T2003r1
+- 依赖：T2003r1c
 
 ### T2003r3 [TODO] Effect：从零开始实现统一 emitter，接管全部合法 effect lowering
 - 描述：第三阶段才进入 emitting。此阶段的唯一目标是：LLVM effect lowering 只消费统一状态机与 simplification 结果。不得再按 `single arm`、`perform inside while`、`top-level direct`、`nested-while indirect` 等源码形状选择主 emitter。

@@ -1111,11 +1111,189 @@ fun demo(k: Continuation<Int>): Int {
         assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
     }
 
+    #[test]
+    fn segment_dump_covers_direct_branch_loop_and_finally() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("handle-segments span="), "{dump}");
+        assert!(dump.contains("cleanup0 kind=finally"), "{dump}");
+        assert!(dump.contains("site0 kind=direct-perform"), "{dump}");
+        assert!(dump.contains("branch-then"), "{dump}");
+        assert!(dump.contains("branch-else"), "{dump}");
+        assert!(dump.contains("suspend-resume"), "{dump}");
+        assert!(dump.contains("loop re-entry -> s"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_distinguishes_state_machine_callee_and_indirect_call_sites() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(thunk: () -> Int / (Ask)): Int {
+    val result: Int = handle {
+        val a: Int = fetch(1)
+        val b: Int = thunk()
+        a + b
+    } with {
+        Ask.ask(seed) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=call-state-machine-callee"), "{dump}");
+        assert!(dump.contains("detail=a.fetch"), "{dump}");
+        assert!(dump.contains("kind=indirect-call-may-suspend"), "{dump}");
+        assert!(dump.contains("path=top[0]"), "{dump}");
+        assert!(dump.contains("path=top[1]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_while_body_source_path() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        while (sum == 0) {
+            val x: Int = Yield.next()
+            sum = x
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(7)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=direct-perform"), "{dump}");
+        assert!(dump.contains("path=top[1] -> while-body[0]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_recurses_nested_handle_boundaries() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(mode: Int): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            val x: Int = Yield.next()
+            x + mode
+        } with {
+            Yield.next() -> resume {
+                resume(10)
+            }
+        }
+        if (mode == 0) {
+            val y: Int = Ask.current()
+            inner + y
+        } else {
+            Boom.boom(mode)
+            0
+        }
+    } with {
+        Ask.current(), k -> 7
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=nested-handle-boundary"), "{dump}");
+        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(dump.contains("site0 kind=direct-perform"), "{dump}");
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .pretty_dump(&lowered.types)
+    }
+
+    fn build_segment_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .build_segment_list()
             .pretty_dump(&lowered.types)
     }
 

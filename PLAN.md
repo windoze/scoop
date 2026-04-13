@@ -283,9 +283,17 @@ cargo run -p scoop --features llvm -- test
     - `T2003u5d3a`：先补 unified state-machine 对 outer while body 内 nested inner-while 单个 indirect escape site 的 suspend/resume edge 覆盖，并把已有 build-fail `effect_resume_mixed_escape_while_indirect_is_error` 转正；
     - `T2003u5d3b`：再补 direct nested-while 的对称单站点恢复边；
     - `T2003u5d3c`：最后收口 `while -> block/if -> inner while` richer nested CFG。
-  - 进一步明确：`T2003u5d3a`～`T2003u5d3c` 只是 nested-while 的 coverage checkpoints；它们的实现必须先完成统一 `segmenting`，再完成统一 builder，最后再接 unified emitter，不能通过给旧 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 增加 nested-while 特判来落地。
+  - 进一步明确：`T2003u5d3a`～`T2003u5d3c` 只是当时用于说明 nested-while coverage 缺口的 checkpoint，不再作为 active route 单独推进；它们统一并入新的 ground-up `T2003r*` 主线。
   - `T2003u6` 与删除旧代码现也显式拆开：先用 full matrix / GC stress 证明 unified pass 覆盖完整，再由 `T2003u7` 删除 legacy scanner / emitter / dedicated matrix 路径，避免“边补缺口边删旧主线”混成同一轮。
-  - 当前下一步调整为 `T2003u5d3a`：由统一状态机主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 单站点恢复边。
+  - 继续审计后确认，原 `T2003r1` 仍同时跨越三类相对独立的工作：segment IR / dump 设计、multi-arm / cleanup / dispatch metadata 收口，以及 nested-while / richer matrix coverage。若继续把 `T2003r1` 整包推进，会把阶段 1 的数据结构设计、控制流分段与 representative coverage 再次耦合到同一轮里，风险过高。
+  - 因此把原 `T2003r1` 再拆为 `T2003r1a` / `T2003r1b` / `T2003r1c`：
+    - `T2003r1a`：先定义统一 `HandleSegmentList` 与第一版 segment dump，用同一套分段遍历覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的代表性样例；
+    - `T2003r1b`：再补齐 multi-arm dispatch / arm body / cleanup context 等 richer segment metadata；
+    - `T2003r1c`：最后补齐 nested-while / richer mixed representative coverage，并冻结 builder 只消费 segment list 的输入契约。
+  - T2003r1a 已完成：已新增 `state_machine_segments.rs`，定义统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge` / `HandleSegmentTerminator`，并允许从现有 `HandleStateMachinePlan` 投影出第一版 segment list。
+  - T2003r1a 同时新增了 segment pretty dump 与定向单测，覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的 representative samples；`MainCodegen::build_handle_state_machine_plan` 现会同步计算 segment projection 的结构签名，确保阶段 1 输出在正常构建中持续跟随统一 plan 演化。
+  - 本轮验证已通过：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003r1b`：继续把 multi-arm dispatch entry/exit、arm body、cleanup context 等 richer metadata 接入统一 segment list。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -357,11 +365,13 @@ cargo run -p scoop --features llvm -- test
   - T2003u5c2（已完成）：由统一主线接管 no-immediate multiple-escape 的 while `indirect -> direct` 与剩余 ordering matrix。
   - T2003u5d1（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while separate-stmt mixed replay，删除 same-body-stmt 门禁。
   - T2003u5d2（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while deeper nested block/if replay，删除 `while -> block/if -> ...` 路径门禁。
-  - T2003u5d3a：作为 coverage checkpoint，由统一 `segmenting -> builder -> emitter` 主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 恢复边，删除 `effect_resume_mixed_escape_while_indirect_is_error` 门禁；不得新增 nested-while indirect 专用主路径。
-  - T2003u5d3b：作为 coverage checkpoint，由同一条统一主线补齐 immediate+escape mixed-arm 的 nested-while direct escape 恢复边；不得新增 direct-only 或 inner-while 专用 lowering。
-  - T2003u5d3c：作为 coverage checkpoint，由同一条统一主线补齐 immediate+escape mixed-arm 的 `while -> block/if -> inner while` richer nested 恢复边，收口剩余 inner-while dedicated helper 边界。
-  - T2003u6：在 unified segmenter / builder / emitter feature-complete 之后，执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收；这之前允许只跑定向测试。
-  - T2003u7：在 `T2003u6` 通过后，彻底删除剩余 legacy scanner / emitter / dedicated matrix 主路径，不保留 fallback / 双轨。
+  - T2003r1a（已完成）：定义统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge`，落地第一版 segment dump，并覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的代表性样例。
+  - T2003r1b：为 segment list 补齐 multi-arm dispatch entry/exit、arm body、cleanup scope stack 与 dispatch context。
+  - T2003r1c：把 nested-while / richer mixed representative samples 接入统一 segmenting，并冻结 builder 只消费 segment list 的输入契约。
+  - T2003r2：从 `HandleSegmentList` 构建统一 state-machine builder，不再按源码形状分主构造器。
+  - T2003r3：由统一 emitter 接管全部合法 effect lowering，只消费统一状态机与 simplification 结果。
+  - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。
+  - T2003r5：在 `T2003r4` 通过后删除剩余 legacy scanner / emitter / dedicated matrix 主路径，不保留 fallback / 双轨。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 
 ## 2. 语句语义 / Rust 风格分号规则（T22）

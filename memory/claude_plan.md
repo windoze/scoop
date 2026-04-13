@@ -1,60 +1,79 @@
-# 本轮执行计划
+## 当前轮次执行计划（初始）
 
-## 已知上下文
+说明：这里记录可公开的执行思路摘要与步骤计划，不写入内部隐式推理细节。计划会在读取仓库状态后继续细化和更新。
 
-- 最新提交 `86c33ac` 已检查，提交信息未指出需要先处理的遗留问题。
-- 根据现有进展，本轮目标任务是 `TODO.md` 中首个未完成项 `T2003u5d2`。
-- 该任务的核心代码与回归样例已基本实现，当前剩余工作是全量验证、任务文档更新、提交并停止。
-- 本轮必须只完成一个任务；若验证暴露新的真实缺陷，需要先修复该缺陷并继续围绕 `T2003u5d2` 收尾，不能越过到下一个任务。
+1. 检查最近一次提交，确认是否提到已知遗留问题；如果有，先修复这些问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认现有规划与任务依赖关系。
+4. 评估该任务是否可以在本轮完整实现：
+   - 如果可以，直接实现、补测试、运行验证。
+   - 如果过大或被前置问题阻塞，则拆分任务并更新 `TODO.md` / `PLAN.md`。
+5. 在实现过程中持续更新本文件，记录关键结论、阻塞、计划变化与完成状态。
+6. 完成后更新 `TODO.md` 和 `PLAN.md`，提交 git commit，然后停止，不进入下一任务。
 
-## 执行步骤
+## 当前已知约束
 
-1. 读取 `TODO.md`、`PLAN.md`、`memory/claude_plan.md` 当前状态，并核对工作区改动，确认本轮目标仍是 `T2003u5d2`。
-2. 读取最新提交信息，确认不存在额外要求先修的遗留问题。
-3. 运行剩余验证命令：
-   - `cargo run -p scoop -- test`
-   - `cargo run -p scoop --features llvm -- test`
+- 需要先处理最新提交中提到的遗留问题。
+- 每轮只完成一个任务。
+- 不接受规避规范的临时方案；若发现规范缺口，必须先在 `TODO.md` 中建前置任务。
+- 需要补充测试并尽量保证 `cargo clippy --all-targets -- -D warnings` 无警告。
+
+## 已完成的上下文检查
+
+1. 已检查最新提交 `9cea869afbd928bce523bb30ad0d224dbe5977c3`：
+   - 提交信息仅为 `Update plan`。
+   - 未在提交信息中发现明确声明的遗留 bug，因此无需先按“提交说明里的已知问题”插队修复。
+2. 已阅读 `TODO.md` 与 `PLAN.md`：
+   - 当前第一个未完成任务是 `T2003r1`：从零开始实现统一 segmenting，产出完整 `HandleSegmentList`。
+3. 已审阅现有实现：
+   - 现有 `state_machine_plan.rs` 已有统一 plan builder、pretty dump、representative 单测。
+   - 现有 builder 已显式建模 state / suspend site / cleanup / nested handle，可作为抽出 segment 层的基础。
+
+## 任务复杂度判断
+
+`T2003r1` 当前范围过大，单轮同时完成“segment IR 设计 + 全部合法组合的统一分段 + 全量回归”风险过高，因此需要先拆分，再执行第一个子任务。
+
+## 拟采用的拆分方案
+
+计划把 `T2003r1` 拆为以下子任务，并在 `TODO.md` / `PLAN.md` 中落地：
+
+1. `T2003r1a`
+   - 定义统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge` 数据结构；
+   - 从现有统一 plan walker 抽出第一版 segment dump；
+   - 覆盖 direct/indirect、`if`/`while`、nested handle、`finally` 的代表性单测。
+2. `T2003r1b`
+   - 补齐 multi-arm dispatch entry/exit、arm body、cleanup stack / dispatch context 等 richer segment metadata。
+3. `T2003r1c`
+   - 收口 nested-while / richer mixed representative samples，并明确 builder 下一步只消费 segment list。
+
+## 本轮准备执行的实际任务
+
+执行 `T2003r1a`：
+
+1. 更新 `TODO.md` / `PLAN.md`，把 `T2003r1` 拆成 `T2003r1a`~`T2003r1c`。
+2. 在 LLVM effect 代码中新增 segmenting 数据结构与 pretty dump。
+3. 让测试可以直接构建 segment dump，并补代表性断言。
+4. 运行本子任务相关测试与静态检查。
+5. 更新 `TODO.md` / `PLAN.md` / 本文件，提交 commit，然后停止。
+
+## 当前执行结果
+
+1. 已完成任务拆分：
+   - `TODO.md` / `PLAN.md` 已把原 `T2003r1` 拆为 `T2003r1a` / `T2003r1b` / `T2003r1c`。
+   - 当前实际执行并完成的是 `T2003r1a`。
+2. 已完成代码实现：
+   - 新增 `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`。
+   - 定义了统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge` / `HandleSegmentTerminator`。
+   - 允许从现有 `HandleStateMachinePlan` 投影出第一版 segment list，并提供 segment pretty dump。
+   - `MainCodegen::build_handle_state_machine_plan` 现会同步计算 segment projection 的结构签名，保证阶段 1 输出在正常构建中被持续触达。
+3. 已完成测试与验证：
+   - `cargo test -p scoopc segment_dump_`
+   - `cargo test -p scoopc plan_dump_`
    - `cargo clippy --workspace --all-targets -- -D warnings`
-4. 若验证失败：
-   - 判定是否为 `T2003u5d2` 未完成导致的问题。
-   - 若是，修复实现与测试，并重新执行相关验证直到通过。
-   - 若发现规范不匹配或缺失前置能力，按照要求调整 `TODO.md` / `PLAN.md` 记录依赖与阻塞关系，但当前摘要判断大概率不需要。
-5. 若验证通过：
-   - 更新 `TODO.md`，将 `T2003u5d2` 标记为完成。
-   - 更新 `PLAN.md`，记录本任务完成内容、测试结果与新增回归覆盖。
-   - 更新本文件，记录关键步骤已完成和待提交事项。
-6. 检查工作区差异，确认无临时调试残留。
-7. 使用清晰提交信息提交本轮改动，建议为：`[T2003u5d2] Support immediate+escape while richer nested block-if replay`。
-8. 提交后停止，不继续处理下一项任务。
+   - 上述命令均已通过。
 
-## 当前判断
+## 剩余收尾步骤
 
-- 当前实现已通过完整验收，接下来只剩提交并停止。
-- 下一轮首个未完成任务将变为 `T2003u5d3`，不在本轮处理范围内。
-
-## 本轮已完成
-
-- 已核对 `TODO.md` / `PLAN.md` / 最新提交与工作区状态，确认本轮目标是 `T2003u5d2`。
-- 已完成剩余验证：
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 已确认无遗留调试字符串残留。
-- 已更新任务文档：
-  - `TODO.md` 已将 `T2003u5d2` 标记为完成，并记录 richer nested `block/if` direct / indirect 回归。
-  - `PLAN.md` 已补充本轮完成说明，并把“当前下一步”调整为 `T2003u5d3`。
-
-## 待提交摘要
-
-- 代码：放宽 mixed-arm immediate+escape while nested-path 到 `block/if` richer nested 子集；扩展 while mixed prefix / scan / tail helper 沿 source-path 穿过 block 进入 if；修复 indirect skip 分支误重放 then-tail。
-- 回归：删除 build-fail `effect_resume_mixed_escape_while_is_error`；新增 run-pass `effect_resume_mixed_escape_pre_immediate_while_nested_block_if` 与 `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`。
-- 提交信息建议：`[T2003u5d2] Support immediate+escape while richer nested block-if replay`
-
-## 进度记录
-
-- [x] 在执行命令前写入本轮计划。
-- [x] 核对任务与工作区状态。
-- [x] 完成剩余全量验证。
-- [x] 更新 `TODO.md` / `PLAN.md` / `memory/claude_plan.md`。
-- [ ] 提交并停止。
+1. 检查最终 diff 与 git 状态。
+2. 提交 commit，建议信息：`[T2003r1a] Add initial unified handle segment dump`
+3. 停止，不进入 `T2003r1b`。

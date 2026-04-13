@@ -2290,7 +2290,11 @@ impl HandlePlanContext {
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn build_handle_state_machine_plan(&self, handle: &hir::HandleExpr) -> HandleStateMachinePlan {
         let context = HandlePlanContext::from_codegen(self);
-        HandleStateMachinePlan::build_with_context(self.types, handle, &context)
+        let plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
+        // Keep the phase-1 segment projection in sync during the ground-up rewrite,
+        // even before the builder fully switches to consuming it as the only input.
+        let _segment_signature = plan.build_segment_list().structural_signature();
+        plan
     }
 }
 
