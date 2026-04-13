@@ -33,17 +33,20 @@ cargo run -p scoop --features llvm -- test
 
 ## T20：Effect / Continuation 完整化
 
-- 2026-04-13 架构重定向：
+- 2026-04-13 / 2026-04-14 架构重定向：
   - `T2003c0*` 已完成事项只允许作为历史行为基线与回归参考保留；它们不是继续演化的架构参考，更不是后续实现允许补功能的旧主线。
   - `T2003u*` 从现在起明确是 **complete rewrite**：不是继续修 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs`，而是用统一状态机主线整体替换它们。
-  - 唯一允许的实现流程是：先按控制流边界分段，再从 segment list 构建状态机，再从统一状态机发射代码。
+  - 从现在起按“旧代码不存在”原则推进：先删旧 shape-based lowering 主实现，再做新的 `segmenting -> state-machine building -> emitter -> end-to-end validation`；不允许继续把旧代码当作可增量修补的实现底座。
+  - 删除旧代码必须先做，即使这一步会暂时破坏 build 也照做；这是为了避免后续实现再次回到旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 上补洞。
   - 分段阶段不得按 `single arm`、`single perform`、`perform inside while`、`top-level`、`same-stmt mixed`、`nested block` 等源码形状分类；这些只允许作为覆盖样例名称，不允许成为算法分流条件。
-  - 状态机构建阶段只能消费 segment list；发射阶段只能消费统一状态机与 simplification 结果，不得回头按源码形状选专用路径。
-  - 每一阶段都必须先覆盖当轮所有合法组合并达到“可直接接到下一阶段”的完整度，才能进入下一阶段；不允许一边继续补 segmenter，一边在 emitter 里为缺口加例外分支。
-  - 在统一主线 feature-complete 之前，不给旧 shape-based emitter/scanner 新增任何功能；实现期间可以只跑统一状态机相关的定向单测 / fixture，`cargo test --all` / full matrix / GC stress 统一留到新的 ground-up 验收任务 `T2003r4`。
-  - 当统一状态机变换完成并通过 `T2003r4` 后，`T2003r5` 必须彻底删除旧的 shape-based emitter / scanner / matrix 主实现；不保留 fallback、双轨或“以防万一”的 legacy 路由。
-  - 原 `T2003u` 未完成尾项现已废弃并从短版 TODO 删除；当前 active route 改为新的 ground-up `T2003r1`～`T2003r5`，严格按 `segmenting -> builder -> emitter -> full validation -> delete legacy` 顺序推进。
-  - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线，现统一由 `T2003u*` 已完成基线与新的 `T2003r*` 主线承接。
+  - 分段阶段必须先覆盖全部合法组合并达到可直接喂给 builder 的完整度；在此之前不得开始写 state-machine building，只跑 segmenting 相关的定向单测 / dump / contract test。
+  - 状态机构建阶段只能消费 segment list；并且必须先覆盖上一步产生的全部输出，才能开始写 emitter。在此之前只跑 segmenting + builder 相关的定向单测 / contract test，不跑端到端 fixture。
+  - 发射阶段只能消费统一状态机与 simplification 结果，不得回头按源码形状选专用路径；并且必须先覆盖全部 state machine，才能开始跑端到端 fixture / full matrix / full suite。
+  - 在 `T2003r0`～`T2003r3*` 阶段，若后文旧的 LLVM fixture / representative run-pass / `cargo run -p scoop --features llvm -- run ...` 验收与本段冲突，一律以后者为准，统一后移到 `T2003r4`。
+  - 在统一主线 feature-complete 之前，不给旧 shape-based emitter/scanner 新增任何功能；任何“先在旧代码补一个 case，再回头迁移”的做法都视为违例。
+  - 此前已记录的 `T2003r1a`～`T2003r3d*` DONE 项只保留为探索 / 设计记录，不构成继续保留旧 lowering 并在其上加功能的例外授权。
+  - 原 `T2003u` 未完成尾项现已废弃并从短版 TODO 删除；当前 active route 改为新的 ground-up `T2003r0 -> T2003r1* -> T2003r2 -> T2003r3* -> T2003r4`，旧 `T2003r5` 的“full validation 之后再删 legacy”路线废弃。
+  - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线，现统一由 `T2003u*` 已完成基线与新的 `T2003r0`～`T2003r4` 主线承接。
 
 ### T2001 [DONE] Effect：统一 `handle` arm 形态与 typecheck/HIR 不变量
 - 描述：当前 `handle` 仍直接拒绝在同一个表达式里混用 `->`、`-> resume`、`, k ->` 等 arm 形态，导致语言语义被实现层的早期门禁截断。先收口 arm 的表示与兼容性检查，再推进后端链路。
@@ -1353,6 +1356,18 @@ cargo run -p scoop --features llvm -- test
     - `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
+### T2003r0 [TODO] Effect：先删除全部旧 shape-based lowering 主实现
+- 描述：以“旧代码不存在”为前提重启 effect ground-up 重写。第一步必须先从编译路径与主选路中删除 / 断开旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 及其 fallback；即使这一步会暂时让 build 失败，也先做，避免团队继续回到旧代码补 case。
+- 目标：
+  - 旧 shape-based lowering 主实现不再参与编译或主选路；仓库里不存在“先去旧代码补 helper，再迁回统一主线”的默认工作路径。
+  - 后续 effect 实现只允许落在新的 segmenting / state-machine building / emitter 主线代码上。
+  - 接受本任务结束时仓库暂时不可构建；后续由新的 `T2003r1*`～`T2003r3*` 逐步恢复。
+- 验收：
+  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 的主 lowering 入口已删除、断开或移出编译路径。
+  - 仓库中不再存在 silent fallback 到旧 shape-based lowering 的 root dispatch。
+  - 不要求 `cargo build` / `cargo test` 通过；本任务不跑端到端 fixture。
+- 依赖：无
+
 ### T2003r1a [DONE] Effect：定义统一 `HandleSegmentList` 与第一版 segment dump
 - 描述：`T2003r1` 原始范围同时要求完成 segment IR 设计、全量合法组合分段和 nested-while coverage，单轮风险过高。先收口第一步：把统一分段结果本身落成稳定的数据结构与 pretty dump，并用同一套分段遍历覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的代表性样例。
 - 目标：
@@ -1615,7 +1630,7 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T2003r3d3
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
-- 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，才进入这一任务；在此之前，不再要求每轮都跑 full suite。
+- 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，且 emitter 已覆盖全部 state machine outputs，才进入这一任务；在此之前，不跑端到端 fixture / full suite。
 - 目标：
   - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
   - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，continuation pinning、capture 恢复、cleanup/finally 语义不回归。
@@ -1628,19 +1643,14 @@ cargo run -p scoop --features llvm -- test
   - `SCOOP_GC_STRESS=1` 或等价压力模式下的 full matrix 通过。
 - 依赖：T2003r3d4
 
-### T2003r5 [TODO] Effect：删除全部旧 shape-based lowering 主实现
-- 描述：`T2003r4` 通过后，不再保留“以防万一”的旧实现。旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 中承载形状分流 lowering 的主路径必须整体移除。
+### T2003r5 [BLOCKED] Effect：旧“full validation 后再删 legacy”的后置删除路线已废弃
+- 描述：根据 2026-04-14 新规则，legacy 删除已前移到 `T2003r0`，不再允许等到 full validation 之后再删旧代码。本条只保留任务索引，避免旧讨论 / 旧引用失效。
 - 目标：
-  - 删除旧 shape-based lowering 主实现，不保留 fallback、双轨或 feature flag 形式的 legacy 路由。
-  - `codegen_handle_expr`、simplification、resolver 与 emitter 对合法组合只保留统一状态机这一条 source-of-truth。
-  - 仓库中不再存在按 `single arm`、`single perform`、`perform inside while`、`top-level`、`same-stmt mixed` 等源码形状选主路径的 effect lowering 代码。
+  - 不再把删除 legacy 视为 `T2003r4` 之后的独立实现项。
+  - 任何文档 / 讨论若仍提到 `T2003r5`，都应理解为改走 `T2003r0` 与顶部硬约束。
 - 验收：
-  - 清理完成后，不再存在“新增一个合法 effect 组合时默认去旧 scanner / 旧 emitter 扩 case”的文档或代码路径。
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003r4
+  - TODO 与后续讨论中不再把“先保留旧代码跑通新 case，最后再删”当作允许路线。
+- 依赖：无（废弃索引，由 `T2003r0` 取代）
 
 ### T2099 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
