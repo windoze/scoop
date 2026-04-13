@@ -1186,7 +1186,7 @@ cargo run -p scoop --features llvm -- test
   - `codegen_handle_expr_multiple_immediate_resume_top_level` 不再重新 scan handle body；`codegen_handle_expr_immediate_resume_with_nonresuming_siblings` 也已改为复用 unified plan 的 single-site resolver。
   - 已新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，并重新验证 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u4c2 [TODO] Effect：multiple escape-continuation / sibling non-resuming 路由切到统一状态机输入
+### T2003u4c2 [DONE] Effect：multiple escape-continuation / sibling non-resuming 路由切到统一状态机输入
 - 描述：再迁移 `codegen_handle_expr_multiple_escape_top_level_direct` 与 `codegen_handle_expr_escape_with_nonresuming_siblings*`，把 pure multiple escape 与 escape + sibling non-resuming 的 direct/indirect site 解析切到 unified plan。
 - 目标：
   - pure multiple escape 与 escape + sibling non-resuming 的 direct / indirect site 不再依赖 `scan_mixed_escape_*` 作为主输入；统一从 plan 读取 site 顺序、capture locals 与 dispatch arm 集合。
@@ -1198,6 +1198,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4c1
+- 完成说明：
+  - 已新增 plan-driven helper：`resolve_mixed_escape_direct_sites_from_plan`、`resolve_mixed_escape_indirect_sites_from_plan`、`collect_escape_capture_metas_from_plan`；pure multiple escape 与 escape+sibling non-resuming 的 direct / indirect site 顺序、nested source-path 与 capture locals 现在统一从 `HandleStateMachinePlan` 恢复。
+  - `codegen_handle_expr_multiple_escape_top_level_direct`、`codegen_handle_expr_escape_with_nonresuming_siblings` 及其 direct / indirect / top-level-mixed 子路径已切到 unified plan 输入；旧 replay helper 继续保留，但不再以 `scan_mixed_escape_*` 作为主输入。
+  - 已新增单测：`resolve_mixed_escape_direct_sites_from_plan_keeps_source_order_and_arm_ids`、`resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures`。
+  - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u4c3 [TODO] Effect：immediate+escape / site-matrix 路由切到统一状态机输入
 - 描述：最后迁移 `codegen_handle_expr_immediate_resume_with_escape_*` 与 `matrix.rs` 剩余 site-matrix 主线，把 immediate+escape mixed-arm / multiple-resuming 组合的 dispatch、cleanup、resume-target 收口到 unified emitter。

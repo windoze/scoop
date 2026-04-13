@@ -111,6 +111,24 @@ struct ResolvedEscapeIndirectSites {
     capture_ids: HashSet<hir::SymbolId>,
 }
 
+#[derive(Debug)]
+struct ResolvedPlanMixedEscapeDirectSite<'hir> {
+    arm_id: ArmPlanId,
+    site: MixedEscapeDirectSite<'hir>,
+}
+
+#[derive(Debug)]
+struct ResolvedPlanMixedEscapeDirectSites<'hir> {
+    direct_sites: Vec<ResolvedPlanMixedEscapeDirectSite<'hir>>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
+#[derive(Debug)]
+struct ResolvedPlanMixedEscapeIndirectSites<'hir> {
+    indirect_sites: Vec<MixedEscapeIndirectSite<'hir>>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn record_escape_decl_info_in_stmts<'hir>(
         stmts: &'hir [hir::Stmt],
@@ -413,6 +431,251 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((current_stmt, resume_path))
     }
 
+    fn mixed_escape_resume_path_from_frames<'hir>(
+        frames: &[ResumeFrame<'hir>],
+        site_span: crate::span::Span,
+    ) -> Result<Vec<MixedEscapeDirectFrame<'hir>>, LlvmEmitError> {
+        let mut resume_path = Vec::with_capacity(frames.len());
+        for frame in frames {
+            let mixed = match frame {
+                ResumeFrame::Block {
+                    block,
+                    resume_after_stmt,
+                } => MixedEscapeDirectFrame::Block {
+                    block,
+                    stmt_idx: *resume_after_stmt,
+                },
+                ResumeFrame::IfThen {
+                    if_expr,
+                    resume_after_stmt,
+                    ..
+                } => {
+                    let hir::ExprKind::If { then_branch, .. } = &if_expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (invalid unified source path)",
+                            at: site_span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(then_block) = &then_branch.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (invalid unified source path)",
+                            at: site_span.into(),
+                        });
+                    };
+                    MixedEscapeDirectFrame::IfThen {
+                        if_expr,
+                        then_block,
+                        stmt_idx: *resume_after_stmt,
+                    }
+                }
+                ResumeFrame::IfElse {
+                    if_expr,
+                    resume_after_stmt,
+                    ..
+                } => {
+                    let hir::ExprKind::If { else_branch, .. } = &if_expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (invalid unified source path)",
+                            at: site_span.into(),
+                        });
+                    };
+                    let Some(else_expr) = else_branch.as_deref() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (invalid unified source path)",
+                            at: site_span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(else_block) = &else_expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle mixed-arm escape continuation (invalid unified source path)",
+                            at: site_span.into(),
+                        });
+                    };
+                    MixedEscapeDirectFrame::IfElse {
+                        if_expr,
+                        else_block,
+                        stmt_idx: *resume_after_stmt,
+                    }
+                }
+                ResumeFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    resume_after_stmt,
+                } => MixedEscapeDirectFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    stmt_idx: *resume_after_stmt,
+                },
+                ResumeFrame::WhenArm { when_expr, .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle mixed-arm escape continuation (when arm sites not yet supported)",
+                        at: when_expr.span.into(),
+                    });
+                }
+            };
+            resume_path.push(mixed);
+        }
+        Ok(resume_path)
+    }
+
+    fn resolve_mixed_escape_direct_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        escape_arms: &[(&'hir hir::HandleArm, ArmPlanId)],
+    ) -> Result<ResolvedPlanMixedEscapeDirectSites<'hir>, LlvmEmitError> {
+        let mut capture_ids = HashSet::new();
+        let mut matching_sites = state_machine_plan
+            .suspend_sites
+            .iter()
+            .filter_map(|site| {
+                let SuspendSiteKind::DirectPerform { op_fqn } = &site.kind else {
+                    return None;
+                };
+                escape_arms
+                    .iter()
+                    .find(|(arm, arm_id)| {
+                        arm.op.op.fqn == *op_fqn && site.matching_arms.contains(arm_id)
+                    })
+                    .map(|(_, arm_id)| (site, *arm_id))
+            })
+            .collect::<Vec<_>>();
+        matching_sites.sort_by_key(|(site, _)| site.id);
+
+        let mut direct_sites = Vec::with_capacity(matching_sites.len());
+        for (site, arm_id) in matching_sites {
+            capture_ids.extend(site.capture_locals.iter().copied());
+
+            let Some(source_path) = &site.source_path else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (missing unified source path)",
+                    at: site.span.into(),
+                });
+            };
+            let (stmt, resume_frames) =
+                Self::resolve_escape_stmt_from_source_path(handle, source_path, site.span)?;
+            let resume_path =
+                Self::mixed_escape_resume_path_from_frames(resume_frames.as_slice(), site.span)?;
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (perform must be bound to val)",
+                    at: stmt.span.into(),
+                });
+            };
+            let Some(init) = decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (missing perform init)",
+                    at: decl.span.into(),
+                });
+            };
+            let hir::ExprKind::Perform { args, .. } = &init.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (expected direct perform)",
+                    at: init.span.into(),
+                });
+            };
+            if init.span != site.span {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (unified plan/source mismatch)",
+                    at: init.span.into(),
+                });
+            }
+            let Some(id) = decl.id else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation perform binding id",
+                    at: decl.span.into(),
+                });
+            };
+
+            direct_sites.push(ResolvedPlanMixedEscapeDirectSite {
+                arm_id,
+                site: MixedEscapeDirectSite {
+                    top_level_stmt_idx: source_path.top_level_stmt_idx,
+                    decl,
+                    args: args.as_slice(),
+                    id,
+                    resume_path,
+                },
+            });
+        }
+
+        Ok(ResolvedPlanMixedEscapeDirectSites {
+            direct_sites,
+            capture_ids,
+        })
+    }
+
+    fn resolve_mixed_escape_indirect_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<ResolvedPlanMixedEscapeIndirectSites<'hir>, LlvmEmitError> {
+        let mut capture_ids = HashSet::new();
+        let mut matching_sites = state_machine_plan
+            .suspend_sites
+            .iter()
+            .filter(|site| {
+                matches!(
+                    site.kind,
+                    SuspendSiteKind::IndirectCallMaySuspend { .. }
+                        | SuspendSiteKind::CallStateMachineCallee { .. }
+                )
+            })
+            .collect::<Vec<_>>();
+        matching_sites.sort_by_key(|site| site.id);
+
+        let mut indirect_sites = Vec::with_capacity(matching_sites.len());
+        for site in matching_sites {
+            capture_ids.extend(site.capture_locals.iter().copied());
+
+            let Some(source_path) = &site.source_path else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (missing unified source path)",
+                    at: site.span.into(),
+                });
+            };
+            let (stmt, resume_frames) =
+                Self::resolve_escape_stmt_from_source_path(handle, source_path, site.span)?;
+            let resume_path =
+                Self::mixed_escape_resume_path_from_frames(resume_frames.as_slice(), site.span)?;
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (indirect site must be val-bound)",
+                    at: stmt.span.into(),
+                });
+            };
+            let Some(init) = decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (missing call init)",
+                    at: decl.span.into(),
+                });
+            };
+            if !matches!(init.kind, hir::ExprKind::Call { .. }) || init.span != site.span {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (unified plan/source mismatch)",
+                    at: init.span.into(),
+                });
+            }
+            let Some(id) = decl.id else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation perform binding id",
+                    at: decl.span.into(),
+                });
+            };
+
+            indirect_sites.push(MixedEscapeIndirectSite {
+                top_level_stmt_idx: source_path.top_level_stmt_idx,
+                decl,
+                init,
+                id,
+                resume_path,
+            });
+        }
+
+        Ok(ResolvedPlanMixedEscapeIndirectSites {
+            indirect_sites,
+            capture_ids,
+        })
+    }
+
     fn resolve_escape_direct_sites_from_plan<'hir>(
         handle: &'hir hir::HandleExpr,
         state_machine_plan: &HandleStateMachinePlan,
@@ -621,7 +884,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
                             span,
                             handle,
-                            (arm, continuation_symbol),
+                            state_machine_plan,
+                            (arm, arm_id, continuation_symbol),
                             &[],
                             out_ty,
                         );

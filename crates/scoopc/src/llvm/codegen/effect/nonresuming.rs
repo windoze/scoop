@@ -1378,6 +1378,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_handle_expr_multiple_escape_top_level_direct(
                     span,
                     handle,
+                    state_machine_plan,
                     escape_arms,
                     nonresuming_arms,
                     out_ty,
@@ -1416,10 +1417,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
+                let Some(escape_arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, escape_arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (escape-continuation arm id)",
+                        at: escape_arm.span.into(),
+                    });
+                };
                 self.codegen_handle_expr_escape_with_nonresuming_siblings(
                     span,
                     handle,
-                    (escape_arm, continuation_symbol),
+                    state_machine_plan,
+                    (escape_arm, escape_arm_id as ArmPlanId, continuation_symbol),
                     nonresuming_arms,
                     out_ty,
                 )

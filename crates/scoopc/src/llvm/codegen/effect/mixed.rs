@@ -3,13 +3,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        state_machine_plan: &HandleStateMachinePlan,
+        escape: (&'hir hir::HandleArm, ArmPlanId, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let (escape_arm, _) = escape;
-        let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
+        let (escape_arm, arm_id, _) = escape;
+        let plan_escape_arms = [(escape_arm, arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        let direct_sites = direct_sites
+            .into_iter()
+            .map(|resolved| resolved.site)
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeIndirectSites {
+            indirect_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
 
         if !direct_sites.is_empty() && !indirect_sites.is_empty() {
             let direct_supported = direct_sites.iter().all(|site| {
@@ -28,6 +44,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_handle_expr_escape_with_nonresuming_siblings_top_level_mixed(
                     span,
                     handle,
+                    state_machine_plan,
                     escape,
                     sibling_nonresuming_arms,
                     out_ty,
@@ -39,6 +56,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_handle_expr_escape_with_nonresuming_siblings_direct(
                 span,
                 handle,
+                state_machine_plan,
                 escape,
                 sibling_nonresuming_arms,
                 out_ty,
@@ -54,6 +72,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect(
                         span,
                         handle,
+                        state_machine_plan,
                         escape,
                         sibling_nonresuming_arms,
                         out_ty,
@@ -62,6 +81,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
                     span,
                     handle,
+                    state_machine_plan,
                     escape,
                     sibling_nonresuming_arms,
                     out_ty,
@@ -77,6 +97,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_handle_expr_escape_with_nonresuming_siblings_indirect_multi(
                     span,
                     handle,
+                    state_machine_plan,
                     escape,
                     sibling_nonresuming_arms,
                     out_ty,
@@ -99,19 +120,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        state_machine_plan: &HandleStateMachinePlan,
+        escape: (&'hir hir::HandleArm, ArmPlanId, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let (escape_arm, continuation_symbol) = escape;
+        let (escape_arm, arm_id, continuation_symbol) = escape;
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
         let has_sibling_nonresuming = sibling_plan.has_any();
 
-        let mut direct_sites =
-            self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        let mut indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
+        let plan_escape_arms = [(escape_arm, arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        capture_ids.extend(state_machine_plan.arm_capture_locals(arm_id).iter().copied());
+        let mut direct_sites = resolved_direct_sites
+            .into_iter()
+            .map(|resolved| resolved.site)
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeIndirectSites {
+            mut indirect_sites,
+            capture_ids: indirect_capture_ids,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        capture_ids.extend(indirect_capture_ids);
         if direct_sites.is_empty()
             || indirect_sites.is_empty()
             || direct_sites.iter().any(|site| {
@@ -520,163 +558,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let mut outer_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        let mut outer_visible_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            let meta = EscapeCaptureMeta {
-                id,
-                hir_ty: local.hir_ty,
-                ty: local.ty,
-                mutable: local.mutable,
-            };
-            outer_visible_all.insert(id, meta);
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_visible_supported.push(meta);
-            }
-        }
-        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
-        let mut body_decl_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
-        let mut next_decl_order = 0usize;
-        self.collect_mixed_escape_matrix_body_decls(
-            &handle.body.stmts,
-            &mut body_decl_all,
-            &mut body_decl_spans,
-            &mut body_decl_order,
-            &mut next_decl_order,
-        )?;
-
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for (site_pc, site) in escape_sites.iter().enumerate() {
-            let Some(&site_order) = body_decl_order.get(&site.id) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape continuation perform binding id",
-                    at: site.decl.span.into(),
-                });
-            };
-
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            match &site.kind {
-                MatrixEscapeSiteKind::Direct { site: direct_site } => {
-                    Self::collect_mixed_escape_used_after_site(
-                        direct_site,
-                        &handle.body.stmts,
-                        &mut used_after,
-                    );
-                }
-                MatrixEscapeSiteKind::Indirect { site: indirect_site } => {
-                    Self::collect_mixed_escape_used_after_indirect_site(
-                        indirect_site,
-                        &handle.body.stmts,
-                        &mut used_after,
-                    );
-                    if let Some(&prev_pc) = if_prev_site_pc_by_pc.get(&site_pc) {
-                        let MatrixEscapeSiteKind::Direct {
-                            site: prev_direct_site,
-                        } = &escape_sites[prev_pc].kind
-                        else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle multi-arm without immediate-resume (expected previous direct site)",
-                                at: site.decl.span.into(),
-                            });
-                        };
-                        Self::collect_mixed_escape_used_between_if_sites(
-                            prev_direct_site,
-                            indirect_site,
-                            &mut used_after,
-                        )?;
-                    } else if let Some(&prev_pc) = block_prev_site_pc_by_pc.get(&site_pc) {
-                        let MatrixEscapeSiteKind::Direct {
-                            site: prev_direct_site,
-                        } = &escape_sites[prev_pc].kind
-                        else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle multi-arm without immediate-resume (expected previous direct site)",
-                                at: site.decl.span.into(),
-                            });
-                        };
-                        Self::collect_mixed_escape_used_between_block_sites(
-                            prev_direct_site,
-                            indirect_site,
-                            &mut used_after,
-                        )?;
-                    } else if let Some(&prev_pc) = while_prev_site_pc_by_pc.get(&site_pc) {
-                        let MatrixEscapeSiteKind::Direct {
-                            site: prev_direct_site,
-                        } = &escape_sites[prev_pc].kind
-                        else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle multi-arm without immediate-resume (expected previous direct site)",
-                                at: site.decl.span.into(),
-                            });
-                        };
-                        Self::collect_mixed_escape_used_between_while_sites(
-                            prev_direct_site,
-                            indirect_site,
-                            &mut used_after,
-                        )?;
-                    }
-                }
-            }
-
-            for id in used_after {
-                if let Some(meta) = body_decl_all.get(&id) {
-                    let at = body_decl_spans.get(&id).copied().unwrap_or(site.decl.span);
-                    if self.escape_capture_storage_kind(at, meta.ty)?.is_none() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: at.into(),
-                        });
-                    }
-                    if let Some(&decl_order) = body_decl_order.get(&id)
-                        && decl_order < site_order
-                    {
-                        body_lift_ids.insert(id);
-                    }
-                    continue;
-                }
-                if let Some(meta) = outer_visible_all.get(&id) {
-                    if self
-                        .escape_capture_storage_kind(site.decl.span, meta.ty)?
-                        .is_none()
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: site.decl.span.into(),
-                        });
-                    }
-                    continue;
-                }
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: site.decl.span.into(),
-                });
-            }
-        }
-
-        let mut body_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        for &id in &body_lift_ids {
-            let Some(meta) = body_decl_all.get(&id).copied() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: first_site.decl.span.into(),
-                });
-            };
-            body_visible_supported.push(meta);
-        }
-        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+        let (outer_visible_supported, body_visible_supported) =
+            self.collect_escape_capture_metas_from_plan(
+                span,
+                handle,
+                &capture_ids,
+                "handle mixed-arm escape capture local type",
+                "handle mixed-arm escape capture local missing",
+            )?;
+        let body_lift_ids = body_visible_supported
+            .iter()
+            .map(|meta| meta.id)
+            .collect::<HashSet<_>>();
 
         let insert_block =
             self.builder
@@ -3912,25 +3805,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        state_machine_plan: &HandleStateMachinePlan,
+        escape: (&'hir hir::HandleArm, ArmPlanId, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        #[derive(Clone, Copy)]
-        struct CaptureMeta {
-            id: hir::SymbolId,
-            hir_ty: Option<TypeId>,
-            ty: CgTy,
-            mutable: bool,
-        }
-
         #[derive(Clone, Copy)]
         struct CustomSiblingArm<'hir> {
             arm: &'hir hir::HandleArm,
             op_tag: u32,
         }
 
-        let (escape_arm, continuation_symbol) = escape;
+        let (escape_arm, arm_id, continuation_symbol) = escape;
         let mut raise_sibling: Option<&'hir hir::HandleArm> = None;
         let mut custom_siblings: Vec<CustomSiblingArm<'hir>> = Vec::new();
         for arm in sibling_nonresuming_arms {
@@ -3962,8 +3848,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let has_sibling_nonresuming = raise_sibling.is_some() || !custom_siblings.is_empty();
 
-        let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
+        let plan_escape_arms = [(escape_arm, arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        let direct_sites = resolved_direct_sites
+            .into_iter()
+            .map(|resolved| resolved.site)
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeIndirectSites {
+            indirect_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        capture_ids.extend(state_machine_plan.arm_capture_locals(arm_id).iter().copied());
         if !direct_sites.is_empty()
             || indirect_sites.len() != 1
             || !indirect_sites[0].resume_path.is_empty()
@@ -3995,100 +3897,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: escape_site.decl.span.into(),
                 })?;
 
-        let mut outer_visible_supported: Vec<CaptureMeta> = Vec::new();
-        let mut outer_visible_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            let meta = CaptureMeta {
-                id,
-                hir_ty: local.hir_ty,
-                ty: local.ty,
-                mutable: local.mutable,
-            };
-            outer_visible_all.insert(id, meta);
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_visible_supported.push(meta);
-            }
-        }
-        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
-        let mut body_decl_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
-        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        for stmt in handle.body.stmts.iter().take(escape_stmt_idx) {
-            if let hir::StmtKind::Val(decl) = &stmt.kind
-                && let Some(id) = decl.id
-            {
-                let ty = self
-                    .cg_ty_of(decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape capture local type",
-                        at: decl.span.into(),
-                    })?;
-                let meta = CaptureMeta {
-                    id,
-                    hir_ty: Some(decl.ty),
-                    ty,
-                    mutable: decl.mutable,
-                };
-                body_decl_all.insert(id, meta);
-                body_decl_spans.insert(id, decl.span);
-            }
-        }
-
-        let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-        Self::collect_used_locals_in_stmt_static(
-            &handle.body.stmts[escape_stmt_idx],
-            &mut used_after,
-        );
-        for stmt in handle.body.stmts.iter().skip(escape_stmt_idx + 1) {
-            Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
-        }
-        used_after.remove(&escape_site.id);
-
-        let mut body_visible_supported: Vec<CaptureMeta> = Vec::new();
-        for id in used_after {
-            if let Some(meta) = body_decl_all.get(&id) {
-                let at = body_decl_spans
-                    .get(&id)
-                    .copied()
-                    .unwrap_or(escape_site.decl.span);
-                if self.escape_capture_storage_kind(at, meta.ty)?.is_none() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape capture local type",
-                        at: at.into(),
-                    });
-                }
-                body_visible_supported.push(*meta);
-                continue;
-            }
-            if let Some(meta) = outer_visible_all.get(&id) {
-                if self
-                    .escape_capture_storage_kind(escape_site.decl.span, meta.ty)?
-                    .is_none()
-                {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle mixed-arm escape capture local type",
-                        at: escape_site.decl.span.into(),
-                    });
-                }
-                continue;
-            }
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape capture local missing",
-                at: escape_site.decl.span.into(),
-            });
-        }
-        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
+        let (outer_visible_supported, body_visible_supported) =
+            self.collect_escape_capture_metas_from_plan(
+                span,
+                handle,
+                &capture_ids,
+                "handle mixed-arm escape capture local type",
+                "handle mixed-arm escape capture local missing",
+            )?;
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -6045,7 +5861,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        state_machine_plan: &HandleStateMachinePlan,
+        escape: (&'hir hir::HandleArm, ArmPlanId, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -6055,7 +5872,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             op_tag: u32,
         }
 
-        let (escape_arm, continuation_symbol) = escape;
+        let (escape_arm, arm_id, continuation_symbol) = escape;
         let mut raise_sibling: Option<&'hir hir::HandleArm> = None;
         let mut custom_siblings: Vec<CustomSiblingArm<'hir>> = Vec::new();
         for arm in sibling_nonresuming_arms {
@@ -6087,8 +5904,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let has_sibling_nonresuming = raise_sibling.is_some() || !custom_siblings.is_empty();
 
-        let direct_sites = self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
-        let mut indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
+        let plan_escape_arms = [(escape_arm, arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            capture_ids: _,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        let direct_sites = resolved_direct_sites
+            .into_iter()
+            .map(|resolved| resolved.site)
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeIndirectSites {
+            mut indirect_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        capture_ids.extend(state_machine_plan.arm_capture_locals(arm_id).iter().copied());
         if !direct_sites.is_empty() || indirect_sites.is_empty() {
             let at = direct_sites
                 .first()
@@ -6234,106 +6067,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let mut outer_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        let mut outer_visible_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            let meta = EscapeCaptureMeta {
-                id,
-                hir_ty: local.hir_ty,
-                ty: local.ty,
-                mutable: local.mutable,
-            };
-            outer_visible_all.insert(id, meta);
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_visible_supported.push(meta);
-            }
-        }
-        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
-        let mut body_decl_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
-        let mut next_decl_order = 0usize;
-        self.collect_mixed_escape_matrix_body_decls(
-            &handle.body.stmts,
-            &mut body_decl_all,
-            &mut body_decl_spans,
-            &mut body_decl_order,
-            &mut next_decl_order,
-        )?;
-
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for site in &indirect_sites {
-            let Some(&site_order) = body_decl_order.get(&site.id) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape continuation perform binding id",
-                    at: site.decl.span.into(),
-                });
-            };
-
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            Self::collect_mixed_escape_used_after_indirect_site(
-                site,
-                &handle.body.stmts,
-                &mut used_after,
-            );
-
-            for id in used_after {
-                if let Some(meta) = body_decl_all.get(&id) {
-                    let at = body_decl_spans.get(&id).copied().unwrap_or(site.decl.span);
-                    if self.escape_capture_storage_kind(at, meta.ty)?.is_none() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: at.into(),
-                        });
-                    }
-                    if let Some(&decl_order) = body_decl_order.get(&id)
-                        && decl_order < site_order
-                    {
-                        body_lift_ids.insert(id);
-                    }
-                    continue;
-                }
-                if let Some(meta) = outer_visible_all.get(&id) {
-                    if self
-                        .escape_capture_storage_kind(site.decl.span, meta.ty)?
-                        .is_none()
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: site.decl.span.into(),
-                        });
-                    }
-                    continue;
-                }
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: site.decl.span.into(),
-                });
-            }
-        }
-
-        let mut body_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        for &id in &body_lift_ids {
-            let Some(meta) = body_decl_all.get(&id).copied() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: first_site.decl.span.into(),
-                });
-            };
-            body_visible_supported.push(meta);
-        }
-        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+        let (outer_visible_supported, body_visible_supported) =
+            self.collect_escape_capture_metas_from_plan(
+                span,
+                handle,
+                &capture_ids,
+                "handle mixed-arm escape capture local type",
+                "handle mixed-arm escape capture local missing",
+            )?;
+        let body_lift_ids = body_visible_supported
+            .iter()
+            .map(|meta| meta.id)
+            .collect::<HashSet<_>>();
         let matrix_escape_sites: Vec<MatrixEscapeSite<'hir>> = indirect_sites
             .iter()
             .map(|site| MatrixEscapeSite {
@@ -8827,25 +8572,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        escape: (&'hir hir::HandleArm, hir::SymbolId),
+        state_machine_plan: &HandleStateMachinePlan,
+        escape: (&'hir hir::HandleArm, ArmPlanId, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        #[derive(Clone, Copy)]
-        struct CaptureMeta {
-            id: hir::SymbolId,
-            hir_ty: Option<TypeId>,
-            ty: CgTy,
-            mutable: bool,
-        }
-
         #[derive(Clone, Copy)]
         struct CustomSiblingArm<'hir> {
             arm: &'hir hir::HandleArm,
             op_tag: u32,
         }
 
-        let (escape_arm, continuation_symbol) = escape;
+        let (escape_arm, arm_id, continuation_symbol) = escape;
         let mut raise_sibling: Option<&'hir hir::HandleArm> = None;
         let mut custom_siblings: Vec<CustomSiblingArm<'hir>> = Vec::new();
         for arm in sibling_nonresuming_arms {
@@ -8877,8 +8615,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let has_sibling_nonresuming = raise_sibling.is_some() || !custom_siblings.is_empty();
 
-        let mut escape_sites =
-            self.scan_mixed_escape_direct_sites(handle, &escape_arm.op.op.fqn)?;
+        let plan_escape_arms = [(escape_arm, arm_id)];
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        capture_ids.extend(state_machine_plan.arm_capture_locals(arm_id).iter().copied());
+        let mut escape_sites = resolved_direct_sites
+            .into_iter()
+            .map(|resolved| resolved.site)
+            .collect::<Vec<_>>();
         if escape_sites.is_empty() {
             let at = escape_sites
                 .first()
@@ -8934,105 +8684,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let mut outer_visible_supported: Vec<CaptureMeta> = Vec::new();
-        let mut outer_visible_all: HashMap<hir::SymbolId, CaptureMeta> = HashMap::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            let meta = CaptureMeta {
-                id,
-                hir_ty: local.hir_ty,
-                ty: local.ty,
-                mutable: local.mutable,
-            };
-            outer_visible_all.insert(id, meta);
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_visible_supported.push(meta);
-            }
-        }
-        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
-        let mut body_decl_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
-        let mut next_decl_order = 0usize;
-        self.collect_mixed_escape_matrix_body_decls(
-            &handle.body.stmts,
-            &mut body_decl_all,
-            &mut body_decl_spans,
-            &mut body_decl_order,
-            &mut next_decl_order,
-        )?;
-
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for site in &escape_sites {
-            let Some(&site_order) = body_decl_order.get(&site.id) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape continuation perform binding id",
-                    at: site.decl.span.into(),
-                });
-            };
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            Self::collect_mixed_escape_used_after_site(site, &handle.body.stmts, &mut used_after);
-            for id in used_after {
-                if let Some(meta) = body_decl_all.get(&id) {
-                    let at = body_decl_spans.get(&id).copied().unwrap_or(site.decl.span);
-                    if self.escape_capture_storage_kind(at, meta.ty)?.is_none() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: at.into(),
-                        });
-                    }
-                    if let Some(&decl_order) = body_decl_order.get(&id)
-                        && decl_order < site_order
-                    {
-                        body_lift_ids.insert(id);
-                    }
-                    continue;
-                }
-                if let Some(meta) = outer_visible_all.get(&id) {
-                    if self
-                        .escape_capture_storage_kind(site.decl.span, meta.ty)?
-                        .is_none()
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed-arm escape capture local type",
-                            at: site.decl.span.into(),
-                        });
-                    }
-                    continue;
-                }
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: site.decl.span.into(),
-                });
-            }
-        }
-
-        let mut body_visible_supported: Vec<CaptureMeta> = Vec::new();
-        for &id in &body_lift_ids {
-            let Some(meta) = body_decl_all.get(&id).copied() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed-arm escape capture local missing",
-                    at: escape_site.decl.span.into(),
-                });
-            };
-            body_visible_supported.push(CaptureMeta {
-                id: meta.id,
-                hir_ty: meta.hir_ty,
-                ty: meta.ty,
-                mutable: meta.mutable,
-            });
-        }
-        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+        let (outer_visible_supported, body_visible_supported) =
+            self.collect_escape_capture_metas_from_plan(
+                span,
+                handle,
+                &capture_ids,
+                "handle mixed-arm escape capture local type",
+                "handle mixed-arm escape capture local missing",
+            )?;
+        let body_lift_ids = body_visible_supported
+            .iter()
+            .map(|meta| meta.id)
+            .collect::<HashSet<_>>();
         let matrix_escape_sites: Vec<MatrixEscapeSite<'hir>> = escape_sites
             .iter()
             .map(|site| MatrixEscapeSite {

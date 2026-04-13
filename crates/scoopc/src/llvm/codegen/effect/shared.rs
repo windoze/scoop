@@ -133,6 +133,68 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn collect_escape_capture_metas_from_plan(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        capture_ids: &HashSet<hir::SymbolId>,
+        type_kind: &'static str,
+        missing_kind: &'static str,
+    ) -> Result<(Vec<EscapeCaptureMeta>, Vec<EscapeCaptureMeta>), LlvmEmitError> {
+        let decl_map = Self::collect_escape_decl_map(handle);
+        let mut sorted_ids = capture_ids.iter().copied().collect::<Vec<_>>();
+        sorted_ids.sort_by_key(|id| id.as_u32());
+
+        let mut outer_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
+        let mut body_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
+
+        for id in sorted_ids {
+            if let Some(local) = self.env.get(id) {
+                if self.escape_capture_storage_kind(span, local.ty)?.is_none() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: type_kind,
+                        at: span.into(),
+                    });
+                }
+                outer_visible_supported.push(EscapeCaptureMeta {
+                    id,
+                    hir_ty: local.hir_ty,
+                    ty: local.ty,
+                    mutable: local.mutable,
+                });
+                continue;
+            }
+
+            let Some(info) = decl_map.get(&id) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: missing_kind,
+                    at: span.into(),
+                });
+            };
+            let decl = info.decl;
+            let decl_ty = self
+                .cg_ty_of(decl.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: type_kind,
+                    at: decl.span.into(),
+                })?;
+            if self.escape_capture_storage_kind(decl.span, decl_ty)?.is_none() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: type_kind,
+                    at: decl.span.into(),
+                });
+            }
+            body_visible_supported.push(EscapeCaptureMeta {
+                id,
+                hir_ty: Some(decl.ty),
+                ty: decl_ty,
+                mutable: decl.mutable,
+            });
+        }
+
+        Ok((outer_visible_supported, body_visible_supported))
+    }
+
     fn build_escape_handle_blocks(
         &self,
         func: FunctionValue<'ctx>,

@@ -10,7 +10,10 @@ mod tests {
     use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
     use crate::typecheck;
 
-    use super::{HandlePlanContext, HandleStateMachinePlan, MainCodegen, ResumeFrame};
+    use super::{
+        HandlePlanContext, HandleStateMachinePlan, MainCodegen, MixedEscapeDirectFrame,
+        ResumeFrame,
+    };
 
     #[test]
     fn plan_dump_covers_direct_branch_loop_and_finally() {
@@ -517,6 +520,111 @@ fun demo(): Unit {
         let box_id = find_fun_local_id_by_name(fun, "box").expect("expected outer local `box`");
 
         assert!(resolved.capture_ids.contains(&box_id));
+    }
+
+    #[test]
+    fn resolve_mixed_escape_direct_sites_from_plan_keeps_source_order_and_arm_ids() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect First {
+    fun first(): Int
+}
+
+effect Second {
+    fun second(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val a: Int = Second.second()
+        val b: Int = First.first()
+        a + b
+    } with {
+        First.first(), k -> 10
+        Second.second(), k -> 20
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let escape_arms = handle
+            .arms
+            .iter()
+            .enumerate()
+            .map(|(idx, arm)| (arm, idx as u32))
+            .collect::<Vec<_>>();
+
+        let resolved = MainCodegen::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            &plan,
+            escape_arms.as_slice(),
+        )
+        .expect("plan-driven mixed direct escape resolution should succeed");
+
+        assert_eq!(resolved.direct_sites.len(), 2);
+        assert_eq!(resolved.direct_sites[0].arm_id, 1);
+        assert_eq!(resolved.direct_sites[1].arm_id, 0);
+        assert_eq!(resolved.direct_sites[0].site.top_level_stmt_idx, 0);
+        assert_eq!(resolved.direct_sites[1].site.top_level_stmt_idx, 1);
+        assert!(resolved
+            .direct_sites
+            .iter()
+            .all(|resolved| resolved.site.resume_path.is_empty()));
+    }
+
+    #[test]
+    fn resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val base: Int = 1
+        if (flag) {
+            val value: Int = fetch(base)
+            value
+        } else {
+            0
+        }
+    } with {
+        Ask.ask(seed: Int), k -> seed
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let base_id = find_handle_local_id_by_name(handle, "base").expect("expected local `base`");
+
+        let resolved = MainCodegen::resolve_mixed_escape_indirect_sites_from_plan(handle, &plan)
+            .expect("plan-driven mixed indirect escape resolution should succeed");
+
+        assert_eq!(resolved.indirect_sites.len(), 1);
+        assert!(matches!(
+            resolved.indirect_sites[0].resume_path.as_slice(),
+            [MixedEscapeDirectFrame::IfThen { .. }]
+        ));
+        assert!(resolved.capture_ids.contains(&base_id));
     }
 
     #[test]

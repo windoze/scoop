@@ -28,6 +28,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         escape_arms: &[(&'hir hir::HandleArm, hir::SymbolId)],
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
@@ -54,142 +55,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let contains_matching_direct_perform = |expr: &hir::Expr| {
-            escape_arms.iter().any(|(arm, _)| {
-                self.immediate_resume_expr_contains_matching_direct_perform(expr, &arm.op.op.fqn)
-            })
-        };
-        let stmt_contains_matching_direct_perform = |stmt: &hir::Stmt| {
-            escape_arms.iter().any(|(arm, _)| {
-                self.immediate_resume_stmt_contains_matching_direct_perform(stmt, &arm.op.op.fqn)
-            })
-        };
-
-        let mut seen_escape_arm = vec![false; escape_arms.len()];
-        let mut scanned_sites: Vec<EscapeSitePlan<'hir>> = Vec::new();
-        for (top_level_stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            match &stmt.kind {
-                hir::StmtKind::Empty => {}
-                hir::StmtKind::Val(decl) => {
-                    let Some(init) = decl.init.as_ref() else {
-                        continue;
-                    };
-                    if let hir::ExprKind::Perform { op, args } = &init.kind
-                        && let Some((arm_idx, (arm, continuation_symbol))) = escape_arms
-                            .iter()
-                            .enumerate()
-                            .find(|(_, (arm, _))| arm.op.op.fqn == op.fqn)
-                    {
-                        if seen_escape_arm[arm_idx] {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle multiple escape-continuation arms (multiple direct perform points for same op not yet supported)",
-                                at: decl.span.into(),
-                            });
-                        }
-                        let Some(id) = decl.id else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle mixed-arm escape continuation perform binding id",
-                                at: decl.span.into(),
-                            });
-                        };
-                        if arm.op.binders.len() != args.len() {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle multiple escape-continuation arms binder arity mismatch",
-                                at: arm.op.span.into(),
-                            });
-                        }
-                        let resume_value_ty =
-                            self.cg_ty_of(decl.ty)
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle multiple escape-continuation arms perform value type",
-                                    at: decl.span.into(),
-                                })?;
-                        scanned_sites.push(EscapeSitePlan {
-                            site: MixedEscapeDirectSite {
-                                top_level_stmt_idx,
-                                decl,
-                                args: args.as_slice(),
-                                id,
-                                resume_path: Vec::new(),
-                            },
-                            arm,
-                            continuation_symbol: *continuation_symbol,
-                            resume_value_ty,
-                        });
-                        seen_escape_arm[arm_idx] = true;
-                        continue;
-                    }
-                    if contains_matching_direct_perform(init) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
-                            at: init.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Assign { lhs, rhs, .. } => {
-                    if contains_matching_direct_perform(lhs)
-                        || contains_matching_direct_perform(rhs)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Expr(expr) => {
-                    if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                        && escape_arms
-                            .iter()
-                            .any(|(arm, _)| arm.op.op.fqn == op.fqn)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (perform must be bound to val)",
-                            at: expr.span.into(),
-                        });
-                    }
-                    if contains_matching_direct_perform(expr) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
-                            at: expr.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::While { cond, body } => {
-                    if contains_matching_direct_perform(cond)
-                        || body
-                            .stmts
-                            .iter()
-                            .any(stmt_contains_matching_direct_perform)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Return { value } => {
-                    if value
-                        .as_ref()
-                        .is_some_and(contains_matching_direct_perform)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+        let escape_arm_plans = escape_arms
+            .iter()
+            .map(|(arm, continuation_symbol)| {
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, *arm))
+                else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "statement before multiple escape perform",
-                        at: stmt.span.into(),
+                        kind: "handle arm dispatch (multiple escape-continuation arm id)",
+                        at: arm.span.into(),
                     });
-                }
-            }
+                };
+                Ok((*arm, arm_id as ArmPlanId, *continuation_symbol))
+            })
+            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
+        let plan_escape_arms = escape_arm_plans
+            .iter()
+            .map(|(arm, arm_id, _)| (*arm, *arm_id))
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        for (_, arm_id, _) in &escape_arm_plans {
+            capture_ids.extend(state_machine_plan.arm_capture_locals(*arm_id).iter().copied());
         }
 
-        let indirect_sites = self.scan_mixed_escape_indirect_sites(handle)?;
+        let mut seen_escape_arm: HashSet<ArmPlanId> = HashSet::new();
+        let mut scanned_sites: Vec<EscapeSitePlan<'hir>> =
+            Vec::with_capacity(resolved_direct_sites.len());
+        for resolved in resolved_direct_sites {
+            if !seen_escape_arm.insert(resolved.arm_id) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multiple escape-continuation arms (multiple direct perform points for same op not yet supported)",
+                    at: resolved.site.decl.span.into(),
+                });
+            }
+            if !resolved.site.resume_path.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multiple escape-continuation arms (only top-level val-bound direct perform supported)",
+                    at: resolved.site.decl.span.into(),
+                });
+            }
+            let Some((arm, _, continuation_symbol)) = escape_arm_plans
+                .iter()
+                .find(|(_, arm_id, _)| *arm_id == resolved.arm_id)
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (multiple escape-continuation arm id)",
+                    at: resolved.site.decl.span.into(),
+                });
+            };
+            if arm.op.binders.len() != resolved.site.args.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multiple escape-continuation arms binder arity mismatch",
+                    at: arm.op.span.into(),
+                });
+            }
+            let resume_value_ty =
+                self.cg_ty_of(resolved.site.decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multiple escape-continuation arms perform value type",
+                        at: resolved.site.decl.span.into(),
+                    })?;
+            scanned_sites.push(EscapeSitePlan {
+                site: resolved.site,
+                arm,
+                continuation_symbol: *continuation_symbol,
+                resume_value_ty,
+            });
+        }
+
+        let ResolvedPlanMixedEscapeIndirectSites { indirect_sites, .. } =
+            Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
         if let Some(first_indirect) = indirect_sites.first() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle multiple escape-continuation arms (indirect call site not yet supported)",
@@ -224,107 +168,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|(pc, plan)| (plan.site.top_level_stmt_idx, pc))
             .collect();
 
-        let mut outer_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        let mut outer_visible_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
-        let mut visible_outer: Vec<(hir::SymbolId, CgLocal<'ctx>)> = Vec::new();
-        for scope in self.env.scopes.iter().rev() {
-            for (&id, &local) in scope.iter() {
-                if !seen_outer.insert(id) {
-                    continue;
-                }
-                visible_outer.push((id, local));
-            }
-        }
-        for (id, local) in visible_outer {
-            let meta = EscapeCaptureMeta {
-                id,
-                hir_ty: local.hir_ty,
-                ty: local.ty,
-                mutable: local.mutable,
-            };
-            outer_visible_all.insert(id, meta);
-            if self.escape_capture_storage_kind(span, local.ty)?.is_some() {
-                outer_visible_supported.push(meta);
-            }
-        }
-        outer_visible_supported.sort_by_key(|meta| meta.id.as_u32());
-
-        let mut body_decl_all: HashMap<hir::SymbolId, EscapeCaptureMeta> = HashMap::new();
-        let mut body_decl_spans: HashMap<hir::SymbolId, crate::span::Span> = HashMap::new();
-        let mut body_decl_order: HashMap<hir::SymbolId, usize> = HashMap::new();
-        let mut next_decl_order = 0usize;
-        self.collect_mixed_escape_matrix_body_decls(
-            &handle.body.stmts,
-            &mut body_decl_all,
-            &mut body_decl_spans,
-            &mut body_decl_order,
-            &mut next_decl_order,
-        )?;
-
-        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
-        for plan in &scanned_sites {
-            let Some(&site_order) = body_decl_order.get(&plan.site.id) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multiple escape-continuation arms perform binding id",
-                    at: plan.site.decl.span.into(),
-                });
-            };
-            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
-            Self::collect_mixed_escape_used_after_site(
-                &plan.site,
-                &handle.body.stmts,
-                &mut used_after,
-            );
-            for id in used_after {
-                if let Some(meta) = body_decl_all.get(&id) {
-                    let at = body_decl_spans
-                        .get(&id)
-                        .copied()
-                        .unwrap_or(plan.site.decl.span);
-                    if self.escape_capture_storage_kind(at, meta.ty)?.is_none() {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms capture local type",
-                            at: at.into(),
-                        });
-                    }
-                    if let Some(&decl_order) = body_decl_order.get(&id)
-                        && decl_order < site_order
-                    {
-                        body_lift_ids.insert(id);
-                    }
-                    continue;
-                }
-                if let Some(meta) = outer_visible_all.get(&id) {
-                    if self
-                        .escape_capture_storage_kind(plan.site.decl.span, meta.ty)?
-                        .is_none()
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multiple escape-continuation arms capture local type",
-                            at: plan.site.decl.span.into(),
-                        });
-                    }
-                    continue;
-                }
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multiple escape-continuation arms capture local missing",
-                    at: plan.site.decl.span.into(),
-                });
-            }
-        }
-
-        let mut body_visible_supported: Vec<EscapeCaptureMeta> = Vec::new();
-        for &id in &body_lift_ids {
-            let Some(meta) = body_decl_all.get(&id).copied() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multiple escape-continuation arms capture local missing",
-                    at: span.into(),
-                });
-            };
-            body_visible_supported.push(meta);
-        }
-        body_visible_supported.sort_by_key(|meta| meta.id.as_u32());
+        let (outer_visible_supported, body_visible_supported) =
+            self.collect_escape_capture_metas_from_plan(
+                span,
+                handle,
+                &capture_ids,
+                "handle multiple escape-continuation arms capture local type",
+                "handle multiple escape-continuation arms capture local missing",
+            )?;
 
         let insert_block =
             self.builder
