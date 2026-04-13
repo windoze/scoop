@@ -376,4 +376,5 @@ include!("state_machine_simplify.rs");
 include!("single_resuming.rs");
 include!("single_escape.rs");
 include!("multi_resuming.rs");
+include!("multi_resuming_heap.rs");
 include!("nonresuming.rs");

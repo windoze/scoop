@@ -1539,7 +1539,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn unified_multi_resuming_codegen_reports_heap_continuation_only_route_pending() {
+    fn unified_multi_resuming_codegen_emits_heap_continuation_only_sample() {
         let source = r#"
 package a
 
@@ -1566,10 +1566,80 @@ fun main(): Int {
 }
 "#;
 
-        assert_emit_main_asm_fails_with_kind(
-            source,
-            "handle unified multi-resuming leaf (heap-continuation-only route not yet connected)",
-        );
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_multi_resuming_codegen_emits_heap_continuation_only_with_nonresuming_sibling() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+effect Abort {
+    fun stop(code: Int): Nothing
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun main(): Int {
+    val none: Continuation<Int>? = None()
+    val cell: Cell = Cell(none)
+
+    val result: Int = handle {
+        val first: Int = Ask.ask(1)
+        val second: Int = Count.next(first + 1)
+        Abort.stop(second + 10)
+        99
+    } with {
+        Ask.ask(seed: Int), k -> {
+            cell.k = Some(k)
+            7
+        }
+        Count.next(seed: Int), k -> {
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(code: Int) -> code
+    }
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                ()
+            }
+        }
+        None -> ()
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none
+            val _: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                ()
+            }
+        }
+        None -> ()
+    }
+
+    result
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
     }
 
     #[test]

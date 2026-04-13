@@ -1689,7 +1689,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 LLVM 定向单测：一个正向 stack-reentry-only sample，以及两个 pending route 诊断 sample；并新增 representative run-pass fixture `effect_handle_yield_and_step_finally`，覆盖两个 immediate-resume arms + sibling non-resuming + `finally`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d2c2 [TODO] Effect：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线
+### T2003r3d2c2 [DONE] Effect：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线
 - 描述：在 `stack-reentry-only` 基线接回后，再把只包含 escape-continuation arms 的 multi-resuming 组合接回 unified leaf，并重新打通 sibling non-resuming / `finally` 的 representative 路径。
 - 目标：
   - `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 的 unified multi-resuming route 不再停留在 build-only 占位。
@@ -1703,6 +1703,11 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <multi-escape representative fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2c1
+- 完成说明：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming_heap.rs`，承接 unified `heap-continuation-only` multi-resuming leaf；`nonresuming.rs` 的 `MultiResuming` 入口在 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 时现会直接进入该 leaf，不再返回 pending 诊断。
+  - 多个 escape-continuation arms 的 continuation materialization、resume graph、heap state capture，以及 sibling custom non-resuming / `Raise` / `finally` 的 dispatch/cleanup 现都直接消费 unified plan metadata，不再依赖 build-only 占位。
+  - 已新增 LLVM 定向单测：`unified_multi_resuming_codegen_emits_heap_continuation_only_sample`、`unified_multi_resuming_codegen_emits_heap_continuation_only_with_nonresuming_sibling`；并新增 representative run-pass fixture `effect_handle_escape_arms_with_abort_tail`。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_escape_arms_with_abort_tail.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d2c3 [TODO] Effect：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线
 - 描述：在纯 stack-reentry / pure heap-continuation 两条 leaf 都接回后，再把当前 legal 的 `1 immediate + 1 escape` mixed route 从 build-only 状态接回 unified leaf，为后续 arm-count generality 任务保留同一套 emitter contract。

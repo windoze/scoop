@@ -371,7 +371,10 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2c1 已完成：已新增 `multi_resuming.rs` 承接 unified `stack-reentry-only` multi-resuming leaf，并把 generic sibling non-resuming dispatch metadata / block helper 接回当前主线；多个 immediate-resume arms 与 sibling custom non-resuming / `Raise` / `finally` 的 representative 路径不再经过 `MultiResuming` 的 build-only `unimplemented!`。
   - 本轮同时把 `MultiResuming` 入口中剩余未接回的 pure escape-only 与 `1 immediate + 1 escape` mixed route 改成稳定显式诊断，避免继续以 `unimplemented!` 作为过渡行为；并新增 LLVM 定向单测与 representative fixture `effect_handle_yield_and_step_finally` 锁住当前 stack-reentry-only 基线。
   - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_yield_and_step_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3d2c2`：接回 unified `heap-continuation-only` multi-resuming leaf。
+  - T2003r3d2c2 已完成：已新增 `multi_resuming_heap.rs` 承接 unified `heap-continuation-only` multi-resuming leaf；`nonresuming.rs` 的 `MultiResuming` 入口现会在 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 时直接进入该 leaf，不再停留在 pending 诊断。
+  - 本轮同时把多个 escape-continuation arms 的 continuation materialization / resume graph / heap state capture 与 sibling non-resuming / `Raise` / `finally` 收口到统一 leaf，并补上 LLVM 定向单测 `unified_multi_resuming_codegen_emits_heap_continuation_only_sample`、`unified_multi_resuming_codegen_emits_heap_continuation_only_with_nonresuming_sibling`，以及 representative fixture `effect_handle_escape_arms_with_abort_tail`。
+  - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_escape_arms_with_abort_tail.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d2c3`：接回 unified `1 immediate + 1 escape` mixed multi-resuming 基线。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：

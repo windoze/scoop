@@ -338,6 +338,76 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn capture_escape_state_with_pc(
+        &mut self,
+        at: crate::span::Span,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+        next_pc: usize,
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, cap) in outer_visible_supported.iter().enumerate() {
+            let field_idx = outer_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "capture_escape_state_outer_gep",
+            )?;
+            let local = self
+                .env
+                .get(cap.id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "multi-resuming heap capture local not found",
+                    at: at.into(),
+                })?;
+            if local.ty != cap.ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "multi-resuming heap capture local type mismatch",
+                    at: at.into(),
+                });
+            }
+            self.write_escape_capture_local_to_state(at, field_ptr, local.ptr, cap.ty)?;
+        }
+
+        for (idx, cap) in body_visible_supported.iter().enumerate() {
+            let field_idx = body_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "capture_escape_state_body_gep",
+            )?;
+            let Some(local) = self.env.get(cap.id) else {
+                continue;
+            };
+            if local.ty != cap.ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "multi-resuming heap capture local type mismatch",
+                    at: at.into(),
+                });
+            }
+            self.write_escape_capture_local_to_state(at, field_ptr, local.ptr, cap.ty)?;
+        }
+
+        let pc_ptr = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            pc_field_idx,
+            "capture_escape_state_pc_gep",
+        )?;
+        let _ = self.builder.build_store(
+            pc_ptr,
+            self.context.i32_type().const_int(next_pc as u64, false),
+        )?;
+        Ok(())
+    }
+
     #[allow(dead_code)]
     fn collect_escape_capture_metas_from_plan(
         &mut self,
