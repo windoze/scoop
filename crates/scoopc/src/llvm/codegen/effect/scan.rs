@@ -1180,18 +1180,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !matches!(first, MixedEscapeDirectFrame::WhileBody { .. }) {
             return false;
         }
-        let Some((second, rest)) = tail.split_first() else {
-            return true;
-        };
-        match second {
-            MixedEscapeDirectFrame::Block { .. } => rest
-                .iter()
-                .all(|frame| matches!(frame, MixedEscapeDirectFrame::Block { .. })),
-            MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. } => rest
-                .iter()
-                .all(|frame| matches!(frame, MixedEscapeDirectFrame::Block { .. })),
-            MixedEscapeDirectFrame::WhileBody { .. } => false,
+        let mut seen_if_branch = false;
+        for frame in tail {
+            match frame {
+                MixedEscapeDirectFrame::Block { .. } => {}
+                MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. } => {
+                    if seen_if_branch {
+                        return false;
+                    }
+                    seen_if_branch = true;
+                }
+                MixedEscapeDirectFrame::WhileBody { .. } => return false,
+            }
         }
+        true
     }
 
     fn mixed_escape_block_only_path_supported<'hir>(

@@ -1329,7 +1329,7 @@ cargo run -p scoop --features llvm -- test
   - 现有回归 `effect_resume_mixed_escape_pre_immediate_while_indirect_direct.stdout` 已同步到新语义：恢复 earliest indirect continuation 时不再重复 replay 当前 while 前缀。
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5d2 [TODO] Effect：mixed-arm immediate+escape 的 while deeper nested block/if replay
+### T2003u5d2 [DONE] Effect：mixed-arm immediate+escape 的 while deeper nested block/if replay
 - 描述：在 while body 中，如果 escape site 落在 statement-position block 之后再进入更深一层 block/if，当前 immediate+escape matrix 仍会在 prefix/scan/tail 的 block-only 假设上报稳定诊断；这与 no-immediate 路线的 richer nested 递归能力还未对齐。
 - 目标：
   - immediate+escape mixed-arm 支持 while body 中 `while -> block/if -> ...` 的 deeper nested direct / indirect site replay，不再把 `block -> if` 之类路径稳定诊断为 lowering 形状缺口。
@@ -1340,6 +1340,13 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5d1
+- 完成说明：
+  - `scan.rs` 的 mixed-arm while nested-path 判定现已放宽到 `while -> block/if -> ...` richer nested 子集：允许 `Block` / 单层 `IfThen|IfElse` 与后续 block 交错，但仍继续拒绝 inner `while` 与多层 if，把剩余缺口明确收口到 `T2003u5d3`。
+  - `matrix.rs` 的 while mixed prefix / scan / tail helper 已支持沿 source-path 穿过 block 再进入 if 分支，不再依赖 block-only 假设；同时修复了 `while -> block -> if` 间接 site 在 skip 分支上误重放 then-tail 的问题。
+  - 已删除 build-fail `effect_resume_mixed_escape_while_is_error`，新增 richer nested run-pass：
+    - `effect_resume_mixed_escape_pre_immediate_while_nested_block_if`
+    - `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`
+  - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003u5d3 [TODO] Effect：mixed-arm immediate+escape 的 nested-while replay
 - 描述：当前 immediate+escape matrix 在 `while` 内再次进入 inner `while` 时，prefix / continue / tail helper 仍把 `WhileBody` 视为“需要 dedicated lowering”的专用边界；这与 block/if 路径不是同一类问题，需要单独收口 inner-while replay。

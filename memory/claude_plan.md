@@ -1,62 +1,60 @@
-# 本轮执行计划（摘要版）
+# 本轮执行计划
 
-## 约束说明
+## 已知上下文
 
-- 按要求先记录计划，再执行仓库检查与实现工作。
-- 出于安全约束，这里记录的是“可审计的步骤计划、决策依据摘要、进度更新与结果”，不记录原始逐字思维链。
-- 本文件会在关键步骤完成或计划调整时持续更新。
+- 最新提交 `86c33ac` 已检查，提交信息未指出需要先处理的遗留问题。
+- 根据现有进展，本轮目标任务是 `TODO.md` 中首个未完成项 `T2003u5d2`。
+- 该任务的核心代码与回归样例已基本实现，当前剩余工作是全量验证、任务文档更新、提交并停止。
+- 本轮必须只完成一个任务；若验证暴露新的真实缺陷，需要先修复该缺陷并继续围绕 `T2003u5d2` 收尾，不能越过到下一个任务。
 
-## 初始执行步骤
+## 执行步骤
 
-1. 检查最新一次 Git 提交，确认是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`，确认当前计划与该任务的关系。
-4. 如果首个未完成任务过大，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本轮只执行拆分后的第一个子任务。
-5. 实现本轮目标任务，过程中如果发现任何规范不匹配、缺失特性或既有缺陷，先把它们作为前置任务写入 `TODO.md` / `PLAN.md`，然后停止在合适边界。
-6. 运行相关验证：
-   - 目标相关测试
-   - 必要时运行 `cargo test --all`
-   - 必要时运行 `cargo clippy --all-targets -- -D warnings`
-7. 完成后更新 `TODO.md`、`PLAN.md` 和本文件。
-8. 提交 Git commit，只完成一个任务后停止。
+1. 读取 `TODO.md`、`PLAN.md`、`memory/claude_plan.md` 当前状态，并核对工作区改动，确认本轮目标仍是 `T2003u5d2`。
+2. 读取最新提交信息，确认不存在额外要求先修的遗留问题。
+3. 运行剩余验证命令：
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+4. 若验证失败：
+   - 判定是否为 `T2003u5d2` 未完成导致的问题。
+   - 若是，修复实现与测试，并重新执行相关验证直到通过。
+   - 若发现规范不匹配或缺失前置能力，按照要求调整 `TODO.md` / `PLAN.md` 记录依赖与阻塞关系，但当前摘要判断大概率不需要。
+5. 若验证通过：
+   - 更新 `TODO.md`，将 `T2003u5d2` 标记为完成。
+   - 更新 `PLAN.md`，记录本任务完成内容、测试结果与新增回归覆盖。
+   - 更新本文件，记录关键步骤已完成和待提交事项。
+6. 检查工作区差异，确认无临时调试残留。
+7. 使用清晰提交信息提交本轮改动，建议为：`[T2003u5d2] Support immediate+escape while richer nested block-if replay`。
+8. 提交后停止，不继续处理下一项任务。
 
-## 待确认事项
+## 当前判断
 
-- 最新提交是否声明了必须优先修复的问题。
-- 当前首个未完成任务是否可在本轮完整落地。
-- 是否存在阻塞该任务的规范缺口或实现缺陷。
+- 当前实现已通过完整验收，接下来只剩提交并停止。
+- 下一轮首个未完成任务将变为 `T2003u5d3`，不在本轮处理范围内。
 
-## 进度日志
+## 本轮已完成
 
-- 已创建本文件，准备开始仓库检查。
-- 已检查最新提交 `5b139b75e1a86e9c4f7ce482e6e42691f7fde6d8`；提交说明未声明需要优先修复的遗留问题。
-- 已读取 `TODO.md` 与 `PLAN.md`；当前首个未完成任务为 `T2003u5d`：mixed-arm immediate+escape 的 while richer matrix replay。
-- 下一步：
-  1. 检查 `mixed.rs` / `matrix.rs` 中与 `while` mixed replay 相关的现有门禁。
-  2. 定位对应 build-fail fixtures 与已有相邻 run-pass 覆盖，判断 `T2003u5d` 是否仍需继续拆分。
-  3. 若可控，则直接实现并转正相关回归；若仍过大，则先更新 `TODO.md` / `PLAN.md` 做进一步拆分。
-- 已完成复杂度审计：`T2003u5d` 同时耦合了
-  1. immediate+escape 的 while separate-stmt mixed 分类，
-  2. `while -> block/if -> ...` 的 deeper nested replay，
-  3. `while -> while` 的 nested-while dedicated lowering。
-- 已将 `T2003u5d` 拆分为 `T2003u5d1`～`T2003u5d3`，并同步更新 `TODO.md` / `PLAN.md`。
-- 本轮执行目标已切换为首个子任务 `T2003u5d1`：
-  - 收口 immediate+escape mixed-arm 的 while separate-stmt direct/indirect mixed replay。
-  - 转正 `effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`，并补 ordering 回归。
-- 已完成 `T2003u5d1` 实现：
-  - `matrix.rs` 的 immediate+escape site-matrix while 分类现已支持 top-level separate-stmt `direct -> indirect` / `indirect -> direct`。
-  - direct->indirect 的 capture 收集已补齐；reverse-order 的 future-iteration re-entry 已接到 `while_tail_after_mixed_direct_site`。
-  - earliest while indirect re-entry 现仅恢复 lexical scopes，不再错误重放当前 while 前缀。
-- 已新增 / 更新回归：
-  - 新增 run-pass：
-    - `tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_while_direct_indirect_separate_stmt.scoop`
-    - `tests/fixtures/run-pass/effect_resume_mixed_escape_post_immediate_while_indirect_direct_separate_stmt.scoop`
-  - 删除 build-fail：
-    - `tests/fixtures/build/effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error.scoop`
-  - 更新既有 golden：
-    - `tests/fixtures/run-pass/effect_resume_mixed_escape_pre_immediate_while_indirect_direct.stdout`
-- 最终验证结果：
-  - `cargo test --all` 通过。
-  - `cargo run -p scoop -- test` 通过（`fixtures: ok (997)`）。
-  - `cargo run -p scoop --features llvm -- test` 通过（`fixtures: ok (997)`）。
-  - `cargo clippy --workspace --all-targets -- -D warnings` 通过。
+- 已核对 `TODO.md` / `PLAN.md` / 最新提交与工作区状态，确认本轮目标是 `T2003u5d2`。
+- 已完成剩余验证：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 已确认无遗留调试字符串残留。
+- 已更新任务文档：
+  - `TODO.md` 已将 `T2003u5d2` 标记为完成，并记录 richer nested `block/if` direct / indirect 回归。
+  - `PLAN.md` 已补充本轮完成说明，并把“当前下一步”调整为 `T2003u5d3`。
+
+## 待提交摘要
+
+- 代码：放宽 mixed-arm immediate+escape while nested-path 到 `block/if` richer nested 子集；扩展 while mixed prefix / scan / tail helper 沿 source-path 穿过 block 进入 if；修复 indirect skip 分支误重放 then-tail。
+- 回归：删除 build-fail `effect_resume_mixed_escape_while_is_error`；新增 run-pass `effect_resume_mixed_escape_pre_immediate_while_nested_block_if` 与 `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`。
+- 提交信息建议：`[T2003u5d2] Support immediate+escape while richer nested block-if replay`
+
+## 进度记录
+
+- [x] 在执行命令前写入本轮计划。
+- [x] 核对任务与工作区状态。
+- [x] 完成剩余全量验证。
+- [x] 更新 `TODO.md` / `PLAN.md` / `memory/claude_plan.md`。
+- [ ] 提交并停止。
