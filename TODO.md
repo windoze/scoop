@@ -1227,10 +1227,10 @@ cargo run -p scoop --features llvm -- test
 ### T2003u5 Effect：用统一状态机主线替换剩余 mixed-arm / multiple-resuming case-by-case 路径并删除结构性门禁（已拆分）
 - 说明：`T2003u4c3` 完成后，统一 plan 已接管大部分 mixed-arm / multiple-resuming emitter，但剩余门禁并不是同一种实现缺口，而是 4 类彼此独立的问题：
   - pure direct top-level `multiple escape arms + sibling non-resuming + finally`
-  - single-arm immediate-resume 在 while body 中的 deeper nested replay
-  - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed replay
-  - immediate+escape mixed-arm 在 while body 中的 richer nested/separate-stmt matrix replay
-- 以下子任务按顺序承接；`T2003u5a` 已完成，下一步从 `T2003u5b` 开始。
+  - single-arm immediate-resume 在 while body 中的 deeper nested source-path / resume edge coverage
+  - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed 恢复边覆盖
+  - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt 状态机边覆盖
+- 以下子任务按顺序承接；当前 effect 主线的下一步是 `T2003u5d3a`，重点是继续补 unified state-machine 对 nested `while` 的覆盖，而不是给旧 shape-specific lowering 追加新 case。
 
 ### T2003u5a [DONE] Effect：multiple escape-continuation arms + sibling non-resuming + `finally`
 - 描述：当前 unified-plan 驱动的 `codegen_handle_expr_multiple_escape_top_level_direct` 已分别支持“multiple escape arms + sibling non-resuming”和“multiple escape arms + finally”，但两者组合时仍被显式门禁 `handle multiple escape-continuation arms with sibling non-resuming and finally not yet supported` 拦住。
@@ -1348,33 +1348,78 @@ cargo run -p scoop --features llvm -- test
     - `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5d3 [TODO] Effect：mixed-arm immediate+escape 的 nested-while replay
-- 描述：当前 immediate+escape matrix 在 `while` 内再次进入 inner `while` 时，prefix / continue / tail helper 仍把 `WhileBody` 视为“需要 dedicated lowering”的专用边界；这与 block/if 路径不是同一类问题，需要单独收口 inner-while replay。
+### T2003u5d3a [TODO] Effect：统一状态机补齐 immediate+escape 的 nested-while 间接 escape 单站点恢复边
+- 描述：审计 `T2003u5d3` 后确认，当前 inner-while 缺口里最小、最明确、已有 build-fail 锁边界的子问题是“outer while body 内 nested inner-while 的单个 indirect escape site”。这里缺的不是再给旧 replay helper 补一个 case，而是 unified state-machine 对 `WhileBody -> WhileBody` 这条 suspend/resume edge 仍未完整覆盖：outer while 进入 inner while 的路径恢复、当前迭代尾部推进，以及 future iteration re-entry 还没有在同一条 plan-driven 主线里完全打通。
 - 目标：
-  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的 direct / indirect escape site replay，current iteration 与 future iteration re-entry 都复用统一 plan 驱动路径。
-  - 删除 build-fail `effect_resume_mixed_escape_while_indirect_is_error`，并在需要时补足 direct nested-while 对称回归。
-  - 完成后不再保留 inner-while dedicated lowering 作为独立长期分支；若仍需局部 helper，也必须是统一状态机主线内部的实现细节，而不是第二套 case-by-case 主实现。
+  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的单个 indirect escape site。
+  - initial body、continuation step、future iteration re-entry 都走统一状态机主线，不再把 inner `while` 当成 dedicated lowering 边界。
+  - 不为该合法组合新增独立的 shape-specific scanner / emitter 主路径；如需局部 helper，也只能作为 unified emitter 的内部实现细节存在。
+  - 删除 build-fail `effect_resume_mixed_escape_while_indirect_is_error`，转为 run-pass 或等价正向回归。
 - 验收：
-  - `effect_resume_mixed_escape_while_indirect_is_error` 转 run-pass，或以新的 nested-while 统一回归替代。
+  - `effect_resume_mixed_escape_while_indirect_is_error` 转 run-pass，或以等价 nested-while indirect 正例替代。
+  - 不新增新的 `scan.rs` / `mixed.rs` / `matrix.rs` 形状门禁来兜底该合法组合。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5d2
 
-### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
-- 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性，并作为删除剩余旧主线的收尾门槛。
+### T2003u5d3b [TODO] Effect：统一状态机补齐 immediate+escape 的 nested-while direct escape 单站点恢复边
+- 描述：在 indirect nested-while 打通后，再把对称的 direct escape site 接上统一主线。该路径不经过 call-site binding，但同样需要 inner-while 的 current iteration / future iteration re-entry；任务目标是补 unified state-machine 对 direct nested-while suspend/resume edge 的覆盖，而不是继续扩“只支持平坦 while-body direct site”的旧分支。
+- 目标：
+  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的单个 direct escape site。
+  - 与 `T2003u5d3a` 对齐：不再把 inner `while` 当成 dedicated lowering 边界，补足 direct nested-while 的对称 run-pass 回归。
+  - 不通过给旧 direct intercept / replay 路径追加 shape-specific 主逻辑来落地；统一由 state-machine 主线承接。
+- 验收：
+  - 新增 run-pass：覆盖 direct nested-while replay。
+  - 不新增新的 dedicated inner-while lowering 入口。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5d3a
+
+### T2003u5d3c [TODO] Effect：统一状态机补齐 immediate+escape 的 `while -> block/if -> inner while` richer nested 恢复边
+- 描述：最后再把 `T2003u5d2` 已支持的 block/if richer nested 路径与 inner-while 路径合并，收口 `while -> block -> inner while`、`while -> if -> inner while` 等仍把 `WhileBody` 视为专用边界的剩余缺口。目标是让 unified state-machine 在 richer nested CFG 上直接表达并发射这些合法组合，而不是继续维护一套“inner-while 例外处理”。
+- 目标：
+  - immediate+escape mixed-arm 支持 `while -> block/if -> inner while -> ...` 的 direct / indirect escape site 恢复与继续执行。
+  - 完成后不再保留 inner-while dedicated lowering 作为独立长期分支；若仍需局部 helper，也必须是统一状态机主线内部的实现细节，而不是第二套 case-by-case 主实现。
+  - 为 `T2003u6` 的 full-matrix 验证消除最后一类 nested-while 合法组合缺口。
+- 验收：
+  - 新增 run-pass：覆盖 richer nested inner-while 组合，或以更精确的统一回归替代。
+  - 不再以 `WhileBody` 专用形状门禁拒绝这类合法组合。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5d3b
+
+### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归、GC stress 与覆盖性验收
+- 描述：在剩余 nested-while 合法组合补齐后，先用 full matrix 与 GC stress 验证统一状态机主线已经覆盖应支持的语义，不再把“补状态机缺口”和“删旧代码”揉成一个模糊的收尾动作。`T2003u6` 的职责是证明 unified pass 已经足够完整，`T2003u7` 再显式删除 legacy 路径。
 - 目标：
   - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm kind 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
   - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，且 continuation pinning、capture 恢复、cleanup/finally 语义不回归。
   - 统一状态机主线完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法组合”的长期 TODO。
-  - `T2003u` 主线收尾后，不应再保留按 `top-level / block / if / while / same-stmt mixed` 等源码形状拆开的独立 lowering 主实现；旧 scanner / legacy emitter / dedicated matrix 路径若无绝对必要必须删除，而不是继续保留来增加复杂度。
+  - 为 `T2003u7` 删除旧主线提供明确门槛：任何仍被保留的 legacy 代码都必须先证明不再承担合法组合的 source-of-truth 职责。
 - 验收：
   - 新增 run-pass / stress fixtures：覆盖 unified pass full matrix。
-  - `mixed.rs` / `matrix.rs` / `scan.rs` 等旧 shape-specific 路径若仍有残余代码，必须能证明只是统一主线内部复用的局部 helper，而不是并存的第二套 effect lowering 主线。
+  - 所有 remaining legal combinations 都能映射到统一状态机计划与统一 emitter 主线，不再新增 lowering 形状门禁。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u5d3
+- 依赖：T2003u5d3c
+
+### T2003u7 [TODO] Effect：删除 legacy scanner / emitter / dedicated matrix 路径
+- 描述：`T2003u6` 验证统一状态机主线覆盖性之后，显式删除 effect lowering 中剩余的 legacy 主路径。旧 `scan.rs`、shape-specific emitter、以及 dedicated matrix/source-of-truth 路径不应继续以“以防万一”的名义保留。
+- 目标：
+  - 删除或内收旧 `scan.rs` / `mixed.rs` / `matrix.rs` / 相关 legacy emitter 中仍承担主路由职责的 case-by-case 路径。
+  - `codegen_handle_expr`、simplification 与 plan-driven resolver 对合法组合只保留统一状态机这一条 source-of-truth。
+  - 若 `mixed.rs` / `matrix.rs` / `scan.rs` 中仍保留少量代码，必须能证明只是统一主线内部复用的局部 helper，并补注释说明其边界。
+- 验收：
+  - 清理完成后，不再存在“新增一个合法 effect 组合时默认去旧 scanner / 旧 emitter 扩 case”的文档或代码路径。
+  - `mixed.rs` / `matrix.rs` / `scan.rs` 的残余代码若存在，必须不再构成第二套并行 effect lowering 主实现。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u6
 
 ### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。

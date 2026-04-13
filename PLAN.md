@@ -246,10 +246,10 @@ cargo run -p scoop --features llvm -- test
   - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
   - 继续审计 `T2003u5` 后确认，它并不是单一路径上的“把剩余 build-fail 一次转正”，而是 4 类实现难度明显不同的门禁叠在一起：
     - pure direct top-level `multiple escape arms + sibling non-resuming + finally` cleanup 收口；
-    - single-arm immediate-resume 在 while body 中的 deeper nested replay；
-    - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed replay；
-    - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt matrix replay。
-  - 若继续把 `T2003u5` 整包推进，会把 top-level cleanup、single-arm while replay、no-immediate while matrix 与 immediate+escape while matrix 四类不同代码路径再次耦合到同一轮里，风险过高，因此拆成 `T2003u5a`～`T2003u5d`。
+    - single-arm immediate-resume 在 while body 中的 deeper nested source-path / resume edge coverage；
+    - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed 恢复边覆盖；
+    - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt 状态机边覆盖。
+  - 若继续把 `T2003u5` 整包推进，会把 top-level cleanup、single-arm while 恢复边、no-immediate while mixed 恢复边，以及 immediate+escape while 状态机边四类不同代码路径再次耦合到同一轮里，风险过高，因此拆成 `T2003u5a`～`T2003u5d`。
   - T2003u5a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 已移除“multiple escape arms + sibling non-resuming + finally”显式门禁，并把主 body no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径统一接到 `finally` 收口。
   - 本轮同时把原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally`，并新增 raise 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`，锁住 escape arm 向外传播时的 `finally` 语义。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
@@ -273,8 +273,15 @@ cargo run -p scoop --features llvm -- test
   - T2003u5d2 已完成：mixed-arm immediate+escape 的 while site-matrix 现已支持 `while -> block/if -> ...` richer nested replay；`scan.rs` 放宽了 nested-path 形状判定，允许 `Block` / 单层 `IfThen|IfElse` / 后续 block 交错，而 `matrix.rs` 则补齐了沿 source-path 穿过 block 再进入 if 分支的 prefix / scan / tail helper，并修复 `while -> block -> if` 间接 site 在 skip 分支上误重放 then-tail 的 tail replay 问题。
   - 本轮同时删除了 build-fail `effect_resume_mixed_escape_while_is_error`，新增 run-pass `effect_resume_mixed_escape_pre_immediate_while_nested_block_if` 与 `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`，覆盖 direct / indirect richer nested `block -> if` 回归。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u5d3`：由统一状态机主线替换 immediate+escape mixed-arm 的 nested-while replay。
-  - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
+  - 进一步审计 `T2003u5d3` 后确认，它仍不是一个“改一处 helper 即可”的单点问题：当前 inner-while 缺的不是旧 replay helper 再补一个 case，而是统一状态机主线对 nested `while` suspend/resume edge 仍有三类复杂度不同的缺口，分别落在单站点 indirect、单站点 direct，以及 `while -> block/if -> inner while` richer nested。
+  - 若继续把 `T2003u5d3` 整包推进，会把 indirect call-site binding、direct intercept，以及 block/if 递归里的 inner-while bridge 再次耦合到同一轮实现中，风险与回归面都偏大。
+  - 因此把原 `T2003u5d3` 再拆为 `T2003u5d3a` / `T2003u5d3b` / `T2003u5d3c`：
+    - `T2003u5d3a`：先补 unified state-machine 对 outer while body 内 nested inner-while 单个 indirect escape site 的 suspend/resume edge 覆盖，并把已有 build-fail `effect_resume_mixed_escape_while_indirect_is_error` 转正；
+    - `T2003u5d3b`：再补 direct nested-while 的对称单站点恢复边；
+    - `T2003u5d3c`：最后收口 `while -> block/if -> inner while` richer nested CFG。
+  - `T2003u6` 与删除旧代码现也显式拆开：先用 full matrix / GC stress 证明 unified pass 覆盖完整，再由 `T2003u7` 删除 legacy scanner / emitter / dedicated matrix 路径，避免“边补缺口边删旧主线”混成同一轮。
+  - 当前下一步调整为 `T2003u5d3a`：由统一状态机主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 单站点恢复边。
+  - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
@@ -345,8 +352,11 @@ cargo run -p scoop --features llvm -- test
   - T2003u5c2（已完成）：由统一主线接管 no-immediate multiple-escape 的 while `indirect -> direct` 与剩余 ordering matrix。
   - T2003u5d1（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while separate-stmt mixed replay，删除 same-body-stmt 门禁。
   - T2003u5d2（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while deeper nested block/if replay，删除 `while -> block/if -> ...` 路径门禁。
-  - T2003u5d3：由统一主线接管 immediate+escape mixed-arm 的 nested-while replay，删除 inner-while dedicated-lowering 门禁。
-  - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖，并删除剩余 case-by-case 主实现；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
+  - T2003u5d3a：由统一主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 单站点恢复边，删除 `effect_resume_mixed_escape_while_indirect_is_error` 门禁。
+  - T2003u5d3b：由统一主线补齐 immediate+escape mixed-arm 的 nested-while direct escape 单站点恢复边。
+  - T2003u5d3c：由统一主线补齐 immediate+escape mixed-arm 的 `while -> block/if -> inner while` richer nested 恢复边，收口剩余 inner-while dedicated helper 边界。
+  - T2003u6：补 full matrix 回归与 `--gc-stress`，证明合法组合已由统一 pass 覆盖，并清空“合法但尚未实现”的状态机缺口；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
+  - T2003u7：删除剩余 legacy scanner / emitter / dedicated matrix 主路径，只允许保留被统一主线内部复用的局部 helper。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 
 ## 2. 语句语义 / Rust 风格分号规则（T22）
