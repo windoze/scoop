@@ -5,6 +5,8 @@ pub(super) struct HandleSegmentList {
     handle_span: Span,
     result_ty: TypeId,
     entry_segment: HandleSegmentId,
+    frame_slots: Vec<FrameSlot>,
+    lifted_locals: Vec<hir::SymbolId>,
     dispatch_entries: Vec<HandleSegmentDispatchEntry>,
     arm_bodies: Vec<HandleSegmentArmBody>,
     segments: Vec<HandleSegment>,
@@ -37,7 +39,7 @@ struct HandleSegmentArmBody {
     body_entry_segment: HandleSegmentId,
     body_segments: Vec<HandleSegmentId>,
     body_exit: ArmBodyExit,
-    binder_slots: Vec<FrameSlot>,
+    binder_slots: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
     detach_policy: String,
     cleanup_scope_stack: Vec<CleanupScopeId>,
@@ -220,6 +222,13 @@ impl HandleSegmentList {
             handle_span: plan.handle_span,
             result_ty: plan.result_ty,
             entry_segment: plan.entry_state,
+            frame_slots: build_segment_frame_slots(&plan.frame_layout),
+            lifted_locals: plan
+                .frame_layout
+                .lifted_locals
+                .iter()
+                .map(|slot| slot.id)
+                .collect(),
             dispatch_entries,
             arm_bodies,
             segments,
@@ -235,6 +244,12 @@ impl HandleSegmentList {
             ^ self.handle_span.end
             ^ self.result_ty.as_u32() as usize
             ^ self.entry_segment as usize;
+        for slot in &self.frame_slots {
+            acc ^= slot.structural_signature();
+        }
+        for local_id in &self.lifted_locals {
+            acc ^= (local_id.as_u32() as usize) << 6;
+        }
         for dispatch_entry in &self.dispatch_entries {
             acc ^= dispatch_entry.structural_signature();
         }
@@ -266,6 +281,59 @@ impl HandleSegmentList {
     }
 
     fn validate_builder_contract_with_path(&self, path: &str) -> Result<(), String> {
+        let mut frame_slots_by_id = HashMap::<hir::SymbolId, &FrameSlot>::new();
+        let mut previous_slot_id = None::<hir::SymbolId>;
+        for slot in &self.frame_slots {
+            if let Some(prev_id) = previous_slot_id
+                && prev_id.as_u32() >= slot.id.as_u32()
+            {
+                return Err(format!(
+                    "{path}: frame_slots[] is not strictly sorted by symbol id at {}",
+                    slot.display_name()
+                ));
+            }
+            previous_slot_id = Some(slot.id);
+            if frame_slots_by_id.insert(slot.id, slot).is_some() {
+                return Err(format!(
+                    "{path}: duplicate frame slot {}",
+                    slot.display_name()
+                ));
+            }
+        }
+
+        let mut lifted_local_ids = HashSet::<hir::SymbolId>::new();
+        let mut previous_lifted_id = None::<hir::SymbolId>;
+        for local_id in &self.lifted_locals {
+            if let Some(prev_id) = previous_lifted_id
+                && prev_id.as_u32() >= local_id.as_u32()
+            {
+                return Err(format!(
+                    "{path}: lifted_locals[] is not strictly sorted by symbol id at {}",
+                    describe_segment_local(*local_id, &frame_slots_by_id)
+                ));
+            }
+            previous_lifted_id = Some(*local_id);
+            if !lifted_local_ids.insert(*local_id) {
+                return Err(format!(
+                    "{path}: lifted_locals[] repeats {}",
+                    describe_segment_local(*local_id, &frame_slots_by_id)
+                ));
+            }
+            let slot = frame_slots_by_id.get(local_id).ok_or_else(|| {
+                format!(
+                    "{path}: lifted_locals[] references missing slot metadata for {}",
+                    describe_segment_local(*local_id, &frame_slots_by_id)
+                )
+            })?;
+            if let Some(owner_arm) = slot.owner_arm {
+                return Err(format!(
+                    "{path}: lifted_locals[] contains binder {} owned by arm{}",
+                    slot.display_name(),
+                    owner_arm
+                ));
+            }
+        }
+
         let mut segment_by_id = HashMap::<HandleSegmentId, &HandleSegment>::new();
         for segment in &self.segments {
             if segment_by_id.insert(segment.id, segment).is_some() {
@@ -285,6 +353,9 @@ impl HandleSegmentList {
                 return Err(format!("{path}: duplicate arm body arm{}", arm.arm_id));
             }
         }
+
+        let mut binder_slot_ids = HashSet::<hir::SymbolId>::new();
+        let mut expected_lifted_ids = HashSet::<hir::SymbolId>::new();
 
         let mut cleanup_scopes_by_id = HashMap::<CleanupScopeId, &HandleSegmentCleanupScope>::new();
         for scope in &self.cleanup_scopes {
@@ -528,6 +599,68 @@ impl HandleSegmentList {
                     ));
                 }
             }
+
+            let mut arm_binder_ids = HashSet::<hir::SymbolId>::new();
+            for local_id in &arm.binder_slots {
+                if !arm_binder_ids.insert(*local_id) {
+                    return Err(format!(
+                        "{path}: arm{} binder metadata repeats {}",
+                        arm.arm_id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                let slot = frame_slots_by_id.get(local_id).ok_or_else(|| {
+                    format!(
+                        "{path}: arm{} binder metadata references missing slot {}",
+                        arm.arm_id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    )
+                })?;
+                if slot.owner_arm != Some(arm.arm_id) {
+                    let owner = slot.owner_arm.map_or_else(
+                        || "handle-body".to_string(),
+                        |owner_arm| format!("arm{owner_arm}"),
+                    );
+                    return Err(format!(
+                        "{path}: arm{} binder {} is owned by {}",
+                        arm.arm_id,
+                        slot.display_name(),
+                        owner
+                    ));
+                }
+                binder_slot_ids.insert(*local_id);
+            }
+
+            let mut arm_capture_ids = HashSet::<hir::SymbolId>::new();
+            for local_id in &arm.capture_locals {
+                if !arm_capture_ids.insert(*local_id) {
+                    return Err(format!(
+                        "{path}: arm{} capture metadata repeats {}",
+                        arm.arm_id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                if !frame_slots_by_id.contains_key(local_id) {
+                    return Err(format!(
+                        "{path}: arm{} capture metadata references missing slot {}",
+                        arm.arm_id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                expected_lifted_ids.insert(*local_id);
+            }
+        }
+
+        for slot in &self.frame_slots {
+            if let Some(owner_arm) = slot.owner_arm
+                && !binder_slot_ids.contains(&slot.id)
+            {
+                return Err(format!(
+                    "{path}: frame slot {} owned by arm{} is missing from arm binder metadata",
+                    slot.display_name(),
+                    owner_arm
+                ));
+            }
         }
 
         for site in &self.suspend_sites {
@@ -580,6 +713,75 @@ impl HandleSegmentList {
                     ));
                 }
             }
+
+            let mut available_locals = HashSet::<hir::SymbolId>::new();
+            for local_id in &site.available_locals {
+                if !available_locals.insert(*local_id) {
+                    return Err(format!(
+                        "{path}: site{} available local metadata repeats {}",
+                        site.id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                if !frame_slots_by_id.contains_key(local_id) {
+                    return Err(format!(
+                        "{path}: site{} available local metadata references missing slot {}",
+                        site.id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+            }
+            let mut capture_locals = HashSet::<hir::SymbolId>::new();
+            for local_id in &site.capture_locals {
+                if !capture_locals.insert(*local_id) {
+                    return Err(format!(
+                        "{path}: site{} capture metadata repeats {}",
+                        site.id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                if !frame_slots_by_id.contains_key(local_id) {
+                    return Err(format!(
+                        "{path}: site{} capture metadata references missing slot {}",
+                        site.id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                if !available_locals.contains(local_id) {
+                    return Err(format!(
+                        "{path}: site{} capture {} is not listed in available_locals",
+                        site.id,
+                        describe_segment_local(*local_id, &frame_slots_by_id)
+                    ));
+                }
+                expected_lifted_ids.insert(*local_id);
+            }
+        }
+
+        let mut missing_lifted = expected_lifted_ids
+            .iter()
+            .copied()
+            .filter(|local_id| !lifted_local_ids.contains(local_id))
+            .collect::<Vec<_>>();
+        missing_lifted.sort_by_key(|id| id.as_u32());
+        if !missing_lifted.is_empty() {
+            return Err(format!(
+                "{path}: lifted_locals[] is missing [{}]",
+                render_segment_symbol_ids(&missing_lifted, &frame_slots_by_id)
+            ));
+        }
+
+        let mut stale_lifted = lifted_local_ids
+            .iter()
+            .copied()
+            .filter(|local_id| !expected_lifted_ids.contains(local_id))
+            .collect::<Vec<_>>();
+        stale_lifted.sort_by_key(|id| id.as_u32());
+        if !stale_lifted.is_empty() {
+            return Err(format!(
+                "{path}: lifted_locals[] contains stale entries [{}]",
+                render_segment_symbol_ids(&stale_lifted, &frame_slots_by_id)
+            ));
         }
 
         for segment in &self.segments {
@@ -795,6 +997,12 @@ impl HandleSegmentList {
     #[cfg(test)]
     fn write_pretty_dump(&self, types: &TypeStore, indent: usize, out: &mut String) {
         let pad = " ".repeat(indent);
+        let frame_slots_by_id = self
+            .frame_slots
+            .iter()
+            .map(|slot| (slot.id, slot))
+            .collect::<HashMap<_, _>>();
+        let lifted_local_ids = self.lifted_locals.iter().copied().collect::<HashSet<_>>();
         out.push_str(&format!(
             "{pad}handle-segments span={:?} result={} entry=seg{}\n",
             self.handle_span,
@@ -821,6 +1029,25 @@ impl HandleSegmentList {
             }
         }
 
+        out.push_str(&format!("{pad}frame-slots:\n"));
+        if self.frame_slots.is_empty() {
+            out.push_str(&format!("{pad}  []\n"));
+        } else {
+            for slot in &self.frame_slots {
+                let owner = slot.owner_arm.map_or_else(
+                    || "handle-body".to_string(),
+                    |arm_id| format!("arm{arm_id}"),
+                );
+                out.push_str(&format!(
+                    "{pad}  {}:{} owner={} lifted={}\n",
+                    slot.display_name(),
+                    types.display(slot.ty),
+                    owner,
+                    yes_no(lifted_local_ids.contains(&slot.id))
+                ));
+            }
+        }
+
         out.push_str(&format!("{pad}arm-bodies:\n"));
         if self.arm_bodies.is_empty() {
             out.push_str(&format!("{pad}  []\n"));
@@ -838,11 +1065,11 @@ impl HandleSegmentList {
                 ));
                 out.push_str(&format!(
                     "{pad}    binders=[{}]\n",
-                    render_segment_frame_slots(&arm.binder_slots, types)
+                    render_segment_slot_refs(&arm.binder_slots, &frame_slots_by_id, types)
                 ));
                 out.push_str(&format!(
                     "{pad}    captures=[{}]\n",
-                    render_segment_symbol_ids(&arm.capture_locals)
+                    render_segment_symbol_ids(&arm.capture_locals, &frame_slots_by_id)
                 ));
                 out.push_str(&format!(
                     "{pad}    cleanup-stack=[{}]\n",
@@ -878,8 +1105,10 @@ impl HandleSegmentList {
                     .map(|arm_id| format!("arm{arm_id}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let available = render_segment_symbol_ids(&site.available_locals);
-                let captures = render_segment_symbol_ids(&site.capture_locals);
+                let available =
+                    render_segment_symbol_ids(&site.available_locals, &frame_slots_by_id);
+                let captures =
+                    render_segment_symbol_ids(&site.capture_locals, &frame_slots_by_id);
                 out.push_str(&format!(
                     "{pad}  site{} kind={} span={:?} owner=seg{} resume=seg{} arms=[{}]\n",
                     site.id,
@@ -1238,8 +1467,8 @@ impl HandleSegmentArmBody {
         for segment_id in &self.body_segments {
             acc ^= (*segment_id as usize) << 3;
         }
-        for slot in &self.binder_slots {
-            acc ^= slot.structural_signature();
+        for slot_id in &self.binder_slots {
+            acc ^= (slot_id.as_u32() as usize) << 3;
         }
         for local_id in &self.capture_locals {
             acc ^= (local_id.as_u32() as usize) << 4;
@@ -1309,14 +1538,20 @@ impl HandleSegmentCleanupScope {
     }
 }
 
-#[cfg(test)]
-fn render_segment_symbol_ids(ids: &[hir::SymbolId]) -> String {
+fn render_segment_symbol_ids(
+    ids: &[hir::SymbolId],
+    slots_by_id: &HashMap<hir::SymbolId, &FrameSlot>,
+) -> String {
     let mut labels = ids
         .iter()
-        .map(|id| format!("local#{}", id.as_u32()))
+        .map(|id| (id.as_u32(), describe_segment_local(*id, slots_by_id)))
         .collect::<Vec<_>>();
-    labels.sort();
-    labels.join(", ")
+    labels.sort_by_key(|(id, _)| *id);
+    labels
+        .into_iter()
+        .map(|(_, label)| label)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn render_segment_cleanup_scope_ids(ids: &[CleanupScopeId]) -> String {
@@ -1335,11 +1570,36 @@ fn render_segment_ids(ids: &[HandleSegmentId]) -> String {
 }
 
 #[cfg(test)]
-fn render_segment_frame_slots(slots: &[FrameSlot], types: &TypeStore) -> String {
-    slots.iter()
-        .map(|slot| format!("{}:{}", slot.display_name(), types.display(slot.ty)))
+fn render_segment_slot_refs(
+    slot_ids: &[hir::SymbolId],
+    slots_by_id: &HashMap<hir::SymbolId, &FrameSlot>,
+    types: &TypeStore,
+) -> String {
+    slot_ids
+        .iter()
+        .map(|slot_id| {
+            slots_by_id.get(slot_id).map_or_else(
+                || format!("unknown#{}", slot_id.as_u32()),
+                |slot| format!("{}:{}", slot.display_name(), types.display(slot.ty)),
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+fn describe_segment_local(
+    id: hir::SymbolId,
+    slots_by_id: &HashMap<hir::SymbolId, &FrameSlot>,
+) -> String {
+    slots_by_id
+        .get(&id)
+        .map_or_else(|| format!("local#{}", id.as_u32()), |slot| slot.display_name())
+}
+
+fn build_segment_frame_slots(frame_layout: &FrameLayoutPlan) -> Vec<FrameSlot> {
+    let mut frame_slots = frame_layout.slots.values().cloned().collect::<Vec<_>>();
+    frame_slots.sort_by_key(|slot| slot.id.as_u32());
+    frame_slots
 }
 
 fn build_segment_successor_map(
@@ -1505,7 +1765,7 @@ fn build_segment_arm_bodies(
                 body_entry_segment: arm.body_entry_state,
                 body_segments,
                 body_exit: arm.body_exit,
-                binder_slots: arm.binder_slots.clone(),
+                binder_slots: arm.binder_slots.iter().map(|slot| slot.id).collect(),
                 capture_locals: arm.capture_locals.clone(),
                 detach_policy: arm.detach_policy.clone(),
                 cleanup_scope_stack,

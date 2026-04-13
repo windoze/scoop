@@ -302,7 +302,11 @@ cargo run -p scoop --features llvm -- test
   - 继续审计 `T2003r2` 时确认，当前 `HandleSegmentList` 虽然已经锁住了 segment/edge/dispatch/cleanup/suspend 的 builder-facing 引用关系，但仍缺一块关键输入：普通 lifted locals 只有 `SymbolId`，没有像 arm binder 那样保留稳定的 `FrameSlot` 元数据。对于“只在 handle 内被读取、不在 handle 内声明”的 outer-scope captures，segment list 目前甚至拿不到可用于重建 `FrameLayoutPlan.slots` / `lifted_locals` 的 name/type。
   - 这意味着若现在直接切 `T2003r2`，builder 只能回读 HIR 或解析 action string 才能补齐 frame layout；两者都违反“只消费 `HandleSegmentList`”的约束，因此这不是实现细节，而是一个真实的前置 contract 缺口。
   - 因此在 `T2003r2` 前新增 `T2003r1d`：先把 frame-slot / lifted-local metadata 补进 segment contract，并扩展 `validate_builder_contract` 锁住引用闭包；之后再切统一 state-machine builder。
-  - 当前下一步调整为 `T2003r1d`：补齐 segment builder contract 中的 frame-slot / lifted-local 元数据。
+  - T2003r1d 已完成：`HandleSegmentList` 现已显式携带 `frame_slots` / `lifted_locals` 元数据，arm binder / arm capture / suspend-site locals 全都改为引用同一张 slot 表；segment dump 也新增了稳定的 slot metadata 可视化。
+  - 本轮同时修复了一个直接阻塞该 contract 的真实缺口：此前 outer-scope local 若只在 arm body 中读取、未出现在 handle body 中，不会进入 `frame_slots`；现在 arm capture 收集阶段已为这类 arm-only outer capture 补齐 slot metadata，nested handle / arm-only capture 不再悬空。
+  - `validate_builder_contract` 现已扩展到校验 slot 表排序/去重、lifted-local 闭包、arm binder owner 与所有 local 引用解析；新增负测锁住缺失 lifted metadata 与悬空 local 引用的稳定失败。
+  - 本轮验证已通过：`cargo test -p scoopc segment_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings`。
+  - 当前下一步调整为 `T2003r2`：从 `HandleSegmentList` 构建统一 state-machine builder，只消费 segment contract，不再回读 HIR。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -377,7 +381,7 @@ cargo run -p scoop --features llvm -- test
   - T2003r1a（已完成）：定义统一 `HandleSegmentList` / `HandleSegment` / `HandleSegmentEdge`，落地第一版 segment dump，并覆盖 direct/indirect、`if` / `while`、nested handle、`finally` 的代表性样例。
   - T2003r1b（已完成）：为 segment list 补齐 multi-arm dispatch entry/exit、arm body、cleanup scope stack 与 dispatch context。
   - T2003r1c（已完成）：补齐 nested-while / richer mixed representative samples，并用 `validate_builder_contract` 冻结 builder 只消费 segment list 的输入契约。
-  - T2003r1d：为 segment contract 补齐 frame-slot / lifted-local metadata，确保 builder 可仅凭 `HandleSegmentList` 无损重建 frame layout。
+  - T2003r1d（已完成）：为 segment contract 补齐 frame-slot / lifted-local metadata，确保 builder 可仅凭 `HandleSegmentList` 无损重建 frame layout。
   - T2003r2：从 `HandleSegmentList` 构建统一 state-machine builder，不再按源码形状分主构造器。
   - T2003r3：由统一 emitter 接管全部合法 effect lowering，只消费统一状态机与 simplification 结果。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。

@@ -1,73 +1,49 @@
-# 本轮执行计划
+# 执行计划与决策摘要
 
-## 说明
+说明：按要求先写入计划文件。这里记录的是可审计的决策摘要与执行步骤，不包含逐字展开的内部推理。
 
-按要求，我先记录一份可审阅的执行计划与决策摘要。这里包含高层步骤、检查点、潜在分支与更新规则，不包含不可验证的内部长链路思考。
+## 当前目标
 
-## 目标
+本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行该任务前发现最新提交中提到的遗留问题，先修复这些问题，再继续当前任务。完成后更新文档、运行测试并提交一次 git commit，然后停止。
+## 预定步骤
 
-## 执行步骤
+1. 检查最新一次 Git 提交，确认提交说明里是否提到仍待修复的已知问题。
+2. 如最新提交暴露了未修复问题，先定位并修复这些问题，再继续后续步骤。
+3. 阅读 `TODO.md`，找出第一个未完成任务。
+4. 如该任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，将第一个子任务作为本轮执行目标。
+5. 阅读相关代码、规格、测试与文档，确认实现边界与依赖。
+6. 实现该任务，必要时补充或重构测试。
+7. 运行相关验证：
+   - 最小相关测试
+   - 必要时运行更大范围测试
+   - `cargo fmt`
+   - `cargo clippy --all-targets -- -D warnings`
+8. 若发现规格不匹配、前置功能缺失、或不能无变通完成：
+   - 在 `TODO.md` 中新增或重排前置任务
+   - 在 `PLAN.md` 中记录阻塞原因
+   - 保持当前任务未完成状态
+   - 提交变更后停止
+9. 若任务完成：
+   - 更新 `TODO.md`
+   - 更新 `PLAN.md`
+   - 提交 Git
+   - 停止，不继续下一个任务
 
-1. 检查最新一次 git commit 的提交信息与变更内容，确认是否明确提到已知问题、临时修复、后续待办或遗留缺陷。
-2. 如果最新提交存在必须先处理的遗留问题：
-   - 定位相关代码与测试；
-   - 实现修复；
-   - 运行相关测试与必要的质量检查；
-   - 更新本文件、`PLAN.md`、`TODO.md`（如需要）；
-   - 将遗留问题修复与文档更新纳入本轮提交。
-3. 读取 `TODO.md`，识别第一个未完成任务。
-4. 判断该任务是否足够具体、可在本轮完整完成。
-   - 如果可以：直接实施。
-   - 如果过大或依赖缺失：分解为更小子任务，更新 `PLAN.md` 与 `TODO.md`，将新的首个子任务作为本轮目标。
-5. 实施当前目标任务：
-   - 先阅读相关模块与测试；
-   - 再修改实现；
-   - 必要时补充或调整测试；
-   - 避免引入规避性实现、临时 hack 或与规范不一致的行为。
-6. 执行验证：
-   - 先跑与改动直接相关的测试；
-   - 再根据影响范围决定是否执行更完整的测试集；
-   - 按要求执行 `cargo clippy --all-targets -- -D warnings`，若成本可控则执行；
-   - 若发现规范缺口或实现边界不足以正确完成任务，不绕过，转为前置任务并更新 `TODO.md` / `PLAN.md`。
-7. 更新项目文档状态：
-   - 在 `TODO.md` 中标记本轮完成的任务；
-   - 在 `PLAN.md` 中记录当前状态、依赖变动与后续顺序；
-   - 在本文件中追加本轮关键结论、偏差与完成情况。
-8. 检查 git 工作区，只提交本轮相关改动，使用清晰提交信息提交一次，然后停止。
+## 进度记录
 
-## 约束与判定标准
-
-- 不在未解决规范偏差的前提下继续依赖 workaround。
-- 不回退用户已有改动。
-- 如遇阻塞，保持任务为 TODO，并把真正前置依赖放到更靠前的位置。
-- 优先保证测试、lint、实现一致性，其次再考虑额外整理。
-
-## 进度更新规则
-
-- 当我确认最新提交是否存在遗留问题后，更新本文件。
-- 当我确认首个未完成任务并决定是否分解后，更新本文件。
-- 当我完成实现、测试、文档更新、提交前检查时，更新本文件。
-
-## 当前进展
-
-- 已检查最新提交 `718f20c5912acc0ccb2636506e3b8bc3061ca213`：
-  - 提交信息为 `[T2003r1c] Freeze handle segment builder contract`。
-  - 提交信息未显式声明新的遗留 bug / known issue / follow-up。
-  - 额外检索最新 diff 中的 `TODO/FIXME/not yet` 仅发现对已完成任务与流程说明的更新，没有发现“必须先于主线修复的提交自带遗留问题”。
-- 已读取 `TODO.md` / `PLAN.md`：
-  - 当前首个未完成任务为 `T2003r2`：`Effect：从零开始实现统一 state-machine builder，只消费 HandleSegmentList`。
-  - 在继续实现前，还需要审阅 `state_machine_plan.rs`、`state_machine_segments.rs` 及其测试，判断 `T2003r2` 是否应先拆分为更小子任务。
-- 已完成 `T2003r2` 可行性审计，结论如下：
-  - 当前 `HandleSegmentList` 只为 arm binder 保存了完整 `FrameSlot`；普通 lifted locals 仍只有 `SymbolId` 引用。
-  - 因此，若严格要求 builder 只消费 segment list，就无法无损重建 `FrameLayoutPlan.slots` / `lifted_locals`；尤其 outer-scope capture 若只在 handle 内被读取、不在 handle 内声明，现有 segment contract 中拿不到它的稳定 name/type。
-  - 继续硬做 `T2003r2` 将迫使 builder 回读 HIR 或解析 action string，这违反了“只消费 `HandleSegmentList`”的任务约束，因此判定为真实的前置 contract 缺口，而不是可接受的实现细节。
-- 已据此更新 `TODO.md` / `PLAN.md`：
-  - 在 `T2003r2` 前新增 `T2003r1d`：`Effect：segment contract 补齐 frame-slot / lifted-local 元数据`。
-  - 将 `T2003r2` 的依赖改为 `T2003r1d`。
-  - `PLAN.md` 已记录阻塞原因与新的执行顺序，当前下一步调整为 `T2003r1d`。
-- 本轮后续动作：
-  - 不继续实现代码。
-  - 检查工作区。
-  - 提交 `TODO.md` / `PLAN.md` / 本文件的调整，然后停止，等待下一次调用处理新的首个未完成任务 `T2003r1d`。
+- 已完成：创建本计划文件。
+- 已完成：检查最新提交、`TODO.md`、`PLAN.md`，确认本轮第一个未完成任务是 `T2003r1d`。
+- 已确认：最新提交本身没有在提交说明中附带需要先修复的独立 bug；它做的是在 `T2003r2` 前新增前置 prerequisite。
+- 已确认：`T2003r1d` 可以直接实现，不需要继续拆分 `TODO.md` / `PLAN.md`。
+- 已完成实现：
+  1. `HandleSegmentList` 已新增统一 `frame_slots` 表与 `lifted_locals` 元数据；arm binder 改为通过 slot id 引用统一 slot 表，suspend-site locals / arm capture 继续按 symbol id 引用同一张表。
+  2. `validate_builder_contract` 已扩展为校验 slot 表排序/去重、lifted-local 闭包、arm binder owner、一切 local 引用是否都能在 slot 表中解析。
+  3. segment pretty dump 已新增 `frame-slots:` 可视化，并用稳定 slot name/type/owner/lifted 标记展示 metadata。
+  4. 额外修复了一个直接阻塞本任务的真实缺口：此前若 outer-scope local 只在 arm body 中读取、未出现在 handle body 中，plan 不会把它写入 `frame_slots`。现已在 arm capture 收集阶段补齐这部分 slot metadata，避免 nested handle / arm-only capture 在 segment contract 中悬空。
+  5. 已新增测试：slot metadata dump 覆盖 outer capture / local val / arm binder / nested handle；contract 负测覆盖缺失 lifted-local 元数据与悬空 capture 引用。
+- 已完成验证：
+  - `cargo test -p scoopc segment_`
+  - `cargo test -p scoopc plan_dump_`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 下一步：更新 `TODO.md` / `PLAN.md`，将本轮任务标记完成，然后提交。

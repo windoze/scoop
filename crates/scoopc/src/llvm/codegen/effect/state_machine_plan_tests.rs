@@ -11,9 +11,8 @@ mod tests {
     use crate::typecheck;
 
     use super::{
-        HandlePlanContext, HandleStateMachinePlan, ImmediateResumeFrame, MainCodegen,
-        MixedEscapeDirectFrame,
-        ResumeFrame,
+        HandlePlanContext, HandleSegmentList, HandleStateMachinePlan, ImmediateResumeFrame,
+        MainCodegen, MixedEscapeDirectFrame, ResumeFrame,
     };
 
     #[test]
@@ -1438,6 +1437,133 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
         assert!(dump.contains("path=top[2] -> while-body[1]"), "{dump}");
     }
 
+    #[test]
+    fn segment_dump_records_frame_slot_metadata_for_outer_locals_binders_and_nested_handles() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val inner: Int = handle {
+            val asked: Int = Ask.current()
+            asked + local + seed
+        } with {
+            Ask.current() -> resume {
+                resume(base)
+            }
+        }
+        val x: Int = Yield.next(local)
+        x + inner + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("frame-slots:"), "{dump}");
+        assert!(dump.contains("base#"), "{dump}");
+        assert!(dump.contains("local#"), "{dump}");
+        assert!(dump.contains("arg#"), "{dump}");
+        assert!(dump.contains("owner=handle-body"), "{dump}");
+        assert!(dump.contains("owner=arm0"), "{dump}");
+        assert!(dump.contains("lifted=yes"), "{dump}");
+        assert!(dump.contains("nested#0"), "{dump}");
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_missing_lifted_local_metadata() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val x: Int = Yield.next(local)
+        x + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+        let base_id = segment_slot_id_named(&segment_list, "base");
+        segment_list.lifted_locals.retain(|id| *id != base_id);
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("missing lifted-local metadata should fail");
+        assert!(err.contains("lifted_locals[] is missing"), "{err}");
+        assert!(err.contains("base#"), "{err}");
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_dangling_capture_local_ref() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val x: Int = Yield.next(local)
+        x + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+        let base_id = segment_slot_id_named(&segment_list, "base");
+        segment_list.lifted_locals.retain(|id| *id != base_id);
+        segment_list.frame_slots.retain(|slot| slot.id != base_id);
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("dangling capture local reference should fail");
+        assert!(
+            err.contains("arm0 capture metadata references missing slot"),
+            "{err}"
+        );
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -1446,13 +1572,17 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
             .pretty_dump(&lowered.types)
     }
 
-    fn build_segment_dump(source_text: &str) -> String {
+    fn build_segment_list(source_text: &str) -> HandleSegmentList {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
-        let segment_list =
-            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
-                .build_segment_list();
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .build_segment_list()
+    }
+
+    fn build_segment_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let segment_list = build_segment_list(source_text);
         segment_list
             .validate_builder_contract()
             .expect("segment builder contract should hold");
@@ -1476,6 +1606,15 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
             .build_mode_specific_simplification()
             .codegen_entrypoint()
             .label()
+    }
+
+    fn segment_slot_id_named(segment_list: &HandleSegmentList, name: &str) -> hir::SymbolId {
+        segment_list
+            .frame_slots
+            .iter()
+            .find(|slot| slot.name == name)
+            .map(|slot| slot.id)
+            .unwrap_or_else(|| panic!("expected frame slot named {name}"))
     }
 
     fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {

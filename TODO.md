@@ -1404,7 +1404,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 segment dump 回归：`segment_dump_records_nested_while_source_path`、`segment_dump_covers_richer_mixed_while_direct_and_indirect_sites`，覆盖 nested-while 与 while 中 direct/indirect mixed representative samples。
   - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r1d [TODO] Effect：segment contract 补齐 frame-slot / lifted-local 元数据
+### T2003r1d [DONE] Effect：segment contract 补齐 frame-slot / lifted-local 元数据
 - 描述：审计 `T2003r2` 时确认，当前 `HandleSegmentList` 只为 arm binder 保留了完整 `FrameSlot`，而 suspend-site `available_locals` / `capture_locals` 与 arm capture 仍只有 `SymbolId`。这不足以让 builder 仅凭 segment list 无损重建 `FrameLayoutPlan`：尤其 outer-scope capture 若只在 handle 内被读取、不在 handle 内声明，segment list 里拿不到它的稳定 name/type。必须先把这部分 builder-facing 元数据补进 segment contract，再切 builder 主输入。
 - 目标：
   - `HandleSegmentList` 显式携带重建 `FrameLayoutPlan.slots` / `lifted_locals` 所需的稳定 slot 元数据，而不是要求后续 builder 回读 HIR 或解析 action string。
@@ -1418,6 +1418,12 @@ cargo run -p scoop --features llvm -- test
   - `cargo test -p scoopc plan_dump_`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r1c
+- 完成说明：
+  - `HandleSegmentList` 已新增统一 `frame_slots` / `lifted_locals` 元数据；arm binder 改为通过 slot id 引用同一张 slot 表，suspend-site locals 与 arm captures 也统一引用这份 metadata。
+  - `validate_builder_contract` 现会校验 slot 表排序/去重、lifted-local 闭包、arm binder owner 以及所有 local 引用是否都能在 slot 表中解析；对缺失 lifted metadata 与悬空 local 引用都有稳定失败。
+  - segment dump 已新增 `frame-slots:` 可视化，能直接看见 slot name/type/owner/lifted；新增回归覆盖 outer-scope capture、局部 `val`、arm binder 与 nested handle representative sample。
+  - 同时修复了一个阻塞本任务的真实缺口：outer-scope local 若只在 arm body 中读取、未出现在 handle body 中，plan 现在也会为其补齐 `FrameSlot` metadata，不再让 nested handle / arm-only capture 在 segment contract 中悬空。
+  - 已验证：`cargo test -p scoopc segment_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
 - 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。

@@ -1423,11 +1423,22 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             collect_declared_local_ids_in_expr(&arm.body, &mut declared);
 
-            let mut used = HashSet::new();
-            MainCodegen::collect_used_locals_in_expr_static(&arm.body, &mut used);
+            let mut used = HashMap::new();
+            collect_local_refs_in_expr(&arm.body, &mut used);
             let mut capture_locals = used
                 .into_iter()
-                .filter(|id| !declared.contains(id))
+                .filter_map(|(id, (name, ty))| {
+                    if declared.contains(&id) {
+                        return None;
+                    }
+                    self.frame_slots.entry(id).or_insert_with(|| FrameSlot {
+                        id,
+                        name,
+                        ty,
+                        owner_arm: None,
+                    });
+                    Some(id)
+                })
                 .collect::<Vec<_>>();
             capture_locals.sort_by_key(|id| id.as_u32());
 
