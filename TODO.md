@@ -1572,6 +1572,10 @@ cargo run -p scoop --features llvm -- test
     2. `T2003r0` 删除 legacy 文件后，resuming 主线仍保留多处 build-only `todo!` / `unimplemented!` 占位：包括 `state_machine_plan.rs` 的 read tracking、`shared.rs` 的 escape capture metadata，以及 `nonresuming.rs` / `multi_escape.rs` / `codegen/mod.rs` 里仍未接回 unified leaf 的 resuming 路径；
     3. simplification 仍把“一个 immediate-resume arm + 多个 escape-continuation arms”与“多个 immediate-resume arms + 一个 escape-continuation arm”归为 `Unsupported*`，说明 multi-resuming 的 arm-mix generality 还没有真正落到 unified emitter。
   - 若继续整包推进，会把主入口收口、plan/emitter contract 补齐、以及 arm-mix generalization 耦合到同一轮里，风险过高，因此拆成以下四个子任务并按依赖顺序推进。
+  - 过渡期测试约束（适用于 `T2003r3d2`～`T2003r3d4`）：
+    - 当前切换期间全量测试预期不稳定且可能失败，不能作为日常开发 gate；开始任务前不跑 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`，也不做“先全量跑一遍看现状”的预检。
+    - 每个任务完成后只允许运行与该任务直接相关的最小测试集：对应的 plan / LLVM 定向单测、当前新增或迁移的 representative fixture，以及必要时的 `cargo clippy --workspace --all-targets -- -D warnings`。
+    - full suite / full matrix / GC stress 统一推迟到 `T2003r4`；在 `T2003r4` 之前，不把任何全量测试通过当作子任务验收条件。
 
 ### T2003r3d1 [DONE] Effect：统一 multi-resuming 主入口并接管当前已支持 legal shapes
 - 描述：先把 root `codegen_handle_expr` 对 multi-site / mixed-resuming 的主选路收口到新的 unified 入口；当前已经有 run-pass 覆盖的 legal 子集继续复用既有 leaf helper，但 root 不再直接把这些组合分发到 `codegen_handle_expr_multi_arm(...)`。
@@ -1602,10 +1606,12 @@ cargo run -p scoop --features llvm -- test
   - direct / indirect / `if` / `while` / nested handle 只作为 representative coverage 维度，不得再次把某个源码 shape 变成专用 emitter / helper 分流条件。
   - 现有 multi-resuming 的 no-perform early gate 若仍需暂时保留，必须以 unified plan 无法表达的明确 contract 缺口说明；一旦 leaf 能自行判定 zero-match / hidden-unwind 边界，应在本任务内删掉该过渡 gate。
 - 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
   - 与 resuming legal 路径直接相关的 build-only `todo!` / `unimplemented!` 已清空；仓库中不再以“legacy 文件已删”为理由保留 resuming 主线占位。
   - 新增或更新 plan / LLVM 定向单测：覆盖当前 legal resuming entrypoint 的 representative direct / indirect / `if` / `while` / nested handle samples。
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d1
 
 ### T2003r3d3 [TODO] Effect：统一 emitter 接管当前 legal 的 mixed immediate+escape / multi-escape，不再按 shape 追 case
@@ -1615,11 +1621,13 @@ cargo run -p scoop --features llvm -- test
   - 当前仍以 build-fail 代表的 legal mixed sample（例如旧的 `effect_resume_mixed_escape_while_indirect_is_error.scoop` 所覆盖的问题域）转为 run-pass 或等价正向回归，但它只是统一 mixed matrix 的一个 representative sample，而不是单独的算法分支。
   - `multi_escape.rs` 现有 build-only placeholder 被真实 unified leaf 替换；heap continuation materialization、dispatch、resume replay 与 sibling non-resuming / `finally` 组合都直接消费 unified plan metadata。
 - 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
   - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖 legal mixed immediate+escape / multi-escape 的 direct、indirect、branch、loop、nested-handle 组合。
   - 不新增任何按 `top-level` / `block` / `if` / `while` / `same-stmt` 命名的专用 emitter 主路径或 helper 文件。
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run <新增或迁移后的 fixture>`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run <新增或迁移后的 fixture>`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2
 
 ### T2003r3d4 [TODO] Effect：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`
@@ -1629,20 +1637,23 @@ cargo run -p scoop --features llvm -- test
   - unified emitter 对多 resuming-arm mix 的 dispatch、capture、resume replay、cleanup / `finally` / sibling non-resuming 组合采用同一套 plan-driven contract，而不是为不同 arm-count 组合各自增设 dedicated main route。
   - 到本任务结束时，`T2003r3d` 范围内已知的 legal multi-site / mixed-resuming 组合全部有稳定 lowering，不再存在“只能 `cargo build`、命中即 `todo!` / `unimplemented!`”的过渡状态。
 - 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
   - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖 “1 immediate + N escape” 与 “N immediate + 1 escape” 的 legal multi-resuming 组合，并至少包含 sibling non-resuming 或 `finally` 的 representative sample。
   - effect lowering 对 legal multi-resuming plan 不再返回 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`。
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run <新增 fixture>`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d3
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
-- 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，legal effect path 不再依赖任何 build-only `todo!` / `unimplemented!`，且 emitter 已覆盖全部 state machine outputs，才进入这一任务；在此之前，不跑端到端 fixture / full suite。
+- 描述：`T2003r4` 是新的强制全量验收门槛，也是 `T2003r3d2`～`T2003r3d4` 之后第一个允许重新启用 full suite / full matrix / GC stress 的任务。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，legal effect path 不再依赖任何 build-only `todo!` / `unimplemented!`，且 emitter 已覆盖全部 state machine outputs，才进入这一任务；在此之前，全量测试都视为过渡期不稳定信号，不跑端到端 fixture / full suite。
 - 目标：
   - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
   - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，continuation pinning、capture 恢复、cleanup/finally 语义不回归。
   - 到本任务结束时，不再存在“合法但尚未实现”的 lowering 缺口，不再存在任何以源码 shape 为入口条件的专用主路径，也不再存在任何为已删除 legacy emitter / scanner 保留的 build-only placeholder。
 - 验收：
+  - 进入本任务前，`T2003r3d2`～`T2003r3d4` 已完成且其验收均只依赖最小定向测试集；本任务是恢复全量测试 gate 的唯一阶段。
   - 新增 run-pass / stress fixtures：覆盖 ground-up unified pipeline full matrix。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
