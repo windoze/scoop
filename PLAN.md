@@ -310,7 +310,17 @@ cargo run -p scoop --features llvm -- test
   - `MainCodegen::build_handle_state_machine_plan` 现已切到 `source plan -> HandleSegmentList -> rebuilt plan` 主线，并在 debug 构建中校验 segment round-trip 与 mode-specific simplification parity，确保后续 emitter 实际消费的是 segment contract 重建结果。
   - 已新增 round-trip 回归：覆盖 direct/branch/while/finally、indirect + state-machine callee、nested handle + multi-arm representative samples，证明 rebuilt plan 的 pretty dump、simplification dump 与 codegen entrypoint 与旧 builder 保持一致。
   - 本轮验证已通过：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings`。
-  - 当前下一步调整为 `T2003r3`：由统一 emitter 接管全部合法 effect lowering，只消费统一状态机与 simplification 结果。
+  - 继续审计 `T2003r3` 后确认，统一 emitter 还缺一个真实的前置 contract：`HandleStateMachinePlan.states[*].actions` 与 `HandleSegment.ops` 目前仍是自由字符串，`StateTerminator::Branch` 里的条件注释也还是 display-only 文本。若直接进入 emitter 阶段，新的主线只能靠解析字符串或重新按源码形状回扫 HIR，违反“只消费统一状态机与 simplification”的约束。
+  - 这不是实现偏好，而是 builder/emitter 之间缺少可执行的结构化元数据：当前 plan/segment 合同只能做 pretty dump 和 round-trip parity，尚不足以作为 unified emitter 的稳定输入。
+  - 因此把原 `T2003r3` 拆为 `T2003r3a`～`T2003r3d`：
+    - `T2003r3a`：先把 state/segment 动作与分支条件从字符串 label 升级为 typed/source-linked emit contract，并锁住 round-trip / builder contract；
+    - `T2003r3b`：再让 unified emitter 接管 `NoSuspendSites` / `SingleNonResuming` / `MultiNonResuming`；
+    - `T2003r3c`：再接 single immediate-resume / single escape-continuation；
+    - `T2003r3d`：最后接 multiple immediate / multiple escape / mixed-resuming，并收口 `codegen_handle_expr` 主入口。
+  - T2003r3a 已完成：`HandleStateMachinePlan.states[*].actions` 与 `HandleSegment.ops` 现已改为结构化 `HandleStateOp`，`StateTerminator::Branch` / `HandleSegmentTerminator::Branch` 也已改为结构化 `HandleBranchCondition`；pretty dump 只负责从 contract 派生展示文本，不再让自由字符串充当执行语义。
+  - 本轮同时把 segment projection / round-trip 一并切到新 contract，并新增单测 `segment_round_trip_preserves_typed_emit_ops_and_branch_metadata`，显式锁住 direct/branch/while/finally representative sample 的 typed op 与 branch metadata。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3b`：在结构化 emit contract 稳定后，由 unified emitter 先接管 `NoSuspendSites` / `SingleNonResuming` / `MultiNonResuming`。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -387,7 +397,10 @@ cargo run -p scoop --features llvm -- test
   - T2003r1c（已完成）：补齐 nested-while / richer mixed representative samples，并用 `validate_builder_contract` 冻结 builder 只消费 segment list 的输入契约。
   - T2003r1d（已完成）：为 segment contract 补齐 frame-slot / lifted-local metadata，确保 builder 可仅凭 `HandleSegmentList` 无损重建 frame layout。
   - T2003r2（已完成）：从 `HandleSegmentList` 构建统一 state-machine builder，不再按源码形状分主构造器。
-  - T2003r3：由统一 emitter 接管全部合法 effect lowering，只消费统一状态机与 simplification 结果。
+  - T2003r3a（已完成）：为 unified emitter 补齐 typed/source-linked emit contract，冻结可执行的 plan/segment 元数据。
+  - T2003r3b：由 unified emitter 接管 `NoSuspendSites` / `SingleNonResuming` / `MultiNonResuming`。
+  - T2003r3c：由 unified emitter 接管 single immediate-resume / single escape-continuation。
+  - T2003r3d：由 unified emitter 接管 multiple immediate / multiple escape / mixed-resuming，并完成 effect lowering 主入口切换。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。
   - T2003r5：在 `T2003r4` 通过后删除剩余 legacy scanner / emitter / dedicated matrix 主路径，不保留 fallback / 双轨。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。

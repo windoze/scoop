@@ -221,7 +221,10 @@ impl HandleStateMachinePlan {
         for state in &self.states {
             out.push_str(&format!("{pad}  s{} {}:\n", state.id, state.label));
             for action in &state.actions {
-                out.push_str(&format!("{pad}    {action}\n"));
+                out.push_str(&format!(
+                    "{pad}    {}\n",
+                    action.label(&self.frame_layout.slots, types)
+                ));
             }
             out.push_str(&format!(
                 "{pad}    terminator={}\n",
@@ -245,16 +248,76 @@ impl HandleStateMachinePlan {
 struct PlanState {
     id: PlanStateId,
     label: String,
-    actions: Vec<String>,
+    actions: Vec<HandleStateOp>,
     terminator: StateTerminator,
     reads: Vec<hir::SymbolId>,
+}
+
+#[derive(Debug, Clone)]
+enum HandleStateOp {
+    StmtEmpty,
+    BindLocal { id: hir::SymbolId },
+    DeclareAnonymousVal,
+    Assign,
+    Break,
+    Continue,
+    Return,
+    TodoStmt { kind: String },
+    WhileCondHeader { span: Span },
+    LoopReentry { cond_state: PlanStateId },
+    ExprMissing,
+    Literal,
+    ReadLocal { id: hir::SymbolId },
+    CleanupEdgeComplete,
+    ReturnToEnclosingExpression,
+    ObjectInitAccessBoundary { site_id: SuspendSiteId },
+    ResumeAfterSite {
+        site_id: SuspendSiteId,
+        reason: ResumeAfterSiteReason,
+    },
+    VarRef,
+    StructLit,
+    TupleLit,
+    InterpolatedString,
+    Expr,
+    RuntimeRaiseBoundary { site_id: SuspendSiteId },
+    BinaryExpr,
+    ImplicitElseUnit,
+    WhenExpr,
+    SuspendCall { site_id: SuspendSiteId },
+    Call,
+    Perform { op_fqn: String },
+    NestedHandleBoundary { site_id: SuspendSiteId },
+    NestedHandle { nested_id: usize },
+    Closure,
+    TodoExpr { kind: String },
+    ExecuteArmBody {
+        arm_id: ArmPlanId,
+        op_fqn: String,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResumeAfterSiteReason {
+    ObjectInitAccess,
+    RuntimeRaiseBoundary,
+    Call,
+    Perform,
+    NestedHandleBoundary,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum HandleBranchCondition {
+    WhileCond { span: Span },
+    IfCond { span: Span },
 }
 
 #[derive(Debug, Clone)]
 enum StateTerminator {
     Goto(PlanStateId),
     Branch {
-        condition: String,
+        condition: HandleBranchCondition,
         then_state: PlanStateId,
         else_state: PlanStateId,
         merge_state: PlanStateId,
@@ -282,7 +345,8 @@ impl StateTerminator {
                 else_state,
                 merge_state,
             } => format!(
-                "branch cond={condition} then=s{then_state} else=s{else_state} merge=s{merge_state}"
+                "branch cond={} then=s{then_state} else=s{else_state} merge=s{merge_state}",
+                condition.label()
             ),
             StateTerminator::Suspend { site_id } => format!("suspend site{site_id}"),
             StateTerminator::CleanupEnter { scope_id, next_state } => {
@@ -303,7 +367,7 @@ impl StateTerminator {
                 else_state,
                 merge_state,
             } => {
-                condition.len()
+                condition.structural_signature()
                     ^ (*then_state as usize)
                     ^ ((*else_state as usize) << 1)
                     ^ ((*merge_state as usize) << 2)
@@ -315,6 +379,163 @@ impl StateTerminator {
             StateTerminator::ReturnHandle => 0x3000,
             StateTerminator::ReturnFromFunction => 0x4000,
             StateTerminator::ArmExit(exit) => 0x5000 ^ exit.structural_signature(),
+        }
+    }
+}
+
+impl HandleStateOp {
+    #[cfg(test)]
+    fn label(&self, slots: &HashMap<hir::SymbolId, FrameSlot>, types: &TypeStore) -> String {
+        match self {
+            HandleStateOp::StmtEmpty => "stmt empty".to_string(),
+            HandleStateOp::BindLocal { id } => {
+                let Some(slot) = slots.get(id) else {
+                    return format!("bind local unknown#{}:<?>", id.as_u32());
+                };
+                format!(
+                    "bind local {}:{}",
+                    slot.display_name(),
+                    types.display(slot.ty)
+                )
+            }
+            HandleStateOp::DeclareAnonymousVal => "declare anonymous val".to_string(),
+            HandleStateOp::Assign => "assign".to_string(),
+            HandleStateOp::Break => "break".to_string(),
+            HandleStateOp::Continue => "continue".to_string(),
+            HandleStateOp::Return => "return".to_string(),
+            HandleStateOp::TodoStmt { kind } => format!("todo stmt {kind}"),
+            HandleStateOp::WhileCondHeader { span } => {
+                format!("while cond span={span:?}")
+            }
+            HandleStateOp::LoopReentry { cond_state } => {
+                format!("loop re-entry -> s{cond_state}")
+            }
+            HandleStateOp::ExprMissing => "expr missing".to_string(),
+            HandleStateOp::Literal => "literal".to_string(),
+            HandleStateOp::ReadLocal { id } => {
+                let label = slots
+                    .get(id)
+                    .map(FrameSlot::display_name)
+                    .unwrap_or_else(|| format!("unknown#{}", id.as_u32()));
+                format!("read local {label}")
+            }
+            HandleStateOp::CleanupEdgeComplete => "cleanup edge completes here".to_string(),
+            HandleStateOp::ReturnToEnclosingExpression => {
+                "handle result returns to enclosing expression".to_string()
+            }
+            HandleStateOp::ObjectInitAccessBoundary { site_id } => {
+                format!("object init access site{site_id}")
+            }
+            HandleStateOp::ResumeAfterSite { site_id, reason } => {
+                format!("resume target for site{site_id} {}", reason.label())
+            }
+            HandleStateOp::VarRef => "var-ref".to_string(),
+            HandleStateOp::StructLit => "struct-lit".to_string(),
+            HandleStateOp::TupleLit => "tuple-lit".to_string(),
+            HandleStateOp::InterpolatedString => "interpolated-string".to_string(),
+            HandleStateOp::Expr => "expr".to_string(),
+            HandleStateOp::RuntimeRaiseBoundary { site_id } => {
+                format!("runtime raise site{site_id}")
+            }
+            HandleStateOp::BinaryExpr => "binary-expr".to_string(),
+            HandleStateOp::ImplicitElseUnit => "implicit else unit".to_string(),
+            HandleStateOp::WhenExpr => "when-expr".to_string(),
+            HandleStateOp::SuspendCall { site_id } => format!("suspend call site{site_id}"),
+            HandleStateOp::Call => "call".to_string(),
+            HandleStateOp::Perform { op_fqn } => format!("perform {op_fqn}"),
+            HandleStateOp::NestedHandleBoundary { site_id } => {
+                format!("nested handle boundary site{site_id}")
+            }
+            HandleStateOp::NestedHandle { nested_id } => {
+                format!("nested handle nested#{nested_id}")
+            }
+            HandleStateOp::Closure => "closure".to_string(),
+            HandleStateOp::TodoExpr { kind } => format!("todo expr {kind}"),
+            HandleStateOp::ExecuteArmBody { op_fqn, span, .. } => {
+                format!("execute arm body op={op_fqn} span={span:?}")
+            }
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            HandleStateOp::StmtEmpty => 1,
+            HandleStateOp::BindLocal { id } => 2 ^ (id.as_u32() as usize),
+            HandleStateOp::DeclareAnonymousVal => 3,
+            HandleStateOp::Assign => 4,
+            HandleStateOp::Break => 5,
+            HandleStateOp::Continue => 6,
+            HandleStateOp::Return => 7,
+            HandleStateOp::TodoStmt { kind } => 8 ^ kind.len(),
+            HandleStateOp::WhileCondHeader { span } => 9 ^ span.start ^ (span.end << 1),
+            HandleStateOp::LoopReentry { cond_state } => 10 ^ (*cond_state as usize),
+            HandleStateOp::ExprMissing => 11,
+            HandleStateOp::Literal => 12,
+            HandleStateOp::ReadLocal { id } => 13 ^ (id.as_u32() as usize),
+            HandleStateOp::CleanupEdgeComplete => 14,
+            HandleStateOp::ReturnToEnclosingExpression => 15,
+            HandleStateOp::ObjectInitAccessBoundary { site_id } => 16 ^ (*site_id as usize),
+            HandleStateOp::ResumeAfterSite { site_id, reason } => {
+                17 ^ (*site_id as usize) ^ (reason.structural_signature() << 1)
+            }
+            HandleStateOp::VarRef => 18,
+            HandleStateOp::StructLit => 19,
+            HandleStateOp::TupleLit => 20,
+            HandleStateOp::InterpolatedString => 21,
+            HandleStateOp::Expr => 22,
+            HandleStateOp::RuntimeRaiseBoundary { site_id } => 23 ^ (*site_id as usize),
+            HandleStateOp::BinaryExpr => 24,
+            HandleStateOp::ImplicitElseUnit => 25,
+            HandleStateOp::WhenExpr => 26,
+            HandleStateOp::SuspendCall { site_id } => 27 ^ (*site_id as usize),
+            HandleStateOp::Call => 28,
+            HandleStateOp::Perform { op_fqn } => 29 ^ op_fqn.len(),
+            HandleStateOp::NestedHandleBoundary { site_id } => 30 ^ (*site_id as usize),
+            HandleStateOp::NestedHandle { nested_id } => 31 ^ *nested_id,
+            HandleStateOp::Closure => 32,
+            HandleStateOp::TodoExpr { kind } => 33 ^ kind.len(),
+            HandleStateOp::ExecuteArmBody { arm_id, op_fqn, span } => {
+                34 ^ (*arm_id as usize) ^ op_fqn.len() ^ span.start ^ (span.end << 1)
+            }
+        }
+    }
+}
+
+impl ResumeAfterSiteReason {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            ResumeAfterSiteReason::ObjectInitAccess => "after object init access",
+            ResumeAfterSiteReason::RuntimeRaiseBoundary => "after runtime raise boundary",
+            ResumeAfterSiteReason::Call => "after call",
+            ResumeAfterSiteReason::Perform => "after perform",
+            ResumeAfterSiteReason::NestedHandleBoundary => "after nested handle boundary",
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            ResumeAfterSiteReason::ObjectInitAccess => 1,
+            ResumeAfterSiteReason::RuntimeRaiseBoundary => 2,
+            ResumeAfterSiteReason::Call => 3,
+            ResumeAfterSiteReason::Perform => 4,
+            ResumeAfterSiteReason::NestedHandleBoundary => 5,
+        }
+    }
+}
+
+impl HandleBranchCondition {
+    fn label(self) -> String {
+        match self {
+            HandleBranchCondition::WhileCond { span } => format!("while-cond@{span:?}"),
+            HandleBranchCondition::IfCond { span } => format!("if-cond@{span:?}"),
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            HandleBranchCondition::WhileCond { span } => 1 ^ span.start ^ (span.end << 1),
+            HandleBranchCondition::IfCond { span } => 2 ^ span.start ^ (span.end << 1),
         }
     }
 }
@@ -641,7 +862,7 @@ impl PlanState {
     fn structural_signature(&self) -> usize {
         let mut acc = self.id as usize ^ self.label.len();
         for action in &self.actions {
-            acc ^= action.len();
+            acc ^= action.structural_signature();
         }
         for id in &self.reads {
             acc ^= id.as_u32() as usize;
@@ -836,7 +1057,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             let cleanup_end = self.build_block(finally_block, cleanup_entry, &mut cleanup_env);
             self.state_mut(cleanup_end)
                 .actions
-                .push("cleanup edge completes here".to_string());
+                .push(HandleStateOp::CleanupEdgeComplete);
             self.set_terminator(cleanup_end, StateTerminator::Goto(cleanup_exit));
             self.set_terminator(cleanup_exit, StateTerminator::Goto(exit_state));
             cleanup_exit
@@ -847,7 +1068,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         self.state_mut(exit_state)
             .actions
-            .push("handle result returns to enclosing expression".to_string());
+            .push(HandleStateOp::ReturnToEnclosingExpression);
         self.set_terminator(exit_state, StateTerminator::ReturnHandle);
 
         let dispatch_plan = self.build_dispatch_plan();
@@ -895,7 +1116,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     ) -> PlanStateId {
         match &stmt.kind {
             hir::StmtKind::Empty => {
-                self.push_action(current_state, "stmt empty");
+                self.push_action(current_state, HandleStateOp::StmtEmpty);
                 current_state
             }
             hir::StmtKind::Expr(expr) => self.build_expr(expr, current_state, env),
@@ -916,16 +1137,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     };
                     self.frame_slots.entry(id).or_insert_with(|| slot.clone());
                     env.push(slot.clone());
-                    self.push_action(
-                        state,
-                        format!(
-                            "bind local {}:{}",
-                            slot.display_name(),
-                            self.types.display(slot.ty)
-                        ),
-                    );
+                    self.push_action(state, HandleStateOp::BindLocal { id });
                 } else {
-                    self.push_action(state, "declare anonymous val");
+                    self.push_action(state, HandleStateOp::DeclareAnonymousVal);
                 }
                 state
             }
@@ -933,34 +1147,39 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let mut state = self.build_expr(lhs, current_state, env);
                 state = self.build_expr(rhs, state, env);
                 self.record_stmt_reads(state, stmt);
-                self.push_action(state, "assign");
+                self.push_action(state, HandleStateOp::Assign);
                 state
             }
             hir::StmtKind::While { cond, body } => self.build_while(stmt.span, cond, body, current_state, env),
             hir::StmtKind::Break { .. } => {
-                self.push_action(current_state, "break");
+                self.push_action(current_state, HandleStateOp::Break);
                 self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
                 self.new_state("unreachable.after.break")
             }
             hir::StmtKind::Continue { .. } => {
-                self.push_action(current_state, "continue");
+                self.push_action(current_state, HandleStateOp::Continue);
                 self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
                 self.new_state("unreachable.after.continue")
             }
             hir::StmtKind::Return { value } => {
                 if let Some(expr) = value {
                     let state = self.build_expr(expr, current_state, env);
-                    self.push_action(state, "return");
+                    self.push_action(state, HandleStateOp::Return);
                     self.set_terminator(state, StateTerminator::ReturnFromFunction);
                     self.new_state("unreachable.after.return")
                 } else {
-                    self.push_action(current_state, "return");
+                    self.push_action(current_state, HandleStateOp::Return);
                     self.set_terminator(current_state, StateTerminator::ReturnFromFunction);
                     self.new_state("unreachable.after.return")
                 }
             }
             hir::StmtKind::Todo(kind) => {
-                self.push_action(current_state, format!("todo stmt {kind}"));
+                self.push_action(
+                    current_state,
+                    HandleStateOp::TodoStmt {
+                        kind: kind.to_string(),
+                    },
+                );
                 current_state
             }
         }
@@ -975,7 +1194,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         env: &mut ScopeEnv,
     ) -> PlanStateId {
         let cond_state = self.new_state("while.cond");
-        self.push_action(cond_state, format!("while cond span={span:?}"));
+        self.push_action(cond_state, HandleStateOp::WhileCondHeader { span });
         self.set_terminator(current_state, StateTerminator::Goto(cond_state));
 
         let cond_eval_state = self.build_expr(cond, cond_state, env);
@@ -984,7 +1203,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.set_terminator(
             cond_eval_state,
             StateTerminator::Branch {
-                condition: format!("while-cond@{:?}", cond.span),
+                condition: HandleBranchCondition::WhileCond { span: cond.span },
                 then_state: body_state,
                 else_state: exit_state,
                 merge_state: exit_state,
@@ -993,7 +1212,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         let mut body_env = env.clone();
         let body_end = self.build_block(body, body_state, &mut body_env);
-        self.push_action(body_end, format!("loop re-entry -> s{cond_state}"));
+        self.push_action(body_end, HandleStateOp::LoopReentry { cond_state });
         self.set_terminator(body_end, StateTerminator::Goto(cond_state));
         exit_state
     }
@@ -1006,11 +1225,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     ) -> PlanStateId {
         match &expr.kind {
             hir::ExprKind::Missing => {
-                self.push_action(current_state, "expr missing");
+                self.push_action(current_state, HandleStateOp::ExprMissing);
                 current_state
             }
             hir::ExprKind::Literal(_) => {
-                self.push_action(current_state, "literal");
+                self.push_action(current_state, HandleStateOp::Literal);
                 current_state
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
@@ -1020,10 +1239,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     ty: expr.ty,
                     owner_arm: None,
                 });
-                self.push_action(
-                    current_state,
-                    format!("read local {}#{}", name, id.as_u32()),
-                );
+                self.push_action(current_state, HandleStateOp::ReadLocal { id: *id });
                 self.record_expr_reads(current_state, expr);
                 current_state
             }
@@ -1032,21 +1248,27 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     self.record_expr_reads(current_state, expr);
                     let site_id =
                         self.new_suspend_site(expr.span, kind, env.available_ids());
-                    self.push_action(current_state, format!("object init access site{site_id}"));
+                    self.push_action(
+                        current_state,
+                        HandleStateOp::ObjectInitAccessBoundary { site_id },
+                    );
                     self.set_terminator(current_state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     self.push_action(
                         resume_state,
-                        format!("resume target for site{site_id} after object init access"),
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::ObjectInitAccess,
+                        },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
                     return resume_state;
                 }
-                self.push_action(current_state, "var-ref");
+                self.push_action(current_state, HandleStateOp::VarRef);
                 current_state
             }
             hir::ExprKind::UnresolvedIdent { .. } => {
-                self.push_action(current_state, "var-ref");
+                self.push_action(current_state, HandleStateOp::VarRef);
                 current_state
             }
             hir::ExprKind::StructLit { fields, .. } => {
@@ -1054,7 +1276,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 for field in fields {
                     state = self.build_expr(&field.value, state, env);
                 }
-                self.push_action(state, "struct-lit");
+                self.push_action(state, HandleStateOp::StructLit);
                 state
             }
             hir::ExprKind::TupleLit { elements } => {
@@ -1062,7 +1284,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 for element in elements {
                     state = self.build_expr(element, state, env);
                 }
-                self.push_action(state, "tuple-lit");
+                self.push_action(state, HandleStateOp::TupleLit);
                 state
             }
             hir::ExprKind::InterpolatedString { parts, .. } => {
@@ -1072,14 +1294,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         state = self.build_expr(expr, state, env);
                     }
                 }
-                self.push_action(state, "interpolated-string");
+                self.push_action(state, HandleStateOp::InterpolatedString);
                 state
             }
             hir::ExprKind::Unary { expr: inner, .. }
             | hir::ExprKind::TypeCheck { expr: inner, .. } => {
                 let state = self.build_expr(inner, current_state, env);
                 self.record_expr_reads(state, expr);
-                self.push_action(state, "expr");
+                self.push_action(state, HandleStateOp::Expr);
                 state
             }
             hir::ExprKind::Cast { expr: inner, op, .. } => {
@@ -1093,18 +1315,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         },
                         env.available_ids(),
                     );
-                    self.push_action(state, format!("runtime raise site{site_id}"));
+                    self.push_action(state, HandleStateOp::RuntimeRaiseBoundary { site_id });
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     self.push_action(
                         resume_state,
-                        format!("resume target for site{site_id} after runtime raise boundary"),
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::RuntimeRaiseBoundary,
+                        },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
                     return resume_state;
                 }
                 self.record_expr_reads(state, expr);
-                self.push_action(state, "expr");
+                self.push_action(state, HandleStateOp::Expr);
                 state
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
@@ -1112,25 +1337,28 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 if let Some(kind) = self.classify_hidden_suspend_member_access(member) {
                     self.record_expr_reads(state, expr);
                     let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
-                    self.push_action(state, format!("object init access site{site_id}"));
+                    self.push_action(state, HandleStateOp::ObjectInitAccessBoundary { site_id });
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     self.push_action(
                         resume_state,
-                        format!("resume target for site{site_id} after object init access"),
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::ObjectInitAccess,
+                        },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
                     return resume_state;
                 }
                 self.record_expr_reads(state, expr);
-                self.push_action(state, "expr");
+                self.push_action(state, HandleStateOp::Expr);
                 state
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
                 let state = self.build_expr(lhs, current_state, env);
                 let state = self.build_expr(rhs, state, env);
                 self.record_expr_reads(state, expr);
-                self.push_action(state, "binary-expr");
+                self.push_action(state, HandleStateOp::BinaryExpr);
                 state
             }
             hir::ExprKind::Block(block) => self.build_block(block, current_state, env),
@@ -1146,7 +1374,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.set_terminator(
                     cond_state,
                     StateTerminator::Branch {
-                        condition: format!("if-cond@{:?}", cond.span),
+                        condition: HandleBranchCondition::IfCond { span: cond.span },
                         then_state,
                         else_state,
                         merge_state,
@@ -1162,7 +1390,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     let else_end = self.build_expr(else_branch, else_state, &mut else_env);
                     self.set_terminator(else_end, StateTerminator::Goto(merge_state));
                 } else {
-                    self.push_action(else_state, "implicit else unit");
+                    self.push_action(else_state, HandleStateOp::ImplicitElseUnit);
                     self.set_terminator(else_state, StateTerminator::Goto(merge_state));
                 }
                 merge_state
@@ -1175,7 +1403,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     }
                     state = self.build_expr(&arm.body, state, env);
                 }
-                self.push_action(state, "when-expr");
+                self.push_action(state, HandleStateOp::WhenExpr);
                 state
             }
             hir::ExprKind::Call { callee, args } => {
@@ -1189,18 +1417,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 if let Some(kind) = self.classify_suspend_call(expr, callee) {
                     self.record_expr_reads(state, expr);
                     let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
-                    self.push_action(state, format!("suspend call site{site_id}"));
+                    self.push_action(state, HandleStateOp::SuspendCall { site_id });
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     self.push_action(
                         resume_state,
-                        format!("resume target for site{site_id} after call"),
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::Call,
+                        },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
                     return resume_state;
                 }
                 self.record_expr_reads(state, expr);
-                self.push_action(state, "call");
+                self.push_action(state, HandleStateOp::Call);
                 state
             }
             hir::ExprKind::Perform { op, args } => {
@@ -1219,12 +1450,20 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     },
                     env.available_ids(),
                 );
-                self.push_action(state, format!("perform {}", op.fqn));
+                self.push_action(
+                    state,
+                    HandleStateOp::Perform {
+                        op_fqn: op.fqn.clone(),
+                    },
+                );
                 self.set_terminator(state, StateTerminator::Suspend { site_id });
                 let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                 self.push_action(
                     resume_state,
-                    format!("resume target for site{site_id} after perform"),
+                    HandleStateOp::ResumeAfterSite {
+                        site_id,
+                        reason: ResumeAfterSiteReason::Perform,
+                    },
                 );
                 self.set_suspend_resume_target(site_id, resume_state);
                 resume_state
@@ -1243,28 +1482,37 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         },
                         env.available_ids(),
                     );
-                    self.push_action(current_state, format!("nested handle boundary site{site_id}"));
+                    self.push_action(
+                        current_state,
+                        HandleStateOp::NestedHandleBoundary { site_id },
+                    );
                     self.set_terminator(current_state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     self.push_action(
                         resume_state,
-                        format!(
-                            "resume target for site{site_id} after nested handle boundary"
-                        ),
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                        },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
                     return resume_state;
                 }
-                self.push_action(current_state, format!("nested handle nested#{nested_id}"));
+                self.push_action(current_state, HandleStateOp::NestedHandle { nested_id });
                 current_state
             }
             hir::ExprKind::Closure(closure) => {
-                self.push_action(current_state, "closure");
+                self.push_action(current_state, HandleStateOp::Closure);
                 self.record_expr_reads(current_state, &closure.body);
                 current_state
             }
             hir::ExprKind::Todo(kind) => {
-                self.push_action(current_state, format!("todo expr {kind}"));
+                self.push_action(
+                    current_state,
+                    HandleStateOp::TodoExpr {
+                        kind: kind.to_string(),
+                    },
+                );
                 current_state
             }
         }
@@ -1445,11 +1693,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             let body_entry_state = self.new_state(format!("arm{arm_id}.body"));
             self.push_action(
                 body_entry_state,
-                format!(
-                    "execute arm body op={} span={:?}",
-                    arm.op.op.fqn,
-                    arm.body.span
-                ),
+                HandleStateOp::ExecuteArmBody {
+                    arm_id,
+                    op_fqn: arm.op.op.fqn.clone(),
+                    span: arm.body.span,
+                },
             );
 
             let (resume_mode, body_exit, detach_policy) = match arm.kind {
@@ -1745,8 +1993,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         id
     }
 
-    fn push_action(&mut self, state_id: PlanStateId, action: impl Into<String>) {
-        self.state_mut(state_id).actions.push(action.into());
+    fn push_action(&mut self, state_id: PlanStateId, action: HandleStateOp) {
+        self.state_mut(state_id).actions.push(action);
     }
 
     fn state_mut(&mut self, state_id: PlanStateId) -> &mut PlanState {

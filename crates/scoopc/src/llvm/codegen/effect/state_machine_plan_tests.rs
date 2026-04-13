@@ -11,8 +11,9 @@ mod tests {
     use crate::typecheck;
 
     use super::{
-        HandlePlanContext, HandleSegmentList, HandleStateMachinePlan, ImmediateResumeFrame,
-        MainCodegen, MixedEscapeDirectFrame, ResumeFrame,
+        HandleBranchCondition, HandlePlanContext, HandleSegmentList, HandleSegmentTerminator,
+        HandleStateMachinePlan, HandleStateOp, ImmediateResumeFrame, MainCodegen,
+        MixedEscapeDirectFrame, ResumeFrame, StateTerminator,
     };
 
     #[test]
@@ -1701,6 +1702,90 @@ fun demo(mode: Int): Int {
         );
     }
 
+    #[test]
+    fn segment_round_trip_preserves_typed_emit_ops_and_branch_metadata() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#;
+
+        let source_plan = build_source_plan(source);
+        let segment_list = source_plan.build_segment_list();
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
+            .expect("segment-only builder should reconstruct full plan");
+
+        assert_eq!(
+            collect_plan_exec_signature(&source_plan),
+            collect_plan_exec_signature(&rebuilt_plan)
+        );
+
+        let while_cond_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.label == "while.cond")
+            .expect("expected while.cond state");
+        assert!(matches!(
+            while_cond_state.actions.first(),
+            Some(&HandleStateOp::WhileCondHeader { .. })
+        ));
+        assert!(matches!(
+            &while_cond_state.terminator,
+            StateTerminator::Branch {
+                condition: HandleBranchCondition::WhileCond { .. },
+                ..
+            }
+        ));
+
+        let has_if_branch_segment = segment_list.segments.iter().any(|segment| {
+            matches!(
+                &segment.terminator,
+                HandleSegmentTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { .. },
+                    ..
+                }
+            )
+        });
+        assert!(has_if_branch_segment, "expected an if-branch segment terminator");
+
+        let has_bind_local = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .any(|op| matches!(op, &HandleStateOp::BindLocal { .. }));
+        assert!(has_bind_local, "expected typed bind-local op in segment list");
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -1764,17 +1849,46 @@ fun demo(mode: Int): Int {
             .label()
     }
 
-    fn build_round_tripped_plan(source_text: &str) -> HandleStateMachinePlan {
+    fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
-        let source_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+    }
+
+    fn build_round_tripped_plan(source_text: &str) -> HandleStateMachinePlan {
+        let source_plan = build_source_plan(source_text);
         let segment_list = source_plan.build_segment_list();
         segment_list
             .validate_builder_contract()
             .expect("segment builder contract should hold");
         HandleStateMachinePlan::build_from_segments(&segment_list)
             .expect("segment-only builder should reconstruct full plan")
+    }
+
+    fn collect_plan_exec_signature(
+        plan: &HandleStateMachinePlan,
+    ) -> Vec<(String, Vec<usize>, Option<usize>)> {
+        plan.states
+            .iter()
+            .map(|state| {
+                let branch_sig = match &state.terminator {
+                    StateTerminator::Branch { condition, .. } => {
+                        Some(condition.structural_signature())
+                    }
+                    _ => None,
+                };
+                (
+                    state.label.clone(),
+                    state
+                        .actions
+                        .iter()
+                        .map(HandleStateOp::structural_signature)
+                        .collect(),
+                    branch_sig,
+                )
+            })
+            .collect()
     }
 
     fn segment_slot_id_named(segment_list: &HandleSegmentList, name: &str) -> hir::SymbolId {

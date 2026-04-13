@@ -52,7 +52,7 @@ struct HandleSegment {
     source_span: Option<Span>,
     dispatch_context: HandleSegmentDispatchContext,
     cleanup_scope_stack: Vec<CleanupScopeId>,
-    ops: Vec<String>,
+    ops: Vec<HandleStateOp>,
     terminator: HandleSegmentTerminator,
 }
 
@@ -75,7 +75,7 @@ enum HandleSegmentTerminator {
         next_segment: HandleSegmentId,
     },
     Branch {
-        condition: String,
+        condition: HandleBranchCondition,
         then_segment: HandleSegmentId,
         else_segment: HandleSegmentId,
         merge_segment: HandleSegmentId,
@@ -1237,6 +1237,12 @@ impl HandleSegmentList {
         }
 
         out.push_str(&format!("{pad}segments:\n"));
+        let frame_slot_map = self
+            .frame_slots
+            .iter()
+            .cloned()
+            .map(|slot| (slot.id, slot))
+            .collect::<HashMap<_, _>>();
         for segment in &self.segments {
             let source_span = segment
                 .source_span
@@ -1255,7 +1261,10 @@ impl HandleSegmentList {
                 render_segment_cleanup_scope_ids(&segment.cleanup_scope_stack)
             ));
             for op in &segment.ops {
-                out.push_str(&format!("{pad}    {op}\n"));
+                out.push_str(&format!(
+                    "{pad}    {}\n",
+                    op.label(&frame_slot_map, types)
+                ));
             }
             out.push_str(&format!(
                 "{pad}    terminator={}\n",
@@ -1331,7 +1340,7 @@ impl HandleSegment {
             acc ^= (*scope_id as usize) << 2;
         }
         for op in &self.ops {
-            acc ^= op.len();
+            acc ^= op.structural_signature();
         }
         acc ^ self.terminator.structural_signature()
     }
@@ -1383,7 +1392,7 @@ impl HandleSegmentTerminator {
                 else_state,
                 merge_state,
             } => Self::Branch {
-                condition: condition.clone(),
+                condition: *condition,
                 then_segment: *then_state,
                 else_segment: *else_state,
                 merge_segment: *merge_state,
@@ -1455,7 +1464,7 @@ impl HandleSegmentTerminator {
                 else_segment,
                 merge_segment,
             } => {
-                condition.len()
+                condition.structural_signature()
                     ^ (*then_segment as usize)
                     ^ ((*else_segment as usize) << 1)
                     ^ ((*merge_segment as usize) << 2)
@@ -1483,7 +1492,8 @@ impl HandleSegmentTerminator {
                 else_segment,
                 merge_segment,
             } => format!(
-                "branch cond={condition} then=seg{then_segment} else=seg{else_segment} merge=seg{merge_segment}"
+                "branch cond={} then=seg{then_segment} else=seg{else_segment} merge=seg{merge_segment}",
+                condition.label()
             ),
             Self::Suspend {
                 site_id,
@@ -1508,7 +1518,7 @@ impl HandleSegmentTerminator {
                 else_segment,
                 merge_segment,
             } => StateTerminator::Branch {
-                condition: condition.clone(),
+                condition: *condition,
                 then_state: *then_segment,
                 else_state: *else_segment,
                 merge_state: *merge_segment,

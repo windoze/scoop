@@ -1442,17 +1442,69 @@ cargo run -p scoop --features llvm -- test
   - 已新增 round-trip 回归：覆盖 direct/branch/while/finally、indirect + state-machine callee、nested handle + multi-arm representative samples，证明 plan dump / simplification / codegen entrypoint 与重建前保持一致。
   - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3 [TODO] Effect：从零开始实现统一 emitter，接管全部合法 effect lowering
-- 描述：第三阶段才进入 emitting。此阶段的唯一目标是：LLVM effect lowering 只消费统一状态机与 simplification 结果。不得再按 `single arm`、`perform inside while`、`top-level direct`、`nested-while indirect` 等源码形状选择主 emitter。
+### T2003r3 Effect：从零开始实现统一 emitter，接管全部合法 effect lowering（已拆分，见 `T2003r3a`～`T2003r3d`）
+- 拆分原因：
+  - 审计当前实现后确认，`HandleStateMachinePlan` / `HandleSegmentList` 的 state/segment “动作”与部分控制流注释仍主要是字符串 label；如果直接推进 unified emitter，发射阶段只能解析字符串或重新按源码形状回扫 HIR，这违反 `T2003r3` 的目标约束。
+  - 同时，纯 non-resuming、single resuming、multi-site / mixed-resuming 三类 lowering 的实现复杂度与回归面差异明显，不适合继续整包推进。
+- 子任务顺序：
+  - 先补 unified emitter 所需的 typed/source-linked contract；
+  - 再接 pure flag-unwind / no-continuation 子集；
+  - 再接 single resuming；
+  - 最后接 multi-site / mixed-resuming 并完成主入口切换。
+
+### T2003r3a [DONE] Effect：为 unified emitter 补齐 typed/source-linked emit contract
+- 描述：当前 `PlanState.actions` / `HandleSegment.ops` 与部分分支注释仍是自由字符串，无法作为 unified emitter 的稳定执行输入。先把这些“只适合 pretty dump”的文本元数据收口成结构化、可 round-trip 的 emit contract。
+- 目标：
+  - `HandleStateMachinePlan` / `HandleSegmentList` 的 state/segment 动作与分支条件改为结构化 metadata；pretty dump 只作为展示层派生结果。
+  - segment round-trip、builder contract、simplification parity 继续成立；后续 emitter 不需要解析字符串来理解状态机语义。
+  - 为下一步 unified emitter 提供稳定、可测试的 source-linked 发射输入。
+- 验收：
+  - 新增或更新 plan / segment 单测，锁住 direct/branch/while/finally representative sample 的结构化 metadata round-trip。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r2
+- 完成说明：
+  - `HandleStateMachinePlan.states[*].actions` 与 `HandleSegment.ops` 已从自由字符串升级为结构化 `HandleStateOp`；`StateTerminator::Branch` / `HandleSegmentTerminator::Branch` 也已改为结构化 `HandleBranchCondition`，pretty dump 仅负责派生展示文本。
+  - segment projection / round-trip 已保持新 contract，不再通过字符串长度或 display 文本维持 parity；direct/branch/while/finally representative sample 的 plan/segment round-trip 继续稳定。
+  - 已新增单测 `segment_round_trip_preserves_typed_emit_ops_and_branch_metadata`，并验证 `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003r3b [TODO] Effect：统一 emitter 接管无 continuation 的 handle 主线
+- 描述：在 emit contract 稳定后，先让 unified emitter 接管不需要 continuation materialization / stack re-entry 的子集，包括 `NoSuspendSites`、`SingleNonResuming`、`MultiNonResuming`。
+- 目标：
+  - 纯 no-suspend 与 pure flag-unwind handle 统一走 plan-driven emitter 主线，不再按 single/multi-arm 选主 emitter。
+  - `finally`、multi-arm dispatch、nested handle representative sample 都通过 unified emitter 维持现有行为。
+  - 旧 non-resuming specialized entry 退化为 helper 或完全不再作为主路由。
+- 验收：
+  - 新增或更新 LLVM fixture / 定向单测：覆盖 no-suspend、single non-resuming、multi non-resuming、`finally`、nested handle representative sample。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- test --filter effect_nonresuming`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3a
+
+### T2003r3c [TODO] Effect：统一 emitter 接管 single resuming handle 主线
+- 描述：第二步把单一 resuming arm 的主路径切到 unified emitter，覆盖 single immediate-resume 与 single escape-continuation，并复用 `T2003r3a` 的结构化 emit contract。
+- 目标：
+  - `SingleImmediateResume` / `SingleEscapeContinuation` 不再以 dedicated main emitter 作为主入口。
+  - direct / indirect perform、nested control-flow、`finally` 与 single nested handle representative sample 保持行为不回归。
+  - 旧 `immediate_resume.rs` / `escape_continuation.rs` 只允许保留局部 helper，不再承载主选路。
+- 验收：
+  - 新增或更新 LLVM fixture / 定向单测：覆盖 single immediate / escape 的 direct、indirect、`if` / `while` / nested handle representative sample。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- test --filter effect_resume`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3b
+
+### T2003r3d [TODO] Effect：统一 emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换
+- 描述：最后把 multiple immediate、multiple escape、non-resuming siblings、immediate+escape mixed 与 richer nested matrix 全部切到 unified emitter，并收口 `codegen_handle_expr` 的 effect lowering 主入口。
 - 目标：
   - single-arm、multiple arms、immediate-resume、escape-continuation、mixed-arm、direct/indirect perform、nested control-flow、nested handle 全部接到统一 emitter 主线。
-  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 不再承接任何新功能；若仍有少量 helper 被复用，也只能作为统一 emitter 内部细节。
+  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 不再承接任何合法组合的主 lowering。
   - build-fail 中仍属于“合法但尚未实现”的 lowering 形状缺口全部清空；剩余限制只能是真实语言语义非法组合。
 - 验收：
   - 新增 LLVM fixture：覆盖 direct/indirect、single/multi-arm、`if` / `while` / nested handle / nested-while representative samples，且全部走统一 emitter。
   - 不再为新的合法组合新增 shape-specific 主路径。
   - 本阶段允许只运行 unified emitter 相关定向单测 / fixture；不要求 full suite。
-- 依赖：T2003r2
+- 依赖：T2003r3c
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
 - 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，才进入这一任务；在此之前，不再要求每轮都跑 full suite。
@@ -1466,7 +1518,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `SCOOP_GC_STRESS=1` 或等价压力模式下的 full matrix 通过。
-- 依赖：T2003r3
+- 依赖：T2003r3d
 
 ### T2003r5 [TODO] Effect：删除全部旧 shape-based lowering 主实现
 - 描述：`T2003r4` 通过后，不再保留“以防万一”的旧实现。旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 中承载形状分流 lowering 的主路径必须整体移除。
