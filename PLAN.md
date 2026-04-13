@@ -337,7 +337,11 @@ cargo run -p scoop --features llvm -- test
   - T2003r3b3 已完成：unified no-continuation 主入口现已扩展到 `UnifiedNoContinuationEntrypoint::MultiNonResuming`，并对 root plan 施加“至少两个 never-resume arms”的显式 contract 校验；pure multi non-resuming handle 不再通过 `codegen_handle_expr_multi_arm(...)` 选主路由。
   - 本轮同时把原先承担 pure multi non-resuming 主路径的 lowering 收口为局部 leaf helper `codegen_handle_expr_multi_nonresuming_leaf`，保留给 mixed/escape 路径的 no-escape fallback 复用；并新增定向单测 `unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample` 与 run-pass fixture `effect_multi_nonresuming_finally_nested_handle`，覆盖 multi non-resuming + `finally` + nested handle representative sample。
   - 已验证：`cargo test -p scoopc unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3c`：在 pure flag-unwind 的 no-continuation 子集全部接入统一入口后，继续让 unified emitter 接管 single immediate-resume / single escape-continuation 主路径。
+  - T2003r3c 已完成：`codegen_handle_expr` 现已新增 `UnifiedSingleResumingEntrypoint` 分类，并通过 `codegen_handle_expr_unified_single_resuming(...)` 接管 `SingleImmediateResume` / `SingleEscapeContinuation` 的主选路；root 入口不再直接把这两类合法组合分发到 dedicated main emitter。
+  - 本轮同时为 unified single-resuming 入口补了显式 contract 校验：single immediate / escape 的 arm 数量、resume mode 与 body exit 形态会在进入 leaf helper 前验证；对 zero-match/no-suspend 子集则按 unified plan 的 suspend-site 形态回退到顺序 `no_perform` leaf，避免 root match 继续直接跳旧主路径。
+  - 已新增定向单测 `unified_single_resuming_entrypoint_marks_single_immediate_resume_while_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_direct_if_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_indirect_nested_handle_sample`，并以 representative LLVM fixtures 重新验证 immediate direct、escape direct 与 escape indirect 主路径。
+  - 已验证：`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d`：在 single resuming 主路径全部接入统一入口后，继续让 unified emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -418,7 +422,7 @@ cargo run -p scoop --features llvm -- test
   - T2003r3b1（已完成）：由 unified emitter 先接管 `NoSuspendSites`，锁定统一 CFG / cleanup 发射骨架。
   - T2003r3b2（已完成）：由 unified emitter 接管 `SingleNonResuming`。
   - T2003r3b3（已完成）：由 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
-  - T2003r3c：由 unified emitter 接管 single immediate-resume / single escape-continuation。
+  - T2003r3c（已完成）：由 unified emitter 接管 single immediate-resume / single escape-continuation。
   - T2003r3d：由 unified emitter 接管 multiple immediate / multiple escape / mixed-resuming，并完成 effect lowering 主入口切换。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。
   - T2003r5：在 `T2003r4` 通过后删除剩余 legacy scanner / emitter / dedicated matrix 主路径，不保留 fallback / 双轨。

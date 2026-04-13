@@ -23,6 +23,22 @@ impl UnifiedNoContinuationEntrypoint {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnifiedSingleResumingEntrypoint {
+    SingleImmediateResume,
+    SingleEscapeContinuation,
+}
+
+impl UnifiedSingleResumingEntrypoint {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            Self::SingleImmediateResume => "single-immediate-resume",
+            Self::SingleEscapeContinuation => "single-escape-continuation",
+        }
+    }
+}
+
 impl<'hir> HandleArmBuckets<'hir> {
     fn lowering_counts(&self) -> SimplifiedArmLoweringCounts {
         SimplifiedArmLoweringCounts {
@@ -299,6 +315,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn classify_unified_single_resuming_entrypoint(
+        simplification: &HandleModeSpecificSimplification,
+        has_resuming_arms: bool,
+    ) -> Option<UnifiedSingleResumingEntrypoint> {
+        let entrypoint = match simplification.codegen_entrypoint() {
+            SimplifiedCodegenEntrypoint::NoSuspendSites if has_resuming_arms => {
+                simplification.codegen_entrypoint_from_arm_mix()
+            }
+            route => route,
+        };
+
+        match entrypoint {
+            SimplifiedCodegenEntrypoint::SingleImmediateResume => {
+                Some(UnifiedSingleResumingEntrypoint::SingleImmediateResume)
+            }
+            SimplifiedCodegenEntrypoint::SingleEscapeContinuation => {
+                Some(UnifiedSingleResumingEntrypoint::SingleEscapeContinuation)
+            }
+            _ => None,
+        }
+    }
+
     fn validate_unified_no_suspend_plan(
         &self,
         span: crate::span::Span,
@@ -377,6 +415,94 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn validate_unified_single_immediate_resume_plan(
+        &self,
+        span: crate::span::Span,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<(), LlvmEmitError> {
+        if state_machine_plan.arm_plans.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-immediate-resume plan arm count mismatch",
+                at: span.into(),
+            });
+        }
+
+        let arm = &state_machine_plan.arm_plans[0];
+        if !matches!(arm.resume_mode, ArmResumeMode::ImmediateResume) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-immediate-resume plan arm mode mismatch",
+                at: span.into(),
+            });
+        }
+
+        if !matches!(arm.body_exit, ArmBodyExit::ResumeMatchedSite) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-immediate-resume plan arm exit mismatch",
+                at: span.into(),
+            });
+        }
+
+        Ok(())
+    }
+
+    fn validate_unified_single_escape_continuation_plan(
+        &self,
+        span: crate::span::Span,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<(), LlvmEmitError> {
+        if state_machine_plan.arm_plans.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-escape-continuation plan arm count mismatch",
+                at: span.into(),
+            });
+        }
+
+        let arm = &state_machine_plan.arm_plans[0];
+        if !matches!(arm.resume_mode, ArmResumeMode::EscapeContinuation) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-escape-continuation plan arm mode mismatch",
+                at: span.into(),
+            });
+        }
+
+        if !matches!(arm.body_exit, ArmBodyExit::MaterializeContinuation) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified single-escape-continuation plan arm exit mismatch",
+                at: span.into(),
+            });
+        }
+
+        Ok(())
+    }
+
+    fn unified_single_immediate_resume_plan_has_matching_site(
+        state_machine_plan: &HandleStateMachinePlan,
+        arm_id: ArmPlanId,
+    ) -> bool {
+        state_machine_plan.suspend_sites.iter().any(|site| {
+            matches!(&site.kind, SuspendSiteKind::DirectPerform { .. })
+                && site.matching_arms.contains(&arm_id)
+        })
+    }
+
+    fn unified_single_escape_plan_has_supported_suspend_site(
+        state_machine_plan: &HandleStateMachinePlan,
+        arm_id: ArmPlanId,
+    ) -> bool {
+        state_machine_plan
+            .suspend_sites
+            .iter()
+            .any(|site| match &site.kind {
+                SuspendSiteKind::DirectPerform { .. } => site.matching_arms.contains(&arm_id),
+                SuspendSiteKind::IndirectCallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. } => true,
+                SuspendSiteKind::RuntimeRaise { .. }
+                | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::ClassCtorInit { .. }
+                | SuspendSiteKind::NestedHandleBoundary { .. } => false,
+            })
+    }
+
     fn codegen_handle_expr_unified_no_continuation<'hir>(
         &mut self,
         span: crate::span::Span,
@@ -412,6 +538,99 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_handle_expr_unified_single_resuming<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        out_ty: CgTy,
+        state_machine_plan: &HandleStateMachinePlan,
+        handle_arm_buckets: &HandleArmBuckets<'hir>,
+        entrypoint: UnifiedSingleResumingEntrypoint,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match entrypoint {
+            UnifiedSingleResumingEntrypoint::SingleImmediateResume => {
+                self.validate_unified_single_immediate_resume_plan(span, state_machine_plan)?;
+                let Some((arm, resume_symbol)) = handle_arm_buckets.immediate_arms.first().copied()
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (missing immediate-resume arm)",
+                        at: span.into(),
+                    });
+                };
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (immediate-resume arm id)",
+                        at: arm.span.into(),
+                    });
+                };
+                let arm_id = arm_id as ArmPlanId;
+                if !Self::unified_single_immediate_resume_plan_has_matching_site(
+                    state_machine_plan,
+                    arm_id,
+                ) {
+                    return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+                }
+                self.codegen_handle_expr_immediate_resume(
+                    span,
+                    ImmediateResumeHandleLowering {
+                        handle,
+                        state_machine_plan,
+                        arm_id,
+                        arm,
+                        resume_symbol,
+                        out_ty,
+                    },
+                )
+            }
+            UnifiedSingleResumingEntrypoint::SingleEscapeContinuation => {
+                self.validate_unified_single_escape_continuation_plan(span, state_machine_plan)?;
+                let Some((arm, continuation_symbol)) =
+                    handle_arm_buckets.escape_arms.first().copied()
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (missing escape-continuation arm)",
+                        at: span.into(),
+                    });
+                };
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (escape-continuation arm id)",
+                        at: arm.span.into(),
+                    });
+                };
+                let arm_id = arm_id as ArmPlanId;
+                if !Self::unified_single_escape_plan_has_supported_suspend_site(
+                    state_machine_plan,
+                    arm_id,
+                ) {
+                    return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+                }
+                let seq = self.escape_continuation_seq;
+                self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
+                self.codegen_handle_expr_escape_continuation(
+                    span,
+                    EscapeContinuationHandleLowering {
+                        handle,
+                        state_machine_plan,
+                        arm_id,
+                        arm,
+                        continuation_symbol,
+                        seq,
+                        out_ty,
+                    },
+                )
+            }
+        }
+    }
+
     #[cfg(test)]
     pub(super) fn unified_no_continuation_entrypoint_label_for_plan(
         plan: &HandleStateMachinePlan,
@@ -423,6 +642,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume));
         Self::classify_unified_no_continuation_entrypoint(&simplification, has_resuming_arms)
             .map(UnifiedNoContinuationEntrypoint::label)
+    }
+
+    #[cfg(test)]
+    pub(super) fn unified_single_resuming_entrypoint_label_for_plan(
+        plan: &HandleStateMachinePlan,
+    ) -> Option<&'static str> {
+        let simplification = plan.build_mode_specific_simplification();
+        let has_resuming_arms = plan
+            .arm_plans
+            .iter()
+            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume));
+        Self::classify_unified_single_resuming_entrypoint(&simplification, has_resuming_arms)
+            .map(UnifiedSingleResumingEntrypoint::label)
     }
 
     /// codegen 一个 `handle { ... } with { Raise.raise(e) -> ... }`（`try/catch` 的 lowering 产物）。
@@ -469,9 +701,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        // immediate-resume / escape-continuation / mixed-arm 仍保留旧 gate：
-        // 它们当前的 specialized emitter 还没有完全吸收“0 matching perform + hidden unwind”
-        // 这类边界，待 T2003u4b / T2003u4c 再继续迁移。
+        if let Some(entrypoint) = Self::classify_unified_single_resuming_entrypoint(
+            &mode_specific_simplification,
+            has_resuming_arms,
+        ) {
+            return self.codegen_handle_expr_unified_single_resuming(
+                span,
+                handle,
+                out_ty,
+                &state_machine_plan,
+                &handle_arm_buckets,
+                entrypoint,
+            );
+        }
+
+        // mixed-arm 仍保留旧 gate：
+        // 这类路径当前的 specialized emitter 还没有完全吸收“0 matching perform + hidden unwind”
+        // 等边界，待后续 unified mixed 路由继续迁移。
         if has_resuming_arms && !self.block_may_perform(&handle.body) {
             return self.codegen_handle_expr_no_perform(span, handle, out_ty);
         }
@@ -486,71 +732,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match codegen_entrypoint {
             // T2003u3b：入口选路改由 simplification 驱动；旧 emitter 仍作为过渡实现保留。
             SimplifiedCodegenEntrypoint::NoSuspendSites => {
-                return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+                self.codegen_handle_expr_no_perform(span, handle, out_ty)
             }
-            SimplifiedCodegenEntrypoint::SingleNonResuming => {}
-            SimplifiedCodegenEntrypoint::SingleImmediateResume => {
-                let Some((arm, resume)) = handle_arm_buckets.immediate_arms.first().copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing immediate-resume arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some(arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (immediate-resume arm id)",
-                        at: arm.span.into(),
-                    });
-                };
-                return self.codegen_handle_expr_immediate_resume(
-                    span,
-                    ImmediateResumeHandleLowering {
-                        handle,
-                        state_machine_plan: &state_machine_plan,
-                        arm_id: arm_id as ArmPlanId,
-                        arm,
-                        resume_symbol: resume,
-                        out_ty,
-                    },
-                );
-            }
-            SimplifiedCodegenEntrypoint::SingleEscapeContinuation => {
-                let Some((arm, continuation)) =
-                    handle_arm_buckets.escape_arms.first().copied()
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (missing escape-continuation arm)",
-                        at: span.into(),
-                    });
-                };
-                let Some(arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (escape-continuation arm id)",
-                        at: arm.span.into(),
-                    });
-                };
-                let seq = self.escape_continuation_seq;
-                self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
-                return self.codegen_handle_expr_escape_continuation(
-                    span,
-                    EscapeContinuationHandleLowering {
-                        handle,
-                        state_machine_plan: &state_machine_plan,
-                        arm_id: arm_id as ArmPlanId,
-                        arm,
-                        continuation_symbol: continuation,
-                        seq,
-                        out_ty,
-                    },
-                );
+            SimplifiedCodegenEntrypoint::SingleNonResuming
+            | SimplifiedCodegenEntrypoint::SingleImmediateResume
+            | SimplifiedCodegenEntrypoint::SingleEscapeContinuation => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified entrypoint route mismatch",
+                    at: span.into(),
+                })
             }
             SimplifiedCodegenEntrypoint::MultiNonResuming
             | SimplifiedCodegenEntrypoint::MultipleEscapeTopLevelDirect
@@ -561,18 +751,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | SimplifiedCodegenEntrypoint::ImmediateResumeWithEscapeAndNonResumingSiblings
             | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate
             | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
-                return self.codegen_handle_expr_multi_arm(
+                self.codegen_handle_expr_multi_arm(
                     span,
                     handle,
                     out_ty,
                     &state_machine_plan,
                     &handle_arm_buckets,
                     codegen_entrypoint,
-                );
+                )
             }
         }
-
-        self.codegen_handle_expr_single_nonresuming_leaf(span, handle, &handle_arm_buckets, out_ty)
     }
 
     fn codegen_handle_expr_single_nonresuming_leaf<'hir>(

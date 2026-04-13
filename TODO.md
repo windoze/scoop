@@ -1529,7 +1529,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增定向单测 `unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample`，以及 run-pass fixture `effect_multi_nonresuming_finally_nested_handle`，覆盖 multi non-resuming + `finally` + nested handle representative sample。
   - 已验证：`cargo test -p scoopc unified_no_continuation_entrypoint_marks_multi_nonresuming_finally_nested_handle_sample -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_finally_nested_handle.scoop`、`cargo run -p scoop --features llvm -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3c [TODO] Effect：统一 emitter 接管 single resuming handle 主线
+### T2003r3c [DONE] Effect：统一 emitter 接管 single resuming handle 主线
 - 描述：第二步把单一 resuming arm 的主路径切到 unified emitter，覆盖 single immediate-resume 与 single escape-continuation，并复用 `T2003r3a` 的结构化 emit contract。
 - 目标：
   - `SingleImmediateResume` / `SingleEscapeContinuation` 不再以 dedicated main emitter 作为主入口。
@@ -1541,6 +1541,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test --fixtures tests/fixtures/run-pass`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3b3
+- 完成说明：
+  - `codegen_handle_expr` 现已新增 `UnifiedSingleResumingEntrypoint` 分类，并通过 `codegen_handle_expr_unified_single_resuming(...)` 接管 `SingleImmediateResume` / `SingleEscapeContinuation` 的主选路；root 入口不再直接把这两类合法组合分发到 dedicated main emitter。
+  - unified single-resuming 入口现已补上显式 contract 校验：single immediate / escape 的 arm 数量、resume mode 与 body exit 形态都会在进入 leaf helper 前验证；对 zero-match/no-suspend 子集则按 unified plan 的 suspend-site 形态回退到顺序 `no_perform` leaf，而不是继续让 root match 静默直跳旧主路径。
+  - 已新增定向单测：`unified_single_resuming_entrypoint_marks_single_immediate_resume_while_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_direct_if_nested_handle_sample`、`unified_single_resuming_entrypoint_marks_single_escape_indirect_nested_handle_sample`，覆盖 single immediate / escape 的 direct、indirect、`if` / `while` / nested handle representative samples。
+  - 已验证：`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d [TODO] Effect：统一 emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换
 - 描述：最后把 multiple immediate、multiple escape、non-resuming siblings、immediate+escape mixed 与 richer nested matrix 全部切到 unified emitter，并收口 `codegen_handle_expr` 的 effect lowering 主入口。

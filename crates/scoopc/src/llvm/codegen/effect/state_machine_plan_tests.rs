@@ -910,6 +910,174 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
+    fn unified_single_resuming_entrypoint_marks_single_immediate_resume_while_nested_handle_sample()
+    {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val seed: Int = handle {
+            if (flag) {
+                1
+            } else {
+                2
+            }
+        } with {
+            Alarm.trip(code: Int) -> code + 40
+        } finally {
+            println("inner finally")
+        }
+
+        var total: Int = seed
+        while (total < 5) {
+            val step: Int = Yield.next()
+            total = total + step
+        }
+        total
+    } with {
+        Yield.next() -> resume {
+            println("resume")
+            resume(1)
+        }
+    } finally {
+        println("outer finally")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "single-immediate-resume");
+        assert_eq!(
+            build_unified_single_resuming_entrypoint_label(source),
+            Some("single-immediate-resume")
+        );
+    }
+
+    #[test]
+    fn unified_single_resuming_entrypoint_marks_single_escape_direct_if_nested_handle_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun get(seed: Int): Int
+}
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun demo(flag: Bool): Unit {
+    var saved: Continuation<Int>? = None()
+
+    val handled: Unit = handle {
+        val base: Int = handle {
+            if (flag) {
+                1
+            } else {
+                2
+            }
+        } with {
+            Alarm.trip(code: Int) -> code + 30
+        } finally {
+            println("inner finally")
+        }
+
+        if (flag) {
+            val value: Int = Ask.get(base)
+            println(value)
+        }
+    } with {
+        Ask.get(seed), k -> {
+            saved = Some(k)
+        }
+    } finally {
+        println("outer finally")
+    }
+
+    val keep_saved: Continuation<Int>? = saved
+    val _: Continuation<Int>? = keep_saved
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "single-escape-continuation");
+        assert_eq!(
+            build_unified_single_resuming_entrypoint_label(source),
+            Some("single-escape-continuation")
+        );
+    }
+
+    #[test]
+    fn unified_single_resuming_entrypoint_marks_single_escape_indirect_nested_handle_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun get(seed: Int): Int
+}
+
+effect Alarm {
+    fun trip(code: Int): Nothing
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    val value: Int = Ask.get(seed + 1)
+    value + 2
+}
+
+fun demo(flag: Bool): Unit {
+    var saved: Continuation<Int>? = None()
+
+    val handled: Unit = handle {
+        val base: Int = handle {
+            if (flag) {
+                10
+            } else {
+                20
+            }
+        } with {
+            Alarm.trip(code: Int) -> code + 5
+        } finally {
+            println("inner finally")
+        }
+
+        val value: Int = fetch(base)
+        println(value)
+    } with {
+        Ask.get(seed), k -> {
+            saved = Some(k)
+        }
+    } finally {
+        println("outer finally")
+    }
+
+    val keep_saved: Continuation<Int>? = saved
+    val _: Continuation<Int>? = keep_saved
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "single-escape-continuation");
+        assert_eq!(
+            build_unified_single_resuming_entrypoint_label(source),
+            Some("single-escape-continuation")
+        );
+    }
+
+    #[test]
     fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
         let lowered = lower_typed_single_source(
             r#"
@@ -2018,6 +2186,13 @@ fun demo(flag: Bool): Int {
     ) -> Option<&'static str> {
         let plan = build_source_plan(source_text);
         MainCodegen::unified_no_continuation_entrypoint_label_for_plan(&plan)
+    }
+
+    fn build_unified_single_resuming_entrypoint_label(
+        source_text: &str,
+    ) -> Option<&'static str> {
+        let plan = build_source_plan(source_text);
+        MainCodegen::unified_single_resuming_entrypoint_label_for_plan(&plan)
     }
 
     fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
