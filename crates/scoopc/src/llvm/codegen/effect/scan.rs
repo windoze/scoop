@@ -1326,6 +1326,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn mixed_escape_while_separate_stmt_order_supported<'hir>(
+        lhs: &[MixedEscapeDirectFrame<'hir>],
+        rhs: &[MixedEscapeDirectFrame<'hir>],
+    ) -> bool {
+        if !Self::mixed_escape_while_nested_path_supported(lhs)
+            || !Self::mixed_escape_while_nested_path_supported(rhs)
+        {
+            return false;
+        }
+        let Some(lhs_first) = lhs.first() else {
+            return false;
+        };
+        let Some(rhs_first) = rhs.first() else {
+            return false;
+        };
+        Self::mixed_escape_while_frames_same(lhs_first, rhs_first)
+            && lhs_first.stmt_idx() < rhs_first.stmt_idx()
+    }
+
 
     // ── T1606f-2: Indirect perform support for escape continuations ──
 

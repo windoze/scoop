@@ -1268,17 +1268,40 @@ cargo run -p scoop --features llvm -- test
   - 其中 nested block 回归当前仍使用 `@Safe { ... }` 作为 statement-position block 的临时语法绕路；该 fixture 迁移已由 `T2203` 明确追踪。
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5c [TODO] Effect：no-immediate multiple-escape 的 while direct/indirect mixed replay
-- 描述：无 immediate-resume 的 while mixed path 仍只支持“同一个 while-body statement 内”的 direct / indirect coexistence；separate-stmt 组合仍报 `only same-body-stmt direct / indirect coexistence in while body supported`。
+### T2003u5c Effect：no-immediate multiple-escape 的 while direct/indirect mixed replay（已拆分）
+- 描述：进一步审计后确认，该任务同时耦合了 two-order replay：`direct -> indirect` 与 `indirect -> direct`。两者在 current-site tail / future-iteration re-entry 上不对称，若继续整包推进会把不同 continuation helper 的修改面重新压回同一轮，因此拆成 `T2003u5c1` / `T2003u5c2`。
+- 子任务：
+  - `T2003u5c1`：先支持 while body 中 separate-stmt 的 `direct -> indirect` mixed replay，并转正现有 build-fail。
+  - `T2003u5c2`：再补齐 `indirect -> direct` 与剩余 while ordering matrix。
+
+### T2003u5c1 [DONE] Effect：no-immediate multiple-escape 的 while separate-stmt mixed replay（direct 在 indirect 之前）
+- 描述：当前无 immediate-resume 的 while mixed path 仍只支持“同一个 while-body statement 内”的 direct / indirect coexistence；已知 build-fail `effect_multi_escape_direct_indirect_while_is_error` 属于更小且独立的 `direct -> indirect` separate-stmt 子集。
 - 目标：
-  - no-immediate multiple-escape 的 unified emitter 覆盖 while body 中 separate-stmt 的 direct + indirect mixed replay。
-  - 删除 `effect_multi_escape_direct_indirect_while_is_error` 这类仅用于锁 while mixed 形状边界的诊断。
+  - no-immediate multiple-escape 的 unified emitter 覆盖 while body 中 separate-stmt 的 `direct -> indirect` mixed replay。
+  - 删除 `effect_multi_escape_direct_indirect_while_is_error` 这类仅用于锁该子集边界的诊断。
 - 验收：
   - build-fail `effect_multi_escape_direct_indirect_while_is_error` 转成 run-pass 或等价正向回归。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5b
+- 完成说明：
+  - `mixed.rs` 的 no-immediate top-level mixed 分类已允许 while body 中 one direct + one indirect 的 `direct -> indirect` separate-stmt 顺序；仍未支持的 `indirect -> direct` 顺序已由 `T2003u5c2` 单独跟踪。
+  - `matrix.rs` 已为该 direct-first 子集补齐两个 continuation helper：direct site 可继续 replay 到后续 statement 的 indirect site；indirect site 结束当前迭代后，future iteration 会重新从 earlier direct site re-entry。
+  - 原 build-fail `effect_multi_escape_direct_indirect_while_is_error` 已删除，新增 run-pass 回归 `effect_multi_escape_direct_indirect_while`。
+  - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+
+### T2003u5c2 [TODO] Effect：no-immediate multiple-escape 的 while separate-stmt mixed replay（indirect 在 direct 之前 / richer ordering）
+- 描述：`T2003u5c1` 只先打通 `direct -> indirect`。但当 while body 中的 first mixed site 改成 indirect 时，future-iteration re-entry 需要重新回到 earlier indirect site，而不是沿用当前 direct-first tail helper；这部分仍需单独收口。
+- 目标：
+  - no-immediate multiple-escape 的 unified emitter 覆盖 while body 中 separate-stmt 的 `indirect -> direct` mixed replay。
+  - 收口 while body mixed ordering helper，避免再以 `same-body-stmt` 诊断兜底 direct-first 之外的 separate-stmt 组合。
+- 验收：
+  - 新增 run-pass 或等价正向回归：覆盖 `indirect -> direct` 的 while separate-stmt mixed。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5c1
 
 ### T2003u5d [TODO] Effect：mixed-arm immediate+escape 的 while richer matrix replay
 - 描述：当前 immediate+escape mixed-arm 的 unified emitter 仍保留 3 个 while 形状门禁：deeper nested direct site、deeper nested indirect site，以及 separate-stmt direct/indirect coexistence。
@@ -1290,7 +1313,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u5c
+- 依赖：T2003u5c2
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
 - 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。

@@ -1437,75 +1437,144 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     {
         let current_path = current_site.resume_path.as_slice();
         let next_path = Self::mixed_escape_matrix_site_resume_path(next_site);
-        if !Self::mixed_escape_while_same_stmt_mixed_path_supported(current_path, next_path) {
+        if Self::mixed_escape_while_same_stmt_mixed_path_supported(current_path, next_path) {
+            let nested_current = MixedEscapeDirectSite {
+                top_level_stmt_idx: current_site.top_level_stmt_idx,
+                decl: current_site.decl,
+                args: current_site.args,
+                id: current_site.id,
+                resume_path: current_path[1..].to_vec(),
+            };
+            let nested_next = match &next_site.kind {
+                MatrixEscapeSiteKind::Direct { site } => MatrixEscapeSite {
+                    stmt_idx: 0,
+                    decl: site.decl,
+                    id: site.id,
+                    kind: MatrixEscapeSiteKind::Direct {
+                        site: MixedEscapeDirectSite {
+                            top_level_stmt_idx: site.top_level_stmt_idx,
+                            decl: site.decl,
+                            args: site.args,
+                            id: site.id,
+                            resume_path: site.resume_path[1..].to_vec(),
+                        },
+                    },
+                },
+                MatrixEscapeSiteKind::Indirect { site } => MatrixEscapeSite {
+                    stmt_idx: 0,
+                    decl: site.decl,
+                    id: site.id,
+                    kind: MatrixEscapeSiteKind::Indirect {
+                        site: MixedEscapeIndirectSite {
+                            top_level_stmt_idx: site.top_level_stmt_idx,
+                            decl: site.decl,
+                            init: site.init,
+                            id: site.id,
+                            resume_path: site.resume_path[1..].to_vec(),
+                        },
+                    },
+                },
+            };
+
+            return match nested_current.resume_path.first() {
+                Some(MixedEscapeDirectFrame::Block { .. }) => self
+                    .codegen_mixed_escape_matrix_continue_to_next_block_site_after_direct(
+                        &nested_current,
+                        next_pc,
+                        &nested_next,
+                        body_lift_ids,
+                        emit_direct,
+                        emit_indirect,
+                    ),
+                Some(MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. }) => {
+                    self.codegen_mixed_escape_matrix_continue_to_next_if_site_after_direct(
+                        &nested_current,
+                        next_pc,
+                        &nested_next,
+                        body_lift_ids,
+                        emit_direct,
+                        emit_indirect,
+                    )
+                }
+                _ => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed-arm escape continuation (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
+                    at: next_site.decl.span.into(),
+                }),
+            };
+        }
+
+        if !Self::mixed_escape_while_separate_stmt_order_supported(current_path, next_path) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation (only same-body-stmt direct / indirect coexistence in while body supported)",
+                kind: "handle mixed-arm escape continuation (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
                 at: next_site.decl.span.into(),
             });
         }
 
-        let nested_current = MixedEscapeDirectSite {
-            top_level_stmt_idx: current_site.top_level_stmt_idx,
-            decl: current_site.decl,
-            args: current_site.args,
-            id: current_site.id,
-            resume_path: current_path[1..].to_vec(),
-        };
-        let nested_next = match &next_site.kind {
-            MatrixEscapeSiteKind::Direct { site } => MatrixEscapeSite {
-                stmt_idx: 0,
-                decl: site.decl,
-                id: site.id,
-                kind: MatrixEscapeSiteKind::Direct {
-                    site: MixedEscapeDirectSite {
-                        top_level_stmt_idx: site.top_level_stmt_idx,
-                        decl: site.decl,
-                        args: site.args,
-                        id: site.id,
-                        resume_path: site.resume_path[1..].to_vec(),
-                    },
-                },
-            },
-            MatrixEscapeSiteKind::Indirect { site } => MatrixEscapeSite {
-                stmt_idx: 0,
-                decl: site.decl,
-                id: site.id,
-                kind: MatrixEscapeSiteKind::Indirect {
-                    site: MixedEscapeIndirectSite {
-                        top_level_stmt_idx: site.top_level_stmt_idx,
-                        decl: site.decl,
-                        init: site.init,
-                        id: site.id,
-                        resume_path: site.resume_path[1..].to_vec(),
-                    },
-                },
-            },
-        };
+        // `direct -> indirect` 的 separate-stmt while mixed：继续当前迭代，
+        // 先 replay 两个 site 之间的 body statements，再在后续 statement 里重建到下一处 site。
+        if current_path.len() > 1 {
+            self.codegen_mixed_escape_matrix_nested_tail_after_site_from_depth(
+                current_site,
+                1,
+                body_lift_ids,
+            )?;
+        }
 
-        match nested_current.resume_path.first() {
-            Some(MixedEscapeDirectFrame::Block { .. }) => self
-                .codegen_mixed_escape_matrix_continue_to_next_block_site_after_direct(
-                    &nested_current,
+        let Some(MixedEscapeDirectFrame::WhileBody {
+            while_body,
+            stmt_idx: current_stmt_idx,
+            ..
+        }) = current_path.first()
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: current_site.decl.span.into(),
+            });
+        };
+        let Some(MixedEscapeDirectFrame::WhileBody {
+            while_body: next_while_body,
+            stmt_idx: next_stmt_idx,
+            ..
+        }) = next_path.first()
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: next_site.decl.span.into(),
+            });
+        };
+        if !std::ptr::eq(*while_body, *next_while_body) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (while path mismatch)",
+                at: next_site.decl.span.into(),
+            });
+        }
+
+        for body_stmt in while_body
+            .stmts
+            .iter()
+            .take(*next_stmt_idx)
+            .skip(*current_stmt_idx + 1)
+        {
+            self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
+        }
+
+        let next_stmt = &while_body.stmts[*next_stmt_idx];
+        match &next_site.kind {
+            MatrixEscapeSiteKind::Direct { site } => self.codegen_mixed_escape_matrix_while_site_stmt(
+                next_stmt,
+                next_pc,
+                site,
+                body_lift_ids,
+                emit_direct,
+            ),
+            MatrixEscapeSiteKind::Indirect { site } => self
+                .codegen_mixed_escape_matrix_while_indirect_site_stmt(
+                    next_stmt,
                     next_pc,
-                    &nested_next,
+                    site,
                     body_lift_ids,
-                    emit_direct,
                     emit_indirect,
                 ),
-            Some(MixedEscapeDirectFrame::IfThen { .. } | MixedEscapeDirectFrame::IfElse { .. }) => {
-                self.codegen_mixed_escape_matrix_continue_to_next_if_site_after_direct(
-                    &nested_current,
-                    next_pc,
-                    &nested_next,
-                    body_lift_ids,
-                    emit_direct,
-                    emit_indirect,
-                )
-            }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation (only same-body-stmt direct / indirect coexistence in while body supported)",
-                at: next_site.decl.span.into(),
-            }),
         }
     }
 
@@ -3285,12 +3354,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: stmt.span.into(),
             });
         };
+
+        if Self::mixed_escape_while_separate_stmt_order_supported(
+            &direct_site.resume_path,
+            &indirect_site.resume_path,
+        ) {
+            return self.codegen_mixed_escape_matrix_while_stmt_direct_site(
+                stmt,
+                direct_pc,
+                direct_site,
+                body_lift_ids,
+                |cg, site_pc, site| emit_direct(cg, site_pc, site),
+            );
+        }
+
         if !Self::mixed_escape_while_same_stmt_mixed_path_supported(
             &direct_site.resume_path,
             &indirect_site.resume_path,
         ) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation (only same-body-stmt direct / indirect coexistence in while body supported)",
+                kind: "handle mixed-arm escape continuation (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
                 at: stmt.span.into(),
             });
         }
@@ -3907,12 +3990,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: current_indirect.decl.span.into(),
             });
         };
+        let Some(MixedEscapeDirectFrame::WhileBody {
+            while_cond: future_while_cond,
+            while_body: future_while_body,
+            stmt_idx: future_direct_stmt_idx,
+        }) = future_direct.resume_path.first()
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (expected while site)",
+                at: future_direct.decl.span.into(),
+            });
+        };
+        if !std::ptr::eq(*while_cond, *future_while_cond)
+            || !std::ptr::eq(*while_body, *future_while_body)
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle mixed-arm escape continuation (while path mismatch)",
+                at: future_direct.decl.span.into(),
+            });
+        }
         if !Self::mixed_escape_while_same_stmt_mixed_path_supported(
+            &future_direct.resume_path,
+            &current_indirect.resume_path,
+        ) && !Self::mixed_escape_while_separate_stmt_order_supported(
             &future_direct.resume_path,
             &current_indirect.resume_path,
         ) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle mixed-arm escape continuation (only same-body-stmt direct / indirect coexistence in while body supported)",
+                kind: "handle mixed-arm escape continuation (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
                 at: future_direct.decl.span.into(),
             });
         }
@@ -3923,6 +4028,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
+        // 当前 indirect 完成后，future iteration 需要回到源码顺序里更早的 direct site，
+        // 不能再沿用 current indirect 的 stmt_idx 作为 while re-entry 起点。
         self.env.push_scope();
         if current_indirect.resume_path.len() > 1 {
             self.codegen_mixed_escape_matrix_nested_tail_after_indirect_site_from_depth(
@@ -3978,7 +4085,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.env.push_scope();
 
         for (idx, body_stmt) in while_body.stmts.iter().enumerate() {
-            if idx < *perform_stmt_idx {
+            if idx < *future_direct_stmt_idx {
                 self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
                 continue;
             }
@@ -3993,7 +4100,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(bb) = self.builder.get_insert_block()
                 && bb.get_terminator().is_none()
             {
-                for body_stmt in while_body.stmts.iter().skip(*perform_stmt_idx + 1) {
+                for body_stmt in while_body.stmts.iter().skip(*future_direct_stmt_idx + 1) {
                     self.codegen_mixed_escape_matrix_replay_stmt(body_stmt, body_lift_ids)?;
                 }
                 self.env.pop_scope();

@@ -580,38 +580,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 else {
                     unreachable!("classified while-indirect site");
                 };
-                if !Self::mixed_escape_while_same_stmt_mixed_path_supported(
+                if Self::mixed_escape_while_same_stmt_mixed_path_supported(
                     &direct_site.resume_path,
                     &indirect_site.resume_path,
                 ) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle multi-arm without immediate-resume (only same-body-stmt direct / indirect coexistence in while body supported)",
-                        at: handle.body.stmts[*stmt_idx].span.into(),
-                    });
+                    match Self::mixed_escape_matrix_stmt_path_cmp(
+                        &direct_site.resume_path,
+                        &indirect_site.resume_path,
+                    ) {
+                        std::cmp::Ordering::Less => {
+                            while_next_site_pc_by_pc.insert(direct_pc, indirect_pc);
+                            while_prev_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                        }
+                        std::cmp::Ordering::Greater => {
+                            while_next_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                            while_prev_site_pc_by_pc.insert(direct_pc, indirect_pc);
+                        }
+                        std::cmp::Ordering::Equal => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-arm without immediate-resume (while mixed site order ambiguous)",
+                                at: direct_site.decl.span.into(),
+                            });
+                        }
+                    }
+                    let mut mixed_sites = while_direct_sites.clone();
+                    mixed_sites.extend(while_indirect_sites.iter().copied());
+                    while_mixed_site_pcs_by_stmt_idx.insert(*stmt_idx, mixed_sites);
+                    continue;
                 }
-                match Self::mixed_escape_matrix_stmt_path_cmp(
+
+                if Self::mixed_escape_while_separate_stmt_order_supported(
                     &direct_site.resume_path,
                     &indirect_site.resume_path,
                 ) {
-                    std::cmp::Ordering::Less => {
-                        while_next_site_pc_by_pc.insert(direct_pc, indirect_pc);
-                        while_prev_site_pc_by_pc.insert(indirect_pc, direct_pc);
-                    }
-                    std::cmp::Ordering::Greater => {
-                        while_next_site_pc_by_pc.insert(indirect_pc, direct_pc);
-                        while_prev_site_pc_by_pc.insert(direct_pc, indirect_pc);
-                    }
-                    std::cmp::Ordering::Equal => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multi-arm without immediate-resume (while mixed site order ambiguous)",
-                            at: direct_site.decl.span.into(),
-                        });
-                    }
+                    while_next_site_pc_by_pc.insert(direct_pc, indirect_pc);
+                    while_prev_site_pc_by_pc.insert(indirect_pc, direct_pc);
+                    let mut mixed_sites = while_direct_sites.clone();
+                    mixed_sites.extend(while_indirect_sites.iter().copied());
+                    while_mixed_site_pcs_by_stmt_idx.insert(*stmt_idx, mixed_sites);
+                    continue;
                 }
-                let mut mixed_sites = while_direct_sites.clone();
-                mixed_sites.extend(while_indirect_sites.iter().copied());
-                while_mixed_site_pcs_by_stmt_idx.insert(*stmt_idx, mixed_sites);
-                continue;
+
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-arm without immediate-resume (only same-body-stmt or direct-before-indirect separate-stmt coexistence in while body supported)",
+                    at: handle.body.stmts[*stmt_idx].span.into(),
+                });
             }
 
             if site_pcs.len() > 1 {
