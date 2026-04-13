@@ -34,9 +34,16 @@ cargo run -p scoop --features llvm -- test
 ## T20：Effect / Continuation 完整化
 
 - 2026-04-13 架构重定向：
-  - `T2003c0*` 已完成事项只允许作为短期过渡实现与回归基线保留；`T2003u*` 的目标不是把这些 case-by-case 路径“迁移后继续并存”，而是逐步用统一状态机主线替换它们。除非为当轮落地绝对必要，旧代码不应继续保留以增加复杂度。
-  - 后续 effect 主线的硬目标改为“统一的 resumable state-machine pass”：先生成完整状态机，再按 never-resume / immediate-resume / escape-continuation 做化简；不再根据源码形状分别生成多套状态机。
-  - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线全部由新的 `T2003u*` 主线替代。
+  - `T2003c0*` 已完成事项只允许作为历史行为基线与回归参考保留；它们不是继续演化的架构参考，更不是后续实现允许补功能的旧主线。
+  - `T2003u*` 从现在起明确是 **complete rewrite**：不是继续修 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs`，而是用统一状态机主线整体替换它们。
+  - 唯一允许的实现流程是：先按控制流边界分段，再从 segment list 构建状态机，再从统一状态机发射代码。
+  - 分段阶段不得按 `single arm`、`single perform`、`perform inside while`、`top-level`、`same-stmt mixed`、`nested block` 等源码形状分类；这些只允许作为覆盖样例名称，不允许成为算法分流条件。
+  - 状态机构建阶段只能消费 segment list；发射阶段只能消费统一状态机与 simplification 结果，不得回头按源码形状选专用路径。
+  - 每一阶段都必须先覆盖当轮所有合法组合并达到“可直接接到下一阶段”的完整度，才能进入下一阶段；不允许一边继续补 segmenter，一边在 emitter 里为缺口加例外分支。
+  - 在统一主线 feature-complete 之前，不给旧 shape-based emitter/scanner 新增任何功能；实现期间可以只跑统一状态机相关的定向单测 / fixture，`cargo test --all` / full matrix / GC stress 统一留到新的 ground-up 验收任务 `T2003r4`。
+  - 当统一状态机变换完成并通过 `T2003r4` 后，`T2003r5` 必须彻底删除旧的 shape-based emitter / scanner / matrix 主实现；不保留 fallback、双轨或“以防万一”的 legacy 路由。
+  - 原 `T2003u` 未完成尾项现已废弃并从短版 TODO 删除；当前 active route 改为新的 ground-up `T2003r1`～`T2003r5`，严格按 `segmenting -> builder -> emitter -> full validation -> delete legacy` 顺序推进。
+  - 因此，本节中原先尚未完成的 `T2003c0c2d2c`～`T2003c` 旧路线，现统一由 `T2003u*` 已完成基线与新的 `T2003r*` 主线承接。
 
 ### T2001 [DONE] Effect：统一 `handle` arm 形态与 typecheck/HIR 不变量
 - 描述：当前 `handle` 仍直接拒绝在同一个表达式里混用 `->`、`-> resume`、`, k ->` 等 arm 形态，导致语言语义被实现层的早期门禁截断。先收口 arm 的表示与兼容性检查，再推进后端链路。
@@ -1224,13 +1231,11 @@ cargo run -p scoop --features llvm -- test
   - 旧 `scan.rs` 即使暂时保留，也只应作为待删 legacy helper，而不是长期参考实现；新增的 immediate+escape 合法组合不再依赖它来决定主 emitter。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5 Effect：用统一状态机主线替换剩余 mixed-arm / multiple-resuming case-by-case 路径并删除结构性门禁（已拆分）
-- 说明：`T2003u4c3` 完成后，统一 plan 已接管大部分 mixed-arm / multiple-resuming emitter，但剩余门禁并不是同一种实现缺口，而是 4 类彼此独立的问题：
-  - pure direct top-level `multiple escape arms + sibling non-resuming + finally`
-  - single-arm immediate-resume 在 while body 中的 deeper nested source-path / resume edge coverage
-  - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed 恢复边覆盖
-  - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt 状态机边覆盖
-- 以下子任务按顺序承接；当前 effect 主线的下一步是 `T2003u5d3a`，重点是继续补 unified state-machine 对 nested `while` 的覆盖，而不是给旧 shape-specific lowering 追加新 case。
+### T2003u5 Effect：统一状态机完全重写的剩余覆盖检查点（已拆分）
+- 说明：
+  - `T2003u5a`～`T2003u5d2` 作为上一轮 unified-plan 迁移的已完成记录保留。
+  - 原未完成尾项 `T2003u5d3a`～`T2003u7` 已明确废弃：它们仍带有按 nested-while / direct-only / indirect-only 继续扩旧路线的拆分痕迹，不再适合作为新的主线任务。
+  - 短版 TODO 不再继续保留这些废弃未完成项；新的 ground-up 重写任务改由下方 `T2003r*` 承接。
 
 ### T2003u5a [DONE] Effect：multiple escape-continuation arms + sibling non-resuming + `finally`
 - 描述：当前 unified-plan 驱动的 `codegen_handle_expr_multiple_escape_top_level_direct` 已分别支持“multiple escape arms + sibling non-resuming”和“multiple escape arms + finally”，但两者组合时仍被显式门禁 `handle multiple escape-continuation arms with sibling non-resuming and finally not yet supported` 拦住。
@@ -1341,93 +1346,84 @@ cargo run -p scoop --features llvm -- test
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5d1
 - 完成说明：
-  - `scan.rs` 的 mixed-arm while nested-path 判定现已放宽到 `while -> block/if -> ...` richer nested 子集：允许 `Block` / 单层 `IfThen|IfElse` 与后续 block 交错，但仍继续拒绝 inner `while` 与多层 if，把剩余缺口明确收口到 `T2003u5d3`。
+  - `scan.rs` 的 mixed-arm while nested-path 判定现已放宽到 `while -> block/if -> ...` richer nested 子集：允许 `Block` / 单层 `IfThen|IfElse` 与后续 block 交错；剩余 inner-while 缺口不再沿旧 `T2003u5d3*` 路线推进，后续统一转入新的 ground-up 重写任务 `T2003r*`。
   - `matrix.rs` 的 while mixed prefix / scan / tail helper 已支持沿 source-path 穿过 block 再进入 if 分支，不再依赖 block-only 假设；同时修复了 `while -> block -> if` 间接 site 在 skip 分支上误重放 then-tail 的问题。
   - 已删除 build-fail `effect_resume_mixed_escape_while_is_error`，新增 richer nested run-pass：
     - `effect_resume_mixed_escape_pre_immediate_while_nested_block_if`
     - `effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect`
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5d3a [TODO] Effect：统一状态机补齐 immediate+escape 的 nested-while 间接 escape 单站点恢复边
-- 描述：审计 `T2003u5d3` 后确认，当前 inner-while 缺口里最小、最明确、已有 build-fail 锁边界的子问题是“outer while body 内 nested inner-while 的单个 indirect escape site”。这里缺的不是再给旧 replay helper 补一个 case，而是 unified state-machine 对 `WhileBody -> WhileBody` 这条 suspend/resume edge 仍未完整覆盖：outer while 进入 inner while 的路径恢复、当前迭代尾部推进，以及 future iteration re-entry 还没有在同一条 plan-driven 主线里完全打通。
+### T2003r1 [TODO] Effect：从零开始实现统一 segmenting，先产出完整 `HandleSegmentList`
+- 描述：下一步不再沿旧 `T2003u5d3*` 继续按 nested-while / direct / indirect 子形状补洞，而是从 ground up 重做第一阶段：统一分段。目标是让一个 `handle` 的可恢复 region 先稳定落成 `HandleSegmentList`，direct/indirect perform、single/multi-arm、`if`/`while`/nested handle/`finally` 都只作为同一套控制流分段规则下的普通输入。
 - 目标：
-  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的单个 indirect escape site。
-  - initial body、continuation step、future iteration re-entry 都走统一状态机主线，不再把 inner `while` 当成 dedicated lowering 边界。
-  - 不为该合法组合新增独立的 shape-specific scanner / emitter 主路径；如需局部 helper，也只能作为 unified emitter 的内部实现细节存在。
-  - 删除 build-fail `effect_resume_mixed_escape_while_indirect_is_error`，转为 run-pass 或等价正向回归。
+  - 为所有当前合法 effect 组合生成统一的 `HandleSegmentList`，不再依赖 `single arm`、`perform inside while`、`same-stmt mixed`、nested-while 等源码形状分类。
+  - segment 边界只由控制流与恢复语义决定：branch split/merge、loop head/back-edge/exit、suspend site、arm dispatch entry/exit、nested handle boundary、cleanup entry/exit。
+  - 现有 plan/source-path 辅助结构若仍保留，也只能作为迁移脚手架；统一分段结果必须成为下一阶段唯一输入。
 - 验收：
-  - `effect_resume_mixed_escape_while_indirect_is_error` 转 run-pass，或以等价 nested-while indirect 正例替代。
-  - 不新增新的 `scan.rs` / `mixed.rs` / `matrix.rs` 形状门禁来兜底该合法组合。
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
+  - 新增 segment dump / 单测：覆盖 direct/indirect、single/multi-arm、`if` / `while` / nested handle / `finally` / nested-while representative samples。
+  - 不新增 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 的新功能。
+  - 本阶段允许只运行 segmenting 相关定向单测 / fixture；不要求 full suite。
 - 依赖：T2003u5d2
 
-### T2003u5d3b [TODO] Effect：统一状态机补齐 immediate+escape 的 nested-while direct escape 单站点恢复边
-- 描述：在 indirect nested-while 打通后，再把对称的 direct escape site 接上统一主线。该路径不经过 call-site binding，但同样需要 inner-while 的 current iteration / future iteration re-entry；任务目标是补 unified state-machine 对 direct nested-while suspend/resume edge 的覆盖，而不是继续扩“只支持平坦 while-body direct site”的旧分支。
+### T2003r2 [TODO] Effect：从零开始实现统一 state-machine builder，只消费 `HandleSegmentList`
+- 描述：在 `T2003r1` 完成后，第二阶段只做一件事：从 `HandleSegmentList` 构建统一 `HandleStateMachinePlan`。builder 不再读取源码形状决定“该走哪一套 state machine”，也不再让 direct / indirect / mixed / nested-while 拥有独立主构造器。
 - 目标：
-  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的单个 direct escape site。
-  - 与 `T2003u5d3a` 对齐：不再把 inner `while` 当成 dedicated lowering 边界，补足 direct nested-while 的对称 run-pass 回归。
-  - 不通过给旧 direct intercept / replay 路径追加 shape-specific 主逻辑来落地；统一由 state-machine 主线承接。
+  - `HandleStateMachinePlan` 只由 `HandleSegmentList` 推导，direct / indirect / single / multi-arm / nested control-flow 都走同一套 builder。
+  - 统一 builder 完整表达 dispatch、resume target、cleanup graph、capture/frame layout，而不是把这些规则分散在旧 replay helper 里。
+  - builder 输出达到“可直接交给 emitter”的完整度；未完成的合法组合不得再回退成 shape-specific 计划外分支。
 - 验收：
-  - 新增 run-pass：覆盖 direct nested-while replay。
-  - 不新增新的 dedicated inner-while lowering 入口。
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u5d3a
+  - 新增 plan dump / 单测：证明 representative samples 的状态机都只从 segment list 推导。
+  - 不新增新的 shape-based builder / replay planner / dedicated nested-while planner。
+  - 本阶段允许只运行 builder 相关定向单测 / fixture；不要求 full suite。
+- 依赖：T2003r1
 
-### T2003u5d3c [TODO] Effect：统一状态机补齐 immediate+escape 的 `while -> block/if -> inner while` richer nested 恢复边
-- 描述：最后再把 `T2003u5d2` 已支持的 block/if richer nested 路径与 inner-while 路径合并，收口 `while -> block -> inner while`、`while -> if -> inner while` 等仍把 `WhileBody` 视为专用边界的剩余缺口。目标是让 unified state-machine 在 richer nested CFG 上直接表达并发射这些合法组合，而不是继续维护一套“inner-while 例外处理”。
+### T2003r3 [TODO] Effect：从零开始实现统一 emitter，接管全部合法 effect lowering
+- 描述：第三阶段才进入 emitting。此阶段的唯一目标是：LLVM effect lowering 只消费统一状态机与 simplification 结果。不得再按 `single arm`、`perform inside while`、`top-level direct`、`nested-while indirect` 等源码形状选择主 emitter。
 - 目标：
-  - immediate+escape mixed-arm 支持 `while -> block/if -> inner while -> ...` 的 direct / indirect escape site 恢复与继续执行。
-  - 完成后不再保留 inner-while dedicated lowering 作为独立长期分支；若仍需局部 helper，也必须是统一状态机主线内部的实现细节，而不是第二套 case-by-case 主实现。
-  - 为 `T2003u6` 的 full-matrix 验证消除最后一类 nested-while 合法组合缺口。
+  - single-arm、multiple arms、immediate-resume、escape-continuation、mixed-arm、direct/indirect perform、nested control-flow、nested handle 全部接到统一 emitter 主线。
+  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 不再承接任何新功能；若仍有少量 helper 被复用，也只能作为统一 emitter 内部细节。
+  - build-fail 中仍属于“合法但尚未实现”的 lowering 形状缺口全部清空；剩余限制只能是真实语言语义非法组合。
 - 验收：
-  - 新增 run-pass：覆盖 richer nested inner-while 组合，或以更精确的统一回归替代。
-  - 不再以 `WhileBody` 专用形状门禁拒绝这类合法组合。
-  - `cargo test --all`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u5d3b
+  - 新增 LLVM fixture：覆盖 direct/indirect、single/multi-arm、`if` / `while` / nested handle / nested-while representative samples，且全部走统一 emitter。
+  - 不再为新的合法组合新增 shape-specific 主路径。
+  - 本阶段允许只运行 unified emitter 相关定向单测 / fixture；不要求 full suite。
+- 依赖：T2003r2
 
-### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归、GC stress 与覆盖性验收
-- 描述：在剩余 nested-while 合法组合补齐后，先用 full matrix 与 GC stress 验证统一状态机主线已经覆盖应支持的语义，不再把“补状态机缺口”和“删旧代码”揉成一个模糊的收尾动作。`T2003u6` 的职责是证明 unified pass 已经足够完整，`T2003u7` 再显式删除 legacy 路径。
+### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
+- 描述：`T2003r4` 是新的强制全量验收门槛。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，才进入这一任务；在此之前，不再要求每轮都跑 full suite。
 - 目标：
-  - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm kind 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
-  - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，且 continuation pinning、capture 恢复、cleanup/finally 语义不回归。
-  - 统一状态机主线完成时，不再存在“因为 lowering 尚未实现而拒绝某类合法组合”的长期 TODO。
-  - 为 `T2003u7` 删除旧主线提供明确门槛：任何仍被保留的 legacy 代码都必须先证明不再承担合法组合的 source-of-truth 职责。
+  - 为 single/multiple direct、single/multiple indirect、direct+indirect 共存、multi-arm 任意合法组合、nested handle、nested control-flow、sibling non-resuming、`finally` 补齐端到端回归。
+  - 所有回归在 `SCOOP_GC_STRESS=1` 下稳定，continuation pinning、capture 恢复、cleanup/finally 语义不回归。
+  - 到本任务结束时，不再存在“合法但尚未实现”的 lowering 形状缺口，也不再存在任何以源码形状为入口条件的专用主路径。
 - 验收：
-  - 新增 run-pass / stress fixtures：覆盖 unified pass full matrix。
-  - 所有 remaining legal combinations 都能映射到统一状态机计划与统一 emitter 主线，不再新增 lowering 形状门禁。
+  - 新增 run-pass / stress fixtures：覆盖 ground-up unified pipeline full matrix。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u5d3c
+  - `SCOOP_GC_STRESS=1` 或等价压力模式下的 full matrix 通过。
+- 依赖：T2003r3
 
-### T2003u7 [TODO] Effect：删除 legacy scanner / emitter / dedicated matrix 路径
-- 描述：`T2003u6` 验证统一状态机主线覆盖性之后，显式删除 effect lowering 中剩余的 legacy 主路径。旧 `scan.rs`、shape-specific emitter、以及 dedicated matrix/source-of-truth 路径不应继续以“以防万一”的名义保留。
+### T2003r5 [TODO] Effect：删除全部旧 shape-based lowering 主实现
+- 描述：`T2003r4` 通过后，不再保留“以防万一”的旧实现。旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 中承载形状分流 lowering 的主路径必须整体移除。
 - 目标：
-  - 删除或内收旧 `scan.rs` / `mixed.rs` / `matrix.rs` / 相关 legacy emitter 中仍承担主路由职责的 case-by-case 路径。
-  - `codegen_handle_expr`、simplification 与 plan-driven resolver 对合法组合只保留统一状态机这一条 source-of-truth。
-  - 若 `mixed.rs` / `matrix.rs` / `scan.rs` 中仍保留少量代码，必须能证明只是统一主线内部复用的局部 helper，并补注释说明其边界。
+  - 删除旧 shape-based lowering 主实现，不保留 fallback、双轨或 feature flag 形式的 legacy 路由。
+  - `codegen_handle_expr`、simplification、resolver 与 emitter 对合法组合只保留统一状态机这一条 source-of-truth。
+  - 仓库中不再存在按 `single arm`、`single perform`、`perform inside while`、`top-level`、`same-stmt mixed` 等源码形状选主路径的 effect lowering 代码。
 - 验收：
   - 清理完成后，不再存在“新增一个合法 effect 组合时默认去旧 scanner / 旧 emitter 扩 case”的文档或代码路径。
-  - `mixed.rs` / `matrix.rs` / `scan.rs` 的残余代码若存在，必须不再构成第二套并行 effect lowering 主实现。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u6
+- 依赖：T2003r4
 
-### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
+### T2099 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
 - 目标：
   - 不再推进“恢复裸 `{ ... }` block”或“继续依赖 `@Safe` workaround 给普通 nested block 消歧”的方案。
   - 由 `T2201`～`T2204` 统一承接：显式 `do` block 语法、block tail value / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 验收：
-  - `T2201`～`T2204` 进入主线落地顺序；`T2004` 不再作为独立实现项继续展开。
+  - `T2201`～`T2204` 进入主线落地顺序；`T2099` 只保留为废弃索引，不再作为独立实现项继续展开。
 - 依赖：无（已废弃，改由 `T2201`～`T2204` 承接）
 
 ## T22：前端 `do` block / closure 消歧与 block 语义收口
@@ -1463,12 +1459,12 @@ cargo run -p scoop --features llvm -- test
   - 真正依赖 safe-region 语义的测试继续保留 `@Safe` 相关写法，避免把 unsafe 语义回归误混进 parser / block 语义任务。
   - 锁定 trailing lambda / multiple trailing lambdas 与后续 `do` block 并存时的行为，避免 effect fixture 迁移顺手改变调用语义。
 - 验收：
-  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_while_is_error` 改为 `do { ... }`，行为或诊断保持不变。
+  - 更新 effect fixtures：`effect_resume_nested_block_single_perform`、`effect_resume_mixed_escape_pre_immediate_block`、`effect_resume_mixed_escape_post_immediate_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block`、`effect_resume_mixed_escape_pre_immediate_while_nested_block_if`、`effect_resume_mixed_escape_post_immediate_while_nested_block_if_indirect` 改为 `do { ... }`，行为保持不变。
   - 新增 parser / typecheck / HIR / run-pass 回归：multiple trailing lambdas 与后续 `do` block 的边界规则。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2202, T2003u6
+- 依赖：T2202, T2003r4
 
 ### T2204 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
 - 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 仍保留“裸 `{ ... }` 可能同时像 block / lambda”的旧叙述；若只改实现不改规范，后续 fixtures 与文档示例会继续漂移。

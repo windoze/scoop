@@ -5,7 +5,7 @@
 // supports a richer nested direct escape site inside `while -> block -> if`
 // before the immediate site.
 // Current `@Safe { ... }` is only a temporary naked-block workaround until
-// T2004 lands; this fixture does not depend on safe-region semantics.
+// T2203 lands; this fixture does not depend on safe-region semantics.
 
 import scoop.core.*
 

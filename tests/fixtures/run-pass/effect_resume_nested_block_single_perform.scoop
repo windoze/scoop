@@ -8,7 +8,7 @@
 // - resume 后先回到内层 block，随后继续执行外层 block 与 handle body；
 // - block 内 perform 前声明的局部值在 resume 后仍可读取。
 // - 当前 `@Safe { ... }` 仅是“statement-position 裸 block 尚未支持”时的语法
-//   workaround；待 T2004 落地后应改回普通 `{ ... }`，这里不依赖 safe region 语义。
+//   workaround；待 T2203 迁移后应改为普通 `do { ... }`，这里不依赖 safe region 语义。
 
 import scoop.core.*
 

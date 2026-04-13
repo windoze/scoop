@@ -33,10 +33,13 @@ cargo run -p scoop --features llvm -- test
   - 让 non-resuming effect 与 escape continuation 的恢复值传递不再硬编码在 word-sized `Int` 分支；跨函数路径与 aggregate/reference payload 走统一语义。
   - 把 LLVM effect lowering 收口到“统一的 resumable state-machine pass”：先为可恢复计算生成完整状态机，再按 never-resume / immediate-resume / escape-continuation 的使用方式做化简；不再把语法形状分流当成终态设计。
 - 架构重定向（2026-04-13）：
-  - 现有 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` 的分流式 lowering 只允许作为短期过渡实现与已通过回归的行为基线保留；`T2003u*` 的目标不是把这些 case-by-case 路径迁到 unified plan 前面后长期并存，而是逐步由统一状态机主线替换它们。除非当轮落地绝对必要，旧代码不应继续保留以增加复杂度。
-  - 后续 effect 主链路的硬目标是统一状态机 pass：direct perform、indirect perform、branch/loop、nested handle、multi-arm dispatch 必须先落到同一份 suspension-aware state machine 表示，再做 mode-specific simplification。
-  - 对 never-resume / immediate-resume 的要求是“先生成完整状态机，再证明并化简”；不允许继续以“当前只是 single-site / top-level / same-stmt mixed”之类形状门禁来替代通用实现。
-  - 因此，自本次调整起，不再新增按 `top-level / block / if / while / same-stmt mixed` 维度继续拆分的 effect lowering 主线任务；后续未完成事项统一转入状态机重写路线。
+  - 现有 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 的分流式 lowering 只允许作为历史行为基线保留；它们不是后续实现允许继续补功能的旧主线。
+  - `T2003u*` 从现在起明确是 complete rewrite：目标不是把这些 case-by-case 路径迁到 unified plan 前面后长期并存，而是用统一状态机主线整体替换它们。
+  - 后续 effect 主链路的唯一允许顺序是：先按控制流边界完成统一 `segmenting`，再从 segment list 完成统一 `state-machine building`，最后只从统一状态机完成 simplification 与 `emitting`。
+  - direct perform、indirect perform、branch/loop、nested handle、multi-arm dispatch 必须先落到同一份 suspension-aware state machine 表示，再做 mode-specific simplification；不允许继续以 `single arm`、`single-site`、`top-level`、`while body`、`same-stmt mixed` 之类源码形状门禁替代通用实现。
+  - 每个阶段都必须先覆盖当轮所有合法组合并达到可直接连接下一阶段的完整度，才能进入下一阶段；不允许一边继续补 segmenter，一边在 emitter 里为缺口加例外分支。
+  - 在 unified emitter feature-complete 之前，不给旧 shape-based emitter/scanner 新增任何功能；实现期允许以定向单测 / fixture 推进，full matrix、`cargo test --all` 与 GC stress 的强制门槛统一放到 `T2003u6`。
+  - `T2003u6` 通过后，`T2003u7` 必须彻底删除旧的 shape-based emitter / scanner / dedicated matrix 主实现；不保留 fallback、双轨或“以防万一”的 legacy 路由。
 - 当前进展：
   - T2001 已完成：typecheck/HIR 已允许 mixed arms，`handle` 结果类型按真实返回路径检查，HIR/fixtures 已补齐三类 arm 的稳定回归。
   - 已对原 `T2002` 做范围审计：它同时覆盖 non-resuming payload、escape continuation 的 CalleeSuspendState、以及 `resume(...)` ABI 收口，单轮实现风险过高，已拆为 `T2002a` / `T2002b` 两步推进。
@@ -250,6 +253,7 @@ cargo run -p scoop --features llvm -- test
     - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed 恢复边覆盖；
     - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt 状态机边覆盖。
   - 若继续把 `T2003u5` 整包推进，会把 top-level cleanup、single-arm while 恢复边、no-immediate while mixed 恢复边，以及 immediate+escape while 状态机边四类不同代码路径再次耦合到同一轮里，风险过高，因此拆成 `T2003u5a`～`T2003u5d`。
+  - 2026-04-13 补充约束：`T2003u5*` 这些子项从现在起只表示同一条 unified pipeline 的 coverage checkpoints，不表示允许为上述类别新增 dedicated emitter。实际实现顺序仍固定为 `segmenting -> builder -> emitter`；在 unified emitter feature-complete 之前，只跑定向测试即可，full suite 延后到 `T2003u6`。
   - T2003u5a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 已移除“multiple escape arms + sibling non-resuming + finally”显式门禁，并把主 body no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径统一接到 `finally` 收口。
   - 本轮同时把原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally`，并新增 raise 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`，锁住 escape arm 向外传播时的 `finally` 语义。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
@@ -279,10 +283,11 @@ cargo run -p scoop --features llvm -- test
     - `T2003u5d3a`：先补 unified state-machine 对 outer while body 内 nested inner-while 单个 indirect escape site 的 suspend/resume edge 覆盖，并把已有 build-fail `effect_resume_mixed_escape_while_indirect_is_error` 转正；
     - `T2003u5d3b`：再补 direct nested-while 的对称单站点恢复边；
     - `T2003u5d3c`：最后收口 `while -> block/if -> inner while` richer nested CFG。
+  - 进一步明确：`T2003u5d3a`～`T2003u5d3c` 只是 nested-while 的 coverage checkpoints；它们的实现必须先完成统一 `segmenting`，再完成统一 builder，最后再接 unified emitter，不能通过给旧 `scan.rs` / `mixed.rs` / `matrix.rs` / legacy emitter 增加 nested-while 特判来落地。
   - `T2003u6` 与删除旧代码现也显式拆开：先用 full matrix / GC stress 证明 unified pass 覆盖完整，再由 `T2003u7` 删除 legacy scanner / emitter / dedicated matrix 路径，避免“边补缺口边删旧主线”混成同一轮。
   - 当前下一步调整为 `T2003u5d3a`：由统一状态机主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 单站点恢复边。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
-  - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
+  - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
   - T2001（已完成）：统一 arm 形态与 typecheck/HIR 不变量。
   - T2002a（已完成）：non-resuming 单 payload ABI 泛化（direct + indirect perform）。
@@ -352,11 +357,11 @@ cargo run -p scoop --features llvm -- test
   - T2003u5c2（已完成）：由统一主线接管 no-immediate multiple-escape 的 while `indirect -> direct` 与剩余 ordering matrix。
   - T2003u5d1（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while separate-stmt mixed replay，删除 same-body-stmt 门禁。
   - T2003u5d2（已完成）：由统一主线接管 immediate+escape mixed-arm 的 while deeper nested block/if replay，删除 `while -> block/if -> ...` 路径门禁。
-  - T2003u5d3a：由统一主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 单站点恢复边，删除 `effect_resume_mixed_escape_while_indirect_is_error` 门禁。
-  - T2003u5d3b：由统一主线补齐 immediate+escape mixed-arm 的 nested-while direct escape 单站点恢复边。
-  - T2003u5d3c：由统一主线补齐 immediate+escape mixed-arm 的 `while -> block/if -> inner while` richer nested 恢复边，收口剩余 inner-while dedicated helper 边界。
-  - T2003u6：补 full matrix 回归与 `--gc-stress`，证明合法组合已由统一 pass 覆盖，并清空“合法但尚未实现”的状态机缺口；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
-  - T2003u7：删除剩余 legacy scanner / emitter / dedicated matrix 主路径，只允许保留被统一主线内部复用的局部 helper。
+  - T2003u5d3a：作为 coverage checkpoint，由统一 `segmenting -> builder -> emitter` 主线补齐 immediate+escape mixed-arm 的 nested-while 间接 escape 恢复边，删除 `effect_resume_mixed_escape_while_indirect_is_error` 门禁；不得新增 nested-while indirect 专用主路径。
+  - T2003u5d3b：作为 coverage checkpoint，由同一条统一主线补齐 immediate+escape mixed-arm 的 nested-while direct escape 恢复边；不得新增 direct-only 或 inner-while 专用 lowering。
+  - T2003u5d3c：作为 coverage checkpoint，由同一条统一主线补齐 immediate+escape mixed-arm 的 `while -> block/if -> inner while` richer nested 恢复边，收口剩余 inner-while dedicated helper 边界。
+  - T2003u6：在 unified segmenter / builder / emitter feature-complete 之后，执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收；这之前允许只跑定向测试。
+  - T2003u7：在 `T2003u6` 通过后，彻底删除剩余 legacy scanner / emitter / dedicated matrix 主路径，不保留 fallback / 双轨。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 
 ## 2. 语句语义 / Rust 风格分号规则（T22）
