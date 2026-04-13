@@ -1,51 +1,49 @@
-# 本轮执行计划
+## 本轮执行计划
 
-## 说明
+### 目标
+- 按照 `TODO.md` 的顺序，只完成第一个未完成任务，然后停止。
+- 在开始具体实现前，先检查最新提交是否提到既有问题；若有，先修复这些问题。
 
-按要求先记录计划与决策摘要。这里记录的是可审计的执行计划、检查项与阶段性结论，不包含逐字内部推理。
+### 执行步骤
+1. 检查最新一次 Git 提交信息，确认是否提到需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解当前计划、依赖关系与任务上下文。
+4. 如首个未完成任务过大，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本轮只执行拆分后的第一个子任务。
+5. 阅读与当前任务相关的源码、测试和规范，确认实现边界。
+6. 实现任务；若遇到规格不匹配、缺失特性或前置缺陷，则按要求把问题转化为更前置的 `TODO.md` 任务，并更新 `PLAN.md`。
+7. 运行相关测试、`cargo fmt`、必要的检查以及 `cargo clippy --all-targets -- -D warnings`，修复发现的问题。
+8. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记本轮完成的任务；
+   - 在 `PLAN.md` 中记录进展、调整与原因；
+   - 按需要补充 `README.md`、代码注释或其他说明。
+9. 查看工作区变更，确认无误后提交 Git commit，提交信息对应当前任务。
+10. 停止，不继续处理下一个任务。
 
-## 目标
+### 当前状态
+- 已创建本文件并写入初始计划。
+- 已检查最新提交、`TODO.md`、`PLAN.md` 和代码状态。
+- 最新提交 `ef6cced` 的提交信息仅为 `Update plan`，未额外点名需要优先修复的既有实现问题。
+- 当前工作区除本文件外无其他改动。
+- 已定位首个未完成任务：`T2003r3d2`。
 
-本轮仅完成 `TODO.md` 中第一个未完成任务；如果遇到前置缺陷、规范不匹配或任务需要拆分，则先更新 `TODO.md` / `PLAN.md`，提交后停止。
+### 下一步
+- 已完成：
+  - 阅读 `T2003r3d2` 在 `TODO.md` / `PLAN.md` 中的描述与上下文；
+  - 审计 `state_machine_plan.rs`、`shared.rs`、`nonresuming.rs`、`multi_escape.rs`、`codegen/mod.rs` 中与 unified resuming emitter 相关的占位；
+  - 确认 `PLAN.md` 中对 `T2003r3d2` 的旧描述已过时，当前 `TODO.md` 才反映真实任务范围。
+- 结论：
+  - `T2003r3d2` 当前同时耦合三类工作：`plan-owned metadata`、plan-driven resolver/helper、以及 unified single/multi resuming leaf 接线。
+  - 该范围过大，需先拆成更小子任务；否则一次改动会同时触及 plan 构建、capture/reads 元数据、`resume(value)` / `k.resume(value)` 调用链以及 multi-arm leaf，风险过高。
 
-## 初始步骤
+### 接下来的执行顺序
+1. 已完成：更新 `TODO.md` / `PLAN.md`，把 `T2003r3d2` 按代码边界拆成 `T2003r3d2a` / `T2003r3d2b` / `T2003r3d2c`。
+2. 当前执行：实现拆分后的第一个子任务 `T2003r3d2a`，优先补齐 `plan-owned metadata` 与后续 leaf 需要的 plan-driven resolver/helper。
+3. 完成实现后运行该子任务对应的最小定向测试与 `cargo clippy --workspace --all-targets -- -D warnings`。
+4. 回写本文件、`TODO.md`、`PLAN.md` 的进度并提交 Git。
 
-1. 检查最新一次 Git 提交，确认是否提到了现存问题、回归、已知缺陷或待修事项。
-2. 阅读 `TODO.md`，确定第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与任务顺序是否一致。
-4. 如果第一个未完成任务过大或存在隐藏前置依赖，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+### 最新进展
+- `TODO.md` / `PLAN.md` 已对齐；`PLAN.md` 中关于 `T2003r3d2` 的旧“nested while indirect”描述已替换为新的 metadata / single-resuming / multi-resuming 三段拆分。
+- 当前首个未完成任务已变更为 `T2003r3d2a`。
 
-## 执行原则
-
-1. 不使用规避方案、临时兼容层或只为夹具/测试通过而做的偏离规范实现。
-2. 如果发现规范缺口、实现缺失、诊断错误、运行时/编译器缺陷或其他阻塞问题：
-   - 先精确定义问题；
-   - 在 `TODO.md` 中添加/重排前置任务；
-   - 在 `PLAN.md` 中记录阻塞原因；
-   - 提交这些文档变更后停止。
-3. 在动手改代码前，先定位相关模块、调用路径、测试覆盖点与现有约束。
-4. 代码改动完成后至少运行与任务直接相关的测试；若仓库允许，应补充运行更广范围校验，尤其是：
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 任务相关的定向命令
-
-## 交付清单
-
-1. 实现第一个未完成任务或完成任务拆分/阻塞重排。
-2. 更新 `TODO.md` 与 `PLAN.md`。
-3. 在本文件补充关键进展与结论。
-4. 用清晰的 Git 提交信息提交本轮所有修改。
-5. 停止，不处理下一个任务。
-
-## 进展记录
-
-- 已创建本计划文件，下一步将检查最新提交、`TODO.md` 与 `PLAN.md`。
-- 已检查最新提交 `b22d3077b23b9e7582010ed827c5fb172d7b61fe`。提交标题未单独声明新的必须先修遗留问题；当前工作区仅有本文件改动。
-- 已定位 `TODO.md` 中第一个未完成任务：`T2003r3d2`。
-- 已确认 `PLAN.md` 已记录 `T2003r3d2` 的作用域：补齐 immediate+escape mixed 在 nested `while` deeper indirect site 的合法 lowering，并将 `tests/fixtures/build/effect_resume_mixed_escape_while_indirect_is_error.scoop` 转正。
-- 下一步：
-  1. 读取失败 fixture 与对应 LLVM lowering/scan/matrix/unified-emitter 代码。
-  2. 找出当前仍触发 `unsupported_main_body` 的 gate。
-  3. 实现该合法形状的 lowering，并补/迁移测试。
-  4. 运行定向测试、全量测试与 `clippy -D warnings`。
-  5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+### 说明
+- 本文件记录的是可审计的执行计划、决策摘要与进度更新，不包含冗长的内部推理展开。
