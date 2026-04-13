@@ -675,8 +675,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                let _ = (handle, out_ty, handle_arm_buckets);
-                unimplemented!("legacy immediate_resume.rs 已删除；需改走 unified emitter")
+                let [(arm, resume_symbol)] = handle_arm_buckets.immediate_arms.as_slice() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (expected single immediate-resume arm)",
+                        at: span.into(),
+                    });
+                };
+                let leaf_ctx = UnifiedSingleResumingLeafCtx {
+                    span,
+                    handle,
+                    state_machine_plan,
+                    arm,
+                    arm_id,
+                    out_ty,
+                };
+                self.codegen_handle_expr_unified_single_immediate_resume_leaf(
+                    leaf_ctx,
+                    *resume_symbol,
+                )
             }
             UnifiedSingleResumingEntrypoint::SingleEscapeContinuation => {
                 self.validate_unified_single_escape_continuation_plan(span, state_machine_plan)?;
@@ -690,9 +706,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                let _ = (handle, out_ty, handle_arm_buckets);
-                unimplemented!(
-                    "legacy escape_continuation.rs 已删除；需改走 unified emitter"
+                let [(arm, continuation_symbol)] = handle_arm_buckets.escape_arms.as_slice() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (expected single escape-continuation arm)",
+                        at: span.into(),
+                    });
+                };
+                let leaf_ctx = UnifiedSingleResumingLeafCtx {
+                    span,
+                    handle,
+                    state_machine_plan,
+                    arm,
+                    arm_id,
+                    out_ty,
+                };
+                self.codegen_handle_expr_unified_single_escape_continuation_leaf(
+                    leaf_ctx,
+                    *continuation_symbol,
                 )
             }
         }

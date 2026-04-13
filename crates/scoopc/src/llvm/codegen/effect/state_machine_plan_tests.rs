@@ -1381,6 +1381,121 @@ fun demo(flag: Bool): Unit {
     }
 
     #[test]
+    fn unified_single_resuming_codegen_emits_immediate_resume_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        var total: Int = 0
+        while (total < 3) {
+            val step: Int = Yield.next()
+            total = total + step
+        }
+        total
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    result
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_single_resuming_codegen_emits_escape_direct_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun value(flag: Bool): Int
+}
+
+effect Raise {
+    fun fail(code: Int): Nothing
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            Raise.fail(5)
+            0
+        } with {
+            Raise.fail(code: Int) -> code + 1
+        }
+
+        if (inner > 0) {
+            val x: Int = Ask.value(true)
+            x + inner
+        } else {
+            0
+        }
+    } with {
+        Ask.value(flag: Bool), k -> {
+            try {
+                k.resume(10)
+            } catch (e: RuntimeError) {
+                ()
+            }
+            0
+        }
+    }
+    result
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_single_resuming_codegen_emits_escape_indirect_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        val base: Int = 10
+        val value: Int = fetch(base)
+        value + 1
+    } with {
+        Ask.ask(seed: Int), k -> {
+            try {
+                k.resume(32)
+            } catch (e: RuntimeError) {
+                ()
+            }
+            0
+        }
+    }
+    result
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
     fn simplification_codegen_entrypoint_classifies_mixed_representative_sample() {
         let source = r#"
 package a
@@ -2442,6 +2557,35 @@ fun demo(flag: Bool): Int {
         .unwrap();
 
         (source, lowered)
+    }
+
+    fn assert_emit_main_asm_succeeds(source_text: &str) {
+        let (source, lowered) = lower_typed_single_source_with_source(source_text);
+        let source_map = SourceMap::from_source_refs([&source]);
+        let entry_source_id = source_map
+            .source_id_of_path(source.path())
+            .expect("source should exist in source map");
+        let mut output = std::env::temp_dir();
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("wall clock should be after unix epoch")
+            .as_nanos();
+        output.push(format!(
+            "scoop_single_resuming_codegen_{}_{}.s",
+            std::process::id(),
+            unique
+        ));
+
+        let emit_result = crate::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
+            &source_map,
+            entry_source_id,
+            &lowered,
+            &output,
+            None,
+        );
+
+        let _ = std::fs::remove_file(&output);
+        emit_result.expect("LLVM codegen should emit assembly successfully");
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

@@ -1471,10 +1471,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
             && *id == ctx.resume_symbol
         {
-            let _ = (span, args, expected, ctx);
-            unimplemented!(
-                "legacy immediate_resume.rs 已删除；resume(value) 需改走 unified emitter"
-            );
+            return self.codegen_immediate_resume_call(span, args, expected, ctx);
         }
 
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。
@@ -1935,10 +1932,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // spec §5.5：`k.resume(value)`（escape continuation）。
             if member.name == "resume" {
-                let _ = (span, receiver, args);
-                unimplemented!(
-                    "legacy escape_continuation.rs 已删除；k.resume(value) 需改走 unified emitter"
-                );
+                return self.codegen_continuation_resume_call(span, receiver, args);
             }
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);

@@ -360,7 +360,10 @@ cargo run -p scoop --features llvm -- test
   - 后续任务说明已同步更新：`T2003r3d2a` 不再假设旧 resolver tests 仍在；`T2003r3d2c` / `T2003r3d3` 不再引用已删除的 `multi_escape.rs` 或旧 fixture 名称；`T2203` 也已改成基于仍保留的 unified nested-block fixtures 描述迁移范围。
   - T2003r3d2a 已完成：`state_machine_plan.rs` 已补齐 `FrameSlot.mutable`、`record_stmt_reads` / `record_expr_reads` 与静态 read-set 收集；`shared.rs` 已补回只消费 unified metadata 的 escape capture meta 恢复与 immediate / escape / mixed plan-driven resolver helper；`state_machine_plan_tests.rs` 现覆盖 representative 的 direct / indirect / `if` / `while` / nested handle / capture-metadata 路径。
   - 已验证：`cargo test -p scoopc resolve_ -- --nocapture`、`cargo test -p scoopc plan_dump_ -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3d2b`：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
+  - T2003r3d2b 已完成：unified single-resuming 入口现已真正接回 `single_resuming.rs` / `single_escape.rs` 中的 immediate / escape leaf；`codegen_handle_expr_unified_single_resuming(...)` 不再对 `SingleImmediateResume` / `SingleEscapeContinuation` 停留在 build-only 占位，`codegen/mod.rs` 中 `resume(value)` 与 `k.resume(value)` 也已改为调用 unified resuming helper。
+  - 本轮同时补了 unified single-resuming 的 LLVM 定向发射测试：`state_machine_plan_tests.rs` 已新增 immediate direct、escape direct、escape indirect 三个 codegen 成功样例；另外为满足 `clippy -D warnings`，把 single-resuming leaf 的共享输入收口为 `UnifiedSingleResumingLeafCtx`，避免新接回的 leaf 接口继续散落 7+ 位置参数。
+  - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d2c`：接回 unified multi-resuming leaf，并禁止任何 shape-based route 名称回流。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -444,7 +447,7 @@ cargo run -p scoop --features llvm -- test
   - T2003r3c（已完成）：由 unified emitter 接管 single immediate-resume / single escape-continuation。
   - T2003r3d1（已完成）：由 unified multi-resuming 入口接管当前已支持 legal shapes 的 root 主选路。
   - T2003r3d2a（已完成）：补齐 unified resuming 的 plan-owned metadata 与 resolver helper。
-  - T2003r3d2b：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
+  - T2003r3d2b（已完成）：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
   - T2003r3d2c：清掉当前 legal multi-resuming 路径的 build-only 占位。
   - T2003r3d3：补“一个 immediate-resume arm + 多个 escape-continuation arms”的 mixed-resuming。
   - T2003r3d4：补“多个 immediate-resume arms + 一个 escape-continuation arm”，并清空已知 legal mixed lowering 缺口。

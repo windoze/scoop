@@ -27,6 +27,11 @@ pub(super) struct EffectUnwindTarget<'ctx> {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ImmediateResumeCtx<'ctx> {
     pub(super) resume_symbol: hir::SymbolId,
+    resume_value_ty: CgTy,
+    resume_value_ptr: Option<PointerValue<'ctx>>,
+    resume_used_ptr: PointerValue<'ctx>,
+    state_ptr: PointerValue<'ctx>,
+    next_state: u32,
     _marker: std::marker::PhantomData<&'ctx ()>,
 }
 
@@ -158,6 +163,49 @@ struct ResolvedImmediateResumeSite<'hir> {
     site: ImmediateResumeSite<'hir>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeBinderSlot<'ctx> {
+    id: hir::SymbolId,
+    hir_ty: TypeId,
+    ty: CgTy,
+    ptr: PointerValue<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeArmDispatch<'a, 'ctx> {
+    binder_slots: &'a [ImmediateResumeBinderSlot<'ctx>],
+    resume_used_ptr: PointerValue<'ctx>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct UnifiedSingleResumingLeafCtx<'hir, 'plan> {
+    span: crate::span::Span,
+    handle: &'hir hir::HandleExpr,
+    state_machine_plan: &'plan HandleStateMachinePlan,
+    arm: &'hir hir::HandleArm,
+    arm_id: ArmPlanId,
+    out_ty: CgTy,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeExecPlan<'hir, 'ctx> {
+    handle: &'hir hir::HandleExpr,
+    site: &'hir ImmediateResumeSite<'hir>,
+    out_ty: CgTy,
+    result_ptr: Option<PointerValue<'ctx>>,
+    handler_exit: ImmediateResumeHandlerExit<'ctx>,
+    finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
+enum ImmediateResumeHandlerExit<'ctx> {
+    None,
+    PopFrame(PointerValue<'ctx>),
+    SwapTop(PointerValue<'ctx>),
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct MixedEscapeDirectSite<'hir> {
@@ -199,10 +247,16 @@ struct ResolvedPlanMixedEscapeIndirectSites<'hir> {
     capture_ids: HashSet<hir::SymbolId>,
 }
 
+#[derive(Debug)]
+struct DeclInfo<'hir> {
+    decl: &'hir hir::ValDecl,
+}
+
 #[allow(dead_code)]
 #[derive(Debug)]
 struct ResolvedEscapeDirectSites<'hir> {
     perform_sites: Vec<NestedPerformSite<'hir>>,
+    decl_map: HashMap<hir::SymbolId, DeclInfo<'hir>>,
     capture_ids: HashSet<hir::SymbolId>,
 }
 
@@ -241,6 +295,25 @@ struct IndirectPerformCallSite {
     result_ty: TypeId,
 }
 
+struct IndirectEscapeContinuationPlan {
+    continuation_symbol: hir::SymbolId,
+    seq: u32,
+    out_ty: CgTy,
+    indirect_sites: Vec<IndirectPerformCallSite>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EscapeHandleBlocks<'ctx> {
+    body_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    dispatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    dispatch_nomatch_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    done_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    finally_unwind_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EscapeCaptureStorageKind {
@@ -274,4 +347,6 @@ include!("shared.rs");
 include!("state_machine_plan.rs");
 include!("state_machine_segments.rs");
 include!("state_machine_simplify.rs");
+include!("single_resuming.rs");
+include!("single_escape.rs");
 include!("nonresuming.rs");

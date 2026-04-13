@@ -1639,7 +1639,7 @@ cargo run -p scoop --features llvm -- test
   - `state_machine_plan_tests.rs` 已新增或恢复定向测试，覆盖 representative 的 direct / indirect / `if` / `while` / nested handle / capture-metadata 路径，并补齐对应 lowering/source 搜索 helper。
   - 已做最小验证：`cargo test -p scoopc resolve_ -- --nocapture`、`cargo test -p scoopc plan_dump_ -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d2b [TODO] Effect：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`
+### T2003r3d2b [DONE] Effect：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`
 - 描述：在 metadata/resolver helper 可用后，下一步先把 single resuming 主线接回真实 unified leaf：`SingleImmediateResume`、`SingleEscapeContinuation` 不再停留在 `nonresuming.rs` 的 build-only 占位，同时 `codegen/mod.rs` 中 `resume(value)` / `k.resume(value)` 这两个已被 legacy 删除暴露出来的入口也必须接到 unified resuming contract。
 - 目标：
   - `codegen_handle_expr_unified_single_resuming(...)` 真正接回 `SingleImmediateResume` / `SingleEscapeContinuation` 的 unified leaf，不再 `unimplemented!`。
@@ -1653,6 +1653,11 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <single-resuming representative fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2a
+- 完成说明：
+  - unified single-resuming 入口现已真正接回 single immediate-resume / single escape-continuation leaf：`nonresuming.rs` 不再对这两个 legal 入口保留 build-only `unimplemented!`，而是直接消费 unified plan 的 resolver / capture metadata。
+  - `codegen/mod.rs` 中 `resume(value)` 与 `k.resume(value)` 已改为调用 unified resuming helper；`single_resuming.rs` / `single_escape.rs` 现承接对应 leaf lowering，不再依赖已删除的 shape-based legacy 文件。
+  - 已补 LLVM 定向 codegen 测试，覆盖 immediate direct、escape direct、escape indirect 的统一 leaf 发射成功路径；并以 representative run-pass fixture 覆盖 `resume(value)` / continuation payload 的实际执行链路。
+  - 已做定向验证：`cargo test -p scoopc unified_single_resuming_entrypoint_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_if_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d2c [TODO] Effect：接回 unified multi-resuming leaf，并禁止任何 shape-based route 名称回流
 - 描述：在 single-resuming leaf 接回后，再把当前 unified 入口下已知 legal 的 multi-resuming 组合从 build-only 状态接回真实 leaf。这里的组合表达只能来自 unified plan 中的 arm resume mode / suspend-site / cleanup / sibling non-resuming / `finally` 数据；`T2003r3d2` 已删除的 `MultipleImmediateResumeTopLevel` 等 shape-based 名称不得以任何形式恢复。此阶段的重点是“清掉占位并恢复当前 legal route”，不是继续扩 arm-count generality。

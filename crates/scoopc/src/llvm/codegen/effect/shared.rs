@@ -51,6 +51,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.immediate_resume_ctx_stack.pop();
     }
 
+    fn build_escape_handle_blocks(
+        &self,
+        func: FunctionValue<'ctx>,
+        prefix: &str,
+        with_dispatch: bool,
+        has_finally: bool,
+    ) -> EscapeHandleBlocks<'ctx> {
+        EscapeHandleBlocks {
+            body_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_body")),
+            dispatch_bb: if with_dispatch {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_dispatch")),
+                )
+            } else {
+                None
+            },
+            dispatch_nomatch_bb: if with_dispatch {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_dispatch_nomatch")),
+                )
+            } else {
+                None
+            },
+            arm_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_arm")),
+            done_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_done")),
+            finally_bb: if has_finally {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_finally")),
+                )
+            } else {
+                None
+            },
+            finally_unwind_bb: if has_finally {
+                Some(
+                    self.context
+                        .append_basic_block(func, &format!("{prefix}_finally_unwind")),
+                )
+            } else {
+                None
+            },
+        }
+    }
+
     #[allow(dead_code)]
     fn escape_capture_storage_kind(
         &mut self,
@@ -78,6 +130,128 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             CgTy::Unit | CgTy::Never | CgTy::Tuple(_) | CgTy::Struct(_) => None,
         })
+    }
+
+    fn restore_escape_capture_local_from_state(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let ptr = self.create_entry_alloca(at, name, ty)?;
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let loaded = self
+                    .builder
+                    .build_load(self.context.i64_type(), field_ptr, "escape_cap_word")?
+                    .into_int_value();
+                let restored = self.decode_u64_word_to_cg_value(at, loaded, ty)?;
+                let _ = self.store_local_value(at, ptr, ty, restored)?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let loaded = self
+                    .builder
+                    .build_load(self.llvm_gc_i8_ptr_type(), field_ptr, "escape_cap_gc_ref")?
+                    .into_pointer_value();
+                let _ = self.store_local_value(
+                    at,
+                    ptr,
+                    ty,
+                    CgValue {
+                        ty,
+                        value: Some(loaded.into()),
+                    },
+                )?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(ptr)
+    }
+
+    fn write_escape_capture_local_to_state(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        local_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local_ptr, "escape_cap_load")?;
+                let loaded_v = self.cg_value_from_loaded(at, ty, loaded)?;
+                let word = self.coerce_u64_word(at, loaded_v)?;
+                let _ = self.builder.build_store(field_ptr, word)?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local_ptr, "escape_cap_load_gc")?;
+                let BasicValueEnum::PointerValue(ptr) = loaded else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle escape capture value type (ptr)",
+                        at: at.into(),
+                    });
+                };
+                let casted = self.builder.build_pointer_cast(
+                    ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "escape_cap_gc_ref_i8",
+                )?;
+                let _ = self.store_local_value(
+                    at,
+                    field_ptr,
+                    ty,
+                    CgValue {
+                        ty,
+                        value: Some(casted.into()),
+                    },
+                )?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn zero_init_escape_capture_state_field(
+        &mut self,
+        at: crate::span::Span,
+        field_ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        match self.escape_capture_storage_kind(at, ty)? {
+            Some(EscapeCaptureStorageKind::Word) => {
+                let _ = self
+                    .builder
+                    .build_store(field_ptr, self.context.i64_type().const_zero())?;
+            }
+            Some(EscapeCaptureStorageKind::GcRef) => {
+                let _ = self
+                    .builder
+                    .build_store(field_ptr, self.llvm_gc_i8_ptr_type().const_null())?;
+            }
+            None => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: at.into(),
+                });
+            }
+        }
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -852,6 +1026,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         arm_id: ArmPlanId,
         arm_op_fqn: &str,
     ) -> Result<ResolvedEscapeDirectSites<'hir>, LlvmEmitError> {
+        let decl_map = Self::collect_escape_decl_map(handle);
         let mut capture_ids = HashSet::new();
         let mut matching_sites = state_machine_plan
             .suspend_sites
@@ -921,6 +1096,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(ResolvedEscapeDirectSites {
             perform_sites,
+            decl_map,
             capture_ids,
         })
     }
