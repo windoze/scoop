@@ -1618,7 +1618,7 @@ cargo run -p scoop --features llvm -- test
   - `tests/fixtures` 下以 `effect_resume_multi_immediate_*`、`effect_multi_escape_multi_arm_*`、`effect_resume_mixed_escape_*` 命名的旧 fixture / stdout 已物理删除。
   - 已做最小验证：`cargo fmt --all`、`cargo build -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d2a [TODO] Effect：补齐 unified resuming 的 plan-owned metadata 与 resolver helper
+### T2003r3d2a [DONE] Effect：补齐 unified resuming 的 plan-owned metadata 与 resolver helper
 - 描述：在 `T2003r3d2` 完成 hard cleanup 后，当前最先阻塞 unified resuming 主线的已不再是 shape-based 旧路由，而是 metadata contract 本身还没补齐：`state_machine_plan.rs` 的 `record_stmt_reads` / `record_expr_reads` 仍是 `todo!`，`shared.rs` 的 `collect_escape_capture_metas_from_plan` 仍是 `unimplemented!`，而 single/multi resuming leaf 后续需要的 plan-driven resolver helper 也尚未落地。必须先把这些“只依赖 `HandleSegmentList` / `HandleStateMachinePlan` 的元数据恢复层”补齐，后续 single/multi resuming leaf 才有稳定输入可接。
 - 目标：
   - `record_stmt_reads` / `record_expr_reads` 不再依赖已删除的 legacy scanner；state read tracking 只从统一 plan / segment 可得的数据恢复。
@@ -1633,6 +1633,11 @@ cargo run -p scoop --features llvm -- test
     - `cargo test -p scoopc plan_dump_ -- --nocapture`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2
+- 完成说明：
+  - `state_machine_plan.rs` 已为 unified resuming metadata 补齐 plan-owned 局部信息：`FrameSlot` 新增 `mutable`，slot 构造与 structural signature 已同步更新，`record_stmt_reads` / `record_expr_reads` 与静态 read-set 收集 helper 不再保留 build-only 占位。
+  - `shared.rs` 已补齐只消费 unified metadata 的 resolver/helper：`collect_escape_capture_metas_from_plan(...)` 已基于 `HandleStateMachinePlan` / frame layout / `self.env` 恢复 capture metadata；immediate-resume、escape-continuation、mixed immediate+escape 所需的 plan-driven source-path resolver helper 均已落地。
+  - `state_machine_plan_tests.rs` 已新增或恢复定向测试，覆盖 representative 的 direct / indirect / `if` / `while` / nested handle / capture-metadata 路径，并补齐对应 lowering/source 搜索 helper。
+  - 已做最小验证：`cargo test -p scoopc resolve_ -- --nocapture`、`cargo test -p scoopc plan_dump_ -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d2b [TODO] Effect：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`
 - 描述：在 metadata/resolver helper 可用后，下一步先把 single resuming 主线接回真实 unified leaf：`SingleImmediateResume`、`SingleEscapeContinuation` 不再停留在 `nonresuming.rs` 的 build-only 占位，同时 `codegen/mod.rs` 中 `resume(value)` / `k.resume(value)` 这两个已被 legacy 删除暴露出来的入口也必须接到 unified resuming contract。

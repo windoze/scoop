@@ -843,6 +843,7 @@ struct FrameSlot {
     id: hir::SymbolId,
     name: String,
     ty: TypeId,
+    mutable: bool,
     owner_arm: Option<ArmPlanId>,
 }
 
@@ -855,6 +856,7 @@ impl FrameSlot {
         self.id.as_u32() as usize
             ^ self.name.len()
             ^ ((self.ty.as_u32() as usize) << 1)
+            ^ ((usize::from(self.mutable)) << 2)
             ^ self.owner_arm.unwrap_or(0) as usize
     }
 }
@@ -1134,6 +1136,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             .clone()
                             .unwrap_or_else(|| format!("local{}", id.as_u32())),
                         ty: decl.ty,
+                        mutable: decl.mutable,
                         owner_arm: None,
                     };
                     self.frame_slots.entry(id).or_insert_with(|| slot.clone());
@@ -1238,6 +1241,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     id: *id,
                     name: name.clone(),
                     ty: expr.ty,
+                    mutable: false,
                     owner_arm: None,
                 });
                 self.push_action(current_state, HandleStateOp::ReadLocal { id: *id });
@@ -1650,6 +1654,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     id: binder.id,
                     name: binder.name.clone(),
                     ty: binder.ty,
+                    mutable: false,
                     owner_arm: Some(arm_id),
                 })
                 .collect::<Vec<_>>();
@@ -1684,6 +1689,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         id,
                         name,
                         ty,
+                        mutable: false,
                         owner_arm: None,
                     });
                     Some(id)
@@ -2040,11 +2046,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn record_stmt_reads(&mut self, _state_id: PlanStateId, _stmt: &hir::Stmt) {
-        todo!("legacy scan.rs 已删除；state read tracking 需改走 unified data source");
+        let mut used = HashSet::new();
+        collect_used_locals_in_stmt_static(_stmt, &mut used);
+        self.add_reads(_state_id, used);
     }
 
     fn record_expr_reads(&mut self, _state_id: PlanStateId, _expr: &hir::Expr) {
-        todo!("legacy scan.rs 已删除；state read tracking 需改走 unified data source");
+        let mut used = HashSet::new();
+        collect_used_locals_in_expr_static(_expr, &mut used);
+        self.add_reads(_state_id, used);
     }
 
     #[allow(dead_code)]
@@ -2149,6 +2159,7 @@ fn collect_outer_scope_slots(stmts: &[hir::Stmt]) -> Vec<FrameSlot> {
             id,
             name,
             ty,
+            mutable: false,
             owner_arm: None,
         })
         .collect::<Vec<_>>();
@@ -2455,6 +2466,146 @@ fn collect_local_refs_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolId,
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
         | hir::ExprKind::Todo(_) => {}
+    }
+}
+
+fn collect_used_locals_in_block_static(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
+    for stmt in &block.stmts {
+        collect_used_locals_in_stmt_static(stmt, out);
+    }
+}
+
+fn collect_used_locals_in_call_args_static(
+    args: &[hir::CallArg],
+    out: &mut HashSet<hir::SymbolId>,
+) {
+    for arg in args {
+        match arg {
+            hir::CallArg::Positional(expr) => collect_used_locals_in_expr_static(expr, out),
+            hir::CallArg::Named { value, .. } => collect_used_locals_in_expr_static(value, out),
+        }
+    }
+}
+
+fn collect_used_locals_in_handle_static(
+    handle: &hir::HandleExpr,
+    out: &mut HashSet<hir::SymbolId>,
+) {
+    collect_used_locals_in_block_static(&handle.body, out);
+    for arm in &handle.arms {
+        collect_used_locals_in_expr_static(&arm.body, out);
+    }
+    if let Some(finally) = &handle.finally {
+        collect_used_locals_in_block_static(finally, out);
+    }
+}
+
+fn collect_used_locals_in_stmt_static(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
+    match &stmt.kind {
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+        hir::StmtKind::Expr(expr) => collect_used_locals_in_expr_static(expr, out),
+        hir::StmtKind::Val(decl) => {
+            if let Some(init) = &decl.init {
+                collect_used_locals_in_expr_static(init, out);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_used_locals_in_expr_static(lhs, out);
+            collect_used_locals_in_expr_static(rhs, out);
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value {
+                collect_used_locals_in_expr_static(expr, out);
+            }
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_used_locals_in_expr_static(cond, out);
+            collect_used_locals_in_block_static(body, out);
+        }
+    }
+}
+
+fn collect_used_locals_in_expr_static(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+            out.insert(*id);
+        }
+        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {}
+        hir::ExprKind::Call { callee, args } => {
+            collect_used_locals_in_expr_static(callee, out);
+            collect_used_locals_in_call_args_static(args, out);
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            collect_used_locals_in_call_args_static(args, out);
+        }
+        hir::ExprKind::Block(block) => {
+            collect_used_locals_in_block_static(block, out);
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_used_locals_in_expr_static(cond, out);
+            collect_used_locals_in_expr_static(then_branch, out);
+            if let Some(else_branch) = else_branch {
+                collect_used_locals_in_expr_static(else_branch, out);
+            }
+        }
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_used_locals_in_expr_static(lhs, out);
+            collect_used_locals_in_expr_static(rhs, out);
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. }
+        | hir::ExprKind::MemberAccess {
+            receiver: inner, ..
+        } => {
+            collect_used_locals_in_expr_static(inner, out);
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_used_locals_in_expr_static(expr, out);
+                }
+            }
+        }
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_used_locals_in_expr_static(&field.value, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_used_locals_in_expr_static(element, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_used_locals_in_expr_static(subject, out);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_used_locals_in_expr_static(guard, out);
+                }
+                collect_used_locals_in_expr_static(&arm.body, out);
+            }
+        }
+        hir::ExprKind::Closure(closure) => {
+            for capture in &closure.captures {
+                out.insert(capture.id);
+            }
+            collect_used_locals_in_expr_static(&closure.body, out);
+        }
+        hir::ExprKind::Handle(handle) => {
+            collect_used_locals_in_handle_static(handle, out);
+        }
     }
 }
 

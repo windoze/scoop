@@ -358,7 +358,9 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2 已完成：shape-based multi-resuming legacy 已从代码与测试树物理删除。`state_machine_simplify.rs` / `nonresuming.rs` 不再保留 `MultipleImmediateResumeTopLevel`、`ImmediateResumeWithEscapeSibling` 一类 route 名称，旧 `multi_escape.rs` 已删除，依赖旧 frame / resolver / route label 的定向单测也已删掉；`tests/fixtures` 下以 `effect_resume_multi_immediate_*`、`effect_multi_escape_multi_arm_*`、`effect_resume_mixed_escape_*` 命名的旧 fixture / stdout 也已清空。
   - 这轮 hard cleanup 同时收口了删旧代码后暴露出来的 warning：调整了 simplification 的 `NoSuspendSites` / `MultiNonResuming` 分支顺序，删掉了未使用的 `escape_continuation_seq` 字段，并对仍作为后续任务占位的 unified metadata / runtime ABI helper 做了最小范围的 dead-code 标注或前置校验，保证 `cargo build -p scoopc` 与 `cargo clippy --workspace --all-targets -- -D warnings` 继续通过。
   - 后续任务说明已同步更新：`T2003r3d2a` 不再假设旧 resolver tests 仍在；`T2003r3d2c` / `T2003r3d3` 不再引用已删除的 `multi_escape.rs` 或旧 fixture 名称；`T2203` 也已改成基于仍保留的 unified nested-block fixtures 描述迁移范围。
-  - 当前下一步调整为 `T2003r3d2a`：先补齐 unified resuming 所需的 plan-owned metadata 与 resolver helper，再继续 single/multi resuming leaf 的真实接线。
+  - T2003r3d2a 已完成：`state_machine_plan.rs` 已补齐 `FrameSlot.mutable`、`record_stmt_reads` / `record_expr_reads` 与静态 read-set 收集；`shared.rs` 已补回只消费 unified metadata 的 escape capture meta 恢复与 immediate / escape / mixed plan-driven resolver helper；`state_machine_plan_tests.rs` 现覆盖 representative 的 direct / indirect / `if` / `while` / nested handle / capture-metadata 路径。
+  - 已验证：`cargo test -p scoopc resolve_ -- --nocapture`、`cargo test -p scoopc plan_dump_ -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d2b`：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -441,7 +443,7 @@ cargo run -p scoop --features llvm -- test
   - T2003r3b3（已完成）：由 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
   - T2003r3c（已完成）：由 unified emitter 接管 single immediate-resume / single escape-continuation。
   - T2003r3d1（已完成）：由 unified multi-resuming 入口接管当前已支持 legal shapes 的 root 主选路。
-  - T2003r3d2a：补齐 unified resuming 的 plan-owned metadata 与 resolver helper。
+  - T2003r3d2a（已完成）：补齐 unified resuming 的 plan-owned metadata 与 resolver helper。
   - T2003r3d2b：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
   - T2003r3d2c：清掉当前 legal multi-resuming 路径的 build-only 占位。
   - T2003r3d3：补“一个 immediate-resume arm + 多个 escape-continuation arms”的 mixed-resuming。
