@@ -1370,7 +1370,7 @@ cargo run -p scoop --features llvm -- test
   - `MainCodegen::build_handle_state_machine_plan` 现会同步构建 segment projection 的结构签名，确保阶段 1 输出在正常构建中也持续跟随统一 plan 演化，而不是只在测试里存在。
   - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r1b [TODO] Effect：segment list 补齐 multi-arm dispatch / arm body / cleanup context
+### T2003r1b [DONE] Effect：segment list 补齐 multi-arm dispatch / arm body / cleanup context
 - 描述：在第一版 segment dump 落地后，再补齐 multi-arm 相关的 segment metadata。该阶段重点不是扩更多源码形状，而是让 dispatch entry/exit、arm body、cleanup scope stack 与 dispatch context 都进入统一 segment list，而不是继续散落在 plan builder 的隐式规则中。
 - 目标：
   - multi-arm / sibling non-resuming / immediate-resume / escape-continuation 的 arm dispatch entry/exit 都进入统一 segment list。
@@ -1381,6 +1381,11 @@ cargo run -p scoop --features llvm -- test
   - 不新增 shape-based scanner / replay planner / legacy emitter 功能。
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r1a
+- 完成说明：
+  - `HandleSegmentList` 现已新增 `dispatch_entries` / `arm_bodies` 元数据，并为每个 segment 显式记录 `dispatch_context` 与 `cleanup_scope_stack`；suspend site 也已记录 owner segment。
+  - segment dump 现可直接辨认 multi-arm dispatch entry/exit、immediate-resume / escape-continuation / sibling non-resuming arm body，以及 `finally` cleanup body 的上下文边界。
+  - 已新增 mixed-arm + sibling non-resuming 的 segment dump 单测，并扩展 multi-arm / nested-handle dump 断言以覆盖 dispatch / arm-body metadata。
+  - 已验证：`cargo test -p scoopc segment_dump_`、`cargo test -p scoopc plan_dump_`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r1c [TODO] Effect：segmenting 覆盖 nested-while / richer matrix，并冻结 builder 输入契约
 - 描述：最后补齐 nested-while 与 richer mixed representative samples，并把统一 segment list 的输入契约冻结下来，确保下一阶段 `T2003r2` 只能消费这份 segment list，而不是再回头看源码形状。

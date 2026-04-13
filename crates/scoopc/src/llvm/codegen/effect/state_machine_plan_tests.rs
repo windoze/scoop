@@ -1278,6 +1278,71 @@ fun demo(mode: Int): Int {
         assert!(dump.contains("kind=nested-handle-boundary"), "{dump}");
         assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
         assert!(dump.contains("site0 kind=direct-perform"), "{dump}");
+        assert!(
+            dump.contains("dispatch:\n  a.Ask.current => [arm0(entry=seg"),
+            "{dump}"
+        );
+        assert!(dump.contains("a.Boom.boom => [arm1(entry=seg"), "{dump}");
+        assert!(
+            dump.contains("arm-bodies:\n  arm0 op=a.Ask.current mode=escape-continuation"),
+            "{dump}"
+        );
+        assert!(dump.contains("arm1 op=a.Boom.boom mode=never-resume"), "{dump}");
+        assert!(
+            dump.contains("context=arm-body arm0 mode=escape-continuation"),
+            "{dump}"
+        );
+        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_mixed_arm_cleanup_context_and_dispatch_context() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Log {
+    fun current(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Yield.next()
+        val y: Int = Log.current(x)
+        x + y
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Log.current(seed: Int) -> seed + 1
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+
+        assert!(
+            dump.contains("dispatch:\n  a.Log.current => [arm1(entry=seg"),
+            "{dump}"
+        );
+        assert!(dump.contains("a.Yield.next => [arm0(entry=seg"), "{dump}");
+        assert!(dump.contains("arm0 op=a.Yield.next mode=immediate-resume"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Log.current mode=never-resume"), "{dump}");
+        assert!(
+            dump.contains("context=arm-body arm0 mode=immediate-resume"),
+            "{dump}"
+        );
+        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+        assert!(dump.contains("cleanup-stack=[cleanup0]"), "{dump}");
     }
 
     fn build_plan_dump(source_text: &str) -> String {
