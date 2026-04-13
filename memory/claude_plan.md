@@ -1,96 +1,78 @@
-# 执行计划
+# 本轮执行计划
 
-## 约束与目标
+更新时间：2026-04-13
 
-- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在开始实现任务前，必须先检查最新提交是否提到任何既有问题；若有，先修复这些问题。
-- 若当前首个未完成任务过大，需要先将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
-- 实现后必须运行相关测试，并尽量满足无告警要求，包括 `cargo clippy --all-targets -- -D warnings`。
-- 过程中若发现规范不匹配、缺失功能或阻塞项，不能绕过；必须先把问题写入 `TODO.md` 和 `PLAN.md`，提交后停止。
-- 完成后需要更新 `TODO.md`、`PLAN.md`，并创建一次 git 提交。
+## 目标
 
-## 当前已知执行步骤
+完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-1. 查看最新一次 git 提交的信息，确认是否提到待修复的既有问题。
-2. 查看 `TODO.md`，定位第一个未完成任务。
-3. 查看 `PLAN.md`、必要时查看相关说明文档，确认该任务上下文、依赖和预期行为。
-4. 判断任务是否可以在本轮完整交付。
-5. 如果任务过大：
-   - 设计可执行的子任务拆分。
-   - 更新 `PLAN.md` 说明拆分后的执行顺序与原因。
-   - 更新 `TODO.md`，让首个子任务成为新的第一未完成项。
-   - 仅执行该首个子任务。
-6. 如果任务可直接执行：
-   - 阅读相关代码、测试、规范与现有实现。
-   - 实现缺失功能或修复问题。
-   - 补充或调整测试。
-7. 运行相关验证：
+## 初始计划
+
+1. 检查最新一次 Git 提交，确认是否提到了需要先修复的既有问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，对照当前计划与任务依赖关系。
+4. 如果首个未完成任务过大或存在前置依赖缺口：
+   - 将任务拆分为更小的子任务。
+   - 更新 `PLAN.md`。
+   - 更新 `TODO.md`，把新的前置子任务排到正确顺序。
+   - 本轮只执行拆分后排在最前面的那个任务。
+5. 实施任务所需的代码修改。
+6. 运行相关验证：
    - 至少运行与变更直接相关的测试。
-   - 若变更影响范围较大，运行更全面的测试与 `cargo clippy --all-targets -- -D warnings`。
-8. 更新文档状态：
-   - 在 `TODO.md` 中将已完成任务标记为完成。
-   - 在 `PLAN.md` 中记录已完成内容、剩余依赖和必要调整。
-   - 按需更新本文件，记录关键进展与计划变更。
-9. 检查工作区改动，确认没有误改或遗漏。
-10. 使用清晰提交信息进行 git 提交，然后停止。
+   - 如有必要，运行更广范围的回归测试。
+   - 检查格式、编译、lint，尽量满足无警告要求。
+7. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记本轮完成的任务。
+   - 在 `PLAN.md` 中反映当前状态、后续依赖或新增问题。
+   - 在本文件中补充关键进展与计划变更。
+8. 提交 Git commit，提交信息明确描述本轮完成内容。
+9. 停止，不继续处理下一个任务。
 
-## 决策原则
+## 执行原则
 
-- 若最新提交中明确提到遗留缺陷，则该缺陷优先级高于 `TODO.md` 当前任务。
-- 若某项实现依赖尚未支持的语言特性、标准库能力或运行时行为，则先把缺口转化为新的前置任务，而不是做权宜处理。
-- 若测试暴露现有实现与规范不一致，也视为必须先处理的项目问题。
+- 不使用规避性实现，不以临时兼容或仅测试夹具通过作为完成标准。
+- 如果发现规范不匹配、缺失语言特性、已有缺陷或前置依赖缺口：
+  - 先把该问题转化为 `TODO.md` 中更靠前的任务。
+  - 更新 `PLAN.md` 与本文件说明阻塞原因。
+  - 提交这些计划调整后停止。
+- 不回退或覆盖我未创建的现有修改。
 
 ## 进展记录
 
-- 已创建本计划文件，准备开始检查最新提交与任务列表。
-- 已检查最新提交 `52257b559af103ca10f8ffeea799068dc93d93b0`：
-  - 提交标题为 `[T2003u4c2] Route multiple escape/nonresuming through unified plan`。
-  - commit body 为空，未直接声明需要本轮先修复的遗留问题。
-- 已定位 `TODO.md` 中第一个未完成任务：`T2003u4c3 [TODO] Effect：immediate+escape / site-matrix 路由切到统一状态机输入`。
-- 下一步：读取 `T2003u4c3` 在 `TODO.md` / `PLAN.md` 中的完整定义，审查相关 LLVM effect lowering 代码与现有 unified-plan 实现，判断是否需要继续拆分。
-- 已完成代码审查结论：
-  - 本任务当前仍可在一轮内交付，不需要继续拆分 `TODO.md` / `PLAN.md`。
-  - 现状是：
-    - `ImmediateResumeWithEscapeSibling` / `ImmediateResumeWithEscapeAndNonResumingSiblings` 的主分发仍从 `scan_immediate_resume_site`、`scan_mixed_escape_direct_sites`、`scan_mixed_escape_indirect_sites` 做入口判定。
-    - `matrix.rs` 的 immediate+escape site-matrix 主线也仍直接依赖上述扫描器。
-    - 但 pure escape / multiple escape 路由已经具备 plan-driven helper，可作为本轮实现模板。
-
-## 细化执行计划
-
-1. 在 immediate+escape 路径上补 plan-driven 解析 helper：
-   - 从 `HandleStateMachinePlan` 恢复 immediate arm 的唯一 direct perform site。
-   - 从 plan 恢复 escape sibling 的 direct / indirect sites，并保留 source order 与 nested source-path。
-2. 改造 immediate+escape 的分发入口：
-   - 让 `nonresuming.rs` 调用改为传入 `state_machine_plan`。
-   - 让 `mixed.rs` 中 `codegen_handle_expr_immediate_resume_with_escape_*` 的 direct / indirect / site-matrix 路由优先使用 plan-driven 结果，而不是旧扫描器。
-3. 改造实际 emitter：
-   - `mixed.rs` 的 direct / indirect emitter 改为从 unified plan 恢复 immediate site 与 escape sites。
-   - `matrix.rs` 的 site-matrix emitter 改为从 unified plan 恢复 immediate site 与 direct/indirect matrix sites。
-   - 旧 replay / cleanup helper 可以暂时保留，只替换它们的 source-of-truth。
-4. 补单测：
-   - 为 immediate+escape 的 plan-driven site 恢复增加至少一组 unit test，覆盖 nested control-flow / source order。
-5. 运行验证：
-   - `cargo test --all`
-   - `cargo run -p scoop --features llvm -- test`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-6. 验证通过后：
-   - 更新 `TODO.md` 将 `T2003u4c3` 标记完成并补完成说明。
-   - 更新 `PLAN.md` 记录本轮进展，并把下一步推进到 `T2003u5`。
-   - git 提交并停止。
-
-## 执行结果
-
-- 已完成代码修改：
-  - `nonresuming.rs` 现已把 immediate+escape 路由显式传入 `state_machine_plan`。
-  - `mixed.rs` 已新增 `resolve_immediate_resume_with_escape_sites_from_plan`，并让 immediate+escape 的 direct / indirect / site-matrix 路由优先消费 unified plan。
-  - `matrix.rs` 的 immediate+escape site-matrix 主线已改为从 unified plan 恢复 immediate site 与 escape direct/indirect sites。
-  - `state_machine_plan_tests.rs` 已新增解析层单测，覆盖 nested `if` 中的 direct / indirect mixed-site 恢复。
-- 已处理 lint 收口：
-  - legacy `scan.rs` 仍保留为辅助/参考实现，但已做最小范围 `dead_code` 收口，避免影响 `clippy -D warnings`。
-  - immediate+escape 内部 emitter 因新增 `state_machine_plan` 参数触发的 `too_many_arguments` 已做窄范围例外标注。
+- 已创建本文件并写入初始计划。
+- 已检查最新提交、`TODO.md`、`PLAN.md`。
+- 最新提交未显式引入一个必须先单独修复的遗留问题；当前首个未完成任务原本是 `T2003u5`。
+- 已确认 `T2003u5` 过大，不能在一轮内稳妥完成；现已将其拆成 `T2003u5a`～`T2003u5d`，分别处理：
+  - `multiple escape arms + sibling non-resuming + finally`
+  - single-arm immediate-resume 的 while-nested replay
+  - no-immediate multiple-escape 的 while direct/indirect separate-stmt mixed replay
+  - immediate+escape mixed-arm 的 while richer matrix replay
+- 本轮实际执行目标已收口为 `T2003u5a`：打通 top-level direct single-site 的 `multiple escape-continuation arms + sibling non-resuming + finally`。
+- 已完成 `T2003u5a` 实现：
+  - `crates/scoopc/src/llvm/codegen/effect/multi_escape.rs` 中已移除显式门禁。
+  - main body 的 no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径都已接到 `finally` 收口。
+  - continuation step 保持既有语义，不会在 `resume(...)` replay 中重复执行 `finally`。
+- 已完成回归迁移：
+  - 删除 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error.scoop`。
+  - 新增 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally.scoop`。
+  - 新增 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally_raise.scoop`。
 - 已完成验证：
-  - `cargo test --all`：通过
-  - `cargo clippy --workspace --all-targets -- -D warnings`：通过
-  - `cargo run -p scoop --features llvm -- test`：通过（`fixtures: ok (993)`）
-- 正在收尾：
-  - 待检查最终 diff，并更新 git 状态后提交。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 下一次调用应从 `T2003u5b` 开始。
+
+## 当前实现计划
+
+1. 修改 `TODO.md` / `PLAN.md`，把 `T2003u5` 拆成子任务并把 `T2003u5a` 置于当前执行位置。
+2. 审计 `crates/scoopc/src/llvm/codegen/effect/multi_escape.rs` 中该组合的显式门禁与 cleanup 路径。
+3. 实现 `finally` 与 sibling non-resuming 共存时的主路径、catch 路径、arm unwind 路径收口，确保 `finally` 只在离开 source-handle 时执行一次。
+4. 把现有 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass 或等价正向回归。
+5. 运行相关测试与 lint。
+6. 完成后更新 `TODO.md` / `PLAN.md` / 本文件，并提交 commit。
+
+## 本轮结果
+
+- `T2003u5a` 已完成。
+- 已更新 `TODO.md` / `PLAN.md`，使下一未完成任务变为 `T2003u5b`。

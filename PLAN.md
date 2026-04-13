@@ -244,7 +244,16 @@ cargo run -p scoop --features llvm -- test
   - 本轮新增了解析层单测 `resolve_immediate_resume_with_escape_sites_from_plan_recovers_nested_mixed_matrix`，锁住 immediate+escape 在 nested `if` 中的 direct / indirect mixed-site 恢复。
   - 由于旧 `scan.rs` 现在只保留为 legacy helper / 参考实现，本轮同时对其 dead-code lint 做了最小范围收口；行为未变，但 `cargo clippy --workspace --all-targets -- -D warnings` 继续保持通过。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u5`：继续迁移 mixed-arm / multiple-resuming 剩余组合并删除结构性门禁。
+  - 继续审计 `T2003u5` 后确认，它并不是单一路径上的“把剩余 build-fail 一次转正”，而是 4 类实现难度明显不同的门禁叠在一起：
+    - pure direct top-level `multiple escape arms + sibling non-resuming + finally` cleanup 收口；
+    - single-arm immediate-resume 在 while body 中的 deeper nested replay；
+    - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed replay；
+    - immediate+escape mixed-arm 在 while body 中的 richer nested / separate-stmt matrix replay。
+  - 若继续把 `T2003u5` 整包推进，会把 top-level cleanup、single-arm while replay、no-immediate while matrix 与 immediate+escape while matrix 四类不同代码路径再次耦合到同一轮里，风险过高，因此拆成 `T2003u5a`～`T2003u5d`。
+  - T2003u5a 已完成：`codegen_handle_expr_multiple_escape_top_level_direct` 已移除“multiple escape arms + sibling non-resuming + finally”显式门禁，并把主 body no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径统一接到 `finally` 收口。
+  - 本轮同时把原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass `effect_multi_escape_multi_arm_with_nonresuming_finally`，并新增 raise 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`，锁住 escape arm 向外传播时的 `finally` 语义。
+  - 已重新验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u5b`：迁移 single-arm immediate-resume 的 while-nested replay，删除 `nested perform in while body not yet supported` 门禁。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -310,7 +319,10 @@ cargo run -p scoop --features llvm -- test
   - T2003u4c1（已完成）：迁移 `multiple immediate-resume` / `immediate + sibling non-resuming` 主 emitter 到统一状态机输入。
   - T2003u4c2（已完成）：迁移 `multiple escape-continuation` / `escape + sibling non-resuming` 主 emitter 到统一状态机输入。
   - T2003u4c3（已完成）：迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
-  - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
+  - T2003u5a（已完成）：打通 `multiple escape-continuation arms + sibling non-resuming + finally` 的 unified-plan emitter，并移除对应 top-level direct 门禁。
+  - T2003u5b：迁移 single-arm immediate-resume 的 while-nested replay，删除 `nested perform in while body not yet supported` 门禁。
+  - T2003u5c：迁移 no-immediate multiple-escape 的 while direct/indirect separate-stmt mixed replay。
+  - T2003u5d：迁移 immediate+escape mixed-arm 的 while richer matrix replay，删除 deeper nested / separate-stmt 门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。
 

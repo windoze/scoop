@@ -1224,18 +1224,67 @@ cargo run -p scoop --features llvm -- test
   - 旧 `scan.rs` 保留为 legacy helper / 参考实现，但已明确降级为非主路径；新增的 immediate+escape 合法组合不再依赖它来决定主 emitter。
   - 已重新验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
-- 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。
+### T2003u5 Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁（已拆分）
+- 说明：`T2003u4c3` 完成后，统一 plan 已接管大部分 mixed-arm / multiple-resuming emitter，但剩余门禁并不是同一种实现缺口，而是 4 类彼此独立的问题：
+  - pure direct top-level `multiple escape arms + sibling non-resuming + finally`
+  - single-arm immediate-resume 在 while body 中的 deeper nested replay
+  - no-immediate multiple-escape 在 while body 中的 separate-stmt direct/indirect mixed replay
+  - immediate+escape mixed-arm 在 while body 中的 richer nested/separate-stmt matrix replay
+- 以下子任务按顺序承接；`T2003u5a` 已完成，下一步从 `T2003u5b` 开始。
+
+### T2003u5a [DONE] Effect：multiple escape-continuation arms + sibling non-resuming + `finally`
+- 描述：当前 unified-plan 驱动的 `codegen_handle_expr_multiple_escape_top_level_direct` 已分别支持“multiple escape arms + sibling non-resuming”和“multiple escape arms + finally”，但两者组合时仍被显式门禁 `handle multiple escape-continuation arms with sibling non-resuming and finally not yet supported` 拦住。
 - 目标：
-  - single/multiple immediate-resume、single/multiple escape-continuation、sibling non-resuming、`finally`、direct/indirect perform、nested control-flow 全部走统一 pass 主线。
-  - 删除 `top-level only`、`nested ... not yet supported`、`same-stmt mixed only`、`multiple ... arms not yet supported` 这类因 lowering 形状缺口产生的长期门禁。
-  - 若仍需保留 unsupported 诊断，必须能说明它是 runtime ABI 未接线或语言语义明确非法，而不是“当前还没给这个语法形状补特判”。
+  - top-level direct single-site 的 multiple escape-continuation arms + sibling non-resuming + `finally` 走 unified pass 主线。
+  - main body、sibling non-resuming catch body、escape arm body 的向外传播都在离开 source-handle 前执行 `finally` 恰好一次。
+  - continuation step 继续保持既有语义：`resume(...)` 只推进后续 replay，不重复执行主 handle 的 `finally`。
 - 验收：
-  - build-fail fixtures 中凡是仅用于锁 lowering 形状边界的条目，要么转成 run-pass，要么替换成新的统一 pass 真实边界。
+  - 现有 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 转成 run-pass 或等价正向回归。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u4c3
+- 完成说明：
+  - 已移除 `codegen_handle_expr_multiple_escape_top_level_direct` 对该组合的显式门禁，并把主 body 的 no-match dispatch、sibling catch body 的成功/向外传播路径、escape arm unwind 路径统一接到 `finally` 收口。
+  - `finally` 现在会在 source-handle 返回或向外传播前执行一次；continuation step 仍保持既有语义，不会在后续 `resume(...)` replay 中重复执行 `finally`。
+  - 原 build-fail `effect_multi_escape_multi_arm_with_nonresuming_finally_is_error` 已删除，新增 run-pass 回归 `effect_multi_escape_multi_arm_with_nonresuming_finally` 与 `effect_multi_escape_multi_arm_with_nonresuming_finally_raise`。
+  - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+
+### T2003u5b [TODO] Effect：single-arm immediate-resume 的 while-nested replay 去形状门禁
+- 描述：plan-driven immediate-resume 主 emitter 已不再依赖旧 scanner 作为主输入，但 `resolve_immediate_resume_site_from_plan` 仍把 while body 中的 deeper nested perform 统一拒绝为 `handle resume body (nested perform in while body not yet supported)`。
+- 目标：
+  - single-arm immediate-resume 在 while body 内的 nested block / nested if perform 走 unified pass replay，不再要求 perform 只能停在 while body 的平坦语句层。
+  - 删除仅由 lowering 形状造成的 `nested perform in while body not yet supported` 长期门禁。
+- 验收：
+  - build-fail `effect_resume_while_nested_perform_is_error` 转成 run-pass 或等价正向回归。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5a
+
+### T2003u5c [TODO] Effect：no-immediate multiple-escape 的 while direct/indirect mixed replay
+- 描述：无 immediate-resume 的 while mixed path 仍只支持“同一个 while-body statement 内”的 direct / indirect coexistence；separate-stmt 组合仍报 `only same-body-stmt direct / indirect coexistence in while body supported`。
+- 目标：
+  - no-immediate multiple-escape 的 unified emitter 覆盖 while body 中 separate-stmt 的 direct + indirect mixed replay。
+  - 删除 `effect_multi_escape_direct_indirect_while_is_error` 这类仅用于锁 while mixed 形状边界的诊断。
+- 验收：
+  - build-fail `effect_multi_escape_direct_indirect_while_is_error` 转成 run-pass 或等价正向回归。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5b
+
+### T2003u5d [TODO] Effect：mixed-arm immediate+escape 的 while richer matrix replay
+- 描述：当前 immediate+escape mixed-arm 的 unified emitter 仍保留 3 个 while 形状门禁：deeper nested direct site、deeper nested indirect site，以及 separate-stmt direct/indirect coexistence。
+- 目标：
+  - immediate+escape mixed-arm 在 while body 中的 nested direct / indirect site 与 separate-stmt mixed replay 统一走 plan-driven matrix helper。
+  - 删除 `effect_resume_mixed_escape_while_is_error`、`effect_resume_mixed_escape_while_indirect_is_error`、`effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error` 这些仅用于锁 lowering 形状边界的 build-fail。
+- 验收：
+  - 上述 build-fail fixtures 转成 run-pass，或替换为新的统一 pass 真实边界。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5c
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
 - 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。

@@ -48,13 +48,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let has_finally = handle.finally.is_some();
         let outer_raise_target = self.current_raise_target();
 
-        if has_finally && has_sibling_nonresuming {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multiple escape-continuation arms with sibling non-resuming and finally not yet supported",
-                at: span.into(),
-            });
-        }
-
         let escape_arm_plans = escape_arms
             .iter()
             .map(|(arm, continuation_symbol)| {
@@ -1155,6 +1148,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let effect_dispatch_nomatch_bb = sibling_dispatch.effect_dispatch_nomatch_bb;
         let raise_catch_bb = sibling_dispatch.raise_catch_bb;
         let custom_catch_bbs = sibling_dispatch.custom_catch_bbs;
+        let main_raise_target = effect_dispatch_bb.or(finally_unwind_bb);
         let result_ptr = if out_ty == CgTy::Unit || out_ty == CgTy::Never {
             None
         } else {
@@ -1286,13 +1280,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(body_bb);
         self.env.push_scope();
-        if let Some(effect_dispatch_bb) = effect_dispatch_bb {
+        if let Some(main_raise_target) = main_raise_target {
             for (idx, custom) in custom_siblings.iter().enumerate() {
                 self.push_effect_unwind_target(&custom.arm.op.op.fqn, custom_catch_bbs[idx]);
             }
-            self.push_raise_target(effect_dispatch_bb);
-        } else if let Some(finally_unwind_bb) = finally_unwind_bb {
-            self.push_raise_target(finally_unwind_bb);
+            self.push_raise_target(main_raise_target);
         }
         for (stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
             if let Some(&site_idx) = site_pc_by_stmt_idx.get(&stmt_idx) {
@@ -1386,13 +1378,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
-        if effect_dispatch_bb.is_some() {
+        if main_raise_target.is_some() {
             self.pop_raise_target();
             for _ in custom_siblings.iter().rev() {
                 self.pop_effect_unwind_target();
             }
-        } else if finally_unwind_bb.is_some() {
-            self.pop_raise_target();
         }
         self.env.pop_scope();
 
@@ -1443,23 +1433,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_switch(slot_tag, effect_dispatch_nomatch_bb, &dispatch_cases)?;
 
             self.builder.position_at_end(effect_dispatch_nomatch_bb);
-            let unpin = self.declare_runtime_gc_unpin();
-            let _ = self.builder.build_call(
-                unpin,
-                &[state_raw.into()],
-                "multi_escape_pure_direct_state_unpin_nomatch",
-            )?;
-            if let Some(target) = outer_raise_target {
-                self.builder.build_unconditional_branch(target)?;
+            if let Some(finally_unwind_bb) = finally_unwind_bb {
+                self.builder.build_unconditional_branch(finally_unwind_bb)?;
             } else {
-                let ret_ty =
-                    self.current_fun_return_ty
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "multiple escape dispatch unwind needs function return type",
-                            at: span.into(),
-                        })?;
-                let v = self.default_value(span, ret_ty)?;
-                self.emit_return(span, ret_ty, v)?;
+                let unpin = self.declare_runtime_gc_unpin();
+                let _ = self.builder.build_call(
+                    unpin,
+                    &[state_raw.into()],
+                    "multi_escape_pure_direct_state_unpin_nomatch",
+                )?;
+                if let Some(target) = outer_raise_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    let ret_ty =
+                        self.current_fun_return_ty
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "multiple escape dispatch unwind needs function return type",
+                                at: span.into(),
+                            })?;
+                    let v = self.default_value(span, ret_ty)?;
+                    self.emit_return(span, ret_ty, v)?;
+                }
             }
 
             if let (Some(raise_arm), Some(raise_catch_bb)) = (raise_sibling, raise_catch_bb) {
@@ -1671,13 +1665,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 );
 
+                let nested_unwind_target = finally_unwind_bb.unwrap_or(effect_dispatch_nomatch_bb);
                 for custom in &custom_siblings {
-                    self.push_effect_unwind_target(
-                        &custom.arm.op.op.fqn,
-                        effect_dispatch_nomatch_bb,
-                    );
+                    self.push_effect_unwind_target(&custom.arm.op.op.fqn, nested_unwind_target);
                 }
-                self.push_raise_target(effect_dispatch_nomatch_bb);
+                self.push_raise_target(nested_unwind_target);
                 let arm_v = self.codegen_expr_in_expected_context(&raise_arm.body, Some(out_ty))?;
                 self.pop_raise_target();
                 for _ in custom_siblings.iter().rev() {
@@ -1698,7 +1690,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(ptr) = result_ptr {
                         let _ = self.store_local_value(raise_arm.body.span, ptr, out_ty, arm_v)?;
                     }
-                    self.builder.build_unconditional_branch(done_bb)?;
+                    self.builder
+                        .build_unconditional_branch(finally_bb.unwrap_or(done_bb))?;
                 }
             }
 
@@ -1817,13 +1810,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "multi_escape_pure_direct_custom_clear",
                 )?;
 
+                let nested_unwind_target = finally_unwind_bb.unwrap_or(effect_dispatch_nomatch_bb);
                 for custom in &custom_siblings {
-                    self.push_effect_unwind_target(
-                        &custom.arm.op.op.fqn,
-                        effect_dispatch_nomatch_bb,
-                    );
+                    self.push_effect_unwind_target(&custom.arm.op.op.fqn, nested_unwind_target);
                 }
-                self.push_raise_target(effect_dispatch_nomatch_bb);
+                self.push_raise_target(nested_unwind_target);
                 let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
                 self.pop_raise_target();
                 for _ in custom_siblings.iter().rev() {
@@ -1844,7 +1835,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(ptr) = result_ptr {
                         let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
                     }
-                    self.builder.build_unconditional_branch(done_bb)?;
+                    self.builder
+                        .build_unconditional_branch(finally_bb.unwrap_or(done_bb))?;
                 }
             }
         }
@@ -1929,7 +1921,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[k_loaded.into()],
                     "multi_escape_pure_direct_k_unpin_unwind",
                 )?;
-                if let Some(target) = outer_raise_target {
+                if let Some(finally_unwind_bb) = finally_unwind_bb {
+                    self.builder.build_unconditional_branch(finally_unwind_bb)?;
+                } else if let Some(target) = outer_raise_target {
                     self.builder.build_unconditional_branch(target)?;
                 } else {
                     let ret_ty =
