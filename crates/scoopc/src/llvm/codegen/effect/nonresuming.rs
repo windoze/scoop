@@ -5,6 +5,20 @@ struct HandleArmBuckets<'hir> {
     nonresuming_arms: Vec<&'hir hir::HandleArm>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnifiedNoContinuationEntrypoint {
+    NoSuspendSites,
+}
+
+impl UnifiedNoContinuationEntrypoint {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            Self::NoSuspendSites => "no-suspend-sites",
+        }
+    }
+}
+
 impl<'hir> HandleArmBuckets<'hir> {
     fn lowering_counts(&self) -> SimplifiedArmLoweringCounts {
         SimplifiedArmLoweringCounts {
@@ -259,6 +273,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn classify_unified_no_continuation_entrypoint(
+        simplification: &HandleModeSpecificSimplification,
+        has_resuming_arms: bool,
+    ) -> Option<UnifiedNoContinuationEntrypoint> {
+        if has_resuming_arms {
+            return None;
+        }
+
+        match simplification.codegen_entrypoint() {
+            SimplifiedCodegenEntrypoint::NoSuspendSites => {
+                Some(UnifiedNoContinuationEntrypoint::NoSuspendSites)
+            }
+            _ => None,
+        }
+    }
+
+    fn validate_unified_no_suspend_plan(
+        &self,
+        span: crate::span::Span,
+        state_machine_plan: &HandleStateMachinePlan,
+    ) -> Result<(), LlvmEmitError> {
+        if state_machine_plan.contains_suspend_subtree() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified no-suspend plan contains suspend subtree",
+                at: span.into(),
+            });
+        }
+
+        if state_machine_plan
+            .arm_plans
+            .iter()
+            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume))
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unified no-suspend plan contains resuming arm",
+                at: span.into(),
+            });
+        }
+
+        Ok(())
+    }
+
+    fn codegen_handle_expr_unified_no_continuation(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        out_ty: CgTy,
+        state_machine_plan: &HandleStateMachinePlan,
+        entrypoint: UnifiedNoContinuationEntrypoint,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match entrypoint {
+            UnifiedNoContinuationEntrypoint::NoSuspendSites => {
+                self.validate_unified_no_suspend_plan(span, state_machine_plan)?;
+                self.codegen_handle_expr_no_suspend_sequential(span, handle, out_ty)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn unified_no_continuation_entrypoint_label_for_plan(
+        plan: &HandleStateMachinePlan,
+    ) -> Option<&'static str> {
+        let simplification = plan.build_mode_specific_simplification();
+        let has_resuming_arms = plan
+            .arm_plans
+            .iter()
+            .any(|arm| !matches!(arm.resume_mode, ArmResumeMode::NeverResume));
+        Self::classify_unified_no_continuation_entrypoint(&simplification, has_resuming_arms)
+            .map(UnifiedNoContinuationEntrypoint::label)
+    }
+
     /// codegen 一个 `handle { ... } with { Raise.raise(e) -> ... }`（`try/catch` 的 lowering 产物）。
     ///
     /// 当前阶段（T0614）约束：
@@ -289,15 +374,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &handle_arm_buckets,
         )?;
 
-        // T2003u4a：对纯 non-resuming handle，`NoSuspendSites` 现在直接信任 unified plan，
-        // 不再额外依赖 `block_may_perform` 这个旧 gate。
-        if !has_resuming_arms
-            && matches!(
-                mode_specific_simplification.codegen_entrypoint(),
-                SimplifiedCodegenEntrypoint::NoSuspendSites
-            )
-        {
-            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+        if let Some(entrypoint) = Self::classify_unified_no_continuation_entrypoint(
+            &mode_specific_simplification,
+            has_resuming_arms,
+        ) {
+            return self.codegen_handle_expr_unified_no_continuation(
+                span,
+                handle,
+                out_ty,
+                &state_machine_plan,
+                entrypoint,
+            );
         }
 
         // immediate-resume / escape-continuation / mixed-arm 仍保留旧 gate：
@@ -848,13 +935,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn codegen_handle_expr_no_perform(
+    fn codegen_handle_expr_no_suspend_sequential(
         &mut self,
         span: crate::span::Span,
         handle: &hir::HandleExpr,
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // no-perform fast path：不生成 catch/merge CFG，仅保留顺序语义（body -> finally）。
+        // 共享的 no-suspend leaf helper：不生成 catch/merge CFG，仅保留顺序语义（body -> finally）。
         let result_ptr = if out_ty == CgTy::Unit {
             None
         } else {
@@ -933,6 +1020,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
         }
+    }
+
+    pub(super) fn codegen_handle_expr_no_perform(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_handle_expr_no_suspend_sequential(span, handle, out_ty)
     }
 
     /// codegen 一个最小自定义 non-resuming effect 的 `handle`（T0625/T2002a）。

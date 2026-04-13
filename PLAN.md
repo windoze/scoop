@@ -320,7 +320,18 @@ cargo run -p scoop --features llvm -- test
   - T2003r3a 已完成：`HandleStateMachinePlan.states[*].actions` 与 `HandleSegment.ops` 现已改为结构化 `HandleStateOp`，`StateTerminator::Branch` / `HandleSegmentTerminator::Branch` 也已改为结构化 `HandleBranchCondition`；pretty dump 只负责从 contract 派生展示文本，不再让自由字符串充当执行语义。
   - 本轮同时把 segment projection / round-trip 一并切到新 contract，并新增单测 `segment_round_trip_preserves_typed_emit_ops_and_branch_metadata`，显式锁住 direct/branch/while/finally representative sample 的 typed op 与 branch metadata。
   - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3b`：在结构化 emit contract 稳定后，由 unified emitter 先接管 `NoSuspendSites` / `SingleNonResuming` / `MultiNonResuming`。
+  - 继续审计 `T2003r3b` 后确认，它并不是“把 no-continuation 子集整体切到 unified emitter”这么单一：
+    - `NoSuspendSites` 需要先落成统一的 CFG / cleanup / nested-handle 发射骨架；
+    - `SingleNonResuming` / `MultiNonResuming` 则还要额外接入 handler frame、dispatch 与 payload ABI。
+  - 若继续把 `T2003r3b` 整包推进，会把纯 no-suspend 控制流发射与 pure flag-unwind dispatch/cleanup/slot ABI 再次耦合到同一轮里，风险过高，因此继续拆成 `T2003r3b1` / `T2003r3b2` / `T2003r3b3`：
+    - `T2003r3b1`：先让 unified emitter 接管 `NoSuspendSites`，锁定统一 CFG / cleanup 发射骨架；
+    - `T2003r3b2`：再接 `SingleNonResuming`；
+    - `T2003r3b3`：最后接 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
+  - T2003r3b1 已完成：`codegen_handle_expr` 现已通过新的 `UnifiedNoContinuationEntrypoint::NoSuspendSites` 统一入口接管 no-suspend handle；旧 `codegen_handle_expr_no_perform` 已退化为共享 leaf helper，不再承担该子集的主选路职责。
+  - 本轮同时为 unified no-suspend 入口补了显式 contract 校验：若 plan 里仍含 suspend subtree 或 resuming arm，会稳定报错而不是静默落回旧路径；并新增定向单测与 run-pass fixture `effect_nosuspend_finally_nested_handle`，覆盖 no-suspend + `finally` + nested handle representative sample。
+  - 由于 `scoop test` 当前只接受目录路径、不支持基于名称的 `--filter`，本轮也把 `T2003r3b*` / `T2003r3c` 的验收命令修正为仓库实际支持的命令形态，避免后续执行时再被无效命令阻塞。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3b2`：在统一 CFG / cleanup 发射骨架稳定后，接管 `SingleNonResuming`。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -398,7 +409,9 @@ cargo run -p scoop --features llvm -- test
   - T2003r1d（已完成）：为 segment contract 补齐 frame-slot / lifted-local metadata，确保 builder 可仅凭 `HandleSegmentList` 无损重建 frame layout。
   - T2003r2（已完成）：从 `HandleSegmentList` 构建统一 state-machine builder，不再按源码形状分主构造器。
   - T2003r3a（已完成）：为 unified emitter 补齐 typed/source-linked emit contract，冻结可执行的 plan/segment 元数据。
-  - T2003r3b：由 unified emitter 接管 `NoSuspendSites` / `SingleNonResuming` / `MultiNonResuming`。
+  - T2003r3b1（已完成）：由 unified emitter 先接管 `NoSuspendSites`，锁定统一 CFG / cleanup 发射骨架。
+  - T2003r3b2：由 unified emitter 接管 `SingleNonResuming`。
+  - T2003r3b3：由 unified emitter 接管 `MultiNonResuming` 并退化旧 non-resuming specialized entry。
   - T2003r3c：由 unified emitter 接管 single immediate-resume / single escape-continuation。
   - T2003r3d：由 unified emitter 接管 multiple immediate / multiple escape / mixed-resuming，并完成 effect lowering 主入口切换。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。

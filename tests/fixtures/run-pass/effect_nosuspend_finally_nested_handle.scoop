@@ -1,0 +1,44 @@
+// RUN-STDOUT: effect_nosuspend_finally_nested_handle.stdout
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val nested: Int = handle {
+            var value: Int = 1
+            if (flag) {
+                value = value + 2
+            } else {
+                value = value + 4
+            }
+            while (value < 6) {
+                value = value + 1
+            }
+            value
+        } with {
+            Yield.next() -> 99
+        } finally {
+            println("inner finally")
+        }
+        if (flag) {
+            nested + 10
+        } else {
+            nested + 20
+        }
+    } with {
+        Yield.next() -> 0
+    } finally {
+        println("outer finally")
+    }
+    result
+}
+
+fun main(): Unit {
+    println(demo(true))
+    println(demo(false))
+}

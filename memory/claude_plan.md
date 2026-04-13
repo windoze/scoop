@@ -1,52 +1,61 @@
-# 本轮执行计划（推理摘要）
+# 执行计划与进度记录
 
-说明：这里记录的是可审计的执行思路摘要与计划，不包含逐字内部思维展开；后续如果计划调整、发现阻塞、完成关键步骤，我会持续更新此文件。
+## 说明
 
-## 当前目标
+按要求先写入本文件，再开始执行任何仓库检查命令。这里记录的是可审阅的执行计划、决策依据摘要和后续进度更新，不包含不可审阅的内部推理原文。
 
-按 `TODO.md` 中顺序完成第一个未完成任务；如果发现前置缺陷、规范不匹配或任务过大，需要先修复/拆分并更新 `TODO.md`、`PLAN.md`，然后仅完成当前应该执行的第一项后停止。
+## 初始计划
 
-## 初始步骤
+1. 检查最新一次 Git 提交，确认提交说明中是否提到任何未解决问题。
+2. 如果最新提交提到需先修复的问题，优先识别其影响范围并修复，随后补充测试。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 阅读 `PLAN.md`，确认现有计划与 `TODO.md` 是否一致。
+5. 判断首个未完成任务是否足够小且可在本轮完整交付。
+6. 如果任务过大：
+   - 在 `PLAN.md` 中拆分为更小子任务。
+   - 在 `TODO.md` 中重排并插入子任务。
+   - 执行拆分后的第一个子任务。
+7. 实现目标任务，避免规避性实现或偏离规范。
+8. 运行相关测试，并补充必要测试，确保无回归。
+9. 运行格式化、`cargo clippy --all-targets -- -D warnings` 以及相关测试命令，确认质量门禁通过。
+10. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
+11. 使用清晰提交信息创建 Git 提交。
+12. 停止，不进入下一个任务。
 
-1. 检查最新一次 Git 提交，确认是否提到了需要先处理的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md` 及相关上下文，确认该任务是否已有拆分或依赖说明。
-4. 如任务过大或存在前置缺陷：
-   - 拆分为更小子任务；
-   - 更新 `PLAN.md`；
-   - 调整 `TODO.md` 的顺序与依赖；
-   - 本轮只执行调整后排在最前面的那一项。
-5. 实现目标任务，补充或修改相关代码与测试。
-6. 运行必要的验证，包括与改动直接相关的测试，以及尽量满足项目要求的格式化 / lint / 测试命令。
-7. 更新文档状态：
-   - 在 `TODO.md` 标记完成，或在阻塞时重排并说明依赖；
-   - 在 `PLAN.md` 记录当前状态；
-   - 在本文件记录关键进展。
-8. 使用清晰的提交信息提交本轮改动，然后停止。
+## 执行约束
 
-## 当前已知约束
+- 仅完成一个任务或一个经拆分后的首个子任务。
+- 若发现规范不匹配、缺失语言特性或已有实现缺口，必须先在 `TODO.md` / `PLAN.md` 中建模为前置任务，再提交并停止。
+- 不回退或覆盖非本次任务相关的现有改动。
 
-- 不能用规避方案替代规范要求。
-- 若发现规范缺口、实现边界或 bug 阻塞当前任务，需要先把该问题转化为更靠前的任务。
-- 只完成一个任务，不继续做下一个。
-- 输出与进度记录使用中文。
+## 进度更新
 
-## 进度记录
-
-- 已创建本计划文件，准备开始检查最新提交与任务列表。
-- 已检查最新提交：提交信息未显式提到需要先修复的既有问题。
-- 已定位第一个未完成任务原为 `T2003r3`，并确认其范围过大。
-- 审计后发现一个真实前置缺口：`HandleStateMachinePlan` / `HandleSegmentList` 的 state/segment 动作仍主要是字符串 label，发射阶段若直接切统一 emitter，将被迫解析字符串或重新按源码形状回扫 HIR。
-- 已据此把 `T2003r3` 拆为 `T2003r3a`～`T2003r3d`，并将当前执行项收口为新的第一项 `T2003r3a`：先补齐 typed/source-linked emit contract。
-- 下一步：修改 effect state-machine plan / segment contract，把字符串动作与分支注释收口成结构化元数据，并保持 pretty dump、segment round-trip 与相关测试继续通过。
-- 已完成 `T2003r3a` 的代码实现：
-  - `HandleStateMachinePlan.states[*].actions` / `HandleSegment.ops` 已改为结构化 `HandleStateOp`。
-  - `StateTerminator::Branch` / `HandleSegmentTerminator::Branch` 已改为结构化 `HandleBranchCondition`。
-  - pretty dump 继续输出原有人类可读文本，但文本已退化为展示层，不再充当执行 contract。
-- 已新增回归测试 `segment_round_trip_preserves_typed_emit_ops_and_branch_metadata`，用于锁住 direct/branch/while/finally representative sample 的结构化 contract round-trip。
+- 已创建本文件，准备开始检查最新提交与任务列表。
+- 已检查最新提交：提交说明未额外标注需要先修复的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务原为 `T2003r3b`。
+- 经审计后决定先拆分 `T2003r3b`：
+  - `T2003r3b1`：统一 emitter 接管 `NoSuspendSites` 主线。
+  - `T2003r3b2`：统一 emitter 接管 `SingleNonResuming`。
+  - `T2003r3b3`：统一 emitter 接管 `MultiNonResuming` 并退化旧 specialized entry。
+- 拆分原因：
+  - `NoSuspendSites` 需要先建立统一 CFG / cleanup / nested-handle 发射骨架。
+  - `SingleNonResuming` / `MultiNonResuming` 还要额外处理 handler frame、dispatch 和 payload ABI。
+  - 若在同一轮同时推进，风险和回归面过大。
+- 接下来执行 `T2003r3b1`，本轮只完成该子任务并停止。
+- `T2003r3b1` 已实现：
+  - `codegen_handle_expr` 现已通过新的 `UnifiedNoContinuationEntrypoint::NoSuspendSites` 统一入口处理 no-suspend handle。
+  - 旧 `codegen_handle_expr_no_perform` 已退化为共享 leaf helper，不再承担 no-suspend 主选路。
+  - 统一入口会先校验 plan 中不存在 suspend subtree 与 resuming arm，再进入顺序 body/finally 发射。
+- 已补测试与样例：
+  - 单测：`unified_no_continuation_entrypoint_marks_nosuspend_finally_nested_handle_sample`
+  - 单测：`unified_no_continuation_entrypoint_skips_single_nonresuming_sample`
+  - run-pass fixture：`tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`
 - 已完成验证：
   - `cargo fmt --all`
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo test -p scoopc`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`
+  - `cargo test --all`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 下一步仅剩文档状态收尾与提交，本轮完成后停止。
+- 额外修正：
+  - 确认 `scoop test` 只接受目录路径、不支持 `--filter` 名称过滤；已把当前相关 TODO 验收命令改成仓库实际支持的命令形式。
+- 下一步不是继续实现，而是更新任务状态并提交本轮改动后停止。

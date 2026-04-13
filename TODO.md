@@ -1468,18 +1468,56 @@ cargo run -p scoop --features llvm -- test
   - segment projection / round-trip 已保持新 contract，不再通过字符串长度或 display 文本维持 parity；direct/branch/while/finally representative sample 的 plan/segment round-trip 继续稳定。
   - 已新增单测 `segment_round_trip_preserves_typed_emit_ops_and_branch_metadata`，并验证 `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo test -p scoopc`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3b [TODO] Effect：统一 emitter 接管无 continuation 的 handle 主线
-- 描述：在 emit contract 稳定后，先让 unified emitter 接管不需要 continuation materialization / stack re-entry 的子集，包括 `NoSuspendSites`、`SingleNonResuming`、`MultiNonResuming`。
+### T2003r3b Effect：统一 emitter 接管无 continuation 的 handle 主线（已拆分，见 `T2003r3b1`～`T2003r3b3`）
+- 拆分说明：
+  - 审计现状后确认，本任务同时横跨两类相对独立的工作：
+    1. `NoSuspendSites` 的统一控制流 / `finally` / nested-handle 发射骨架；
+    2. `SingleNonResuming` / `MultiNonResuming` 的 handler frame、dispatch 和 payload ABI 接管。
+  - 若继续整包推进，会把 no-suspend 控制流解释器与 non-resuming dispatch/cleanup/slot ABI 再次耦合到同一轮里，风险过高，因此拆成以下三个子任务并按基础设施顺序推进。
+
+### T2003r3b1 [DONE] Effect：统一 emitter 接管 `NoSuspendSites` 主线
+- 描述：先落最小 unified emitter 骨架，只覆盖不需要 continuation materialization、也不需要 non-resuming dispatch 的 `NoSuspendSites` 子集。
 - 目标：
-  - 纯 no-suspend 与 pure flag-unwind handle 统一走 plan-driven emitter 主线，不再按 single/multi-arm 选主 emitter。
-  - `finally`、multi-arm dispatch、nested handle representative sample 都通过 unified emitter 维持现有行为。
-  - 旧 non-resuming specialized entry 退化为 helper 或完全不再作为主路由。
+  - `codegen_handle_expr` 在 `NoSuspendSites` 场景下切到 unified emitter 主入口，不再直接以 `codegen_handle_expr_no_perform` 作为主选路。
+  - `finally`、branch / loop、single nested handle representative sample 继续保持现有 no-suspend 行为。
+  - 为后续 `SingleNonResuming` / `MultiNonResuming` 复用的统一 CFG / cleanup 发射骨架锁定入口契约。
 - 验收：
-  - 新增或更新 LLVM fixture / 定向单测：覆盖 no-suspend、single non-resuming、multi non-resuming、`finally`、nested handle representative sample。
+  - 新增或更新 LLVM 定向单测：覆盖 no-suspend、`finally`、nested handle representative sample 的 unified emitter 选路与行为。
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- test --filter effect_nonresuming`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3a
+- 完成说明：
+  - `codegen_handle_expr` 现已先通过新的 `UnifiedNoContinuationEntrypoint::NoSuspendSites` 统一入口处理 no-suspend handle；旧 `codegen_handle_expr_no_perform` 已退化为共享 leaf helper，不再承担该子集的主选路职责。
+  - unified no-suspend 入口现会显式校验 plan 中不存在 suspend subtree 或 resuming arm，再进入顺序 body/finally 发射，锁住 `T2003r3b1` 的入口契约。
+  - 已新增定向单测：`unified_no_continuation_entrypoint_marks_nosuspend_finally_nested_handle_sample`、`unified_no_continuation_entrypoint_skips_single_nonresuming_sample`；并新增 run-pass fixture：`effect_nosuspend_finally_nested_handle`。
+  - 已验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`、`cargo test --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003r3b2 [TODO] Effect：统一 emitter 接管 `SingleNonResuming`
+- 描述：在 `T2003r3b1` 的统一 CFG / cleanup 发射骨架上，接入单 arm non-resuming dispatch 与 payload decode。
+- 目标：
+  - `SingleNonResuming` 不再以 dedicated main emitter 作为主入口。
+  - `Raise.raise` 与 custom single-payload non-resuming effect 都通过 unified emitter 保持现有行为。
+  - 旧 single non-resuming specialized entry 退化为局部 helper，不再承担主选路职责。
+- 验收：
+  - 新增或更新 LLVM fixture / 定向单测：覆盖 single non-resuming、`finally`、nested handle representative sample。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- test --fixtures tests/fixtures/run-pass`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3b1
+
+### T2003r3b3 [TODO] Effect：统一 emitter 接管 `MultiNonResuming` 并退化旧 specialized entry
+- 描述：最后把 multi-arm pure flag-unwind handle 切到 unified emitter，并收口旧 non-resuming specialized entry 的主路由职责。
+- 目标：
+  - `MultiNonResuming` 统一走 plan-driven emitter 主线，不再按 single/multi-arm 选主 emitter。
+  - multi-arm dispatch、`finally`、nested handle representative sample 都通过 unified emitter 维持现有行为。
+  - 旧 non-resuming specialized entry 退化为 helper 或完全不再作为主路由。
+- 验收：
+  - 新增或更新 LLVM fixture / 定向单测：覆盖 multi non-resuming、`finally`、nested handle representative sample。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- test --fixtures tests/fixtures/run-pass`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3b2
 
 ### T2003r3c [TODO] Effect：统一 emitter 接管 single resuming handle 主线
 - 描述：第二步把单一 resuming arm 的主路径切到 unified emitter，覆盖 single immediate-resume 与 single escape-continuation，并复用 `T2003r3a` 的结构化 emit contract。
@@ -1490,9 +1528,9 @@ cargo run -p scoop --features llvm -- test
 - 验收：
   - 新增或更新 LLVM fixture / 定向单测：覆盖 single immediate / escape 的 direct、indirect、`if` / `while` / nested handle representative sample。
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- test --filter effect_resume`
+  - `cargo run -p scoop --features llvm -- test --fixtures tests/fixtures/run-pass`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003r3b
+- 依赖：T2003r3b3
 
 ### T2003r3d [TODO] Effect：统一 emitter 接管 multi-site / mixed-resuming，并完成 effect lowering 主入口切换
 - 描述：最后把 multiple immediate、multiple escape、non-resuming siblings、immediate+escape mixed 与 richer nested matrix 全部切到 unified emitter，并收口 `codegen_handle_expr` 的 effect lowering 主入口。

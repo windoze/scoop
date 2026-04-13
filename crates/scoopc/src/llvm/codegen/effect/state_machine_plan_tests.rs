@@ -746,6 +746,82 @@ fun demo(): Int {
     }
 
     #[test]
+    fn unified_no_continuation_entrypoint_marks_nosuspend_finally_nested_handle_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val nested: Int = handle {
+            var value: Int = 1
+            if (flag) {
+                value = value + 2
+            } else {
+                value = value + 4
+            }
+            while (value < 6) {
+                value = value + 1
+            }
+            value
+        } with {
+            Yield.next() -> 99
+        } finally {
+            println("inner finally")
+        }
+        if (flag) {
+            nested + 10
+        } else {
+            nested + 20
+        }
+    } with {
+        Yield.next() -> 0
+    } finally {
+        println("outer finally")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "no-suspend-sites");
+        assert_eq!(
+            build_unified_no_continuation_entrypoint_label(source),
+            Some("no-suspend-sites")
+        );
+    }
+
+    #[test]
+    fn unified_no_continuation_entrypoint_skips_single_nonresuming_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Ask.ask(1)
+        x + 1
+    } with {
+        Ask.ask(seed: Int) -> seed + 10
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "single-nonresuming");
+        assert_eq!(build_unified_no_continuation_entrypoint_label(source), None);
+    }
+
+    #[test]
     fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
         let lowered = lower_typed_single_source(
             r#"
@@ -1847,6 +1923,13 @@ fun demo(flag: Bool): Int {
             .build_mode_specific_simplification()
             .codegen_entrypoint()
             .label()
+    }
+
+    fn build_unified_no_continuation_entrypoint_label(
+        source_text: &str,
+    ) -> Option<&'static str> {
+        let plan = build_source_plan(source_text);
+        MainCodegen::unified_no_continuation_entrypoint_label_for_plan(&plan)
     }
 
     fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
