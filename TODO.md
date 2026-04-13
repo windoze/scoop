@@ -1357,13 +1357,13 @@ cargo run -p scoop --features llvm -- test
   - 已验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
 ### T2003r0 [TODO] Effect：先删除全部旧 shape-based lowering 主实现
-- 描述：以“旧代码不存在”为前提重启 effect ground-up 重写。第一步必须先从编译路径与主选路中删除 / 断开旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 及其 fallback；即使这一步会暂时让 build 失败，也先做，避免团队继续回到旧代码补 case。
+- 描述：以“旧代码不存在”为前提重启 effect ground-up 重写。第一步必须先从编译路径与主选路中删除旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 及其 fallback；即使这一步会暂时让 build 失败，也先做，避免团队继续回到旧代码补 case。
 - 目标：
   - 旧 shape-based lowering 主实现不再参与编译或主选路；仓库里不存在“先去旧代码补 helper，再迁回统一主线”的默认工作路径。
   - 后续 effect 实现只允许落在新的 segmenting / state-machine building / emitter 主线代码上。
   - 接受本任务结束时仓库暂时不可构建；后续由新的 `T2003r1*`～`T2003r3*` 逐步恢复。
 - 验收：
-  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 的主 lowering 入口已删除、断开或移出编译路径。
+  - 旧 `immediate_resume.rs` / `escape_continuation.rs` / `mixed.rs` / `matrix.rs` / `scan.rs` 文件已删除，其内容不以任何形式存在于代码库中。
   - 仓库中不再存在 silent fallback 到旧 shape-based lowering 的 root dispatch。
   - 不要求 `cargo build` / `cargo test` 通过；本任务不跑端到端 fixture。
 - 依赖：无
