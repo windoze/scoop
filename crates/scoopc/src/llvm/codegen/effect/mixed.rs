@@ -11589,6 +11589,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
         immediate_arms: &[(&'hir hir::HandleArm, hir::SymbolId)],
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
@@ -11614,124 +11615,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             op_tag: u32,
         }
 
-        let contains_matching_direct_perform = |expr: &hir::Expr| {
-            immediate_arms.iter().any(|(arm, _)| {
-                self.immediate_resume_expr_contains_matching_direct_perform(expr, &arm.op.op.fqn)
+        let immediate_arm_plans = immediate_arms
+            .iter()
+            .map(|(arm, resume_symbol)| {
+                let Some(arm_id) = handle
+                    .arms
+                    .iter()
+                    .position(|candidate| std::ptr::eq(candidate, *arm))
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm dispatch (immediate-resume arm id)",
+                        at: arm.span.into(),
+                    });
+                };
+                Ok((*arm, arm_id as ArmPlanId, *resume_symbol))
             })
-        };
-        let stmt_contains_matching_direct_perform = |stmt: &hir::Stmt| {
-            immediate_arms.iter().any(|(arm, _)| {
-                self.immediate_resume_stmt_contains_matching_direct_perform(stmt, &arm.op.op.fqn)
-            })
-        };
-
-        let mut seen_immediate_arm = vec![false; immediate_arms.len()];
-        let mut scanned_sites: Vec<(ImmediateResumeSite<'hir>, &'hir hir::HandleArm, hir::SymbolId)> =
-            Vec::new();
-        for (top_level_stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            match &stmt.kind {
-                hir::StmtKind::Empty
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {}
-                hir::StmtKind::Val(decl) => {
-                    let Some(init) = decl.init.as_ref() else {
-                        continue;
-                    };
-                    if let hir::ExprKind::Perform { op, args } = &init.kind
-                        && let Some((arm_idx, arm_entry)) = immediate_arms
-                            .iter()
-                            .enumerate()
-                            .find(|(_, (arm, _))| arm.op.op.fqn == op.fqn)
-                    {
-                        if seen_immediate_arm[arm_idx] {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle mixed immediate-resume body (multiple direct perform points for same op not yet supported)",
-                                at: decl.span.into(),
-                            });
-                        }
-                        let Some(id) = decl.id else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle resume perform binding id",
-                                at: decl.span.into(),
-                            });
-                        };
-                        let (arm, resume_symbol) = *arm_entry;
-                        scanned_sites.push((
-                            ImmediateResumeSite {
-                                top_level_stmt_idx,
-                                decl,
-                                op,
-                                args: args.as_slice(),
-                                id,
-                                resume_path: Vec::new(),
-                            },
-                            arm,
-                            resume_symbol,
-                        ));
-                        seen_immediate_arm[arm_idx] = true;
-                        continue;
-                    }
-                    if contains_matching_direct_perform(init) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
-                            at: init.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Assign { lhs, rhs, .. } => {
-                    if contains_matching_direct_perform(lhs)
-                        || contains_matching_direct_perform(rhs)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Expr(expr) => {
-                    if let hir::ExprKind::Perform { op, .. } = &expr.kind
-                        && immediate_arms
-                            .iter()
-                            .any(|(arm, _)| arm.op.op.fqn == op.fqn)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (perform must be bound to val)",
-                            at: expr.span.into(),
-                        });
-                    }
-                    if contains_matching_direct_perform(expr) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
-                            at: expr.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::While { cond, body } => {
-                    if contains_matching_direct_perform(cond)
-                        || body
-                            .stmts
-                            .iter()
-                            .any(stmt_contains_matching_direct_perform)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-                hir::StmtKind::Return { value } => {
-                    if value
-                        .as_ref()
-                        .is_some_and(contains_matching_direct_perform)
-                    {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
-                            at: stmt.span.into(),
-                        });
-                    }
-                }
-            }
+            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
+        let immediate_plan_input = immediate_arm_plans
+            .iter()
+            .map(|(arm, arm_id, _)| (*arm, *arm_id))
+            .collect::<Vec<_>>();
+        let resolved_sites = Self::resolve_top_level_immediate_resume_sites_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_plan_input.as_slice(),
+        )?;
+        let mut scanned_sites: Vec<(
+            ImmediateResumeSite<'hir>,
+            &'hir hir::HandleArm,
+            hir::SymbolId,
+        )> = Vec::with_capacity(resolved_sites.len());
+        for resolved in resolved_sites {
+            let Some((arm, _, resume_symbol)) = immediate_arm_plans
+                .iter()
+                .find(|(_, arm_id, _)| *arm_id == resolved.arm_id)
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (immediate-resume arm id)",
+                    at: span.into(),
+                });
+            };
+            scanned_sites.push((resolved.site, *arm, *resume_symbol));
         }
 
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
@@ -12684,8 +12608,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
-        immediate_arm: &'hir hir::HandleArm,
-        resume_symbol: hir::SymbolId,
+        state_machine_plan: &HandleStateMachinePlan,
+        immediate: (&'hir hir::HandleArm, hir::SymbolId),
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -12697,6 +12621,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             op_tag: u32,
         }
 
+        let (immediate_arm, resume_symbol) = immediate;
+
         if sibling_nonresuming_arms.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle arm count (only 1 supported)",
@@ -12704,8 +12630,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let Some(perform_site) =
-            self.scan_immediate_resume_site(handle, &immediate_arm.op.op.fqn)?
+        let Some(immediate_arm_id) = handle
+            .arms
+            .iter()
+            .position(|candidate| std::ptr::eq(candidate, immediate_arm))
+            .map(|idx| idx as ArmPlanId)
+        else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle arm dispatch (immediate-resume arm id)",
+                at: immediate_arm.span.into(),
+            });
+        };
+        let Some(perform_site) = Self::resolve_immediate_resume_site_from_plan(
+            handle,
+            state_machine_plan,
+            immediate_arm_id,
+            &immediate_arm.op.op.fqn,
+        )?
         else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm immediate-resume body (missing direct perform)",

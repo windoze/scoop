@@ -230,7 +230,15 @@ cargo run -p scoop --features llvm -- test
     - direct multiple-perform step re-entry 之前没有携带 arm body 读取的 outer local，导致 `continuation_resume_ref_class.scoop` 在第二次 perform 进入 arm body 时丢失 `cell`；
     - outer-scope slot / declared-local 收集原先不会穿过 nested handle，导致 `Task.andThen` 这类“外层 continuation step 里进入 nested handle”的路径漏掉只在 inner handle 中使用的 outer local（已修复 `std_task_async_adapters_basic.scoop` 中丢失 `resultTask` 的问题）。
   - 已新增单测 `escape_arm_capture_locals_include_outer_scope_reads`、`resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle`；并重新验证 `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003u4c`：继续迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter 到统一状态机输入。
+  - 进一步审计确认：原 `T2003u4c` 仍同时耦合 multiple immediate 的 top-level replay、multiple escape 的 continuation capture，以及 immediate+escape site-matrix 的 cleanup/dispatch；若继续整包推进，会再次把三类 emitter 的实现/回归面压到同一轮里。
+  - 因此原 `T2003u4c` 再拆为 `T2003u4c1` / `T2003u4c2` / `T2003u4c3`：
+    - `T2003u4c1`：先迁移 `multiple immediate-resume` 与 `immediate + sibling non-resuming` 路由到 unified plan；
+    - `T2003u4c2`：再迁移 pure `multiple escape-continuation` 与 `escape + sibling non-resuming` 路由；
+    - `T2003u4c3`：最后迁移 `immediate + escape` mixed site-matrix 与 `matrix.rs` 剩余主线。
+  - T2003u4c1 已完成：`multiple immediate-resume` 的 top-level direct route 与 `immediate + sibling non-resuming` 路由现已直接消费 unified plan 的 suspend-site/source-path 元数据，不再以 `scan_immediate_resume_site` / 手工遍历 handle body 作为主输入。
+  - 本轮新增了 plan-driven multiple-immediate resolver：它按 unified plan 的 site 顺序恢复 direct perform 绑定，并显式保持“site 顺序按 source order、arm 顺序可独立重排”的不变量；同时保留既有 top-level direct 子集的稳定诊断。
+  - 已新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，并重新验证 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+  - 当前下一步调整为 `T2003u4c2`：继续迁移 pure `multiple escape-continuation` / `escape + sibling non-resuming` 路由到 unified plan。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u6`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2004` 的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -293,7 +301,9 @@ cargo run -p scoop --features llvm -- test
   - T2003u4a（已完成）：先把 non-resuming / no-suspend 入口切到统一状态机输入，补 hidden unwind site 的 unified plan 表示，并移除该子路径对 `block_may_perform` 的依赖。
   - T2003u4b1（已完成）：迁移 single-arm immediate-resume 主 emitter 到统一状态机输入，并补 unified plan 的 single-site/source-path 元数据。
   - T2003u4b2（已完成）：迁移 single-arm escape-continuation（direct/indirect）主 emitter 到统一状态机输入。
-  - T2003u4c：迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
+  - T2003u4c1（已完成）：迁移 `multiple immediate-resume` / `immediate + sibling non-resuming` 主 emitter 到统一状态机输入。
+  - T2003u4c2：迁移 `multiple escape-continuation` / `escape + sibling non-resuming` 主 emitter 到统一状态机输入。
+  - T2003u4c3：迁移 `immediate + escape` mixed site-matrix / multiple-resuming 主 emitter 到统一状态机输入，收口 `mixed.rs` / `matrix.rs` 中剩余的 shape-specific replay/capture/cleanup 逻辑。
   - T2003u5：迁移现有 mixed-arm / multiple-resuming 组合到统一 pass，并删除按 `top-level / nested / same-stmt mixed` 维度保留的结构性门禁。
   - T2003u6：补 full matrix 回归与 `--gc-stress`，确认合法组合由统一 pass 覆盖；若仍有限制，必须是语言语义层面的真实非法组合，而不是 lowering 形状缺口。
   - T22：补前端 Rust 风格分号 / expression statement 语义，收口 block / trailing lambda 边界，并同步 effect fixtures 与规范文档。

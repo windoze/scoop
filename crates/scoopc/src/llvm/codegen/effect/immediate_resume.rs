@@ -8,6 +8,12 @@ pub(super) struct ImmediateResumeHandleLowering<'hir> {
     out_ty: CgTy,
 }
 
+#[derive(Debug)]
+struct ResolvedImmediateResumeSite<'hir> {
+    arm_id: ArmPlanId,
+    site: ImmediateResumeSite<'hir>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_immediate_resume_stmt_unit(
         &mut self,
@@ -712,7 +718,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn resolve_immediate_resume_stmt_from_source_path<'hir>(
-        &self,
         handle: &'hir hir::HandleExpr,
         source_path: &SuspendSourcePath,
         site_span: crate::span::Span,
@@ -898,8 +903,111 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((current_stmt, resume_path))
     }
 
+    fn resolve_top_level_immediate_resume_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        immediate_arms: &[(&'hir hir::HandleArm, ArmPlanId)],
+    ) -> Result<Vec<ResolvedImmediateResumeSite<'hir>>, LlvmEmitError> {
+        let mut matching_sites = state_machine_plan
+            .suspend_sites
+            .iter()
+            .filter_map(|site| {
+                let SuspendSiteKind::DirectPerform { op_fqn } = &site.kind else {
+                    return None;
+                };
+                immediate_arms
+                    .iter()
+                    .find(|(arm, arm_id)| {
+                        arm.op.op.fqn == *op_fqn && site.matching_arms.contains(arm_id)
+                    })
+                    .map(|(_, arm_id)| (site, *arm_id))
+            })
+            .collect::<Vec<_>>();
+        matching_sites.sort_by_key(|(site, _)| site.id);
+
+        let mut seen_arm_ids = Vec::new();
+        let mut resolved_sites = Vec::with_capacity(matching_sites.len());
+        for (site, arm_id) in matching_sites {
+            if seen_arm_ids.contains(&arm_id) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (multiple direct perform points for same op not yet supported)",
+                    at: site.span.into(),
+                });
+            }
+            seen_arm_ids.push(arm_id);
+
+            let Some(source_path) = &site.source_path else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (missing unified source path)",
+                    at: site.span.into(),
+                });
+            };
+            if !source_path.frames.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
+                    at: site.span.into(),
+                });
+            }
+
+            let (stmt, resume_path) =
+                Self::resolve_immediate_resume_stmt_from_source_path(handle, source_path, site.span)?;
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (perform must be bound to val)",
+                    at: stmt.span.into(),
+                });
+            };
+            let Some(init) = decl.init.as_ref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume body (missing perform init)",
+                    at: decl.span.into(),
+                });
+            };
+            let hir::ExprKind::Perform { op, args } = &init.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (expected direct perform)",
+                    at: init.span.into(),
+                });
+            };
+            let Some((arm, _)) = immediate_arms
+                .iter()
+                .find(|(candidate, candidate_id)| *candidate_id == arm_id && op.fqn == candidate.op.op.fqn)
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (immediate-resume arm id)",
+                    at: site.span.into(),
+                });
+            };
+            if init.span != site.span || op.fqn != arm.op.op.fqn {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume body (unified plan/source mismatch)",
+                    at: init.span.into(),
+                });
+            }
+            let Some(id) = decl.id else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume perform binding id",
+                    at: decl.span.into(),
+                });
+            };
+
+            resolved_sites.push(ResolvedImmediateResumeSite {
+                arm_id,
+                site: ImmediateResumeSite {
+                    top_level_stmt_idx: source_path.top_level_stmt_idx,
+                    decl,
+                    op,
+                    args: args.as_slice(),
+                    id,
+                    resume_path,
+                },
+            });
+        }
+
+        Ok(resolved_sites)
+    }
+
     fn resolve_immediate_resume_site_from_plan<'hir>(
-        &self,
         handle: &'hir hir::HandleExpr,
         state_machine_plan: &HandleStateMachinePlan,
         arm_id: ArmPlanId,
@@ -937,7 +1045,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         let (stmt, resume_path) =
-            self.resolve_immediate_resume_stmt_from_source_path(handle, source_path, site.span)?;
+            Self::resolve_immediate_resume_stmt_from_source_path(handle, source_path, site.span)?;
         let hir::StmtKind::Val(decl) = &stmt.kind else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle resume body (perform must be bound to val)",
@@ -1002,7 +1110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   （正常 resume 完成 / raise 传播时都执行一次）。
 
         // 1) 在 handle body 中找到唯一的 perform 点。
-        let Some(perform_site) = self.resolve_immediate_resume_site_from_plan(
+        let Some(perform_site) = Self::resolve_immediate_resume_site_from_plan(
             handle,
             state_machine_plan,
             arm_id,

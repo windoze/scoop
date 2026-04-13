@@ -1,81 +1,57 @@
-## 当前执行计划
+# 执行计划与进度记录
 
-1. 先检查最新一次提交，确认提交信息里是否提到任何已知遗留问题；若有，优先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务，并确认是否存在依赖关系或阻塞项。
-3. 如首个未完成任务过大，拆分为可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
-4. 在实现前阅读相关代码、测试、规范或文档，明确影响范围。
-5. 实现当前目标任务，保证改动符合规范，不引入临时性绕过方案。
-6. 运行相关测试与必要的质量检查；若出现失败或规范不一致，先修复问题或将真正的前置任务加入 `TODO.md`。
-7. 更新 `memory/claude_plan.md` 记录进展，随后更新 `TODO.md` 与 `PLAN.md`。
-8. 使用清晰的提交信息提交本轮改动，然后停止，不继续处理下一个任务。
+## 说明
 
-## 进度记录
+按要求，本文件在执行任何命令前先建立，用于记录本次迭代的高层执行思路、分步计划、关键决策与进度更新。
 
-- 已创建本计划文件，下一步检查最新提交与任务列表。
-- 已确认最新提交未额外标注遗留问题；当前首个未完成任务是 `T2003u4b2`。
-- 任务判断：暂不再拆分，按“single-arm escape-continuation 主 emitter 切到统一状态机输入”直接推进。
-- 当前实施方案：
-  1. 扩展 unified plan 的 source-path 元数据，使 single-arm escape 的 direct/indirect 站点都能从 plan 恢复回旧 emitter 需要的源码位置。
-  2. 把 single-arm escape 入口改为显式接收 `HandleStateMachinePlan` 与 arm id，不再直接依赖旧扫描器做终态站点发现。
-  3. 在 escape emitter 内新增 plan-driven resolver：从 unified plan 解析 direct perform 站点、indirect call 站点，以及基于 plan capture set 派生 body lift / outer capture。
-  4. 补充单元测试，锁定 direct/indirect source-path 与 plan-driven 解析；随后运行相关测试与质量检查。
-# 本轮执行计划（更新于 2026-04-13）
+注意：这里记录的是可审计的任务分析、执行计划与进展摘要，不包含内部详细推理展开。
 
-## 当前任务理解
+## 初始目标
 
-- 目标仍然是 `TODO.md` 中首个未完成任务 `T2003u4b2`：将 single-arm escape-continuation 主 emitter 切换到 unified state-machine 输入。
-- 上一轮已经把 direct / indirect suspend site 发现和 capture 集合改为从 unified state-machine plan 解析，相关单测与大部分回归已通过。
-- 当前已知剩余问题是 `tests/fixtures/run-pass/continuation_resume_ref_class.scoop` 失败，症状为 `unsupported_main_body` / `unknown local value`。
-- 从已有单测看，更像是 single-arm escape emitter 的某条恢复/续执行路径没有正确把 lifted local 放回 codegen 环境，而不是 unified plan 漏算 capture。
+本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-## 已知约束
+在开始该任务前，先完成以下前置检查：
 
-- 必须先检查最新提交是否提到 pre-existing issue；若有，需优先修复。
-- 只完成 `TODO.md` 的首个未完成任务，不继续做后续任务。
-- 不能用 workaround；若发现真实实现缺口，需要在 `TODO.md` / `PLAN.md` 中显式建依赖任务并停止。
-- 完成后必须测试、更新 `TODO.md` / `PLAN.md`、提交 git commit，然后停止。
+1. 检查最新一次 git 提交，确认是否提到了已知遗留问题；若有，则这些问题优先纳入本轮范围并先修复。
+2. 读取 `TODO.md`，识别第一个未完成任务。
+3. 读取 `PLAN.md`，核对当前计划与任务依赖关系。
+4. 如首个未完成任务过大，则先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
 
-## 执行步骤
+## 预期执行步骤
 
-1. 检查最新提交内容，确认是否存在提交中明确提及但未修复的问题。
-2. 重新确认 `TODO.md` 的首个未完成任务仍是 `T2003u4b2`，同时查看 `PLAN.md` 了解当前分解状态。
-3. 复现 `continuation_resume_ref_class.scoop` 失败，并定位 `unknown local value` 对应的具体 symbol / 控制流路径。
-4. 重点审查 `crates/scoopc/src/llvm/codegen/effect/escape_continuation.rs` 中 single-arm direct escape 的：
-   - lifted local 恢复逻辑
-   - perform 后续执行路径
-   - top-level tail / nested tail 对 body lift 的特殊分支
-   - 恢复后 `cg.env` / local slot 的接线
-5. 如定位明确，修复 emitter 仍残留的旧 scanner / 旧 env 假设，使 single-arm escape 主路径完全依赖 unified plan 输入。
-6. 补充或调整最小必要单测，覆盖本次回归场景。
-7. 运行相关验证：
-   - `cargo test --all`
-   - `cargo run -p scoop -- test`
-   - `cargo run -p scoop --features llvm -- test`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-8. 若以上全部通过，更新 `TODO.md` 和 `PLAN.md`，将 `T2003u4b2` 标记完成并记录结果。
-9. 提交本轮变更，提交后停止。
+1. 查看最新提交信息与改动摘要。
+2. 读取 `TODO.md` / `PLAN.md` / 必要的仓库说明文件。
+3. 定位首个未完成任务及其相关代码、测试与规范位置。
+4. 判断是否存在阻塞该任务的规范缺口、实现缺口或历史问题。
+5. 若无阻塞，直接实现该任务。
+6. 运行相关格式化、测试与 lint，至少包括与改动相关的最小充分测试；若改动范围较大，再运行更完整验证。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件中的进度记录。
+8. 提交 git commit，提交信息与任务对应。
+9. 停止，不继续处理后续任务。
 
-## 当前判断
+## 风险与决策原则
 
-- 已通过临时诊断定位到真实根因：失败的不是 `b1` / `b2` 这类 body lift，而是外层局部 `cell`（`SymbolId=1`）。
-- 具体表现为：第二次 direct perform 在 step trampoline 中再次进入 escape arm body 时，`cell.k = Some(k)` 这类“arm body 读取外层局部”的路径没有被纳入当前 capture 集合；step `cg.env` 里只有 resumed body 所需 capture / lifts，没有 arm body 的 outer locals，因此在 codegen arm body 时触发 `unknown local value`。
-- 修复方向调整为：
-  1. 给 unified state-machine plan 增加 single-arm escape arm body 的 free-local capture 元数据；
-  2. direct / indirect single-arm escape emitter 在构造 `outer_captures` 时，除了 site capture 集合外，还要并入 arm body 的 outer captures；
-  3. 移除临时调试打印，补最小单测 / 回归验证。
+1. 不以 workaround、兼容性分支或仅夹具修补的方式伪造完成。
+2. 若发现规范与实现不一致，且该问题阻塞当前任务，必须先在 `TODO.md` 中显式建模为前置任务，再更新计划并停止。
+3. 不回退用户已有改动；若工作树脏且与当前任务无关，则忽略。
 
-## 完成状态
+## 进度更新
 
-- `T2003u4b2` 已完成。
-- 实际修复分成两部分：
-  1. unified plan 现在会为 escape arm 记录 free-local capture 集合，single-arm escape direct/indirect emitter 会把这组 arm-body outer captures 与 suspend-site capture 集合合并，避免第二次及后续 perform 在 step trampoline 中重新进入 arm body 时丢失外层局部（已修复 `continuation_resume_ref_class.scoop` 中的 `cell` 丢失）。
-  2. unified plan 的 outer-scope slot / declared-local 收集现在会穿过 nested handle，同时排除 inner handle 的 binders、`resume` / `k` 符号和内部 `val`；这样外层 continuation step 能保留“只在 nested handle 中使用”的外层局部（已修复 `std_task_async_adapters_basic.scoop` 中 `Task.andThen` 嵌套 handle 丢失 `resultTask` 的问题）。
-- 新增单测：
-  - `escape_arm_capture_locals_include_outer_scope_reads`
-  - `resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle`
-- 本轮最终验证已全部通过：
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-  - `cargo run -p scoop --features llvm -- test`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 下一轮应从 `T2003u4c` 继续：迁移 mixed-arm / site-matrix / multiple-resuming 主 emitter 到统一状态机输入。
+- 已创建本文件。
+- 已检查最新提交：`35f0aacfe874713e008e9ab79162b728fab9bbfc`，提交信息仅为 `[T2003u4b2] Route single-arm escape-continuation through unified plan`，未在提交信息中显式提到需要先修复的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务原为 `T2003u4c`。
+- 已判断 `T2003u4c` 范围过大，决定拆分为：
+  1. `T2003u4c1`：multiple immediate-resume / sibling non-resuming 路由切到统一状态机输入。
+  2. `T2003u4c2`：multiple escape-continuation / sibling non-resuming 路由切到统一状态机输入。
+  3. `T2003u4c3`：immediate+escape / site-matrix 路由切到统一状态机输入。
+- 当前执行目标：`T2003u4c1`。
+- `T2003u4c1` 已实现完成：
+  1. 新增 `resolve_top_level_immediate_resume_sites_from_plan`，按 unified plan 的 suspend-site/source-path 恢复 multiple immediate 的 top-level direct sites。
+  2. `codegen_handle_expr_multiple_immediate_resume_top_level` 改为从 unified plan 解析 site，不再手工扫描 handle body。
+  3. `codegen_handle_expr_immediate_resume_with_nonresuming_siblings` 改为复用 unified plan 的 single-site resolver。
+  4. 新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，验证 site 顺序按 source order 返回、且与 arm 顺序解耦。
+- 验证结果：
+  - `cargo test --all`：通过
+  - `cargo run -p scoop --features llvm -- test`：通过（`fixtures: ok (993)`）
+  - `cargo clippy --workspace --all-targets -- -D warnings`：通过
+- 下一步（本轮不执行）：`T2003u4c2`

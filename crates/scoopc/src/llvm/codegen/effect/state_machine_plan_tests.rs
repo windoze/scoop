@@ -637,6 +637,66 @@ fun demo(): Int {
     }
 
     #[test]
+    fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Step {
+    fun take(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        val second: Int = Step.take(first)
+        second
+    } with {
+        Step.take(seed: Int) -> resume {
+            resume(seed + 1)
+        }
+        Yield.next() -> resume {
+            resume(10)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let immediate_arms = handle
+            .arms
+            .iter()
+            .enumerate()
+            .map(|(idx, arm)| (arm, idx as u32))
+            .collect::<Vec<_>>();
+
+        let resolved = MainCodegen::resolve_top_level_immediate_resume_sites_from_plan(
+            handle,
+            &plan,
+            immediate_arms.as_slice(),
+        )
+        .expect("plan-driven multiple immediate resolution should succeed");
+
+        assert_eq!(resolved.len(), 2);
+        assert_eq!(resolved[0].arm_id, 1);
+        assert_eq!(resolved[1].arm_id, 0);
+        assert_eq!(resolved[0].site.op.fqn, "a.Yield.next");
+        assert_eq!(resolved[1].site.op.fqn, "a.Step.take");
+        assert_eq!(resolved[0].site.top_level_stmt_idx, 0);
+        assert_eq!(resolved[1].site.top_level_stmt_idx, 1);
+        assert!(resolved.iter().all(|site| site.site.resume_path.is_empty()));
+    }
+
+    #[test]
     fn simplification_codegen_entrypoint_classifies_mixed_representative_sample() {
         let source = r#"
 package a

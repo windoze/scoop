@@ -396,6 +396,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     handle,
                     out_ty,
+                    &state_machine_plan,
                     &handle_arm_buckets,
                     codegen_entrypoint,
                 );
@@ -1356,6 +1357,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
         out_ty: CgTy,
+        state_machine_plan: &HandleStateMachinePlan,
         arm_buckets: &HandleArmBuckets<'hir>,
         codegen_entrypoint: SimplifiedCodegenEntrypoint,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -1385,6 +1387,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_handle_expr_multiple_immediate_resume_top_level(
                     span,
                     handle,
+                    state_machine_plan,
                     immediate_arms,
                     nonresuming_arms,
                     out_ty,
@@ -1400,8 +1403,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_handle_expr_immediate_resume_with_nonresuming_siblings(
                     span,
                     handle,
-                    immediate_arm,
-                    resume_symbol,
+                    state_machine_plan,
+                    (immediate_arm, resume_symbol),
                     nonresuming_arms,
                     out_ty,
                 )

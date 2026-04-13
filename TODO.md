@@ -1166,10 +1166,43 @@ cargo run -p scoop --features llvm -- test
   - 已新增单测：`escape_arm_capture_locals_include_outer_scope_reads`、`resolve_escape_direct_sites_from_plan_captures_outer_local_used_only_in_nested_handle`；并修复 / 验证回归：`continuation_resume_ref_class.scoop`、`std_task_async_adapters_basic.scoop`。
   - 验证已通过：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings`。
 
-### T2003u4c [TODO] Effect：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
-- 描述：最后迁移 mixed-arm、multiple-resuming 与 site-matrix 组合，把 `mixed.rs` / `matrix.rs` 的 shape-specific 主线收口为统一状态机 emitter。
+### T2003u4c 任务拆分：mixed-arm / site-matrix / multiple-resuming 主 emitter 切到统一状态机输入
+- 说明：原任务同时覆盖 `mixed.rs` / `multi_escape.rs` / `matrix.rs` 三组 emitter；若继续整包推进，会把 multiple immediate 的 top-level replay、multiple escape 的 continuation capture，以及 immediate+escape site-matrix 的 cleanup/dispatch 一起耦合进同一轮，验收面仍然过大。现拆为 `T2003u4c1`～`T2003u4c3` 顺序推进。
+
+### T2003u4c1 [DONE] Effect：multiple immediate-resume / sibling non-resuming 路由切到统一状态机输入
+- 描述：先迁移 `codegen_handle_expr_multiple_immediate_resume_top_level` 与 `codegen_handle_expr_immediate_resume_with_nonresuming_siblings`，让 multiple immediate 的 top-level direct site 与 single immediate + sibling non-resuming 都直接消费 unified plan 的 direct suspend-site / source-path 元数据。
 - 目标：
-  - mixed-arm / multiple-resuming 组合从统一 state-machine plan 读取 state table / dispatch / cleanup，而不是继续在 `mixed.rs` / `matrix.rs` 里按 top-level / block / if / while / same-stmt 形状重建主线。
+  - multiple immediate-resume / immediate + sibling non-resuming 不再重新 scan handle body 查找 direct perform site；改由 unified plan 驱动 site 顺序与 arm 匹配。
+  - 现有 top-level direct 子集的稳定诊断保持不漂移：`perform must be bound to val`、`only top-level val-bound direct perform supported` 等边界继续存在，直到 `T2003u5` 统一收口。
+  - 保持既有回归不回退：`effect_resume_multi_immediate_top_level`、`effect_resume_multi_immediate_custom_nonresuming`。
+- 验收：
+  - 新增单测：plan-driven multiple immediate site 解析按 source order 返回，并与 arm 顺序解耦。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4b2
+- 完成说明：
+  - 已新增 plan-driven helper `resolve_top_level_immediate_resume_sites_from_plan`，按 unified plan 的 suspend-site/source-path 恢复 multiple immediate 的 top-level direct sites，并保持 site 顺序与 arm 顺序解耦。
+  - `codegen_handle_expr_multiple_immediate_resume_top_level` 不再重新 scan handle body；`codegen_handle_expr_immediate_resume_with_nonresuming_siblings` 也已改为复用 unified plan 的 single-site resolver。
+  - 已新增单测 `resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order`，并重新验证 `cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
+
+### T2003u4c2 [TODO] Effect：multiple escape-continuation / sibling non-resuming 路由切到统一状态机输入
+- 描述：再迁移 `codegen_handle_expr_multiple_escape_top_level_direct` 与 `codegen_handle_expr_escape_with_nonresuming_siblings*`，把 pure multiple escape 与 escape + sibling non-resuming 的 direct/indirect site 解析切到 unified plan。
+- 目标：
+  - pure multiple escape 与 escape + sibling non-resuming 的 direct / indirect site 不再依赖 `scan_mixed_escape_*` 作为主输入；统一从 plan 读取 site 顺序、capture locals 与 dispatch arm 集合。
+  - 旧 top-level / nested control-flow 的 direct/indirect 子集继续走既有 replay helper，但 source-of-truth 改为 unified plan。
+  - 保持既有回归不回退：`effect_multi_escape_multi_arm_top_level_direct`、`effect_multi_escape_multi_arm_with_nonresuming` 及其 direct/indirect matrix 代表样例。
+- 验收：
+  - 至少一组现有 pure multiple escape 与 escape + sibling non-resuming 回归切到 unified state-machine codegen 路径。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u4c1
+
+### T2003u4c3 [TODO] Effect：immediate+escape / site-matrix 路由切到统一状态机输入
+- 描述：最后迁移 `codegen_handle_expr_immediate_resume_with_escape_*` 与 `matrix.rs` 剩余 site-matrix 主线，把 immediate+escape mixed-arm / multiple-resuming 组合的 dispatch、cleanup、resume-target 收口到 unified emitter。
+- 目标：
+  - immediate+escape mixed-arm / site-matrix 组合从 unified state-machine plan 读取 state table / dispatch / cleanup，而不是继续在 `mixed.rs` / `matrix.rs` 里按 top-level / block / if / while / same-stmt 形状重建主线。
   - payload transport、handler stack、continuation alloc/resume、finally/unwind 在 LLVM 层只保留统一主实现。
   - 旧 specialized lowering 可以暂时保留作对照，但不再是新增合法组合的唯一落点；新组合一律先接 unified emitter。
 - 验收：
@@ -1178,7 +1211,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u4b2
+- 依赖：T2003u4c2
 
 ### T2003u5 [TODO] Effect：迁移 mixed-arm / multiple-resuming 组合并删除结构性门禁
 - 描述：在统一状态机主路径可运行后，把当前仍靠结构性门禁挡住的组合全部迁移过去，明确哪些是语言合法组合、哪些才是真正的语义非法。
@@ -1191,7 +1224,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003u4c
+- 依赖：T2003u4c3
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
 - 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。
