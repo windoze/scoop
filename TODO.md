@@ -1309,17 +1309,41 @@ cargo run -p scoop --features llvm -- test
   - 已新增 run-pass 回归 `effect_multi_escape_indirect_direct_while`。
   - 已验证：`cargo test --all`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --workspace --all-targets -- -D warnings` 全通过。
 
-### T2003u5d [TODO] Effect：mixed-arm immediate+escape 的 while richer matrix replay
-- 描述：当前 immediate+escape mixed-arm 的 unified emitter 仍保留 3 个 while 形状门禁：deeper nested direct site、deeper nested indirect site，以及 separate-stmt direct/indirect coexistence。
+### T2003u5d1 [TODO] Effect：mixed-arm immediate+escape 的 while separate-stmt mixed replay
+- 描述：审计 `T2003u5d` 后确认，当前 immediate+escape 的 site-matrix while 分类仍把 direct/indirect coexistence 锁成 same-body-stmt；但 `matrix.rs` 已有 direct/indirect 的 current-site tail 与 future-iteration re-entry helper，可先独立迁移 same-stmt 之外的 separate-stmt ordering。
 - 目标：
-  - immediate+escape mixed-arm 在 while body 中的 nested direct / indirect site 与 separate-stmt mixed replay 统一走 plan-driven matrix helper。
-  - 删除 `effect_resume_mixed_escape_while_is_error`、`effect_resume_mixed_escape_while_indirect_is_error`、`effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error` 这些仅用于锁 lowering 形状边界的 build-fail。
+  - immediate+escape mixed-arm 在 while body 中 direct/indirect 分居不同 statement 时，direct -> indirect 与 indirect -> direct ordering 统一走 plan-driven matrix helper。
+  - 删除仅锁 same-body-stmt 限制的 build-fail `effect_resume_mixed_escape_while_direct_indirect_separate_stmt_is_error`，并补足必要的 ordering 回归。
 - 验收：
-  - 上述 build-fail fixtures 转成 run-pass，或替换为新的统一 pass 真实边界。
+  - build-fail 转 run-pass，且至少新增一例 reverse-order 或等价 richer ordering 回归。
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003u5c2
+
+### T2003u5d2 [TODO] Effect：mixed-arm immediate+escape 的 while deeper nested block/if replay
+- 描述：在 while body 中，如果 escape site 落在 statement-position block 之后再进入更深一层 block/if，当前 immediate+escape matrix 仍会在 prefix/scan/tail 的 block-only 假设上报稳定诊断；这与 no-immediate 路线的 richer nested 递归能力还未对齐。
+- 目标：
+  - immediate+escape mixed-arm 支持 while body 中 `while -> block/if -> ...` 的 deeper nested direct / indirect site replay，不再把 `block -> if` 之类路径稳定诊断为 lowering 形状缺口。
+  - 删除 build-fail `effect_resume_mixed_escape_while_is_error`，并补足对应 direct / indirect richer nested 回归。
+- 验收：
+  - `effect_resume_mixed_escape_while_is_error` 转 run-pass，或以更精确的统一 pass 回归替代。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5d1
+
+### T2003u5d3 [TODO] Effect：mixed-arm immediate+escape 的 nested-while replay
+- 描述：当前 immediate+escape matrix 在 `while` 内再次进入 inner `while` 时，prefix / continue / tail helper 仍把 `WhileBody` 视为“需要 dedicated lowering”的专用边界；这与 block/if 路径不是同一类问题，需要单独收口 inner-while replay。
+- 目标：
+  - immediate+escape mixed-arm 支持 outer while body 内 nested-while 的 direct / indirect escape site replay，current iteration 与 future iteration re-entry 都复用统一 plan 驱动路径。
+  - 删除 build-fail `effect_resume_mixed_escape_while_indirect_is_error`，并在需要时补足 direct nested-while 对称回归。
+- 验收：
+  - `effect_resume_mixed_escape_while_indirect_is_error` 转 run-pass，或以新的 nested-while 统一回归替代。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003u5d2
 
 ### T2003u6 [TODO] Effect：统一状态机 pass 的 full matrix 回归与 GC stress
 - 描述：最后再做 full matrix，不是为了给 case-by-case 实现兜底，而是验证统一 pass 的覆盖性与稳定性。
@@ -1332,7 +1356,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T2003u5
+- 依赖：T2003u5d3
 
 ### T2004 [BLOCKED] 前端：裸 `{ ... }` block-only 方案已废弃，改由显式 `do { ... }` block 规则承接
 - 描述：原计划是单独补 statement-position 裸 `{ ... }` block 语法，并把 effect fixtures 里的 `@Safe` nested-block workaround 切回普通 `{ ... }`。现确认这条路线仍会把 `val a = { println("hello") }` 一类写法暴露给“closure 还是 block 求值结果”的二义性；单靠分号边界或 `@Safe` 绕路并不能从语法层彻底消掉歧义。Scoop 改采 Swift 风格：普通局部 block 必须显式写成 `do { ... }`，没有 `do` 的裸 `{ ... }` 一律解释为 closure / trailing lambda / struct literal 所属的花括号形式。
