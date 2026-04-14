@@ -745,43 +745,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (immediate_arm, resume_symbol) = arms.immediate;
         let (escape_arm, continuation_symbol) = arms.escape;
 
-        let immediate_arm_id = Self::resolve_handle_arm_plan_id(
+        let immediate_arm_plans = Self::build_multi_resuming_immediate_arm_plans(
             handle,
-            immediate_arm,
-            "handle arm dispatch (mixed immediate-resume arm id)",
+            &[(immediate_arm, resume_symbol)],
         )?;
-        let escape_arm_id = Self::resolve_handle_arm_plan_id(
-            handle,
-            escape_arm,
-            "handle arm dispatch (mixed escape-continuation arm id)",
-        )?;
-
-        let Some(perform_site) = Self::resolve_immediate_resume_site_from_plan(
+        let resolved_immediate_sites = Self::resolve_multi_resuming_immediate_sites_from_plan(
             handle,
             state_machine_plan,
-            immediate_arm_id,
-            &immediate_arm.op.op.fqn,
-        )?
-        else {
+            immediate_arm_plans.as_slice(),
+        )?;
+        let [resolved_immediate_site] = resolved_immediate_sites.as_slice() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle unified mixed multi-resuming leaf (missing direct immediate perform)",
                 at: span.into(),
             });
         };
-        let ResolvedPlanMixedEscapeDirectSites {
-            direct_sites: resolved_direct_sites,
-            mut capture_ids,
-        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+        let perform_site = resolved_immediate_site.site.clone();
+        let escape_arm_plans = Self::build_multi_resuming_escape_arm_plans(
+            handle,
+            &[(escape_arm, continuation_symbol)],
+        )?;
+        let ResolvedMultiResumingEscapeSites {
+            sites: resolved_escape_sites,
+            capture_ids,
+        } = Self::resolve_multi_resuming_escape_sites_from_plan(
             handle,
             state_machine_plan,
-            &[(escape_arm, escape_arm_id)],
+            escape_arm_plans.as_slice(),
         )?;
-        let ResolvedPlanMixedEscapeIndirectSites {
-            indirect_sites,
-            capture_ids: indirect_capture_ids,
-        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
-        capture_ids.extend(indirect_capture_ids);
-        capture_ids.extend(state_machine_plan.arm_capture_locals(escape_arm_id).iter().copied());
 
         let perform_idx = perform_site.top_level_stmt_idx;
         let resume_value_ty =
@@ -800,89 +791,86 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let escape_op_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
         let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
-            Vec::with_capacity(resolved_direct_sites.len() + indirect_sites.len());
+            Vec::with_capacity(resolved_escape_sites.len());
         let mut escape_resume_value_ty: Option<CgTy> = None;
 
-        for resolved in resolved_direct_sites {
-            if resolved.arm_id != escape_arm_id {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle arm dispatch (mixed escape-continuation arm id)",
-                    at: resolved.site.decl.span.into(),
-                });
-            }
-            if resolved.site.top_level_stmt_idx <= perform_idx {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf (escape perform before immediate site not yet supported)",
-                    at: resolved.site.decl.span.into(),
-                });
-            }
-            if escape_arm.op.binders.len() != resolved.site.args.len() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf escape binder arity mismatch",
-                    at: escape_arm.op.span.into(),
-                });
-            }
-            let site_resume_value_ty =
-                self.cg_ty_of(resolved.site.decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle unified mixed multi-resuming leaf escape value type",
-                        at: resolved.site.decl.span.into(),
-                    })?;
-            if let Some(expected) = escape_resume_value_ty {
-                if expected != site_resume_value_ty {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
-                        at: resolved.site.decl.span.into(),
+        for resolved in resolved_escape_sites {
+            match resolved.site {
+                MultiResumingEscapeSiteKind::Direct(site) => {
+                    if site.top_level_stmt_idx <= perform_idx {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle unified mixed multi-resuming leaf (escape perform before immediate site not yet supported)",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                    if escape_arm.op.binders.len() != site.args.len() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle unified mixed multi-resuming leaf escape binder arity mismatch",
+                            at: escape_arm.op.span.into(),
+                        });
+                    }
+                    let site_resume_value_ty =
+                        self.cg_ty_of(site.decl.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle unified mixed multi-resuming leaf escape value type",
+                                at: site.decl.span.into(),
+                            })?;
+                    if let Some(expected) = escape_resume_value_ty {
+                        if expected != site_resume_value_ty {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
+                                at: site.decl.span.into(),
+                            });
+                        }
+                    } else {
+                        escape_resume_value_ty = Some(site_resume_value_ty);
+                    }
+                    scanned_sites.push(MultiResumingEscapeSitePlan {
+                        site: MultiResumingEscapeSiteKind::Direct(site),
+                        arm: resolved.arm.arm,
+                        continuation_symbol: resolved.arm.continuation_symbol,
+                        resume_value_ty: site_resume_value_ty,
+                        op_tag: escape_op_tag,
                     });
                 }
-            } else {
-                escape_resume_value_ty = Some(site_resume_value_ty);
-            }
-            scanned_sites.push(MultiResumingEscapeSitePlan {
-                site: MultiResumingEscapeSiteKind::Direct(resolved.site),
-                arm: escape_arm,
-                continuation_symbol,
-                resume_value_ty: site_resume_value_ty,
-                op_tag: escape_op_tag,
-            });
-        }
-
-        for indirect_site in indirect_sites {
-            if indirect_site.top_level_stmt_idx <= perform_idx {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf (indirect perform before immediate site not yet supported)",
-                    at: indirect_site.decl.span.into(),
-                });
-            }
-            if escape_arm.op.binders.len() > 1 {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf indirect binder count (only 1 supported)",
-                    at: escape_arm.op.span.into(),
-                });
-            }
-            let site_resume_value_ty =
-                self.cg_ty_of(indirect_site.decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle unified mixed multi-resuming leaf escape value type",
-                        at: indirect_site.decl.span.into(),
-                    })?;
-            if let Some(expected) = escape_resume_value_ty {
-                if expected != site_resume_value_ty {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
-                        at: indirect_site.decl.span.into(),
+                MultiResumingEscapeSiteKind::Indirect(indirect_site) => {
+                    if indirect_site.top_level_stmt_idx <= perform_idx {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle unified mixed multi-resuming leaf (indirect perform before immediate site not yet supported)",
+                            at: indirect_site.decl.span.into(),
+                        });
+                    }
+                    if escape_arm.op.binders.len() > 1 {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle unified mixed multi-resuming leaf indirect binder count (only 1 supported)",
+                            at: escape_arm.op.span.into(),
+                        });
+                    }
+                    let site_resume_value_ty =
+                        self.cg_ty_of(indirect_site.decl.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle unified mixed multi-resuming leaf escape value type",
+                                at: indirect_site.decl.span.into(),
+                            })?;
+                    if let Some(expected) = escape_resume_value_ty {
+                        if expected != site_resume_value_ty {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
+                                at: indirect_site.decl.span.into(),
+                            });
+                        }
+                    } else {
+                        escape_resume_value_ty = Some(site_resume_value_ty);
+                    }
+                    scanned_sites.push(MultiResumingEscapeSitePlan {
+                        site: MultiResumingEscapeSiteKind::Indirect(indirect_site),
+                        arm: resolved.arm.arm,
+                        continuation_symbol: resolved.arm.continuation_symbol,
+                        resume_value_ty: site_resume_value_ty,
+                        op_tag: escape_op_tag,
                     });
                 }
-            } else {
-                escape_resume_value_ty = Some(site_resume_value_ty);
             }
-            scanned_sites.push(MultiResumingEscapeSitePlan {
-                site: MultiResumingEscapeSiteKind::Indirect(indirect_site),
-                arm: escape_arm,
-                continuation_symbol,
-                resume_value_ty: site_resume_value_ty,
-                op_tag: escape_op_tag,
-            });
         }
 
         if scanned_sites.is_empty() {

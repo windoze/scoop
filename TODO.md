@@ -1820,7 +1820,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_source_path_matrix_sample`，以及 representative run-pass fixture `effect_resume_mixed_source_path_matrix`，覆盖 nested immediate block、post-immediate direct+indirect while matrix、nested handle 与 `finally`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d4a [TODO] Effect：收口 unified multi-resuming arm mix 的 shared resolver / metadata contract
+### T2003r3d4a [DONE] Effect：收口 unified multi-resuming arm mix 的 shared resolver / metadata contract
 - 描述：原 `T2003r3d4` 同时要求放开 “1 immediate + N escape” 与 “N immediate + 1 escape” 两类 arm mix，但现有实现仍把 immediate site 解析、escape site 解析、capture 聚合与 per-arm dispatch metadata 分散在多个 leaf 中，且默认假设固定 arm-count 组合。先把这些 shared contract 收口为统一的 plan-driven resolver / metadata，作为后续 emitter 放开的唯一输入。
 - 目标：
   - 为 unified multi-resuming leaf 提供 shared resolver / metadata contract：能够从统一 plan 恢复 resuming arms、ordered site sequence、per-arm dispatch 归属与 capture 聚合，而不是把 `1+1` / `N+0` / `0+N` 写死在各自 leaf 内。
@@ -1832,6 +1832,11 @@ cargo run -p scoop --features llvm -- test
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
   - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d3d
+- 完成说明：
+  - 已在 shared 层新增 multi-resuming arm/site contract：`build_multi_resuming_immediate_arm_plans`、`build_multi_resuming_escape_arm_plans`、`resolve_multi_resuming_immediate_sites_from_plan`、`resolve_multi_resuming_escape_sites_from_plan`，统一恢复 resuming-arm metadata、ordered site sequence 与 capture 聚合。
+  - `multi_resuming.rs`、`multi_resuming_heap.rs`、`multi_resuming_mixed.rs` 现已复用同一套 shared contract；其中 multiple-immediate leaf 保留了既有 top-level gate，而 `1 immediate + 1 escape` mixed leaf 继续接受 current-legal nested immediate source-path，不发生能力回退。
+  - 已新增 plan 定向单测：`resolve_multi_resuming_immediate_sites_from_plan_keeps_arm_metadata`、`resolve_multi_resuming_escape_sites_from_plan_keeps_nested_direct_arm_dispatch`、`resolve_multi_resuming_escape_sites_from_plan_duplicates_indirect_sites_per_arm`。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d4b [TODO] Effect：unified emitter 支持 `1 immediate + N escape`
 - 描述：在 shared resolver / metadata contract 就位后，先推广 mixed leaf 到“单 immediate + 多个 escape-continuation arm”的合法组合，避免继续把 `heap-continuation` arm 数量写死为 1。

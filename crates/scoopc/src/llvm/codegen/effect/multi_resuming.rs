@@ -29,43 +29,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             op_tag: u32,
         }
 
-        let immediate_arm_plans = immediate_arms
-            .iter()
-            .map(|(arm, resume_symbol)| {
-                let arm_id = Self::resolve_handle_arm_plan_id(
-                    handle,
-                    arm,
-                    "handle arm dispatch (immediate-resume arm id)",
-                )?;
-                Ok((*arm, arm_id, *resume_symbol))
-            })
-            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
-        let immediate_plan_input = immediate_arm_plans
-            .iter()
-            .map(|(arm, arm_id, _)| (*arm, *arm_id))
-            .collect::<Vec<_>>();
-        let resolved_sites = Self::resolve_top_level_immediate_resume_sites_from_plan(
+        let immediate_arm_plans =
+            Self::build_multi_resuming_immediate_arm_plans(handle, immediate_arms)?;
+        let resolved_sites = Self::resolve_multi_resuming_immediate_sites_from_plan(
             handle,
             state_machine_plan,
-            immediate_plan_input.as_slice(),
+            immediate_arm_plans.as_slice(),
         )?;
-        let mut scanned_sites: Vec<(
-            ImmediateResumeSite<'hir>,
-            &'hir hir::HandleArm,
-            hir::SymbolId,
-        )> = Vec::with_capacity(resolved_sites.len());
-        for resolved in resolved_sites {
-            let Some((arm, _, resume_symbol)) = immediate_arm_plans
-                .iter()
-                .find(|(_, arm_id, _)| *arm_id == resolved.arm_id)
-            else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle arm dispatch (immediate-resume arm id)",
-                    at: span.into(),
-                });
-            };
-            scanned_sites.push((resolved.site, *arm, *resume_symbol));
-        }
 
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
         let raise_sibling = sibling_plan.raise_arm;
@@ -93,7 +63,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(func, "handle_multi_resume_dispatch");
         let mut state_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
-        for idx in 0..=scanned_sites.len() {
+        for idx in 0..=resolved_sites.len() {
             state_bbs.push(
                 self.context
                     .append_basic_block(func, &format!("handle_multi_resume_state_{idx}")),
@@ -126,7 +96,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let mut site_plans: Vec<MultipleImmediateSitePlan<'hir, 'ctx>> = Vec::new();
-        for (site_idx, (site, arm, resume_symbol)) in scanned_sites.into_iter().enumerate() {
+        for (site_idx, resolved) in resolved_sites.into_iter().enumerate() {
+            let site = resolved.site;
+            let arm = resolved.arm.arm;
+            let resume_symbol = resolved.arm.resume_symbol;
+            if !site.resume_path.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle mixed immediate-resume body (only top-level val-bound direct perform supported)",
+                    at: site.decl.span.into(),
+                });
+            }
             let resume_value_ty =
                 self.cg_ty_of(site.decl.ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {

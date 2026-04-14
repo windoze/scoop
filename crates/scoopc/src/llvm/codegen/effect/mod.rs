@@ -146,7 +146,7 @@ impl<'hir> MixedEscapeDirectFrame<'hir> {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ImmediateResumeSite<'hir> {
     top_level_stmt_idx: usize,
     decl: &'hir hir::ValDecl,
@@ -160,6 +160,19 @@ struct ImmediateResumeSite<'hir> {
 #[derive(Debug)]
 struct ResolvedImmediateResumeSite<'hir> {
     arm_id: ArmPlanId,
+    site: ImmediateResumeSite<'hir>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct MultiResumingImmediateArmPlan<'hir> {
+    arm: &'hir hir::HandleArm,
+    arm_id: ArmPlanId,
+    resume_symbol: hir::SymbolId,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedMultiResumingImmediateSite<'hir> {
+    arm: MultiResumingImmediateArmPlan<'hir>,
     site: ImmediateResumeSite<'hir>,
 }
 
@@ -232,6 +245,19 @@ struct MixedEscapeIndirectSite<'hir> {
     resume_path: Vec<MixedEscapeDirectFrame<'hir>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct MultiResumingEscapeArmPlan<'hir> {
+    arm: &'hir hir::HandleArm,
+    arm_id: ArmPlanId,
+    continuation_symbol: hir::SymbolId,
+}
+
+#[derive(Debug, Clone)]
+enum MultiResumingEscapeSiteKind<'hir> {
+    Direct(MixedEscapeDirectSite<'hir>),
+    Indirect(MixedEscapeIndirectSite<'hir>),
+}
+
 #[allow(dead_code)]
 #[derive(Debug)]
 struct ResolvedPlanMixedEscapeDirectSite<'hir> {
@@ -250,6 +276,34 @@ struct ResolvedPlanMixedEscapeDirectSites<'hir> {
 #[derive(Debug)]
 struct ResolvedPlanMixedEscapeIndirectSites<'hir> {
     indirect_sites: Vec<MixedEscapeIndirectSite<'hir>>,
+    capture_ids: HashSet<hir::SymbolId>,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedMultiResumingEscapeSite<'hir> {
+    arm: MultiResumingEscapeArmPlan<'hir>,
+    site: MultiResumingEscapeSiteKind<'hir>,
+}
+
+impl<'hir> ResolvedMultiResumingEscapeSite<'hir> {
+    fn decl(&self) -> &'hir hir::ValDecl {
+        match &self.site {
+            MultiResumingEscapeSiteKind::Direct(site) => site.decl,
+            MultiResumingEscapeSiteKind::Indirect(site) => site.decl,
+        }
+    }
+
+    fn top_level_stmt_idx(&self) -> usize {
+        match &self.site {
+            MultiResumingEscapeSiteKind::Direct(site) => site.top_level_stmt_idx,
+            MultiResumingEscapeSiteKind::Indirect(site) => site.top_level_stmt_idx,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedMultiResumingEscapeSites<'hir> {
+    sites: Vec<ResolvedMultiResumingEscapeSite<'hir>>,
     capture_ids: HashSet<hir::SymbolId>,
 }
 

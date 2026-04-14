@@ -17,7 +17,7 @@ mod tests {
     use super::{
         HandleBranchCondition, HandlePlanContext, HandleSegmentList, HandleSegmentTerminator,
         HandleStateMachinePlan, HandleStateOp, ImmediateResumeFrame, MainCodegen,
-        MixedEscapeDirectFrame, ResumeFrame, StateTerminator,
+        MixedEscapeDirectFrame, MultiResumingEscapeSiteKind, ResumeFrame, StateTerminator,
     };
 
     #[test]
@@ -991,6 +991,73 @@ fun demo(): Int {
     }
 
     #[test]
+    fn resolve_multi_resuming_immediate_sites_from_plan_keeps_arm_metadata() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Step {
+    fun take(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val first: Int = Yield.next()
+        val second: Int = Step.take(first)
+        second
+    } with {
+        Step.take(seed: Int) -> resume {
+            resume(seed + 1)
+        }
+        Yield.next() -> resume {
+            resume(10)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let immediate_arms = handle
+            .arms
+            .iter()
+            .filter_map(|arm| match arm.kind {
+                hir::HandleArmKind::ImmediateResume { resume } => Some((arm, resume)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let arm_plans = MainCodegen::build_multi_resuming_immediate_arm_plans(
+            handle,
+            immediate_arms.as_slice(),
+        )
+        .expect("shared multi-resuming immediate arm resolver should succeed");
+        let resolved = MainCodegen::resolve_multi_resuming_immediate_sites_from_plan(
+            handle,
+            &plan,
+            arm_plans.as_slice(),
+        )
+        .expect("shared multi-resuming immediate site resolver should succeed");
+
+        assert_eq!(resolved.len(), 2);
+        assert_eq!(resolved[0].arm.arm_id, 1);
+        assert_eq!(resolved[1].arm.arm_id, 0);
+        assert_eq!(resolved[0].arm.arm.op.op.fqn, "a.Yield.next");
+        assert_eq!(resolved[1].arm.arm.op.op.fqn, "a.Step.take");
+        assert_eq!(resolved[0].site.top_level_stmt_idx, 0);
+        assert_eq!(resolved[1].site.top_level_stmt_idx, 1);
+        assert!(resolved.iter().all(|site| site.site.resume_path.is_empty()));
+    }
+
+    #[test]
     fn resolve_immediate_resume_site_from_plan_accepts_nested_while_path() {
         let lowered = lower_typed_single_source(
             r#"
@@ -1108,6 +1175,180 @@ fun demo(flag: Bool): Int {
         assert!(matches!(
             resolved.indirect_sites[0].resume_path.as_slice(),
             [MixedEscapeDirectFrame::IfElse { .. }]
+        ));
+    }
+
+    #[test]
+    fn resolve_multi_resuming_escape_sites_from_plan_keeps_nested_direct_arm_dispatch() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+effect Count {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var loop: Bool = flag
+        while (loop) {
+            if (loop) {
+                @Safe {
+                    val first: Int = Ask.ask()
+                    println(first)
+                }
+            } else {
+                val second: Int = Count.next()
+                println(second)
+            }
+            loop = false
+        }
+        0
+    } with {
+        Ask.ask(), k -> 1
+        Count.next(), k -> 2
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let escape_arms = handle
+            .arms
+            .iter()
+            .filter_map(|arm| match arm.kind {
+                hir::HandleArmKind::EscapeContinuation { continuation } => {
+                    Some((arm, continuation))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let arm_plans =
+            MainCodegen::build_multi_resuming_escape_arm_plans(handle, escape_arms.as_slice())
+                .expect("shared multi-resuming escape arm resolver should succeed");
+        let resolved = MainCodegen::resolve_multi_resuming_escape_sites_from_plan(
+            handle,
+            &plan,
+            arm_plans.as_slice(),
+        )
+        .expect("shared multi-resuming escape site resolver should succeed");
+
+        assert_eq!(resolved.sites.len(), 2);
+        assert_eq!(resolved.sites[0].arm.arm_id, 0);
+        assert_eq!(resolved.sites[1].arm.arm_id, 1);
+        assert_eq!(resolved.sites[0].top_level_stmt_idx(), 1);
+        assert_eq!(resolved.sites[1].top_level_stmt_idx(), 1);
+        match &resolved.sites[0].site {
+            MultiResumingEscapeSiteKind::Direct(site) => assert!(matches!(
+                site.resume_path.as_slice(),
+                [
+                    MixedEscapeDirectFrame::WhileBody { .. },
+                    MixedEscapeDirectFrame::IfThen { .. },
+                    MixedEscapeDirectFrame::Block { .. },
+                ]
+            )),
+            MultiResumingEscapeSiteKind::Indirect(_) => {
+                panic!("expected direct site for first nested escape arm")
+            }
+        }
+        match &resolved.sites[1].site {
+            MultiResumingEscapeSiteKind::Direct(site) => assert!(matches!(
+                site.resume_path.as_slice(),
+                [
+                    MixedEscapeDirectFrame::WhileBody { .. },
+                    MixedEscapeDirectFrame::IfElse { .. },
+                ]
+            )),
+            MultiResumingEscapeSiteKind::Indirect(_) => {
+                panic!("expected direct site for second nested escape arm")
+            }
+        }
+    }
+
+    #[test]
+    fn resolve_multi_resuming_escape_sites_from_plan_duplicates_indirect_sites_per_arm() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+fun fetch(seed: Int, flag: Bool): Int / (Ask + Count) {
+    if (flag) {
+        Ask.ask(seed + 1)
+    } else {
+        Count.next(seed + 2)
+    }
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        val base: Int = 10
+        val value: Int = fetch(base, flag)
+        value
+    } with {
+        Ask.ask(seed: Int), k -> seed
+        Count.next(seed: Int), k -> seed
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let base_id = find_handle_local_id_by_name(handle, "base").expect("expected local `base`");
+        let escape_arms = handle
+            .arms
+            .iter()
+            .filter_map(|arm| match arm.kind {
+                hir::HandleArmKind::EscapeContinuation { continuation } => {
+                    Some((arm, continuation))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let arm_plans =
+            MainCodegen::build_multi_resuming_escape_arm_plans(handle, escape_arms.as_slice())
+                .expect("shared multi-resuming escape arm resolver should succeed");
+        let resolved = MainCodegen::resolve_multi_resuming_escape_sites_from_plan(
+            handle,
+            &plan,
+            arm_plans.as_slice(),
+        )
+        .expect("shared multi-resuming escape site resolver should succeed");
+
+        assert_eq!(resolved.sites.len(), 2, "{resolved:#?}");
+        assert!(resolved.capture_ids.contains(&base_id), "{resolved:#?}");
+        assert_eq!(resolved.sites[0].arm.arm_id, 0);
+        assert_eq!(resolved.sites[1].arm.arm_id, 1);
+        assert_eq!(resolved.sites[0].top_level_stmt_idx(), 1);
+        assert_eq!(resolved.sites[1].top_level_stmt_idx(), 1);
+        assert!(matches!(
+            &resolved.sites[0].site,
+            MultiResumingEscapeSiteKind::Indirect(_)
+        ));
+        assert!(matches!(
+            &resolved.sites[1].site,
+            MultiResumingEscapeSiteKind::Indirect(_)
         ));
     }
 

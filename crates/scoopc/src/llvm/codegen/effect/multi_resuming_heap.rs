@@ -1,10 +1,4 @@
 #[derive(Debug, Clone)]
-enum MultiResumingEscapeSiteKind<'hir> {
-    Direct(MixedEscapeDirectSite<'hir>),
-    Indirect(MixedEscapeIndirectSite<'hir>),
-}
-
-#[derive(Debug, Clone)]
 struct MultiResumingEscapeSitePlan<'hir> {
     site: MultiResumingEscapeSiteKind<'hir>,
     arm: &'hir hir::HandleArm,
@@ -1730,104 +1724,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let has_finally = handle.finally.is_some();
         let outer_raise_target = self.current_raise_target();
 
-        let escape_arm_plans = escape_arms
-            .iter()
-            .map(|(arm, continuation_symbol)| {
-                let Some(arm_id) = handle
-                    .arms
-                    .iter()
-                    .position(|candidate| std::ptr::eq(candidate, *arm))
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm dispatch (multi-resuming heap arm id)",
-                        at: arm.span.into(),
-                    });
-                };
-                Ok((*arm, arm_id as ArmPlanId, *continuation_symbol))
-            })
-            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
-        let plan_escape_arms = escape_arm_plans
-            .iter()
-            .map(|(arm, arm_id, _)| (*arm, *arm_id))
-            .collect::<Vec<_>>();
-        let ResolvedPlanMixedEscapeDirectSites {
-            direct_sites: resolved_direct_sites,
-            mut capture_ids,
-        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+        let escape_arm_plans =
+            Self::build_multi_resuming_escape_arm_plans(handle, escape_arms)?;
+        let ResolvedMultiResumingEscapeSites {
+            sites: resolved_sites,
+            capture_ids,
+        } = Self::resolve_multi_resuming_escape_sites_from_plan(
             handle,
             state_machine_plan,
-            plan_escape_arms.as_slice(),
+            escape_arm_plans.as_slice(),
         )?;
-        for (_, arm_id, _) in &escape_arm_plans {
-            capture_ids.extend(state_machine_plan.arm_capture_locals(*arm_id).iter().copied());
-        }
 
         let mut seen_escape_arm: HashSet<ArmPlanId> = HashSet::new();
         let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
-            Vec::with_capacity(resolved_direct_sites.len());
-        for resolved in resolved_direct_sites {
-            if !seen_escape_arm.insert(resolved.arm_id) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-resuming heap-continuation-only (multiple direct perform points for same op not yet supported)",
-                    at: resolved.site.decl.span.into(),
-                });
-            }
-            let Some((arm, _, continuation_symbol)) = escape_arm_plans
-                .iter()
-                .find(|(_, arm_id, _)| *arm_id == resolved.arm_id)
-            else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle arm dispatch (multi-resuming heap arm id)",
-                    at: resolved.site.decl.span.into(),
-                });
-            };
-            if arm.op.binders.len() != resolved.site.args.len() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-resuming heap-continuation-only binder arity mismatch",
-                    at: arm.op.span.into(),
-                });
-            }
-            let resume_value_ty =
-                self.cg_ty_of(resolved.site.decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle multi-resuming heap-continuation-only perform value type",
-                        at: resolved.site.decl.span.into(),
-                    })?;
-            scanned_sites.push(MultiResumingEscapeSitePlan {
-                site: MultiResumingEscapeSiteKind::Direct(resolved.site),
-                arm,
-                continuation_symbol: *continuation_symbol,
-                resume_value_ty,
-                op_tag: self.effect_op_tag(&arm.op.op.fqn),
-            });
-        }
-
-        let ResolvedPlanMixedEscapeIndirectSites {
-            indirect_sites,
-            capture_ids: indirect_capture_ids,
-        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
-        capture_ids.extend(indirect_capture_ids);
-        for indirect_site in indirect_sites {
-            let resume_value_ty =
-                self.cg_ty_of(indirect_site.decl.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle multi-resuming heap-continuation-only perform value type",
-                        at: indirect_site.decl.span.into(),
-                    })?;
-            for (arm, _, continuation_symbol) in &escape_arm_plans {
-                if arm.op.binders.len() > 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle multi-resuming heap-continuation-only indirect binder count (only 1 supported)",
-                        at: arm.op.span.into(),
+            Vec::with_capacity(resolved_sites.len());
+        for resolved in resolved_sites {
+            match resolved.site {
+                MultiResumingEscapeSiteKind::Direct(site) => {
+                    if !seen_escape_arm.insert(resolved.arm.arm_id) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (multiple direct perform points for same op not yet supported)",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                    let arm = resolved.arm.arm;
+                    if arm.op.binders.len() != site.args.len() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only binder arity mismatch",
+                            at: arm.op.span.into(),
+                        });
+                    }
+                    let resume_value_ty =
+                        self.cg_ty_of(site.decl.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only perform value type",
+                                at: site.decl.span.into(),
+                            })?;
+                    scanned_sites.push(MultiResumingEscapeSitePlan {
+                        site: MultiResumingEscapeSiteKind::Direct(site),
+                        arm,
+                        continuation_symbol: resolved.arm.continuation_symbol,
+                        resume_value_ty,
+                        op_tag: self.effect_op_tag(&arm.op.op.fqn),
                     });
                 }
-                scanned_sites.push(MultiResumingEscapeSitePlan {
-                    site: MultiResumingEscapeSiteKind::Indirect(indirect_site.clone()),
-                    arm,
-                    continuation_symbol: *continuation_symbol,
-                    resume_value_ty,
-                    op_tag: self.effect_op_tag(&arm.op.op.fqn),
-                });
+                MultiResumingEscapeSiteKind::Indirect(indirect_site) => {
+                    let arm = resolved.arm.arm;
+                    if arm.op.binders.len() > 1 {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only indirect binder count (only 1 supported)",
+                            at: arm.op.span.into(),
+                        });
+                    }
+                    let resume_value_ty =
+                        self.cg_ty_of(indirect_site.decl.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only perform value type",
+                                at: indirect_site.decl.span.into(),
+                            })?;
+                    scanned_sites.push(MultiResumingEscapeSitePlan {
+                        site: MultiResumingEscapeSiteKind::Indirect(indirect_site),
+                        arm,
+                        continuation_symbol: resolved.arm.continuation_symbol,
+                        resume_value_ty,
+                        op_tag: self.effect_op_tag(&arm.op.op.fqn),
+                    });
+                }
             }
         }
 

@@ -520,6 +520,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(dead_code)]
+    fn build_multi_resuming_immediate_arm_plans<'hir>(
+        handle: &'hir hir::HandleExpr,
+        immediate_arms: &[(&'hir hir::HandleArm, hir::SymbolId)],
+    ) -> Result<Vec<MultiResumingImmediateArmPlan<'hir>>, LlvmEmitError> {
+        immediate_arms
+            .iter()
+            .map(|(arm, resume_symbol)| {
+                Ok(MultiResumingImmediateArmPlan {
+                    arm,
+                    arm_id: Self::resolve_handle_arm_plan_id(
+                        handle,
+                        arm,
+                        "handle arm dispatch (immediate-resume arm id)",
+                    )?,
+                    resume_symbol: *resume_symbol,
+                })
+            })
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    fn build_multi_resuming_escape_arm_plans<'hir>(
+        handle: &'hir hir::HandleExpr,
+        escape_arms: &[(&'hir hir::HandleArm, hir::SymbolId)],
+    ) -> Result<Vec<MultiResumingEscapeArmPlan<'hir>>, LlvmEmitError> {
+        escape_arms
+            .iter()
+            .map(|(arm, continuation_symbol)| {
+                Ok(MultiResumingEscapeArmPlan {
+                    arm,
+                    arm_id: Self::resolve_handle_arm_plan_id(
+                        handle,
+                        arm,
+                        "handle arm dispatch (multi-resuming escape arm id)",
+                    )?,
+                    continuation_symbol: *continuation_symbol,
+                })
+            })
+            .collect()
+    }
+
+    #[allow(dead_code)]
     fn resolve_immediate_resume_stmt_from_source_path<'hir>(
         handle: &'hir hir::HandleExpr,
         source_path: &SuspendSourcePath,
@@ -1135,6 +1177,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(dead_code)]
+    fn resolve_multi_resuming_immediate_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        immediate_arms: &[MultiResumingImmediateArmPlan<'hir>],
+    ) -> Result<Vec<ResolvedMultiResumingImmediateSite<'hir>>, LlvmEmitError> {
+        let mut resolved_sites = Vec::with_capacity(immediate_arms.len());
+        for arm in immediate_arms {
+            let Some(site) = Self::resolve_immediate_resume_site_from_plan(
+                handle,
+                state_machine_plan,
+                arm.arm_id,
+                &arm.arm.op.op.fqn,
+            )?
+            else {
+                continue;
+            };
+            resolved_sites.push(ResolvedMultiResumingImmediateSite { arm: *arm, site });
+        }
+        resolved_sites.sort_by_key(|resolved| {
+            (resolved.site.top_level_stmt_idx, resolved.site.decl.span.start)
+        });
+        Ok(resolved_sites)
+    }
+
+    #[allow(dead_code)]
     fn resolve_immediate_resume_site_from_plan<'hir>(
         handle: &'hir hir::HandleExpr,
         state_machine_plan: &HandleStateMachinePlan,
@@ -1524,61 +1591,123 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(dead_code)]
+    fn resolve_multi_resuming_escape_sites_from_plan<'hir>(
+        handle: &'hir hir::HandleExpr,
+        state_machine_plan: &HandleStateMachinePlan,
+        escape_arms: &[MultiResumingEscapeArmPlan<'hir>],
+    ) -> Result<ResolvedMultiResumingEscapeSites<'hir>, LlvmEmitError> {
+        if escape_arms.is_empty() {
+            return Ok(ResolvedMultiResumingEscapeSites {
+                sites: Vec::new(),
+                capture_ids: HashSet::new(),
+            });
+        }
+
+        let plan_escape_arms = escape_arms
+            .iter()
+            .map(|plan| (plan.arm, plan.arm_id))
+            .collect::<Vec<_>>();
+        let ResolvedPlanMixedEscapeDirectSites {
+            direct_sites: resolved_direct_sites,
+            mut capture_ids,
+        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            state_machine_plan,
+            plan_escape_arms.as_slice(),
+        )?;
+        for plan in escape_arms {
+            capture_ids.extend(state_machine_plan.arm_capture_locals(plan.arm_id).iter().copied());
+        }
+
+        let mut sites = Vec::with_capacity(resolved_direct_sites.len());
+        for resolved in resolved_direct_sites {
+            let Some(arm) = escape_arms.iter().find(|plan| plan.arm_id == resolved.arm_id) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (multi-resuming escape arm id)",
+                    at: resolved.site.decl.span.into(),
+                });
+            };
+            sites.push(ResolvedMultiResumingEscapeSite {
+                arm: *arm,
+                site: MultiResumingEscapeSiteKind::Direct(resolved.site),
+            });
+        }
+
+        let ResolvedPlanMixedEscapeIndirectSites {
+            indirect_sites,
+            capture_ids: indirect_capture_ids,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        capture_ids.extend(indirect_capture_ids);
+        for indirect_site in indirect_sites {
+            for arm in escape_arms {
+                sites.push(ResolvedMultiResumingEscapeSite {
+                    arm: *arm,
+                    site: MultiResumingEscapeSiteKind::Indirect(indirect_site.clone()),
+                });
+            }
+        }
+
+        sites.sort_by_key(|resolved| (resolved.top_level_stmt_idx(), resolved.decl().span.start));
+        Ok(ResolvedMultiResumingEscapeSites { sites, capture_ids })
+    }
+
+    #[allow(dead_code)]
     fn resolve_immediate_resume_with_escape_sites_from_plan<'hir>(
         handle: &'hir hir::HandleExpr,
         state_machine_plan: &HandleStateMachinePlan,
         immediate_arm: &'hir hir::HandleArm,
         escape_arm: &'hir hir::HandleArm,
     ) -> Result<ResolvedPlanImmediateEscapeSites<'hir>, LlvmEmitError> {
-        let immediate_arm_id = Self::resolve_handle_arm_plan_id(
+        let hir::HandleArmKind::ImmediateResume { resume } = immediate_arm.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle arm dispatch (expected immediate-resume arm)",
+                at: immediate_arm.span.into(),
+            });
+        };
+        let hir::HandleArmKind::EscapeContinuation { continuation } = escape_arm.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle arm dispatch (expected escape-continuation arm)",
+                at: escape_arm.span.into(),
+            });
+        };
+
+        let immediate_arm_plans = Self::build_multi_resuming_immediate_arm_plans(
             handle,
-            immediate_arm,
-            "handle arm dispatch (immediate-resume arm id)",
+            &[(immediate_arm, resume)],
         )?;
-        let escape_arm_id = Self::resolve_handle_arm_plan_id(
-            handle,
-            escape_arm,
-            "handle arm dispatch (escape-continuation arm id)",
-        )?;
-        let Some(perform_site) = Self::resolve_immediate_resume_site_from_plan(
+        let resolved_immediate_sites = Self::resolve_multi_resuming_immediate_sites_from_plan(
             handle,
             state_machine_plan,
-            immediate_arm_id,
-            &immediate_arm.op.op.fqn,
-        )?
-        else {
+            immediate_arm_plans.as_slice(),
+        )?;
+        let [resolved_immediate_site] = resolved_immediate_sites.as_slice() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle mixed-arm immediate-resume body (missing direct perform)",
                 at: handle.body.span.into(),
             });
         };
+        let perform_site = resolved_immediate_site.site.clone();
 
-        let plan_escape_arms = [(escape_arm, escape_arm_id)];
-        let ResolvedPlanMixedEscapeDirectSites {
-            direct_sites: resolved_direct_sites,
+        let escape_arm_plans = Self::build_multi_resuming_escape_arm_plans(
+            handle,
+            &[(escape_arm, continuation)],
+        )?;
+        let ResolvedMultiResumingEscapeSites {
+            sites: resolved_escape_sites,
             capture_ids: _,
-        } = Self::resolve_mixed_escape_direct_sites_from_plan(
+        } = Self::resolve_multi_resuming_escape_sites_from_plan(
             handle,
             state_machine_plan,
-            plan_escape_arms.as_slice(),
+            escape_arm_plans.as_slice(),
         )?;
-        let mut direct_sites = Vec::with_capacity(resolved_direct_sites.len());
-        for resolved in resolved_direct_sites {
-            if resolved.arm_id != escape_arm_id {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle arm dispatch (escape-continuation arm id)",
-                    at: resolved.site.decl.span.into(),
-                });
+        let mut direct_sites = Vec::new();
+        let mut indirect_sites = Vec::new();
+        for resolved in resolved_escape_sites {
+            match resolved.site {
+                MultiResumingEscapeSiteKind::Direct(site) => direct_sites.push(site),
+                MultiResumingEscapeSiteKind::Indirect(site) => indirect_sites.push(site),
             }
-            direct_sites.push(resolved.site);
         }
-        direct_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
-
-        let ResolvedPlanMixedEscapeIndirectSites {
-            mut indirect_sites,
-            capture_ids: _,
-        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
-        indirect_sites.sort_by_key(|site| (site.top_level_stmt_idx, site.decl.span.start));
 
         Ok(ResolvedPlanImmediateEscapeSites {
             perform_site,

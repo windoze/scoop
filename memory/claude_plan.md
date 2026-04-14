@@ -45,3 +45,19 @@
 ## 说明
 
 这里记录的是可审计的关键判断与执行计划摘要，用于追踪进展；不会逐字暴露原始内部推理。
+
+## 本轮结果
+
+- 已完成 `T2003r3d4a`：
+  - shared 层新增 multi-resuming arm/site contract，统一恢复 immediate / escape arm metadata、ordered site sequence 与 capture 聚合；
+  - `multi_resuming.rs`、`multi_resuming_heap.rs`、`multi_resuming_mixed.rs` 已切到复用这套 contract；
+  - 保持了既有行为边界：multiple-immediate 仍保留 top-level gate，mixed `1 immediate + 1 escape` 不回退 nested immediate 支持。
+- 已新增定向测试：
+  - `resolve_multi_resuming_immediate_sites_from_plan_keeps_arm_metadata`
+  - `resolve_multi_resuming_escape_sites_from_plan_keeps_nested_direct_arm_dispatch`
+  - `resolve_multi_resuming_escape_sites_from_plan_duplicates_indirect_sites_per_arm`
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 下一步（不在本轮执行）：`T2003r3d4b`，即放开 unified emitter 的 `1 immediate + N escape`。
