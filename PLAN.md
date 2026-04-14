@@ -397,7 +397,15 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d3d 已完成：`multi_resuming_mixed.rs` 的 unified mixed leaf 现已把 `state0` immediate 进入点切到 `codegen_immediate_resume_prefix_to_site(...)`，并把 `state1` post-immediate replay、direct/indirect escape continuation materialization、per-site escape arm dispatch 与 continuation step 全部统一到 `scanned_sites + MultiResumingEscapeSitePlan` 的 contract；主路径不再保留单一 top-level direct escape site 假设。
   - 本轮同时保留了既有 detach 语义：escape arm 现在经由 per-site entry block 先把同源 handler stack swap 回 outer top，再进入 arm body，因此 sibling self-capture 防护没有因 mixed source-path 扩展而回退。
   - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_source_path_matrix_sample`，以及 representative fixture `effect_resume_mixed_source_path_matrix`，覆盖 statement-position nested block immediate、post-immediate direct+indirect while matrix、nested handle 与 `finally`；并验证 `cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3d4`：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`。
+  - 继续审计原 `T2003r3d4` 后确认，它仍把三类实现难度不同的改动捆在一起：
+    - shared resolver / metadata contract 仍分散在 multiple-immediate、multiple-escape、`1 immediate + 1 escape` 三条 leaf 内；
+    - `1 immediate + N escape` 需要推广 mixed leaf 的多 escape-arm dispatch / capture / handler-frame contract；
+    - `N immediate + 1 escape` 需要把 multiple-immediate 的 stack-reentry 状态与单个 heap-continuation 路径接到同一套 plan-driven replay contract。
+  - 若继续把这些内容整包作为一个任务推进，会再次把不同状态机形状与不同运行时合约压进同一轮，回归面过大，因此将原 `T2003r3d4` 拆成 `T2003r3d4a`～`T2003r3d4c`：
+    - `T2003r3d4a`：先收口 unified multi-resuming arm mix 的 shared resolver / metadata contract，并让现有 leaf 复用；
+    - `T2003r3d4b`：再由 unified emitter 放开 `1 immediate + N escape`；
+    - `T2003r3d4c`：最后由 unified emitter 放开 `N immediate + 1 escape`。
+  - 当前下一步调整为 `T2003r3d4a`：收口 unified multi-resuming arm mix 的 shared resolver / metadata contract。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：

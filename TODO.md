@@ -1820,22 +1820,57 @@ cargo run -p scoop --features llvm -- test
   - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_source_path_matrix_sample`，以及 representative run-pass fixture `effect_resume_mixed_source_path_matrix`，覆盖 nested immediate block、post-immediate direct+indirect while matrix、nested handle 与 `finally`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d4 [TODO] Effect：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`
-- 描述：在 `T2003r3d3` 之后，剩余缺口不应再表述为“再补一个 shape”或“再补一个 case”，而是要把 arm mix generality 真正收口到 unified simplification + emitter：arm 数量只是 plan 输入维度，不再是 hard-coded unsupported route。此阶段的目标是清掉 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`，并确认合法 multi-resuming arm mix 不再依赖 build-only 占位或 source-shape gate。
+### T2003r3d4a [TODO] Effect：收口 unified multi-resuming arm mix 的 shared resolver / metadata contract
+- 描述：原 `T2003r3d4` 同时要求放开 “1 immediate + N escape” 与 “N immediate + 1 escape” 两类 arm mix，但现有实现仍把 immediate site 解析、escape site 解析、capture 聚合与 per-arm dispatch metadata 分散在多个 leaf 中，且默认假设固定 arm-count 组合。先把这些 shared contract 收口为统一的 plan-driven resolver / metadata，作为后续 emitter 放开的唯一输入。
 - 目标：
-  - simplification / unified multi-resuming 入口不再把合法的 “1 immediate + N escape” 与 “N immediate + 1 escape” 组合归类为 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`。
-  - unified emitter 对多 resuming-arm mix 的 dispatch、capture、resume replay、cleanup / `finally` / sibling non-resuming 组合采用同一套 plan-driven contract，而不是为不同 arm-count 组合各自增设 dedicated main route。
+  - 为 unified multi-resuming leaf 提供 shared resolver / metadata contract：能够从统一 plan 恢复 resuming arms、ordered site sequence、per-arm dispatch 归属与 capture 聚合，而不是把 `1+1` / `N+0` / `0+N` 写死在各自 leaf 内。
+  - 现有 multiple-immediate / multiple-escape / `1 immediate + 1 escape` leaf 改为复用该 shared contract；当前已支持子集的行为与回归不变。
+  - 补 plan 定向单测，覆盖 multiple immediate、multiple escape、mixed source-path / indirect matrix 的 shared resolver 输出。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集。
+  - 新增或更新 plan 定向单测：覆盖 shared multi-resuming resolver / metadata contract。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d3d
+
+### T2003r3d4b [TODO] Effect：unified emitter 支持 `1 immediate + N escape`
+- 描述：在 shared resolver / metadata contract 就位后，先推广 mixed leaf 到“单 immediate + 多个 escape-continuation arm”的合法组合，避免继续把 `heap-continuation` arm 数量写死为 1。
+- 目标：
+  - unified emitter 不再把合法的 `1 immediate + N escape` 组合归类为 `UnsupportedMixedMultipleEscapeWithImmediate`。
+  - 多个 escape arm 的 dispatch、capture、resume replay、cleanup / `finally` / sibling non-resuming 继续复用同一套 plan-driven contract，而不是新增 dedicated shape route。
+  - representative sample 至少覆盖 direct/indirect escape site，并包含 sibling non-resuming 或 `finally`。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集。
+  - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖合法 `1 immediate + N escape` 组合。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d4a
+
+### T2003r3d4c [TODO] Effect：unified emitter 支持 `N immediate + 1 escape`
+- 描述：在 shared resolver / metadata contract 就位后，再推广 unified multi-resuming dispatch 到“多个 immediate-resume arm + 单个 escape-continuation arm”的合法组合，避免继续把 `stack-reentry` arm 数量写死为 1。
+- 目标：
+  - unified emitter 不再把合法的 `N immediate + 1 escape` 组合归类为 `UnsupportedMixedMultipleImmediateWithEscape`。
+  - 多个 immediate arm 的 replay / state progression 与单个 escape arm 的 continuation materialization 共享同一套 plan-driven contract，不新增 arm-count 专用主路线。
+  - representative sample 至少覆盖 multiple immediate site 与一个 escape arm 的组合，并包含 sibling non-resuming 或 `finally`。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集。
+  - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖合法 `N immediate + 1 escape` 组合。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d4a
+
+### T2003r3d4 [TODO] Effect：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`
+- 描述：原始 `T2003r3d4` 现拆成 `T2003r3d4a`～`T2003r3d4c` 三步推进，以避免把 shared resolver contract、`1 immediate + N escape` emitter、`N immediate + 1 escape` emitter 三类正交改动压进同一轮。
+- 目标：
+  - `T2003r3d4a`～`T2003r3d4c` 全部完成后，simplification / unified multi-resuming 入口不再把合法 mixed multiple-arm 组合归类为 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`。
   - `T2003r3d2` 已删除的 shape-based route / helper / fixture / test 命名在本任务及其验收中不得重新出现。
   - 到本任务结束时，`T2003r3d` 范围内已知的 legal multi-site / mixed-resuming 组合全部有稳定 lowering，不再存在“只能 `cargo build`、命中即 `todo!` / `unimplemented!`”的过渡状态。
 - 验收：
-  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
-  - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖 “1 immediate + N escape” 与 “N immediate + 1 escape” 的 legal multi-resuming 组合，并至少包含 sibling non-resuming 或 `finally` 的 representative sample。
+  - 进入本任务前，`T2003r3d4a`～`T2003r3d4c` 已全部完成，且其验收仅依赖各自的最小定向测试集。
   - effect lowering 对 legal multi-resuming plan 不再返回 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`。
-  - 完成后只跑与本任务直接相关的定向验证，例如：
-    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
-    - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003r3d3d
+- 依赖：T2003r3d4a、T2003r3d4b、T2003r3d4c
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
 - 描述：`T2003r4` 是新的强制全量验收门槛，也是 `T2003r3d2`～`T2003r3d4` 之后第一个允许重新启用 full suite / full matrix / GC stress 的任务。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，legal effect path 不再依赖任何 build-only `todo!` / `unimplemented!`，且 emitter 已覆盖全部 state machine outputs，才进入这一任务；在此之前，全量测试都视为过渡期不稳定信号，不跑端到端 fixture / full suite。
