@@ -1,8 +1,8 @@
-# TODO（Scoop：统一 effect 主线）
+# TODO（Scoop：effect 主线优先 + 后续任务）
 
 > 生成时间：2026-04-15  
 > 历史归档：`TODO-3.md` / `PLAN-3.md`  
-> 范围：本文件只记录当前 effect 统一主线。`segmentation` 与 `state machine transformation` 视为当前基线；接下来先继续清理残余的 shape-based logic，再完成只消费 state machine 的 LLVM codegen。
+> 范围：本文件先记录当前 effect 统一主线（`T30`），并顺延保留下一批待推进的前端 / 并发 / 类型系统任务（`T31`～`T34`）。当前执行优先级仍以 `T30` 为先；`T31`～`T34` 作为 effect 主线收口后的后续队列。
 
 ## 约束
 
@@ -11,7 +11,7 @@
 - 当前阶段默认生成 heap-allocated full state machine；暂不做 simplification / optimization。
 - 每个实现任务之后都必须立即执行一个 review 任务；review 只检查生产代码，不以测试代码命名作为问题。
 
-## 当前已知问题
+## 当前已知问题（T30）
 
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧的 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
@@ -184,3 +184,260 @@
 - 验收：
   - 审查结论明确记录“effect codegen 生产实现只剩统一主线，无 shape-based legacy 残留”。
 - 依赖：T3007
+
+> 以下四个主题从 `TODO-3.md` 顺延迁入，按原顺序重编号为 `T31`～`T34`，仅对与当前 `T30` 主线直接相关的依赖与表述做最小更新。
+
+## T31：前端 `do` block / closure 消歧与 block 语义收口
+
+### T3101 [TODO] Parser / AST：引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
+- 描述：当前 parser 在普通表达式位置把 `{ ... }` 同时暴露给 local block、lambda 与 trailing lambda 相关路径，导致 `val a = { println("hello") }` 之类写法无法从语法上判断是“把 closure 赋给 `a`”还是“先执行 block 再把结果赋给 `a`”。现行实现里部分 effect fixtures 只能借 `@Safe { ... }` 绕过该缺口，但这不是规范想要的语义。Scoop 改采 Swift 风格：普通局部 block 必须由 `do` 引入。
+- 目标：
+  - statement-position / expression-position 的普通局部 block 统一写作 `do { ... }`；parser 不再把裸 `{ ... }` 解析为 plain block。
+  - 没有 `do` 的 `{ ... }` 统一按 closure 解析；`callee { ... }`、`callee(args) { ... }`、multiple trailing lambdas 继续按调用后缀 / closure 规则工作。
+  - parser / AST 为 `DoBlock` 与 `Closure` 保留稳定且可区分的形状，避免后续阶段继续依赖 `@Safe` 或上下文猜测。
+- 验收：
+  - 新增 parser fixtures：`val f = { 1 }` 为 closure、`val x = do { 1 }` 为 block、`foo { 1 }` 仍为 trailing lambda、`foo(do { 1 })` 为普通实参、缺少 `do` 时的稳定诊断或按 closure 分流。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3102 [TODO] Typecheck / HIR：收口 `do` block 的 expression statement 与 tail value 语义
+- 描述：当前 block 的值语义只看“最后一条是不是 `StmtKind::Expr`”，并不区分该表达式是否由 `;` 终止。即使语法层把普通 block / closure 消歧改成 `do`，类型系统和 lowering 仍需要统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”的规则。
+- 目标：
+  - `do` block 仅在最后一个表达式语句未以 `;` 终止时才产生 tail value；`do { expr; }` 作为 expression statement 结果视为 `Unit`。
+  - `if` / `when` / `handle` / lambda body / `do` block 的值语义统一按上述规则工作，避免“语法已切到 `do`，typecheck 仍按旧规则取尾值”。
+  - HIR / MIR / diagnostics 对 `do` block / closure body 中的 tail expr 与 terminated expr stmt 保持可区分形状，不再依赖 AST 阶段的隐式约定。
+- 验收：
+  - 新增 typecheck / HIR fixtures：`do { 1 }` 得 `Int`、`do { 1; }` 得 `Unit`、控制流 / handler / lambda body 的 tail expr 与 terminated expr stmt 区分、相关稳定诊断。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3101
+
+### T3103 [TODO] 回归迁移：effect nested-block fixtures 切到 plain `do` block
+- 描述：当前若干 effect nested-block 回归仍借 `@Safe { ... }` 表达 statement-position nested block；这只是实现缺口下的语法绕路，并没有真正覆盖“普通局部 block 必须写 `do { ... }`”的新规则。引入显式 `do` 后，需要把这些“只为消歧而存在”的 workaround 切回 plain `do` block。
+- 目标：
+  - 把仅用于制造 nested block 的 `@Safe` workaround 切回普通 `do { ... }`。
+  - 真正依赖 safe-region 语义的测试继续保留 `@Safe` 相关写法，避免把 unsafe 语义回归误混进 parser / block 语义任务。
+  - 锁定 trailing lambda / multiple trailing lambdas 与后续 `do` block 并存时的行为，避免 effect fixture 迁移顺手改变调用语义。
+- 验收：
+  - 更新 effect fixtures：至少覆盖 `effect_resume_nested_block_single_perform`、`effect_resume_while_nested_block_perform`，以及当前统一 effect 主线保留的 nested-block representative samples，统一改为 `do { ... }`，行为保持不变。
+  - 新增 parser / typecheck / HIR / run-pass 回归：multiple trailing lambdas 与后续 `do` block 的边界规则。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3102, T3006R
+
+### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
+- 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 仍保留“裸 `{ ... }` 可能同时像 block / lambda”的旧叙述；若只改实现不改规范，后续 fixtures 与文档示例会继续漂移。
+- 目标：
+  - 更新 `SCOOP_FULL_SPEC.md` 的 statements / local block / closure / trailing lambda / `@Safe` / `@Unsafe` 相关章节，明确普通 block 必须写 `do { ... }`、裸 `{ ... }` 一律视为 closure，以及 `@Safe do { ... }` / `@Unsafe do { ... }` 才是局部 annotated block 形式。
+  - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少当前 `TODO.md` / `PLAN.md` 中相关描述；若有其它命中文档也一并更新）。
+  - 若规范代码块发生变更，补 `spec-fixtures sync/check` 所需的生成文件与说明，保证规范与回归继续一致。
+- 验收：
+  - `SCOOP_FULL_SPEC.md` 与相关文档更新完成；必要时运行 `cargo run -p scoop_tools -- spec-fixtures sync` 后再 `cargo run -p scoop_tools -- spec-fixtures check`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3103
+
+## T32：Structured Concurrency / `Task<T>`
+
+### T3201 [TODO] 并发：`spawn` / `join` 的 typecheck 与 HIR 去 `Int` 硬编码
+- 描述：`spawn { ... }` 目前仍要求 body 可赋给 `Int`，`join` lowering 也仍写死为 `Int` 句柄与 `Int` 结果。先把前端表示与类型系统改成真实的 `Task<T>`。
+- 目标：
+  - `spawn { body }` 从 body 推导结果类型 `T`，表达式类型为 `Task<T>`，不再要求 body 可赋给 `Int`。
+  - HIR 对 `spawn` / `join` 保留任务结果类型与必要的运行期元信息，不再把 handle/result 擦成 `Int`。
+  - 已确认仍缺失的后端功能由后续任务显式承接，而不是继续用前端 `Int` 特判掩盖：
+    - `T3202`：HIR lowering / sysroot glue 仍写死 `__scoop_task_spawn_int` / `__scoop_task_join_int` 与 `Task<Int>` 表面；
+    - `T3203`：LLVM codegen 仍只支持 `scoop_task_spawn_int` / `scoop_task_join_int`；
+    - `T3204`：runtime executor 仍是 `ScoopTaskU64` / `result_u64` / `resume_u64` 单载荷模型。
+- 验收：
+  - 新增 typecheck / HIR fixtures：`Task<Int>`、`Task<String>`、`Task<Struct>`、`Task<Task<Int>>`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3202 [TODO] 并发：`spawn` / `join` 语法糖与 sysroot glue 去 `_int` 专用路径
+- 描述：即使 `T3201` 把前端类型改成 `Task<T>`，当前 lowering 仍固定生成 `__scoop_task_spawn_int` / `__scoop_task_join_int`，`wrap_task_spawn_int_call` 与 sysroot `task/core` 表面也仍把结果类型收窄为 `Task<Int>`。这属于明确缺失的功能，不应被描述成“后端边界”。
+- 目标：
+  - HIR lowering / block rewrite 不再依赖 `__scoop_task_spawn_int` / `__scoop_task_join_int` 和 `wrap_task_spawn_int_call` 这类 `_int` 专用入口。
+  - `sysroot/core.scoop` 与 `sysroot/task.scoop` 中供 `spawn` / `join` / `await` 路径使用的 internal glue 不再只暴露 `Task<Int>` / `Continuation<Int>` / `Executor.await(Task<Int>)`。
+  - 语法糖 desugar 后的 HIR 仍能保留任务结果类型，为后续 LLVM / runtime 泛型化提供稳定输入。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - 新增 HIR fixtures：`spawn { "x" }`、`spawn { Struct(...) }`、`join task` 的泛型结果类型保持不被擦除。
+- 依赖：T3201
+
+### T3203 [TODO] 并发：LLVM codegen 去 `scoop_task_*_int` 专用路径
+- 描述：当前 LLVM 侧对 `spawn/join` 的支持仍硬编码在 `scoop_task_spawn_int` / `scoop_task_join_int`，并显式要求 `CgTy::Int` / `i64` 值。只要这条路径不改，`Task<T>` 就仍然只是假类型，不能执行 `Int` 之外的结果类型。
+- 目标：
+  - codegen dispatch 不再只识别 `__scoop_task_spawn_int` / `__scoop_task_join_int`，而是支持与 `Task<T>` 对齐的统一 task intrinsic / helper 路径。
+  - `spawn` 结果保存、`join` 结果取回可覆盖 scalar / ref / aggregate / 泛型实例，不再把结果压扁回 `i64`。
+  - task payload transport 与 continuation payload 方案保持一致，避免维护独立的 task-only ABI。
+- 验收：
+  - 新增 run-pass fixtures：`spawn` 返回 `String`、tuple/struct、class ref、嵌套泛型值。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3202
+
+### T3204 [TODO] 并发：runtime executor / `Task<T>` 完成回调泛型化
+- 描述：`runtime/c/scoop_task_executor.c` 当前仍是 `ScoopTaskU64` + `result_u64` + `on_complete_resume_u64` 模型，sysroot `task.scoop` 也仍把 `taskCreate` / `await` / `map` / `andThen` 固定在 `Task<Int>`。这不是“实现细节”，而是当前明确缺失的运行期功能。
+- 目标：
+  - runtime task 状态机、executor job、completion waiter 不再只支持 `u64` 结果与 `resume_u64`，而是支持与编译器 ABI 对齐的泛型 payload。
+  - `Task<T>.onComplete`、`Executor.await`、`map`、`andThen` 等 glue 不再固定在 `Task<Int>` / `Continuation<Int>`。
+  - ref / aggregate payload 在 pinning、GC stress、跨线程或跨 executor 恢复时语义稳定。
+- 验收：
+  - 新增 `crates/scoop_runtime/tests/*` 或等价 runtime 测试：泛型 task result、onComplete 恢复、ref payload rooting。
+  - 至少一组 `SCOOP_GC_STRESS=1` run-pass 覆盖 `Task<String>` 或 `Task<StructWithRef>`。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3203
+
+### T3205 [TODO] 并发：结构化并发回归矩阵与语义锁定
+- 描述：`Task<T>` 泛型化后，需要用真实并发场景锁定语义边界，避免回归只覆盖“单任务 + Int 返回值”的最小路径。
+- 目标：
+  - 覆盖 nested `spawn` / `join`、控制流中的 `join`、多任务交错与 join 顺序等场景。
+  - 验证 `Task<T>` 在错误传播、取消前置准备、GC 压力下的最小语义边界；暂不扩展到下一阶段 executor / stdlib API。
+  - 把当前阶段明确不支持的并发组合写成稳定诊断或注释化限制，避免语义漂移。
+- 验收：
+  - 新增 run-pass fixtures：nested spawn/join、多任务交错、控制流 join。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3204
+
+## T33：Lambda 推断与调用语义补齐
+
+### T3301 [TODO] Lambda：expected function type 向任意参数个数传播
+- 描述：当前 lambda 的 expected-type 向下传播只覆盖 0/1/2 参数；一旦没有 expected function type，未标注类型的参数会直接报错。需要先把最常见的上下文推断补齐，再把真正不可推断的场景留给稳定诊断。
+- 目标：
+  - expected function type 的传播覆盖任意参数个数，而不是只支持 0/1/2 参数 lambda。
+  - 变量初始化、返回语境、调用实参、集合/构造器上下文等常见入口都能把 expected type 传给 lambda。
+  - 对确实无法推断的场景保留清晰、稳定的错误信息，而不是依赖零散 early error。
+- 验收：
+  - 新增 typecheck fixtures：3+ 参数 lambda、多上下文 expected-type 传播、无法推断时的诊断。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3302 [TODO] Lambda：receiver lambda 体内 `this` 与成员解析
+- 描述：receiver function type 已经进入类型系统，但 lambda body 里当前还不会自动注入 `this`，导致“类型可表达、语义不可用”的断层。
+- 目标：
+  - receiver lambda 进入 typecheck / lowering 时自动建立 `this` 绑定与成员查找环境。
+  - receiver lambda 中的成员访问、扩展调用、闭包捕获与普通 lambda 保持一致的局部作用域规则。
+  - 相关 HIR / codegen 不再把 receiver 仅当作普通首参处理，避免 `this` 语义在后续阶段丢失。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：receiver lambda 直接访问 `this`、调用成员、捕获外层局部。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3301
+
+### T3303 [TODO] 调用语义：统一函数值 / funptr / ctor delegation 的实参匹配
+- 描述：当前函数值调用、函数指针调用、`super(...)` / `this(...)` 构造器委托调用仍各自带有命名实参或 receiver function type 的早期门禁，调用规则没有真正统一。
+- 目标：
+  - 函数值调用支持命名实参，参数匹配规则与普通函数调用保持一致。
+  - 函数指针调用支持命名实参，并解除对 receiver function type 的不必要早期拒绝，或在更合理的阶段统一降格/诊断。
+  - `super(...)` / `this(...)` 构造器委托调用改用同一套实参匹配逻辑，不再只允许位置参数。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：函数值命名实参、funptr 命名实参、ctor delegation 命名实参。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3301
+
+## T34：泛型约束 / Pattern / 值类型能力补齐
+
+### T3401 [TODO] 泛型：`where` nominal bound 支持类型实参与 instantiated supertype 满足性
+- 描述：当前 `where` 约束一旦写成带类型实参的 nominal bound（例如 `where T: Box<Int>`）就会被直接拒绝；即便后续把 bound 本身 lower 成实例化类型，类/接口经由“已实例化的 supertype”满足该 bound 的场景也还没有被显式承接。需要把这类 bound 贯通到解析、解析后表示、检查、子类型关系与诊断。
+- 目标：
+  - 支持带类型实参的 nominal `where` bound，并正确解析到已实例化的 bound type。
+  - 类/接口若通过已实例化 supertype 满足该 bound（例如 `Sub : Base<Int>` 满足 `where T: Base<Int>`），实例化处检查可正确通过，而不是只接受“exact same nominal type”。
+  - 实例化处 bound 检查、函数体内成员分发、错误消息都基于实例化后的 bound，而不是回退到未参数化 nominal type。
+  - 对不满足或不可解析的 bound 给出稳定诊断。
+- 验收：
+  - 新增 typecheck fixtures：正例 `where T: Box<Int>`、经由 instantiated supertype 满足 `where T: Base<Int>`、反例 `where T: Box<String>`、体内通过 bound 调方法。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3401a [TODO] 泛型：`where` nominal bound 的子类型满足性回归矩阵
+- 描述：当前 use-site `where` 检查已通过 `is_type_assignable` + `direct_supertypes` 支持最小 nominal 上转，但仓库里还没有专门锁定“接口/类继承链上的实例满足 generic bound”这条语义。像 `interface Sub : Base`、`class Impl : Sub`、`fun <T> f(x: T) where T: Base` 这样的路径，不应只依赖当前实现细节“碰巧有效”。
+- 目标：
+  - 为当前已支持的非参数化 nominal bound 语义补齐回归：类实现接口、类继承基类、子接口及其实现类型传给父接口 bound。
+  - 覆盖变量持有子类型实例、参数透传、泛型 passthrough 等常见入口，而不只断言字面量/构造表达式直传。
+  - 对 builtin/value 类型通过 boxing 满足 interface bound 的既有语义也补专门回归，避免后续 `assignable` 调整回退。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：`Sub : Base`、`Impl : Sub` 满足 `where T: Base`，以及 `Int` / `Bool` 满足 `Hashable` 或等价 interface bound。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3401b [TODO] 泛型：`where` bound 驱动的方法分发补齐接口继承链与多 bound 歧义
+- 描述：当前 `where` bound 驱动的方法分发只会从声明的 bound 本身构造 `Bound.method` 并在首个命中的 bound 上提前返回，没有沿接口 supertype 链查找继承成员，也不会对多个 bounds 提供的同名成员做歧义诊断。这会把合法语义错判成“方法不存在”，或者把本该报歧义的场景静默绑定到声明顺序。
+- 目标：
+  - `where T: Sub` 可调用 `Base` 上声明的方法，接口继承链上的成员对 bound receiver 可见。
+  - `where T: A, T: B` 下的同名成员遵守明确的候选集/歧义规则，不再按遍历顺序抢先返回。
+  - 对“继承成员可见”“多 bound 歧义”“确实不存在该成员”三类场景给出稳定回归与诊断。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：通过 `where T: Sub` 调用 `Base` 方法、多 bound 同名成员的歧义报错。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3401a
+
+### T3401c [TODO] 调用/泛型：成员方法签名收集与 `where` bound 分发对齐 richer generic/effect 调用
+- 描述：当前共享的成员方法签名收集路径仍会直接跳过“2 个以上 type params”与带 `<eff E>` 的成员方法；`where` bound 驱动的方法分发还会忽略显式类型实参。这使 `x.method<U>()`、多 type param 成员方法、effect-generic 成员方法在普通 member call 与 bound member call 上都存在实现层缺口。
+- 目标：
+  - 普通成员调用与 `where` bound 驱动的成员调用都支持显式类型实参，不再把 `member<T>(...)` silently 降格成“只能靠推断”。
+  - 成员方法签名收集、实例化与诊断支持 2+ type params 与 `<eff E>` 成员方法，不再在候选收集阶段直接跳过。
+  - 成员方法调用的 type arg / effect arg 规则与顶层函数调用尽量对齐，避免 shared helper 与 top-level call 各走一套缩水语义。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：普通 member call 与 `where` bound member call 的显式类型实参、2+ type params 成员方法、带 `<eff E>` 的成员方法。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3401b
+
+### T3402 [TODO] Pattern：顶层 `val` 支持 pattern binding
+- 描述：局部 destructuring 已逐步落地，但顶层 `val (a, b) = ...` 仍在声明头检查阶段被直接拒绝，导致同一套 pattern 语法在顶层与局部语义不一致。
+- 目标：
+  - 顶层 tuple / struct / enum destructuring 复用既有 pattern binding 规则，而不是单独保留“顶层只允许标识符”的限制。
+  - 顶层符号安装、初始化顺序、多文件可见性与循环引用诊断保持稳定。
+  - 对当前仍不支持的递归或歧义 pattern 给出明确报错，而不是统一 early reject。
+- 验收：
+  - 新增多文件 fixtures：顶层 tuple/struct 解构、跨文件引用、非法 pattern 诊断。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
+### T3403 [TODO] 值类型：`struct` 字段支持 `var` 与默认值
+- 描述：当前 `struct` 字段同时禁止 `var` 与默认值，值类型声明能力明显弱于目标语言语义。需要先收口字段模型，再决定更新与构造路径如何共享实现。
+- 目标：
+  - `struct` 声明支持 `var` 字段与默认值，声明头、构造参数、布局与初始化规则保持一致。
+  - 默认值在构造调用、`with` 更新与常量/编译期路径中有统一语义，不引入额外特判。
+  - 字段可变性与值语义冲突处给出明确约束和诊断。
+- 验收：
+  - 新增 run-pass fixtures：带默认值的 `struct` 构造、省略默认参数、`var` 字段更新。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：无
+
+### T3404 [TODO] 值类型：`with` 更新扩展到更完整的值类型语义
+- 描述：当前 `with` 更新只支持 `struct` 且显式拒绝嵌套字段路径更新，无法覆盖更接近 record-style 的值对象写法。
+- 目标：
+  - `with` 的 base 类型不再局限于当前最小 `struct` 子集，而是对齐本轮支持的值类型模型。
+  - 嵌套字段路径更新 lower 成稳定的 copy-update 链，而不是在 typecheck 阶段直接拒绝。
+  - 诊断能够区分“字段不存在 / 字段不可更新 / 类型不匹配 / base 非值类型”等不同错误。
+- 验收：
+  - 新增 HIR / run-pass fixtures：单层 `with`、嵌套路径 `with`、非法更新诊断。
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3403
+
+### T3405 [TODO] Pattern：`when` 的 or-pattern 支持共享 binder
+- 描述：当前 or-pattern 已能做简单判别，但一旦在 `A(x) | B(x)` 里引入 binder 就会被直接拒绝。需要把 binder 集一致性与类型合流规则补齐。
+- 目标：
+  - 当各分支 binder 集、名称与类型兼容时，允许 or-pattern 引入共享 binder。
+  - `when` arm 的局部环境合并稳定，不再依赖“or-pattern 不能绑定名字”的早期限制。
+  - 对 binder 数量、名称或类型不一致的分支给出具体诊断。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：合法 binder or-pattern、非法 binder mismatch。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3402

@@ -1,18 +1,20 @@
-# Scoop：当前计划（统一 effect codegen / LLVM）
+# Scoop：当前计划（effect 主线优先，后续任务顺延）
 
 > 生成时间：2026-04-15  
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
-> 范围：本计划只覆盖当前 effect 统一主线。`segmentation` 与 `state machine transformation` 视为已建立的基线；从这里开始，先把剩余 shape-based logic 彻底清掉，再把 LLVM codegen 收口到“只消费 state machine”的统一实现。
+> 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 
 ## 0. 工作原则
 
-- 删除优先于修补。看到 shape-based 生产逻辑就直接删除，不以“先补一个 case”维持旧路径。
-- LLVM effect codegen 的单一输入是 state machine。除类型、符号与 ABI 必需信息外，不能再读取源码形状、旧 scanner 结果或旧分类器输出。
-- 当前阶段只实现 heap-allocated full state machine lowering，不做 simplification，不做模式化优化。
-- 每个实现任务后立即插入一个 review 任务；review 必须显式确认生产代码中不存在 shape-based logic。
-- review 范围只看生产代码，重点是 `crates/scoopc/src/llvm/codegen/**`；测试命名不作为问题。
+- 当前最高优先级是 `T30`；`T31`～`T34` 只作为 effect 主线收口后的后续队列，不与当前修线争抢顺序。
+- `T30` 继续遵守“删除优先于修补”。看到 shape-based 生产逻辑就直接删除，不以“先补一个 case”维持旧路径。
+- `T30` 中 LLVM effect codegen 的单一输入是 state machine。除类型、符号与 ABI 必需信息外，不能再读取源码形状、旧 scanner 结果或旧分类器输出。
+- `T30` 当前阶段只实现 heap-allocated full state machine lowering，不做 simplification，不做模式化优化。
+- `T30` 中每个实现任务后立即插入一个 review 任务；review 必须显式确认生产代码中不存在 shape-based logic。
+- `T30` 的 review 范围只看生产代码，重点是 `crates/scoopc/src/llvm/codegen/**`；测试命名不作为问题。
+- `T31`～`T34` 维持“小步可回归”原则：先收口语义与表示，再扩展 lowering / runtime / 测试；除显式写出的依赖外，不额外插入 effect 风格的 review 子任务。
 
-## 1. 当前状态与已知缺口
+## 1. 当前状态与已知缺口（T30）
 
 - `T2999` 已完成：
   - `cargo check -p scoopc` 已恢复零 warning。
@@ -104,11 +106,100 @@
 #### T3007R：Review
 - 最终审查 effect codegen 生产实现，确认仓库中只剩统一主线，没有可重新接回的 shape-based legacy。
 
+### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
+
+#### T3101：Parser / AST 引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
+- 普通局部 block 统一写作 `do { ... }`；没有 `do` 的 `{ ... }` 一律按 closure / trailing lambda 规则解析。
+- parser / AST 必须为 `DoBlock` 与 `Closure` 保留稳定且可区分的形状，避免后续阶段继续依赖上下文猜测。
+
+#### T3102：Typecheck / HIR 收口 `do` block 的 expression statement 与 tail value 语义
+- 统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”。
+- `if` / `when` / `handle` / lambda body / `do` block 的值语义都要按同一规则收口。
+
+#### T3103：effect nested-block fixtures 切到 plain `do` block
+- 在 `T3006R` 之后，把仅为 nested block 消歧而保留的 `@Safe { ... }` workaround 切回 `do { ... }`。
+- 真正依赖 safe-region 语义的测试继续保留 `@Safe`，并同步锁定 multiple trailing lambdas 与 `do` block 的边界规则。
+
+#### T3104：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则
+- 更新 `SCOOP_FULL_SPEC.md`、doctest / fixture 示例，以及当前 `TODO.md` / `PLAN.md` 等相关文档叙述。
+- 若规范代码块变更，配套完成 `spec-fixtures sync/check`。
+
+### 阶段 H：Structured Concurrency / `Task<T>`
+
+#### T3201：`spawn` / `join` 的 typecheck 与 HIR 去 `Int` 硬编码
+- 先把前端表示收口到真实的 `Task<T>`，不再把 handle / result 擦成 `Int`。
+- 已确认仍缺失的 lowering / codegen / runtime 缺口，分别由 `T3202`～`T3204` 明确承接。
+
+#### T3202：`spawn` / `join` 语法糖与 sysroot glue 去 `_int` 专用路径
+- HIR lowering、block rewrite 与 sysroot internal glue 不再依赖 `__scoop_task_spawn_int` / `__scoop_task_join_int` 这类 `_int` 专用入口。
+- desugar 后的 HIR 必须继续保留任务结果类型，给后续 LLVM / runtime 泛型化提供稳定输入。
+
+#### T3203：LLVM codegen 去 `scoop_task_*_int` 专用路径
+- codegen 不再把 `Task<T>` 压回 `i64`/`Int` 专线，而是支持 scalar / ref / aggregate / 泛型实例的统一 task payload。
+- task payload transport 要尽量与 continuation payload ABI 对齐，避免维护 task-only 特例。
+
+#### T3204：runtime executor / `Task<T>` 完成回调泛型化
+- runtime task 状态机、executor job、completion waiter 与 sysroot glue 都不能再固定在 `Task<Int>` / `resume_u64`。
+- ref / aggregate payload 在 pinning、GC stress、跨线程或跨 executor 恢复时都要保持稳定语义。
+
+#### T3205：结构化并发回归矩阵与语义锁定
+- 用 nested `spawn` / `join`、控制流 join、多任务交错、GC 压力等真实并发场景锁定边界。
+- 当前阶段明确不支持的并发组合，要么形成稳定诊断，要么在文档中清楚限制。
+
+### 阶段 I：Lambda 推断与调用语义补齐
+
+#### T3301：expected function type 向任意参数个数传播
+- 把 lambda expected-type 传播从 0/1/2 参数推广到任意参数个数。
+- 变量初始化、返回语境、调用实参、集合/构造器上下文等常见入口都要统一接入。
+
+#### T3302：receiver lambda 体内 `this` 与成员解析
+- receiver lambda 进入 typecheck / lowering 时自动建立 `this` 绑定与成员查找环境。
+- `this`、成员访问、扩展调用与闭包捕获的局部作用域规则要与普通 lambda 对齐。
+
+#### T3303：统一函数值 / funptr / ctor delegation 的实参匹配
+- 函数值调用、函数指针调用、`super(...)` / `this(...)` 构造器委托调用要共用同一套参数匹配规则。
+- 命名实参与 receiver function type 的处理不能再靠零散的早期门禁分流。
+
+### 阶段 J：泛型约束 / Pattern / 值类型能力补齐
+
+#### T3401：`where` nominal bound 支持类型实参与 instantiated supertype 满足性
+- 把带类型实参的 nominal bound 贯通到解析、检查、子类型关系与诊断。
+- 实例化处的 bound 检查、函数体内成员分发都必须基于实例化后的 bound，而不是回退到未参数化 nominal type。
+
+#### T3401a：`where` nominal bound 的子类型满足性回归矩阵
+- 专门锁定接口/类继承链上的实例满足 generic bound 的语义，不依赖当前实现“碰巧有效”。
+- 补齐变量透传、泛型 passthrough、builtin/value 类型 boxing 满足 interface bound 等回归。
+
+#### T3401b：`where` bound 驱动的方法分发补齐接口继承链与多 bound 歧义
+- 让接口继承链上的成员对 bound receiver 可见，并为多 bound 同名成员建立稳定的候选集 / 歧义规则。
+- 不能再按遍历顺序提前返回首个命中项。
+
+#### T3401c：成员方法签名收集与 `where` bound 分发对齐 richer generic/effect 调用
+- 普通 member call 与 `where` bound member call 都要支持显式类型实参、2+ type params 与 `<eff E>` 成员方法。
+- shared helper 与 top-level call 之间的语义不能继续缩水分叉。
+
+#### T3402：顶层 `val` 支持 pattern binding
+- 顶层 tuple / struct / enum destructuring 复用既有 pattern binding 规则，不再保留“顶层只允许标识符”的特判。
+- 顶层符号安装、初始化顺序、多文件可见性与循环引用诊断保持稳定。
+
+#### T3403：`struct` 字段支持 `var` 与默认值
+- 先收口字段模型，让 `struct` 声明能力覆盖 `var` 字段与默认值。
+- 构造、布局、默认值与值语义冲突处都需要统一规则与诊断。
+
+#### T3404：`with` 更新扩展到更完整的值类型语义
+- `with` 的 base 类型不再局限于当前最小 `struct` 子集，嵌套字段路径更新要 lower 成稳定的 copy-update 链。
+- 诊断必须区分字段不存在、字段不可更新、类型不匹配、base 非值类型等不同错误。
+
+#### T3405：`when` 的 or-pattern 支持共享 binder
+- 当各分支 binder 集、名称与类型兼容时，允许 or-pattern 引入共享 binder。
+- binder 数量、名称或类型不一致时，要给出具体而稳定的诊断。
+
 ## 3. 验收策略
 
-- 清理阶段允许临时破坏编译；目标是先删旧主线。
-- 接统一 LLVM emitter 后，再用定向测试恢复并扩大覆盖。
-- review 任务是强制门，不是可选项；任何实现任务完成后，如果 review 发现 shape-based 逻辑回流，必须先回退到清理状态，再进入下一任务。
+- `T30` 的清理阶段允许临时破坏编译；目标是先删旧主线。
+- `T30` 接统一 LLVM emitter 后，再用定向测试恢复并扩大覆盖。
+- `T30` 的 review 任务是强制门，不是可选项；任何实现任务完成后，如果 review 发现 shape-based 逻辑回流，必须先回退到清理状态，再进入下一任务。
+- `T31`～`T34` 按各自 TODO 中列出的 fixtures / `cargo test` / LLVM run-pass 验收，不额外插入独立 review gate。
 
 ## 4. 当前执行顺序
 
@@ -127,3 +218,23 @@
 13. `T3006R`
 14. `T3007`
 15. `T3007R`
+16. `T3101`
+17. `T3102`
+18. `T3103`
+19. `T3104`
+20. `T3201`
+21. `T3202`
+22. `T3203`
+23. `T3204`
+24. `T3205`
+25. `T3301`
+26. `T3302`
+27. `T3303`
+28. `T3401`
+29. `T3401a`
+30. `T3401b`
+31. `T3401c`
+32. `T3402`
+33. `T3403`
+34. `T3404`
+35. `T3405`
