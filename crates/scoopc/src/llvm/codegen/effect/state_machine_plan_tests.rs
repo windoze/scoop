@@ -1917,6 +1917,41 @@ fun main(): Int {
     }
 
     #[test]
+    fn unified_single_resuming_codegen_emits_escape_finally_no_perform_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun get(): Int
+}
+
+fun main() {
+    println("before_handle")
+    val result: Int = handle {
+        println("body_start")
+        val x: Int = 10 + 32
+        println("body_done")
+        x
+    } with {
+        Ask.get(), k -> {
+            println("arm_unreachable")
+            0
+        }
+    } finally {
+        println("finally")
+    }
+    println("result")
+    println(result)
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
     fn unified_multi_resuming_codegen_emits_stack_reentry_only_sample() {
         let source = r#"
 package a
@@ -2057,6 +2092,104 @@ fun main(): Int {
     }
 
     result
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_multi_resuming_codegen_emits_single_escape_with_nonresuming_sibling_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+
+        @Safe {
+            println("block1")
+            val label1: String = "block1_label"
+            val first: String = Ask.ask("first")
+            println("after1")
+            println(label1)
+            println(first)
+        }
+
+        println("after_block1")
+
+        @Safe {
+            println("block2")
+            val label2: String = "block2_label"
+            val second: String = Ask.ask("second")
+            println("after2")
+            println(label2)
+            println(second)
+            Abort.stop(second)
+        }
+
+        println("after_block2")
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.n = cell.n + 1
+            println("ask_arm")
+            println(cell.n)
+            println(label)
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
 }
 "#;
 
@@ -2335,6 +2468,126 @@ fun main() {
     }
 
     #[test]
+    fn unified_multi_resuming_codegen_emits_single_immediate_multi_escape_direct_indirect_sample()
+    {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Count {
+    fun next(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun countIndirect(base: Int): String / (Count) {
+    println("countIndirect_enter")
+    val msg: String = Count.next(base + 20)
+    println("countIndirect_resume")
+    println(msg)
+    msg
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        val base: Int = Yield.next()
+        println("after_yield")
+        println(base)
+
+        val first: String = Ask.ask(base + 1)
+        println("after_first")
+        println(first)
+
+        val second: String = countIndirect(base)
+        println("after_second")
+        println(first)
+        println(second)
+
+        Abort.stop(second)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(40)
+        }
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Count.next(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("count_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
     fn unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample() {
         let source = r#"
 package a
@@ -2591,6 +2844,60 @@ fun demo(flag: Bool): Int {
             resume(10)
         }
         Ask.ask(seed: Int), k -> seed + 2
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_codegen_entrypoint_label(source), "multi-resuming");
+    }
+
+    #[test]
+    fn simplification_codegen_entrypoint_classifies_single_immediate_multi_escape_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Count {
+    fun next(seed: Int): String
+}
+
+fun countIndirect(seed: Int): String / (Count) {
+    val msg: String = Count.next(seed + 1)
+    msg
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val base: Int = Yield.next()
+        val first: String = Ask.ask(base + 1)
+        val second: String = countIndirect(base + 2)
+        println(first)
+        println(second)
+        0
+    } with {
+        Yield.next() -> resume {
+            resume(40)
+        }
+        Ask.ask(seed), k -> {
+            println(seed)
+            7
+        }
+        Count.next(seed), k -> {
+            println(seed)
+            8
+        }
+    } finally {
+        println("cleanup")
     }
     result
 }

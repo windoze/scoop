@@ -89,9 +89,6 @@ impl HandleModeSpecificSimplification {
 
     fn codegen_entrypoint_from_arm_mix(&self) -> SimplifiedCodegenEntrypoint {
         let counts = self.arm_lowering_counts();
-        if counts.stack_reenter > 0 && counts.heap_continuation > 1 {
-            return SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate;
-        }
         if counts.stack_reenter > 1 && counts.heap_continuation > 0 {
             return SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape;
         }
@@ -222,7 +219,6 @@ enum SimplifiedCodegenEntrypoint {
     SingleEscapeContinuation,
     MultiNonResuming,
     MultiResuming,
-    UnsupportedMixedMultipleEscapeWithImmediate,
     UnsupportedMixedMultipleImmediateWithEscape,
 }
 
@@ -236,9 +232,6 @@ impl SimplifiedCodegenEntrypoint {
             SimplifiedCodegenEntrypoint::SingleEscapeContinuation => "single-escape-continuation",
             SimplifiedCodegenEntrypoint::MultiNonResuming => "multi-nonresuming",
             SimplifiedCodegenEntrypoint::MultiResuming => "multi-resuming",
-            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
-                "unsupported-mixed-multiple-escape-with-immediate"
-            }
             SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
                 "unsupported-mixed-multiple-immediate-with-escape"
             }

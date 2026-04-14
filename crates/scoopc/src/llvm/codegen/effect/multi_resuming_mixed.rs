@@ -725,12 +725,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_handle_expr_unified_single_immediate_single_escape_multi_resuming_leaf<'hir>(
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_handle_expr_unified_single_immediate_multi_escape_multi_resuming_leaf<'hir>(
         &mut self,
         span: crate::span::Span,
         handle: &'hir hir::HandleExpr,
         state_machine_plan: &HandleStateMachinePlan,
-        arms: UnifiedMixedResumingArmPair<'hir>,
+        immediate_arm: (&'hir hir::HandleArm, hir::SymbolId),
+        escape_arms: &[(&'hir hir::HandleArm, hir::SymbolId)],
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -742,8 +744,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             op_tag: u32,
         }
 
-        let (immediate_arm, resume_symbol) = arms.immediate;
-        let (escape_arm, continuation_symbol) = arms.escape;
+        let (immediate_arm, resume_symbol) = immediate_arm;
 
         let immediate_arm_plans = Self::build_multi_resuming_immediate_arm_plans(
             handle,
@@ -761,10 +762,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
         let perform_site = resolved_immediate_site.site.clone();
-        let escape_arm_plans = Self::build_multi_resuming_escape_arm_plans(
-            handle,
-            &[(escape_arm, continuation_symbol)],
-        )?;
+        let escape_arm_plans =
+            Self::build_multi_resuming_escape_arm_plans(handle, escape_arms)?;
         let ResolvedMultiResumingEscapeSites {
             sites: resolved_escape_sites,
             capture_ids,
@@ -789,10 +788,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let escape_op_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
         let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
             Vec::with_capacity(resolved_escape_sites.len());
-        let mut escape_resume_value_ty: Option<CgTy> = None;
+        let escape_error_span = escape_arms.first().map(|(arm, _)| arm.span).unwrap_or(span);
 
         for resolved in resolved_escape_sites {
             match resolved.site {
@@ -803,10 +801,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: site.decl.span.into(),
                         });
                     }
-                    if escape_arm.op.binders.len() != site.args.len() {
+                    let arm = resolved.arm.arm;
+                    if arm.op.binders.len() != site.args.len() {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "handle unified mixed multi-resuming leaf escape binder arity mismatch",
-                            at: escape_arm.op.span.into(),
+                            at: arm.op.span.into(),
                         });
                     }
                     let site_resume_value_ty =
@@ -815,22 +814,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "handle unified mixed multi-resuming leaf escape value type",
                                 at: site.decl.span.into(),
                             })?;
-                    if let Some(expected) = escape_resume_value_ty {
-                        if expected != site_resume_value_ty {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
-                                at: site.decl.span.into(),
-                            });
-                        }
-                    } else {
-                        escape_resume_value_ty = Some(site_resume_value_ty);
-                    }
                     scanned_sites.push(MultiResumingEscapeSitePlan {
                         site: MultiResumingEscapeSiteKind::Direct(site),
-                        arm: resolved.arm.arm,
+                        arm,
                         continuation_symbol: resolved.arm.continuation_symbol,
                         resume_value_ty: site_resume_value_ty,
-                        op_tag: escape_op_tag,
+                        op_tag: self.effect_op_tag(&arm.op.op.fqn),
                     });
                 }
                 MultiResumingEscapeSiteKind::Indirect(indirect_site) => {
@@ -840,10 +829,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: indirect_site.decl.span.into(),
                         });
                     }
-                    if escape_arm.op.binders.len() > 1 {
+                    let arm = resolved.arm.arm;
+                    if arm.op.binders.len() > 1 {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "handle unified mixed multi-resuming leaf indirect binder count (only 1 supported)",
-                            at: escape_arm.op.span.into(),
+                            at: arm.op.span.into(),
                         });
                     }
                     let site_resume_value_ty =
@@ -852,22 +842,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 kind: "handle unified mixed multi-resuming leaf escape value type",
                                 at: indirect_site.decl.span.into(),
                             })?;
-                    if let Some(expected) = escape_resume_value_ty {
-                        if expected != site_resume_value_ty {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
-                                at: indirect_site.decl.span.into(),
-                            });
-                        }
-                    } else {
-                        escape_resume_value_ty = Some(site_resume_value_ty);
-                    }
                     scanned_sites.push(MultiResumingEscapeSitePlan {
                         site: MultiResumingEscapeSiteKind::Indirect(indirect_site),
-                        arm: resolved.arm.arm,
+                        arm,
                         continuation_symbol: resolved.arm.continuation_symbol,
                         resume_value_ty: site_resume_value_ty,
-                        op_tag: escape_op_tag,
+                        op_tag: self.effect_op_tag(&arm.op.op.fqn),
                     });
                 }
             }
@@ -876,14 +856,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if scanned_sites.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle unified mixed multi-resuming leaf (escape site missing)",
-                at: escape_arm.span.into(),
+                at: escape_error_span.into(),
             });
         }
         scanned_sites.sort_by_key(|plan| (plan.top_level_stmt_idx(), plan.decl().span.start));
-        let _ = escape_resume_value_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "handle unified mixed multi-resuming leaf escape value type",
-            at: escape_arm.span.into(),
-        })?;
 
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
         let raise_sibling = sibling_plan.raise_arm;
@@ -923,6 +899,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let escape_frame_count = escape_arm_plans.len() as u32;
 
         let state_ty_name =
             format!("scoop.runtime.MultiResumingMixedEscapeState__{func_name}_{seq}");
@@ -931,8 +908,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             let ty = self.context.opaque_struct_type(&state_ty_name);
             let header_ty = self.llvm_gc_object_header_type();
-            let mut fields: Vec<BasicTypeEnum<'ctx>> =
-                vec![header_ty.into(), handler_frame_ty.into(), i32_ty.into()];
+            let mut fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into()];
+            // 每个 escape arm 都需要一个稳定地址的 runtime handler frame；
+            // continuation 会捕获当前 TLS handler stack，因此 frame 不能只放在栈上。
+            for _ in 0..escape_frame_count {
+                fields.push(handler_frame_ty.into());
+            }
+            fields.push(i32_ty.into());
             for cap in &outer_visible_supported {
                 fields.push(match self.escape_capture_storage_kind(span, cap.ty)? {
                     Some(EscapeCaptureStorageKind::Word) => i64_ty.into(),
@@ -950,9 +932,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty.set_body(&fields, false);
             ty
         };
-        let frame_field_idx = 1u32;
-        let pc_field_idx = 2u32;
-        let outer_field_base = 3u32;
+        let first_frame_field_idx = 1u32;
+        let pc_field_idx = first_frame_field_idx.saturating_add(escape_frame_count);
+        let outer_field_base = pc_field_idx.saturating_add(1);
         let body_field_base = outer_field_base.saturating_add(outer_visible_supported.len() as u32);
 
         let step_name = format!("__scoop_multi_resume_mixed_step__{func_name}_{seq}");
@@ -1934,35 +1916,49 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.zero_init_escape_capture_state_field(span, field_ptr, cap.ty)?;
         }
 
-        let frame_ptr = self.builder.build_struct_gep(
-            state_ty,
-            state_gc_ptr,
-            frame_field_idx,
-            "multi_resume_mixed_frame_gep",
-        )?;
-        let frame_i8 = self.builder.build_address_space_cast(
-            frame_ptr,
-            i8_ptr_ty,
-            "multi_resume_mixed_frame_i8",
-        )?;
-        let escape_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
-        let escape_tag_i32 = i32_ty.const_int(escape_tag as u64, false);
         let rt_push = self.declare_runtime_effect_handler_stack_push();
-        let _ = self.builder.build_call(
-            rt_push,
-            &[frame_i8.into(), escape_tag_i32.into()],
-            "multi_resume_mixed_push",
-        )?;
-        let prev_ptr = self.builder.build_struct_gep(
-            handler_frame_ty,
-            frame_ptr,
-            0,
-            "multi_resume_mixed_prev_gep",
-        )?;
-        let escape_outer_top = self
-            .builder
-            .build_load(i8_ptr_ty, prev_ptr, "multi_resume_mixed_outer_top")?
-            .into_pointer_value();
+        let mut escape_frame_i8s: Vec<PointerValue<'ctx>> =
+            Vec::with_capacity(escape_arm_plans.len());
+        let mut escape_outer_top: Option<PointerValue<'ctx>> = None;
+        for (escape_idx, plan) in escape_arm_plans.iter().enumerate() {
+            let frame_field_idx = first_frame_field_idx.saturating_add(escape_idx as u32);
+            let frame_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_gc_ptr,
+                frame_field_idx,
+                "multi_resume_mixed_frame_gep",
+            )?;
+            let frame_i8 = self.builder.build_address_space_cast(
+                frame_ptr,
+                i8_ptr_ty,
+                "multi_resume_mixed_frame_i8",
+            )?;
+            let escape_tag = self.effect_op_tag(&plan.arm.op.op.fqn);
+            let escape_tag_i32 = i32_ty.const_int(escape_tag as u64, false);
+            let _ = self.builder.build_call(
+                rt_push,
+                &[frame_i8.into(), escape_tag_i32.into()],
+                "multi_resume_mixed_push",
+            )?;
+            if escape_outer_top.is_none() {
+                let prev_ptr = self.builder.build_struct_gep(
+                    handler_frame_ty,
+                    frame_ptr,
+                    0,
+                    "multi_resume_mixed_prev_gep",
+                )?;
+                escape_outer_top = Some(
+                    self.builder
+                        .build_load(i8_ptr_ty, prev_ptr, "multi_resume_mixed_outer_top")?
+                        .into_pointer_value(),
+                );
+            }
+            escape_frame_i8s.push(frame_i8);
+        }
+        let escape_outer_top = escape_outer_top.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle unified mixed multi-resuming leaf (missing escape arm runtime frame)",
+            at: span.into(),
+        })?;
         let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
         for custom in &custom_siblings {
             let custom_frame_i8 = self
@@ -1989,7 +1985,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?
                 .into_pointer_value()
         } else {
-            frame_i8
+            *escape_frame_i8s.last().ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle unified mixed multi-resuming leaf (missing restore top)",
+                at: span.into(),
+            })?
         };
 
         let _ = self.builder.build_store(state_ptr, i32_ty.const_zero())?;

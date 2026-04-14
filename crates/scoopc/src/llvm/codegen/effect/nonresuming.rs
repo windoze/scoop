@@ -42,7 +42,6 @@ impl UnifiedSingleResumingEntrypoint {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum UnifiedMultiResumingEntrypoint {
     MultiResuming,
-    UnsupportedMixedMultipleEscapeWithImmediate,
     UnsupportedMixedMultipleImmediateWithEscape,
 }
 
@@ -363,9 +362,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             SimplifiedCodegenEntrypoint::MultiResuming => {
                 Some(UnifiedMultiResumingEntrypoint::MultiResuming)
             }
-            SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => Some(
-                UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate,
-            ),
             SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => Some(
                 UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleImmediateWithEscape,
             ),
@@ -590,9 +586,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             UnifiedMultiResumingEntrypoint::MultiResuming => {
                 state_machine_plan.arm_plans.len() >= 2 && resuming_arms >= 1
             }
-            UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
-                counts.stack_reenter > 0 && counts.heap_continuation > 1
-            }
             UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
                 counts.stack_reenter > 1 && counts.heap_continuation > 0
             }
@@ -604,9 +597,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let kind = match entrypoint {
             UnifiedMultiResumingEntrypoint::MultiResuming => {
                 "unified multi-resuming plan route mismatch"
-            }
-            UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
-                "unified multi-resuming plan mixed multiple-escape-with-immediate route mismatch"
             }
             UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => {
                 "unified multi-resuming plan mixed multiple-immediate-with-escape route mismatch"
@@ -670,10 +660,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     state_machine_plan,
                     arm_id,
                 ) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "unified single-immediate-resume plan missing matching site",
-                        at: span.into(),
-                    });
+                    return self.codegen_handle_expr_no_suspend_sequential(span, handle, out_ty);
                 }
                 let [(arm, resume_symbol)] = handle_arm_buckets.immediate_arms.as_slice() else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -701,10 +688,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     state_machine_plan,
                     arm_id,
                 ) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "unified single-escape-continuation plan missing supported suspend site",
-                        at: span.into(),
-                    });
+                    return self.codegen_handle_expr_no_suspend_sequential(span, handle, out_ty);
                 }
                 let [(arm, continuation_symbol)] = handle_arm_buckets.escape_arms.as_slice() else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -870,7 +854,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             SimplifiedCodegenEntrypoint::MultiNonResuming
             | SimplifiedCodegenEntrypoint::MultiResuming
-            | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate
             | SimplifiedCodegenEntrypoint::UnsupportedMixedMultipleImmediateWithEscape => Err(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "handle unified multi-resuming entrypoint route mismatch",
@@ -1881,7 +1864,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         );
                 }
 
-                if immediate_arms.is_empty() && escape_arms.len() >= 2 {
+                if immediate_arms.is_empty()
+                    && !escape_arms.is_empty()
+                    && (escape_arms.len() >= 2 || !nonresuming_arms.is_empty())
+                {
                     return self
                         .codegen_handle_expr_unified_heap_continuation_only_multi_resuming_leaf(
                             span,
@@ -1893,16 +1879,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         );
                 }
 
-                if immediate_arms.len() == 1 && escape_arms.len() == 1 {
+                if immediate_arms.len() == 1 && !escape_arms.is_empty() {
                     return self
-                        .codegen_handle_expr_unified_single_immediate_single_escape_multi_resuming_leaf(
+                        .codegen_handle_expr_unified_single_immediate_multi_escape_multi_resuming_leaf(
                             span,
                             handle,
                             state_machine_plan,
-                            UnifiedMixedResumingArmPair {
-                                immediate: immediate_arms[0],
-                                escape: escape_arms[0],
-                            },
+                            immediate_arms[0],
+                            escape_arms,
                             nonresuming_arms,
                             out_ty,
                         );
@@ -1921,16 +1905,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind,
-                    at: at.into(),
-                })
-            }
-            UnifiedMultiResumingEntrypoint::UnsupportedMixedMultipleEscapeWithImmediate => {
-                let at = escape_arms
-                    .get(1)
-                    .map(|(arm, _)| arm.span)
-                    .unwrap_or(span);
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle mixed multiple escape-continuation arms with immediate-resume not yet supported",
                     at: at.into(),
                 })
             }

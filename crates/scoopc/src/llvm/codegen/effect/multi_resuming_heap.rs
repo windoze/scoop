@@ -1735,18 +1735,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             escape_arm_plans.as_slice(),
         )?;
 
-        let mut seen_escape_arm: HashSet<ArmPlanId> = HashSet::new();
         let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
             Vec::with_capacity(resolved_sites.len());
         for resolved in resolved_sites {
             match resolved.site {
                 MultiResumingEscapeSiteKind::Direct(site) => {
-                    if !seen_escape_arm.insert(resolved.arm.arm_id) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multi-resuming heap-continuation-only (multiple direct perform points for same op not yet supported)",
-                            at: site.decl.span.into(),
-                        });
-                    }
                     let arm = resolved.arm.arm;
                     if arm.op.binders.len() != site.args.len() {
                         return Err(LlvmEmitError::UnsupportedMainBody {

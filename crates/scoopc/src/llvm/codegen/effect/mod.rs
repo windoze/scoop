@@ -202,12 +202,6 @@ pub(super) struct UnifiedSingleResumingLeafCtx<'hir, 'plan> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct UnifiedMixedResumingArmPair<'hir> {
-    immediate: (&'hir hir::HandleArm, hir::SymbolId),
-    escape: (&'hir hir::HandleArm, hir::SymbolId),
-}
-
-#[derive(Debug, Clone, Copy)]
 struct ImmediateResumeExecPlan<'hir, 'ctx> {
     handle: &'hir hir::HandleExpr,
     site: &'hir ImmediateResumeSite<'hir>,

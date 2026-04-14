@@ -1838,6 +1838,20 @@ cargo run -p scoop --features llvm -- test
   - 已新增 plan 定向单测：`resolve_multi_resuming_immediate_sites_from_plan_keeps_arm_metadata`、`resolve_multi_resuming_escape_sites_from_plan_keeps_nested_direct_arm_dispatch`、`resolve_multi_resuming_escape_sites_from_plan_duplicates_indirect_sites_per_arm`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
+### T2003r3d4a1 [TODO] Effect：unified heap leaf 补齐 single-escape + sibling non-resuming 的 same-arm direct/indirect replay
+- 描述：在验证 `T2003r3d4b` 的 full LLVM fixture suite 时，暴露出一个更早的 pure heap-continuation gap：`EscapeContinuationWithNonResumingSiblings` 现已能走进 unified multi-resuming heap leaf，但 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi` 这类“同一 escape arm 在 nested block 中先 direct、再 indirect”的路径，第二次 `resume(...)` 前没有按既有 fixture contract 重放 direct→indirect 之间的 prefix。
+- 目标：
+  - unified heap-continuation leaf 支持 `1 escape + sibling non-resuming` 的 current legal route，不再报 “single escape-only route should use single-resuming entrypoint”。
+  - 对同一 escape arm 的 nested-block `direct + indirect` mixed site，第二次 `resume(...)` 前会按既有 contract 重放 direct→indirect 之间的 prefix，再继续 indirect site 之后的 tail。
+  - 不回退已通过的 pure multi-escape、single-escape no-perform fallback、以及本轮 `1 immediate + N escape` mixed representative sample。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集。
+  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_block_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d4a
+
 ### T2003r3d4b [TODO] Effect：unified emitter 支持 `1 immediate + N escape`
 - 描述：在 shared resolver / metadata contract 就位后，先推广 mixed leaf 到“单 immediate + 多个 escape-continuation arm”的合法组合，避免继续把 `heap-continuation` arm 数量写死为 1。
 - 目标：
@@ -1850,7 +1864,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
   - `cargo run -p scoop --features llvm -- run <新增 fixture>`
   - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003r3d4a
+- 依赖：T2003r3d4a1
 
 ### T2003r3d4c [TODO] Effect：unified emitter 支持 `N immediate + 1 escape`
 - 描述：在 shared resolver / metadata contract 就位后，再推广 unified multi-resuming dispatch 到“多个 immediate-resume arm + 单个 escape-continuation arm”的合法组合，避免继续把 `stack-reentry` arm 数量写死为 1。
