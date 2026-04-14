@@ -1730,21 +1730,80 @@ cargo run -p scoop --features llvm -- test
   - 本轮 representative 组合选择 `finally`；更广的 mixed + sibling non-resuming / nested / indirect coverage 继续由 `T2003r3d3` 的统一 emitter 承接。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d3 [TODO] Effect：统一 emitter 接管当前 legal 的 mixed immediate+escape / multi-escape，不再按 shape 追 case
-- 描述：在 `T2003r3d2c` 把当前 legal resuming leaf 的 build-only 占位清掉后，下一步应让 mixed immediate+escape 与 multi-escape 的合法子集全部通过同一套 plan-driven dispatch / capture / cleanup / resume graph 发射，而不是再把 `nested while indirect`、`block/if/while`、`same-stmt` 等源码位置当成任务拆分维度。之前留在 build-fail 的 representative sample 只应作为 coverage case，被统一 emitter 自然覆盖。
+### T2003r3d3 Effect：统一 emitter 接管当前 legal 的 mixed immediate+escape / multi-escape，不再按 shape 追 case（已拆分）
+- 拆分说明：
+  - 当前实现同时卡在两个独立 unified leaf：`multi_resuming_heap.rs` 仍是 pure multi-escape 的 top-level direct-only 子集；`multi_resuming_mixed.rs` 仍是 `1 immediate + 1 escape` mixed 的 top-level direct-only 子集，且 sibling non-resuming 尚未接回。
+  - 若继续整包推进，会把 sibling non-resuming / cleanup contract、pure multi-escape 的 source-path/site matrix，以及 mixed `1 immediate + 1 escape` 的 source-path/site matrix 再次耦合到同一轮。
+  - 因此本项改由 `T2003r3d3a`～`T2003r3d3d` 顺序承接。
+
+### T2003r3d3a [DONE] Effect：接回 unified `1 immediate + 1 escape` mixed leaf 的 sibling non-resuming / cleanup contract
+- 描述：当前 `MultiResuming` 入口在 `counts.stack_reenter == 1 && counts.heap_continuation == 1` 且存在 sibling non-resuming arm 时，仍直接报 `sibling non-resuming not yet connected`。先把这一显式 gate 清掉，让当前 legal 的 mixed 基线也共享统一的 sibling dispatch / cleanup contract。
 - 目标：
-  - 含 immediate-resume 与 escape-continuation 共存的 legal mixed 组合，以及带 sibling non-resuming / `finally` 的 legal multi-escape 子集，共享同一套 plan-driven emitter contract；差异只来自 plan 中的 state / suspend-site / arm / cleanup 数据，不再来自源码 shape 分流。
-  - 当前仍以 build-fail 代表的 legal mixed sample 转为 run-pass 或等价正向回归，但它只是统一 mixed matrix 的一个 representative sample，而不是单独的算法分支。
-  - 当前 unified multi-resuming leaf 中与 mixed immediate+escape / multi-escape 相关的 build-only placeholder 被真实 unified leaf 替换；heap continuation materialization、dispatch、resume replay 与 sibling non-resuming / `finally` 组合都直接消费 unified plan metadata。
+  - unified `1 immediate + 1 escape` mixed leaf 不再在 sibling non-resuming 组合上早退；`Raise.raise` 与 custom non-resuming sibling 都通过 unified metadata 参与 dispatch。
+  - immediate arm、escape continuation step、sibling non-resuming arm 与 `finally` cleanup 共享同一套 plan-driven contract，不恢复任何已删除的 shape-based route 名称。
+  - representative mixed sample 转为 run-pass，至少覆盖 `1 immediate + 1 escape + sibling non-resuming`，并保持当前 legal top-level direct 基线不回归。
 - 验收：
   - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
-  - 新增或更新 plan / LLVM 定向单测与 representative run-pass fixtures：覆盖 legal mixed immediate+escape / multi-escape 的 direct、indirect、branch、loop、nested-handle 组合。
+  - 新增或更新 LLVM 定向单测与 representative run-pass fixture：覆盖 unified `1 immediate + 1 escape + sibling non-resuming`，并至少一例包含 `finally` 或等价 cleanup 路径。
   - 不新增任何按 `top-level` / `block` / `if` / `while` / `same-stmt` 命名的专用 emitter 主路径或 helper 文件，也不重新引入 `T2003r3d2` 已删除的 legacy shape 名称。
-  - 完成后只跑与本任务直接相关的定向验证，例如：
+- 完成后只跑与本任务直接相关的定向验证，例如：
     - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-    - `cargo run -p scoop --features llvm -- run <新增或迁移后的 fixture>`
+    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2c3
+- 完成说明：
+  - `nonresuming.rs` 的 unified `MultiResuming` 入口不再在 `1 immediate + 1 escape + sibling non-resuming` 组合上早退；mixed leaf 现在会直接接收 sibling non-resuming arms。
+  - `multi_resuming_mixed.rs` 已接回 sibling dispatch / cleanup contract：main body、immediate arm、escape arm 与 continuation step 都会按 unified metadata 处理 sibling custom non-resuming / `Raise.raise`，并在 arm body 执行期间把同源 sibling scope 脱离当前 handler 栈，避免 self-capture。
+  - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling`，以及 representative run-pass fixture `effect_resume_mixed_escape_abort_finally`，覆盖 `1 immediate + 1 escape + sibling non-resuming + finally`。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_abort_finally.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+
+### T2003r3d3b [TODO] Effect：推广 unified multi-escape leaf 到 direct source-path matrix
+- 描述：`multi_resuming_heap.rs` 当前虽然已经接回 pure multi-escape leaf，但仍把 direct site 限定为 top-level val-bound perform。下一步应让 pure multi-escape 的 legal direct source-path matrix（嵌套 block / branch / loop / nested-handle 组合）直接消费 unified plan 的 resume-path / capture metadata，而不是继续留在 top-level-only gate。
+- 目标：
+  - pure multi-escape leaf 的 direct suspend-site 不再要求 top-level-only；legal nested source-path 组合统一走 plan-driven dispatch / resume replay。
+  - 多个 escape arms、sibling non-resuming / `finally` 与 direct source-path replay 继续共享同一套 heap continuation contract。
+  - 不为 block / if / while 各自新增专用 main route；差异仅来自 unified plan 的 source-path / state 数据。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
+  - 新增或更新 LLVM 定向单测与 representative run-pass fixtures：覆盖 pure multi-escape direct source-path matrix。
+  - `multi_resuming_heap.rs` 不再因 legal direct source-path sample 报 `only top-level val-bound direct perform supported`。
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d3a
+
+### T2003r3d3c [TODO] Effect：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix
+- 描述：在 pure multi-escape direct source-path matrix 接回后，再把 indirect call-site suspension / callee-suspend matrix 并入同一条 unified heap-continuation leaf，清掉现有 `indirect call site not yet supported` gate。
+- 目标：
+  - pure multi-escape leaf 支持 legal indirect / callee-suspend site，不再依赖 direct-only gate。
+  - direct / indirect site、sibling non-resuming / `finally`、heap capture / continuation materialization 与 resume replay 继续走同一套 plan-driven contract。
+  - 不新增专用 indirect main route；site kind 只作为 unified plan 输入，而不是重新分出 legacy 路由。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
+  - 新增或更新 LLVM 定向单测与 representative run-pass fixtures：覆盖 pure multi-escape indirect / callee-suspend matrix。
+  - `multi_resuming_heap.rs` 不再因 legal indirect sample 报 `indirect call site not yet supported`。
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d3b
+
+### T2003r3d3d [TODO] Effect：推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix
+- 描述：在 sibling non-resuming / cleanup contract 与 pure multi-escape leaf 的 richer site matrix 都接回后，再把 unified `1 immediate + 1 escape` mixed leaf 推广到 current legal direct / indirect / nested source-path 组合，清掉剩余 top-level direct-only gate。
+- 目标：
+  - unified `1 immediate + 1 escape` mixed leaf 支持 current legal 的 source-path / site matrix，不再依赖 top-level direct-only gate。
+  - immediate replay、escape continuation materialization、sibling non-resuming / `finally` 与 nested-handle / source-path replay 共享同一套 plan-driven contract。
+  - representative mixed sample 的 direct、indirect、branch、loop、nested-handle 组合转为 run-pass 或等价正向回归，但不以源码 shape 命名专用 main route。
+- 验收：
+  - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
+  - 新增或更新 LLVM 定向单测与 representative run-pass fixtures：覆盖 unified `1 immediate + 1 escape` mixed 的 current legal source-path / site matrix。
+  - `multi_resuming_mixed.rs` 不再因 legal mixed sample 报 `nested immediate-resume site not yet supported`、`direct + indirect escape sites not yet supported`、`only top-level val-bound direct escape perform supported` 等现有 top-level-only gate。
+  - 完成后只跑与本任务直接相关的定向验证，例如：
+    - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run <新增 fixture>`
+    - `cargo clippy --workspace --all-targets -- -D warnings`
+- 依赖：T2003r3d3c
 
 ### T2003r3d4 [TODO] Effect：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`
 - 描述：在 `T2003r3d3` 之后，剩余缺口不应再表述为“再补一个 shape”或“再补一个 case”，而是要把 arm mix generality 真正收口到 unified simplification + emitter：arm 数量只是 plan 输入维度，不再是 hard-coded unsupported route。此阶段的目标是清掉 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`，并确认合法 multi-resuming arm mix 不再依赖 build-only 占位或 source-shape gate。
@@ -1761,7 +1820,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
     - `cargo run -p scoop --features llvm -- run <新增 fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
-- 依赖：T2003r3d3
+- 依赖：T2003r3d3d
 
 ### T2003r4 [TODO] Effect：ground-up 重写完成后的 full matrix / full suite / GC stress 验收
 - 描述：`T2003r4` 是新的强制全量验收门槛，也是 `T2003r3d2`～`T2003r3d4` 之后第一个允许重新启用 full suite / full matrix / GC stress 的任务。只有当 unified `segmenting -> builder -> emitter` 主线已经 feature-complete，legal effect path 不再依赖任何 build-only `todo!` / `unimplemented!`，且 emitter 已覆盖全部 state machine outputs，才进入这一任务；在此之前，全量测试都视为过渡期不稳定信号，不跑端到端 fixture / full suite。

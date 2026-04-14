@@ -1709,6 +1709,82 @@ fun main() {
     }
 
     #[test]
+    fn unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(): String
+}
+
+effect Abort {
+    fun stop(code: Int): Nothing
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val result: Int = handle {
+        val prefix: String = "prefix"
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        val msg: String = Ask.ask()
+        println("after_ask")
+        println(prefix)
+        println(x)
+        println(msg)
+        Abort.stop(x + 1)
+        99
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(41)
+        }
+        Ask.ask(), k -> {
+            println("ask_arm")
+            saved = Some(k)
+            7
+        }
+        Abort.stop(code: Int) -> {
+            println("abort_arm")
+            println(code)
+            5
+        }
+    } finally {
+        println("finally")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
     fn simplification_codegen_entrypoint_classifies_mixed_representative_sample() {
         let source = r#"
 package a
