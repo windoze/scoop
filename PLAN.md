@@ -29,6 +29,10 @@
   - 顶层函数与 closure 的 codegen 已收口回常规路径，不再按 `perform` 所在源码形状选择专用 suspendable lowering。
   - 已同步清理 `effect/mod.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 中仅服务于这条旧路径的 helper / ABI 声明。
   - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
+- `T3001R` 已完成：
+  - 已定向检索 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs` 与相邻调用点，确认删除后的旧 callee-shape scanner / mode enum / suspendable top-level/closure route 没有换名回流。
+  - 已复查 `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 与 `ExprKind::Perform` / `ExprKind::Handle` 接线，确认当前只剩常规函数/闭包 codegen 与统一 effect 占位入口，不再按源码 / callee 形状分流。
+  - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
 - 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
 
@@ -60,8 +64,12 @@
   - 与该路径绑定的 effect helper 与 runtime ABI 声明已同步删除，避免形成新的死代码边界。
   - 删除后无需额外补丁即可维持编译、lint 与现有测试全绿。
 
-#### T3001R：Review
+#### T3001R：Review（已完成）
 - 定向检查 `mod.rs` 与调用点，确认旧 callee-shape scanner / mode enum / suspendable top-level/closure 路线已经完全消失，没有换名保留。
+- 本轮结果：
+  - `ExprKind::Perform` / `ExprKind::Handle` 统一直接进入 `effect/mod.rs`，没有在 `mod.rs` 或 `expr.rs` 中先按形状挑选另一套 lowering。
+  - `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 当前仅保留常规路径；effect 相关调用只保留基于函数 effect row 的 flag-unwind 检查，不涉及 callee/source shape 分流。
+  - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
 #### T3002：清扫 effect codegen 生产代码中的其余 shape-based 分流
 - 在 `mod.rs` 清掉之后，继续删除 effect codegen 里的旧 scanner、旧 resolver、旧 dedicated matrix、旧 fallback route。
@@ -214,36 +222,35 @@
 
 ## 4. 当前执行顺序
 
-1. `T3001R`
-2. `T3002`
-3. `T3002R`
-4. `T3003`
-5. `T3003R`
-6. `T3004`
-7. `T3004R`
-8. `T3005`
-9. `T3005R`
-10. `T3006`
-11. `T3006R`
-12. `T3007`
-13. `T3007R`
-14. `T3101`
-15. `T3102`
-16. `T3103`
-17. `T3104`
-18. `T3201`
-19. `T3202`
-20. `T3203`
-21. `T3204`
-22. `T3205`
-23. `T3301`
-24. `T3302`
-25. `T3303`
-26. `T3401`
-27. `T3401a`
-28. `T3401b`
-29. `T3401c`
-30. `T3402`
-31. `T3403`
-32. `T3404`
-33. `T3405`
+1. `T3002`
+2. `T3002R`
+3. `T3003`
+4. `T3003R`
+5. `T3004`
+6. `T3004R`
+7. `T3005`
+8. `T3005R`
+9. `T3006`
+10. `T3006R`
+11. `T3007`
+12. `T3007R`
+13. `T3101`
+14. `T3102`
+15. `T3103`
+16. `T3104`
+17. `T3201`
+18. `T3202`
+19. `T3203`
+20. `T3204`
+21. `T3205`
+22. `T3301`
+23. `T3302`
+24. `T3303`
+25. `T3401`
+26. `T3401a`
+27. `T3401b`
+28. `T3401c`
+29. `T3402`
+30. `T3403`
+31. `T3404`
+32. `T3405`

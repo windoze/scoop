@@ -70,14 +70,21 @@
   - `crates/scoopc/src/llvm/codegen/mod.rs` 不再存在按 callee/source shape 选择 suspendable lowering 的入口。
 - 依赖：T2999R
 
-### T3001R [TODO] Review：确认 `mod.rs` 的 callee-suspend shape-based 逻辑已清零
+### T3001R [DONE] Review：确认 `mod.rs` 的 callee-suspend shape-based 逻辑已清零
 - 描述：在继续后续实现前，专门审查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 effect 入口接线，确认没有等价回流；若发现残留或变体回流，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已定向检索 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs` 与相邻调用点，确认 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable` 及其等价换名变体都未残留在生产路径中。
+  - 已复查 `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 与 `ExprKind::Perform` / `ExprKind::Handle` 的接线；当前顶层函数与 closure 只走常规 codegen，effect 入口统一落到 `effect/mod.rs` 的占位入口，不再按源码 / callee 形状进入专用 suspendable lowering。
+  - 已验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 确认没有以新名字保留旧的 callee-shape scanner / mode enum / suspendable top-level/closure route。
   - 确认相关调用点已经转为空、删除或等待统一主线接管，而不是换名保留旧分流。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“生产代码无 callee-suspend shape-based 主路径残留”。
+- 审查结论：
+  - 生产代码无 callee-suspend shape-based 主路径残留。
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 当前仅保留统一 state-machine 骨架与未接回的统一 lowering 占位入口，没有顶层函数 / closure 的旧 suspendable route 等价回流。
 - 依赖：T3001
 
 ### T3002 [TODO] 清扫 effect codegen 生产代码中的剩余 shape-based 分支与旧专用路径
