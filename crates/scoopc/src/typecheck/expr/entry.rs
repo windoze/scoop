@@ -1203,7 +1203,10 @@ fn check_top_level_val_initializer(
         locals: &empty_locals,
         top_level_types,
         top_level_funs,
+        member_mutabilities: None,
         struct_field_types,
+        loop_depth: 0,
+        expected_return_ty: None,
     }
     .infer_in_expected(lower, init, expected, expected_from)?;
 

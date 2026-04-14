@@ -204,7 +204,10 @@ struct ExprInferInputs<'a> {
     locals: &'a HashMap<Span, TypeId>,
     top_level_types: &'a HashMap<String, TypeId>,
     top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: Option<&'a HashMap<String, bool>>,
     struct_field_types: &'a HashMap<String, TypeId>,
+    loop_depth: usize,
+    expected_return_ty: Option<TypeId>,
 }
 
 impl<'a> ExprInferInputs<'a> {
@@ -218,7 +221,10 @@ impl<'a> ExprInferInputs<'a> {
             locals,
             top_level_types: self.top_level_types,
             top_level_funs: self.top_level_funs,
+            member_mutabilities: self.member_mutabilities,
             struct_field_types: self.struct_field_types,
+            loop_depth: self.loop_depth,
+            expected_return_ty: self.expected_return_ty,
         }
     }
 

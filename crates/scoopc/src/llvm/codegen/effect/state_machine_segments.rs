@@ -428,7 +428,17 @@ impl HandleSegmentList {
         }
 
         let mut segment_by_id = HashMap::<HandleSegmentId, &HandleSegment>::new();
+        let mut previous_segment_id = None::<HandleSegmentId>;
         for segment in &self.segments {
+            if let Some(prev_id) = previous_segment_id
+                && prev_id >= segment.id
+            {
+                return Err(format!(
+                    "{path}: segments[] is not strictly sorted by segment id at seg{}",
+                    segment.id
+                ));
+            }
+            previous_segment_id = Some(segment.id);
             if segment_by_id.insert(segment.id, segment).is_some() {
                 return Err(format!("{path}: duplicate segment id seg{}", segment.id));
             }
@@ -441,7 +451,17 @@ impl HandleSegmentList {
         }
 
         let mut arm_bodies_by_id = HashMap::<ArmPlanId, &HandleSegmentArmBody>::new();
+        let mut previous_arm_id = None::<ArmPlanId>;
         for arm in &self.arm_bodies {
+            if let Some(prev_id) = previous_arm_id
+                && prev_id >= arm.arm_id
+            {
+                return Err(format!(
+                    "{path}: arm_bodies[] is not strictly sorted by arm id at arm{}",
+                    arm.arm_id
+                ));
+            }
+            previous_arm_id = Some(arm.arm_id);
             if arm_bodies_by_id.insert(arm.arm_id, arm).is_some() {
                 return Err(format!("{path}: duplicate arm body arm{}", arm.arm_id));
             }
@@ -451,14 +471,34 @@ impl HandleSegmentList {
         let mut expected_lifted_ids = HashSet::<hir::SymbolId>::new();
 
         let mut cleanup_scopes_by_id = HashMap::<CleanupScopeId, &HandleSegmentCleanupScope>::new();
+        let mut previous_cleanup_scope_id = None::<CleanupScopeId>;
         for scope in &self.cleanup_scopes {
+            if let Some(prev_id) = previous_cleanup_scope_id
+                && prev_id >= scope.id
+            {
+                return Err(format!(
+                    "{path}: cleanup_scopes[] is not strictly sorted by cleanup id at cleanup{}",
+                    scope.id
+                ));
+            }
+            previous_cleanup_scope_id = Some(scope.id);
             if cleanup_scopes_by_id.insert(scope.id, scope).is_some() {
                 return Err(format!("{path}: duplicate cleanup scope cleanup{}", scope.id));
             }
         }
 
         let mut suspend_sites_by_id = HashMap::<SuspendSiteId, &HandleSegmentSuspendSite>::new();
+        let mut previous_suspend_site_id = None::<SuspendSiteId>;
         for site in &self.suspend_sites {
+            if let Some(prev_id) = previous_suspend_site_id
+                && prev_id >= site.id
+            {
+                return Err(format!(
+                    "{path}: suspend_sites[] is not strictly sorted by site id at site{}",
+                    site.id
+                ));
+            }
+            previous_suspend_site_id = Some(site.id);
             if suspend_sites_by_id.insert(site.id, site).is_some() {
                 return Err(format!("{path}: duplicate suspend site site{}", site.id));
             }
@@ -528,7 +568,17 @@ impl HandleSegmentList {
 
         let mut dispatched_arm_ids = HashSet::<ArmPlanId>::new();
         let mut dispatch_ops = HashSet::<&str>::new();
+        let mut previous_dispatch_op = None::<&str>;
         for entry in &self.dispatch_entries {
+            if let Some(prev_op) = previous_dispatch_op
+                && prev_op >= entry.op_fqn.as_str()
+            {
+                return Err(format!(
+                    "{path}: dispatch_entries[] is not strictly sorted by op_fqn at {}",
+                    entry.op_fqn
+                ));
+            }
+            previous_dispatch_op = Some(entry.op_fqn.as_str());
             if !dispatch_ops.insert(entry.op_fqn.as_str()) {
                 return Err(format!(
                     "{path}: duplicate dispatch entry for {}",
@@ -545,7 +595,18 @@ impl HandleSegmentList {
             }
 
             let mut arm_ids = HashSet::<ArmPlanId>::new();
+            let mut previous_arm_id = None::<ArmPlanId>;
             for (idx, (arm_id, target)) in entry.arm_ids.iter().zip(&entry.targets).enumerate() {
+                if let Some(prev_id) = previous_arm_id
+                    && prev_id >= *arm_id
+                {
+                    return Err(format!(
+                        "{path}: dispatch entry {} arm_ids[] is not strictly sorted at arm{}",
+                        entry.op_fqn,
+                        arm_id
+                    ));
+                }
+                previous_arm_id = Some(*arm_id);
                 if !arm_ids.insert(*arm_id) {
                     return Err(format!(
                         "{path}: dispatch entry {} repeats arm{}",
@@ -804,6 +865,78 @@ impl HandleSegmentList {
                         site.id,
                         arm_id
                     ));
+                }
+            }
+
+            match &site.kind {
+                SuspendSiteKind::Perform { op_fqn } => {
+                    for arm_id in &site.matching_arms {
+                        let arm = arm_bodies_by_id.get(arm_id).expect("validated arm should exist");
+                        if arm.op_fqn != *op_fqn {
+                            return Err(format!(
+                                "{path}: site{} kind={} for {} matches arm{} for {}",
+                                site.id,
+                                describe_suspend_site_kind(&site.kind),
+                                op_fqn,
+                                arm_id,
+                                arm.op_fqn
+                            ));
+                        }
+                    }
+                }
+                SuspendSiteKind::RuntimeRaise { .. } => {
+                    for arm_id in &site.matching_arms {
+                        let arm = arm_bodies_by_id.get(arm_id).expect("validated arm should exist");
+                        if arm.op_fqn != "scoop.core.Raise.raise" {
+                            return Err(format!(
+                                "{path}: site{} kind={} must only match scoop.core.Raise.raise but arm{} handles {}",
+                                site.id,
+                                describe_suspend_site_kind(&site.kind),
+                                arm_id,
+                                arm.op_fqn
+                            ));
+                        }
+                    }
+                    if site.source_path.is_some() {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry source_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                }
+                SuspendSiteKind::CallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::ClassCtorInit { .. }
+                | SuspendSiteKind::NestedHandleBoundary { .. } => {
+                    if !site.matching_arms.is_empty() {
+                        let matching = site
+                            .matching_arms
+                            .iter()
+                            .map(|arm_id| format!("arm{arm_id}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        return Err(format!(
+                            "{path}: site{} kind={} must not list matching arms [{}]",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind),
+                            matching
+                        ));
+                    }
+                    if matches!(
+                        &site.kind,
+                        SuspendSiteKind::ObjectInitAccess { .. }
+                            | SuspendSiteKind::ClassCtorInit { .. }
+                            | SuspendSiteKind::NestedHandleBoundary { .. }
+                    ) && site.source_path.is_some()
+                    {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry source_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
                 }
             }
 
@@ -1798,6 +1931,18 @@ fn describe_segment_local(
         .map_or_else(|| format!("local#{}", id.as_u32()), |slot| slot.display_name())
 }
 
+fn describe_suspend_site_kind(kind: &SuspendSiteKind) -> &'static str {
+    match kind {
+        SuspendSiteKind::Perform { .. } => "perform",
+        SuspendSiteKind::CallMaySuspend { .. } => "call-may-suspend",
+        SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
+        SuspendSiteKind::RuntimeRaise { .. } => "runtime-raise",
+        SuspendSiteKind::ObjectInitAccess { .. } => "object-init-access",
+        SuspendSiteKind::ClassCtorInit { .. } => "class-ctor-init",
+        SuspendSiteKind::NestedHandleBoundary { .. } => "nested-handle-boundary",
+    }
+}
+
 fn build_segment_frame_slots(frame_layout: &FrameLayoutPlan) -> Vec<FrameSlot> {
     let mut frame_slots = frame_layout.slots.values().cloned().collect::<Vec<_>>();
     frame_slots.sort_by_key(|slot| slot.id.as_u32());
@@ -2074,4 +2219,1442 @@ fn build_suspend_owner_segments(states: &[PlanState]) -> HashMap<SuspendSiteId, 
             _ => None,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use crate::ast;
+    use crate::hir;
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::session::Session;
+    use crate::source::SourceFile;
+    use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+    use crate::typecheck;
+
+    use super::*;
+
+    #[test]
+    fn segment_dump_covers_direct_branch_loop_and_finally() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("handle-segments span="), "{dump}");
+        assert!(dump.contains("cleanup0 kind=finally"), "{dump}");
+        assert!(dump.contains("site0 kind=perform"), "{dump}");
+        assert!(dump.contains("branch-then"), "{dump}");
+        assert!(dump.contains("branch-else"), "{dump}");
+        assert!(dump.contains("suspend-resume"), "{dump}");
+        assert!(dump.contains("loop re-entry -> s"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_distinguishes_state_machine_callee_and_indirect_call_sites() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(thunk: () -> Int / (Ask)): Int {
+    val result: Int = handle {
+        val a: Int = fetch(1)
+        val b: Int = thunk()
+        a + b
+    } with {
+        Ask.ask(seed) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=call-state-machine-callee"), "{dump}");
+        assert!(dump.contains("detail=a.fetch"), "{dump}");
+        assert!(dump.contains("kind=call-may-suspend"), "{dump}");
+        assert!(dump.contains("path=top[0]"), "{dump}");
+        assert!(dump.contains("path=top[1]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_nested_while_source_path() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(limit: Int): Int {
+    val result: Int = handle {
+        var outer: Int = 0
+        while (outer < limit) {
+            var inner: Int = 0
+            while (inner < 1) {
+                val x: Int = Yield.next()
+                inner = inner + x
+            }
+            outer = outer + 1
+        }
+        outer
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=perform"), "{dump}");
+        assert!(
+            dump.contains("path=top[1] -> while-body[1] -> while-body[0]"),
+            "{dump}"
+        );
+        assert!(dump.contains("loop re-entry -> s"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_when_arm_source_path() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        when (flag) {
+            true -> {
+                val x: Int = Yield.next()
+                x
+            }
+            false -> 0
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=perform"), "{dump}");
+        assert!(dump.contains("path=top[0] -> when-arm#0[0]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_recurses_nested_handle_boundaries() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(mode: Int): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            val x: Int = Yield.next()
+            x + mode
+        } with {
+            Yield.next() -> resume {
+                resume(10)
+            }
+        }
+        if (mode == 0) {
+            val y: Int = Ask.current()
+            inner + y
+        } else {
+            Boom.boom(mode)
+            0
+        }
+    } with {
+        Ask.current(), k -> 7
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=nested-handle-boundary"), "{dump}");
+        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(dump.contains("site0 kind=perform"), "{dump}");
+        assert!(
+            dump.contains("dispatch:\n  a.Ask.current => [arm0(entry=seg"),
+            "{dump}"
+        );
+        assert!(dump.contains("a.Boom.boom => [arm1(entry=seg"), "{dump}");
+        assert!(
+            dump.contains("arm-bodies:\n  arm0 op=a.Ask.current mode=escape-continuation"),
+            "{dump}"
+        );
+        assert!(dump.contains("arm1 op=a.Boom.boom mode=never-resume"), "{dump}");
+        assert!(
+            dump.contains("context=arm-body arm0 mode=escape-continuation"),
+            "{dump}"
+        );
+        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_mixed_arm_cleanup_context_and_dispatch_context() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Log {
+    fun current(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Yield.next()
+        val y: Int = Log.current(x)
+        x + y
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Log.current(seed: Int) -> seed + 1
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+
+        assert!(
+            dump.contains("dispatch:\n  a.Log.current => [arm1(entry=seg"),
+            "{dump}"
+        );
+        assert!(dump.contains("a.Yield.next => [arm0(entry=seg"), "{dump}");
+        assert!(dump.contains("arm0 op=a.Yield.next mode=immediate-resume"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Log.current mode=never-resume"), "{dump}");
+        assert!(
+            dump.contains("context=arm-body arm0 mode=immediate-resume"),
+            "{dump}"
+        );
+        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+        assert!(dump.contains("cleanup-stack=[cleanup0]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_covers_richer_mixed_while_direct_and_indirect_sites() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
+    val result: Int = handle {
+        val base: Int = Yield.next()
+        var i: Int = 0
+        while (i < limit) {
+            val direct: Int = Ask.ask(base + i)
+            val indirect: Int = thunk(direct)
+            println(indirect)
+            i = i + 1
+        }
+        base + i
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Ask.ask(seed: Int), k -> seed + 2
+    }
+    result
+}
+"#,
+        );
+
+        assert!(
+            dump.contains("dispatch:\n  a.Ask.ask => [arm1(entry=seg"),
+            "{dump}"
+        );
+        assert!(dump.contains("a.Yield.next => [arm0(entry=seg"), "{dump}");
+        assert!(dump.contains("arm0 op=a.Yield.next mode=immediate-resume"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Ask.ask mode=escape-continuation"), "{dump}");
+        assert!(dump.contains("kind=perform"), "{dump}");
+        assert!(dump.contains("kind=call-may-suspend"), "{dump}");
+        assert!(dump.contains("path=top[2] -> while-body[0]"), "{dump}");
+        assert!(dump.contains("path=top[2] -> while-body[1]"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_suspend_inside_cleanup_context() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+fun demo(): Int / (Ask) {
+    val result: Int = handle {
+        1
+    } with {
+        Ask.ask() -> 7
+    } finally {
+        val cleanup: Int = Ask.ask()
+        println(cleanup)
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("cleanup0 kind=finally"), "{dump}");
+        assert!(dump.contains("site0 kind=perform"), "{dump}");
+        assert!(dump.contains("dispatch:\n  a.Ask.ask => [arm0(entry=seg"), "{dump}");
+        assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_marks_runtime_raise_as_hidden_suspend_site() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+fun demo(k: Continuation<Int>): Int {
+    val result: Int = try {
+        k.resume(1)
+        11
+    } catch (e: RuntimeError) {
+        22
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=runtime-raise"), "{dump}");
+        assert!(dump.contains("detail=Continuation.resume"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_marks_class_ctor_init_as_hidden_suspend_site() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+class Boom() {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+fun demo(): Int {
+    val result: Int = try {
+        val _boom: Boom = Boom()
+        1
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=class-ctor-init"), "{dump}");
+        assert!(dump.contains("detail=a.Boom"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_marks_object_init_access_as_hidden_suspend_site() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+fun demo(): Int {
+    val result: Int = try {
+        BoomObject.x
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=object-init-access"), "{dump}");
+        assert!(dump.contains("detail=a.BoomObject.x"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_records_frame_slot_metadata_for_outer_locals_binders_and_nested_handles() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val inner: Int = handle {
+            val asked: Int = Ask.current()
+            asked + local + seed
+        } with {
+            Ask.current() -> resume {
+                resume(base)
+            }
+        }
+        val x: Int = Yield.next(local)
+        x + inner + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("frame-slots:"), "{dump}");
+        assert!(dump.contains("base#"), "{dump}");
+        assert!(dump.contains("local#"), "{dump}");
+        assert!(dump.contains("arg#"), "{dump}");
+        assert!(dump.contains("owner=handle-body"), "{dump}");
+        assert!(dump.contains("owner=arm0"), "{dump}");
+        assert!(dump.contains("lifted=yes"), "{dump}");
+        assert!(dump.contains("nested#0"), "{dump}");
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_missing_lifted_local_metadata() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val x: Int = Yield.next(local)
+        x + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+        let base_id = segment_slot_id_named(&segment_list, "base");
+        segment_list.lifted_locals.retain(|id| *id != base_id);
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("missing lifted-local metadata should fail");
+        assert!(err.contains("lifted_locals[] is missing"), "{err}");
+        assert!(err.contains("base#"), "{err}");
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_dangling_capture_local_ref() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(seed: Int): Int
+}
+
+fun demo(seed: Int): Int {
+    val base: Int = seed + 1
+    val result: Int = handle {
+        val local: Int = base + 1
+        val x: Int = Yield.next(local)
+        x + local
+    } with {
+        Yield.next(arg: Int) -> resume {
+            resume(arg + base)
+        }
+    }
+    result
+}
+"#,
+        );
+        let base_id = segment_slot_id_named(&segment_list, "base");
+        segment_list.lifted_locals.retain(|id| *id != base_id);
+        segment_list.frame_slots.retain(|slot| slot.id != base_id);
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("dangling capture local reference should fail");
+        assert!(
+            err.contains("arm0 capture metadata references missing slot"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_mismatched_direct_perform_matching_arm() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Log {
+    fun current(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Yield.next()
+        val y: Int = Log.current(x)
+        x + y
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Log.current(seed: Int) -> seed + 1
+    }
+    result
+}
+"#,
+        );
+        let yield_site = segment_list
+            .suspend_sites
+            .iter_mut()
+            .find(|site| matches!(
+                &site.kind,
+                    SuspendSiteKind::Perform { op_fqn } if op_fqn == "a.Yield.next"
+            ))
+            .expect("expected direct perform site for a.Yield.next");
+        yield_site.matching_arms = vec![1];
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("mismatched perform matching arm should fail");
+        assert!(err.contains("matches arm1 for a.Log.current"), "{err}");
+    }
+
+    #[test]
+    fn segment_builder_contract_rejects_matching_arms_on_indirect_site() {
+        let mut segment_list = build_segment_list(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val value: Int = fetch(1)
+        value
+    } with {
+        Ask.ask(seed: Int) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#,
+        );
+        let indirect_site = segment_list
+            .suspend_sites
+            .iter_mut()
+            .find(|site| matches!(&site.kind, SuspendSiteKind::CallStateMachineCallee { .. }))
+            .expect("expected call-state-machine-callee site");
+        indirect_site.matching_arms = vec![0];
+
+        let err = segment_list
+            .validate_builder_contract()
+            .expect_err("indirect call site must not list matching arms");
+        assert!(err.contains("must not list matching arms"), "{err}");
+        assert!(err.contains("call-state-machine-callee"), "{err}");
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_direct_branch_loop_finally_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+    }
+
+    #[test]
+    fn plan_and_segments_support_return_inside_handle_body_block_expression() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        if (true) {
+            return 1
+        }
+        val x: Int = Yield.next()
+        x
+    } with {
+        Yield.next() -> resume {
+            resume(2)
+        }
+    }
+    0
+}
+"#;
+
+        let source_plan = build_source_plan(source);
+        assert!(
+            source_plan
+                .states
+                .iter()
+                .any(|state| matches!(state.terminator, StateTerminator::ReturnFromFunction)),
+            "plan should contain return-from-function terminator"
+        );
+
+        let segment_list = source_plan.build_segment_list();
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        assert!(
+            segment_list
+                .segments
+                .iter()
+                .any(|segment| matches!(
+                    segment.terminator,
+                    HandleSegmentTerminator::ReturnFromFunction
+                )),
+            "segment list should contain return-from-function terminator"
+        );
+
+        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
+            .expect("segment-only builder should reconstruct plan with early return");
+        assert!(
+            rebuilt_plan
+                .states
+                .iter()
+                .any(|state| matches!(state.terminator, StateTerminator::ReturnFromFunction)),
+            "rebuilt plan should preserve return-from-function terminator"
+        );
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_indirect_suspend_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+fun fetch(seed: Int): Int / (Ask) {
+    Ask.ask(seed)
+}
+
+fun demo(thunk: () -> Int / (Ask)): Int {
+    val result: Int = handle {
+        val a: Int = fetch(1)
+        val b: Int = thunk()
+        a + b
+    } with {
+        Ask.ask(seed) -> resume {
+            resume(seed + 10)
+        }
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_nested_handle_multi_arm_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(mode: Int): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            val x: Int = Yield.next()
+            x + mode
+        } with {
+            Yield.next() -> resume {
+                resume(10)
+            }
+        }
+        if (mode == 0) {
+            val y: Int = Ask.current()
+            inner + y
+        } else {
+            Boom.boom(mode)
+            0
+        }
+    } with {
+        Ask.current(), k -> 7
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+    }
+
+    #[test]
+    fn plan_round_trip_from_segments_preserves_hidden_suspend_site_dump() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+fun demo(): Int {
+    val result: Int = try {
+        BoomObject.x
+    } catch (e: RuntimeError) {
+        0
+    }
+    result
+}
+"#;
+
+        assert_eq!(build_round_tripped_plan_dump(source), build_plan_dump(source));
+    }
+
+    #[test]
+    fn segment_round_trip_preserves_typed_emit_ops_and_branch_metadata() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var sum: Int = 0
+        if (flag) {
+            val x: Int = Yield.next()
+            sum = x
+        } else {
+            sum = 1
+        }
+        while (sum < 3) {
+            sum = sum + 1
+        }
+        sum
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#;
+
+        let source_plan = build_source_plan(source);
+        let segment_list = source_plan.build_segment_list();
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
+            .expect("segment-only builder should reconstruct full plan");
+
+        assert_eq!(
+            collect_plan_exec_signature(&source_plan),
+            collect_plan_exec_signature(&rebuilt_plan)
+        );
+
+        let while_cond_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.label == "while.cond")
+            .expect("expected while.cond state");
+        assert!(matches!(
+            while_cond_state.actions.first(),
+            Some(&HandleStateOp::WhileCondHeader { .. })
+        ));
+        assert!(matches!(
+            &while_cond_state.terminator,
+            StateTerminator::Branch {
+                condition: HandleBranchCondition::WhileCond { .. },
+                ..
+            }
+        ));
+
+        let has_if_branch_segment = segment_list.segments.iter().any(|segment| {
+            matches!(
+                &segment.terminator,
+                HandleSegmentTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { .. },
+                    ..
+                }
+            )
+        });
+        assert!(has_if_branch_segment, "expected an if-branch segment terminator");
+
+        let has_bind_local = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .any(|op| matches!(op, &HandleStateOp::BindLocal { .. }));
+        assert!(has_bind_local, "expected typed bind-local op in segment list");
+    }
+
+    fn build_plan_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+            .pretty_dump(&lowered.types)
+    }
+
+    fn build_source_plan(source_text: &str) -> HandleStateMachinePlan {
+        let lowered = lower_typed_single_source(source_text);
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
+    }
+
+    fn build_segment_list(source_text: &str) -> HandleSegmentList {
+        build_source_plan(source_text).build_segment_list()
+    }
+
+    fn build_segment_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let segment_list = build_segment_list(source_text);
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        segment_list.pretty_dump(&lowered.types)
+    }
+
+    fn build_round_tripped_plan_dump(source_text: &str) -> String {
+        let lowered = lower_typed_single_source(source_text);
+        let plan = build_round_tripped_plan(source_text);
+        plan.pretty_dump(&lowered.types)
+    }
+
+    fn build_round_tripped_plan(source_text: &str) -> HandleStateMachinePlan {
+        let source_plan = build_source_plan(source_text);
+        let segment_list = source_plan.build_segment_list();
+        segment_list
+            .validate_builder_contract()
+            .expect("segment builder contract should hold");
+        HandleStateMachinePlan::build_from_segments(&segment_list)
+            .expect("segment-only builder should reconstruct full plan")
+    }
+
+    fn collect_plan_exec_signature(
+        plan: &HandleStateMachinePlan,
+    ) -> Vec<(String, Vec<usize>, Option<usize>)> {
+        plan.states
+            .iter()
+            .map(|state| {
+                let branch_sig = match &state.terminator {
+                    StateTerminator::Branch { condition, .. } => {
+                        Some(condition.structural_signature())
+                    }
+                    _ => None,
+                };
+                (
+                    state.label.clone(),
+                    state
+                        .actions
+                        .iter()
+                        .map(HandleStateOp::structural_signature)
+                        .collect(),
+                    branch_sig,
+                )
+            })
+            .collect()
+    }
+
+    fn segment_slot_id_named(segment_list: &HandleSegmentList, name: &str) -> hir::SymbolId {
+        segment_list
+            .frame_slots
+            .iter()
+            .find(|slot| slot.name == name)
+            .map(|slot| slot.id)
+            .unwrap_or_else(|| panic!("expected frame slot named {name}"))
+    }
+
+    fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
+        lower_typed_single_source_with_source(source_text).1
+    }
+
+    fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let mut ast = parse_file(&source).unwrap();
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &[(&source, &ast)],
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+
+        (source, lowered)
+    }
+
+    fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
+        for item in &file.items {
+            if let hir::Item::Fun(fun) = item
+                && let Some(body) = &fun.body
+                && let Some(handle) = first_handle_in_block(body)
+            {
+                return Some((fun, handle));
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {
+        for stmt in &block.stmts {
+            if let Some(handle) = first_handle_in_stmt(stmt) {
+                return Some(handle);
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_stmt(stmt: &hir::Stmt) -> Option<&hir::HandleExpr> {
+        match &stmt.kind {
+            hir::StmtKind::Expr(expr) => first_handle_in_expr(expr),
+            hir::StmtKind::Val(decl) => decl.init.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::StmtKind::While { cond, body } => {
+                first_handle_in_expr(cond).or_else(|| first_handle_in_block(body))
+            }
+            hir::StmtKind::Return { value } => value.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => None,
+        }
+    }
+
+    fn first_handle_in_expr(expr: &hir::Expr) -> Option<&hir::HandleExpr> {
+        match &expr.kind {
+            hir::ExprKind::Handle(handle) => Some(handle),
+            hir::ExprKind::Block(block) => first_handle_in_block(block),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => first_handle_in_expr(cond)
+                .or_else(|| first_handle_in_expr(then_branch))
+                .or_else(|| else_branch.as_deref().and_then(first_handle_in_expr)),
+            hir::ExprKind::Call { callee, args } => first_handle_in_expr(callee).or_else(|| {
+                args.iter().find_map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                    hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+                })
+            }),
+            hir::ExprKind::StructLit { fields, .. } => {
+                fields.iter().find_map(|field| first_handle_in_expr(&field.value))
+            }
+            hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_handle_in_expr),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    first_handle_in_expr(expr)
+                } else {
+                    None
+                }
+            }),
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => first_handle_in_expr(inner),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::ExprKind::When { subject, arms } => first_handle_in_expr(subject).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .and_then(first_handle_in_expr)
+                        .or_else(|| first_handle_in_expr(&arm.body))
+                })
+            }),
+            hir::ExprKind::Closure(closure) => first_handle_in_expr(&closure.body),
+            hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+            }),
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => None,
+        }
+    }
+
+    fn collect_plan_context(
+        lowered: &hir::LoweredHir,
+        owner_fun: &hir::FunDecl,
+    ) -> HandlePlanContext {
+        let mut known_fun_effects = HashMap::new();
+        for item in &lowered.file.items {
+            if let hir::Item::Fun(fun) = item {
+                known_fun_effects.insert(
+                    fun.fqn.clone(),
+                    fun_effects_are_non_pure(&lowered.types, fun.ty),
+                );
+            }
+        }
+        for fun in &lowered.member_funs {
+            known_fun_effects.insert(
+                fun.fqn.clone(),
+                fun_effects_are_non_pure(&lowered.types, fun.ty),
+            );
+        }
+
+        let mut known_local_fun_effects = HashMap::new();
+        for param in &owner_fun.params {
+            known_local_fun_effects.insert(
+                param.id,
+                fun_effects_are_non_pure(&lowered.types, param.ty),
+            );
+        }
+        if let Some(body) = &owner_fun.body {
+            collect_local_fun_effects_in_block(body, &lowered.types, &mut known_local_fun_effects);
+        }
+
+        let ctor_call_targets = lowered
+            .ctor_call_sites
+            .iter()
+            .map(|(span, targets)| {
+                let mut stable_targets = targets.clone();
+                stable_targets.sort();
+                stable_targets.dedup();
+                (*span, stable_targets)
+            })
+            .collect();
+        let object_value_fqns: HashSet<String> = lowered.object_inits.keys().cloned().collect();
+        let object_property_fqns: HashSet<String> = lowered
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .keys()
+                    .map(|name| format!("{owner_fqn}.{name}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
+        HandlePlanContext {
+            known_fun_effects,
+            known_local_fun_effects,
+            ctor_call_targets,
+            object_value_fqns,
+            object_property_fqns,
+        }
+    }
+
+    fn fun_effects_are_non_pure(types: &TypeStore, ty: TypeId) -> bool {
+        match types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => !fun_ty.effects.is_pure(),
+            _ => false,
+        }
+    }
+
+    fn collect_local_fun_effects_in_block(
+        block: &hir::Block,
+        types: &TypeStore,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        for stmt in &block.stmts {
+            collect_local_fun_effects_in_stmt(stmt, types, out);
+        }
+    }
+
+    fn collect_local_fun_effects_in_stmt(
+        stmt: &hir::Stmt,
+        types: &TypeStore,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Expr(expr) => collect_local_fun_effects_in_expr(expr, types, out),
+            hir::StmtKind::Val(decl) => {
+                if let Some(id) = decl.id
+                    && fun_effects_are_non_pure(types, decl.ty)
+                {
+                    out.insert(id, true);
+                }
+                if let Some(init) = &decl.init {
+                    collect_local_fun_effects_in_expr(init, types, out);
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                collect_local_fun_effects_in_expr(lhs, types, out);
+                collect_local_fun_effects_in_expr(rhs, types, out);
+            }
+            hir::StmtKind::While { cond, body } => {
+                collect_local_fun_effects_in_expr(cond, types, out);
+                collect_local_fun_effects_in_block(body, types, out);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value {
+                    collect_local_fun_effects_in_expr(expr, types, out);
+                }
+            }
+        }
+    }
+
+    fn collect_local_fun_effects_in_expr(
+        expr: &hir::Expr,
+        types: &TypeStore,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Block(block) => collect_local_fun_effects_in_block(block, types, out),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                collect_local_fun_effects_in_expr(cond, types, out);
+                collect_local_fun_effects_in_expr(then_branch, types, out);
+                if let Some(else_branch) = else_branch {
+                    collect_local_fun_effects_in_expr(else_branch, types, out);
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                collect_local_fun_effects_in_expr(subject, types, out);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        collect_local_fun_effects_in_expr(guard, types, out);
+                    }
+                    collect_local_fun_effects_in_expr(&arm.body, types, out);
+                }
+            }
+            hir::ExprKind::Call { callee, args } => {
+                collect_local_fun_effects_in_expr(callee, types, out);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            collect_local_fun_effects_in_expr(expr, types, out)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            collect_local_fun_effects_in_expr(value, types, out)
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    collect_local_fun_effects_in_expr(&field.value, types, out);
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    collect_local_fun_effects_in_expr(element, types, out);
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        collect_local_fun_effects_in_expr(expr, types, out);
+                    }
+                }
+            }
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => collect_local_fun_effects_in_expr(inner, types, out),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                collect_local_fun_effects_in_expr(lhs, types, out);
+                collect_local_fun_effects_in_expr(rhs, types, out);
+            }
+            hir::ExprKind::Closure(closure) => {
+                collect_local_fun_effects_in_expr(&closure.body, types, out);
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            collect_local_fun_effects_in_expr(expr, types, out)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            collect_local_fun_effects_in_expr(value, types, out)
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Handle(handle) => {
+                collect_local_fun_effects_in_block(&handle.body, types, out);
+                for arm in &handle.arms {
+                    collect_local_fun_effects_in_expr(&arm.body, types, out);
+                }
+                if let Some(finally) = &handle.finally {
+                    collect_local_fun_effects_in_block(finally, types, out);
+                }
+            }
+        }
+    }
 }

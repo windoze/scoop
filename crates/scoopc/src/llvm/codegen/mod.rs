@@ -143,8 +143,7 @@ pub(in crate::llvm::codegen) struct CalleeSuspendLocal {
     pub(in crate::llvm::codegen) mutable: bool,
 }
 
-/// T1606f-2: Context for callee function suspension — set on MainCodegen during fresh-path codegen
-/// to instruct `codegen_perform_expr_nonresuming_single_payload` to save callee state before flag propagation.
+/// T1606f-2: Context for callee function suspension — set on MainCodegen during fresh-path codegen.
 #[derive(Debug, Clone)]
 pub(in crate::llvm::codegen) struct CalleeSuspendSaveCtx {
     /// Locals to save at the perform point.
@@ -225,16 +224,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
     /// - 若栈为空，则返回默认值继续向外传播。
     raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
-    /// 最小自定义 non-resuming effect 的"当前捕获边界"栈（T0625）。
-    ///
-    /// 语义：
-    /// - `perform` 发生时，根据 op FQN 在该栈中从内到外查找最近匹配的 catch block，并跳转；
-    /// - handle body 结束后必须 pop，保证 handler arm body 处于自身 dispatch scope 外（避免 self-capture）。
-    effect_unwind_target_stack: Vec<effect::EffectUnwindTarget<'ctx>>,
-    /// `-> resume` lowering 的上下文栈（T0616）。
-    ///
-    /// 说明：handle arm body 内的 `resume(value)` 需要引用该上下文，因此用栈来支持嵌套 handle。
-    immediate_resume_ctx_stack: Vec<effect::ImmediateResumeCtx<'ctx>>,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
     /// 说明：
@@ -245,8 +234,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///   否则跨函数 perform 的 op_tag 会错位。
     effect_op_tags: Rc<RefCell<EffectOpTagState>>,
     /// T1606f-2: when set, the current function is "suspendable" — at the perform point,
-    /// `codegen_perform_expr_nonresuming_single_payload` saves locals to a CalleeSuspendState before
-    /// flag propagation return.
+    /// locals are saved to a CalleeSuspendState before flag propagation return.
     pub(in crate::llvm::codegen) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
     /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
@@ -389,8 +377,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_init_layout_cache: HashMap::new(),
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
-            effect_unwind_target_stack: Vec::new(),
-            immediate_resume_ctx_stack: Vec::new(),
             effect_op_tags,
             callee_suspend_save_ctx: None,
             pack_field_indices: HashMap::new(),
@@ -1466,14 +1452,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0125：call expression 的结果 TypeId（用于泛型 class ctor 的 mangled FQN 查找）。
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // T0616：`-> resume` arm body 内的 `resume(value)`（隐式注入的局部符号）。
-        if let Some(ctx) = self.current_immediate_resume_ctx()
-            && let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
-            && *id == ctx.resume_symbol
-        {
-            return self.codegen_immediate_resume_call(span, args, expected, ctx);
-        }
-
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。
         //
         // 说明：
@@ -1930,10 +1908,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            // spec §5.5：`k.resume(value)`（escape continuation）。
-            if member.name == "resume" {
-                return self.codegen_continuation_resume_call(span, receiver, args);
-            }
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }

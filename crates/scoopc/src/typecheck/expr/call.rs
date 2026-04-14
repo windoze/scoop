@@ -7048,7 +7048,10 @@ fn try_infer_where_bound_method_call(
         locals,
         top_level_types,
         top_level_funs,
+        member_mutabilities: None,
         struct_field_types,
+        loop_depth: 0,
+        expected_return_ty: None,
     };
     let bounds = lower.lookup_where_bounds_for_param(param_name);
     if bounds.is_empty() {

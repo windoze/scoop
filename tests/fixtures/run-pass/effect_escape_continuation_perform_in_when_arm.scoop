@@ -1,0 +1,55 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_perform_in_when_arm.stdout
+//
+// 覆盖：single escape continuation 在 `when` arm block 内命中 direct perform，
+// resume 后继续执行同一 arm 的剩余语句以及 `when` 之后的 body tail。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val _: Unit = handle {
+        println("body_start")
+        when (1) {
+            0 -> {
+                println("zero_arm")
+            }
+            1 -> {
+                println("before_ask")
+                val msg: String = Ask.ask()
+                println("after_ask")
+                println(msg)
+            }
+            else -> {
+                println("else_arm")
+            }
+        }
+        println("after_when")
+    } with {
+        Ask.ask(), k -> {
+            println("ask_arm")
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello_when")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

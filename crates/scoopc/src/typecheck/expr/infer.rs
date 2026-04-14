@@ -20,7 +20,8 @@ use super::ops::{
     infer_unary_expr_type, is_float_type, is_integer_type, literal_absorbs_to_expected,
 };
 use super::stmt::{
-    StmtExprShared, StmtExprState, check_local_val_decl_exprs, detect_smart_cast_for_if_condition,
+    StmtExprFlow, StmtExprShared, StmtExprState, check_local_val_decl_exprs,
+    check_stmt_exprs, detect_smart_cast_for_if_condition,
 };
 use super::util::expr_kind_name;
 
@@ -602,11 +603,11 @@ fn infer_join_expr_type(
 ///
 /// 说明：
 /// - 该入口主要用于 `handle { ... }` 与 handler arm body 的类型检查（T0606）；
-/// - 当前实现只覆盖”表达式语境”的最小子集：
-///   - 顺序 `val/var` 声明（用于后续语句引用）；
-///   - 普通表达式语句（递归调用 `infer_expr_type`），以便记录 required effects；
-///   - `while` 语句（T1707：条件必须为 Bool，body 递归检查）。
-/// - `return/break/continue/comptime` 等语句暂不支持（后续可对齐 `check_block_exprs` 的能力）。
+/// - 当前实现接受 runtime lowering 已覆盖的常规 statement：
+///   - `val/var` / 普通表达式（包含 AST 形态的 `lhs = rhs` 赋值表达式）；
+///   - `while` / `for`；
+///   - `return` / `break` / `continue`（结果类型视为 `Nothing`）。
+/// - `comptime` / `missing` 仍不属于这里的 runtime block-expression 子集。
 fn infer_block_value_type(
     inputs: ExprInferInputs<'_>,
     block: &ast::Block,
@@ -636,9 +637,24 @@ fn infer_block_value_type_with_expected(
     let mut block_locals = inputs.locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
-    let member_mutabilities: HashMap<String, bool> = HashMap::new();
+    let empty_member_mutabilities: HashMap<String, bool> = HashMap::new();
+    let shared = StmtExprShared {
+        source: inputs.source,
+        builtins: inputs.builtins,
+        top_level_types: inputs.top_level_types,
+        top_level_funs: inputs.top_level_funs,
+        member_mutabilities: inputs
+            .member_mutabilities
+            .unwrap_or(&empty_member_mutabilities),
+        struct_field_types: inputs.struct_field_types,
+    };
+    let flow = StmtExprFlow {
+        loop_depth: inputs.loop_depth,
+        expected_return_ty: inputs.expected_return_ty,
+    };
 
     let mut tail_expr_ty: Option<TypeId> = None;
+    let mut normal_completion_reachable = true;
     for (idx, stmt) in block.stmts.iter().enumerate() {
         let is_last = idx + 1 == block.stmts.len();
 
@@ -647,20 +663,12 @@ fn infer_block_value_type_with_expected(
                 // no-op
             }
             ast::StmtKind::Val(v) => {
-                let shared = StmtExprShared {
-                    source: inputs.source,
-                    builtins: inputs.builtins,
-                    top_level_types: inputs.top_level_types,
-                    top_level_funs: inputs.top_level_funs,
-                    member_mutabilities: &member_mutabilities,
-                    struct_field_types: inputs.struct_field_types,
-                };
                 let mut state = StmtExprState {
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
                 };
-                check_local_val_decl_exprs(shared, v, lower, &mut state)?;
+                check_local_val_decl_exprs(shared, v, lower, &mut state, flow)?;
             }
             ast::StmtKind::Expr(e) => {
                 let block_inputs = inputs.with_locals(&block_locals);
@@ -687,22 +695,38 @@ fn infer_block_value_type_with_expected(
                 } else {
                     block_inputs.infer(lower, e)?
                 };
-                if is_last {
+                if normal_completion_reachable && is_last {
                     tail_expr_ty = Some(ty);
                 }
-            }
-            ast::StmtKind::While { cond, body, .. } => {
-                let block_inputs = inputs.with_locals(&block_locals);
-                let cond_ty = block_inputs.infer(lower, cond)?;
-                if !is_type_assignable(cond_ty, inputs.builtins.bool_, lower, inputs.builtins) {
-                    return Err(ExprTypeError::WhileConditionNotBool {
-                        found: lower.fmt_type(cond_ty),
-                        span: cond.span.into(),
-                    });
+                if normal_completion_reachable && ty == inputs.builtins.nothing {
+                    tail_expr_ty = Some(inputs.builtins.nothing);
+                    normal_completion_reachable = false;
                 }
-                // Recursively typecheck the while body as a block expression.
-                // The body sees the same locals as the surrounding block.
-                infer_block_value_type(block_inputs, body, lower)?;
+            }
+            ast::StmtKind::While { .. } | ast::StmtKind::For(_) => {
+                let mut state = StmtExprState {
+                    locals: &mut block_locals,
+                    stable_bindings: &mut stable_bindings,
+                    mutable_bindings: &mut mutable_bindings,
+                };
+                check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
+                if normal_completion_reachable && is_last {
+                    tail_expr_ty = Some(inputs.builtins.unit);
+                }
+            }
+            ast::StmtKind::Return { .. }
+            | ast::StmtKind::Break { .. }
+            | ast::StmtKind::Continue { .. } => {
+                let mut state = StmtExprState {
+                    locals: &mut block_locals,
+                    stable_bindings: &mut stable_bindings,
+                    mutable_bindings: &mut mutable_bindings,
+                };
+                check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
+                if normal_completion_reachable {
+                    tail_expr_ty = Some(inputs.builtins.nothing);
+                    normal_completion_reachable = false;
+                }
             }
             ast::StmtKind::Missing => {
                 return Err(ExprTypeError::UnsupportedExpr {
@@ -710,9 +734,11 @@ fn infer_block_value_type_with_expected(
                     span: stmt.span.into(),
                 });
             }
-            _ => {
+            ast::StmtKind::ComptimeBlock { .. }
+            | ast::StmtKind::ComptimeIf(_)
+            | ast::StmtKind::ComptimeFor(_) => {
                 return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "block expression（statement kinds other than val/expr/while）",
+                    kind: "block expression（comptime stmt）",
                     span: stmt.span.into(),
                 });
             }

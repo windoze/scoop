@@ -555,10 +555,8 @@ struct SuspendSitePlan {
 
 /// statement-position `val` 绑定 suspend site 在 `handle` body 中的源码路径。
 ///
-/// 当前用于 single-arm immediate-resume / escape-continuation 复用旧 replay helper：
-/// - direct perform 会从这里恢复 `perform` 所在 stmt 与嵌套控制流路径；
-/// - effectful call site（indirect / state-machine callee）也会从这里恢复
-///   对应的 top-level `val x = f(...)` 语句位置。
+/// 该路径只描述源码中的语句位置与嵌套控制流层级，供统一 state-machine
+/// 构建、重建与验证阶段使用。
 #[derive(Debug, Clone)]
 struct SuspendSourcePath {
     top_level_stmt_idx: usize,
@@ -688,8 +686,8 @@ impl SuspendSourceFramePath {
 
 #[derive(Debug, Clone)]
 enum SuspendSiteKind {
-    DirectPerform { op_fqn: String },
-    IndirectCallMaySuspend { callee: String },
+    Perform { op_fqn: String },
+    CallMaySuspend { callee: String },
     CallStateMachineCallee { callee: String },
     RuntimeRaise { reason: String },
     ObjectInitAccess { target: String },
@@ -701,8 +699,8 @@ impl SuspendSiteKind {
     #[cfg(test)]
     fn label(&self) -> &'static str {
         match self {
-            SuspendSiteKind::DirectPerform { .. } => "direct-perform",
-            SuspendSiteKind::IndirectCallMaySuspend { .. } => "indirect-call-may-suspend",
+            SuspendSiteKind::Perform { .. } => "perform",
+            SuspendSiteKind::CallMaySuspend { .. } => "call-may-suspend",
             SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
             SuspendSiteKind::RuntimeRaise { .. } => "runtime-raise",
             SuspendSiteKind::ObjectInitAccess { .. } => "object-init-access",
@@ -714,8 +712,8 @@ impl SuspendSiteKind {
     #[cfg(test)]
     fn detail(&self) -> Option<String> {
         match self {
-            SuspendSiteKind::DirectPerform { op_fqn }
-            | SuspendSiteKind::IndirectCallMaySuspend { callee: op_fqn }
+            SuspendSiteKind::Perform { op_fqn }
+            | SuspendSiteKind::CallMaySuspend { callee: op_fqn }
             | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn }
             | SuspendSiteKind::RuntimeRaise { reason: op_fqn }
             | SuspendSiteKind::ObjectInitAccess { target: op_fqn }
@@ -728,8 +726,8 @@ impl SuspendSiteKind {
 
     fn structural_signature(&self) -> usize {
         match self {
-            SuspendSiteKind::DirectPerform { op_fqn } => 0x11 ^ op_fqn.len(),
-            SuspendSiteKind::IndirectCallMaySuspend { callee } => 0x22 ^ callee.len(),
+            SuspendSiteKind::Perform { op_fqn } => 0x11 ^ op_fqn.len(),
+            SuspendSiteKind::CallMaySuspend { callee } => 0x22 ^ callee.len(),
             SuspendSiteKind::CallStateMachineCallee { callee } => 0x33 ^ callee.len(),
             SuspendSiteKind::RuntimeRaise { reason } => 0x44 ^ reason.len(),
             SuspendSiteKind::ObjectInitAccess { target } => 0x55 ^ target.len(),
@@ -1045,7 +1043,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 kind: CleanupScopeKind::Finally,
                 entry_state: cleanup_entry,
                 exit_state: cleanup_exit,
-                note: "normal/raise edges converge through a single finally scope".to_string(),
+                note: "normal/raise edges converge through a shared finally scope".to_string(),
             });
 
             self.set_terminator(
@@ -1450,7 +1448,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.record_expr_reads(state, expr);
                 let site_id = self.new_suspend_site(
                     expr.span,
-                    SuspendSiteKind::DirectPerform {
+                    SuspendSiteKind::Perform {
                         op_fqn: op.fqn.clone(),
                     },
                     env.available_ids(),
@@ -1546,7 +1544,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             && let Some(effectful) = self.context.known_local_fun_effects.get(id).copied()
         {
             return if effectful {
-                Some(SuspendSiteKind::IndirectCallMaySuspend {
+                Some(SuspendSiteKind::CallMaySuspend {
                     callee: format!("local#{}", id.as_u32()),
                 })
             } else {
@@ -1561,7 +1559,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             return if fun_ty.effects.is_pure() {
                 None
             } else {
-                Some(SuspendSiteKind::IndirectCallMaySuspend {
+                Some(SuspendSiteKind::CallMaySuspend {
                     callee: format!("local#{}", id.as_u32()),
                 })
             };
@@ -1585,7 +1583,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             return try_extract_callee_fqn(callee).map_or_else(
                 || {
-                    Some(SuspendSiteKind::IndirectCallMaySuspend {
+                    Some(SuspendSiteKind::CallMaySuspend {
                         callee: format!("expr@{:?}", expr.span),
                     })
                 },
@@ -1814,7 +1812,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 .collect::<Vec<_>>();
             if matches!(
                 site.kind,
-                SuspendSiteKind::IndirectCallMaySuspend { .. }
+                SuspendSiteKind::CallMaySuspend { .. }
                     | SuspendSiteKind::CallStateMachineCallee { .. }
             ) {
                 used_after.extend(
@@ -1980,9 +1978,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let Some(site) = self.suspend_sites.iter_mut().find(|site| {
             let kind_matches = matches!(
                 (&site.kind, &expr.kind),
-                (SuspendSiteKind::DirectPerform { .. }, hir::ExprKind::Perform { .. })
+                (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
                     | (
-                        SuspendSiteKind::IndirectCallMaySuspend { .. },
+                        SuspendSiteKind::CallMaySuspend { .. },
                         hir::ExprKind::Call { .. },
                     )
                     | (
@@ -2081,7 +2079,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
 fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {
     match kind {
-        SuspendSiteKind::DirectPerform { op_fqn } => arms
+        SuspendSiteKind::Perform { op_fqn } => arms
             .iter()
             .filter(|arm| arm.op_fqn == *op_fqn)
             .map(|arm| arm.id)
@@ -2091,7 +2089,7 @@ fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {
             .filter(|arm| arm.op_fqn == "scoop.core.Raise.raise")
             .map(|arm| arm.id)
             .collect(),
-        SuspendSiteKind::IndirectCallMaySuspend { .. }
+        SuspendSiteKind::CallMaySuspend { .. }
         | SuspendSiteKind::CallStateMachineCallee { .. }
         | SuspendSiteKind::ObjectInitAccess { .. }
         | SuspendSiteKind::ClassCtorInit { .. }
@@ -2730,21 +2728,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             }
 
-            let source_simplification_signature = source_plan
-                .build_mode_specific_simplification()
-                .structural_signature();
-            let rebuilt_simplification_signature = rebuilt_plan
-                .build_mode_specific_simplification()
-                .structural_signature();
-            if source_simplification_signature != rebuilt_simplification_signature {
-                panic!(
-                    "mode-specific simplification mismatch after segment rebuild: source={source_simplification_signature} rebuilt={rebuilt_simplification_signature}"
-                );
-            }
         }
         rebuilt_plan
     }
 }
-
-#[cfg(test)]
-include!("state_machine_plan_tests.rs");

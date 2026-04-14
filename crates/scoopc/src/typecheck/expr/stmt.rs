@@ -78,7 +78,31 @@ where
         locals,
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
+        member_mutabilities: Some(shared.member_mutabilities),
         struct_field_types: shared.struct_field_types,
+        loop_depth: 0,
+        expected_return_ty: None,
+    }
+}
+
+pub(super) fn expr_infer_inputs_with_flow<'a, 'b>(
+    shared: StmtExprShared<'a>,
+    locals: &'b HashMap<Span, TypeId>,
+    flow: StmtExprFlow,
+) -> ExprInferInputs<'b>
+where
+    'a: 'b,
+{
+    ExprInferInputs {
+        source: shared.source,
+        builtins: shared.builtins,
+        locals,
+        top_level_types: shared.top_level_types,
+        top_level_funs: shared.top_level_funs,
+        member_mutabilities: Some(shared.member_mutabilities),
+        struct_field_types: shared.struct_field_types,
+        loop_depth: flow.loop_depth,
+        expected_return_ty: flow.expected_return_ty,
     }
 }
 
@@ -619,7 +643,7 @@ pub(super) fn check_stmt_exprs(
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
-        ast::StmtKind::Val(v) => check_local_val_decl_exprs(shared, v, lower, state)?,
+        ast::StmtKind::Val(v) => check_local_val_decl_exprs(shared, v, lower, state, flow)?,
         ast::StmtKind::Expr(e) => check_expr_stmt(shared, e, lower, state, flow)?,
         ast::StmtKind::Return { return_span, value } => {
             let Some(expected) = flow.expected_return_ty else {
@@ -630,7 +654,8 @@ pub(super) fn check_stmt_exprs(
 
             match value {
                 Some(v) => {
-                    let found = expr_infer_inputs(shared, state.locals).infer_in_expected(
+                    let found = expr_infer_inputs_with_flow(shared, state.locals, flow)
+                        .infer_in_expected(
                         lower,
                         v,
                         expected,
@@ -672,7 +697,8 @@ pub(super) fn check_stmt_exprs(
             }
         }
         ast::StmtKind::While { cond, body, .. } => {
-            let cond_ty = expr_infer_inputs(shared, state.locals).infer(lower, cond)?;
+            let cond_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
+                .infer(lower, cond)?;
 
             if !is_type_assignable(cond_ty, shared.builtins.bool_, lower, shared.builtins) {
                 return Err(ExprTypeError::WhileConditionNotBool {
@@ -712,7 +738,8 @@ pub(super) fn check_stmt_exprs(
             // - `Iter.next(): Option<Elem>`
             //
             // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
-            let iter_ty = expr_infer_inputs(shared, state.locals).infer(lower, &f.iter)?;
+            let iter_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
+                .infer(lower, &f.iter)?;
 
             let Some((iter_fqn, iter_args)) = try_extract_nominal_fqn_and_args(iter_ty, lower)
             else {
@@ -906,6 +933,7 @@ pub(super) fn check_local_val_decl_exprs(
     v: &ast::ValDecl,
     lower: &mut TypeLowering<'_>,
     state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     let declared_ty = match &v.ty {
         Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
@@ -922,13 +950,13 @@ pub(super) fn check_local_val_decl_exprs(
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
         Some(init) => Some(match declared_ty {
-            Some(expected) => expr_infer_inputs(shared, state.locals).infer_in_expected(
+            Some(expected) => expr_infer_inputs_with_flow(shared, state.locals, flow).infer_in_expected(
                 lower,
                 init,
                 expected,
                 expected_from.clone(),
             )?,
-            None => expr_infer_inputs(shared, state.locals).infer(lower, init)?,
+            None => expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, init)?,
         }),
         None => None,
     };
@@ -1053,7 +1081,7 @@ pub(super) fn check_expr_stmt(
             // - T0427：为每个 arm 建立独立的“局部类型表”快照，并注入 pattern binder 的类型。
             check_expr_stmt(shared, subject.as_ref(), lower, state, flow)?;
 
-            let subject_ty = expr_infer_inputs(shared, state.locals)
+            let subject_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
                 .infer(lower, subject.as_ref())
                 .ok();
 
@@ -1104,7 +1132,7 @@ pub(super) fn check_expr_stmt(
             // - 以便捕获 handler arms 内的类型错误
             // - 以便正确记录 required effects（body 内被 handler 捕获的 effects 不应向外传播）
             let _ = infer_handle_expr_type(
-                expr_infer_inputs(shared, state.locals),
+                expr_infer_inputs_with_flow(shared, state.locals, flow),
                 expr,
                 body,
                 arms,
@@ -1120,7 +1148,7 @@ pub(super) fn check_expr_stmt(
             // `!!` 的语义属于“立即执行的表达式”（会在运行期做 null assertion），
             // 因此即使它出现在表达式语句位置，也必须参与 typecheck/required-effects 收集（T0421b）。
             let _ = infer_not_null_assert_expr_type(
-                expr_infer_inputs(shared, state.locals),
+                expr_infer_inputs_with_flow(shared, state.locals, flow),
                 inner.as_ref(),
                 *op_span,
                 lower,
@@ -1131,14 +1159,14 @@ pub(super) fn check_expr_stmt(
             // T0152：表达式语句中的调用实参会递归走 `check_expr_stmt`；
             // 若这里跳过 `receiver?.member`，typecheck 就无法补回 safe member access 的解析结果，
             // 后续 lowering/codegen 也拿不到稳定的成员目标。
-            let _ = expr_infer_inputs(shared, state.locals).infer(lower, expr)?;
+            let _ = expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)?;
             Ok(())
         }
         ast::ExprKind::Cast { .. } => {
             // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
             // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与
             // required-effects 收集；否则 `/ Pure` 函数体内的 `as` 会被错误放过。
-            match expr_infer_inputs(shared, state.locals).infer(lower, expr) {
+            match expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr) {
                 Ok(_) => Ok(()),
                 Err(ExprTypeError::UnsupportedExpr { .. }) => Ok(()),
                 Err(e) => Err(e),
@@ -1148,7 +1176,8 @@ pub(super) fn check_expr_stmt(
             // `@NoGC`：在表达式语句位置也必须强制检查调用点，
             // 否则会被 `call();` 这类“仅为副作用的调用”绕过门禁。
             if lower.in_nogc_context() {
-                let _ = expr_infer_inputs(shared, state.locals).infer(lower, expr)?;
+                let _ =
+                    expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)?;
             }
 
             // T0444：`inline` 与 non-local return 的最小语义门禁：
@@ -1199,7 +1228,7 @@ pub(super) fn check_expr_stmt(
             // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
             if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
                 let _ = infer_effect_op_call_expr_type(
-                    expr_infer_inputs(shared, state.locals),
+                    expr_infer_inputs_with_flow(shared, state.locals, flow),
                     expr,
                     member,
                     args,
@@ -1218,7 +1247,7 @@ pub(super) fn check_expr_stmt(
                     .collect::<Result<Vec<_>, _>>()?;
 
                 let _ = infer_effect_op_call_expr_type(
-                    expr_infer_inputs(shared, state.locals),
+                    expr_infer_inputs_with_flow(shared, state.locals, flow),
                     expr,
                     member,
                     args,
@@ -1236,7 +1265,7 @@ pub(super) fn check_expr_stmt(
             check_lambda_expr_stmt_body(shared, lam, false, lower, state, flow)
         }
         ast::ExprKind::Assign { lhs, rhs, .. } => {
-            check_assign_expr_stmt(shared, lhs, rhs, lower, state)
+            check_assign_expr_stmt(shared, lhs, rhs, lower, state, flow)
         }
         _ => Ok(()),
     }
@@ -1300,6 +1329,7 @@ fn check_assign_expr_stmt(
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
     state: &StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // T0443：赋值语句 `lhs = rhs` 最小规则：
     // - lhs 必须是可写目标：局部 `var` 绑定 或 可写属性（`var` property / ctor `var` param）
@@ -1359,7 +1389,8 @@ fn check_assign_expr_stmt(
             let receiver_is_type_name =
                 matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
             if !receiver_is_type_name {
-                let _ = expr_infer_inputs(shared, state.locals).infer(lower, receiver)?;
+                let _ = expr_infer_inputs_with_flow(shared, state.locals, flow)
+                    .infer(lower, receiver)?;
             }
 
             let Some(resolved) = member.resolved.as_ref() else {
@@ -1420,7 +1451,7 @@ fn check_assign_expr_stmt(
         )),
         _ => ExpectedTypeFrom::new("赋值目标的类型"),
     };
-    let found_ty = expr_infer_inputs(shared, state.locals).infer_in_expected(
+    let found_ty = expr_infer_inputs_with_flow(shared, state.locals, flow).infer_in_expected(
         lower,
         rhs,
         expected_ty,
