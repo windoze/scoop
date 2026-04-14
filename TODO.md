@@ -1778,7 +1778,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 plan / LLVM 定向单测 `resolve_mixed_escape_direct_sites_from_plan_recovers_nested_source_path_matrix`、`unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample`，以及 representative run-pass fixture `effect_multi_escape_direct_source_path_matrix`。
   - 已做定向验证：`cargo check -p scoopc --features llvm`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`、`cargo fmt --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d3c [TODO] Effect：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix
+### T2003r3d3c [DONE] Effect：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix
 - 描述：在 pure multi-escape direct source-path matrix 接回后，再把 indirect call-site suspension / callee-suspend matrix 并入同一条 unified heap-continuation leaf，清掉现有 `indirect call site not yet supported` gate。
 - 目标：
   - pure multi-escape leaf 支持 legal indirect / callee-suspend site，不再依赖 direct-only gate。
@@ -1793,6 +1793,11 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <新增 fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d3b
+- 完成说明：
+  - `multi_resuming_heap.rs` 的 pure multi-escape unified leaf 现已把 indirect call-site suspension / callee-suspend site 并入与 direct source-path matrix 相同的 heap continuation contract，不再因 legal indirect sample 报 `indirect call site not yet supported`。
+  - 本轮同时修复了两个真实的 plan-driven 缺口：一是 indirect site 的 `capture_ids` 在 multi-escape leaf 聚合阶段曾被遗漏，导致 step trampoline 重新求值 `site.init` 时丢失 `counter` 等局部函数值；二是 planner 现已按当前已绑定 local slot 类型识别 handle body 内声明的 effectful function value call，避免 `counter()` 这类 site 从 unified suspend-site 列表中漏掉。
+  - 已新增 plan / LLVM 定向单测 `resolve_mixed_escape_indirect_sites_from_plan_captures_local_function_value`、`resolve_mixed_escape_indirect_sites_from_plan_keeps_callee_suspend_and_local_function_sites`、`unified_multi_resuming_codegen_emits_heap_continuation_indirect_callee_suspend_matrix_sample`，以及 representative run-pass fixture `effect_multi_escape_indirect_callee_suspend_matrix`。
+  - 已做定向验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d3d [TODO] Effect：推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix
 - 描述：在 sibling non-resuming / cleanup contract 与 pure multi-escape leaf 的 richer site matrix 都接回后，再把 unified `1 immediate + 1 escape` mixed leaf 推广到 current legal direct / indirect / nested source-path 组合，清掉剩余 top-level direct-only gate。

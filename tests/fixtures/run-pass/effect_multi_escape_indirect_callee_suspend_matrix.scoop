@@ -1,0 +1,114 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_indirect_callee_suspend_matrix.stdout
+//
+// T2003r3d3c: unified multi-escape leaf 的 indirect / callee-suspend matrix。
+// - `fetchAsk(base)` 走已知 effectful callee 的 callee-suspend 路径；
+// - `counter()` 走 closure / function-value 的 indirect call-site suspension 路径；
+// - 两个 escape arms、sibling custom non-resuming 与 finally 继续复用同一套
+//   unified heap continuation contract。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Count {
+    fun next(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun fetchAsk(base: Int): String / (Ask) {
+    println("fetchAsk_enter")
+    val msg: String = Ask.ask(base + 1)
+    println("fetchAsk_resume")
+    println(msg)
+    msg
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        val base: Int = 10
+        val first: String = fetchAsk(base)
+        println("after_first")
+        println(first)
+
+        val counter: () -> String / (Count) = {
+            println("counter_enter")
+            val msg: String = Count.next(base + 20)
+            println("counter_resume")
+            println(msg)
+            msg
+        }
+        val second: String = counter()
+        println("after_second")
+        println(first)
+        println(second)
+
+        Abort.stop(second)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Count.next(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("count_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

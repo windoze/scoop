@@ -830,6 +830,107 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
+    fn resolve_mixed_escape_indirect_sites_from_plan_captures_local_function_value() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Count {
+    fun next(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val base: Int = 1
+        val counter: () -> Int / (Count) = {
+            Count.next(base + 1)
+        }
+        val value: Int = counter()
+        value
+    } with {
+        Count.next(seed: Int), k -> seed
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let base_id = find_handle_local_id_by_name(handle, "base").expect("expected local `base`");
+        let counter_id =
+            find_handle_local_id_by_name(handle, "counter").expect("expected local `counter`");
+
+        let resolved = MainCodegen::resolve_mixed_escape_indirect_sites_from_plan(handle, &plan)
+            .expect("plan-driven mixed indirect escape resolution should succeed");
+
+        assert_eq!(resolved.indirect_sites.len(), 1);
+        assert!(resolved.capture_ids.contains(&base_id), "{resolved:#?}");
+        assert!(resolved.capture_ids.contains(&counter_id), "{resolved:#?}");
+    }
+
+    #[test]
+    fn resolve_mixed_escape_indirect_sites_from_plan_keeps_callee_suspend_and_local_function_sites()
+    {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Count {
+    fun next(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun fetchAsk(base: Int): String / (Ask) {
+    val msg: String = Ask.ask(base + 1)
+    msg
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val base: Int = 10
+        val first: String = fetchAsk(base)
+        val counter: () -> String / (Count) = {
+            Count.next(base + 20)
+        }
+        val second: String = counter()
+        Abort.stop(second)
+        99
+    } with {
+        Ask.ask(seed: Int), k -> 7
+        Count.next(seed: Int), k -> 8
+        Abort.stop(text: String) -> 5
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+
+        let resolved = MainCodegen::resolve_mixed_escape_indirect_sites_from_plan(handle, &plan)
+            .expect("plan-driven mixed indirect escape resolution should succeed");
+
+        assert_eq!(resolved.indirect_sites.len(), 2, "{resolved:#?}");
+        assert_eq!(resolved.indirect_sites[0].top_level_stmt_idx, 1, "{resolved:#?}");
+        assert_eq!(resolved.indirect_sites[1].top_level_stmt_idx, 3, "{resolved:#?}");
+    }
+
+    #[test]
     fn resolve_top_level_immediate_resume_sites_from_plan_keeps_source_order() {
         let lowered = lower_typed_single_source(
             r#"
@@ -1964,6 +2065,121 @@ fun main() {
                 k2.resume("beta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_multi_resuming_codegen_emits_heap_continuation_indirect_callee_suspend_matrix_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Count {
+    fun next(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun fetchAsk(base: Int): String / (Ask) {
+    println("fetchAsk_enter")
+    val msg: String = Ask.ask(base + 1)
+    println("fetchAsk_resume")
+    println(msg)
+    msg
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        val base: Int = 10
+        val first: String = fetchAsk(base)
+        println("after_first")
+        println(first)
+
+        val counter: () -> String / (Count) = {
+            println("counter_enter")
+            val msg: String = Count.next(base + 20)
+            println("counter_resume")
+            println(msg)
+            msg
+        }
+        val second: String = counter()
+        println("after_second")
+        println(first)
+        println(second)
+
+        Abort.stop(second)
+        99
+    } with {
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+        Count.next(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("count_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("hello")
+            } catch (e: RuntimeError) {
+                println("unexpected_error1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
             }
         }
         None -> println("missing2")

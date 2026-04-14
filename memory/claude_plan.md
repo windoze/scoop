@@ -1,75 +1,114 @@
-# 执行计划
+# 执行计划与进度记录
 
-说明：我不会写出逐字逐句的内部推理，但会持续在这里维护可审计的执行计划、关键判断依据、进度与调整。
+说明：我不会写入不可公开的内部推理细节，但会持续记录可审计的执行计划、决策依据、关键发现与进度。
 
-## 初始目标
+## 当前目标
 
-本次调用只完成 `TODO.md` 中第一个未完成任务，然后停止。
+按 `TODO.md` 的优先顺序完成第一个未完成任务；如果发现前置缺陷或规格不匹配，先修复或把它们整理为更高优先级任务，并更新 `PLAN.md` / `TODO.md` 后提交。
 
-## 既定执行步骤
+## 初始执行计划
 
-1. 检查最新一次 Git 提交，确认提交说明里是否提到任何已知遗留问题。
-2. 如果最新提交提到需要先修复的遗留问题，优先定位、修复、测试，并在必要时更新 `TODO.md` / `PLAN.md`。
-3. 阅读 `TODO.md`，定位第一个未完成任务。
-4. 判断该任务是否过大：
-   - 如果可直接完成，则继续实现。
-   - 如果过大，则拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并只执行拆分后的第一个子任务。
-5. 阅读相关代码、规格、测试和计划文件，确认实现边界与依赖。
-6. 实现该任务，避免引入规避性方案；如果发现规范不匹配或前置缺失，则先把问题转化为更前置的 `TODO.md` 任务并更新 `PLAN.md`，随后提交并停止。
-7. 运行必要的格式化、测试与质量检查，至少覆盖：
-   - 相关定向测试
-   - 必要时运行更大范围测试
+1. 检查最新一次 Git 提交信息，确认是否提到需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认该任务的上下文、依赖与已有拆分。
+4. 如任务过大，先将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+5. 实现当前应执行的第一个任务。
+6. 运行相关格式化、静态检查与测试，至少覆盖：
+   - `cargo fmt --check`
    - `cargo clippy --all-targets -- -D warnings`
-8. 更新文档与计划状态：
-   - 在 `TODO.md` 中标记本次完成的任务
-   - 在 `PLAN.md` 中记录当前状态和后续影响
-   - 持续同步本文件，记录关键进展和计划变化
-9. 使用清晰的 Git 提交信息提交变更。
-10. 停止，不继续下一个任务。
+   - 与当前任务直接相关的测试命令
+7. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或阻塞原因。
+8. 使用清晰的提交信息创建 Git 提交，然后停止。
 
-## 待确认信息
+## 当前状态
 
-- 该任务是否依赖尚未实现的语言特性、运行时能力或规范修复。
+- 已创建计划文件。
+- 已检查最新提交、`TODO.md`、`PLAN.md`。
+- 最新提交 `53ef769e5bd0ac2088d4a81b157de2ecd8e4079b` 的提交信息未额外声明需先修的遗留问题；当前仍按 `TODO.md` 顺序执行。
+- 当前首个未完成任务：`T2003r3d3c`，目标是把 unified pure multi-escape leaf 从 direct source-path 扩展到 indirect / callee-suspend matrix。
 
-## 进度记录
+## 当前任务理解
 
-- 已创建本计划文件，准备开始仓库检查。
-- 已检查最新提交 `067b797f4db47e0794747b295cb2f4d1948f3db1`，提交信息为 `[T2003r3d3a] Reconnect mixed sibling nonresuming leaf`，提交说明中未额外提到需要先修复的遗留问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T2003r3d3b`：推广 unified multi-escape leaf 到 direct source-path matrix。
-- 当前判断：先不拆任务，先审计 `multi_resuming_heap.rs`、相关 unified plan metadata、现有 LLVM 定向测试与 representative fixtures；若发现任务实际仍跨多个独立缺口，再回写 `TODO.md` / `PLAN.md` 做进一步拆分。
+- 现状：`multi_resuming_heap.rs` 已经能消费 unified plan 的 direct source-path matrix，但对 `resolve_mixed_escape_indirect_sites_from_plan(...)` 解析出的 indirect / callee-suspend suspend sites 直接报：
+  - `handle multi-resuming heap-continuation-only (indirect call site not yet supported)`
+- 关键观察：
+  - unified plan / resolver 已能恢复 indirect site 的 source path 与 capture ids，说明主要缺口在 emitter 接线，而不是 plan 表达层。
+  - 仓库中已有 single-arm escape-continuation 的 indirect call-site / callee-suspend lowering，可复用其 resume payload 写回 TLS callee suspend state、重新调用 callee、再继续 tail replay 的 contract。
+  - 当前任务范围看起来仍可在一轮内完成，暂不需要继续拆分 `TODO.md` / `PLAN.md`。
 
-## 当前执行计划
+## 本轮细化计划
 
-1. 阅读 `multi_resuming_heap.rs`、`shared.rs`、`state_machine_plan.rs` 与相关测试，定位当前 top-level-only gate 的具体位置。
-2. 对照已有 single-arm / mixed unified leaf 的 source-path replay 做法，确认 pure multi-escape direct nested path 所需的最小共享 helper 与 metadata。
-3. 实现 `T2003r3d3b`，要求：
-   - pure multi-escape direct site 支持 legal nested source-path；
-   - 不新增按源码形状分流的 emitter 主路径；
-   - sibling non-resuming / `finally` 继续复用统一 contract。
-4. 补定向 LLVM 单测与 representative run-pass fixtures，覆盖 direct source-path matrix。
-5. 运行格式化、定向测试、fixture 运行与 `cargo clippy --workspace --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md`、本文件并提交。
+1. 继续阅读 `multi_resuming_heap.rs`、single-arm indirect escape lowering 与共享 helper，明确可复用的 callee-suspend / resume replay 机制。
+2. 修改 unified multi-escape heap leaf，使其能接入 indirect / callee-suspend site：
+   - 让 site 解析结果进入 unified heap leaf，而不是直接 early reject。
+   - 复用 unified plan 的 source-path / capture metadata，避免引入专用 indirect main route。
+   - 保持 sibling non-resuming / `finally` 与 heap continuation contract 不分叉。
+3. 补 LLVM 定向单测，覆盖 pure multi-escape indirect / callee-suspend representative sample。
+4. 新增或更新 run-pass fixture，覆盖 indirect / callee-suspend matrix 的代表性路径。
+5. 运行最小验证集并修复问题：
+   - 相关 `cargo test -p scoopc ...`
+   - 相关 `cargo run -p scoop --features llvm -- run ...`
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+6. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
 
-## 已完成关键步骤
+## 进度日志
 
-- 已把 `multi_resuming_heap.rs` 的 pure multi-escape leaf 从 top-level direct-only 扩展为基于 unified source-path 的递归拦截 / replay：
-  - direct site 不再要求 `resume_path.is_empty()`；
-  - main body 与 step trampoline 都改为消费 unified plan 的 while / if / block source-path；
-  - 不新增任何按 block / if / while 单独分流的 emitter 主路径。
-- 已新增 plan / LLVM 定向单测：
-  - `resolve_mixed_escape_direct_sites_from_plan_recovers_nested_source_path_matrix`
-  - `unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample`
-- 已新增 representative run-pass fixture：
-  - `tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`
-- 已完成验证：
-  - `cargo check -p scoopc --features llvm`
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`
-  - `cargo fmt --all`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
+- 2026-04-14：初始化计划文件，准备开始仓库检查。
+- 2026-04-14：已确认首个未完成任务为 `T2003r3d3c`，并完成首轮代码路径审计；当前判断该任务可直接实现，无需先拆分子任务。
+## 2026-04-14 续做计划（本轮）
 
-## 待收尾
+### 当前目标
+- 继续完成 `TODO.md` 中第一个未完成任务 `T2003r3d3c`：`Effect：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix`。
+- 本轮只处理这一项；完成后更新 `TODO.md`、`PLAN.md`、`memory/claude_plan.md`，补充测试并提交一次 git commit，然后停止。
 
-1. 更新 `TODO.md` 与 `PLAN.md` 的任务状态和完成说明。
-2. 检查工作树 diff 与状态。
-3. 提交本次变更并停止。
+### 已知前置结论
+- 已检查最新提交 `53ef769e5bd0ac2088d4a81b157de2ecd8e4079b`，提交信息未声明额外必须先修的问题。
+- 现有未提交实现已经把 unified multi-resuming heap leaf 扩展到 direct + indirect site 的大部分接线。
+- 当前主要失败点在新单测：恢复 indirect call site 时，重新计算 `site.init` 触发 `UnsupportedMainBody { kind: "unknown local value" }`。
+
+### 本轮执行计划
+1. 复查失败用例和相关代码，确认报错对应的源码位置与缺失的 local。
+2. 检查 unified plan / capture / step 恢复链路，确定是 capture 集不完整还是恢复时未重新放回 env。
+3. 修复 indirect site 恢复逻辑，必要时补 plan/capture 计算。
+4. 跑最小相关测试：
+   - 新增/现有单测
+   - 相关 LLVM codegen effect 测试
+   - 新 run-pass fixture
+   - `cargo clippy --workspace --all-targets -- -D warnings`
+5. 若实现中发现真实 spec 缺口，按要求先更新 `TODO.md` / `PLAN.md` 记录依赖并停止；否则在任务完成后更新文档并提交。
+
+### 本轮记录约定
+- 关键结论、计划变更、测试结果会持续回写到本文件。
+
+## 2026-04-14 本轮执行结果
+
+### 关键发现
+- `resolve_mixed_escape_indirect_sites_from_plan(...)` 已能恢复 indirect / callee-suspend site 的 `capture_ids`，但 `multi_resuming_heap.rs` 在组装 pure multi-escape unified leaf 时最初把这部分 capture 聚合丢掉了，导致 step trampoline 重新求值 `site.init` 时丢失 `counter` 等局部函数值。
+- 真实 representative sample 里还存在第二个缺口：planner 只靠 `known_local_fun_effects` / `callee.ty` 识别 local function-value call，无法稳定识别 handle body 内刚声明出来的 effectful function value，因此 `counter()` 一度没有进入 unified suspend-site 列表，运行时直接漏回 outer sibling dispatch。
+
+### 已完成修改
+- `crates/scoopc/src/llvm/codegen/effect/multi_resuming_heap.rs`
+  - 让 indirect site 的 `capture_ids` 并入 multi-escape leaf 的统一 capture 聚合。
+  - 修正 indirect dispatch helper 的 builder 收尾：构建 dispatch/catch 后恢复到正常 continuation block，避免遗留无 terminator 的 `effect_unwind_cont`。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+  - `classify_suspend_call(...)` 现会按当前已绑定 local slot 类型识别 handle body 内的 effectful function value call，不再遗漏 `counter()` 一类 indirect site。
+- `crates/scoopc/src/llvm/codegen/effect/state_machine_plan_tests.rs`
+  - 新增两个定向 plan 回归：
+    - `resolve_mixed_escape_indirect_sites_from_plan_captures_local_function_value`
+    - `resolve_mixed_escape_indirect_sites_from_plan_keeps_callee_suspend_and_local_function_sites`
+  - 保留并跑通 LLVM 定向样例：
+    - `unified_multi_resuming_codegen_emits_heap_continuation_indirect_callee_suspend_matrix_sample`
+- `tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - 已补对应 stdout fixture：`effect_multi_escape_indirect_callee_suspend_matrix.stdout`
+
+### 验证结果
+- 通过：`cargo test -p scoopc resolve_mixed_escape_indirect_sites_from_plan_captures_local_function_value -- --nocapture`
+- 通过：`cargo test -p scoopc resolve_mixed_escape_indirect_sites_from_plan_keeps_callee_suspend_and_local_function_sites -- --nocapture`
+- 通过：`cargo test -p scoopc unified_multi_resuming_codegen_emits_heap_continuation_indirect_callee_suspend_matrix_sample -- --nocapture`
+- 通过：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
+- 通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+- 通过：`cargo clippy --workspace --all-targets -- -D warnings`
+
+### 当前状态
+- `T2003r3d3c` 可标记完成。
+- 下一轮应继续 `T2003r3d3d`。

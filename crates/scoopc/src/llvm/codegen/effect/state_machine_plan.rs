@@ -1554,6 +1554,19 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             };
         }
 
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
+            && let Some(slot) = self.frame_slots.get(id)
+            && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(slot.ty)
+        {
+            return if fun_ty.effects.is_pure() {
+                None
+            } else {
+                Some(SuspendSiteKind::IndirectCallMaySuspend {
+                    callee: format!("local#{}", id.as_u32()),
+                })
+            };
+        }
+
         if let Some(targets) = self.context.ctor_call_targets.get(&callee.span) {
             let mut stable_targets = targets.clone();
             stable_targets.sort();
