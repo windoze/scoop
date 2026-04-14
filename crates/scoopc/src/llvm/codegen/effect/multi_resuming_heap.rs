@@ -1,4 +1,1219 @@
+#[derive(Debug)]
+struct MultiResumingEscapeSitePlan<'hir> {
+    site: MixedEscapeDirectSite<'hir>,
+    arm: &'hir hir::HandleArm,
+    continuation_symbol: hir::SymbolId,
+    resume_value_ty: CgTy,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn mixed_escape_direct_frame_same_structure<'hir>(
+        a: &MixedEscapeDirectFrame<'hir>,
+        b: &MixedEscapeDirectFrame<'hir>,
+    ) -> bool {
+        match (a, b) {
+            (
+                MixedEscapeDirectFrame::IfThen { if_expr: a_e, .. },
+                MixedEscapeDirectFrame::IfThen { if_expr: b_e, .. },
+            ) => std::ptr::eq(*a_e, *b_e),
+            (
+                MixedEscapeDirectFrame::IfElse { if_expr: a_e, .. },
+                MixedEscapeDirectFrame::IfElse { if_expr: b_e, .. },
+            ) => std::ptr::eq(*a_e, *b_e),
+            (
+                MixedEscapeDirectFrame::WhileBody {
+                    while_body: a_b, ..
+                },
+                MixedEscapeDirectFrame::WhileBody {
+                    while_body: b_b, ..
+                },
+            ) => std::ptr::eq(*a_b, *b_b),
+            (
+                MixedEscapeDirectFrame::Block { block: a_b, .. },
+                MixedEscapeDirectFrame::Block { block: b_b, .. },
+            ) => std::ptr::eq(*a_b, *b_b),
+            _ => false,
+        }
+    }
+
+    fn multi_resuming_heap_site_matches_prefix<'hir>(
+        site: &MixedEscapeDirectSite<'hir>,
+        prefix: &[MixedEscapeDirectFrame<'hir>],
+    ) -> bool {
+        if site.resume_path.len() < prefix.len() {
+            return false;
+        }
+        prefix.iter().enumerate().all(|(idx, frame)| {
+            Self::mixed_escape_direct_frame_same_structure(frame, &site.resume_path[idx])
+        })
+    }
+
+    fn multi_resuming_heap_target_stmt_idx<'hir>(
+        site: &MixedEscapeDirectSite<'hir>,
+        prefix_len: usize,
+    ) -> usize {
+        if prefix_len == 0 {
+            site.top_level_stmt_idx
+        } else {
+            site.resume_path[prefix_len - 1].stmt_idx()
+        }
+    }
+
+    fn codegen_multi_resuming_heap_stmt_unit(
+        &mut self,
+        stmt: &hir::Stmt,
+    ) -> Result<(), LlvmEmitError> {
+        let _ = self.codegen_mixed_escape_tail_stmt(
+            stmt,
+            "`return` inside multi-resuming heap continuation step",
+            "statement inside multi-resuming heap continuation step",
+        )?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_intercept_site<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        site_idx: usize,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let plan = &site_plans[site_idx];
+        self.capture_escape_state_with_pc(
+            plan.site.decl.span,
+            state_ty,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+            site_idx,
+        )?;
+        for (slot, arg) in binder_slots_by_site[site_idx]
+            .iter()
+            .zip(plan.site.args.iter())
+        {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-resuming heap named perform arg",
+                    at: span.into(),
+                });
+            };
+            let value = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+            let _ = self.store_local_value(expr.span, slot.ptr, slot.ty, value)?;
+        }
+        let step_ptr = step_fn.as_global_value().as_pointer_value();
+        let cont_call = self.builder.build_call(
+            self.declare_runtime_continuation_alloc(),
+            &[state_raw.into(), step_ptr.into()],
+            "multi_resume_heap_cont_alloc",
+        )?;
+        let cont_raw =
+            cont_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "multi-resuming heap continuation alloc return value",
+                    at: plan.site.decl.span.into(),
+                })?;
+        let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "multi-resuming heap continuation alloc return type",
+                at: plan.site.decl.span.into(),
+            });
+        };
+        let pin = self.declare_runtime_gc_pin();
+        let _ = self
+            .builder
+            .build_call(pin, &[k_raw.into()], "multi_resume_heap_k_pin")?;
+        if let Some(continuation_created_ptr) = continuation_created_ptr {
+            let _ = self.builder.build_store(
+                continuation_created_ptr,
+                self.context.bool_type().const_all_ones(),
+            )?;
+        }
+        let _ = self.store_local_value(
+            span,
+            cont_ptr,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(k_raw.into()),
+            },
+        )?;
+        self.builder.build_unconditional_branch(arm_bbs[site_idx])?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_block_unit_with_intercepts<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        stmts: &'hir [hir::Stmt],
+        prefix: &[MixedEscapeDirectFrame<'hir>],
+        stmt_idx_base: usize,
+        start_idx: usize,
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<bool, LlvmEmitError> {
+        for (local_stmt_idx, stmt) in stmts.iter().enumerate().skip(start_idx) {
+            let stmt_idx = stmt_idx_base + local_stmt_idx;
+            let mut direct_site_idx: Option<usize> = None;
+            let mut nested_site_indices: Vec<usize> = Vec::new();
+            for (site_idx, plan) in site_plans.iter().enumerate() {
+                let site = &plan.site;
+                if !Self::multi_resuming_heap_site_matches_prefix(site, prefix) {
+                    continue;
+                }
+                let target_stmt_idx =
+                    Self::multi_resuming_heap_target_stmt_idx(site, prefix.len());
+                if target_stmt_idx != stmt_idx {
+                    continue;
+                }
+                if site.resume_path.len() == prefix.len() {
+                    if direct_site_idx.replace(site_idx).is_some() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (multiple direct sites in same source statement not yet supported)",
+                            at: stmt.span.into(),
+                        });
+                    }
+                } else {
+                    nested_site_indices.push(site_idx);
+                }
+            }
+
+            if let Some(site_idx) = direct_site_idx {
+                let plan = &site_plans[site_idx];
+                let hir::StmtKind::Val(decl) = &stmt.kind else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-resuming heap-continuation-only (expected direct perform binding)",
+                        at: stmt.span.into(),
+                    });
+                };
+                if !std::ptr::eq(decl, plan.site.decl) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-resuming heap-continuation-only (direct perform binding path mismatch)",
+                        at: stmt.span.into(),
+                    });
+                }
+                self.codegen_multi_resuming_heap_intercept_site(
+                    span,
+                    site_idx,
+                    site_plans,
+                    binder_slots_by_site,
+                    arm_bbs,
+                    step_fn,
+                    cont_ptr,
+                    continuation_created_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    outer_visible_supported,
+                    outer_field_base,
+                    body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )?;
+                return Ok(true);
+            }
+
+            if nested_site_indices.is_empty() {
+                self.codegen_multi_resuming_heap_stmt_unit(stmt)?;
+                if let Some(bb) = self.builder.get_insert_block()
+                    && bb.get_terminator().is_some()
+                {
+                    return Ok(true);
+                }
+                continue;
+            }
+
+            let prefix_len = prefix.len();
+            let first_next_frame = site_plans[nested_site_indices[0]].site.resume_path[prefix_len];
+            match first_next_frame {
+                MixedEscapeDirectFrame::Block { block, .. } => {
+                    let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (expected block statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    let hir::ExprKind::Block(actual_block) = &expr.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (expected block expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(actual_block, block) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (block path mismatch)",
+                            at: expr.span.into(),
+                        });
+                    }
+                    for site_idx in &nested_site_indices {
+                        let frame = site_plans[*site_idx].site.resume_path[prefix_len];
+                        let MixedEscapeDirectFrame::Block {
+                            block: candidate_block,
+                            ..
+                        } = frame
+                        else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only (mixed nested source path kinds not yet supported)",
+                                at: stmt.span.into(),
+                            });
+                        };
+                        if !std::ptr::eq(candidate_block, block) {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only (mixed nested block paths not yet supported)",
+                                at: stmt.span.into(),
+                            });
+                        }
+                    }
+                    let saved_env = self.env.clone();
+                    self.env.push_scope();
+                    let mut next_prefix = prefix.to_vec();
+                    next_prefix.push(MixedEscapeDirectFrame::Block { block, stmt_idx });
+                    let terminated = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                        span,
+                        site_plans,
+                        &block.stmts,
+                        next_prefix.as_slice(),
+                        0,
+                        0,
+                        binder_slots_by_site,
+                        arm_bbs,
+                        step_fn,
+                        cont_ptr,
+                        continuation_created_ptr,
+                        state_ty,
+                        state_raw,
+                        state_ptr,
+                        outer_visible_supported,
+                        outer_field_base,
+                        body_visible_supported,
+                        body_field_base,
+                        pc_field_idx,
+                    )?;
+                    self.env = saved_env;
+                    if terminated {
+                        return Ok(true);
+                    }
+                }
+                MixedEscapeDirectFrame::IfThen { if_expr, .. }
+                | MixedEscapeDirectFrame::IfElse { if_expr, .. } => {
+                    let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (expected if statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(expr, if_expr) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (if path mismatch)",
+                            at: stmt.span.into(),
+                        });
+                    }
+                    let hir::ExprKind::If {
+                        cond,
+                        then_branch,
+                        else_branch,
+                    } = &expr.kind
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (expected if expression)",
+                            at: expr.span.into(),
+                        });
+                    };
+                    let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+                    let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+                    let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-resuming heap-continuation-only if condition value",
+                        at: cond.span.into(),
+                    })?;
+                    let insert_block = self
+                        .builder
+                        .get_insert_block()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no insert block",
+                            at: stmt.span.into(),
+                        })?;
+                    let func = insert_block.get_parent().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no parent function",
+                            at: stmt.span.into(),
+                        },
+                    )?;
+                    let then_bb = self.context.append_basic_block(func, "multi_resume_heap_if_then");
+                    let after_bb =
+                        self.context
+                            .append_basic_block(func, "multi_resume_heap_if_after");
+                    let else_bb = if else_branch.is_some() {
+                        Some(
+                            self.context
+                                .append_basic_block(func, "multi_resume_heap_if_else"),
+                        )
+                    } else {
+                        None
+                    };
+                    self.builder.build_conditional_branch(
+                        cond_i1,
+                        then_bb,
+                        else_bb.unwrap_or(after_bb),
+                    )?;
+
+                    let saved_env = self.env.clone();
+                    let mut then_prefix = prefix.to_vec();
+                    let then_block = match &then_branch.kind {
+                        hir::ExprKind::Block(block) => block,
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only (expected if-then block)",
+                                at: then_branch.span.into(),
+                            });
+                        }
+                    };
+                    then_prefix.push(MixedEscapeDirectFrame::IfThen {
+                        if_expr: expr,
+                        then_block,
+                        stmt_idx,
+                    });
+                    self.builder.position_at_end(then_bb);
+                    self.env = saved_env.clone();
+                    self.env.push_scope();
+                    let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                        span,
+                        site_plans,
+                        &then_block.stmts,
+                        then_prefix.as_slice(),
+                        0,
+                        0,
+                        binder_slots_by_site,
+                        arm_bbs,
+                        step_fn,
+                        cont_ptr,
+                        continuation_created_ptr,
+                        state_ty,
+                        state_raw,
+                        state_ptr,
+                        outer_visible_supported,
+                        outer_field_base,
+                        body_visible_supported,
+                        body_field_base,
+                        pc_field_idx,
+                    )?;
+                    self.env = saved_env.clone();
+                    if let Some(bb) = self.builder.get_insert_block()
+                        && bb.get_terminator().is_none()
+                    {
+                        self.builder.build_unconditional_branch(after_bb)?;
+                    }
+
+                    if let Some(else_bb) = else_bb {
+                        let else_expr = else_branch.as_deref().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle multi-resuming heap-continuation-only (missing if-else branch)",
+                                at: expr.span.into(),
+                            },
+                        )?;
+                        let else_block = match &else_expr.kind {
+                            hir::ExprKind::Block(block) => block,
+                            _ => {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle multi-resuming heap-continuation-only (expected if-else block)",
+                                    at: else_expr.span.into(),
+                                });
+                            }
+                        };
+                        let mut else_prefix = prefix.to_vec();
+                        else_prefix.push(MixedEscapeDirectFrame::IfElse {
+                            if_expr: expr,
+                            else_block,
+                            stmt_idx,
+                        });
+                        self.builder.position_at_end(else_bb);
+                        self.env = saved_env.clone();
+                        self.env.push_scope();
+                        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                            span,
+                            site_plans,
+                            &else_block.stmts,
+                            else_prefix.as_slice(),
+                            0,
+                            0,
+                            binder_slots_by_site,
+                            arm_bbs,
+                            step_fn,
+                            cont_ptr,
+                            continuation_created_ptr,
+                            state_ty,
+                            state_raw,
+                            state_ptr,
+                            outer_visible_supported,
+                            outer_field_base,
+                            body_visible_supported,
+                            body_field_base,
+                            pc_field_idx,
+                        )?;
+                        self.env = saved_env.clone();
+                        if let Some(bb) = self.builder.get_insert_block()
+                            && bb.get_terminator().is_none()
+                        {
+                            self.builder.build_unconditional_branch(after_bb)?;
+                        }
+                    }
+
+                    self.builder.position_at_end(after_bb);
+                    self.env = saved_env;
+                }
+                MixedEscapeDirectFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    ..
+                } => {
+                    let hir::StmtKind::While { cond, body } = &stmt.kind else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (expected while statement)",
+                            at: stmt.span.into(),
+                        });
+                    };
+                    if !std::ptr::eq(cond, while_cond) || !std::ptr::eq(body, while_body) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle multi-resuming heap-continuation-only (while path mismatch)",
+                            at: stmt.span.into(),
+                        });
+                    }
+                    let insert_block = self
+                        .builder
+                        .get_insert_block()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no insert block",
+                            at: stmt.span.into(),
+                        })?;
+                    let func = insert_block.get_parent().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "builder has no parent function",
+                            at: stmt.span.into(),
+                        },
+                    )?;
+                    let cond_bb =
+                        self.context
+                            .append_basic_block(func, "multi_resume_heap_while_cond");
+                    let body_bb =
+                        self.context
+                            .append_basic_block(func, "multi_resume_heap_while_body");
+                    let after_bb =
+                        self.context
+                            .append_basic_block(func, "multi_resume_heap_while_after");
+                    self.builder.build_unconditional_branch(cond_bb)?;
+
+                    self.builder.position_at_end(cond_bb);
+                    let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+                    let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+                    let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle multi-resuming heap-continuation-only while condition value",
+                        at: cond.span.into(),
+                    })?;
+                    self.builder
+                        .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+                    let saved_env = self.env.clone();
+                    let mut next_prefix = prefix.to_vec();
+                    next_prefix.push(MixedEscapeDirectFrame::WhileBody {
+                        while_cond: cond,
+                        while_body: body,
+                        stmt_idx,
+                    });
+                    self.builder.position_at_end(body_bb);
+                    self.env = saved_env.clone();
+                    self.env.push_scope();
+                    let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                        span,
+                        site_plans,
+                        &body.stmts,
+                        next_prefix.as_slice(),
+                        0,
+                        0,
+                        binder_slots_by_site,
+                        arm_bbs,
+                        step_fn,
+                        cont_ptr,
+                        continuation_created_ptr,
+                        state_ty,
+                        state_raw,
+                        state_ptr,
+                        outer_visible_supported,
+                        outer_field_base,
+                        body_visible_supported,
+                        body_field_base,
+                        pc_field_idx,
+                    )?;
+                    self.env = saved_env.clone();
+                    if let Some(bb) = self.builder.get_insert_block()
+                        && bb.get_terminator().is_none()
+                    {
+                        self.builder.build_unconditional_branch(cond_bb)?;
+                    }
+
+                    self.builder.position_at_end(after_bb);
+                    self.env = saved_env;
+                }
+            }
+
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_some()
+            {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    fn codegen_multi_resuming_heap_finish_step_without_more_sites(
+        &mut self,
+        _span: crate::span::Span,
+        state_raw: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_some()
+        {
+            return Ok(());
+        }
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self.builder.build_call(
+            unpin,
+            &[state_raw.into()],
+            "multi_resume_heap_step_state_unpin",
+        )?;
+        self.builder.build_return(None)?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_step_continue_after_completed_frame<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        current_site_idx: usize,
+        completed_depth: usize,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let site = &site_plans[current_site_idx].site;
+        if completed_depth == 0 {
+            let saved_env = self.env.clone();
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                &handle.body.stmts,
+                &[],
+                0,
+                site.top_level_stmt_idx + 1,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                None,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            self.env = saved_env;
+            return self.codegen_multi_resuming_heap_finish_step_without_more_sites(span, state_raw);
+        }
+
+        let parent_depth = completed_depth - 1;
+        let start_idx = site.resume_path[parent_depth].stmt_idx() + 1;
+        match &site.resume_path[parent_depth] {
+            MixedEscapeDirectFrame::WhileBody {
+                while_cond,
+                while_body,
+                ..
+            } => self.codegen_multi_resuming_heap_step_continue_while_tail(
+                span,
+                handle,
+                current_site_idx,
+                parent_depth,
+                start_idx,
+                while_cond,
+                while_body,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            ),
+            MixedEscapeDirectFrame::Block { .. }
+            | MixedEscapeDirectFrame::IfThen { .. }
+            | MixedEscapeDirectFrame::IfElse { .. } => {
+                self.codegen_multi_resuming_heap_step_continue_frame_tail(
+                    span,
+                    handle,
+                    current_site_idx,
+                    parent_depth,
+                    start_idx,
+                    site_plans,
+                    binder_slots_by_site,
+                    arm_bbs,
+                    step_fn,
+                    cont_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    outer_visible_supported,
+                    outer_field_base,
+                    body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_step_continue_frame_tail<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        current_site_idx: usize,
+        depth: usize,
+        start_idx: usize,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let site = &site_plans[current_site_idx].site;
+        let stmts = match &site.resume_path[depth] {
+            MixedEscapeDirectFrame::Block { block, .. } => &block.stmts,
+            MixedEscapeDirectFrame::IfThen { then_block, .. } => &then_block.stmts,
+            MixedEscapeDirectFrame::IfElse { else_block, .. } => &else_block.stmts,
+            MixedEscapeDirectFrame::WhileBody { while_body, .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-resuming heap-continuation-only (while frame needs specialized lowering)",
+                    at: while_body.span.into(),
+                });
+            }
+        };
+        let saved_env = self.env.clone();
+        let prefix = site.resume_path[..=depth].to_vec();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            stmts,
+            prefix.as_slice(),
+            0,
+            start_idx,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            None,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env;
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.codegen_multi_resuming_heap_step_continue_after_completed_frame(
+                span,
+                handle,
+                current_site_idx,
+                depth,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_step_continue_while_tail<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        current_site_idx: usize,
+        depth: usize,
+        start_idx: usize,
+        while_cond: &'hir hir::Expr,
+        while_body: &'hir hir::Block,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let prefix = site_plans[current_site_idx].site.resume_path[..=depth].to_vec();
+        let insert_block = self
+            .builder
+            .get_insert_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no insert block",
+                at: while_body.span.into(),
+            })?;
+        let func = insert_block.get_parent().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "builder has no parent function",
+            at: while_body.span.into(),
+        })?;
+        let tail_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_heap_step_while_tail");
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_heap_step_while_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_heap_step_while_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_heap_step_while_after");
+        let saved_env = self.env.clone();
+
+        self.builder.build_unconditional_branch(tail_bb)?;
+
+        self.builder.position_at_end(tail_bb);
+        self.env = saved_env.clone();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            &while_body.stmts,
+            prefix.as_slice(),
+            0,
+            start_idx,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            None,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env.clone();
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(cond_bb)?;
+        }
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(while_cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle multi-resuming heap-continuation-only while condition value",
+            at: while_cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        self.builder.position_at_end(body_bb);
+        self.env = saved_env.clone();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            &while_body.stmts,
+            prefix.as_slice(),
+            0,
+            0,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            None,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env.clone();
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(cond_bb)?;
+        }
+
+        self.builder.position_at_end(after_bb);
+        self.env = saved_env;
+        self.codegen_multi_resuming_heap_step_continue_after_completed_frame(
+            span,
+            handle,
+            current_site_idx,
+            depth,
+            site_plans,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_step_continue_after_site<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        current_site_idx: usize,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let site = &site_plans[current_site_idx].site;
+        if site.resume_path.is_empty() {
+            let saved_env = self.env.clone();
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                &handle.body.stmts,
+                &[],
+                0,
+                site.top_level_stmt_idx + 1,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                None,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            self.env = saved_env;
+            return self.codegen_multi_resuming_heap_finish_step_without_more_sites(span, state_raw);
+        }
+
+        let last_depth = site.resume_path.len() - 1;
+        let start_idx = site.resume_path[last_depth].stmt_idx() + 1;
+        match &site.resume_path[last_depth] {
+            MixedEscapeDirectFrame::WhileBody {
+                while_cond,
+                while_body,
+                ..
+            } => self.codegen_multi_resuming_heap_step_continue_while_tail(
+                span,
+                handle,
+                current_site_idx,
+                last_depth,
+                start_idx,
+                while_cond,
+                while_body,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            ),
+            MixedEscapeDirectFrame::Block { .. }
+            | MixedEscapeDirectFrame::IfThen { .. }
+            | MixedEscapeDirectFrame::IfElse { .. } => {
+                self.codegen_multi_resuming_heap_step_continue_frame_tail(
+                    span,
+                    handle,
+                    current_site_idx,
+                    last_depth,
+                    start_idx,
+                    site_plans,
+                    binder_slots_by_site,
+                    arm_bbs,
+                    step_fn,
+                    cont_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    outer_visible_supported,
+                    outer_field_base,
+                    body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_heap_main_body_with_intercepts<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: PointerValue<'ctx>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        if handle.body.stmts.is_empty() {
+            if let Some(ptr) = result_ptr
+                && out_ty != CgTy::Unit
+                && out_ty != CgTy::Never
+            {
+                let _ = self.store_local_value(span, ptr, out_ty, CgValue::unit())?;
+            }
+            self.builder.build_unconditional_branch(completion_target)?;
+            return Ok(());
+        }
+
+        let last_stmt_idx = handle.body.stmts.len() - 1;
+        for (stmt_idx, stmt) in handle.body.stmts.iter().take(last_stmt_idx).enumerate() {
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                std::slice::from_ref(stmt),
+                &[],
+                stmt_idx,
+                0,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                Some(continuation_created_ptr),
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_some()
+            {
+                return Ok(());
+            }
+        }
+
+        let final_stmt = &handle.body.stmts[last_stmt_idx];
+        let mut final_stmt_has_site = false;
+        let mut final_stmt_has_nested_site = false;
+        for plan in site_plans {
+            if !Self::multi_resuming_heap_site_matches_prefix(&plan.site, &[]) {
+                continue;
+            }
+            if plan.site.top_level_stmt_idx != last_stmt_idx {
+                continue;
+            }
+            final_stmt_has_site = true;
+            if !plan.site.resume_path.is_empty() {
+                final_stmt_has_nested_site = true;
+                break;
+            }
+        }
+
+        if final_stmt_has_site {
+            if final_stmt_has_nested_site {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-resuming heap-continuation-only (nested source-path in tail expression not yet supported)",
+                    at: final_stmt.span.into(),
+                });
+            }
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                std::slice::from_ref(final_stmt),
+                &[],
+                last_stmt_idx,
+                0,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                Some(continuation_created_ptr),
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            return Ok(());
+        }
+
+        let final_value = match &final_stmt.kind {
+            hir::StmtKind::Empty => CgValue::unit(),
+            hir::StmtKind::Val(decl) => {
+                self.codegen_val_decl(decl)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Expr(expr) => self.codegen_expr_in_expected_context(expr, Some(out_ty))?,
+            hir::StmtKind::While { cond, body } => {
+                self.codegen_while_stmt(final_stmt.span, cond, body)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Return { .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "`return` inside multi-resuming heap continuation body",
+                    at: final_stmt.span.into(),
+                });
+            }
+            hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "statement inside multi-resuming heap continuation body",
+                    at: final_stmt.span.into(),
+                });
+            }
+        };
+
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            let final_value = match out_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => self.coerce_value(final_stmt.span, final_value, out_ty)?,
+            };
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(final_stmt.span, ptr, out_ty, final_value)?;
+            }
+            self.builder.build_unconditional_branch(completion_target)?;
+        }
+        Ok(())
+    }
     fn build_multi_resuming_escape_binder_slots<'hir>(
         &mut self,
         arm: &'hir hir::HandleArm,
@@ -33,14 +1248,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         sibling_nonresuming_arms: &[&'hir hir::HandleArm],
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        #[derive(Debug)]
-        struct EscapeSitePlan<'hir> {
-            site: MixedEscapeDirectSite<'hir>,
-            arm: &'hir hir::HandleArm,
-            continuation_symbol: hir::SymbolId,
-            resume_value_ty: CgTy,
-        }
-
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
         let raise_sibling = sibling_plan.raise_arm;
         let custom_siblings = sibling_plan.custom_arms.clone();
@@ -81,18 +1288,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let mut seen_escape_arm: HashSet<ArmPlanId> = HashSet::new();
-        let mut scanned_sites: Vec<EscapeSitePlan<'hir>> =
+        let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
             Vec::with_capacity(resolved_direct_sites.len());
         for resolved in resolved_direct_sites {
             if !seen_escape_arm.insert(resolved.arm_id) {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "handle multi-resuming heap-continuation-only (multiple direct perform points for same op not yet supported)",
-                    at: resolved.site.decl.span.into(),
-                });
-            }
-            if !resolved.site.resume_path.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle multi-resuming heap-continuation-only (only top-level val-bound direct perform supported)",
                     at: resolved.site.decl.span.into(),
                 });
             }
@@ -117,7 +1318,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         kind: "handle multi-resuming heap-continuation-only perform value type",
                         at: resolved.site.decl.span.into(),
                     })?;
-            scanned_sites.push(EscapeSitePlan {
+            scanned_sites.push(MultiResumingEscapeSitePlan {
                 site: resolved.site,
                 arm,
                 continuation_symbol: *continuation_symbol,
@@ -155,11 +1356,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         scanned_sites.sort_by_key(|plan| (plan.site.top_level_stmt_idx, plan.site.decl.span.start));
-        let site_pc_by_stmt_idx: HashMap<usize, usize> = scanned_sites
-            .iter()
-            .enumerate()
-            .map(|(pc, plan)| (plan.site.top_level_stmt_idx, pc))
-            .collect();
 
         let (outer_visible_supported, body_visible_supported) =
             self.collect_escape_capture_metas_from_plan(
@@ -445,120 +1641,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     plan.resume_value_ty,
                     resume_value,
                 )?;
-
-                let mut terminated = false;
-                for (stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
-                    if stmt_idx <= plan.site.top_level_stmt_idx {
-                        continue;
-                    }
-                    if let Some(&next_site_idx) = site_pc_by_stmt_idx.get(&stmt_idx) {
-                        let next_plan = &scanned_sites[next_site_idx];
-                        cg.capture_escape_state_with_pc(
-                            next_plan.site.decl.span,
-                            state_ty,
-                            state_ptr,
-                            &outer_visible_supported,
-                            outer_field_base,
-                            &body_visible_supported,
-                            body_field_base,
-                            pc_field_idx,
-                            next_site_idx,
-                        )?;
-                        for (slot, arg) in step_binder_slots_by_site[next_site_idx]
-                            .iter()
-                            .zip(next_plan.site.args.iter())
-                        {
-                            let hir::CallArg::Positional(expr) = arg else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "handle multi-resuming heap named perform arg",
-                                    at: span.into(),
-                                });
-                            };
-                            let value =
-                                cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                            let _ = cg.store_local_value(expr.span, slot.ptr, slot.ty, value)?;
-                        }
-                        let step_ptr = step_fn.as_global_value().as_pointer_value();
-                        let cont_call = cg.builder.build_call(
-                            cg.declare_runtime_continuation_alloc(),
-                            &[state_raw.into(), step_ptr.into()],
-                            "multi_resume_heap_step_cont_alloc",
-                        )?;
-                        let cont_raw = cont_call.try_as_basic_value().basic().ok_or(
-                            LlvmEmitError::UnsupportedMainBody {
-                                kind: "multi-resuming heap step continuation alloc return value",
-                                at: next_plan.site.decl.span.into(),
-                            },
-                        )?;
-                        let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "multi-resuming heap step continuation alloc return type",
-                                at: next_plan.site.decl.span.into(),
-                            });
-                        };
-                        let pin = cg.declare_runtime_gc_pin();
-                        let _ = cg.builder.build_call(
-                            pin,
-                            &[k_raw.into()],
-                            "multi_resume_heap_step_k_pin",
-                        )?;
-                        let _ = cg.store_local_value(
-                            span,
-                            step_cont_ptr,
-                            CgTy::Ref,
-                            CgValue {
-                                ty: CgTy::Ref,
-                                value: Some(k_raw.into()),
-                            },
-                        )?;
-                        cg.builder.build_unconditional_branch(step_arm_bbs[next_site_idx])?;
-                        terminated = true;
-                        break;
-                    }
-
-                    match &stmt.kind {
-                        hir::StmtKind::Empty => {}
-                        hir::StmtKind::Val(decl) => {
-                            cg.codegen_val_decl(decl)?;
-                        }
-                        hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                            cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                        }
-                        hir::StmtKind::Expr(expr) => {
-                            let _ = cg.codegen_expr(expr)?;
-                        }
-                        hir::StmtKind::While { cond, body } => {
-                            cg.codegen_while_stmt(stmt.span, cond, body)?;
-                        }
-                        hir::StmtKind::Return { .. } => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "`return` inside multi-resuming heap continuation step",
-                                at: stmt.span.into(),
-                            });
-                        }
-                        hir::StmtKind::Break { .. }
-                        | hir::StmtKind::Continue { .. }
-                        | hir::StmtKind::Todo(_) => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "statement inside multi-resuming heap continuation step",
-                                at: stmt.span.into(),
-                            });
-                        }
-                    }
-                }
-
-                if !terminated
-                    && let Some(bb) = cg.builder.get_insert_block()
-                    && bb.get_terminator().is_none()
-                {
-                    let unpin = cg.declare_runtime_gc_unpin();
-                    let _ = cg.builder.build_call(
-                        unpin,
-                        &[state_raw.into()],
-                        "multi_resume_heap_step_state_unpin",
-                    )?;
-                    cg.builder.build_return(None)?;
-                }
+                let saved_env = cg.env.clone();
+                cg.codegen_multi_resuming_heap_step_continue_after_site(
+                    span,
+                    handle,
+                    site_idx,
+                    scanned_sites.as_slice(),
+                    step_binder_slots_by_site.as_slice(),
+                    step_arm_bbs.as_slice(),
+                    step_fn,
+                    step_cont_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    &outer_visible_supported,
+                    outer_field_base,
+                    &body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )?;
+                cg.env = saved_env;
             }
 
             if step_effect_dispatch_bb.is_some() {
@@ -1285,98 +2387,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             self.push_raise_target(main_raise_target);
         }
-        for (stmt_idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if let Some(&site_idx) = site_pc_by_stmt_idx.get(&stmt_idx) {
-                let plan = &scanned_sites[site_idx];
-                self.capture_escape_state_with_pc(
-                    plan.site.decl.span,
-                    state_ty,
-                    state_gc_ptr,
-                    &outer_visible_supported,
-                    outer_field_base,
-                    &body_visible_supported,
-                    body_field_base,
-                    pc_field_idx,
-                    site_idx,
-                )?;
-                for (slot, arg) in initial_binder_slots_by_site[site_idx]
-                    .iter()
-                    .zip(plan.site.args.iter())
-                {
-                    let hir::CallArg::Positional(expr) = arg else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle multi-resuming heap named perform arg",
-                            at: span.into(),
-                        });
-                    };
-                    let value = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                    let _ = self.store_local_value(expr.span, slot.ptr, slot.ty, value)?;
-                }
-                let step_ptr = step_fn.as_global_value().as_pointer_value();
-                let cont_call = self.builder.build_call(
-                    self.declare_runtime_continuation_alloc(),
-                    &[state_raw.into(), step_ptr.into()],
-                    "multi_resume_heap_cont_alloc",
-                )?;
-                let cont_raw = cont_call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "multi-resuming heap continuation alloc return value",
-                        at: plan.site.decl.span.into(),
-                    },
-                )?;
-                let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "multi-resuming heap continuation alloc return type",
-                        at: plan.site.decl.span.into(),
-                    });
-                };
-                let _ = self.builder.build_call(
-                    pin,
-                    &[k_raw.into()],
-                    "multi_resume_heap_k_pin",
-                )?;
-                let _ = self.builder.build_store(
-                    continuation_created_ptr,
-                    self.context.bool_type().const_all_ones(),
-                )?;
-                let _ = self.store_local_value(
-                    span,
-                    cont_ptr,
-                    CgTy::Ref,
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(k_raw.into()),
-                    },
-                )?;
-                self.builder.build_unconditional_branch(arm_bbs[site_idx])?;
-                break;
-            }
-
-            match &stmt.kind {
-                hir::StmtKind::Empty => {}
-                hir::StmtKind::Val(decl) => {
-                    self.codegen_val_decl(decl)?;
-                }
-                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                }
-                hir::StmtKind::Expr(expr) => {
-                    let _ = self.codegen_expr(expr)?;
-                }
-                hir::StmtKind::While { cond, body } => {
-                    self.codegen_while_stmt(stmt.span, cond, body)?;
-                }
-                hir::StmtKind::Return { .. }
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "statement before multi-resuming heap perform",
-                        at: stmt.span.into(),
-                    });
-                }
-            }
-        }
+        self.codegen_multi_resuming_heap_main_body_with_intercepts(
+            span,
+            handle,
+            out_ty,
+            result_ptr,
+            finally_bb.unwrap_or(done_bb),
+            scanned_sites.as_slice(),
+            initial_binder_slots_by_site.as_slice(),
+            arm_bbs.as_slice(),
+            step_fn,
+            cont_ptr,
+            continuation_created_ptr,
+            state_ty,
+            state_raw,
+            state_gc_ptr,
+            &outer_visible_supported,
+            outer_field_base,
+            &body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
         if main_raise_target.is_some() {
             self.pop_raise_target();
             for _ in custom_siblings.iter().rev() {
@@ -1389,7 +2420,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && bb.get_terminator().is_none()
         {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle multi-resuming heap-continuation-only (missing direct perform site)",
+                kind: "handle multi-resuming heap-continuation-only (main body completion missing)",
                 at: span.into(),
             });
         }

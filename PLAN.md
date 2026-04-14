@@ -389,7 +389,9 @@ cargo run -p scoop --features llvm -- test
     - `T2003r3d3d`：最后推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix。
   - T2003r3d3a 已完成：`nonresuming.rs` 的 unified `MultiResuming` 入口已允许 `1 immediate + 1 escape + sibling non-resuming` 组合直接进入 mixed leaf；`multi_resuming_mixed.rs` 现已接回 sibling dispatch / cleanup contract，main body、immediate arm、escape arm 与 continuation step 都会按 unified metadata 处理 sibling custom non-resuming / `Raise.raise`，并在 arm body 执行期间保持同源 sibling scope 脱离当前 handler 栈以避免 self-capture。
   - 本轮同时补上 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling` 与 representative fixture `effect_resume_mixed_escape_abort_finally`，覆盖 `1 immediate + 1 escape + sibling non-resuming + finally`；并重新验证 `cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、两个 representative LLVM fixture 与 `cargo clippy --workspace --all-targets -- -D warnings` 全通过。
-  - 当前下一步调整为 `T2003r3d3b`：推广 unified multi-escape leaf 到 direct source-path matrix。
+  - T2003r3d3b 已完成：`multi_resuming_heap.rs` 的 pure multi-escape leaf 现已改为递归消费 unified plan 的 while / if / block source-path；main body 与 step trampoline 都不再依赖 top-level direct-only gate，后续 direct site、branch / loop tail、再次 direct interception，以及 sibling custom non-resuming / `finally` 都继续复用同一套 heap continuation contract。
+  - 本轮新增 plan / LLVM 定向单测 `resolve_mixed_escape_direct_sites_from_plan_recovers_nested_source_path_matrix`、`unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample`，以及 representative fixture `effect_multi_escape_direct_source_path_matrix`；并验证 `cargo check -p scoopc --features llvm`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`、`cargo fmt --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d3c`：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -478,7 +480,7 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2c2（已完成）：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线。
   - T2003r3d2c3（已完成）：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线。
   - T2003r3d3a（已完成）：接回 unified `1 immediate + 1 escape` mixed leaf 的 sibling non-resuming / cleanup contract。
-  - T2003r3d3b：推广 unified multi-escape leaf 到 direct source-path matrix。
+  - T2003r3d3b（已完成）：推广 unified multi-escape leaf 到 direct source-path matrix。
   - T2003r3d3c：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix。
   - T2003r3d3d：推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix。
   - T2003r3d4：补“多个 immediate-resume arms + 一个 escape-continuation arm”与“一个 immediate-resume arm + 多个 escape-continuation arms”的 arm-count generality，并清空已知 legal mixed lowering 缺口。

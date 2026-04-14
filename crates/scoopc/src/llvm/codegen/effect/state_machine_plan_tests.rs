@@ -703,6 +703,85 @@ fun demo(): Int {
     }
 
     #[test]
+    fn resolve_mixed_escape_direct_sites_from_plan_recovers_nested_source_path_matrix() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+effect Count {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        var loop: Bool = flag
+        while (loop) {
+            if (loop) {
+                @Safe {
+                    val first: Int = Ask.ask()
+                    println(first)
+                }
+            } else {
+                val second: Int = Count.next()
+                println(second)
+            }
+            loop = false
+        }
+        0
+    } with {
+        Ask.ask(), k -> 1
+        Count.next(), k -> 2
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let escape_arms = handle
+            .arms
+            .iter()
+            .enumerate()
+            .map(|(idx, arm)| (arm, idx as u32))
+            .collect::<Vec<_>>();
+
+        let resolved = MainCodegen::resolve_mixed_escape_direct_sites_from_plan(
+            handle,
+            &plan,
+            escape_arms.as_slice(),
+        )
+        .expect("plan-driven mixed direct escape resolution should succeed");
+
+        assert_eq!(resolved.direct_sites.len(), 2);
+        assert_eq!(resolved.direct_sites[0].arm_id, 0);
+        assert_eq!(resolved.direct_sites[1].arm_id, 1);
+        assert_eq!(resolved.direct_sites[0].site.top_level_stmt_idx, 1);
+        assert_eq!(resolved.direct_sites[1].site.top_level_stmt_idx, 1);
+        assert!(matches!(
+            resolved.direct_sites[0].site.resume_path.as_slice(),
+            [
+                MixedEscapeDirectFrame::WhileBody { .. },
+                MixedEscapeDirectFrame::IfThen { .. },
+                MixedEscapeDirectFrame::Block { .. },
+            ]
+        ));
+        assert!(matches!(
+            resolved.direct_sites[1].site.resume_path.as_slice(),
+            [
+                MixedEscapeDirectFrame::WhileBody { .. },
+                MixedEscapeDirectFrame::IfElse { .. },
+            ]
+        ));
+    }
+
+    #[test]
     fn resolve_mixed_escape_indirect_sites_from_plan_recovers_nested_paths_and_captures() {
         let lowered = lower_typed_single_source(
             r#"
@@ -1777,6 +1856,119 @@ fun main() {
         None -> println("missing")
     }
 
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
+    fn unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Count {
+    fun next(label: String): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        var i: Int = 0
+        while (i < 2) {
+            println("loop")
+            println(i)
+            if (i == 0) {
+                @Safe {
+                    println("enter_block")
+                    val prefix: String = "prefix"
+                    val first: String = Ask.ask("first")
+                    println("after_ask")
+                    println(prefix)
+                    println(first)
+                }
+            } else {
+                val second: String = Count.next("second")
+                println("after_count")
+                println(second)
+            }
+            i = i + 1
+            println("loop_end")
+            println(i)
+        }
+        println("after_while")
+        Abort.stop(if (i == 2) "abort_done" else "abort_bad")
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(label)
+            cell.k = Some(k)
+            7
+        }
+        Count.next(label: String), k -> {
+            cell.seen = cell.seen + 1
+            println("count_arm")
+            println(cell.seen)
+            println(label)
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
     println("done")
 }
 "#;

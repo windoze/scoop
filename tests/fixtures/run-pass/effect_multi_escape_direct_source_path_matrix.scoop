@@ -1,0 +1,113 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_escape_direct_source_path_matrix.stdout
+//
+// T2003r3d3b: unified multi-escape leaf 的 direct source-path matrix。
+// - pure multi-escape leaf 直接消费 unified plan 的 while/if/block source-path；
+// - 第一次 resume 会 replay block/branch/loop tail，并在下一次迭代命中第二个 escape arm；
+// - sibling custom non-resuming 与 finally 继续复用同一套 heap continuation contract。
+// Current `@Safe { ... }` is only the tracked naked-block workaround before
+// T2203/T2204 lands; this fixture is locking unified source-path replay.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(label: String): String
+}
+
+effect Count {
+    fun next(label: String): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        var i: Int = 0
+        while (i < 2) {
+            println("loop")
+            println(i)
+            if (i == 0) {
+                @Safe {
+                    println("enter_block")
+                    val prefix: String = "prefix"
+                    val first: String = Ask.ask("first")
+                    println("after_ask")
+                    println(prefix)
+                    println(first)
+                }
+            } else {
+                val second: String = Count.next("second")
+                println("after_count")
+                println(second)
+            }
+            i = i + 1
+            println("loop_end")
+            println(i)
+        }
+        println("after_while")
+        Abort.stop(if (i == 2) "abort_done" else "abort_bad")
+        99
+    } with {
+        Ask.ask(label: String), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(label)
+            cell.k = Some(k)
+            7
+        }
+        Count.next(label: String), k -> {
+            cell.seen = cell.seen + 1
+            println("count_arm")
+            println(cell.seen)
+            println(label)
+            cell.k = Some(k)
+            8
+        }
+        Abort.stop(text: String) -> {
+            println("abort_arm")
+            println(text)
+            5
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

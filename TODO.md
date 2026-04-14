@@ -1757,7 +1757,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling`，以及 representative run-pass fixture `effect_resume_mixed_escape_abort_finally`，覆盖 `1 immediate + 1 escape + sibling non-resuming + finally`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_emits_single_immediate_single_escape_with_nonresuming_sibling -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_abort_finally.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d3b [TODO] Effect：推广 unified multi-escape leaf 到 direct source-path matrix
+### T2003r3d3b [DONE] Effect：推广 unified multi-escape leaf 到 direct source-path matrix
 - 描述：`multi_resuming_heap.rs` 当前虽然已经接回 pure multi-escape leaf，但仍把 direct site 限定为 top-level val-bound perform。下一步应让 pure multi-escape 的 legal direct source-path matrix（嵌套 block / branch / loop / nested-handle 组合）直接消费 unified plan 的 resume-path / capture metadata，而不是继续留在 top-level-only gate。
 - 目标：
   - pure multi-escape leaf 的 direct suspend-site 不再要求 top-level-only；legal nested source-path 组合统一走 plan-driven dispatch / resume replay。
@@ -1767,11 +1767,16 @@ cargo run -p scoop --features llvm -- test
   - 开始本任务前不跑测试；完成后只运行与本任务直接相关的最小测试集，不跑 full suite / full matrix。
   - 新增或更新 LLVM 定向单测与 representative run-pass fixtures：覆盖 pure multi-escape direct source-path matrix。
   - `multi_resuming_heap.rs` 不再因 legal direct source-path sample 报 `only top-level val-bound direct perform supported`。
-  - 完成后只跑与本任务直接相关的定向验证，例如：
+- 完成后只跑与本任务直接相关的定向验证，例如：
     - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
     - `cargo run -p scoop --features llvm -- run <新增 fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d3a
+- 完成说明：
+  - `multi_resuming_heap.rs` 的 pure multi-escape unified leaf 现已直接消费 unified plan 的 while / if / block source-path，不再在 legal nested direct sample 上报 `only top-level val-bound direct perform supported`。
+  - main body 与 step trampoline 都改为通过统一的递归 source-path helper 执行 nested direct replay：direct site、branch / loop tail、后续 direct site 拦截，以及 sibling non-resuming / `finally` 都继续复用同一套 heap continuation contract。
+  - 已新增 plan / LLVM 定向单测 `resolve_mixed_escape_direct_sites_from_plan_recovers_nested_source_path_matrix`、`unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample`，以及 representative run-pass fixture `effect_multi_escape_direct_source_path_matrix`。
+  - 已做定向验证：`cargo check -p scoopc --features llvm`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`、`cargo fmt --all`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d3c [TODO] Effect：推广 unified multi-escape leaf 到 indirect / callee-suspend matrix
 - 描述：在 pure multi-escape direct source-path matrix 接回后，再把 indirect call-site suspension / callee-suspend matrix 并入同一条 unified heap-continuation leaf，清掉现有 `indirect call site not yet supported` gate。
