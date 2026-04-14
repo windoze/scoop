@@ -656,11 +656,11 @@ pub(super) fn check_stmt_exprs(
                 Some(v) => {
                     let found = expr_infer_inputs_with_flow(shared, state.locals, flow)
                         .infer_in_expected(
-                        lower,
-                        v,
-                        expected,
-                        ExpectedTypeFrom::new("函数返回类型"),
-                    )?;
+                            lower,
+                            v,
+                            expected,
+                            ExpectedTypeFrom::new("函数返回类型"),
+                        )?;
                     if !is_type_assignable(found, expected, lower, shared.builtins)
                         && !literal_absorbs_to_expected(
                             v,
@@ -697,8 +697,8 @@ pub(super) fn check_stmt_exprs(
             }
         }
         ast::StmtKind::While { cond, body, .. } => {
-            let cond_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
-                .infer(lower, cond)?;
+            let cond_ty =
+                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, cond)?;
 
             if !is_type_assignable(cond_ty, shared.builtins.bool_, lower, shared.builtins) {
                 return Err(ExprTypeError::WhileConditionNotBool {
@@ -738,8 +738,8 @@ pub(super) fn check_stmt_exprs(
             // - `Iter.next(): Option<Elem>`
             //
             // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
-            let iter_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
-                .infer(lower, &f.iter)?;
+            let iter_ty =
+                expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, &f.iter)?;
 
             let Some((iter_fqn, iter_args)) = try_extract_nominal_fqn_and_args(iter_ty, lower)
             else {
@@ -950,12 +950,8 @@ pub(super) fn check_local_val_decl_exprs(
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
         Some(init) => Some(match declared_ty {
-            Some(expected) => expr_infer_inputs_with_flow(shared, state.locals, flow).infer_in_expected(
-                lower,
-                init,
-                expected,
-                expected_from.clone(),
-            )?,
+            Some(expected) => expr_infer_inputs_with_flow(shared, state.locals, flow)
+                .infer_in_expected(lower, init, expected, expected_from.clone())?,
             None => expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, init)?,
         }),
         None => None,

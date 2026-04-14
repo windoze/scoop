@@ -15,6 +15,7 @@ struct HandlePlanContext {
     known_fun_effects: HashMap<String, bool>,
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
     ctor_call_targets: HashMap<Span, Vec<String>>,
+    continuation_resume_call_sites: HashSet<Span>,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
 }
@@ -157,13 +158,10 @@ impl HandleStateMachinePlan {
                 )
             };
             out.push_str(&format!(
-                "{pad}  arm{} op={} mode={} body_entry=s{} body_exit={} detach={}\n",
+                "{pad}  arm{} op={} body_entry=s{}\n",
                 arm.id,
                 arm.op_fqn,
-                arm.resume_mode.label(),
                 arm.body_entry_state,
-                arm.body_exit.label(),
-                arm.detach_policy
             ));
             out.push_str(&format!("{pad}    binders={binders}\n"));
             let captures = render_symbol_list(&arm.capture_locals, &self.frame_layout.slots);
@@ -743,35 +741,7 @@ struct ArmPlan {
     op_fqn: String,
     binder_slots: Vec<FrameSlot>,
     capture_locals: Vec<hir::SymbolId>,
-    resume_mode: ArmResumeMode,
     body_entry_state: PlanStateId,
-    body_exit: ArmBodyExit,
-    detach_policy: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ArmResumeMode {
-    NeverResume,
-    ImmediateResume,
-    EscapeContinuation,
-}
-
-impl ArmResumeMode {
-    fn label(self) -> &'static str {
-        match self {
-            ArmResumeMode::NeverResume => "never-resume",
-            ArmResumeMode::ImmediateResume => "immediate-resume",
-            ArmResumeMode::EscapeContinuation => "escape-continuation",
-        }
-    }
-
-    fn structural_signature(self) -> usize {
-        match self {
-            ArmResumeMode::NeverResume => 1,
-            ArmResumeMode::ImmediateResume => 2,
-            ArmResumeMode::EscapeContinuation => 3,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -897,12 +867,7 @@ impl SuspendSitePlan {
 
 impl ArmPlan {
     fn structural_signature(&self) -> usize {
-        let mut acc = self.id as usize
-            ^ self.op_fqn.len()
-            ^ self.resume_mode.structural_signature()
-            ^ self.body_entry_state as usize
-            ^ self.body_exit.structural_signature()
-            ^ self.detach_policy.len();
+        let mut acc = self.id as usize ^ self.op_fqn.len() ^ self.body_entry_state as usize;
         for slot in &self.binder_slots {
             acc ^= slot.structural_signature();
         }
@@ -1526,7 +1491,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         expr: &hir::Expr,
         callee: &hir::Expr,
     ) -> Option<SuspendSiteKind> {
-        if let Some(kind) = self.classify_builtin_suspend_call(callee) {
+        if let Some(kind) = self.classify_builtin_suspend_call(expr.span) {
             return Some(kind);
         }
 
@@ -1593,23 +1558,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         None
     }
 
-    fn classify_builtin_suspend_call(&self, callee: &hir::Expr) -> Option<SuspendSiteKind> {
-        let hir::ExprKind::MemberAccess { member, .. } = &callee.kind else {
-            return None;
-        };
-
-        if member.name != "resume" {
-            return None;
-        }
-
-        // 保持与现有 codegen 入口一致：当前阶段尚未支持真实的实例方法分派，
-        // `member.name == "resume"` 会被当作 builtin `Continuation.resume(...)`。
-        //
-        // 这里若额外依赖 receiver 的 HIR 类型，会比 codegen 本身更严格，导致
-        // `try/catch { k.resume(...) }` 在 plan 侧误判为 no-suspend。
-        Some(SuspendSiteKind::RuntimeRaise {
-            reason: "Continuation.resume".to_string(),
-        })
+    fn classify_builtin_suspend_call(&self, call_span: Span) -> Option<SuspendSiteKind> {
+        // `Continuation.resume` 的 builtin 语义只来自上游 typecheck 已确认的调用点 side table；
+        // segmentation 本身不再按成员名、receiver 类型或其它代码形状做推断。
+        self.context
+            .continuation_resume_call_sites
+            .contains(&call_span)
+            .then(|| SuspendSiteKind::RuntimeRaise {
+                reason: "Continuation.resume".to_string(),
+            })
     }
 
     fn classify_hidden_suspend_var_ref(
@@ -1718,34 +1675,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 },
             );
 
-            let (resume_mode, body_exit, detach_policy) = match arm.kind {
-                hir::HandleArmKind::NonResuming => (
-                    ArmResumeMode::NeverResume,
-                    ArmBodyExit::ReturnHandle,
-                    "detach matching frame; arm body runs outside handler scope".to_string(),
-                ),
-                hir::HandleArmKind::ImmediateResume { .. } => (
-                    ArmResumeMode::ImmediateResume,
-                    ArmBodyExit::ResumeMatchedSite,
-                    "detach sibling frames; resume writes payload back to matched site".to_string(),
-                ),
-                hir::HandleArmKind::EscapeContinuation { .. } => (
-                    ArmResumeMode::EscapeContinuation,
-                    ArmBodyExit::MaterializeContinuation,
-                    "detach source frames; continuation reinstalls captured handler stack".to_string(),
-                ),
+            let arm_exit = match arm.kind {
+                hir::HandleArmKind::NonResuming => ArmBodyExit::ReturnHandle,
+                hir::HandleArmKind::ImmediateResume { .. } => ArmBodyExit::ResumeMatchedSite,
+                hir::HandleArmKind::EscapeContinuation { .. } => {
+                    ArmBodyExit::MaterializeContinuation
+                }
             };
-            self.set_terminator(body_entry_state, StateTerminator::ArmExit(body_exit));
+            self.set_terminator(body_entry_state, StateTerminator::ArmExit(arm_exit));
 
             self.arm_plans.push(ArmPlan {
                 id: arm_id,
                 op_fqn: arm.op.op.fqn.clone(),
                 binder_slots,
                 capture_locals,
-                resume_mode,
                 body_entry_state,
-                body_exit,
-                detach_policy,
             });
         }
     }
@@ -1782,10 +1726,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             lifted_locals,
             arm_binders,
             has_cleanup_flag: !self.cleanup_scopes.is_empty(),
-            has_one_shot_flag: self
-                .arm_plans
-                .iter()
-                .any(|arm| matches!(arm.resume_mode, ArmResumeMode::EscapeContinuation)),
+            has_one_shot_flag: self.states.iter().any(|state| {
+                matches!(
+                    state.terminator,
+                    StateTerminator::ArmExit(ArmBodyExit::MaterializeContinuation)
+                )
+            }),
         }
     }
 
@@ -2697,6 +2643,7 @@ impl HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
             ctor_call_targets,
+            continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
         }

@@ -431,6 +431,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - resolver 无法仅凭 nullable receiver 的语法形态写回 `member.resolved`；
     /// - lowering/codegen 仍需要稳定的成员解析结果，因此这里按 `member.span` 记录。
     safe_member_access_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
+    /// typecheck 已确认的 `Continuation.resume` 调用点。
+    ///
+    /// 用途：
+    /// - 作为 effect segmentation 的确定语义 side table；
+    /// - 避免后续阶段再按 `resume` 这个名字或调用形状做 builtin 推断。
+    continuation_resume_call_sites: HashSet<Span>,
     /// 单态化（monomorphization）请求收集器（T0712）。
     ///
     /// 说明：
@@ -539,6 +545,7 @@ impl<'a> TypeLowering<'a> {
             inferred_expr_tys: HashMap::new(),
             inferred_binding_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
+            continuation_resume_call_sites: HashSet::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
@@ -1191,6 +1198,10 @@ impl<'a> TypeLowering<'a> {
             .insert(member_span, resolved);
     }
 
+    pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span) {
+        self.continuation_resume_call_sites.insert(call_span);
+    }
+
     pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_expr_tys)
     }
@@ -1203,6 +1214,10 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::ResolvedMemberRef> {
         std::mem::take(&mut self.safe_member_access_resolutions)
+    }
+
+    pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
+        std::mem::take(&mut self.continuation_resume_call_sites)
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {

@@ -1,7 +1,7 @@
 //! effect codegen（T0102e：从 `codegen/mod.rs` 拆分）。
 //!
 //! 当前阶段只保留 unified state-machine plan / segment 主线所需的最小骨架。
-//! 旧的 shape-based 分流与配套 helper 已删除；后续 lowering 只能从统一元数据重新接回。
+//! 旧的分流与配套 helper 已删除；后续 lowering 只能从统一元数据重新接回。
 
 use super::*;
 

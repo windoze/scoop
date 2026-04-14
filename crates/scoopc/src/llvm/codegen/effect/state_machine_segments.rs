@@ -27,21 +27,16 @@ struct HandleSegmentDispatchEntry {
 struct HandleSegmentDispatchTarget {
     arm_id: ArmPlanId,
     entry_segment: HandleSegmentId,
-    resume_mode: ArmResumeMode,
-    body_exit: ArmBodyExit,
 }
 
 #[derive(Debug, Clone)]
 struct HandleSegmentArmBody {
     arm_id: ArmPlanId,
     op_fqn: String,
-    resume_mode: ArmResumeMode,
     body_entry_segment: HandleSegmentId,
     body_segments: Vec<HandleSegmentId>,
-    body_exit: ArmBodyExit,
     binder_slots: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
-    detach_policy: String,
     cleanup_scope_stack: Vec<CleanupScopeId>,
 }
 
@@ -65,7 +60,6 @@ enum HandleSegmentDispatchContext {
     },
     Arm {
         arm_id: ArmPlanId,
-        resume_mode: ArmResumeMode,
     },
 }
 
@@ -209,9 +203,12 @@ impl HandleSegmentList {
                 .map(HandleSegmentDispatchEntry::to_plan)
                 .collect(),
         };
-        let has_one_shot_flag = arm_plans
-            .iter()
-            .any(|arm| matches!(arm.resume_mode, ArmResumeMode::EscapeContinuation));
+        let has_one_shot_flag = states.iter().any(|state| {
+            matches!(
+                state.terminator,
+                StateTerminator::ArmExit(ArmBodyExit::MaterializeContinuation)
+            )
+        });
 
         Ok(HandleStateMachinePlan {
             handle_span: self.handle_span,
@@ -253,7 +250,6 @@ impl HandleSegmentList {
         );
         let state_dispatch_contexts = build_state_dispatch_contexts(
             &plan.states,
-            &plan.arm_plans,
             &plan.cleanup_scopes,
             &state_cleanup_execution_scopes,
             &arm_bodies,
@@ -647,20 +643,6 @@ impl HandleSegmentList {
                         arm.body_entry_segment
                     ));
                 }
-                if target.resume_mode != arm.resume_mode {
-                    return Err(format!(
-                        "{path}: dispatch entry {} arm{} resume mode does not match arm body",
-                        entry.op_fqn,
-                        arm_id
-                    ));
-                }
-                if target.body_exit != arm.body_exit {
-                    return Err(format!(
-                        "{path}: dispatch entry {} arm{} exit does not match arm body",
-                        entry.op_fqn,
-                        arm_id
-                    ));
-                }
 
                 dispatched_arm_ids.insert(*arm_id);
             }
@@ -730,10 +712,7 @@ impl HandleSegmentList {
                     )
                 })?;
                 match segment.dispatch_context {
-                    HandleSegmentDispatchContext::Arm {
-                        arm_id,
-                        resume_mode,
-                    } if arm_id == arm.arm_id && resume_mode == arm.resume_mode => {}
+                    HandleSegmentDispatchContext::Arm { arm_id } if arm_id == arm.arm_id => {}
                     _ => {
                         return Err(format!(
                             "{path}: arm{} body segment seg{} has mismatched dispatch context {}",
@@ -1177,10 +1156,7 @@ impl HandleSegmentList {
                         ));
                     }
                 }
-                HandleSegmentDispatchContext::Arm {
-                    arm_id,
-                    resume_mode,
-                } => {
+                HandleSegmentDispatchContext::Arm { arm_id } => {
                     let arm = arm_bodies_by_id.get(&arm_id).ok_or_else(|| {
                         format!(
                             "{path}: seg{} arm-body references missing arm{}",
@@ -1188,13 +1164,6 @@ impl HandleSegmentList {
                             arm_id
                         )
                     })?;
-                    if arm.resume_mode != resume_mode {
-                        return Err(format!(
-                            "{path}: seg{} arm-body mode mismatch for arm{}",
-                            segment.id,
-                            arm_id
-                        ));
-                    }
                     if !arm.body_segments.contains(&segment.id) {
                         return Err(format!(
                             "{path}: seg{} is marked as arm{} body but arm metadata does not include it",
@@ -1280,14 +1249,11 @@ impl HandleSegmentList {
         } else {
             for arm in &self.arm_bodies {
                 out.push_str(&format!(
-                    "{pad}  arm{} op={} mode={} entry=seg{} segments=[{}] exit={} detach={}\n",
+                    "{pad}  arm{} op={} entry=seg{} segments=[{}]\n",
                     arm.arm_id,
                     arm.op_fqn,
-                    arm.resume_mode.label(),
                     arm.body_entry_segment,
-                    render_segment_ids(&arm.body_segments),
-                    arm.body_exit.label(),
-                    arm.detach_policy
+                    render_segment_ids(&arm.body_segments)
                 ));
                 out.push_str(&format!(
                     "{pad}    binders=[{}]\n",
@@ -1486,10 +1452,7 @@ impl HandleSegmentDispatchContext {
             Self::Cleanup { scope_id, kind } => {
                 2 ^ (scope_id as usize) ^ (kind.structural_signature() << 1)
             }
-            Self::Arm {
-                arm_id,
-                resume_mode,
-            } => 3 ^ (arm_id as usize) ^ (resume_mode.structural_signature() << 1),
+            Self::Arm { arm_id } => 3 ^ (arm_id as usize),
         }
     }
 
@@ -1499,13 +1462,7 @@ impl HandleSegmentDispatchContext {
             Self::Cleanup { scope_id, kind } => {
                 format!("cleanup-body cleanup{scope_id} kind={}", kind.label())
             }
-            Self::Arm {
-                arm_id,
-                resume_mode,
-            } => format!(
-                "arm-body arm{arm_id} mode={}",
-                resume_mode.label()
-            ),
+            Self::Arm { arm_id } => format!("arm-body arm{arm_id}"),
         }
     }
 }
@@ -1723,21 +1680,12 @@ impl HandleSegmentDispatchEntry {
 
 impl HandleSegmentDispatchTarget {
     fn structural_signature(&self) -> usize {
-        self.arm_id as usize
-            ^ ((self.entry_segment as usize) << 1)
-            ^ (self.resume_mode.structural_signature() << 2)
-            ^ (self.body_exit.structural_signature() << 3)
+        self.arm_id as usize ^ ((self.entry_segment as usize) << 1)
     }
 
     #[cfg(test)]
     fn label(&self) -> String {
-        format!(
-            "arm{}(entry=seg{} exit={} mode={})",
-            self.arm_id,
-            self.entry_segment,
-            self.body_exit.label(),
-            self.resume_mode.label()
-        )
+        format!("arm{}(entry=seg{})", self.arm_id, self.entry_segment)
     }
 }
 
@@ -1762,20 +1710,12 @@ impl HandleSegmentArmBody {
             op_fqn: self.op_fqn.clone(),
             binder_slots,
             capture_locals: self.capture_locals.clone(),
-            resume_mode: self.resume_mode,
             body_entry_state: self.body_entry_segment,
-            body_exit: self.body_exit,
-            detach_policy: self.detach_policy.clone(),
         })
     }
 
     fn structural_signature(&self) -> usize {
-        let mut acc = self.arm_id as usize
-            ^ self.op_fqn.len()
-            ^ (self.resume_mode.structural_signature() << 1)
-            ^ (self.body_entry_segment as usize)
-            ^ (self.body_exit.structural_signature() << 2)
-            ^ self.detach_policy.len();
+        let mut acc = self.arm_id as usize ^ self.op_fqn.len() ^ (self.body_entry_segment as usize);
         for segment_id in &self.body_segments {
             acc ^= (*segment_id as usize) << 3;
         }
@@ -2108,13 +2048,10 @@ fn build_segment_arm_bodies(
             HandleSegmentArmBody {
                 arm_id: arm.id,
                 op_fqn: arm.op_fqn.clone(),
-                resume_mode: arm.resume_mode,
                 body_entry_segment: arm.body_entry_state,
                 body_segments,
-                body_exit: arm.body_exit,
                 binder_slots: arm.binder_slots.iter().map(|slot| slot.id).collect(),
                 capture_locals: arm.capture_locals.clone(),
-                detach_policy: arm.detach_policy.clone(),
                 cleanup_scope_stack,
             }
         })
@@ -2125,15 +2062,10 @@ fn build_segment_arm_bodies(
 
 fn build_state_dispatch_contexts(
     states: &[PlanState],
-    arm_plans: &[ArmPlan],
     cleanup_scopes: &[CleanupScopePlan],
     state_cleanup_execution_scopes: &HashMap<PlanStateId, Vec<CleanupScopeId>>,
     arm_bodies: &[HandleSegmentArmBody],
 ) -> HashMap<PlanStateId, HandleSegmentDispatchContext> {
-    let arm_modes = arm_plans
-        .iter()
-        .map(|arm| (arm.id, arm.resume_mode))
-        .collect::<HashMap<_, _>>();
     let cleanup_kinds = cleanup_scopes
         .iter()
         .map(|scope| (scope.id, scope.kind))
@@ -2153,12 +2085,7 @@ fn build_state_dispatch_contexts(
                     !state_cleanup_execution_scopes.contains_key(&state.id),
                     "arm body should not overlap cleanup execution states",
                 );
-                HandleSegmentDispatchContext::Arm {
-                    arm_id,
-                    resume_mode: *arm_modes
-                        .get(&arm_id)
-                        .expect("segment dispatch context missing arm mode"),
-                }
+                HandleSegmentDispatchContext::Arm { arm_id }
             } else if let Some(scope_id) = state_cleanup_execution_scopes
                 .get(&state.id)
                 .and_then(|scope_ids| scope_ids.last())
@@ -2202,8 +2129,6 @@ fn build_segment_dispatch_entries(
                     HandleSegmentDispatchTarget {
                         arm_id: *arm_id,
                         entry_segment: arm.body_entry_segment,
-                        resume_mode: arm.resume_mode,
-                        body_exit: arm.body_exit,
                     }
                 })
                 .collect(),
@@ -2452,15 +2377,15 @@ fun demo(mode: Int): Int {
         );
         assert!(dump.contains("a.Boom.boom => [arm1(entry=seg"), "{dump}");
         assert!(
-            dump.contains("arm-bodies:\n  arm0 op=a.Ask.current mode=escape-continuation"),
+            dump.contains("arm-bodies:\n  arm0 op=a.Ask.current entry=seg"),
             "{dump}"
         );
-        assert!(dump.contains("arm1 op=a.Boom.boom mode=never-resume"), "{dump}");
-        assert!(
-            dump.contains("context=arm-body arm0 mode=escape-continuation"),
-            "{dump}"
-        );
-        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Boom.boom entry=seg"), "{dump}");
+        assert!(dump.contains("context=arm-body arm0"), "{dump}");
+        assert!(dump.contains("context=arm-body arm1"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit materialize-continuation"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
+        assert!(!dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -2502,15 +2427,15 @@ fun demo(): Int {
             "{dump}"
         );
         assert!(dump.contains("a.Yield.next => [arm0(entry=seg"), "{dump}");
-        assert!(dump.contains("arm0 op=a.Yield.next mode=immediate-resume"), "{dump}");
-        assert!(dump.contains("arm1 op=a.Log.current mode=never-resume"), "{dump}");
-        assert!(
-            dump.contains("context=arm-body arm0 mode=immediate-resume"),
-            "{dump}"
-        );
-        assert!(dump.contains("context=arm-body arm1 mode=never-resume"), "{dump}");
+        assert!(dump.contains("arm0 op=a.Yield.next entry=seg"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Log.current entry=seg"), "{dump}");
+        assert!(dump.contains("context=arm-body arm0"), "{dump}");
+        assert!(dump.contains("context=arm-body arm1"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit resume-matched-site"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit return-handle"), "{dump}");
         assert!(dump.contains("context=cleanup-body cleanup0 kind=finally"), "{dump}");
         assert!(dump.contains("cleanup-stack=[cleanup0]"), "{dump}");
+        assert!(!dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -2556,12 +2481,15 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
             "{dump}"
         );
         assert!(dump.contains("a.Yield.next => [arm0(entry=seg"), "{dump}");
-        assert!(dump.contains("arm0 op=a.Yield.next mode=immediate-resume"), "{dump}");
-        assert!(dump.contains("arm1 op=a.Ask.ask mode=escape-continuation"), "{dump}");
+        assert!(dump.contains("arm0 op=a.Yield.next entry=seg"), "{dump}");
+        assert!(dump.contains("arm1 op=a.Ask.ask entry=seg"), "{dump}");
         assert!(dump.contains("kind=perform"), "{dump}");
         assert!(dump.contains("kind=call-may-suspend"), "{dump}");
         assert!(dump.contains("path=top[2] -> while-body[0]"), "{dump}");
         assert!(dump.contains("path=top[2] -> while-body[1]"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit resume-matched-site"), "{dump}");
+        assert!(dump.contains("terminator=arm-exit materialize-continuation"), "{dump}");
+        assert!(!dump.contains("mode="), "{dump}");
     }
 
     #[test]
@@ -2618,6 +2546,52 @@ fun demo(k: Continuation<Int>): Int {
 
         assert!(dump.contains("kind=runtime-raise"), "{dump}");
         assert!(dump.contains("detail=Continuation.resume"), "{dump}");
+    }
+
+    #[test]
+    fn continuation_resume_hidden_suspend_classification_requires_typechecked_call_site_marker() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+fun demo(k: Continuation<Int>): Int {
+    val ignored: Int = try {
+        k.resume(1)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    val result: Int = handle {
+        0
+    } with {
+        Raise.raise(err: RuntimeError) -> 1
+    }
+    result
+}
+"#,
+        );
+
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
+        let resume_call_span = lowered
+            .continuation_resume_call_sites
+            .iter()
+            .copied()
+            .next()
+            .expect("expected a typechecked Continuation.resume call site");
+        assert!(matches!(
+            builder.classify_builtin_suspend_call(resume_call_span),
+            Some(SuspendSiteKind::RuntimeRaise { reason }) if reason == "Continuation.resume"
+        ));
+        assert!(
+            builder
+                .classify_builtin_suspend_call(handle.body.span)
+                .is_none(),
+            "unmarked call sites must not be inferred as builtin resume sites"
+        );
     }
 
     #[test]
@@ -3500,6 +3474,7 @@ fun demo(flag: Bool): Int {
             known_fun_effects,
             known_local_fun_effects,
             ctor_call_targets,
+            continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
         }

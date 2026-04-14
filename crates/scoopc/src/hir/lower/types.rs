@@ -15,8 +15,9 @@ use crate::span::Span;
 use crate::ty::TypeStore;
 
 use super::super::{
-    ClassInitIndex, CtorCallSiteIndex, EnumLayoutIndex, ExternFunIndex, File, FunDecl,
-    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelVarIndex,
+    ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, EnumLayoutIndex,
+    ExternFunIndex, File, FunDecl, ObjectInitIndex, StructLayoutIndex, SymbolId,
+    TopLevelConstIndex, TopLevelVarIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -203,6 +204,8 @@ pub struct LoweredHir {
     pub class_itables: crate::itable::ClassItableIndex,
     /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
     pub ctor_call_sites: CtorCallSiteIndex,
+    /// typecheck 已确认的 `Continuation.resume` 调用点集合。
+    pub continuation_resume_call_sites: ContinuationResumeCallSiteIndex,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

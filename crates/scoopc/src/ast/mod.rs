@@ -7,7 +7,7 @@
 //! 注意：随着 parser/typechecker 完善，AST 结构可能会演进。
 
 use std::cell::{OnceCell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::span::Span;
 use crate::ty::TypeId;
@@ -48,6 +48,12 @@ pub struct File {
     ///   写回此表，供 HIR lowering / codegen 复用；
     /// - 该表同样不参与 AST Debug 输出，避免影响 parse fixtures。
     pub(crate) safe_member_access_resolved: RefCell<HashMap<Span, ResolvedMemberRef>>,
+    /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
+    ///
+    /// 说明：
+    /// - 该表只承载“已被 typecheck 证实”的 builtin 语义点，不承载任何基于语法形状的推断；
+    /// - effect segmentation 读取它来识别隐藏 suspend site，避免再按 member 名称或 receiver 形状猜测。
+    pub(crate) continuation_resume_call_sites: RefCell<HashSet<Span>>,
 }
 
 impl std::fmt::Debug for File {
@@ -89,6 +95,14 @@ impl File {
             .borrow()
             .get(&span)
             .cloned()
+    }
+
+    pub fn replace_continuation_resume_call_sites(&self, sites: HashSet<Span>) {
+        *self.continuation_resume_call_sites.borrow_mut() = sites;
+    }
+
+    pub fn continuation_resume_call_sites(&self) -> HashSet<Span> {
+        self.continuation_resume_call_sites.borrow().clone()
     }
 }
 

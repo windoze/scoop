@@ -31,8 +31,9 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, ClassInitIndex, CtorCallSiteIndex, Expr, ExprKind, File, FunDecl, Item,
-    ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
+    Block, CallArg, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, Expr,
+    ExprKind, File, FunDecl, Item, ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl,
+    ValueRef,
 };
 
 use types::*;
@@ -1259,6 +1260,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
         crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
+    let continuation_resume_call_sites = ast.continuation_resume_call_sites();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -1346,6 +1348,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         interfaces,
         class_itables,
         ctor_call_sites,
+        continuation_resume_call_sites,
     })
 }
 
@@ -1373,6 +1376,7 @@ pub fn lower_for_compilation_unit(
         index,
         &class_vtables,
     )?;
+    let continuation_resume_call_sites = file.continuation_resume_call_sites();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -1452,6 +1456,7 @@ pub fn lower_for_compilation_unit(
         interfaces,
         class_itables,
         ctor_call_sites,
+        continuation_resume_call_sites,
     })
 }
 
@@ -1484,6 +1489,8 @@ pub fn lower_for_compilation_unit_multi_files(
     let mut items: Vec<Item> = Vec::new();
     let mut member_funs: Vec<FunDecl> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
+    let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
+        ContinuationResumeCallSiteIndex::new();
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
     let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
 
@@ -1527,6 +1534,7 @@ pub fn lower_for_compilation_unit_multi_files(
         // 为避免跨文件 span 冲突导致错误 codegen，当前阶段只保留入口文件的 ctor call-sites。
         if source.path() == entry_source.path() {
             ctor_call_sites.extend(file_ctor_call_sites);
+            continuation_resume_call_sites.extend(file.continuation_resume_call_sites());
         }
 
         top_level_vars.extend(file_top_level_vars);
@@ -1625,6 +1633,7 @@ pub fn lower_for_compilation_unit_multi_files(
         interfaces,
         class_itables,
         ctor_call_sites,
+        continuation_resume_call_sites,
     })
 }
 

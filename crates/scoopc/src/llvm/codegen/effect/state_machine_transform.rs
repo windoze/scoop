@@ -2865,6 +2865,7 @@ fun demo(seed: Int): Int {
             known_fun_effects,
             known_local_fun_effects,
             ctor_call_targets,
+            continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
         }

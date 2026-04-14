@@ -150,6 +150,9 @@ impl<'a> Parser<'a> {
             inferred_expr_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
             inferred_binding_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
             safe_member_access_resolved: std::cell::RefCell::new(std::collections::HashMap::new()),
+            continuation_resume_call_sites: std::cell::RefCell::new(
+                std::collections::HashSet::new(),
+            ),
         })
     }
 

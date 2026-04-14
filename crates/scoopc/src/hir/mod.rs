@@ -15,7 +15,7 @@
 mod lower;
 pub use lower::mangle_nominal_fqn;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -639,6 +639,13 @@ pub struct ClassCtorParam {
 /// - LLVM codegen 需要知道“该 UnresolvedIdent 实际上是 ctor 调用”，因此这里把候选集合以 side table
 ///   的形式保留下来。
 pub type CtorCallSiteIndex = HashMap<Span, Vec<String>>;
+
+/// typecheck 已确认的 `Continuation.resume` 调用点集合（call expr span）。
+///
+/// 说明：
+/// - 该 side table 只承载确定语义事实，不承载任何调用形状分类；
+/// - effect segmentation 读取它来识别隐藏 suspend site。
+pub type ContinuationResumeCallSiteIndex = HashSet<Span>;
 
 /// 外部函数（`@Extern`）的最小后端视图。
 ///

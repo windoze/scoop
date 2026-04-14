@@ -20,8 +20,8 @@ use super::ops::{
     infer_unary_expr_type, is_float_type, is_integer_type, literal_absorbs_to_expected,
 };
 use super::stmt::{
-    StmtExprFlow, StmtExprShared, StmtExprState, check_local_val_decl_exprs,
-    check_stmt_exprs, detect_smart_cast_for_if_condition,
+    StmtExprFlow, StmtExprShared, StmtExprState, check_local_val_decl_exprs, check_stmt_exprs,
+    detect_smart_cast_for_if_condition,
 };
 use super::util::expr_kind_name;
 
