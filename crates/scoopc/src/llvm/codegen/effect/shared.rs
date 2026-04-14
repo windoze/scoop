@@ -187,6 +187,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn build_mixed_escape_resume_blocks(
+        &self,
+        func: FunctionValue<'ctx>,
+        prefix: &str,
+    ) -> MixedEscapeResumeBlocks<'ctx> {
+        MixedEscapeResumeBlocks {
+            dispatch_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_dispatch")),
+            state0_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_state0")),
+            state1_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_state1")),
+            arm_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_resume_arm")),
+            done_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_done")),
+            bad_state_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_bad_state")),
+            finally_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_finally")),
+            finally_unwind_bb: self
+                .context
+                .append_basic_block(func, &format!("{prefix}_finally_unwind")),
+        }
+    }
+
     #[allow(dead_code)]
     fn escape_capture_storage_kind(
         &mut self,

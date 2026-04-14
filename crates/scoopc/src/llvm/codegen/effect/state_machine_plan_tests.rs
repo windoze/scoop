@@ -1643,7 +1643,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn unified_multi_resuming_codegen_reports_single_immediate_single_escape_route_pending() {
+    fn unified_multi_resuming_codegen_emits_single_immediate_single_escape_finally_sample() {
         let source = r#"
 package a
 
@@ -1654,28 +1654,58 @@ effect Yield {
 }
 
 effect Ask {
-    fun ask(seed: Int): Int
+    fun ask(): String
 }
 
-fun main(): Int {
+fun main() {
+    var saved: Continuation<String>? = None()
+
     val result: Int = handle {
-        val first: Int = Yield.next()
-        val second: Int = Ask.ask(first)
-        second
+        val prefix: String = "prefix"
+        println("body")
+        val x: Int = Yield.next()
+        println("after_yield")
+        println(x)
+        val msg: String = Ask.ask()
+        println("after_ask")
+        println(prefix)
+        println(x)
+        println(msg)
+        99
     } with {
         Yield.next() -> resume {
-            resume(10)
+            println("yield_arm")
+            resume(41)
         }
-        Ask.ask(seed: Int), k -> seed + 1
+        Ask.ask(), k -> {
+            println("ask_arm")
+            saved = Some(k)
+            7
+        }
+    } finally {
+        println("finally")
     }
-    result
+
+    println("after_handle")
+    println(result)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+
+    println("done")
 }
 "#;
 
-        assert_emit_main_asm_fails_with_kind(
-            source,
-            "handle unified multi-resuming leaf (single immediate + single escape route not yet connected)",
-        );
+        assert_emit_main_asm_succeeds(source);
     }
 
     #[test]
@@ -2769,40 +2799,6 @@ fun demo(flag: Bool): Int {
 
         let _ = std::fs::remove_file(&output);
         emit_result.expect("LLVM codegen should emit assembly successfully");
-    }
-
-    fn assert_emit_main_asm_fails_with_kind(source_text: &str, expected_kind: &str) {
-        let (source, lowered) = lower_typed_single_source_with_source(source_text);
-        let source_map = SourceMap::from_source_refs([&source]);
-        let entry_source_id = source_map
-            .source_id_of_path(source.path())
-            .expect("source should exist in source map");
-        let mut output = std::env::temp_dir();
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("wall clock should be after unix epoch")
-            .as_nanos();
-        output.push(format!(
-            "scoop_multi_resuming_codegen_fail_{}_{}.s",
-            std::process::id(),
-            unique
-        ));
-
-        let emit_result = crate::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
-            &source_map,
-            entry_source_id,
-            &lowered,
-            &output,
-            None,
-        );
-
-        let _ = std::fs::remove_file(&output);
-        let err = emit_result.expect_err("LLVM codegen should fail for pending routes");
-        let message = format!("{err}");
-        assert!(
-            message.contains(expected_kind),
-            "expected error to contain `{expected_kind}`, got `{message}`",
-        );
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

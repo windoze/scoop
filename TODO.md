@@ -1709,7 +1709,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 LLVM 定向单测：`unified_multi_resuming_codegen_emits_heap_continuation_only_sample`、`unified_multi_resuming_codegen_emits_heap_continuation_only_with_nonresuming_sibling`；并新增 representative run-pass fixture `effect_handle_escape_arms_with_abort_tail`。
   - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_escape_arms_with_abort_tail.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d2c3 [TODO] Effect：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线
+### T2003r3d2c3 [DONE] Effect：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线
 - 描述：在纯 stack-reentry / pure heap-continuation 两条 leaf 都接回后，再把当前 legal 的 `1 immediate + 1 escape` mixed route 从 build-only 状态接回 unified leaf，为后续 arm-count generality 任务保留同一套 emitter contract。
 - 目标：
   - `counts.stack_reenter == 1 && counts.heap_continuation == 1` 的 unified multi-resuming route 不再停留在 build-only 占位。
@@ -1723,6 +1723,12 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <mixed representative fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d2c2
+- 完成说明：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming_mixed.rs`，并把 `nonresuming.rs` 中 `counts.stack_reenter == 1 && counts.heap_continuation == 1` 且无 sibling non-resuming arm 的 unified route 接到新的 mixed leaf，不再停留在 build-only 占位。
+  - 新 leaf 直接消费 unified plan metadata，打通了 top-level direct immediate site、top-level direct escape site、heap state capture、延后 `k.resume(...)` replay 与 `finally` cleanup；没有恢复任何已删除的 shape-based scanner / route 名称。
+  - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_finally_sample`，以及 representative run-pass fixture `effect_resume_mixed_escape_direct_finally`。
+  - 本轮 representative 组合选择 `finally`；更广的 mixed + sibling non-resuming / nested / indirect coverage 继续由 `T2003r3d3` 的统一 emitter 承接。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d3 [TODO] Effect：统一 emitter 接管当前 legal 的 mixed immediate+escape / multi-escape，不再按 shape 追 case
 - 描述：在 `T2003r3d2c` 把当前 legal resuming leaf 的 build-only 占位清掉后，下一步应让 mixed immediate+escape 与 multi-escape 的合法子集全部通过同一套 plan-driven dispatch / capture / cleanup / resume graph 发射，而不是再把 `nested while indirect`、`block/if/while`、`same-stmt` 等源码位置当成任务拆分维度。之前留在 build-fail 的 representative sample 只应作为 coverage case，被统一 emitter 自然覆盖。

@@ -1893,14 +1893,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         );
                 }
 
+                if immediate_arms.len() == 1 && escape_arms.len() == 1 {
+                    if !nonresuming_arms.is_empty() {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle unified mixed multi-resuming leaf (sibling non-resuming not yet connected)",
+                            at: nonresuming_arms[0].span.into(),
+                        });
+                    }
+                    return self
+                        .codegen_handle_expr_unified_single_immediate_single_escape_multi_resuming_leaf(
+                            span,
+                            handle,
+                            state_machine_plan,
+                            immediate_arms[0],
+                            escape_arms[0],
+                            out_ty,
+                        );
+                }
+
                 let (kind, at) = if immediate_arms.is_empty() && !escape_arms.is_empty() {
                     (
                         "handle unified multi-resuming leaf (single escape-only route should use single-resuming entrypoint)",
-                        escape_arms[0].0.span,
-                    )
-                } else if immediate_arms.len() == 1 && escape_arms.len() == 1 {
-                    (
-                        "handle unified multi-resuming leaf (single immediate + single escape route not yet connected)",
                         escape_arms[0].0.span,
                     )
                 } else {

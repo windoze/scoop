@@ -374,7 +374,11 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2c2 已完成：已新增 `multi_resuming_heap.rs` 承接 unified `heap-continuation-only` multi-resuming leaf；`nonresuming.rs` 的 `MultiResuming` 入口现会在 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 时直接进入该 leaf，不再停留在 pending 诊断。
   - 本轮同时把多个 escape-continuation arms 的 continuation materialization / resume graph / heap state capture 与 sibling non-resuming / `Raise` / `finally` 收口到统一 leaf，并补上 LLVM 定向单测 `unified_multi_resuming_codegen_emits_heap_continuation_only_sample`、`unified_multi_resuming_codegen_emits_heap_continuation_only_with_nonresuming_sibling`，以及 representative fixture `effect_handle_escape_arms_with_abort_tail`。
   - 已验证：`cargo fmt --all`、`cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_escape_arms_with_abort_tail.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
-  - 当前下一步调整为 `T2003r3d2c3`：接回 unified `1 immediate + 1 escape` mixed multi-resuming 基线。
+  - T2003r3d2c3 已完成：已新增 `multi_resuming_mixed.rs` 承接 unified `1 immediate + 1 escape` mixed leaf；`nonresuming.rs` 的 `MultiResuming` 入口现会在 `counts.stack_reenter == 1 && counts.heap_continuation == 1` 且无 sibling non-resuming arm 时直接进入该 leaf，不再返回 “single immediate + single escape route not yet connected”。
+  - 本轮 mixed representative 先以 `finally` 组合作为基线：新 leaf 直接消费 unified plan metadata，打通 top-level direct immediate site、top-level direct escape site、heap state capture、延后 `k.resume(...)` replay 与 `finally` cleanup；并补上 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_finally_sample` 及 representative fixture `effect_resume_mixed_escape_direct_finally`。
+  - 当前 mixed + sibling non-resuming / richer direct+indirect+nested coverage 仍由 `T2003r3d3` 的统一 emitter 承接；本轮没有恢复任何已删除的 shape-based scanner / route 名称。
+  - 已验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
+  - 当前下一步调整为 `T2003r3d3`：统一 emitter 接管当前 legal 的 mixed immediate+escape / multi-escape，不再按 shape 追 case。
   - 另已确认一个不阻塞统一状态机 pass 主线（`T2003u1`～`T2003u7`）、但需要在 effect 主路径稳定后统一收口的前端缺口：当前 parser 仍把 `;` 仅当可选分隔符，statement-position block、tail expr 与 trailing lambda / multiple trailing lambdas 的边界都不够清晰。
   - 原 `T2099`（前 `T2004`）的“只补裸 block 语法”方案已不再单独推进；后续改由新的 `T22` 统一承接：Rust 风格分号 / expression statement 语义、effect fixtures 去 `@Safe` workaround，以及规范 / 文档同步。
 - 落地顺序：
@@ -460,8 +464,8 @@ cargo run -p scoop --features llvm -- test
   - T2003r3d2a（已完成）：补齐 unified resuming 的 plan-owned metadata 与 resolver helper。
   - T2003r3d2b（已完成）：接回 unified single-resuming leaf，并打通 `resume(value)` / `k.resume(value)`。
   - T2003r3d2c1（已完成）：接回 unified multi-resuming leaf 的 `stack-reentry-only` 基线。
-  - T2003r3d2c2：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线。
-  - T2003r3d2c3：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线。
+  - T2003r3d2c2（已完成）：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线。
+  - T2003r3d2c3（已完成）：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线。
   - T2003r3d3：补“一个 immediate-resume arm + 多个 escape-continuation arms”的 mixed-resuming。
   - T2003r3d4：补“多个 immediate-resume arms + 一个 escape-continuation arm”，并清空已知 legal mixed lowering 缺口。
   - T2003r4：在 unified `segmenting -> builder -> emitter` feature-complete 后执行 full matrix、`cargo test --all`、LLVM 全量与 `--gc-stress` 验收。

@@ -1,105 +1,77 @@
-# 执行计划
+# 当前执行计划
 
-## 说明
+## 约束说明
 
-按要求，我会先把可执行计划写入此文件，再开始读取仓库状态、最新提交和任务列表。这里记录的是可审阅的行动计划、判断依据和进度，不直接暴露内部推理细节。
+- 本次调用只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在真正开始实现前，先检查最新提交是否提到遗留问题；如果有，先修复这些问题。
+- 计划会随着检查结果、实现进展和阻塞情况持续更新。
+- 这里记录的是可审计的执行计划、判断依据摘要和进展，不包含逐字内部推理。
 
 ## 初始步骤
 
-1. 检查最新一次 Git 提交，确认提交信息里是否提到已知遗留问题。
-2. 如果最新提交提到需要先修复的遗留问题，先定位、修复、补测，并在继续前更新本文件。
-3. 阅读 `TODO.md`，识别第一个未完成任务。
-4. 阅读 `PLAN.md`，确认该任务现有计划、依赖和上下文。
-5. 判断该任务是否足够小、能在一次迭代内完整完成。
+1. 检查最新一次 Git 提交：
+   - 查看提交信息与可能关联的改动范围。
+   - 判断提交是否明确提到已有缺陷、已知问题或待补修内容。
+   - 如果存在这类问题，先把这些问题纳入本次处理范围，并优先修复。
+2. 阅读 `TODO.md`：
+   - 找出第一个未完成任务。
+   - 判断任务是否足够小，能在一次调用内完整实现、测试、记录并提交。
+3. 如任务过大：
+   - 拆分为更小的子任务。
+   - 更新 `PLAN.md`，记录新的分解和依赖关系。
+   - 更新 `TODO.md`，把原任务替换或扩展为子任务，并确保第一个子任务成为当前执行目标。
+4. 实现当前目标任务：
+   - 先阅读相关代码、测试、规范和上下游模块。
+   - 识别是否存在规范缺口、实现边界或历史 workaround。
+   - 如果发现阻塞当前任务的真实缺陷或缺失特性，不绕过，转而把缺陷前置为新的 `TODO.md` 任务并调整计划。
+5. 验证：
+   - 运行与改动直接相关的测试。
+   - 运行必要的质量检查，至少覆盖构建、相关测试，以及在可行范围内执行 `cargo clippy --all-targets -- -D warnings`。
+6. 文档与状态同步：
+   - 更新 `TODO.md` 的任务状态与顺序。
+   - 更新 `PLAN.md` 说明当前状态、完成情况或阻塞原因。
+   - 按关键节点继续更新本文件。
+7. 提交：
+   - 使用清晰的 Git 提交信息提交本次变更。
+   - 提交后停止，不继续处理下一个任务。
 
-## 任务决策规则
+## 待确认信息
 
-1. 如果第一个未完成任务可以直接完成：
-   - 实现代码。
-   - 补充或调整测试。
-   - 运行相关验证，包括必要时的 `cargo test`、`cargo clippy --all-targets -- -D warnings`、以及任务相关命令。
-   - 更新 `TODO.md` 和 `PLAN.md`。
-   - 提交一个清晰的 Git commit，然后停止。
-2. 如果第一个未完成任务过大或存在明确前置依赖：
-   - 将其拆分为更小的子任务。
-   - 更新 `PLAN.md` 说明拆分后的执行顺序。
-   - 更新 `TODO.md`，把新的首个可执行子任务放到正确位置。
-   - 本轮只执行拆分后的第一个子任务；如果只是做了重排或依赖修正，则提交并停止。
-3. 如果实现过程中发现与规范不符的缺口、缺失特性或已有 bug：
-   - 不绕过问题。
-   - 在 `TODO.md` 中新增前置修复任务并调整顺序。
-   - 在 `PLAN.md` 中记录阻塞原因。
-   - 仅在依赖问题解决后才继续原任务；若本轮只能完成依赖重排，则提交并停止。
+- 最新提交是否声明了遗留问题。
+- `TODO.md` 中第一个未完成任务是什么。
+- 当前任务是否需要先拆分，或是否被规范缺口阻塞。
 
-## 执行时的检查点
+## 进展记录
 
-1. 在开始修改代码前，先确认将要编辑的模块和影响范围。
-2. 每完成一个关键步骤后更新本文件，记录：
-   - 已完成的检查或实现内容。
-   - 新发现的风险、依赖或阻塞。
-   - 接下来的具体动作。
-3. 在提交前再次确认：
-   - 没有把未完成事项错误标记为已完成。
-   - 测试和 lint 结果与任务范围匹配。
-   - `TODO.md` / `PLAN.md` / 本文件内容一致。
-
-## 当前状态
-
-- 最新提交：`c9552be [T2003r3d2c1] Reconnect stack-reentry-only multi-resuming leaf`。
-- 检查结果：提交信息本身没有额外点名“必须先补的遗留问题”，因此继续按 `TODO.md` 主线执行。
-- 已确认第一个未完成任务：`T2003r3d2c2`。
-
-## 当前任务判定
-
-- 任务：接回 unified multi-resuming leaf 的 `heap-continuation-only` 基线。
-- 依赖：`T2003r3d2c1`，已完成。
-- 复杂度判断：可在本轮直接完成，不需要继续拆分 `TODO.md` / `PLAN.md`。
-- 当前实现现状：
-  - `nonresuming.rs` 在 `MultiResuming` 分支里已经接回 `stack-reentry-only`，但对 `heap-continuation-only` 仍返回显式 pending 诊断。
-  - `multi_resuming.rs` 目前只有 unified `stack-reentry-only` leaf。
-  - `single_escape.rs` 与 `shared.rs` 中已经存在可复用的 plan-driven escape-site 解析、capture 恢复、payload decode 等 helper。
-
-## 本轮执行计划
-
-1. 在 `multi_resuming.rs` 中新增 unified `heap-continuation-only` multi-resuming leaf。
-2. 复用当前 unified plan metadata / escape-site resolver / sibling non-resuming dispatch helper，不恢复任何已删除的 shape-based route 名称。
-3. 如有必要，在 `shared.rs` 中补回一个通用的 heap state capture helper，供新的 unified leaf 使用。
-4. 在 `nonresuming.rs` 中把 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 的分支改为调用新的 unified leaf，而不是返回 pending 诊断。
-5. 更新 LLVM 定向测试：
-   - 把当前“heap-continuation-only route pending”测试改成成功样例。
-   - 视实现范围补一个 sibling non-resuming 或 `finally` 的正向样例。
-6. 新增或更新一个 representative run-pass fixture，覆盖多个 escape-continuation arms，并至少带一例 sibling non-resuming 或 `finally`。
-7. 运行定向验证：
-   - `cargo fmt --all`
-   - `cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`
-   - `cargo run -p scoop --features llvm -- run <代表性 fixture>`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-8. 若验证通过，更新 `TODO.md` / `PLAN.md` / 本文件，提交本轮改动并停止。
-
-## 进度更新
-
-- 已完成：
-  - `shared.rs` 已补回 `capture_escape_state_with_pc(...)`，供 heap continuation state 在下一次 suspension 前统一写回 captures + `pc`。
-  - `nonresuming.rs` 的 `MultiResuming` 分支已把 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 接到新的 unified leaf。
-  - 已新增模块文件 `crates/scoopc/src/llvm/codegen/effect/multi_resuming_heap.rs`，把历史上已验证过的 pure heap-continuation multi-resuming 逻辑迁到当前 unified helper/命名契约下。
-  - `effect/mod.rs` 已将新模块接入编译单元。
-- 当前阶段：
-  - 实现与验证已完成，正在同步任务状态并准备提交。
-- 下一步：
-  1. 复核工作区差异，确认只完成了 `T2003r3d2c2`。
-  2. 提交本轮改动并停止。
-
-## 本轮结果
-
-- 已完成任务：`T2003r3d2c2`。
-- 关键实现：
-  - 新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming_heap.rs`，接回 unified `heap-continuation-only` multi-resuming leaf。
-  - `nonresuming.rs` 的 `MultiResuming` 入口现已把 `counts.stack_reenter == 0 && counts.heap_continuation >= 2` 路由到新的 unified leaf。
-  - `shared.rs` 已补回 `capture_escape_state_with_pc(...)`，供 heap continuation state 在多次 suspension 间统一写回 captures 与 `pc`。
-  - 已新增 LLVM 定向单测与 representative fixture，覆盖多个 escape-continuation arms，以及 sibling non-resuming tail。
-- 已完成验证：
+- 已创建本计划文件，接下来进入仓库检查阶段。
+- 已检查最新提交 `cf4fce5 [T2003r3d2c2] Reconnect heap-continuation-only multi-resuming leaf`：
+  - 提交信息本身未声明额外待修遗留问题。
+  - 当前工作树除本计划文件外无未提交改动。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T2003r3d2c3`：
+  - 任务目标：接回 unified multi-resuming leaf 的当前 legal `1 immediate + 1 escape` mixed 基线。
+  - 该任务当前的直接缺口位于 `crates/scoopc/src/llvm/codegen/effect/nonresuming.rs`，`MultiResuming` 入口对 `immediate_arms.len() == 1 && escape_arms.len() == 1` 仍返回 “not yet connected”。
+- 已完成可执行性判断：
+  - 暂不需要继续拆分 `TODO.md`。
+  - 当前更像是“接线缺口”而不是新的规格不明问题。
+  - unified metadata helper 已存在，尤其是 `resolve_immediate_resume_with_escape_sites_from_plan(...)`，说明计划恢复层已具备 mixed leaf 所需输入。
+- 当前实现计划细化如下：
+  1. 新增一个 unified mixed multi-resuming leaf（优先放在独立模块文件中，避免继续膨胀现有文件）。
+  2. 在 `MultiResuming` 入口中把 `1 immediate + 1 escape` 路由接到该新 leaf。
+  3. 复用现有 shared helper 处理 plan 恢复、capture 元数据与 sibling non-resuming dispatch，避免恢复任何已删除的 shape-based scanner/route。
+  4. 把现有“pending”定向单测改成成功样例，并补一个 representative run-pass fixture，至少覆盖 mixed 路径与 `finally` 或 sibling non-resuming 中的一种组合。
+  5. 运行定向 `cargo test` / fixture / `cargo clippy`，然后再更新 `TODO.md`、`PLAN.md` 并提交。
+- 实现结果：
+  - 已新增 `crates/scoopc/src/llvm/codegen/effect/multi_resuming_mixed.rs`，承接 unified `1 immediate + 1 escape` mixed leaf。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/nonresuming.rs` 中把 `counts.stack_reenter == 1 && counts.heap_continuation == 1` 且无 sibling non-resuming arm 的 multi-resuming route 接到该 leaf。
+  - 本轮 representative 组合选择 `finally`：leaf 现已打通 top-level direct immediate site、top-level direct escape site、heap state capture、延后 `k.resume(...)` replay 与 `finally` cleanup。
+  - 现阶段 mixed + sibling non-resuming 的更广 coverage 没有在本轮继续扩展，仍由后续 `T2003r3d3` 承接。
+- 回归与质量验证：
   - `cargo fmt --all`
-  - `cargo test -p scoopc unified_multi_resuming_codegen_ -- --nocapture`
+  - `cargo test -p scoopc unified_multi_resuming_codegen_emits_single_immediate_single_escape_finally_sample -- --nocapture`
   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_escape_arms_with_abort_tail.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`
   - `cargo clippy --workspace --all-targets -- -D warnings`
+  - 上述命令均已通过。
+- 文档状态：
+  - 已将 `TODO.md` 中 `T2003r3d2c3` 标记为完成，并写入完成说明。
+  - 已更新 `PLAN.md`，记录本轮 mixed leaf 的真实落点与下一步为 `T2003r3d3`。

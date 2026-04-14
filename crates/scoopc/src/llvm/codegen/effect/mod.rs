@@ -340,6 +340,18 @@ struct EscapeHandleBlocks<'ctx> {
     finally_unwind_bb: Option<inkwell::basic_block::BasicBlock<'ctx>>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct MixedEscapeResumeBlocks<'ctx> {
+    dispatch_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    state0_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    state1_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    arm_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    done_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    bad_state_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    finally_unwind_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EscapeCaptureStorageKind {
@@ -376,5 +388,6 @@ include!("state_machine_simplify.rs");
 include!("single_resuming.rs");
 include!("single_escape.rs");
 include!("multi_resuming.rs");
+include!("multi_resuming_mixed.rs");
 include!("multi_resuming_heap.rs");
 include!("nonresuming.rs");
