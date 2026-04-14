@@ -861,19 +861,16 @@ impl UnifiedHandleStateMachine {
         Ok(())
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn dispatch_entry(&self, op_fqn: &str) -> Option<&UnifiedDispatchEntry> {
         self.dispatch_entries
             .iter()
             .find(|entry| entry.op_fqn == op_fqn)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn suspend_site(&self, id: SuspendSiteId) -> Option<&UnifiedSuspendSite> {
         self.suspend_sites.iter().find(|site| site.id == id)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn cleanup_scope(&self, id: CleanupScopeId) -> Option<&UnifiedCleanupScope> {
         self.cleanup_scopes.iter().find(|scope| scope.id == id)
     }
@@ -1230,7 +1227,6 @@ impl UnifiedFrameSchema {
         Ok(slots_by_id)
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn slot_field_index(&self, slot_id: hir::SymbolId) -> Option<usize> {
         self.slots
             .iter()
@@ -1404,7 +1400,6 @@ impl UnifiedStateEdgeKind {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn label(self) -> &'static str {
         match self {
             Self::Goto => "goto",
@@ -1445,7 +1440,6 @@ impl UnifiedCleanupScope {
 }
 
 impl UnifiedStateMachineStorage {
-    #[cfg_attr(not(test), allow(dead_code))]
     fn label(self) -> &'static str {
         match self {
             Self::Heap => "heap",
@@ -1464,7 +1458,6 @@ impl UnifiedFrameSystemField {
         ]
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     fn label(self) -> &'static str {
         match self {
             Self::StateTag => "state-tag",

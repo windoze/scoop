@@ -1,60 +1,49 @@
-# 执行记录
+# 当前执行计划
 
-## 说明
+说明：按要求记录可审计的执行计划、关键决策摘要、进度与计划变更；不记录完整内部推理细节。
 
-按要求先记录执行计划。这里记录的是可共享的推理摘要与步骤计划，不包含逐字内部思维。
+## 目标
 
-## 当前目标
+本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-完成 `TODO.md` 中第一个未完成任务；如果该任务过大，则先拆分任务并更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
+## 初始步骤
 
-## 初始执行计划
+1. 检查最新一次 Git 提交的信息，确认是否提到了需要先处理的既有问题。
+2. 阅读 `TODO.md`，识别第一个未完成任务。
+3. 阅读 `PLAN.md`，核对当前计划与任务依赖。
+4. 如果首个未完成任务过大，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本轮只执行拆分后的第一个子任务。
+5. 在实现前阅读相关代码、测试与规范，确认是否存在会阻塞任务的既有缺陷或规格不匹配。
+6. 实现任务，补充或调整测试，运行相关验证。
+7. 更新 `TODO.md` 与 `PLAN.md` 的完成状态和后续计划。
+8. 提交本轮改动，提交信息采用仓库约定格式。
 
-1. 查看最新一次 Git 提交，确认提交信息里是否提到已有问题；如果提到，需要先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`、相关规范文档与受影响代码，评估任务范围和依赖关系。
-4. 如果任务过大或存在前置缺陷：
-   - 在 `PLAN.md` 中补充细化计划；
-   - 在 `TODO.md` 中拆分或重排任务，只保留正确依赖顺序；
-   - 本次只执行新的第一个子任务。
-5. 实现本次目标任务，确保实现符合规范，不引入临时绕过方案。
-6. 运行相关测试，并尽量执行完整质量检查，至少包括与改动相关的测试；如可行则执行 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等。
-7. 更新文档状态：
-   - 在 `TODO.md` 中标记任务完成，或在受阻时按依赖关系调整顺序；
-   - 在 `PLAN.md` 中记录当前状态、风险与后续任务。
-8. 提交 Git，提交信息对应本次任务。
-9. 停止，不继续处理下一个任务。
+## 执行约束
 
-## 进度日志
+- 若发现最新提交提到的既有问题，必须优先修复。
+- 若发现规格不匹配、缺失语言特性或必须依赖前置修复，不能绕过；必须先更新 `TODO.md` / `PLAN.md` 反映依赖，再提交并停止。
+- 尽量运行与改动直接相关的测试；若任务范围较大，再补充更广泛验证。
+- 目标是本轮只完成一个任务，不推进到下一个任务。
 
-- 已创建本计划文件，下一步将检查最新提交与任务列表。
-- 已确认最新提交信息仅为 `[T2999] Add zero-warning baseline prerequisite`，未额外声明新的既有缺陷；当前首个未完成任务为 `T2999`。
-- 已执行 `cargo check -p scoopc --message-format=short`，确认当前有 151 条 warning，主要集中在：
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
-  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
-  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-- 当前处理策略：
-  1. 删除明确无读取路径的死代码，例如未被消费的字段、未调用的方法、纯占位结构。
-  2. 对尚未接回生产入口、但属于后续统一 state-machine / effect lowering 主线骨架的代码，建立模块级或方法级的可审计保留边界，避免散落式 `allow`。
-  3. 修改后重新跑 `cargo check -p scoopc`，再跑 `cargo clippy --all-targets -- -D warnings` 进行最终验证。
-- 已完成代码调整：
-  - 删除未读取的 `CalleeSuspendSaveCtx` 及相关写入，删除未使用的 `entry_source` 等死代码。
-  - 把统一 state-machine plan / segment / transform 骨架收口到单一共享作用域的保留边界。
-  - 把 effect runtime ABI 声明与相关 runtime 符号的保留边界显式收口。
-- 在执行 `cargo test --all` 时发现一个既有失败：
-  - `llvm::tests::effect_runtime_intrinsics_are_emitted_as_symbol_calls`
-  - 失败原因是 `scoop.core.__scoop_effect_*` sysroot 测试辅助 intrinsic 仍是占位报错，没有直接 lowering 到现有 runtime ABI。
-- 已修复上述既有失败：
-  - 为 `__scoop_effect_is_active` / `set_active` / `clear` / `slot_write` / `slot_write2` / `slot_read_*` 补齐直接 runtime 符号调用。
-  - 扩展对应 LLVM IR 测试，覆盖单 word 与多 word perform slot 路径。
-- 最终验证结果：
-  - `cargo check -p scoopc --message-format=short` 通过且无 warning。
+## 进度记录
+
+- 已创建本计划文件。
+- 已检查最新提交 `59c79e3ed0dbaed0338dc308b457f74232f02340`（`Update plan`），提交信息未额外提到需要先修复的既有代码问题。
+- 已读取 `TODO.md` 与 `PLAN.md`。
+- 已确认本轮首个未完成任务为 `T2999R`：Review 零 warning 基线恢复，确认没有用允许属性掩盖真正实现缺口。
+- 下一步：审查 `crates/scoopc/src/llvm/codegen/**` 中 effect/LLVM 相关生产代码，重点检查 `allow` 边界、保留骨架与是否存在应删除而未删除的死代码。
+- 审查中已发现并开始修复的问题：
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 中散落的大量 `#[allow(dead_code)]` 为冗余允许项，不符合“共享边界、可审计”的目标。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_transform.rs` 已处于 `effect/mod.rs` 的统一 `#[allow(dead_code)]` 骨架作用域内，文件内多个局部允许项属于重复豁免。
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 里 `declare_runtime_alloc` / `declare_runtime_gc_collect` 没有生产调用点，也不属于当前统一 effect 合同，应直接删除而不是继续靠 `allow(dead_code)` 保留。
+- 已执行修复：
+  - 删除 `runtime_symbols.rs` 中散落的冗余 `#[allow(dead_code)]`。
+  - 删除 `state_machine_plan.rs` / `state_machine_transform.rs` 中被统一骨架边界覆盖的重复 `dead_code` 允许项。
+  - 删除 `runtime_abi.rs` 中无调用点的 `declare_runtime_alloc` / `declare_runtime_gc_collect` 及对应符号常量，并移除 effect ABI 共享 impl 内的重复局部允许项。
+- 已完成验证：
+  - `cargo check -p scoopc` 通过。
   - `cargo clippy --all-targets -- -D warnings` 通过。
-  - `cargo test -p scoopc llvm::tests::effect_runtime_intrinsics_are_emitted_as_symbol_calls -- --exact` 通过。
   - `cargo test --all` 通过。
-- 下一步：
-  - 更新 Git 状态并提交本轮改动。
-  - 本轮到此停止；下一次调用从 `T2999R` 开始。
+- 已完成文档同步：
+  - `TODO.md` 已将 `T2999R` 标记为 `[DONE]`，并写入审查结论与修复项。
+  - `PLAN.md` 已记录 `T2999R` 的完成结果，并把当前执行顺序推进到 `T3001`。
+- 下一步：检查工作区差异，提交本轮改动，然后停止。

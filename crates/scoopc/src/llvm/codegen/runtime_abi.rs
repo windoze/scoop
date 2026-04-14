@@ -1021,21 +1021,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)]
-    pub(super) fn declare_runtime_alloc(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_ALLOC;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void *scoop_alloc(uint64_t size)`
-        let i64_ty = self.context.i64_type();
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     pub(super) fn declare_runtime_alloc_typed(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ALLOC_TYPED;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1075,18 +1060,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn declare_runtime_gc_collect(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_gc_collect(void)`
-        let fn_ty = self.context.void_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -1393,7 +1366,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)]
     pub(super) fn declare_runtime_effect_handler_stack_set_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1434,7 +1406,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)]
     pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1453,7 +1424,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// T1607：新 ABI——调用方已将 payload 写入 continuation 的 resume_word / resume_gc_ref 槽位。
-    #[allow(dead_code)]
     pub(super) fn declare_runtime_continuation_resume(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1472,7 +1442,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
     ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
     ///     ptr state, ptr step_fn, i64 resume_word, ptr resume_gc_ref }
-    #[allow(dead_code)]
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {

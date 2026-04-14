@@ -2,15 +2,10 @@
 //!
 //! 注意：这里仅负责“符号名字符串”，签名/调用约定见 `runtime_abi.rs`。
 
-#[allow(dead_code)]
-pub(super) const SCOOP_ALLOC: &str = "scoop_alloc";
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
 // T2999：effect 统一 lowering 尚未重新接回主入口，相关 ABI 符号先以集中、可审计的方式保留。
-#[allow(dead_code)]
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_CLEAR: &str = "scoop_callee_suspend_state_clear";
-#[allow(dead_code)]
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
-#[allow(dead_code)]
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_SET: &str = "scoop_callee_suspend_state_set";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY: &str = "scoop_array_builder_build_array";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY: &str =
@@ -27,51 +22,32 @@ pub(super) const SCOOP_CHANNELS_CHANNEL_CREATE: &str = "scoop_channels_channel_c
 pub(super) const SCOOP_CHANNELS_CLOSE: &str = "scoop_channels_close";
 pub(super) const SCOOP_CHANNELS_RECV_U64: &str = "scoop_channels_recv_u64";
 pub(super) const SCOOP_CHANNELS_SEND_U64: &str = "scoop_channels_send_u64";
-#[allow(dead_code)]
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
-#[allow(dead_code)]
 pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE: &str =
     "scoop_effect_handler_stack_set_active";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG: &str =
     "scoop_effect_handler_stack_unwind_to_tag";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =
     "scoop_effect_perform_slot_read_op_tag";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF: &str =
     "scoop_effect_perform_slot_read_gc_ref";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64: &str = "scoop_effect_perform_slot_read_u64";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64_AT: &str =
     "scoop_effect_perform_slot_read_u64_at";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_WITH_GC_REF: &str =
     "scoop_effect_perform_slot_write_u64_with_gc_ref";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64: &str = "scoop_effect_perform_slot_write_u64";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2: &str =
     "scoop_effect_perform_slot_write_u64_2";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_SET_ACTIVE: &str = "scoop_effect_set_active";
-#[allow(dead_code)]
 pub(super) const SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE: &str = "scoop_effect_set_active_with_trace";
 pub(super) const SCOOP_ENTER_NATIVE: &str = "scoop_enter_native";
 pub(super) const SCOOP_ENV_GET: &str = "scoop_env_get";
@@ -82,8 +58,6 @@ pub(super) const SCOOP_EXECUTOR_RUN_NEXT: &str = "scoop_executor_run_next";
 pub(super) const SCOOP_EXECUTOR_RUN_UNTIL_IDLE: &str = "scoop_executor_run_until_idle";
 pub(super) const SCOOP_FS_READ_ALL_TEXT_UTF8: &str = "scoop_fs_read_all_text_utf8";
 pub(super) const SCOOP_FS_WRITE_ALL_TEXT_UTF8: &str = "scoop_fs_write_all_text_utf8";
-#[allow(dead_code)]
-pub(super) const SCOOP_GC_COLLECT: &str = "scoop_gc_collect";
 pub(super) const SCOOP_GC_COLLECT_SAFEPOINT: &str = "scoop_gc_collect_safepoint";
 pub(super) const SCOOP_GC_DEBUG_ALLOC_GARBAGE: &str = "scoop_gc_debug_alloc_garbage";
 pub(super) const SCOOP_GC_DEBUG_HEAP_OBJECT_COUNT: &str = "scoop_gc_debug_heap_object_count";

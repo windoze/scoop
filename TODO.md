@@ -36,14 +36,22 @@
   - `cargo clippy --all-targets -- -D warnings` 可通过。
 - 依赖：无
 
-### T2999R [TODO] Review：确认零 warning 基线恢复没有掩盖真正实现缺口
+### T2999R [DONE] Review：确认零 warning 基线恢复没有掩盖真正实现缺口
 - 描述：清理 warning 后，专门审查 effect / LLVM 相关生产代码，确认不是靠滥用允许属性把实现缺口压下去；若发现这类问题，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已删除 `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 中无生产调用点、也不属于当前统一 effect 合同的 `declare_runtime_alloc` / `declare_runtime_gc_collect`。
+  - 已把 `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 中散落的冗余 `#[allow(dead_code)]` 清掉，恢复“符号表只保留符号名、dead_code 边界集中在 ABI/骨架侧”的单一审计边界。
+  - 已删除 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_transform.rs` 中被 `effect/mod.rs` 统一骨架边界覆盖的重复 `dead_code` 允许项。
+  - 已验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 确认保留的允许项都有明确边界和理由，没有把应删除的 dead code 长期保留成隐患。
   - 确认 effect 统一主线相关模块的保留结构仍与后续计划一致，不是为了过 lint 临时打补丁。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“当前基线满足零 warning 门槛，且未用允许属性掩盖实现问题”。
+- 审查结论：
+  - 当前基线满足零 warning 门槛，且未用允许属性掩盖实现问题。
+  - 仍保留的 `dead_code` 边界仅用于未重新接线的统一 effect 骨架、effect ABI 保留段与稳定 op-tag 分配状态，符合后续 `T3001+` 计划。
 - 依赖：T2999
 
 ### T3001 [TODO] 删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径

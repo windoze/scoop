@@ -43,7 +43,6 @@ impl HandleStateMachinePlan {
         HandlePlanBuilder::new(types, handle, context).build()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn arm_capture_locals(&self, arm_id: ArmPlanId) -> &[hir::SymbolId] {
         self.arm_plans
             .iter()
@@ -2014,7 +2013,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.add_reads(_state_id, used);
     }
 
-    #[allow(dead_code)]
     fn add_reads(&mut self, state_id: PlanStateId, used: HashSet<hir::SymbolId>) {
         let state = self.state_mut(state_id);
         state.reads.extend(used);

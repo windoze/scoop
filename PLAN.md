@@ -20,6 +20,10 @@
   - `cargo check -p scoopc` 已恢复零 warning。
   - `cargo clippy --all-targets -- -D warnings` 已通过。
   - `scoop.core.__scoop_effect_*` sysroot 测试辅助 intrinsic 已重新直连 runtime ABI，`cargo test --all` 已恢复通过。
+- `T2999R` 已完成：
+  - 已删除 `runtime_abi.rs` 中无生产调用点、也不属于当前统一 effect 合同的 `declare_runtime_alloc` / `declare_runtime_gc_collect`。
+  - 已把 `runtime_symbols.rs` 中散落的冗余 `#[allow(dead_code)]` 清掉，并删除 `state_machine_plan.rs` / `state_machine_transform.rs` 中被统一骨架边界覆盖的重复豁免。
+  - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
   - `scan_for_callee_suspend`
@@ -40,8 +44,12 @@
   - effect runtime ABI 与相关符号表的保留边界已显式收口。
   - 顺手修复了既有的 sysroot effect intrinsic 回归，保证全量测试恢复绿色。
 
-#### T2999R：Review
+#### T2999R：Review（已完成）
 - 审查 warning 清理后的 effect / LLVM 相关生产代码，确认零 warning 基线不是靠临时压制或掩盖实现问题达成。
+- 本轮结果：
+  - 删除了不属于当前统一 effect 合同的无调用点 ABI 声明，避免继续靠 `allow(dead_code)` 留存。
+  - 把 runtime symbol table 与 unified state-machine 骨架中的重复 `dead_code` 允许项收口回已有共享边界。
+  - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
 ### 阶段 A：先把残余 shape-based 主路径删干净
 
@@ -203,38 +211,37 @@
 
 ## 4. 当前执行顺序
 
-1. `T2999R`
-2. `T3001`
-3. `T3001R`
-4. `T3002`
-5. `T3002R`
-6. `T3003`
-7. `T3003R`
-8. `T3004`
-9. `T3004R`
-10. `T3005`
-11. `T3005R`
-12. `T3006`
-13. `T3006R`
-14. `T3007`
-15. `T3007R`
-16. `T3101`
-17. `T3102`
-18. `T3103`
-19. `T3104`
-20. `T3201`
-21. `T3202`
-22. `T3203`
-23. `T3204`
-24. `T3205`
-25. `T3301`
-26. `T3302`
-27. `T3303`
-28. `T3401`
-29. `T3401a`
-30. `T3401b`
-31. `T3401c`
-32. `T3402`
-33. `T3403`
-34. `T3404`
-35. `T3405`
+1. `T3001`
+2. `T3001R`
+3. `T3002`
+4. `T3002R`
+5. `T3003`
+6. `T3003R`
+7. `T3004`
+8. `T3004R`
+9. `T3005`
+10. `T3005R`
+11. `T3006`
+12. `T3006R`
+13. `T3007`
+14. `T3007R`
+15. `T3101`
+16. `T3102`
+17. `T3103`
+18. `T3104`
+19. `T3201`
+20. `T3202`
+21. `T3203`
+22. `T3204`
+23. `T3205`
+24. `T3301`
+25. `T3302`
+26. `T3303`
+27. `T3401`
+28. `T3401a`
+29. `T3401b`
+30. `T3401c`
+31. `T3402`
+32. `T3403`
+33. `T3404`
+34. `T3405`
