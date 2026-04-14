@@ -13,6 +13,10 @@
 
 ## 当前已知问题
 
+- 当前基线不满足项目要求的零 warning 门槛：
+  - 在 `HEAD` 基线上执行 `cargo check -p scoopc` 会产生约 151 条 `dead_code` / `unused` 级警告。
+  - 这些警告集中在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 以及相关统一主线骨架上。
+  - 在清掉这些警告前，`cargo clippy --all-targets -- -D warnings` 不可能通过，因此后续任何实现任务都无法满足本项目的质量门槛。
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧的 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
   - `scan_for_callee_suspend`
@@ -21,6 +25,26 @@
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的统一主线入口仍未完全接到 state-machine-driven LLVM lowering。
 
 ## T30：统一 effect LLVM codegen
+
+### T2999 [TODO] 清理当前 `scoopc` 基线中的编译 / lint 警告，恢复零 warning 门槛
+- 描述：在继续 effect 主线重构前，先把当前基线里已经存在的 `dead_code` / `unused` 级警告收口掉，否则后续任务无法满足仓库明确要求的 `cargo clippy --all-targets -- -D warnings`。
+- 目标：
+  - 处理 `cargo check -p scoopc` 当前暴露的既有警告，优先覆盖 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 与相邻统一主线骨架。
+  - 对暂时不会接入生产入口但需要保留的结构，明确采用可审计的保留方式；对已经无价值的死代码，直接删除。
+  - 恢复 `cargo clippy --all-targets -- -D warnings` 可作为后续任务统一质量门槛。
+- 验收：
+  - `cargo check -p scoopc` 无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 可通过。
+- 依赖：无
+
+### T2999R [TODO] Review：确认零 warning 基线恢复没有掩盖真正实现缺口
+- 描述：清理 warning 后，专门审查 effect / LLVM 相关生产代码，确认不是靠滥用允许属性把实现缺口压下去。
+- 目标：
+  - 确认保留的允许项都有明确边界和理由，没有把应删除的 dead code 长期保留成隐患。
+  - 确认 effect 统一主线相关模块的保留结构仍与后续计划一致，不是为了过 lint 临时打补丁。
+- 验收：
+  - 审查结论明确记录“当前基线满足零 warning 门槛，且未用允许属性掩盖实现问题”。
+- 依赖：T2999
 
 ### T3001 [TODO] 删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径
 - 描述：先删除当前 review 已确认的旧主路径，避免后续 LLVM lowering 继续从顶层函数 / closure 的源码形状分流。
@@ -31,7 +55,7 @@
 - 验收：
   - 生产代码中不再出现上述符号。
   - `crates/scoopc/src/llvm/codegen/mod.rs` 不再存在按 callee/source shape 选择 suspendable lowering 的入口。
-- 依赖：无
+- 依赖：T2999R
 
 ### T3001R [TODO] Review：确认 `mod.rs` 的 callee-suspend shape-based 逻辑已清零
 - 描述：在继续后续实现前，专门审查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 effect 入口接线，确认没有等价回流。

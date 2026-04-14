@@ -1,130 +1,92 @@
-# 本轮执行计划（初始化）
+# 本轮执行计划
 
 ## 说明
 
-按要求，我需要在执行任何命令前先记录执行思路与计划。出于协作与安全边界，这里记录的是可公开的推理摘要、判断依据和操作计划，而不是内部逐字思维流。
+按要求，我会先记录一份可审计的执行计划和关键判断摘要，再开始实际检查与实现工作。这里记录的是高层次推理摘要、执行顺序、风险点与完成条件，不包含不可审计的内部草稿式思维。
 
-## 当前目标理解
+## 目标
 
-本轮需要：
+本轮只完成 `TODO.md` 中第一个未完成任务，完成后测试、更新文档、提交 git commit，然后停止。
 
-1. 先检查最新一次 Git 提交是否提到了任何既有问题；如果提到了，需要优先修复这些问题。
-2. 读取 `TODO.md`，找到第一个尚未完成的任务。
-3. 如该任务过大，则拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 只执行当前排在最前面的那个未完成任务。
-5. 完成实现、测试、文档更新、提交 Git，然后停止。
+## 执行顺序
 
-## 初始执行步骤
+1. 检查最新一次 git commit 的说明与相关改动，确认是否提到已有已知问题。
+2. 如果最新提交提到需先修复的问题，则先定位并修复这些问题，再继续后续任务。
+3. 读取 `TODO.md`，确定第一个未完成任务。
+4. 读取 `PLAN.md`，确认该任务是否已有拆分、依赖或上下文说明。
+5. 判断该任务是否足够小且可在本轮完整交付。
+6. 如果任务过大或存在前置缺陷/特性缺口：
+   - 在 `PLAN.md` 中补充拆分方案或阻塞原因；
+   - 在 `TODO.md` 中把当前任务拆成更小的子任务，或新增必须优先修复的前置任务，并调整顺序；
+   - 本轮执行拆分后排在最前面的那个可完成子任务；
+   - 若只是发现阻塞且当前无法继续实现，则按要求仅更新 `TODO.md` / `PLAN.md`、提交并停止。
+7. 实现当前目标任务，遵守仓库规范，不做规避性实现。
+8. 运行相关格式化、lint、测试，至少覆盖：
+   - 必要的针对性测试；
+   - `cargo fmt --check` 或 `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 与改动范围相关的 `cargo test`。
+9. 若测试暴露规范不匹配或实现缺口：
+   - 视为真实问题；
+   - 先在 `TODO.md` / `PLAN.md` 中记录并调整依赖；
+   - 根据是否能在本轮完整修复决定继续实现还是提交阻塞调整后停止。
+10. 完成后更新：
+   - `TODO.md`：标记任务完成；
+   - `PLAN.md`：记录当前进展和后续状态；
+   - `memory/claude_plan.md`：补充已完成步骤与必要计划变更。
+11. 检查工作树，只提交与本轮相关且需要纳入的文件。
+12. 使用清晰的提交信息提交本轮工作。
+13. 停止，不进入下一个任务。
 
-1. 查看最新提交信息与改动摘要，确认是否存在“已知但未修复的问题”。
-2. 读取 `TODO.md`、`PLAN.md`，确认首个未完成任务及现有规划状态。
-3. 结合代码结构和相关模块，判断该任务是否足够小，是否存在前置缺失或规范不匹配。
-4. 若存在阻塞：
-   - 在 `TODO.md` 中新增或重排前置修复任务；
-   - 在 `PLAN.md` 中说明阻塞原因与依赖关系；
-   - 提交并停止。
-5. 若可直接执行：
-   - 实现任务；
-   - 增加或调整测试；
-   - 运行必要的格式化、测试、lint；
-   - 更新 `TODO.md`、`PLAN.md`、必要文档；
-   - 提交并停止。
+## 关键约束
 
-## 当前已知约束
+- 不跳过最新 commit 中明确提到的遗留问题。
+- 不以 workaround、fixture hack、兼容性垫片冒充完成。
+- 若发现缺失语言特性、编译器/运行时 bug 或规范偏差，必须先把它们写入 `TODO.md` 并调整优先级。
+- 不回滚非本人改动。
+- 若 `PROMPT.md` 本轮意外变化且与本轮工作树一起出现，需要纳入提交。
 
-- 每次调用只完成一个任务。
-- 不能以规避、兼容层、测试专用 hack 的方式声称完成任务。
-- 若遇到规范缺口或实现边界，必须先显式建任务并调整依赖，再停止。
-- 需要尽量保证 `cargo clippy --all-targets -- -D warnings` 无警告。
+## 初始风险判断
 
-## 待确认信息
+- 任务可能依赖尚未实现的语言特性或运行时能力。
+- 仓库可能已有未提交改动，需要先分辨哪些是既有改动、哪些与本轮任务相关。
+- 全量 `clippy` / `test` 可能耗时较长，需要根据改动范围分层验证，但最终仍需满足无警告要求。
 
-- 最新提交是否明确提到待修复问题。
-- `TODO.md` 中首个未完成任务的内容与复杂度。
-- 该任务涉及的 crate、运行时或规范文件范围。
+## 完成判定
 
-## 进展更新（完成上下文审计后）
+只有同时满足以下条件才算本轮完成：
 
-### 最新提交检查结果
+- 第一个未完成任务（或本轮拆分后的第一个子任务）已完整实现；
+- 相关测试、lint、格式检查通过；
+- `TODO.md` 和 `PLAN.md` 已同步更新；
+- 已提交 git commit；
+- 未继续处理下一个任务。
 
-- 最新提交为 `600979be708583c6af2e6cb9c330d06798528232`，标题为 `[T2003r3d4a] Unify multi-resuming resolver contract`。
-- 提交说明未额外声明“本提交已知但未修复的问题”；因此无需先按提交备注补修独立遗留项。
+## 进度记录
 
-### 当前锁定任务
+- [x] 已写入本轮初始计划
+- [x] 已检查最新 commit
+- [x] 已定位第一个未完成任务
+- [x] 已确认是否需要拆分/调整依赖
+- [ ] 已完成实现
+- [x] 已完成阻塞验证（发现前置零 warning 问题）
+- [x] 已更新 TODO/PLAN
+- [ ] 已完成 git commit
 
-- `TODO.md` 中第一个未完成任务是：
-  - `T2003r3d4b [TODO] Effect：unified emitter 支持 1 immediate + N escape`
+## 当前结论（更新于执行前）
 
-### 可行性判断
+- 最新提交 `7be032ee23bcb9b036045866d7205a0c2e821ae4` 仅为计划重排（`Update plan`），未在提交说明中额外引入需要优先单独修复的新遗留缺陷。
+- 当前第一个未完成任务是 `T3001`：删除 `crates/scoopc/src/llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径。
+- 该任务当前判断可直接完成，不需要继续拆分。
+- 预计会同步删除因该路径失效而变成死代码的辅助结构和 ABI 声明，以避免编译/`clippy` 警告。
 
-- 该任务在当前轮次内可直接实现，不需要再拆子任务。
-- 现有 shared resolver / metadata contract 已就位，缺口主要在两处：
-  1. simplification / unified entrypoint 仍把 `1 immediate + N escape` 归类为 `UnsupportedMixedMultipleEscapeWithImmediate`；
-  2. mixed multi-resuming leaf 入口仍把 escape arm 数量硬编码为 1，需要推广为“单 immediate arm + 多个 escape arm”。
+## 进度更新（发现前置问题后）
 
-### 目前观察到的实现要点
-
-- `multi_resuming_mixed.rs` 的后半段其实已经以 `scanned_sites: Vec<MultiResumingEscapeSitePlan>` 为核心，site 级恢复、step trampoline、binder slot、arm body dispatch 都支持“多个 escape site”。
-- 真正仍写死“只有一个 escape arm”的位置主要是：
-  - leaf 函数签名与入口选择；
-  - root 级别的 escape-arm metadata 收集；
-  - same-handle runtime frame 只给一个 escape arm 建了单个 frame。
-- runtime `scoop_continuation_alloc` 确认会捕获当前 TLS handler stack 顶，因此若 mixed leaf 继续保留 same-handle runtime frame 语义，就必须保证多个 escape arm 的 frame 都位于稳定地址上；这意味着需要把 mixed state 中的单个 `handler_frame` 布局推广为可容纳多个 escape frame 的布局。
-
-## 本轮详细执行计划（已细化）
-
-1. 修改 simplification / unified multi-resuming entrypoint 分类：
-   - 让 `stack_reenter == 1 && heap_continuation >= 1` 走 `MultiResuming`；
-   - 保留 `N immediate + 1/多 escape` 仍为后续 `T2003r3d4c` 的未实现边界。
-2. 修改 unified multi-resuming leaf 入口：
-   - 将当前 `1 immediate + 1 escape` leaf 推广为 `1 immediate + N escape`；
-   - 让 `nonresuming.rs` 在 `immediate_arms.len() == 1 && !escape_arms.is_empty()` 时接入该 leaf。
-3. 推广 mixed leaf 的 root runtime frame 布局与装配：
-   - state object 中为每个 escape arm 预留稳定的 handler frame 存储；
-   - root 进入时按 arm 顺序压入所有 escape frame；
-   - 继续维持 immediate arm / escape arm / finally 执行期间的 same-handle detach / restore 语义。
-4. 补回归：
-   - 新增或更新 LLVM 定向单测，覆盖 `1 immediate + N escape` 的 direct + indirect representative sample；
-   - 新增 run-pass fixture，并带 sibling non-resuming 或 `finally`。
-5. 运行最小验收：
-   - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-   - `cargo run -p scoop --features llvm -- run <新增 fixture>`
-   - `cargo clippy --workspace --all-targets -- -D warnings`
-6. 更新 `TODO.md` / `PLAN.md` 标记完成情况，提交 Git，并停止。
-
-## 进展更新（实现与验证后）
-
-### 已落地的代码变更
-
-- 已放开 simplification：`1 immediate + N escape` 不再归类为 `UnsupportedMixedMultipleEscapeWithImmediate`。
-- unified multi-resuming 入口现已把“单 immediate arm + 多个 escape arms”接到 mixed leaf。
-- mixed leaf 已推广为消费多个 escape arms，并把 same-handle runtime frame 布局从单个 frame 扩到按 escape arm 数量分配。
-- 已新增定向单测与 run-pass fixture，代表样例 `effect_resume_mixed_multi_escape_direct_indirect.scoop` 通过。
-- 验证过程中顺手修复了两个 pre-existing route gap：
-  1. single-resuming zero-match / no-suspend 时，single escape / immediate 现会回退到顺序 no-perform leaf；
-  2. `1 escape + sibling non-resuming` 现已能进入 unified heap leaf，不再提前报 route mismatch。
-
-### 新发现的阻塞问题
-
-- 在继续跑 full LLVM fixture suite 时，又暴露出一个更早的 pre-existing heap-leaf replay gap：
-  - 夹具：`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
-  - 现象：同一 escape arm 在 nested block 中先 direct、再 indirect 时，第二次 `resume(...)` 前没有按既有 fixture contract 重放 direct→indirect 之间的 prefix，导致 stdout 偏差。
-- 这不是 `T2003r3d4b` 自身 representative sample 的缺口，而是更早的 pure heap leaf 合法子集还没完全收口。
-
-### 计划调整
-
-- 因为 full-suite 验证被上述 pre-existing gap 阻塞，本轮不能把 `T2003r3d4b` 标记为完成。
-- 已在 `TODO.md` / `PLAN.md` 中新增前置任务 `T2003r3d4a1`，专门修这个 pure heap leaf replay 缺口。
-- 下一次调用应先处理 `T2003r3d4a1`，而不是直接继续把 `T2003r3d4b` 标记完成。
-
-### 当前验证状态
-
-- 已通过：
-  - `cargo fmt --all`
-  - `cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_multi_escape_direct_indirect.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_no_perform.scoop`
-  - `cargo clippy --workspace --all-targets -- -D warnings`
-- 仍失败：
-  - `cargo run -p scoop --features llvm -- test`
-  - 当前首个失败项：`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+- 已按原计划实现并验证过一版 `T3001` 删除方案，但在质量门槛检查时发现：当前 `HEAD` 基线执行 `cargo check -p scoopc` 就会产生约 151 条 `dead_code` / `unused` 级警告。
+- 为确认不是本轮改动引入，已在独立 worktree `/tmp/scoop-1-baseline` 上对 `HEAD` 重新执行同一命令，结果同样出现大规模 warning，因此这是既有基线问题。
+- 该问题会直接阻塞项目要求的 `cargo clippy --all-targets -- -D warnings`，所以不能继续把 `T3001` 作为当前第一任务执行完成。
+- 已撤回未提交的 `T3001` 代码删除改动，避免仓库代码状态与任务顺序不一致。
+- 已在 `TODO.md` / `PLAN.md` 中新增前置任务：
+  - `T2999`：清理当前 `scoopc` 基线中的编译 / lint 警告；
+  - `T2999R`：审查零 warning 基线恢复没有掩盖真实实现缺口。
+- `T3001` 现已显式依赖 `T2999R`，下一轮应先处理 `T2999`。

@@ -14,6 +14,10 @@
 
 ## 1. 当前已知缺口
 
+- 当前 `scoopc` 基线不满足项目要求的零 warning 门槛：
+  - 在 `HEAD` 基线上执行 `cargo check -p scoopc` 会产生约 151 条 `dead_code` / `unused` 级警告。
+  - 这些警告主要来自 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 与周边统一主线骨架。
+  - 在这些警告清零前，`cargo clippy --all-targets -- -D warnings` 无法通过，因此后续实现任务无法满足仓库质量要求。
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
   - `scan_for_callee_suspend`
@@ -23,6 +27,15 @@
 - 这意味着当前 effect codegen 虽然已经有统一的 segmentation 与 state machine transformation 基线，但 LLVM 生产主线还没有完全摆脱旧形状分流。
 
 ## 2. 阶段顺序
+
+### 阶段 0：先恢复零 warning 基线
+
+#### T2999：清理当前 `scoopc` 基线中的编译 / lint 警告
+- 先处理当前基线已经存在的 `dead_code` / `unused` 级警告，恢复 `cargo check -p scoopc` 与 `cargo clippy --all-targets -- -D warnings` 的可通过状态。
+- 原则是删除无价值死代码，或为确有保留理由的骨架建立可审计边界；不能用模糊的允许属性长期压住真实缺口。
+
+#### T2999R：Review
+- 审查 warning 清理后的 effect / LLVM 相关生产代码，确认零 warning 基线不是靠临时压制或掩盖实现问题达成。
 
 ### 阶段 A：先把残余 shape-based 主路径删干净
 
@@ -95,17 +108,19 @@
 
 ## 4. 当前执行顺序
 
-1. `T3001`
-2. `T3001R`
-3. `T3002`
-4. `T3002R`
-5. `T3003`
-6. `T3003R`
-7. `T3004`
-8. `T3004R`
-9. `T3005`
-10. `T3005R`
-11. `T3006`
-12. `T3006R`
-13. `T3007`
-14. `T3007R`
+1. `T2999`
+2. `T2999R`
+3. `T3001`
+4. `T3001R`
+5. `T3002`
+6. `T3002R`
+7. `T3003`
+8. `T3003R`
+9. `T3004`
+10. `T3004R`
+11. `T3005`
+12. `T3005R`
+13. `T3006`
+14. `T3006R`
+15. `T3007`
+16. `T3007R`
