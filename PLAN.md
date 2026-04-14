@@ -12,12 +12,12 @@
 - 每个实现任务后立即插入一个 review 任务；review 必须显式确认生产代码中不存在 shape-based logic。
 - review 范围只看生产代码，重点是 `crates/scoopc/src/llvm/codegen/**`；测试命名不作为问题。
 
-## 1. 当前已知缺口
+## 1. 当前状态与已知缺口
 
-- 当前 `scoopc` 基线不满足项目要求的零 warning 门槛：
-  - 在 `HEAD` 基线上执行 `cargo check -p scoopc` 会产生约 151 条 `dead_code` / `unused` 级警告。
-  - 这些警告主要来自 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 与周边统一主线骨架。
-  - 在这些警告清零前，`cargo clippy --all-targets -- -D warnings` 无法通过，因此后续实现任务无法满足仓库质量要求。
+- `T2999` 已完成：
+  - `cargo check -p scoopc` 已恢复零 warning。
+  - `cargo clippy --all-targets -- -D warnings` 已通过。
+  - `scoop.core.__scoop_effect_*` sysroot 测试辅助 intrinsic 已重新直连 runtime ABI，`cargo test --all` 已恢复通过。
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
   - `scan_for_callee_suspend`
@@ -30,9 +30,13 @@
 
 ### 阶段 0：先恢复零 warning 基线
 
-#### T2999：清理当前 `scoopc` 基线中的编译 / lint 警告
+#### T2999：清理当前 `scoopc` 基线中的编译 / lint 警告（已完成）
 - 先处理当前基线已经存在的 `dead_code` / `unused` 级警告，恢复 `cargo check -p scoopc` 与 `cargo clippy --all-targets -- -D warnings` 的可通过状态。
 - 原则是删除无价值死代码，或为确有保留理由的骨架建立可审计边界；不能用模糊的允许属性长期压住真实缺口。
+- 本轮结果：
+  - 统一 state-machine 骨架改为单一共享作用域的保留边界，避免散落 `allow`。
+  - effect runtime ABI 与相关符号表的保留边界已显式收口。
+  - 顺手修复了既有的 sysroot effect intrinsic 回归，保证全量测试恢复绿色。
 
 #### T2999R：Review
 - 审查 warning 清理后的 effect / LLVM 相关生产代码，确认零 warning 基线不是靠临时压制或掩盖实现问题达成。
@@ -108,19 +112,18 @@
 
 ## 4. 当前执行顺序
 
-1. `T2999`
-2. `T2999R`
-3. `T3001`
-4. `T3001R`
-5. `T3002`
-6. `T3002R`
-7. `T3003`
-8. `T3003R`
-9. `T3004`
-10. `T3004R`
-11. `T3005`
-12. `T3005R`
-13. `T3006`
-14. `T3006R`
-15. `T3007`
-16. `T3007R`
+1. `T2999R`
+2. `T3001`
+3. `T3001R`
+4. `T3002`
+5. `T3002R`
+6. `T3003`
+7. `T3003R`
+8. `T3004`
+9. `T3004R`
+10. `T3005`
+11. `T3005R`
+12. `T3006`
+13. `T3006R`
+14. `T3007`
+15. `T3007R`

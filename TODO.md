@@ -13,10 +13,6 @@
 
 ## 当前已知问题
 
-- 当前基线不满足项目要求的零 warning 门槛：
-  - 在 `HEAD` 基线上执行 `cargo check -p scoopc` 会产生约 151 条 `dead_code` / `unused` 级警告。
-  - 这些警告集中在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 以及相关统一主线骨架上。
-  - 在清掉这些警告前，`cargo clippy --all-targets -- -D warnings` 不可能通过，因此后续任何实现任务都无法满足本项目的质量门槛。
 - `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧的 callee-suspend shape-based 路线：
   - `CalleeSuspendResumeMode`
   - `scan_for_callee_suspend`
@@ -26,8 +22,11 @@
 
 ## T30：统一 effect LLVM codegen
 
-### T2999 [TODO] 清理当前 `scoopc` 基线中的编译 / lint 警告，恢复零 warning 门槛
+### T2999 [DONE] 清理当前 `scoopc` 基线中的编译 / lint 警告，恢复零 warning 门槛
 - 描述：在继续 effect 主线重构前，先把当前基线里已经存在的 `dead_code` / `unused` 级警告收口掉，否则后续任务无法满足仓库明确要求的 `cargo clippy --all-targets -- -D warnings`。
+- 进展：
+  - 已把统一 state-machine 骨架、effect runtime ABI 声明与相关 runtime 符号收口到可审计的保留边界，并删除明确无读取路径的死字段 / 死方法。
+  - 已补回 `scoop.core.__scoop_effect_*` sysroot 测试辅助 intrinsic 到 runtime 符号的直接 lowering，修复既有回归测试失败。
 - 目标：
   - 处理 `cargo check -p scoopc` 当前暴露的既有警告，优先覆盖 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_transform.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 与相邻统一主线骨架。
   - 对暂时不会接入生产入口但需要保留的结构，明确采用可审计的保留方式；对已经无价值的死代码，直接删除。

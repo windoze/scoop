@@ -144,12 +144,6 @@ pub(in crate::llvm::codegen) struct CalleeSuspendLocal {
 }
 
 /// T1606f-2: Context for callee function suspension — set on MainCodegen during fresh-path codegen.
-#[derive(Debug, Clone)]
-pub(in crate::llvm::codegen) struct CalleeSuspendSaveCtx {
-    /// Locals to save at the perform point.
-    pub(in crate::llvm::codegen) saved_locals: Vec<CalleeSuspendLocal>,
-}
-
 /// T1606f-2: Info from pre-scanning a function body for callee suspension.
 #[derive(Debug, Clone, Copy)]
 enum CalleeSuspendResumeMode {
@@ -234,9 +228,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 所有顶层函数 / nested helper / step trampoline 都必须共享同一份状态，
     ///   否则跨函数 perform 的 op_tag 会错位。
     effect_op_tags: Rc<RefCell<EffectOpTagState>>,
-    /// T1606f-2: when set, the current function is "suspendable" — at the perform point,
-    /// locals are saved to a CalleeSuspendState before flag propagation return.
-    pub(in crate::llvm::codegen) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
     /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
     ///
@@ -274,6 +265,9 @@ struct ReturnContext<'ctx> {
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
 }
 
+// T2999：稳定 effect op-tag 分配器会在统一 lowering 接回时继续使用；
+// 当前主入口尚未消费该状态机，因此把 dead_code 边界限定在这个保留结构上。
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(super) struct EffectOpTagState {
     map: HashMap<String, u32>,
@@ -382,20 +376,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
             effect_op_tags,
-            callee_suspend_save_ctx: None,
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
             current_sret_return_ptr: None,
             top_level_const_eval_stack: Vec::new(),
         }
-    }
-
-    /// 入口文件（仍用于少量“未显式切换 source context”的旧路径回退）。
-    pub(super) fn entry_source(&self) -> &SourceFile {
-        self.source_map
-            .source(self.entry_source_id)
-            .expect("entry source id should exist in source map")
     }
 
     fn current_source(&self) -> Result<&SourceFile, LlvmEmitError> {
@@ -543,6 +529,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - `scoop.core.Raise.raise` → 1（固定；与 runtime 约定兼容）。
     /// - 其余 effect op：首次出现时分配递增编号（从 2 开始），后续查表复用。
     /// - 同一编译单元内 tag 稳定（相同 FQN 总是得到相同 tag）。
+    #[allow(dead_code)]
     pub(super) fn effect_op_tag(&mut self, fqn: &str) -> u32 {
         let mut state = self.effect_op_tags.borrow_mut();
         if let Some(&tag) = state.map.get(fqn) {
@@ -1184,12 +1171,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // ── Fresh path ──
         self.builder.position_at_end(fresh_bb);
-        self.callee_suspend_save_ctx = Some(CalleeSuspendSaveCtx {
-            saved_locals: saved_locals.clone(),
-        });
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(fun.span, declared_return_cg, ret_v)?;
-        self.callee_suspend_save_ctx = None;
 
         // ── Resume path ──
         self.builder.position_at_end(resume_bb);
@@ -11097,12 +11080,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // ── Fresh path ──
         self.builder.position_at_end(fresh_bb);
-        self.callee_suspend_save_ctx = Some(CalleeSuspendSaveCtx {
-            saved_locals: saved_locals.clone(),
-        });
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(span, declared_return_cg, ret_v)?;
-        self.callee_suspend_save_ctx = None;
 
         // ── Resume path ──
         self.builder.position_at_end(resume_bb);

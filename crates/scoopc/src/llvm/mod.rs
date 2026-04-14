@@ -1949,17 +1949,19 @@ import scoop.core.*
 
 fun main(): Int {
     __scoop_effect_clear()
+    __scoop_effect_slot_write(9, 33)
     __scoop_effect_slot_write2(7, 11, 22)
     __scoop_effect_set_active()
 
     val active: Int = __scoop_effect_is_active()
     val tag: Int = __scoop_effect_slot_read_op_tag()
     val len: Int = __scoop_effect_slot_read_len_words()
+    val single: Int = __scoop_effect_slot_read_value()
     val w0: Int = __scoop_effect_slot_read_word(0)
     val w1: Int = __scoop_effect_slot_read_word(1)
 
     // 让返回值依赖这些调用，避免未来优化/重写时被意外删除。
-    active + tag + len + w0 + w1
+    active + tag + len + single + w0 + w1
 }
 "#,
         );
@@ -1984,12 +1986,20 @@ fun main(): Int {
             "IR 应包含对 scoop_effect_perform_slot_write_u64_2 的引用"
         );
         assert!(
+            ir.contains("@scoop_effect_perform_slot_write_u64"),
+            "IR 应包含对 scoop_effect_perform_slot_write_u64 的引用"
+        );
+        assert!(
             ir.contains("@scoop_effect_perform_slot_read_op_tag"),
             "IR 应包含对 scoop_effect_perform_slot_read_op_tag 的引用"
         );
         assert!(
             ir.contains("@scoop_effect_perform_slot_read_len_words"),
             "IR 应包含对 scoop_effect_perform_slot_read_len_words 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_read_u64"),
+            "IR 应包含对 scoop_effect_perform_slot_read_u64 的引用"
         );
         assert!(
             ir.contains("@scoop_effect_perform_slot_read_u64_at"),

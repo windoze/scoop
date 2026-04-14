@@ -11,6 +11,8 @@ use super::MainCodegen;
 use super::runtime_symbols;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    // T2999：handler-frame ABI 已为统一 effect lowering 预留，但当前主入口尚未重新接线。
+    #[allow(dead_code)]
     pub(super) fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
         // 说明：
         // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；
@@ -1274,7 +1276,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
+}
 
+// T2999：以下 effect/callee-suspend ABI 声明是后续统一 lowering 会接回的运行时合同。
+// 当前生产入口尚未完整消费它们，因此将 dead_code 保留边界集中在这一段 impl。
+#[allow(dead_code)]
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_runtime_effect_is_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_IS_ACTIVE;
         if let Some(existing) = self.module.get_function(NAME) {

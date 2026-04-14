@@ -1,92 +1,60 @@
-# 本轮执行计划
+# 执行记录
 
 ## 说明
 
-按要求，我会先记录一份可审计的执行计划和关键判断摘要，再开始实际检查与实现工作。这里记录的是高层次推理摘要、执行顺序、风险点与完成条件，不包含不可审计的内部草稿式思维。
+按要求先记录执行计划。这里记录的是可共享的推理摘要与步骤计划，不包含逐字内部思维。
 
-## 目标
+## 当前目标
 
-本轮只完成 `TODO.md` 中第一个未完成任务，完成后测试、更新文档、提交 git commit，然后停止。
+完成 `TODO.md` 中第一个未完成任务；如果该任务过大，则先拆分任务并更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
 
-## 执行顺序
+## 初始执行计划
 
-1. 检查最新一次 git commit 的说明与相关改动，确认是否提到已有已知问题。
-2. 如果最新提交提到需先修复的问题，则先定位并修复这些问题，再继续后续任务。
-3. 读取 `TODO.md`，确定第一个未完成任务。
-4. 读取 `PLAN.md`，确认该任务是否已有拆分、依赖或上下文说明。
-5. 判断该任务是否足够小且可在本轮完整交付。
-6. 如果任务过大或存在前置缺陷/特性缺口：
-   - 在 `PLAN.md` 中补充拆分方案或阻塞原因；
-   - 在 `TODO.md` 中把当前任务拆成更小的子任务，或新增必须优先修复的前置任务，并调整顺序；
-   - 本轮执行拆分后排在最前面的那个可完成子任务；
-   - 若只是发现阻塞且当前无法继续实现，则按要求仅更新 `TODO.md` / `PLAN.md`、提交并停止。
-7. 实现当前目标任务，遵守仓库规范，不做规避性实现。
-8. 运行相关格式化、lint、测试，至少覆盖：
-   - 必要的针对性测试；
-   - `cargo fmt --check` 或 `cargo fmt`；
-   - `cargo clippy --all-targets -- -D warnings`；
-   - 与改动范围相关的 `cargo test`。
-9. 若测试暴露规范不匹配或实现缺口：
-   - 视为真实问题；
-   - 先在 `TODO.md` / `PLAN.md` 中记录并调整依赖；
-   - 根据是否能在本轮完整修复决定继续实现还是提交阻塞调整后停止。
-10. 完成后更新：
-   - `TODO.md`：标记任务完成；
-   - `PLAN.md`：记录当前进展和后续状态；
-   - `memory/claude_plan.md`：补充已完成步骤与必要计划变更。
-11. 检查工作树，只提交与本轮相关且需要纳入的文件。
-12. 使用清晰的提交信息提交本轮工作。
-13. 停止，不进入下一个任务。
+1. 查看最新一次 Git 提交，确认提交信息里是否提到已有问题；如果提到，需要先修复这些问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`、相关规范文档与受影响代码，评估任务范围和依赖关系。
+4. 如果任务过大或存在前置缺陷：
+   - 在 `PLAN.md` 中补充细化计划；
+   - 在 `TODO.md` 中拆分或重排任务，只保留正确依赖顺序；
+   - 本次只执行新的第一个子任务。
+5. 实现本次目标任务，确保实现符合规范，不引入临时绕过方案。
+6. 运行相关测试，并尽量执行完整质量检查，至少包括与改动相关的测试；如可行则执行 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等。
+7. 更新文档状态：
+   - 在 `TODO.md` 中标记任务完成，或在受阻时按依赖关系调整顺序；
+   - 在 `PLAN.md` 中记录当前状态、风险与后续任务。
+8. 提交 Git，提交信息对应本次任务。
+9. 停止，不继续处理下一个任务。
 
-## 关键约束
+## 进度日志
 
-- 不跳过最新 commit 中明确提到的遗留问题。
-- 不以 workaround、fixture hack、兼容性垫片冒充完成。
-- 若发现缺失语言特性、编译器/运行时 bug 或规范偏差，必须先把它们写入 `TODO.md` 并调整优先级。
-- 不回滚非本人改动。
-- 若 `PROMPT.md` 本轮意外变化且与本轮工作树一起出现，需要纳入提交。
-
-## 初始风险判断
-
-- 任务可能依赖尚未实现的语言特性或运行时能力。
-- 仓库可能已有未提交改动，需要先分辨哪些是既有改动、哪些与本轮任务相关。
-- 全量 `clippy` / `test` 可能耗时较长，需要根据改动范围分层验证，但最终仍需满足无警告要求。
-
-## 完成判定
-
-只有同时满足以下条件才算本轮完成：
-
-- 第一个未完成任务（或本轮拆分后的第一个子任务）已完整实现；
-- 相关测试、lint、格式检查通过；
-- `TODO.md` 和 `PLAN.md` 已同步更新；
-- 已提交 git commit；
-- 未继续处理下一个任务。
-
-## 进度记录
-
-- [x] 已写入本轮初始计划
-- [x] 已检查最新 commit
-- [x] 已定位第一个未完成任务
-- [x] 已确认是否需要拆分/调整依赖
-- [ ] 已完成实现
-- [x] 已完成阻塞验证（发现前置零 warning 问题）
-- [x] 已更新 TODO/PLAN
-- [ ] 已完成 git commit
-
-## 当前结论（更新于执行前）
-
-- 最新提交 `7be032ee23bcb9b036045866d7205a0c2e821ae4` 仅为计划重排（`Update plan`），未在提交说明中额外引入需要优先单独修复的新遗留缺陷。
-- 当前第一个未完成任务是 `T3001`：删除 `crates/scoopc/src/llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径。
-- 该任务当前判断可直接完成，不需要继续拆分。
-- 预计会同步删除因该路径失效而变成死代码的辅助结构和 ABI 声明，以避免编译/`clippy` 警告。
-
-## 进度更新（发现前置问题后）
-
-- 已按原计划实现并验证过一版 `T3001` 删除方案，但在质量门槛检查时发现：当前 `HEAD` 基线执行 `cargo check -p scoopc` 就会产生约 151 条 `dead_code` / `unused` 级警告。
-- 为确认不是本轮改动引入，已在独立 worktree `/tmp/scoop-1-baseline` 上对 `HEAD` 重新执行同一命令，结果同样出现大规模 warning，因此这是既有基线问题。
-- 该问题会直接阻塞项目要求的 `cargo clippy --all-targets -- -D warnings`，所以不能继续把 `T3001` 作为当前第一任务执行完成。
-- 已撤回未提交的 `T3001` 代码删除改动，避免仓库代码状态与任务顺序不一致。
-- 已在 `TODO.md` / `PLAN.md` 中新增前置任务：
-  - `T2999`：清理当前 `scoopc` 基线中的编译 / lint 警告；
-  - `T2999R`：审查零 warning 基线恢复没有掩盖真实实现缺口。
-- `T3001` 现已显式依赖 `T2999R`，下一轮应先处理 `T2999`。
+- 已创建本计划文件，下一步将检查最新提交与任务列表。
+- 已确认最新提交信息仅为 `[T2999] Add zero-warning baseline prerequisite`，未额外声明新的既有缺陷；当前首个未完成任务为 `T2999`。
+- 已执行 `cargo check -p scoopc --message-format=short`，确认当前有 151 条 warning，主要集中在：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`
+  - `crates/scoopc/src/llvm/codegen/mod.rs`
+- 当前处理策略：
+  1. 删除明确无读取路径的死代码，例如未被消费的字段、未调用的方法、纯占位结构。
+  2. 对尚未接回生产入口、但属于后续统一 state-machine / effect lowering 主线骨架的代码，建立模块级或方法级的可审计保留边界，避免散落式 `allow`。
+  3. 修改后重新跑 `cargo check -p scoopc`，再跑 `cargo clippy --all-targets -- -D warnings` 进行最终验证。
+- 已完成代码调整：
+  - 删除未读取的 `CalleeSuspendSaveCtx` 及相关写入，删除未使用的 `entry_source` 等死代码。
+  - 把统一 state-machine plan / segment / transform 骨架收口到单一共享作用域的保留边界。
+  - 把 effect runtime ABI 声明与相关 runtime 符号的保留边界显式收口。
+- 在执行 `cargo test --all` 时发现一个既有失败：
+  - `llvm::tests::effect_runtime_intrinsics_are_emitted_as_symbol_calls`
+  - 失败原因是 `scoop.core.__scoop_effect_*` sysroot 测试辅助 intrinsic 仍是占位报错，没有直接 lowering 到现有 runtime ABI。
+- 已修复上述既有失败：
+  - 为 `__scoop_effect_is_active` / `set_active` / `clear` / `slot_write` / `slot_write2` / `slot_read_*` 补齐直接 runtime 符号调用。
+  - 扩展对应 LLVM IR 测试，覆盖单 word 与多 word perform slot 路径。
+- 最终验证结果：
+  - `cargo check -p scoopc --message-format=short` 通过且无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test -p scoopc llvm::tests::effect_runtime_intrinsics_are_emitted_as_symbol_calls -- --exact` 通过。
+  - `cargo test --all` 通过。
+- 下一步：
+  - 更新 Git 状态并提交本轮改动。
+  - 本轮到此停止；下一次调用从 `T2999R` 开始。
