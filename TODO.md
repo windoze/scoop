@@ -9,7 +9,7 @@
 - 生产代码中的 effect codegen 禁止根据源码或代码形状分流。禁止把 `single` / `multi` / `direct` / `indirect` / `top-level` / `nested` / callee shape 等分类当作 lowering 决策输入。
 - LLVM codegen 的单一输入是 state machine。除类型信息、符号信息与运行时 ABI 必需信息外，不允许再读取源码形状、旧 scanner 结果或旧 shape 分类结果。
 - 当前阶段默认生成 heap-allocated full state machine；暂不做 simplification / optimization。
-- 每个实现任务之后都必须立即执行一个 review 任务；review 只检查生产代码，不以测试代码命名作为问题。
+- 每个实现任务之后都必须立即执行一个 review 任务；review 只审查生产代码，不以测试代码命名作为问题。若发现生产代码问题，必须在该 review 任务内直接修复并复审，不能只记录问题不处理。
 
 ## 当前已知问题（T30）
 
@@ -37,11 +37,12 @@
 - 依赖：无
 
 ### T2999R [TODO] Review：确认零 warning 基线恢复没有掩盖真正实现缺口
-- 描述：清理 warning 后，专门审查 effect / LLVM 相关生产代码，确认不是靠滥用允许属性把实现缺口压下去。
+- 描述：清理 warning 后，专门审查 effect / LLVM 相关生产代码，确认不是靠滥用允许属性把实现缺口压下去；若发现这类问题，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认保留的允许项都有明确边界和理由，没有把应删除的 dead code 长期保留成隐患。
   - 确认 effect 统一主线相关模块的保留结构仍与后续计划一致，不是为了过 lint 临时打补丁。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“当前基线满足零 warning 门槛，且未用允许属性掩盖实现问题”。
 - 依赖：T2999
 
@@ -57,11 +58,12 @@
 - 依赖：T2999R
 
 ### T3001R [TODO] Review：确认 `mod.rs` 的 callee-suspend shape-based 逻辑已清零
-- 描述：在继续后续实现前，专门审查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 effect 入口接线，确认没有等价回流。
+- 描述：在继续后续实现前，专门审查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 effect 入口接线，确认没有等价回流；若发现残留或变体回流，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认没有以新名字保留旧的 callee-shape scanner / mode enum / suspendable top-level/closure route。
   - 确认相关调用点已经转为空、删除或等待统一主线接管，而不是换名保留旧分流。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“生产代码无 callee-suspend shape-based 主路径残留”。
 - 依赖：T3001
 
@@ -77,11 +79,12 @@
 - 依赖：T3001R
 
 ### T3002R [TODO] Review：确认 effect codegen 生产代码中不存在 shape-based 主分流
-- 描述：对 `crates/scoopc/src/llvm/codegen/**` 做定向审查，只看生产代码，不看测试。
+- 描述：对 `crates/scoopc/src/llvm/codegen/**` 做定向审查，只看生产代码，不看测试；若发现 shape-based 主分流残留或新引入变体，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认 effect codegen 的主路径不再按源码形状、site 形状、arm 形状或 callee 形状选路。
   - 确认新增代码没有重新引入新的 shape-based helper。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“当前生产代码无 shape-based effect codegen 主分流残留”。
 - 依赖：T3002
 
@@ -97,11 +100,12 @@
 - 依赖：T3002R
 
 ### T3003R [TODO] Review：确认 LLVM lowering 输入面只剩 state machine
-- 描述：审查统一 lowering 入口与其依赖链，确认没有旁路输入。
+- 描述：审查统一 lowering 入口与其依赖链，确认没有旁路输入；若发现旁路输入或旧依赖链残留，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认 LLVM lowering 主线不再读取源码路径、旧 scanner 输出、旧 mode 选择结果。
   - 确认所有 effect lowering 所需结构信息都来自 state machine 合同。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“LLVM lowering 的主输入只有 state machine”。
 - 依赖：T3003
 
@@ -117,11 +121,12 @@
 - 依赖：T3003R
 
 ### T3004R [TODO] Review：确认 full-state-machine LLVM emitter 不含 shape-based 选路
-- 描述：在接主入口之前，先检查 emitter 主体本身是否纯粹消费 state machine。
+- 描述：在接主入口之前，先检查 emitter 主体本身是否纯粹消费 state machine；若发现 shape-based 选路或等价旁路，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认 emitter 不根据源码结构、旧 site 分类或 arm 形状切换不同发射流程。
   - 确认 emitter 内部所有分支都来自 state machine 语义边，而非代码形状推断。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“full-state-machine LLVM emitter 只按 state machine 语义发射”。
 - 依赖：T3004
 
@@ -137,11 +142,12 @@
 - 依赖：T3004R
 
 ### T3005R [TODO] Review：确认 effect codegen 主入口只接统一 state-machine lowering
-- 描述：主入口接通后，再做一轮生产代码审查，防止旧入口残留成隐式 fallback。
+- 描述：主入口接通后，再做一轮生产代码审查，防止旧入口残留成隐式 fallback；若发现双轨或隐藏回退，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认统一 lowering 已成为唯一主路径。
   - 确认不存在“失败时退回旧 shape-based emitter”的隐藏逻辑。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“effect codegen 主入口没有旧 fallback / 双轨”。
 - 依赖：T3005
 
@@ -157,11 +163,12 @@
 - 依赖：T3005R
 
 ### T3006R [TODO] Review：确认测试补齐后生产代码仍然零 shape-based logic
-- 描述：在阶段性收口前做一次完整审查，确认“为过测试临时加的例外”没有污染主线。
+- 描述：在阶段性收口前做一次完整审查，确认“为过测试临时加的例外”没有污染主线；若发现这类例外已进入生产代码，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认新增测试修复没有把 shape-based 逻辑重新带回生产代码。
   - 确认 effect LLVM codegen 仍然满足“只从 state machine 出发”的总约束。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“当前 effect LLVM codegen 生产代码中不存在 shape-based logic”。
 - 依赖：T3006
 
@@ -177,11 +184,12 @@
 - 依赖：T3006R
 
 ### T3007R [TODO] Review：确认仓库中的 effect codegen 生产实现只剩统一主线
-- 描述：最终审查，确认 cleanup 真正完成，而不是“旧代码还在，只是暂时不用”。
+- 描述：最终审查，确认 cleanup 真正完成，而不是“旧代码还在，只是暂时不用”；若发现 legacy 残留仍可回流生产路径，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认 effect codegen 生产实现只剩统一主线。
   - 确认后续 LLVM 阶段可以直接在统一主线上继续推进，不再受旧 shape-based 代码干扰。
 - 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“effect codegen 生产实现只剩统一主线，无 shape-based legacy 残留”。
 - 依赖：T3007
 
