@@ -1,49 +1,84 @@
 # 当前执行计划
 
-说明：按要求记录可审计的执行计划、关键决策摘要、进度与计划变更；不记录完整内部推理细节。
+## 约束说明
 
-## 目标
+- 本文件记录可执行计划、关键决策、进度更新与阻塞项。
+- 出于协作与安全边界考虑，这里不记录不可外露的内部推理，只记录足以审计执行过程的明确步骤。
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+## 初始计划
 
-## 初始步骤
+1. 检查最新一次 Git 提交信息，确认是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖与阶段目标。
+4. 评估第一个未完成任务是否足够小且可在本轮完整交付。
+5. 如果任务过大：
+   - 将其拆分为更小的子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md`，确保首个未完成项变成新的最小子任务；
+   - 仅执行新的首个子任务。
+6. 如果任务可执行：
+   - 先阅读相关代码、测试、规范与实现边界；
+   - 找出任何阻塞该任务的既有缺陷或规格不匹配；
+   - 若发现阻塞项，先按要求把阻塞修复任务加入 `TODO.md`/`PLAN.md` 并调整顺序，然后停止在该轮范围内要求的合适位置。
+7. 实现当前目标任务，保持改动最小且符合仓库既有结构。
+8. 运行相关验证：
+   - 至少运行与本任务直接相关的测试；
+   - 如改动影响较广，补充运行更高层验证；
+   - 尽量满足无警告要求，包括需要时运行 `cargo clippy --all-targets -- -D warnings`。
+9. 更新文档与计划：
+   - 在 `TODO.md` 中把当前完成项标记为已完成；
+   - 在 `PLAN.md` 中记录完成情况、后续影响与必要调整；
+   - 视执行过程更新本文件。
+10. 检查工作区差异，确认只包含本轮应提交内容。
+11. 提交 Git commit，提交信息应清晰描述本轮完成的任务。
+12. 停止，不继续处理下一个任务。
 
-1. 检查最新一次 Git 提交的信息，确认是否提到了需要先处理的既有问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与任务依赖。
-4. 如果首个未完成任务过大，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本轮只执行拆分后的第一个子任务。
-5. 在实现前阅读相关代码、测试与规范，确认是否存在会阻塞任务的既有缺陷或规格不匹配。
-6. 实现任务，补充或调整测试，运行相关验证。
-7. 更新 `TODO.md` 与 `PLAN.md` 的完成状态和后续计划。
-8. 提交本轮改动，提交信息采用仓库约定格式。
+## 进度
 
-## 执行约束
+- 已创建本计划文件，下一步将检查最新提交和任务列表。
+- 已检查最新提交 `af7f5ec303046dc85fd09b091d8f42f2a3ff43aa`：
+  - 提交信息为 `[T2999R] Review dead-code retention boundaries`。
+  - 提交信息未声明新的待修复既有问题，因此无需在进入 `TODO.md` 前插入额外修复任务。
+- 已阅读 `TODO.md` 与 `PLAN.md`：
+  - 首个未完成任务为 `T3001`：删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径。
+  - 该任务当前边界清晰，可在本轮直接实现，不需要先拆分子任务。
+- 已完成对相关生产代码的初步定位：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 仍包含 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable`，且顶层函数 / closure 入口仍在调用这些旧路径。
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 目前只保留统一 state-machine 骨架与少量 effect helper；其中部分 helper 仅被上述旧路径引用。
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime_symbols.rs` 中仍保留 callee-suspend TLS state 的 ABI 声明与符号常量。
 
-- 若发现最新提交提到的既有问题，必须优先修复。
-- 若发现规格不匹配、缺失语言特性或必须依赖前置修复，不能绕过；必须先更新 `TODO.md` / `PLAN.md` 反映依赖，再提交并停止。
-- 尽量运行与改动直接相关的测试；若任务范围较大，再补充更广泛验证。
-- 目标是本轮只完成一个任务，不推进到下一个任务。
+## 本轮实现计划（T3001）
 
-## 进度记录
+1. 从 `crates/scoopc/src/llvm/codegen/mod.rs` 删除旧的 callee-suspend shape-based 扫描与两条 suspendable codegen 入口，并把顶层函数 / closure codegen 收口回常规路径。
+2. 清理因为第 1 步失去引用的辅助类型与 helper：
+   - `CalleeSuspendLocal`
+   - `CalleeSuspendInfo`
+   - effect 模块中仅服务于旧 callee-suspend 路径的 helper
+   - runtime ABI / symbol 中仅服务于旧 callee-suspend 路径的声明
+3. 运行定向检查，确认：
+   - 生产代码中不再出现 `T3001` 指定的四个旧符号；
+   - `cargo check -p scoopc` 通过且无 warning；
+   - 如有必要，再运行 `cargo clippy --all-targets -- -D warnings` 验证零 warning 门槛没有回退。
+4. 更新 `TODO.md`、`PLAN.md` 与本文件，记录 `T3001` 已完成及当前状态。
+5. 提交本轮改动并停止。
 
-- 已创建本计划文件。
-- 已检查最新提交 `59c79e3ed0dbaed0338dc308b457f74232f02340`（`Update plan`），提交信息未额外提到需要先修复的既有代码问题。
-- 已读取 `TODO.md` 与 `PLAN.md`。
-- 已确认本轮首个未完成任务为 `T2999R`：Review 零 warning 基线恢复，确认没有用允许属性掩盖真正实现缺口。
-- 下一步：审查 `crates/scoopc/src/llvm/codegen/**` 中 effect/LLVM 相关生产代码，重点检查 `allow` 边界、保留骨架与是否存在应删除而未删除的死代码。
-- 审查中已发现并开始修复的问题：
-  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 中散落的大量 `#[allow(dead_code)]` 为冗余允许项，不符合“共享边界、可审计”的目标。
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_transform.rs` 已处于 `effect/mod.rs` 的统一 `#[allow(dead_code)]` 骨架作用域内，文件内多个局部允许项属于重复豁免。
-  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 里 `declare_runtime_alloc` / `declare_runtime_gc_collect` 没有生产调用点，也不属于当前统一 effect 合同，应直接删除而不是继续靠 `allow(dead_code)` 保留。
-- 已执行修复：
-  - 删除 `runtime_symbols.rs` 中散落的冗余 `#[allow(dead_code)]`。
-  - 删除 `state_machine_plan.rs` / `state_machine_transform.rs` 中被统一骨架边界覆盖的重复 `dead_code` 允许项。
-  - 删除 `runtime_abi.rs` 中无调用点的 `declare_runtime_alloc` / `declare_runtime_gc_collect` 及对应符号常量，并移除 effect ABI 共享 impl 内的重复局部允许项。
+## 本轮结果
+
+- 已从 `crates/scoopc/src/llvm/codegen/mod.rs` 删除旧的 callee-suspend shape-based 主路径：
+  - `CalleeSuspendResumeMode`
+  - `scan_for_callee_suspend`
+  - `codegen_top_level_fun_suspendable`
+  - `codegen_closure_fun_body_suspendable`
+- 已把顶层函数与 closure 的 codegen 收口回常规路径，不再按 `perform` 所在源码形状进入专用 suspendable lowering。
+- 已清理与该旧路径绑定的辅助代码：
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中的旧 payload/state helper
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 中的 callee-suspend TLS ABI 声明
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 中对应符号常量
 - 已完成验证：
-  - `cargo check -p scoopc` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-  - `cargo test --all` 通过。
-- 已完成文档同步：
-  - `TODO.md` 已将 `T2999R` 标记为 `[DONE]`，并写入审查结论与修复项。
-  - `PLAN.md` 已记录 `T2999R` 的完成结果，并把当前执行顺序推进到 `T3001`。
-- 下一步：检查工作区差异，提交本轮改动，然后停止。
+  - `rg -n "CalleeSuspendResumeMode|scan_for_callee_suspend|codegen_top_level_fun_suspendable|codegen_closure_fun_body_suspendable|CalleeSuspendLocal|CalleeSuspendInfo|declare_runtime_callee_suspend_state_(get|set|clear)|SCOOP_CALLEE_SUSPEND_STATE_(GET|SET|CLEAR)" crates/scoopc/src/llvm/codegen -S`
+    - 无命中
+  - `cargo fmt --all`
+  - `cargo check -p scoopc`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo test --all`
+- 下一步不是继续实现，而是按流程更新 `TODO.md` / `PLAN.md` 后提交本轮 `T3001` 并停止；下一轮首个未完成任务应为 `T3001R`。

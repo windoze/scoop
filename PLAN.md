@@ -24,13 +24,13 @@
   - 已删除 `runtime_abi.rs` 中无生产调用点、也不属于当前统一 effect 合同的 `declare_runtime_alloc` / `declare_runtime_gc_collect`。
   - 已把 `runtime_symbols.rs` 中散落的冗余 `#[allow(dead_code)]` 清掉，并删除 `state_machine_plan.rs` / `state_machine_transform.rs` 中被统一骨架边界覆盖的重复豁免。
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
-- `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧 callee-suspend shape-based 路线：
-  - `CalleeSuspendResumeMode`
-  - `scan_for_callee_suspend`
-  - `codegen_top_level_fun_suspendable`
-  - `codegen_closure_fun_body_suspendable`
+- `T3001` 已完成：
+  - 已从 `crates/scoopc/src/llvm/codegen/mod.rs` 删除 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable` 及其入口接线。
+  - 顶层函数与 closure 的 codegen 已收口回常规路径，不再按 `perform` 所在源码形状选择专用 suspendable lowering。
+  - 已同步清理 `effect/mod.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 中仅服务于这条旧路径的 helper / ABI 声明。
+  - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
-- 这意味着当前 effect codegen 虽然已经有统一的 segmentation 与 state machine transformation 基线，但 LLVM 生产主线还没有完全摆脱旧形状分流。
+- 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
 
 ## 2. 阶段顺序
 
@@ -53,9 +53,12 @@
 
 ### 阶段 A：先把残余 shape-based 主路径删干净
 
-#### T3001：删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径
+#### T3001：删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径（已完成）
 - 先删 `mod.rs` 里的旧 callee-suspend 路线，不允许顶层函数或 closure 再按源码形状走专用 lowering。
-- 这一步的目标是清除旧主线路由，不要求立即恢复编译。
+- 本轮结果：
+  - 旧的 callee-shape scanner、mode enum 与 top-level / closure suspendable route 已从生产代码移除。
+  - 与该路径绑定的 effect helper 与 runtime ABI 声明已同步删除，避免形成新的死代码边界。
+  - 删除后无需额外补丁即可维持编译、lint 与现有测试全绿。
 
 #### T3001R：Review
 - 定向检查 `mod.rs` 与调用点，确认旧 callee-shape scanner / mode enum / suspendable top-level/closure 路线已经完全消失，没有换名保留。
@@ -211,37 +214,36 @@
 
 ## 4. 当前执行顺序
 
-1. `T3001`
-2. `T3001R`
-3. `T3002`
-4. `T3002R`
-5. `T3003`
-6. `T3003R`
-7. `T3004`
-8. `T3004R`
-9. `T3005`
-10. `T3005R`
-11. `T3006`
-12. `T3006R`
-13. `T3007`
-14. `T3007R`
-15. `T3101`
-16. `T3102`
-17. `T3103`
-18. `T3104`
-19. `T3201`
-20. `T3202`
-21. `T3203`
-22. `T3204`
-23. `T3205`
-24. `T3301`
-25. `T3302`
-26. `T3303`
-27. `T3401`
-28. `T3401a`
-29. `T3401b`
-30. `T3401c`
-31. `T3402`
-32. `T3403`
-33. `T3404`
-34. `T3405`
+1. `T3001R`
+2. `T3002`
+3. `T3002R`
+4. `T3003`
+5. `T3003R`
+6. `T3004`
+7. `T3004R`
+8. `T3005`
+9. `T3005R`
+10. `T3006`
+11. `T3006R`
+12. `T3007`
+13. `T3007R`
+14. `T3101`
+15. `T3102`
+16. `T3103`
+17. `T3104`
+18. `T3201`
+19. `T3202`
+20. `T3203`
+21. `T3204`
+22. `T3205`
+23. `T3301`
+24. `T3302`
+25. `T3303`
+26. `T3401`
+27. `T3401a`
+28. `T3401b`
+29. `T3401c`
+30. `T3402`
+31. `T3403`
+32. `T3404`
+33. `T3405`

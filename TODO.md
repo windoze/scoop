@@ -54,8 +54,13 @@
   - 仍保留的 `dead_code` 边界仅用于未重新接线的统一 effect 骨架、effect ABI 保留段与稳定 op-tag 分配状态，符合后续 `T3001+` 计划。
 - 依赖：T2999
 
-### T3001 [TODO] 删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径
+### T3001 [DONE] 删除 `llvm/codegen/mod.rs` 中剩余的 callee-suspend shape-based 主路径
 - 描述：先删除当前 review 已确认的旧主路径，避免后续 LLVM lowering 继续从顶层函数 / closure 的源码形状分流。
+- 进展：
+  - 已删除 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable` 及其入口接线。
+  - 顶层函数与 closure 的 LLVM codegen 已收口回常规路径，不再按 `perform` 所在源码形状分流到专用 suspendable lowering。
+  - 已同步清理 `effect/mod.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 中仅服务于这条旧路径的 helper / ABI 声明，避免删除后回到 warning 状态。
+  - 已验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 删除 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable` 及其入口接线。
   - 顶层函数与 closure 不再按 `val = perform` / `return perform(...)` / block 尾 `perform(...)` 等形状进入专用路径。

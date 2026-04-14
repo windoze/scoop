@@ -3,10 +3,6 @@
 //! 注意：这里仅负责“符号名字符串”，签名/调用约定见 `runtime_abi.rs`。
 
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
-// T2999：effect 统一 lowering 尚未重新接回主入口，相关 ABI 符号先以集中、可审计的方式保留。
-pub(super) const SCOOP_CALLEE_SUSPEND_STATE_CLEAR: &str = "scoop_callee_suspend_state_clear";
-pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
-pub(super) const SCOOP_CALLEE_SUSPEND_STATE_SET: &str = "scoop_callee_suspend_state_set";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY: &str = "scoop_array_builder_build_array";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY: &str =
     "scoop_array_builder_build_mutable_array";

@@ -1301,44 +1301,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    // T1606f-2: callee suspend state TLS accessors.
-
-    pub(super) fn declare_runtime_callee_suspend_state_get(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_GET;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void* scoop_callee_suspend_state_get(void)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_callee_suspend_state_set(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_SET;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_callee_suspend_state_set(void* state)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_callee_suspend_state_clear(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_CLEAR;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_callee_suspend_state_clear(void)`
-        let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
     pub(super) fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_PUSH;
         if let Some(existing) = self.module.get_function(NAME) {

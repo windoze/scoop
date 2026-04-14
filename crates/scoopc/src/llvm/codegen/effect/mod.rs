@@ -43,42 +43,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(super) fn decode_abi_payload_transport(
-        &mut self,
-        at: crate::span::Span,
-        word: IntValue<'ctx>,
-        gc_ref: PointerValue<'ctx>,
-        ty: CgTy,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match ty {
-            CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                self.decode_u64_word_to_cg_value(at, word, ty)
-            }
-            CgTy::String => {
-                let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-                let s =
-                    self.builder
-                        .build_pointer_cast(gc_ref, str_ptr_ty, "abi_payload_string")?;
-                Ok(CgValue {
-                    ty: CgTy::String,
-                    value: Some(s.into()),
-                })
-            }
-            CgTy::Ref => Ok(CgValue {
-                ty: CgTy::Ref,
-                value: Some(gc_ref.into()),
-            }),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "aggregate abi payload decode is temporarily unavailable until unified lowering is reconnected",
-                    at: at.into(),
-                })
-            }
-        }
-    }
-
     pub(super) fn emit_effect_is_active_i1(
         &mut self,
         at: crate::span::Span,
@@ -104,44 +68,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i32_type().const_zero(),
             "effect_active",
         )?)
-    }
-
-    pub(super) fn callee_suspend_first_local_field_index() -> u32 {
-        3
-    }
-
-    pub(super) fn get_or_create_callee_suspend_state_type(
-        &mut self,
-        at: crate::span::Span,
-        state_ty_name: &str,
-        saved_locals: &[CalleeSuspendLocal],
-    ) -> Result<inkwell::types::StructType<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.context.get_struct_type(state_ty_name) {
-            return Ok(existing);
-        }
-
-        let ty = self.context.opaque_struct_type(state_ty_name);
-        let header_ty = self.llvm_gc_object_header_type();
-        let i64_ty = self.context.i64_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
-        fields.push(header_ty.into());
-        fields.push(i64_ty.into());
-        fields.push(gc_i8_ptr_ty.into());
-        for local in saved_locals {
-            fields.push(match local.cg_ty {
-                CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
-                CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => i64_ty.into(),
-                _ => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "callee suspend local type",
-                        at: at.into(),
-                    });
-                }
-            });
-        }
-        ty.set_body(&fields, false);
-        Ok(ty)
     }
 
     pub(super) fn emit_effect_unwind_if_active(
