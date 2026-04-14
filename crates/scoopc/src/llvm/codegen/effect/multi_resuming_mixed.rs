@@ -33,6 +33,698 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn mixed_escape_resume_path_from_immediate_frames<'hir>(
+        frames: &[ImmediateResumeFrame<'hir>],
+    ) -> Vec<MixedEscapeDirectFrame<'hir>> {
+        frames
+            .iter()
+            .map(|frame| match frame {
+                ImmediateResumeFrame::Block { block, stmt_idx } => {
+                    MixedEscapeDirectFrame::Block {
+                        block,
+                        stmt_idx: *stmt_idx,
+                    }
+                }
+                ImmediateResumeFrame::IfThen {
+                    if_expr,
+                    then_block,
+                    stmt_idx,
+                } => MixedEscapeDirectFrame::IfThen {
+                    if_expr,
+                    then_block,
+                    stmt_idx: *stmt_idx,
+                },
+                ImmediateResumeFrame::IfElse {
+                    if_expr,
+                    else_block,
+                    stmt_idx,
+                } => MixedEscapeDirectFrame::IfElse {
+                    if_expr,
+                    else_block,
+                    stmt_idx: *stmt_idx,
+                },
+                ImmediateResumeFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    stmt_idx,
+                } => MixedEscapeDirectFrame::WhileBody {
+                    while_cond,
+                    while_body,
+                    stmt_idx: *stmt_idx,
+                },
+            })
+            .collect()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_mixed_main_body_with_intercepts_from_start_idx<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        start_idx: usize,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        if start_idx >= handle.body.stmts.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle unified mixed multi-resuming leaf (missing top-level tail after nested immediate site)",
+                at: handle.body.span.into(),
+            });
+        }
+
+        let last_stmt_idx = handle.body.stmts.len() - 1;
+        for (stmt_idx, stmt) in handle
+            .body
+            .stmts
+            .iter()
+            .enumerate()
+            .take(last_stmt_idx)
+            .skip(start_idx)
+        {
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                std::slice::from_ref(stmt),
+                &[],
+                stmt_idx,
+                0,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_some()
+            {
+                return Ok(());
+            }
+        }
+
+        let final_stmt = &handle.body.stmts[last_stmt_idx];
+        let mut final_stmt_has_site = false;
+        let mut final_stmt_has_nested_site = false;
+        for plan in site_plans {
+            if !Self::multi_resuming_heap_site_matches_prefix(plan, &[]) {
+                continue;
+            }
+            if plan.top_level_stmt_idx() != last_stmt_idx {
+                continue;
+            }
+            final_stmt_has_site = true;
+            if !plan.resume_path().is_empty() {
+                final_stmt_has_nested_site = true;
+                break;
+            }
+        }
+
+        if final_stmt_has_site {
+            if final_stmt_has_nested_site {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf (nested source-path in final top-level statement not yet supported)",
+                    at: final_stmt.span.into(),
+                });
+            }
+            let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+                span,
+                site_plans,
+                std::slice::from_ref(final_stmt),
+                &[],
+                last_stmt_idx,
+                0,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+            return Ok(());
+        }
+
+        let final_value = match &final_stmt.kind {
+            hir::StmtKind::Empty => CgValue::unit(),
+            hir::StmtKind::Val(decl) => {
+                self.codegen_val_decl(decl)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Expr(expr) => self.codegen_expr_in_expected_context(expr, Some(out_ty))?,
+            hir::StmtKind::While { cond, body } => {
+                self.codegen_while_stmt(final_stmt.span, cond, body)?;
+                CgValue::unit()
+            }
+            hir::StmtKind::Return { .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "`return` inside unified mixed multi-resuming body",
+                    at: final_stmt.span.into(),
+                });
+            }
+            hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "statement inside unified mixed multi-resuming body",
+                    at: final_stmt.span.into(),
+                });
+            }
+        };
+
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            let final_value = match out_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => self.coerce_value(final_stmt.span, final_value, out_ty)?,
+            };
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(final_stmt.span, ptr, out_ty, final_value)?;
+            }
+            self.builder.build_unconditional_branch(completion_target)?;
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_mixed_continue_after_completed_frame<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        top_level_stmt_idx: usize,
+        resume_path: &[MixedEscapeDirectFrame<'hir>],
+        completed_depth: usize,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        if completed_depth == 0 {
+            return self.codegen_multi_resuming_mixed_main_body_with_intercepts_from_start_idx(
+                span,
+                handle,
+                top_level_stmt_idx + 1,
+                out_ty,
+                result_ptr,
+                completion_target,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            );
+        }
+
+        let parent_depth = completed_depth - 1;
+        let start_idx = resume_path[parent_depth].stmt_idx() + 1;
+        match &resume_path[parent_depth] {
+            MixedEscapeDirectFrame::WhileBody {
+                while_cond,
+                while_body,
+                ..
+            } => self.codegen_multi_resuming_mixed_continue_while_tail(
+                span,
+                handle,
+                top_level_stmt_idx,
+                resume_path,
+                parent_depth,
+                start_idx,
+                while_cond,
+                while_body,
+                out_ty,
+                result_ptr,
+                completion_target,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            ),
+            MixedEscapeDirectFrame::Block { .. }
+            | MixedEscapeDirectFrame::IfThen { .. }
+            | MixedEscapeDirectFrame::IfElse { .. } => {
+                self.codegen_multi_resuming_mixed_continue_frame_tail(
+                    span,
+                    handle,
+                    top_level_stmt_idx,
+                    resume_path,
+                    parent_depth,
+                    start_idx,
+                    out_ty,
+                    result_ptr,
+                    completion_target,
+                    site_plans,
+                    binder_slots_by_site,
+                    arm_bbs,
+                    step_fn,
+                    cont_ptr,
+                    continuation_created_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    outer_visible_supported,
+                    outer_field_base,
+                    body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_mixed_continue_frame_tail<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        top_level_stmt_idx: usize,
+        resume_path: &[MixedEscapeDirectFrame<'hir>],
+        depth: usize,
+        start_idx: usize,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let stmts = match &resume_path[depth] {
+            MixedEscapeDirectFrame::Block { block, .. } => &block.stmts,
+            MixedEscapeDirectFrame::IfThen { then_block, .. } => &then_block.stmts,
+            MixedEscapeDirectFrame::IfElse { else_block, .. } => &else_block.stmts,
+            MixedEscapeDirectFrame::WhileBody { while_body, .. } => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf (while frame needs specialized tail lowering)",
+                    at: while_body.span.into(),
+                });
+            }
+        };
+        let saved_env = self.env.clone();
+        let prefix = resume_path[..=depth].to_vec();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            stmts,
+            prefix.as_slice(),
+            0,
+            start_idx,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            continuation_created_ptr,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env;
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.codegen_multi_resuming_mixed_continue_after_completed_frame(
+                span,
+                handle,
+                top_level_stmt_idx,
+                resume_path,
+                depth,
+                out_ty,
+                result_ptr,
+                completion_target,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_mixed_continue_while_tail<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        top_level_stmt_idx: usize,
+        resume_path: &[MixedEscapeDirectFrame<'hir>],
+        depth: usize,
+        start_idx: usize,
+        while_cond: &'hir hir::Expr,
+        while_body: &'hir hir::Block,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let prefix = resume_path[..=depth].to_vec();
+        let insert_block = self
+            .builder
+            .get_insert_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no insert block",
+                at: while_body.span.into(),
+            })?;
+        let func = insert_block.get_parent().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "builder has no parent function",
+            at: while_body.span.into(),
+        })?;
+        let tail_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_mixed_tail_while_tail");
+        let cond_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_mixed_tail_while_cond");
+        let body_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_mixed_tail_while_body");
+        let after_bb = self
+            .context
+            .append_basic_block(func, "multi_resume_mixed_tail_while_after");
+        let saved_env = self.env.clone();
+
+        self.builder.build_unconditional_branch(tail_bb)?;
+
+        self.builder.position_at_end(tail_bb);
+        self.env = saved_env.clone();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            &while_body.stmts,
+            prefix.as_slice(),
+            0,
+            start_idx,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            continuation_created_ptr,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env.clone();
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(cond_bb)?;
+        }
+
+        self.builder.position_at_end(cond_bb);
+        let cond_v = self.codegen_expr_in_expected_context(while_cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(while_cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle unified mixed multi-resuming leaf while condition value",
+            at: while_cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cond_i1, body_bb, after_bb)?;
+
+        self.builder.position_at_end(body_bb);
+        self.env = saved_env.clone();
+        self.env.push_scope();
+        let _ = self.codegen_multi_resuming_heap_block_unit_with_intercepts(
+            span,
+            site_plans,
+            &while_body.stmts,
+            prefix.as_slice(),
+            0,
+            0,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            continuation_created_ptr,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        self.env = saved_env.clone();
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            self.builder.build_unconditional_branch(cond_bb)?;
+        }
+
+        self.builder.position_at_end(after_bb);
+        self.env = saved_env;
+        self.codegen_multi_resuming_mixed_continue_after_completed_frame(
+            span,
+            handle,
+            top_level_stmt_idx,
+            resume_path,
+            depth,
+            out_ty,
+            result_ptr,
+            completion_target,
+            site_plans,
+            binder_slots_by_site,
+            arm_bbs,
+            step_fn,
+            cont_ptr,
+            continuation_created_ptr,
+            state_ty,
+            state_raw,
+            state_ptr,
+            outer_visible_supported,
+            outer_field_base,
+            body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn codegen_multi_resuming_mixed_continue_after_immediate_site<'hir>(
+        &mut self,
+        span: crate::span::Span,
+        handle: &'hir hir::HandleExpr,
+        perform_site: &'hir ImmediateResumeSite<'hir>,
+        out_ty: CgTy,
+        result_ptr: Option<PointerValue<'ctx>>,
+        completion_target: inkwell::basic_block::BasicBlock<'ctx>,
+        site_plans: &[MultiResumingEscapeSitePlan<'hir>],
+        binder_slots_by_site: &[Vec<ImmediateResumeBinderSlot<'ctx>>],
+        arm_bbs: &[inkwell::basic_block::BasicBlock<'ctx>],
+        step_fn: FunctionValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+        continuation_created_ptr: Option<PointerValue<'ctx>>,
+        state_ty: inkwell::types::StructType<'ctx>,
+        state_raw: PointerValue<'ctx>,
+        state_ptr: PointerValue<'ctx>,
+        outer_visible_supported: &[EscapeCaptureMeta],
+        outer_field_base: u32,
+        body_visible_supported: &[EscapeCaptureMeta],
+        body_field_base: u32,
+        pc_field_idx: u32,
+    ) -> Result<(), LlvmEmitError> {
+        let resume_path =
+            Self::mixed_escape_resume_path_from_immediate_frames(perform_site.resume_path.as_slice());
+        if resume_path.is_empty() {
+            return self.codegen_multi_resuming_mixed_main_body_with_intercepts_from_start_idx(
+                span,
+                handle,
+                perform_site.top_level_stmt_idx + 1,
+                out_ty,
+                result_ptr,
+                completion_target,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            );
+        }
+
+        let last_depth = resume_path.len() - 1;
+        let start_idx = resume_path[last_depth].stmt_idx() + 1;
+        match &resume_path[last_depth] {
+            MixedEscapeDirectFrame::WhileBody {
+                while_cond,
+                while_body,
+                ..
+            } => self.codegen_multi_resuming_mixed_continue_while_tail(
+                span,
+                handle,
+                perform_site.top_level_stmt_idx,
+                resume_path.as_slice(),
+                last_depth,
+                start_idx,
+                while_cond,
+                while_body,
+                out_ty,
+                result_ptr,
+                completion_target,
+                site_plans,
+                binder_slots_by_site,
+                arm_bbs,
+                step_fn,
+                cont_ptr,
+                continuation_created_ptr,
+                state_ty,
+                state_raw,
+                state_ptr,
+                outer_visible_supported,
+                outer_field_base,
+                body_visible_supported,
+                body_field_base,
+                pc_field_idx,
+            ),
+            MixedEscapeDirectFrame::Block { .. }
+            | MixedEscapeDirectFrame::IfThen { .. }
+            | MixedEscapeDirectFrame::IfElse { .. } => {
+                self.codegen_multi_resuming_mixed_continue_frame_tail(
+                    span,
+                    handle,
+                    perform_site.top_level_stmt_idx,
+                    resume_path.as_slice(),
+                    last_depth,
+                    start_idx,
+                    out_ty,
+                    result_ptr,
+                    completion_target,
+                    site_plans,
+                    binder_slots_by_site,
+                    arm_bbs,
+                    step_fn,
+                    cont_ptr,
+                    continuation_created_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    outer_visible_supported,
+                    outer_field_base,
+                    body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )
+            }
+        }
+    }
+
     fn codegen_handle_expr_unified_single_immediate_single_escape_multi_resuming_leaf<'hir>(
         &mut self,
         span: crate::span::Span,
@@ -76,85 +768,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
-        if !perform_site.resume_path.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (nested immediate-resume site not yet supported)",
-                at: perform_site.decl.span.into(),
-            });
-        }
-
         let ResolvedPlanMixedEscapeDirectSites {
             direct_sites: resolved_direct_sites,
-            capture_ids,
+            mut capture_ids,
         } = Self::resolve_mixed_escape_direct_sites_from_plan(
             handle,
             state_machine_plan,
             &[(escape_arm, escape_arm_id)],
         )?;
-        let ResolvedPlanMixedEscapeIndirectSites { indirect_sites, .. } =
-            Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
-
-        if let Some(first_indirect_site) = indirect_sites.first() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (direct + indirect escape sites not yet supported)",
-                at: first_indirect_site.decl.span.into(),
-            });
-        }
-
-        let [resolved_escape_site] = resolved_direct_sites.as_slice() else {
-            let (kind, at) = match resolved_direct_sites.first() {
-                None => (
-                    "handle unified mixed multi-resuming leaf (single direct escape site required)",
-                    escape_arm.span,
-                ),
-                Some(site) => (
-                    "handle unified mixed multi-resuming leaf (multiple direct escape sites not yet supported)",
-                    site.site.decl.span,
-                ),
-            };
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
-        };
-        if resolved_escape_site.arm_id != escape_arm_id {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle arm dispatch (mixed escape-continuation arm id)",
-                at: resolved_escape_site.site.decl.span.into(),
-            });
-        }
-        let escape_site = &resolved_escape_site.site;
-        if escape_site.top_level_stmt_idx <= perform_site.top_level_stmt_idx {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (escape perform before immediate site not yet supported)",
-                at: escape_site.decl.span.into(),
-            });
-        }
-        if !escape_site.resume_path.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (only top-level val-bound direct escape perform supported)",
-                at: escape_site.decl.span.into(),
-            });
-        }
-
-        let Some(escape_init) = escape_site.decl.init.as_ref() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (missing direct escape perform init)",
-                at: escape_site.decl.span.into(),
-            });
-        };
-        let hir::ExprKind::Perform { op: escape_op, .. } = &escape_init.kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (expected direct escape perform binding)",
-                at: escape_init.span.into(),
-            });
-        };
-        if escape_op.fqn != escape_arm.op.op.fqn {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (escape op mismatch)",
-                at: escape_op.span.into(),
-            });
-        }
+        let ResolvedPlanMixedEscapeIndirectSites {
+            indirect_sites,
+            capture_ids: indirect_capture_ids,
+        } = Self::resolve_mixed_escape_indirect_sites_from_plan(handle, state_machine_plan)?;
+        capture_ids.extend(indirect_capture_ids);
+        capture_ids.extend(state_machine_plan.arm_capture_locals(escape_arm_id).iter().copied());
 
         let perform_idx = perform_site.top_level_stmt_idx;
         let resume_value_ty =
@@ -163,12 +790,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "handle unified mixed multi-resuming leaf immediate value type",
                     at: perform_site.decl.span.into(),
                 })?;
-        let escape_resume_value_ty =
-            self.cg_ty_of(escape_site.decl.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf escape value type",
-                    at: escape_site.decl.span.into(),
-                })?;
 
         if immediate_arm.op.binders.len() != perform_site.args.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -176,12 +797,105 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: immediate_arm.op.span.into(),
             });
         }
-        if escape_arm.op.binders.len() != escape_site.args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf escape binder arity mismatch",
-                at: escape_arm.op.span.into(),
+
+        let escape_op_tag = self.effect_op_tag(&escape_arm.op.op.fqn);
+        let mut scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>> =
+            Vec::with_capacity(resolved_direct_sites.len() + indirect_sites.len());
+        let mut escape_resume_value_ty: Option<CgTy> = None;
+
+        for resolved in resolved_direct_sites {
+            if resolved.arm_id != escape_arm_id {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle arm dispatch (mixed escape-continuation arm id)",
+                    at: resolved.site.decl.span.into(),
+                });
+            }
+            if resolved.site.top_level_stmt_idx <= perform_idx {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf (escape perform before immediate site not yet supported)",
+                    at: resolved.site.decl.span.into(),
+                });
+            }
+            if escape_arm.op.binders.len() != resolved.site.args.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf escape binder arity mismatch",
+                    at: escape_arm.op.span.into(),
+                });
+            }
+            let site_resume_value_ty =
+                self.cg_ty_of(resolved.site.decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle unified mixed multi-resuming leaf escape value type",
+                        at: resolved.site.decl.span.into(),
+                    })?;
+            if let Some(expected) = escape_resume_value_ty {
+                if expected != site_resume_value_ty {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
+                        at: resolved.site.decl.span.into(),
+                    });
+                }
+            } else {
+                escape_resume_value_ty = Some(site_resume_value_ty);
+            }
+            scanned_sites.push(MultiResumingEscapeSitePlan {
+                site: MultiResumingEscapeSiteKind::Direct(resolved.site),
+                arm: escape_arm,
+                continuation_symbol,
+                resume_value_ty: site_resume_value_ty,
+                op_tag: escape_op_tag,
             });
         }
+
+        for indirect_site in indirect_sites {
+            if indirect_site.top_level_stmt_idx <= perform_idx {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf (indirect perform before immediate site not yet supported)",
+                    at: indirect_site.decl.span.into(),
+                });
+            }
+            if escape_arm.op.binders.len() > 1 {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle unified mixed multi-resuming leaf indirect binder count (only 1 supported)",
+                    at: escape_arm.op.span.into(),
+                });
+            }
+            let site_resume_value_ty =
+                self.cg_ty_of(indirect_site.decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle unified mixed multi-resuming leaf escape value type",
+                        at: indirect_site.decl.span.into(),
+                    })?;
+            if let Some(expected) = escape_resume_value_ty {
+                if expected != site_resume_value_ty {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
+                        at: indirect_site.decl.span.into(),
+                    });
+                }
+            } else {
+                escape_resume_value_ty = Some(site_resume_value_ty);
+            }
+            scanned_sites.push(MultiResumingEscapeSitePlan {
+                site: MultiResumingEscapeSiteKind::Indirect(indirect_site),
+                arm: escape_arm,
+                continuation_symbol,
+                resume_value_ty: site_resume_value_ty,
+                op_tag: escape_op_tag,
+            });
+        }
+
+        if scanned_sites.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle unified mixed multi-resuming leaf (escape site missing)",
+                at: escape_arm.span.into(),
+            });
+        }
+        scanned_sites.sort_by_key(|plan| (plan.top_level_stmt_idx(), plan.decl().span.start));
+        let _ = escape_resume_value_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle unified mixed multi-resuming leaf escape value type",
+            at: escape_arm.span.into(),
+        })?;
 
         let sibling_plan = self.collect_sibling_nonresuming_plan(sibling_nonresuming_arms)?;
         let raise_sibling = sibling_plan.raise_arm;
@@ -364,6 +1078,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             }
 
+            let step_cont_ptr = cg.create_entry_alloca(
+                span,
+                &format!("handle_multi_resume_mixed_step_k_{seq}"),
+                CgTy::Ref,
+            )?;
             let step_sibling_dispatch = cg.build_sibling_nonresuming_dispatch_blocks(
                 step_fn,
                 "multi_resume_mixed_step",
@@ -377,12 +1096,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let dispatch_bb = self
                 .context
                 .append_basic_block(step_fn, "multi_resume_mixed_step_dispatch");
-            let state0_bb = self
-                .context
-                .append_basic_block(step_fn, "multi_resume_mixed_step_state0");
             let bad_state_bb = self
                 .context
                 .append_basic_block(step_fn, "multi_resume_mixed_step_bad_state");
+            let mut step_state_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+            let mut step_arm_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+            let mut step_arm_unwind_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+            let mut step_binder_slots_by_site: Vec<Vec<ImmediateResumeBinderSlot<'ctx>>> =
+                Vec::new();
+            for (site_idx, plan) in scanned_sites.iter().enumerate() {
+                step_state_bbs.push(self.context.append_basic_block(
+                    step_fn,
+                    &format!("multi_resume_mixed_step_state_{site_idx}"),
+                ));
+                step_arm_bbs.push(self.context.append_basic_block(
+                    step_fn,
+                    &format!("multi_resume_mixed_step_arm_{site_idx}"),
+                ));
+                step_arm_unwind_bbs.push(self.context.append_basic_block(
+                    step_fn,
+                    &format!("multi_resume_mixed_step_arm_unwind_{site_idx}"),
+                ));
+                let prefix = format!("multi_resume_mixed_step_site_{site_idx}");
+                step_binder_slots_by_site
+                    .push(cg.build_multi_resuming_escape_binder_slots(plan.arm, &prefix)?);
+            }
+
+            if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
+                for (idx, custom) in custom_sibling_arms.iter().enumerate() {
+                    cg.push_effect_unwind_target(
+                        &custom.arm.op.op.fqn,
+                        step_custom_catch_bbs[idx],
+                    );
+                }
+                cg.push_raise_target(step_effect_dispatch_bb);
+            }
+
             cg.builder.build_unconditional_branch(dispatch_bb)?;
 
             cg.builder.position_at_end(dispatch_bb);
@@ -396,95 +1145,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .builder
                 .build_load(i32_ty, state_pc_ptr, "multi_resume_mixed_step_pc")?
                 .into_int_value();
-            let cases = [(i32_ty.const_zero(), state0_bb)];
+            let cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+                step_state_bbs
+                    .iter()
+                    .enumerate()
+                    .map(|(site_idx, bb)| (i32_ty.const_int(site_idx as u64, false), *bb))
+                    .collect();
             cg.builder.build_switch(pc, bad_state_bb, &cases)?;
 
             cg.builder.position_at_end(bad_state_bb);
             cg.emit_exit_with_code(span, 3)?;
 
-            cg.builder.position_at_end(state0_bb);
-            if has_sibling_nonresuming {
-                for (idx, custom) in custom_sibling_arms.iter().enumerate() {
-                    cg.push_effect_unwind_target(
-                        &custom.arm.op.op.fqn,
-                        step_custom_catch_bbs[idx],
-                    );
-                }
-                let step_raise_target = step_effect_dispatch_bb.ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "mixed step sibling dispatch missing effect dispatch block",
-                        at: span.into(),
-                    },
+            for (site_idx, state_bb) in step_state_bbs.iter().enumerate() {
+                let plan = &scanned_sites[site_idx];
+                cg.builder.position_at_end(*state_bb);
+                cg.codegen_multi_resuming_heap_step_bind_resumed_site(
+                    span,
+                    plan,
+                    resume_word,
+                    resume_gc_ref,
                 )?;
-                cg.push_raise_target(step_raise_target);
+                let saved_env = cg.env.clone();
+                cg.codegen_multi_resuming_heap_step_continue_after_site(
+                    span,
+                    handle,
+                    site_idx,
+                    scanned_sites.as_slice(),
+                    step_binder_slots_by_site.as_slice(),
+                    step_arm_bbs.as_slice(),
+                    step_fn,
+                    step_cont_ptr,
+                    state_ty,
+                    state_raw,
+                    state_ptr,
+                    &outer_visible_supported,
+                    outer_field_base,
+                    &body_visible_supported,
+                    body_field_base,
+                    pc_field_idx,
+                )?;
+                cg.env = saved_env;
             }
 
-            let target_ptr = if let Some(local) = cg.env.get(escape_site.id) {
-                if local.ty != escape_resume_value_ty {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle unified mixed multi-resuming leaf escape value type mismatch",
-                        at: escape_site.decl.span.into(),
-                    });
-                }
-                local.ptr
-            } else {
-                let name = escape_site.decl.name.as_deref().unwrap_or("resume_value");
-                let ptr =
-                    cg.create_entry_alloca(escape_site.decl.span, name, escape_resume_value_ty)?;
-                cg.env.insert(
-                    escape_site.id,
-                    CgLocal {
-                        hir_ty: Some(escape_site.decl.ty),
-                        ty: escape_resume_value_ty,
-                        ptr,
-                        mutable: escape_site.decl.mutable,
-                    },
-                );
-                ptr
-            };
-            let resume_value = cg.decode_abi_payload_transport(
-                escape_site.decl.span,
-                resume_word,
-                resume_gc_ref,
-                escape_resume_value_ty,
-            )?;
-            let _ = cg.store_local_value(
-                escape_site.decl.span,
-                target_ptr,
-                escape_resume_value_ty,
-                resume_value,
-            )?;
-
-            for stmt in handle
-                .body
-                .stmts
-                .iter()
-                .skip(escape_site.top_level_stmt_idx + 1)
-            {
-                let _ = cg.codegen_mixed_escape_tail_stmt(
-                    stmt,
-                    "`return` inside unified mixed multi-resuming continuation step",
-                    "statement inside unified mixed multi-resuming continuation step",
-                )?;
-            }
-
-            if has_sibling_nonresuming {
+            if step_effect_dispatch_bb.is_some() {
                 cg.pop_raise_target();
                 for _ in custom_sibling_arms.iter().rev() {
                     cg.pop_effect_unwind_target();
                 }
-            }
-
-            if let Some(bb) = cg.builder.get_insert_block()
-                && bb.get_terminator().is_none()
-            {
-                let unpin = cg.declare_runtime_gc_unpin();
-                let _ = cg.builder.build_call(
-                    unpin,
-                    &[state_raw.into()],
-                    "multi_resume_mixed_step_state_unpin",
-                )?;
-                cg.builder.build_return(None)?;
             }
 
             if let Some(step_effect_dispatch_bb) = step_effect_dispatch_bb {
@@ -942,6 +1649,100 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
+            for (site_idx, arm_bb) in step_arm_bbs.iter().enumerate() {
+                let plan = &scanned_sites[site_idx];
+                cg.builder.position_at_end(*arm_bb);
+                cg.env.push_scope();
+                for slot in &step_binder_slots_by_site[site_idx] {
+                    cg.env.insert(
+                        slot.id,
+                        CgLocal {
+                            hir_ty: Some(slot.hir_ty),
+                            ty: slot.ty,
+                            ptr: slot.ptr,
+                            mutable: false,
+                        },
+                    );
+                }
+                cg.env.insert(
+                    plan.continuation_symbol,
+                    CgLocal {
+                        hir_ty: None,
+                        ty: CgTy::Ref,
+                        ptr: step_cont_ptr,
+                        mutable: false,
+                    },
+                );
+                if has_sibling_nonresuming {
+                    for custom in &custom_sibling_arms {
+                        cg.push_effect_unwind_target(
+                            &custom.arm.op.op.fqn,
+                            step_arm_unwind_bbs[site_idx],
+                        );
+                    }
+                    cg.push_raise_target(step_arm_unwind_bbs[site_idx]);
+                }
+                let arm_v = cg.codegen_expr_in_expected_context(&plan.arm.body, Some(out_ty))?;
+                if has_sibling_nonresuming {
+                    cg.pop_raise_target();
+                    for _ in custom_sibling_arms.iter().rev() {
+                        cg.pop_effect_unwind_target();
+                    }
+                }
+                if out_ty != CgTy::Unit && out_ty != CgTy::Never {
+                    let _ = cg.coerce_value(plan.arm.body.span, arm_v, out_ty)?;
+                }
+                cg.env.pop_scope();
+
+                if let Some(bb) = cg.builder.get_insert_block()
+                    && bb.get_terminator().is_none()
+                {
+                    let llvm_ref_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                    let k_loaded = cg
+                        .builder
+                        .build_load(
+                            llvm_ref_ty,
+                            step_cont_ptr,
+                            "multi_resume_mixed_step_k_unpin_load",
+                        )?
+                        .into_pointer_value();
+                    let unpin = cg.declare_runtime_gc_unpin();
+                    let _ = cg.builder.build_call(
+                        unpin,
+                        &[k_loaded.into()],
+                        "multi_resume_mixed_step_k_unpin",
+                    )?;
+                    cg.builder.build_return(None)?;
+                }
+
+                if has_sibling_nonresuming {
+                    cg.builder.position_at_end(step_arm_unwind_bbs[site_idx]);
+                    let llvm_ref_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                    let k_loaded = cg
+                        .builder
+                        .build_load(
+                            llvm_ref_ty,
+                            step_cont_ptr,
+                            "multi_resume_mixed_step_k_unpin_load_unwind",
+                        )?
+                        .into_pointer_value();
+                    let unpin = cg.declare_runtime_gc_unpin();
+                    let _ = cg.builder.build_call(
+                        unpin,
+                        &[k_loaded.into()],
+                        "multi_resume_mixed_step_k_unpin_unwind",
+                    )?;
+                    cg.builder.build_return(None)?;
+                }
+            }
+
+            if !has_sibling_nonresuming {
+                for unwind_bb in &step_arm_unwind_bbs {
+                    cg.builder.position_at_end(*unwind_bb);
+                    cg.builder.build_unreachable()?;
+                }
+            }
+
             cg.env.pop_scope();
         }
         self.builder.position_at_end(saved_block);
@@ -951,9 +1752,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let state0_bb = resume_blocks.state0_bb;
         let state1_bb = resume_blocks.state1_bb;
         let arm_bb = resume_blocks.arm_bb;
-        let escape_arm_bb = self
-            .context
-            .append_basic_block(func, "handle_multi_resume_mixed_escape_arm");
         let done_bb = resume_blocks.done_bb;
         let bad_state_bb = resume_blocks.bad_state_bb;
         let finally_bb = resume_blocks.finally_bb;
@@ -1022,22 +1820,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ptr,
             });
         }
-
-        let mut escape_binder_slots: Vec<ImmediateResumeBinderSlot<'ctx>> = Vec::new();
-        for binder in &escape_arm.op.binders {
-            let binder_ty = self
-                .cg_ty_of(binder.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle unified mixed multi-resuming leaf escape binder type",
-                    at: binder.span.into(),
-                })?;
-            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
-            escape_binder_slots.push(ImmediateResumeBinderSlot {
-                id: binder.id,
-                hir_ty: binder.ty,
-                ty: binder_ty,
-                ptr,
-            });
+        let mut initial_escape_binder_slots_by_site: Vec<Vec<ImmediateResumeBinderSlot<'ctx>>> =
+            Vec::new();
+        let mut escape_arm_entry_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+        let mut escape_arm_body_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+        let mut escape_arm_unwind_bbs: Vec<inkwell::basic_block::BasicBlock<'ctx>> = Vec::new();
+        for (site_idx, plan) in scanned_sites.iter().enumerate() {
+            let prefix = format!("multi_resume_mixed_site_{site_idx}");
+            initial_escape_binder_slots_by_site
+                .push(self.build_multi_resuming_escape_binder_slots(plan.arm, &prefix)?);
+            escape_arm_entry_bbs.push(self.context.append_basic_block(
+                func,
+                &format!("handle_multi_resume_mixed_escape_arm_entry_{site_idx}"),
+            ));
+            escape_arm_body_bbs.push(self.context.append_basic_block(
+                func,
+                &format!("handle_multi_resume_mixed_escape_arm_body_{site_idx}"),
+            ));
+            escape_arm_unwind_bbs.push(self.context.append_basic_block(
+                func,
+                &format!("handle_multi_resume_mixed_escape_arm_unwind_{site_idx}"),
+            ));
         }
 
         let mut custom_siblings: Vec<MixedCustomSibling<'hir, 'ctx>> = Vec::new();
@@ -1206,6 +2009,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_used_ptr,
             self.context.bool_type().const_zero(),
         )?;
+        let immediate_exec_plan = ImmediateResumeExecPlan {
+            handle,
+            site: &perform_site,
+            out_ty,
+            result_ptr,
+            handler_exit: ImmediateResumeHandlerExit::None,
+            finally_bb,
+        };
 
         self.builder.build_unconditional_branch(dispatch_bb)?;
 
@@ -1230,24 +2041,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.push_effect_unwind_target(&custom.arm.op.op.fqn, custom.catch_bb);
         }
         self.push_raise_target(main_raise_target);
-        for stmt in handle.body.stmts.iter().take(perform_idx) {
-            self.codegen_immediate_resume_stmt_unit(stmt)?;
-        }
-        let hir::StmtKind::Val(immediate_decl) = &handle.body.stmts[perform_idx].kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle unified mixed multi-resuming leaf (expected immediate perform binding)",
-                at: handle.body.stmts[perform_idx].span.into(),
-            });
-        };
-        let target_ptr = self.codegen_immediate_resume_site_binding(
-            &perform_site,
-            immediate_decl,
-            ImmediateResumeArmDispatch {
-                binder_slots: &immediate_binder_slots,
-                resume_used_ptr,
-                arm_bb,
-            },
-            None,
+        let target_ptr = self.codegen_immediate_resume_prefix_to_site(
+            immediate_exec_plan,
+            0,
+            &handle.body.stmts,
+            &immediate_binder_slots,
+            resume_used_ptr,
+            arm_bb,
         )?;
         self.pop_raise_target();
         for _ in custom_siblings.iter().rev() {
@@ -1348,157 +2148,132 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let _ = self.store_local_value(span, target_ptr, resume_value_ty, value)?;
         }
-
-        let mut escaped = false;
-        let mut tail_value: CgValue<'ctx> = CgValue::unit();
-        for (idx, stmt) in handle.body.stmts.iter().enumerate().skip(perform_idx + 1) {
-            if idx == escape_site.top_level_stmt_idx {
-                for (slot, arg) in escape_binder_slots.iter().zip(escape_site.args.iter()) {
-                    let hir::CallArg::Positional(expr) = arg else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle unified mixed multi-resuming leaf named escape arg not supported",
-                            at: stmt.span.into(),
-                        });
-                    };
-                    let value = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-                    let _ = self.store_local_value(expr.span, slot.ptr, slot.ty, value)?;
-                }
-
-                self.capture_escape_state_with_pc(
-                    escape_site.decl.span,
-                    state_ty,
-                    state_gc_ptr,
-                    &outer_visible_supported,
-                    outer_field_base,
-                    &body_visible_supported,
-                    body_field_base,
-                    pc_field_idx,
-                    0,
-                )?;
-
-                let rt_cont_alloc = self.declare_runtime_continuation_alloc();
-                let step_ptr = step_fn.as_global_value().as_pointer_value();
-                let cont_call = self.builder.build_call(
-                    rt_cont_alloc,
-                    &[state_raw.into(), step_ptr.into()],
-                    "multi_resume_mixed_cont_alloc",
-                )?;
-                let cont_raw = cont_call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "multi-resuming mixed continuation alloc return value",
-                        at: stmt.span.into(),
-                    },
-                )?;
-                let BasicValueEnum::PointerValue(k_raw) = cont_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "multi-resuming mixed continuation alloc return type",
-                        at: stmt.span.into(),
-                    });
-                };
-                let _ = self.builder.build_call(
-                    pin,
-                    &[k_raw.into()],
-                    "multi_resume_mixed_k_pin",
-                )?;
-                let _ = self.builder.build_store(
-                    continuation_created_ptr,
-                    self.context.bool_type().const_all_ones(),
-                )?;
-                let _ = self.store_local_value(
-                    span,
-                    cont_ptr,
-                    CgTy::Ref,
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(k_raw.into()),
-                    },
-                )?;
-                let _ = self.builder.build_call(
-                    rt_swap,
-                    &[escape_outer_top.into()],
-                    "multi_resume_mixed_detach_for_escape_arm",
-                )?;
-
-                self.env.pop_scope();
-                self.builder.build_unconditional_branch(escape_arm_bb)?;
-                escaped = true;
-                break;
-            }
-
-            let is_last = idx + 1 == handle.body.stmts.len();
-            let value = self.codegen_mixed_escape_tail_stmt(
-                stmt,
-                "`return` inside handle resume body",
-                "statement inside handle resume body",
-            )?;
-            tail_value = if is_last { value } else { CgValue::unit() };
-        }
-
-        if !escaped {
-            self.codegen_immediate_resume_finalize_body(
-                handle.body.span,
-                out_ty,
-                tail_value,
-                result_ptr,
-                ImmediateResumeHandlerExit::None,
-                finally_bb,
-            )?;
-        }
+        self.codegen_multi_resuming_mixed_continue_after_immediate_site(
+            span,
+            handle,
+            &perform_site,
+            out_ty,
+            result_ptr,
+            finally_bb,
+            scanned_sites.as_slice(),
+            initial_escape_binder_slots_by_site.as_slice(),
+            escape_arm_entry_bbs.as_slice(),
+            step_fn,
+            cont_ptr,
+            Some(continuation_created_ptr),
+            state_ty,
+            state_raw,
+            state_gc_ptr,
+            &outer_visible_supported,
+            outer_field_base,
+            &body_visible_supported,
+            body_field_base,
+            pc_field_idx,
+        )?;
         self.pop_raise_target();
         for _ in custom_siblings.iter().rev() {
             self.pop_effect_unwind_target();
         }
-        if !escaped {
-            self.env.pop_scope();
+        self.env.pop_scope();
+
+        for (site_idx, entry_bb) in escape_arm_entry_bbs.iter().enumerate() {
+            self.builder.position_at_end(*entry_bb);
+            let _ = self.builder.build_call(
+                rt_swap,
+                &[escape_outer_top.into()],
+                "multi_resume_mixed_detach_for_escape_arm",
+            )?;
+            self.builder
+                .build_unconditional_branch(escape_arm_body_bbs[site_idx])?;
         }
 
-        self.builder.position_at_end(escape_arm_bb);
-        self.env.push_scope();
-        for slot in &escape_binder_slots {
+        for (site_idx, arm_bb) in escape_arm_body_bbs.iter().enumerate() {
+            let plan = &scanned_sites[site_idx];
+            self.builder.position_at_end(*arm_bb);
+            self.env.push_scope();
+            for slot in &initial_escape_binder_slots_by_site[site_idx] {
+                self.env.insert(
+                    slot.id,
+                    CgLocal {
+                        hir_ty: Some(slot.hir_ty),
+                        ty: slot.ty,
+                        ptr: slot.ptr,
+                        mutable: false,
+                    },
+                );
+            }
             self.env.insert(
-                slot.id,
+                plan.continuation_symbol,
                 CgLocal {
-                    hir_ty: Some(slot.hir_ty),
-                    ty: slot.ty,
-                    ptr: slot.ptr,
+                    hir_ty: None,
+                    ty: CgTy::Ref,
+                    ptr: cont_ptr,
                     mutable: false,
                 },
             );
-        }
-        self.env.insert(
-            continuation_symbol,
-            CgLocal {
-                hir_ty: None,
-                ty: CgTy::Ref,
-                ptr: cont_ptr,
-                mutable: false,
-            },
-        );
-        for custom in &custom_siblings {
-            self.push_effect_unwind_target(&custom.arm.op.op.fqn, finally_unwind_bb);
-        }
-        self.push_raise_target(finally_unwind_bb);
-        let arm_v = self.codegen_expr_in_expected_context(&escape_arm.body, Some(out_ty))?;
-        self.pop_raise_target();
-        for _ in custom_siblings.iter().rev() {
-            self.pop_effect_unwind_target();
-        }
-        let arm_v = if out_ty == CgTy::Unit {
-            CgValue::unit()
-        } else if out_ty == CgTy::Never {
-            CgValue::never()
-        } else {
-            self.coerce_value(escape_arm.body.span, arm_v, out_ty)?
-        };
-        if let Some(bb) = self.builder.get_insert_block()
-            && bb.get_terminator().is_none()
-        {
-            if let Some(ptr) = result_ptr {
-                let _ = self.store_local_value(escape_arm.body.span, ptr, out_ty, arm_v)?;
+            if has_sibling_nonresuming {
+                for custom in &custom_siblings {
+                    self.push_effect_unwind_target(
+                        &custom.arm.op.op.fqn,
+                        escape_arm_unwind_bbs[site_idx],
+                    );
+                }
+                self.push_raise_target(escape_arm_unwind_bbs[site_idx]);
+            } else {
+                self.push_raise_target(finally_unwind_bb);
             }
-            self.builder.build_unconditional_branch(finally_bb)?;
+            let arm_v = self.codegen_expr_in_expected_context(&plan.arm.body, Some(out_ty))?;
+            self.pop_raise_target();
+            if has_sibling_nonresuming {
+                for _ in custom_siblings.iter().rev() {
+                    self.pop_effect_unwind_target();
+                }
+            }
+            let arm_v = if out_ty == CgTy::Unit {
+                CgValue::unit()
+            } else if out_ty == CgTy::Never {
+                CgValue::never()
+            } else {
+                self.coerce_value(plan.arm.body.span, arm_v, out_ty)?
+            };
+            self.env.pop_scope();
+
+            if let Some(bb) = self.builder.get_insert_block()
+                && bb.get_terminator().is_none()
+            {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(plan.arm.body.span, ptr, out_ty, arm_v)?;
+                }
+                self.builder.build_unconditional_branch(finally_bb)?;
+            }
+
+            if has_sibling_nonresuming {
+                self.builder.position_at_end(escape_arm_unwind_bbs[site_idx]);
+                let llvm_ref_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+                let k_loaded = self
+                    .builder
+                    .build_load(
+                        llvm_ref_ty,
+                        cont_ptr,
+                        "multi_resume_mixed_k_unpin_load_unwind",
+                    )?
+                    .into_pointer_value();
+                let unpin = self.declare_runtime_gc_unpin();
+                let _ = self.builder.build_call(
+                    unpin,
+                    &[k_loaded.into()],
+                    "multi_resume_mixed_k_unpin_unwind",
+                )?;
+                self.builder.build_unconditional_branch(finally_unwind_bb)?;
+            }
         }
-        self.env.pop_scope();
+
+        if !has_sibling_nonresuming {
+            for unwind_bb in &escape_arm_unwind_bbs {
+                self.builder.position_at_end(*unwind_bb);
+                self.builder.build_unreachable()?;
+            }
+        }
 
         self.builder.position_at_end(finally_unwind_bb);
         let _ = self.builder.build_call(

@@ -1799,7 +1799,7 @@ cargo run -p scoop --features llvm -- test
   - 已新增 plan / LLVM 定向单测 `resolve_mixed_escape_indirect_sites_from_plan_captures_local_function_value`、`resolve_mixed_escape_indirect_sites_from_plan_keeps_callee_suspend_and_local_function_sites`、`unified_multi_resuming_codegen_emits_heap_continuation_indirect_callee_suspend_matrix_sample`，以及 representative run-pass fixture `effect_multi_escape_indirect_callee_suspend_matrix`。
   - 已做定向验证：`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
-### T2003r3d3d [TODO] Effect：推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix
+### T2003r3d3d [DONE] Effect：推广 unified `1 immediate + 1 escape` mixed leaf 到 current legal source-path / site matrix
 - 描述：在 sibling non-resuming / cleanup contract 与 pure multi-escape leaf 的 richer site matrix 都接回后，再把 unified `1 immediate + 1 escape` mixed leaf 推广到 current legal direct / indirect / nested source-path 组合，清掉剩余 top-level direct-only gate。
 - 目标：
   - unified `1 immediate + 1 escape` mixed leaf 支持 current legal 的 source-path / site matrix，不再依赖 top-level direct-only gate。
@@ -1814,6 +1814,11 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop --features llvm -- run <新增 fixture>`
     - `cargo clippy --workspace --all-targets -- -D warnings`
 - 依赖：T2003r3d3c
+- 完成说明：
+  - `multi_resuming_mixed.rs` 的 mixed leaf 主路径现已统一按 `scanned_sites: Vec<MultiResumingEscapeSitePlan<'hir>>` 驱动：`state1` 不再保留单一 top-level direct escape site 假设，immediate 恢复后的 tail/replay、direct/indirect escape continuation materialization，以及 per-site escape arm dispatch 都改为复用 unified heap continuation helper。
+  - `state0` 的 immediate 进入点现已复用 `codegen_immediate_resume_prefix_to_site(...)`，因此 statement-position nested block immediate 与 post-immediate direct/indirect source-path matrix 可以走同一条 unified mixed contract；escape arm 入口也保持了 detach same-handle handler-stack 后再进入 arm body 的既有语义。
+  - 已新增 LLVM 定向单测 `unified_multi_resuming_codegen_emits_single_immediate_single_escape_source_path_matrix_sample`，以及 representative run-pass fixture `effect_resume_mixed_source_path_matrix`，覆盖 nested immediate block、post-immediate direct+indirect while matrix、nested handle 与 `finally`。
+  - 已做定向验证：`cargo fmt --all`、`cargo test -p scoopc llvm::codegen::effect::tests:: -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`、`cargo clippy --workspace --all-targets -- -D warnings` 通过。
 
 ### T2003r3d4 [TODO] Effect：推广 unified multi-resuming dispatch 到任意合法 arm mix，并清空 `UnsupportedMixedMultiple*`
 - 描述：在 `T2003r3d3` 之后，剩余缺口不应再表述为“再补一个 shape”或“再补一个 case”，而是要把 arm mix generality 真正收口到 unified simplification + emitter：arm 数量只是 plan 输入维度，不再是 hard-coded unsupported route。此阶段的目标是清掉 `UnsupportedMixedMultipleEscapeWithImmediate` / `UnsupportedMixedMultipleImmediateWithEscape`，并确认合法 multi-resuming arm mix 不再依赖 build-only 占位或 source-shape gate。

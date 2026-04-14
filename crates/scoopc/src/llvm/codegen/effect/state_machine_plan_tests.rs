@@ -1965,6 +1965,135 @@ fun main() {
     }
 
     #[test]
+    fn unified_multi_resuming_codegen_emits_single_immediate_single_escape_source_path_matrix_sample()
+    {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+effect Abort {
+    fun stop(text: String): Nothing
+}
+
+fun askIndirect(seed: Int): String / (Ask) {
+    println("askIndirect_enter")
+    val msg: String = Ask.ask(seed + 100)
+    println("askIndirect_resume")
+    println(msg)
+    msg
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: Int = handle {
+        println("body")
+        var base: Int = 0
+        @Safe {
+            val yielded: Int = Yield.next()
+            println("after_yield")
+            println(yielded)
+            base = yielded
+        }
+
+        var i: Int = 0
+        while (i < 2) {
+            println("escape_loop")
+            println(i)
+            if (i == 0) {
+                @Safe {
+                    val direct: String = Ask.ask(base + i)
+                    println("after_direct")
+                    println(direct)
+                }
+            } else {
+                val indirect: String = askIndirect(base + i)
+                println("after_indirect")
+                println(indirect)
+            }
+            i = i + 1
+            println("loop_end")
+            println(i)
+        }
+
+        val nested: Int = handle {
+            Abort.stop(if (i == 2) "nested_ok" else "nested_bad")
+            99
+        } with {
+            Abort.stop(text: String) -> {
+                println("abort_arm")
+                println(text)
+                5
+            }
+        }
+        println("after_nested")
+        println(nested)
+        base + nested + i
+    } with {
+        Yield.next() -> resume {
+            println("yield_arm")
+            resume(40)
+        }
+        Ask.ask(seed: Int), k -> {
+            cell.seen = cell.seen + 1
+            println("ask_arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            7
+        }
+    } finally {
+        println("cleanup")
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}
+"#;
+
+        assert_emit_main_asm_succeeds(source);
+    }
+
+    #[test]
     fn unified_multi_resuming_codegen_emits_heap_continuation_direct_source_path_matrix_sample() {
         let source = r#"
 package a
