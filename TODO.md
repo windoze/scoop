@@ -187,7 +187,7 @@
   - 生产代码中不存在 shape-based 旁路输入或旧依赖链残留。
 - 依赖：T3003b
 
-### T3004a [TODO] Frame struct LLVM 类型生成 + step function 骨架 + handle 表达式入口
+### T3004a [DONE] Frame struct LLVM 类型生成 + step function 骨架 + handle 表达式入口
 - 描述：为 unified state machine 创建 LLVM emitter 模块。实现三个核心组件：(1) 从 `UnifiedFrameSchema` 生成 LLVM struct type（system fields + user slots）；(2) 生成 step function `(ptr state, i64 resume_word, ptr resume_gc_ref) -> void` 骨架，内含 state_tag-based switch 派发到各 state block（各 state block 暂时 return void）；(3) 将 `codegen_handle_expr` 从占位错误改为 build contract → alloc frame → init system fields → call step_fn → return handle result。
 - 目标：
   - 创建 `state_machine_emitter.rs` 并集成到 effect codegen 模块。

@@ -1,9 +1,15 @@
 //! effect codegen（T0102e：从 `codegen/mod.rs` 拆分）。
 //!
-//! 当前阶段只保留 unified state-machine plan / segment 主线所需的最小骨架。
-//! 旧的分流与配套 helper 已删除；后续 lowering 只能从统一元数据重新接回。
+//! 统一 state-machine 主线 effect codegen：
+//! - plan builder / segment / transform 骨架在 `unified_state_machine_skeleton` 模块
+//! - LLVM emitter 在 `state_machine_emitter.rs`（T3004a+）
+//! - 旧的分流与配套 helper 已删除；lowering 只从统一合同出发。
 
 use super::*;
+
+// T3004a：state machine LLVM emitter — 从 UnifiedHandleLoweringContract 生成
+// LLVM IR（frame type、step function、handle 入口）。
+mod state_machine_emitter;
 
 // T2999/T3002：统一 state-machine 骨架是后续 effect LLVM lowering 的唯一候选合同。
 // 内部实现细节（plan builder、segment 投影、validation helper 等）保留在
@@ -51,13 +57,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_handle_expr(
         &mut self,
         span: crate::span::Span,
-        _handle: &hir::HandleExpr,
-        _expected: Option<CgTy>,
+        handle: &hir::HandleExpr,
+        expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "effect handle codegen is temporarily unavailable until unified lowering is reconnected",
-            at: span.into(),
-        })
+        self.codegen_handle_expr_via_state_machine(span, handle, expected)
     }
 
     // T3002：flag-based unwind 不属于统一 state machine 主线。
