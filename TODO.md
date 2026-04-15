@@ -268,14 +268,29 @@
   - LLVM emitter 覆盖当前 state machine 能表达的所有合法边。
 - 依赖：T3004c
 
-### T3004R [TODO] Review：确认 full-state-machine LLVM emitter 不含 shape-based 选路
+### T3004R [DONE] Review：确认 full-state-machine LLVM emitter 不含 shape-based 选路
 - 描述：在接主入口之前，先检查 emitter 主体本身是否纯粹消费 state machine；若发现 shape-based 选路或等价旁路，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已审查 `state_machine_emitter.rs` 全文（1876 行），逐一检查所有发射决策点。
+  - `emit_state_ops`：所有 29 个 match arm 精确对应 `HandleStateOp` 枚举变体，每个变体代表 state machine 语义操作，无源码形状推断。
+  - `emit_state_terminator`：所有 9 个 match arm 精确对应 `UnifiedStateTerminator` 枚举变体（Goto、Branch、Suspend、CleanupEnter、ReturnHandle、ReturnFromFunction、ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）。
+  - `emit_branch_condition`：只从 `HandleBranchCondition::WhileCond` / `IfCond` 提取条件表达式。
+  - `emit_execute_arm_body`：从 contract `arms()` 查找 arm，按 `HandleArmKind`（ImmediateResume / EscapeContinuation / NonResuming）设置绑定，是语义 arm 类型而非源码形状。
+  - `codegen_handle_expr_via_state_machine`：dispatch loop 完全基于 contract 数据（`dispatch_entries()`、`effect_op_tag()`、`entry_state()`）。
+  - 已在 `state_machine_emitter.rs` 与 `effect/**` 中检索 `shape`、`scanner`、`scan_for`、`CalleeSuspend`、`suspendable`、`SiteShape`、`ArmShape`、`unwind`、`flag-based`、`raise_target`、`fun_ty_effects` 等关键词，仅 “shapes” 出现于模块文档注释（声明不使用 shapes），无生产代码命中。
+  - 已检查 `expr.rs` 中 `ExprKind::Perform` / `ExprKind::Handle` 分派点：只传递 span、HIR、expected type 到 `effect/mod.rs` 统一入口，中间不存在形状分流。
+  - 已确认 flag-based unwind（`emit_effect_unwind_if_active` 等）仅存于 `effect/mod.rs` 非主线路径，已标记待 T3005 移除，与 emitter 无交互。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - 确认 emitter 不根据源码结构、旧 site 分类或 arm 形状切换不同发射流程。
   - 确认 emitter 内部所有分支都来自 state machine 语义边，而非代码形状推断。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录”full-state-machine LLVM emitter 只按 state machine 语义发射”。
+- 审查结论：
+  - full-state-machine LLVM emitter 只按 state machine 语义发射。所有 op 发射（29 个 `HandleStateOp` 变体）、terminator 发射（9 个 `UnifiedStateTerminator` 变体）、branch condition 评估（`HandleBranchCondition`）与 arm body 执行（`HandleArmKind`）的分支都来自 state machine 合同的枚举类型，不存在源码形状、旧 scanner 结果或旧 mode 选择驱动的发射路径选择。
+  - emitter 与 flag-based unwind 无交互。`effect/mod.rs` 中 flag-based unwind 方法已标记非主线，不影响 emitter 发射逻辑。
+  - `expr.rs` 的 `ExprKind::Perform` / `ExprKind::Handle` 入口只做透传，无形状分流层。
 - 依赖：T3004d
 
 ### T3005 [TODO] 将统一 state-machine LLVM lowering 接回 effect codegen 主入口
