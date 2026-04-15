@@ -104,14 +104,22 @@
   - `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 通过。
 - 依赖：T3001R
 
-### T3002R [TODO] Review：确认 effect codegen 生产代码中不存在 shape-based 主分流
+### T3002R [DONE] Review：确认 effect codegen 生产代码中不存在 shape-based 主分流
 - 描述：对 `crates/scoopc/src/llvm/codegen/**` 做定向审查，只看生产代码，不看测试；若发现 shape-based 主分流残留或新引入变体，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已定向检索 `crates/scoopc/src/llvm/codegen/**` 中与旧分流相关的命名与入口，包括 `shape`、`scan_for`、`CalleeSuspend`、`suspendable` 等，未发现残留命中。
+  - 已复查 `crates/scoopc/src/llvm/codegen/expr.rs`，确认 `hir::ExprKind::Perform` / `hir::ExprKind::Handle` 直接接到 `effect/mod.rs` 的统一入口，中间不存在按源码 / site / arm / callee 形状挑选 effect lowering 的分派层。
+  - 已复查 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的调用链，确认当前保留的 effect 相关生产逻辑只剩统一 lowering 占位入口、sysroot intrinsic lowering 与 flag-based unwind 辅助；其中 flag-based unwind 调用点虽然仍待 `T3005` 移除，但并不按源码形状分流。
+  - 已验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 确认 effect codegen 的主路径不再按源码形状、site 形状、arm 形状或 callee 形状选路。
   - 确认新增代码没有重新引入新的 shape-based helper。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“当前生产代码无 shape-based effect codegen 主分流残留”。
+- 审查结论：
+  - 当前生产代码无 shape-based effect codegen 主分流残留。
+  - `perform` / `handle` 入口当前虽然仍未重新接入统一 state-machine lowering，但现状是统一占位错误而不是 shape-based fallback 或双轨分流。
 - 依赖：T3002
 
 ### T3003 [TODO] 冻结 `state machine -> LLVM lowering` 的统一输入合同

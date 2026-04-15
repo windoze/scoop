@@ -34,6 +34,10 @@
   - 已定向检索 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs` 与相邻调用点，确认删除后的旧 callee-shape scanner / mode enum / suspendable top-level/closure route 没有换名回流。
   - 已复查 `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 与 `ExprKind::Perform` / `ExprKind::Handle` 接线，确认当前只剩常规函数/闭包 codegen 与统一 effect 占位入口，不再按源码 / callee 形状分流。
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
+- `T3002R` 已完成：
+  - 已定向检索 `crates/scoopc/src/llvm/codegen/**` 中与旧分流相关的命名与入口，包括 `shape`、`scan_for`、`CalleeSuspend`、`suspendable` 等，未发现残留命中。
+  - 已复查 `expr.rs`、`effect/mod.rs` 与 `mod.rs` 调用链，确认 `ExprKind::Perform` / `ExprKind::Handle` 只直连统一 effect 入口；当前残留的 effect 相关生产逻辑仅为统一 lowering 占位入口、sysroot intrinsic lowering 与 flag-based unwind 辅助，没有按源码 / site / arm / callee 形状做主选路。
+  - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
 - 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
@@ -82,8 +86,12 @@
   - `runtime_abi.rs` 中已被消费的 ABI 不再被 blanket dead_code 遮蔽；若删除某个 ABI 声明，lint 立即发现断线。
   - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
-#### T3002R：Review
+#### T3002R：Review（已完成）
 - 审查 `crates/scoopc/src/llvm/codegen/**`，确认生产代码里已经不存在按源码 / site / arm / callee 形状做主选路的 effect codegen。
+- 本轮结果：
+  - 已检索旧分流相关命名与入口，未发现残留的 scanner / mode / suspendable route。
+  - 已复查 `expr.rs`、`effect/mod.rs` 与 `mod.rs` 的 effect 调用链，确认 `perform` / `handle` 只进入统一入口；保留的 flag-based unwind 逻辑不是 shape-based 主分流。
+  - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
 ### 阶段 B：冻结 LLVM lowering 的唯一输入面
 
@@ -232,35 +240,33 @@
 
 ## 4. 当前执行顺序
 
-1. `T3002`
-2. `T3002R`
-3. `T3003`
-4. `T3003R`
-5. `T3004`
-6. `T3004R`
-7. `T3005`
-8. `T3005R`
-9. `T3006`
-10. `T3006R`
-11. `T3007`
-12. `T3007R`
-13. `T3101`
-14. `T3102`
-15. `T3103`
-16. `T3104`
-17. `T3201`
-18. `T3202`
-19. `T3203`
-20. `T3204`
-21. `T3205`
-22. `T3301`
-23. `T3302`
-24. `T3303`
-25. `T3401`
-26. `T3401a`
-27. `T3401b`
-28. `T3401c`
-29. `T3402`
-30. `T3403`
-31. `T3404`
-32. `T3405`
+1. `T3003`
+2. `T3003R`
+3. `T3004`
+4. `T3004R`
+5. `T3005`
+6. `T3005R`
+7. `T3006`
+8. `T3006R`
+9. `T3007`
+10. `T3007R`
+11. `T3101`
+12. `T3102`
+13. `T3103`
+14. `T3104`
+15. `T3201`
+16. `T3202`
+17. `T3203`
+18. `T3204`
+19. `T3205`
+20. `T3301`
+21. `T3302`
+22. `T3303`
+23. `T3401`
+24. `T3401a`
+25. `T3401b`
+26. `T3401c`
+27. `T3402`
+28. `T3403`
+29. `T3404`
+30. `T3405`
