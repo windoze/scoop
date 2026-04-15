@@ -313,8 +313,21 @@
   - `mod.rs` 中不再有 flag-based unwind 调用点。
 - 依赖：T3004R
 
-### T3005R [TODO] Review：确认 effect codegen 主入口只接统一 state-machine lowering，无 flag-based unwind 残留
+### T3005R [DONE] Review：确认 effect codegen 主入口只接统一 state-machine lowering，无 flag-based unwind 残留
 - 描述：主入口接通后，再做一轮生产代码审查，防止旧入口残留成隐式 fallback、flag-based unwind 残留为隐式传播路径；若发现双轨或隐藏回退，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已审查 `effect/mod.rs` 中三个主入口：`codegen_perform_expr`（写 TLS perform slot + set active + 返回 default value）、`codegen_handle_expr`（直接委托 `codegen_handle_expr_via_state_machine`）、`emit_raise_runtime_error_variant`（写 Raise.raise op_tag + set active）。三者均为统一主线实现，无 fallback 路径。
+  - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 `emit_effect_unwind_if_active`、`raise_target_stack`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure`，确认零命中。
+  - 已在 `crates/scoopc/src/llvm/codegen/**` 中检索 `flag.based`、`flag_based`、`unwind`、`shape.based`、`shape_based`、`fallback`、`scanner`、`scan_for`、`CalleeSuspend`、`suspendable` 等关键词。其中：
+    - `unwind` 仅命中 `handler_stack_unwind_to_tag`（统一 state machine 的 handler stack ABI，非旧 flag-based unwind）和 3 处过时注释。
+    - `fallback` 仅命中非 effect 相关的 layout/type/field 访问 fallback，与 effect emitter 无关。
+    - 无 shape-based / scanner / CalleeSuspend / suspendable 生产代码命中。
+  - 已审查 `expr.rs` 中 `ExprKind::Perform` / `ExprKind::Handle` 分派点（lines 18-21, 130-138）：均为单路径直接委托到 `effect/mod.rs` 统一入口，无条件分支选择新/旧 emitter。
+  - 发现 3 处过时注释仍引用已删除的 flag-based unwinding 机制，已在本任务内直接修复：
+    - `mod.rs:175`：`current_fun_return_ty` 字段文档从”用于 effect flag-based unwinding”更正为”用于 codegen_return_stmt 与 state machine emitter”。
+    - `mod.rs:8769`：extern call 后 `leave_native` 的注释从”flag-based unwinding”更正为”effect 状态机 TLS active flag”。
+    - `mod.rs:12573`：object init 返回类型上下文的注释从”flag-based unwinding”更正为”codegen_return_stmt”。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - 确认统一 lowering 已成为唯一主路径。
   - 确认不存在”失败时退回旧 shape-based emitter”的隐藏逻辑。
@@ -322,6 +335,11 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录”effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留”。
+- 审查结论：
+  - effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留。`codegen_perform_expr` 写 TLS + set active，`codegen_handle_expr` 直接走 `codegen_handle_expr_via_state_machine`，`emit_raise_runtime_error_variant` 写 Raise.raise op_tag + set active。三者都是统一 state machine 主线的生产实现。
+  - `emit_effect_unwind_if_active`、`raise_target_stack`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure` 在 `crates/scoopc/src/llvm/codegen/**` 中零命中，已被 T3005 完全移除。
+  - `expr.rs` 的 `ExprKind::Perform` / `ExprKind::Handle` 入口只做单路径透传，无条件分流。
+  - 3 处引用旧 flag-based unwinding 的过时注释已在本任务内修复并通过复验。
 - 依赖：T3005
 
 ### T3006 [TODO] 用定向测试补齐统一 LLVM lowering 覆盖，并修复暴露出的合同缺口

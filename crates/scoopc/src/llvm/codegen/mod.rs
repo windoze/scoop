@@ -172,12 +172,11 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 对于 `class Derived : Base()`，`Derived` 的对象 payload 需要以前缀形式包含 `Base` 的字段；
     /// - codegen 侧会把该布局"按继承链展开"，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
     class_init_layout_cache: HashMap<String, hir::ClassInit>,
-    /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的"早退返回默认值"）。
+    /// 当前正在生成的函数返回类型。
     ///
     /// 说明：
-    /// - 当 `Raise.raise` 发生且当前不存在 handler boundary 时，需要沿调用链向外传播：
-    ///   通过返回默认值结束当前函数，并保持 effect flag/slot 不被消费；
-    /// - 若在 handler boundary 内，则会跳转到 catch 分支而不是 return。
+    /// - 用于 `codegen_return_stmt` 确定返回值类型与 coercion 目标。
+    /// - state machine emitter 在生成 step function 时保存/恢复此字段。
     current_fun_return_ty: Option<CgTy>,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
@@ -8765,8 +8764,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
 
-        // 若 extern/native 调用在内部触发 Raise/perform 并设置 effect flag，则必须确保 leave_native
-        // 在进入 flag-based unwinding 之前执行（否则线程状态机会泄漏在 InNative）。
+        // extern/native 调用返回后，必须调用 leave_native 将线程状态从 InNative 切回 InManaged，
+        // 否则后续 effect 状态机检查（如 perform/Raise 设置的 TLS active flag）会在错误的线程状态下执行。
         if is_extern {
             let leave = self.declare_runtime_leave_native();
             let _ = self.builder.build_call(leave, &[], "leave_native")?;
@@ -12570,7 +12569,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
-        // object init 是一个内部 `void` 函数：为 flag-based unwinding（Raise.raise）提供返回类型上下文。
+        // object init 是一个内部 `void` 函数：设置 current_fun_return_ty 以便 codegen_return_stmt 使用正确的返回类型。
         self.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_object_init_guard(&obj.fqn);

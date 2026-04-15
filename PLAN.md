@@ -48,7 +48,8 @@
 - `T3004d` 已完成：CleanupEnter terminator 从 placeholder 改为 unconditional branch 到 cleanup entry state；NestedHandle / NestedHandleBoundary 从 `ret void` 中断改为委托 `codegen_expr_in_expected_context` 递归生成子 state machine。所有 HandleStateOp 变体和 UnifiedStateTerminator 变体现在都有完整的 emission 路径。
 - `T3004R` 已完成：审查确认 full-state-machine LLVM emitter 只按 state machine 语义发射，无 shape-based 选路或旧路线旁路。
 - `T3005` 已完成：`codegen_perform_expr` 从占位错误改为写 TLS perform slot + set active + return default。`emit_raise_runtime_error_variant` 从占位错误改为写 Raise.raise op_tag + set active。移除了 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用（含 `fun_ty_effects_is_pure` 门控）、`raise_target_stack` 字段、`effect/mod.rs` 中 flag-based unwind 三方法定义。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005）已完成。下一步是 T3005R（review：确认 effect codegen 主入口只接统一 state-machine lowering，无 flag-based unwind 残留）。
+- `T3005R` 已完成：审查确认 effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留。修复了 `mod.rs` 中 3 处引用已删除 flag-based unwinding 的过时注释。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。下一步进入阶段 E（T3006：用定向测试补齐统一 LLVM lowering 覆盖）。
 
 ## 2. 阶段顺序
 
@@ -176,8 +177,13 @@
 - 已删除 `effect/mod.rs` 中 flag-based unwind 三方法定义（`emit_effect_is_active_i1`、`emit_effect_unwind_if_active`、`fun_ty_effects_is_pure`）。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）。
 
-#### T3005R：Review
-- 审查 effect codegen 主入口，确认统一 lowering 已经成为唯一主路径，不存在”失败时退回旧路线”或 flag-based unwind 残留。
+#### T3005R：Review（已完成）
+- 已审查 `effect/mod.rs` 三个主入口（`codegen_perform_expr`、`codegen_handle_expr`、`emit_raise_runtime_error_variant`），确认全部走统一 state machine 主线实现，无 fallback 路径。
+- 已检索 `crates/scoopc/src/llvm/codegen/**`，确认 `emit_effect_unwind_if_active`、`raise_target_stack`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure` 零命中。
+- 已审查 `expr.rs` 的 `ExprKind::Perform` / `ExprKind::Handle` 入口，确认单路径透传。
+- 修复了 3 处引用已删除 flag-based unwinding 的过时注释（`mod.rs:175`、`mod.rs:8769`、`mod.rs:12573`）。
+- 审查结论：**effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留**。
+- 阶段 D 全部完成。下一步进入阶段 E（T3006：用测试补齐统一 LLVM lowering 覆盖）。
 
 ### 阶段 E：用测试补齐覆盖，但修复必须仍在统一主线内完成
 
