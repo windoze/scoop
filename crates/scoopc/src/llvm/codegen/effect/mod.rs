@@ -5,9 +5,15 @@
 
 use super::*;
 
-// T2999：统一 state-machine 骨架已经作为后续 effect LLVM lowering 的唯一候选合同保留，
-// 但当前生产入口尚未重新接线。把 dead_code 边界收口到一个共享作用域里，
-// 避免在骨架内部散落允许属性，同时保持三份 include 文件原本的私有可见性关系。
+// T2999/T3002：统一 state-machine 骨架是后续 effect LLVM lowering 的唯一候选合同。
+// 内部实现细节（plan builder、segment 投影、validation helper 等）保留在
+// `unified_state_machine_skeleton` 模块内，该模块整体 #[allow(dead_code)] 因为
+// 生产入口尚未完整接线。
+//
+// T3002 变更：核心类型（HandleStateMachinePlan、HandleSegmentList、
+// UnifiedHandleStateMachine）现在从模块中 re-export 出来，以便 T3003+ 的
+// 生产代码可以直接引用。每个 re-export 带有独立的 #[allow(dead_code)]，
+// 在后续 lowering 接线时逐个移除即可；不再被 blanket dead_code 遮蔽。
 #[allow(dead_code)]
 mod unified_state_machine_skeleton {
     use super::*;
@@ -16,6 +22,15 @@ mod unified_state_machine_skeleton {
     include!("state_machine_segments.rs");
     include!("state_machine_transform.rs");
 }
+
+// 后续 T3003+ 的统一 lowering 合同将消费这些类型。每个 re-export 的
+// #[allow(unused_imports)] 在该类型被生产入口实际引用后移除。
+#[allow(unused_imports)]
+pub(super) use unified_state_machine_skeleton::HandleStateMachinePlan;
+#[allow(unused_imports)]
+pub(super) use unified_state_machine_skeleton::HandleSegmentList;
+#[allow(unused_imports)]
+pub(super) use unified_state_machine_skeleton::UnifiedHandleStateMachine;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_perform_expr(
@@ -43,6 +58,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    // T3002：flag-based unwind 不属于统一 state machine 主线。
+    // 以下三个方法（emit_effect_is_active_i1、emit_effect_unwind_if_active、
+    // fun_ty_effects_is_pure）在 T3005 接通统一 lowering 时移除。
     pub(super) fn emit_effect_is_active_i1(
         &mut self,
         at: crate::span::Span,

@@ -1,7 +1,7 @@
 type UnifiedStateId = HandleSegmentId;
 
 #[derive(Debug, Clone)]
-pub(super) struct UnifiedHandleStateMachine {
+pub(crate) struct UnifiedHandleStateMachine {
     handle_span: Span,
     result_ty: TypeId,
     storage: UnifiedStateMachineStorage,

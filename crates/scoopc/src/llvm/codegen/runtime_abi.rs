@@ -1251,9 +1251,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-// T2999：以下 effect/callee-suspend ABI 声明是后续统一 lowering 会接回的运行时合同。
-// 当前生产入口尚未完整消费它们，因此将 dead_code 保留边界集中在这一段 impl。
-#[allow(dead_code)]
+// T3002：以下 9 个 effect ABI 声明已被 `codegen_sysroot_effect_intrinsics`（sysroot
+// 测试辅助 intrinsic lowering）与 `emit_effect_is_active_i1`（flag-based unwind）
+// 等生产路径消费，不再需要 blanket dead_code 保护。
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_runtime_effect_is_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_IS_ACTIVE;
@@ -1277,6 +1277,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_set_active_with_trace(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1301,6 +1302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_PUSH;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1315,6 +1317,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_pop(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_POP;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1328,6 +1331,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_set_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1342,6 +1346,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_unwind_to_tag(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1355,6 +1360,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_swap_top(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1368,6 +1374,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1386,6 +1393,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// T1607：新 ABI——调用方已将 payload 写入 continuation 的 resume_word / resume_gc_ref 槽位。
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_continuation_resume(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1404,6 +1412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
     ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
     ///     ptr state, ptr step_fn, i64 resume_word, ptr resume_gc_ref }
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -1432,6 +1441,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_RESUME_U64;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1460,6 +1470,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_perform_slot_write_u64_with_gc_ref(
         &self,
     ) -> FunctionValue<'ctx> {
@@ -1515,6 +1526,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_perform_slot_read_gc_ref(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF;
         if let Some(existing) = self.module.get_function(NAME) {

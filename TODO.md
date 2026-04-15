@@ -87,8 +87,13 @@
   - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 当前仅保留统一 state-machine 骨架与未接回的统一 lowering 占位入口，没有顶层函数 / closure 的旧 suspendable route 等价回流。
 - 依赖：T3001
 
-### T3002 [TODO] 精确化 effect codegen 的 dead_code 边界，把统一骨架从 blanket allow 中解放
+### T3002 [DONE] 精确化 effect codegen 的 dead_code 边界，把统一骨架从 blanket allow 中解放
 - 描述：T3001 删除 `mod.rs` 旧路线后，`effect/**` 中已不存在旧 scanner、旧 resolver 或旧 dedicated matrix。当前残留问题是：(1) `unified_state_machine_skeleton` 整体被 `#[allow(dead_code)]` 包裹，后续任务无法直接使用其中的类型；(2) `runtime_abi.rs` 的 dead_code impl 块同时覆盖了已被 sysroot intrinsic 消费的 ABI 声明与真正未使用的 ABI 声明，lint 无法区分；(3) flag-based unwind 相关代码（`emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`raise_target_stack`、`fun_ty_effects_is_pure`）在统一主线完成前暂留原位，但需明确标记为非主线。
+- 进展：
+  - 已把 `HandleStateMachinePlan`、`HandleSegmentList`、`UnifiedHandleStateMachine` 从 `pub(super)` 改为 `pub(crate)`，并从 `unified_state_machine_skeleton` 模块 re-export 到 `effect` 模块，使后续 T3003+ 生产代码可直接引用。
+  - 已将 `runtime_abi.rs` 的 blanket `#[allow(dead_code)]` impl 块拆分为：9 个已被 `codegen_sysroot_effect_intrinsics` / `emit_effect_is_active_i1` 消费的 ABI 声明不再受 dead_code 保护；12 个统一 lowering 尚未接回的 ABI 声明保留独立的 `#[allow(dead_code)]` 注解。
+  - 已在 `effect/mod.rs` 中为 flag-based unwind 三方法（`emit_effect_is_active_i1`、`emit_effect_unwind_if_active`、`fun_ty_effects_is_pure`）添加非主线标记，注明 T3005 接通统一 lowering 时移除。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 把 `effect/mod.rs` 中的 `unified_state_machine_skeleton` 模块从 blanket `#[allow(dead_code)]` 中解放：将后续 lowering 需要消费的类型（`HandleSegmentList`、`UnifiedHandleStateMachine` 等）暴露为可被生产入口引用的结构，对仍未接入的中间步骤保留精确的 dead_code 边界。
   - 精确化 `runtime_abi.rs` 的 `#[allow(dead_code)]` 边界：已被 `codegen_sysroot_effect_intrinsics` 等生产路径消费的 ABI 声明不应继续留在 blanket dead_code 块中；仅对统一 lowering 尚未接回的 ABI 声明保留显式 allow。

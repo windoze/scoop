@@ -21,7 +21,7 @@ struct HandlePlanContext {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct HandleStateMachinePlan {
+pub(crate) struct HandleStateMachinePlan {
     handle_span: Span,
     result_ty: TypeId,
     entry_state: PlanStateId,

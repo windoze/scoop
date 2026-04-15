@@ -5,48 +5,43 @@
 本文件记录本次执行的高层计划、关键决策、阻塞原因与完成进度，便于审计与续接。  
 不记录逐字的内部思维链路，但会持续更新可验证的执行步骤、发现与结论。
 
-## 初始计划
+## 当前任务：T3002 [已完成]
 
-1. 检查最新一次 Git 提交，确认提交信息里是否提到需要先修复的遗留问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解当前任务顺序、依赖与项目阶段。
-4. 如第一个未完成任务过大，则将其拆解为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后只执行拆解后的第一个子任务。
-5. 实现当前应执行的任务，必要时补充或调整相关代码与测试。
-6. 运行必要的验证，包括与改动相关的测试，以及项目要求的格式化、lint、无 warning 检查。
-7. 更新 `TODO.md` 与 `PLAN.md`，记录任务完成情况、依赖变化或新发现的问题。
-8. 提交本次改动，提交后停止，不继续处理下一个任务。
+精确化 effect codegen 的 dead_code 边界，把统一骨架从 blanket allow 中解放。
 
-## 执行约束
+### 分析结论
 
-- 一次调用只完成一个任务（或一个新拆出的首个子任务）。
-- 若发现规范不匹配、缺失能力、运行时缺陷或任何不能以规范方式完成当前任务的问题：
-  - 必须先在 `TODO.md` 中补充前置修复任务并重排顺序；
-  - 在 `PLAN.md` 中记录阻塞原因；
-  - 提交这些计划性调整后停止。
-- 不以绕过方案、测试特判或临时兼容方式宣称任务完成。
+#### 1. `effect/mod.rs` - unified_state_machine_skeleton（line 11-18）
+- 整个模块被 `#[allow(dead_code)]` 包裹
+- 内含三个 include 文件，所有类型被 blanket dead_code 遮蔽
+- `state_machine_plan.rs` 底部有 `impl MainCodegen` 的 `build_handle_state_machine_plan` 方法
 
-## 进度日志
+#### 2. `runtime_abi.rs` - 两个 dead_code 边界
+- Line 15: `llvm_effect_handler_frame_type` 单方法（已精确）
+- Line 1256: blanket `#[allow(dead_code)]` impl 块，~30 个 ABI 声明
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交 `33846d30d90f4d7295566611366d9ae106c7addb`（`[T3001] Delete callee-suspend shape routes`）；提交信息未额外提到需要在本轮先修复的遗留问题。
-- 已阅读 `TODO.md` 与 `PLAN.md`，确认首个未完成任务是 `T3001R`，且该任务属于定向 review，不需要进一步拆分。
-- 已完成 `T3001R` 审查：
-  - 在 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs` 与相关调用点中检索旧符号与等价变体，未发现 `CalleeSuspendResumeMode`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable` 或换名保留的 callee-shape 主路径。
-  - 已复查 `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call`、`ExprKind::Perform` / `ExprKind::Handle` 调用接线，确认顶层函数与 closure 只走常规 codegen；effect 相关表达式统一进入 `effect/mod.rs` 占位入口，没有按源码形状切换另一套 emitter。
-  - 当前 `effect/mod.rs` 只保留统一 state-machine 骨架与“尚未重新接回 unified lowering”的占位报错；未发现旧 callee-suspend route 等价回流。
-- 已完成验证：
-  - `cargo check -p scoopc`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo test --all`
-- 已完成 `TODO.md` / `PLAN.md` 更新（T3002–T3007 描述），整合两项变更：
-  1. 全面 review 发现：`effect/**` 中已无旧 scanner/resolver/matrix，统一骨架在 `dead_code` 中完整可用。
-  2. 用户新指令：搁置 flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`），统一 state machine 是 effect 传播的唯一主线机制；flag-based unwind 日后可作为优化加回。
-  - 约束与当前已知问题节已同步更新。
-  - T3002 描述增加 flag-based unwind 相关代码标记。
-  - T3003/T3004 明确排除 flag-based unwind 依赖。
-  - T3005 重写：替换占位错误 + 移除 flag-based unwind 7 处调用点。
-  - T3005R 增加 flag-based unwind 残留审查。
-  - T3007 增加 flag-based unwind 函数定义/ABI 清理。
-  - T3007R 增加 flag-based unwind 最终审查。
-  - PLAN.md 工作原则、当前状态、阶段 B/C/D/F 描述同步更新。
-- 下一步：提交本次改动后停止。
+#### 3. 已被 sysroot intrinsic 生产路径消费的 ABI（9 个）
+- `declare_runtime_effect_is_active`, `set_active`, `clear`
+- `perform_slot_write_u64`, `write_u64_2`
+- `perform_slot_read_op_tag`, `read_len_words`, `read_u64`, `read_u64_at`
+
+#### 4. 仅供统一 lowering 的 dead ABI（12 个）
+- handler_stack_push/pop/set_active/unwind_to_tag/swap_top
+- set_active_with_trace, continuation_alloc/resume, llvm_continuation_struct_type
+- thread_spawn_join_resume_u64, perform_slot_write_u64_with_gc_ref, perform_slot_read_gc_ref
+
+### 执行步骤
+
+1. **重构 skeleton 模块结构**：将核心类型从 `pub(super)` 改为 `pub(crate)`，从模块中 re-export，使 T3003+ 可直接引用。
+2. **精确化 runtime_abi.rs**：拆分 blanket impl 块，9 个已被消费的 ABI 移出 dead_code 保护；12 个 dead ABI 保留独立 `#[allow(dead_code)]` 注解。
+3. **标记 flag-based unwind**：为 `emit_effect_is_active_i1`、`emit_effect_unwind_if_active`、`fun_ty_effects_is_pure` 添加非主线标记。
+4. **验证**：cargo check / clippy / test 全通过。
+
+### 进度
+- [x] 代码分析完成
+- [x] Step 1: 核心类型 pub(crate) + re-export
+- [x] Step 2: 精确化 runtime_abi.rs
+- [x] Step 3: 标记 flag-based unwind 非主线
+- [x] Step 4: 验证（零 warning / clippy / test all pass）
+- [x] 更新 TODO.md
+- [ ] 提交

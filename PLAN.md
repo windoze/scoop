@@ -73,9 +73,14 @@
   - `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 当前仅保留常规路径；effect 相关调用只保留基于函数 effect row 的 flag-unwind 检查，不涉及 callee/source shape 分流。
   - 复验通过：`cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
-#### T3002：清扫 effect codegen 生产代码中的其余 shape-based 分流
-- 在 `mod.rs` 清掉之后，继续删除 effect codegen 里的旧 scanner、旧 resolver、旧 dedicated matrix、旧 fallback route。
-- 目标不是把它们改成“更像统一主线”，而是让它们不再构成生产主路径。
+#### T3002：精确化 effect codegen 的 dead_code 边界（已完成）
+- 把 `unified_state_machine_skeleton` 核心类型从 blanket `#[allow(dead_code)]` 中解放，re-export 到 `effect` 模块供后续 T3003+ 直接引用。
+- 精确化 `runtime_abi.rs`：9 个已被 sysroot intrinsic 消费的 ABI 声明移出 dead_code 保护；12 个统一 lowering 尚未接回的 ABI 声明保留独立 `#[allow(dead_code)]`。
+- 标记 flag-based unwind 三方法为非主线（T3005 移除）。
+- 本轮结果：
+  - `HandleStateMachinePlan`、`HandleSegmentList`、`UnifiedHandleStateMachine` 现在以 `pub(crate)` 暴露并 re-export，后续 lowering 可直接引用。
+  - `runtime_abi.rs` 中已被消费的 ABI 不再被 blanket dead_code 遮蔽；若删除某个 ABI 声明，lint 立即发现断线。
+  - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
 
 #### T3002R：Review
 - 审查 `crates/scoopc/src/llvm/codegen/**`，确认生产代码里已经不存在按源码 / site / arm / callee 形状做主选路的 effect codegen。

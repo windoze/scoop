@@ -1,7 +1,7 @@
 type HandleSegmentId = PlanStateId;
 
 #[derive(Debug, Clone)]
-pub(super) struct HandleSegmentList {
+pub(crate) struct HandleSegmentList {
     handle_span: Span,
     result_ty: TypeId,
     entry_segment: HandleSegmentId,
