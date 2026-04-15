@@ -31,6 +31,8 @@ pub(super) use unified_state_machine_skeleton::HandleStateMachinePlan;
 pub(super) use unified_state_machine_skeleton::HandleSegmentList;
 #[allow(unused_imports)]
 pub(super) use unified_state_machine_skeleton::UnifiedHandleStateMachine;
+#[allow(unused_imports)]
+pub(super) use unified_state_machine_skeleton::UnifiedHandleLoweringContract;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_perform_expr(

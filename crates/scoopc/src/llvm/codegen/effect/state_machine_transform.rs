@@ -1,5 +1,66 @@
 type UnifiedStateId = HandleSegmentId;
 
+/// Production-facing lowering contract: the single structured input that
+/// a downstream LLVM emitter receives for an effect `handle` expression.
+///
+/// Constructed exclusively via `MainCodegen::build_unified_lowering_contract`.
+/// All emitter-visible metadata is accessed through the enclosed
+/// `UnifiedHandleStateMachine` and its typed accessors.
+#[derive(Debug, Clone)]
+pub(crate) struct UnifiedHandleLoweringContract {
+    machine: UnifiedHandleStateMachine,
+}
+
+impl UnifiedHandleLoweringContract {
+    /// Return the full unified state machine backing this contract.
+    pub(crate) fn machine(&self) -> &UnifiedHandleStateMachine {
+        &self.machine
+    }
+
+    // Convenience delegates — keep the emitter call-sites concise while
+    // preserving the "all data flows through the contract" invariant.
+
+    pub(crate) fn handle_span(&self) -> Span {
+        self.machine.handle_span()
+    }
+
+    pub(crate) fn result_ty(&self) -> TypeId {
+        self.machine.result_ty()
+    }
+
+    pub(crate) fn entry_state(&self) -> UnifiedStateId {
+        self.machine.entry_state()
+    }
+
+    pub(crate) fn states(&self) -> &[UnifiedState] {
+        self.machine.states()
+    }
+
+    pub(crate) fn dispatch_entries(&self) -> &[UnifiedDispatchEntry] {
+        self.machine.dispatch_entries()
+    }
+
+    pub(crate) fn arms(&self) -> &[UnifiedArm] {
+        self.machine.arms()
+    }
+
+    pub(crate) fn suspend_sites(&self) -> &[UnifiedSuspendSite] {
+        self.machine.suspend_sites()
+    }
+
+    pub(crate) fn cleanup_scopes(&self) -> &[UnifiedCleanupScope] {
+        self.machine.cleanup_scopes()
+    }
+
+    pub(crate) fn frame(&self) -> &UnifiedFrameSchema {
+        self.machine.frame()
+    }
+
+    pub(crate) fn nested_handles(&self) -> &[UnifiedHandleStateMachine] {
+        self.machine.nested_handles()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct UnifiedHandleStateMachine {
     handle_span: Span,
@@ -15,19 +76,106 @@ pub(crate) struct UnifiedHandleStateMachine {
     nested_handles: Vec<UnifiedHandleStateMachine>,
 }
 
+// ---- pub(crate) read-only accessors for downstream emitter consumption ----
+impl UnifiedHandleStateMachine {
+    pub(crate) fn handle_span(&self) -> Span {
+        self.handle_span
+    }
+
+    pub(crate) fn result_ty(&self) -> TypeId {
+        self.result_ty
+    }
+
+    pub(crate) fn storage(&self) -> UnifiedStateMachineStorage {
+        self.storage
+    }
+
+    pub(crate) fn entry_state(&self) -> UnifiedStateId {
+        self.entry_state
+    }
+
+    pub(crate) fn frame(&self) -> &UnifiedFrameSchema {
+        &self.frame
+    }
+
+    pub(crate) fn dispatch_entries(&self) -> &[UnifiedDispatchEntry] {
+        &self.dispatch_entries
+    }
+
+    pub(crate) fn arms(&self) -> &[UnifiedArm] {
+        &self.arms
+    }
+
+    pub(crate) fn states(&self) -> &[UnifiedState] {
+        &self.states
+    }
+
+    pub(crate) fn suspend_sites(&self) -> &[UnifiedSuspendSite] {
+        &self.suspend_sites
+    }
+
+    pub(crate) fn cleanup_scopes(&self) -> &[UnifiedCleanupScope] {
+        &self.cleanup_scopes
+    }
+
+    pub(crate) fn nested_handles(&self) -> &[UnifiedHandleStateMachine] {
+        &self.nested_handles
+    }
+
+    /// Look up a state by id. Returns `None` if the id is not in the machine.
+    pub(crate) fn get_state(&self, id: UnifiedStateId) -> Option<&UnifiedState> {
+        self.states.iter().find(|s| s.id == id)
+    }
+
+    /// Look up a dispatch entry by operation FQN.
+    pub(crate) fn get_dispatch_entry(&self, op_fqn: &str) -> Option<&UnifiedDispatchEntry> {
+        self.dispatch_entries
+            .iter()
+            .find(|e| e.op_fqn == op_fqn)
+    }
+
+    /// Look up a suspend site by id.
+    pub(crate) fn get_suspend_site(&self, id: SuspendSiteId) -> Option<&UnifiedSuspendSite> {
+        self.suspend_sites.iter().find(|s| s.id == id)
+    }
+
+    /// Look up a cleanup scope by id.
+    pub(crate) fn get_cleanup_scope(&self, id: CleanupScopeId) -> Option<&UnifiedCleanupScope> {
+        self.cleanup_scopes.iter().find(|s| s.id == id)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedStateMachineStorage {
+pub(crate) enum UnifiedStateMachineStorage {
     Heap,
 }
 
 #[derive(Debug, Clone)]
-struct UnifiedFrameSchema {
+pub(crate) struct UnifiedFrameSchema {
     fields: Vec<UnifiedFrameField>,
     slots: Vec<UnifiedFrameSlot>,
 }
 
+impl UnifiedFrameSchema {
+    pub(crate) fn fields(&self) -> &[UnifiedFrameField] {
+        &self.fields
+    }
+
+    pub(crate) fn slots(&self) -> &[UnifiedFrameSlot] {
+        &self.slots
+    }
+
+    /// Return the field index for a given slot id, if present.
+    pub(crate) fn get_slot_field_index(&self, slot_id: hir::SymbolId) -> Option<usize> {
+        self.slots
+            .iter()
+            .find(|slot| slot.slot.id == slot_id)
+            .map(|slot| slot.field_index)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedFrameField {
+pub(crate) enum UnifiedFrameField {
     System(UnifiedFrameSystemField),
     Slot {
         slot_id: hir::SymbolId,
@@ -35,7 +183,7 @@ enum UnifiedFrameField {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedFrameSystemField {
+pub(crate) enum UnifiedFrameSystemField {
     StateTag,
     ResumeWord,
     ResumeGcRef,
@@ -44,15 +192,33 @@ enum UnifiedFrameSystemField {
 }
 
 #[derive(Debug, Clone)]
-struct UnifiedFrameSlot {
+pub(crate) struct UnifiedFrameSlot {
     slot: FrameSlot,
     source: UnifiedFrameSlotSource,
     field_index: usize,
     listed_as_lifted_local: bool,
 }
 
+impl UnifiedFrameSlot {
+    pub(crate) fn slot(&self) -> &FrameSlot {
+        &self.slot
+    }
+
+    pub(crate) fn source(&self) -> UnifiedFrameSlotSource {
+        self.source
+    }
+
+    pub(crate) fn field_index(&self) -> usize {
+        self.field_index
+    }
+
+    pub(crate) fn listed_as_lifted_local(&self) -> bool {
+        self.listed_as_lifted_local
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedFrameSlotSource {
+pub(crate) enum UnifiedFrameSlotSource {
     HandleBody,
     ArmBinder {
         arm_id: ArmPlanId,
@@ -60,19 +226,39 @@ enum UnifiedFrameSlotSource {
 }
 
 #[derive(Debug, Clone)]
-struct UnifiedDispatchEntry {
+pub(crate) struct UnifiedDispatchEntry {
     op_fqn: String,
     arms: Vec<UnifiedDispatchArm>,
 }
 
+impl UnifiedDispatchEntry {
+    pub(crate) fn op_fqn(&self) -> &str {
+        &self.op_fqn
+    }
+
+    pub(crate) fn arms(&self) -> &[UnifiedDispatchArm] {
+        &self.arms
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct UnifiedDispatchArm {
+pub(crate) struct UnifiedDispatchArm {
     arm_id: ArmPlanId,
     entry_state: UnifiedStateId,
 }
 
+impl UnifiedDispatchArm {
+    pub(crate) fn arm_id(&self) -> ArmPlanId {
+        self.arm_id
+    }
+
+    pub(crate) fn entry_state(&self) -> UnifiedStateId {
+        self.entry_state
+    }
+}
+
 #[derive(Debug, Clone)]
-struct UnifiedArm {
+pub(crate) struct UnifiedArm {
     arm_id: ArmPlanId,
     op_fqn: String,
     entry_state: UnifiedStateId,
@@ -82,8 +268,38 @@ struct UnifiedArm {
     cleanup_scope_stack: Vec<CleanupScopeId>,
 }
 
+impl UnifiedArm {
+    pub(crate) fn arm_id(&self) -> ArmPlanId {
+        self.arm_id
+    }
+
+    pub(crate) fn op_fqn(&self) -> &str {
+        &self.op_fqn
+    }
+
+    pub(crate) fn entry_state(&self) -> UnifiedStateId {
+        self.entry_state
+    }
+
+    pub(crate) fn body_states(&self) -> &[UnifiedStateId] {
+        &self.body_states
+    }
+
+    pub(crate) fn binder_slots(&self) -> &[hir::SymbolId] {
+        &self.binder_slots
+    }
+
+    pub(crate) fn capture_locals(&self) -> &[hir::SymbolId] {
+        &self.capture_locals
+    }
+
+    pub(crate) fn cleanup_scope_stack(&self) -> &[CleanupScopeId] {
+        &self.cleanup_scope_stack
+    }
+}
+
 #[derive(Debug, Clone)]
-struct UnifiedState {
+pub(crate) struct UnifiedState {
     id: UnifiedStateId,
     label: String,
     source_span: Option<Span>,
@@ -94,8 +310,42 @@ struct UnifiedState {
     outgoing_edges: Vec<UnifiedStateEdge>,
 }
 
+impl UnifiedState {
+    pub(crate) fn id(&self) -> UnifiedStateId {
+        self.id
+    }
+
+    pub(crate) fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub(crate) fn source_span(&self) -> Option<Span> {
+        self.source_span
+    }
+
+    pub(crate) fn context(&self) -> UnifiedStateContext {
+        self.context
+    }
+
+    pub(crate) fn cleanup_scope_stack(&self) -> &[CleanupScopeId] {
+        &self.cleanup_scope_stack
+    }
+
+    pub(crate) fn ops(&self) -> &[HandleStateOp] {
+        &self.ops
+    }
+
+    pub(crate) fn terminator(&self) -> &UnifiedStateTerminator {
+        &self.terminator
+    }
+
+    pub(crate) fn outgoing_edges(&self) -> &[UnifiedStateEdge] {
+        &self.outgoing_edges
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedStateContext {
+pub(crate) enum UnifiedStateContext {
     Main,
     Cleanup {
         scope_id: CleanupScopeId,
@@ -107,7 +357,7 @@ enum UnifiedStateContext {
 }
 
 #[derive(Debug, Clone)]
-enum UnifiedStateTerminator {
+pub(crate) enum UnifiedStateTerminator {
     Goto {
         next_state: UnifiedStateId,
     },
@@ -133,13 +383,23 @@ enum UnifiedStateTerminator {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct UnifiedStateEdge {
+pub(crate) struct UnifiedStateEdge {
     to_state: UnifiedStateId,
     kind: UnifiedStateEdgeKind,
 }
 
+impl UnifiedStateEdge {
+    pub(crate) fn target_state(&self) -> UnifiedStateId {
+        self.to_state
+    }
+
+    pub(crate) fn kind(&self) -> UnifiedStateEdgeKind {
+        self.kind
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedStateEdgeKind {
+pub(crate) enum UnifiedStateEdgeKind {
     Goto,
     BranchThen,
     BranchElse,
@@ -148,7 +408,7 @@ enum UnifiedStateEdgeKind {
 }
 
 #[derive(Debug, Clone)]
-struct UnifiedSuspendSite {
+pub(crate) struct UnifiedSuspendSite {
     id: SuspendSiteId,
     span: Span,
     kind: SuspendSiteKind,
@@ -160,13 +420,69 @@ struct UnifiedSuspendSite {
     source_path: Option<SuspendSourcePath>,
 }
 
+impl UnifiedSuspendSite {
+    pub(crate) fn id(&self) -> SuspendSiteId {
+        self.id
+    }
+
+    pub(crate) fn span(&self) -> Span {
+        self.span
+    }
+
+    pub(crate) fn kind(&self) -> &SuspendSiteKind {
+        &self.kind
+    }
+
+    pub(crate) fn owner_state(&self) -> UnifiedStateId {
+        self.owner_state
+    }
+
+    pub(crate) fn resume_state(&self) -> UnifiedStateId {
+        self.resume_state
+    }
+
+    pub(crate) fn matching_arms(&self) -> &[ArmPlanId] {
+        &self.matching_arms
+    }
+
+    pub(crate) fn available_locals(&self) -> &[hir::SymbolId] {
+        &self.available_locals
+    }
+
+    pub(crate) fn capture_locals(&self) -> &[hir::SymbolId] {
+        &self.capture_locals
+    }
+}
+
 #[derive(Debug, Clone)]
-struct UnifiedCleanupScope {
+pub(crate) struct UnifiedCleanupScope {
     id: CleanupScopeId,
     kind: CleanupScopeKind,
     entry_state: UnifiedStateId,
     exit_state: UnifiedStateId,
     note: String,
+}
+
+impl UnifiedCleanupScope {
+    pub(crate) fn id(&self) -> CleanupScopeId {
+        self.id
+    }
+
+    pub(crate) fn kind(&self) -> CleanupScopeKind {
+        self.kind
+    }
+
+    pub(crate) fn entry_state(&self) -> UnifiedStateId {
+        self.entry_state
+    }
+
+    pub(crate) fn exit_state(&self) -> UnifiedStateId {
+        self.exit_state
+    }
+
+    pub(crate) fn note(&self) -> &str {
+        &self.note
+    }
 }
 
 impl HandleSegmentList {
@@ -238,7 +554,7 @@ impl UnifiedHandleStateMachine {
     }
 
     fn state(&self, id: UnifiedStateId) -> Option<&UnifiedState> {
-        self.states.iter().find(|state| state.id == id)
+        self.get_state(id)
     }
 
     fn validate_full_machine_contract(&self) -> Result<(), String> {
@@ -862,17 +1178,15 @@ impl UnifiedHandleStateMachine {
     }
 
     fn dispatch_entry(&self, op_fqn: &str) -> Option<&UnifiedDispatchEntry> {
-        self.dispatch_entries
-            .iter()
-            .find(|entry| entry.op_fqn == op_fqn)
+        self.get_dispatch_entry(op_fqn)
     }
 
     fn suspend_site(&self, id: SuspendSiteId) -> Option<&UnifiedSuspendSite> {
-        self.suspend_sites.iter().find(|site| site.id == id)
+        self.get_suspend_site(id)
     }
 
     fn cleanup_scope(&self, id: CleanupScopeId) -> Option<&UnifiedCleanupScope> {
-        self.cleanup_scopes.iter().find(|scope| scope.id == id)
+        self.get_cleanup_scope(id)
     }
 
     #[cfg(test)]
@@ -1228,10 +1542,7 @@ impl UnifiedFrameSchema {
     }
 
     fn slot_field_index(&self, slot_id: hir::SymbolId) -> Option<usize> {
-        self.slots
-            .iter()
-            .find(|slot| slot.slot.id == slot_id)
-            .map(|slot| slot.field_index)
+        self.get_slot_field_index(slot_id)
     }
 }
 
@@ -2854,6 +3165,169 @@ fun demo(seed: Int): Int {
         ));
         assert_eq!(plan_arm, segment_arm);
         assert_eq!(plan_arm, machine_arm);
+    }
+
+    #[test]
+    fn unified_lowering_contract_provides_complete_read_access() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Log {
+    fun current(seed: Int): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = Yield.next()
+        val y: Int = Log.current(x)
+        x + y
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+        Log.current(seed: Int) -> seed + 1
+    } finally {
+        println("cleanup")
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+
+        // Build via the same pipeline that build_unified_lowering_contract uses.
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let segment_list = source_plan.build_segment_list();
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+        let contract = UnifiedHandleLoweringContract { machine };
+
+        // -- Top-level contract accessors --
+        // handle_span / result_ty are set by the plan builder from the outer Expr,
+        // so just verify they are non-degenerate and that convenience delegates match.
+        assert_ne!(contract.handle_span().start, contract.handle_span().end);
+        assert_eq!(contract.handle_span(), contract.machine().handle_span());
+        assert_eq!(contract.result_ty(), contract.machine().result_ty());
+        assert_eq!(
+            contract.entry_state(),
+            contract.machine().entry_state()
+        );
+        assert!(
+            matches!(contract.machine().storage(), UnifiedStateMachineStorage::Heap),
+            "current phase must produce heap-allocated full machine"
+        );
+
+        // -- States --
+        let states = contract.states();
+        assert!(!states.is_empty());
+        for state in states {
+            // Verify accessor round-trip matches internal data.
+            let looked_up = contract
+                .machine()
+                .get_state(state.id())
+                .expect("get_state must find every state in states()");
+            assert_eq!(looked_up.id(), state.id());
+            assert_eq!(looked_up.label(), state.label());
+            assert_eq!(looked_up.source_span(), state.source_span());
+            assert_eq!(looked_up.context(), state.context());
+            assert_eq!(looked_up.ops().len(), state.ops().len());
+            assert_eq!(looked_up.outgoing_edges().len(), state.outgoing_edges().len());
+        }
+
+        // -- Dispatch entries --
+        let dispatch = contract.dispatch_entries();
+        assert!(!dispatch.is_empty());
+        for entry in dispatch {
+            assert!(!entry.op_fqn().is_empty());
+            assert!(!entry.arms().is_empty());
+            for arm in entry.arms() {
+                // Each dispatch arm's entry_state must be a valid state.
+                assert!(
+                    contract.machine().get_state(arm.entry_state()).is_some(),
+                    "dispatch arm entry_state s{} must exist in states",
+                    arm.entry_state()
+                );
+            }
+            // Lookup by op_fqn should find the same entry.
+            let looked_up = contract
+                .machine()
+                .get_dispatch_entry(entry.op_fqn())
+                .expect("get_dispatch_entry must find dispatched op");
+            assert_eq!(looked_up.op_fqn(), entry.op_fqn());
+        }
+
+        // -- Arms --
+        let arms = contract.arms();
+        assert!(!arms.is_empty());
+        for arm in arms {
+            assert!(!arm.op_fqn().is_empty());
+            assert!(!arm.body_states().is_empty());
+            assert!(
+                contract.machine().get_state(arm.entry_state()).is_some(),
+                "arm entry_state must exist"
+            );
+        }
+
+        // -- Suspend sites --
+        let sites = contract.suspend_sites();
+        assert!(!sites.is_empty());
+        for site in sites {
+            let looked_up = contract
+                .machine()
+                .get_suspend_site(site.id())
+                .expect("get_suspend_site must find every site");
+            assert_eq!(looked_up.id(), site.id());
+            assert_eq!(looked_up.owner_state(), site.owner_state());
+            assert_eq!(looked_up.resume_state(), site.resume_state());
+        }
+
+        // -- Cleanup scopes --
+        let scopes = contract.cleanup_scopes();
+        assert!(!scopes.is_empty(), "finally block should produce cleanup scope");
+        for scope in scopes {
+            let looked_up = contract
+                .machine()
+                .get_cleanup_scope(scope.id())
+                .expect("get_cleanup_scope must find every scope");
+            assert_eq!(looked_up.id(), scope.id());
+            assert_eq!(looked_up.kind(), scope.kind());
+            assert_eq!(looked_up.entry_state(), scope.entry_state());
+            assert_eq!(looked_up.exit_state(), scope.exit_state());
+            assert!(!looked_up.note().is_empty());
+        }
+
+        // -- Frame schema --
+        let frame = contract.frame();
+        assert!(frame.fields().len() >= 5, "must have at least 5 system fields");
+        assert!(!frame.slots().is_empty());
+        for slot in frame.slots() {
+            assert_eq!(slot.field_index(), frame.get_slot_field_index(slot.slot().id()).unwrap());
+            assert!(!slot.slot().name().is_empty());
+        }
+
+        // -- Edge accessors --
+        for state in contract.states() {
+            for edge in state.outgoing_edges() {
+                assert!(
+                    contract.machine().get_state(edge.target_state()).is_some(),
+                    "edge target s{} must exist",
+                    edge.target_state()
+                );
+                // Verify kind() round-trips without panic.
+                let _ = edge.kind();
+            }
+        }
     }
 
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {

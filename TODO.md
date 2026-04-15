@@ -141,8 +141,18 @@
   - 定向测试能锁定 payload 在 `plan -> segments -> unified machine` 之间保持稳定。
 - 依赖：T3002R
 
-### T3003b [TODO] 暴露 `handle -> unified lowering contract` 的生产 builder 与 crate 内访问面
+### T3003b [DONE] 暴露 `handle -> unified lowering contract` 的生产 builder 与 crate 内访问面
 - 描述：在 payload 完整后，把 production 侧构建入口与读取接口显式化。builder 只允许从 `handle` 与必需的 codegen 上下文构造 unified lowering contract；下游 emitter 只消费 state machine 与必需的类型 / 符号 / ABI 上下文。
+- 进展：
+  - 已在 `state_machine_transform.rs` 中定义 `UnifiedHandleLoweringContract`，封装 `UnifiedHandleStateMachine`，提供便利委托访问器。
+  - 已为 `UnifiedHandleStateMachine` 及所有子结构（`UnifiedState`、`UnifiedFrameSchema`、`UnifiedFrameSlot`、`UnifiedDispatchEntry`、`UnifiedDispatchArm`、`UnifiedArm`、`UnifiedSuspendSite`、`UnifiedCleanupScope`、`UnifiedStateEdge`）添加 `pub(crate)` 只读访问器。
+  - 已为 `FrameSlot` 添加 `pub(crate)` 访问器（`id()`、`name()`、`ty()`、`mutable()`、`owner_arm()`），使其可通过 `UnifiedFrameSlot::slot()` 消费。
+  - 已在 `UnifiedHandleStateMachine` 上添加 `pub(crate)` 查找方法：`get_state()`、`get_dispatch_entry()`、`get_suspend_site()`、`get_cleanup_scope()`；`UnifiedFrameSchema` 添加 `get_slot_field_index()`。
+  - 已将 `build_handle_state_machine_plan` 升级为 `build_unified_lowering_contract`，完成 plan → segments → unified machine → contract 的完整 pipeline，作为 `MainCodegen` 的 `pub(super)` 方法。
+  - 已将 `CleanupScopeKind` 的可见性从 `pub(in crate::llvm::codegen::effect)` 提升至 `pub(crate)`，以匹配 accessor 可见性。
+  - 已从 `effect/mod.rs` re-export `UnifiedHandleLoweringContract`。
+  - 已添加定向测试 `unified_lowering_contract_provides_complete_read_access`，覆盖 contract 的全部读取面：top-level 字段、states 查找、dispatch entries、arms、suspend sites、cleanup scopes、frame schema / slots、outgoing edges。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - 提供生产可调用的统一 builder，把 `handle` 收口为单一的 unified lowering contract。
   - 明确 crate 内 contract 读取面：state table、state edge、suspend edge、cleanup、frame layout、dispatch、capture / payload / slot 元数据都只能从 contract 读取。

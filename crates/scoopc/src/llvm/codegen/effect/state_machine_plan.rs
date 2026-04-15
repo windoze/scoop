@@ -252,7 +252,7 @@ struct PlanState {
 }
 
 #[derive(Debug, Clone)]
-enum HandleStateOp {
+pub(crate) enum HandleStateOp {
     StmtEmpty {
         stmt: Box<hir::Stmt>,
     },
@@ -367,7 +367,7 @@ enum HandleStateOp {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum ResumeAfterSiteReason {
+pub(crate) enum ResumeAfterSiteReason {
     ObjectInitAccess,
     RuntimeRaiseBoundary,
     Call,
@@ -376,7 +376,7 @@ enum ResumeAfterSiteReason {
 }
 
 #[derive(Debug, Clone)]
-enum HandleBranchCondition {
+pub(crate) enum HandleBranchCondition {
     WhileCond { condition: Box<hir::Expr> },
     IfCond { condition: Box<hir::Expr> },
 }
@@ -792,7 +792,7 @@ impl SuspendSourceFramePath {
 }
 
 #[derive(Debug, Clone)]
-enum SuspendSiteKind {
+pub(crate) enum SuspendSiteKind {
     Perform { op_fqn: String },
     CallMaySuspend { callee: String },
     CallStateMachineCallee { callee: String },
@@ -888,7 +888,7 @@ struct CleanupScopePlan {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CleanupScopeKind {
+pub(crate) enum CleanupScopeKind {
     Finally,
 }
 
@@ -916,7 +916,7 @@ struct FrameLayoutPlan {
 }
 
 #[derive(Debug, Clone)]
-struct FrameSlot {
+pub(crate) struct FrameSlot {
     id: hir::SymbolId,
     name: String,
     ty: TypeId,
@@ -925,6 +925,26 @@ struct FrameSlot {
 }
 
 impl FrameSlot {
+    pub(crate) fn id(&self) -> hir::SymbolId {
+        self.id
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub(crate) fn ty(&self) -> TypeId {
+        self.ty
+    }
+
+    pub(crate) fn mutable(&self) -> bool {
+        self.mutable
+    }
+
+    pub(crate) fn owner_arm(&self) -> Option<ArmPlanId> {
+        self.owner_arm
+    }
+
     fn display_name(&self) -> String {
         format!("{}#{}", self.name, self.id.as_u32())
     }
@@ -3007,22 +3027,32 @@ impl HandlePlanContext {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn build_handle_state_machine_plan(&self, handle: &hir::HandleExpr) -> HandleStateMachinePlan {
+    /// Build the unified lowering contract for a `handle` expression.
+    ///
+    /// Pipeline: HandleExpr → plan → segments (+ validation) → unified state machine → contract.
+    /// The returned contract is the single structured input consumed by the downstream LLVM emitter.
+    pub(super) fn build_unified_lowering_contract(
+        &self,
+        handle: &hir::HandleExpr,
+    ) -> UnifiedHandleLoweringContract {
         let context = HandlePlanContext::from_codegen(self);
         let source_plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
-        // Keep the phase-1 segment projection and its builder-facing invariants in sync
-        // during the ground-up rewrite, even before the builder fully switches to it as
-        // the only input.
+
+        // Phase 1 → segments: project the plan into segments and validate the builder contract.
         let segment_list = source_plan.build_segment_list();
         #[cfg(debug_assertions)]
         if let Err(message) = segment_list.validate_builder_contract() {
             panic!("invalid handle segment builder contract: {message}");
         }
-        let segment_signature = segment_list.structural_signature();
-        let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
-            .unwrap_or_else(|message| panic!("failed to rebuild handle state machine plan: {message}"));
+
+        // Debug: verify segment round-trip stability.
         #[cfg(debug_assertions)]
         {
+            let segment_signature = segment_list.structural_signature();
+            let rebuilt_plan = HandleStateMachinePlan::build_from_segments(&segment_list)
+                .unwrap_or_else(|message| {
+                    panic!("failed to rebuild handle state machine plan: {message}")
+                });
             let rebuilt_segment_list = rebuilt_plan.build_segment_list();
             let rebuilt_segment_signature = rebuilt_segment_list.structural_signature();
             if rebuilt_segment_signature != segment_signature {
@@ -3030,8 +3060,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "segment round-trip mismatch: source={segment_signature} rebuilt={rebuilt_segment_signature}"
                 );
             }
-
         }
-        rebuilt_plan
+
+        // Phase 2 → unified state machine: transform segments into the canonical full machine.
+        let machine = segment_list
+            .build_unified_state_machine()
+            .unwrap_or_else(|message| {
+                panic!("failed to build unified state machine: {message}")
+            });
+
+        UnifiedHandleLoweringContract { machine }
     }
 }
