@@ -39,9 +39,11 @@
   - 已复查 `expr.rs`、`effect/mod.rs` 与 `mod.rs` 调用链，确认 `ExprKind::Perform` / `ExprKind::Handle` 只直连统一 effect 入口；当前残留的 effect 相关生产逻辑仅为统一 lowering 占位入口、sysroot intrinsic lowering 与 flag-based unwind 辅助，没有按源码 / site / arm / callee 形状做主选路。
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
-- `T3003a` 已完成：`HandleStateOp` / `HandleBranchCondition` 已补齐完整 HIR payload，unified state machine 的执行 payload 元数据在 plan → segments → unified machine 流水线中稳定保留。原始 `T3003` 已拆分为 `T3003a`（payload 补齐，已完成）、`T3003b`（builder/访问面暴露）和 `T3003R`（review）。
+- `T3003a` 已完成：`HandleStateOp` / `HandleBranchCondition` 已补齐完整 HIR payload，unified state machine 的执行 payload 元数据在 plan → segments → unified machine 流水线中稳定保留。原始 `T3003` 已拆分为 `T3003a`（payload 补齐，已完成）、`T3003b`（builder/访问面暴露，已完成）和 `T3003R`（review，已完成）。
+- `T3003b` 已完成：`UnifiedHandleLoweringContract` 已定义为唯一生产结构输入；`build_unified_lowering_contract` 实现完整 pipeline（plan → segments → unified machine → contract）；全部子结构有 `pub(crate)` 只读访问器。
+- `T3003R` 已完成：审查确认 LLVM lowering 的主输入只有 state machine，无 shape-based 旁路输入或旧依赖链残留。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
-- 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。下一步进入阶段 C：实现 full state machine LLVM emitter（T3004）。
 
 ## 2. 阶段顺序
 
@@ -108,8 +110,12 @@
 - 统一 builder 只能从 `handle` 与必需 codegen 上下文构造 contract；下游 emitter 只消费 state machine 与必需的类型 / 符号 / ABI 上下文。
 - 这一步完成后，`T3003R` 才有意义去审查“输入面是否只剩 state machine”。
 
-#### T3003R：Review
-- 审查 lowering 入口及其依赖链，确认 LLVM lowering 主线的结构输入只剩 state machine。
+#### T3003R：Review（已完成）
+- 已审查 `build_unified_lowering_contract` → `HandlePlanContext::from_codegen` → `HandleStateMachinePlan::build_with_context` → `build_segment_list` → `build_unified_state_machine` → `UnifiedHandleLoweringContract` 的完整构建链。
+- 确认构建输入仅为 `handle` HIR + 类型/符号/ABI 上下文，不包含源码形状、旧 scanner 或旧 mode 选择。
+- 确认 `UnifiedHandleLoweringContract` 只封装 `UnifiedHandleStateMachine`，所有 emitter 所需数据通过 `pub(crate)` 只读访问器获取。
+- 确认 `SuspendSourcePath` 虽存在于 `UnifiedSuspendSite` 内部，但无公开访问器，不构成可达旁路。
+- 审查结论：**LLVM lowering 的主输入只有 state machine**，无 shape-based 旁路输入或旧依赖链残留。
 
 ### 阶段 C：实现 full state machine LLVM emitter
 

@@ -162,14 +162,29 @@
   - 下游 emitter 所需的结构化输入都可从 unified lowering contract 读取，无需旁路回看原始 `handle` HIR。
 - 依赖：T3003a
 
-### T3003R [TODO] Review：确认 LLVM lowering 输入面只剩 state machine
+### T3003R [DONE] Review：确认 LLVM lowering 输入面只剩 state machine
 - 描述：审查统一 lowering 入口与其依赖链，确认没有旁路输入；若发现旁路输入或旧依赖链残留，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已审查 `build_unified_lowering_contract` 入口：只接受 `&hir::HandleExpr` 与 codegen 上下文；`HandlePlanContext::from_codegen` 从 `MainCodegen` 提取的信息全部属于类型（effect purity）/符号（ctor call targets、object init FQNs）/ABI 层面，不包含源码形状、scanner 结果或旧 mode 选择。
+  - 已审查 `UnifiedHandleLoweringContract`：只封装 `UnifiedHandleStateMachine`，无旁路字段。所有 `pub(crate)` 访问器指向 state machine 内部结构。
+  - 已审查 `SuspendSourcePath`：虽存在于 `UnifiedSuspendSite` 内部，但无 `pub(crate)` 访问器，下游 emitter 不可见。仅用于内部验证与测试。
+  - 已审查 `HandleStateOp`、`HandleBranchCondition`、`SuspendSiteKind`：分别携带执行 HIR payload、条件表达式、语义 suspend 原因，不携带源码形状或旧分类信息。
+  - 已审查 `expr.rs` 入口：`ExprKind::Perform` / `ExprKind::Handle` 只传递 span、HIR、expected type 到 `effect/mod.rs` 统一入口，无旁路数据。
+  - 已检索 `crates/scoopc/src/llvm/codegen/effect/**` 中 `shape`、`scanner`、`scan_for`、`CalleeSuspend`、`suspendable`、`SiteShape`、`ArmShape` 等关键词，无生产代码命中。
+  - 已确认 flag-based unwind（`emit_effect_unwind_if_active` × 7、`raise_target_stack`）仅存于 `mod.rs` 非主线路径，已标记待 T3005 移除，与统一合同无交互。
+  - 已确认 `runtime_abi.rs` 中 12 个 `#[allow(dead_code)]` ABI 声明均标注”T3002：统一 lowering 尚未接回”，无旁路输入。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 确认 LLVM lowering 主线不再读取源码路径、旧 scanner 输出、旧 mode 选择结果。
   - 确认所有 effect lowering 所需结构信息都来自 state machine 合同。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“LLVM lowering 的主输入只有 state machine”。
+  - 审查结论明确记录”LLVM lowering 的主输入只有 state machine”。
+- 审查结论：
+  - LLVM lowering 的主输入只有 state machine。`UnifiedHandleLoweringContract` 是唯一生产结构输入，只封装 `UnifiedHandleStateMachine`，通过 `pub(crate)` 只读访问器暴露所有 emitter 所需数据。
+  - `build_unified_lowering_contract` 的构建输入仅为 `handle` HIR + 类型/符号/ABI 上下文，不包含源码形状、旧 scanner 结果或旧 mode 选择。
+  - `SuspendSourcePath` 虽被保留在 `UnifiedSuspendSite` 内部，但无公开访问器，不构成 emitter 的可达输入。
+  - 生产代码中不存在 shape-based 旁路输入或旧依赖链残留。
 - 依赖：T3003b
 
 ### T3004 [TODO] 实现 heap-allocated full state machine 的 LLVM lowering 主体
