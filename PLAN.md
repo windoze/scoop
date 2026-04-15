@@ -10,6 +10,7 @@
 - `T30` 继续遵守“删除优先于修补”。看到 shape-based 生产逻辑就直接删除，不以“先补一个 case”维持旧路径。
 - `T30` 中 LLVM effect codegen 的单一输入是 state machine。除类型、符号与 ABI 必需信息外，不能再读取源码形状、旧 scanner 结果或旧分类器输出。
 - `T30` 当前阶段只实现 heap-allocated full state machine lowering，不做 simplification，不做模式化优化。
+- flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）明确搁置，不作为 `T30` 主线依赖。effect 传播完全由统一 state machine 驱动；flag-based unwind 日后可作为优化加回。
 - `T30` 中每个实现任务后立即插入一个 review 任务；review 必须显式确认生产代码中不存在 shape-based logic。
 - `T30` 的 review 范围只看生产代码，重点是 `crates/scoopc/src/llvm/codegen/**`；测试命名不作为问题。
 - `T31`～`T34` 维持“小步可回归”原则：先收口语义与表示，再扩展 lowering / runtime / 测试；除显式写出的依赖外，不额外插入 effect 风格的 review 子任务。
@@ -34,6 +35,7 @@
   - 已复查 `codegen_top_level_fun`、`codegen_closure_fun_body`、`codegen_top_level_fun_call` 与 `ExprKind::Perform` / `ExprKind::Handle` 接线，确认当前只剩常规函数/闭包 codegen 与统一 effect 占位入口，不再按源码 / callee 形状分流。
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
+- flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
 - 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
 
 ## 2. 阶段顺序
@@ -83,7 +85,7 @@
 #### T3003：冻结 `state machine -> LLVM lowering` 的统一合同
 - 在真正发射 LLVM 之前，先把 emitter 输入收口到统一合同。
 - 这个合同必须完整表达 state、edge、suspend/resume、cleanup、frame layout、dispatch、capture / payload / slot 等 lowering 所需信息。
-- 合同的全部结构信息都必须来自 state machine 本身，而不是回头看 HIR shape 或旧 scanner 输出。
+- 合同的全部结构信息都必须来自 state machine 本身，而不是回头看 HIR shape、旧 scanner 输出或 flag-based unwind 机制。
 
 #### T3003R：Review
 - 审查 lowering 入口及其依赖链，确认 LLVM lowering 主线的结构输入只剩 state machine。
@@ -92,6 +94,7 @@
 
 #### T3004：实现 heap-allocated full state machine 的 LLVM lowering 主体
 - 从统一 state machine 发射 frame、`pc` dispatch、state block、resume edge、cleanup/unwind、handler stack 交互与 payload transport。
+- effect 传播完全由 state machine 状态转移驱动，不使用 flag-based unwind。
 - 当前阶段不做 simplification；即使后续会优化，也必须先保证 full state machine 语义完整可发射。
 
 #### T3004R：Review
@@ -100,11 +103,12 @@
 ### 阶段 D：把统一 emitter 接回生产入口
 
 #### T3005：将统一 state-machine LLVM lowering 接回 effect codegen 主入口
-- `handle` / `perform` / continuation 相关入口都要接到统一 emitter。
-- 旧主线路由、旧 fallback、旧占位入口要同步删除或彻底失效，不能保留“双轨”。
+- `handle` / `perform` 入口替换 `UnsupportedMainBody` 占位，统一走 state-machine lowering。
+- 移除 `mod.rs` 中 7 处 `emit_effect_unwind_if_active` 调用、配套 `fun_ty_effects_is_pure` 门控与 `raise_target_stack` 栈。
+- 旧占位入口与 flag-based unwind 调用点同步失效，不保留双轨。
 
 #### T3005R：Review
-- 审查 effect codegen 主入口，确认统一 lowering 已经成为唯一主路径，不存在“失败时退回旧路线”的隐藏逻辑。
+- 审查 effect codegen 主入口，确认统一 lowering 已经成为唯一主路径，不存在”失败时退回旧路线”或 flag-based unwind 残留。
 
 ### 阶段 E：用测试补齐覆盖，但修复必须仍在统一主线内完成
 
@@ -120,10 +124,11 @@
 
 #### T3007：删除统一主线接管后剩余的 legacy effect codegen 死代码
 - 在统一 LLVM 主线稳定后，继续删除仓库里剩余的 legacy effect codegen 文件、helper、注释与过渡分支。
-- 目标是让仓库结构本身也与“统一主线”一致，而不是代码虽然不走、但旧实现还大面积留存。
+- 包括 T3005 移除生产调用后残留的 flag-based unwind 函数定义（`emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure`）与 `raise_target_stack` 字段定义及配套 runtime ABI 声明。
+- 目标是让仓库结构本身也与”统一主线”一致，既无旧 shape-based 实现残留，也无 flag-based unwind 机制残留。
 
 #### T3007R：Review
-- 最终审查 effect codegen 生产实现，确认仓库中只剩统一主线，没有可重新接回的 shape-based legacy。
+- 最终审查 effect codegen 生产实现，确认仓库中只剩统一主线，没有可重新接回的 shape-based legacy 或 flag-based unwind 机制。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 

@@ -9,16 +9,16 @@
 - 生产代码中的 effect codegen 禁止根据源码或代码形状分流。禁止把 `single` / `multi` / `direct` / `indirect` / `top-level` / `nested` / callee shape 等分类当作 lowering 决策输入。
 - LLVM codegen 的单一输入是 state machine。除类型信息、符号信息与运行时 ABI 必需信息外，不允许再读取源码形状、旧 scanner 结果或旧 shape 分类结果。
 - 当前阶段默认生成 heap-allocated full state machine；暂不做 simplification / optimization。
+- flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）当前明确搁置，不作为 T30 主线依赖。统一 state machine 是 effect 传播的唯一主线机制；flag-based unwind 日后可作为优化选项加回，但不阻塞当前任务推进。
 - 每个实现任务之后都必须立即执行一个 review 任务；review 只审查生产代码，不以测试代码命名作为问题。若发现生产代码问题，必须在该 review 任务内直接修复并复审，不能只记录问题不处理。
 
 ## 当前已知问题（T30）
 
-- `crates/scoopc/src/llvm/codegen/mod.rs` 仍保留旧的 callee-suspend shape-based 路线：
-  - `CalleeSuspendResumeMode`
-  - `scan_for_callee_suspend`
-  - `codegen_top_level_fun_suspendable`
-  - `codegen_closure_fun_body_suspendable`
-- `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的统一主线入口仍未完全接到 state-machine-driven LLVM lowering。
+- `mod.rs` 中的旧 callee-suspend shape-based 主路径已删除（T3001/T3001R 完成）；生产代码中不再存在按源码 / callee 形状选路的 effect codegen 分流。
+- `effect/mod.rs` 的 `codegen_perform_expr` / `codegen_handle_expr` 当前返回占位错误（`UnsupportedMainBody`），effect codegen 不工作。
+- 统一 state-machine 骨架（plan builder、segmentation、state machine transform）已实现并有测试，但整体处于 `#[allow(dead_code)] mod unified_state_machine_skeleton` 中，无生产入口消费。
+- `runtime_abi.rs:1254-1553` 的 `#[allow(dead_code)]` impl 块包含约 30 个 effect runtime ABI 声明，其中部分（`is_active`、`set_active`、`clear`、perform slot 读写）已被 sysroot intrinsic 生产路径消费，但 lint 无法区分真正 dead 与已使用的声明。
+- flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）当前是唯一工作的 effect 相关生产逻辑，用于 Raise/try-catch 传播。**已决定搁置**：统一 state machine 主线完成后，flag-based unwind 可作为优化加回，但不作为当前依赖。`mod.rs` 中 7 处 `emit_effect_unwind_if_active` 调用点（lines 8794, 9060, 9306, 9751, 9922, 12503, 12726）与 `raise_target_stack` 需在接通统一 lowering 时一并移除或失效。
 
 ## T30：统一 effect LLVM codegen
 
@@ -87,15 +87,16 @@
   - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 当前仅保留统一 state-machine 骨架与未接回的统一 lowering 占位入口，没有顶层函数 / closure 的旧 suspendable route 等价回流。
 - 依赖：T3001
 
-### T3002 [TODO] 清扫 effect codegen 生产代码中的剩余 shape-based 分支与旧专用路径
-- 描述：在删掉 `mod.rs` 旧路线后，继续审计并删除 effect codegen 其余残留，不保留旧 scanner、旧 resolver、旧 dedicated matrix 或其它基于代码形状的专用 lowering 主路径。
+### T3002 [TODO] 精确化 effect codegen 的 dead_code 边界，把统一骨架从 blanket allow 中解放
+- 描述：T3001 删除 `mod.rs` 旧路线后，`effect/**` 中已不存在旧 scanner、旧 resolver 或旧 dedicated matrix。当前残留问题是：(1) `unified_state_machine_skeleton` 整体被 `#[allow(dead_code)]` 包裹，后续任务无法直接使用其中的类型；(2) `runtime_abi.rs` 的 dead_code impl 块同时覆盖了已被 sysroot intrinsic 消费的 ABI 声明与真正未使用的 ABI 声明，lint 无法区分；(3) flag-based unwind 相关代码（`emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`raise_target_stack`、`fun_ty_effects_is_pure`）在统一主线完成前暂留原位，但需明确标记为非主线。
 - 目标：
-  - 清理 `crates/scoopc/src/llvm/codegen/effect/**` 以及相邻入口中的旧分流残留。
-  - 删除已经失去主线路由职责的旧 helper / module / dead branch。
-  - 保证后续 LLVM lowering 只沿统一主线推进，不再回到旧 shape-based 实现上补 case。
+  - 把 `effect/mod.rs` 中的 `unified_state_machine_skeleton` 模块从 blanket `#[allow(dead_code)]` 中解放：将后续 lowering 需要消费的类型（`HandleSegmentList`、`UnifiedHandleStateMachine` 等）暴露为可被生产入口引用的结构，对仍未接入的中间步骤保留精确的 dead_code 边界。
+  - 精确化 `runtime_abi.rs` 的 `#[allow(dead_code)]` 边界：已被 `codegen_sysroot_effect_intrinsics` 等生产路径消费的 ABI 声明不应继续留在 blanket dead_code 块中；仅对统一 lowering 尚未接回的 ABI 声明保留显式 allow。
+  - 确认 `effect/**` 中不存在旧 shape-based helper / module / dead branch。
 - 验收：
-  - 生产代码中的 effect codegen 不再依赖旧 scanner 结果或 shape 分类结果决定主路径。
-  - 旧专用路径要么被删除，要么彻底脱离生产入口，不再是可执行主线。
+  - 统一骨架的核心类型可被后续 T3003+ 的生产代码直接引用，不再被 blanket dead_code 遮蔽。
+  - 已被生产路径消费的 ABI 声明不受 dead_code allow 覆盖；若删除某个 ABI 声明，lint 能立即发现断线。
+  - `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 通过。
 - 依赖：T3001R
 
 ### T3002R [TODO] Review：确认 effect codegen 生产代码中不存在 shape-based 主分流
@@ -109,14 +110,14 @@
 - 依赖：T3002
 
 ### T3003 [TODO] 冻结 `state machine -> LLVM lowering` 的统一输入合同
-- 描述：在真正发射 LLVM 之前，先把 lowering 输入收口到统一合同，确保后续实现无法回头读取源码形状。
+- 描述：在真正发射 LLVM 之前，先把 lowering 输入收口到统一合同，确保后续实现无法回头读取源码形状。effect 传播（perform/handle/raise）全部通过 state machine 表达，不依赖 flag-based unwind。
 - 目标：
   - 明确并落地 LLVM emitter 所需的统一输入：state table、state edge、suspend edge、cleanup、frame layout、dispatch、capture / payload / slot 元数据。
-  - 这些输入必须全部来自 state machine 本身，而不是来自 HIR shape、scanner 结果或旧分类器。
-  - 统一入口对外暴露“只吃 state machine”的 API / contract，作为后续所有 LLVM effect lowering 的唯一输入面。
+  - 这些输入必须全部来自 state machine 本身，而不是来自 HIR shape、scanner 结果、旧分类器或 flag-based unwind 机制。
+  - 统一入口对外暴露”只吃 state machine”的 API / contract，作为后续所有 LLVM effect lowering 的唯一输入面。
 - 验收：
   - 统一 LLVM lowering 入口能够只接受 state machine 及必需的类型 / 符号 / ABI 上下文。
-  - 旧 shape-based resolver 不再是主线输入来源。
+  - effect 传播不依赖 `emit_effect_unwind_if_active` 或 `raise_target_stack`。
 - 依赖：T3002R
 
 ### T3003R [TODO] Review：确认 LLVM lowering 输入面只剩 state machine
@@ -130,14 +131,14 @@
 - 依赖：T3003
 
 ### T3004 [TODO] 实现 heap-allocated full state machine 的 LLVM lowering 主体
-- 描述：基于统一合同实现真正的 LLVM lowering，当前阶段只做 full machine，不做任何 simplification。
+- 描述：基于统一合同实现真正的 LLVM lowering，当前阶段只做 full machine，不做任何 simplification。effect 传播（perform suspend、handler resume、raise/unwind）全部由 state machine 驱动，不使用 flag-based unwind。
 - 目标：
   - 从 state machine 发射 frame、`pc` dispatch、state block、suspend/resume、cleanup/unwind、handler stack 交互与 payload transport。
-  - 统一支持当前 state machine 能表达的合法边，不再按源码形状拆专用 emitter。
+  - 统一支持当前 state machine 能表达的合法边，不再按源码形状拆专用 emitter，不使用 `emit_effect_unwind_if_active` 作为传播机制。
   - 默认使用 heap-allocated full state machine，保持语义完整优先。
 - 验收：
   - LLVM emitter 能从 state machine 构建完整控制流与运行时交互骨架。
-  - 当前支持范围内的 state machine 不再需要 shape-based fallback emitter。
+  - effect 传播完全由 state machine 状态转移驱动，不依赖 flag-based unwind。
 - 依赖：T3003R
 
 ### T3004R [TODO] Review：确认 full-state-machine LLVM emitter 不含 shape-based 选路
@@ -151,24 +152,25 @@
 - 依赖：T3004
 
 ### T3005 [TODO] 将统一 state-machine LLVM lowering 接回 effect codegen 主入口
-- 描述：把统一 emitter 接到当前生产入口，替换剩余旧主线路由与占位入口。
+- 描述：把统一 emitter 接到当前生产入口，替换 `codegen_perform_expr` / `codegen_handle_expr` 的占位错误。同时移除 `mod.rs` 中 flag-based unwind 调用点（`emit_effect_unwind_if_active` × 7、`raise_target_stack`、`fun_ty_effects_is_pure` 门控），使 effect 传播完全由统一 state machine 接管。
 - 目标：
-  - `handle` / `perform` / 相关 continuation 与 callee-suspend 入口统一走新的 state-machine lowering。
-  - 删除或替换旧的主入口占位与 fallback route。
-  - 生产路径中不再存在“先判源码形状，再决定是否走 unified lowering”的结构。
+  - `handle` / `perform` 入口统一走新的 state-machine lowering，替换 `UnsupportedMainBody` 占位。
+  - 移除 `mod.rs` 中 7 处 `emit_effect_unwind_if_active` 调用与配套的 `fun_ty_effects_is_pure` 门控、`raise_target_stack` 栈。
+  - 生产路径中不再存在”先判源码形状再选路”或”先用 flag 检查再 unwind”的结构。
 - 验收：
   - effect codegen 主入口只走统一 state-machine LLVM lowering。
-  - 已知旧主线路由不再参与生产路径。
+  - `mod.rs` 中不再有 flag-based unwind 调用点。
 - 依赖：T3004R
 
-### T3005R [TODO] Review：确认 effect codegen 主入口只接统一 state-machine lowering
-- 描述：主入口接通后，再做一轮生产代码审查，防止旧入口残留成隐式 fallback；若发现双轨或隐藏回退，本任务需要直接修复并在修复后重新审查。
+### T3005R [TODO] Review：确认 effect codegen 主入口只接统一 state-machine lowering，无 flag-based unwind 残留
+- 描述：主入口接通后，再做一轮生产代码审查，防止旧入口残留成隐式 fallback、flag-based unwind 残留为隐式传播路径；若发现双轨或隐藏回退，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认统一 lowering 已成为唯一主路径。
-  - 确认不存在“失败时退回旧 shape-based emitter”的隐藏逻辑。
+  - 确认不存在”失败时退回旧 shape-based emitter”的隐藏逻辑。
+  - 确认 `emit_effect_unwind_if_active`、`raise_target_stack` 不再出现在生产调用路径中。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“effect codegen 主入口没有旧 fallback / 双轨”。
+  - 审查结论明确记录”effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留”。
 - 依赖：T3005
 
 ### T3006 [TODO] 用定向测试补齐统一 LLVM lowering 覆盖，并修复暴露出的合同缺口
@@ -193,24 +195,26 @@
 - 依赖：T3006
 
 ### T3007 [TODO] 删除统一主线接管后剩余的 legacy effect codegen 死代码
-- 描述：在统一主线可工作后，继续删除剩余 legacy effect codegen 文件、helper 与不再可达的过渡分支，避免仓库再次回到旧路线。
+- 描述：在统一主线可工作后，继续删除剩余 legacy effect codegen 文件、helper 与不再可达的过渡分支，避免仓库再次回到旧路线。包括 T3005 移除 flag-based unwind 生产调用后残留的 `emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure` 函数定义、`raise_target_stack` 字段及其配套 runtime ABI 声明（如已无其他消费者）。
 - 目标：
   - 删除不再被生产路径引用的 legacy effect codegen 文件与 helper。
-  - 清理旧文档 / 注释 / 命名中仍把旧 shape-based 方案当作现行主线的残留。
+  - 删除 flag-based unwind 相关函数定义与 runtime ABI 声明（若 sysroot intrinsic 仍需 `is_active` / `set_active` / `clear` 等少量 ABI，保留对应声明，仅删除纯服务于 flag-based unwind 的部分）。
+  - 清理旧文档 / 注释 / 命名中仍把旧 shape-based 方案或 flag-based unwind 当作现行主线的残留。
   - 保持 effect codegen 仓库形态与当前统一架构一致。
 - 验收：
   - 生产代码目录中只保留当前统一主线所需的 effect codegen 实现。
-  - 已删除的 legacy 路径不再可能被重新接回主入口。
+  - 已删除的 legacy 路径与 flag-based unwind 机制不再可能被重新接回主入口。
 - 依赖：T3006R
 
 ### T3007R [TODO] Review：确认仓库中的 effect codegen 生产实现只剩统一主线
-- 描述：最终审查，确认 cleanup 真正完成，而不是“旧代码还在，只是暂时不用”；若发现 legacy 残留仍可回流生产路径，本任务需要直接修复并在修复后重新审查。
+- 描述：最终审查，确认 cleanup 真正完成，而不是”旧代码还在，只是暂时不用”；若发现 legacy 残留（shape-based 逻辑或 flag-based unwind 机制）仍可回流生产路径，本任务需要直接修复并在修复后重新审查。
 - 目标：
   - 确认 effect codegen 生产实现只剩统一主线。
-  - 确认后续 LLVM 阶段可以直接在统一主线上继续推进，不再受旧 shape-based 代码干扰。
+  - 确认 flag-based unwind 相关代码已完全清除或仅保留 sysroot intrinsic 消费的最小 ABI 子集。
+  - 确认后续 LLVM 阶段可以直接在统一主线上继续推进，不再受旧 shape-based 代码或 flag-based unwind 干扰。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“effect codegen 生产实现只剩统一主线，无 shape-based legacy 残留”。
+  - 审查结论明确记录”effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留”。
 - 依赖：T3007
 
 > 以下四个主题从 `TODO-3.md` 顺延迁入，按原顺序重编号为 `T31`～`T34`，仅对与当前 `T30` 主线直接相关的依赖与表述做最小更新。

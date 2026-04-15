@@ -38,4 +38,15 @@
   - `cargo check -p scoopc`
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo test --all`
-- 下一步：更新 `TODO.md` / `PLAN.md` 记录 `T3001R` 完成状态，然后提交并停止。
+- 已完成 `TODO.md` / `PLAN.md` 更新（T3002–T3007 描述），整合两项变更：
+  1. 全面 review 发现：`effect/**` 中已无旧 scanner/resolver/matrix，统一骨架在 `dead_code` 中完整可用。
+  2. 用户新指令：搁置 flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`），统一 state machine 是 effect 传播的唯一主线机制；flag-based unwind 日后可作为优化加回。
+  - 约束与当前已知问题节已同步更新。
+  - T3002 描述增加 flag-based unwind 相关代码标记。
+  - T3003/T3004 明确排除 flag-based unwind 依赖。
+  - T3005 重写：替换占位错误 + 移除 flag-based unwind 7 处调用点。
+  - T3005R 增加 flag-based unwind 残留审查。
+  - T3007 增加 flag-based unwind 函数定义/ABI 清理。
+  - T3007R 增加 flag-based unwind 最终审查。
+  - PLAN.md 工作原则、当前状态、阶段 B/C/D/F 描述同步更新。
+- 下一步：提交本次改动后停止。
