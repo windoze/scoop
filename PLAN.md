@@ -43,7 +43,7 @@
 - `T3003b` 已完成：`UnifiedHandleLoweringContract` 已定义为唯一生产结构输入；`build_unified_lowering_contract` 实现完整 pipeline（plan → segments → unified machine → contract）；全部子结构有 `pub(crate)` 只读访问器。
 - `T3003R` 已完成：审查确认 LLVM lowering 的主输入只有 state machine，无 shape-based 旁路输入或旧依赖链残留。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。下一步进入阶段 C：实现 full state machine LLVM emitter（T3004）。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。下一步进入阶段 C：实现 full state machine LLVM emitter。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
 
 ## 2. 阶段顺序
 
@@ -119,10 +119,32 @@
 
 ### 阶段 C：实现 full state machine LLVM emitter
 
-#### T3004：实现 heap-allocated full state machine 的 LLVM lowering 主体
-- 从统一 state machine 发射 frame、`pc` dispatch、state block、resume edge、cleanup/unwind、handler stack 交互与 payload transport。
-- effect 传播完全由 state machine 状态转移驱动，不使用 flag-based unwind。
-- 当前阶段不做 simplification；即使后续会优化，也必须先保证 full state machine 语义完整可发射。
+原 `T3004` 拆分为四个子任务（`T3004a`～`T3004d`），采用 continuation-based state machine 模型：
+- **Frame**: 堆分配结构体 = system fields (state_tag i32, resume_word i64, resume_gc_ref ptr, cleanup_flag i32, one_shot_flag i32) + user slots。
+- **Step function**: `(ptr state, i64 resume_word, ptr resume_gc_ref) -> void`，按 state_tag switch 派发到各 state block。
+- **Handle 入口**: alloc frame → push handler stack → call step_fn → check active → dispatch to arm。
+- **Suspend**: perform 时保存 state_tag → alloc continuation → set active → return from step_fn。
+- **Resume**: handler arm 调用 `scoop_continuation_resume` → 重入 step_fn → 从参数读取 resume payload。
+
+#### T3004a：Frame struct LLVM 类型生成 + step function 骨架 + handle 入口
+- 创建 `state_machine_emitter.rs`，实现从 `UnifiedFrameSchema` 生成 LLVM struct type。
+- 生成 step function 骨架（state_tag-based switch，各 state block 暂时 return void）。
+- 将 `codegen_handle_expr` 从占位错误改为 build contract → alloc frame → init → call step_fn → return handle result。
+
+#### T3004b：状态 op 发射与基本 terminator
+- 为每个 state 的 `HandleStateOp` 列表生成 LLVM IR，委托给现有 `codegen_expr`/`codegen_stmt`。
+- Frame slot read/write → GEP + load/store。
+- 基本 terminator：Goto、Branch、ReturnHandle、ReturnFromFunction。
+
+#### T3004c：Suspend/resume 与 handler arm dispatch
+- Suspend terminator → continuation 分配 + handler stack 交互 + return。
+- Handle 入口 dispatch loop → arm 执行 → arm exit。
+- Resume landing → 读取 resume payload → 继续执行。
+
+#### T3004d：Cleanup scope、嵌套 handle、emitter 完善
+- Cleanup scope enter/exit。
+- 嵌套 handle 递归 emission。
+- 边界完善与剩余 op/terminator 覆盖。
 
 #### T3004R：Review
 - 审查 emitter 主体，确认所有发射分支都来自 state machine 语义边，而不是代码形状推断。
@@ -257,31 +279,34 @@
 1. `T3003a`
 2. `T3003b`
 3. `T3003R`
-4. `T3004`
-5. `T3004R`
-6. `T3005`
-7. `T3005R`
-8. `T3006`
-9. `T3006R`
-10. `T3007`
-11. `T3007R`
-12. `T3101`
-13. `T3102`
-14. `T3103`
-15. `T3104`
-16. `T3201`
-17. `T3202`
-18. `T3203`
-19. `T3204`
-20. `T3205`
-21. `T3301`
-22. `T3302`
-23. `T3303`
-24. `T3401`
-25. `T3401a`
-26. `T3401b`
-27. `T3401c`
-28. `T3402`
-29. `T3403`
-30. `T3404`
-31. `T3405`
+4. `T3004a`
+5. `T3004b`
+6. `T3004c`
+7. `T3004d`
+8. `T3004R`
+9. `T3005`
+10. `T3005R`
+11. `T3006`
+12. `T3006R`
+13. `T3007`
+14. `T3007R`
+15. `T3101`
+16. `T3102`
+17. `T3103`
+18. `T3104`
+19. `T3201`
+20. `T3202`
+21. `T3203`
+22. `T3204`
+23. `T3205`
+24. `T3301`
+25. `T3302`
+26. `T3303`
+27. `T3401`
+28. `T3401a`
+29. `T3401b`
+30. `T3401c`
+31. `T3402`
+32. `T3403`
+33. `T3404`
+34. `T3405`

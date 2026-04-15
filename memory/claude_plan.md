@@ -4,36 +4,38 @@
 
 - 按要求，本轮只处理 `TODO.md` 中第一个未完成任务，完成后即停止。
 
-## 当前任务：T3003R — Review：确认 LLVM lowering 输入面只剩 state machine
+## 当前任务：T3004 — 实现 heap-allocated full state machine 的 LLVM lowering 主体
 
-### 审查范围
-1. `effect/mod.rs` — 统一 lowering 入口 + re-export
-2. `state_machine_plan.rs` — plan builder 输入来源
-3. `state_machine_segments.rs` — segmentation 无旁路
-4. `state_machine_transform.rs` — transform + `UnifiedHandleLoweringContract` 封装
-5. `runtime_abi.rs` — 保留的 ABI 声明不构成旁路输入
-6. `mod.rs` / `expr.rs` — `Perform` / `Handle` 入口无旁路数据传递
+### 分析
 
-### 检查项
-- [ ] `build_unified_lowering_contract` 只从 `handle` HIR + codegen 上下文构造
-- [ ] `UnifiedHandleLoweringContract` 不携带源码路径 / scanner / shape 信息
-- [ ] 下游 emitter 所需结构都可从 contract 读取
-- [ ] `codegen_perform_expr` / `codegen_handle_expr` 占位入口不传递旁路信息
-- [ ] 无 shape-based 旁路输入
+T3004 过于复杂，需要拆分为子任务：
+
+1. **T3004a**: Frame struct LLVM 类型生成 + step function 骨架 + handle 表达式入口
+2. **T3004b**: 状态 op 发射 + 基本 terminator（Goto/Branch/Return）
+3. **T3004c**: Suspend/resume 机制 + handler arm dispatch
+4. **T3004d**: Cleanup scope、嵌套 handle、边界完善
+
+### 架构设计
+
+采用 continuation-based state machine 模型：
+
+- **Frame**: 堆分配结构体 = system fields (state_tag i32, resume_word i64, resume_gc_ref ptr, cleanup_flag i32, one_shot_flag i32) + user slots
+- **Step function**: `(ptr state, i64 resume_word, ptr resume_gc_ref) -> void`，按 state_tag switch 派发
+- **Handle 入口**: 分配 frame → push handler stack → 调用 step_fn → 检查 active → dispatch to arm
+- **Suspend**: perform 时保存 state_tag → alloc continuation → set active → return from step_fn
+- **Resume**: handler arm 调用 continuation_resume → 重入 step_fn
+
+### 本轮执行：T3004a
+
+创建 `state_machine_emitter.rs`：
+1. `emit_effect_frame_llvm_type()` — 从 UnifiedFrameSchema 生成 LLVM struct type
+2. `emit_effect_step_function()` — 生成含 state dispatch 的 step function（各 state block 暂时 return void）
+3. 更新 `codegen_handle_expr()` — build contract → alloc frame → init → call step_fn → return result
 
 ### 进展
-- [DONE] 审查 build_unified_lowering_contract 构建链
-- [DONE] 审查 UnifiedHandleLoweringContract 封装
-- [DONE] 审查 SuspendSourcePath 不可达性
-- [DONE] 审查 HandleStateOp/HandleBranchCondition/SuspendSiteKind
-- [DONE] 审查 expr.rs 入口无旁路
-- [DONE] 检索 shape/scanner 关键词无命中
-- [DONE] 确认 flag-based unwind 非主线
-- [DONE] 确认 runtime_abi.rs 无旁路
-- [DONE] 更新 TODO.md / PLAN.md
-
-### 结论
-LLVM lowering 的主输入只有 state machine，无 shape-based 旁路输入或旧依赖链残留。
-
-### 下一步
-下一个未完成任务为 **T3004** — 实现 heap-allocated full state machine 的 LLVM lowering 主体。
+- [DONE] 分析代码库现状
+- [DONE] 确定子任务分解方案
+- [TODO] 更新 TODO.md / PLAN.md
+- [TODO] 实现 T3004a
+- [TODO] 验证编译和测试通过
+- [TODO] 提交

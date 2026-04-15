@@ -187,16 +187,59 @@
   - 生产代码中不存在 shape-based 旁路输入或旧依赖链残留。
 - 依赖：T3003b
 
-### T3004 [TODO] 实现 heap-allocated full state machine 的 LLVM lowering 主体
-- 描述：基于统一合同实现真正的 LLVM lowering，当前阶段只做 full machine，不做任何 simplification。effect 传播（perform suspend、handler resume、raise/unwind）全部由 state machine 驱动，不使用 flag-based unwind。
+### T3004a [TODO] Frame struct LLVM 类型生成 + step function 骨架 + handle 表达式入口
+- 描述：为 unified state machine 创建 LLVM emitter 模块。实现三个核心组件：(1) 从 `UnifiedFrameSchema` 生成 LLVM struct type（system fields + user slots）；(2) 生成 step function `(ptr state, i64 resume_word, ptr resume_gc_ref) -> void` 骨架，内含 state_tag-based switch 派发到各 state block（各 state block 暂时 return void）；(3) 将 `codegen_handle_expr` 从占位错误改为 build contract → alloc frame → init system fields → call step_fn → return handle result。
 - 目标：
-  - 从 state machine 发射 frame、`pc` dispatch、state block、suspend/resume、cleanup/unwind、handler stack 交互与 payload transport。
-  - 统一支持当前 state machine 能表达的合法边，不再按源码形状拆专用 emitter，不使用 `emit_effect_unwind_if_active` 作为传播机制。
-  - 默认使用 heap-allocated full state machine，保持语义完整优先。
+  - 创建 `state_machine_emitter.rs` 并集成到 effect codegen 模块。
+  - Frame LLVM struct type 正确反映 `UnifiedFrameSchema` 的 system fields 与 user slots 布局。
+  - Step function 骨架能够编译，state dispatch 结构完整，各 state block 为占位 return。
+  - `codegen_handle_expr` 不再返回占位错误，而是走 contract → frame → step_fn 骨架路径。
 - 验收：
-  - LLVM emitter 能从 state machine 构建完整控制流与运行时交互骨架。
-  - effect 传播完全由 state machine 状态转移驱动，不依赖 flag-based unwind。
+  - `cargo check -p scoopc` 无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all` 通过。
 - 依赖：T3003R
+
+### T3004b [TODO] 状态 op 发射与基本 terminator
+- 描述：在 step function 骨架内，为每个 state 的 `HandleStateOp` 列表生成 LLVM IR，并实现基本 terminator（Goto、Branch、ReturnHandle、ReturnFromFunction）。frame slot 的 read/write 映射到 GEP + load/store。op 发射尽量委托给现有的 `codegen_expr` / `codegen_stmt` 基础设施。
+- 目标：
+  - 每个 state block 能执行其 ops（BindLocal、ReadLocal、Literal、Expr、Call 等）。
+  - frame slot 的 BindLocal → GEP + store，ReadLocal → GEP + load。
+  - Goto → 直接 branch 到目标 state block。
+  - Branch → eval condition + conditional branch to then/else state blocks。
+  - ReturnHandle → 把 handle result 写回约定位置并 return。
+  - ReturnFromFunction → 生成函数级 return。
+- 验收：
+  - `cargo check -p scoopc` 无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all` 通过。
+- 依赖：T3004a
+
+### T3004c [TODO] Suspend/resume 机制与 handler arm dispatch
+- 描述：实现 effect 传播的核心机制。Suspend terminator：保存 state_tag → alloc continuation → push handler stack → set active → return from step_fn。Handle 入口 dispatch：step_fn 返回后检查 active flag → read op_tag → dispatch to matching arm。Arm 执行：emit arm body via ExecuteArmBody → arm exit paths（ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）。Resume landing：重入 step_fn 时从参数读取 resume_word/resume_gc_ref → 继续执行。
+- 目标：
+  - effect 传播完全由 state machine 状态转移驱动，不使用 flag-based unwind。
+  - 完整的 suspend → dispatch → arm → resume 循环可工作。
+  - `perform` 入口也通过同一机制传播，不走旧的 `codegen_perform_expr` 占位。
+- 验收：
+  - `cargo check -p scoopc` 无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all` 通过。
+- 依赖：T3004b
+
+### T3004d [TODO] Cleanup scope、嵌套 handle 与 emitter 完善
+- 描述：补齐 state machine emitter 的剩余组件：cleanup scope 的 enter/exit 路径、嵌套 handle 的递归 emitter、以及边界完善（error diagnostics、remaining HandleStateOp variants、edge cases）。
+- 目标：
+  - CleanupEnter terminator → 进入 cleanup scope → 执行 cleanup states → 退出。
+  - 嵌套 handle 递归调用 emitter 生成子 state machine。
+  - 所有 HandleStateOp 变体和 UnifiedStateTerminator 变体都有对应的 emission 路径。
+  - LLVM emitter 从 state machine 构建完整控制流与运行时交互骨架。
+- 验收：
+  - `cargo check -p scoopc` 无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all` 通过。
+  - LLVM emitter 覆盖当前 state machine 能表达的所有合法边。
+- 依赖：T3004c
 
 ### T3004R [TODO] Review：确认 full-state-machine LLVM emitter 不含 shape-based 选路
 - 描述：在接主入口之前，先检查 emitter 主体本身是否纯粹消费 state machine；若发现 shape-based 选路或等价旁路，本任务需要直接修复并在修复后重新审查。
@@ -205,8 +248,8 @@
   - 确认 emitter 内部所有分支都来自 state machine 语义边，而非代码形状推断。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“full-state-machine LLVM emitter 只按 state machine 语义发射”。
-- 依赖：T3004
+  - 审查结论明确记录”full-state-machine LLVM emitter 只按 state machine 语义发射”。
+- 依赖：T3004d
 
 ### T3005 [TODO] 将统一 state-machine LLVM lowering 接回 effect codegen 主入口
 - 描述：把统一 emitter 接到当前生产入口，替换 `codegen_perform_expr` / `codegen_handle_expr` 的占位错误。同时移除 `mod.rs` 中 flag-based unwind 调用点（`emit_effect_unwind_if_active` × 7、`raise_target_stack`、`fun_ty_effects_is_pure` 门控），使 effect 传播完全由统一 state machine 接管。
