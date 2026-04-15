@@ -4,9 +4,12 @@
 //! This module generates LLVM IR from a `UnifiedHandleLoweringContract`:
 //! - Frame struct type (system fields + user slots)
 //! - Step function with state_tag-based dispatch, per-state op emission,
-//!   and terminators (Goto, Branch, Suspend, ReturnHandle, ReturnFromFunction,
-//!   ArmReturnHandle, ArmResumeMatchedSite, ArmMaterializeContinuation)
+//!   and terminators (Goto, Branch, Suspend, CleanupEnter, ReturnHandle,
+//!   ReturnFromFunction, ArmReturnHandle, ArmResumeMatchedSite,
+//!   ArmMaterializeContinuation)
 //! - Handle expression entry with handler arm dispatch loop
+//! - Cleanup scope (finally block) execution via CleanupEnter branching
+//! - Nested handle expressions via recursive codegen delegation
 //!
 //! T3004a: skeleton — frame type, step function with placeholder state blocks,
 //!         handle expression entry.
@@ -14,6 +17,8 @@
 //!         terminators, result passing through frame.
 //! T3004c: suspend/resume mechanism, handler arm dispatch, arm execution,
 //!         perform op emission, continuation allocation.
+//! T3004d: cleanup scope enter/exit, nested handle recursive emission,
+//!         emitter completeness.
 //!
 //! All emission decisions are driven by the state machine contract; no source
 //! shapes, old scanner results, or old mode selections are consulted.
@@ -392,7 +397,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 HandleStateOp::CleanupEdgeComplete
                 | HandleStateOp::ReturnToEnclosingExpression => {
-                    // T3004d: cleanup scope ops — placeholder for now.
+                    // Semantic markers — no LLVM IR needed.
+                    // CleanupEdgeComplete: marks end of cleanup block; the
+                    //   Goto terminator on the same state handles the branch.
+                    // ReturnToEnclosingExpression: marks the final state before
+                    //   ReturnHandle; the terminator handles the return.
                 }
 
                 // --- Frame slot write (BindLocal) ---
@@ -526,12 +535,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     last_value = Some(val);
                 }
 
-                // --- Nested handle: T3004d ---
-                HandleStateOp::NestedHandle { .. }
-                | HandleStateOp::NestedHandleBoundary { .. } => {
-                    // T3004d: nested handle — placeholder return void for now.
-                    self.builder.build_return(None)?;
-                    return Ok(last_value);
+                // --- Nested handle ---
+                HandleStateOp::NestedHandle { expr, .. } => {
+                    // Non-suspending nested handle: delegate to codegen_expr
+                    // which will recursively enter codegen_handle_expr →
+                    // codegen_handle_expr_via_state_machine, generating a
+                    // separate sub-state-machine for the inner handle.
+                    let val =
+                        self.codegen_expr_in_expected_context(expr, None)?;
+                    last_value = Some(val);
+                }
+                HandleStateOp::NestedHandleBoundary { expr, .. } => {
+                    // Suspending nested handle boundary: the inner handle may
+                    // perform effects that bubble up.  Delegate to codegen_expr
+                    // to generate the inner state machine; the outer state
+                    // machine's Suspend terminator (which follows this op)
+                    // handles suspension if the inner handle doesn't catch.
+                    let val =
+                        self.codegen_expr_in_expected_context(expr, None)?;
+                    last_value = Some(val);
                 }
 
                 // --- Error / unsupported ops ---
@@ -840,9 +862,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
 
-            // T3004d: cleanup scope enter — placeholder.
-            UnifiedStateTerminator::CleanupEnter { .. } => {
-                self.builder.build_return(None)?;
+            UnifiedStateTerminator::CleanupEnter {
+                next_state, ..
+            } => {
+                // Branch unconditionally to the cleanup scope's entry state.
+                // The cleanup states (finally block) are part of the same step
+                // function's state table and will execute their ops normally,
+                // eventually flowing back through Goto → ReturnHandle.
+                let target_bb =
+                    self.lookup_state_bb(*next_state, state_bb_map, span)?;
+                self.builder.build_unconditional_branch(target_bb)?;
             }
 
             UnifiedStateTerminator::ArmReturnHandle => {

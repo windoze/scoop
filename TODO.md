@@ -247,8 +247,15 @@
   - `cargo test --all` 通过。
 - 依赖：T3004b
 
-### T3004d [TODO] Cleanup scope、嵌套 handle 与 emitter 完善
+### T3004d [DONE] Cleanup scope、嵌套 handle 与 emitter 完善
 - 描述：补齐 state machine emitter 的剩余组件：cleanup scope 的 enter/exit 路径、嵌套 handle 的递归 emitter、以及边界完善（error diagnostics、remaining HandleStateOp variants、edge cases）。
+- 进展：
+  - CleanupEnter terminator：从 placeholder `ret void` 改为 `build_unconditional_branch` 到 cleanup scope 的 entry state。Cleanup states（finally block）是 step function state table 的一部分，通过 Goto chain 正常执行后流回 ReturnHandle。
+  - CleanupEdgeComplete / ReturnToEnclosingExpression ops：确认为设计如此的语义标记（no-op），更新注释说明不是 placeholder。
+  - NestedHandle op：从 `ret void` 中断改为委托 `codegen_expr_in_expected_context(expr)` 递归进入 `codegen_handle_expr_via_state_machine`，生成独立的子 state machine。
+  - NestedHandleBoundary op：同样委托 codegen_expr；外层 state machine 的 Suspend terminator 处理 inner handle 未捕获的 effect 冒泡。
+  - 所有 HandleStateOp 变体和 UnifiedStateTerminator 变体现在都有完整的 emission 路径（或明确的语义 no-op），无 placeholder stub 残留。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - CleanupEnter terminator → 进入 cleanup scope → 执行 cleanup states → 退出。
   - 嵌套 handle 递归调用 emitter 生成子 state machine。

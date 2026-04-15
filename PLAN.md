@@ -45,7 +45,8 @@
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
 - `T3004b` 已完成：在 step function 骨架内实现了完整的 per-state op 发射与基本 terminator。重构 step function 生成为 `emit_step_function_body`（保存/恢复完整 codegen 上下文）。BindLocal/ReadLocal 通过 frame GEP 实现，自动注册 env 以便后续 codegen 基础设施可引用。ReturnHandle/ReturnFromFunction 通过 frame resume_word/resume_gc_ref 传递结果，使用 state_tag sentinel 区分完成模式。handle 入口已从 default_value 占位改为从 frame 读取真实结果。
 - `T3004c` 已完成：实现了 suspend/resume 机制与 handler arm dispatch 的完整控制流。Suspend terminator 分配 GC-managed continuation 并设置 TLS active flag。Handle 入口 dispatch loop 检查 active flag → 读 op_tag → 按 dispatch table switch 到 arm → arm 内部设置 state_tag + 调用 step_fn → 循环。Arm 执行通过 ExecuteArmBody 从 perform slot 读取 binder 值、绑定 resume/continuation、恢复 captures、求值 arm body。三种 arm terminator（ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）完整实现。移除了 8 个 `#[allow(dead_code)]` 从已被消费的 runtime ABI 声明。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）进行中：T3004a、T3004b 和 T3004c 已完成，下一步是 T3004d（cleanup scope + 嵌套 handle + emitter 完善）。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
+- `T3004d` 已完成：CleanupEnter terminator 从 placeholder 改为 unconditional branch 到 cleanup entry state；NestedHandle / NestedHandleBoundary 从 `ret void` 中断改为委托 `codegen_expr_in_expected_context` 递归生成子 state machine。所有 HandleStateOp 变体和 UnifiedStateTerminator 变体现在都有完整的 emission 路径。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成：T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）均已完成。下一步是 T3004R（review：确认 emitter 不含 shape-based 选路）。
 
 ## 2. 阶段顺序
 
@@ -149,10 +150,12 @@
 - 移除 8 个 `#[allow(dead_code)]` 从已被消费的 runtime ABI 声明。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）。
 
-#### T3004d：Cleanup scope、嵌套 handle、emitter 完善
-- Cleanup scope enter/exit。
-- 嵌套 handle 递归 emission。
-- 边界完善与剩余 op/terminator 覆盖。
+#### T3004d：Cleanup scope、嵌套 handle、emitter 完善（已完成）
+- CleanupEnter terminator：从 placeholder `ret void` 改为 unconditional branch 到 cleanup scope entry state。Cleanup states（finally block）是 step function state table 的一部分，通过 Goto chain 正常流转后到达 ReturnHandle。
+- CleanupEdgeComplete / ReturnToEnclosingExpression ops：确认为设计如此的语义标记（no-op），非 placeholder。
+- NestedHandle / NestedHandleBoundary ops：从 `ret void` 中断改为委托 `codegen_expr_in_expected_context` 递归生成独立子 state machine。NestedHandleBoundary 场景中，外层 Suspend terminator 处理 inner handle 未捕获的 effect 冒泡。
+- 所有 HandleStateOp 变体和 UnifiedStateTerminator 变体现在都有完整的 emission 路径，无 placeholder 残留。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）。
 
 #### T3004R：Review
 - 审查 emitter 主体，确认所有发射分支都来自 state machine 语义边，而不是代码形状推断。

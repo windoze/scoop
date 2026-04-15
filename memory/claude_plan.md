@@ -1,29 +1,44 @@
 # 本轮执行计划
 
-## 当前任务：T3004c — Suspend/resume 机制与 handler arm dispatch [已完成]
+## 当前任务：T3004d — Cleanup scope、嵌套 handle 与 emitter 完善
 
-### 实现摘要
+### 分析
 
-1. **Suspend terminator**: 写入 resume_state 到 state_tag → `scoop_continuation_alloc(state, step_fn)` → 存 continuation 到 frame resume_gc_ref slot → `scoop_effect_set_active()` → return void。
+T3004d 需要补齐三类 emitter 残留 stub：
 
-2. **Handle entry dispatch loop**: `is_active()` check → `read_op_tag()` → `clear()` → switch on op_tag → arm block (设置 state_tag 到 arm entry state, 调用 step_fn) → loop back to check。Handler stack 生命周期由栈上 ScoopEffectHandlerFrame + push/pop 管理。
+1. **CleanupEnter terminator** — 当前 `ret void`，应改为 branch 到 cleanup entry state
+2. **CleanupEdgeComplete / ReturnToEnclosingExpression ops** — 语义标记，保持 no-op 是正确的
+3. **NestedHandle / NestedHandleBoundary ops** — 当前 `ret void` 中断，应委托递归 codegen
 
-3. **Perform op emission**: 求值 perform 表达式 → 按 CgTy 分流写入 TLS perform slot (`write_u64` / `write_u64_with_gc_ref`)。
+### 实现计划
 
-4. **SuspendCall/ObjectInitAccessBoundary/RuntimeRaiseBoundary**: 委托 codegen_expr 求值。
+#### 1. CleanupEnter terminator
+Cleanup scope 在 plan builder 中的结构：
+- body_end_state 的 terminator 是 `CleanupEnter { scope_id, next_state: cleanup_entry }`
+- cleanup_entry → cleanup_end 是 finally block 的 stmts
+- cleanup_end 有 `CleanupEdgeComplete` op + `Goto(cleanup_exit)`
+- cleanup_exit 有 `ReturnToEnclosingExpression` op + `ReturnHandle`
 
-5. **ResumeAfterSite**: no-op — step_fn entry 已将 resume payload 写入 frame。
+所有 cleanup states 已经在 step function 的 state_bb_map 中有对应的 basic block。
+`CleanupEnter` 只需要 unconditional branch 到 `next_state` 对应的 bb 即可。
 
-6. **ExecuteArmBody**: 从 perform slot 读 binder → frame slot + env → resume/continuation 绑定 → 恢复 captures → 求值 arm body。
+#### 2. CleanupEdgeComplete / ReturnToEnclosingExpression
+保持 no-op，更新注释说明这是设计如此而非 placeholder。
 
-7. **Arm terminators**:
-   - ArmReturnHandle → store result + HANDLE_RETURNED sentinel
-   - ArmResumeMatchedSite → write payload to continuation (field 6/7) + `scoop_continuation_resume(k)`
-   - ArmMaterializeContinuation → store result + HANDLE_RETURNED sentinel
+#### 3. NestedHandle / NestedHandleBoundary
+两种场景：
+- `NestedHandle { nested_id, expr }`: 不会 suspend 的嵌套 handle → 直接委托 `codegen_expr_in_expected_context(expr)` 递归进入 `codegen_handle_expr`
+- `NestedHandleBoundary { site_id, nested_id, expr }`: 可能 suspend 的嵌套 handle → 同样委托 `codegen_expr_in_expected_context(expr)`；state machine 已经安排了 Suspend terminator 来处理内部 perform 冒泡
 
-8. **Dead code cleanup**: 移除 8 个 `#[allow(dead_code)]` 从已消费的 runtime ABI + `effect_op_tag`。
+#### 4. 验证
+- `cargo check -p scoopc` 零 warning
+- `cargo clippy --all-targets -- -D warnings` 通过
+- `cargo test --all` 通过
 
-### 验证结果
-- cargo check -p scoopc：零 warning
-- cargo clippy --all-targets -- -D warnings：通过
-- cargo test --all：213 passed
+### 执行状态
+- [x] 分析代码
+- [ ] 实现 CleanupEnter terminator
+- [ ] 更新 cleanup op 注释
+- [ ] 实现 NestedHandle / NestedHandleBoundary
+- [ ] 验证
+- [ ] 更新 TODO.md / PLAN.md 并提交
