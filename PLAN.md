@@ -43,7 +43,8 @@
 - `T3003b` 已完成：`UnifiedHandleLoweringContract` 已定义为唯一生产结构输入；`build_unified_lowering_contract` 实现完整 pipeline（plan → segments → unified machine → contract）；全部子结构有 `pub(crate)` 只读访问器。
 - `T3003R` 已完成：审查确认 LLVM lowering 的主输入只有 state machine，无 shape-based 旁路输入或旧依赖链残留。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。下一步进入阶段 C：实现 full state machine LLVM emitter。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
+- `T3004b` 已完成：在 step function 骨架内实现了完整的 per-state op 发射与基本 terminator。重构 step function 生成为 `emit_step_function_body`（保存/恢复完整 codegen 上下文）。BindLocal/ReadLocal 通过 frame GEP 实现，自动注册 env 以便后续 codegen 基础设施可引用。ReturnHandle/ReturnFromFunction 通过 frame resume_word/resume_gc_ref 传递结果，使用 state_tag sentinel 区分完成模式。handle 入口已从 default_value 占位改为从 frame 读取真实结果。Suspend/Arm/Cleanup 等 T3004c/d 功能保留 placeholder。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）进行中：T3004a 和 T3004b 已完成，下一步是 T3004c（suspend/resume + handler dispatch）。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
 
 ## 2. 阶段顺序
 
@@ -131,10 +132,11 @@
 - 生成 step function 骨架（state_tag-based switch，各 state block 暂时 return void）。
 - 将 `codegen_handle_expr` 从占位错误改为 build contract → alloc frame → init → call step_fn → return handle result。
 
-#### T3004b：状态 op 发射与基本 terminator
+#### T3004b：状态 op 发射与基本 terminator（已完成）
 - 为每个 state 的 `HandleStateOp` 列表生成 LLVM IR，委托给现有 `codegen_expr`/`codegen_stmt`。
-- Frame slot read/write → GEP + load/store。
-- 基本 terminator：Goto、Branch、ReturnHandle、ReturnFromFunction。
+- Frame slot read/write → GEP + load/store（BindLocal/ReadLocal 自动注册 env）。
+- 基本 terminator：Goto → branch、Branch → eval cond + cond branch、ReturnHandle → store result to frame + sentinel + return void、ReturnFromFunction → store + sentinel + return void。
+- 结果传递：handle 入口从 frame 读取真实结果（替代 default_value 占位）。
 
 #### T3004c：Suspend/resume 与 handler arm dispatch
 - Suspend terminator → continuation 分配 + handler stack 交互 + return。

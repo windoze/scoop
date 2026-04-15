@@ -200,8 +200,16 @@
   - `cargo test --all` 通过。
 - 依赖：T3003R
 
-### T3004b [TODO] 状态 op 发射与基本 terminator
+### T3004b [DONE] 状态 op 发射与基本 terminator
 - 描述：在 step function 骨架内，为每个 state 的 `HandleStateOp` 列表生成 LLVM IR，并实现基本 terminator（Goto、Branch、ReturnHandle、ReturnFromFunction）。frame slot 的 read/write 映射到 GEP + load/store。op 发射尽量委托给现有的 `codegen_expr` / `codegen_stmt` 基础设施。
+- 进展：
+  - 重构 `emit_effect_step_function`：将 step function body 拆分为 `emit_step_function_body`，保存/恢复完整 codegen 上下文（env、return_context、current_fun_return_ty、loop_context_stack）。
+  - 实现 `emit_state_ops`：遍历每个 state 的 ops 列表，按 HandleStateOp 变体分派。BindLocal → 求值 → frame GEP + store + env 注册；ReadLocal → frame GEP + load + env 注册；Literal/VarRef/Expr/Call 等表达式 op → 委托给 `codegen_expr_in_expected_context`；Assign → 委托给 `codegen_assign_stmt`；Return → 求值并追踪为 last_value；Suspend/Arm 等 T3004c/d op → placeholder return void。
+  - 实现 `emit_state_terminator`：Goto → unconditional branch；Branch → eval condition + conditional branch；ReturnHandle → store result to frame resume fields + state_tag sentinel + return void；ReturnFromFunction → store value + function-return sentinel + return void；Suspend/Cleanup/Arm 等 T3004c/d terminator → placeholder return void。
+  - 实现 frame 结果传递：`store_result_to_frame`（按 CgTy 分 resume_word / resume_gc_ref 存储）、`read_result_from_frame`（从 frame 读取结果）、`narrow_u64_word_to_cg_value`（u64 → CgTy 窄化）。
+  - 更新 `codegen_handle_expr_via_state_machine`：step_fn 返回后从 frame 读取结果（替代 T3004a 的 default_value 占位）。
+  - 移除 `FrameLayout` 上的 `#[allow(dead_code)]` 注解：`system_field_count` 和 `user_slot_llvm_index` 现在被 op 发射实际消费。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - 每个 state block 能执行其 ops（BindLocal、ReadLocal、Literal、Expr、Call 等）。
   - frame slot 的 BindLocal → GEP + store，ReadLocal → GEP + load。
