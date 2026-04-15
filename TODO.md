@@ -293,8 +293,17 @@
   - `expr.rs` 的 `ExprKind::Perform` / `ExprKind::Handle` 入口只做透传，无形状分流层。
 - 依赖：T3004d
 
-### T3005 [TODO] 将统一 state-machine LLVM lowering 接回 effect codegen 主入口
+### T3005 [DONE] 将统一 state-machine LLVM lowering 接回 effect codegen 主入口
 - 描述：把统一 emitter 接到当前生产入口，替换 `codegen_perform_expr` / `codegen_handle_expr` 的占位错误。同时移除 `mod.rs` 中 flag-based unwind 调用点（`emit_effect_unwind_if_active` × 7、`raise_target_stack`、`fun_ty_effects_is_pure` 门控），使 effect 传播完全由统一 state machine 接管。
+- 进展：
+  - 已将 `codegen_perform_expr` 从占位错误改为生产实现：查找 op_tag → 求值 payload → 写 TLS perform slot → 设置 active flag → 返回 default value。支持无参、单参（scalar/ref）两种 payload 模式，与 state machine emitter 的 `emit_perform_op` 共享 TLS 写入协议。
+  - 已将 `emit_raise_runtime_error_variant` 从占位错误改为写 `Raise.raise` op_tag 到 TLS perform slot + 设置 active flag。
+  - 已移除 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用：`codegen_top_level_fun_call`（含 `fun_ty_effects_is_pure` 门控）、vtable call、itable call、funptr call、closure call、两处 object init。
+  - 已移除 `MainCodegen` 的 `raise_target_stack` 字段（声明与初始化）。
+  - 已删除 `effect/mod.rs` 中 `emit_effect_is_active_i1`、`emit_effect_unwind_if_active`、`fun_ty_effects_is_pure` 三个 flag-based unwind 方法定义。
+  - 已修复移除后暴露的 `codegen_object_value_access` 中 `at` 参数未使用 warning。
+  - 已更新 `runtime_abi.rs` 中的注释，反映 T3005 后新的消费者结构。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - `handle` / `perform` 入口统一走新的 state-machine lowering，替换 `UnsupportedMainBody` 占位。
   - 移除 `mod.rs` 中 7 处 `emit_effect_unwind_if_active` 调用与配套的 `fun_ty_effects_is_pure` 门控、`raise_target_stack` 栈。

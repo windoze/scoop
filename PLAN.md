@@ -47,7 +47,8 @@
 - `T3004c` 已完成：实现了 suspend/resume 机制与 handler arm dispatch 的完整控制流。Suspend terminator 分配 GC-managed continuation 并设置 TLS active flag。Handle 入口 dispatch loop 检查 active flag → 读 op_tag → 按 dispatch table switch 到 arm → arm 内部设置 state_tag + 调用 step_fn → 循环。Arm 执行通过 ExecuteArmBody 从 perform slot 读取 binder 值、绑定 resume/continuation、恢复 captures、求值 arm body。三种 arm terminator（ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）完整实现。移除了 8 个 `#[allow(dead_code)]` 从已被消费的 runtime ABI 声明。
 - `T3004d` 已完成：CleanupEnter terminator 从 placeholder 改为 unconditional branch 到 cleanup entry state；NestedHandle / NestedHandleBoundary 从 `ret void` 中断改为委托 `codegen_expr_in_expected_context` 递归生成子 state machine。所有 HandleStateOp 变体和 UnifiedStateTerminator 变体现在都有完整的 emission 路径。
 - `T3004R` 已完成：审查确认 full-state-machine LLVM emitter 只按 state machine 语义发射，无 shape-based 选路或旧路线旁路。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成，包括 T3004R review。下一步是 T3005（将统一 state-machine LLVM lowering 接回 effect codegen 主入口）。
+- `T3005` 已完成：`codegen_perform_expr` 从占位错误改为写 TLS perform slot + set active + return default。`emit_raise_runtime_error_variant` 从占位错误改为写 Raise.raise op_tag + set active。移除了 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用（含 `fun_ty_effects_is_pure` 门控）、`raise_target_stack` 字段、`effect/mod.rs` 中 flag-based unwind 三方法定义。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005）已完成。下一步是 T3005R（review：确认 effect codegen 主入口只接统一 state-machine lowering，无 flag-based unwind 残留）。
 
 ## 2. 阶段顺序
 
@@ -166,10 +167,14 @@
 
 ### 阶段 D：把统一 emitter 接回生产入口
 
-#### T3005：将统一 state-machine LLVM lowering 接回 effect codegen 主入口
-- `handle` / `perform` 入口替换 `UnsupportedMainBody` 占位，统一走 state-machine lowering。
-- 移除 `mod.rs` 中 7 处 `emit_effect_unwind_if_active` 调用、配套 `fun_ty_effects_is_pure` 门控与 `raise_target_stack` 栈。
-- 旧占位入口与 flag-based unwind 调用点同步失效，不保留双轨。
+#### T3005：将统一 state-machine LLVM lowering 接回 effect codegen 主入口（已完成）
+- `codegen_perform_expr` 已从占位错误改为生产实现：写 TLS perform slot + 设置 active flag + 返回 default value。
+- `codegen_handle_expr` 已在 T3004a 接通 `codegen_handle_expr_via_state_machine`（本任务确认无需额外修改）。
+- `emit_raise_runtime_error_variant` 已从占位错误改为写 `Raise.raise` op_tag 到 TLS + 设置 active flag。
+- 已移除 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用（含 `fun_ty_effects_is_pure` 门控）。
+- 已移除 `raise_target_stack` 字段（声明与初始化）。
+- 已删除 `effect/mod.rs` 中 flag-based unwind 三方法定义（`emit_effect_is_active_i1`、`emit_effect_unwind_if_active`、`fun_ty_effects_is_pure`）。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）。
 
 #### T3005R：Review
 - 审查 effect codegen 主入口，确认统一 lowering 已经成为唯一主路径，不存在”失败时退回旧路线”或 flag-based unwind 残留。

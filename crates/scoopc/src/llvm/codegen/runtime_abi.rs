@@ -1249,9 +1249,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-// T3002：以下 9 个 effect ABI 声明已被 `codegen_sysroot_effect_intrinsics`（sysroot
-// 测试辅助 intrinsic lowering）与 `emit_effect_is_active_i1`（flag-based unwind）
-// 等生产路径消费，不再需要 blanket dead_code 保护。
+// T3002/T3005：以下 effect ABI 声明已被 `codegen_sysroot_effect_intrinsics`（sysroot
+// 测试辅助 intrinsic lowering）、`codegen_perform_expr`（standalone perform）、
+// `emit_raise_runtime_error_variant` 与 state machine emitter 等生产路径消费，
+// 不再需要 blanket dead_code 保护。
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_runtime_effect_is_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_IS_ACTIVE;

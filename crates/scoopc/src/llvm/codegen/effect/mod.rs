@@ -41,17 +41,79 @@ pub(super) use unified_state_machine_skeleton::UnifiedHandleStateMachine;
 pub(super) use unified_state_machine_skeleton::UnifiedHandleLoweringContract;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    /// Emit code for a standalone `perform` expression (outside of a state
+    /// machine step function).  Writes the op_tag + payload to the TLS
+    /// perform slot, sets the active flag, and returns a default value.
+    /// The caller's state machine (via SuspendCall + Suspend terminator) will
+    /// detect the active flag and handle dispatch.
     pub(super) fn codegen_perform_expr(
         &mut self,
         span: crate::span::Span,
-        _op: &hir::EffectOpRef,
-        _args: &[hir::CallArg],
-        _expected: Option<CgTy>,
+        op: &hir::EffectOpRef,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "effect perform codegen is temporarily unavailable until unified lowering is reconnected",
-            at: span.into(),
-        })
+        let op_tag = self.effect_op_tag(&op.fqn);
+        let op_tag_val = self
+            .context
+            .i32_type()
+            .const_int(op_tag as u64, false);
+
+        // Evaluate the payload from the first positional/named arg (if any).
+        let payload_val = if args.is_empty() {
+            CgValue::unit()
+        } else {
+            let arg_expr = match &args[0] {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
+            };
+            self.codegen_expr_in_expected_context(arg_expr, None)?
+        };
+
+        // Write to TLS perform slot (same logic as state machine emit_perform_op).
+        match payload_val.ty {
+            CgTy::Unit | CgTy::Never => {
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
+                let zero = self.context.i64_type().const_int(0, false);
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), zero.into()],
+                    "",
+                )?;
+            }
+            CgTy::String | CgTy::Ref => {
+                let word = self.context.i64_type().const_int(0, false);
+                let gc_ref = payload_val.value.map(|v| v.into_pointer_value());
+                let write_fn =
+                    self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+                let gc_ref_val =
+                    gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), word.into(), gc_ref_val.into()],
+                    "",
+                )?;
+            }
+            _ => {
+                let word = self.coerce_u64_word(span, payload_val)?;
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), word.into()],
+                    "",
+                )?;
+            }
+        }
+
+        // Set the TLS active flag to signal that an effect was performed.
+        let set_active = self.declare_runtime_effect_set_active();
+        self.builder.build_call(set_active, &[], "")?;
+
+        // Return a default value for the expected type.  The actual resume
+        // value will be provided by the handler; this default propagates
+        // through intermediate frames until the state machine catches it.
+        let result_ty = expected.unwrap_or(CgTy::Unit);
+        self.default_value(span, result_ty)
     }
 
     pub(super) fn codegen_handle_expr(
@@ -63,98 +125,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_handle_expr_via_state_machine(span, handle, expected)
     }
 
-    // T3002：flag-based unwind 不属于统一 state machine 主线。
-    // 以下三个方法（emit_effect_is_active_i1、emit_effect_unwind_if_active、
-    // fun_ty_effects_is_pure）在 T3005 接通统一 lowering 时移除。
-    pub(super) fn emit_effect_is_active_i1(
-        &mut self,
-        at: crate::span::Span,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let rt = self.declare_runtime_effect_is_active();
-        let call = self.builder.build_call(rt, &[], "effect_is_active")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect is_active return value",
-                at: at.into(),
-            })?;
-        let BasicValueEnum::IntValue(active_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect is_active return type",
-                at: at.into(),
-            });
-        };
-        Ok(self.builder.build_int_compare(
-            IntPredicate::NE,
-            active_i32,
-            self.context.i32_type().const_zero(),
-            "effect_active",
-        )?)
-    }
-
-    pub(super) fn emit_effect_unwind_if_active(
-        &mut self,
-        at: crate::span::Span,
-    ) -> Result<(), LlvmEmitError> {
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
-
-        let cont_bb = self.context.append_basic_block(func, "effect_unwind_cont");
-        let is_active = self.emit_effect_is_active_i1(at)?;
-
-        if let Some(target) = self.raise_target_stack.last().copied() {
-            self.builder
-                .build_conditional_branch(is_active, target, cont_bb)?;
-        } else {
-            let ret_bb = self
-                .context
-                .append_basic_block(func, "effect_unwind_return");
-            self.builder
-                .build_conditional_branch(is_active, ret_bb, cont_bb)?;
-
-            self.builder.position_at_end(ret_bb);
-            let ret_ty = self
-                .current_fun_return_ty
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "effect unwind needs function return type",
-                    at: at.into(),
-                })?;
-            let v = self.default_value(at, ret_ty)?;
-            self.emit_return(at, ret_ty, v)?;
-        }
-
-        self.builder.position_at_end(cont_bb);
-        Ok(())
-    }
-
-    pub(super) fn fun_ty_effects_is_pure(&self, ty: TypeId) -> Option<bool> {
-        match self.types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => Some(fun_ty.effects.is_pure()),
-            _ => None,
-        }
-    }
-
+    /// Emit code to raise a runtime error variant through the effect system.
+    /// Writes the `Raise.raise` op_tag to the TLS perform slot, sets the
+    /// active flag, and returns.  The caller is responsible for subsequent
+    /// control flow (dead block / unreachable).
     pub(super) fn emit_raise_runtime_error_variant(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _variant: &str,
     ) -> Result<(), LlvmEmitError> {
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "runtime error raise helper is temporarily unavailable until unified lowering is reconnected",
-            at: span.into(),
-        })
+        // Use the well-known Raise.raise FQN (op_tag = 1 by convention).
+        let op_tag = self.effect_op_tag("scoop.core.Raise.raise");
+        let op_tag_val = self
+            .context
+            .i32_type()
+            .const_int(op_tag as u64, false);
+
+        // Write a zero payload (the variant name is not yet part of the
+        // runtime payload protocol — this is a minimal implementation that
+        // signals "a Raise happened" without encoding the variant).
+        let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
+        let zero = self.context.i64_type().const_int(0, false);
+        self.builder.build_call(
+            write_fn,
+            &[op_tag_val.into(), zero.into()],
+            "",
+        )?;
+
+        // Set the TLS active flag.
+        let set_active = self.declare_runtime_effect_set_active();
+        self.builder.build_call(set_active, &[], "")?;
+
+        Ok(())
     }
 
     pub(super) fn coerce_u64_word(

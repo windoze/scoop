@@ -179,13 +179,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///   通过返回默认值结束当前函数，并保持 effect flag/slot 不被消费；
     /// - 若在 handler boundary 内，则会跳转到 catch 分支而不是 return。
     current_fun_return_ty: Option<CgTy>,
-    /// Raise/try-catch 的"当前捕获边界"栈（用于最小 flag-based unwinding，TODO T0614）。
-    ///
-    /// 语义（当前阶段）：
-    /// - `Raise.raise(e)`：写 slot + set flag，然后跳到栈顶 catch block；
-    /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
-    /// - 若栈为空，则返回默认值继续向外传播。
-    raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
     ///
     /// 说明：
@@ -341,7 +334,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_cg_layout_cache: HashMap::new(),
             class_init_layout_cache: HashMap::new(),
             current_fun_return_ty: None,
-            raise_target_stack: Vec::new(),
             effect_op_tags,
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
@@ -8780,19 +8772,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_call(leave, &[], "leave_native")?;
         }
 
-        // T1604：当 callee 的 effects row 为 Pure 时，调用点不应引入 effect flag 检查（避免在 no-perform
-        // 程序里把 runtime effect 符号拉进来）。
-        //
-        // 注意：当前阶段该判断以 HIR lowering 后的 function type 为准；若 future 引入更强的 effect 推断，
-        // 应在 lowering 侧确保 function type 的 effects 与 typecheck 结论一致。
-        let callee_is_pure = self.fun_ty_effects_is_pure(sig_fun.ty).unwrap_or(false);
-        if !callee_is_pure {
-            // flag-based unwinding（最小 Raise）：
-            // - callee 可能执行 `Raise.raise` 并通过"设置 flag + 返回默认值"向外传播；
-            // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
-            self.emit_effect_unwind_if_active(span)?;
-        }
-
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -9056,7 +9035,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "call_vtable",
         )?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
-        self.emit_effect_unwind_if_active(span)?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9302,7 +9280,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "call_itable",
         )?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
-        self.emit_effect_unwind_if_active(span)?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9747,7 +9724,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }
         call_site.set_call_convention(0);
-        self.emit_effect_unwind_if_active(span)?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -9918,7 +9894,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }
-        self.emit_effect_unwind_if_active(span)?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -12499,7 +12474,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
-        self.emit_effect_unwind_if_active(at)?;
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
@@ -12717,12 +12691,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_object_value_access(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
-        self.emit_effect_unwind_if_active(at)?;
 
         let instance = self.declare_object_instance_global(object_fqn);
         Ok(CgValue {
