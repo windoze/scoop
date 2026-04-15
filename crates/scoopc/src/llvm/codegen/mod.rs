@@ -496,7 +496,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - `scoop.core.Raise.raise` → 1（固定；与 runtime 约定兼容）。
     /// - 其余 effect op：首次出现时分配递增编号（从 2 开始），后续查表复用。
     /// - 同一编译单元内 tag 稳定（相同 FQN 总是得到相同 tag）。
-    #[allow(dead_code)]
     pub(super) fn effect_op_tag(&mut self, fqn: &str) -> u32 {
         let mut state = self.effect_op_tags.borrow_mut();
         if let Some(&tag) = state.map.get(fqn) {

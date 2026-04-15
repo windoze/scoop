@@ -11,8 +11,6 @@ use super::MainCodegen;
 use super::runtime_symbols;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    // T2999：handler-frame ABI 已为统一 effect lowering 预留，但当前主入口尚未重新接线。
-    #[allow(dead_code)]
     pub(super) fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
         // 说明：
         // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；
@@ -1302,7 +1300,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_PUSH;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1317,7 +1314,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_handler_stack_pop(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_POP;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1374,7 +1370,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_ALLOC;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1393,7 +1388,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// T1607：新 ABI——调用方已将 payload 写入 continuation 的 resume_word / resume_gc_ref 槽位。
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_continuation_resume(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1412,7 +1406,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
     ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
     ///     ptr state, ptr step_fn, i64 resume_word, ptr resume_gc_ref }
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -1470,7 +1463,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_perform_slot_write_u64_with_gc_ref(
         &self,
     ) -> FunctionValue<'ctx> {
@@ -1526,7 +1518,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_effect_perform_slot_read_gc_ref(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF;
         if let Some(existing) = self.module.get_function(NAME) {

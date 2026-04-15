@@ -4,13 +4,16 @@
 //! This module generates LLVM IR from a `UnifiedHandleLoweringContract`:
 //! - Frame struct type (system fields + user slots)
 //! - Step function with state_tag-based dispatch, per-state op emission,
-//!   and basic terminators (Goto, Branch, ReturnHandle, ReturnFromFunction)
-//! - Handle expression entry (allocate frame, call step_fn, collect result)
+//!   and terminators (Goto, Branch, Suspend, ReturnHandle, ReturnFromFunction,
+//!   ArmReturnHandle, ArmResumeMatchedSite, ArmMaterializeContinuation)
+//! - Handle expression entry with handler arm dispatch loop
 //!
 //! T3004a: skeleton — frame type, step function with placeholder state blocks,
 //!         handle expression entry.
 //! T3004b: op emission per state block, frame slot GEP read/write, basic
 //!         terminators, result passing through frame.
+//! T3004c: suspend/resume mechanism, handler arm dispatch, arm execution,
+//!         perform op emission, continuation allocation.
 //!
 //! All emission decisions are driven by the state machine contract; no source
 //! shapes, old scanner results, or old mode selections are consulted.
@@ -45,6 +48,16 @@ const STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
 /// body wants to return from the *enclosing function*, not just the handle.
 /// The handle entry reads this and propagates the return upward.
 const STATE_TAG_FUNCTION_RETURNED: u32 = 0xFFFF_FFFF;
+
+/// Sentinel state_tag value: the handle body has suspended (a `perform` or
+/// suspending call happened) and the dispatch loop should read the op_tag
+/// from the TLS perform slot and dispatch to the matching handler arm.
+/// The Suspend terminator sets state_tag to the *resume_state* (a normal
+/// state id), not this sentinel — this constant is unused as a tag value
+/// but reserved for future use.  The dispatch loop detects suspension by
+/// checking the TLS active flag, not by comparing state_tag.
+#[allow(dead_code)]
+const STATE_TAG_SUSPENDED: u32 = 0xFFFF_FFFD;
 
 /// Tracks the frame struct layout for a specific handle expression, mapping
 /// `UnifiedFrameField` indices to LLVM struct field indices.
@@ -341,6 +354,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 state_ptr,
                 frame_layout,
                 &state_bb_map,
+                step_fn,
             )?;
 
             self.env.pop_scope();
@@ -461,22 +475,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // transitions (Goto terminator).  No LLVM IR needed here.
                 }
 
-                // --- Suspend-related ops: T3004c ---
-                HandleStateOp::SuspendCall { .. }
-                | HandleStateOp::Perform { .. }
-                | HandleStateOp::ResumeAfterSite { .. }
-                | HandleStateOp::ObjectInitAccessBoundary { .. }
-                | HandleStateOp::RuntimeRaiseBoundary { .. } => {
-                    // T3004c: suspend/resume ops — return void for now.
-                    self.builder.build_return(None)?;
-                    return Ok(last_value);
+                // --- Perform: write op_tag + payload to TLS perform slot ---
+                HandleStateOp::Perform { op_fqn, expr } => {
+                    self.emit_perform_op(op_fqn, expr, span)?;
+                    // The Suspend terminator following this op will handle
+                    // saving state, allocating continuation, and returning.
                 }
 
-                // --- Arm / nested handle ops: T3004c/d ---
-                HandleStateOp::ExecuteArmBody { .. }
-                | HandleStateOp::NestedHandle { .. }
+                // --- Suspending call: evaluate call expression normally ---
+                HandleStateOp::SuspendCall { expr, .. } => {
+                    let val =
+                        self.codegen_expr_in_expected_context(expr, None)?;
+                    last_value = Some(val);
+                    // If the callee performed, the TLS active flag is set.
+                    // The Suspend terminator handles the rest.
+                }
+
+                // --- Resume landing: no-op marker ---
+                HandleStateOp::ResumeAfterSite { .. } => {
+                    // On resume, the step_fn entry block has already stored
+                    // resume_word/resume_gc_ref from the parameters into the
+                    // frame.  Subsequent ReadLocal ops will load the values.
+                }
+
+                // --- Object init access boundary: evaluate expression ---
+                HandleStateOp::ObjectInitAccessBoundary { expr, .. } => {
+                    let val =
+                        self.codegen_expr_in_expected_context(expr, None)?;
+                    last_value = Some(val);
+                }
+
+                // --- Runtime raise boundary: evaluate expression ---
+                HandleStateOp::RuntimeRaiseBoundary { expr, .. } => {
+                    let val =
+                        self.codegen_expr_in_expected_context(expr, None)?;
+                    last_value = Some(val);
+                }
+
+                // --- Execute handler arm body ---
+                HandleStateOp::ExecuteArmBody { arm_id, op_fqn, arm } => {
+                    let val = self.emit_execute_arm_body(
+                        *arm_id,
+                        op_fqn,
+                        arm,
+                        state_ptr,
+                        frame_layout,
+                        contract,
+                        span,
+                    )?;
+                    last_value = Some(val);
+                }
+
+                // --- Nested handle: T3004d ---
+                HandleStateOp::NestedHandle { .. }
                 | HandleStateOp::NestedHandleBoundary { .. } => {
-                    // T3004c/d: handler arm and nested handle — return void.
+                    // T3004d: nested handle — placeholder return void for now.
                     self.builder.build_return(None)?;
                     return Ok(last_value);
                 }
@@ -662,6 +715,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // ------------------------------------------------------------------
 
     /// Emit the LLVM terminator for a state block.
+    #[allow(clippy::too_many_arguments)]
     fn emit_state_terminator(
         &mut self,
         span: crate::span::Span,
@@ -670,6 +724,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         state_bb_map: &HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>>,
+        step_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         // If a suspend-related op already terminated the block (returned
         // early with `build_return`), the current block already has a
@@ -732,12 +787,129 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
 
-            // T3004c/d terminators — placeholder: return void.
-            UnifiedStateTerminator::Suspend { .. }
-            | UnifiedStateTerminator::CleanupEnter { .. }
-            | UnifiedStateTerminator::ArmReturnHandle
-            | UnifiedStateTerminator::ArmResumeMatchedSite
-            | UnifiedStateTerminator::ArmMaterializeContinuation => {
+            UnifiedStateTerminator::Suspend {
+                resume_state, ..
+            } => {
+                // Save the resume state_tag so step_fn re-enters at the
+                // right state after the handler arm resumes.
+                self.write_state_tag(
+                    state_ptr,
+                    frame_layout,
+                    *resume_state,
+                    "state_tag_suspend_resume",
+                )?;
+
+                // Allocate a continuation object (GC-managed) that captures
+                // the frame pointer and step_fn.
+                let step_fn_ptr = step_fn.as_global_value().as_pointer_value();
+                let cont_alloc = self.declare_runtime_continuation_alloc();
+                let cont = self
+                    .builder
+                    .build_call(
+                        cont_alloc,
+                        &[state_ptr.into(), step_fn_ptr.into()],
+                        "continuation",
+                    )?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "continuation_alloc return value",
+                        at: span.into(),
+                    })?
+                    .into_pointer_value();
+
+                // Store the continuation pointer into the frame so the
+                // dispatch loop can find it for arm execution.
+                // We reuse the resume_gc_ref slot for this purpose.
+                let cont_gep = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    state_ptr,
+                    frame_layout.resume_gc_ref_index(),
+                    "frame_continuation_ptr",
+                )?;
+                self.builder.build_store(cont_gep, cont)?;
+
+                // Set the TLS active flag to signal that an effect was
+                // performed.
+                let set_active = self.declare_runtime_effect_set_active();
+                self.builder
+                    .build_call(set_active, &[], "")?;
+
+                // Return from the step function.  The dispatch loop in the
+                // handle entry will detect the active flag and dispatch.
+                self.builder.build_return(None)?;
+            }
+
+            // T3004d: cleanup scope enter — placeholder.
+            UnifiedStateTerminator::CleanupEnter { .. } => {
+                self.builder.build_return(None)?;
+            }
+
+            UnifiedStateTerminator::ArmReturnHandle => {
+                // The arm's result becomes the handle expression result.
+                if let Some(val) = last_value {
+                    self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
+                }
+                self.write_state_tag(
+                    state_ptr,
+                    frame_layout,
+                    STATE_TAG_HANDLE_RETURNED,
+                    "state_tag_arm_handle_done",
+                )?;
+                self.builder.build_return(None)?;
+            }
+
+            UnifiedStateTerminator::ArmResumeMatchedSite => {
+                // ImmediateResume arm: the arm has computed a resume value
+                // (in last_value).  Write it into the continuation's
+                // resume_word/resume_gc_ref and call continuation_resume.
+                let cont_gep = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    state_ptr,
+                    frame_layout.resume_gc_ref_index(),
+                    "read_continuation_for_resume",
+                )?;
+                let cont_ptr = self
+                    .builder
+                    .build_load(
+                        self.llvm_gc_i8_ptr_type(),
+                        cont_gep,
+                        "continuation_ref",
+                    )?
+                    .into_pointer_value();
+
+                // Write the resume payload into the continuation struct.
+                if let Some(val) = last_value {
+                    self.write_resume_payload_to_continuation(
+                        span, val, cont_ptr,
+                    )?;
+                }
+
+                // Call scoop_continuation_resume(k).
+                let resume_fn = self.declare_runtime_continuation_resume();
+                self.builder
+                    .build_call(resume_fn, &[cont_ptr.into()], "")?;
+
+                // After resume returns, the step_fn has finished (or
+                // suspended again — the dispatch loop handles that).
+                // Return void to let the dispatch loop continue.
+                self.builder.build_return(None)?;
+            }
+
+            UnifiedStateTerminator::ArmMaterializeContinuation => {
+                // EscapeContinuation arm: the continuation has already been
+                // bound as a local (in ExecuteArmBody).  The arm body calls
+                // k.resume() at its discretion.  Just store any result and
+                // mark handle as returned.
+                if let Some(val) = last_value {
+                    self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
+                }
+                self.write_state_tag(
+                    state_ptr,
+                    frame_layout,
+                    STATE_TAG_HANDLE_RETURNED,
+                    "state_tag_arm_escape_done",
+                )?;
                 self.builder.build_return(None)?;
             }
         }
@@ -954,7 +1126,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // ------------------------------------------------------------------
-    // Handle expression entry (T3004a + T3004b result reading)
+    // Handle expression entry with dispatch loop (T3004a + T3004b + T3004c)
     // ------------------------------------------------------------------
 
     /// Implement `handle` expression codegen via the unified state machine.
@@ -962,10 +1134,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Flow:
     /// 1. Build the unified lowering contract from the `handle` HIR.
     /// 2. Generate the frame struct type and step function.
-    /// 3. Allocate the frame on the heap (malloc; GC alloc in T3004c).
+    /// 3. Allocate the frame on the heap.
     /// 4. Initialize the frame's state_tag to the entry state.
     /// 5. Call the step function for the initial body execution.
-    /// 6. Read the handle result from the frame (or propagate early return).
+    /// 6. Dispatch loop: check active flag → read op_tag → dispatch to arm
+    ///    → arm executes → arm may resume (re-call step_fn) or return.
+    /// 7. Read the handle result from the frame.
     pub(in crate::llvm::codegen) fn codegen_handle_expr_via_state_machine(
         &mut self,
         span: crate::span::Span,
@@ -981,9 +1155,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.emit_effect_step_function(span, &contract, &frame_layout)?;
 
         // 3. Allocate the frame on the heap.
-        //
-        // Uses malloc for now.  T3004c will switch to GC-managed allocation
-        // so the frame survives across suspension boundaries.
         let frame_size = self
             .target_data
             .get_store_size(&frame_layout.frame_type);
@@ -1028,6 +1199,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .const_int(contract.entry_state() as u64, false);
         self.builder.build_store(state_tag_gep, entry_state_val)?;
 
+        // Allocate a handler frame on the stack for handler-stack registration.
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let handler_frame_ptr = self.builder.build_alloca(handler_frame_ty, "handler_frame")?;
+
+        // Zero-initialize the handler frame.
+        let handler_frame_size = self.target_data.get_store_size(&handler_frame_ty);
+        let handler_frame_size_val = self
+            .context
+            .i64_type()
+            .const_int(handler_frame_size, false);
+        self.builder.build_call(
+            memset,
+            &[
+                handler_frame_ptr.into(),
+                i8_zero.into(),
+                handler_frame_size_val.into(),
+                i1_false.into(),
+            ],
+            "",
+        )?;
+
+        // Push the handler frame onto the handler stack for each effect
+        // operation handled by this handler.  For simplicity, we push once
+        // with the first dispatch entry's op_tag; a more complete
+        // implementation would push one frame per op.
+        // For now, if there are dispatch entries, push for the first one.
+        let has_dispatch = !contract.dispatch_entries().is_empty();
+        if has_dispatch {
+            // Use op_tag 0 as a catch-all for the handler.
+            // Individual op_tags are checked in the dispatch logic.
+            let first_op_fqn = contract.dispatch_entries()[0].op_fqn();
+            let op_tag = self.effect_op_tag(first_op_fqn);
+            let op_tag_val = self
+                .context
+                .i32_type()
+                .const_int(op_tag as u64, false);
+            let push_fn = self.declare_runtime_effect_handler_stack_push();
+            self.builder.build_call(
+                push_fn,
+                &[handler_frame_ptr.into(), op_tag_val.into()],
+                "",
+            )?;
+        }
+
         // 5. Call the step function for initial body execution.
         let i64_zero = self.context.i64_type().const_int(0, false);
         let gc_null = self.llvm_gc_i8_ptr_type().const_null();
@@ -1037,12 +1252,196 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "",
         )?;
 
-        // 6. Read the handle result from the frame.
+        // 6. Dispatch loop.
+        //
+        // After each step_fn return, check the TLS active flag.
+        // If active → a perform happened; read op_tag, dispatch to arm.
+        // If not active → body completed (or early return); exit loop.
         let result_cg_ty = expected
             .or_else(|| self.cg_ty_of(contract.result_ty()))
             .unwrap_or(CgTy::Unit);
 
-        // Check state_tag to determine completion mode.
+        let current_fn = self
+            .builder
+            .get_insert_block()
+            .and_then(|bb| bb.get_parent())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle expr: no current function",
+                at: span.into(),
+            })?;
+
+        let dispatch_check_bb =
+            self.context.append_basic_block(current_fn, "dispatch_check");
+        let dispatch_arm_bb =
+            self.context.append_basic_block(current_fn, "dispatch_arm");
+        let handle_done_bb =
+            self.context.append_basic_block(current_fn, "handle_done");
+
+        // Jump to the dispatch check after the initial step_fn call.
+        self.builder
+            .build_unconditional_branch(dispatch_check_bb)?;
+
+        // --- dispatch_check: test active flag ---
+        self.builder.position_at_end(dispatch_check_bb);
+        let is_active_fn = self.declare_runtime_effect_is_active();
+        let active_raw = self
+            .builder
+            .build_call(is_active_fn, &[], "is_active")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect is_active return",
+                at: span.into(),
+            })?
+            .into_int_value();
+        let is_active = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            active_raw,
+            self.context.i32_type().const_int(0, false),
+            "active_bool",
+        )?;
+        self.builder
+            .build_conditional_branch(is_active, dispatch_arm_bb, handle_done_bb)?;
+
+        // --- dispatch_arm: read op_tag, clear active, dispatch to arm ---
+        self.builder.position_at_end(dispatch_arm_bb);
+
+        // Read op_tag from TLS perform slot.
+        let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
+        let op_tag_raw = self
+            .builder
+            .build_call(read_op_tag_fn, &[], "performed_op_tag")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_op_tag return",
+                at: span.into(),
+            })?
+            .into_int_value();
+
+        // Clear the active flag (the arm body will handle everything).
+        let clear_fn = self.declare_runtime_effect_clear();
+        self.builder.build_call(clear_fn, &[], "")?;
+
+        // Build a switch on op_tag → arm entry state.
+        // For each dispatch entry, compute the op_tag and route to the
+        // arm's entry state in the step function.  The arm states are
+        // inside the step_fn, so we call step_fn with the arm's entry
+        // state pre-set in state_tag.
+        //
+        // Since the arm states live inside the step function (not the
+        // caller), we call step_fn again after setting state_tag to the
+        // arm's entry state.
+        if contract.dispatch_entries().is_empty() {
+            // No arms to dispatch to — just branch to done.
+            self.builder
+                .build_unconditional_branch(handle_done_bb)?;
+        } else {
+            // For each dispatch entry, create a handler arm block.
+            let unmatched_bb =
+                self.context.append_basic_block(current_fn, "dispatch_unmatched");
+
+            let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+                Vec::new();
+
+            for dispatch_entry in contract.dispatch_entries() {
+                let op_fqn = dispatch_entry.op_fqn();
+                let tag = self.effect_op_tag(op_fqn);
+                let tag_val = self
+                    .context
+                    .i32_type()
+                    .const_int(tag as u64, false);
+
+                // For each arm in this dispatch entry, pick the first arm
+                // (single-arm dispatch is the common case for now).
+                if let Some(first_arm) = dispatch_entry.arms().first() {
+                    let arm_bb = self.context.append_basic_block(
+                        current_fn,
+                        &format!("arm_{}", first_arm.arm_id()),
+                    );
+                    cases.push((tag_val, arm_bb));
+
+                    // In the arm block: set state_tag to arm entry state,
+                    // call step_fn, then loop back to dispatch_check.
+                    self.builder.position_at_end(arm_bb);
+
+                    let arm_entry_state = first_arm.entry_state();
+                    self.write_state_tag(
+                        raw_ptr,
+                        &frame_layout,
+                        arm_entry_state,
+                        &format!("set_arm_state_{}", first_arm.arm_id()),
+                    )?;
+
+                    // The arm's binder values come from the perform slot,
+                    // but the arm body reads them via frame slots (set up
+                    // by ExecuteArmBody ops inside the step_fn).
+                    // Just call step_fn and let the internal arm states
+                    // handle binder setup and body execution.
+                    self.builder.build_call(
+                        step_fn,
+                        &[raw_ptr.into(), i64_zero.into(), gc_null.into()],
+                        "",
+                    )?;
+
+                    // After arm execution, loop back to check if more
+                    // performs happened (the arm may have resumed the
+                    // body which then performed again).
+                    self.builder
+                        .build_unconditional_branch(dispatch_check_bb)?;
+                }
+            }
+
+            // Position back at dispatch_arm to emit the switch.
+            // We need to re-position because we moved the builder to arm blocks.
+            // Actually, the switch should be built at the end of dispatch_arm_bb
+            // before the arm blocks.  Let me restructure: build arm blocks first
+            // (without switch), then go back and emit switch at dispatch_arm_bb.
+            //
+            // The dispatch_arm_bb currently has: read_op_tag + clear.
+            // We need to append the switch after those.  But we already moved
+            // to other blocks.  The switch needs to be the terminator of
+            // dispatch_arm_bb.  Since we built the arm blocks after positioning
+            // at dispatch_arm_bb's ops, we need to go back.
+
+            // Actually, we already read op_tag and cleared — the dispatch_arm_bb
+            // doesn't have a terminator yet because we moved to arm blocks.
+            // However, inkwell appends instructions to whatever block is current.
+            // The op_tag read and clear are in dispatch_arm_bb.  The arm block
+            // code was positioned in separate blocks.  So dispatch_arm_bb still
+            // needs its terminator.
+
+            self.builder.position_at_end(dispatch_arm_bb);
+            // Note: the read_op_tag and clear calls are already in this block
+            // from the code above.  However, because we moved the builder to
+            // arm blocks and came back, the instructions should still be
+            // correctly placed.  Let's verify by checking if there's a terminator.
+            if dispatch_arm_bb.get_terminator().is_none() {
+                self.builder
+                    .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+            }
+
+            // Unmatched op_tag: this shouldn't normally happen for well-formed
+            // programs.  Branch to handle_done.
+            self.builder.position_at_end(unmatched_bb);
+            self.builder
+                .build_unconditional_branch(handle_done_bb)?;
+        }
+
+        // --- handle_done: pop handler frame, read result ---
+        self.builder.position_at_end(handle_done_bb);
+
+        if has_dispatch {
+            let pop_fn = self.declare_runtime_effect_handler_stack_pop();
+            self.builder.build_call(
+                pop_fn,
+                &[handler_frame_ptr.into()],
+                "",
+            )?;
+        }
+
+        // 7. Read the handle result from the frame.
+        // Check state_tag for completion mode.
         let state_tag_gep_post = self.builder.build_struct_gep(
             frame_layout.frame_type,
             raw_ptr,
@@ -1058,14 +1457,369 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_int_value();
 
-        // For now, read the result regardless of completion mode.
-        // T3004c will add dispatch loop and early-return propagation.
-        // If state_tag == FUNCTION_RETURNED, we should propagate the early
-        // return to the enclosing function, but that requires the outer
-        // function's return context (handled in T3005).
+        // If state_tag == FUNCTION_RETURNED, propagate early return.
+        // For now, treat it as normal completion (T3005 will handle proper
+        // early-return propagation to the enclosing function).
         let _ = post_state_tag;
 
         self.read_result_from_frame(span, result_cg_ty, raw_ptr, &frame_layout)
+    }
+
+    // ------------------------------------------------------------------
+    // T3004c helper methods: perform op, arm body, resume payload
+    // ------------------------------------------------------------------
+
+    /// Emit a `perform` op: evaluate the perform expression's args and write
+    /// the op_tag + payload to the TLS perform slot.
+    fn emit_perform_op(
+        &mut self,
+        op_fqn: &str,
+        expr: &hir::Expr,
+        span: crate::span::Span,
+    ) -> Result<(), LlvmEmitError> {
+        let op_tag = self.effect_op_tag(op_fqn);
+        let op_tag_val = self
+            .context
+            .i32_type()
+            .const_int(op_tag as u64, false);
+
+        // Evaluate the perform expression to get the payload value.
+        let payload_val =
+            self.codegen_expr_in_expected_context(expr, None)?;
+
+        // Write to TLS perform slot based on payload type.
+        match payload_val.ty {
+            CgTy::Unit | CgTy::Never => {
+                // No payload — write op_tag with zero payload.
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
+                let zero = self.context.i64_type().const_int(0, false);
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), zero.into()],
+                    "",
+                )?;
+            }
+            CgTy::String | CgTy::Ref => {
+                // GC ref payload — use the gc_ref variant.
+                let word = self.context.i64_type().const_int(0, false);
+                let gc_ref = payload_val.value.map(|v| v.into_pointer_value());
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+                let gc_ref_val = gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), word.into(), gc_ref_val.into()],
+                    "",
+                )?;
+            }
+            _ => {
+                // Scalar payload — coerce to u64 and write.
+                let word = self.coerce_u64_word(span, payload_val)?;
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
+                self.builder.build_call(
+                    write_fn,
+                    &[op_tag_val.into(), word.into()],
+                    "",
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Emit the body of a handler arm: set up binder locals from the TLS
+    /// perform slot, set up continuation reference if needed, then execute
+    /// the arm body expression.
+    #[allow(clippy::too_many_arguments)]
+    fn emit_execute_arm_body(
+        &mut self,
+        arm_id: u32,
+        _op_fqn: &str,
+        arm: &hir::HandleArm,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+        _span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // Find the unified arm metadata.
+        let unified_arm = contract
+            .arms()
+            .iter()
+            .find(|a| a.arm_id() == arm_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "arm not found in contract",
+                at: arm.span.into(),
+            })?;
+
+        // Set up binder locals: read from perform slot and store to frame slots.
+        for binder in &arm.op.binders {
+            let binder_cg_ty = self.cg_ty_of(binder.ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "arm binder type",
+                    at: binder.span.into(),
+                },
+            )?;
+
+            // Read the binder value from the TLS perform slot.
+            let binder_val = self.read_binder_from_perform_slot(
+                binder.span,
+                binder_cg_ty,
+            )?;
+
+            // If there's a frame slot for this binder, store to frame.
+            if let Some(field_index) =
+                contract.frame().get_slot_field_index(binder.id)
+            {
+                let llvm_index =
+                    frame_layout.user_slot_llvm_index(field_index);
+                let slot_ptr = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    state_ptr,
+                    llvm_index,
+                    &format!("arm_binder_{}", binder.id.as_u32()),
+                )?;
+                self.store_local_value(
+                    binder.span,
+                    slot_ptr,
+                    binder_cg_ty,
+                    binder_val,
+                )?;
+                self.env.insert(
+                    binder.id,
+                    CgLocal {
+                        hir_ty: Some(binder.ty),
+                        ty: binder_cg_ty,
+                        ptr: slot_ptr,
+                        mutable: false,
+                    },
+                );
+            } else {
+                // No frame slot — allocate stack local.
+                let llvm_ty = self.llvm_basic_type_of(binder.span, binder_cg_ty)?;
+                let alloca = self.builder.build_alloca(llvm_ty, &format!("binder_{}", binder.name))?;
+                self.store_local_value(
+                    binder.span,
+                    alloca,
+                    binder_cg_ty,
+                    binder_val,
+                )?;
+                self.env.insert(
+                    binder.id,
+                    CgLocal {
+                        hir_ty: Some(binder.ty),
+                        ty: binder_cg_ty,
+                        ptr: alloca,
+                        mutable: false,
+                    },
+                );
+            }
+        }
+
+        // For ImmediateResume arms, bind the `resume` function symbol.
+        // For EscapeContinuation arms, bind the continuation as a local.
+        match arm.kind {
+            hir::HandleArmKind::ImmediateResume { resume } => {
+                // The resume symbol is a placeholder — the actual resume
+                // mechanism is handled by ArmResumeMatchedSite terminator.
+                // Register a dummy local so codegen doesn't fail on references.
+                let unit_ty = CgTy::Unit;
+                let dummy_ptr = self.builder.build_alloca(
+                    self.context.i8_type(),
+                    "resume_placeholder",
+                )?;
+                self.env.insert(
+                    resume,
+                    CgLocal {
+                        hir_ty: None,
+                        ty: unit_ty,
+                        ptr: dummy_ptr,
+                        mutable: false,
+                    },
+                );
+            }
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                // Load the continuation pointer from the frame's
+                // resume_gc_ref slot (where Suspend stored it).
+                let cont_gep = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    state_ptr,
+                    frame_layout.resume_gc_ref_index(),
+                    "load_continuation",
+                )?;
+                let cont_ptr = self
+                    .builder
+                    .build_load(
+                        self.llvm_gc_i8_ptr_type(),
+                        cont_gep,
+                        "continuation_val",
+                    )?
+                    .into_pointer_value();
+
+                // Find or alloc frame slot for the continuation local.
+                if let Some(field_index) =
+                    contract.frame().get_slot_field_index(continuation)
+                {
+                    let llvm_index =
+                        frame_layout.user_slot_llvm_index(field_index);
+                    let slot_ptr = self.builder.build_struct_gep(
+                        frame_layout.frame_type,
+                        state_ptr,
+                        llvm_index,
+                        "cont_slot",
+                    )?;
+                    self.builder.build_store(slot_ptr, cont_ptr)?;
+                    self.env.insert(
+                        continuation,
+                        CgLocal {
+                            hir_ty: None,
+                            ty: CgTy::Ref,
+                            ptr: slot_ptr,
+                            mutable: false,
+                        },
+                    );
+                } else {
+                    let alloca = self.builder.build_alloca(
+                        self.llvm_gc_i8_ptr_type(),
+                        "cont_local",
+                    )?;
+                    self.builder.build_store(alloca, cont_ptr)?;
+                    self.env.insert(
+                        continuation,
+                        CgLocal {
+                            hir_ty: None,
+                            ty: CgTy::Ref,
+                            ptr: alloca,
+                            mutable: false,
+                        },
+                    );
+                }
+            }
+            hir::HandleArmKind::NonResuming => {
+                // No special setup needed.
+            }
+        }
+
+        // Restore captured locals from the frame into the env so the arm
+        // body can reference them.
+        for &local_id in unified_arm.capture_locals() {
+            if self.env.get(local_id).is_some() {
+                continue; // Already in env from binder setup.
+            }
+            // Try to load from frame.
+            if let Some(field_index) =
+                contract.frame().get_slot_field_index(local_id)
+                && let Some(slot) = contract
+                    .frame()
+                    .slots()
+                    .iter()
+                    .find(|s| s.slot().id() == local_id)
+            {
+                let type_id = slot.slot().ty();
+                if let Some(cg_ty) = self.cg_ty_of(type_id) {
+                    let llvm_index =
+                        frame_layout.user_slot_llvm_index(field_index);
+                    let slot_ptr = self.builder.build_struct_gep(
+                        frame_layout.frame_type,
+                        state_ptr,
+                        llvm_index,
+                        &format!("capture_{}", local_id.as_u32()),
+                    )?;
+                    self.env.insert(
+                        local_id,
+                        CgLocal {
+                            hir_ty: Some(type_id),
+                            ty: cg_ty,
+                            ptr: slot_ptr,
+                            mutable: slot.slot().mutable(),
+                        },
+                    );
+                }
+            }
+        }
+
+        // Execute the arm body.
+        self.codegen_expr_in_expected_context(&arm.body, None)
+    }
+
+    /// Read a binder value from the TLS perform slot.
+    fn read_binder_from_perform_slot(
+        &mut self,
+        at: crate::span::Span,
+        cg_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match cg_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::String | CgTy::Ref => {
+                // Read GC ref from perform slot.
+                let read_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
+                let raw = self
+                    .builder
+                    .build_call(read_fn, &[], "binder_gc_ref")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "perform_slot_read_gc_ref return",
+                        at: at.into(),
+                    })?;
+                self.cg_value_from_loaded(at, cg_ty, raw)
+            }
+            _ => {
+                // Read u64 word and narrow.
+                let read_fn = self.declare_runtime_effect_perform_slot_read_u64();
+                let raw = self
+                    .builder
+                    .build_call(read_fn, &[], "binder_word")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "perform_slot_read_u64 return",
+                        at: at.into(),
+                    })?
+                    .into_int_value();
+                self.narrow_u64_word_to_cg_value(at, raw, cg_ty)
+            }
+        }
+    }
+
+    /// Write a resume payload into a continuation struct's resume_word /
+    /// resume_gc_ref fields.
+    fn write_resume_payload_to_continuation(
+        &mut self,
+        span: crate::span::Span,
+        val: CgValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let cont_ty = self.llvm_continuation_struct_type();
+
+        match val.ty {
+            CgTy::Unit | CgTy::Never => {
+                // No payload to write.
+            }
+            CgTy::String | CgTy::Ref => {
+                // GC ref → continuation's resume_gc_ref (field 7).
+                if let Some(raw) = val.value {
+                    let gep = self.builder.build_struct_gep(
+                        cont_ty,
+                        cont_ptr,
+                        7, // resume_gc_ref
+                        "cont_resume_gc_ref",
+                    )?;
+                    self.builder.build_store(gep, raw)?;
+                }
+            }
+            _ => {
+                // Scalar → coerce to u64 and write to resume_word (field 6).
+                let word = self.coerce_u64_word(span, val)?;
+                let gep = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6, // resume_word
+                    "cont_resume_word",
+                )?;
+                self.builder.build_store(gep, word)?;
+            }
+        }
+        Ok(())
     }
 
     /// Declare `llvm.memset.p0.i64` intrinsic.

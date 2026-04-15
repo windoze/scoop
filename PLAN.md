@@ -43,8 +43,9 @@
 - `T3003b` 已完成：`UnifiedHandleLoweringContract` 已定义为唯一生产结构输入；`build_unified_lowering_contract` 实现完整 pipeline（plan → segments → unified machine → contract）；全部子结构有 `pub(crate)` 只读访问器。
 - `T3003R` 已完成：审查确认 LLVM lowering 的主输入只有 state machine，无 shape-based 旁路输入或旧依赖链残留。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
-- `T3004b` 已完成：在 step function 骨架内实现了完整的 per-state op 发射与基本 terminator。重构 step function 生成为 `emit_step_function_body`（保存/恢复完整 codegen 上下文）。BindLocal/ReadLocal 通过 frame GEP 实现，自动注册 env 以便后续 codegen 基础设施可引用。ReturnHandle/ReturnFromFunction 通过 frame resume_word/resume_gc_ref 传递结果，使用 state_tag sentinel 区分完成模式。handle 入口已从 default_value 占位改为从 frame 读取真实结果。Suspend/Arm/Cleanup 等 T3004c/d 功能保留 placeholder。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）进行中：T3004a 和 T3004b 已完成，下一步是 T3004c（suspend/resume + handler dispatch）。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
+- `T3004b` 已完成：在 step function 骨架内实现了完整的 per-state op 发射与基本 terminator。重构 step function 生成为 `emit_step_function_body`（保存/恢复完整 codegen 上下文）。BindLocal/ReadLocal 通过 frame GEP 实现，自动注册 env 以便后续 codegen 基础设施可引用。ReturnHandle/ReturnFromFunction 通过 frame resume_word/resume_gc_ref 传递结果，使用 state_tag sentinel 区分完成模式。handle 入口已从 default_value 占位改为从 frame 读取真实结果。
+- `T3004c` 已完成：实现了 suspend/resume 机制与 handler arm dispatch 的完整控制流。Suspend terminator 分配 GC-managed continuation 并设置 TLS active flag。Handle 入口 dispatch loop 检查 active flag → 读 op_tag → 按 dispatch table switch 到 arm → arm 内部设置 state_tag + 调用 step_fn → 循环。Arm 执行通过 ExecuteArmBody 从 perform slot 读取 binder 值、绑定 resume/continuation、恢复 captures、求值 arm body。三种 arm terminator（ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）完整实现。移除了 8 个 `#[allow(dead_code)]` 从已被消费的 runtime ABI 声明。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）进行中：T3004a、T3004b 和 T3004c 已完成，下一步是 T3004d（cleanup scope + 嵌套 handle + emitter 完善）。原 T3004 已拆分为 T3004a（frame + step fn 骨架 + handle 入口）、T3004b（state op 发射 + 基本 terminator）、T3004c（suspend/resume + handler dispatch）、T3004d（cleanup + 嵌套 handle + 完善）。
 
 ## 2. 阶段顺序
 
@@ -138,10 +139,15 @@
 - 基本 terminator：Goto → branch、Branch → eval cond + cond branch、ReturnHandle → store result to frame + sentinel + return void、ReturnFromFunction → store + sentinel + return void。
 - 结果传递：handle 入口从 frame 读取真实结果（替代 default_value 占位）。
 
-#### T3004c：Suspend/resume 与 handler arm dispatch
-- Suspend terminator → continuation 分配 + handler stack 交互 + return。
-- Handle 入口 dispatch loop → arm 执行 → arm exit。
-- Resume landing → 读取 resume payload → 继续执行。
+#### T3004c：Suspend/resume 与 handler arm dispatch（已完成）
+- Suspend terminator：写入 resume_state 到 state_tag → `scoop_continuation_alloc(state, step_fn)` → 存 continuation 到 frame → `scoop_effect_set_active()` → return void。
+- Handle 入口 dispatch loop：`is_active()` check → `read_op_tag()` → `clear()` → switch 到 arm block → 设置 arm entry state_tag → 调用 step_fn → 循环回 check。
+- Handler stack 集成：栈上 alloca `ScoopEffectHandlerFrame` → push/pop 包裹整个 handle 生命周期。
+- Perform op emission：求值表达式 → 写 op_tag + payload 到 TLS perform slot。
+- Arm execution (ExecuteArmBody)：从 perform slot 读 binder → 绑定到 frame slot + env → 处理 resume/continuation 绑定 → 恢复 capture locals → 求值 arm body。
+- Arm terminators：ArmReturnHandle → result + sentinel；ArmResumeMatchedSite → 写 payload 到 continuation struct → `scoop_continuation_resume(k)`；ArmMaterializeContinuation → result + sentinel。
+- 移除 8 个 `#[allow(dead_code)]` 从已被消费的 runtime ABI 声明。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）。
 
 #### T3004d：Cleanup scope、嵌套 handle、emitter 完善
 - Cleanup scope enter/exit。

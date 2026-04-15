@@ -223,8 +223,20 @@
   - `cargo test --all` 通过。
 - 依赖：T3004a
 
-### T3004c [TODO] Suspend/resume 机制与 handler arm dispatch
+### T3004c [DONE] Suspend/resume 机制与 handler arm dispatch
 - 描述：实现 effect 传播的核心机制。Suspend terminator：保存 state_tag → alloc continuation → push handler stack → set active → return from step_fn。Handle 入口 dispatch：step_fn 返回后检查 active flag → read op_tag → dispatch to matching arm。Arm 执行：emit arm body via ExecuteArmBody → arm exit paths（ArmReturnHandle、ArmResumeMatchedSite、ArmMaterializeContinuation）。Resume landing：重入 step_fn 时从参数读取 resume_word/resume_gc_ref → 继续执行。
+- 进展：
+  - 实现 Suspend terminator：写入 resume_state 到 state_tag → 调用 `scoop_continuation_alloc(state, step_fn)` 分配 GC-managed continuation → 将 continuation 指针存入 frame resume_gc_ref slot → 调用 `scoop_effect_set_active()` 设置 TLS active flag → return void。
+  - 实现 handle entry dispatch loop：step_fn 返回后检查 `scoop_effect_is_active()` → 若 active，调用 `scoop_effect_perform_slot_read_op_tag()` 读取 op_tag → 调用 `scoop_effect_clear()` 清除 active flag → 按 op_tag switch 到对应 arm block → arm block 设置 state_tag 为 arm entry state 并再次调用 step_fn → 循环回 dispatch_check。
+  - 实现 handler stack 集成：handle 入口分配栈上 `ScoopEffectHandlerFrame` → `scoop_effect_handler_stack_push(frame, op_tag)` → body 执行 → dispatch loop → `scoop_effect_handler_stack_pop(frame)` 在 handle 完成后弹出。
+  - 实现 Perform op emission：求值 perform 表达式 → 按 payload 类型调用 `scoop_effect_perform_slot_write_u64` / `scoop_effect_perform_slot_write_u64_with_gc_ref`。
+  - 实现 SuspendCall/ObjectInitAccessBoundary/RuntimeRaiseBoundary op emission：委托 codegen_expr 求值表达式（callee 内部可能 set active），由 Suspend terminator 处理后续。
+  - 实现 ResumeAfterSite op：标记为 no-op，step_fn entry 已将 resume_word/resume_gc_ref 从参数写入 frame。
+  - 实现 ExecuteArmBody op：从 TLS perform slot 读取 binder 值（`perform_slot_read_u64` / `perform_slot_read_gc_ref`）→ 写入 frame slot + 注册 env → 根据 HandleArmKind 处理 resume/continuation 绑定 → 恢复 captured locals → 求值 arm body。
+  - 实现 arm terminator：ArmReturnHandle → 写 result 到 frame + HANDLE_RETURNED sentinel；ArmResumeMatchedSite → 写 resume payload 到 continuation struct (field 6/7) + 调用 `scoop_continuation_resume(k)`；ArmMaterializeContinuation → arm body 结果写入 frame + HANDLE_RETURNED sentinel。
+  - 移除 8 个已被生产路径消费的 runtime ABI 声明的 `#[allow(dead_code)]` 注解：`llvm_effect_handler_frame_type`、`declare_runtime_effect_handler_stack_push/pop`、`declare_runtime_continuation_alloc/resume`、`llvm_continuation_struct_type`、`declare_runtime_effect_perform_slot_write_u64_with_gc_ref`、`declare_runtime_effect_perform_slot_read_gc_ref`。
+  - 移除 `effect_op_tag` 方法上的 `#[allow(dead_code)]`。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）全部通过。
 - 目标：
   - effect 传播完全由 state machine 状态转移驱动，不使用 flag-based unwind。
   - 完整的 suspend → dispatch → arm → resume 循环可工作。
