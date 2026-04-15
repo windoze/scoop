@@ -106,7 +106,7 @@ enum UnifiedStateContext {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum UnifiedStateTerminator {
     Goto {
         next_state: UnifiedStateId,
@@ -1318,7 +1318,7 @@ impl UnifiedStateTerminator {
                 else_segment,
                 merge_segment,
             } => Self::Branch {
-                condition: *condition,
+                condition: condition.clone(),
                 then_state: *then_segment,
                 else_state: *else_segment,
                 merge_state: *merge_segment,
@@ -1348,7 +1348,7 @@ impl UnifiedStateTerminator {
     }
 
     #[cfg(test)]
-    fn label(self) -> String {
+    fn label(&self) -> String {
         match self {
             Self::Goto { next_state } => format!("goto s{next_state}"),
             Self::Branch {
@@ -2603,11 +2603,267 @@ fun demo(seed: Int): Int {
         }
     }
 
-    fn build_segment_list_from_lowered(lowered: &hir::LoweredHir) -> HandleSegmentList {
+    #[test]
+    fn unified_state_machine_preserves_execution_payload_metadata() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(seed: Int): Int {
+    val result: Int = handle {
+        var total: Int = 0
+        while (seed > 0) {
+            val current: Int = if (seed > 1) Yield.next() else 1
+            total = total + current
+            return total
+        }
+        total
+    } with {
+        Yield.next() -> resume {
+            resume(10)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        let source_plan = build_source_plan_from_lowered(&lowered);
+        let segment_list = source_plan.build_segment_list();
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let plan_bind = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                    Some((decl.span, decl.ty))
+                }
+                _ => None,
+            })
+            .expect("expected bind-local payload for `current` in source plan");
+        let segment_bind = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                    Some((decl.span, decl.ty))
+                }
+                _ => None,
+            })
+            .expect("expected bind-local payload for `current` in segment list");
+        let machine_bind = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("current") => {
+                    Some((decl.span, decl.ty))
+                }
+                _ => None,
+            })
+            .expect("expected bind-local payload for `current` in unified machine");
+        assert_eq!(plan_bind, segment_bind);
+        assert_eq!(plan_bind, machine_bind);
+
+        let plan_while_stmt_span = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::WhileCondHeader { stmt } => Some(stmt.span),
+                _ => None,
+            })
+            .expect("expected while-cond header payload in source plan");
+        let segment_while_stmt_span = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::WhileCondHeader { stmt } => Some(stmt.span),
+                _ => None,
+            })
+            .expect("expected while-cond header payload in segment list");
+        let machine_while_stmt_span = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::WhileCondHeader { stmt } => Some(stmt.span),
+                _ => None,
+            })
+            .expect("expected while-cond header payload in unified machine");
+        assert_eq!(plan_while_stmt_span, segment_while_stmt_span);
+        assert_eq!(plan_while_stmt_span, machine_while_stmt_span);
+
+        let plan_if_condition = source_plan
+            .states
+            .iter()
+            .find_map(|state| match &state.terminator {
+                StateTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { condition },
+                    ..
+                } => Some((condition.span, condition.ty)),
+                _ => None,
+            })
+            .expect("expected if-branch condition payload in source plan");
+        let segment_if_condition = segment_list
+            .segments
+            .iter()
+            .find_map(|segment| match &segment.terminator {
+                HandleSegmentTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { condition },
+                    ..
+                } => Some((condition.span, condition.ty)),
+                _ => None,
+            })
+            .expect("expected if-branch condition payload in segment list");
+        let machine_if_condition = machine
+            .states
+            .iter()
+            .find_map(|state| match &state.terminator {
+                UnifiedStateTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { condition },
+                    ..
+                } => Some((condition.span, condition.ty)),
+                _ => None,
+            })
+            .expect("expected if-branch condition payload in unified machine");
+        assert_eq!(plan_if_condition, segment_if_condition);
+        assert_eq!(plan_if_condition, machine_if_condition);
+
+        let plan_perform = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::Perform { op_fqn, expr } => {
+                    Some((op_fqn.clone(), expr.span, expr.ty))
+                }
+                _ => None,
+            })
+            .expect("expected perform payload in source plan");
+        let segment_perform = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::Perform { op_fqn, expr } => {
+                    Some((op_fqn.clone(), expr.span, expr.ty))
+                }
+                _ => None,
+            })
+            .expect("expected perform payload in segment list");
+        let machine_perform = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::Perform { op_fqn, expr } => {
+                    Some((op_fqn.clone(), expr.span, expr.ty))
+                }
+                _ => None,
+            })
+            .expect("expected perform payload in unified machine");
+        assert_eq!(plan_perform, segment_perform);
+        assert_eq!(plan_perform, machine_perform);
+
+        let plan_resume = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Perform,
+                    source_expr,
+                    ..
+                } => Some((source_expr.span, source_expr.ty)),
+                _ => None,
+            })
+            .expect("expected resume-after-site payload in source plan");
+        let segment_resume = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Perform,
+                    source_expr,
+                    ..
+                } => Some((source_expr.span, source_expr.ty)),
+                _ => None,
+            })
+            .expect("expected resume-after-site payload in segment list");
+        let machine_resume = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Perform,
+                    source_expr,
+                    ..
+                } => Some((source_expr.span, source_expr.ty)),
+                _ => None,
+            })
+            .expect("expected resume-after-site payload in unified machine");
+        assert_eq!(plan_perform.1, plan_resume.0);
+        assert_eq!(plan_resume, segment_resume);
+        assert_eq!(plan_resume, machine_resume);
+
+        let plan_arm = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                _ => None,
+            })
+            .expect("expected execute-arm payload in source plan");
+        let segment_arm = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                _ => None,
+            })
+            .expect("expected execute-arm payload in segment list");
+        let machine_arm = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ExecuteArmBody { arm, .. } => Some((arm.span, arm.body.span, arm.kind)),
+                _ => None,
+            })
+            .expect("expected execute-arm payload in unified machine");
+        assert!(matches!(
+            plan_arm.2,
+            hir::HandleArmKind::ImmediateResume { .. }
+        ));
+        assert_eq!(plan_arm, segment_arm);
+        assert_eq!(plan_arm, machine_arm);
+    }
+
+    fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);
         HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context)
-            .build_segment_list()
+    }
+
+    fn build_segment_list_from_lowered(lowered: &hir::LoweredHir) -> HandleSegmentList {
+        build_source_plan_from_lowered(lowered).build_segment_list()
     }
 
     fn segment_slot_id_named(segment_list: &HandleSegmentList, name: &str) -> hir::SymbolId {

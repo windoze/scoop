@@ -39,6 +39,7 @@
   - 已复查 `expr.rs`、`effect/mod.rs` 与 `mod.rs` 调用链，确认 `ExprKind::Perform` / `ExprKind::Handle` 只直连统一 effect 入口；当前残留的 effect 相关生产逻辑仅为统一 lowering 占位入口、sysroot intrinsic lowering 与 flag-based unwind 辅助，没有按源码 / site / arm / callee 形状做主选路。
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - `crates/scoopc/src/llvm/codegen/effect/mod.rs` 统一入口仍未完全接到真正的 state-machine-driven LLVM lowering。
+- `T3003a` 已完成：`HandleStateOp` / `HandleBranchCondition` 已补齐完整 HIR payload，unified state machine 的执行 payload 元数据在 plan → segments → unified machine 流水线中稳定保留。原始 `T3003` 已拆分为 `T3003a`（payload 补齐，已完成）、`T3003b`（builder/访问面暴露）和 `T3003R`（review）。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）是当前唯一工作的 effect 相关生产代码，但已决定搁置，不作为统一主线的依赖。`mod.rs` 中 7 处调用点将在 T3005 中随统一 lowering 接通一并移除。
 - 这意味着当前 effect codegen 虽然已经摆脱 `mod.rs` 的旧 callee-suspend 主分流，并保留了统一的 segmentation / state machine transformation 基线，但 LLVM 生产主线仍未完成统一 state-machine-driven lowering 接线。
 
@@ -95,10 +96,17 @@
 
 ### 阶段 B：冻结 LLVM lowering 的唯一输入面
 
-#### T3003：冻结 `state machine -> LLVM lowering` 的统一合同
-- 在真正发射 LLVM 之前，先把 emitter 输入收口到统一合同。
-- 这个合同必须完整表达 state、edge、suspend/resume、cleanup、frame layout、dispatch、capture / payload / slot 等 lowering 所需信息。
-- 合同的全部结构信息都必须来自 state machine 本身，而不是回头看 HIR shape、旧 scanner 输出或 flag-based unwind 机制。
+#### T3003a：为 unified state machine 补齐 emitter 所需的执行 payload 元数据（已完成）
+- 已为所有 `HandleStateOp` 变体补齐完整 HIR payload：stmt-backed 携带 `Box<hir::Stmt>`，expr-backed 携带 `Box<hir::Expr>`，`BindLocal`/`DeclareAnonymousVal` 携带 `Box<hir::ValDecl>`，`ExecuteArmBody` 携带 `Box<hir::HandleArm>`。
+- 已将 `HandleBranchCondition` 从 `Span` 升级为 `Box<hir::Expr>` 条件表达式。
+- 已适配 segments / transform 中 `Copy -> Clone` 变化。
+- 定向测试 `unified_state_machine_preserves_execution_payload_metadata` 覆盖六类代表性 payload 在 plan → segments → unified machine 流水线中的稳定保留。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`。
+
+#### T3003b：暴露 `handle -> unified lowering contract` 的生产 builder 与 crate 内访问面
+- 在 payload 完整后，再把 production 侧 builder 与 crate 内读取面显式化。
+- 统一 builder 只能从 `handle` 与必需 codegen 上下文构造 contract；下游 emitter 只消费 state machine 与必需的类型 / 符号 / ABI 上下文。
+- 这一步完成后，`T3003R` 才有意义去审查“输入面是否只剩 state machine”。
 
 #### T3003R：Review
 - 审查 lowering 入口及其依赖链，确认 LLVM lowering 主线的结构输入只剩 state machine。
@@ -240,33 +248,34 @@
 
 ## 4. 当前执行顺序
 
-1. `T3003`
-2. `T3003R`
-3. `T3004`
-4. `T3004R`
-5. `T3005`
-6. `T3005R`
-7. `T3006`
-8. `T3006R`
-9. `T3007`
-10. `T3007R`
-11. `T3101`
-12. `T3102`
-13. `T3103`
-14. `T3104`
-15. `T3201`
-16. `T3202`
-17. `T3203`
-18. `T3204`
-19. `T3205`
-20. `T3301`
-21. `T3302`
-22. `T3303`
-23. `T3401`
-24. `T3401a`
-25. `T3401b`
-26. `T3401c`
-27. `T3402`
-28. `T3403`
-29. `T3404`
-30. `T3405`
+1. `T3003a`
+2. `T3003b`
+3. `T3003R`
+4. `T3004`
+5. `T3004R`
+6. `T3005`
+7. `T3005R`
+8. `T3006`
+9. `T3006R`
+10. `T3007`
+11. `T3007R`
+12. `T3101`
+13. `T3102`
+14. `T3103`
+15. `T3104`
+16. `T3201`
+17. `T3202`
+18. `T3203`
+19. `T3204`
+20. `T3205`
+21. `T3301`
+22. `T3302`
+23. `T3303`
+24. `T3401`
+25. `T3401a`
+26. `T3401b`
+27. `T3401c`
+28. `T3402`
+29. `T3403`
+30. `T3404`
+31. `T3405`

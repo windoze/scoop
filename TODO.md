@@ -122,16 +122,35 @@
   - `perform` / `handle` 入口当前虽然仍未重新接入统一 state-machine lowering，但现状是统一占位错误而不是 shape-based fallback 或双轨分流。
 - 依赖：T3002
 
-### T3003 [TODO] 冻结 `state machine -> LLVM lowering` 的统一输入合同
-- 描述：在真正发射 LLVM 之前，先把 lowering 输入收口到统一合同，确保后续实现无法回头读取源码形状。effect 传播（perform/handle/raise）全部通过 state machine 表达，不依赖 flag-based unwind。
+### T3003a [DONE] 为 unified state machine 补齐 emitter 所需的执行 payload 元数据
+- 描述：当前 `HandleStateOp` / `HandleBranchCondition` 主要只保留标签、`span` 与少量 id；这足够做 segmentation / transform 结构验证，但不足以让后续 LLVM emitter 真正”只吃 state machine”完成发射。需要把分支条件、求值动作、arm body、resume 边界等执行所需的 HIR payload 或等价执行元数据直接写进统一合同，并确保这些 payload 能在 `plan -> segments -> unified machine` 之间稳定保留。
+- 进展：
+  - 已为所有 `HandleStateOp` 变体补齐完整 HIR payload：stmt-backed 操作携带 `Box<hir::Stmt>`，expr-backed 操作携带 `Box<hir::Expr>`，`BindLocal` / `DeclareAnonymousVal` 携带 `Box<hir::ValDecl>`，`ExecuteArmBody` 携带 `Box<hir::HandleArm>`。
+  - 已将 `HandleBranchCondition` 的 `WhileCond` / `IfCond` 从仅保留 `Span` 升级为携带完整条件表达式 `Box<hir::Expr>`。
+  - 已更新 builder 代码（`HandlePlanBuilder`），在构造每个 `HandleStateOp` 与 `HandleBranchCondition` 时传入完整 HIR 节点。
+  - 已适配 `state_machine_segments.rs` 与 `state_machine_transform.rs` 中因 `Copy -> Clone` 变化导致的引用传递调整。
+  - 已添加 `payload_signature` 系列函数（`expr_payload_signature`、`stmt_payload_signature`、`decl_payload_signature`、`handle_arm_payload_signature`），用于测试中验证 payload 身份稳定性。
+  - 已添加定向测试 `unified_state_machine_preserves_execution_payload_metadata`，覆盖 `BindLocal`/decl、`WhileCondHeader`/stmt、`IfCond`/condition、`Perform`/expr、`ResumeAfterSite`/source_expr、`ExecuteArmBody`/arm 六类代表性 payload 在 plan → segments → unified machine 流水线中的稳定保留。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
-  - 明确并落地 LLVM emitter 所需的统一输入：state table、state edge、suspend edge、cleanup、frame layout、dispatch、capture / payload / slot 元数据。
-  - 这些输入必须全部来自 state machine 本身，而不是来自 HIR shape、scanner 结果、旧分类器或 flag-based unwind 机制。
-  - 统一入口对外暴露”只吃 state machine”的 API / contract，作为后续所有 LLVM effect lowering 的唯一输入面。
+  - 为 unified state machine 中所有会驱动求值/控制流/handler body 发射的节点补齐 payload：至少覆盖 branch condition、普通 state op、arm body 与 resume 边界。
+  - 这些 payload 必须跟随 state machine 一路保留；后续 emitter 不需要再回看原始 `handle` HIR 树去重新定位对应节点。
+  - 若在补齐过程中发现 state / suspend / arm 元数据仍不足以表达 future emitter 所需信息，本任务内继续补齐，而不是把缺口留给后续 shape-based fallback。
+- 验收：
+  - unified state machine 中涉及执行语义的节点都带有 emitter 所需的 payload 或等价执行元数据。
+  - 定向测试能锁定 payload 在 `plan -> segments -> unified machine` 之间保持稳定。
+- 依赖：T3002R
+
+### T3003b [TODO] 暴露 `handle -> unified lowering contract` 的生产 builder 与 crate 内访问面
+- 描述：在 payload 完整后，把 production 侧构建入口与读取接口显式化。builder 只允许从 `handle` 与必需的 codegen 上下文构造 unified lowering contract；下游 emitter 只消费 state machine 与必需的类型 / 符号 / ABI 上下文。
+- 目标：
+  - 提供生产可调用的统一 builder，把 `handle` 收口为单一的 unified lowering contract。
+  - 明确 crate 内 contract 读取面：state table、state edge、suspend edge、cleanup、frame layout、dispatch、capture / payload / slot 元数据都只能从 contract 读取。
+  - 这层 API / contract 不再暴露对 HIR shape、scanner 结果、旧分类器或 flag-based unwind 机制的依赖。
 - 验收：
   - 统一 LLVM lowering 入口能够只接受 state machine 及必需的类型 / 符号 / ABI 上下文。
-  - effect 传播不依赖 `emit_effect_unwind_if_active` 或 `raise_target_stack`。
-- 依赖：T3002R
+  - 下游 emitter 所需的结构化输入都可从 unified lowering contract 读取，无需旁路回看原始 `handle` HIR。
+- 依赖：T3003a
 
 ### T3003R [TODO] Review：确认 LLVM lowering 输入面只剩 state machine
 - 描述：审查统一 lowering 入口与其依赖链，确认没有旁路输入；若发现旁路输入或旧依赖链残留，本任务需要直接修复并在修复后重新审查。
@@ -141,7 +160,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“LLVM lowering 的主输入只有 state machine”。
-- 依赖：T3003
+- 依赖：T3003b
 
 ### T3004 [TODO] 实现 heap-allocated full state machine 的 LLVM lowering 主体
 - 描述：基于统一合同实现真正的 LLVM lowering，当前阶段只做 full machine，不做任何 simplification。effect 传播（perform suspend、handler resume、raise/unwind）全部由 state machine 驱动，不使用 flag-based unwind。

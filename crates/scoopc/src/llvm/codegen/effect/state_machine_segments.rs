@@ -1482,7 +1482,7 @@ impl HandleSegmentTerminator {
                 else_state,
                 merge_state,
             } => Self::Branch {
-                condition: *condition,
+                condition: condition.clone(),
                 then_segment: *then_state,
                 else_segment: *else_state,
                 merge_segment: *merge_state,
@@ -1608,7 +1608,7 @@ impl HandleSegmentTerminator {
                 else_segment,
                 merge_segment,
             } => StateTerminator::Branch {
-                condition: *condition,
+                condition: condition.clone(),
                 then_state: *then_segment,
                 else_state: *else_segment,
                 merge_state: *merge_segment,
