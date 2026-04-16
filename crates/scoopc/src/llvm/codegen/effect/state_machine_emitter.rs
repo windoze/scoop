@@ -25,14 +25,16 @@ use super::unified_state_machine_skeleton::{
 /// System field indices in the frame struct.
 ///
 /// Layout:
-///   field 0: state_tag   (i32)   — current state / PC
-///   field 1: resume_word (i64)   — scalar resume payload / handle result word
-///   field 2: resume_gc_ref (ptr addrspace(1)) — GC ref resume payload / handle result ref
-///   field 3+: optional system fields (cleanup_flag, one_shot_flag)
+///   field 0: header      (ScoopGcObjectHeader)
+///   field 1: state_tag   (i32)   — current state / PC
+///   field 2: resume_word (i64)   — scalar resume payload / handle result word
+///   field 3: resume_gc_ref (ptr addrspace(1)) — GC ref resume payload / handle result ref
+///   field 4+: optional system fields (cleanup_flag, one_shot_flag)
 ///   then: user slots
-const FRAME_FIELD_STATE_TAG: u32 = 0;
-const FRAME_FIELD_RESUME_WORD: u32 = 1;
-const FRAME_FIELD_RESUME_GC_REF: u32 = 2;
+const FRAME_OBJECT_HEADER_FIELD_COUNT: u32 = 1;
+const FRAME_FIELD_STATE_TAG: u32 = 1;
+const FRAME_FIELD_RESUME_WORD: u32 = 2;
+const FRAME_FIELD_RESUME_GC_REF: u32 = 3;
 
 /// Sentinel state_tag value: the handle body has finished and its result is
 /// available in resume_word / resume_gc_ref.  This is the normal completion
@@ -67,11 +69,10 @@ impl<'ctx> FrameLayout<'ctx> {
     /// `UnifiedFrameSlot::field_index()`.
     ///
     /// `field_index()` is already an absolute index in the frame schema
-    /// (system fields first, then user slots).  Since the LLVM struct
-    /// mirrors the schema layout, the absolute index IS the LLVM struct
-    /// field index.
+    /// (system fields first, then user slots).  物理对象布局前面还插入了
+    /// 一个 GC object header，因此 schema 索引需要整体向后平移一位。
     pub(super) fn user_slot_llvm_index(&self, unified_field_index: usize) -> u32 {
-        unified_field_index as u32
+        FRAME_OBJECT_HEADER_FIELD_COUNT + unified_field_index as u32
     }
 }
 
@@ -82,7 +83,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Generate the LLVM struct type for a state machine frame.
     ///
-    /// The frame struct layout follows `UnifiedFrameSchema`:
+    /// The frame object layout follows `{ ScoopGcObjectHeader, UnifiedFrameSchema }`:
+    /// - Object header: written by `scoop_alloc_typed`.
     /// - System fields: state_tag (i32), resume_word (i64), resume_gc_ref (ptr),
     ///   and optionally cleanup_flag (i32), one_shot_flag (i32).
     /// - User slots: one field per `UnifiedFrameSlot`, typed according to the
@@ -95,17 +97,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let frame = contract.frame();
         let system_fields = frame.fields();
 
+        let header_ty = self.llvm_gc_object_header_type();
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
 
         // Build the system field types in declaration order.
-        let mut field_types: Vec<inkwell::types::BasicTypeEnum<'ctx>> = Vec::new();
-
-        // Always present: state_tag, resume_word, resume_gc_ref.
-        field_types.push(i32_ty.into());    // state_tag
-        field_types.push(i64_ty.into());    // resume_word
-        field_types.push(gc_ptr_ty.into()); // resume_gc_ref
+        let mut field_types: Vec<inkwell::types::BasicTypeEnum<'ctx>> = vec![
+            header_ty.into(), // GC object header
+            i32_ty.into(),    // state_tag
+            i64_ty.into(),    // resume_word
+            gc_ptr_ty.into(), // resume_gc_ref
+        ];
 
         // Optional system fields from the schema.
         for field in system_fields {
@@ -136,26 +139,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         user_slots.sort_by_key(|(idx, _)| *idx);
 
         for (_idx, type_id) in &user_slots {
-            let cg_ty =
-                self.cg_ty_of(*type_id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "effect frame slot type",
-                        at: span.into(),
-                    })?;
+            let cg_ty = self
+                .cg_ty_of(*type_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect frame slot type",
+                    at: span.into(),
+                })?;
             let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
             field_types.push(llvm_ty);
         }
 
         // Create the named struct type.
-        let type_name = format!(
-            "scoop.effect.frame.{:x}",
-            span.start ^ (span.end << 16)
-        );
+        let type_name = format!("scoop.effect.frame.{:x}", span.start ^ (span.end << 16));
         let frame_type = self.context.opaque_struct_type(&type_name);
         frame_type.set_body(&field_types, false);
 
-        Ok(FrameLayout {
-            frame_type,
+        Ok(FrameLayout { frame_type })
+    }
+
+    fn get_or_create_effect_frame_type_desc_global(
+        &mut self,
+        span: crate::span::Span,
+        frame_layout: &FrameLayout<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&frame_layout.frame_type, FRAME_OBJECT_HEADER_FIELD_COUNT)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect frame trace_start offset",
+                at: span.into(),
+            })?;
+        let suffix = (span.start as u64) ^ ((span.end as u64) << 16);
+        let global_name = format!("__scoop_type_desc_effect_frame__{suffix:x}");
+        let canonical_name = format!("scoop.effect.frame.{suffix:x}");
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at: span,
+            global_name: &global_name,
+            canonical_name: &canonical_name,
+            obj_ty: frame_layout.frame_type,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
         })
     }
 
@@ -166,7 +191,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Generate the step function for a state machine.
     ///
     /// The step function has the continuation step signature:
-    ///   `void step_fn(ptr %state, i64 %resume_word, ptr %resume_gc_ref)`
+    ///   `void step_fn(ptr addrspace(1) %state, i64 %resume_word, ptr addrspace(1) %resume_gc_ref)`
     ///
     /// On entry it stores resume_word and resume_gc_ref into the frame, loads
     /// state_tag, and dispatches via `switch` to per-state basic blocks.
@@ -179,22 +204,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
         frame_layout: &FrameLayout<'ctx>,
     ) -> Result<inkwell::values::FunctionValue<'ctx>, LlvmEmitError> {
-        // Step function signature: (ptr, i64, ptr) -> void
-        let state_ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
+        // Step function signature: (ptr addrspace(1), i64, ptr addrspace(1)) -> void
+        let state_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
 
-        let param_tys: [inkwell::types::BasicMetadataTypeEnum<'ctx>; 3] = [
-            state_ptr_ty.into(),
-            i64_ty.into(),
-            gc_ptr_ty.into(),
-        ];
+        let param_tys: [inkwell::types::BasicMetadataTypeEnum<'ctx>; 3] =
+            [state_ptr_ty.into(), i64_ty.into(), gc_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
 
-        let fn_name = format!(
-            "scoop.effect.step.{:x}",
-            span.start ^ (span.end << 16)
-        );
+        let fn_name = format!("scoop.effect.step.{:x}", span.start ^ (span.end << 16));
         let step_fn = self.module.add_function(&fn_name, fn_ty, None);
         step_fn.set_call_conventions(0);
 
@@ -289,11 +308,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Create basic blocks for each state.
         let states = contract.states();
-        let unreachable_bb =
-            self.context.append_basic_block(step_fn, "unreachable");
+        let unreachable_bb = self.context.append_basic_block(step_fn, "unreachable");
 
-        let mut state_bb_map: HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>> =
-            HashMap::new();
+        let mut state_bb_map: HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>> = HashMap::new();
         for state in states {
             let label = format!("state_{}", state.id());
             let bb = self.context.append_basic_block(step_fn, &label);
@@ -310,7 +327,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 (tag, bb)
             })
             .collect();
-        self.builder.build_switch(state_tag, unreachable_bb, &cases)?;
+        self.builder
+            .build_switch(state_tag, unreachable_bb, &cases)?;
 
         // Emit unreachable block.
         self.builder.position_at_end(unreachable_bb);
@@ -329,13 +347,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // SSA dominance: GEPs from sibling state BBs are not usable).
             self.populate_frame_slots_in_env(span, state_ptr, frame_layout, contract)?;
 
-            let last_value = self.emit_state_ops(
-                span,
-                state,
-                state_ptr,
-                frame_layout,
-                contract,
-            )?;
+            let last_value = self.emit_state_ops(span, state, state_ptr, frame_layout, contract)?;
 
             self.emit_state_terminator(
                 span,
@@ -420,8 +432,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 HandleStateOp::LoopReentry { .. } => {
                     // Goto to loop header is handled by the terminator.
                 }
-                HandleStateOp::CleanupEdgeComplete
-                | HandleStateOp::ReturnToEnclosingExpression => {
+                HandleStateOp::CleanupEdgeComplete | HandleStateOp::ReturnToEnclosingExpression => {
                     // Semantic markers — no LLVM IR needed.
                     // CleanupEdgeComplete: marks end of cleanup block; the
                     //   Goto terminator on the same state handles the branch.
@@ -456,8 +467,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // --- Anonymous val: evaluate for side effects, track value ---
                 HandleStateOp::DeclareAnonymousVal { decl } => {
                     if let Some(init) = &decl.init {
-                        let val =
-                            self.codegen_expr_in_expected_context(init, None)?;
+                        let val = self.codegen_expr_in_expected_context(init, None)?;
                         last_value = Some(val);
                     }
                 }
@@ -489,8 +499,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | HandleStateOp::Call { expr }
                 | HandleStateOp::WhenExpr { expr }
                 | HandleStateOp::Closure { expr } => {
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
 
@@ -508,9 +517,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 HandleStateOp::Return { stmt } => {
                     if let hir::StmtKind::Return { value } = &stmt.kind {
                         if let Some(val_expr) = value {
-                            let val = self.codegen_expr_in_expected_context(
-                                val_expr, None,
-                            )?;
+                            let val = self.codegen_expr_in_expected_context(val_expr, None)?;
                             last_value = Some(val);
                         } else {
                             last_value = Some(CgValue::unit());
@@ -519,8 +526,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Break/Continue: control flow handled by terminator ---
-                HandleStateOp::Break { .. }
-                | HandleStateOp::Continue { .. } => {
+                HandleStateOp::Break { .. } | HandleStateOp::Continue { .. } => {
                     // The state machine represents break/continue as state
                     // transitions (Goto terminator).  No LLVM IR needed here.
                 }
@@ -534,8 +540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Suspending call: evaluate call expression normally ---
                 HandleStateOp::SuspendCall { expr, .. } => {
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                     // If the callee performed, the TLS active flag is set.
                     // The Suspend terminator handles the rest.
@@ -550,20 +555,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Object init access boundary: evaluate expression ---
                 HandleStateOp::ObjectInitAccessBoundary { expr, .. } => {
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
 
                 // --- Runtime raise boundary: evaluate expression ---
                 HandleStateOp::RuntimeRaiseBoundary { expr, .. } => {
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
 
                 // --- Execute handler arm body ---
-                HandleStateOp::ExecuteArmBody { arm_id, op_fqn, arm } => {
+                HandleStateOp::ExecuteArmBody {
+                    arm_id,
+                    op_fqn,
+                    arm,
+                } => {
                     let val = self.emit_execute_arm_body(
                         *arm_id,
                         op_fqn,
@@ -582,8 +589,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // which will recursively enter codegen_handle_expr →
                     // codegen_handle_expr_via_state_machine, generating a
                     // separate sub-state-machine for the inner handle.
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
                 HandleStateOp::NestedHandleBoundary { expr, .. } => {
@@ -592,8 +598,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // to generate the inner state machine; the outer state
                     // machine's Suspend terminator (which follows this op)
                     // handles suspension if the inner handle doesn't catch.
-                    let val =
-                        self.codegen_expr_in_expected_context(expr, None)?;
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
 
@@ -634,29 +639,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
         span: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
-        let target_ty =
-            self.cg_ty_of(decl.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "bind local type in state machine",
-                    at: decl.span.into(),
-                })?;
+        let target_ty = self
+            .cg_ty_of(decl.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "bind local type in state machine",
+                at: decl.span.into(),
+            })?;
 
         // Evaluate initializer.
         let init_val = match decl.init.as_ref() {
-            Some(init_expr) => {
-                self.codegen_initializer_expr(init_expr, target_ty, decl.ty)?
-            }
+            Some(init_expr) => self.codegen_initializer_expr(init_expr, target_ty, decl.ty)?,
             None => self.default_value(span, target_ty)?,
         };
 
         // Find the frame slot for this local.
-        let field_index = contract
-            .frame()
-            .get_slot_field_index(id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let field_index = contract.frame().get_slot_field_index(id).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "bind local: frame slot not found",
                 at: decl.span.into(),
-            })?;
+            },
+        )?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
 
         // GEP into frame + store.
@@ -693,13 +695,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // Find the frame slot.
-        let field_index = contract
-            .frame()
-            .get_slot_field_index(id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let field_index = contract.frame().get_slot_field_index(id).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "read local: frame slot not found",
                 at: at.into(),
-            })?;
+            },
+        )?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
 
         // Resolve the slot's type.
@@ -713,12 +714,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
         let type_id = unified_slot.slot().ty();
-        let cg_ty =
-            self.cg_ty_of(type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "read local: unsupported slot type",
-                    at: at.into(),
-                })?;
+        let cg_ty = self
+            .cg_ty_of(type_id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "read local: unsupported slot type",
+                at: at.into(),
+            })?;
 
         // GEP into frame.
         let slot_ptr = self.builder.build_struct_gep(
@@ -742,19 +743,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Load and return.
         let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
-        let loaded = self
-            .builder
-            .build_load(llvm_ty, slot_ptr, "slot_val")?;
+        let loaded = self.builder.build_load(llvm_ty, slot_ptr, "slot_val")?;
         self.cg_value_from_loaded(at, cg_ty, loaded)
     }
 
     /// Emit a statement-type op (Assign, etc.) by dispatching to existing
     /// statement codegen.  The env must already contain the referenced locals
     /// (via prior BindLocal / ReadLocal ops in the same state).
-    fn emit_stmt_op(
-        &mut self,
-        stmt: &hir::Stmt,
-    ) -> Result<(), LlvmEmitError> {
+    fn emit_stmt_op(&mut self, stmt: &hir::Stmt) -> Result<(), LlvmEmitError> {
         match &stmt.kind {
             hir::StmtKind::Empty => Ok(()),
             hir::StmtKind::Val(decl) => self.codegen_val_decl(decl),
@@ -762,8 +758,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_assign_stmt(*eq_span, lhs, rhs)
             }
             hir::StmtKind::Expr(expr) => {
-                let _ =
-                    self.codegen_expr_in_expected_context(expr, Some(CgTy::Unit))?;
+                let _ = self.codegen_expr_in_expected_context(expr, Some(CgTy::Unit))?;
                 Ok(())
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
@@ -800,8 +795,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match terminator {
             UnifiedStateTerminator::Goto { next_state } => {
-                let target_bb =
-                    self.lookup_state_bb(*next_state, state_bb_map, span)?;
+                let target_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
                 self.builder.build_unconditional_branch(target_bb)?;
             }
 
@@ -812,10 +806,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ..
             } => {
                 let cond_bool = self.emit_branch_condition(condition)?;
-                let then_bb =
-                    self.lookup_state_bb(*then_state, state_bb_map, span)?;
-                let else_bb =
-                    self.lookup_state_bb(*else_state, state_bb_map, span)?;
+                let then_bb = self.lookup_state_bb(*then_state, state_bb_map, span)?;
+                let else_bb = self.lookup_state_bb(*else_state, state_bb_map, span)?;
                 self.builder
                     .build_conditional_branch(cond_bool, then_bb, else_bb)?;
             }
@@ -850,9 +842,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
 
-            UnifiedStateTerminator::Suspend {
-                resume_state, ..
-            } => {
+            UnifiedStateTerminator::Suspend { resume_state, .. } => {
                 // Save the resume state_tag so step_fn re-enters at the
                 // right state after the handler arm resumes.
                 self.write_state_tag(
@@ -895,23 +885,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Set the TLS active flag to signal that an effect was
                 // performed.
                 let set_active = self.declare_runtime_effect_set_active();
-                self.builder
-                    .build_call(set_active, &[], "")?;
+                self.builder.build_call(set_active, &[], "")?;
 
                 // Return from the step function.  The dispatch loop in the
                 // handle entry will detect the active flag and dispatch.
                 self.builder.build_return(None)?;
             }
 
-            UnifiedStateTerminator::CleanupEnter {
-                next_state, ..
-            } => {
+            UnifiedStateTerminator::CleanupEnter { next_state, .. } => {
                 // Branch unconditionally to the cleanup scope's entry state.
                 // The cleanup states (finally block) are part of the same step
                 // function's state table and will execute their ops normally,
                 // eventually flowing back through Goto → ReturnHandle.
-                let target_bb =
-                    self.lookup_state_bb(*next_state, state_bb_map, span)?;
+                let target_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
                 self.builder.build_unconditional_branch(target_bb)?;
             }
 
@@ -941,24 +927,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let cont_ptr = self
                     .builder
-                    .build_load(
-                        self.llvm_gc_i8_ptr_type(),
-                        cont_gep,
-                        "continuation_ref",
-                    )?
+                    .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_ref")?
                     .into_pointer_value();
 
                 // Write the resume payload into the continuation struct.
                 if let Some(val) = last_value {
-                    self.write_resume_payload_to_continuation(
-                        span, val, cont_ptr,
-                    )?;
+                    self.write_resume_payload_to_continuation(span, val, cont_ptr)?;
                 }
 
                 // Call scoop_continuation_resume(k).
                 let resume_fn = self.declare_runtime_continuation_resume();
-                self.builder
-                    .build_call(resume_fn, &[cont_ptr.into()], "")?;
+                self.builder.build_call(resume_fn, &[cont_ptr.into()], "")?;
 
                 // After resume returns, the step_fn has finished (or
                 // suspended again — the dispatch loop handles that).
@@ -996,13 +975,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             HandleBranchCondition::WhileCond { condition } => condition,
             HandleBranchCondition::IfCond { condition } => condition,
         };
-        let val =
-            self.codegen_expr_in_expected_context(expr, Some(CgTy::Bool))?;
-        val.as_bool()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "branch condition is not bool",
-                at: expr.span.into(),
-            })
+        let val = self.codegen_expr_in_expected_context(expr, Some(CgTy::Bool))?;
+        val.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "branch condition is not bool",
+            at: expr.span.into(),
+        })
     }
 
     /// Look up the LLVM basic block for a state ID.
@@ -1035,10 +1012,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             frame_layout.state_tag_index(),
             name,
         )?;
-        let val = self
-            .context
-            .i32_type()
-            .const_int(tag_value as u64, false);
+        let val = self.context.i32_type().const_int(tag_value as u64, false);
         self.builder.build_store(gep, val)?;
         Ok(())
     }
@@ -1105,9 +1079,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "read_result_gc_ref",
                 )?;
                 let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
-                let loaded = self
-                    .builder
-                    .build_load(gc_ptr_ty, gep, "result_ref")?;
+                let loaded = self.builder.build_load(gc_ptr_ty, gep, "result_ref")?;
                 self.cg_value_from_loaded(span, result_cg_ty, loaded)
             }
             _ => {
@@ -1165,11 +1137,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::float(bits, CgTy::Float64))
             }
             CgTy::Float32 => {
-                let i32_trunc = self.builder.build_int_truncate(
-                    word,
-                    self.context.i32_type(),
-                    "u64_to_u32",
-                )?;
+                let i32_trunc =
+                    self.builder
+                        .build_int_truncate(word, self.context.i32_type(), "u64_to_u32")?;
                 let f32_ty = self.context.f32_type();
                 let bits = self
                     .builder
@@ -1191,7 +1161,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         // Value-only enums are plain integers — truncate u64.
                         let narrowed = self.cast_int(
                             word,
-                            IntTy { bits: 64, signed: false },
+                            IntTy {
+                                bits: 64,
+                                signed: false,
+                            },
                             underlying,
                         )?;
                         Ok(CgValue {
@@ -1204,9 +1177,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         // from the u64 word (which encodes the tag).
                         // Only valid for fieldless-variant enums transported
                         // via the perform slot (e.g. RuntimeError).
-                        let llvm_ty = self
-                            .llvm_enum_value_type(span, enum_ty)?
-                            .into_struct_type();
+                        let llvm_ty = self.llvm_enum_value_type(span, enum_ty)?.into_struct_type();
                         let tag_i32 = self.builder.build_int_truncate(
                             word,
                             self.context.i32_type(),
@@ -1216,9 +1187,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
 
                         let mut agg: AggregateValueEnum<'_> = llvm_ty.get_undef().into();
-                        agg = self.builder.build_insert_value(
-                            agg, tag_i32, 0, "enum_tag",
-                        )?;
+                        agg = self
+                            .builder
+                            .build_insert_value(agg, tag_i32, 0, "enum_tag")?;
                         agg = self.builder.build_insert_value(
                             agg,
                             payload_word_ty.const_int(0, false),
@@ -1242,12 +1213,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }),
                 }
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "narrow u64 to composite type (not yet supported)",
-                    at: span.into(),
-                })
-            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "narrow u64 to composite type (not yet supported)",
+                at: span.into(),
+            }),
         }
     }
 
@@ -1260,7 +1229,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Flow:
     /// 1. Build the unified lowering contract from the `handle` HIR.
     /// 2. Generate the frame struct type and step function.
-    /// 3. Allocate the frame on the heap.
+    /// 3. Allocate the frame as a GC-managed typed object.
     /// 4. Initialize the frame's state_tag to the entry state.
     /// 5. Call the step function for the initial body execution.
     /// 6. Dispatch loop: check active flag → read op_tag → dispatch to arm
@@ -1277,45 +1246,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 2. Generate frame layout and step function.
         let frame_layout = self.emit_effect_frame_layout(span, &contract)?;
-        let step_fn =
-            self.emit_effect_step_function(span, &contract, &frame_layout)?;
+        let step_fn = self.emit_effect_step_function(span, &contract, &frame_layout)?;
 
-        // 3. Allocate the frame on the heap.
-        let frame_size = self
-            .target_data
-            .get_store_size(&frame_layout.frame_type);
-        let malloc = self.declare_libc_malloc();
+        // 3. Allocate the frame as a GC-managed typed object.
+        let frame_size = self.target_data.get_store_size(&frame_layout.frame_type);
+        let frame_desc = self.get_or_create_effect_frame_type_desc_global(span, &frame_layout)?;
+        let frame_desc_i8 = self.builder.build_pointer_cast(
+            frame_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "effect_frame_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
         let size_val = self.context.i64_type().const_int(frame_size, false);
         let raw_ptr = self
             .builder
-            .build_call(malloc, &[size_val.into()], "effect_frame_raw")?
+            .build_call(
+                rt_alloc,
+                &[frame_desc_i8.into(), size_val.into()],
+                "effect_frame_obj",
+            )?
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "malloc return value",
+                kind: "scoop_alloc_typed return value (effect frame)",
                 at: span.into(),
             })?
             .into_pointer_value();
-
-        // 4. Initialize the frame: zero-fill then set state_tag.
-        let memset = self.declare_llvm_memset();
-        let i8_zero = self.context.i8_type().const_int(0, false);
-        let i1_false = self.context.bool_type().const_int(0, false);
-        self.builder.build_call(
-            memset,
-            &[
-                raw_ptr.into(),
-                i8_zero.into(),
-                size_val.into(),
-                i1_false.into(),
-            ],
-            "",
+        let frame_ptr = self.builder.build_pointer_cast(
+            raw_ptr,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "effect_frame_ptr",
         )?;
+
+        // 4. Initialize the frame payload: keep the runtime-written object
+        //    header intact, and clear the state-machine fields / user slots.
+        let payload_offset = self
+            .target_data
+            .offset_of_element(&frame_layout.frame_type, frame_layout.state_tag_index())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect frame payload offset",
+                at: span.into(),
+            })?;
+        let payload_size = frame_size.saturating_sub(payload_offset);
+        if payload_size > 0 {
+            let payload_gep = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                frame_ptr,
+                frame_layout.state_tag_index(),
+                "effect_frame_payload_gep",
+            )?;
+            let payload_i8 = self.builder.build_pointer_cast(
+                payload_gep,
+                self.llvm_gc_i8_ptr_type(),
+                "effect_frame_payload_i8",
+            )?;
+            let size_ty = self.llvm_ptr_sized_int_type(None);
+            let payload_size_val = size_ty.const_int(payload_size, false);
+            let zero = self.context.i8_type().const_zero();
+            let _ = self
+                .builder
+                .build_memset(payload_i8, 1, zero, payload_size_val)?;
+        }
 
         // Set state_tag to entry state.
         let state_tag_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
-            raw_ptr,
+            frame_ptr,
             frame_layout.state_tag_index(),
             "entry_state_tag_ptr",
         )?;
@@ -1327,24 +1323,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Allocate a handler frame on the stack for handler-stack registration.
         let handler_frame_ty = self.llvm_effect_handler_frame_type();
-        let handler_frame_ptr = self.builder.build_alloca(handler_frame_ty, "handler_frame")?;
+        let handler_frame_ptr = self
+            .builder
+            .build_alloca(handler_frame_ty, "handler_frame")?;
 
         // Zero-initialize the handler frame.
         let handler_frame_size = self.target_data.get_store_size(&handler_frame_ty);
         let handler_frame_size_val = self
-            .context
-            .i64_type()
+            .llvm_ptr_sized_int_type(None)
             .const_int(handler_frame_size, false);
-        self.builder.build_call(
-            memset,
-            &[
-                handler_frame_ptr.into(),
-                i8_zero.into(),
-                handler_frame_size_val.into(),
-                i1_false.into(),
-            ],
-            "",
+        let handler_frame_i8 = self.builder.build_pointer_cast(
+            handler_frame_ptr,
+            self.llvm_i8_ptr_type(),
+            "handler_frame_i8",
         )?;
+        let zero = self.context.i8_type().const_zero();
+        let _ = self
+            .builder
+            .build_memset(handler_frame_i8, 1, zero, handler_frame_size_val)?;
 
         // Push the handler frame onto the handler stack for each effect
         // operation handled by this handler.  For simplicity, we push once
@@ -1357,16 +1353,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Individual op_tags are checked in the dispatch logic.
             let first_op_fqn = contract.dispatch_entries()[0].op_fqn();
             let op_tag = self.effect_op_tag(first_op_fqn);
-            let op_tag_val = self
-                .context
-                .i32_type()
-                .const_int(op_tag as u64, false);
+            let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
             let push_fn = self.declare_runtime_effect_handler_stack_push();
-            self.builder.build_call(
-                push_fn,
-                &[handler_frame_ptr.into(), op_tag_val.into()],
-                "",
-            )?;
+            self.builder
+                .build_call(push_fn, &[handler_frame_ptr.into(), op_tag_val.into()], "")?;
         }
 
         // 5. Call the step function for initial body execution.
@@ -1374,7 +1364,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_null = self.llvm_gc_i8_ptr_type().const_null();
         self.builder.build_call(
             step_fn,
-            &[raw_ptr.into(), i64_zero.into(), gc_null.into()],
+            &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
             "",
         )?;
 
@@ -1387,7 +1377,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .or_else(|| self.cg_ty_of(contract.result_ty()))
             .unwrap_or(CgTy::Unit);
 
-
         let current_fn = self
             .builder
             .get_insert_block()
@@ -1397,16 +1386,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        let dispatch_check_bb =
-            self.context.append_basic_block(current_fn, "dispatch_check");
-        let dispatch_arm_bb =
-            self.context.append_basic_block(current_fn, "dispatch_arm");
-        let handle_done_bb =
-            self.context.append_basic_block(current_fn, "handle_done");
+        let dispatch_check_bb = self
+            .context
+            .append_basic_block(current_fn, "dispatch_check");
+        let dispatch_arm_bb = self.context.append_basic_block(current_fn, "dispatch_arm");
+        let handle_done_bb = self.context.append_basic_block(current_fn, "handle_done");
 
         // Jump to the dispatch check after the initial step_fn call.
-        self.builder
-            .build_unconditional_branch(dispatch_check_bb)?;
+        self.builder.build_unconditional_branch(dispatch_check_bb)?;
 
         // --- dispatch_check: test active flag ---
         self.builder.position_at_end(dispatch_check_bb);
@@ -1461,12 +1448,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // arm's entry state.
         if contract.dispatch_entries().is_empty() {
             // No arms to dispatch to — just branch to done.
-            self.builder
-                .build_unconditional_branch(handle_done_bb)?;
+            self.builder.build_unconditional_branch(handle_done_bb)?;
         } else {
             // For each dispatch entry, create a handler arm block.
-            let unmatched_bb =
-                self.context.append_basic_block(current_fn, "dispatch_unmatched");
+            let unmatched_bb = self
+                .context
+                .append_basic_block(current_fn, "dispatch_unmatched");
 
             let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
                 Vec::new();
@@ -1474,18 +1461,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for dispatch_entry in contract.dispatch_entries() {
                 let op_fqn = dispatch_entry.op_fqn();
                 let tag = self.effect_op_tag(op_fqn);
-                let tag_val = self
-                    .context
-                    .i32_type()
-                    .const_int(tag as u64, false);
+                let tag_val = self.context.i32_type().const_int(tag as u64, false);
 
                 // For each arm in this dispatch entry, pick the first arm
                 // (single-arm dispatch is the common case for now).
                 if let Some(first_arm) = dispatch_entry.arms().first() {
-                    let arm_bb = self.context.append_basic_block(
-                        current_fn,
-                        &format!("arm_{}", first_arm.arm_id()),
-                    );
+                    let arm_bb = self
+                        .context
+                        .append_basic_block(current_fn, &format!("arm_{}", first_arm.arm_id()));
                     cases.push((tag_val, arm_bb));
 
                     // In the arm block: set state_tag to arm entry state,
@@ -1494,7 +1477,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     let arm_entry_state = first_arm.entry_state();
                     self.write_state_tag(
-                        raw_ptr,
+                        frame_ptr,
                         &frame_layout,
                         arm_entry_state,
                         &format!("set_arm_state_{}", first_arm.arm_id()),
@@ -1507,15 +1490,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // handle binder setup and body execution.
                     self.builder.build_call(
                         step_fn,
-                        &[raw_ptr.into(), i64_zero.into(), gc_null.into()],
+                        &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
                         "",
                     )?;
 
                     // After arm execution, loop back to check if more
                     // performs happened (the arm may have resumed the
                     // body which then performed again).
-                    self.builder
-                        .build_unconditional_branch(dispatch_check_bb)?;
+                    self.builder.build_unconditional_branch(dispatch_check_bb)?;
                 }
             }
 
@@ -1551,8 +1533,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Unmatched op_tag: this shouldn't normally happen for well-formed
             // programs.  Branch to handle_done.
             self.builder.position_at_end(unmatched_bb);
-            self.builder
-                .build_unconditional_branch(handle_done_bb)?;
+            self.builder.build_unconditional_branch(handle_done_bb)?;
         }
 
         // --- handle_done: pop handler frame, read result ---
@@ -1560,18 +1541,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if has_dispatch {
             let pop_fn = self.declare_runtime_effect_handler_stack_pop();
-            self.builder.build_call(
-                pop_fn,
-                &[handler_frame_ptr.into()],
-                "",
-            )?;
+            self.builder
+                .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
         }
 
         // 7. Read the handle result from the frame.
         // Check state_tag for completion mode.
         let state_tag_gep_post = self.builder.build_struct_gep(
             frame_layout.frame_type,
-            raw_ptr,
+            frame_ptr,
             frame_layout.state_tag_index(),
             "post_state_tag_ptr",
         )?;
@@ -1588,7 +1566,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // the enclosing function instead of treating it as normal completion.
         let _ = post_state_tag;
 
-        self.read_result_from_frame(span, result_cg_ty, raw_ptr, &frame_layout)
+        self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)
     }
 
     // ------------------------------------------------------------------
@@ -1604,14 +1582,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
         let op_tag = self.effect_op_tag(op_fqn);
-        let op_tag_val = self
-            .context
-            .i32_type()
-            .const_int(op_tag as u64, false);
+        let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
 
         // Evaluate the perform expression to get the payload value.
-        let payload_val =
-            self.codegen_expr_in_expected_context(expr, None)?;
+        let payload_val = self.codegen_expr_in_expected_context(expr, None)?;
 
         // Write to TLS perform slot based on payload type.
         match payload_val.ty {
@@ -1619,11 +1593,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // No payload — write op_tag with zero payload.
                 let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
                 let zero = self.context.i64_type().const_int(0, false);
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), zero.into()],
-                    "",
-                )?;
+                self.builder
+                    .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
             }
             CgTy::String | CgTy::Ref => {
                 // GC ref payload — use the gc_ref variant.
@@ -1641,11 +1612,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // Scalar payload — coerce to u64 and write.
                 let word = self.coerce_u64_word(span, payload_val)?;
                 let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), word.into()],
-                    "",
-                )?;
+                self.builder
+                    .build_call(write_fn, &[op_tag_val.into(), word.into()], "")?;
             }
         }
 
@@ -1678,37 +1646,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Set up binder locals: read from perform slot and store to frame slots.
         for binder in &arm.op.binders {
-            let binder_cg_ty = self.cg_ty_of(binder.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "arm binder type",
-                    at: binder.span.into(),
-                },
-            )?;
+            let binder_cg_ty =
+                self.cg_ty_of(binder.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm binder type",
+                        at: binder.span.into(),
+                    })?;
 
             // Read the binder value from the TLS perform slot.
-            let binder_val = self.read_binder_from_perform_slot(
-                binder.span,
-                binder_cg_ty,
-            )?;
+            let binder_val = self.read_binder_from_perform_slot(binder.span, binder_cg_ty)?;
 
             // If there's a frame slot for this binder, store to frame.
-            if let Some(field_index) =
-                contract.frame().get_slot_field_index(binder.id)
-            {
-                let llvm_index =
-                    frame_layout.user_slot_llvm_index(field_index);
+            if let Some(field_index) = contract.frame().get_slot_field_index(binder.id) {
+                let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                 let slot_ptr = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
                     llvm_index,
                     &format!("arm_binder_{}", binder.id.as_u32()),
                 )?;
-                self.store_local_value(
-                    binder.span,
-                    slot_ptr,
-                    binder_cg_ty,
-                    binder_val,
-                )?;
+                self.store_local_value(binder.span, slot_ptr, binder_cg_ty, binder_val)?;
                 self.env.insert(
                     binder.id,
                     CgLocal {
@@ -1721,13 +1678,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 // No frame slot — allocate stack local.
                 let llvm_ty = self.llvm_basic_type_of(binder.span, binder_cg_ty)?;
-                let alloca = self.builder.build_alloca(llvm_ty, &format!("binder_{}", binder.name))?;
-                self.store_local_value(
-                    binder.span,
-                    alloca,
-                    binder_cg_ty,
-                    binder_val,
-                )?;
+                let alloca = self
+                    .builder
+                    .build_alloca(llvm_ty, &format!("binder_{}", binder.name))?;
+                self.store_local_value(binder.span, alloca, binder_cg_ty, binder_val)?;
                 self.env.insert(
                     binder.id,
                     CgLocal {
@@ -1748,10 +1702,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // mechanism is handled by ArmResumeMatchedSite terminator.
                 // Register a dummy local so codegen doesn't fail on references.
                 let unit_ty = CgTy::Unit;
-                let dummy_ptr = self.builder.build_alloca(
-                    self.context.i8_type(),
-                    "resume_placeholder",
-                )?;
+                let dummy_ptr = self
+                    .builder
+                    .build_alloca(self.context.i8_type(), "resume_placeholder")?;
                 self.env.insert(
                     resume,
                     CgLocal {
@@ -1773,19 +1726,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let cont_ptr = self
                     .builder
-                    .build_load(
-                        self.llvm_gc_i8_ptr_type(),
-                        cont_gep,
-                        "continuation_val",
-                    )?
+                    .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_val")?
                     .into_pointer_value();
 
                 // Find or alloc frame slot for the continuation local.
-                if let Some(field_index) =
-                    contract.frame().get_slot_field_index(continuation)
-                {
-                    let llvm_index =
-                        frame_layout.user_slot_llvm_index(field_index);
+                if let Some(field_index) = contract.frame().get_slot_field_index(continuation) {
+                    let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                     let slot_ptr = self.builder.build_struct_gep(
                         frame_layout.frame_type,
                         state_ptr,
@@ -1803,10 +1749,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                     );
                 } else {
-                    let alloca = self.builder.build_alloca(
-                        self.llvm_gc_i8_ptr_type(),
-                        "cont_local",
-                    )?;
+                    let alloca = self
+                        .builder
+                        .build_alloca(self.llvm_gc_i8_ptr_type(), "cont_local")?;
                     self.builder.build_store(alloca, cont_ptr)?;
                     self.env.insert(
                         continuation,
@@ -1831,8 +1776,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue; // Already in env from binder setup.
             }
             // Try to load from frame.
-            if let Some(field_index) =
-                contract.frame().get_slot_field_index(local_id)
+            if let Some(field_index) = contract.frame().get_slot_field_index(local_id)
                 && let Some(slot) = contract
                     .frame()
                     .slots()
@@ -1841,8 +1785,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 let type_id = slot.slot().ty();
                 if let Some(cg_ty) = self.cg_ty_of(type_id) {
-                    let llvm_index =
-                        frame_layout.user_slot_llvm_index(field_index);
+                    let llvm_index = frame_layout.user_slot_llvm_index(field_index);
                     let slot_ptr = self.builder.build_struct_gep(
                         frame_layout.frame_type,
                         state_ptr,
@@ -1946,27 +1889,5 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         Ok(())
-    }
-
-    /// Declare `llvm.memset.p0.i64` intrinsic.
-    fn declare_llvm_memset(&self) -> inkwell::values::FunctionValue<'ctx> {
-        const NAME: &str = "llvm.memset.p0.i64";
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let void_ty = self.context.void_type();
-        let i8_ptr_ty = self.context.ptr_type(inkwell::AddressSpace::default());
-        let i8_ty = self.context.i8_type();
-        let i64_ty = self.context.i64_type();
-        let i1_ty = self.context.bool_type();
-        let param_tys: [inkwell::types::BasicMetadataTypeEnum<'ctx>; 4] = [
-            i8_ptr_ty.into(),
-            i8_ty.into(),
-            i64_ty.into(),
-            i1_ty.into(),
-        ];
-        let fn_ty = void_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
     }
 }

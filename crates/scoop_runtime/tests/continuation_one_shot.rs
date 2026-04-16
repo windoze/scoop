@@ -35,7 +35,8 @@ struct ScoopContinuationPrefix {
     captured_handler_stack_top: *mut ScoopEffectHandlerFrame,
 }
 
-type ScoopContinuationStepFn = Option<extern "C" fn(state: *mut c_void, resume_value: u64)>;
+type ScoopContinuationStepFn =
+    Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
 unsafe extern "C" {
     fn scoop_runtime_init();
@@ -54,7 +55,7 @@ unsafe extern "C" {
     fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
 }
 
-extern "C" fn noop_step(_state: *mut c_void, _resume_value: u64) {}
+extern "C" fn noop_step(_state: *mut c_void, _resume_word: u64, _resume_gc_ref: *mut c_void) {}
 
 #[test]
 fn continuation_alloc_captures_handler_stack_and_is_one_shot() {

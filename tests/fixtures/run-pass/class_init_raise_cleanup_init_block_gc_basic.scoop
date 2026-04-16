@@ -1,8 +1,5 @@
-// EXPECT: fail
+// EXPECT: pass
 // RUN-STDOUT: class_init_raise_cleanup_init_block_gc_basic.stdout
-//
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
 // T1327b：类初始化期间 Raise/effect unwinding cleanup
 // - init block 中触发 Raise.raise，外层 try/catch 捕获后继续执行
 // - ctor call 临时 GC frame 必须在 unwind 路径 pop，避免失败构造对象被错误保留为 root
@@ -30,4 +27,3 @@ fun main(): Int {
     println(after - before)
     return 0
 }
-

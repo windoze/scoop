@@ -3,13 +3,15 @@
 > 生成时间：2026-04-15  
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
+>
+> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；当前执行顺序以 `TODO.md` 中新增的 `T3008aR`～`T3017R` 收口任务为准，`T3101+` 顺延。
 
 ## 0. 工作原则
 
 - 当前最高优先级是 `T30`；`T31`～`T34` 只作为 effect 主线收口后的后续队列，不与当前修线争抢顺序。
 - `T30` 继续遵守“删除优先于修补”。看到 shape-based 生产逻辑就直接删除，不以“先补一个 case”维持旧路径。
 - `T30` 中 LLVM effect codegen 的单一输入是 state machine。除类型、符号与 ABI 必需信息外，不能再读取源码形状、旧 scanner 结果或旧分类器输出。
-- `T30` 当前阶段只实现 heap-allocated full state machine lowering，不做 simplification，不做模式化优化。
+- `T30` 当前阶段继续坚持 full state machine lowering；`T3008a` 已把 frame/continuation ABI 收口到 GC typed alloc + `addrspace(1)`，但仍不做 simplification，不做模式化优化。
 - flag-based unwind（`emit_effect_unwind_if_active` / `raise_target_stack`）明确搁置，不作为 `T30` 主线依赖。effect 传播完全由统一 state machine 驱动；flag-based unwind 日后可作为优化加回。
 - `T30` 中每个实现任务后立即插入一个 review 任务；review 必须显式确认生产代码中不存在 shape-based logic。
 - `T30` 的 review 范围只看生产代码，重点是 `crates/scoopc/src/llvm/codegen/**`；测试命名不作为问题。
@@ -49,7 +51,16 @@
 - `T3004R` 已完成：审查确认 full-state-machine LLVM emitter 只按 state machine 语义发射，无 shape-based 选路或旧路线旁路。
 - `T3005` 已完成：`codegen_perform_expr` 从占位错误改为写 TLS perform slot + set active + return default。`emit_raise_runtime_error_variant` 从占位错误改为写 Raise.raise op_tag + set active。移除了 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用（含 `fun_ty_effects_is_pure` 门控）、`raise_target_stack` 字段、`effect/mod.rs` 中 flag-based unwind 三方法定义。
 - `T3005R` 已完成：审查确认 effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留。修复了 `mod.rs` 中 3 处引用已删除 flag-based unwinding 的过时注释。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。下一步进入阶段 F（T3007：删除 legacy 死代码）。
+- `T3008a` 已完成：
+  - unified effect frame 现已是 GC-managed typed object：frame LLVM 布局前置 `ScoopGcObjectHeader`，并为每个 handle frame 生成独立 type descriptor / trace bitmap。
+  - `codegen_handle_expr_via_state_machine` 已从 `malloc` raw frame 改为 `scoop_alloc_typed` 分配，并只清零 payload，不覆盖 runtime 写入的对象头。
+  - step function 的 `state` 形参与 continuation LLVM struct 中的 `state` / `resume_gc_ref` 槽位已统一为 `addrspace(1)`。
+  - 已同步修正 3 个 runtime 测试中的旧 continuation step 三参 ABI，并回收 24 个只因 verifier 失败而临时 xfail 的 run-pass fixtures。
+  - 已验证 `cargo check -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，以及两条 `T3008a` 定向 fixture。
+- `T3008a` 暴露出的下一层真实阻塞：
+  - `cargo run -p scoop --features llvm -- test` 不再首先死于 `ptr` / `ptr addrspace(1)` verifier error，而是继续跑到 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 等用例，表现为 arm 在自身 scope 内反复自捕获，直接对应 `T3014` 的 handler-stack 语义缺口。
+  - 因此 effect 主线当前的下一步不是 `T3101`，而是 `T3008aR` review；之后继续按 `T3009+`、`T3014+`、`T3017+` 顺序收口。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。
 
 ## 2. 阶段顺序
 
@@ -220,8 +231,8 @@
 #### T3007R：Review（已完成）
 - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind / raise_target_stack / unwind 等关键词，全部零生产代码命中。
 - 已审查 `effect/mod.rs` 三个主入口、`state_machine_emitter.rs`（1972 行，29 op + 9 terminator 变体）、`runtime_abi.rs`（无 dead_code 残留）、`runtime_symbols.rs`（无遗留符号）、`expr.rs`（单路径透传）、`mod.rs`（effect 相关路径正确）。
-- 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。T30（统一 effect LLVM codegen）阶段全部完成。
-- 阶段 F（T3007 + T3007R）全部完成。下一步进入阶段 G（T3101：`do` block / closure 消歧）。
+- 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。该结论只覆盖 legacy 清理完成；2026-04-16 的补充回归审查已确认 T30 仍需继续执行 `T3008aR`～`T3017R` 才能重新声明阶段性完成。
+- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查确认仍需继续执行 `T3008aR`～`T3017R` 收口任务；`T3101+` 继续顺延。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 

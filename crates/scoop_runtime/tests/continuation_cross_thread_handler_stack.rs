@@ -13,7 +13,8 @@ struct ScoopEffectHandlerFrame {
     active: u32,
 }
 
-type ScoopContinuationStepFn = Option<extern "C" fn(state: *mut c_void, resume_value: u64)>;
+type ScoopContinuationStepFn =
+    Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
 unsafe extern "C" {
     fn scoop_runtime_init();
@@ -38,7 +39,7 @@ struct ResumeObservations {
     observed_value: AtomicU64,
 }
 
-extern "C" fn observe_step(state: *mut c_void, resume_value: u64) {
+extern "C" fn observe_step(state: *mut c_void, resume_value: u64, _resume_gc_ref: *mut c_void) {
     if state.is_null() {
         return;
     }

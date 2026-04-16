@@ -1320,7 +1320,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T1607：step_fn 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)。
         // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void*, uint64_t, void*))`
-        // resume_gc_ref 在 LLVM 侧声明为 addrspace(1)，使 statepoint rewrite 能追踪/relocate。
+        // LLVM 侧将 `state` / `resume_gc_ref` 都视为 addrspace(1) GC ref，
+        // 这样 continuation trace 与 statepoint rewrite 都使用同一套 GC 指针约定。
         let state_ptr_ty = self.llvm_gc_i8_ptr_type();
         let step_fn_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
@@ -1347,7 +1348,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
     ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
-    ///     ptr state, ptr step_fn, i64 resume_word, ptr resume_gc_ref }
+    ///     ptr addrspace(1) state, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref }
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -1357,19 +1358,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let header_ty = self.llvm_gc_object_header_type();
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        // resume_gc_ref 使用 native ptr（与 C 的 void* 对齐）；
-        // 因为 GC tracing 由 continuation 的 custom trace_fn 负责而不是 bitmap。
         ty.set_body(
             &[
-                header_ty.into(), // 0: hdr
-                i32_ty.into(),    // 1: resumed (_Atomic uint32_t)
-                i32_ty.into(),    // 2: _reserved_u32
-                i8_ptr_ty.into(), // 3: captured_handler_stack_top
-                i8_ptr_ty.into(), // 4: state (GC ref, but handled by custom trace_fn)
-                i8_ptr_ty.into(), // 5: step_fn
-                i64_ty.into(),    // 6: resume_word
-                i8_ptr_ty.into(), // 7: resume_gc_ref
+                header_ty.into(),    // 0: hdr
+                i32_ty.into(),       // 1: resumed (_Atomic uint32_t)
+                i32_ty.into(),       // 2: _reserved_u32
+                i8_ptr_ty.into(),    // 3: captured_handler_stack_top
+                gc_i8_ptr_ty.into(), // 4: state
+                i8_ptr_ty.into(),    // 5: step_fn
+                i64_ty.into(),       // 6: resume_word
+                gc_i8_ptr_ty.into(), // 7: resume_gc_ref
             ],
             false,
         );

@@ -454,9 +454,24 @@
 
 > 补充说明（2026-04-16 effect 回归审查）：
 > `T3007R` 只证明 legacy shape-based / flag-based 路线已清零，并不等于统一主线已经语义闭环。当前 `T3006` 暂时 xfail 的 run-pass fixtures 暴露出以下缺口：`malloc` raw frame 与 continuation `addrspace(1)` ABI 不一致；`resume(...)` / `Continuation.resume(...)` 仍回落到 generic call；state-machine plan/emitter 仍为不可独立求值的 expression fragment 生成生产 op；frame slot mutability / capture metadata 会把真实 `var` 冻成 immutable；payload/result transport 仍局限于 `u64 word`；handler stack 只注册首个 op_tag 且 escaped continuation 捕获了已 pop 的 stack frame；`STATE_TAG_FUNCTION_RETURNED` 目前只写不读。以下 `T3008+` 任务用于把统一主线从“已接线”推进到“完整且正确可工作”。
+>
+> 2026-04-16 执行更新：raw-frame / `addrspace(1)` ABI 缺口已由 `T3008a` 修复；统一主线的全量 fixture baseline 不再首先死于 verifier，而是继续暴露 `T3014`（handler stack 最近匹配 / arm-outside-scope 语义）与后续 `T3017`（xfail 回收）所承接的问题。
 
-### T3008 [TODO] 将 full-state-machine frame 接入 GC typed alloc，并统一 `state` / continuation ABI 到 `addrspace(1)`
+### T3008a [DONE] 将 full-state-machine frame 接入 GC typed alloc，并统一 `state` / continuation ABI 到 `addrspace(1)`
 - 描述：当前 `codegen_handle_expr_via_state_machine` 用 `malloc` 分配 raw frame，`emit_effect_step_function` 把 `state` 形参声明为 native `ptr`，而 `declare_runtime_continuation_alloc` / runtime continuation trace 明确把 `state` 视为 GC-managed `ptr addrspace(1)`。这同时导致 LLVM verifier 报 `ptr` / `ptr addrspace(1)` 不匹配，以及 runtime 侧对 `k->state` 的 pin/trace 语义失真。
+- 进展：
+  - 已将 unified effect frame 改为真正的 GC-managed typed object：frame LLVM 布局前置 `ScoopGcObjectHeader`，并为每个 handle frame 生成独立 type descriptor / trace bitmap，覆盖 `resume_gc_ref` 与 user slots 中的所有 GC ref。
+  - 已将 `codegen_handle_expr_via_state_machine` 从 `malloc` raw frame 改为 `scoop_alloc_typed` 分配，并改为只清零 header 之后的 payload，避免覆盖 runtime 初始化的对象头。
+  - 已将 step function 的 `state` 形参与 continuation LLVM struct 中的 `state` / `resume_gc_ref` 槽位统一到 `addrspace(1)` 表示；相关调用点、resume payload 写入路径与 runtime ABI 注释已同步收口。
+  - 已同步修正 3 个 runtime 测试里的旧 `ScoopContinuationStepFn` 两参签名，统一为 `(state, resume_word, resume_gc_ref)` 三参 ABI。
+  - 已回收 24 个仅因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；这些用例现在恢复为 passing baseline。
+  - 已验证：
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
+    - `cargo check -p scoopc`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 额外观察：`cargo run -p scoop --features llvm -- test` 不再首先报 `ptr` / `ptr addrspace(1)` verifier error，而是继续跑到 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 并因 arm 在自身 scope 外执行语义未闭环而挂起；该阻塞已由现有 `T3014` / `T3017` 承接，不再属于本子任务的 ABI 修复范围。
 - 目标：
   - `codegen_handle_expr_via_state_machine` 不再用 `malloc` 分配 raw frame；改为 GC-managed typed frame object，并显式覆盖 system fields + user slots 的 trace 合同。
   - `emit_effect_step_function`、`declare_runtime_continuation_alloc`、continuation struct 中的 `state` 槽位与所有调用点对 `state` 指针的地址空间约定统一为 `addrspace(1)`。
@@ -466,11 +481,12 @@
   - `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
   - 上述用例不再出现 `ptr` / `ptr addrspace(1)` 的 LLVM module verification 错误。
   - `cargo check -p scoopc`
-  - `cargo run -p scoop --features llvm -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3007R
 
-### T3008R [TODO] Review：确认 effect frame / continuation ABI 修复不是靠 verifier hack 糊过去
-- 描述：在 `T3008` 之后只审查生产代码，确认 frame / continuation ABI 已真正收口，而不是靠局部 bitcast、raw pointer 绕路或缺失 trace descriptor 暂时把 verifier 压过去；若发现这类问题，本任务需要直接修复并复审。
+### T3008aR [TODO] Review：确认 effect frame / continuation ABI 修复不是靠 verifier hack 糊过去
+- 描述：在 `T3008a` 之后只审查生产代码，确认 frame / continuation ABI 已真正收口，而不是靠局部 bitcast、raw pointer 绕路或缺失 trace descriptor 暂时把 verifier 压过去；若发现这类问题，本任务需要直接修复并复审。
 - 目标：
   - 确认 unified effect frame 的生产分配路径中不再存在 `malloc` raw frame。
   - 确认 `state` 在 step function、continuation alloc、continuation trace、resume 调用链上的地址空间与 GC 语义完全一致。
@@ -478,7 +494,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“full-state-machine frame 与 continuation ABI 已按 `addrspace(1)` + GC trace 合同收口，无 raw-frame / verifier-hack 残留”。
-- 依赖：T3008
+- 依赖：T3008a
 
 ### T3009 [TODO] 为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local
 - 描述：当前 `ImmediateResume` arm 仅把 `resume` 绑定成 dummy local，随后 `resume(41)` 仍走 generic `codegen_call` 并报 `call callee`；`Continuation.resume(...)` 虽已被 lowering side table 标记为 builtin suspend call，但统一 emitter / 普通 codegen 尚未形成一条真正闭合的生产路径。
@@ -611,6 +627,9 @@
 
 ### T3014 [TODO] 修正 handler stack 的 multi-op registration 与 unmatched effect 外传
 - 描述：当前 handle 入口只把第一个 dispatch entry 的 `op_tag` push 到 runtime handler stack，`dispatch_unmatched` 也会直接落到 `handle_done`，导致 multi-arm handler 不能完整注册、不同 effect 的 nested handler 也会错误吞掉本应继续向外传播的 perform。
+- 进展：
+  - `T3008a` 消除 `ptr` / `ptr addrspace(1)` verifier 阻塞后，`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 会持续重复打印 `inner_catch` / `0` 而无法到达 `middle_catch` / `outer_catch`；`effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 与 `effect_op_tag_two_effects_nested_dispatch.scoop` 也会在 10s 超时窗口内挂起。
+  - 这与 Appendix A.4 “handler arm body 在自身 dispatch scope 外执行” 的预期正相反，进一步确认当前 runtime handler stack 语义确实是主阻塞项，而不是单纯 fixture 配置问题。
 - 目标：
   - 每个 dispatch entry 的 effect op 都必须在 runtime 动态上下文中有可匹配的注册表示，而不是只注册首个 op。
   - 当前 handle 未匹配到 `op_tag` 时，不得把 effect 吞掉；必须清理本 handle 自己的 runtime 注册后继续向外传播。
@@ -681,6 +700,8 @@
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
+- 进展：
+  - `T3008a` 已先行回收 24 个只因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；剩余 `T3006` xfail 现在对应的是更深层的真实语义缺口，而不再是 frame/continuation ABI 失配。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。

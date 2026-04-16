@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
+// EXPECT: pass
 // RUN-STDOUT: try_catch_raise_runtime_error_basic.stdout
 //
 // T0818: effect codegen（最小）：`Raise<RuntimeError>` 的 flag-based unwinding + try/catch 捕获。

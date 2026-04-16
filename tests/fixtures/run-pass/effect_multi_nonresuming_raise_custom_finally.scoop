@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
+// EXPECT: pass
 // RUN-STDOUT: effect_multi_nonresuming_raise_custom_finally.stdout
 //
 // T2003c0c2a: pure non-resuming multi-arm with Raise + custom + finally.

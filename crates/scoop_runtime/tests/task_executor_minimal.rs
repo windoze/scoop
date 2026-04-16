@@ -10,7 +10,8 @@ static EVENTS: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 static TASK_HANDLE: AtomicU64 = AtomicU64::new(0);
 
 type ScoopTaskBodyU64Fn = Option<extern "C" fn(ctx: *mut c_void) -> u64>;
-type ScoopContinuationStepFn = Option<extern "C" fn(state: *mut c_void, resume_value: u64)>;
+type ScoopContinuationStepFn =
+    Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
 unsafe extern "C" {
     fn scoop_runtime_init();
@@ -51,7 +52,7 @@ extern "C" fn task_body_u64(_ctx: *mut c_void) -> u64 {
     42
 }
 
-extern "C" fn cont_step_a(_state: *mut c_void, resume_value: u64) {
+extern "C" fn cont_step_a(_state: *mut c_void, resume_value: u64, _resume_gc_ref: *mut c_void) {
     let task = TASK_HANDLE.load(Ordering::Relaxed);
     let state = unsafe { scoop_task_u64_state(task) };
 
@@ -61,7 +62,7 @@ extern "C" fn cont_step_a(_state: *mut c_void, resume_value: u64) {
     events.push(state as u64);
 }
 
-extern "C" fn cont_step_b(_state: *mut c_void, resume_value: u64) {
+extern "C" fn cont_step_b(_state: *mut c_void, resume_value: u64, _resume_gc_ref: *mut c_void) {
     let task = TASK_HANDLE.load(Ordering::Relaxed);
     let state = unsafe { scoop_task_u64_state(task) };
 
