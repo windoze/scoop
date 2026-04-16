@@ -4,7 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
-> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 `T3010` 的 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞；当前执行顺序以 `TODO.md` 中 `T3010`→`T3013R` 前置收口、随后 `T3009`～`T3017R` 为准，`T3103+` 顺延。
+> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”和“跨 suspend 表达式恢复片段”混在同一任务里，`T3010` 已拆为 `T3010a`（已完成：先清理纯表达式 fragment-only op 与消费型位置重复求值）和 `T3010b`（下一步：为跨 suspend 复合表达式接回可恢复 continuation 片段）；当前执行顺序以 `TODO.md` 中 `T3010b`→`T3013R` 前置收口、随后 `T3009`～`T3017R` 为准，`T3103+` 顺延。
 
 ## 0. 工作原则
 
@@ -63,9 +63,9 @@
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 以及 `T3008a` 两条定向 fixture 全部通过。
 - `T3008a` 暴露出的下一层真实阻塞：
   - `cargo run -p scoop --features llvm -- test` 不再首先死于 `ptr` / `ptr addrspace(1)` verifier error，而是继续跑到 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 等用例，表现为 arm 在自身 scope 内反复自捕获，直接对应 `T3014` 的 handler-stack 语义缺口。
-  - 针对 `T3009` 的试探实现已确认：去掉 `resume(...)` / `Continuation.resume(...)` 的 generic fallback 之后，`effect_resume_yield_int_basic.scoop` 能进入运行期，但 `val x = Yield.next()` 的 resume landing 会重新发射原始 `perform` / fragment op，导致重复回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`；这正是 `T3010` 的 expression-fragment 重算缺口。
+  - 针对 `T3009` 的试探实现已确认：去掉 `resume(...)` / `Continuation.resume(...)` 的 generic fallback 之后，`effect_resume_yield_int_basic.scoop` 能进入运行期，但 `val x = Yield.next()` 的 resume landing 会重新发射原始 `perform` / fragment op，导致重复回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`；该缺口现已拆分为 `T3010a`（先清理纯表达式 fragment-only op）与 `T3010b`（再建立跨 suspend 的恢复片段）。
   - 同一轮试探还确认 `continuation_resume_enum.scoop` 的验收仍依赖 `T3013` 的 composite resume payload transport，因此 `T3009` 已后移到 `T3013R` 之后。
-  - `T3008aR` 已确认 ABI 修复闭环；effect 主线当前的下一步是 `T3010`，在 `T3010`～`T3013R` 收口后再回到 `T3009`，随后继续按 `TODO.md` 顺序推进 `T3014+`。
+  - `T3008aR` 已确认 ABI 修复闭环；`T3010a` 现已完成并消除了纯表达式 fragment-only op / expected-context 丢失问题。effect 主线当前的下一步是 `T3010b`，在 `T3010b`～`T3013R` 收口后再回到 `T3009`，随后继续按 `TODO.md` 顺序推进 `T3014+`。
 - 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。
 
 ## 2. 阶段顺序
@@ -238,7 +238,16 @@
 - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind / raise_target_stack / unwind 等关键词，全部零生产代码命中。
 - 已审查 `effect/mod.rs` 三个主入口、`state_machine_emitter.rs`（1972 行，29 op + 9 terminator 变体）、`runtime_abi.rs`（无 dead_code 残留）、`runtime_symbols.rs`（无遗留符号）、`expr.rs`（单路径透传）、`mod.rs`（effect 相关路径正确）。
 - 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。该结论只覆盖 legacy 清理完成；2026-04-16 的补充回归审查已确认 T30 仍需继续执行 `T3008aR`～`T3017R` 才能重新声明阶段性完成。
-- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查与 `T3009` 试探实现共同确认 effect 主线仍需先完成 `T3010`～`T3013R` 前置收口，再回到 `T3009`～`T3017R`；`T3103+` 继续顺延。
+- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查与 `T3009` 试探实现共同确认 effect 主线仍需先完成 `T3010b`～`T3013R` 前置收口，再回到 `T3009`～`T3017R`；`T3103+` 继续顺延。
+
+### 阶段 G：收口 expression fragment 与 suspend 恢复片段
+
+#### T3010a：收口纯表达式在 unified path 中的消费位置，移除 fragment-only 生产 op（已完成）
+- 已在 `HandlePlanBuilder` 中补上 suspend-subtree 判定：对不含 suspend 子树的 local initializer、anonymous val initializer、assignment lhs/rhs、return value、while/if condition，不再提前生成 standalone expression op，而是交给消费点一次性求值。
+- 已将表达式语句中的 `Call` / `MemberAccess` / `Binary` / `StructLit` / `TupleLit` / `InterpolatedString` / `Unary` / `Cast` / `TypeCheck` / `When` 收口为“只在 suspend 子树上递归”；纯 callee / receiver / operand 不再生成 fragment-only 生产 op。
+- 已补两条定向单测，锁定纯 initializer、纯 call arg、纯 if condition 的 plan 不再生成 fragment-only op。
+- 已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+- 补跑全量 `cargo run -p scoop --features llvm -- test` 后，首个失败点推进到已在 `T3015` 跟踪的 `effect_escape_continuation_arm_performs_outer_effect.scoop`，说明本轮不再首先卡在 pure-fragment 问题上。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 
@@ -342,7 +351,7 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010`
+1. `T3010b`
 2. `T3010R`
 3. `T3011`
 4. `T3011R`

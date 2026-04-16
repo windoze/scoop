@@ -259,10 +259,7 @@ fn parse_char_literal_expr_and_when_pattern() {
 
 #[test]
 fn do_block_basic() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "fun f() { val x = do { 1 }; return x }",
-    );
+    let src = SourceFile::new_virtual("<mem>", "fun f() { val x = do { 1 }; return x }");
     let file = parse_file(&src).unwrap();
 
     let ast::Item::Fun(f) = &file.items[0] else {
@@ -284,10 +281,7 @@ fn do_block_basic() {
 
 #[test]
 fn bare_brace_is_lambda_not_do_block() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "val f = { 1 }",
-    );
+    let src = SourceFile::new_virtual("<mem>", "val f = { 1 }");
     let file = parse_file(&src).unwrap();
 
     let ast::Item::Val(v) = &file.items[0] else {
@@ -303,10 +297,7 @@ fn bare_brace_is_lambda_not_do_block() {
 
 #[test]
 fn safe_do_block() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "fun f() { @Safe do { 1 } }",
-    );
+    let src = SourceFile::new_virtual("<mem>", "fun f() { @Safe do { 1 } }");
     let file = parse_file(&src).unwrap();
 
     let ast::Item::Fun(f) = &file.items[0] else {
@@ -327,10 +318,7 @@ fn safe_do_block() {
 
 #[test]
 fn unsafe_do_block() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "fun f() { @Unsafe do { 1 } }",
-    );
+    let src = SourceFile::new_virtual("<mem>", "fun f() { @Unsafe do { 1 } }");
     let file = parse_file(&src).unwrap();
 
     let ast::Item::Fun(f) = &file.items[0] else {

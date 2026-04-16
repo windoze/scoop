@@ -37,10 +37,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let op_tag = self.effect_op_tag(&op.fqn);
-        let op_tag_val = self
-            .context
-            .i32_type()
-            .const_int(op_tag as u64, false);
+        let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
 
         // Evaluate the payload from the first positional/named arg (if any).
         let payload_val = if args.is_empty() {
@@ -58,19 +55,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit | CgTy::Never => {
                 let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
                 let zero = self.context.i64_type().const_int(0, false);
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), zero.into()],
-                    "",
-                )?;
+                self.builder
+                    .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
             }
             CgTy::String | CgTy::Ref => {
                 let word = self.context.i64_type().const_int(0, false);
                 let gc_ref = payload_val.value.map(|v| v.into_pointer_value());
-                let write_fn =
-                    self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
-                let gc_ref_val =
-                    gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
+                let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+                let gc_ref_val = gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
                 self.builder.build_call(
                     write_fn,
                     &[op_tag_val.into(), word.into(), gc_ref_val.into()],
@@ -80,11 +72,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => {
                 let word = self.coerce_u64_word(span, payload_val)?;
                 let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), word.into()],
-                    "",
-                )?;
+                self.builder
+                    .build_call(write_fn, &[op_tag_val.into(), word.into()], "")?;
             }
         }
 
@@ -119,21 +108,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         // Use the well-known Raise.raise FQN (op_tag = 1 by convention).
         let op_tag = self.effect_op_tag("scoop.core.Raise.raise");
-        let op_tag_val = self
-            .context
-            .i32_type()
-            .const_int(op_tag as u64, false);
+        let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
 
         // Write a zero payload (the variant name is not yet part of the
         // runtime payload protocol — this is a minimal implementation that
         // signals "a Raise happened" without encoding the variant).
         let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
         let zero = self.context.i64_type().const_int(0, false);
-        self.builder.build_call(
-            write_fn,
-            &[op_tag_val.into(), zero.into()],
-            "",
-        )?;
+        self.builder
+            .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
 
         // Set the TLS active flag.
         let set_active = self.declare_runtime_effect_set_active();
@@ -200,12 +183,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let layout = self.cg_enum_layout(at, enum_ty)?;
                 match layout.repr {
                     CgEnumRepr::ValueOnly { underlying } => {
-                        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "u64 word from enum (no value)",
-                            at: at.into(),
-                        })?
-                        .into_int_value();
-                        let to = IntTy { bits: 64, signed: false };
+                        let raw = value
+                            .value
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "u64 word from enum (no value)",
+                                at: at.into(),
+                            })?
+                            .into_int_value();
+                        let to = IntTy {
+                            bits: 64,
+                            signed: false,
+                        };
                         Ok(self.cast_int(raw, underlying, to)?)
                     }
                     CgEnumRepr::TaggedUnion => {
@@ -214,12 +202,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             kind: "u64 word from enum (no value)",
                             at: at.into(),
                         })?;
-                        let tag = self.builder.build_extract_value(
-                            raw.into_struct_value(),
-                            0,
-                            "enum_tag",
-                        )?.into_int_value();
-                        Ok(self.builder.build_int_z_extend(tag, i64_ty, "enum_tag_u64")?)
+                        let tag = self
+                            .builder
+                            .build_extract_value(raw.into_struct_value(), 0, "enum_tag")?
+                            .into_int_value();
+                        Ok(self
+                            .builder
+                            .build_int_z_extend(tag, i64_ty, "enum_tag_u64")?)
                     }
                     _ => Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "u64 word from niche enum (not yet supported)",
@@ -227,12 +216,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }),
                 }
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "u64 word from composite value",
-                    at: at.into(),
-                })
-            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "u64 word from composite value",
+                at: at.into(),
+            }),
         }
     }
 

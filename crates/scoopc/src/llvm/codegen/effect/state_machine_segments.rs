@@ -3165,6 +3165,142 @@ fun demo(flag: Bool): Int {
         assert!(has_bind_local, "expected typed bind-local op in segment list");
     }
 
+    #[test]
+    fn source_plan_skips_pure_initializer_fragment_ops_in_consumer_positions() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int? {
+    val result: Int? = handle {
+        val some: Int? = Some(7)
+        some
+    } with {
+        Yield.next() -> resume {
+            resume(0)
+        }
+    }
+    result
+}
+"#;
+
+        let source_plan = build_source_plan(source);
+        let (init_span, callee_span, arg_span) = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("some") => {
+                    let init = decl.init.as_ref().expect("`some` should have an initializer");
+                    let hir::ExprKind::Call { callee, args } = &init.kind else {
+                        panic!("expected `some` initializer to stay as a call expression");
+                    };
+                    let [hir::CallArg::Positional(arg_expr)] = args.as_slice() else {
+                        panic!("expected `Some(7)` to have one positional argument");
+                    };
+                    Some((init.span, callee.span, arg_expr.span))
+                }
+                _ => None,
+            })
+            .expect("expected bind-local op for `some`");
+
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::Call { expr } if expr.span == init_span)
+            }),
+            "pure initializer should be evaluated only by BindLocal, not by a preheated Call op"
+        );
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::VarRef { expr } if expr.span == callee_span)
+            }),
+            "pure initializer must not emit callee VarRef fragment op"
+        );
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::Literal { expr } if expr.span == arg_span)
+            }),
+            "pure initializer must not emit argument Literal fragment op"
+        );
+    }
+
+    #[test]
+    fn source_plan_keeps_only_whole_call_for_pure_statement_args_and_pure_if_condition() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(seed: Int): Int {
+    val result: Int = handle {
+        println(seed + 1)
+        if (seed > 0) {
+            1
+        } else {
+            0
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(0)
+        }
+    }
+    result
+}
+"#;
+
+        let source_plan = build_source_plan(source);
+        let statement_arg_span = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::Call { expr } => {
+                    let hir::ExprKind::Call { args, .. } = &expr.kind else {
+                        return None;
+                    };
+                    let [hir::CallArg::Positional(arg_expr)] = args.as_slice() else {
+                        return None;
+                    };
+                    Some(arg_expr.span)
+                }
+                _ => None,
+            })
+            .expect("expected whole call op for println statement");
+        let if_cond_span = source_plan
+            .states
+            .iter()
+            .find_map(|state| match &state.terminator {
+                StateTerminator::Branch {
+                    condition: HandleBranchCondition::IfCond { condition },
+                    ..
+                } => Some(condition.span),
+                _ => None,
+            })
+            .expect("expected if-branch terminator");
+
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == statement_arg_span)
+            }),
+            "pure call arguments should stay inside the whole Call op instead of emitting BinaryExpr fragments"
+        );
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == if_cond_span)
+            }),
+            "pure if conditions should be evaluated only by the Branch terminator"
+        );
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");

@@ -1223,7 +1223,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::StmtKind::Val(decl) => {
                 let mut state = current_state;
                 if let Some(init) = decl.init.as_ref() {
-                    state = self.build_expr(init, state, env);
+                    state = self.build_expr_for_consumer(init, state, env);
                 }
                 if let Some(id) = decl.id {
                     let slot = FrameSlot {
@@ -1256,8 +1256,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::StmtKind::Assign { lhs, rhs, .. } => {
-                let mut state = self.build_expr(lhs, current_state, env);
-                state = self.build_expr(rhs, state, env);
+                let mut state = self.build_expr_for_consumer(lhs, current_state, env);
+                state = self.build_expr_for_consumer(rhs, state, env);
                 self.record_stmt_reads(state, stmt);
                 self.push_action(
                     state,
@@ -1290,7 +1290,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             hir::StmtKind::Return { value } => {
                 if let Some(expr) = value {
-                    let state = self.build_expr(expr, current_state, env);
+                    let state = self.build_expr_for_consumer(expr, current_state, env);
                     self.push_action(
                         state,
                         HandleStateOp::Return {
@@ -1340,7 +1340,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         );
         self.set_terminator(current_state, StateTerminator::Goto(cond_state));
 
-        let cond_eval_state = self.build_expr(cond, cond_state, env);
+        let cond_eval_state = self.build_expr_for_consumer(cond, cond_state, env);
         let body_state = self.new_state("while.body");
         let exit_state = self.new_state("while.exit");
         self.set_terminator(
@@ -1450,7 +1450,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::ExprKind::StructLit { fields, .. } => {
                 let mut state = current_state;
                 for field in fields {
-                    state = self.build_expr(&field.value, state, env);
+                    state = self.build_expr_if_suspend_subtree(&field.value, state, env);
                 }
                 self.push_action(
                     state,
@@ -1463,7 +1463,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::ExprKind::TupleLit { elements } => {
                 let mut state = current_state;
                 for element in elements {
-                    state = self.build_expr(element, state, env);
+                    state = self.build_expr_if_suspend_subtree(element, state, env);
                 }
                 self.push_action(
                     state,
@@ -1477,7 +1477,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let mut state = current_state;
                 for part in parts {
                     if let hir::InterpolatedStringPart::Expr { expr } = part {
-                        state = self.build_expr(expr, state, env);
+                        state = self.build_expr_if_suspend_subtree(expr, state, env);
                     }
                 }
                 self.push_action(
@@ -1490,7 +1490,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             hir::ExprKind::Unary { expr: inner, .. }
             | hir::ExprKind::TypeCheck { expr: inner, .. } => {
-                let state = self.build_expr(inner, current_state, env);
+                let state = self.build_expr_if_suspend_subtree(inner, current_state, env);
                 self.record_expr_reads(state, expr);
                 self.push_action(
                     state,
@@ -1501,7 +1501,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::ExprKind::Cast { expr: inner, op, .. } => {
-                let state = self.build_expr(inner, current_state, env);
+                let state = self.build_expr_if_suspend_subtree(inner, current_state, env);
                 if matches!(op, ast::CastOp::As) {
                     self.record_expr_reads(state, expr);
                     let site_id = self.new_suspend_site(
@@ -1541,7 +1541,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
-                let state = self.build_expr(receiver, current_state, env);
+                let state = self.build_expr_if_suspend_subtree(receiver, current_state, env);
                 if let Some(kind) = self.classify_hidden_suspend_member_access(member) {
                     self.record_expr_reads(state, expr);
                     let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
@@ -1575,8 +1575,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
-                let state = self.build_expr(lhs, current_state, env);
-                let state = self.build_expr(rhs, state, env);
+                let state = self.build_expr_if_suspend_subtree(lhs, current_state, env);
+                let state = self.build_expr_if_suspend_subtree(rhs, state, env);
                 self.record_expr_reads(state, expr);
                 self.push_action(
                     state,
@@ -1592,7 +1592,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 then_branch,
                 else_branch,
             } => {
-                let cond_state = self.build_expr(cond, current_state, env);
+                let cond_state = self.build_expr_for_consumer(cond, current_state, env);
                 let then_state = self.new_state("if.then");
                 let else_state = self.new_state("if.else");
                 let merge_state = self.new_state("if.merge");
@@ -1626,12 +1626,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 merge_state
             }
             hir::ExprKind::When { subject, arms } => {
-                let mut state = self.build_expr(subject, current_state, env);
+                let mut state = self.build_expr_if_suspend_subtree(subject, current_state, env);
                 for arm in arms {
                     if let Some(guard) = arm.guard.as_ref() {
-                        state = self.build_expr(guard, state, env);
+                        state = self.build_expr_if_suspend_subtree(guard, state, env);
                     }
-                    state = self.build_expr(&arm.body, state, env);
+                    state = self.build_expr_if_suspend_subtree(&arm.body, state, env);
                 }
                 self.push_action(
                     state,
@@ -1642,11 +1642,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 state
             }
             hir::ExprKind::Call { callee, args } => {
-                let mut state = self.build_expr(callee, current_state, env);
+                let mut state = self.build_expr_if_suspend_subtree(callee, current_state, env);
                 for arg in args {
                     state = match arg {
-                        hir::CallArg::Positional(expr) => self.build_expr(expr, state, env),
-                        hir::CallArg::Named { value, .. } => self.build_expr(value, state, env),
+                        hir::CallArg::Positional(expr) => {
+                            self.build_expr_if_suspend_subtree(expr, state, env)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.build_expr_if_suspend_subtree(value, state, env)
+                        }
                     };
                 }
                 if let Some(kind) = self.classify_suspend_call(expr, callee) {
@@ -1685,8 +1689,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let mut state = current_state;
                 for arg in args {
                     state = match arg {
-                        hir::CallArg::Positional(expr) => self.build_expr(expr, state, env),
-                        hir::CallArg::Named { value, .. } => self.build_expr(value, state, env),
+                        hir::CallArg::Positional(expr) => {
+                            self.build_expr_if_suspend_subtree(expr, state, env)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.build_expr_if_suspend_subtree(value, state, env)
+                        }
                     };
                 }
                 self.record_expr_reads(state, expr);
@@ -1781,6 +1789,138 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 current_state
             }
+        }
+    }
+
+    fn build_expr_for_consumer(
+        &mut self,
+        expr: &'hir hir::Expr,
+        current_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        if self.expr_contains_suspend_subtree(expr) {
+            self.build_expr(expr, current_state, env)
+        } else {
+            current_state
+        }
+    }
+
+    fn build_expr_if_suspend_subtree(
+        &mut self,
+        expr: &'hir hir::Expr,
+        current_state: PlanStateId,
+        env: &mut ScopeEnv,
+    ) -> PlanStateId {
+        if self.expr_contains_suspend_subtree(expr) {
+            self.build_expr(expr, current_state, env)
+        } else {
+            current_state
+        }
+    }
+
+    fn expr_contains_suspend_subtree(&self, expr: &hir::Expr) -> bool {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Closure(_)
+            | hir::ExprKind::Todo(_) => false,
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .any(|field| self.expr_contains_suspend_subtree(&field.value)),
+            hir::ExprKind::TupleLit { elements } => elements
+                .iter()
+                .any(|element| self.expr_contains_suspend_subtree(element)),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|part| {
+                matches!(
+                    part,
+                    hir::InterpolatedStringPart::Expr { expr }
+                        if self.expr_contains_suspend_subtree(expr)
+                )
+            }),
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. } => {
+                self.expr_contains_suspend_subtree(inner)
+            }
+            hir::ExprKind::Cast { expr: inner, op, .. } => {
+                matches!(op, ast::CastOp::As) || self.expr_contains_suspend_subtree(inner)
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.expr_contains_suspend_subtree(receiver)
+                    || self.classify_hidden_suspend_member_access(member).is_some()
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.expr_contains_suspend_subtree(lhs)
+                    || self.expr_contains_suspend_subtree(rhs)
+            }
+            hir::ExprKind::Block(block) => self.block_contains_suspend_subtree(block),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr_contains_suspend_subtree(cond)
+                    || self.expr_contains_suspend_subtree(then_branch)
+                    || else_branch
+                        .as_deref()
+                        .is_some_and(|expr| self.expr_contains_suspend_subtree(expr))
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.expr_contains_suspend_subtree(subject)
+                    || arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .is_some_and(|guard| self.expr_contains_suspend_subtree(guard))
+                            || self.expr_contains_suspend_subtree(&arm.body)
+                    })
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.classify_suspend_call(expr, callee).is_some()
+                    || self.expr_contains_suspend_subtree(callee)
+                    || args.iter().any(|arg| match arg {
+                        hir::CallArg::Positional(expr) => self.expr_contains_suspend_subtree(expr),
+                        hir::CallArg::Named { value, .. } => {
+                            self.expr_contains_suspend_subtree(value)
+                        }
+                    })
+            }
+            hir::ExprKind::Perform { .. } => true,
+            hir::ExprKind::Handle(handle) => {
+                HandleStateMachinePlan::build_with_context(self.types, handle, self.context)
+                    .contains_suspend_subtree()
+            }
+        }
+    }
+
+    fn block_contains_suspend_subtree(&self, block: &hir::Block) -> bool {
+        block.stmts
+            .iter()
+            .any(|stmt| self.stmt_contains_suspend_subtree(stmt))
+    }
+
+    fn stmt_contains_suspend_subtree(&self, stmt: &hir::Stmt) -> bool {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => false,
+            hir::StmtKind::Expr(expr) => self.expr_contains_suspend_subtree(expr),
+            hir::StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .is_some_and(|expr| self.expr_contains_suspend_subtree(expr)),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.expr_contains_suspend_subtree(lhs)
+                    || self.expr_contains_suspend_subtree(rhs)
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.expr_contains_suspend_subtree(cond)
+                    || self.block_contains_suspend_subtree(body)
+            }
+            hir::StmtKind::Return { value } => value
+                .as_ref()
+                .is_some_and(|expr| self.expr_contains_suspend_subtree(expr)),
         }
     }
 

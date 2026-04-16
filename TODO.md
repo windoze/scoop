@@ -505,15 +505,35 @@
   - 本轮未发现需要额外修复的生产代码问题；`T3008a` 的 ABI 修复是实质性收口，而非局部 bitcast 或 verifier 规避。
 - 依赖：T3008a
 
-### T3010 [TODO] 收口 unified state machine 的 expression 分片策略，移除不可独立求值的 fragment op
-- 描述：当前 plan builder 会先为 `Call`/`MemberAccess`/`Binary` 等复合表达式递归生成 callee / receiver / operand 子 expression，再在后续 state 中重新发射整棵表达式；emitter 对这些中间 op 又直接调用 generic `codegen_expr`，于是出现 `member access target`、`comparison lhs/rhs`、`equality lhs`、`integer binary op lhs` 等“只在 fragment 被单独执行时才成立”的错误。
+### T3010a [DONE] 收口纯表达式在 unified path 中的消费位置，移除 fragment-only 生产 op
+- 描述：当前 plan builder 会在 `Val` / `Assign` / `Return` / branch condition 等消费型位置，先递归生成 callee / receiver / operand 子 expression op，再由 `BindLocal` / `Assign` / `Return` / `Branch` 自己重新求值整棵表达式。对不含 suspend 子树的表达式，这些前置 op 既没有独立语义，又会丢失 expected context，直接触发 `member access target`、`comparison lhs/rhs`、`equality lhs`、`integer binary op lhs`、`enum variant ctor call without expected enum type` 等 fragment-only 错误。
 - 进展：
-  - 在尝试 `T3009` 时已确认 `effect_resume_yield_int_basic.scoop` 的 `val x = Yield.next()` resume landing 会重新发射原始 `perform` / fragment op，导致 `resume(41)` 之后再次回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`。`resume(...)` / `Continuation.resume(...)` 的专用 lowering 在本任务完成前无法形成语义闭环。
+  - 已在 `HandlePlanBuilder` 中补上 suspend-subtree 判定：对不含 suspend 子树的 initializer / assignment / return / while/if condition，不再提前生成 standalone expression op；统一交给消费点一次性求值。
+  - 已把表达式语句中的 `Call` / `MemberAccess` / `Binary` / `StructLit` / `TupleLit` / `InterpolatedString` / `Unary` / `Cast` / `TypeCheck` / `When` 收口为“只在 suspend 子树上递归”，纯 callee / receiver / operand 不再生成 fragment-only 生产 op。
+  - 已补两条定向单测，锁定纯 initializer、纯 call arg、纯 if condition 不再生成 fragment-only op。
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop` 已通过；先前的 `enum variant ctor call without expected enum type` 已消失。
+  - 全量 `cargo run -p scoop --features llvm -- test` 继续向后推进，首次失败点已前移到已跟踪的 `T3015` fixture `effect_escape_continuation_arm_performs_outer_effect.scoop`，不再首先卡在本任务负责的 pure-fragment 问题上。
 - 目标：
-  - state-machine plan 不再为会被整棵表达式再次求值的 callee / receiver / operand fragment 生成生产 op；只保留真正独立可执行、或真正承担 state-machine 语义边界的 op。
-  - emitter 中的每个生产 op 都必须有独立可执行语义；不再依赖“先 emit fragment，失败就吞掉，后面再让整棵 expr 覆盖”的容错策略。
-  - 统一 contract / emitter 的 op 粒度与后续 verifier / runtime 语义保持一一对应，避免同一表达式被 state-machine 层“拆开又重算”。
+  - 对不含 suspend 子树的 local initializer、anonymous val initializer、assignment lhs/rhs、return value、while/if condition，不再提前生成 standalone expression op；统一交给消费点一次性求值。
+  - 对表达式语句中的 `Call` / `MemberAccess` / `Binary` / `StructLit` / `TupleLit` / `InterpolatedString` / `Unary` / `Cast` / `TypeCheck` / `When`，若其子表达式不含 suspend 子树，则只保留整棵可独立执行的生产 op，不再递归生成 callee / receiver / operand fragment op。
+  - emitter 不再依赖 `VarRef` 式 “失败就吞掉” 容错来掩盖纯表达式拆片错误。
 - 验收：
+  - 定向 plan / segment / contract 测试能锁定：纯 initializer、branch condition、call arg 不再生成 fragment-only op。
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3008aR
+
+### T3010b [TODO] 为跨 suspend 的复合表达式接回可恢复 continuation 片段，禁止 resume 后重放原表达式
+- 描述：`T3010a` 只清理纯表达式的错误拆片；一旦表达式内部真的跨过 `perform` / `SuspendCall` / hidden suspend / nested handle boundary，当前 unified path 仍会在 resume landing 重新发射原始整棵表达式或边界前 fragment。`effect_resume_yield_int_basic.scoop` 的 `val x = Yield.next()` 就会在 `resume(41)` 之后再次回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`。
+- 进展：
+  - 在尝试 `T3009` 时已确认 `resume(...)` / `Continuation.resume(...)` 的专用 lowering 被这个缺口阻塞；在 resume landing 仍会重放原始 `perform` / call / operand 路径，无法形成语义闭环。
+- 目标：
+  - 为真正跨 suspend 的复合表达式建立可独立执行的 post-suspend fragment / continuation 片段，resume 后只继续剩余计算，不再重放 suspend 前已经求值的子表达式。
+  - `BindLocal` / `Assign` / `Return` / branch / expression statement 对跨 suspend 表达式都消费同一套恢复片段合同，而不是各自局部重算。
+  - 为 `T3009` 的 `resume(...)` / `Continuation.resume(...)` 专用 lowering 提供语义闭环前提。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`
   - 重新跑当前 `T3006` xfail 子集时，不再出现以下错误类别：
     - `暂不支持的 main 代码生成节点：member access target`
     - `暂不支持的 main 代码生成节点：comparison lhs`
@@ -521,7 +541,7 @@
     - `暂不支持的 main 代码生成节点：equality lhs`
     - `暂不支持的 main 代码生成节点：integer binary op lhs`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3008aR
+- 依赖：T3010a
 
 ### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
 - 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
@@ -532,7 +552,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“state-machine expression emission 粒度已收口；生产 op 不再含 fragment-only 伪执行路径”。
-- 依赖：T3010
+- 依赖：T3010b
 
 ### T3011 [TODO] 修正 unified contract 中 frame slot 的 mutability / capture metadata
 - 描述：当前 plan builder 在“第一次看到 local ref”或“arm capture 外层 local”时会先创建 `mutable: false` 的 `FrameSlot`，后续也不会回填真实声明信息，导致原本是 `var` 的 slot 在 unified emitter / stmt codegen 中被冻结成 immutable，并报 `assignment to immutable local`。
@@ -667,6 +687,9 @@
 
 ### T3015 [TODO] 修正 arm 执行期 self-inactive 语义与 escaped continuation 的 handler context lifetime
 - 描述：runtime 明确要求 arm body 执行期当前 handler instance 必须视为 inactive，避免自捕获；而当前统一主线既没有在 arm body 执行期间切 active bit，也让 continuation 捕获了稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
+- 进展：
+  - `T3010a` 完成后的全量 LLVM fixture 首个失败点已推进到 `effect_escape_continuation_arm_performs_outer_effect.scoop`。直接运行显示当前输出会打印 binder `0`、继续落到 `unreachable_arm`，且没有命中外层 `EffectB` handler，符合本任务要修的 self-inactive / 外层 effect 传播缺口。
+  - 同类 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 直接运行也会打印 `0` 并继续到 `unreachable_arm`，进一步确认这不是单个 fixture 偶发，而是 escape-continuation arm 执行期的统一语义缺口。
 - 目标：
   - arm body 执行期间，触发当前 arm 的 handler instance 必须被临时置为 inactive；arm body 中再次 perform 同一 op 应命中外层 handler，而不是自捕获。
   - escaped continuation 不再捕获会在 `handle_done` 中被 pop/清空的 stack-alloc handler frame；需要改为可持久化、可恢复、与 continuation 生命周期一致的 handler context 表示。
