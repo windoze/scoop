@@ -301,10 +301,14 @@
 - 已验证 `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/t3009a1_double_resume`、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 补跑 `cargo run -p scoop --features llvm -- test` 时，fixture runner 仍会挂在仓库已知的 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`；该阻塞已由 `T3014/T3017` 跟踪，与本次 immediate-resume 合同收紧无交集。
 
-#### T3009aR：Review（待办）
-- 当前 review 已确认 tail-position dedicated lowering 与 `ArmResumeMatchedSite` 的 payload 合同一致。
-- `T3009a1` 已完成：non-tail / 多次 `resume(...)` 不再漏到 generic local-call；下一步可直接复审 dedicated lowering 是否仍存在 generic call/member-access 回落。
-- 如审查发现回落路径或 payload 合同不一致，需要在 review 任务内直接修复。
+#### T3009aR：Review（已完成）
+- 已复审 `state_machine_emitter.rs`、`state_machine_plan.rs` 与 `codegen/mod.rs` 的相关路径，确认 immediate-resume 仍以 `HandleArmKind::ImmediateResume` → dedicated rewrite → `ArmResumeMatchedSite` 的单一路径收口，generic `codegen_call` / member-access 路径不再承担 `resume(value)`。
+- 复审中发现并修复了一个真实生产缺口：`rewrite_immediate_resume_arm_body` 之前只接受 `Block` arm body，但 `await task` 的内部 lowering 会生成 direct `resume(join(...))`。现已把 dedicated rewrite 收口到“顶层尾值表达式”层级，使 source block arm 与 synthesized expression arm 共用同一条 rewrite 逻辑。
+- 已新增 emitter 单测锁定 non-block immediate-resume arm body 的改写行为；`cargo test -p scoopc immediate_resume_arm_body -- --nocapture` 通过。
+- 定向验证：
+  - `effect_resume_yield_int_basic.scoop` 可成功 build；
+  - `async_await_minimal_int_basic.scoop` 现已可成功 build，不再报 `immediate resume arm body`；后续运行期在打印 `before` 后异常退出，说明 structured concurrency / async 仍有独立缺口，留待阶段 H 任务处理。
+- 复验通过：`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - `T3009a1` + `T3009aR` 完成后，重新验收 `effect_resume_yield_int_basic.scoop` 与当前 xfail 子集中的 `comparison lhs` / `integer binary op lhs` / `equality lhs` 等 body-tail case。

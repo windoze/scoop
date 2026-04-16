@@ -2,9 +2,9 @@
 // RUN-STDOUT: async_await_minimal_int_basic.stdout
 //
 // T0619: async/await（作为 `Async` effect 的语法糖）
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// async/spawn 内部 call callee 尚未在 state-machine 路径上完整支持。
-// 待后续任务补齐 async 专用 intrinsic 的 state-machine codegen。
+// T3009aR: immediate-resume 的 non-block arm body codegen 已接通，
+// 本例现在可成功 build；但运行期仍会在打印 `before` 后异常退出。
+// 暂继续标记为 fail，待阶段 H 的 structured concurrency / async 任务收口。
 //
 // 目标覆盖（当前阶段最小可回归语义）：
 // - `async { ... }` 捕获 `await` 产生的 `Async` required effects，使 `main` 仍满足 entry-point 纯度规则；

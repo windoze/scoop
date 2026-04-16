@@ -51,28 +51,12 @@ fn rewrite_immediate_resume_arm_body(
     arm: &hir::HandleArm,
     resume_symbol: hir::SymbolId,
 ) -> Result<hir::Expr, LlvmEmitError> {
-    let hir::ExprKind::Block(block) = &arm.body.kind else {
-        return Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "immediate resume arm body",
-            at: arm.body.span.into(),
-        });
-    };
-
-    let mut rewritten_block = block.clone();
-    let Some(tail_stmt) = rewritten_block.stmts.last_mut() else {
-        return Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "immediate resume arm tail statement",
-            at: arm.body.span.into(),
-        });
-    };
-    let rewritten_tail = rewrite_immediate_resume_tail_stmt(tail_stmt, resume_symbol)?;
-    rewritten_block.ty = rewritten_tail.ty;
-
-    Ok(hir::Expr {
-        span: arm.body.span,
-        ty: rewritten_tail.ty,
-        kind: hir::ExprKind::Block(rewritten_block),
-    })
+    // Internal lowerings such as `await task` may synthesize an immediate-
+    // resume arm whose body is a direct `resume(expr)` call rather than a
+    // source-level block. Rewrite from the top-level tail expression so both
+    // source-authored blocks and synthesized expression bodies share the same
+    // dedicated path.
+    rewrite_immediate_resume_tail_expr(&arm.body, resume_symbol)
 }
 
 fn rewrite_immediate_resume_tail_stmt(
@@ -2204,6 +2188,57 @@ fun demo(flag: Bool): Int {
 
         assert_eq!(source.slice(last_block_tail_expr(then_branch).span), "1");
         assert_eq!(source.slice(last_block_tail_expr(else_branch).span), "2");
+    }
+
+    #[test]
+    fn immediate_resume_arm_body_rewrites_non_block_tail_resume_call() {
+        let (_, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        Yield.next()
+    } with {
+        Yield.next() -> resume {
+            println("in_handler")
+            resume(41)
+        }
+    }
+}
+"#,
+        );
+
+        let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let arm = handle.arms.first().expect("expected an arm");
+        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
+            panic!("expected immediate-resume arm");
+        };
+        let hir::ExprKind::Block(block) = &arm.body.kind else {
+            panic!("expected source arm body to lower to block");
+        };
+        let Some(hir::Stmt {
+            kind: hir::StmtKind::Expr(tail_expr),
+            ..
+        }) = block.stmts.last()
+        else {
+            panic!("expected block arm body to keep a tail expr");
+        };
+
+        let direct_arm = hir::HandleArm {
+            body: tail_expr.clone(),
+            ..arm.clone()
+        };
+        let rewritten = rewrite_immediate_resume_arm_body(&direct_arm, resume)
+            .expect("non-block immediate-resume arm should rewrite");
+
+        assert!(matches!(rewritten.kind, hir::ExprKind::Literal(_)));
     }
 
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {

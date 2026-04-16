@@ -615,17 +615,28 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009a
 
-### T3009aR [TODO] Review：确认 immediate-resume lowering 不再回落到 generic call
+### T3009aR [DONE] Review：确认 immediate-resume lowering 不再回落到 generic call
 - 描述：审查 `T3009a` 的生产代码，确认 `-> resume` arm 内的 `resume(value)` 已走 dedicated lowering，而不是隐藏在 generic call/member-access 路径里；若发现回落，本任务需要直接修复并复审。
 - 进展：
   - 预审查已确认 tail-position 的 `resume(value)` dedicated lowering 与 `ArmResumeMatchedSite` 对接清晰。
-  - `T3009a1` 已完成并把 non-tail / 多次 `resume(...)` 前移为稳定的 typecheck 诊断；下一步可以直接复审 dedicated lowering 是否仍存在 generic call/member-access 回落。
+  - `T3009a1` 已完成并把 non-tail / 多次 `resume(...)` 前移为稳定的 typecheck 诊断；本轮复审继续检查 dedicated lowering 是否仍存在 generic call/member-access 回落。
+  - 复审中发现一个真实生产缺口：`rewrite_immediate_resume_arm_body` 只接受 `Block` arm body，而 `await task` 的内部 lowering 会生成非 block 的 direct `resume(join(...))` arm，导致 codegen 直接报 `unsupported_main_body: immediate resume arm body`。已将 dedicated rewrite 收口到“顶层尾值表达式”层级，source block arm 与 synthesized expression arm 现在共用同一条重写路径。
+  - 已新增 1 条 emitter 单测，锁定 non-block immediate-resume arm body 也会被改写成普通 payload 表达式，不再卡在 arm-body 形状检查。
+  - 定向验证结果：
+    - `cargo test -p scoopc immediate_resume_arm_body -- --nocapture` 通过。
+    - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop -o /tmp/t3009ar_yield_basic` 通过。
+    - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/async_await_minimal_int_basic.scoop -o /tmp/t3009ar_async_await` 通过；说明 await 生成的 immediate-resume arm 已不再因 generic/dedicated 边界错误卡在 codegen。
+    - 直接运行 `/tmp/t3009ar_async_await` 仍会在打印 `before` 后异常退出；该运行期问题属于 structured concurrency / async 主线后续缺口，不改变本任务关于 immediate-resume lowering 单一路径的复审结论。
+  - 已验证 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 `resume(value)` 的 lowering 入口清晰、单一路径、无 placeholder local 残留。
   - 确认 dedicated lowering 与 `ArmResumeMatchedSite` terminator 的 payload 合同一致。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“immediate-resume lowering 不再回落到 generic call”。
+- 审查结论：
+  - immediate-resume lowering 现在从顶层尾值表达式统一改写 `resume(value)`，不再要求 arm body 必须是 block，也不再回落到 generic call/member-access。
+  - `ArmResumeMatchedSite` 仍是 immediate-resume 的唯一 continuation resume 出口，payload 合同与 dedicated rewrite 保持一致。
 - 依赖：T3009a1
 
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
