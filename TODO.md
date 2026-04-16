@@ -595,15 +595,30 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2aR
 
+### T3009a1 [TODO] 收紧 immediate-resume arm 的 `resume(...)` 合同，禁止非 tail / 多次 `resume` 漏到 generic local-call
+- 描述：`T3009aR` 预审查发现，`tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop` 仍会在 codegen 阶段报 `unsupported_main_body: unknown local value`。根因是 `T3009a` 只为 tail-position 的 `resume(value)` 接了 dedicated lowering；同一 arm 中更早出现的 `resume(...)` 仍按普通局部函数调用留在 HIR/LLVM emitter 路径里，而 `resume_placeholder` 已删除，最终漏到 generic local-call。spec 明确要求 `-> resume` arm 内 `resume(value)` 必须恰好一次；因此在继续 `T3009aR` 之前，必须先把 typecheck/HIR/codegen 对 immediate-resume 的单一合同收紧。
+- 目标：
+  - 在 typecheck/HIR/lowering/codegen 之间实现单一 immediate-resume 合同：非 tail / 多次 `resume(...)` 不能再漏到 generic local-call；要么在更前置阶段被明确拒绝，要么获得 dedicated lowering。
+  - 收紧 `resume` 的控制流 / 返回类型建模，使其与 `ArmResumeMatchedSite` 的实际语义一致，不再把当前不受支持的形状伪装成普通局部函数调用。
+  - `effect_resume_double_resume_exit.scoop` 不再以 `unknown local value` 失败；若源码按合同应判错，需给出稳定、可审计的诊断；若源码应允许运行，则需真正进入 dedicated/runtime 路径。
+- 验收：
+  - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/t3009a1_double_resume`
+  - 新增并通过最小定向测试，覆盖“非 tail / 多次 resume”已被前置收口。
+  - `cargo test -p scoopc`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009a
+
 ### T3009aR [TODO] Review：确认 immediate-resume lowering 不再回落到 generic call
 - 描述：审查 `T3009a` 的生产代码，确认 `-> resume` arm 内的 `resume(value)` 已走 dedicated lowering，而不是隐藏在 generic call/member-access 路径里；若发现回落，本任务需要直接修复并复审。
+- 进展：
+  - 预审查已确认 tail-position 的 `resume(value)` dedicated lowering 与 `ArmResumeMatchedSite` 对接清晰，但 `effect_resume_double_resume_exit.scoop` 仍暴露 non-tail / 多次 `resume(...)` 会漏到 generic local-call 并报 `unknown local value`；因此本任务暂等待 `T3009a1` 先把 immediate-resume 合同收紧。
 - 目标：
   - 确认 `resume(value)` 的 lowering 入口清晰、单一路径、无 placeholder local 残留。
   - 确认 dedicated lowering 与 `ArmResumeMatchedSite` terminator 的 payload 合同一致。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“immediate-resume lowering 不再回落到 generic call”。
-- 依赖：T3009a
+- 依赖：T3009a1
 
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
 - 描述：`T3010b2a` 已把 body tail 改写到 synthetic resume slot，`T3009a` 将补上 arm 内 `resume(value)` 的专用 lowering。两者接通后，再回到端到端语义收口：resume landing 只能继续剩余 tail，不能重放 suspend 前已经求值的路径。
