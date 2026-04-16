@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b: normal completion 的 handle result 现已能跨 cleanup/finally 路径保真传递。
 // RUN-STDOUT: effect_resume_finally_normal.stdout
 //
 // T2003a: immediate-resume + finally 的正常 resume 路径。

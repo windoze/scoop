@@ -14,10 +14,17 @@ type CleanupScopeId = u32;
 struct HandlePlanContext {
     known_fun_effects: HashMap<String, bool>,
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
+    known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     ctor_call_targets: HashMap<Span, Vec<String>>,
     continuation_resume_call_sites: HashSet<Span>,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct KnownLocalMetadata {
+    ty: TypeId,
+    mutable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1380,7 +1387,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn build(mut self) -> HandleStateMachinePlan {
-        let outer_slots = collect_outer_scope_slots(self.handle.body.stmts.as_slice());
+        let outer_slots = collect_outer_scope_slots(
+            self.handle.body.stmts.as_slice(),
+            &self.context.known_local_metadata,
+        );
         let mut env = ScopeEnv::with_outer(outer_slots.clone());
         for slot in &outer_slots {
             self.frame_slots.insert(slot.id, slot.clone());
@@ -1608,6 +1618,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let cond_eval_state = self.build_expr_for_consumer(cond, cond_state, env);
         let body_state = self.new_state("while.body");
         let exit_state = self.new_state("while.exit");
+        self.record_expr_reads(cond_eval_state, cond);
         self.set_terminator(
             cond_eval_state,
             StateTerminator::Branch {
@@ -1653,13 +1664,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 current_state
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, name, .. }) => {
-                self.frame_slots.entry(*id).or_insert_with(|| FrameSlot {
-                    id: *id,
-                    name: name.clone(),
-                    ty: expr.ty,
-                    mutable: false,
-                    owner_arm: None,
-                });
+                let slot = self.authoritative_local_slot(*id, name, expr.ty);
+                self.frame_slots.entry(*id).or_insert(slot);
                 self.push_action(
                     current_state,
                     HandleStateOp::ReadLocal {
@@ -1870,6 +1876,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let then_state = self.new_state("if.then");
                 let else_state = self.new_state("if.else");
                 let merge_state = self.new_state("if.merge");
+                self.record_expr_reads(cond_state, cond);
                 self.set_terminator(
                     cond_state,
                     StateTerminator::Branch {
@@ -2370,22 +2377,17 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
             let mut used = HashMap::new();
             collect_local_refs_in_expr(&arm.body, &mut used);
-            let mut capture_locals = used
-                .into_iter()
-                .filter_map(|(id, (name, ty))| {
-                    if declared.contains(&id) {
-                        return None;
-                    }
-                    self.frame_slots.entry(id).or_insert_with(|| FrameSlot {
-                        id,
-                        name,
-                        ty,
-                        mutable: false,
-                        owner_arm: None,
-                    });
-                    Some(id)
-                })
-                .collect::<Vec<_>>();
+            let mut capture_locals = Vec::new();
+            for (id, (name, ty)) in used {
+                if declared.contains(&id) {
+                    continue;
+                }
+                if !self.frame_slots.contains_key(&id) {
+                    let slot = self.authoritative_local_slot(id, &name, ty);
+                    self.frame_slots.insert(id, slot);
+                }
+                capture_locals.push(id);
+            }
             capture_locals.sort_by_key(|id| id.as_u32());
 
             let body_entry_state = self.new_state(format!("arm{arm_id}.body"));
@@ -3108,6 +3110,22 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.add_reads(_state_id, used);
     }
 
+    fn authoritative_local_slot(
+        &self,
+        id: hir::SymbolId,
+        name: &str,
+        fallback_ty: TypeId,
+    ) -> FrameSlot {
+        let metadata = self.context.known_local_metadata.get(&id).copied();
+        FrameSlot {
+            id,
+            name: name.to_string(),
+            ty: metadata.map_or(fallback_ty, |meta| meta.ty),
+            mutable: metadata.is_some_and(|meta| meta.mutable),
+            owner_arm: None,
+        }
+    }
+
     fn record_expr_reads(&mut self, _state_id: PlanStateId, _expr: &hir::Expr) {
         let mut used = HashSet::new();
         collect_used_locals_in_expr_static(_expr, &mut used);
@@ -3728,7 +3746,10 @@ fn try_extract_callee_fqn(callee: &hir::Expr) -> Option<String> {
     }
 }
 
-fn collect_outer_scope_slots(stmts: &[hir::Stmt]) -> Vec<FrameSlot> {
+fn collect_outer_scope_slots(
+    stmts: &[hir::Stmt],
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Vec<FrameSlot> {
     let mut declared = HashSet::new();
     for stmt in stmts {
         collect_declared_local_ids_in_stmt(stmt, &mut declared);
@@ -3742,16 +3763,190 @@ fn collect_outer_scope_slots(stmts: &[hir::Stmt]) -> Vec<FrameSlot> {
     let mut slots = used
         .into_iter()
         .filter(|(id, _)| !declared.contains(id))
-        .map(|(id, (name, ty))| FrameSlot {
-            id,
-            name,
-            ty,
-            mutable: false,
-            owner_arm: None,
+        .map(|(id, (name, ty))| {
+            let metadata = known_local_metadata.get(&id).copied();
+            FrameSlot {
+                id,
+                name,
+                ty: metadata.map_or(ty, |meta| meta.ty),
+                mutable: metadata.is_some_and(|meta| meta.mutable),
+                owner_arm: None,
+            }
         })
         .collect::<Vec<_>>();
     slots.sort_by_key(|slot| slot.id.as_u32());
     slots
+}
+
+#[cfg(test)]
+fn collect_known_local_metadata_in_fun(
+    fun: &hir::FunDecl,
+    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
+) {
+    for param in &fun.params {
+        out.insert(
+            param.id,
+            KnownLocalMetadata {
+                ty: param.ty,
+                mutable: false,
+            },
+        );
+    }
+    if let Some(body) = &fun.body {
+        collect_known_local_metadata_in_block(body, out);
+    }
+}
+
+#[cfg(test)]
+fn collect_known_local_metadata_in_block(
+    block: &hir::Block,
+    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
+) {
+    for stmt in &block.stmts {
+        collect_known_local_metadata_in_stmt(stmt, out);
+    }
+}
+
+#[cfg(test)]
+fn collect_known_local_metadata_in_stmt(
+    stmt: &hir::Stmt,
+    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
+) {
+    match &stmt.kind {
+        hir::StmtKind::Val(decl) => {
+            if let Some(id) = decl.id {
+                out.insert(
+                    id,
+                    KnownLocalMetadata {
+                        ty: decl.ty,
+                        mutable: decl.mutable,
+                    },
+                );
+            }
+            if let Some(init) = decl.init.as_ref() {
+                collect_known_local_metadata_in_expr(init, out);
+            }
+        }
+        hir::StmtKind::Expr(expr) => collect_known_local_metadata_in_expr(expr, out),
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_known_local_metadata_in_expr(lhs, out);
+            collect_known_local_metadata_in_expr(rhs, out);
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_known_local_metadata_in_expr(cond, out);
+            collect_known_local_metadata_in_block(body, out);
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value {
+                collect_known_local_metadata_in_expr(expr, out);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+#[cfg(test)]
+fn collect_known_local_metadata_in_expr(
+    expr: &hir::Expr,
+    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
+) {
+    match &expr.kind {
+        hir::ExprKind::Block(block) => collect_known_local_metadata_in_block(block, out),
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_known_local_metadata_in_expr(cond, out);
+            collect_known_local_metadata_in_expr(then_branch, out);
+            if let Some(else_branch) = else_branch.as_deref() {
+                collect_known_local_metadata_in_expr(else_branch, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_known_local_metadata_in_expr(subject, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_known_local_metadata_in_expr(guard, out);
+                }
+                collect_known_local_metadata_in_expr(&arm.body, out);
+            }
+        }
+        hir::ExprKind::Closure(closure) => {
+            for param in &closure.params {
+                out.insert(
+                    param.id,
+                    KnownLocalMetadata {
+                        ty: param.ty,
+                        mutable: false,
+                    },
+                );
+            }
+            collect_known_local_metadata_in_expr(&closure.body, out);
+        }
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_known_local_metadata_in_expr(&field.value, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_known_local_metadata_in_expr(element, out);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_known_local_metadata_in_expr(expr, out);
+                }
+            }
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. }
+        | hir::ExprKind::MemberAccess {
+            receiver: inner, ..
+        } => collect_known_local_metadata_in_expr(inner, out),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_known_local_metadata_in_expr(lhs, out);
+            collect_known_local_metadata_in_expr(rhs, out);
+        }
+        hir::ExprKind::Call { callee, args } => {
+            collect_known_local_metadata_in_expr(callee, out);
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_known_local_metadata_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => {
+                        collect_known_local_metadata_in_expr(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_known_local_metadata_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => {
+                        collect_known_local_metadata_in_expr(value, out)
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Handle(handle) => {
+            collect_known_local_metadata_in_block(&handle.body, out);
+            if let Some(finally_block) = &handle.finally {
+                collect_known_local_metadata_in_block(finally_block, out);
+            }
+        }
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Todo(_) => {}
+    }
 }
 
 fn collect_declared_local_ids_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
@@ -4314,11 +4509,19 @@ impl HandlePlanContext {
             .collect();
 
         let mut known_local_fun_effects = HashMap::new();
+        let mut known_local_metadata = HashMap::new();
         for scope in &cg.env.scopes {
             for (&id, local) in scope {
                 let Some(hir_ty) = local.hir_ty else {
                     continue;
                 };
+                known_local_metadata.insert(
+                    id,
+                    KnownLocalMetadata {
+                        ty: hir_ty,
+                        mutable: local.mutable,
+                    },
+                );
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = cg.types.kind(hir_ty) {
                     known_local_fun_effects.insert(id, !fun_ty.effects.is_pure());
                 }
@@ -4351,6 +4554,7 @@ impl HandlePlanContext {
         Self {
             known_fun_effects,
             known_local_fun_effects,
+            known_local_metadata,
             ctor_call_targets,
             continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
             object_value_fqns,

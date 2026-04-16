@@ -3548,6 +3548,70 @@ fun demo(): Int {
         }
     }
 
+    #[test]
+    fn source_plan_preserves_outer_slot_types_and_while_cond_reads_for_resume_capture() {
+        let source = r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(limit: Int): Int {
+    val result: Int = handle {
+        var i: Int = 0
+        while (i < limit) {
+            val x: Int = Yield.next()
+            if (x == 1) {
+                println("x_ok")
+            } else {
+                println("x_bad")
+            }
+            i = i + 1
+        }
+        i
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+        }
+    }
+    result
+}
+"#;
+        let lowered = lower_typed_single_source(source);
+        let (fun, _) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let source_plan = build_source_plan(source);
+        let limit_param = &fun.params[0];
+        let limit_slot = source_plan
+            .frame_layout
+            .slots
+            .get(&limit_param.id)
+            .expect("expected frame slot for outer param `limit`");
+        assert_eq!(limit_slot.ty, limit_param.ty);
+
+        let i_slot = source_plan
+            .frame_layout
+            .slots
+            .values()
+            .find(|slot| slot.name == "i")
+            .expect("expected frame slot for loop local `i`");
+        let perform_site = source_plan
+            .suspend_sites
+            .iter()
+            .find(|site| matches!(site.kind, SuspendSiteKind::Perform { .. }))
+            .expect("expected perform suspend site");
+        assert!(
+            perform_site.capture_locals.contains(&limit_param.id),
+            "while condition outer param must be captured across resume"
+        );
+        assert!(
+            perform_site.capture_locals.contains(&i_slot.id),
+            "loop local used by the next while condition must stay captured"
+        );
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
@@ -3820,6 +3884,8 @@ fun demo(): Int {
         }
 
         let mut known_local_fun_effects = HashMap::new();
+        let mut known_local_metadata = HashMap::new();
+        collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
         for param in &owner_fun.params {
             known_local_fun_effects.insert(
                 param.id,
@@ -3856,6 +3922,7 @@ fun demo(): Int {
         HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
+            known_local_metadata,
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,

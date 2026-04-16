@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b: resume landing 现已只继续剩余 tail，不再重放 suspend 前路径。
 // RUN-STDOUT: effect_resume_yield_int_basic.stdout
 //
 // T0616: lowering step 2（最小）：`-> resume`（栈 state machine）
@@ -33,4 +32,3 @@ fun main(): Int {
     println(result)
     return 0
 }
-

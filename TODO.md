@@ -639,8 +639,25 @@
   - `ArmResumeMatchedSite` 仍是 immediate-resume 的唯一 continuation resume 出口，payload 合同与 dedicated rewrite 保持一致。
 - 依赖：T3009a1
 
+### T3010b2b1 [TODO] 修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义
+- 描述：2026-04-17 复跑 `cargo run -p scoop --features llvm -- test` 时，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`。继续定向复跑 `effect_resume_finally_arm_raise.scoop` 与 `effect_multi_nonresuming_raise_custom_finally.scoop` 可见：arm body 中的 `Raise.raise(...)` 会错误继续执行到 `arm_unreachable` / `throw_alarm_unreachable`，sibling `Raise.raise` arm 也仍会自捕获，`finally` 没有在向外传播前恰好执行一次。要让 `T3010b2b` 的全量验收成立，必须先把 arm body 执行期的 non-resuming effect 语义单独收口。
+- 目标：
+  - arm body 中触发的 unmatched non-resuming effect 不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
+  - arm body 执行期间当前 handler instance 必须处于 dispatch scope 外 / self-inactive；sibling arms 不得自捕获 arm body 内再次触发的 effect。
+  - immediate-resume、escape continuation 与 pure non-resuming source-handle 在 arm body 内共享同一套外传 / cleanup 语义。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3009aR
+
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
 - 描述：`T3010b2a` 已把 body tail 改写到 synthetic resume slot，`T3009a` 将补上 arm 内 `resume(value)` 的专用 lowering。两者接通后，再回到端到端语义收口：resume landing 只能继续剩余 tail，不能重放 suspend 前已经求值的路径。
+- 进展：
+  - 已修复 `while` / `if` branch condition 未进入 `state.reads`、outer slot 首次建模时类型退化为 `Any`、handle 首次进入 `step_fn` 前未 seed outer locals/params 到 effect frame，以及 continuation `resume_state_tag` 误写回 frame 的 runtime 回归。
+  - `effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop`、`async_await_minimal_int_basic.scoop`，以及多条 comparison / branch / nested-block / mixed-raise 相关 fixture 已恢复到稳定 passing 基线。
+  - 全量 LLVM fixture 现已推进到 arm body non-resuming effect 语义缺口，因此本任务在完成前先依赖 `T3010b2b1`。
 - 目标：
   - 基于 `resume_path` + synthetic resume slot + immediate-resume lowering，为真正跨 suspend 的复合表达式接通可执行的 post-suspend tail。
   - `BindLocal` / `Assign` / `Return` / branch / expression statement 对跨 suspend 表达式都消费同一套恢复片段合同，而不是各自局部重算。
@@ -654,7 +671,7 @@
     - `暂不支持的 main 代码生成节点：equality lhs`
     - `暂不支持的 main 代码生成节点：integer binary op lhs`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3009aR
+- 依赖：T3010b2b1
 
 ### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
 - 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
@@ -795,8 +812,8 @@
   - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
 - 依赖：T3014
 
-### T3015 [TODO] 修正 arm 执行期 self-inactive 语义与 escaped continuation 的 handler context lifetime
-- 描述：runtime 明确要求 arm body 执行期当前 handler instance 必须视为 inactive，避免自捕获；而当前统一主线既没有在 arm body 执行期间切 active bit，也让 continuation 捕获了稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
+### T3015 [TODO] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
+- 描述：`T3010b2b1` 会先收口同步 arm body 内 non-resuming effect 的外传 / cleanup / self-inactive 直接阻塞；本任务保留 escaped continuation 在 `handle` 返回后的 handler context 生命周期、以及延迟 / 跨线程 resume 时 active/inactive 恢复语义的剩余缺口。当前统一主线仍让 continuation 捕获稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
 - 进展：
   - `T3010a` 完成后的全量 LLVM fixture 首个失败点已推进到 `effect_escape_continuation_arm_performs_outer_effect.scoop`。直接运行显示当前输出会打印 binder `0`、继续落到 `unreachable_arm`，且没有命中外层 `EffectB` handler，符合本任务要修的 self-inactive / 外层 effect 传播缺口。
   - 同类 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 直接运行也会打印 `0` 并继续到 `unreachable_arm`，进一步确认这不是单个 fixture 偶发，而是 escape-continuation arm 执行期的统一语义缺口。
@@ -809,7 +826,7 @@
   - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
   - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_scheduler_round_robin.scoop`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3014R
+- 依赖：T3014R、T3010b2b1
 
 ### T3015R [TODO] Review：确认 handler active/inactive 与 escaped continuation context 已真正闭环
 - 描述：在 `T3015` 之后只审查生产代码，确认 arm self-inactive 语义与 escaped continuation 的 handler context 生命周期已经形成可审计的闭环，而不是继续依赖 stack-alloc frame 指针恰好“暂时没炸”；若发现这类问题，本任务需要直接修复并复审。

@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b: resume 后 while body tail 与下一轮条件检查现已走统一 post-suspend continuation。
 // RUN-STDOUT: effect_resume_while_body_single_perform.stdout
 //
 // T2003b3: immediate-resume 支持 while body 中的单 direct perform。

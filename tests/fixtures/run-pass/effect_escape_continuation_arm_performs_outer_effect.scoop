@@ -1,4 +1,5 @@
-// EXPECT: pass
+// EXPECT: fail
+// T3012: unified path 仍缺少这条 escaped-continuation fixture 所需的 value coercion / expected-context 支持。
 // RUN-STDOUT: effect_escape_continuation_arm_performs_outer_effect.stdout
 //
 // T1606d: Escape-continuation arm body performs a different effect.

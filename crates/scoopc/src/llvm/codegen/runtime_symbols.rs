@@ -21,6 +21,7 @@ pub(super) const SCOOP_CHANNELS_SEND_U64: &str = "scoop_channels_send_u64";
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
 pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
+pub(super) const SCOOP_EFFECT_CLEAR_ACTIVE: &str = "scoop_effect_clear_active";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";

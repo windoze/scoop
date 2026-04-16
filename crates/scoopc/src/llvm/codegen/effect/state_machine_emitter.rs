@@ -32,6 +32,7 @@ use super::unified_state_machine_skeleton::{
 ///   field 3: resume_gc_ref (ptr addrspace(1)) — GC ref resume payload / handle result ref
 ///   field 4+: optional system fields (cleanup_flag, one_shot_flag)
 ///   then: user slots
+///   final field: suspended continuation pointer (ptr addrspace(1))
 const FRAME_OBJECT_HEADER_FIELD_COUNT: u32 = 1;
 const FRAME_FIELD_STATE_TAG: u32 = 1;
 const FRAME_FIELD_RESUME_WORD: u32 = 2;
@@ -181,6 +182,7 @@ fn extract_immediate_resume_payload_expr(
 /// `UnifiedFrameField` indices to LLVM struct field indices.
 pub(super) struct FrameLayout<'ctx> {
     pub(super) frame_type: inkwell::types::StructType<'ctx>,
+    continuation_index: u32,
 }
 
 impl<'ctx> FrameLayout<'ctx> {
@@ -194,6 +196,10 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn resume_gc_ref_index(&self) -> u32 {
         FRAME_FIELD_RESUME_GC_REF
+    }
+
+    pub(super) fn continuation_index(&self) -> u32 {
+        self.continuation_index
     }
 
     /// Return the LLVM struct field index for a user slot given its
@@ -214,12 +220,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Generate the LLVM struct type for a state machine frame.
     ///
-    /// The frame object layout follows `{ ScoopGcObjectHeader, UnifiedFrameSchema }`:
+    /// The frame object layout follows
+    /// `{ ScoopGcObjectHeader, UnifiedFrameSchema, suspended_continuation }`:
     /// - Object header: written by `scoop_alloc_typed`.
     /// - System fields: state_tag (i32), resume_word (i64), resume_gc_ref (ptr),
     ///   and optionally cleanup_flag (i32), one_shot_flag (i32).
     /// - User slots: one field per `UnifiedFrameSlot`, typed according to the
     ///   slot's `TypeId`.
+    /// - Suspended continuation: a runtime-only GC ref slot appended after the
+    ///   schema so step_fn re-entry can refresh public resume payload fields
+    ///   without clobbering the captured continuation.
     fn emit_effect_frame_layout(
         &mut self,
         span: crate::span::Span,
@@ -280,12 +290,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             field_types.push(llvm_ty);
         }
 
+        // Keep the suspended continuation in a dedicated runtime-only slot
+        // after the schema fields so `user_slot_llvm_index` stays aligned with
+        // `UnifiedFrameSchema::field_index()`.
+        let continuation_index = field_types.len() as u32;
+        field_types.push(gc_ptr_ty.into());
+
         // Create the named struct type.
         let type_name = format!("scoop.effect.frame.{:x}", span.start ^ (span.end << 16));
         let frame_type = self.context.opaque_struct_type(&type_name);
         frame_type.set_body(&field_types, false);
 
-        Ok(FrameLayout { frame_type })
+        Ok(FrameLayout {
+            frame_type,
+            continuation_index,
+        })
     }
 
     fn get_or_create_effect_frame_type_desc_global(
@@ -486,6 +505,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 last_value,
                 state_ptr,
                 frame_layout,
+                contract,
                 &state_bb_map,
                 step_fn,
             )?;
@@ -926,6 +946,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn seed_outer_scope_frame_slots(
+        &mut self,
+        at: crate::span::Span,
+        frame_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        for unified_slot in contract.frame().slots() {
+            let slot = unified_slot.slot();
+            if slot.owner_arm().is_some() {
+                continue;
+            }
+            let Some(local) = self.env.get(slot.id()) else {
+                continue;
+            };
+
+            let target_cg_ty =
+                self.cg_ty_of(slot.ty())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect frame seed slot type",
+                        at: at.into(),
+                    })?;
+            let field_index = frame_layout.user_slot_llvm_index(unified_slot.field_index());
+            let slot_ptr = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                frame_ptr,
+                field_index,
+                &format!("seed_outer_slot_{}", slot.id().as_u32()),
+            )?;
+
+            let value = match local.ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => {
+                    let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        local.ptr,
+                        &format!("seed_outer_load_{}", slot.id().as_u32()),
+                    )?;
+                    self.cg_value_from_loaded(at, local.ty, loaded)?
+                }
+            };
+            let value = self.coerce_value(at, value, target_cg_ty)?;
+            self.store_local_value(at, slot_ptr, target_cg_ty, value)?;
+        }
+        Ok(())
+    }
+
     /// Emit a statement-type op (Assign, etc.) by dispatching to existing
     /// statement codegen.  The env must already contain the referenced locals
     /// (via prior BindLocal / ReadLocal ops in the same state).
@@ -960,6 +1029,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         last_value: Option<CgValue<'ctx>>,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
         state_bb_map: &HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>>,
         step_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -974,6 +1044,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match terminator {
             UnifiedStateTerminator::Goto { next_state } => {
+                if self.state_is_handle_result_exit(contract, *next_state)
+                    && let Some(val) = last_value
+                {
+                    self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
+                }
                 let target_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
                 self.builder.build_unconditional_branch(target_bb)?;
             }
@@ -1050,13 +1125,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })?
                     .into_pointer_value();
 
-                // Store the continuation pointer into the frame so the
-                // dispatch loop can find it for arm execution.
-                // We reuse the resume_gc_ref slot for this purpose.
+                // Record the body resume state on the continuation itself.
+                // Handler dispatch reuses frame.state_tag for arm execution,
+                // so the continuation cannot rely on the mutable frame field
+                // remaining pointed at the suspended body state.
+                let cont_ty = self.llvm_continuation_struct_type();
+                let cont_resume_state_gep = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont,
+                    2, // resume_state_tag
+                    "cont_resume_state_tag",
+                )?;
+                let resume_state_val = self
+                    .context
+                    .i32_type()
+                    .const_int(*resume_state as u64, false);
+                self.builder
+                    .build_store(cont_resume_state_gep, resume_state_val)?;
+
+                // Store the continuation pointer into the dedicated runtime
+                // slot so later step_fn re-entry cannot overwrite it by
+                // refreshing resume_gc_ref from the call parameters.
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
-                    frame_layout.resume_gc_ref_index(),
+                    frame_layout.continuation_index(),
                     "frame_continuation_ptr",
                 )?;
                 self.builder.build_store(cont_gep, cont)?;
@@ -1072,6 +1165,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             UnifiedStateTerminator::CleanupEnter { next_state, .. } => {
+                if let Some(val) = last_value {
+                    self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
+                }
                 // Branch unconditionally to the cleanup scope's entry state.
                 // The cleanup states (finally block) are part of the same step
                 // function's state table and will execute their ops normally,
@@ -1101,7 +1197,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
-                    frame_layout.resume_gc_ref_index(),
+                    frame_layout.continuation_index(),
                     "read_continuation_for_resume",
                 )?;
                 let cont_ptr = self
@@ -1143,6 +1239,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         Ok(())
+    }
+
+    fn state_is_handle_result_exit(
+        &self,
+        contract: &UnifiedHandleLoweringContract,
+        state_id: u32,
+    ) -> bool {
+        let Some(state) = contract.machine().get_state(state_id) else {
+            return false;
+        };
+        matches!(state.terminator(), UnifiedStateTerminator::ReturnHandle)
+            && state
+                .ops()
+                .iter()
+                .all(|op| matches!(op, HandleStateOp::ReturnToEnclosingExpression))
     }
 
     /// Evaluate a branch condition and return the i1 boolean result.
@@ -1487,6 +1598,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_memset(payload_i8, 1, zero, payload_size_val)?;
         }
 
+        self.seed_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
+
         // Set state_tag to entry state.
         let state_tag_gep = self.builder.build_struct_gep(
             frame_layout.frame_type,
@@ -1612,8 +1725,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?
             .into_int_value();
 
-        // Clear the active flag (the arm body will handle everything).
-        let clear_fn = self.declare_runtime_effect_clear();
+        // Clear only the active flag. The arm body still needs the perform
+        // slot payload for binder setup; the full slot reset happens once the
+        // handle expression finishes.
+        let clear_fn = self.declare_runtime_effect_clear_active();
         self.builder.build_call(clear_fn, &[], "")?;
 
         // Build a switch on op_tag → arm entry state.
@@ -1718,6 +1833,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // --- handle_done: pop handler frame, read result ---
         self.builder.position_at_end(handle_done_bb);
 
+        let clear_fn = self.declare_runtime_effect_clear();
+        self.builder.build_call(clear_fn, &[], "")?;
+
         if has_dispatch {
             let pop_fn = self.declare_runtime_effect_handler_stack_pop();
             self.builder
@@ -1763,8 +1881,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let op_tag = self.effect_op_tag(op_fqn);
         let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
 
-        // Evaluate the perform expression to get the payload value.
-        let payload_val = self.codegen_expr_in_expected_context(expr, None)?;
+        let payload_expr = match &expr.kind {
+            hir::ExprKind::Perform { args, .. } => match args.as_slice() {
+                [] => None,
+                [hir::CallArg::Positional(payload)] => Some(payload),
+                [hir::CallArg::Named { value, .. }] => Some(value),
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "state machine perform arity",
+                        at: expr.span.into(),
+                    });
+                }
+            },
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "state machine perform payload expr",
+                    at: expr.span.into(),
+                });
+            }
+        };
+
+        // Evaluate only the payload expression. Re-emitting the entire
+        // `perform` expression would recurse into `codegen_perform_expr`,
+        // which overwrites the TLS perform slot with the default resume
+        // placeholder for generic callers.
+        let payload_val = if let Some(payload_expr) = payload_expr {
+            self.codegen_expr_in_expected_context(payload_expr, None)?
+        } else {
+            CgValue::unit()
+        };
 
         // Write to TLS perform slot based on payload type.
         match payload_val.ty {
@@ -1879,12 +2024,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match arm.kind {
             hir::HandleArmKind::ImmediateResume { .. } => {}
             hir::HandleArmKind::EscapeContinuation { continuation } => {
-                // Load the continuation pointer from the frame's
-                // resume_gc_ref slot (where Suspend stored it).
+                // Load the continuation pointer from the dedicated runtime
+                // continuation slot (where Suspend stored it).
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
-                    frame_layout.resume_gc_ref_index(),
+                    frame_layout.continuation_index(),
                     "load_continuation",
                 )?;
                 let cont_ptr = self

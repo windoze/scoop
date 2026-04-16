@@ -1285,6 +1285,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_effect_clear_active(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_CLEAR_ACTIVE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_clear_active(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_PUSH;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -1347,7 +1358,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// T1607：返回 `ScoopContinuation` 的 LLVM 结构类型（用于 GEP 到 resume_word / resume_gc_ref）。
     ///
     /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
-    ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
+    ///   { ScoopGcObjectHeader, i32 resumed, i32 resume_state_tag, ptr captured_handler_stack_top,
     ///     ptr addrspace(1) state, ptr step_fn, i64 resume_word, ptr addrspace(1) resume_gc_ref }
     pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
         const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
@@ -1364,7 +1375,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[
                 header_ty.into(),    // 0: hdr
                 i32_ty.into(),       // 1: resumed (_Atomic uint32_t)
-                i32_ty.into(),       // 2: _reserved_u32
+                i32_ty.into(),       // 2: resume_state_tag
                 i8_ptr_ty.into(),    // 3: captured_handler_stack_top
                 gc_i8_ptr_ty.into(), // 4: state
                 i8_ptr_ty.into(),    // 5: step_fn

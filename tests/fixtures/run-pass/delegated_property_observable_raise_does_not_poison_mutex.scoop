@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
+// EXPECT: pass
+// T3008a/T3010b2b: effect frame/continuation ABI 与 post-suspend tail 现已可稳定覆盖 observable+Raise 交互。
 // RUN-STDOUT: delegated_property_observable_raise_does_not_poison_mutex.stdout
 // TIMEOUT: 3000
 //
@@ -37,4 +36,3 @@ fun main(): Int {
     println("ok")
     return 0
 }
-

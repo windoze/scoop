@@ -1,10 +1,9 @@
-// EXPECT: fail
+// EXPECT: pass
 // RUN-STDOUT: async_await_minimal_int_basic.stdout
 //
 // T0619: async/await（作为 `Async` effect 的语法糖）
-// T3009aR: immediate-resume 的 non-block arm body codegen 已接通，
-// 本例现在可成功 build；但运行期仍会在打印 `before` 后异常退出。
-// 暂继续标记为 fail，待阶段 H 的 structured concurrency / async 任务收口。
+// T3010b2b: immediate-resume 的 non-block arm body、continuation resume state
+// 与 post-suspend tail 现已接通；当前最小 async/await happy path 可运行。
 //
 // 目标覆盖（当前阶段最小可回归语义）：
 // - `async { ... }` 捕获 `await` 产生的 `Async` required effects，使 `main` 仍满足 entry-point 纯度规则；

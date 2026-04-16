@@ -622,6 +622,10 @@ void scoop_effect_clear(void) {
   scoop_effect_perform_slot_reset();
 }
 
+void scoop_effect_clear_active(void) {
+  __scoop_effect_active = 0;
+}
+
 // T1606f-2：callee suspend state 访问器。
 void *scoop_callee_suspend_state_get(void) {
   return __scoop_callee_suspend_state;
@@ -848,8 +852,9 @@ typedef struct ScoopContinuation {
   // 0=未 resume；1=已 resume（one-shot）。使用原子状态位为未来并发 resume 做准备。
   _Atomic uint32_t resumed;
 
-  // 保留字段：用于对齐/未来扩展（例如更细的状态机标志）。
-  uint32_t _reserved_u32;
+  // suspend 时捕获的 body resume state_tag。
+  // handler arm 会临时把 frame.state_tag 改成 arm entry state；resume 前必须先恢复这里记录的 body state。
+  uint32_t resume_state_tag;
 
   // 捕获的 handler stack（suspension 点的 TLS 栈顶指针；Appendix A）。
   ScoopEffectHandlerFrame *captured_handler_stack_top;
@@ -866,6 +871,15 @@ typedef struct ScoopContinuation {
   uint64_t resume_word;
   void *resume_gc_ref;  // GC-traced（见 scoop_continuation_trace）
 } ScoopContinuation;
+
+typedef struct ScoopEffectFrameBase {
+  ScoopGcObjectHeader hdr;
+  uint32_t state_tag;
+} ScoopEffectFrameBase;
+
+enum {
+  SCOOP_CONTINUATION_RESUME_STATE_UNSET = UINT32_MAX,
+};
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(offsetof(ScoopContinuation, hdr) == 0,
@@ -954,7 +968,9 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->hdr.type_desc = &SCOOP_CONTINUATION_TYPE_DESC;
 
   atomic_init(&k->resumed, 0);
-  k->_reserved_u32 = 0;
+  // 默认 continuation 只承载“step(state, payload)”语义；只有编译器生成的
+  // effect frame continuation 会在 suspend 时显式写入 body resume state。
+  k->resume_state_tag = SCOOP_CONTINUATION_RESUME_STATE_UNSET;
   k->captured_handler_stack_top = __scoop_effect_handler_stack_top;
   k->state = state;
   k->step_fn = step_fn;
@@ -999,6 +1015,12 @@ static void scoop_continuation_resume_common(void *continuation) {
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   ScoopEffectHandlerFrame *saved =
       scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
+
+  if (k->state != 0 &&
+      k->resume_state_tag != SCOOP_CONTINUATION_RESUME_STATE_UNSET) {
+    ScoopEffectFrameBase *frame = (ScoopEffectFrameBase *)k->state;
+    frame->state_tag = k->resume_state_tag;
+  }
 
   if (k->step_fn != 0) {
     k->step_fn(k->state, k->resume_word, k->resume_gc_ref);

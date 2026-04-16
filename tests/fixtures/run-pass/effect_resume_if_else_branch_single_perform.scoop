@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b: immediate-resume 后的 if-else branch tail 现已只继续剩余分支路径。
 // RUN-STDOUT: effect_resume_if_else_branch_single_perform.stdout
 //
 // T2003b2: immediate-resume 支持 if else-branch 中的单 direct perform。

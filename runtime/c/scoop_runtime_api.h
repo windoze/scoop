@@ -51,6 +51,7 @@
   X(scoop_continuation_resume_u64) \
   X(scoop_continuation_try_resume) \
   X(scoop_effect_clear) \
+  X(scoop_effect_clear_active) \
   X(scoop_effect_handler_stack_find_nearest) \
   X(scoop_effect_handler_stack_pop) \
   X(scoop_effect_handler_stack_push) \

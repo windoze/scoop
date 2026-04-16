@@ -3656,6 +3656,8 @@ fun demo(): Int {
         }
 
         let mut known_local_fun_effects = HashMap::new();
+        let mut known_local_metadata = HashMap::new();
+        collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
         for param in &owner_fun.params {
             known_local_fun_effects.insert(
                 param.id,
@@ -3692,6 +3694,7 @@ fun demo(): Int {
         HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
+            known_local_metadata,
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,

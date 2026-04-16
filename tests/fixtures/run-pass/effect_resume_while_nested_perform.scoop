@@ -1,6 +1,5 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b: while body 内 nested perform 的 resume tail 现已可继续执行并回到下一轮条件。
 // RUN-STDOUT: effect_resume_while_nested_perform.stdout
 //
 // T2003u5b: single-arm immediate-resume 允许 while body 内 nested if 中的 perform。
