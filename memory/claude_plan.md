@@ -1,46 +1,54 @@
 # 执行计划
 
-## 当前阶段
-- `T3008aR` 已完成审查、验证与文档同步；下一步是提交本轮变更并停止。
+## 说明
+
+按要求先记录计划，并在执行过程中持续更新。本文件只记录可共享的执行思路、步骤、检查点和进展，不包含不可验证的内部推理细节。
 
 ## 初始计划
-1. 检查最新一次提交信息，确认是否提到任何既有问题；若有，优先修复。
-2. 阅读 TODO.md，定位第一个未完成任务。
-3. 阅读 PLAN.md，核对任务背景、依赖与现有计划。
-4. 评估首个未完成任务的规模；若过大，则先拆分任务并更新 TODO.md / PLAN.md。
-5. 实现当前要执行的任务。
-6. 运行相关测试与必要的质量检查，包括至少与改动相关的测试以及 `cargo clippy --all-targets -- -D warnings`（若适用）。
-7. 更新 memory/claude_plan.md、TODO.md、PLAN.md，记录进展并标记任务完成。
-8. 使用清晰的提交信息提交本次变更，然后停止。
 
-## 说明
-- 该文件记录摘要化的推理、执行计划、关键决策与进度，不包含逐字内部思维。
+1. 检查最新一次提交，确认提交信息中是否提到已知问题、遗留修复或待处理事项。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 评估该任务是否过大：
+   - 如果可直接完成，则进入实现。
+   - 如果过大或依赖缺失，则拆分任务，更新 `PLAN.md` 与 `TODO.md`，并只处理拆分后的第一个子任务。
+4. 在实现前先阅读相关代码、测试和规范，确认没有通过规避缺陷来“完成任务”的风险。
+5. 实现第一个未完成任务所需改动。
+6. 运行相关验证：
+   - 最小相关测试
+   - 必要时运行更广覆盖的测试
+   - `cargo fmt`
+   - `cargo clippy --all-targets -- -D warnings`
+7. 更新文档状态：
+   - 在 `TODO.md` 标记完成，或在阻塞时重排任务并保持 `[TODO]`
+   - 更新 `PLAN.md`
+   - 继续更新本文件的进展记录
+8. 检查工作区改动，确认没有误改或遗漏。
+9. 提交改动，提交信息使用任务编号或清晰描述。
+10. 停止，不继续处理下一个任务。
 
-## 当前判断
-- 最新提交信息未在 commit message 中额外声明需先修的既有问题。
-- `TODO.md` 中首个未完成项为 `T3008aR`，属于生产代码 review 任务，规模可直接执行，无需进一步拆分。
-- 相邻任务 `T3009` 的依赖写成了不存在的 `T3008R`；本轮已将其修正为 `T3008aR`。
+## 进展记录
 
-## 本轮执行重点
-1. 审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 及相关调用点，确认不存在 raw-frame / verifier-hack 残留。
-2. 定向检索 `malloc`、native `ptr` state、局部 bitcast 绕过地址空间、缺失 typed trace descriptor 等风险模式。
-3. 若发现真实生产缺口，直接修复并复审；若未发现，则记录审查结论并更新 TODO/PLAN。
-4. 运行与任务匹配的质量验证，再提交并停止。
-
-## 审查结果
-- 未发现 `T3008aR` 所针对的生产代码缺口；本轮无需修改 `crates/scoopc/src/llvm/codegen/**` 或 runtime 生产实现。
-- `codegen_handle_expr_via_state_machine` 已稳定走 `scoop_alloc_typed` 分配 effect frame，并且只清零对象头之后的 payload，不存在 raw-frame `malloc` 残留。
-- `emit_effect_step_function`、`declare_runtime_continuation_alloc`、`llvm_continuation_struct_type` 与 runtime `ScoopContinuation`/`scoop_continuation_trace` 在 `state` / `resume_gc_ref` 的 GC 语义上保持一致；编译器侧统一使用 `addrspace(1)`，runtime 侧显式 trace `state` 与 `resume_gc_ref`。
-- effect frame type descriptor 通过 `get_or_create_effect_frame_type_desc_global` 调用通用 trace bitmap 生成逻辑；`--emit-llvm` 生成物中可见 `__scoop_type_desc_effect_frame__*__trace_bitmap` 与 `@scoop_continuation_alloc(ptr addrspace(1), ptr)`，说明不是靠 verifier hack 压过去。
-
-## 已执行验证
-1. `cargo check -p scoopc`
-2. `cargo clippy --all-targets -- -D warnings`
-3. `cargo test --all`
-4. `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
-5. `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
-6. `cargo run -p scoop -- build tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop --emit-llvm -o /tmp/t3008a_effect.ll`
-
-## 待完成收尾
-1. 复查工作区差异，仅保留本轮文档更新与计划记录。
-2. 提交本轮变更并停止。
+- 已创建本计划文件。
+- 已检查最新提交：提交信息为 `[T3008aR] 审查并确认 effect frame ABI 收口`，未在提交信息中直接提出新的必须先修遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前排在最前的未完成任务是 `T3009`：为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local。
+- 初步判断：`T3009` 的边界清晰，先不拆分子任务；先验证当前失败形态与专用 lowering 缺口是否刚好落在统一 emitter / 普通 call lowering 两处接线。
+- 当前检查点：
+  1. 复查 `state_machine_emitter.rs` 中 `ImmediateResume` / `ArmResumeMatchedSite` 的实现。
+  2. 复查 `Continuation.resume` 的 side table / call lowering 接线。
+  3. 运行定向 fixture 复现失败，确认是否正是 `call callee` / generic member access 回落。
+  4. 实现专用 lowering，并删除 `resume_placeholder`。
+  5. 跑定向验证、全量 LLVM fixture、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
+  6. 更新 `TODO.md`、`PLAN.md`、本文件并提交。
+- 已完成的实现草稿：
+  - 已做过一轮专用 lowering 试探实现，用于确认 `T3009` 的真实阻塞面。
+- 试探结果：
+  - `resume(...)` / `Continuation.resume(...)` 的 generic fallback 确实是当前表层错误来源；移除后，`effect_resume_yield_int_basic.scoop` 可以进入运行期，不再停在 `call callee` / `member access target`。
+  - 但随后暴露出更底层的前置缺口：`val x = Yield.next()` 的 resume landing 会重新发射原始 `perform` / fragment op，导致 `resume(41)` 后重复进入同一 handler arm，而不是继续执行 handled computation；这与 `T3010` 完全一致。
+  - 同时，`continuation_resume_enum.scoop` 的验收仍要求 composite resume payload transport，与 `T3013` 的目标重合。
+- 已采取动作：
+  - 已撤回试探性生产代码改动，避免把仓库留在半完成状态。
+  - 已将 `T3009` / `T3009R` 后移到 `T3013R` 之后，并把 `T3010` 提升为当前首个未完成任务。
+- 已验证：
+  - 当前工作区只剩 `PLAN.md`、`TODO.md`、`memory/claude_plan.md` 三处文档变更；未保留试探性生产代码改动。
+  - `cargo check -p scoopc` 在回退试探代码后通过，基线未被破坏。
+- 下一步：只提交任务重排与阻塞说明，然后停止。

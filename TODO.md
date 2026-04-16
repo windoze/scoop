@@ -505,33 +505,10 @@
   - 本轮未发现需要额外修复的生产代码问题；`T3008a` 的 ABI 修复是实质性收口，而非局部 bitcast 或 verifier 规避。
 - 依赖：T3008a
 
-### T3009 [TODO] 为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local
-- 描述：当前 `ImmediateResume` arm 仅把 `resume` 绑定成 dummy local，随后 `resume(41)` 仍走 generic `codegen_call` 并报 `call callee`；`Continuation.resume(...)` 虽已被 lowering side table 标记为 builtin suspend call，但统一 emitter / 普通 codegen 尚未形成一条真正闭合的生产路径。
-- 目标：
-  - `ImmediateResume` arm 中的 `resume(...)` 不再经由 placeholder local + generic call；而是直接 lower 到统一的 resume payload 写入 + continuation resume 调用链。
-  - `Continuation.resume(...)` 在 unified state-machine 路径与普通 codegen 路径上都走专用 lowering，不再依赖 generic member access / generic call fallback。
-  - `resume(...)` 与 `Continuation.resume(...)` 共用同一套 resume payload 合同（word/gc_ref 选择、RuntimeError 路径、one-shot 语义）。
-- 验收：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
-  - 上述用例不再出现 `暂不支持的 main 代码生成节点：call callee`。
-  - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3008aR
-
-### T3009R [TODO] Review：确认 resume 调用不再回落到 generic call / member access
-- 描述：在 `T3009` 之后只审查生产代码，确认 `resume(...)` 与 `Continuation.resume(...)` 已接回专用 lowering，而不是通过 dummy local、成员名猜测或 generic `codegen_call` 暂时跑通；若发现回落路径，本任务需要直接修复并复审。
-- 目标：
-  - 确认 `state_machine_emitter.rs` 中不存在 `resume_placeholder` 这类过渡占位。
-  - 确认统一主线对 `resume(...)` / `Continuation.resume(...)` 的生产路径不再命中 generic `call callee` / `member access target` fallback。
-  - 确认 side table / contract 输入仍只来自类型/符号/ABI 信息，而不是按成员名或源码形状二次猜测。
-- 验收：
-  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“resume 调用已由专用 lowering 完整接管，无 placeholder / generic fallback 残留”。
-- 依赖：T3009
-
 ### T3010 [TODO] 收口 unified state machine 的 expression 分片策略，移除不可独立求值的 fragment op
 - 描述：当前 plan builder 会先为 `Call`/`MemberAccess`/`Binary` 等复合表达式递归生成 callee / receiver / operand 子 expression，再在后续 state 中重新发射整棵表达式；emitter 对这些中间 op 又直接调用 generic `codegen_expr`，于是出现 `member access target`、`comparison lhs/rhs`、`equality lhs`、`integer binary op lhs` 等“只在 fragment 被单独执行时才成立”的错误。
+- 进展：
+  - 在尝试 `T3009` 时已确认 `effect_resume_yield_int_basic.scoop` 的 `val x = Yield.next()` resume landing 会重新发射原始 `perform` / fragment op，导致 `resume(41)` 之后再次回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`。`resume(...)` / `Continuation.resume(...)` 的专用 lowering 在本任务完成前无法形成语义闭环。
 - 目标：
   - state-machine plan 不再为会被整棵表达式再次求值的 callee / receiver / operand fragment 生成生产 op；只保留真正独立可执行、或真正承担 state-machine 语义边界的 op。
   - emitter 中的每个生产 op 都必须有独立可执行语义；不再依赖“先 emit fragment，失败就吞掉，后面再让整棵 expr 覆盖”的容错策略。
@@ -544,7 +521,7 @@
     - `暂不支持的 main 代码生成节点：equality lhs`
     - `暂不支持的 main 代码生成节点：integer binary op lhs`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3009R
+- 依赖：T3008aR
 
 ### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
 - 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
@@ -633,6 +610,33 @@
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“payload/result transport 已统一收口到 GC-safe 合同，无散落特判或非法 ptr/int 编码残留”。
 - 依赖：T3013
+
+### T3009 [TODO] 为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local
+- 描述：当前 `ImmediateResume` arm 仅把 `resume` 绑定成 dummy local，随后 `resume(41)` 仍走 generic `codegen_call` 并报 `call callee`；`Continuation.resume(...)` 虽已被 lowering side table 标记为 builtin suspend call，但统一 emitter / 普通 codegen 尚未形成一条真正闭合的生产路径。
+- 进展：
+  - 已确认本任务当前被两条已跟踪前置缺口阻塞：`T3010` 的 fragment 重算会让 `resume` landing 重新执行原始 `perform` / callee fragment，导致 handled computation 无法在 resume 后正确继续；`continuation_resume_enum.scoop` 仍需要 `T3013` 的 composite resume payload transport。
+- 目标：
+  - `ImmediateResume` arm 中的 `resume(...)` 不再经由 placeholder local + generic call；而是直接 lower 到统一的 resume payload 写入 + continuation resume 调用链。
+  - `Continuation.resume(...)` 在 unified state-machine 路径与普通 codegen 路径上都走专用 lowering，不再依赖 generic member access / generic call fallback。
+  - `resume(...)` 与 `Continuation.resume(...)` 共用同一套 resume payload 合同（word/gc_ref 选择、RuntimeError 路径、one-shot 语义）。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - 上述用例不再出现 `暂不支持的 main 代码生成节点：call callee`，并且 resume 后的 handled computation 不再重复进入原 handler arm / 重新执行原始 `perform`。
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3013R
+
+### T3009R [TODO] Review：确认 resume 调用不再回落到 generic call / member access
+- 描述：在 `T3009` 之后只审查生产代码，确认 `resume(...)` 与 `Continuation.resume(...)` 已接回专用 lowering，而不是通过 dummy local、成员名猜测或 generic `codegen_call` 暂时跑通；若发现回落路径，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `state_machine_emitter.rs` 中不存在 `resume_placeholder` 这类过渡占位。
+  - 确认统一主线对 `resume(...)` / `Continuation.resume(...)` 的生产路径不再命中 generic `call callee` / `member access target` fallback。
+  - 确认 side table / contract 输入仍只来自类型/符号/ABI 信息，而不是按成员名或源码形状二次猜测。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“resume 调用已由专用 lowering 完整接管，无 placeholder / generic fallback 残留”。
+- 依赖：T3009
 
 ### T3014 [TODO] 修正 handler stack 的 multi-op registration 与 unmatched effect 外传
 - 描述：当前 handle 入口只把第一个 dispatch entry 的 `op_tag` push 到 runtime handler stack，`dispatch_unmatched` 也会直接落到 `handle_done`，导致 multi-arm handler 不能完整注册、不同 effect 的 nested handler 也会错误吞掉本应继续向外传播的 perform。
