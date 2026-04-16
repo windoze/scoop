@@ -1104,6 +1104,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    pub(super) fn llvm_object_singleton_type(&self, object_fqn: &str) -> StructType<'ctx> {
+        let name = format!(
+            "scoop.runtime.ObjectSingleton__{}",
+            sanitize_llvm_ident(object_fqn)
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(&name);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into()], false);
+        ty
+    }
+
+    pub(super) fn get_or_create_object_singleton_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        object_fqn: &str,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let global_name = format!(
+            "__scoop_type_desc_object__{}",
+            sanitize_llvm_ident(object_fqn)
+        );
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_object_singleton_type(object_fqn);
+        let itable_ptr = self
+            .get_or_create_class_itable_global(at, object_fqn)?
+            .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
+        let vtable_ptr = self
+            .get_or_create_class_vtable_global(at, object_fqn)?
+            .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
+
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: object_fqn,
+            obj_ty,
+            trace_start_offset_bytes: 0,
+            parent: None,
+            itable: itable_ptr,
+            vtable: vtable_ptr,
+        })
+    }
+
     pub(super) fn get_or_create_class_itable_global(
         &mut self,
         at: crate::span::Span,

@@ -12638,6 +12638,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(init_bb);
 
+        // object 单例值本身按 `Ref` ABI 表示为一个真正的 GC heap object；
+        // properties 仍保存在独立的全局槽里，因此这里的实例对象只承载 header/type-desc 身份。
+        let _ = self.allocate_object_singleton_instance(err_span, &obj.fqn)?;
+
         self.env.push_scope();
         for step in &obj.steps {
             match step {
@@ -12713,13 +12717,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // 说明：
-        // - 早期阶段我们用一个 module-local 的唯一地址充当 object 单例实例的"身份"（指针值）；
-        // - 该地址不参与 GC，也不承载字段布局；静态属性仍单独走 `__scoop_object_prop__*` 全局存储。
-        let gv = self.module.add_global(self.context.i8_type(), None, &name);
+        // object 单例实例存放在一个 module-local 全局槽里：
+        // - 槽本身位于默认地址空间，便于普通 LLVM global 存取；
+        // - 槽里保存的值是 `ptr addrspace(1)`，与 `CgTy::Ref` ABI 对齐。
+        let gv = self
+            .module
+            .add_global(self.llvm_gc_i8_ptr_type(), None, &name);
         gv.set_linkage(Linkage::Internal);
-        gv.set_initializer(&self.context.i8_type().const_int(0, false));
+        gv.set_initializer(&self.llvm_gc_i8_ptr_type().const_null());
         gv
+    }
+
+    fn allocate_object_singleton_instance(
+        &mut self,
+        at: crate::span::Span,
+        object_fqn: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let obj_ty = self.llvm_object_singleton_type(object_fqn);
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+
+        let desc = self.get_or_create_object_singleton_type_desc_global(at, object_fqn)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "object_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[desc_i8.into(), size_v.into()],
+            "rt_alloc_object",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return value",
+                at: at.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return type",
+                at: at.into(),
+            });
+        };
+
+        let instance_global = self.declare_object_instance_global(object_fqn);
+        let _ = self
+            .builder
+            .build_store(instance_global.as_pointer_value(), obj_ptr)?;
+        Ok(obj_ptr)
     }
 
     fn codegen_object_value_access(
@@ -12732,9 +12780,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
 
         let instance = self.declare_object_instance_global(object_fqn);
+        let loaded = self.builder.build_load(
+            self.llvm_gc_i8_ptr_type(),
+            instance.as_pointer_value(),
+            "load_object_instance",
+        )?;
         Ok(CgValue {
             ty: CgTy::Ref,
-            value: Some(instance.as_pointer_value().into()),
+            value: Some(loaded),
         })
     }
 
@@ -13558,6 +13611,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // class：沿 parent 链查找。
                 if self.class_inits.contains_key(&nominal.fqn) {
                     let desc = self.get_or_create_class_type_desc_global(at, &nominal.fqn)?;
+                    let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
+                    return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
+                }
+
+                if self.object_inits.contains_key(&nominal.fqn) {
+                    let desc =
+                        self.get_or_create_object_singleton_type_desc_global(at, &nominal.fqn)?;
                     let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
                     return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
                 }

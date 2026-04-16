@@ -2184,6 +2184,52 @@ fun main(): Int {
     }
 
     #[test]
+    fn object_member_call_uses_gc_managed_singleton_receiver() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+object Helper {
+    fun run(): Int {
+        return 7
+    }
+}
+
+fun main(): Int {
+    return Helper.run()
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains(
+                "@__scoop_object_instance__a.Helper = internal global ptr addrspace(1) null"
+            ),
+            "object 单例槽应保存 GC-managed receiver 指针"
+        );
+        assert!(
+            ir.contains("@scoop_alloc_typed"),
+            "object 单例值应通过 typed alloc 生成真实 Ref 对象"
+        );
+        assert!(
+            ir.contains("call i64 @a.Helper.run(ptr addrspace(1)"),
+            "object member call 应把 addrspace(1) receiver 传给成员函数"
+        );
+        assert!(
+            !ir.contains("call i64 @a.Helper.run(ptr @__scoop_object_instance__a.Helper)"),
+            "member call 不应再把默认地址空间全局地址直接当 receiver 传递"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "object member call 修复不应退回 addrspacecast 打补丁"
+        );
+    }
+
+    #[test]
     fn println_int_lowers_via_string_formatting_without_print_int_helpers() {
         let source = SourceFile::new_virtual(
             "<mem>",

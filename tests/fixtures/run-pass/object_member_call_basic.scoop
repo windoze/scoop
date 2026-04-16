@@ -1,0 +1,20 @@
+// EXPECT: pass
+// RUN-STDOUT: object_member_call_basic.stdout
+//
+// T3010b2b0a0b：object 单例值应按 `Ref` ABI 传入成员函数；
+// 不能再把默认地址空间的全局身份地址直接作为 receiver 传给 `Helper.run(...)`。
+
+import scoop.core.*
+
+object Helper {
+    fun run(seed: Int): Int {
+        println(seed)
+        return seed + 1
+    }
+}
+
+fun main(): Int {
+    val result: Int = Helper.run(41)
+    println(result)
+    return 0
+}
