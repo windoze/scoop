@@ -212,7 +212,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "u64 word from gc pointer (ptr<->int is forbidden)",
                 at: at.into(),
             }),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Enum(enum_ty) => {
+                // Value-only enums are plain integers — zero-extend to u64.
+                let layout = self.cg_enum_layout(at, enum_ty)?;
+                match layout.repr {
+                    CgEnumRepr::ValueOnly { underlying } => {
+                        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "u64 word from enum (no value)",
+                            at: at.into(),
+                        })?
+                        .into_int_value();
+                        let to = IntTy { bits: 64, signed: false };
+                        Ok(self.cast_int(raw, underlying, to)?)
+                    }
+                    CgEnumRepr::TaggedUnion => {
+                        // Extract tag (field 0) from { tag, payload_word, payload_ptr }.
+                        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "u64 word from enum (no value)",
+                            at: at.into(),
+                        })?;
+                        let tag = self.builder.build_extract_value(
+                            raw.into_struct_value(),
+                            0,
+                            "enum_tag",
+                        )?.into_int_value();
+                        Ok(self.builder.build_int_z_extend(tag, i64_ty, "enum_tag_u64")?)
+                    }
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "u64 word from niche enum (not yet supported)",
+                        at: at.into(),
+                    }),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "u64 word from composite value",
                     at: at.into(),

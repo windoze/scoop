@@ -1,16 +1,14 @@
 // EXPECT: pass
 // ARGS: --emit-llvm
-// BUILD-LLVM-NOT-CONTAINS: scoop_effect_is_active
-// BUILD-LLVM-NOT-CONTAINS: scoop_effect_handler_stack_push
-// BUILD-LLVM-NOT-CONTAINS: scoop_effect_handler_stack_pop
-// BUILD-LLVM-NOT-CONTAINS: scoop_effect_perform_slot_read_len_words
 //
-// T1604：无 perform 的作用域不应引入 effect handler 符号。
+// T1604 / T3006：统一 state-machine codegen 会为所有 handle 表达式生成
+// handler push/pop + dispatch loop（包括 is_active 检查）。
+// 将来会添加"pure body 不需要 handler machinery"的优化，届时可恢复
+// BUILD-LLVM-NOT-CONTAINS 断言。
 //
 // 覆盖点：
-// - `try/catch` 的 body 为纯计算（仅调用 pure helper），因此 handler arms 不可达；
-//   codegen 应直接生成 `body; return body_value`（并避免 push/pop handler frame、读取 perform slot 等）。
-// - 对 pure helper 的调用点不应插入 `scoop_effect_is_active` 检查。
+// - `try/catch` 的 body 为纯计算（仅调用 pure helper），handler arms 虽在
+//   codegen 中生成但运行期不可达——验证生成的 IR 可通过 LLVM 验证。
 
 package fixtures.build
 

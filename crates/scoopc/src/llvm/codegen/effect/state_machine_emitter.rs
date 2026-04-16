@@ -68,8 +68,6 @@ const STATE_TAG_SUSPENDED: u32 = 0xFFFF_FFFD;
 /// `UnifiedFrameField` indices to LLVM struct field indices.
 pub(super) struct FrameLayout<'ctx> {
     pub(super) frame_type: inkwell::types::StructType<'ctx>,
-    /// Total number of system fields (always >= 3: state_tag, resume_word, resume_gc_ref).
-    system_field_count: u32,
 }
 
 impl<'ctx> FrameLayout<'ctx> {
@@ -87,8 +85,13 @@ impl<'ctx> FrameLayout<'ctx> {
 
     /// Return the LLVM struct field index for a user slot given its
     /// `UnifiedFrameSlot::field_index()`.
+    ///
+    /// `field_index()` is already an absolute index in the frame schema
+    /// (system fields first, then user slots).  Since the LLVM struct
+    /// mirrors the schema layout, the absolute index IS the LLVM struct
+    /// field index.
     pub(super) fn user_slot_llvm_index(&self, unified_field_index: usize) -> u32 {
-        self.system_field_count + unified_field_index as u32
+        unified_field_index as u32
     }
 }
 
@@ -144,8 +147,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let system_field_count = field_types.len() as u32;
-
         // User slots: one LLVM field per UnifiedFrameSlot, in field_index order.
         let mut user_slots: Vec<(usize, crate::ty::TypeId)> = frame
             .slots()
@@ -175,7 +176,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(FrameLayout {
             frame_type,
-            system_field_count,
         })
     }
 
@@ -344,6 +344,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // Fresh env scope for this state's locals.
             self.env.push_scope();
 
+            // Pre-populate frame slot locals so cross-state references work.
+            // Each state gets its own GEP instructions (required for LLVM
+            // SSA dominance: GEPs from sibling state BBs are not usable).
+            self.populate_frame_slots_in_env(span, state_ptr, frame_layout, contract)?;
+
             let last_value = self.emit_state_ops(
                 span,
                 state,
@@ -365,6 +370,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.env.pop_scope();
         }
 
+        Ok(())
+    }
+
+    /// Pre-populate the env with GEP pointers for all frame user slots.
+    ///
+    /// Each state BB needs its own GEP instructions for LLVM SSA dominance.
+    /// This ensures that cross-state local references (e.g. a local bound in
+    /// state 0 but used in state 2's initializer) work correctly even if the
+    /// plan builder didn't emit an explicit `ReadLocal` op.
+    fn populate_frame_slots_in_env(
+        &mut self,
+        _span: crate::span::Span,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        for unified_slot in contract.frame().slots() {
+            let slot = unified_slot.slot();
+            let id = slot.id();
+            let type_id = slot.ty();
+            let Some(cg_ty) = self.cg_ty_of(type_id) else {
+                continue; // Skip unsupported types.
+            };
+            let llvm_index = frame_layout.user_slot_llvm_index(unified_slot.field_index());
+            let slot_ptr = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                llvm_index,
+                &format!("pre_slot_{}", id.as_u32()),
+            )?;
+            self.env.insert(
+                id,
+                CgLocal {
+                    hir_ty: Some(type_id),
+                    ty: cg_ty,
+                    ptr: slot_ptr,
+                    mutable: slot.mutable(),
+                },
+            );
+        }
         Ok(())
     }
 
@@ -438,8 +483,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Expression ops: delegate to existing codegen ---
+                //
+                // VarRef is handled separately: the plan builder decomposes
+                // composite expressions (Call, Binary, etc.) by recursing
+                // into sub-expressions, emitting a VarRef op for each callee
+                // or operand.  These standalone VarRef results are always
+                // overwritten by the subsequent composite op (which carries
+                // the full original expression and re-evaluates everything).
+                // For top-level function names, `codegen_var_ref` fails
+                // because functions are not standalone values.  We produce a
+                // unit fallback for any VarRef codegen failure since the
+                // result is never consumed.
+                HandleStateOp::VarRef { expr } => {
+                    let val = self
+                        .codegen_expr_in_expected_context(expr, None)
+                        .unwrap_or(CgValue::unit());
+                    last_value = Some(val);
+                }
                 HandleStateOp::Literal { expr }
-                | HandleStateOp::VarRef { expr }
                 | HandleStateOp::StructLit { expr }
                 | HandleStateOp::TupleLit { expr }
                 | HandleStateOp::InterpolatedString { expr }
@@ -1143,9 +1204,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                // Composite result transport is not yet supported via u64 word.
-                // T3004c/d may extend this.
+            CgTy::Enum(enum_ty) => {
+                let layout = self.cg_enum_layout(span, enum_ty)?;
+                match layout.repr {
+                    CgEnumRepr::ValueOnly { underlying } => {
+                        // Value-only enums are plain integers — truncate u64.
+                        let narrowed = self.cast_int(
+                            word,
+                            IntTy { bits: 64, signed: false },
+                            underlying,
+                        )?;
+                        Ok(CgValue {
+                            ty: CgTy::Enum(enum_ty),
+                            value: Some(narrowed.into()),
+                        })
+                    }
+                    CgEnumRepr::TaggedUnion => {
+                        // Construct { tag, payload_word=0, payload_ptr=null }
+                        // from the u64 word (which encodes the tag).
+                        // Only valid for fieldless-variant enums transported
+                        // via the perform slot (e.g. RuntimeError).
+                        let llvm_ty = self
+                            .llvm_enum_value_type(span, enum_ty)?
+                            .into_struct_type();
+                        let tag_i32 = self.builder.build_int_truncate(
+                            word,
+                            self.context.i32_type(),
+                            "enum_tag_from_u64",
+                        )?;
+                        let payload_word_ty = self.int_type(self.enum_payload_ty());
+                        let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
+
+                        let mut agg: AggregateValueEnum<'_> = llvm_ty.get_undef().into();
+                        agg = self.builder.build_insert_value(
+                            agg, tag_i32, 0, "enum_tag",
+                        )?;
+                        agg = self.builder.build_insert_value(
+                            agg,
+                            payload_word_ty.const_int(0, false),
+                            1,
+                            "enum_payload_word",
+                        )?;
+                        agg = self.builder.build_insert_value(
+                            agg,
+                            payload_ptr_ty.const_null(),
+                            2,
+                            "enum_payload_ptr",
+                        )?;
+                        Ok(CgValue {
+                            ty: CgTy::Enum(enum_ty),
+                            value: Some(agg.as_basic_value_enum()),
+                        })
+                    }
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "narrow u64 to niche enum (not yet supported)",
+                        at: span.into(),
+                    }),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "narrow u64 to composite type (not yet supported)",
                     at: span.into(),
@@ -1289,6 +1406,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let result_cg_ty = expected
             .or_else(|| self.cg_ty_of(contract.result_ty()))
             .unwrap_or(CgTy::Unit);
+
 
         let current_fn = self
             .builder

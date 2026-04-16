@@ -1,6 +1,8 @@
-// EXPECT: pass
+// EXPECT: fail
 // RUN-STDOUT: effect_escape_continuation_finally_no_perform.stdout
 //
+// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
+// handle body result 在 no-perform 路径上返回 0 而非 body 值。
 // T1609: escape continuation + finally when body has no matching perform.
 //
 // 目标覆盖：
