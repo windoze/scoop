@@ -657,6 +657,19 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009aR
 
+### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
+- 描述：执行 `T3010b2b0R` 复审时，构造了“ordinary helper -> object property access -> object init 内 `Raise.raise(...)`”的定向复现。结果表明：`T3010b2b0` 已经让 helper 自身不再继续执行 `helper_unreachable`，但外层 `handle/try` 的 caller 仍会继续执行 call 后 tail（例如 `main_unreachable`），说明 caller 侧 unified state-machine 没有把这类 helper 调用当成真正的 suspend boundary。根因是 `HandlePlanContext::known_fun_effects` 当前只看显式 function effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据，导致这类 ordinary callee 在 plan builder 中被降成 `HandleStateOp::Call`，而不是能把 active 交给 dispatch loop 的 suspend site。
+- 目标：
+  - 为 top-level/member/local function value 的 suspend-call 分类补齐 hidden-suspend 元数据，至少覆盖 object value/property access、class ctor init 与 runtime raise 这几类现有 hidden suspend source。
+  - 确保 ordinary helper 在向 caller 传播 active 后，caller 侧 unified state-machine 会立即进入统一 dispatch / cleanup / resume 合同，而不是继续执行 call 后 tail。
+  - 禁止通过恢复旧 flag-based unwind、按源码形状分流，或只给单个 object access callsite 打补丁来掩盖该问题。
+- 验收：
+  - 新增一个覆盖“helper -> object property access -> object init raise”路径的 run-pass fixture，并验证 stdout 不包含 caller tail。
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3010b2b0
+
 ### T3010b2b0R [TODO] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
 - 描述：在 `T3010b2b0` 之后只审查生产代码，确认普通 callee frame 在 non-resuming perform 后终止自身执行的实现是统一、可审计的控制流合同，而不是重新引入 `emit_effect_unwind_if_active`、旧 callee-suspend 路线或其它按代码形状分流的旁路；若发现回流，本任务需要直接修复并复审。
 - 目标：
@@ -666,7 +679,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“non-resuming callee frame 终止语义已统一收口，且未回流旧 flag-based unwind / shape-based 路线”。
-- 依赖：T3010b2b0
+- 依赖：T3010b2b0a
 
 ### T3010b2b1 [TODO] 修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义
 - 描述：在 `T3010b2b0` 完成后复现当前验收用例时可见：普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，但 arm body 中的 `Raise.raise(...)` 仍会错误继续执行到 `arm_unreachable`，sibling `Raise.raise` arm 也仍会自捕获，`finally` 没有在向外传播前恰好执行一次。`T3010b2b0` 已先修掉普通 callee frame 在 non-resuming perform 后继续执行的更基础缺口；本任务接着专注收口 arm body 执行期特有的 self-inactive / cleanup / outward propagation 语义。

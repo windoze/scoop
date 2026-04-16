@@ -1,42 +1,39 @@
-# 当前执行计划
+# 本轮执行计划
 
-## 目标
-- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在开始任何仓库检查前，先记录执行计划与后续进展。
+## 约束说明
 
-## 约束与执行原则
-- 先检查最新提交是否提到遗留问题；若有，优先修复。
-- 不接受规避实现、临时兼容或偏离规范的做法。
-- 若当前任务过大，需要先拆分并同步更新 `PLAN.md` 与 `TODO.md`。
-- 过程中如计划变化或关键步骤完成，及时更新本文件。
+- 按要求先写入计划文件，再执行其他命令。
+- 由于内部推理不适合逐字暴露，这里记录可审计的执行计划、决策依据摘要、关键进展与后续调整。
+- 本轮目标：先处理最新提交中提到的既有问题；随后读取 `TODO.md`，定位第一个未完成任务，只完成该任务并停止。
 
 ## 初始步骤
-1. 查看最新一次 git 提交信息，确认是否包含需要先处理的已知问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 如任务过大，拆解为更小子任务，并更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前目标任务。
-5. 运行相关测试与必要的质量检查，至少覆盖任务涉及范围；若可行，补充 `cargo test` / `cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况。
-7. 提交 git commit，然后停止。
 
-## 记录约定
-- “进行中”：当前正在做的步骤。
-- “已完成”：本轮已经完成并验证的步骤。
-- “变更原因”：计划调整、阻塞、拆分任务或发现规范问题时补充说明。
+1. 检查最新一次 Git 提交信息，确认是否提到了尚未解决的已知问题。
+2. 读取 `TODO.md`，找出第一个未完成任务。
+3. 读取 `PLAN.md`、必要的相关代码与测试，判断该任务是否可在本轮完整完成。
+4. 如果任务过大，则把它拆分成更小的子任务，并更新 `PLAN.md` 与 `TODO.md`；本轮只做拆分后排在最前的那个子任务。
+5. 实现当前任务，并补充/更新相应测试。
+6. 运行必要的验证命令，至少覆盖与改动直接相关的测试；若范围允许，再运行更全面检查。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
+8. 提交 Git commit，然后停止，不继续做下一个任务。
 
-## 当前状态
-- 已完成：检查最新提交信息，确认最新 commit 只是在 TODO/PLAN 中把普通 callee non-resuming blocker 前移，没有新增独立的 pre-existing issue 说明。
-- 已完成：定位第一个未完成任务为 `T3010b2b0`，并确认现有 `T3010b2b0 -> T3010b2b0R -> T3010b2b1` 拆分已经足够，无需继续细分。
-- 已完成：实现 ordinary-frame effect propagation。
-  - direct non-resuming `perform/Raise` 现在会立刻结束当前 callee frame，并把 builder 落到 dead block。
-  - ordinary user call 返回后统一检查 TLS active；若 active，则当前 frame 直接向 caller 返回默认值。
-  - `Nothing` 返回类型在 propagation 路径上发射 `ret void`，不再走普通 `return_bb` 的 `unreachable`。
-  - `codegen_cast_as_expr` 的 runtime raise 失败路径也已接到同一套合同。
-- 已完成：验证当前任务边界。
-  - `cargo check -p scoopc` 通过。
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/nothing_raise_in_helper_basic.scoop` 输出与 golden 一致。
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop` 输出与 golden 一致。
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop` 已不再打印 `throw_alarm_unreachable`，剩余 finally/self-capture mismatch 归 `T3010b2b1`。
-  - `cargo run -p scoop --features llvm -- test` 的首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`，与 `T3010b2b1` 描述一致。
-  - `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
-- 已完成：更新 TODO/PLAN/memory，当前改动已准备提交。
+## 进度记录
+
+- 已完成：创建本计划文件。
+- 已完成：检查最新提交与任务列表。
+- 已确认：最新提交 `b30d05eaf6f48d60e54cb091ad4b81edff2c218c` 的提交信息未额外声明新的既有问题；初始定位到的第一个未完成任务是 `T3010b2b0R`（review 任务）。
+- 已发现问题 1：`crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_object_property_access` 在调用内部 `obj_init` 后没有执行 ordinary-frame 的 TLS active 检查；若 object init 触发 non-resuming effect，当前 helper frame 仍可能继续执行到后续语句。
+- 已发现问题 2（更前置 blocker）：在补做 helper 侧检查并构造“ordinary helper -> object property access -> object init Raise”定向复现后，观察到 helper 自身虽已不再继续执行，但外层 `handle/try` 的 caller 仍继续执行 call 后 tail。根因是 unified state-machine 的 `known_fun_effects` 只看显式 effect row，没有把 hidden suspend 来源折叠进 callee metadata，导致 caller 把这类 helper 调用误判为 plain `Call`。
+- 已采取措施：
+  - 已回退临时生产代码与临时 fixture，避免把未完成方案留在工作树中。
+  - 已在 `TODO.md` 中插入新的前置任务 `T3010b2b0a`，把 caller-side hidden suspend call 分类缺口前移到 `T3010b2b0R` 之前。
+  - 已同步更新 `PLAN.md`，记录复现场景、根因分析与新的任务顺序。
+- 当前结果：`TODO.md` 中新的第一个未完成任务已变为 `T3010b2b0a`。
+- 进行中：整理本文件并准备提交本轮“任务重排 / blocker 记录”提交。
+
+## 变更记录
+
+- 初始创建，待根据仓库现状继续补充。
+- 已补记本轮目标任务与最新提交检查结果。
+- 已补记 review 中发现的具体生产代码缺口。
+- 已补记更前置的 unified caller-side hidden suspend 分类 blocker，以及因此产生的 TODO/PLAN 重排。
