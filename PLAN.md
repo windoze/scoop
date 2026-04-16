@@ -217,8 +217,11 @@
 - 已清理 emitter 与 effect 模块中引用已完成任务编号的过时注释。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）、`cargo run -p scoop --features llvm -- test`（963 fixtures）。
 
-#### T3007R：Review
-- 最终审查 effect codegen 生产实现，确认仓库中只剩统一主线，没有可重新接回的 shape-based legacy 或 flag-based unwind 机制。
+#### T3007R：Review（已完成）
+- 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind / raise_target_stack / unwind 等关键词，全部零生产代码命中。
+- 已审查 `effect/mod.rs` 三个主入口、`state_machine_emitter.rs`（1972 行，29 op + 9 terminator 变体）、`runtime_abi.rs`（无 dead_code 残留）、`runtime_symbols.rs`（无遗留符号）、`expr.rs`（单路径透传）、`mod.rs`（effect 相关路径正确）。
+- 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。T30（统一 effect LLVM codegen）阶段全部完成。
+- 阶段 F（T3007 + T3007R）全部完成。下一步进入阶段 G（T3101：`do` block / closure 消歧）。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 

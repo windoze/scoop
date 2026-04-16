@@ -419,8 +419,22 @@
   - 已删除的 legacy 路径与 flag-based unwind 机制不再可能被重新接回主入口。
 - 依赖：T3006R
 
-### T3007R [TODO] Review：确认仓库中的 effect codegen 生产实现只剩统一主线
+### T3007R [DONE] Review：确认仓库中的 effect codegen 生产实现只剩统一主线
 - 描述：最终审查，确认 cleanup 真正完成，而不是”旧代码还在，只是暂时不用”；若发现 legacy 残留（shape-based 逻辑或 flag-based unwind 机制）仍可回流生产路径，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索以下关键词，全部零生产代码命中：
+    - `shape` / `scanner` / `scan_for` / `CalleeSuspend` / `suspendable` / `SiteShape` / `ArmShape`
+    - `flag_based` / `flag-based` / `emit_effect_unwind_if_active` / `raise_target_stack` / `emit_effect_is_active_i1` / `fun_ty_effects_is_pure`
+    - `unwind`
+  - 已审查 `effect/mod.rs` 三个主入口：`codegen_perform_expr`（写 TLS + set active）、`codegen_handle_expr`（直接委托 `codegen_handle_expr_via_state_machine`）、`emit_raise_runtime_error_variant`（写 Raise.raise op_tag + set active）。三者均为统一 state machine 主线实现，无 fallback。
+  - 已审查 `state_machine_emitter.rs`（1972 行）：29 个 `HandleStateOp` 变体、9 个 `UnifiedStateTerminator` 变体、`HandleBranchCondition`（WhileCond/IfCond）、`HandleArmKind`（ImmediateResume/EscapeContinuation/NonResuming）的全部分支都来自 state machine 合同枚举，无源码形状推断。
+  - 已审查 `runtime_abi.rs`：所有 effect 相关 ABI 声明（17 个）均无 `#[allow(dead_code)]`，全部被生产路径消费。T3007 删除的 4 个 dead ABI 声明（`set_active_with_trace`、`handler_stack_set_active`、`handler_stack_unwind_to_tag`、`handler_stack_swap_top`）已不存在。
+  - 已审查 `runtime_symbols.rs`：无 `#[allow(dead_code)]`，无遗留 effect 符号常量。
+  - 已审查 `expr.rs` 中 `ExprKind::Perform` / `ExprKind::Handle` 入口（lines 18-21, 130-138）：单路径直接委托到 `effect/mod.rs` 统一入口，无条件分流。
+  - 已审查 `mod.rs` 中 effect 相关路径：`EffectOpTagState` 无 `#[allow(dead_code)]`（被生产消费）；sysroot effect intrinsic 路由（line 1150）正常；extern call `leave_native` 注释（line 8767）正确引用 TLS active flag 而非旧 flag-based unwind。
+  - 已确认 `effect/mod.rs` 中唯一的 `#[allow(dead_code)]` 位于 `unified_state_machine_skeleton` 模块级别（line 17），原因是模块内测试基础设施（structural_signature 方法、accessor、中间辅助结构）需要，注释准确描述了保留理由。
+  - `fallback` 关键词在 codegen 目录中仅有 6 处命中，全部为非 effect 相关逻辑（编译期折叠、monomorphized 变体查找、receiver extractvalue、tagged union layout、VarRef plan builder 容错），无 effect codegen 主线 fallback。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）、`cargo run -p scoop --features llvm -- test`（963 fixtures）全部通过。
 - 目标：
   - 确认 effect codegen 生产实现只剩统一主线。
   - 确认 flag-based unwind 相关代码已完全清除或仅保留 sysroot intrinsic 消费的最小 ABI 子集。
@@ -428,6 +442,14 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录”effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留”。
+- 审查结论：
+  - effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留。
+  - `effect/mod.rs` 三个主入口（`codegen_perform_expr`、`codegen_handle_expr`、`emit_raise_runtime_error_variant`）全部走统一 state machine 主线，无条件分流或 fallback。
+  - `state_machine_emitter.rs` 所有发射决策完全基于 `UnifiedHandleLoweringContract` 枚举类型（29 op 变体 + 9 terminator 变体 + branch condition + arm kind），不存在源码形状推断。
+  - `runtime_abi.rs` 和 `runtime_symbols.rs` 中无 `#[allow(dead_code)]`；T3007 删除的 4 个 dead ABI 声明已完全移除。
+  - `expr.rs` 中 `Perform` / `Handle` 入口为单路径透传。
+  - 唯一保留的 `#[allow(dead_code)]` 位于 `unified_state_machine_skeleton` 模块级别，合理服务于测试基础设施。
+  - T30（统一 effect LLVM codegen）阶段全部完成。后续 LLVM 阶段可直接在统一主线上继续推进。
 - 依赖：T3007
 
 > 以下四个主题从 `TODO-3.md` 顺延迁入，按原顺序重编号为 `T31`～`T34`，仅对与当前 `T30` 主线直接相关的依赖与表述做最小更新。

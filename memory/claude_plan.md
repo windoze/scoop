@@ -1,15 +1,21 @@
-# 当前执行计划：T3007 — 删除统一主线接管后剩余的 legacy effect codegen 死代码
+# 当前执行计划：T3007R — Review：确认仓库中的 effect codegen 生产实现只剩统一主线
 
 ## 状态：已完成
 
 ## 已执行步骤
 
-1. [x] 移除 `mod.rs:229` 上 `EffectOpTagState` 的过时 `#[allow(dead_code)]`
-2. [x] 删除 `runtime_abi.rs` 中 4 个 dead ABI 声明（set_active_with_trace, handler_stack_set_active, handler_stack_unwind_to_tag, handler_stack_swap_top）
-3. [x] 删除对应的 `runtime_symbols.rs` 常量
-4. [x] 保留 `thread_spawn_join_resume_u64`（被 mod.rs:8166 消费）并移除其 dead_code 注解
-5. [x] 清理 `effect/mod.rs`：移除 4 个未使用的 re-export，更新 skeleton 模块注释
-6. [x] 删除 `state_machine_emitter.rs` 中未使用的 `STATE_TAG_SUSPENDED` 常量
-7. [x] 清理 emitter 中过时的 T-number 注释和 stale T3005 TODO
-8. [x] 验证 cargo check + clippy + test（全部通过）
-9. [x] 更新 TODO.md / PLAN.md 并提交
+1. [x] 验证基线质量 — cargo check + clippy + test（213 passed）+ fixture suite（963 ok）全部通过
+2. [x] 关键词搜索 — shape / scanner / CalleeSuspend / suspendable / flag-based / unwind / emit_effect_unwind / raise_target_stack 等全部零命中
+3. [x] 审查 effect/mod.rs — 三个主入口全部走统一 state machine 主线，无 fallback
+4. [x] 审查 state_machine_emitter.rs — 29 op + 9 terminator 变体全部基于 state machine 合同枚举
+5. [x] 审查 runtime_abi.rs — 17 个 effect ABI 声明无 dead_code，全部被消费
+6. [x] 审查 runtime_symbols.rs — 无 dead_code，无遗留符号
+7. [x] 审查 expr.rs — Perform / Handle 入口单路径透传
+8. [x] 审查 mod.rs — EffectOpTagState 无 dead_code，effect 相关路径正确
+9. [x] 记录审查结论并更新 TODO.md / PLAN.md
+10. [x] 提交变更
+
+## 审查结论
+
+effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留。
+T30（统一 effect LLVM codegen）阶段全部完成。
