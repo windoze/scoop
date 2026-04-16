@@ -555,14 +555,22 @@
   - `cargo check -p scoopc`
 - 依赖：T3010b1
 
-### T3010b2aR [TODO] Review：确认 synthetic resume slot 改写没有把 emitter 拉回 AST 回扫
+### T3010b2aR [DONE] Review：确认 synthetic resume slot 改写没有把 emitter 拉回 AST 回扫
 - 描述：审查 `T3010b2a` 的生产代码，确认 resume state 改写发生在统一 plan/contract 侧，emitter 只消费 synthetic slot 与改写后的 payload；若发现 emitter 重新按原始 AST 形状补逻辑，本任务需要直接修复并复审。
+- 进展：
+  - 已收紧 `HandleStateOp::ResumeAfterSite` 的生产边界：该 op 不再携带完整 `hir::Expr`，只保留 `source_span` / `source_ty` 元数据；resume-tail 改写仍由 `HandlePlanBuilder.resume_source_exprs` 内部表驱动，原始表达式不再暴露给 segments / unified machine / emitter。
+  - 已更新 `state_machine_emitter.rs`：`ResumeAfterSite` 现在只基于 `source_span`、synthetic `resume_slot` 与 `contract.frame()` 回填恢复值，emitter 不再持有或读取原始 AST 节点。
+  - 已复查 `UnifiedHandleLoweringContract` / `UnifiedSuspendSite` 访问面与 `state_machine_emitter.rs` 全文，确认 emitter 侧没有 `resume_path` / `source_path` / `source_expr` 的可达入口，也没有按原始 HIR 形状追加特判。
+  - 已验证 `cargo check -p scoopc`、`cargo test -p scoopc source_plan_rewrites -- --nocapture`、`cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`、`cargo test -p scoopc unified_state_machine_preserves_execution_payload_metadata -- --nocapture`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 目标：
   - 确认 `resume_path` 的生产消费落点在 state-machine 计划层，而不是 emitter 里临时回扫原始 HIR。
   - 确认 synthetic resume slot 只作为恢复值载体，不引入 effect-only 特判 local 语义。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“resume state 改写由统一 plan/contract 驱动，emitter 未回扫原始 AST”。
+- 审查结论：
+  - resume state 改写由统一 plan/contract 驱动，emitter 未回扫原始 AST。
+  - synthetic resume slot 现在只作为普通 frame/local carrier 暴露给 emitter；原始恢复源表达式仅保留在 plan builder 内部，不能再被下游发射逻辑拿来补形状分支。
 - 依赖：T3010b2a
 
 ### T3009a [TODO] 为 immediate-resume arm 的 `resume(value)` 接回专用 lowering，删除 `resume_placeholder` local

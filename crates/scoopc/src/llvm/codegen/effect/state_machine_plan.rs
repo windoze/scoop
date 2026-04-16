@@ -308,7 +308,8 @@ pub(crate) enum HandleStateOp {
     ResumeAfterSite {
         site_id: SuspendSiteId,
         reason: ResumeAfterSiteReason,
-        source_expr: Box<hir::Expr>,
+        source_span: Span,
+        source_ty: TypeId,
         resume_slot: Option<FrameSlot>,
     },
     VarRef {
@@ -572,12 +573,15 @@ impl HandleStateOp {
             HandleStateOp::ResumeAfterSite {
                 site_id,
                 reason,
-                source_expr,
+                source_span,
+                source_ty,
                 resume_slot,
             } => {
                 17 ^ (*site_id as usize)
                     ^ (reason.structural_signature() << 1)
-                    ^ expr_payload_signature(source_expr)
+                    ^ source_span.start
+                    ^ (source_span.end << 1)
+                    ^ ((*source_ty).as_u32() as usize)
                     ^ resume_slot
                         .as_ref()
                         .map(FrameSlot::structural_signature)
@@ -1347,6 +1351,7 @@ struct HandlePlanBuilder<'a, 'hir> {
     arm_plans: Vec<ArmPlan>,
     cleanup_scopes: Vec<CleanupScopePlan>,
     frame_slots: HashMap<hir::SymbolId, FrameSlot>,
+    resume_source_exprs: HashMap<SuspendSiteId, hir::Expr>,
     nested_handles: Vec<HandleStateMachinePlan>,
 }
 
@@ -1369,6 +1374,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             arm_plans: Vec::new(),
             cleanup_scopes: Vec::new(),
             frame_slots: HashMap::new(),
+            resume_source_exprs: HashMap::new(),
             nested_handles: Vec::new(),
         }
     }
@@ -1678,12 +1684,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(current_state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::ObjectInitAccess,
-                            source_expr: Box::new(expr.clone()),
+                            source_span: expr.span,
+                            source_ty: expr.ty,
                             resume_slot: None,
                         },
                     );
@@ -1780,12 +1788,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::RuntimeRaiseBoundary,
-                            source_expr: Box::new(expr.clone()),
+                            source_span: expr.span,
+                            source_ty: expr.ty,
                             resume_slot: None,
                         },
                     );
@@ -1815,12 +1825,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::ObjectInitAccess,
-                            source_expr: Box::new(expr.clone()),
+                            source_span: expr.span,
+                            source_ty: expr.ty,
                             resume_slot: None,
                         },
                     );
@@ -1928,12 +1940,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                     let resume_slot = self.new_resume_temp_slot(site_id, expr);
+                    self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::Call,
-                            source_expr: Box::new(expr.clone()),
+                            source_span: expr.span,
+                            source_ty: expr.ty,
                             resume_slot: Some(resume_slot),
                         },
                     );
@@ -1979,12 +1993,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 self.set_terminator(state, StateTerminator::Suspend { site_id });
                 let resume_state = self.new_state(format!("resume.after.site{site_id}"));
                 let resume_slot = self.new_resume_temp_slot(site_id, expr);
+                self.record_resume_source_expr(site_id, expr);
                 self.push_action(
                     resume_state,
                     HandleStateOp::ResumeAfterSite {
                         site_id,
                         reason: ResumeAfterSiteReason::Perform,
-                        source_expr: Box::new(expr.clone()),
+                        source_span: expr.span,
+                        source_ty: expr.ty,
                         resume_slot: Some(resume_slot),
                     },
                 );
@@ -2015,12 +2031,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(current_state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                            source_expr: Box::new(expr.clone()),
+                            source_span: expr.span,
+                            source_ty: expr.ty,
                             resume_slot: None,
                         },
                     );
@@ -2955,6 +2973,16 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         slot
     }
 
+    fn record_resume_source_expr(
+        &mut self,
+        site_id: SuspendSiteId,
+        source_expr: &'hir hir::Expr,
+    ) {
+        self.resume_source_exprs
+            .entry(site_id)
+            .or_insert_with(|| source_expr.clone());
+    }
+
     fn materialize_resume_fragments(&mut self) {
         let resume_paths = self
             .suspend_sites
@@ -2970,16 +2998,24 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 .filter_map(|(op_index, op)| match op {
                     HandleStateOp::ResumeAfterSite {
                         site_id,
-                        source_expr,
                         resume_slot: Some(resume_slot),
                         ..
                     } => resume_paths
                         .get(site_id)
                         .cloned()
                         .map(|resume_path| {
+                            let source_expr = self
+                                .resume_source_exprs
+                                .get(site_id)
+                                .unwrap_or_else(|| {
+                                    panic!(
+                                        "resume source expr missing for site{site_id} during rewrite"
+                                    )
+                                })
+                                .clone();
                             (
                                 op_index,
-                                source_expr.as_ref().clone(),
+                                source_expr,
                                 resume_path,
                                 resume_slot.clone(),
                             )

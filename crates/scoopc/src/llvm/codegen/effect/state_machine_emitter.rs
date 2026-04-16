@@ -15,8 +15,8 @@
 
 use std::collections::HashMap;
 
-use super::*;
 use super::unified_state_machine_skeleton::FrameSlot;
+use super::*;
 
 use super::unified_state_machine_skeleton::{
     HandleBranchCondition, HandleStateOp, UnifiedFrameField, UnifiedFrameSystemField,
@@ -549,7 +549,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Resume landing: no-op marker ---
                 HandleStateOp::ResumeAfterSite {
-                    source_expr,
+                    source_span,
                     resume_slot,
                     ..
                 } => {
@@ -560,7 +560,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // normal local-read path.
                     if let Some(resume_slot) = resume_slot.as_ref() {
                         self.emit_resume_value_to_frame_slot(
-                            source_expr,
+                            *source_span,
                             resume_slot,
                             state_ptr,
                             frame_layout,
@@ -765,18 +765,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn emit_resume_value_to_frame_slot(
         &mut self,
-        source_expr: &hir::Expr,
+        at: crate::span::Span,
         resume_slot: &FrameSlot,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
     ) -> Result<(), LlvmEmitError> {
-        let field_index = contract.frame().get_slot_field_index(resume_slot.id()).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
+        let field_index = contract
+            .frame()
+            .get_slot_field_index(resume_slot.id())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "resume slot field index",
-                at: source_expr.span.into(),
-            },
-        )?;
+                at: at.into(),
+            })?;
         let llvm_index = frame_layout.user_slot_llvm_index(field_index);
         let slot_ptr = self.builder.build_struct_gep(
             frame_layout.frame_type,
@@ -788,11 +789,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cg_ty_of(resume_slot.ty())
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "resume slot type",
-                at: source_expr.span.into(),
+                at: at.into(),
             })?;
-        let resume_value =
-            self.read_result_from_frame(source_expr.span, cg_ty, state_ptr, frame_layout)?;
-        self.store_local_value(source_expr.span, slot_ptr, cg_ty, resume_value)?;
+        let resume_value = self.read_result_from_frame(at, cg_ty, state_ptr, frame_layout)?;
+        self.store_local_value(at, slot_ptr, cg_ty, resume_value)?;
         Ok(())
     }
 

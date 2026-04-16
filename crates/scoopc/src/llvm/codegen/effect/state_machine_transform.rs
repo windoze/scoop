@@ -3142,9 +3142,10 @@ fun demo(seed: Int): Int {
             .find_map(|op| match op {
                 HandleStateOp::ResumeAfterSite {
                     reason: ResumeAfterSiteReason::Perform,
-                    source_expr,
+                    source_span,
+                    source_ty,
                     ..
-                } => Some((source_expr.span, source_expr.ty)),
+                } => Some((*source_span, *source_ty)),
                 _ => None,
             })
             .expect("expected resume-after-site payload in source plan");
@@ -3155,9 +3156,10 @@ fun demo(seed: Int): Int {
             .find_map(|op| match op {
                 HandleStateOp::ResumeAfterSite {
                     reason: ResumeAfterSiteReason::Perform,
-                    source_expr,
+                    source_span,
+                    source_ty,
                     ..
-                } => Some((source_expr.span, source_expr.ty)),
+                } => Some((*source_span, *source_ty)),
                 _ => None,
             })
             .expect("expected resume-after-site payload in segment list");
@@ -3168,9 +3170,10 @@ fun demo(seed: Int): Int {
             .find_map(|op| match op {
                 HandleStateOp::ResumeAfterSite {
                     reason: ResumeAfterSiteReason::Perform,
-                    source_expr,
+                    source_span,
+                    source_ty,
                     ..
-                } => Some((source_expr.span, source_expr.ty)),
+                } => Some((*source_span, *source_ty)),
                 _ => None,
             })
             .expect("expected resume-after-site payload in unified machine");

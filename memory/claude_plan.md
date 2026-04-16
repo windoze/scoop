@@ -1,30 +1,57 @@
-## 本轮目标
+# 执行计划记录
 
-- 按 `TODO.md` / `PLAN.md` 当前拆分结果，确认本轮只完成并提交首个已实现完毕的任务 `T3010b2a`，提交后停止，不进入后续任务。
+## 说明
 
-## 已知上下文
+按要求先记录执行计划，再开始读取仓库状态与任务列表。这里记录的是可审阅的执行摘要、步骤、假设和进度更新；不包含逐字的内部推理。
 
-- 上一轮已把原始首个未完成任务 `T3010b2` 拆分为更小任务，并已在 `TODO.md` / `PLAN.md` 中调整顺序。
-- `T3010b2a` 的代码实现、测试验证、文档更新已经完成，但还没有 git commit。
-- 当前端到端失败点已经收敛为后续任务 `T3009a` 范围内的 immediate-resume arm lowering 问题，不属于 `T3010b2a` 未完成。
-- 工作区存在用户自己的无关改动 `run_agent.sh`，提交时必须排除。
+## 初始计划
 
-## 执行计划
+1. 检查最新一次 Git 提交，确认是否提到了已知问题、后续修复项或未完成事项。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务现有规划、依赖关系和上下文。
+4. 评估该任务规模：
+   - 如果任务足够明确且可在本轮完成，直接实施。
+   - 如果任务过大或存在前置缺口，先拆分任务并更新 `TODO.md` 与 `PLAN.md`，然后仅执行拆分后的第一个子任务。
+5. 在实现前检查相关代码、测试和规范文件，确认正确实现边界，避免以变通方案掩盖缺口。
+6. 实现当前目标任务。
+7. 运行相关测试，并在必要时运行更广泛的验证（包括 `cargo fmt`、相关测试、必要时 `cargo clippy --all-targets -- -D warnings`）。
+8. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记当前任务完成，或在受阻时按要求重排任务。
+   - 在 `PLAN.md` 中同步当前状态、依赖、阻塞原因或拆分结果。
+   - 持续更新本文件记录关键进展。
+9. 检查工作区变更，确保未误改无关内容。
+10. 使用清晰的提交信息提交本轮更改，然后停止，不继续处理下一个任务。
 
-1. 检查最新提交信息，确认是否提到需要先修复的遗留问题；若有，则按要求先处理。
-2. 检查工作区状态，确认本轮待提交文件集合与上一轮实现摘要一致，没有混入无关改动。
-3. 复核 `TODO.md`、`PLAN.md`、`memory/claude_plan.md` 是否已经准确反映：
-   - `T3010b2a` 已完成；
-   - 下一未完成任务是 `T3010b2aR`；
-   - `T3009a` 是 `T3010b2b` 的前置依赖。
-4. 如有必要，对 `memory/claude_plan.md` 追加进度说明。
-5. 仅暂存 `T3010b2a` 对应代码和计划文件，不包含 `run_agent.sh` 或其他无关文件。
-6. 以 `[T3010b2a] 基于 resume_path 引入 synthetic resume slot` 创建提交。
-7. 提交后再次检查状态，确认工作树仅剩未纳入本次提交的无关改动，然后停止。
+## 当前状态
 
-## 进度记录
+- 计划文件已创建。
+- 已检查最新提交：`a7e4633 Update plan`。提交说明本身未点名需要立即修复的单个遗留缺陷；提交内容主要更新 `ISSUES.md` 与 `run_agent.sh`。`ISSUES.md` 是项目问题清单，不构成“最新提交单独新增且必须先修完再继续”的单一阻塞项。
+- 已读取 `TODO.md` / `PLAN.md`。
+- 当前首个未完成任务 `T3010b2aR` 已完成。
 
-- 已完成：写入本轮计划文件。
-- 已完成：检查最新提交 `[T3010b1] 冻结跨 suspend resume_path 合同`，提交说明中没有额外遗留问题需要先行处理。
-- 已完成：核对工作区，确认本轮待提交文件为 `PLAN.md`、`TODO.md`、`crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`、`memory/claude_plan.md`；`run_agent.sh` 为无关改动，必须排除。
-- 待完成：暂存上述文件、创建 `[T3010b2a]` 提交、复核工作区并停止。
+## 本轮执行结果
+
+1. 已完成 `T3010b2aR` 审查，并确认 `resume_path` 的生产消费仍位于 plan builder 的 `materialize_resume_fragments` 阶段，不在 emitter 中执行。
+2. 审查中发现一个边界泄漏：`HandleStateOp::ResumeAfterSite` 仍把完整 `hir::Expr` 暴露给下游阶段。虽然 emitter 当时没有按 AST 形状回扫，但该边界不够严格。
+3. 已修复上述问题：
+   - `ResumeAfterSite` 改为只保留 `source_span` / `source_ty` 元数据。
+   - 新增 `HandlePlanBuilder.resume_source_exprs`，只在 builder 内部按 `site_id` 保存原始表达式，供 resume-tail 改写阶段使用。
+   - emitter 的 resume slot 回填逻辑改为只消费 `source_span`、synthetic slot 与 contract frame metadata。
+4. 已更新 `TODO.md` 与 `PLAN.md`：
+   - `T3010b2aR` 标记为完成。
+   - 记录了 review 发现的问题、修复内容、验证命令与审查结论。
+   - 当前下一任务为 `T3009a`。
+5. 已完成验证：
+   - `cargo check -p scoopc`
+   - `cargo test -p scoopc source_plan_rewrites -- --nocapture`
+   - `cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`
+   - `cargo test -p scoopc unified_state_machine_preserves_execution_payload_metadata -- --nocapture`
+   - `cargo clippy --all-targets -- -D warnings`
+   - `cargo test --all`
+   - `cargo fmt`
+
+## 下一步
+
+- 检查最终 diff 与任务状态。
+- 以 `T3010b2aR` 对应的清晰提交信息提交本轮更改。
+- 停止，不进入 `T3009a`。
