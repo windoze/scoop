@@ -733,8 +733,28 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2b0a0b
 
-### T3010b2b0R [TODO] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
+### T3010b2b0R [DONE] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
 - 描述：在 `T3010b2b0` 之后只审查生产代码，确认普通 callee frame 在 non-resuming perform 后终止自身执行的实现是统一、可审计的控制流合同，而不是重新引入 `emit_effect_unwind_if_active`、旧 callee-suspend 路线或其它按代码形状分流的旁路；若发现回流，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs`：ordinary-frame propagation 仅由 `emit_ordinary_non_resuming_effect_exit` 与 `emit_ordinary_call_effect_propagation_check` 驱动；`emit_effect_propagation_return` 只发射默认返回值/`return_bb` 控制流，不会清掉 TLS active，也未回流旧 `emit_effect_unwind_if_active`。
+  - 已审查 `crates/scoopc/src/llvm/codegen/mod.rs`：direct/vtable/itable/funptr/closure/operator/object property/object init 等 ordinary callsite 都统一接到 `emit_ordinary_call_effect_propagation_check`；direct non-resuming 只从 `codegen_perform_expr` 与 `codegen_cast_as_expr` 的 runtime raise fail-path 接入 ordinary-frame 早退合同。
+  - 已审查 `crates/scoopc/src/llvm/codegen/control_flow.rs`：未发现 effect 专用 CFG 分流、active/clear/unwind 逻辑；仅有局部变量 `call_may_suspend` 元数据赋值，与旧 flag-based unwind / shape-based 路线无关。
+  - 已复查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的上下文切换边界：step function 生成前会暂存并清空 `current_fun_return_ty` / `return_context`，说明 ordinary-frame propagation helper 不会误入统一 state-machine step/dispatch；caller 侧 dispatch 仍由 state machine 的 `is_active -> clear_active -> dispatch` 路径接管。
+  - 已检索生产代码关键词：`emit_effect_unwind_if_active`、`raise_target_stack`、`CalleeSuspend`、`scan_for_callee_suspend`、`suspendable`、`shape-based`、`scanner` 均无生产代码命中；ordinary callee 路径也未使用 `declare_runtime_effect_clear` / `clear_active`，确认没有吞掉 active。
+  - 已验证：
+    - `target/debug/scoop run tests/fixtures/run-pass/nothing_raise_in_helper_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/object_property_init_raise_helper_try_catch_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+    - `target/debug/scoop run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+    - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 已复跑 `target/debug/scoop test`，首个失败点仍为已知后续 blocker `tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`（对应 `T3010b2b1`），未出现更早回归。
 - 目标：
   - 确认普通函数 / helper 中的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是旧 flag-based unwind。
   - 确认 `effect/mod.rs`、`control_flow.rs`、`mod.rs` 与相邻调用点没有重新按 callee/source shape 做 effect 传播分流。
@@ -742,6 +762,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“non-resuming callee frame 终止语义已统一收口，且未回流旧 flag-based unwind / shape-based 路线”。
+- 审查结论：
+  - non-resuming callee frame 终止语义已统一收口，且未回流旧 flag-based unwind / shape-based 路线。ordinary-frame 相关生产路径只读取 TLS active 并走统一 early-return 控制流，不清除 active、不读取源码形状，也不依赖旧 callee-suspend scanner / mode。
+  - caller 侧 state-machine dispatch 未被破坏：step function 会隔离 ordinary-frame helper 所依赖的 `current_fun_return_ty` / `return_context`，而 handle dispatch 仍通过统一 `is_active -> clear_active -> dispatch` 路径消费 active。
 - 依赖：T3010b2b0a
 
 ### T3010b2b1 [TODO] 修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义

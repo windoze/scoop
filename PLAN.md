@@ -14,6 +14,7 @@
 > 2026-04-17 当前轮进一步验证更新：继续执行 `T3010b2b0a` 时，先用临时 `handle` 复现回查 top-level helper / class-ctor helper / local closure 包一层 helper 的 caller-side hidden-suspend 路径，三者都已能正确进入 dispatch，不再继续执行 caller tail。继续把验证扩到 member 路径时，发现一个更前置且未被 `TODO.md` 跟踪的基础 bug：即使不经过 `handle`，普通 `Helper.run()` 也会因为 `ptr @__scoop_object_instance__Helper` 传给期望 `ptr addrspace(1)` receiver 的 `@Helper.run(...)` 而触发 LLVM verifier 失败。根因是 object 单例值仍用 default addrspace 的全局身份地址表示，而对象成员函数 receiver 走的是 `CgTy::Ref` 的 `addrspace(1)` ABI。由于这会先于 hidden-suspend 分类暴露，因此顺序再次前移为 `T3010b2b0` → `T3010b2b0a0` → `T3010b2b0a0b`（先修 object member call 的 receiver ABI / 表示）→ `T3010b2b0a`（再完成 member 路径的 caller-side hidden-suspend 验证/修复）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 > 2026-04-17 当前轮完成更新：`T3010b2b0a0b` 已完成。object 单例值现在通过 `scoop_alloc_typed` 分配成 header-only GC singleton object，并存入 `ptr addrspace(1)` 全局槽；`codegen_object_value_access` 改为在 once init 后加载该 GC-managed receiver，`Helper.run()` 这类普通 object member call 不再触发 verifier。已新增 `object_member_call_basic.scoop` 与 LLVM IR 单测 `object_member_call_uses_gc_managed_singleton_receiver`。验证通过：最小 repro 已可编译、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过，复跑 `cargo run -p scoop --features llvm -- test` 后首个失败点仍停在已知 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
 > 2026-04-17 当前轮完成更新：`T3010b2b0a` 已完成。重新验证 `handle { helper() }`、`handle { Helper.run() }` 与 local closure/function-value `handle { thunk() }` 三条 caller-side 路径后，确认 hidden suspend 返回 active 时 unified state-machine 都会立即进入 dispatch，不会继续执行 caller tail。已新增三个 run-pass fixture（top-level helper、member helper、local closure/function-value）与两条 segment-level 分类单测，分别锁定 `call-state-machine-callee` / `call-may-suspend`，防止回退成 plain `Call`。验证通过：定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
+> 2026-04-17 当前轮复审更新：`T3010b2b0R` 已完成。审查 `effect/mod.rs`、`mod.rs`、`control_flow.rs` 与 `state_machine_emitter.rs` 的 ordinary-frame / dispatch 边界后，确认 non-resuming callee frame 的终止语义只来自 `emit_ordinary_non_resuming_effect_exit` / `emit_ordinary_call_effect_propagation_check` 这套统一控制流合同；生产代码中无 `emit_effect_unwind_if_active`、`raise_target_stack`、callee-shape/scanner 残留，ordinary callee 路径也不会清掉 TLS active。已验证定向 non-resuming/hidden-suspend fixtures、segment 分类单测、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `target/debug/scoop test` 后，首个失败点仍为已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
 
 ## 0. 工作原则
 
@@ -372,9 +373,27 @@
   - `cargo clippy --all-targets -- -D warnings`
   - 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍停在 `effect_escape_continuation_finally_arm_raise.scoop`（已知 `T3010b2b1` blocker），没有把回归前移到 caller-side hidden-suspend 路径。
 
-#### T3010b2b0R：Review（待办）
-- 在 `T3010b2b0a` 收口 caller-side hidden suspend call 分类之后，再只审查生产代码，确认普通 callee frame 的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是回流到旧的 flag-based unwind 或 callee-shape 路线。
-- Review 重点仍是 `effect/mod.rs`、`control_flow.rs`、`mod.rs` 与相邻调用点：既要确认 helper 内不可达代码不再执行，也要确认 active flag 会通过统一 caller-side suspend boundary 交给 state-machine dispatch，而不是靠旧旁路兜底。
+#### T3010b2b0R：Review（已完成）
+- 已审查 `effect/mod.rs`：ordinary-frame propagation 只经由 `emit_ordinary_non_resuming_effect_exit` 与 `emit_ordinary_call_effect_propagation_check` 发射；`emit_effect_propagation_return` 仅负责默认返回值 / `return_bb` 控制流，不会清掉 TLS active，也未回流旧 flag-based helper。
+- 已审查 `mod.rs`：direct/vtable/itable/funptr/closure/operator/object property/object init 等 ordinary callsite 都统一接到 `emit_ordinary_call_effect_propagation_check`；direct non-resuming 仅从 `codegen_perform_expr` 与 `codegen_cast_as_expr` 的 runtime raise fail-path 接入 ordinary-frame 早退合同。
+- 已审查 `control_flow.rs`：无 effect 专用 CFG 分流、active/clear/unwind 逻辑，仅保留局部变量 `call_may_suspend` 元数据赋值。
+- 已复查 `state_machine_emitter.rs`：step function 生成前会暂存并清空 `current_fun_return_ty` / `return_context`，因此 ordinary-frame propagation helper 不会误入统一 state-machine step/dispatch；handle dispatch 仍通过 `is_active -> clear_active -> dispatch` 路径消费 active。
+- 已完成关键词检索：`emit_effect_unwind_if_active`、`raise_target_stack`、`CalleeSuspend`、`scan_for_callee_suspend`、`suspendable`、`shape-based`、`scanner` 在生产代码中零命中；ordinary callee 路径也未使用 `declare_runtime_effect_clear` / `clear_active`。
+- 已验证：
+  - `nothing_raise_in_helper_basic.scoop`
+  - `effect_indirect_perform_nonresuming_call_chain.scoop`
+  - `object_property_init_raise_helper_try_catch_basic.scoop`
+  - `class_init_hidden_raise_helper_try_catch_basic.scoop`
+  - `effect_handle_hidden_suspend_helper_object_property_basic.scoop`
+  - `effect_handle_hidden_suspend_member_helper_basic.scoop`
+  - `effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+  - `object_init_raise_try_catch_basic.scoop`
+  - `class_init_raise_cleanup_property_init_gc_basic.scoop`
+  - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `target/debug/scoop test`（首个失败点仍是已知 blocker `effect_escape_continuation_finally_arm_raise.scoop`，对应 `T3010b2b1`）
+- 审查结论：**non-resuming callee frame 终止语义已统一收口，且未回流旧 flag-based unwind / shape-based 路线**。ordinary callee 只读取 TLS active 并按统一 early-return 合同终止自身；caller-side state-machine dispatch 仍独立接管 active。
 
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
@@ -487,42 +506,40 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b0a`
-2. `T3010b2b0R`
-3. `T3010b2b1`
-4. `T3010b2b`
-5. `T3010R`
-6. `T3011`
-7. `T3011R`
-8. `T3012`
-9. `T3012R`
-10. `T3013`
-11. `T3013R`
-12. `T3009b`
-13. `T3009bR`
-14. `T3014`
-15. `T3014R`
-16. `T3015`
-17. `T3015R`
-18. `T3016`
-19. `T3016R`
-20. `T3017`
-21. `T3017R`
-22. `T3103`
-23. `T3104`
-24. `T3201`
-25. `T3202`
-26. `T3203`
-27. `T3204`
-28. `T3205`
-29. `T3301`
-30. `T3302`
-31. `T3303`
-32. `T3401`
-33. `T3401a`
-34. `T3401b`
-35. `T3401c`
-36. `T3402`
-37. `T3403`
-38. `T3404`
-39. `T3405`
+1. `T3010b2b1`
+2. `T3010b2b`
+3. `T3010R`
+4. `T3011`
+5. `T3011R`
+6. `T3012`
+7. `T3012R`
+8. `T3013`
+9. `T3013R`
+10. `T3009b`
+11. `T3009bR`
+12. `T3014`
+13. `T3014R`
+14. `T3015`
+15. `T3015R`
+16. `T3016`
+17. `T3016R`
+18. `T3017`
+19. `T3017R`
+20. `T3103`
+21. `T3104`
+22. `T3201`
+23. `T3202`
+24. `T3203`
+25. `T3204`
+26. `T3205`
+27. `T3301`
+28. `T3302`
+29. `T3303`
+30. `T3401`
+31. `T3401a`
+32. `T3401b`
+33. `T3401c`
+34. `T3402`
+35. `T3403`
+36. `T3404`
+37. `T3405`
