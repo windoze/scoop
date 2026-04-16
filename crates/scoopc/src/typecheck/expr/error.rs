@@ -1068,6 +1068,20 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`-> resume` arm 中的 `resume(value)` 只能出现在每条控制流路径的尾值位置")]
+    #[diagnostic(code(scoop::typecheck::immediate_resume_arm_resume_not_tail))]
+    ImmediateResumeArmResumeNotTail {
+        #[label("这里的 `resume(...)` 不在尾值位置")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`-> resume` arm 必须在每条控制流路径的尾值位置恰好调用一次 `resume(value)`")]
+    #[diagnostic(code(scoop::typecheck::immediate_resume_arm_resume_missing))]
+    ImmediateResumeArmResumeMissing {
+        #[label("这条路径没有以 `resume(...)` 结束")]
+        span: miette::SourceSpan,
+    },
+
     #[error("缺少返回值：函数返回类型为 {expected}")]
     #[diagnostic(code(scoop::typecheck::return_value_required))]
     ReturnValueRequired {

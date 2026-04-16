@@ -293,14 +293,17 @@
   - `effect_resume_if_else_branch_single_perform.scoop` 已不再报 `call callee`，而是前进到 `T3012` 已跟踪的 `value coercion` 缺口；
   - 直接运行 `effect_resume_yield_int_basic.scoop` 时，程序已不再在 codegen 阶段报 `call callee`，而是继续进入 `before` / `in_handler`，说明 arm-side dedicated lowering 缺口已被清掉。
 
-#### T3009a1：收紧 immediate-resume arm 的 `resume(...)` 合同，禁止非 tail / 多次 `resume` 漏到 generic local-call（待办）
-- `T3009aR` 预审查定位到新的前置缺口：`effect_resume_double_resume_exit.scoop` 当前不会进入 runtime one-shot 路径，而是在 codegen 阶段直接报 `unsupported_main_body: unknown local value`。
-- 根因是 `T3009a` 的 dedicated lowering 只覆盖 tail-position `resume(value)`；同一 arm 中更早出现的 `resume(...)` 仍被当作普通 local call，而 `resume_placeholder` 已删除，generic path 因而直接炸在 `unknown local value`。
-- 下一步必须先统一 typecheck/HIR/codegen 的 immediate-resume 合同：非 tail / 多次 `resume(...)` 要么在前置阶段被明确拒绝，要么获得 dedicated lowering；不能继续把不支持的形状伪装成普通局部函数调用。
+#### T3009a1：收紧 immediate-resume arm 的 `resume(...)` 合同，禁止非 tail / 多次 `resume` 漏到 generic local-call（已完成）
+- 已在 `typecheck/expr/infer.rs` 中新增 immediate-resume 合同校验：每条控制流路径都必须且只能在尾值位置出现一次特殊的 `resume(value)`；non-tail / 多次 `resume(...)` 现在会在 typecheck 阶段被前置拒绝。
+- 已把注入的 `resume` 类型从 `(T) -> Unit` 收紧为 `(T) -> Nothing`，使控制流 / 返回类型建模与 `ArmResumeMatchedSite` 的实际语义对齐。
+- 已新增 3 条 `scoopc` 定向单测，覆盖“非 tail 被拒绝”“double resume 被拒绝”“`if/else` 分支尾部 resume 合法”。
+- `effect_resume_double_resume_exit.scoop` 现已不再报 `unsupported_main_body: unknown local value`，而是稳定报 `scoop::typecheck::immediate_resume_arm_resume_not_tail`；对应 fixture 注释也已从旧的“运行期 one-shot”改写为规范要求的静态拒绝。
+- 已验证 `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop -o /tmp/t3009a1_double_resume`、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+- 补跑 `cargo run -p scoop --features llvm -- test` 时，fixture runner 仍会挂在仓库已知的 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`；该阻塞已由 `T3014/T3017` 跟踪，与本次 immediate-resume 合同收紧无交集。
 
 #### T3009aR：Review（待办）
 - 当前 review 已确认 tail-position dedicated lowering 与 `ArmResumeMatchedSite` 的 payload 合同一致。
-- 但由于 `effect_resume_double_resume_exit.scoop` 仍暴露 non-tail / 多次 `resume(...)` 会漏到 generic local-call，本任务暂等待 `T3009a1` 收紧合同后继续复审。
+- `T3009a1` 已完成：non-tail / 多次 `resume(...)` 不再漏到 generic local-call；下一步可直接复审 dedicated lowering 是否仍存在 generic call/member-access 回落。
 - 如审查发现回落路径或 payload 合同不一致，需要在 review 任务内直接修复。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
@@ -409,41 +412,40 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009a1`
-2. `T3009aR`
-3. `T3010b2b`
-4. `T3010R`
-5. `T3011`
-6. `T3011R`
-7. `T3012`
-8. `T3012R`
-9. `T3013`
-10. `T3013R`
-11. `T3009b`
-12. `T3009bR`
-13. `T3014`
-14. `T3014R`
-15. `T3015`
-16. `T3015R`
-17. `T3016`
-18. `T3016R`
-19. `T3017`
-20. `T3017R`
-21. `T3103`
-22. `T3104`
-23. `T3201`
-24. `T3202`
-25. `T3203`
-26. `T3204`
-27. `T3205`
-28. `T3301`
-29. `T3302`
-30. `T3303`
-31. `T3401`
-32. `T3401a`
-33. `T3401b`
-34. `T3401c`
-35. `T3402`
-36. `T3403`
-37. `T3404`
-38. `T3405`
+1. `T3009aR`
+2. `T3010b2b`
+3. `T3010R`
+4. `T3011`
+5. `T3011R`
+6. `T3012`
+7. `T3012R`
+8. `T3013`
+9. `T3013R`
+10. `T3009b`
+11. `T3009bR`
+12. `T3014`
+13. `T3014R`
+14. `T3015`
+15. `T3015R`
+16. `T3016`
+17. `T3016R`
+18. `T3017`
+19. `T3017R`
+20. `T3103`
+21. `T3104`
+22. `T3201`
+23. `T3202`
+24. `T3203`
+25. `T3204`
+26. `T3205`
+27. `T3301`
+28. `T3302`
+29. `T3303`
+30. `T3401`
+31. `T3401a`
+32. `T3401b`
+33. `T3401c`
+34. `T3402`
+35. `T3403`
+36. `T3404`
+37. `T3405`

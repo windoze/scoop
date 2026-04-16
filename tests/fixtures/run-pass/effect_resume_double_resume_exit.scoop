@@ -1,12 +1,14 @@
 // EXPECT: fail
-// EXPECT-EXIT: 3
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 该 fixture 在当前 codegen 路径上尚未通过。
+// T3009a1: spec 已明确要求 immediate-resume arm 中的 `resume(value)`
+// 必须在每条控制流路径的尾值位置恰好一次；重复/非 tail 形状应在前置阶段报错，
+// 不能再漏到 generic local-call 或运行期 one-shot 语义。
 //
-// T0616: `resume(value)` one-shot（运行期断言）
+// 历史背景：
+// - 该 fixture 早期用于回归“多次 resume 触发运行期退出”的旧实现；
+// - 当前按规范改为静态拒绝，并保留此路径作为 CLI/build 诊断回归。
 //
 // 目标覆盖：
-// - 在同一个 `-> resume` arm 内重复调用 `resume(value)` 会触发运行期错误（非零退出）。
+// - 同一路径内重复调用 `resume(value)` 会在 typecheck 阶段稳定报错。
 
 import scoop.core.*
 
@@ -28,4 +30,3 @@ fun main(): Int {
     // unreachable
     return 0
 }
-

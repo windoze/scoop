@@ -872,6 +872,309 @@ fn infer_assign_expr_type(
     Ok(inputs.builtins.unit)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImmediateResumeContractViolation {
+    ResumeNotTail { span: Span },
+    ResumeMissing { span: Span },
+}
+
+fn validate_immediate_resume_arm_contract(
+    body: &ast::Expr,
+    resume_decl_span: Span,
+) -> Result<(), ImmediateResumeContractViolation> {
+    validate_immediate_resume_tail_expr(body, resume_decl_span)
+}
+
+fn validate_immediate_resume_tail_expr(
+    expr: &ast::Expr,
+    resume_decl_span: Span,
+) -> Result<(), ImmediateResumeContractViolation> {
+    if is_immediate_resume_call(expr, resume_decl_span) {
+        if let ast::ExprKind::Call { args, .. } = &expr.kind {
+            for arg in args {
+                if let Some(span) = find_immediate_resume_call_in_expr(arg, resume_decl_span) {
+                    return Err(ImmediateResumeContractViolation::ResumeNotTail { span });
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    match &expr.kind {
+        ast::ExprKind::Block(block)
+        | ast::ExprKind::DoBlock { body: block, .. }
+        | ast::ExprKind::UnsafeBlock { body: block, .. }
+        | ast::ExprKind::SafeBlock { body: block, .. } => {
+            validate_immediate_resume_tail_block(block, resume_decl_span)
+        }
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            if let Some(span) = find_immediate_resume_call_in_expr(cond, resume_decl_span) {
+                return Err(ImmediateResumeContractViolation::ResumeNotTail { span });
+            }
+            let Some(else_branch) = else_branch.as_deref() else {
+                return Err(ImmediateResumeContractViolation::ResumeMissing { span: expr.span });
+            };
+            validate_immediate_resume_tail_expr(then_branch, resume_decl_span)?;
+            validate_immediate_resume_tail_expr(else_branch, resume_decl_span)
+        }
+        ast::ExprKind::When { subject, arms } => {
+            if let Some(span) = find_immediate_resume_call_in_expr(subject, resume_decl_span) {
+                return Err(ImmediateResumeContractViolation::ResumeNotTail { span });
+            }
+            if arms.is_empty() {
+                return Err(ImmediateResumeContractViolation::ResumeMissing { span: expr.span });
+            }
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref()
+                    && let Some(span) = find_immediate_resume_call_in_expr(guard, resume_decl_span)
+                {
+                    return Err(ImmediateResumeContractViolation::ResumeNotTail { span });
+                }
+                validate_immediate_resume_tail_expr(&arm.body, resume_decl_span)?;
+            }
+            Ok(())
+        }
+        _ => match find_immediate_resume_call_in_expr(expr, resume_decl_span) {
+            Some(span) => Err(ImmediateResumeContractViolation::ResumeNotTail { span }),
+            None => Err(ImmediateResumeContractViolation::ResumeMissing { span: expr.span }),
+        },
+    }
+}
+
+fn validate_immediate_resume_tail_block(
+    block: &ast::Block,
+    resume_decl_span: Span,
+) -> Result<(), ImmediateResumeContractViolation> {
+    let Some((tail_stmt, prefix_stmts)) = block.stmts.split_last() else {
+        return Err(ImmediateResumeContractViolation::ResumeMissing { span: block.span });
+    };
+
+    for stmt in prefix_stmts {
+        if let Some(span) = find_immediate_resume_call_in_stmt(stmt, resume_decl_span) {
+            return Err(ImmediateResumeContractViolation::ResumeNotTail { span });
+        }
+    }
+
+    match &tail_stmt.kind {
+        ast::StmtKind::Expr(expr) if !tail_stmt.has_trailing_semi => {
+            validate_immediate_resume_tail_expr(expr, resume_decl_span)
+        }
+        _ => match find_immediate_resume_call_in_stmt(tail_stmt, resume_decl_span) {
+            Some(span) => Err(ImmediateResumeContractViolation::ResumeNotTail { span }),
+            None => Err(ImmediateResumeContractViolation::ResumeMissing {
+                span: tail_stmt.span,
+            }),
+        },
+    }
+}
+
+fn is_immediate_resume_call(expr: &ast::Expr, resume_decl_span: Span) -> bool {
+    let ast::ExprKind::Call { callee, .. } = &expr.kind else {
+        return false;
+    };
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return false;
+    };
+    matches!(
+        id.resolved,
+        Some(ast::ResolvedValueRef::Local { decl_span, .. }) if decl_span == resume_decl_span
+    )
+}
+
+fn find_immediate_resume_call_in_block(block: &ast::Block, resume_decl_span: Span) -> Option<Span> {
+    block
+        .stmts
+        .iter()
+        .find_map(|stmt| find_immediate_resume_call_in_stmt(stmt, resume_decl_span))
+}
+
+fn find_immediate_resume_call_in_stmt(stmt: &ast::Stmt, resume_decl_span: Span) -> Option<Span> {
+    match &stmt.kind {
+        ast::StmtKind::Empty | ast::StmtKind::Break { .. } | ast::StmtKind::Continue { .. } => None,
+        ast::StmtKind::Expr(expr) => find_immediate_resume_call_in_expr(expr, resume_decl_span),
+        ast::StmtKind::Val(decl) => decl
+            .init
+            .as_ref()
+            .and_then(|init| find_immediate_resume_call_in_expr(init, resume_decl_span)),
+        ast::StmtKind::Return { value, .. } => value
+            .as_ref()
+            .and_then(|expr| find_immediate_resume_call_in_expr(expr, resume_decl_span)),
+        ast::StmtKind::While { cond, body, .. } => {
+            find_immediate_resume_call_in_expr(cond, resume_decl_span)
+                .or_else(|| find_immediate_resume_call_in_block(body, resume_decl_span))
+        }
+        ast::StmtKind::For(for_stmt) => {
+            find_immediate_resume_call_in_expr(&for_stmt.iter, resume_decl_span)
+                .or_else(|| find_immediate_resume_call_in_block(&for_stmt.body, resume_decl_span))
+        }
+        ast::StmtKind::ComptimeBlock { body, .. } => {
+            find_immediate_resume_call_in_block(body, resume_decl_span)
+        }
+        ast::StmtKind::ComptimeIf(comptime_if) => {
+            find_immediate_resume_call_in_expr(&comptime_if.cond, resume_decl_span)
+                .or_else(|| {
+                    find_immediate_resume_call_in_block(&comptime_if.then_branch, resume_decl_span)
+                })
+                .or_else(|| {
+                    comptime_if.else_branch.as_deref().and_then(|else_branch| {
+                        find_immediate_resume_call_in_comptime_if_else(
+                            else_branch,
+                            resume_decl_span,
+                        )
+                    })
+                })
+        }
+        ast::StmtKind::ComptimeFor(comptime_for) => {
+            find_immediate_resume_call_in_expr(&comptime_for.iter, resume_decl_span).or_else(|| {
+                find_immediate_resume_call_in_block(&comptime_for.body, resume_decl_span)
+            })
+        }
+        ast::StmtKind::Missing => None,
+    }
+}
+
+fn find_immediate_resume_call_in_comptime_if_else(
+    else_branch: &ast::ComptimeIfElse,
+    resume_decl_span: Span,
+) -> Option<Span> {
+    match else_branch {
+        ast::ComptimeIfElse::Block(block) => {
+            find_immediate_resume_call_in_block(block, resume_decl_span)
+        }
+        ast::ComptimeIfElse::If(comptime_if) => {
+            find_immediate_resume_call_in_expr(&comptime_if.cond, resume_decl_span)
+                .or_else(|| {
+                    find_immediate_resume_call_in_block(&comptime_if.then_branch, resume_decl_span)
+                })
+                .or_else(|| {
+                    comptime_if.else_branch.as_deref().and_then(|nested| {
+                        find_immediate_resume_call_in_comptime_if_else(nested, resume_decl_span)
+                    })
+                })
+        }
+    }
+}
+
+fn find_immediate_resume_call_in_expr(expr: &ast::Expr, resume_decl_span: Span) -> Option<Span> {
+    if is_immediate_resume_call(expr, resume_decl_span) {
+        return Some(expr.span);
+    }
+
+    match &expr.kind {
+        ast::ExprKind::Missing
+        | ast::ExprKind::IntLit
+        | ast::ExprKind::FloatLit
+        | ast::ExprKind::CharLit
+        | ast::ExprKind::StringLit
+        | ast::ExprKind::UnitLit
+        | ast::ExprKind::Ident(_)
+        | ast::ExprKind::ClassLit { .. } => None,
+        ast::ExprKind::TupleLit { elements } | ast::ExprKind::ArrayLit { elements } => elements
+            .iter()
+            .find_map(|expr| find_immediate_resume_call_in_expr(expr, resume_decl_span)),
+        ast::ExprKind::InterpolatedString { parts, .. } => {
+            parts.iter().find_map(|part| match part {
+                ast::InterpolatedStringPart::Text { .. } => None,
+                ast::InterpolatedStringPart::Expr { expr } => {
+                    find_immediate_resume_call_in_expr(expr, resume_decl_span)
+                }
+            })
+        }
+        ast::ExprKind::Block(block)
+        | ast::ExprKind::DoBlock { body: block, .. }
+        | ast::ExprKind::UnsafeBlock { body: block, .. }
+        | ast::ExprKind::SafeBlock { body: block, .. }
+        | ast::ExprKind::Async { body: block }
+        | ast::ExprKind::Spawn { body: block } => {
+            find_immediate_resume_call_in_block(block, resume_decl_span)
+        }
+        ast::ExprKind::Lambda(lambda) => {
+            find_immediate_resume_call_in_expr(&lambda.body, resume_decl_span)
+        }
+        ast::ExprKind::StructLit { fields, .. } => fields
+            .iter()
+            .find_map(|field| find_immediate_resume_call_in_expr(&field.value, resume_decl_span)),
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => find_immediate_resume_call_in_expr(cond, resume_decl_span)
+            .or_else(|| find_immediate_resume_call_in_expr(then_branch, resume_decl_span))
+            .or_else(|| {
+                else_branch
+                    .as_deref()
+                    .and_then(|expr| find_immediate_resume_call_in_expr(expr, resume_decl_span))
+            }),
+        ast::ExprKind::When { subject, arms } => {
+            find_immediate_resume_call_in_expr(subject, resume_decl_span).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .and_then(|guard| {
+                            find_immediate_resume_call_in_expr(guard, resume_decl_span)
+                        })
+                        .or_else(|| find_immediate_resume_call_in_expr(&arm.body, resume_decl_span))
+                })
+            })
+        }
+        ast::ExprKind::Handle {
+            body,
+            arms,
+            finally,
+        } => find_immediate_resume_call_in_block(body, resume_decl_span)
+            .or_else(|| {
+                arms.iter()
+                    .find_map(|arm| find_immediate_resume_call_in_expr(&arm.body, resume_decl_span))
+            })
+            .or_else(|| {
+                finally
+                    .as_ref()
+                    .and_then(|block| find_immediate_resume_call_in_block(block, resume_decl_span))
+            }),
+        ast::ExprKind::Await { expr, .. }
+        | ast::ExprKind::Join { expr, .. }
+        | ast::ExprKind::TypeApply { callee: expr, .. }
+        | ast::ExprKind::NotNullAssert { expr, .. }
+        | ast::ExprKind::Unary { expr, .. }
+        | ast::ExprKind::TypeCheck { expr, .. }
+        | ast::ExprKind::Cast { expr, .. } => {
+            find_immediate_resume_call_in_expr(expr, resume_decl_span)
+        }
+        ast::ExprKind::MemberAccess { receiver, .. }
+        | ast::ExprKind::SafeMemberAccess { receiver, .. } => {
+            find_immediate_resume_call_in_expr(receiver, resume_decl_span)
+        }
+        ast::ExprKind::SpliceField { receiver, field } => {
+            find_immediate_resume_call_in_expr(receiver, resume_decl_span)
+                .or_else(|| find_immediate_resume_call_in_expr(field, resume_decl_span))
+        }
+        ast::ExprKind::Call { callee, args } => {
+            find_immediate_resume_call_in_expr(callee, resume_decl_span).or_else(|| {
+                args.iter()
+                    .find_map(|arg| find_immediate_resume_call_in_expr(arg, resume_decl_span))
+            })
+        }
+        ast::ExprKind::SpreadArg { expr, .. } | ast::ExprKind::NamedArg { value: expr, .. } => {
+            find_immediate_resume_call_in_expr(expr, resume_decl_span)
+        }
+        ast::ExprKind::Binary { lhs, rhs, .. } | ast::ExprKind::Assign { lhs, rhs, .. } => {
+            find_immediate_resume_call_in_expr(lhs, resume_decl_span)
+                .or_else(|| find_immediate_resume_call_in_expr(rhs, resume_decl_span))
+        }
+        ast::ExprKind::WithUpdate { base, updates, .. } => {
+            find_immediate_resume_call_in_expr(base, resume_decl_span).or_else(|| {
+                updates.iter().find_map(|update| {
+                    find_immediate_resume_call_in_expr(&update.value, resume_decl_span)
+                })
+            })
+        }
+    }
+}
+
 /// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606/T2001）。
 ///
 /// 当前阶段目标：
@@ -1384,12 +1687,13 @@ pub(super) fn infer_handle_expr_type(
                 // `resume(value)`：注入一个局部函数值 `resume: (T) -> Nothing`。
                 //
                 // 说明：
-                // - 当前阶段先用“局部函数值调用”的类型规则复用 call-check；
-                // - `resume` 调用的控制流语义由 lowering/codegen（T0616）决定。
+                // - 继续复用“局部函数值调用”的类型规则来检查 payload 类型；
+                // - 但同时在 typecheck 侧收紧 immediate-resume 合同：每条路径都必须且只能
+                //   在尾值位置调用一次 `resume(value)`，不能再把非法形状漏到 generic call。
                 let resume_fun_ty = lower.ty_function(
                     None,
                     vec![lowered.op_return_ty],
-                    builtins.unit,
+                    builtins.nothing,
                     EffectRow::pure(),
                     false,
                 );
@@ -1398,6 +1702,16 @@ pub(super) fn infer_handle_expr_type(
                 // arm body：只要求可类型检查；不参与 handle 的结果类型推导。
                 let arm_inputs = inputs.with_locals(&arm_locals);
                 let _ = arm_inputs.infer(lower, &arm.body)?;
+                validate_immediate_resume_arm_contract(&arm.body, resume_span).map_err(
+                    |violation| match violation {
+                        ImmediateResumeContractViolation::ResumeNotTail { span } => {
+                            ExprTypeError::ImmediateResumeArmResumeNotTail { span: span.into() }
+                        }
+                        ImmediateResumeContractViolation::ResumeMissing { span } => {
+                            ExprTypeError::ImmediateResumeArmResumeMissing { span: span.into() }
+                        }
+                    },
+                )?;
             }
             ast::HandleArmKind::EscapeContinuation { k_span } => {
                 // `, k ->`：注入 continuation binder 的类型 `Continuation<T>`（T 为 op 返回类型）。
@@ -2800,5 +3114,169 @@ fn infer_value_ident_type(
                 span: id.span.into(),
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::session::Session;
+    use crate::ty::TypeStore;
+    use crate::typecheck;
+
+    fn typecheck_single_source(source_text: &str) -> Result<(), ExprTypeError> {
+        let session = Session::new().expect("session");
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let mut ast = parse_file(&source).expect("parse");
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).expect("index")
+        };
+
+        let headers =
+            crate::resolve::check_file_headers(&source, &ast, &index).expect("resolve headers");
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers)
+            .expect("resolve bodies");
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        let mut env = typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).expect("env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("extend type env");
+
+        typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check annotations");
+        typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check type refs");
+        typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn immediate_resume_arm_rejects_resume_before_tail() {
+        let err = typecheck_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        val x: Int = Yield.next()
+        x
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+            2
+        }
+    }
+}
+"#,
+        )
+        .expect_err("non-tail resume should be rejected");
+
+        assert!(matches!(
+            err,
+            ExprTypeError::ImmediateResumeArmResumeNotTail { .. }
+        ));
+    }
+
+    #[test]
+    fn immediate_resume_arm_rejects_double_resume_in_same_path() {
+        let err = typecheck_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        val x: Int = Yield.next()
+        x
+    } with {
+        Yield.next() -> resume {
+            resume(1)
+            resume(2)
+        }
+    }
+}
+"#,
+        )
+        .expect_err("double resume should be rejected before codegen");
+
+        assert!(matches!(
+            err,
+            ExprTypeError::ImmediateResumeArmResumeNotTail { .. }
+        ));
+    }
+
+    #[test]
+    fn immediate_resume_arm_allows_if_else_tail_resume() {
+        typecheck_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    handle {
+        val x: Int = Yield.next()
+        x
+    } with {
+        Yield.next() -> resume {
+            if (flag) {
+                resume(1)
+            } else {
+                resume(2)
+            }
+        }
+    }
+}
+"#,
+        )
+        .expect("tail-position branch resume should remain valid");
     }
 }
