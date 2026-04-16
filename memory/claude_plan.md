@@ -1,89 +1,46 @@
-# 当前执行计划
+# 执行计划
 
-说明：以下内容记录的是可公开的执行依据、判断摘要和分步计划，用于追踪本次任务推进；不包含逐字内部思维。
+## 当前阶段
+- `T3008aR` 已完成审查、验证与文档同步；下一步是提交本轮变更并停止。
 
-## 目标
+## 初始计划
+1. 检查最新一次提交信息，确认是否提到任何既有问题；若有，优先修复。
+2. 阅读 TODO.md，定位第一个未完成任务。
+3. 阅读 PLAN.md，核对任务背景、依赖与现有计划。
+4. 评估首个未完成任务的规模；若过大，则先拆分任务并更新 TODO.md / PLAN.md。
+5. 实现当前要执行的任务。
+6. 运行相关测试与必要的质量检查，包括至少与改动相关的测试以及 `cargo clippy --all-targets -- -D warnings`（若适用）。
+7. 更新 memory/claude_plan.md、TODO.md、PLAN.md，记录进展并标记任务完成。
+8. 使用清晰的提交信息提交本次变更，然后停止。
 
-按照 `TODO.md` 的顺序执行首个未完成任务；若最近一次提交提到已有问题，则先修复这些问题；完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次 Git commit，然后停止。
+## 说明
+- 该文件记录摘要化的推理、执行计划、关键决策与进度，不包含逐字内部思维。
 
-## 初始执行步骤
+## 当前判断
+- 最新提交信息未在 commit message 中额外声明需先修的既有问题。
+- `TODO.md` 中首个未完成项为 `T3008aR`，属于生产代码 review 任务，规模可直接执行，无需进一步拆分。
+- 相邻任务 `T3009` 的依赖写成了不存在的 `T3008R`；本轮已将其修正为 `T3008aR`。
 
-1. 检查最近一次提交的提交信息与变更摘要，确认是否提到需要先处理的既有问题。
-2. 阅读 `TODO.md`，定位首个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务的上下文、依赖和既有拆解。
-4. 如任务过大，先在 `PLAN.md` / `TODO.md` 中拆分为更小的可执行子任务，并以第一个子任务作为本次目标。
-5. 实现本次目标，并同步检查是否暴露新的规范偏差或真实缺陷。
-6. 为改动补充或更新测试，运行相关测试与必要的质量检查。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-8. 提交 Git commit，提交信息应清晰描述本次完成内容，然后停止，不进入下一个任务。
+## 本轮执行重点
+1. 审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`runtime_abi.rs`、`runtime_symbols.rs` 及相关调用点，确认不存在 raw-frame / verifier-hack 残留。
+2. 定向检索 `malloc`、native `ptr` state、局部 bitcast 绕过地址空间、缺失 typed trace descriptor 等风险模式。
+3. 若发现真实生产缺口，直接修复并复审；若未发现，则记录审查结论并更新 TODO/PLAN。
+4. 运行与任务匹配的质量验证，再提交并停止。
 
-## 执行约束
+## 审查结果
+- 未发现 `T3008aR` 所针对的生产代码缺口；本轮无需修改 `crates/scoopc/src/llvm/codegen/**` 或 runtime 生产实现。
+- `codegen_handle_expr_via_state_machine` 已稳定走 `scoop_alloc_typed` 分配 effect frame，并且只清零对象头之后的 payload，不存在 raw-frame `malloc` 残留。
+- `emit_effect_step_function`、`declare_runtime_continuation_alloc`、`llvm_continuation_struct_type` 与 runtime `ScoopContinuation`/`scoop_continuation_trace` 在 `state` / `resume_gc_ref` 的 GC 语义上保持一致；编译器侧统一使用 `addrspace(1)`，runtime 侧显式 trace `state` 与 `resume_gc_ref`。
+- effect frame type descriptor 通过 `get_or_create_effect_frame_type_desc_global` 调用通用 trace bitmap 生成逻辑；`--emit-llvm` 生成物中可见 `__scoop_type_desc_effect_frame__*__trace_bitmap` 与 `@scoop_continuation_alloc(ptr addrspace(1), ptr)`，说明不是靠 verifier hack 压过去。
 
-- 不接受以规避方式通过测试；若发现规范缺口或真实实现边界，必须先把该问题前置到 `TODO.md`。
-- 不回退用户已有改动；若工作区存在无关改动，仅在理解其影响后与之共存。
-- 变更后需尽量确保 `cargo fmt`、相关测试及必要时的 `cargo clippy --all-targets -- -D warnings` 通过。
+## 已执行验证
+1. `cargo check -p scoopc`
+2. `cargo clippy --all-targets -- -D warnings`
+3. `cargo test --all`
+4. `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+5. `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
+6. `cargo run -p scoop -- build tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop --emit-llvm -o /tmp/t3008a_effect.ll`
 
-## 待确认信息
-
-- 最近一次提交是否显式提到尚未修复的问题。
-- `TODO.md` 中首个未完成任务的范围、依赖和可测试方式。
-
-## 当前进展（2026-04-16）
-
-- 最近一次提交为 `01dc83f5ddfa99868789072fd65f40b3291f49b0`，提交信息仅为 `Update plan`，未在提交信息中直接声明需要先修复的既有代码问题。
-- `TODO.md` 中首个未完成任务是 `T3008`：将 full-state-machine frame 接入 GC typed alloc，并统一 `state` / continuation ABI 到 `addrspace(1)`。
-- 当前工作区除本文件外还存在用户侧改动：`run_agent.sh`。本轮不触碰该文件。
-
-## T3008 已确认问题
-
-- 运行 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop` 当前失败，报错为 LLVM module verification：
-  - `@scoop_continuation_alloc(ptr %0, ptr @scoop.effect.step...)`
-  - 形参期望 `ptr addrspace(1)`，实参却是 native `ptr`
-- 直接原因已确认：
-  1. `codegen_handle_expr_via_state_machine` 仍使用 `malloc` 分配 raw frame。
-  2. `emit_effect_step_function` 的 `state` 形参仍声明为 native `ptr`。
-  3. `runtime_abi.rs` / continuation struct 已把 `state` 视为 GC-managed pointer，LLVM 侧 frame/continuation ABI 未完全对齐。
-
-## T3008 实施方案
-
-1. 将 effect frame LLVM 布局改为真正的 GC object：
-   - 在 frame struct 前置 `ScoopGcObjectHeader`。
-   - 为每个 handle frame 生成独立 type descriptor global。
-   - trace 合同基于 frame struct 自动计算 bitmap，覆盖 `resume_gc_ref` 与所有 user slots 中的 GC ref。
-2. 将 frame 分配路径从 `malloc` 改为 `scoop_alloc_typed(type_desc, size)`：
-   - 只清零 header 之后的 payload 区域，避免覆盖 runtime 初始化的对象头。
-3. 统一 ABI 到 `addrspace(1)`：
-   - step function 的 `state` 参数改为 GC pointer。
-   - continuation LLVM struct 中的 `state` / `resume_gc_ref` 槽位改为 GC pointer 表示。
-   - 所有相关调用点同步对齐。
-4. 如果 ABI 调整导致 runtime 测试中的旧 `ScoopContinuationStepFn` 两参签名不再合理，本轮一并改成三参签名。
-
-## 本轮验证目标
-
-- `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
-- `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
-- `cargo check -p scoopc`
-- `cargo run -p scoop --features llvm -- test`
-
-## 当前执行结果（2026-04-16，更新）
-
-- `T3008` 发现实际需要拆分后，已按可执行子目标完成 `T3008a`：
-  1. effect frame 改为 GC-managed typed object。
-  2. step function / continuation `state` ABI 统一到 `addrspace(1)`。
-  3. continuation LLVM struct 的 `state` / `resume_gc_ref` 槽位改为 GC pointer 表示。
-  4. runtime 测试中的 continuation step 函数签名已统一到三参 ABI。
-- 已通过验证：
-  - `cargo check -p scoopc`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
-- 已回收 24 个仅因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures。
-- `cargo run -p scoop --features llvm -- test` 不再首先报 verifier error；继续运行后会进入 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`，表现为重复打印 `inner_catch` / `0`，对应的是已存在于 `TODO.md` 的 `T3014` handler-stack / arm-outside-scope 语义缺口，而不是本轮 ABI 修复残留。
-- 已同步更新 `TODO.md` / `PLAN.md`：将当前完成内容落为 `T3008a [DONE]`，并把下次入口明确为 `T3008aR [TODO]`。
-
-## 收尾动作
-
-1. 复查工作区 diff，确认仅包含 `T3008a` 实现与文档同步。
-2. 提交一次 Git commit，描述 `T3008a` 的 ABI / typed alloc 修复与 fixture expectation 收口。
-3. 停止，不进入下一任务。
+## 待完成收尾
+1. 复查工作区差异，仅保留本轮文档更新与计划记录。
+2. 提交本轮变更并停止。

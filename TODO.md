@@ -485,8 +485,14 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3007R
 
-### T3008aR [TODO] Review：确认 effect frame / continuation ABI 修复不是靠 verifier hack 糊过去
+### T3008aR [DONE] Review：确认 effect frame / continuation ABI 修复不是靠 verifier hack 糊过去
 - 描述：在 `T3008a` 之后只审查生产代码，确认 frame / continuation ABI 已真正收口，而不是靠局部 bitcast、raw pointer 绕路或缺失 trace descriptor 暂时把 verifier 压过去；若发现这类问题，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/gc.rs` 与 `runtime/c/scoop_runtime.c` 中的 frame/continuation ABI 相关生产路径。
+  - 已确认 `codegen_handle_expr_via_state_machine` 仅通过 `scoop_alloc_typed` 分配 effect frame，并且只清零对象头之后的 payload；生产路径中不存在 raw-frame `malloc` 或“先分 raw pointer 再补 GC 语义”的绕路。
+  - 已确认 step function 签名、`declare_runtime_continuation_alloc`、`llvm_continuation_struct_type` 与 runtime `ScoopContinuationStepFn` / `ScoopContinuation` 一致：`state` 与 `resume_gc_ref` 在编译器侧统一为 `addrspace(1)`，runtime trace 显式覆盖 `k->state` 与 `k->resume_gc_ref`。
+  - 已确认 effect frame type descriptor 通过通用 `trace_bitmap_words_for_struct` 生成 trace bitmap，而不是默认“无引用字段”；`cargo run -p scoop -- build tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop --emit-llvm -o /tmp/t3008a_effect.ll` 生成物中可见 `__scoop_type_desc_effect_frame__*__trace_bitmap`、`@scoop.effect.step.*(ptr addrspace(1), i64, ptr addrspace(1))` 与 `@scoop_continuation_alloc(ptr addrspace(1), ptr)`。
+  - 已验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 以及 `T3008a` 的两条定向 run-pass fixture 仍全部通过。
 - 目标：
   - 确认 unified effect frame 的生产分配路径中不再存在 `malloc` raw frame。
   - 确认 `state` 在 step function、continuation alloc、continuation trace、resume 调用链上的地址空间与 GC 语义完全一致。
@@ -494,6 +500,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“full-state-machine frame 与 continuation ABI 已按 `addrspace(1)` + GC trace 合同收口，无 raw-frame / verifier-hack 残留”。
+- 审查结论：
+  - full-state-machine frame 与 continuation ABI 已按 `addrspace(1)` + GC trace 合同收口，无 raw-frame / verifier-hack 残留。
+  - 本轮未发现需要额外修复的生产代码问题；`T3008a` 的 ABI 修复是实质性收口，而非局部 bitcast 或 verifier 规避。
 - 依赖：T3008a
 
 ### T3009 [TODO] 为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local
@@ -508,7 +517,7 @@
   - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
   - 上述用例不再出现 `暂不支持的 main 代码生成节点：call callee`。
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3008R
+- 依赖：T3008aR
 
 ### T3009R [TODO] Review：确认 resume 调用不再回落到 generic call / member access
 - 描述：在 `T3009` 之后只审查生产代码，确认 `resume(...)` 与 `Continuation.resume(...)` 已接回专用 lowering，而不是通过 dummy local、成员名猜测或 generic `codegen_call` 暂时跑通；若发现回落路径，本任务需要直接修复并复审。

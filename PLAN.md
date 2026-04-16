@@ -4,7 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
-> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；当前执行顺序以 `TODO.md` 中新增的 `T3008aR`～`T3017R` 收口任务为准，`T3101+` 顺延。
+> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。当前执行顺序以 `TODO.md` 中 `T3009`～`T3017R` 收口任务为准，`T3103+` 顺延。
 
 ## 0. 工作原则
 
@@ -57,9 +57,13 @@
   - step function 的 `state` 形参与 continuation LLVM struct 中的 `state` / `resume_gc_ref` 槽位已统一为 `addrspace(1)`。
   - 已同步修正 3 个 runtime 测试中的旧 continuation step 三参 ABI，并回收 24 个只因 verifier 失败而临时 xfail 的 run-pass fixtures。
   - 已验证 `cargo check -p scoopc`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，以及两条 `T3008a` 定向 fixture。
+- `T3008aR` 已完成：
+  - 已审查 `state_machine_emitter.rs`、`runtime_abi.rs`、`gc.rs` 与 `runtime/c/scoop_runtime.c` 的相关生产路径，未发现 raw-frame `malloc`、局部 bitcast 绕过地址空间或缺失 trace descriptor 的 verifier-hack 残留。
+  - 已确认 effect frame type descriptor 通过通用 trace bitmap 逻辑生成；`--emit-llvm` 生成物可见 `__scoop_type_desc_effect_frame__*__trace_bitmap`、`@scoop.effect.step.*(ptr addrspace(1), i64, ptr addrspace(1))` 与 `@scoop_continuation_alloc(ptr addrspace(1), ptr)`。
+  - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 以及 `T3008a` 两条定向 fixture 全部通过。
 - `T3008a` 暴露出的下一层真实阻塞：
   - `cargo run -p scoop --features llvm -- test` 不再首先死于 `ptr` / `ptr addrspace(1)` verifier error，而是继续跑到 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 等用例，表现为 arm 在自身 scope 内反复自捕获，直接对应 `T3014` 的 handler-stack 语义缺口。
-  - 因此 effect 主线当前的下一步不是 `T3101`，而是 `T3008aR` review；之后继续按 `T3009+`、`T3014+`、`T3017+` 顺序收口。
+  - `T3008aR` 已确认 ABI 修复闭环；effect 主线当前的下一步是 `T3009`，之后继续按 `T3009`～`T3017R` 顺序收口，`T3103+` 顺延。
 - 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。
 
 ## 2. 阶段顺序
@@ -232,7 +236,7 @@
 - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind / raise_target_stack / unwind 等关键词，全部零生产代码命中。
 - 已审查 `effect/mod.rs` 三个主入口、`state_machine_emitter.rs`（1972 行，29 op + 9 terminator 变体）、`runtime_abi.rs`（无 dead_code 残留）、`runtime_symbols.rs`（无遗留符号）、`expr.rs`（单路径透传）、`mod.rs`（effect 相关路径正确）。
 - 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。该结论只覆盖 legacy 清理完成；2026-04-16 的补充回归审查已确认 T30 仍需继续执行 `T3008aR`～`T3017R` 才能重新声明阶段性完成。
-- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查确认仍需继续执行 `T3008aR`～`T3017R` 收口任务；`T3101+` 继续顺延。
+- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查确认 effect 主线仍需继续执行 `T3009`～`T3017R` 收口任务；`T3103+` 继续顺延。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 
@@ -336,37 +340,39 @@
 
 ## 4. 当前执行顺序
 
-1. `T3003a`
-2. `T3003b`
-3. `T3003R`
-4. `T3004a`
-5. `T3004b`
-6. `T3004c`
-7. `T3004d`
-8. `T3004R`
-9. `T3005`
-10. `T3005R`
-11. `T3006`
-12. `T3006R`
-13. `T3007`
-14. `T3007R`
-15. `T3101`
-16. `T3102`
-17. `T3103`
-18. `T3104`
-19. `T3201`
-20. `T3202`
-21. `T3203`
-22. `T3204`
-23. `T3205`
-24. `T3301`
-25. `T3302`
-26. `T3303`
-27. `T3401`
-28. `T3401a`
-29. `T3401b`
-30. `T3401c`
-31. `T3402`
-32. `T3403`
-33. `T3404`
-34. `T3405`
+1. `T3009`
+2. `T3009R`
+3. `T3010`
+4. `T3010R`
+5. `T3011`
+6. `T3011R`
+7. `T3012`
+8. `T3012R`
+9. `T3013`
+10. `T3013R`
+11. `T3014`
+12. `T3014R`
+13. `T3015`
+14. `T3015R`
+15. `T3016`
+16. `T3016R`
+17. `T3017`
+18. `T3017R`
+19. `T3103`
+20. `T3104`
+21. `T3201`
+22. `T3202`
+23. `T3203`
+24. `T3204`
+25. `T3205`
+26. `T3301`
+27. `T3302`
+28. `T3303`
+29. `T3401`
+30. `T3401a`
+31. `T3401b`
+32. `T3401c`
+33. `T3402`
+34. `T3403`
+35. `T3404`
+36. `T3405`
