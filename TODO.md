@@ -657,8 +657,20 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009aR
 
-### T3010b2b0a0 [TODO] 修正 ordinary callee 内 hidden-suspend boundary 后仍继续执行的控制流语义
+### T3010b2b0a0 [DONE] 修正 ordinary callee 内 hidden-suspend boundary 后仍继续执行的控制流语义
 - 描述：执行 `T3010b2b0a` 时补了“helper -> object property access -> object init 内 `Raise.raise(...)`”定向复现，结果发现当前阻塞点比 caller-side 分类更前置：`main_unreachable` 已经不再出现，但 `helper()` 自身仍会在 `BoomObject.x` 返回 active 后继续执行 `helper_unreachable`。这说明 `T3010b2b0` 目前只覆盖了 direct `perform/Raise`、ordinary user call 与 `as` cast raise；object value/property access、class ctor init、builtin runtime raise 等 hidden suspend boundary 仍没有接到 ordinary-frame propagation contract。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_object_property_access` 中把 object init 调用接到统一 `emit_ordinary_call_effect_propagation_check`，保证 hidden-suspend object property access 一旦返回 active，当前 ordinary callee frame 会立即向 caller 返回，不再继续执行后续语句。
+  - 已新增 `tests/fixtures/run-pass/object_property_init_raise_helper_try_catch_basic.scoop`，直接锁定“helper -> object property access -> object init raise”路径，确认 stdout 不再出现 `helper_unreachable` 与 caller tail。
+  - 已新增 `tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`，补充覆盖 class ctor property initializer 经由 object property access 触发 hidden suspend 的 helper 路径，确认 ctor 初始化阶段同样不会让 helper 继续执行。
+  - 已验证：
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_property_init_raise_helper_try_catch_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍保持在已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（对应 `T3010b2b1`），未出现更早的 hidden-suspend helper 回归。
 - 目标：
   - ordinary 函数 / helper / 方法体内，一旦 hidden suspend boundary（至少覆盖 object value/property access、class ctor init、builtin runtime raise）向当前 frame 返回 active，当前 callee frame 必须立刻停止执行，不能继续落到后续 statement / tail expression。
   - 该终止语义必须沿用统一 ordinary-frame propagation 合同，禁止恢复旧 flag-based unwind，也禁止只给单个 object/property access callsite 打补丁。
@@ -667,7 +679,7 @@
   - 新增一个覆盖“helper -> object property access -> object init raise”路径的 run-pass fixture，并验证 stdout 同时不包含 `helper_unreachable` 与 caller tail。
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
-  - `cargo run -p scoop --features llvm -- test`
+  - 复跑 `cargo run -p scoop --features llvm -- test`，确认没有把首个失败点拉回 hidden-suspend helper 路径；当前首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`）。
 - 依赖：T3010b2b0
 
 ### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`

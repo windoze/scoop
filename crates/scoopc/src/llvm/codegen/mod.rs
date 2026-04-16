@@ -12506,6 +12506,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+        self.emit_ordinary_call_effect_propagation_check(at, "object_property_init_effect")?;
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());

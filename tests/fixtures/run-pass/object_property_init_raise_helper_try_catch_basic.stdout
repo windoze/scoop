@@ -1,0 +1,6 @@
+main_before_call
+helper_before_access
+boom.init
+caught
+10
+done
