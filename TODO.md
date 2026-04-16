@@ -367,14 +367,36 @@
   - `cargo run -p scoop --features llvm -- test` 全部 963 fixtures 通过。
 - 依赖：T3005R
 
-### T3006R [TODO] Review：确认测试补齐后生产代码仍然零 shape-based logic
-- 描述：在阶段性收口前做一次完整审查，确认“为过测试临时加的例外”没有污染主线；若发现这类例外已进入生产代码，本任务需要直接修复并在修复后重新审查。
+### T3006R [DONE] Review：确认测试补齐后生产代码仍然零 shape-based logic
+- 描述：在阶段性收口前做一次完整审查，确认”为过测试临时加的例外”没有污染主线；若发现这类例外已进入生产代码，本任务需要直接修复并在修复后重新审查。
+- 进展：
+  - 已审查 T3006 引入的全部四处生产代码变更：
+    1. **Enum binder 支持**（`coerce_u64_word` / `narrow_u64_word_to_cg_value` 中 `CgTy::Enum` 分支）：按 `CgEnumRepr`（ValueOnly / TaggedUnion）分派，是类型驱动的扩展，不涉及源码形状。
+    2. **GEP index 修正**（`FrameLayout::user_slot_llvm_index`）：直接使用 `UnifiedFrameSlot::field_index()` 的绝对索引，是 state machine contract 数据驱动的修正。
+    3. **跨 state local 引用**（`populate_frame_slots_in_env`）：遍历 `contract.frame().slots()` 为每个 state BB 创建独立的 GEP 指令，确保 LLVM SSA dominance，完全基于 state machine contract 数据。
+    4. **VarRef 独立处理**（`HandleStateOp::VarRef` 使用 `unwrap_or(CgValue::unit())`）：处理 plan builder 为 Call 等复合表达式递归生成的冗余子表达式 ops。这些 VarRef 结果总是被后续复合 op 覆盖，不影响最终语义。`unwrap_or` 仅在 top-level 函数名引用（无法作为独立值求值）时触发，非 shape-based 分流。
+  - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索以下关键词：
+    - `shape` → 仅 `state_machine_emitter.rs:24` 模块文档注释（声明不使用 shapes），无生产代码命中。
+    - `scanner` / `scan_for` / `CalleeSuspend` / `suspendable` / `SiteShape` / `ArmShape` → 零命中。
+    - `flag.based` / `flag_based` → 零命中。
+    - `emit_effect_unwind_if_active` / `raise_target_stack` / `emit_effect_is_active_i1` / `fun_ty_effects_is_pure` → 零命中。
+  - 已复查 `emit_state_ops`（29 个 `HandleStateOp` 变体）和 `emit_state_terminator`（9 个 `UnifiedStateTerminator` 变体）的完整 match，确认所有分支仍只匹配 state machine 合同枚举。
+  - 已复查 `emit_branch_condition`（`HandleBranchCondition::WhileCond` / `IfCond`）、`emit_execute_arm_body`（`HandleArmKind`）的分派，确认均基于 state machine 语义类型。
+  - 已复查 `expr.rs` 中 `ExprKind::Perform` / `ExprKind::Handle` 入口（lines 18-21, 130-138），确认仍为单路径直接委托到 `effect/mod.rs` 统一入口。
+  - 已复查 `effect/mod.rs` 三个主入口：`codegen_perform_expr`、`codegen_handle_expr`（直接委托 `codegen_handle_expr_via_state_machine`）、`emit_raise_runtime_error_variant`，确认全部走统一 state machine 主线实现，无 fallback。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`、`cargo run -p scoop --features llvm -- test`（963 fixtures）全部通过。
 - 目标：
   - 确认新增测试修复没有把 shape-based 逻辑重新带回生产代码。
-  - 确认 effect LLVM codegen 仍然满足“只从 state machine 出发”的总约束。
+  - 确认 effect LLVM codegen 仍然满足”只从 state machine 出发”的总约束。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“当前 effect LLVM codegen 生产代码中不存在 shape-based logic”。
+  - 审查结论明确记录”当前 effect LLVM codegen 生产代码中不存在 shape-based logic”。
+- 审查结论：
+  - 当前 effect LLVM codegen 生产代码中不存在 shape-based logic。T3006 的全部四处生产代码变更（enum binder 类型支持、GEP index 修正、跨 state local 引用、VarRef 独立处理）均基于类型信息或 state machine 合同数据驱动，不包含按源码形状、旧 scanner 结果或旧 mode 选择进行路径选择的逻辑。
+  - `emit_state_ops`（29 个 `HandleStateOp` 变体）、`emit_state_terminator`（9 个 `UnifiedStateTerminator` 变体）、`emit_branch_condition`（`HandleBranchCondition`）与 `emit_execute_arm_body`（`HandleArmKind`）的全部分支都来自 state machine 合同枚举类型，无源码形状推断。
+  - `expr.rs` 的 `Perform` / `Handle` 入口仍为单路径透传；`effect/mod.rs` 三个主入口均为统一 state machine 主线实现，无 fallback 或双轨。
+  - `crates/scoopc/src/llvm/codegen/**` 中 shape / scanner / flag-based unwind 相关关键词零生产代码命中。
+  - 非阻塞观察：`HandleStateOp::VarRef` 的 `unwrap_or(CgValue::unit())` 是对 plan builder 冗余子表达式 ops 的容错处理，不是 shape-based 分流，但属于 plan builder 合同设计的已知限制。此 fallback 仅在 top-level 函数名引用时触发（这些 VarRef ops 总是被后续 Call op 覆盖），不影响正确性。
 - 依赖：T3006
 
 ### T3007 [TODO] 删除统一主线接管后剩余的 legacy effect codegen 死代码

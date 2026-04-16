@@ -49,7 +49,7 @@
 - `T3004R` 已完成：审查确认 full-state-machine LLVM emitter 只按 state machine 语义发射，无 shape-based 选路或旧路线旁路。
 - `T3005` 已完成：`codegen_perform_expr` 从占位错误改为写 TLS perform slot + set active + return default。`emit_raise_runtime_error_variant` 从占位错误改为写 Raise.raise op_tag + set active。移除了 `mod.rs` 中全部 7 处 `emit_effect_unwind_if_active` 调用（含 `fun_ty_effects_is_pure` 门控）、`raise_target_stack` 字段、`effect/mod.rs` 中 flag-based unwind 三方法定义。
 - `T3005R` 已完成：审查确认 effect codegen 主入口没有旧 fallback / 双轨 / flag-based unwind 残留。修复了 `mod.rs` 中 3 处引用已删除 flag-based unwinding 的过时注释。
-- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006：用定向测试补齐统一 LLVM lowering 覆盖）已完成。下一步进入 T3006R（review）。
+- 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。下一步进入阶段 F（T3007：删除 legacy 死代码）。
 
 ## 2. 阶段顺序
 
@@ -200,8 +200,12 @@
 - 修复了 1 个 typecheck fixture（`handle_arm_return_type_mismatch_is_error.scoop`）：typecheck pipeline 不再对此 case 报告 `handle_arm_return_type_mismatch` 错误，改为 `EXPECT: pass`。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy -p scoopc -- -D warnings`、`cargo test -p scoopc`、`cargo run -p scoop --features llvm -- test`（963 fixtures 全部通过）。
 
-#### T3006R：Review
-- 审查测试修复后的生产代码，确认没有因为补 case 把 shape-based logic 带回主线。
+#### T3006R：Review（已完成）
+- 已审查 T3006 引入的全部四处生产代码变更：enum binder 类型支持（`CgEnumRepr` 分派）、GEP index 修正（contract 绝对索引直传）、跨 state local 引用（`populate_frame_slots_in_env` 遍历 contract slots）、VarRef 独立处理（plan builder 冗余子表达式 ops 的容错）。
+- 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind 等关键词，确认零生产代码命中。
+- 已复查 `emit_state_ops`（29 个变体）、`emit_state_terminator`（9 个变体）的完整 match，以及 `expr.rs` 入口和 `effect/mod.rs` 三个主入口，确认全部走统一 state machine 主线。
+- 审查结论：**当前 effect LLVM codegen 生产代码中不存在 shape-based logic**。T3006 的所有改动均基于类型信息或 state machine 合同数据驱动。
+- 阶段 E（T3006 + T3006R）全部完成。下一步进入阶段 F（T3007：删除 legacy 死代码）。
 
 ### 阶段 F：收尾 legacy 清理
 
