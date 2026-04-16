@@ -3387,6 +3387,167 @@ fun demo(): Int {
         );
     }
 
+    #[test]
+    fn source_plan_rewrites_direct_resume_consumer_to_synthetic_local() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val y: Int = Yield.next()
+        y
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+        let bind_init = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } => decl.init.as_ref(),
+                _ => None,
+            })
+            .expect("resume state should still bind the original user local");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected rewritten local var ref, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn source_plan_rewrites_nested_call_arg_resume_tail_to_synthetic_local() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun add(a: Int, b: Int): Int {
+    a + b
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val y: Int = add(Yield.next() + 1, 2)
+        y
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+
+        let binary_expr = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
+                _ => None,
+            })
+            .expect("expected binary tail in resume state");
+        let call_expr = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::Call { expr } => Some(expr.as_ref()),
+                _ => None,
+            })
+            .expect("expected call tail in resume state");
+
+        match &binary_expr.kind {
+            hir::ExprKind::Binary { lhs, .. } => match &lhs.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                    assert_eq!(name, &resume_slot_name);
+                }
+                other => panic!("expected rewritten binary lhs, got {other:?}"),
+            },
+            other => panic!("expected binary expr, got {other:?}"),
+        }
+
+        match &call_expr.kind {
+            hir::ExprKind::Call { args, .. } => match args.first() {
+                Some(hir::CallArg::Positional(arg0)) => match &arg0.kind {
+                    hir::ExprKind::Binary { lhs, .. } => match &lhs.kind {
+                        hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                            assert_eq!(name, &resume_slot_name);
+                        }
+                        other => panic!("expected rewritten call-arg lhs, got {other:?}"),
+                    },
+                    other => panic!("expected binary call arg, got {other:?}"),
+                },
+                other => panic!("expected first positional arg, got {other:?}"),
+            },
+            other => panic!("expected call expr, got {other:?}"),
+        }
+    }
+
     fn build_plan_dump(source_text: &str) -> String {
         let lowered = lower_typed_single_source(source_text);
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");

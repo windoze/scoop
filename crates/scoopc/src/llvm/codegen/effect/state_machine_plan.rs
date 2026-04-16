@@ -309,6 +309,7 @@ pub(crate) enum HandleStateOp {
         site_id: SuspendSiteId,
         reason: ResumeAfterSiteReason,
         source_expr: Box<hir::Expr>,
+        resume_slot: Option<FrameSlot>,
     },
     VarRef {
         expr: Box<hir::Expr>,
@@ -501,9 +502,16 @@ impl HandleStateOp {
                 format!("object init access site{site_id}")
             }
             HandleStateOp::ResumeAfterSite {
-                site_id, reason, ..
+                site_id,
+                reason,
+                resume_slot,
+                ..
             } => {
-                format!("resume target for site{site_id} {}", reason.label())
+                let slot = resume_slot
+                    .as_ref()
+                    .map(|slot| format!(" via {}", slot.display_name()))
+                    .unwrap_or_default();
+                format!("resume target for site{site_id} {}{slot}", reason.label())
             }
             HandleStateOp::VarRef { .. } => "var-ref".to_string(),
             HandleStateOp::StructLit { .. } => "struct-lit".to_string(),
@@ -565,10 +573,15 @@ impl HandleStateOp {
                 site_id,
                 reason,
                 source_expr,
+                resume_slot,
             } => {
                 17 ^ (*site_id as usize)
                     ^ (reason.structural_signature() << 1)
                     ^ expr_payload_signature(source_expr)
+                    ^ resume_slot
+                        .as_ref()
+                        .map(FrameSlot::structural_signature)
+                        .unwrap_or(0)
             }
             HandleStateOp::VarRef { expr } => 18 ^ expr_payload_signature(expr),
             HandleStateOp::StructLit { expr } => 19 ^ expr_payload_signature(expr),
@@ -1328,6 +1341,7 @@ struct HandlePlanBuilder<'a, 'hir> {
     next_state_id: PlanStateId,
     next_site_id: SuspendSiteId,
     next_cleanup_id: CleanupScopeId,
+    next_synthetic_symbol_raw: u32,
     states: Vec<PlanState>,
     suspend_sites: Vec<SuspendSitePlan>,
     arm_plans: Vec<ArmPlan>,
@@ -1349,6 +1363,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             next_state_id: 0,
             next_site_id: 0,
             next_cleanup_id: 0,
+            next_synthetic_symbol_raw: next_synthetic_symbol_seed(handle),
             states: Vec::new(),
             suspend_sites: Vec::new(),
             arm_plans: Vec::new(),
@@ -1413,6 +1428,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.compute_capture_sets();
         self.attach_suspend_source_paths();
         self.attach_suspend_resume_paths();
+        self.materialize_resume_fragments();
         let frame_layout = self.build_frame_layout();
 
         let _ = final_exit_state;
@@ -1668,6 +1684,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             site_id,
                             reason: ResumeAfterSiteReason::ObjectInitAccess,
                             source_expr: Box::new(expr.clone()),
+                            resume_slot: None,
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -1769,6 +1786,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             site_id,
                             reason: ResumeAfterSiteReason::RuntimeRaiseBoundary,
                             source_expr: Box::new(expr.clone()),
+                            resume_slot: None,
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -1803,6 +1821,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             site_id,
                             reason: ResumeAfterSiteReason::ObjectInitAccess,
                             source_expr: Box::new(expr.clone()),
+                            resume_slot: None,
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -1908,12 +1927,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    let resume_slot = self.new_resume_temp_slot(site_id, expr);
                     self.push_action(
                         resume_state,
                         HandleStateOp::ResumeAfterSite {
                             site_id,
                             reason: ResumeAfterSiteReason::Call,
                             source_expr: Box::new(expr.clone()),
+                            resume_slot: Some(resume_slot),
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -1957,12 +1978,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 self.set_terminator(state, StateTerminator::Suspend { site_id });
                 let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                let resume_slot = self.new_resume_temp_slot(site_id, expr);
                 self.push_action(
                     resume_state,
                     HandleStateOp::ResumeAfterSite {
                         site_id,
                         reason: ResumeAfterSiteReason::Perform,
                         source_expr: Box::new(expr.clone()),
+                        resume_slot: Some(resume_slot),
                     },
                 );
                 self.set_suspend_resume_target(site_id, resume_state);
@@ -1998,6 +2021,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             site_id,
                             reason: ResumeAfterSiteReason::NestedHandleBoundary,
                             source_expr: Box::new(expr.clone()),
+                            resume_slot: None,
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -2913,6 +2937,76 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         });
     }
 
+    fn new_resume_temp_slot(
+        &mut self,
+        site_id: SuspendSiteId,
+        source_expr: &'hir hir::Expr,
+    ) -> FrameSlot {
+        let id = hir::SymbolId::from_raw(self.next_synthetic_symbol_raw);
+        self.next_synthetic_symbol_raw = self.next_synthetic_symbol_raw.saturating_add(1);
+        let slot = FrameSlot {
+            id,
+            name: format!("__resume_site{site_id}"),
+            ty: source_expr.ty,
+            mutable: false,
+            owner_arm: None,
+        };
+        self.frame_slots.insert(id, slot.clone());
+        slot
+    }
+
+    fn materialize_resume_fragments(&mut self) {
+        let resume_paths = self
+            .suspend_sites
+            .iter()
+            .filter_map(|site| site.resume_path.clone().map(|path| (site.id, path)))
+            .collect::<HashMap<_, _>>();
+
+        for state in &mut self.states {
+            let rewrites = state
+                .actions
+                .iter()
+                .enumerate()
+                .filter_map(|(op_index, op)| match op {
+                    HandleStateOp::ResumeAfterSite {
+                        site_id,
+                        source_expr,
+                        resume_slot: Some(resume_slot),
+                        ..
+                    } => resume_paths
+                        .get(site_id)
+                        .cloned()
+                        .map(|resume_path| {
+                            (
+                                op_index,
+                                source_expr.as_ref().clone(),
+                                resume_path,
+                                resume_slot.clone(),
+                            )
+                        }),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+
+            for (op_index, source_expr, resume_path, resume_slot) in rewrites {
+                for op in state.actions.iter_mut().skip(op_index + 1) {
+                    rewrite_state_op_with_resume_slot(
+                        op,
+                        &source_expr,
+                        &resume_path,
+                        &resume_slot,
+                    );
+                }
+                rewrite_state_terminator_with_resume_slot(
+                    &mut state.terminator,
+                    &source_expr,
+                    &resume_path,
+                    &resume_slot,
+                );
+            }
+        }
+    }
+
     fn new_state(&mut self, label: impl Into<String>) -> PlanStateId {
         let id = self.next_state_id;
         self.next_state_id = self.next_state_id.saturating_add(1);
@@ -2990,6 +3084,537 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         state.reads.sort_by_key(|id| id.as_u32());
         state.reads.dedup_by_key(|id| id.as_u32());
     }
+}
+
+fn rewrite_state_op_with_resume_slot(
+    op: &mut HandleStateOp,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) {
+    match op {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl } => {
+            if let Some(init) = decl.init.as_mut() {
+                *init = rewrite_expr_with_resume_slot(init, source_expr, resume_path, resume_slot);
+            }
+        }
+        HandleStateOp::Assign { stmt }
+        | HandleStateOp::Return { stmt }
+        | HandleStateOp::TodoStmt { stmt, .. }
+        | HandleStateOp::StmtEmpty { stmt }
+        | HandleStateOp::WhileCondHeader { stmt }
+        | HandleStateOp::Break { stmt }
+        | HandleStateOp::Continue { stmt } => {
+            rewrite_stmt_with_resume_slot(stmt, source_expr, resume_path, resume_slot);
+        }
+        HandleStateOp::ExprMissing { expr }
+        | HandleStateOp::Literal { expr }
+        | HandleStateOp::ReadLocal { expr, .. }
+        | HandleStateOp::ObjectInitAccessBoundary { expr, .. }
+        | HandleStateOp::VarRef { expr }
+        | HandleStateOp::StructLit { expr }
+        | HandleStateOp::TupleLit { expr }
+        | HandleStateOp::InterpolatedString { expr }
+        | HandleStateOp::Expr { expr }
+        | HandleStateOp::RuntimeRaiseBoundary { expr, .. }
+        | HandleStateOp::BinaryExpr { expr }
+        | HandleStateOp::WhenExpr { expr }
+        | HandleStateOp::SuspendCall { expr, .. }
+        | HandleStateOp::Call { expr }
+        | HandleStateOp::Perform { expr, .. }
+        | HandleStateOp::NestedHandleBoundary { expr, .. }
+        | HandleStateOp::NestedHandle { expr, .. }
+        | HandleStateOp::Closure { expr }
+        | HandleStateOp::TodoExpr { expr, .. } => {
+            **expr = rewrite_expr_with_resume_slot(expr, source_expr, resume_path, resume_slot);
+        }
+        HandleStateOp::ResumeAfterSite { .. }
+        | HandleStateOp::CleanupEdgeComplete
+        | HandleStateOp::ReturnToEnclosingExpression
+        | HandleStateOp::LoopReentry { .. }
+        | HandleStateOp::ImplicitElseUnit { .. }
+        | HandleStateOp::ExecuteArmBody { .. } => {}
+    }
+}
+
+fn rewrite_state_terminator_with_resume_slot(
+    terminator: &mut StateTerminator,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) {
+    if let StateTerminator::Branch { condition, .. } = terminator {
+        rewrite_branch_condition_with_resume_slot(condition, source_expr, resume_path, resume_slot);
+    }
+}
+
+fn rewrite_stmt_with_resume_slot(
+    stmt: &mut hir::Stmt,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) {
+    match &mut stmt.kind {
+        hir::StmtKind::Expr(expr) => {
+            *expr = rewrite_expr_with_resume_slot(expr, source_expr, resume_path, resume_slot);
+        }
+        hir::StmtKind::Val(decl) => {
+            if let Some(init) = decl.init.as_mut() {
+                *init = rewrite_expr_with_resume_slot(init, source_expr, resume_path, resume_slot);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            *lhs = rewrite_expr_with_resume_slot(lhs, source_expr, resume_path, resume_slot);
+            *rhs = rewrite_expr_with_resume_slot(rhs, source_expr, resume_path, resume_slot);
+        }
+        hir::StmtKind::While { cond, body } => {
+            *cond = rewrite_expr_with_resume_slot(cond, source_expr, resume_path, resume_slot);
+            for stmt in &mut body.stmts {
+                rewrite_stmt_with_resume_slot(stmt, source_expr, resume_path, resume_slot);
+            }
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value.as_mut() {
+                *expr = rewrite_expr_with_resume_slot(expr, source_expr, resume_path, resume_slot);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn rewrite_branch_condition_with_resume_slot(
+    condition: &mut HandleBranchCondition,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) {
+    match condition {
+        HandleBranchCondition::WhileCond { condition }
+        | HandleBranchCondition::IfCond { condition } => {
+            **condition =
+                rewrite_expr_with_resume_slot(condition, source_expr, resume_path, resume_slot);
+        }
+    }
+}
+
+fn rewrite_expr_with_resume_slot(
+    expr: &hir::Expr,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) -> hir::Expr {
+    if expr.span == source_expr.span {
+        return make_resume_slot_var_expr(source_expr, resume_slot);
+    }
+
+    for start in 0..resume_path.expr_frames.len() {
+        if resume_path_frame_matches_expr(&resume_path.expr_frames[start], expr) {
+            return rewrite_expr_from_resume_path(
+                expr,
+                source_expr,
+                &resume_path.expr_frames[start..],
+                resume_slot,
+            );
+        }
+    }
+
+    expr.clone()
+}
+
+fn rewrite_expr_from_resume_path(
+    expr: &hir::Expr,
+    source_expr: &hir::Expr,
+    expr_frames: &[SuspendResumeExprFrame],
+    resume_slot: &FrameSlot,
+) -> hir::Expr {
+    if expr.span == source_expr.span {
+        return make_resume_slot_var_expr(source_expr, resume_slot);
+    }
+    let Some(frame) = expr_frames.first() else {
+        return expr.clone();
+    };
+
+    let mut rewritten = expr.clone();
+    match (frame, &mut rewritten.kind) {
+        (SuspendResumeExprFrame::CallCallee { call_span }, hir::ExprKind::Call { callee, .. })
+            if rewritten.span == *call_span =>
+        {
+            **callee = rewrite_expr_from_resume_path(
+                callee,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::CallArg {
+                call_span,
+                arg_index,
+            },
+            hir::ExprKind::Call { args, .. },
+        ) if rewritten.span == *call_span => {
+            if let Some(hir::CallArg::Positional(arg_expr)) = args.get_mut(*arg_index) {
+                *arg_expr = rewrite_expr_from_resume_path(
+                    arg_expr,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::NamedArgValue {
+                call_span,
+                arg_index,
+                name_span,
+            },
+            hir::ExprKind::Call { args, .. },
+        ) if rewritten.span == *call_span => {
+            if let Some(hir::CallArg::Named { name_span: arg_name_span, value, .. }) =
+                args.get_mut(*arg_index)
+                && *arg_name_span == *name_span
+            {
+                *value = rewrite_expr_from_resume_path(
+                    value,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::PerformArg {
+                perform_span,
+                arg_index,
+            },
+            hir::ExprKind::Perform { args, .. },
+        ) if rewritten.span == *perform_span => {
+            if let Some(arg) = args.get_mut(*arg_index) {
+                match arg {
+                    hir::CallArg::Positional(arg_expr) => {
+                        *arg_expr = rewrite_expr_from_resume_path(
+                            arg_expr,
+                            source_expr,
+                            &expr_frames[1..],
+                            resume_slot,
+                        );
+                    }
+                    hir::CallArg::Named { value, .. } => {
+                        *value = rewrite_expr_from_resume_path(
+                            value,
+                            source_expr,
+                            &expr_frames[1..],
+                            resume_slot,
+                        );
+                    }
+                }
+            }
+        }
+        (
+            SuspendResumeExprFrame::MemberReceiver { access_span },
+            hir::ExprKind::MemberAccess { receiver, .. },
+        ) if rewritten.span == *access_span => {
+            **receiver = rewrite_expr_from_resume_path(
+                receiver,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::BinaryLhs { binary_span },
+            hir::ExprKind::Binary { lhs, .. },
+        ) if rewritten.span == *binary_span => {
+            **lhs = rewrite_expr_from_resume_path(
+                lhs,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::BinaryRhs { binary_span },
+            hir::ExprKind::Binary { rhs, .. },
+        ) if rewritten.span == *binary_span => {
+            **rhs = rewrite_expr_from_resume_path(
+                rhs,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::StructField {
+                struct_span,
+                field_name,
+            },
+            hir::ExprKind::StructLit { fields, .. },
+        ) if rewritten.span == *struct_span => {
+            if let Some(field) = fields.iter_mut().find(|field| field.name == *field_name) {
+                field.value = rewrite_expr_from_resume_path(
+                    &field.value,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::TupleElement {
+                tuple_span,
+                element_index,
+            },
+            hir::ExprKind::TupleLit { elements },
+        ) if rewritten.span == *tuple_span => {
+            if let Some(element) = elements.get_mut(*element_index) {
+                *element = rewrite_expr_from_resume_path(
+                    element,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::InterpolatedExpr {
+                string_span,
+                part_index,
+            },
+            hir::ExprKind::InterpolatedString { parts, .. },
+        ) if rewritten.span == *string_span => {
+            if let Some(hir::InterpolatedStringPart::Expr { expr: part_expr }) =
+                parts.get_mut(*part_index)
+            {
+                *part_expr = rewrite_expr_from_resume_path(
+                    part_expr,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::UnaryOperand { expr_span },
+            hir::ExprKind::Unary { expr: inner, .. },
+        ) if rewritten.span == *expr_span => {
+            **inner = rewrite_expr_from_resume_path(
+                inner,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::CastOperand { expr_span },
+            hir::ExprKind::Cast { expr: inner, .. },
+        ) if rewritten.span == *expr_span => {
+            **inner = rewrite_expr_from_resume_path(
+                inner,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::TypeCheckOperand { expr_span },
+            hir::ExprKind::TypeCheck { expr: inner, .. },
+        ) if rewritten.span == *expr_span => {
+            **inner = rewrite_expr_from_resume_path(
+                inner,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::IfCond { if_span },
+            hir::ExprKind::If { cond, .. },
+        ) if rewritten.span == *if_span => {
+            **cond = rewrite_expr_from_resume_path(
+                cond,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::IfThenExpr { if_span },
+            hir::ExprKind::If {
+                then_branch, ..
+            },
+        ) if rewritten.span == *if_span => {
+            **then_branch = rewrite_expr_from_resume_path(
+                then_branch,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::IfElseExpr { if_span },
+            hir::ExprKind::If {
+                else_branch: Some(else_branch),
+                ..
+            },
+        ) if rewritten.span == *if_span => {
+            **else_branch = rewrite_expr_from_resume_path(
+                else_branch,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::WhenSubject { when_span },
+            hir::ExprKind::When { subject, .. },
+        ) if rewritten.span == *when_span => {
+            **subject = rewrite_expr_from_resume_path(
+                subject,
+                source_expr,
+                &expr_frames[1..],
+                resume_slot,
+            );
+        }
+        (
+            SuspendResumeExprFrame::WhenArmGuard {
+                when_span,
+                arm_index,
+            },
+            hir::ExprKind::When { arms, .. },
+        ) if rewritten.span == *when_span => {
+            if let Some(arm) = arms.get_mut(*arm_index)
+                && let Some(guard) = arm.guard.as_mut()
+            {
+                *guard = rewrite_expr_from_resume_path(
+                    guard,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        (
+            SuspendResumeExprFrame::WhenArmBody {
+                when_span,
+                arm_index,
+            },
+            hir::ExprKind::When { arms, .. },
+        ) if rewritten.span == *when_span => {
+            if let Some(arm) = arms.get_mut(*arm_index) {
+                arm.body = rewrite_expr_from_resume_path(
+                    &arm.body,
+                    source_expr,
+                    &expr_frames[1..],
+                    resume_slot,
+                );
+            }
+        }
+        _ => {}
+    }
+
+    rewritten
+}
+
+fn resume_path_frame_matches_expr(frame: &SuspendResumeExprFrame, expr: &hir::Expr) -> bool {
+    match (frame, &expr.kind) {
+        (SuspendResumeExprFrame::CallCallee { call_span }, hir::ExprKind::Call { .. })
+        | (SuspendResumeExprFrame::CallArg { call_span, .. }, hir::ExprKind::Call { .. })
+        | (
+            SuspendResumeExprFrame::NamedArgValue { call_span, .. },
+            hir::ExprKind::Call { .. },
+        ) => expr.span == *call_span,
+        (SuspendResumeExprFrame::PerformArg { perform_span, .. }, hir::ExprKind::Perform { .. }) => {
+            expr.span == *perform_span
+        }
+        (
+            SuspendResumeExprFrame::MemberReceiver { access_span },
+            hir::ExprKind::MemberAccess { .. },
+        ) => expr.span == *access_span,
+        (SuspendResumeExprFrame::BinaryLhs { binary_span }, hir::ExprKind::Binary { .. })
+        | (SuspendResumeExprFrame::BinaryRhs { binary_span }, hir::ExprKind::Binary { .. }) => {
+            expr.span == *binary_span
+        }
+        (SuspendResumeExprFrame::StructField { struct_span, .. }, hir::ExprKind::StructLit { .. }) => {
+            expr.span == *struct_span
+        }
+        (SuspendResumeExprFrame::TupleElement { tuple_span, .. }, hir::ExprKind::TupleLit { .. }) => {
+            expr.span == *tuple_span
+        }
+        (
+            SuspendResumeExprFrame::InterpolatedExpr { string_span, .. },
+            hir::ExprKind::InterpolatedString { .. },
+        ) => expr.span == *string_span,
+        (SuspendResumeExprFrame::UnaryOperand { expr_span }, hir::ExprKind::Unary { .. })
+        | (SuspendResumeExprFrame::CastOperand { expr_span }, hir::ExprKind::Cast { .. })
+        | (
+            SuspendResumeExprFrame::TypeCheckOperand { expr_span },
+            hir::ExprKind::TypeCheck { .. },
+        ) => expr.span == *expr_span,
+        (SuspendResumeExprFrame::IfCond { if_span }, hir::ExprKind::If { .. })
+        | (SuspendResumeExprFrame::IfThenExpr { if_span }, hir::ExprKind::If { .. })
+        | (SuspendResumeExprFrame::IfElseExpr { if_span }, hir::ExprKind::If { .. }) => {
+            expr.span == *if_span
+        }
+        (SuspendResumeExprFrame::WhenSubject { when_span }, hir::ExprKind::When { .. })
+        | (SuspendResumeExprFrame::WhenArmGuard { when_span, .. }, hir::ExprKind::When { .. })
+        | (SuspendResumeExprFrame::WhenArmBody { when_span, .. }, hir::ExprKind::When { .. }) => {
+            expr.span == *when_span
+        }
+        _ => false,
+    }
+}
+
+fn make_resume_slot_var_expr(source_expr: &hir::Expr, resume_slot: &FrameSlot) -> hir::Expr {
+    hir::Expr {
+        span: source_expr.span,
+        ty: source_expr.ty,
+        kind: hir::ExprKind::VarRef(hir::ValueRef::Local {
+            id: resume_slot.id,
+            name: resume_slot.name.clone(),
+            decl_span: source_expr.span,
+        }),
+    }
+}
+
+fn next_synthetic_symbol_seed(handle: &hir::HandleExpr) -> u32 {
+    let mut ids = HashSet::new();
+    for stmt in &handle.body.stmts {
+        collect_declared_local_ids_in_stmt(stmt, &mut ids);
+        collect_used_locals_in_stmt_static(stmt, &mut ids);
+    }
+
+    for arm in &handle.arms {
+        for binder in &arm.op.binders {
+            ids.insert(binder.id);
+        }
+        match arm.kind {
+            hir::HandleArmKind::NonResuming => {}
+            hir::HandleArmKind::ImmediateResume { resume } => {
+                ids.insert(resume);
+            }
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                ids.insert(continuation);
+            }
+        }
+        collect_declared_local_ids_in_expr(&arm.body, &mut ids);
+        collect_used_locals_in_expr_static(&arm.body, &mut ids);
+    }
+
+    if let Some(finally_block) = handle.finally.as_ref() {
+        for stmt in &finally_block.stmts {
+            collect_declared_local_ids_in_stmt(stmt, &mut ids);
+            collect_used_locals_in_stmt_static(stmt, &mut ids);
+        }
+    }
+
+    ids.into_iter()
+        .map(hir::SymbolId::as_u32)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1)
 }
 
 fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {

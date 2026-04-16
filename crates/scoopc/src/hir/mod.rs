@@ -41,6 +41,10 @@ impl SymbolId {
     pub fn as_u32(self) -> u32 {
         self.0
     }
+
+    pub(crate) const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
 }
 
 impl fmt::Debug for SymbolId {

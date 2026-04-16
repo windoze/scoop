@@ -4,7 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
-> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”和“跨 suspend 表达式恢复片段”混在同一任务里，`T3010` 已拆为 `T3010a`（已完成：先清理纯表达式 fragment-only op 与消费型位置重复求值）与 `T3010b`。其中 `T3010b` 又进一步细化为 `T3010b1`（已完成：冻结 `resume_path` 合同，记录 consumer root + expr frame path）和 `T3010b2`（下一步：真正消费该合同，接回可执行 post-suspend fragment）；当前执行顺序以 `TODO.md` 中 `T3010b2`→`T3013R` 前置收口、随后 `T3009`～`T3017R` 为准，`T3103+` 顺延。
+> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（本轮完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3009a`（下一步：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
 
 ## 0. 工作原则
 
@@ -63,9 +63,11 @@
   - 已重新验证 `cargo check -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 以及 `T3008a` 两条定向 fixture 全部通过。
 - `T3008a` 暴露出的下一层真实阻塞：
   - `cargo run -p scoop --features llvm -- test` 不再首先死于 `ptr` / `ptr addrspace(1)` verifier error，而是继续跑到 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 等用例，表现为 arm 在自身 scope 内反复自捕获，直接对应 `T3014` 的 handler-stack 语义缺口。
-  - 针对 `T3009` 的试探实现已确认：去掉 `resume(...)` / `Continuation.resume(...)` 的 generic fallback 之后，`effect_resume_yield_int_basic.scoop` 能进入运行期，但 `val x = Yield.next()` 的 resume landing 会重新发射原始 `perform` / fragment op，导致重复回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`；该缺口现已拆分为 `T3010a`（先清理纯表达式 fragment-only op）与 `T3010b`（再建立跨 suspend 的恢复片段），其中 `T3010b1` 已补齐 `resume_path` 合同，`T3010b2` 将继续接回可执行 fragment。
-  - 同一轮试探还确认 `continuation_resume_enum.scoop` 的验收仍依赖 `T3013` 的 composite resume payload transport，因此 `T3009` 已后移到 `T3013R` 之后。
-  - `T3008aR` 已确认 ABI 修复闭环；`T3010a` 现已完成并消除了纯表达式 fragment-only op / expected-context 丢失问题；`T3010b1` 已补齐 `resume_path` 合同并锁定其在 `plan -> segments -> unified machine` 间稳定保留。effect 主线当前的下一步是 `T3010b2`，在 `T3010b2`～`T3013R` 收口后再回到 `T3009`，随后继续按 `TODO.md` 顺序推进 `T3014+`。
+  - 针对 `T3009` 的试探实现已确认：去掉 `resume(...)` / `Continuation.resume(...)` 的 generic fallback 之后，`effect_resume_yield_int_basic.scoop` 会同时暴露两层缺口：
+    1. body-side resume landing 仍会保留原 suspend site 表达式；
+    2. arm 内 `resume(41)` 仍走 generic `codegen_call` 并报 `call callee`。
+  - 本轮已完成 `T3010b2a`：resume state 现已为 call/perform site 分配 synthetic resume slot，并基于 `resume_path` 把后续 HIR payload 改写为读取该 slot；新增两条定向单测锁定 direct `val-init` 与 nested call-arg tail 都不再直接持有原 suspend site 表达式。
+  - 试跑 `effect_resume_yield_int_basic.scoop` 进一步确认：在 `T3010b2a` 之后，当前首个未收口阻塞已收缩为 immediate-resume arm 的 `resume(value)` 专用 lowering 缺口，因此新增 `T3009a` 作为 `T3010b2b` 的直接前置；原 `T3009` 收窄为 `T3009b`，继续排在 `T3013R` 之后承接 escaped continuation + composite payload。
 - 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。
 
 ## 2. 阶段顺序
@@ -238,7 +240,7 @@
 - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind / raise_target_stack / unwind 等关键词，全部零生产代码命中。
 - 已审查 `effect/mod.rs` 三个主入口、`state_machine_emitter.rs`（1972 行，29 op + 9 terminator 变体）、`runtime_abi.rs`（无 dead_code 残留）、`runtime_symbols.rs`（无遗留符号）、`expr.rs`（单路径透传）、`mod.rs`（effect 相关路径正确）。
 - 审查结论：**effect codegen 生产实现只剩统一主线，无 shape-based legacy 或 flag-based unwind 残留**。该结论只覆盖 legacy 清理完成；2026-04-16 的补充回归审查已确认 T30 仍需继续执行 `T3008aR`～`T3017R` 才能重新声明阶段性完成。
-- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查与 `T3009` 试探实现共同确认 effect 主线仍需先完成 `T3010b2`～`T3013R` 前置收口，再回到 `T3009`～`T3017R`；`T3103+` 继续顺延。
+- 阶段 F（T3007 + T3007R）全部完成。2026-04-16 的补充回归审查与 `T3009` 试探实现共同确认 effect 主线仍需先完成 `T3010b2aR`→`T3009aR`→`T3010b2b`→`T3013R` 的前置收口，再回到 `T3009b`～`T3017R`；`T3103+` 继续顺延。
 
 ### 阶段 G：收口 expression fragment 与 suspend 恢复片段
 
@@ -255,6 +257,23 @@
 - 已将 segment/unified contract validation 收紧为：上述 suspend site 必须携带 `resume_path`，而 `RuntimeRaise` / `ObjectInitAccess` / `NestedHandleBoundary` 仍禁止携带该元数据。
 - 已补两条定向测试：segment dump 锁定 `resume-path=val-init -> call-arg#0 -> binary-lhs`；transform 测试锁定 `resume_path` 在 `plan -> segments -> unified machine` 间保持稳定。
 - 已验证 `cargo test -p scoopc resume_path -- --nocapture`、`cargo test -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
+
+#### T3010b2a：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot（已完成）
+- 已为 `HandleStateOp::ResumeAfterSite` 增加可选 synthetic resume slot metadata；call/perform site 的 resume landing 现在会拥有稳定的 resume-value carrier。
+- 已在 `HandlePlanBuilder::materialize_resume_fragments` 中基于 `resume_path` 改写 resume state 之后的 HIR payload，包括 `BindLocal`、`Assign`、`Return`、branch condition 与复合表达式 op，使它们读取 synthetic local，而不是继续保留原 suspend site 子表达式。
+- 已让 `state_machine_emitter.rs` 在 `ResumeAfterSite` 时把 `resume_word` / `resume_gc_ref` 写回 synthetic frame slot，供改写后的 HIR 通过普通 local 读取路径消费。
+- 已补两条定向单测：
+  - direct `val y = Yield.next()` 的 resume state 现在会把 initializer 改写为 synthetic local；
+  - nested `add(Yield.next() + 1, 2)` 的 `BinaryExpr` / `Call` tail 现在会把 suspend-site lhs 改写为 synthetic local。
+- 已验证 `cargo test -p scoopc source_plan_rewrites -- --nocapture`、`cargo check -p scoopc` 通过。
+
+#### T3009a：immediate-resume arm 的 `resume(value)` 专用 lowering（待办，现为 `T3010b2b` 前置）
+- `effect_resume_yield_int_basic.scoop` 在 `T3010b2a` 之后不再首先暴露 body tail replay，而是稳定卡在 arm 内 `resume(41)` 仍走 generic `codegen_call`，报 `unsupported_main_body: call callee`。
+- 这说明 body-side tail 注入面已经具备，但 `HandleArmKind::ImmediateResume` 的 dedicated lowering 仍缺失；必须先删掉 `resume_placeholder` local，再回到端到端 resume-tail 验收。
+
+#### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
+- `T3009a` 完成后，重新验收 `effect_resume_yield_int_basic.scoop` 与当前 xfail 子集中的 `comparison lhs` / `integer binary op lhs` / `equality lhs` 等 body-tail case。
+- 这一子任务的目标是确认 resume landing 只继续剩余 tail，而不是再回到原 suspend site。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 
@@ -358,39 +377,42 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2`
-2. `T3010R`
-3. `T3011`
-4. `T3011R`
-5. `T3012`
-6. `T3012R`
-7. `T3013`
-8. `T3013R`
-9. `T3009`
-10. `T3009R`
-11. `T3014`
-12. `T3014R`
-13. `T3015`
-14. `T3015R`
-15. `T3016`
-16. `T3016R`
-17. `T3017`
-18. `T3017R`
-19. `T3103`
-20. `T3104`
-21. `T3201`
-22. `T3202`
-23. `T3203`
-24. `T3204`
-25. `T3205`
-26. `T3301`
-27. `T3302`
-28. `T3303`
-29. `T3401`
-30. `T3401a`
-31. `T3401b`
-32. `T3401c`
-33. `T3402`
-34. `T3403`
-35. `T3404`
-36. `T3405`
+1. `T3010b2aR`
+2. `T3009a`
+3. `T3009aR`
+4. `T3010b2b`
+5. `T3010R`
+6. `T3011`
+7. `T3011R`
+8. `T3012`
+9. `T3012R`
+10. `T3013`
+11. `T3013R`
+12. `T3009b`
+13. `T3009bR`
+14. `T3014`
+15. `T3014R`
+16. `T3015`
+17. `T3015R`
+18. `T3016`
+19. `T3016R`
+20. `T3017`
+21. `T3017R`
+22. `T3103`
+23. `T3104`
+24. `T3201`
+25. `T3202`
+26. `T3203`
+27. `T3204`
+28. `T3205`
+29. `T3301`
+30. `T3302`
+31. `T3303`
+32. `T3401`
+33. `T3401a`
+34. `T3401b`
+35. `T3401c`
+36. `T3402`
+37. `T3403`
+38. `T3404`
+39. `T3405`

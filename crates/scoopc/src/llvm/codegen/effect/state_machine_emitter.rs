@@ -16,6 +16,7 @@
 use std::collections::HashMap;
 
 use super::*;
+use super::unified_state_machine_skeleton::FrameSlot;
 
 use super::unified_state_machine_skeleton::{
     HandleBranchCondition, HandleStateOp, UnifiedFrameField, UnifiedFrameSystemField,
@@ -547,10 +548,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Resume landing: no-op marker ---
-                HandleStateOp::ResumeAfterSite { .. } => {
+                HandleStateOp::ResumeAfterSite {
+                    source_expr,
+                    resume_slot,
+                    ..
+                } => {
                     // On resume, the step_fn entry block has already stored
                     // resume_word/resume_gc_ref from the parameters into the
-                    // frame.  Subsequent ReadLocal ops will load the values.
+                    // frame.  Bind that value into the synthetic resume slot
+                    // so the rewritten post-suspend HIR can consume it via the
+                    // normal local-read path.
+                    if let Some(resume_slot) = resume_slot.as_ref() {
+                        self.emit_resume_value_to_frame_slot(
+                            source_expr,
+                            resume_slot,
+                            state_ptr,
+                            frame_layout,
+                            contract,
+                        )?;
+                    }
                 }
 
                 // --- Object init access boundary: evaluate expression ---
@@ -745,6 +761,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
         let loaded = self.builder.build_load(llvm_ty, slot_ptr, "slot_val")?;
         self.cg_value_from_loaded(at, cg_ty, loaded)
+    }
+
+    fn emit_resume_value_to_frame_slot(
+        &mut self,
+        source_expr: &hir::Expr,
+        resume_slot: &FrameSlot,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        let field_index = contract.frame().get_slot_field_index(resume_slot.id()).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "resume slot field index",
+                at: source_expr.span.into(),
+            },
+        )?;
+        let llvm_index = frame_layout.user_slot_llvm_index(field_index);
+        let slot_ptr = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            llvm_index,
+            &format!("resume_slot_{}", resume_slot.id().as_u32()),
+        )?;
+        let cg_ty = self
+            .cg_ty_of(resume_slot.ty())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "resume slot type",
+                at: source_expr.span.into(),
+            })?;
+        let resume_value =
+            self.read_result_from_frame(source_expr.span, cg_ty, state_ptr, frame_layout)?;
+        self.store_local_value(source_expr.span, slot_ptr, cg_ty, resume_value)?;
+        Ok(())
     }
 
     /// Emit a statement-type op (Assign, etc.) by dispatching to existing
