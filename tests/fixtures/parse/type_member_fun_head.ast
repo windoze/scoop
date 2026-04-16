@@ -84,6 +84,7 @@ File {
                                                             ),
                                                         },
                                                     ),
+                                                    has_trailing_semi: false,
                                                 },
                                             ],
                                         },

@@ -59,6 +59,7 @@ File {
                                         ),
                                     },
                                 ),
+                                has_trailing_semi: false,
                             },
                             Stmt {
                                 span: 201..212,
@@ -78,6 +79,7 @@ File {
                                         ),
                                     },
                                 ),
+                                has_trailing_semi: false,
                             },
                             Stmt {
                                 span: 217..218,
@@ -91,6 +93,7 @@ File {
                                         ),
                                     },
                                 ),
+                                has_trailing_semi: false,
                             },
                         ],
                     },

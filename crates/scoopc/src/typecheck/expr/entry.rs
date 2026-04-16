@@ -386,7 +386,7 @@ pub(super) fn try_infer_fun_return_ty_from_block(
                 // 真正的 `return` 校验由下方第二遍 `check_block_exprs` 完成。
             }
             ast::StmtKind::Expr(e) => {
-                // 先执行现有的“语句层递归”检查（smart cast / lambda return 门禁等）。
+                // 先执行现有的”语句层递归”检查（smart cast / lambda return 门禁等）。
                 check_expr_stmt(
                     shared,
                     e,
@@ -398,12 +398,13 @@ pub(super) fn try_infer_fun_return_ty_from_block(
                     },
                 )?;
 
-                if is_last {
+                // T3102：若最后一条表达式语句以 `;` 结尾，不用它推断返回类型。
+                if is_last && !stmt.has_trailing_semi {
                     match expr_infer_inputs(shared, &*state.locals).infer(lower, e) {
                         Ok(ty) => tail_expr_ty = Some(ty),
                         Err(ExprTypeError::UnsupportedExpr { .. }) => {
                             // 兼容：statement position 的表达式当前并不总是完整 typecheck；
-                            // 若仅因为“未实现某个 ExprKind”而失败，则不启用返回类型推断。
+                            // 若仅因为”未实现某个 ExprKind”而失败，则不启用返回类型推断。
                         }
                         Err(e) => return Err(e),
                     }

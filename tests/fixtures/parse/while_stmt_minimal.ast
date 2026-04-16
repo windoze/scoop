@@ -49,16 +49,19 @@ File {
                                                 kind: Continue {
                                                     continue_span: 196..204,
                                                 },
+                                                has_trailing_semi: false,
                                             },
                                             Stmt {
                                                 span: 213..218,
                                                 kind: Break {
                                                     break_span: 213..218,
                                                 },
+                                                has_trailing_semi: false,
                                             },
                                         ],
                                     },
                                 },
+                                has_trailing_semi: false,
                             },
                         ],
                     },

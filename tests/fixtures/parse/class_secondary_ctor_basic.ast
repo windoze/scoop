@@ -37,6 +37,7 @@ File {
                                             Stmt {
                                                 span: 304..305,
                                                 kind: Empty,
+                                                has_trailing_semi: true,
                                             },
                                         ],
                                     },
@@ -84,6 +85,7 @@ File {
                                             Stmt {
                                                 span: 351..352,
                                                 kind: Empty,
+                                                has_trailing_semi: true,
                                             },
                                         ],
                                     },
@@ -221,6 +223,7 @@ File {
                                             Stmt {
                                                 span: 439..440,
                                                 kind: Empty,
+                                                has_trailing_semi: true,
                                             },
                                         ],
                                     },

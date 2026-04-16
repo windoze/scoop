@@ -1,17 +1,20 @@
-# 当前执行计划：T3101 — Parser / AST：引入显式 `do { ... }` block
+# 当前执行计划：T3102 — Typecheck / HIR：收口 do block 的 expression statement 与 tail value 语义
 
-## 状态：已完成
+## 状态：研究中
 
-## 已执行步骤
+## 目标
+- `do { expr }` → 类型为 expr 的类型（tail value）
+- `do { expr; }` → 类型为 `Unit`（expression statement，分号终止）
+- `if` / `when` / `handle` / lambda body / `do` block 的值语义统一按此规则工作
+- HIR / diagnostics 对 tail expr 与 terminated expr stmt 保持可区分形状
 
-1. [x] 调研：parser/AST/typecheck 结构，确认无 `do` 关键字、无 `DoBlock` AST 节点
-2. [x] 添加 `Do` 到 `Keyword` 枚举（token.rs）和 `"do"` 映射（lexer.rs）
-3. [x] 添加 `ExprKind::DoBlock { do_span, body }` 到 AST（ast/mod.rs）
-4. [x] 添加 `parse_do_block_expr` 方法和 `eat_keyword` cursor 方法
-5. [x] 在 `try_parse_expr_atom` 中 `do` 优先于 `{` 匹配
-6. [x] `@Safe`/`@Unsafe` 后支持可选 `do`：`self.eat_keyword(Keyword::Do)`
-7. [x] 更新所有 AST 消费者：resolve、typecheck (infer/stmt/ops/util)、properties、HIR lower、comptime
-8. [x] 新增 4 个 parser 单元测试 + 2 个 parse fixtures
-9. [x] 全量测试通过：217 unit tests、965 fixtures（含 LLVM）
-10. [x] 更新 TODO.md / PLAN.md
-11. [x] 提交
+## 研究步骤
+- [ ] 了解 parser 对 block 内语句和尾表达式的处理
+- [ ] 了解 StmtKind 中 expression statement 的表示方式
+- [ ] 了解 typecheck 对 block 值的计算逻辑
+- [ ] 了解 HIR 层 block 的表示
+
+## 执行步骤（待研究后细化）
+- [ ] 实现变更
+- [ ] 创建测试 fixtures
+- [ ] 验证质量门

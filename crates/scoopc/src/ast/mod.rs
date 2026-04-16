@@ -1837,6 +1837,13 @@ pub struct ForLoopCustomResolvedInfo {
 pub struct Stmt {
     pub span: Span,
     pub kind: StmtKind,
+    /// 该语句是否以 `;` 结尾。
+    ///
+    /// 用于 block tail value 语义判定（T3102）：当 block 最后一条语句是
+    /// `StmtKind::Expr` 且 `has_trailing_semi == true` 时，该表达式视为
+    /// expression statement，block 值为 `Unit`；反之为 tail expression，
+    /// block 值为该表达式的类型。
+    pub has_trailing_semi: bool,
 }
 
 #[derive(Debug, Clone)]

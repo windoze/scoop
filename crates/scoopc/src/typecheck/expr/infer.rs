@@ -673,7 +673,10 @@ fn infer_block_value_type_with_expected(
             }
             ast::StmtKind::Expr(e) => {
                 let block_inputs = inputs.with_locals(&block_locals);
-                let ty = if is_last {
+                // T3102：若最后一条表达式语句以 `;` 结尾，该表达式仅作为 expression
+                // statement 执行，不产生 block 的 tail value — block 值视为 Unit。
+                let is_tail = is_last && !stmt.has_trailing_semi;
+                let ty = if is_tail {
                     if let Some((expected_ty, expected_from)) = tail_expected.clone() {
                         let found_ty =
                             block_inputs.infer_in_expected(lower, e, expected_ty, expected_from)?;
@@ -696,7 +699,7 @@ fn infer_block_value_type_with_expected(
                 } else {
                     block_inputs.infer(lower, e)?
                 };
-                if normal_completion_reachable && is_last {
+                if normal_completion_reachable && is_tail {
                     tail_expr_ty = Some(ty);
                 }
                 if normal_completion_reachable && ty == inputs.builtins.nothing {
@@ -746,7 +749,8 @@ fn infer_block_value_type_with_expected(
         }
     }
 
-    Ok(tail_expr_ty.unwrap_or(inputs.builtins.unit))
+    let result = tail_expr_ty.unwrap_or(inputs.builtins.unit);
+    Ok(result)
 }
 
 /// 推导赋值表达式 `lhs = rhs` 的类型。

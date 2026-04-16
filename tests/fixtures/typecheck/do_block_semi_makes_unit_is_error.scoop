@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// 目标：T3102 — `do { expr; }` 类型为 Unit，赋给 Int 应报类型不匹配。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// `do { 1; }` 的值为 Unit（分号终止），不能赋给 Int
+val x: Int = do { 1; }

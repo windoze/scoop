@@ -122,7 +122,12 @@ fn is_unsuffixed_float_literal(expr: &ast::Expr, source: &SourceFile) -> bool {
 }
 
 fn block_tail_expr(block: &ast::Block) -> Option<&ast::Expr> {
-    match &block.stmts.last()?.kind {
+    let last = block.stmts.last()?;
+    // T3102: semicolon-terminated expression statements are NOT tail values.
+    if last.has_trailing_semi {
+        return None;
+    }
+    match &last.kind {
         ast::StmtKind::Expr(expr) => Some(expr),
         _ => None,
     }

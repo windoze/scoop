@@ -34,12 +34,14 @@ File {
                                 kind: Break {
                                     break_span: 227..232,
                                 },
+                                has_trailing_semi: false,
                             },
                             Stmt {
                                 span: 237..245,
                                 kind: Continue {
                                     continue_span: 237..245,
                                 },
+                                has_trailing_semi: false,
                             },
                         ],
                     },

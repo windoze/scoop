@@ -30,12 +30,13 @@ impl<'a> Parser<'a> {
 
         let mut stmts = Vec::new();
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
-            // 允许多余的分号：把它们视为“空语句”。
+            // 允许多余的分号：把它们视为”空语句”。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 stmts.push(ast::Stmt {
                     span: semi.span,
                     kind: ast::StmtKind::Empty,
+                    has_trailing_semi: true,
                 });
                 continue;
             }
@@ -82,15 +83,18 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
             let decl = self.parse_local_val_decl()?;
             let mut span = decl.span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::Val(decl),
+                has_trailing_semi,
             });
         }
 
@@ -132,15 +136,18 @@ impl<'a> Parser<'a> {
                     .map(|e| e.span.end)
                     .unwrap_or(return_span.end),
             );
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::Return { return_span, value },
+                has_trailing_semi,
             });
         }
 
@@ -167,10 +174,12 @@ impl<'a> Parser<'a> {
             let body = self.parse_block()?;
 
             let mut span = Span::new(while_span.start, body.span.end);
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
@@ -180,6 +189,7 @@ impl<'a> Parser<'a> {
                     cond,
                     body,
                 },
+                has_trailing_semi,
             });
         }
 
@@ -188,14 +198,17 @@ impl<'a> Parser<'a> {
             let kw = self.bump();
             let break_span = kw.span;
             let mut span = break_span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::Break { break_span },
+                has_trailing_semi,
             });
         }
 
@@ -204,14 +217,17 @@ impl<'a> Parser<'a> {
             let kw = self.bump();
             let continue_span = kw.span;
             let mut span = continue_span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::Continue { continue_span },
+                has_trailing_semi,
             });
         }
 
@@ -249,15 +265,18 @@ impl<'a> Parser<'a> {
             };
 
             let mut span = for_stmt.span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::For(for_stmt),
+                has_trailing_semi,
             });
         }
 
@@ -265,15 +284,18 @@ impl<'a> Parser<'a> {
         // 因此语句边界也就天然落在该表达式结束处。
         if let Some(expr) = self.try_parse_expr()? {
             let mut span = expr.span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::Expr(expr),
+                has_trailing_semi,
             });
         }
 
@@ -288,10 +310,12 @@ impl<'a> Parser<'a> {
         if self.peek_symbol(Symbol::LBrace) {
             let body = self.parse_block()?;
             let mut span = Span::new(comptime_span.start, body.span.end);
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
 
             return Ok(ast::Stmt {
@@ -300,6 +324,7 @@ impl<'a> Parser<'a> {
                     comptime_span,
                     body,
                 },
+                has_trailing_semi,
             });
         }
 
@@ -307,14 +332,17 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::If) {
             let if_stmt = self.parse_comptime_if_after_comptime(comptime_span)?;
             let mut span = if_stmt.span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::ComptimeIf(if_stmt),
+                has_trailing_semi,
             });
         }
 
@@ -322,14 +350,17 @@ impl<'a> Parser<'a> {
         if self.peek_keyword(Keyword::For) {
             let for_stmt = self.parse_comptime_for_after_comptime(comptime_span)?;
             let mut span = for_stmt.span;
+            let mut has_trailing_semi = false;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
                 let semi = self.bump();
                 span = Span::new(span.start, semi.span.end);
+                has_trailing_semi = true;
             }
             return Ok(ast::Stmt {
                 span,
                 kind: ast::StmtKind::ComptimeFor(for_stmt),
+                has_trailing_semi,
             });
         }
 
@@ -566,6 +597,7 @@ impl<'a> Parser<'a> {
             return ast::Stmt {
                 span: Span::new(pos, pos),
                 kind: ast::StmtKind::Missing,
+                has_trailing_semi: false,
             };
         }
 
@@ -623,19 +655,22 @@ impl<'a> Parser<'a> {
         }
 
         // 若以 `;` 作为分隔符结束，则把分号也吞掉，避免外层再额外产出一个 Empty stmt。
+        let mut has_trailing_semi = false;
         if self.peek_symbol(Symbol::Semicolon) {
             let semi = self.bump();
             last_end = semi.span.end;
+            has_trailing_semi = true;
         }
 
         ast::Stmt {
             span: Span::new(start, last_end),
             kind: ast::StmtKind::Missing,
+            has_trailing_semi,
         }
     }
 
     fn recover_stmt_after_error(&mut self) -> ast::Stmt {
-        // 若当前位置已经是一个“潜在的语句边界”，则不要吞掉它，
+        // 若当前位置已经是一个”潜在的语句边界”，则不要吞掉它，
         // 这样外层循环还能继续尝试解析后续语句。
         if self.peek_kind(TokenKind::Eof)
             || self.peek_symbol(Symbol::RBrace)
@@ -645,6 +680,7 @@ impl<'a> Parser<'a> {
             return ast::Stmt {
                 span: Span::new(pos, pos),
                 kind: ast::StmtKind::Missing,
+                has_trailing_semi: false,
             };
         }
 

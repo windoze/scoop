@@ -477,7 +477,7 @@
   - `cargo run -p scoop -- test`
 - 依赖：无
 
-### T3102 [TODO] Typecheck / HIR：收口 `do` block 的 expression statement 与 tail value 语义
+### T3102 [DONE] Typecheck / HIR：收口 `do` block 的 expression statement 与 tail value 语义
 - 描述：当前 block 的值语义只看“最后一条是不是 `StmtKind::Expr`”，并不区分该表达式是否由 `;` 终止。即使语法层把普通 block / closure 消歧改成 `do`，类型系统和 lowering 仍需要统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”的规则。
 - 目标：
   - `do` block 仅在最后一个表达式语句未以 `;` 终止时才产生 tail value；`do { expr; }` 作为 expression statement 结果视为 `Unit`。

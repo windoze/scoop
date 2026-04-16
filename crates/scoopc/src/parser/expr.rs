@@ -1591,12 +1591,16 @@ impl<'a> Parser<'a> {
         let end = block.span.end;
 
         // 当前阶段（T0222）只区分两类 body：
-        // - 单表达式 body：直接用该表达式
-        // - block body：用 `ExprKind::Block`（包含语句列表）
+        // - 单表达式 body（无尾分号）：直接用该表达式
+        // - block body（或单表达式有尾分号）：用 `ExprKind::Block`（包含语句列表）
+        //
+        // T3102：若单表达式后跟 `;`，则保留 block 形态，使 typecheck / HIR 能识别
+        // 该表达式是 expression statement（block 值为 Unit），而非 tail value。
         let body = match block.stmts.as_slice() {
             [
                 ast::Stmt {
                     kind: ast::StmtKind::Expr(expr),
+                    has_trailing_semi: false,
                     ..
                 },
             ] => expr.clone(),

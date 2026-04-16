@@ -233,9 +233,10 @@
 - 新增 4 个 parser 单元测试 + 2 个 parse fixtures，验证 do-block vs closure 消歧。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（217 passed）、`cargo run -p scoop -- test`（965 fixtures）。
 
-#### T3102：Typecheck / HIR 收口 `do` block 的 expression statement 与 tail value 语义
-- 统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”。
+#### T3102 ✅：Typecheck / HIR 收口 `do` block 的 expression statement 与 tail value 语义
+- 统一”只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”。
 - `if` / `when` / `handle` / lambda body / `do` block 的值语义都要按同一规则收口。
+- 实现：AST `Stmt` 增加 `has_trailing_semi` 字段，parser/typecheck/HIR lowering 全链路联动；`block_tail_expr` 拒绝 semicolon-terminated 语句。
 
 #### T3103：effect nested-block fixtures 切到 plain `do` block
 - 在 `T3006R` 之后，把仅为 nested block 消歧而保留的 `@Safe { ... }` workaround 切回 `do { ... }`。

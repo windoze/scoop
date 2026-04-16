@@ -1,0 +1,47 @@
+// EXPECT: pass
+// 目标：T3102 — `do` block 的 tail value 语义：
+//   - `do { expr }` 类型为 expr 的类型（tail value）
+//   - `do { expr; }` 类型为 `Unit`（expression statement，分号终止）
+//   - `if` / `when` / lambda 的 tail value 语义同理
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// ---- do block tail value ----
+
+// `do { 1 }` 的类型为 Int（tail value）
+val a: Int = do { 1 }
+
+// `do { "hello" }` 的类型为 String
+val b: String = do { "hello" }
+
+// `do { expr; }` 的类型为 Unit（分号终止 → expression statement）
+val c: Unit = do { 1; }
+
+// 多条语句，最后一条有分号 → Unit
+val d: Unit = do {
+    val x = 1
+    x + 2;
+}
+
+// 多条语句，最后一条无分号 → 该表达式类型
+val e: Int = do {
+    val x = 10
+    x + 20
+}
+
+// ---- if 分支 tail value ----
+
+// `if` 两个分支都有 tail value → Int
+val f: Int = if (true) { 1 } else { 2 }
+
+// ---- lambda tail value ----
+
+// lambda `{ expr }` → tail value
+val g: () -> Int = { 1 }
+
+// lambda `{ expr; }` → expression statement，body 类型为 Unit
+val h: () -> Unit = { 1; }
+
+fun main() {}

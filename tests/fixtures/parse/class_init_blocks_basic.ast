@@ -94,6 +94,7 @@ File {
                                             Stmt {
                                                 span: 243..244,
                                                 kind: Empty,
+                                                has_trailing_semi: true,
                                             },
                                         ],
                                     },
@@ -127,6 +128,7 @@ File {
                                                         ),
                                                     },
                                                 ),
+                                                has_trailing_semi: false,
                                             },
                                             Stmt {
                                                 span: 284..285,
@@ -140,6 +142,7 @@ File {
                                                         ),
                                                     },
                                                 ),
+                                                has_trailing_semi: false,
                                             },
                                         ],
                                     },
@@ -187,6 +190,7 @@ File {
                                                             },
                                                         ),
                                                     },
+                                                    has_trailing_semi: false,
                                                 },
                                             ],
                                         },

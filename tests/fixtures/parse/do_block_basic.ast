@@ -67,6 +67,7 @@ File {
                                                                         kind: IntLit,
                                                                     },
                                                                 ),
+                                                                has_trailing_semi: false,
                                                             },
                                                         ],
                                                     },
@@ -75,6 +76,7 @@ File {
                                         ),
                                     },
                                 ),
+                                has_trailing_semi: false,
                             },
                             Stmt {
                                 span: 197..205,
@@ -91,6 +93,7 @@ File {
                                         },
                                     ),
                                 },
+                                has_trailing_semi: false,
                             },
                         ],
                     },

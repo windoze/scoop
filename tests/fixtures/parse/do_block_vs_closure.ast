@@ -63,6 +63,7 @@ File {
                                                 kind: IntLit,
                                             },
                                         ),
+                                        has_trailing_semi: false,
                                     },
                                 ],
                             },
