@@ -8,7 +8,8 @@
 > 2026-04-17 更新：`T3009aR` 已完成后，`T3010b2b` 的定向修复已接通多条 comparison / branch / nested-block / mixed-raise fixture，并修复了 outer slot metadata、initial frame seed 与 continuation `resume_state_tag` runtime 回归。但重新跑全量 `cargo run -p scoop --features llvm -- test` 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；结合 `effect_resume_finally_arm_raise.scoop` 与 `effect_multi_nonresuming_raise_custom_finally.scoop` 的复跑结果，确认当前更前置的 blocker 是“arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup”统一语义缺口。因此将 `T3010b2b` 拆为前置的 `T3010b2b1`（先修 arm body 语义）与后续的 `T3010b2b`（继续 post-suspend tail 验收）。
 > 2026-04-17 进一步复现更新：继续验证 `effect_multi_nonresuming_raise_custom_finally.scoop` 时发现，阻塞并不只在 arm body。`throwAlarm()` 内部的 `Alarm.trip(...)` 之后仍会继续执行 `throw_alarm_unreachable`；`nothing_raise_in_helper_basic.scoop` 里的 `alwaysFail()` 也会在 `Raise.raise(...)` 后继续打印 `unreachable_in_helper`。这说明在继续 `T3010b2b1` 前，还缺一个更基础的前置条件：普通 callee frame 在 non-resuming perform 后必须终止自身执行，而不能只写 active flag 后继续跑到后续语句。因此顺序进一步细化为 `T3010b2b0`（先修普通 callee frame 的 non-resuming perform 终止语义）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 > 2026-04-17 当前轮更新：`T3010b2b0` 已完成。ordinary frame 现在会在 direct non-resuming `perform/Raise` 后立刻结束当前 callee frame，并在 ordinary user call 返回后统一检查 TLS active，必要时直接向 caller 返回默认值；`Nothing` 返回类型在这条 propagation 路径上改为 `ret void`。`nothing_raise_in_helper_basic.scoop` 与 `effect_indirect_perform_nonresuming_call_chain.scoop` 已恢复与 golden 一致。
-> 2026-04-17 复审补充更新：开始执行 `T3010b2b0R` 时，构造“ordinary helper -> object property access -> object init 内 Raise”定向复现后发现：helper 自身已不再执行 `helper_unreachable`，但外层 `handle/try` 的 caller 仍会继续执行 call 后 tail（`main_unreachable`）。根因是 `HandlePlanContext::known_fun_effects` 只看显式 effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据，导致 unified state machine 把这类 helper 调用误判成普通 `Call`。因此顺序进一步细化为 `T3010b2b0` → `T3010b2b0a`（先修 caller-side hidden suspend call 分类）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
+> 2026-04-17 复审补充更新：开始执行 `T3010b2b0R` 时，构造“ordinary helper -> object property access -> object init 内 Raise”定向复现后发现：caller 侧 unified state-machine 的确还会把这类 helper 调用误判成普通 `Call`，其根因是 `HandlePlanContext::known_fun_effects` 只看显式 effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据。因此原顺序先细化为 `T3010b2b0` → `T3010b2b0a`（先修 caller-side hidden suspend call 分类）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
+> 2026-04-17 当前轮阻塞更新：在实现 `T3010b2b0a` 时补了定向 helper 复现，结果发现更前置的 ordinary-frame hidden suspend 缺口仍未闭合：`main_unreachable` 已不再出现，但 `helper()` 自身仍会在 `BoomObject.x` 返回 active 后继续执行 `helper_unreachable`。这说明 `T3010b2b0` 目前只覆盖 direct `perform/Raise`、ordinary user call 与 `as` cast raise；object value/property access、class ctor init、builtin runtime raise 等 hidden suspend boundary 还没有接到 ordinary-frame propagation 合同。因此顺序再次前移为 `T3010b2b0` → `T3010b2b0a0`（先修 hidden-suspend ordinary callee 自终止）→ `T3010b2b0a`（再收口 caller-side hidden suspend call 分类）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 
 ## 0. 工作原则
 
@@ -324,10 +325,15 @@
   - `codegen_cast_as_expr` 的 runtime `Raise` 失败路径也已收口到同一 ordinary-frame propagation 合同。
   - 验证：`nothing_raise_in_helper_basic.scoop`、`effect_indirect_perform_nonresuming_call_chain.scoop` 与 golden 一致；`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
 
+#### T3010b2b0a0：修正 ordinary callee 内 hidden-suspend boundary 后仍继续执行的控制流语义（待办）
+- 在开始实现 `T3010b2b0a` 时补的定向 helper 复现显示：caller tail `main_unreachable` 已经不再出现，但 `helper()` 自身仍会在 `BoomObject.x` 返回 active 后继续执行 `helper_unreachable`。
+- 根因不在 caller-side state-machine，而在 ordinary-frame propagation 覆盖面：`T3010b2b0` 当前只把 direct `perform/Raise`、ordinary user call 与 `as` cast raise 接到“active 即直接向 caller 返回默认值”的合同；object value/property access、class ctor init、builtin runtime raise 这些 hidden suspend boundary 仍会把 active 留在当前 frame 里，随后继续跑后续语句。
+- 本任务先把 ordinary callee 自身的 hidden-suspend 自终止语义补齐，保证 helper 自己不会继续执行；随后 `T3010b2b0a` 再只聚焦 caller-side unified state-machine 的 suspend-call 分类。
+
 #### T3010b2b0a：修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`（待办）
-- `T3010b2b0R` 的定向复现已确认：ordinary helper 自身虽然会在 non-resuming effect 后停止执行，但只要 effect 来源是 helper 内的 hidden suspend（当前复现是 object property access 触发 object init 内 `Raise.raise(...)`），外层 `handle/try` 的 caller 仍会继续执行 call 后 tail。
+- `T3010b2b0a0` 完成后，这一层才会变成单纯的 caller-side 问题：ordinary helper 虽然已经不会继续执行，但外层 `handle/try` 的 caller 仍必须把这类 hidden-suspend helper 调用当成真正的 suspend boundary。
 - 根因不在 ordinary-frame return helper，而在 caller-side plan metadata：`HandlePlanContext::known_fun_effects` 当前只看显式 effect row，缺少 object value/property access、class ctor init、runtime raise 等 hidden suspend source 的 callee 级汇总，导致 plan builder 继续产出 `HandleStateOp::Call`，active 不能在 call site 交给统一 dispatch loop。
-- 本任务需要先补齐这套 hidden-suspend call 分类合同，再回到 `T3010b2b0R` 复审 ordinary-frame 终止语义，避免把“callee 不继续执行”和“caller 还能正确 dispatch”混成同一个 review 结论。
+- 本任务需要在 `T3010b2b0a0` 之后补齐这套 hidden-suspend call 分类合同，再回到 `T3010b2b0R` 复审 ordinary-frame 终止语义，避免把“callee 不继续执行”和“caller 还能正确 dispatch”混成同一个 review 结论。
 
 #### T3010b2b0R：Review（待办）
 - 在 `T3010b2b0a` 收口 caller-side hidden suspend call 分类之后，再只审查生产代码，确认普通 callee frame 的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是回流到旧的 flag-based unwind 或 callee-shape 路线。
@@ -444,10 +450,11 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b0`
-2. `T3010b2b0R`
-3. `T3010b2b1`
-4. `T3010b2b`
+1. `T3010b2b0a0`
+2. `T3010b2b0a`
+3. `T3010b2b0R`
+4. `T3010b2b1`
+5. `T3010b2b`
 5. `T3010R`
 6. `T3011`
 7. `T3011R`

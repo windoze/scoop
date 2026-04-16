@@ -16,7 +16,7 @@
 //! 非目标（后续任务逐步补齐）：
 //! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
 
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
@@ -92,6 +92,11 @@ struct CgLocal<'ctx> {
     ///   但某些操作（例如调用函数值）仍需要区分具体的 `RefTypeKind::Function` 并读取其签名。
     /// - 对于无法在 codegen 阶段轻易恢复 `TypeId` 的合成 locals，可为 `None`。
     hir_ty: Option<TypeId>,
+    /// 对函数值局部记录“调用时是否可能触发 suspend boundary”。
+    ///
+    /// 该标记不仅覆盖显式 effect row，也覆盖 hidden suspend 来源
+    /// （例如 object/class init、runtime raise）经由局部函数值传播的情况。
+    call_may_suspend: bool,
     ty: CgTy,
     ptr: PointerValue<'ctx>,
     mutable: bool,
@@ -131,6 +136,15 @@ impl<'ctx> Env<'ctx> {
         }
         None
     }
+
+    fn get_mut(&mut self, id: hir::SymbolId) -> Option<&mut CgLocal<'ctx>> {
+        for frame in self.scopes.iter_mut().rev() {
+            if let Some(local) = frame.get_mut(&id) {
+                return Some(local);
+            }
+        }
+        None
+    }
 }
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
@@ -157,6 +171,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
+    /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
+    known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
     type_layout_cache: HashMap<TypeId, TypeLayout>,
     /// `Option<T>` niche 表示的 `None` 编码（用于 nested niche，例如 `Option<Option<Bool>>`）。
@@ -327,6 +343,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             continuation_resume_call_sites,
             fun_index,
             env: Env::default(),
+            known_fun_call_suspend_cache: RefCell::new(None),
             type_layout_cache: HashMap::new(),
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
@@ -2263,6 +2280,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 class.this_id,
                 CgLocal {
                     hir_ty: None,
+                    call_may_suspend: false,
                     ty: CgTy::Ref,
                     ptr: this_ptr,
                     mutable: false,
@@ -2293,6 +2311,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     param.id,
                     CgLocal {
                         hir_ty: Some(param.ty),
+                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
                         ty: param_cg,
                         ptr: param_ptr,
                         mutable: false,
@@ -10397,6 +10416,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     *id,
                     CgLocal {
                         hir_ty: Some(*ty_id),
+                        call_may_suspend: self
+                            .env
+                            .get(*id)
+                            .map(|local| local.call_may_suspend)
+                            .unwrap_or_else(|| {
+                                self.local_call_may_suspend_from_hir_ty(Some(*ty_id))
+                            }),
                         ty: target_ty,
                         ptr,
                         mutable: false,
@@ -10491,6 +10517,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 *id,
                 CgLocal {
                     hir_ty: Some(*ty_id),
+                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
                     ty: target_ty,
                     ptr,
                     mutable: false,
@@ -11199,6 +11226,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 param.id,
                 CgLocal {
                     hir_ty: Some(param.ty),
+                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
                     ty: target_ty,
                     ptr,
                     mutable: false,

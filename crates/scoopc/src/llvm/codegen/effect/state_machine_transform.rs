@@ -1966,7 +1966,7 @@ mod transform_tests {
     use crate::resolve::Index;
     use crate::session::Session;
     use crate::source::SourceFile;
-    use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+    use crate::ty::TypeStore;
     use crate::typecheck;
 
     use super::*;
@@ -3639,34 +3639,16 @@ fun demo(): Int {
         lowered: &hir::LoweredHir,
         owner_fun: &hir::FunDecl,
     ) -> HandlePlanContext {
-        let mut known_fun_effects = HashMap::new();
-        for item in &lowered.file.items {
-            if let hir::Item::Fun(fun) = item {
-                known_fun_effects.insert(
-                    fun.fqn.clone(),
-                    fun_effects_are_non_pure(&lowered.types, fun.ty),
-                );
-            }
-        }
-        for fun in &lowered.member_funs {
-            known_fun_effects.insert(
-                fun.fqn.clone(),
-                fun_effects_are_non_pure(&lowered.types, fun.ty),
-            );
-        }
-
-        let mut known_local_fun_effects = HashMap::new();
-        let mut known_local_metadata = HashMap::new();
-        collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
-        for param in &owner_fun.params {
-            known_local_fun_effects.insert(
-                param.id,
-                fun_effects_are_non_pure(&lowered.types, param.ty),
-            );
-        }
-        if let Some(body) = &owner_fun.body {
-            collect_local_fun_effects_in_block(body, &lowered.types, &mut known_local_fun_effects);
-        }
+        let fun_index = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                hir::Item::Fun(fun) => Some((fun.fqn.clone(), fun)),
+                _ => None,
+            })
+            .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
+            .collect::<HashMap<_, _>>();
 
         let ctor_call_targets = lowered
             .ctor_call_sites
@@ -3677,7 +3659,7 @@ fun demo(): Int {
                 stable_targets.dedup();
                 (*span, stable_targets)
             })
-            .collect();
+            .collect::<HashMap<_, _>>();
         let object_value_fqns: HashSet<String> = lowered.object_inits.keys().cloned().collect();
         let object_property_fqns: HashSet<String> = lowered
             .object_inits
@@ -3690,6 +3672,26 @@ fun demo(): Int {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let known_fun_effects = collect_known_fun_call_suspendability(
+            &lowered.types,
+            &fun_index,
+            &ctor_call_targets,
+            &lowered.continuation_resume_call_sites,
+            &object_value_fqns,
+            &object_property_fqns,
+        );
+
+        let mut known_local_metadata = HashMap::new();
+        collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
+        let known_local_fun_effects = collect_known_local_fun_call_suspendability_in_fun(
+            owner_fun,
+            &lowered.types,
+            &known_fun_effects,
+            &ctor_call_targets,
+            &lowered.continuation_resume_call_sites,
+            &object_value_fqns,
+            &object_property_fqns,
+        );
 
         HandlePlanContext {
             known_fun_effects,
@@ -3699,159 +3701,6 @@ fun demo(): Int {
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
-        }
-    }
-
-    fn fun_effects_are_non_pure(types: &TypeStore, ty: TypeId) -> bool {
-        match types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => !fun_ty.effects.is_pure(),
-            _ => false,
-        }
-    }
-
-    fn collect_local_fun_effects_in_block(
-        block: &hir::Block,
-        types: &TypeStore,
-        out: &mut HashMap<hir::SymbolId, bool>,
-    ) {
-        for stmt in &block.stmts {
-            collect_local_fun_effects_in_stmt(stmt, types, out);
-        }
-    }
-
-    fn collect_local_fun_effects_in_stmt(
-        stmt: &hir::Stmt,
-        types: &TypeStore,
-        out: &mut HashMap<hir::SymbolId, bool>,
-    ) {
-        match &stmt.kind {
-            hir::StmtKind::Empty
-            | hir::StmtKind::Break { .. }
-            | hir::StmtKind::Continue { .. }
-            | hir::StmtKind::Todo(_) => {}
-            hir::StmtKind::Expr(expr) => collect_local_fun_effects_in_expr(expr, types, out),
-            hir::StmtKind::Val(decl) => {
-                if let Some(id) = decl.id
-                    && fun_effects_are_non_pure(types, decl.ty)
-                {
-                    out.insert(id, true);
-                }
-                if let Some(init) = &decl.init {
-                    collect_local_fun_effects_in_expr(init, types, out);
-                }
-            }
-            hir::StmtKind::Assign { lhs, rhs, .. } => {
-                collect_local_fun_effects_in_expr(lhs, types, out);
-                collect_local_fun_effects_in_expr(rhs, types, out);
-            }
-            hir::StmtKind::While { cond, body } => {
-                collect_local_fun_effects_in_expr(cond, types, out);
-                collect_local_fun_effects_in_block(body, types, out);
-            }
-            hir::StmtKind::Return { value } => {
-                if let Some(expr) = value {
-                    collect_local_fun_effects_in_expr(expr, types, out);
-                }
-            }
-        }
-    }
-
-    fn collect_local_fun_effects_in_expr(
-        expr: &hir::Expr,
-        types: &TypeStore,
-        out: &mut HashMap<hir::SymbolId, bool>,
-    ) {
-        match &expr.kind {
-            hir::ExprKind::Missing
-            | hir::ExprKind::Literal(_)
-            | hir::ExprKind::VarRef(_)
-            | hir::ExprKind::UnresolvedIdent { .. }
-            | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Block(block) => collect_local_fun_effects_in_block(block, types, out),
-            hir::ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-            } => {
-                collect_local_fun_effects_in_expr(cond, types, out);
-                collect_local_fun_effects_in_expr(then_branch, types, out);
-                if let Some(else_branch) = else_branch {
-                    collect_local_fun_effects_in_expr(else_branch, types, out);
-                }
-            }
-            hir::ExprKind::When { subject, arms } => {
-                collect_local_fun_effects_in_expr(subject, types, out);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        collect_local_fun_effects_in_expr(guard, types, out);
-                    }
-                    collect_local_fun_effects_in_expr(&arm.body, types, out);
-                }
-            }
-            hir::ExprKind::Call { callee, args } => {
-                collect_local_fun_effects_in_expr(callee, types, out);
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            collect_local_fun_effects_in_expr(expr, types, out)
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            collect_local_fun_effects_in_expr(value, types, out)
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::StructLit { fields, .. } => {
-                for field in fields {
-                    collect_local_fun_effects_in_expr(&field.value, types, out);
-                }
-            }
-            hir::ExprKind::TupleLit { elements } => {
-                for element in elements {
-                    collect_local_fun_effects_in_expr(element, types, out);
-                }
-            }
-            hir::ExprKind::InterpolatedString { parts, .. } => {
-                for part in parts {
-                    if let hir::InterpolatedStringPart::Expr { expr } = part {
-                        collect_local_fun_effects_in_expr(expr, types, out);
-                    }
-                }
-            }
-            hir::ExprKind::Unary { expr: inner, .. }
-            | hir::ExprKind::Cast { expr: inner, .. }
-            | hir::ExprKind::TypeCheck { expr: inner, .. }
-            | hir::ExprKind::MemberAccess {
-                receiver: inner, ..
-            } => collect_local_fun_effects_in_expr(inner, types, out),
-            hir::ExprKind::Binary { lhs, rhs, .. } => {
-                collect_local_fun_effects_in_expr(lhs, types, out);
-                collect_local_fun_effects_in_expr(rhs, types, out);
-            }
-            hir::ExprKind::Closure(closure) => {
-                collect_local_fun_effects_in_expr(&closure.body, types, out);
-            }
-            hir::ExprKind::Perform { args, .. } => {
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            collect_local_fun_effects_in_expr(expr, types, out)
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            collect_local_fun_effects_in_expr(value, types, out)
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::Handle(handle) => {
-                collect_local_fun_effects_in_block(&handle.body, types, out);
-                for arm in &handle.arms {
-                    collect_local_fun_effects_in_expr(&arm.body, types, out);
-                }
-                if let Some(finally) = &handle.finally {
-                    collect_local_fun_effects_in_block(finally, types, out);
-                }
-            }
         }
     }
 }

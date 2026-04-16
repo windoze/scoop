@@ -547,6 +547,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 id,
                 CgLocal {
                     hir_ty: Some(type_id),
+                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                     ty: cg_ty,
                     ptr: slot_ptr,
                     mutable: slot.mutable(),
@@ -841,6 +842,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             id,
             CgLocal {
                 hir_ty: Some(decl.ty),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(decl.ty)),
                 ty: target_ty,
                 ptr: slot_ptr,
                 mutable: decl.mutable,
@@ -901,6 +903,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             id,
             CgLocal {
                 hir_ty: Some(type_id),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                 ty: cg_ty,
                 ptr: slot_ptr,
                 mutable: unified_slot.slot().mutable(),
@@ -1994,6 +1997,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     binder.id,
                     CgLocal {
                         hir_ty: Some(binder.ty),
+                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(binder.ty)),
                         ty: binder_cg_ty,
                         ptr: slot_ptr,
                         mutable: false,
@@ -2010,6 +2014,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     binder.id,
                     CgLocal {
                         hir_ty: Some(binder.ty),
+                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(binder.ty)),
                         ty: binder_cg_ty,
                         ptr: alloca,
                         mutable: false,
@@ -2051,6 +2056,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         continuation,
                         CgLocal {
                             hir_ty: None,
+                            call_may_suspend: false,
                             ty: CgTy::Ref,
                             ptr: slot_ptr,
                             mutable: false,
@@ -2065,6 +2071,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         continuation,
                         CgLocal {
                             hir_ty: None,
+                            call_may_suspend: false,
                             ty: CgTy::Ref,
                             ptr: alloca,
                             mutable: false,
@@ -2104,6 +2111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         local_id,
                         CgLocal {
                             hir_ty: Some(type_id),
+                            call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
                             ty: cg_ty,
                             ptr: slot_ptr,
                             mutable: slot.slot().mutable(),

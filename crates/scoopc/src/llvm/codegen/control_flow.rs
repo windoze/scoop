@@ -881,6 +881,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     *id,
                     CgLocal {
                         hir_ty: None,
+                        call_may_suspend: false,
                         ty: subject_ty,
                         ptr,
                         mutable: false,
@@ -993,6 +994,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     *id,
                                     CgLocal {
                                         hir_ty: None,
+                                        call_may_suspend: false,
                                         ty: field_cg,
                                         ptr,
                                         mutable: false,
@@ -1073,6 +1075,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 *id,
                                 CgLocal {
                                     hir_ty: None,
+                                    call_may_suspend: false,
                                     ty: field_cg,
                                     ptr,
                                     mutable: false,
@@ -1252,6 +1255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             *id,
                             CgLocal {
                                 hir_ty: None,
+                                call_may_suspend: false,
                                 ty: field_cg,
                                 ptr,
                                 mutable: false,
@@ -1350,6 +1354,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 *id,
                                 CgLocal {
                                     hir_ty: None,
+                                    call_may_suspend: false,
                                     ty: elem_ty,
                                     ptr,
                                     mutable: false,

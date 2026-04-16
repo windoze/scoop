@@ -32,11 +32,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let name = decl.name.as_deref().unwrap_or("local");
         let ptr = self.create_entry_alloca(decl.span, name, target_ty)?;
         let _stored = self.store_local_value(decl.span, ptr, target_ty, init)?;
+        let call_may_suspend = self.local_call_may_suspend_from_hir_ty(Some(decl.ty))
+            || decl
+                .init
+                .as_ref()
+                .is_some_and(|expr| self.function_value_expr_may_suspend_when_called_for_local(expr));
 
         self.env.insert(
             id,
             CgLocal {
                 hir_ty: Some(decl.ty),
+                call_may_suspend,
                 ty: target_ty,
                 ptr,
                 mutable: decl.mutable,
@@ -71,6 +77,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
                     let _stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
+                    let rhs_call_may_suspend = self.function_value_expr_may_suspend_when_called_for_local(rhs);
+                    if let Some(local_mut) = self.env.get_mut(*id) {
+                        local_mut.call_may_suspend |= rhs_call_may_suspend;
+                    }
                     Ok(())
                 }
                 hir::ValueRef::TopLevel { fqn, .. } => {

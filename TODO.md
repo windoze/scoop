@@ -657,8 +657,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009aR
 
+### T3010b2b0a0 [TODO] 修正 ordinary callee 内 hidden-suspend boundary 后仍继续执行的控制流语义
+- 描述：执行 `T3010b2b0a` 时补了“helper -> object property access -> object init 内 `Raise.raise(...)`”定向复现，结果发现当前阻塞点比 caller-side 分类更前置：`main_unreachable` 已经不再出现，但 `helper()` 自身仍会在 `BoomObject.x` 返回 active 后继续执行 `helper_unreachable`。这说明 `T3010b2b0` 目前只覆盖了 direct `perform/Raise`、ordinary user call 与 `as` cast raise；object value/property access、class ctor init、builtin runtime raise 等 hidden suspend boundary 仍没有接到 ordinary-frame propagation contract。
+- 目标：
+  - ordinary 函数 / helper / 方法体内，一旦 hidden suspend boundary（至少覆盖 object value/property access、class ctor init、builtin runtime raise）向当前 frame 返回 active，当前 callee frame 必须立刻停止执行，不能继续落到后续 statement / tail expression。
+  - 该终止语义必须沿用统一 ordinary-frame propagation 合同，禁止恢复旧 flag-based unwind，也禁止只给单个 object/property access callsite 打补丁。
+  - 为后续 `T3010b2b0a` 提供真实前置：先保证 helper 自己不会继续执行，再继续审查 caller-side unified state-machine 是否把这类 helper 调用当成 suspend boundary。
+- 验收：
+  - 新增一个覆盖“helper -> object property access -> object init raise”路径的 run-pass fixture，并验证 stdout 同时不包含 `helper_unreachable` 与 caller tail。
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3010b2b0
+
 ### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
-- 描述：执行 `T3010b2b0R` 复审时，构造了“ordinary helper -> object property access -> object init 内 `Raise.raise(...)`”的定向复现。结果表明：`T3010b2b0` 已经让 helper 自身不再继续执行 `helper_unreachable`，但外层 `handle/try` 的 caller 仍会继续执行 call 后 tail（例如 `main_unreachable`），说明 caller 侧 unified state-machine 没有把这类 helper 调用当成真正的 suspend boundary。根因是 `HandlePlanContext::known_fun_effects` 当前只看显式 function effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据，导致这类 ordinary callee 在 plan builder 中被降成 `HandleStateOp::Call`，而不是能把 active 交给 dispatch loop 的 suspend site。
+- 描述：执行 `T3010b2b0R` 复审时，构造了“ordinary helper -> object property access -> object init 内 `Raise.raise(...)`”的定向复现。当前已确认 caller-side 的剩余问题不在 ordinary-frame return helper，而在 caller 侧 unified state-machine 的 call 分类：`HandlePlanContext::known_fun_effects` 只看显式 function effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据，导致这类 ordinary callee 在 plan builder 中被降成 `HandleStateOp::Call`，而不是能把 active 交给 dispatch loop 的 suspend site。本任务现在显式等待 `T3010b2b0a0` 先把 helper 自身的 hidden-suspend 自终止语义收口完毕。
 - 目标：
   - 为 top-level/member/local function value 的 suspend-call 分类补齐 hidden-suspend 元数据，至少覆盖 object value/property access、class ctor init 与 runtime raise 这几类现有 hidden suspend source。
   - 确保 ordinary helper 在向 caller 传播 active 后，caller 侧 unified state-machine 会立即进入统一 dispatch / cleanup / resume 合同，而不是继续执行 call 后 tail。
@@ -668,7 +681,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3010b2b0
+- 依赖：T3010b2b0a0
 
 ### T3010b2b0R [TODO] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
 - 描述：在 `T3010b2b0` 之后只审查生产代码，确认普通 callee frame 在 non-resuming perform 后终止自身执行的实现是统一、可审计的控制流合同，而不是重新引入 `emit_effect_unwind_if_active`、旧 callee-suspend 路线或其它按代码形状分流的旁路；若发现回流，本任务需要直接修复并复审。

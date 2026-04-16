@@ -1349,6 +1349,7 @@ struct HandlePlanBuilder<'a, 'hir> {
     types: &'a TypeStore,
     handle: &'hir hir::HandleExpr,
     context: &'a HandlePlanContext,
+    known_local_fun_effects: HashMap<hir::SymbolId, bool>,
     next_state_id: PlanStateId,
     next_site_id: SuspendSiteId,
     next_cleanup_id: CleanupScopeId,
@@ -1363,6 +1364,49 @@ struct HandlePlanBuilder<'a, 'hir> {
 }
 
 impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
+    fn local_function_value_may_suspend_when_called(&self, expr: &hir::Expr) -> bool {
+        SuspendCallAnalysis {
+            types: self.types,
+            known_fun_effects: &self.context.known_fun_effects,
+            ctor_call_targets: &self.context.ctor_call_targets,
+            continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
+            object_value_fqns: &self.context.object_value_fqns,
+            object_property_fqns: &self.context.object_property_fqns,
+        }
+        .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
+    }
+
+    fn record_local_fun_binding_if_needed(&mut self, decl: &hir::ValDecl) {
+        let Some(id) = decl.id else {
+            return;
+        };
+        if !hir_ty_is_function_value(self.types, decl.ty) {
+            return;
+        }
+        let may_suspend = function_ty_may_suspend(self.types, decl.ty)
+            || decl
+                .init
+                .as_ref()
+                .is_some_and(|expr| self.local_function_value_may_suspend_when_called(expr));
+        self.known_local_fun_effects.insert(id, may_suspend);
+    }
+
+    fn record_local_fun_assignment_if_needed(&mut self, lhs: &hir::Expr, rhs: &hir::Expr) {
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &lhs.kind else {
+            return;
+        };
+        if !hir_ty_is_function_value(self.types, lhs.ty)
+            && !hir_ty_is_function_value(self.types, rhs.ty)
+            && !self.known_local_fun_effects.contains_key(id)
+        {
+            return;
+        }
+        let may_suspend = function_ty_may_suspend(self.types, rhs.ty)
+            || self.local_function_value_may_suspend_when_called(rhs);
+        let entry = self.known_local_fun_effects.entry(*id).or_insert(false);
+        *entry |= may_suspend;
+    }
+
     fn new(
         types: &'a TypeStore,
         handle: &'hir hir::HandleExpr,
@@ -1372,6 +1416,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             types,
             handle,
             context,
+            known_local_fun_effects: context.known_local_fun_effects.clone(),
             next_state_id: 0,
             next_site_id: 0,
             next_cleanup_id: 0,
@@ -1500,6 +1545,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 if let Some(init) = decl.init.as_ref() {
                     state = self.build_expr_for_consumer(init, state, env);
                 }
+                self.record_local_fun_binding_if_needed(decl);
                 if let Some(id) = decl.id {
                     let slot = FrameSlot {
                         id,
@@ -1533,6 +1579,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::StmtKind::Assign { lhs, rhs, .. } => {
                 let mut state = self.build_expr_for_consumer(lhs, current_state, env);
                 state = self.build_expr_for_consumer(rhs, state, env);
+                self.record_local_fun_assignment_if_needed(lhs, rhs);
                 self.record_stmt_reads(state, stmt);
                 self.push_action(
                     state,
@@ -2236,7 +2283,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
-            && let Some(effectful) = self.context.known_local_fun_effects.get(id).copied()
+            && let Some(effectful) = self.known_local_fun_effects.get(id).copied()
         {
             return if effectful {
                 Some(SuspendSiteKind::CallMaySuspend {
@@ -2274,7 +2321,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee.ty) {
             if fun_ty.effects.is_pure() {
-                return None;
+                return self
+                    .local_function_value_may_suspend_when_called(callee)
+                    .then(|| SuspendSiteKind::CallMaySuspend {
+                        callee: format!("expr@{:?}", expr.span),
+                    });
             }
             return try_extract_callee_fqn(callee).map_or_else(
                 || {
@@ -3949,6 +4000,486 @@ fn collect_known_local_metadata_in_expr(
     }
 }
 
+fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(
+        types.kind(ty),
+        TypeKind::Ref(RefTypeKind::Function(fun_ty)) if !fun_ty.effects.is_pure()
+    )
+}
+
+fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
+}
+
+struct SuspendCallAnalysis<'a> {
+    types: &'a TypeStore,
+    known_fun_effects: &'a HashMap<String, bool>,
+    ctor_call_targets: &'a HashMap<Span, Vec<String>>,
+    continuation_resume_call_sites: &'a HashSet<Span>,
+    object_value_fqns: &'a HashSet<String>,
+    object_property_fqns: &'a HashSet<String>,
+}
+
+impl<'a> SuspendCallAnalysis<'a> {
+    fn block_may_suspend(
+        &self,
+        block: &hir::Block,
+        seed_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        let known_locals = self.solve_local_fun_effects_in_block(block, seed_locals);
+        self.block_may_suspend_with_locals(block, &known_locals)
+    }
+
+    fn solve_local_fun_effects_in_block(
+        &self,
+        block: &hir::Block,
+        seed_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> HashMap<hir::SymbolId, bool> {
+        let mut known_locals = seed_locals.clone();
+        loop {
+            let before = known_locals.clone();
+            self.collect_local_fun_effects_in_block(block, &mut known_locals);
+            if known_locals == before {
+                break;
+            }
+        }
+        known_locals
+    }
+
+    fn collect_local_fun_effects_in_block(
+        &self,
+        block: &hir::Block,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        for stmt in &block.stmts {
+            self.collect_local_fun_effects_in_stmt(stmt, out);
+        }
+    }
+
+    fn collect_local_fun_effects_in_stmt(
+        &self,
+        stmt: &hir::Stmt,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Expr(expr) => self.collect_local_fun_effects_in_expr(expr, out),
+            hir::StmtKind::Val(decl) => {
+                if let Some(init) = decl.init.as_ref() {
+                    self.collect_local_fun_effects_in_expr(init, out);
+                }
+                if let Some(id) = decl.id
+                    && hir_ty_is_function_value(self.types, decl.ty)
+                {
+                    let may_suspend = function_ty_may_suspend(self.types, decl.ty)
+                        || decl.init.as_ref().is_some_and(|expr| {
+                            self.function_value_may_suspend_when_called(expr, out)
+                        });
+                    out.insert(id, may_suspend);
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.collect_local_fun_effects_in_expr(lhs, out);
+                self.collect_local_fun_effects_in_expr(rhs, out);
+                if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &lhs.kind
+                    && (hir_ty_is_function_value(self.types, lhs.ty)
+                        || hir_ty_is_function_value(self.types, rhs.ty)
+                        || out.contains_key(id))
+                {
+                    let may_suspend = function_ty_may_suspend(self.types, rhs.ty)
+                        || self.function_value_may_suspend_when_called(rhs, out);
+                    let entry = out.entry(*id).or_insert(false);
+                    *entry |= may_suspend;
+                }
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.collect_local_fun_effects_in_expr(cond, out);
+                self.collect_local_fun_effects_in_block(body, out);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value {
+                    self.collect_local_fun_effects_in_expr(expr, out);
+                }
+            }
+        }
+    }
+
+    fn collect_local_fun_effects_in_expr(
+        &self,
+        expr: &hir::Expr,
+        out: &mut HashMap<hir::SymbolId, bool>,
+    ) {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Block(block) => self.collect_local_fun_effects_in_block(block, out),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.collect_local_fun_effects_in_expr(cond, out);
+                self.collect_local_fun_effects_in_expr(then_branch, out);
+                if let Some(else_branch) = else_branch.as_deref() {
+                    self.collect_local_fun_effects_in_expr(else_branch, out);
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.collect_local_fun_effects_in_expr(subject, out);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        self.collect_local_fun_effects_in_expr(guard, out);
+                    }
+                    self.collect_local_fun_effects_in_expr(&arm.body, out);
+                }
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.collect_local_fun_effects_in_expr(callee, out);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_local_fun_effects_in_expr(expr, out)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_local_fun_effects_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.collect_local_fun_effects_in_expr(&field.value, out);
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.collect_local_fun_effects_in_expr(element, out);
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.collect_local_fun_effects_in_expr(expr, out);
+                    }
+                }
+            }
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => self.collect_local_fun_effects_in_expr(inner, out),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_local_fun_effects_in_expr(lhs, out);
+                self.collect_local_fun_effects_in_expr(rhs, out);
+            }
+            hir::ExprKind::Closure(closure) => {
+                self.collect_local_fun_effects_in_expr(&closure.body, out);
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_local_fun_effects_in_expr(expr, out)
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_local_fun_effects_in_expr(value, out)
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Handle(handle) => {
+                self.collect_local_fun_effects_in_block(&handle.body, out);
+                for arm in &handle.arms {
+                    self.collect_local_fun_effects_in_expr(&arm.body, out);
+                }
+                if let Some(finally_block) = &handle.finally {
+                    self.collect_local_fun_effects_in_block(finally_block, out);
+                }
+            }
+        }
+    }
+
+    fn block_may_suspend_with_locals(
+        &self,
+        block: &hir::Block,
+        known_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        block.stmts
+            .iter()
+            .any(|stmt| self.stmt_may_suspend(stmt, known_locals))
+    }
+
+    fn stmt_may_suspend(
+        &self,
+        stmt: &hir::Stmt,
+        known_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => false,
+            hir::StmtKind::Expr(expr) => self.expr_may_suspend(expr, known_locals),
+            hir::StmtKind::Val(decl) => decl
+                .init
+                .as_ref()
+                .is_some_and(|expr| self.expr_may_suspend(expr, known_locals)),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.expr_may_suspend(lhs, known_locals)
+                    || self.expr_may_suspend(rhs, known_locals)
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.expr_may_suspend(cond, known_locals)
+                    || self.block_may_suspend(body, known_locals)
+            }
+            hir::StmtKind::Return { value } => value
+                .as_ref()
+                .is_some_and(|expr| self.expr_may_suspend(expr, known_locals)),
+        }
+    }
+
+    fn expr_may_suspend(
+        &self,
+        expr: &hir::Expr,
+        known_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Closure(_)
+            | hir::ExprKind::Todo(_) => false,
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.object_value_fqns.contains(fqn)
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => false,
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .any(|field| self.expr_may_suspend(&field.value, known_locals)),
+            hir::ExprKind::TupleLit { elements } => elements
+                .iter()
+                .any(|element| self.expr_may_suspend(element, known_locals)),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|part| {
+                matches!(
+                    part,
+                    hir::InterpolatedStringPart::Expr { expr }
+                        if self.expr_may_suspend(expr, known_locals)
+                )
+            }),
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. } => {
+                self.expr_may_suspend(inner, known_locals)
+            }
+            hir::ExprKind::Cast { expr: inner, op, .. } => {
+                matches!(op, ast::CastOp::As) || self.expr_may_suspend(inner, known_locals)
+            }
+            hir::ExprKind::Block(block) => self.block_may_suspend(block, known_locals),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr_may_suspend(cond, known_locals)
+                    || self.expr_may_suspend(then_branch, known_locals)
+                    || else_branch
+                        .as_deref()
+                        .is_some_and(|expr| self.expr_may_suspend(expr, known_locals))
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.expr_may_suspend(subject, known_locals)
+                    || arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .is_some_and(|guard| self.expr_may_suspend(guard, known_locals))
+                            || self.expr_may_suspend(&arm.body, known_locals)
+                    })
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.expr_may_suspend(receiver, known_locals)
+                    || matches!(
+                        member.resolved.as_ref(),
+                        Some(hir::MemberRef::Value { fqn, .. })
+                            if self.object_value_fqns.contains(fqn)
+                                || self.object_property_fqns.contains(fqn)
+                    )
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.expr_may_suspend(lhs, known_locals)
+                    || self.expr_may_suspend(rhs, known_locals)
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.continuation_resume_call_sites.contains(&expr.span)
+                    || self.ctor_call_targets.contains_key(&callee.span)
+                    || self.function_value_may_suspend_when_called(callee, known_locals)
+                    || self.expr_may_suspend(callee, known_locals)
+                    || args.iter().any(|arg| match arg {
+                        hir::CallArg::Positional(expr) => self.expr_may_suspend(expr, known_locals),
+                        hir::CallArg::Named { value, .. } => {
+                            self.expr_may_suspend(value, known_locals)
+                        }
+                    })
+            }
+            hir::ExprKind::Perform { .. } => true,
+            hir::ExprKind::Handle(handle) => {
+                self.block_may_suspend(&handle.body, known_locals)
+                    || handle
+                        .arms
+                        .iter()
+                        .any(|arm| self.expr_may_suspend(&arm.body, known_locals))
+                    || handle
+                        .finally
+                        .as_ref()
+                        .is_some_and(|finally| self.block_may_suspend(finally, known_locals))
+            }
+        }
+    }
+
+    fn function_value_may_suspend_when_called(
+        &self,
+        expr: &hir::Expr,
+        known_locals: &HashMap<hir::SymbolId, bool>,
+    ) -> bool {
+        if function_ty_may_suspend(self.types, expr.ty) {
+            return true;
+        }
+        match &expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.known_fun_effects.get(fqn).copied().unwrap_or(false)
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                known_locals.get(id).copied().unwrap_or(false)
+            }
+            hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref() {
+                Some(hir::MemberRef::Fun { fqn, .. })
+                | Some(hir::MemberRef::ExtensionFun { fqn, .. }) => {
+                    self.known_fun_effects.get(fqn).copied().unwrap_or(false)
+                }
+                _ => false,
+            },
+            hir::ExprKind::Closure(closure) => {
+                let mut seed_locals = known_locals.clone();
+                for param in &closure.params {
+                    seed_locals.insert(param.id, function_ty_may_suspend(self.types, param.ty));
+                }
+                self.expr_may_suspend(&closure.body, &seed_locals)
+            }
+            hir::ExprKind::Block(block) => block
+                .stmts
+                .last()
+                .and_then(|stmt| match &stmt.kind {
+                    hir::StmtKind::Expr(expr) => Some(expr),
+                    _ => None,
+                })
+                .is_some_and(|expr| self.function_value_may_suspend_when_called(expr, known_locals)),
+            hir::ExprKind::If {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                self.function_value_may_suspend_when_called(then_branch, known_locals)
+                    || else_branch.as_deref().is_some_and(|expr| {
+                        self.function_value_may_suspend_when_called(expr, known_locals)
+                    })
+            }
+            hir::ExprKind::When { arms, .. } => arms.iter().any(|arm| {
+                self.function_value_may_suspend_when_called(&arm.body, known_locals)
+            }),
+            _ => false,
+        }
+    }
+}
+
+fn collect_known_fun_call_suspendability(
+    types: &TypeStore,
+    fun_index: &HashMap<String, &hir::FunDecl>,
+    ctor_call_targets: &HashMap<Span, Vec<String>>,
+    continuation_resume_call_sites: &HashSet<Span>,
+    object_value_fqns: &HashSet<String>,
+    object_property_fqns: &HashSet<String>,
+) -> HashMap<String, bool> {
+    let mut known_fun_effects = fun_index
+        .iter()
+        .map(|(fqn, fun)| (fqn.clone(), function_ty_may_suspend(types, fun.ty)))
+        .collect::<HashMap<_, _>>();
+
+    loop {
+        let snapshot = known_fun_effects.clone();
+        let analysis = SuspendCallAnalysis {
+            types,
+            known_fun_effects: &snapshot,
+            ctor_call_targets,
+            continuation_resume_call_sites,
+            object_value_fqns,
+            object_property_fqns,
+        };
+        let mut newly_effectful = Vec::new();
+        let mut changed = false;
+        for (fqn, fun) in fun_index {
+            if known_fun_effects.get(fqn).copied().unwrap_or(false) {
+                continue;
+            }
+            let Some(body) = &fun.body else {
+                continue;
+            };
+            let seed_locals = fun
+                .params
+                .iter()
+                .map(|param| (param.id, function_ty_may_suspend(types, param.ty)))
+                .collect::<HashMap<_, _>>();
+            if analysis.block_may_suspend(body, &seed_locals) {
+                newly_effectful.push(fqn.clone());
+            }
+        }
+        if !newly_effectful.is_empty() {
+            changed = true;
+            for fqn in newly_effectful {
+                known_fun_effects.insert(fqn, true);
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    known_fun_effects
+}
+
+#[cfg(test)]
+fn collect_known_local_fun_call_suspendability_in_fun(
+    fun: &hir::FunDecl,
+    types: &TypeStore,
+    known_fun_effects: &HashMap<String, bool>,
+    ctor_call_targets: &HashMap<Span, Vec<String>>,
+    continuation_resume_call_sites: &HashSet<Span>,
+    object_value_fqns: &HashSet<String>,
+    object_property_fqns: &HashSet<String>,
+) -> HashMap<hir::SymbolId, bool> {
+    let analysis = SuspendCallAnalysis {
+        types,
+        known_fun_effects,
+        ctor_call_targets,
+        continuation_resume_call_sites,
+        object_value_fqns,
+        object_property_fqns,
+    };
+    let seed_locals = fun
+        .params
+        .iter()
+        .map(|param| (param.id, function_ty_may_suspend(types, param.ty)))
+        .collect::<HashMap<_, _>>();
+    fun.body
+        .as_ref()
+        .map(|body| analysis.solve_local_fun_effects_in_block(body, &seed_locals))
+        .unwrap_or(seed_locals)
+}
+
 fn collect_declared_local_ids_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
     match &stmt.kind {
         hir::StmtKind::Val(decl) => {
@@ -4494,40 +5025,6 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
 
 impl HandlePlanContext {
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
-        let known_fun_effects = cg
-            .fun_index
-            .iter()
-            .map(|(fqn, fun)| {
-                (
-                    fqn.clone(),
-                    match cg.types.kind(fun.ty) {
-                        TypeKind::Ref(RefTypeKind::Function(fun_ty)) => !fun_ty.effects.is_pure(),
-                        _ => false,
-                    },
-                )
-            })
-            .collect();
-
-        let mut known_local_fun_effects = HashMap::new();
-        let mut known_local_metadata = HashMap::new();
-        for scope in &cg.env.scopes {
-            for (&id, local) in scope {
-                let Some(hir_ty) = local.hir_ty else {
-                    continue;
-                };
-                known_local_metadata.insert(
-                    id,
-                    KnownLocalMetadata {
-                        ty: hir_ty,
-                        mutable: local.mutable,
-                    },
-                );
-                if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = cg.types.kind(hir_ty) {
-                    known_local_fun_effects.insert(id, !fun_ty.effects.is_pure());
-                }
-            }
-        }
-
         let ctor_call_targets = cg
             .ctor_call_sites
             .iter()
@@ -4550,6 +5047,27 @@ impl HandlePlanContext {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let known_fun_effects = cg.known_fun_call_suspendability_map().clone();
+
+        let mut known_local_fun_effects = HashMap::new();
+        let mut known_local_metadata = HashMap::new();
+        for scope in &cg.env.scopes {
+            for (&id, local) in scope {
+                let Some(hir_ty) = local.hir_ty else {
+                    continue;
+                };
+                known_local_metadata.insert(
+                    id,
+                    KnownLocalMetadata {
+                        ty: hir_ty,
+                        mutable: local.mutable,
+                    },
+                );
+                if hir_ty_is_function_value(cg.types, hir_ty) {
+                    known_local_fun_effects.insert(id, local.call_may_suspend);
+                }
+            }
+        }
 
         Self {
             known_fun_effects,
@@ -4564,6 +5082,110 @@ impl HandlePlanContext {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn ensure_known_fun_call_suspend_cache(&self) {
+        if self.known_fun_call_suspend_cache.borrow().is_some() {
+            return;
+        }
+
+        let ctor_call_targets = self
+            .ctor_call_sites
+            .iter()
+            .map(|(span, targets)| {
+                let mut stable_targets = targets.clone();
+                stable_targets.sort();
+                stable_targets.dedup();
+                (*span, stable_targets)
+            })
+            .collect::<HashMap<_, _>>();
+        let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
+        let object_property_fqns = self
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .keys()
+                    .map(|name| format!("{owner_fqn}.{name}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<HashSet<_>>();
+        let known_fun_effects = collect_known_fun_call_suspendability(
+            self.types,
+            self.fun_index,
+            &ctor_call_targets,
+            self.continuation_resume_call_sites,
+            &object_value_fqns,
+            &object_property_fqns,
+        );
+        *self.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
+    }
+
+    fn known_fun_call_suspendability_map(&self) -> Ref<'_, HashMap<String, bool>> {
+        self.ensure_known_fun_call_suspend_cache();
+        Ref::map(self.known_fun_call_suspend_cache.borrow(), |cache| {
+            cache.as_ref()
+                .expect("known fun suspend cache should be initialized")
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn local_call_may_suspend_from_hir_ty(
+        &self,
+        hir_ty: Option<TypeId>,
+    ) -> bool {
+        hir_ty.is_some_and(|ty| function_ty_may_suspend(self.types, ty))
+    }
+
+    pub(in crate::llvm::codegen) fn function_value_expr_may_suspend_when_called_for_local(
+        &self,
+        expr: &hir::Expr,
+    ) -> bool {
+        let known_fun_effects = self.known_fun_call_suspendability_map();
+        let mut known_locals = HashMap::new();
+        for scope in &self.env.scopes {
+            for (&id, local) in scope {
+                let Some(hir_ty) = local.hir_ty else {
+                    continue;
+                };
+                if hir_ty_is_function_value(self.types, hir_ty) {
+                    known_locals.insert(id, local.call_may_suspend);
+                }
+            }
+        }
+
+        let ctor_call_targets = self
+            .ctor_call_sites
+            .iter()
+            .map(|(span, targets)| {
+                let mut stable_targets = targets.clone();
+                stable_targets.sort();
+                stable_targets.dedup();
+                (*span, stable_targets)
+            })
+            .collect::<HashMap<_, _>>();
+        let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
+        let object_property_fqns = self
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .keys()
+                    .map(|name| format!("{owner_fqn}.{name}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<HashSet<_>>();
+
+        SuspendCallAnalysis {
+            types: self.types,
+            known_fun_effects: &known_fun_effects,
+            ctor_call_targets: &ctor_call_targets,
+            continuation_resume_call_sites: self.continuation_resume_call_sites,
+            object_value_fqns: &object_value_fqns,
+            object_property_fqns: &object_property_fqns,
+        }
+        .function_value_may_suspend_when_called(expr, &known_locals)
+    }
+
     /// Build the unified lowering contract for a `handle` expression.
     ///
     /// Pipeline: HandleExpr → plan → segments (+ validation) → unified state machine → contract.
