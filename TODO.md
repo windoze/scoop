@@ -456,8 +456,17 @@
 
 ## T31：前端 `do` block / closure 消歧与 block 语义收口
 
-### T3101 [TODO] Parser / AST：引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
-- 描述：当前 parser 在普通表达式位置把 `{ ... }` 同时暴露给 local block、lambda 与 trailing lambda 相关路径，导致 `val a = { println("hello") }` 之类写法无法从语法上判断是“把 closure 赋给 `a`”还是“先执行 block 再把结果赋给 `a`”。现行实现里部分 effect fixtures 只能借 `@Safe { ... }` 绕过该缺口，但这不是规范想要的语义。Scoop 改采 Swift 风格：普通局部 block 必须由 `do` 引入。
+### T3101 [DONE] Parser / AST：引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
+- 描述：当前 parser 在普通表达式位置把 `{ ... }` 同时暴露给 local block、lambda 与 trailing lambda 相关路径，导致 `val a = { println(“hello”) }` 之类写法无法从语法上判断是”把 closure 赋给 `a`”还是”先执行 block 再把结果赋给 `a`”。现行实现里部分 effect fixtures 只能借 `@Safe { ... }` 绕过该缺口，但这不是规范想要的语义。Scoop 改采 Swift 风格：普通局部 block 必须由 `do` 引入。
+- 进展：
+  - 已在 `Keyword` 枚举中新增 `Do` 关键字，lexer 识别 `”do”` 为关键字。
+  - 已在 `ExprKind` 枚举中新增 `DoBlock { do_span, body }` 变体，与控制流内部使用的 `Block` 和 `Lambda` 区分。
+  - `try_parse_expr_atom` 中 `do` 关键字优先于 `{` 匹配，确保 `do { ... }` 解析为 `DoBlock`，而裸 `{ ... }` 继续按 lambda 解析。
+  - `@Safe` / `@Unsafe` 后支持可选 `do` 关键字：`@Safe do { ... }` 和 `@Unsafe do { ... }` 均可正确解析。`@Safe { ... }` 保持向后兼容。
+  - 已更新所有 AST 消费者：`resolve/scopes.rs`、`typecheck/expr/infer.rs`、`typecheck/expr/stmt.rs`、`typecheck/expr/ops.rs`、`typecheck/expr/util.rs`、`typecheck/properties.rs`、`hir/lower/expr.rs`、`comptime/eval.rs`、`parser/cursor.rs`。`DoBlock` 在语义层面与 `Block` 等价。
+  - 新增 4 个 parser 单元测试：`do_block_basic`、`bare_brace_is_lambda_not_do_block`、`safe_do_block`、`unsafe_do_block`。
+  - 新增 2 个 parse fixtures：`do_block_basic.scoop`（验证 `do { ... }` 被解析为 `DoBlock`）、`do_block_vs_closure.scoop`（验证 `{ 1 }` 为 Lambda、`do { 1 }` 为 DoBlock）。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（217 passed）、`cargo run -p scoop -- test`（965 fixtures）、`cargo run -p scoop --features llvm -- test`（965 fixtures）全部通过。
 - 目标：
   - statement-position / expression-position 的普通局部 block 统一写作 `do { ... }`；parser 不再把裸 `{ ... }` 解析为 plain block。
   - 没有 `do` 的 `{ ... }` 统一按 closure 解析；`callee { ... }`、`callee(args) { ... }`、multiple trailing lambdas 继续按调用后缀 / closure 规则工作。

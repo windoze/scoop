@@ -71,6 +71,7 @@ pub(super) fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::ArrayLit { .. } => "array literal",
         ast::ExprKind::InterpolatedString { .. } => "interpolated string",
         ast::ExprKind::Block(_) => "block",
+        ast::ExprKind::DoBlock { .. } => "do block",
         ast::ExprKind::UnsafeBlock { .. } => "unsafe block",
         ast::ExprKind::SafeBlock { .. } => "safe block",
         ast::ExprKind::Lambda(_) => "lambda",

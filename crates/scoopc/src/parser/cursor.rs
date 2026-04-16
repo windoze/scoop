@@ -156,6 +156,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub(super) fn eat_keyword(&mut self, kw: Keyword) -> bool {
+        if self.peek_keyword(kw) {
+            self.bump();
+            true
+        } else {
+            false
+        }
+    }
+
     pub(super) fn peek(&self) -> &Token {
         self.tokens.get(self.i).unwrap_or_else(|| {
             self.tokens
@@ -583,6 +592,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Is => "`is`",
         Keyword::As => "`as`",
         Keyword::AsQ => "`as?`",
+        Keyword::Do => "`do`",
     }
 }
 

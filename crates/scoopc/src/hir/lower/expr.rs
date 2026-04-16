@@ -130,6 +130,12 @@ impl<'a> HirLowering<'a> {
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
+            ast::ExprKind::DoBlock { body, .. } => {
+                // `do { ... }` 在 HIR 层面与普通 block 表达式等价。
+                let b = self.lower_block_with_expected(pkg_prefix, body, expected);
+                let ty = b.ty;
+                (ExprKind::Block(b), ty)
+            }
             ast::ExprKind::UnsafeBlock { body, .. } => {
                 // `@Unsafe { ... }` 仅影响 typecheck 的 unsafe context，
                 // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1004）。
@@ -1249,6 +1255,7 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::If { .. }
                 | ast::ExprKind::When { .. }
                 | ast::ExprKind::Block(_)
+                | ast::ExprKind::DoBlock { .. }
                 | ast::ExprKind::UnsafeBlock { .. }
                 | ast::ExprKind::SafeBlock { .. }
                 | ast::ExprKind::Handle { .. }

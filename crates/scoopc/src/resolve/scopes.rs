@@ -729,6 +729,7 @@ impl<'a> BlockScopeChecker<'a> {
                 }
             }
             ast::ExprKind::Block(b) => self.check_block(b)?,
+            ast::ExprKind::DoBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::UnsafeBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::SafeBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::Lambda(lam) => {

@@ -1,0 +1,120 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 133..155,
+            path: [
+                Ident {
+                    span: 141..149,
+                },
+                Ident {
+                    span: 150..155,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 157..207,
+                receiver: None,
+                name: Ident {
+                    span: 161..162,
+                },
+                type_params: [],
+                params_span: 162..164,
+                params: [],
+                return_ty: Some(
+                    Path(
+                        TypePath {
+                            span: 166..169,
+                            segments: [
+                                Ident {
+                                    span: 166..169,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                body: Block(
+                    Block {
+                        span: 170..207,
+                        stmts: [
+                            Stmt {
+                                span: 176..192,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 176..192,
+                                        kind: Val,
+                                        name: Ident {
+                                            span: 180..181,
+                                        },
+                                        ty: None,
+                                        init: Some(
+                                            Expr {
+                                                span: 184..192,
+                                                kind: DoBlock {
+                                                    do_span: 184..186,
+                                                    body: Block {
+                                                        span: 187..192,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 189..190,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 189..190,
+                                                                        kind: IntLit,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 197..205,
+                                kind: Return {
+                                    return_span: 197..203,
+                                    value: Some(
+                                        Expr {
+                                            span: 204..205,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 204..205,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 209..222,
+                receiver: None,
+                name: Ident {
+                    span: 213..217,
+                },
+                type_params: [],
+                params_span: 217..219,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 220..222,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -1253,6 +1253,17 @@ pub enum ExprKind {
         parts: Vec<InterpolatedStringPart>,
     },
     Block(Block),
+    /// `do { ... }`（spec §7.6）：显式局部 block 表达式。
+    ///
+    /// 说明：
+    /// - 用户写的 `do { ... }` 在 AST 层表示为 `DoBlock`，与控制流内部使用的 `Block` 区分。
+    /// - 语义与 `Block` 相同：立即求值，tail expression 决定值。
+    /// - 裸 `{ ... }` 在表达式位置统一按 closure/lambda 规则解析。
+    DoBlock {
+        /// `do` 关键字的 span。
+        do_span: Span,
+        body: Block,
+    },
     /// `@Unsafe { ... }`（spec §15.9.2）：局部 unsafe context 块。
     ///
     /// 说明：

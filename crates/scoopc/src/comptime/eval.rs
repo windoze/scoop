@@ -419,6 +419,10 @@ pub(crate) fn eval_const_expr_with_host(
             kind: "block expression",
             span: expr.span.into(),
         }),
+        ast::ExprKind::DoBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
+            kind: "do block expression",
+            span: expr.span.into(),
+        }),
         ast::ExprKind::UnsafeBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "@Unsafe block",
             span: expr.span.into(),

@@ -341,6 +341,8 @@ impl<'a> Parser<'a> {
         );
         let at_unsafe_span = Span::new(start, unsafe_kw.span.end);
 
+        // 支持 `@Unsafe do { ... }`（spec §15.9.2 + §7.6）和 `@Unsafe { ... }`（向后兼容）。
+        self.eat_keyword(Keyword::Do);
         let body = self.parse_block()?;
         Ok(ast::Expr {
             span: Span::new(start, body.span.end),
@@ -362,10 +364,25 @@ impl<'a> Parser<'a> {
         );
         let at_safe_span = Span::new(start, safe_kw.span.end);
 
+        // 支持 `@Safe do { ... }`（spec §15.9.5 + §7.6）和 `@Safe { ... }`（向后兼容）。
+        self.eat_keyword(Keyword::Do);
         let body = self.parse_block()?;
         Ok(ast::Expr {
             span: Span::new(start, body.span.end),
             kind: ast::ExprKind::SafeBlock { at_safe_span, body },
+        })
+    }
+
+    /// `do { ... }`（spec §7.6）：局部 block 表达式。
+    fn parse_do_block_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let do_kw = self.expect_keyword(Keyword::Do)?;
+        let start = do_kw.span.start;
+        let do_span = do_kw.span;
+
+        let body = self.parse_block()?;
+        Ok(ast::Expr {
+            span: Span::new(start, body.span.end),
+            kind: ast::ExprKind::DoBlock { do_span, body },
         })
     }
 
@@ -696,6 +713,12 @@ impl<'a> Parser<'a> {
 
         if self.peek_keyword(Keyword::Async) {
             return Ok(Some(self.parse_async_expr()?));
+        }
+
+        // spec §7.6：`do { ... }` — 局部 block 表达式。
+        // 必须在 `{ ... }` (lambda) 判断之前匹配，因为 `do` 后紧跟 `{` 才构成 do-block。
+        if self.peek_keyword(Keyword::Do) {
+            return Ok(Some(self.parse_do_block_expr()?));
         }
 
         if self.peek_symbol(Symbol::LBrace) {

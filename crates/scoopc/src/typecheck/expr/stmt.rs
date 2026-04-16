@@ -1048,7 +1048,9 @@ pub(super) fn check_expr_stmt(
     // 其他表达式语句（例如单独的调用）暂不强制 typecheck，以避免在未实现更多 ExprKind
     // 的阶段引入大量不相关的回归失败。
     match &expr.kind {
-        ast::ExprKind::Block(b) => check_block_exprs(shared, b, lower, state, flow),
+        ast::ExprKind::Block(b) | ast::ExprKind::DoBlock { body: b, .. } => {
+            check_block_exprs(shared, b, lower, state, flow)
+        }
         ast::ExprKind::UnsafeBlock { body, .. } => {
             lower.push_unsafe_context();
             let result = check_block_exprs(shared, body, lower, state, flow);

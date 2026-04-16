@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: do_block_basic.ast
+// 目标：验证 `do { ... }` 被解析为 `DoBlock`，而非 lambda/closure。
+
+package fixtures.parse
+
+fun f(): Int {
+    val x = do { 1 }
+    return x
+}
+
+fun main() {}

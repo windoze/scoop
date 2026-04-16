@@ -225,9 +225,13 @@
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 
-#### T3101：Parser / AST 引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure
-- 普通局部 block 统一写作 `do { ... }`；没有 `do` 的 `{ ... }` 一律按 closure / trailing lambda 规则解析。
-- parser / AST 必须为 `DoBlock` 与 `Closure` 保留稳定且可区分的形状，避免后续阶段继续依赖上下文猜测。
+#### T3101：Parser / AST 引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure（已完成）
+- 已在 `Keyword` 中新增 `Do`，在 `ExprKind` 中新增 `DoBlock { do_span, body }` 变体。
+- `try_parse_expr_atom` 中 `do` 关键字优先于 `{` 匹配：`do { ... }` → `DoBlock`，裸 `{ ... }` → `Lambda`。
+- `@Safe`/`@Unsafe` 后支持可选 `do`：`@Safe do { ... }` / `@Unsafe do { ... }`。`@Safe { ... }` 保持向后兼容。
+- 所有 AST 消费者（resolve、typecheck、HIR lower、comptime）已同步处理 `DoBlock`，语义与 `Block` 等价。
+- 新增 4 个 parser 单元测试 + 2 个 parse fixtures，验证 do-block vs closure 消歧。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（217 passed）、`cargo run -p scoop -- test`（965 fixtures）。
 
 #### T3102：Typecheck / HIR 收口 `do` block 的 expression statement 与 tail value 语义
 - 统一“只有未终止 tail expr 才产生 block 值；`expr;` 只是 expression statement，结果视为 `Unit`”。

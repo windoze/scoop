@@ -60,6 +60,7 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
         ast::ExprKind::Block(b) => infer_block_value_type(inputs, b, lower),
+        ast::ExprKind::DoBlock { body, .. } => infer_block_value_type(inputs, body, lower),
         ast::ExprKind::UnsafeBlock { body, .. } => {
             lower.push_unsafe_context();
             let result = infer_block_value_type(inputs, body, lower);
@@ -1742,7 +1743,7 @@ pub(super) fn infer_expr_type_in_expected_context(
     }
 
     match &expr.kind {
-        ast::ExprKind::Block(block) => {
+        ast::ExprKind::Block(block) | ast::ExprKind::DoBlock { body: block, .. } => {
             return infer_block_value_type_in_expected_context(
                 inputs,
                 block,

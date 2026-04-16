@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: do_block_vs_closure.ast
+// 目标：验证 `val f = { 1 }` 为 closure，`val x = do { 1 }` 为 do block。
+
+package fixtures.parse
+
+val f = { 1 }
+val x = do { 1 }
+
+fun main() {}

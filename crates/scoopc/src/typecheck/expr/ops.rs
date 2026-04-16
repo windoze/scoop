@@ -140,9 +140,11 @@ pub(super) fn literal_absorbs_to_expected(
         ast::ExprKind::FloatLit => {
             is_unsuffixed_float_literal(expr, source) && expected_ty == builtins.float32
         }
-        ast::ExprKind::Block(block) => block_tail_expr(block).is_some_and(|tail| {
-            literal_absorbs_to_expected(tail, expected_ty, source, lower, builtins)
-        }),
+        ast::ExprKind::Block(block) | ast::ExprKind::DoBlock { body: block, .. } => {
+            block_tail_expr(block).is_some_and(|tail| {
+                literal_absorbs_to_expected(tail, expected_ty, source, lower, builtins)
+            })
+        }
         ast::ExprKind::UnsafeBlock { body, .. } | ast::ExprKind::SafeBlock { body, .. } => {
             block_tail_expr(body).is_some_and(|tail| {
                 literal_absorbs_to_expected(tail, expected_ty, source, lower, builtins)

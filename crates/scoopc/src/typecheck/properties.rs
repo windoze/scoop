@@ -908,6 +908,9 @@ fn field_use_span_in_expr(
             }
         }),
         ast::ExprKind::Block(b) => field_use_span_in_block(source, backing_field_decl_span, b),
+        ast::ExprKind::DoBlock { body, .. } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
+        }
         ast::ExprKind::UnsafeBlock { body, .. } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }

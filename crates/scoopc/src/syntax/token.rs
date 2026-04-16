@@ -83,6 +83,11 @@ pub enum Keyword {
     Await,
 
     // control flow / misc
+    /// `do`（spec §7.6）：引入局部 block 表达式 `do { ... }`。
+    ///
+    /// 说明：裸 `{ ... }` 在表达式位置统一按 closure/lambda 规则解析；
+    /// 普通局部 block 必须由 `do` 引入。
+    Do,
     Return,
     Comptime,
     If,

@@ -258,6 +258,98 @@ fn parse_char_literal_expr_and_when_pattern() {
 }
 
 #[test]
+fn do_block_basic() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "fun f() { val x = do { 1 }; return x }",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为函数声明");
+    };
+    let ast::FunBody::Block(b) = &f.body else {
+        panic!("期望函数体为 block");
+    };
+    let ast::StmtKind::Val(val) = &b.stmts[0].kind else {
+        panic!("期望第一条语句为 val 声明");
+    };
+    let init = val.init.as_ref().expect("val 应有 initializer");
+    let ast::ExprKind::DoBlock { body, .. } = &init.kind else {
+        panic!("期望 initializer 为 DoBlock，实际为 {:?}", init.kind);
+    };
+    assert_eq!(body.stmts.len(), 1);
+    assert!(matches!(body.stmts[0].kind, ast::StmtKind::Expr(_)));
+}
+
+#[test]
+fn bare_brace_is_lambda_not_do_block() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "val f = { 1 }",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(v) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为 val");
+    };
+    let init = v.init.as_ref().expect("val 应有 initializer");
+    assert!(
+        matches!(init.kind, ast::ExprKind::Lambda(_)),
+        "期望裸 {{}} 被解析为 lambda，实际为 {:?}",
+        init.kind
+    );
+}
+
+#[test]
+fn safe_do_block() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "fun f() { @Safe do { 1 } }",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望函数声明");
+    };
+    let ast::FunBody::Block(b) = &f.body else {
+        panic!("期望函数体为 block");
+    };
+    let ast::StmtKind::Expr(e) = &b.stmts[0].kind else {
+        panic!("期望表达式语句");
+    };
+    assert!(
+        matches!(e.kind, ast::ExprKind::SafeBlock { .. }),
+        "期望 @Safe do {{}} 被解析为 SafeBlock，实际为 {:?}",
+        e.kind
+    );
+}
+
+#[test]
+fn unsafe_do_block() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "fun f() { @Unsafe do { 1 } }",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望函数声明");
+    };
+    let ast::FunBody::Block(b) = &f.body else {
+        panic!("期望函数体为 block");
+    };
+    let ast::StmtKind::Expr(e) = &b.stmts[0].kind else {
+        panic!("期望表达式语句");
+    };
+    assert!(
+        matches!(e.kind, ast::ExprKind::UnsafeBlock { .. }),
+        "期望 @Unsafe do {{}} 被解析为 UnsafeBlock，实际为 {:?}",
+        e.kind
+    );
+}
+
+#[test]
 fn parse_top_level_val_var() {
     let src = SourceFile::new_virtual(
         "<mem>",
