@@ -11,6 +11,7 @@
 > 2026-04-17 复审补充更新：开始执行 `T3010b2b0R` 时，构造“ordinary helper -> object property access -> object init 内 Raise”定向复现后发现：caller 侧 unified state-machine 的确还会把这类 helper 调用误判成普通 `Call`，其根因是 `HandlePlanContext::known_fun_effects` 只看显式 effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据。因此原顺序先细化为 `T3010b2b0` → `T3010b2b0a`（先修 caller-side hidden suspend call 分类）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 > 2026-04-17 当前轮阻塞更新：在实现 `T3010b2b0a` 时补了定向 helper 复现，结果发现更前置的 ordinary-frame hidden suspend 缺口仍未闭合：`main_unreachable` 已不再出现，但 `helper()` 自身仍会在 `BoomObject.x` 返回 active 后继续执行 `helper_unreachable`。这说明 `T3010b2b0` 目前只覆盖 direct `perform/Raise`、ordinary user call 与 `as` cast raise；object value/property access、class ctor init、builtin runtime raise 等 hidden suspend boundary 还没有接到 ordinary-frame propagation 合同。因此顺序再次前移为 `T3010b2b0` → `T3010b2b0a0`（先修 hidden-suspend ordinary callee 自终止）→ `T3010b2b0a`（再收口 caller-side hidden suspend call 分类）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 > 2026-04-17 当前轮完成更新：`T3010b2b0a0` 已完成。`codegen_object_property_access` 现在会在 object init 返回后执行统一 ordinary-frame active 检查，新增的 helper 级 object-property/class-ctor hidden-suspend fixtures 都已通过，`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍停在 `effect_escape_continuation_finally_arm_raise.scoop`，对应已知后续 blocker `T3010b2b1`，未出现更早回归。
+> 2026-04-17 当前轮进一步验证更新：继续执行 `T3010b2b0a` 时，先用临时 `handle` 复现回查 top-level helper / class-ctor helper / local closure 包一层 helper 的 caller-side hidden-suspend 路径，三者都已能正确进入 dispatch，不再继续执行 caller tail。继续把验证扩到 member 路径时，发现一个更前置且未被 `TODO.md` 跟踪的基础 bug：即使不经过 `handle`，普通 `Helper.run()` 也会因为 `ptr @__scoop_object_instance__Helper` 传给期望 `ptr addrspace(1)` receiver 的 `@Helper.run(...)` 而触发 LLVM verifier 失败。根因是 object 单例值仍用 default addrspace 的全局身份地址表示，而对象成员函数 receiver 走的是 `CgTy::Ref` 的 `addrspace(1)` ABI。由于这会先于 hidden-suspend 分类暴露，因此顺序再次前移为 `T3010b2b0` → `T3010b2b0a0` → `T3010b2b0a0b`（先修 object member call 的 receiver ABI / 表示）→ `T3010b2b0a`（再完成 member 路径的 caller-side hidden-suspend 验证/修复）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 
 ## 0. 工作原则
 
@@ -336,10 +337,18 @@
   - 验证通过：上述 2 个新 fixture、`object_init_raise_try_catch_basic.scoop`、`class_init_raise_cleanup_property_init_gc_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
   - 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍停在 `effect_escape_continuation_finally_arm_raise.scoop`（已知 `T3010b2b1` blocker），说明本任务没有引入更早回归。
 
+#### T3010b2b0a0b：修正 object 单例值的 LLVM 表示与 `Ref` ABI 失配，恢复 object member call（待办）
+- 在继续验证 `T3010b2b0a` 的 member 路径时，构造了最小 repro：`object Helper { fun run(): Int { 7 } }`。当前即使不经过 `handle`，普通 `Helper.run()` 也会在 LLVM verifier 报 `Call parameter type does not match function signature!`，表现为 `ptr @__scoop_object_instance__Helper` 被传给期望 `ptr addrspace(1)` receiver 的 `@Helper.run(...)`。
+- 根因是 `declare_object_instance_global` 仍把 object 单例值表示成 default addrspace 的 module-local 身份地址，而对象成员函数 receiver 参数通过 `CgTy::Ref` / `llvm_param_ty` 走的是 GC `addrspace(1)` ABI。这个表示/ABI 缺口会先于 hidden-suspend 分类暴露，因此必须先修。
+- 本任务目标：
+  - 收口 object value / object member call 的 receiver 表示，使其与 `Ref` ABI 的 `addrspace(1)` 合同一致。
+  - 确保普通 object member call 不再 verifier-fail。
+  - 禁止通过 callsite 局部 bitcast、仅 effect path 特判或其它 verifier-hack 掩盖问题。
+
 #### T3010b2b0a：修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`（待办）
-- `T3010b2b0a0` 完成后，这一层才会变成单纯的 caller-side 问题：ordinary helper 虽然已经不会继续执行，但外层 `handle/try` 的 caller 仍必须把这类 hidden-suspend helper 调用当成真正的 suspend boundary。
-- 根因不在 ordinary-frame return helper，而在 caller-side plan metadata：`HandlePlanContext::known_fun_effects` 当前只看显式 effect row，缺少 object value/property access、class ctor init、runtime raise 等 hidden suspend source 的 callee 级汇总，导致 plan builder 继续产出 `HandleStateOp::Call`，active 不能在 call site 交给统一 dispatch loop。
-- 本任务需要在 `T3010b2b0a0` 之后补齐这套 hidden-suspend call 分类合同，再回到 `T3010b2b0R` 复审 ordinary-frame 终止语义，避免把“callee 不继续执行”和“caller 还能正确 dispatch”混成同一个 review 结论。
+- `T3010b2b0a0` 完成后，top-level helper / class-ctor helper / local closure 包一层 helper 的临时 `handle` 复现都已能正确进入 dispatch，说明 caller-side 问题并非此前假设的“所有 hidden-suspend helper 一律被降成 plain `Call`”。
+- 当前更精确的边界是：member 路径还无法验证，因为 object member call 本身先被 `T3010b2b0a0b` 暴露的 receiver ABI / object value 表示缺口卡住。只有先修好 object member call，才能继续判断 member 路径是否仍存在 caller-side hidden-suspend 分类缺口。
+- 本任务现收窄为：在 `T3010b2b0a0b` 之后，重新验证并补齐 top-level/member/local function value 的 hidden-suspend suspend-call 分类覆盖；若 member 路径 ABI 收口后仍有 caller-side 误判，再在此任务内修复 plan builder / metadata，并补足定向 fixture。
 
 #### T3010b2b0R：Review（待办）
 - 在 `T3010b2b0a` 收口 caller-side hidden suspend call 分类之后，再只审查生产代码，确认普通 callee frame 的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是回流到旧的 flag-based unwind 或 callee-shape 路线。
@@ -456,29 +465,29 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b0a0`
+1. `T3010b2b0a0b`
 2. `T3010b2b0a`
 3. `T3010b2b0R`
 4. `T3010b2b1`
 5. `T3010b2b`
-5. `T3010R`
-6. `T3011`
-7. `T3011R`
-8. `T3012`
-9. `T3012R`
-10. `T3013`
-11. `T3013R`
-12. `T3009b`
-13. `T3009bR`
-14. `T3014`
-15. `T3014R`
-16. `T3015`
-17. `T3015R`
-18. `T3016`
-19. `T3016R`
-20. `T3017`
-21. `T3017R`
-22. `T3103`
+6. `T3010R`
+7. `T3011`
+8. `T3011R`
+9. `T3012`
+10. `T3012R`
+11. `T3013`
+12. `T3013R`
+13. `T3009b`
+14. `T3009bR`
+15. `T3014`
+16. `T3014R`
+17. `T3015`
+18. `T3015R`
+19. `T3016`
+20. `T3016R`
+21. `T3017`
+22. `T3017R`
+23. `T3103`
 23. `T3104`
 24. `T3201`
 25. `T3202`

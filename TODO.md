@@ -670,7 +670,7 @@
     - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
     - `cargo test --all`
     - `cargo clippy --all-targets -- -D warnings`
-  - 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍保持在已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（对应 `T3010b2b1`），未出现更早的 hidden-suspend helper 回归。
+- 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍保持在已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（对应 `T3010b2b1`），未出现更早的 hidden-suspend helper 回归。
 - 目标：
   - ordinary 函数 / helper / 方法体内，一旦 hidden suspend boundary（至少覆盖 object value/property access、class ctor init、builtin runtime raise）向当前 frame 返回 active，当前 callee frame 必须立刻停止执行，不能继续落到后续 statement / tail expression。
   - 该终止语义必须沿用统一 ordinary-frame propagation 合同，禁止恢复旧 flag-based unwind，也禁止只给单个 object/property access callsite 打补丁。
@@ -682,18 +682,32 @@
   - 复跑 `cargo run -p scoop --features llvm -- test`，确认没有把首个失败点拉回 hidden-suspend helper 路径；当前首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`）。
 - 依赖：T3010b2b0
 
-### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
-- 描述：执行 `T3010b2b0R` 复审时，构造了“ordinary helper -> object property access -> object init 内 `Raise.raise(...)`”的定向复现。当前已确认 caller-side 的剩余问题不在 ordinary-frame return helper，而在 caller 侧 unified state-machine 的 call 分类：`HandlePlanContext::known_fun_effects` 只看显式 function effect row，没有把 object value/property access、class ctor init、runtime raise 等 hidden suspend 来源折叠进 callee 元数据，导致这类 ordinary callee 在 plan builder 中被降成 `HandleStateOp::Call`，而不是能把 active 交给 dispatch loop 的 suspend site。本任务现在显式等待 `T3010b2b0a0` 先把 helper 自身的 hidden-suspend 自终止语义收口完毕。
+### T3010b2b0a0b [TODO] 修正 object 单例值的 LLVM 表示与 `Ref` ABI 失配，恢复 object member call
+- 描述：继续验证 `T3010b2b0a` 的 member 路径时，构造了最小 repro：`object Helper { fun run(): Int { ... } }`。当前无论是普通 `Helper.run()`，还是 `handle { Helper.run() }`，都会在 LLVM verifier 报 `Call parameter type does not match function signature!`，表现为 `ptr @__scoop_object_instance__Helper` 被传给期望 `ptr addrspace(1)` receiver 的 `@Helper.run(...)`。根因是 `declare_object_instance_global` 仍把 object 单例值表示成 default addrspace 的 module-local 身份地址，而对象成员函数 receiver 通过 `CgTy::Ref` / `llvm_param_ty` 走的是 GC `addrspace(1)` ABI。这个更基础的 object value 表示缺口会先于 hidden-suspend 分类暴露，因此必须先修复，`T3010b2b0a` 才能继续对 member 路径做 spec-correct 验证。
 - 目标：
-  - 为 top-level/member/local function value 的 suspend-call 分类补齐 hidden-suspend 元数据，至少覆盖 object value/property access、class ctor init 与 runtime raise 这几类现有 hidden suspend source。
+  - 收口 object 单例值的 LLVM 表示，使 object value / object member call 的 receiver 与 `CgTy::Ref` 的 `addrspace(1)` ABI 保持一致。
+  - 确保普通 `Helper.run()` 这类 object member call 不再触发 `module_verification_failed`。
+  - 禁止通过 callsite 局部 bitcast、仅 effect path 特判或其它 verifier-hack 掩盖该问题。
+- 验收：
+  - 新增一个最小 run-pass fixture，覆盖普通 object member call，不再出现 `module_verification_failed`。
+  - `cargo run -p scoop --features llvm -- test`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3010b2b0a0
+
+### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
+- 描述：`T3010b2b0a0` 完成后，继续用临时 `handle` 复现回查 caller-side 路径时，top-level helper、经 class ctor 触发 hidden suspend 的 helper，以及 local closure 包一层 helper 的路径都已经能正确进入 dispatch，不再继续执行 caller tail。继续把验证扩到 member 路径时，又暴露出更前置的 blocker：object member call 本身就会因为 object 单例值的 `ptr` / `ptr addrspace(1)` ABI 失配而 verifier-fail（见 `T3010b2b0a0b`）。因此本任务现收窄为：在 `T3010b2b0a0b` 修复后，重新验证并补齐 top-level/member/local function value 的 hidden-suspend suspend-call 分类覆盖；若 member 路径 ABI 收口后仍存在 caller-side 误判，再在本任务内继续修正 plan builder / metadata。
+- 目标：
+  - 在 `T3010b2b0a0b` 之后，重新验证 top-level/member/local function value 的 suspend-call 分类是否都能把 hidden-suspend ordinary callee 识别为统一 suspend boundary，而不是落回 plain `Call`。
+  - 若验证发现仍有 caller-side 分类缺口，为 top-level/member/local function value 的 suspend-call 分类补齐 hidden-suspend 元数据，至少覆盖 object value/property access、class ctor init 与 runtime raise 这几类现有 hidden suspend source。
   - 确保 ordinary helper 在向 caller 传播 active 后，caller 侧 unified state-machine 会立即进入统一 dispatch / cleanup / resume 合同，而不是继续执行 call 后 tail。
   - 禁止通过恢复旧 flag-based unwind、按源码形状分流，或只给单个 object access callsite 打补丁来掩盖该问题。
 - 验收：
-  - 新增一个覆盖“helper -> object property access -> object init raise”路径的 run-pass fixture，并验证 stdout 不包含 caller tail。
+  - 新增一个覆盖 `handle` body 中“helper -> object property access -> object init raise”路径的 run-pass fixture，并验证 stdout 不包含 caller tail。
+  - 在 `T3010b2b0a0b` 之后，补齐至少一条 member 或 function-value 路径的定向覆盖，确认 caller-side hidden-suspend 分类不会退化为 plain `Call`。
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3010b2b0a0
+- 依赖：T3010b2b0a0b
 
 ### T3010b2b0R [TODO] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
 - 描述：在 `T3010b2b0` 之后只审查生产代码，确认普通 callee frame 在 non-resuming perform 后终止自身执行的实现是统一、可审计的控制流合同，而不是重新引入 `emit_effect_unwind_if_active`、旧 callee-suspend 路线或其它按代码形状分流的旁路；若发现回流，本任务需要直接修复并复审。
