@@ -2331,6 +2331,80 @@ fun demo(): Int {
     }
 
     #[test]
+    fn segment_dump_classifies_hidden_suspend_member_helper_as_state_machine_callee() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+object Helper {
+    fun run(): Int {
+        BoomObject.x
+    }
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        Helper.run()
+    } with {
+        Raise.raise(err: RuntimeError) -> 10
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=call-state-machine-callee"), "{dump}");
+        assert!(dump.contains("detail=a.Helper.run"), "{dump}");
+    }
+
+    #[test]
+    fn segment_dump_classifies_hidden_suspend_local_closure_call_as_call_may_suspend() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+
+    val x: Int = 1
+}
+
+fun helper(): Int {
+    BoomObject.x
+}
+
+fun demo(): Int {
+    val thunk: () -> Int = {
+        helper()
+    }
+    val result: Int = handle {
+        thunk()
+    } with {
+        Raise.raise(err: RuntimeError) -> 10
+    }
+    result
+}
+"#,
+        );
+
+        assert!(dump.contains("kind=call-may-suspend"), "{dump}");
+    }
+
+    #[test]
     fn segment_dump_records_nested_while_source_path() {
         let dump = build_segment_dump(
             r#"

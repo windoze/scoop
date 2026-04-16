@@ -700,8 +700,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b0a0
 
-### T3010b2b0a [TODO] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
+### T3010b2b0a [DONE] 修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`
 - 描述：`T3010b2b0a0` 完成后，继续用临时 `handle` 复现回查 caller-side 路径时，top-level helper、经 class ctor 触发 hidden suspend 的 helper，以及 local closure 包一层 helper 的路径都已经能正确进入 dispatch，不再继续执行 caller tail。member 路径此前被 `T3010b2b0a0b` 暴露的 object 单例值 ABI 缺口挡住；该 blocker 现已修复，因此本任务接着重新验证并补齐 top-level/member/local function value 的 hidden-suspend suspend-call 分类覆盖；若 member 路径 ABI 收口后仍存在 caller-side 误判，再在本任务内继续修正 plan builder / metadata。
+- 进展：
+  - 已重新验证 top-level helper、object member helper、以及 local closure/function-value 包装 helper 三条 caller-side 路径；在 hidden suspend 返回 active 后，handle body 都会立刻进入统一 dispatch，不再继续执行 caller tail。
+  - 已新增三个 run-pass fixture：
+    - `tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`
+    - `tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`
+    - `tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+    三者分别锁定 top-level helper、member helper 与 local closure/function-value 包装 helper 的 caller-side hidden-suspend 路径，确认 stdout 不包含 `handle_unreachable`。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` 补充两条分类单测：member helper 直接锁定为 `call-state-machine-callee`，local closure/function-value 调用锁定为 `call-may-suspend`，避免后续退化回 plain `Call`。
+  - 已验证：
+    - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
+- 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（对应 `T3010b2b1`），说明本任务没有引入更早的 caller-side hidden-suspend 回归。
 - 目标：
   - 重新验证 top-level/member/local function value 的 suspend-call 分类是否都能把 hidden-suspend ordinary callee 识别为统一 suspend boundary，而不是落回 plain `Call`。
   - 若验证发现仍有 caller-side 分类缺口，为 top-level/member/local function value 的 suspend-call 分类补齐 hidden-suspend 元数据，至少覆盖 object value/property access、class ctor init 与 runtime raise 这几类现有 hidden suspend source。

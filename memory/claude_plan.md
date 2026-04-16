@@ -1,57 +1,51 @@
-# 本轮执行计划
+# 本轮执行计划（摘要版）
+
+说明：按安全与协作要求，这里记录的是可审计的执行思路摘要与分步计划，不写入逐字内部推理。
 
 ## 目标
+- 先检查最新提交是否提到任何既有问题；如有，先修复这些问题。
+- 读取 `TODO.md`，定位第一个未完成任务。
+- 如该任务过大，则拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 只完成当前首个未完成任务（或拆分后的首个子任务），补充测试、更新文档与计划、提交 git commit，然后停止。
 
-按照仓库根目录 `TODO.md` 的顺序，只完成第一个未完成任务；若发现前置缺陷、规范不匹配或任务过大，则先调整 `TODO.md` / `PLAN.md`，并在本轮内只处理调整后的首个任务。
+## 分步计划
+1. 查看最新一次 git commit 的标题与正文，确认是否提到待修复的既有问题。
+2. 读取 `TODO.md`、`PLAN.md`，确认当前优先级最高的未完成项，以及是否已有相关分解计划。
+3. 评估任务规模与依赖；若存在前置缺失、规格不匹配或任务过大，则先更新 `TODO.md` / `PLAN.md` 反映依赖与拆分关系。
+4. 实现当前应执行的任务，尽量限制改动范围并保持模块清晰。
+5. 运行相关验证：至少包含受影响测试；如果改动范围足够大，再补充 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 等必要检查。
+6. 根据结果修复问题，直到当前任务完成或明确发现新的前置阻塞。
+7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md` 记录完成状态或阻塞原因。
+8. 使用清晰的提交信息创建 git commit，然后停止，不继续下一个任务。
 
-## 执行思路摘要
+## 执行约束
+- 不回退用户已有改动。
+- 不以 workaround、shim、仅夹具通过的方式宣称完成。
+- 若发现规范缺口或实现边界阻塞当前任务，先把该问题转化为更靠前的 `TODO.md` 任务，再提交并停止。
 
-1. 检查最新提交信息，确认是否明确提到已有遗留问题；若有，先修复这些问题，再进入 `TODO.md` 任务流。
-2. 阅读 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并判断是否需要拆分为更小子任务。
-3. 若任务可直接执行，先梳理相关代码与测试位置，再实施修改；若存在规范缺口、实现边界缺失或任务阻塞，则先把缺口转化为新的前置任务并更新计划文件。
-4. 对实现结果执行必要验证，优先运行与改动直接相关的测试；若任务落点较大，再补充工作区要求的格式化、lint 或更广范围测试。
-5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态、依赖变化和验证结果。
-6. 提交本轮所有变更，提交信息应清晰描述本轮完成的任务，然后停止，不继续处理下一个任务。
+## 当前进展
+- 已检查最新提交 `75290cd88e745967dada48ae6245cf5bd61e7830`，提交说明未额外声明新的既有问题；当前工作区仅有本文件修改。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T3010b2b0a`：修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`。
+- 已知前置已完成：`T3010b2b0`、`T3010b2b0a0`、`T3010b2b0a0b`。当前需要重点回查 top-level helper、member 路径、local function value / closure 包装 helper 等 caller-side hidden-suspend 分类。
+- 已完成临时最小复现验证：
+  - `handle { Helper.run() }`（member direct call）不再执行 caller tail；
+  - `handle { thunk() }`，其中 `thunk` 为包一层 `Helper.run()` 的 local closure，也不再执行 caller tail；
+  - 直接把顶层函数名赋给局部函数值（`val thunk = helper`）当前前端仍不支持，这是既有语法/推导边界，不属于本任务新增回归。
+- 已确认一个关键实现事实：step function 发射期间会临时清空 `current_fun_return_ty`，因此 ordinary call 的 active-check 不会在 unified state-machine 内兜底；若 caller-side 真被误降成 plain `Call`，新增 run-pass fixture 必然能复现 caller tail 继续执行。也就是说，本任务可以通过 fixture/单测严格锁定，不需要“猜”分类是否正确。
+- 已完成仓库改动：
+  - 新增 3 个 run-pass fixture，覆盖 top-level helper、member helper、local closure/function-value 三条 caller-side hidden-suspend 路径。
+  - 在 `state_machine_segments.rs` 新增 2 条分类单测，分别锁定 member helper 为 `call-state-machine-callee`、local closure/function-value 为 `call-may-suspend`。
+  - 已更新 `TODO.md` / `PLAN.md`，将 `T3010b2b0a` 标记为完成，并记录当前验证结论与后续首个 blocker。
+- 已完成验证：
+  - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
+  - 新增 3 个 fixture 的 `cargo run -p scoop --features llvm -- run ...`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`：首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
 
-## 预期检查点
-
-- 检查最新提交是否提及待修复问题
-- 定位第一个未完成任务
-- 判断是否需要拆分任务
-- 实施代码修改
-- 运行测试与必要的静态检查
-- 更新计划与任务状态
-- 生成提交
-
-## 动态记录
-
-- 已检查最新提交 `813a9a8d23835ed561c0236a72b072cf1dbf48a6`：
-  - 提交仅更新 `PLAN.md` / `TODO.md` / `memory/claude_plan.md`，未修改生产代码。
-  - 提交中前置暴露的遗留问题是 object member-call 的 receiver ABI / 表示失配，对应当前新前置任务 `T3010b2b0a0b`。
-- 已读取 `TODO.md` / `PLAN.md`：
-  - 当前第一个未完成任务是 `T3010b2b0a0b`：修正 object 单例值的 LLVM 表示与 `Ref` ABI 失配，恢复 object member call。
-  - 后续 `T3010b2b0a`、`T3010b2b0R`、`T3010b2b1`、`T3010b2b` 都依赖该任务，因此本轮范围明确为先修复 object 单例值表示问题。
-- 下一步：
-  1. 定位 object 单例值生成、member call receiver lowering、以及相关 ABI 类型定义。
-  2. 复现最小 verifier 失败用例，确认当前 IR 失配具体发生点。
-  3. 修改表示/ABI 后补充或更新定向测试。
-  4. 运行相关测试与质量门槛命令。
-  5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
-- 实施结果：
-  - 已复现最小失败：`Helper.run()` 在 LLVM verifier 报 `ptr @__scoop_object_instance__a.Helper` 传给 `ptr addrspace(1)` receiver。
-  - 已完成修复：
-    - object 单例值改为 `ptr addrspace(1)` 全局槽 + once init 内 `scoop_alloc_typed` 分配的 header-only GC singleton object。
-    - `codegen_object_value_access` 改为 init 后加载 GC-managed receiver。
-    - object nominal runtime type check 接入 object type descriptor。
-    - 新增 LLVM IR 单测与 run-pass fixture 覆盖 object member call。
-- 验证结果：
-  - `cargo test -p scoopc object_member_call_uses_gc_managed_singleton_receiver -- --nocapture` 通过。
-  - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/object_member_call_basic.scoop -o /tmp/object_member_call_basic.out && /tmp/object_member_call_basic.out` 输出与预期一致（`41`、`42`）。
-  - 最小 repro `Helper.run()` 已可 `build`，不再出现 `module_verification_failed`。
-  - `cargo test --all` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-  - `cargo run -p scoop --features llvm -- test` 复跑后，首个失败点仍是已知 blocker `effect_escape_continuation_finally_arm_raise.scoop`，说明没有引入更早回归。
-- 待收尾：
-  1. 已把 `T3010b2b0a0b` 标记为完成。
-  2. 已更新 `PLAN.md` 的执行顺序，下一项切换为 `T3010b2b0a`。
-  3. 当前只剩生成本轮提交并停止。
+## 下一步
+1. 检查当前 diff，仅保留与 `T3010b2b0a` 直接相关的文件。
+2. 用任务编号创建 git commit。
+3. 停止，等待下一轮执行 `T3010b2b0R`。

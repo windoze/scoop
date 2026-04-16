@@ -13,6 +13,7 @@
 > 2026-04-17 当前轮完成更新：`T3010b2b0a0` 已完成。`codegen_object_property_access` 现在会在 object init 返回后执行统一 ordinary-frame active 检查，新增的 helper 级 object-property/class-ctor hidden-suspend fixtures 都已通过，`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍停在 `effect_escape_continuation_finally_arm_raise.scoop`，对应已知后续 blocker `T3010b2b1`，未出现更早回归。
 > 2026-04-17 当前轮进一步验证更新：继续执行 `T3010b2b0a` 时，先用临时 `handle` 复现回查 top-level helper / class-ctor helper / local closure 包一层 helper 的 caller-side hidden-suspend 路径，三者都已能正确进入 dispatch，不再继续执行 caller tail。继续把验证扩到 member 路径时，发现一个更前置且未被 `TODO.md` 跟踪的基础 bug：即使不经过 `handle`，普通 `Helper.run()` 也会因为 `ptr @__scoop_object_instance__Helper` 传给期望 `ptr addrspace(1)` receiver 的 `@Helper.run(...)` 而触发 LLVM verifier 失败。根因是 object 单例值仍用 default addrspace 的全局身份地址表示，而对象成员函数 receiver 走的是 `CgTy::Ref` 的 `addrspace(1)` ABI。由于这会先于 hidden-suspend 分类暴露，因此顺序再次前移为 `T3010b2b0` → `T3010b2b0a0` → `T3010b2b0a0b`（先修 object member call 的 receiver ABI / 表示）→ `T3010b2b0a`（再完成 member 路径的 caller-side hidden-suspend 验证/修复）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
 > 2026-04-17 当前轮完成更新：`T3010b2b0a0b` 已完成。object 单例值现在通过 `scoop_alloc_typed` 分配成 header-only GC singleton object，并存入 `ptr addrspace(1)` 全局槽；`codegen_object_value_access` 改为在 once init 后加载该 GC-managed receiver，`Helper.run()` 这类普通 object member call 不再触发 verifier。已新增 `object_member_call_basic.scoop` 与 LLVM IR 单测 `object_member_call_uses_gc_managed_singleton_receiver`。验证通过：最小 repro 已可编译、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过，复跑 `cargo run -p scoop --features llvm -- test` 后首个失败点仍停在已知 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
+> 2026-04-17 当前轮完成更新：`T3010b2b0a` 已完成。重新验证 `handle { helper() }`、`handle { Helper.run() }` 与 local closure/function-value `handle { thunk() }` 三条 caller-side 路径后，确认 hidden suspend 返回 active 时 unified state-machine 都会立即进入 dispatch，不会继续执行 caller tail。已新增三个 run-pass fixture（top-level helper、member helper、local closure/function-value）与两条 segment-level 分类单测，分别锁定 `call-state-machine-callee` / `call-may-suspend`，防止回退成 plain `Call`。验证通过：定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`），未出现更早回归。
 
 ## 0. 工作原则
 
@@ -354,10 +355,22 @@
   - `cargo clippy --all-targets -- -D warnings`
   - `cargo run -p scoop --features llvm -- test` 复跑后，首个失败点仍是已知后续 blocker `effect_escape_continuation_finally_arm_raise.scoop`（`T3010b2b1`）
 
-#### T3010b2b0a：修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`（待办）
-- `T3010b2b0a0` 完成后，top-level helper / class-ctor helper / local closure 包一层 helper 的临时 `handle` 复现都已能正确进入 dispatch，说明 caller-side 问题并非此前假设的“所有 hidden-suspend helper 一律被降成 plain `Call`”。
-- 当前更精确的边界是：此前 member 路径先被 `T3010b2b0a0b` 暴露的 receiver ABI / object value 表示缺口卡住；该 blocker 现已关闭，下一步就是重新验证 member 路径是否仍存在 caller-side hidden-suspend 分类缺口。
-- 本任务现收窄为：重新验证并补齐 top-level/member/local function value 的 hidden-suspend suspend-call 分类覆盖；若 member 路径 ABI 收口后仍有 caller-side 误判，再在此任务内修复 plan builder / metadata，并补足定向 fixture。
+#### T3010b2b0a：修正 hidden-suspend ordinary callee 在 unified state-machine caller 侧被误判为 plain `Call`（已完成）
+- `T3010b2b0a0` 与 `T3010b2b0a0b` 完成后，重新把 caller-side 路径扩回到 top-level helper、member helper、以及 local closure/function-value 包装 helper 三类 `handle` 复现，确认三者都不会继续执行 caller tail。
+- 当前实现结论是：此前假设中的“caller-side 普遍误判为 plain `Call`”在前置修复完成后已不再成立；本任务的实际落点是把这一事实收口为长期回归覆盖，防止后续 metadata / plan builder 回退。
+- 已完成的覆盖补齐：
+  - 新增 run-pass fixture `effect_handle_hidden_suspend_helper_object_property_basic.scoop`，锁定 `handle { helper() } -> object property -> object init raise` 的 top-level helper 路径。
+  - 新增 run-pass fixture `effect_handle_hidden_suspend_member_helper_basic.scoop`，锁定 `handle { Helper.run() }` 的 member helper 路径。
+  - 新增 run-pass fixture `effect_handle_hidden_suspend_local_closure_helper_basic.scoop`，锁定 local closure/function-value `handle { thunk() }` 路径。
+  - 在 `state_machine_segments.rs` 增加两条分类单测：member helper 直接断言为 `call-state-machine-callee`；local closure/function-value 调用断言为 `call-may-suspend`。
+- 验证通过：
+  - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
+  - 上述 3 个新 fixture
+  - `object_init_raise_try_catch_basic.scoop`
+  - `class_init_raise_cleanup_property_init_gc_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，首个失败点仍停在 `effect_escape_continuation_finally_arm_raise.scoop`（已知 `T3010b2b1` blocker），没有把回归前移到 caller-side hidden-suspend 路径。
 
 #### T3010b2b0R：Review（待办）
 - 在 `T3010b2b0a` 收口 caller-side hidden suspend call 分类之后，再只审查生产代码，确认普通 callee frame 的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是回流到旧的 flag-based unwind 或 callee-shape 路线。
