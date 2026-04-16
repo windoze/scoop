@@ -7,6 +7,7 @@
 > 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（已完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3010b2aR`（已完成：收紧 `ResumeAfterSite` 边界，确认 emitter 未回扫 AST）、`T3009a`（本轮完成：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）、`T3009aR`（下一步：review dedicated lowering 是否仍可能回落到 generic call）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
 > 2026-04-17 更新：`T3009aR` 已完成后，`T3010b2b` 的定向修复已接通多条 comparison / branch / nested-block / mixed-raise fixture，并修复了 outer slot metadata、initial frame seed 与 continuation `resume_state_tag` runtime 回归。但重新跑全量 `cargo run -p scoop --features llvm -- test` 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；结合 `effect_resume_finally_arm_raise.scoop` 与 `effect_multi_nonresuming_raise_custom_finally.scoop` 的复跑结果，确认当前更前置的 blocker 是“arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup”统一语义缺口。因此将 `T3010b2b` 拆为前置的 `T3010b2b1`（先修 arm body 语义）与后续的 `T3010b2b`（继续 post-suspend tail 验收）。
 > 2026-04-17 进一步复现更新：继续验证 `effect_multi_nonresuming_raise_custom_finally.scoop` 时发现，阻塞并不只在 arm body。`throwAlarm()` 内部的 `Alarm.trip(...)` 之后仍会继续执行 `throw_alarm_unreachable`；`nothing_raise_in_helper_basic.scoop` 里的 `alwaysFail()` 也会在 `Raise.raise(...)` 后继续打印 `unreachable_in_helper`。这说明在继续 `T3010b2b1` 前，还缺一个更基础的前置条件：普通 callee frame 在 non-resuming perform 后必须终止自身执行，而不能只写 active flag 后继续跑到后续语句。因此顺序进一步细化为 `T3010b2b0`（先修普通 callee frame 的 non-resuming perform 终止语义）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
+> 2026-04-17 当前轮更新：`T3010b2b0` 已完成。ordinary frame 现在会在 direct non-resuming `perform/Raise` 后立刻结束当前 callee frame，并在 ordinary user call 返回后统一检查 TLS active，必要时直接向 caller 返回默认值；`Nothing` 返回类型在这条 propagation 路径上改为 `ret void`。`nothing_raise_in_helper_basic.scoop` 与 `effect_indirect_perform_nonresuming_call_chain.scoop` 已恢复与 golden 一致；全量 `cargo run -p scoop --features llvm -- test` 的首个失败点仍是 `effect_escape_continuation_finally_arm_raise.scoop`，剩余问题继续由 `T3010b2b1` 处理。
 
 ## 0. 工作原则
 
@@ -312,10 +313,15 @@
   - `async_await_minimal_int_basic.scoop` 现已可成功 build，不再报 `immediate resume arm body`；后续运行期在打印 `before` 后异常退出，说明 structured concurrency / async 仍有独立缺口，留待阶段 H 任务处理。
 - 复验通过：`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
 
-#### T3010b2b0：修正普通 callee frame 内 non-resuming perform/raise 后继续执行的控制流语义（待办）
+#### T3010b2b0：修正普通 callee frame 内 non-resuming perform/raise 后继续执行的控制流语义（已完成）
 - 在复现 `effect_multi_nonresuming_raise_custom_finally.scoop` 时发现，`throwAlarm()` 内部的 `Alarm.trip(seed + 1)` 之后仍会继续执行 `throw_alarm_unreachable`；继续定向复现 `nothing_raise_in_helper_basic.scoop` 也可见 `alwaysFail()` 会在 `Raise.raise(42)` 之后继续打印 `unreachable_in_helper`。
 - 这说明当前常规函数/方法 codegen 里，non-resuming perform 只写 TLS active flag + 返回默认值，但没有终止当前 callee frame。即便 caller 侧 state-machine 边界随后能观察到 active，这也已经违反了 `Nothing` / non-resuming effect 的控制流语义。
 - 本任务先修正“callee 自己不应继续执行”的更基础合同；caller 侧 state-machine dispatch 仍由既有 `SuspendCall` / dispatch loop 负责，不在这里恢复旧 flag-based unwind。
+- 已完成的实现：
+  - `effect/mod.rs` 新增 ordinary-frame propagation helper：direct non-resuming `perform/Raise` 会立刻结束当前 callee frame，并把 builder 移到无前驱 dead block；ordinary user call 返回后统一检查 TLS active，若 active 则当前 frame 直接向 caller 返回默认值。
+  - 这套 active 检查已接到 top-level/member/itable/funptr/closure/operator-overload/object-init 等 ordinary call site；对声明返回 `Nothing` 的 ordinary callee，propagation 路径会发射 `ret void`，避免落回普通 `return_bb` 的 `unreachable`。
+  - `codegen_cast_as_expr` 的 runtime `Raise` 失败路径也已收口到同一 ordinary-frame propagation 合同。
+  - 验证：`nothing_raise_in_helper_basic.scoop`、`effect_indirect_perform_nonresuming_call_chain.scoop` 与 golden 一致；`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。全量 LLVM fixture 的首个失败点已推进到 `T3010b2b1` 覆盖的 `effect_escape_continuation_finally_arm_raise.scoop`。
 
 #### T3010b2b0R：Review（待办）
 - 在 `T3010b2b0` 之后只审查生产代码，确认普通 callee frame 的 non-resuming perform 终止语义来自统一 codegen 控制流，而不是回流到旧的 flag-based unwind 或 callee-shape 路线。
@@ -323,7 +329,7 @@
 
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
-- `effect_multi_nonresuming_raise_custom_finally.scoop` 同时暴露出更基础的普通 callee frame 缺口，因此本任务现在显式依赖 `T3010b2b0R`；待该前置完成后，再专注收口 arm-body 执行期特有的 self-inactive / cleanup / outward propagation 语义。
+- `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。

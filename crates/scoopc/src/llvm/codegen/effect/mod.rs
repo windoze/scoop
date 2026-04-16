@@ -24,6 +24,140 @@ mod unified_state_machine_skeleton {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(super) fn ordinary_effect_propagation_enabled(&self) -> bool {
+        self.current_fun_return_ty.is_some()
+    }
+
+    fn current_codegen_function(
+        &self,
+        at: crate::span::Span,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        self.builder
+            .get_insert_block()
+            .and_then(|bb| bb.get_parent())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })
+    }
+
+    /// 当前普通 callee frame 观察到 effect 已 active 时，立即把默认返回值交给 caller。
+    ///
+    /// 这条路径只用于 ordinary frame 的 effect 传播：
+    /// - 若存在 function-level return context，则写入默认返回值并 branch 到 return_bb；
+    /// - 否则直接发射函数 return（例如 closure/object init 等没有 return_bb 的内部函数）；
+    /// - 对 `Nothing` 返回类型，必须发射 `ret void`，让 caller 观察 TLS active，而不是走
+    ///   普通 `return_bb` 的 `unreachable`。
+    fn emit_effect_propagation_return(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(declared_return_ty) = self.current_fun_return_ty else {
+            return Ok(());
+        };
+
+        if declared_return_ty != CgTy::Never
+            && let Some(return_ctx) = self.return_context
+        {
+            let default = self.default_value(at, declared_return_ty)?;
+            if let Some(alloca) = return_ctx.return_alloca
+                && let Some(raw) = default.value
+            {
+                self.builder.build_store(alloca, raw)?;
+            }
+            self.builder
+                .build_unconditional_branch(return_ctx.return_bb)?;
+            return Ok(());
+        }
+
+        match declared_return_ty {
+            CgTy::Never => {
+                self.builder.build_return(None)?;
+                Ok(())
+            }
+            _ => {
+                let default = self.default_value(at, declared_return_ty)?;
+                self.emit_return(at, declared_return_ty, default)
+            }
+        }
+    }
+
+    /// 普通 callee frame 中的 direct non-resuming effect 一定会向 caller 传播：
+    /// 当前 frame 立刻结束，并把 builder 移到一个无前驱的 dead block，供后续 dead IR 落点。
+    pub(super) fn emit_ordinary_non_resuming_effect_exit(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        if !self.ordinary_effect_propagation_enabled() {
+            return Ok(());
+        }
+
+        let current_fn = self.current_codegen_function(at)?;
+        let return_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_return"));
+        let dead_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_dead"));
+
+        self.builder.build_unconditional_branch(return_bb)?;
+        self.builder.position_at_end(return_bb);
+        self.emit_effect_propagation_return(at)?;
+
+        self.builder.position_at_end(dead_bb);
+        Ok(())
+    }
+
+    /// 普通 call site 在 callee 返回后统一检查 TLS active。
+    ///
+    /// 若 callee perform 了 non-resuming effect，则当前 frame 直接向 caller 返回默认值；
+    /// 否则落到 continue block，后续 IR 只在 inactive 路径上继续生成。
+    pub(super) fn emit_ordinary_call_effect_propagation_check(
+        &mut self,
+        at: crate::span::Span,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        if !self.ordinary_effect_propagation_enabled() {
+            return Ok(());
+        }
+
+        let current_fn = self.current_codegen_function(at)?;
+        let return_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_return"));
+        let continue_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_continue"));
+
+        let is_active_fn = self.declare_runtime_effect_is_active();
+        let active_raw = self
+            .builder
+            .build_call(is_active_fn, &[], &format!("{label}_is_active"))?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect is_active return",
+                at: at.into(),
+            })?
+            .into_int_value();
+        let is_active = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            active_raw,
+            self.context.i32_type().const_int(0, false),
+            &format!("{label}_active"),
+        )?;
+
+        self.builder
+            .build_conditional_branch(is_active, return_bb, continue_bb)?;
+
+        self.builder.position_at_end(return_bb);
+        self.emit_effect_propagation_return(at)?;
+
+        self.builder.position_at_end(continue_bb);
+        Ok(())
+    }
+
     /// Emit code for a standalone `perform` expression (outside of a state
     /// machine step function).  Writes the op_tag + payload to the TLS
     /// perform slot, sets the active flag, and returns a default value.
@@ -80,6 +214,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Set the TLS active flag to signal that an effect was performed.
         let set_active = self.declare_runtime_effect_set_active();
         self.builder.build_call(set_active, &[], "")?;
+
+        if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_non_resuming_effect_exit(span, "effect_perform")?;
+            return Ok(CgValue::never());
+        }
 
         // Return a default value for the expected type.  The actual resume
         // value will be provided by the handler; this default propagates

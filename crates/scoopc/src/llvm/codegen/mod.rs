@@ -8770,6 +8770,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_call(leave, &[], "leave_native")?;
         }
 
+        self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
+
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -9033,6 +9035,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "call_vtable",
         )?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+        self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9278,6 +9281,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "call_itable",
         )?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+        self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9722,6 +9726,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }
         call_site.set_call_convention(0);
+        self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -9892,6 +9897,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_call(call_site, 0, result_ty);
         }
+        self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -12689,11 +12695,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn codegen_object_value_access(
         &mut self,
-        _at: crate::span::Span,
+        at: crate::span::Span,
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
         let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+        self.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
 
         let instance = self.declare_object_instance_global(object_fqn);
         Ok(CgValue {
@@ -13047,6 +13054,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(llvm_fun, &[lhs_arg, rhs_arg], "op_overload")?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(method_fqn));
+        self.emit_ordinary_call_effect_propagation_check(span, "operator_call_effect")?;
 
         // Convert return value to CgValue (same pattern as codegen_top_level_fun_call).
         let ret_cg =
@@ -13275,20 +13283,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // --- fail ---
         self.builder.position_at_end(fail_bb);
         self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
-        let dead_bb =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let default_ptr = target_ptr_ty.const_null();
-        self.builder.build_unconditional_branch(merge_bb)?;
+        let fail_incoming = if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_non_resuming_effect_exit(span, "cast_raise_effect")?;
+            None
+        } else {
+            let dead_bb =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: span.into(),
+                    })?;
+            let default_ptr = target_ptr_ty.const_null();
+            self.builder.build_unconditional_branch(merge_bb)?;
+            Some((default_ptr, dead_bb))
+        };
 
         // --- merge ---
         self.builder.position_at_end(merge_bb);
         let phi = self.builder.build_phi(target_ptr_ty, "cast_value")?;
-        phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
+        if let Some((default_ptr, dead_bb)) = fail_incoming {
+            phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
+        } else {
+            phi.add_incoming(&[(&casted_ptr, ok_bb)]);
+        }
         let out_ptr = phi.as_basic_value().into_pointer_value();
 
         Ok(CgValue {

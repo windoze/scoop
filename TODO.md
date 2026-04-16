@@ -639,16 +639,22 @@
   - `ArmResumeMatchedSite` 仍是 immediate-resume 的唯一 continuation resume 出口，payload 合同与 dedicated rewrite 保持一致。
 - 依赖：T3009a1
 
-### T3010b2b0 [TODO] 修正普通 callee frame 内 non-resuming perform/raise 后继续执行的控制流语义
+### T3010b2b0 [DONE] 修正普通 callee frame 内 non-resuming perform/raise 后继续执行的控制流语义
 - 描述：在复现 `effect_multi_nonresuming_raise_custom_finally.scoop` 时发现，`throwAlarm()` 内部的 `Alarm.trip(seed + 1)` 之后仍会继续执行 `throw_alarm_unreachable`；继续定向复现 `nothing_raise_in_helper_basic.scoop` 也可见 `alwaysFail()` 会在 `Raise.raise(42)` 之后继续打印 `unreachable_in_helper`。这说明当前常规函数/方法 codegen 里，non-resuming perform 只写 TLS active flag + 返回默认值，但没有终止当前 callee frame；即便 caller 侧 state-machine 边界随后能观察到 active，这也已经违反了 `Nothing` / non-resuming effect 的控制流语义，并直接阻塞 `T3010b2b1` 的验收。
+- 进展：
+  - 已在 ordinary frame 的 effect codegen 中新增统一 propagation helper：direct non-resuming `perform` / `Raise.raise` 会立刻结束当前 callee frame，并把 builder 落到无前驱 dead block；ordinary user call 返回后统一检查 TLS active，若 active 则当前 frame 直接向 caller 返回默认值。
+  - 已把 direct/top-level/member/itable/funptr/closure/operator-overload/object-init 等 ordinary call site 接到这套 active 检查；对声明返回 `Nothing` 的 ordinary callee，propagation 路径现在发射 `ret void`，不再落回普通 `return_bb` 的 `unreachable`。
+  - 已把 `codegen_cast_as_expr` 的 runtime `Raise` 失败路径接到同一套 ordinary-frame propagation 合同，避免 `as` 失败后继续沿本地 merge 正常执行。
+  - `nothing_raise_in_helper_basic.scoop` 与 `effect_indirect_perform_nonresuming_call_chain.scoop` 已恢复与 golden 一致；`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 也已不再执行 `throw_alarm_unreachable`。该 fixture 剩余的 `finally` / outer catch / sibling self-capture 缺口已收敛到 `T3010b2b1`。
 - 目标：
   - 普通函数 / helper / 方法体内遇到 non-resuming perform（例如 `Raise.raise(...)`、`Alarm.trip(...)`）后，当前 callee frame 必须立刻停止执行，不能继续落到后续 statement / tail expression。
   - 该终止语义必须统一覆盖 direct `perform` 与返回 `Nothing` 的 non-resuming effect op 调用，不能靠恢复旧的 flag-based unwind 或按 callee/source shape 重新分流。
   - 现有 caller-side state-machine 边界仍负责在 callee 返回后观察 TLS active 并继续 dispatch；本任务只修正“callee 自己不应继续执行”的更前置语义。
 - 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/nothing_raise_in_helper_basic.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
-  - `cargo run -p scoop --features llvm -- test`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009aR
 
 ### T3010b2b0R [TODO] Review：确认 non-resuming callee frame 终止语义未回流为旧 flag-based unwind
@@ -663,7 +669,7 @@
 - 依赖：T3010b2b0
 
 ### T3010b2b1 [TODO] 修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义
-- 描述：在 `T3010b2b0` 之前复现当前验收用例时可见：arm body 中的 `Raise.raise(...)` 会错误继续执行到 `arm_unreachable`，sibling `Raise.raise` arm 也仍会自捕获，`finally` 没有在向外传播前恰好执行一次。`T3010b2b0` 会先修掉普通 callee frame 在 non-resuming perform 后继续执行的更基础缺口；完成该前置后，本任务再专注收口 arm body 执行期特有的 self-inactive / cleanup / outward propagation 语义。
+- 描述：在 `T3010b2b0` 完成后复现当前验收用例时可见：普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，但 arm body 中的 `Raise.raise(...)` 仍会错误继续执行到 `arm_unreachable`，sibling `Raise.raise` arm 也仍会自捕获，`finally` 没有在向外传播前恰好执行一次。`T3010b2b0` 已先修掉普通 callee frame 在 non-resuming perform 后继续执行的更基础缺口；本任务接着专注收口 arm body 执行期特有的 self-inactive / cleanup / outward propagation 语义。
 - 目标：
   - arm body 中触发的 unmatched non-resuming effect 不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
   - arm body 执行期间当前 handler instance 必须处于 dispatch scope 外 / self-inactive；sibling arms 不得自捕获 arm body 内再次触发的 effect。
