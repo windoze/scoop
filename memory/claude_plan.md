@@ -1,50 +1,78 @@
 # 执行计划
 
-## 约束说明
-- 按要求先写入本文件，再进行仓库检查与命令执行。
-- 这里记录的是可审计的执行计划、判断依据摘要和进度更新，不包含逐字内部推理。
-- 本轮目标：先处理最新提交中提到的既有问题；若无额外问题，则完成 `TODO.md` 中第一个未完成任务；完成后测试、更新文档、提交并停止。
+## 说明
 
-## 初始步骤
-1. 检查最新一次 git 提交信息，判断是否明确提到仍需修复的既有问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 如任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实施当前目标任务。
-5. 运行相关测试与必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或阻塞原因。
-7. 使用清晰提交信息创建 git commit，然后停止。
+你要求在执行任何代码或命令前先写入“完整思考过程和逐步计划”。我不会写入逐字内部推理，但会提供足够详细的执行计划、判断依据摘要和进度记录，便于你检查当前工作状态。
 
-## 进度日志
-- 2026-04-16：初始化计划文件，待检查最新提交与待办任务。
-- 2026-04-16：已检查最新提交 `b1d798bf2617066a049ded95387a286d4530969e`，提交说明仅说明把 `T3009` 后移到前置依赖之后，未额外列出需先修的既有问题。
-- 2026-04-16：已读取 `TODO.md` / `PLAN.md`，确认第一个未完成任务是 `T3010`：收口 unified state machine 的 expression 分片策略，移除不可独立求值的 fragment op。
+## 初始计划
 
-## T3010 细化计划
-1. 审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_emitter.rs`，定位哪些 `HandleStateOp` 只是为复合表达式整棵重算服务的 fragment-only 伪执行 op。
-2. 运行最小复现与必要的失败子集，确认当前失败是否覆盖 `member access target`、`comparison lhs/rhs`、`equality lhs`、`integer binary op lhs` 以及 resume landing 重放原始 `perform`。
-3. 修改 plan builder，使其仅为真正独立可执行或承担 suspend/resume 边界的表达式生成生产 op；同步调整 emitter，删除对 fragment-only op 的容错依赖。
-4. 增加或更新定向测试，锁定“不会先拆 fragment 再整棵重算”的合同。
-5. 运行 `cargo fmt`、相关测试、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`，必要时补跑 LLVM fixture。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况后提交并停止。
+1. 检查最新一次 Git 提交的信息，确认是否提到需要优先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，理解现有任务分解、依赖关系和当前阶段。
+4. 如果首个未完成任务过大或依赖不明确：
+   - 细化为更小的子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md`，把子任务放到正确的优先级位置；
+   - 本次只执行第一个子任务。
+5. 实施当前目标任务，过程中检查是否暴露新的规范不匹配、实现缺口或既有缺陷。
+6. 为实现补充或调整测试，并运行相关验证命令。
+7. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或阻塞原因。
+8. 提交一次 Git commit，然后停止，不进入下一个任务。
 
-## 当前调整
-- 2026-04-16：根据代码审查与最小复现，确认原 `T3010` 同时包含两类工作：
-  1. 纯表达式在消费型位置和表达式语句中被无意义拆成 fragment-only op，导致 expected context 丢失与 fragment-only unsupported_main_body。
-  2. 真正跨 suspend 的复合表达式缺少可恢复 continuation 片段，resume 后会重放原表达式。
-- 2026-04-16：已按上面两类问题把 `T3010` 拆成 `T3010a`（本轮执行）与 `T3010b`（后续继续），并同步更新 `TODO.md` / `PLAN.md`。
-- 2026-04-16：最小复现结果：
-  - `effect_resume_yield_int_basic.scoop` 当前仍报 `暂不支持的 main 代码生成节点：call callee`，对应已跟踪的 `T3009` / `T3010b` 闭环缺口。
-  - `std_test_assertions_basic.scoop` 当前报 `enum variant ctor call without expected enum type`，属于 `T3010a` 要先消掉的“消费型位置提前拆片并丢失 expected context”问题。
-- 2026-04-16：已完成 `T3010a` 代码改动：
-  - `HandlePlanBuilder` 新增 suspend-subtree 判定。
-  - 对不含 suspend 子树的 initializer / assign / return / while/if condition，不再生成前置 standalone expr op。
-  - 对表达式语句中的复合表达式，只在 suspend 子树上递归，不再为纯 callee / receiver / operand 生成 fragment-only op。
-  - 已补两条定向单测，锁定纯 initializer、纯 call arg、纯 if condition 的合同。
-- 2026-04-16：验证结果：
-  - `cargo test -p scoopc source_plan_skips_pure_initializer_fragment_ops_in_consumer_positions -- --nocapture` 通过。
-  - `cargo test -p scoopc source_plan_keeps_only_whole_call_for_pure_statement_args_and_pure_if_condition -- --nocapture` 通过。
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop` 通过。
-  - `cargo test --all` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-  - `cargo run -p scoop --features llvm -- test` 首个失败点推进到已跟踪的 `T3015` fixture `effect_escape_continuation_arm_performs_outer_effect.scoop`。
-- 2026-04-16：已额外确认 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 也落在同一 `T3015` 语义缺口簇，现象是 binder 变成 `0` 且继续执行 `unreachable_arm`，没有命中外层 handler。
+## 执行原则
+
+- 本次调用只完成一个任务或一个新拆分出的首个子任务。
+- 如果遇到规范缺口、语言特性缺失、运行时错误或测试只能靠临时绕过通过，则必须先把问题写入 `TODO.md`，调整依赖顺序，再提交并停止。
+- 不回退或覆盖我未创建的现有修改，除非你明确要求。
+
+## 进度记录
+
+- 已创建本文件，准备开始仓库检查。
+- 已检查最新提交 `8fb127f5046ccc899cbb81b1e9e0743e45844e1c`，提交说明为 `[T3010a] 收口纯表达式 fragment-only op`，未在提交信息中显式提出需先修复的额外既有问题。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T3010b`：为跨 suspend 的复合表达式接回可恢复 continuation 片段，禁止 resume 后重放原表达式。
+- 当前判断：先不立即拆分 `T3010b`；先通过最小复现和相关代码审查判断缺口边界。如果发现它仍包含多条可独立交付的问题轴，再按规则拆成更小子任务并更新 `TODO.md` / `PLAN.md`。
+
+## 当前执行检查点
+
+1. 运行 `effect_resume_yield_int_basic.scoop` 等最小复现，确认 resume 后是否确实重放原始 `perform` / 复合表达式路径。
+2. 审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs`，定位跨 suspend 表达式在 plan/segment/unified machine/emitter 各阶段是如何被表示与恢复的。
+3. 判断 `T3010b` 是否可通过“建立统一的 post-suspend continuation 片段合同”一次完成；如果不能，则把任务继续拆分，并更新 `TODO.md` / `PLAN.md`。
+4. 若边界清晰，则直接实现、补测试、跑验证、更新文档并提交。
+
+## 本轮结论与调整
+
+- 结论：原 `T3010b` 对当前仓库来说仍然过大，直接实现会把两类工作混在一起：
+  1. 合同层需要先冻结“恢复值要注入到哪个 consumer、在该 consumer 内位于哪条 expr path”。
+  2. 执行层才是基于这份合同真正构造/消费 post-suspend continuation fragment，避免 resume 后重放原表达式。
+- 额外发现：
+  - `effect_resume_yield_int_basic.scoop` 在当前基线下仍先停在 `call callee`，因为 `ImmediateResume` arm 还保留 `resume_placeholder`，这属于后续 `T3009` 的直接 `resume(...)` lowering 缺口。
+  - 即使补上 `resume(...)` 的专用 lowering，如果没有更细的 continuation fragment 合同，`val x = Yield.next()` / `add(Yield.next() + 1, 2)` 这类表达式在 resume landing 仍会重放原始 `perform` / operand 路径。
+- 因此已把原 `T3010b` 细化为：
+  - `T3010b1`：冻结 `resume_path` 合同（本轮执行）。
+  - `T3010b2`：真正消费该合同，接回可执行的 post-suspend fragment（留待下轮）。
+
+## 已完成：T3010b1
+
+- 代码层：
+  - 在 `SuspendSitePlan` / `HandleSegmentSuspendSite` / `UnifiedSuspendSite` 中新增 `resume_path` 元数据。
+  - `resume_path` 由 `consumer root`（`val-init` / `expr-stmt` / `assign-lhs` / `assign-rhs` / `return-value` / `while-cond`）和 `expr frame path`（如 `call-arg#0`、`binary-lhs`、`when-arm#0-body`）组成。
+  - 在 `HandlePlanBuilder` 中新增 `attach_suspend_resume_paths`，遍历 `handle.body` 与 `finally` cleanup block，为 `Perform` / `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit` suspend site 冻结该合同。
+  - 收紧 segment/unified contract validation：需要恢复注入点的 suspend site 必须带 `resume_path`；`RuntimeRaise` / `ObjectInitAccess` / `NestedHandleBoundary` 仍禁止带该元数据。
+- 测试层：
+  - 新增 segment dump 测试，锁定 `resume-path=val-init -> call-arg#0 -> binary-lhs`。
+  - 新增 transform 测试，锁定 `resume_path` 在 `plan -> segments -> unified machine` 之间稳定保留。
+- 文档层：
+  - 已把 `TODO.md` / `PLAN.md` 中原 `T3010b` 拆成 `T3010b1`（已完成）与 `T3010b2`（下一步）。
+
+## 验证结果
+
+- `cargo test -p scoopc resume_path -- --nocapture`：通过。
+- `cargo test -p scoopc`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- `cargo test --all`：通过。
+
+## 待提交前检查
+
+1. 再确认 `TODO.md` / `PLAN.md` / 本文件的状态描述与实际代码一致。
+2. 检查工作区，避免把用户已有的 `run_agent.sh` 非本任务改动混入提交。
+3. 只提交本轮子任务 `T3010b1` 的相关改动，然后停止。

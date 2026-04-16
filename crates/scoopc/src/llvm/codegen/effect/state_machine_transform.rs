@@ -418,6 +418,7 @@ pub(crate) struct UnifiedSuspendSite {
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
     source_path: Option<SuspendSourcePath>,
+    resume_path: Option<SuspendResumePath>,
 }
 
 impl UnifiedSuspendSite {
@@ -1112,6 +1113,13 @@ impl UnifiedHandleStateMachine {
                             ));
                         }
                     }
+                    if site.resume_path.is_none() {
+                        return Err(format!(
+                            "{path}: site{} kind={} missing resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
                 }
                 SuspendSiteKind::RuntimeRaise { .. } => {
                     for arm_id in &site.matching_arms {
@@ -1129,6 +1137,13 @@ impl UnifiedHandleStateMachine {
                     if site.source_path.is_some() {
                         return Err(format!(
                             "{path}: site{} kind={} must not carry source_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if site.resume_path.is_some() {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry resume_path metadata",
                             site.id,
                             describe_suspend_site_kind(&site.kind)
                         ));
@@ -1155,8 +1170,32 @@ impl UnifiedHandleStateMachine {
                     }
                     if matches!(
                         &site.kind,
-                        SuspendSiteKind::ObjectInitAccess { .. }
+                        SuspendSiteKind::CallMaySuspend { .. }
+                            | SuspendSiteKind::CallStateMachineCallee { .. }
                             | SuspendSiteKind::ClassCtorInit { .. }
+                    ) && site.resume_path.is_none()
+                    {
+                        return Err(format!(
+                            "{path}: site{} kind={} missing resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if matches!(
+                        &site.kind,
+                        SuspendSiteKind::ObjectInitAccess { .. }
+                            | SuspendSiteKind::NestedHandleBoundary { .. }
+                    ) && site.resume_path.is_some()
+                    {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if matches!(
+                        &site.kind,
+                        SuspendSiteKind::ObjectInitAccess { .. }
                             | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.source_path.is_some()
                     {
@@ -1324,6 +1363,12 @@ impl UnifiedHandleStateMachine {
                 }
                 if let Some(source_path) = &site.source_path {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
+                }
+                if let Some(resume_path) = &site.resume_path {
+                    out.push_str(&format!(
+                        "{pad}    resume-path={}\n",
+                        resume_path.label()
+                    ));
                 }
             }
         }
@@ -1734,6 +1779,7 @@ impl UnifiedSuspendSite {
             available_locals: sorted_symbol_ids(&site.available_locals),
             capture_locals: sorted_symbol_ids(&site.capture_locals),
             source_path: site.source_path.clone(),
+            resume_path: site.resume_path.clone(),
         }
     }
 }
@@ -3165,6 +3211,62 @@ fun demo(seed: Int): Int {
         ));
         assert_eq!(plan_arm, segment_arm);
         assert_eq!(plan_arm, machine_arm);
+    }
+
+    #[test]
+    fn resume_path_is_preserved_from_plan_to_segments_to_unified_machine() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun add(a: Int, b: Int): Int {
+    a + b
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val y: Int = add(Yield.next() + 1, 2)
+        y
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+        let source_plan = build_source_plan_from_lowered(&lowered);
+        let segment_list = source_plan.build_segment_list();
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("unified machine should build");
+
+        let plan_resume_path = source_plan
+            .suspend_sites
+            .iter()
+            .find_map(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected resume_path in source plan");
+        let segment_resume_path = segment_list
+            .suspend_sites
+            .iter()
+            .find_map(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected resume_path in segment list");
+        let machine_resume_path = machine
+            .suspend_sites
+            .iter()
+            .find_map(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected resume_path in unified machine");
+
+        assert_eq!(plan_resume_path, "val-init -> call-arg#0 -> binary-lhs");
+        assert_eq!(plan_resume_path, segment_resume_path);
+        assert_eq!(plan_resume_path, machine_resume_path);
     }
 
     #[test]

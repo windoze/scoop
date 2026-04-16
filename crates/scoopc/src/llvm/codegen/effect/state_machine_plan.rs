@@ -212,6 +212,12 @@ impl HandleStateMachinePlan {
                 if let Some(source_path) = &site.source_path {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
                 }
+                if let Some(resume_path) = &site.resume_path {
+                    out.push_str(&format!(
+                        "{pad}    resume-path={}\n",
+                        resume_path.label()
+                    ));
+                }
             }
         }
 
@@ -658,6 +664,7 @@ struct SuspendSitePlan {
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
     source_path: Option<SuspendSourcePath>,
+    resume_path: Option<SuspendResumePath>,
 }
 
 /// statement-position `val` 绑定 suspend site 在 `handle` body 中的源码路径。
@@ -684,6 +691,238 @@ impl SuspendSourcePath {
             acc ^= frame.structural_signature();
         }
         acc
+    }
+}
+
+/// suspend site 在其“消费位置表达式”中的恢复路径。
+///
+/// 这份路径不描述外层源码语句/控制流位置；那部分仍由 `SuspendSourcePath`
+/// 承担。这里仅描述：
+/// 1. suspend site 恢复后的值首先要回到哪个 consumer root；
+/// 2. 在该 consumer 内部，site 位于哪条表达式子路径上。
+///
+/// 后续 `T3010b2+` 会基于这份冻结合同构造真正的 post-suspend
+/// continuation fragment，而不是在 emitter 中重新扫描 AST。
+#[derive(Debug, Clone)]
+struct SuspendResumePath {
+    consumer: SuspendResumeConsumer,
+    expr_frames: Vec<SuspendResumeExprFrame>,
+}
+
+impl SuspendResumePath {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        let mut parts = vec![self.consumer.label().to_string()];
+        parts.extend(self.expr_frames.iter().map(SuspendResumeExprFrame::label));
+        parts.join(" -> ")
+    }
+
+    fn structural_signature(&self) -> usize {
+        let mut acc = self.consumer.structural_signature();
+        for frame in &self.expr_frames {
+            acc ^= frame.structural_signature();
+        }
+        acc
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum SuspendResumeConsumer {
+    ValInit,
+    ExprStmt,
+    AssignLhs,
+    AssignRhs,
+    ReturnValue,
+    WhileCond,
+}
+
+impl SuspendResumeConsumer {
+    #[cfg(test)]
+    fn label(self) -> &'static str {
+        match self {
+            SuspendResumeConsumer::ValInit => "val-init",
+            SuspendResumeConsumer::ExprStmt => "expr-stmt",
+            SuspendResumeConsumer::AssignLhs => "assign-lhs",
+            SuspendResumeConsumer::AssignRhs => "assign-rhs",
+            SuspendResumeConsumer::ReturnValue => "return-value",
+            SuspendResumeConsumer::WhileCond => "while-cond",
+        }
+    }
+
+    fn structural_signature(self) -> usize {
+        match self {
+            SuspendResumeConsumer::ValInit => 0x11,
+            SuspendResumeConsumer::ExprStmt => 0x22,
+            SuspendResumeConsumer::AssignLhs => 0x33,
+            SuspendResumeConsumer::AssignRhs => 0x44,
+            SuspendResumeConsumer::ReturnValue => 0x55,
+            SuspendResumeConsumer::WhileCond => 0x66,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum SuspendResumeExprFrame {
+    CallCallee { call_span: Span },
+    CallArg { call_span: Span, arg_index: usize },
+    NamedArgValue {
+        call_span: Span,
+        arg_index: usize,
+        name_span: Span,
+    },
+    PerformArg { perform_span: Span, arg_index: usize },
+    MemberReceiver { access_span: Span },
+    BinaryLhs { binary_span: Span },
+    BinaryRhs { binary_span: Span },
+    StructField {
+        struct_span: Span,
+        field_name: String,
+    },
+    TupleElement {
+        tuple_span: Span,
+        element_index: usize,
+    },
+    InterpolatedExpr {
+        string_span: Span,
+        part_index: usize,
+    },
+    UnaryOperand { expr_span: Span },
+    CastOperand { expr_span: Span },
+    TypeCheckOperand { expr_span: Span },
+    IfCond { if_span: Span },
+    IfThenExpr { if_span: Span },
+    IfElseExpr { if_span: Span },
+    WhenSubject { when_span: Span },
+    WhenArmGuard {
+        when_span: Span,
+        arm_index: usize,
+    },
+    WhenArmBody {
+        when_span: Span,
+        arm_index: usize,
+    },
+}
+
+impl SuspendResumeExprFrame {
+    #[cfg(test)]
+    fn label(&self) -> String {
+        match self {
+            SuspendResumeExprFrame::CallCallee { .. } => "call-callee".to_string(),
+            SuspendResumeExprFrame::CallArg { arg_index, .. } => {
+                format!("call-arg#{arg_index}")
+            }
+            SuspendResumeExprFrame::NamedArgValue { arg_index, .. } => {
+                format!("named-arg#{arg_index}")
+            }
+            SuspendResumeExprFrame::PerformArg { arg_index, .. } => {
+                format!("perform-arg#{arg_index}")
+            }
+            SuspendResumeExprFrame::MemberReceiver { .. } => "member-receiver".to_string(),
+            SuspendResumeExprFrame::BinaryLhs { .. } => "binary-lhs".to_string(),
+            SuspendResumeExprFrame::BinaryRhs { .. } => "binary-rhs".to_string(),
+            SuspendResumeExprFrame::StructField { field_name, .. } => {
+                format!("struct-field({field_name})")
+            }
+            SuspendResumeExprFrame::TupleElement { element_index, .. } => {
+                format!("tuple-elem#{element_index}")
+            }
+            SuspendResumeExprFrame::InterpolatedExpr { part_index, .. } => {
+                format!("interp-expr#{part_index}")
+            }
+            SuspendResumeExprFrame::UnaryOperand { .. } => "unary-operand".to_string(),
+            SuspendResumeExprFrame::CastOperand { .. } => "cast-operand".to_string(),
+            SuspendResumeExprFrame::TypeCheckOperand { .. } => {
+                "typecheck-operand".to_string()
+            }
+            SuspendResumeExprFrame::IfCond { .. } => "if-cond".to_string(),
+            SuspendResumeExprFrame::IfThenExpr { .. } => "if-then-expr".to_string(),
+            SuspendResumeExprFrame::IfElseExpr { .. } => "if-else-expr".to_string(),
+            SuspendResumeExprFrame::WhenSubject { .. } => "when-subject".to_string(),
+            SuspendResumeExprFrame::WhenArmGuard { arm_index, .. } => {
+                format!("when-arm#{arm_index}-guard")
+            }
+            SuspendResumeExprFrame::WhenArmBody { arm_index, .. } => {
+                format!("when-arm#{arm_index}-body")
+            }
+        }
+    }
+
+    fn structural_signature(&self) -> usize {
+        match self {
+            SuspendResumeExprFrame::CallCallee { call_span } => {
+                0x101 ^ call_span.start ^ (call_span.end << 1)
+            }
+            SuspendResumeExprFrame::CallArg {
+                call_span,
+                arg_index,
+            } => 0x202 ^ call_span.start ^ (call_span.end << 1) ^ arg_index,
+            SuspendResumeExprFrame::NamedArgValue {
+                call_span,
+                arg_index,
+                name_span,
+            } => {
+                0x303
+                    ^ call_span.start
+                    ^ (call_span.end << 1)
+                    ^ arg_index
+                    ^ (name_span.start << 2)
+                    ^ (name_span.end << 3)
+            }
+            SuspendResumeExprFrame::PerformArg {
+                perform_span,
+                arg_index,
+            } => 0x404 ^ perform_span.start ^ (perform_span.end << 1) ^ arg_index,
+            SuspendResumeExprFrame::MemberReceiver { access_span } => {
+                0x505 ^ access_span.start ^ (access_span.end << 1)
+            }
+            SuspendResumeExprFrame::BinaryLhs { binary_span } => {
+                0x606 ^ binary_span.start ^ (binary_span.end << 1)
+            }
+            SuspendResumeExprFrame::BinaryRhs { binary_span } => {
+                0x707 ^ binary_span.start ^ (binary_span.end << 1)
+            }
+            SuspendResumeExprFrame::StructField {
+                struct_span,
+                field_name,
+            } => 0x808 ^ struct_span.start ^ (struct_span.end << 1) ^ field_name.len(),
+            SuspendResumeExprFrame::TupleElement {
+                tuple_span,
+                element_index,
+            } => 0x909 ^ tuple_span.start ^ (tuple_span.end << 1) ^ element_index,
+            SuspendResumeExprFrame::InterpolatedExpr {
+                string_span,
+                part_index,
+            } => 0xA0A ^ string_span.start ^ (string_span.end << 1) ^ part_index,
+            SuspendResumeExprFrame::UnaryOperand { expr_span } => {
+                0xB0B ^ expr_span.start ^ (expr_span.end << 1)
+            }
+            SuspendResumeExprFrame::CastOperand { expr_span } => {
+                0xC0C ^ expr_span.start ^ (expr_span.end << 1)
+            }
+            SuspendResumeExprFrame::TypeCheckOperand { expr_span } => {
+                0xD0D ^ expr_span.start ^ (expr_span.end << 1)
+            }
+            SuspendResumeExprFrame::IfCond { if_span } => {
+                0xE0E ^ if_span.start ^ (if_span.end << 1)
+            }
+            SuspendResumeExprFrame::IfThenExpr { if_span } => {
+                0xF0F ^ if_span.start ^ (if_span.end << 1)
+            }
+            SuspendResumeExprFrame::IfElseExpr { if_span } => {
+                0x1111 ^ if_span.start ^ (if_span.end << 1)
+            }
+            SuspendResumeExprFrame::WhenSubject { when_span } => {
+                0x1212 ^ when_span.start ^ (when_span.end << 1)
+            }
+            SuspendResumeExprFrame::WhenArmGuard {
+                when_span,
+                arm_index,
+            } => 0x1313 ^ when_span.start ^ (when_span.end << 1) ^ arm_index,
+            SuspendResumeExprFrame::WhenArmBody {
+                when_span,
+                arm_index,
+            } => 0x1414 ^ when_span.start ^ (when_span.end << 1) ^ arm_index,
+        }
     }
 }
 
@@ -990,6 +1229,9 @@ impl SuspendSitePlan {
         if let Some(source_path) = &self.source_path {
             acc ^= source_path.structural_signature();
         }
+        if let Some(resume_path) = &self.resume_path {
+            acc ^= resume_path.structural_signature();
+        }
         acc
     }
 }
@@ -1170,6 +1412,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.build_arm_states();
         self.compute_capture_sets();
         self.attach_suspend_source_paths();
+        self.attach_suspend_resume_paths();
         let frame_layout = self.build_frame_layout();
 
         let _ = final_exit_state;
@@ -2382,6 +2625,294 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         });
     }
 
+    fn attach_suspend_resume_paths(&mut self) {
+        for stmt in &self.handle.body.stmts {
+            self.attach_suspend_resume_paths_in_stmt(stmt);
+        }
+        if let Some(finally_block) = self.handle.finally.as_ref() {
+            for stmt in &finally_block.stmts {
+                self.attach_suspend_resume_paths_in_stmt(stmt);
+            }
+        }
+    }
+
+    fn attach_suspend_resume_paths_in_stmt(&mut self, stmt: &'hir hir::Stmt) {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Expr(expr) => {
+                self.attach_suspend_resume_paths_in_expr(
+                    expr,
+                    SuspendResumeConsumer::ExprStmt,
+                    &mut Vec::new(),
+                );
+            }
+            hir::StmtKind::Val(decl) => {
+                if let Some(init) = decl.init.as_ref() {
+                    self.attach_suspend_resume_paths_in_expr(
+                        init,
+                        SuspendResumeConsumer::ValInit,
+                        &mut Vec::new(),
+                    );
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.attach_suspend_resume_paths_in_expr(
+                    lhs,
+                    SuspendResumeConsumer::AssignLhs,
+                    &mut Vec::new(),
+                );
+                self.attach_suspend_resume_paths_in_expr(
+                    rhs,
+                    SuspendResumeConsumer::AssignRhs,
+                    &mut Vec::new(),
+                );
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.attach_suspend_resume_paths_in_expr(
+                    cond,
+                    SuspendResumeConsumer::WhileCond,
+                    &mut Vec::new(),
+                );
+                for stmt in &body.stmts {
+                    self.attach_suspend_resume_paths_in_stmt(stmt);
+                }
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value {
+                    self.attach_suspend_resume_paths_in_expr(
+                        expr,
+                        SuspendResumeConsumer::ReturnValue,
+                        &mut Vec::new(),
+                    );
+                }
+            }
+        }
+    }
+
+    fn attach_suspend_resume_paths_in_expr(
+        &mut self,
+        expr: &'hir hir::Expr,
+        consumer: SuspendResumeConsumer,
+        expr_frames: &mut Vec<SuspendResumeExprFrame>,
+    ) {
+        self.record_suspend_resume_path(expr, consumer, expr_frames);
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Closure(_)
+            | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    expr_frames.push(SuspendResumeExprFrame::StructField {
+                        struct_span: expr.span,
+                        field_name: field.name.clone(),
+                    });
+                    self.attach_suspend_resume_paths_in_expr(&field.value, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for (element_index, element) in elements.iter().enumerate() {
+                    expr_frames.push(SuspendResumeExprFrame::TupleElement {
+                        tuple_span: expr.span,
+                        element_index,
+                    });
+                    self.attach_suspend_resume_paths_in_expr(element, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for (part_index, part) in parts.iter().enumerate() {
+                    let hir::InterpolatedStringPart::Expr { expr: part_expr } = part else {
+                        continue;
+                    };
+                    expr_frames.push(SuspendResumeExprFrame::InterpolatedExpr {
+                        string_span: expr.span,
+                        part_index,
+                    });
+                    self.attach_suspend_resume_paths_in_expr(part_expr, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::Unary { expr: inner, .. } => {
+                expr_frames.push(SuspendResumeExprFrame::UnaryOperand {
+                    expr_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(inner, consumer, expr_frames);
+                let _ = expr_frames.pop();
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                expr_frames.push(SuspendResumeExprFrame::BinaryLhs {
+                    binary_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(lhs, consumer, expr_frames);
+                let _ = expr_frames.pop();
+
+                expr_frames.push(SuspendResumeExprFrame::BinaryRhs {
+                    binary_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(rhs, consumer, expr_frames);
+                let _ = expr_frames.pop();
+            }
+            hir::ExprKind::TypeCheck { expr: inner, .. } => {
+                expr_frames.push(SuspendResumeExprFrame::TypeCheckOperand {
+                    expr_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(inner, consumer, expr_frames);
+                let _ = expr_frames.pop();
+            }
+            hir::ExprKind::Cast { expr: inner, .. } => {
+                expr_frames.push(SuspendResumeExprFrame::CastOperand {
+                    expr_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(inner, consumer, expr_frames);
+                let _ = expr_frames.pop();
+            }
+            hir::ExprKind::Block(block) => {
+                for stmt in &block.stmts {
+                    self.attach_suspend_resume_paths_in_stmt(stmt);
+                }
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                expr_frames.push(SuspendResumeExprFrame::IfCond { if_span: expr.span });
+                self.attach_suspend_resume_paths_in_expr(cond, consumer, expr_frames);
+                let _ = expr_frames.pop();
+
+                expr_frames.push(SuspendResumeExprFrame::IfThenExpr { if_span: expr.span });
+                self.attach_suspend_resume_paths_in_expr(then_branch, consumer, expr_frames);
+                let _ = expr_frames.pop();
+
+                if let Some(else_branch) = else_branch.as_deref() {
+                    expr_frames.push(SuspendResumeExprFrame::IfElseExpr { if_span: expr.span });
+                    self.attach_suspend_resume_paths_in_expr(else_branch, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                expr_frames.push(SuspendResumeExprFrame::WhenSubject {
+                    when_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(subject, consumer, expr_frames);
+                let _ = expr_frames.pop();
+
+                for (arm_index, arm) in arms.iter().enumerate() {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        expr_frames.push(SuspendResumeExprFrame::WhenArmGuard {
+                            when_span: expr.span,
+                            arm_index,
+                        });
+                        self.attach_suspend_resume_paths_in_expr(guard, consumer, expr_frames);
+                        let _ = expr_frames.pop();
+                    }
+
+                    expr_frames.push(SuspendResumeExprFrame::WhenArmBody {
+                        when_span: expr.span,
+                        arm_index,
+                    });
+                    self.attach_suspend_resume_paths_in_expr(&arm.body, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => {
+                expr_frames.push(SuspendResumeExprFrame::MemberReceiver {
+                    access_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(receiver, consumer, expr_frames);
+                let _ = expr_frames.pop();
+            }
+            hir::ExprKind::Call { callee, args } => {
+                expr_frames.push(SuspendResumeExprFrame::CallCallee {
+                    call_span: expr.span,
+                });
+                self.attach_suspend_resume_paths_in_expr(callee, consumer, expr_frames);
+                let _ = expr_frames.pop();
+
+                for (arg_index, arg) in args.iter().enumerate() {
+                    match arg {
+                        hir::CallArg::Positional(arg_expr) => {
+                            expr_frames.push(SuspendResumeExprFrame::CallArg {
+                                call_span: expr.span,
+                                arg_index,
+                            });
+                            self.attach_suspend_resume_paths_in_expr(
+                                arg_expr,
+                                consumer,
+                                expr_frames,
+                            );
+                            let _ = expr_frames.pop();
+                        }
+                        hir::CallArg::Named {
+                            name_span, value, ..
+                        } => {
+                            expr_frames.push(SuspendResumeExprFrame::NamedArgValue {
+                                call_span: expr.span,
+                                arg_index,
+                                name_span: *name_span,
+                            });
+                            self.attach_suspend_resume_paths_in_expr(value, consumer, expr_frames);
+                            let _ = expr_frames.pop();
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                for (arg_index, arg) in args.iter().enumerate() {
+                    let value = match arg {
+                        hir::CallArg::Positional(expr) => expr,
+                        hir::CallArg::Named { value, .. } => value,
+                    };
+                    expr_frames.push(SuspendResumeExprFrame::PerformArg {
+                        perform_span: expr.span,
+                        arg_index,
+                    });
+                    self.attach_suspend_resume_paths_in_expr(value, consumer, expr_frames);
+                    let _ = expr_frames.pop();
+                }
+            }
+            hir::ExprKind::Handle(_) => {
+                // Nested handle boundaries still use their own state machine
+                // contract. `T3010b2+` will decide how/if they project into
+                // resume fragments of the outer handle.
+            }
+        }
+    }
+
+    fn record_suspend_resume_path(
+        &mut self,
+        expr: &'hir hir::Expr,
+        consumer: SuspendResumeConsumer,
+        expr_frames: &[SuspendResumeExprFrame],
+    ) {
+        let Some(site) = self.suspend_sites.iter_mut().find(|site| {
+            let kind_matches = matches!(
+                (&site.kind, &expr.kind),
+                (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
+                    | (
+                        SuspendSiteKind::CallMaySuspend { .. }
+                            | SuspendSiteKind::CallStateMachineCallee { .. }
+                            | SuspendSiteKind::ClassCtorInit { .. },
+                        hir::ExprKind::Call { .. },
+                    )
+            );
+            kind_matches && site.span == expr.span && site.resume_path.is_none()
+        }) else {
+            return;
+        };
+        site.resume_path = Some(SuspendResumePath {
+            consumer,
+            expr_frames: expr_frames.to_vec(),
+        });
+    }
+
     fn new_state(&mut self, label: impl Into<String>) -> PlanStateId {
         let id = self.next_state_id;
         self.next_state_id = self.next_state_id.saturating_add(1);
@@ -2427,6 +2958,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             available_locals,
             capture_locals: Vec::new(),
             source_path: None,
+            resume_path: None,
         });
         id
     }

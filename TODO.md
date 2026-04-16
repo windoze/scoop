@@ -524,12 +524,29 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3008aR
 
-### T3010b [TODO] 为跨 suspend 的复合表达式接回可恢复 continuation 片段，禁止 resume 后重放原表达式
-- 描述：`T3010a` 只清理纯表达式的错误拆片；一旦表达式内部真的跨过 `perform` / `SuspendCall` / hidden suspend / nested handle boundary，当前 unified path 仍会在 resume landing 重新发射原始整棵表达式或边界前 fragment。`effect_resume_yield_int_basic.scoop` 的 `val x = Yield.next()` 就会在 `resume(41)` 之后再次回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`。
+### T3010b1 [DONE] 为跨 suspend 表达式补齐 `resume_path` 合同，冻结 consumer root 与 expr frame 路径
+- 描述：在真正构造 post-suspend continuation fragment 之前，统一 state-machine 需要先把“resume 值要注入到哪个 consumer、站在该 consumer 内又位于哪条表达式子路径”冻结成合同。当前 contract 只有 statement-level `source_path`，不足以定位 `add(Yield.next() + 1, 2)` 这类复合表达式里的恢复注入点。
 - 进展：
-  - 在尝试 `T3009` 时已确认 `resume(...)` / `Continuation.resume(...)` 的专用 lowering 被这个缺口阻塞；在 resume landing 仍会重放原始 `perform` / call / operand 路径，无法形成语义闭环。
+  - 已在 `SuspendSitePlan` / `HandleSegmentSuspendSite` / `UnifiedSuspendSite` 中新增 `resume_path` 元数据，覆盖 `Perform`、`CallMaySuspend`、`CallStateMachineCallee`、`ClassCtorInit` 这类真正需要恢复值注入的 suspend site。
+  - `resume_path` 由 `consumer root`（`val-init` / `expr-stmt` / `assign-lhs` / `assign-rhs` / `return-value` / `while-cond`）与 `expr frame path`（`call-arg#n` / `binary-lhs` / `when-arm#n-body` 等）组成，用于冻结跨 suspend 表达式在 consumer 内部的精确注入点。
+  - 已在 plan builder 中新增 `attach_suspend_resume_paths` 遍历，覆盖 `handle.body` 与 `finally` cleanup block；segment/unified contract validation 现在会要求相关 suspend site 必须带有 `resume_path`。
+  - 已补两条定向测试：一条锁定 segment dump 中的 `resume-path=val-init -> call-arg#0 -> binary-lhs`；一条锁定 `resume_path` 在 `plan -> segments -> unified machine` 之间稳定保留。
 - 目标：
-  - 为真正跨 suspend 的复合表达式建立可独立执行的 post-suspend fragment / continuation 片段，resume 后只继续剩余计算，不再重放 suspend 前已经求值的子表达式。
+  - 为 `T3010b2` 提供不依赖 emitter 回看原始 HIR 形状的冻结合同。
+  - 把跨 suspend 表达式的恢复注入点收口到 state-machine 合同层，而不是继续停留在 statement-level `source_path` 的粗粒度定位。
+- 验收：
+  - `cargo test -p scoopc resume_path -- --nocapture`
+  - `cargo test -p scoopc`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo test --all`
+- 依赖：T3010a
+
+### T3010b2 [TODO] 基于 `resume_path` 接回可执行的 post-suspend continuation fragment，禁止 resume 后重放原表达式
+- 描述：`T3010b1` 只冻结了“恢复值该注入到哪里”的合同；当前 unified path 仍没有真正消费这份合同，resume landing 依旧会重放原始 `perform` / call / operand 路径。`effect_resume_yield_int_basic.scoop` 的 `val x = Yield.next()` 仍会在 `resume(41)` 后回到同一 handler arm，而不是继续执行 `println("after")` / `x + 1`。
+- 进展：
+  - 在尝试 `T3009` 时已确认 `resume(...)` / `Continuation.resume(...)` 的专用 lowering 被这个缺口阻塞；现在 `resume_path` 合同已补齐，可作为下一步真正消费 post-suspend fragment 的输入面。
+- 目标：
+  - 基于 `resume_path` 为真正跨 suspend 的复合表达式建立可执行的 post-suspend fragment / continuation 片段，resume 后只继续剩余计算，不再重放 suspend 前已经求值的子表达式。
   - `BindLocal` / `Assign` / `Return` / branch / expression statement 对跨 suspend 表达式都消费同一套恢复片段合同，而不是各自局部重算。
   - 为 `T3009` 的 `resume(...)` / `Continuation.resume(...)` 专用 lowering 提供语义闭环前提。
 - 验收：
@@ -541,7 +558,7 @@
     - `暂不支持的 main 代码生成节点：equality lhs`
     - `暂不支持的 main 代码生成节点：integer binary op lhs`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3010a
+- 依赖：T3010b1
 
 ### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
 - 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
@@ -552,7 +569,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“state-machine expression emission 粒度已收口；生产 op 不再含 fragment-only 伪执行路径”。
-- 依赖：T3010b
+- 依赖：T3010b2
 
 ### T3011 [TODO] 修正 unified contract 中 frame slot 的 mutability / capture metadata
 - 描述：当前 plan builder 在“第一次看到 local ref”或“arm capture 外层 local”时会先创建 `mutable: false` 的 `FrameSlot`，后续也不会回填真实声明信息，导致原本是 `var` 的 slot 在 unified emitter / stmt codegen 中被冻结成 immutable，并报 `assignment to immutable local`。

@@ -116,6 +116,7 @@ struct HandleSegmentSuspendSite {
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
     source_path: Option<SuspendSourcePath>,
+    resume_path: Option<SuspendResumePath>,
 }
 
 #[derive(Debug, Clone)]
@@ -862,6 +863,13 @@ impl HandleSegmentList {
                             ));
                         }
                     }
+                    if site.resume_path.is_none() {
+                        return Err(format!(
+                            "{path}: site{} kind={} missing resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
                 }
                 SuspendSiteKind::RuntimeRaise { .. } => {
                     for arm_id in &site.matching_arms {
@@ -879,6 +887,13 @@ impl HandleSegmentList {
                     if site.source_path.is_some() {
                         return Err(format!(
                             "{path}: site{} kind={} must not carry source_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if site.resume_path.is_some() {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry resume_path metadata",
                             site.id,
                             describe_suspend_site_kind(&site.kind)
                         ));
@@ -905,8 +920,32 @@ impl HandleSegmentList {
                     }
                     if matches!(
                         &site.kind,
-                        SuspendSiteKind::ObjectInitAccess { .. }
+                        SuspendSiteKind::CallMaySuspend { .. }
+                            | SuspendSiteKind::CallStateMachineCallee { .. }
                             | SuspendSiteKind::ClassCtorInit { .. }
+                    ) && site.resume_path.is_none()
+                    {
+                        return Err(format!(
+                            "{path}: site{} kind={} missing resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if matches!(
+                        &site.kind,
+                        SuspendSiteKind::ObjectInitAccess { .. }
+                            | SuspendSiteKind::NestedHandleBoundary { .. }
+                    ) && site.resume_path.is_some()
+                    {
+                        return Err(format!(
+                            "{path}: site{} kind={} must not carry resume_path metadata",
+                            site.id,
+                            describe_suspend_site_kind(&site.kind)
+                        ));
+                    }
+                    if matches!(
+                        &site.kind,
+                        SuspendSiteKind::ObjectInitAccess { .. }
                             | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.source_path.is_some()
                     {
@@ -1317,6 +1356,12 @@ impl HandleSegmentList {
                 }
                 if let Some(source_path) = &site.source_path {
                     out.push_str(&format!("{pad}    path={}\n", source_path.label()));
+                }
+                if let Some(resume_path) = &site.resume_path {
+                    out.push_str(&format!(
+                        "{pad}    resume-path={}\n",
+                        resume_path.label()
+                    ));
                 }
             }
         }
@@ -1744,6 +1789,7 @@ impl HandleSegmentSuspendSite {
             available_locals: site.available_locals.clone(),
             capture_locals: site.capture_locals.clone(),
             source_path: site.source_path.clone(),
+            resume_path: site.resume_path.clone(),
         }
     }
 
@@ -1766,6 +1812,9 @@ impl HandleSegmentSuspendSite {
         if let Some(source_path) = &self.source_path {
             acc ^= source_path.structural_signature();
         }
+        if let Some(resume_path) = &self.resume_path {
+            acc ^= resume_path.structural_signature();
+        }
         acc
     }
 
@@ -1779,6 +1828,7 @@ impl HandleSegmentSuspendSite {
             available_locals: self.available_locals.clone(),
             capture_locals: self.capture_locals.clone(),
             source_path: self.source_path.clone(),
+            resume_path: self.resume_path.clone(),
         }
     }
 }
@@ -3298,6 +3348,42 @@ fun demo(seed: Int): Int {
                 matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == if_cond_span)
             }),
             "pure if conditions should be evaluated only by the Branch terminator"
+        );
+    }
+
+    #[test]
+    fn segment_dump_records_resume_path_for_nested_call_arg_site() {
+        let dump = build_segment_dump(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun add(a: Int, b: Int): Int {
+    a + b
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val y: Int = add(Yield.next() + 1, 2)
+        y
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        assert!(
+            dump.contains("resume-path=val-init -> call-arg#0 -> binary-lhs"),
+            "{dump}"
         );
     }
 
