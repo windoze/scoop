@@ -4,7 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
-> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（已完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3010b2aR`（本轮完成：收紧 `ResumeAfterSite` 边界，确认 emitter 未回扫 AST）、`T3009a`（下一步：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
+> 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（已完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3010b2aR`（已完成：收紧 `ResumeAfterSite` 边界，确认 emitter 未回扫 AST）、`T3009a`（本轮完成：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）、`T3009aR`（下一步：review dedicated lowering 是否仍可能回落到 generic call）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
 
 ## 0. 工作原则
 
@@ -69,6 +69,12 @@
   - 本轮已完成 `T3010b2a`：resume state 现已为 call/perform site 分配 synthetic resume slot，并基于 `resume_path` 把后续 HIR payload 改写为读取该 slot；新增两条定向单测锁定 direct `val-init` 与 nested call-arg tail 都不再直接持有原 suspend site 表达式。
   - 本轮已完成 `T3010b2aR`：`ResumeAfterSite` 不再把完整 `hir::Expr` 暴露到 segments / unified machine / emitter；原始恢复源表达式被收回 `HandlePlanBuilder.resume_source_exprs`，emitter 侧只消费 `source_span`、synthetic slot 与 contract frame metadata。
   - 试跑 `effect_resume_yield_int_basic.scoop` 进一步确认：在 `T3010b2a` 之后，当前首个未收口阻塞已收缩为 immediate-resume arm 的 `resume(value)` 专用 lowering 缺口，因此新增 `T3009a` 作为 `T3010b2b` 的直接前置；原 `T3009` 收窄为 `T3009b`，继续排在 `T3013R` 之后承接 escaped continuation + composite payload。
+  - 本轮已完成 `T3009a`：
+    - `state_machine_emitter.rs` 现已为 `HandleArmKind::ImmediateResume` 提供 dedicated tail lowering；tail-position 的 `resume(value)` 会被改写为普通 payload 表达式，再由 `ArmResumeMatchedSite` terminator 统一写 continuation payload + `scoop_continuation_resume(...)`。
+    - `resume_placeholder` 假 local 已删除；ImmediateResume arm 不再通过 generic `codegen_call`/local placeholder 兜底。
+    - 已补 2 条 emitter 单测，锁定 block tail 与 `if` 分支尾部的 `resume(value)` 改写。
+    - 定向验证表明 `effect_resume_yield_int_basic.scoop` 与 `effect_resume_finally_normal.scoop` 已能成功 build；`effect_resume_if_else_branch_single_perform.scoop` 也不再报 `call callee`，而是前进到 `T3012` 已跟踪的 `value coercion` 缺口。
+    - 直接运行 `effect_resume_yield_int_basic.scoop` 已能进入 `before` / `in_handler`，说明 arm-side dedicated lowering 缺口已关闭；下一层真正阻塞回到 `T3010b2b` 的 post-suspend tail/runtime 收口。
 - 阶段 B（冻结 LLVM lowering 唯一输入面）已全部完成。阶段 C（实现 full state machine LLVM emitter）已全部完成。阶段 D（T3005 + T3005R）已全部完成。阶段 E（T3006 + T3006R：用定向测试补齐覆盖 + 审查确认零 shape-based logic）已全部完成。
 
 ## 2. 阶段顺序
@@ -276,9 +282,19 @@
 - 已验证 `cargo check -p scoopc`、`cargo test -p scoopc source_plan_rewrites -- --nocapture`、`cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`、`cargo test -p scoopc unified_state_machine_preserves_execution_payload_metadata -- --nocapture`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all` 全部通过。
 - 审查结论：resume state 改写仍由统一 plan/contract 驱动，emitter 未回扫原始 AST；synthetic resume slot 仅作为普通 frame/local carrier 使用。
 
-#### T3009a：immediate-resume arm 的 `resume(value)` 专用 lowering（待办，现为 `T3010b2b` 前置）
-- `effect_resume_yield_int_basic.scoop` 在 `T3010b2a` 之后不再首先暴露 body tail replay，而是稳定卡在 arm 内 `resume(41)` 仍走 generic `codegen_call`，报 `unsupported_main_body: call callee`。
-- 这说明 body-side tail 注入面已经具备，但 `HandleArmKind::ImmediateResume` 的 dedicated lowering 仍缺失；必须先删掉 `resume_placeholder` local，再回到端到端 resume-tail 验收。
+#### T3009a：immediate-resume arm 的 `resume(value)` 专用 lowering（已完成）
+- 已在 `state_machine_emitter.rs` 中新增 `rewrite_immediate_resume_arm_body` / `rewrite_immediate_resume_tail_expr` / `extract_immediate_resume_payload_expr`，把 ImmediateResume arm 尾部 value-position 的 `resume(value)` 改写为普通 payload 表达式，并递归覆盖 nested block / `if` / `when` 的尾部值位置。
+- `emit_execute_arm_body` 不再注入 `resume_placeholder` 假 local；ImmediateResume arm 现在直接求值改写后的 payload，`ArmResumeMatchedSite` terminator 继续统一处理 continuation payload 写回与 `scoop_continuation_resume(...)` 调用。
+- 已新增 2 条 emitter 单测，锁定 block tail 与 `if` branch tail 的 `resume(value)` 都会改写成功。
+- 已验证 `cargo test -p scoopc immediate_resume_arm_body -- --nocapture`、`cargo test -p scoopc state_machine -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+- 定向验证：
+  - `effect_resume_yield_int_basic.scoop` / `effect_resume_finally_normal.scoop` 可成功 build；
+  - `effect_resume_if_else_branch_single_perform.scoop` 已不再报 `call callee`，而是前进到 `T3012` 已跟踪的 `value coercion` 缺口；
+  - 直接运行 `effect_resume_yield_int_basic.scoop` 时，程序已不再在 codegen 阶段报 `call callee`，而是继续进入 `before` / `in_handler`，说明 arm-side dedicated lowering 缺口已被清掉。
+
+#### T3009aR：Review（待办）
+- 审查 `state_machine_emitter.rs` 的 ImmediateResume arm 路径，确认 dedicated lowering 是唯一入口，没有 placeholder local / generic `codegen_call` / generic member-access 回退残留。
+- 如审查发现回落路径或 payload 合同不一致，需要在 review 任务内直接修复。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - `T3009a` 完成后，重新验收 `effect_resume_yield_int_basic.scoop` 与当前 xfail 子集中的 `comparison lhs` / `integer binary op lhs` / `equality lhs` 等 body-tail case。
@@ -386,41 +402,40 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009a`
-2. `T3009aR`
-3. `T3010b2b`
-4. `T3010R`
-5. `T3011`
-6. `T3011R`
-7. `T3012`
-8. `T3012R`
-9. `T3013`
-10. `T3013R`
-11. `T3009b`
-12. `T3009bR`
-13. `T3014`
-14. `T3014R`
-15. `T3015`
-16. `T3015R`
-17. `T3016`
-18. `T3016R`
-19. `T3017`
-20. `T3017R`
-21. `T3103`
-22. `T3104`
-23. `T3201`
-24. `T3202`
-25. `T3203`
-26. `T3204`
-27. `T3205`
-28. `T3301`
-29. `T3302`
-30. `T3303`
-31. `T3401`
-32. `T3401a`
-33. `T3401b`
-34. `T3401c`
-35. `T3402`
-36. `T3403`
-37. `T3404`
-38. `T3405`
+1. `T3009aR`
+2. `T3010b2b`
+3. `T3010R`
+4. `T3011`
+5. `T3011R`
+6. `T3012`
+7. `T3012R`
+8. `T3013`
+9. `T3013R`
+10. `T3009b`
+11. `T3009bR`
+12. `T3014`
+13. `T3014R`
+14. `T3015`
+15. `T3015R`
+16. `T3016`
+17. `T3016R`
+18. `T3017`
+19. `T3017R`
+20. `T3103`
+21. `T3104`
+22. `T3201`
+23. `T3202`
+24. `T3203`
+25. `T3204`
+26. `T3205`
+27. `T3301`
+28. `T3302`
+29. `T3303`
+30. `T3401`
+31. `T3401a`
+32. `T3401b`
+33. `T3401c`
+34. `T3402`
+35. `T3403`
+36. `T3404`
+37. `T3405`

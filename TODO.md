@@ -573,8 +573,18 @@
   - synthetic resume slot 现在只作为普通 frame/local carrier 暴露给 emitter；原始恢复源表达式仅保留在 plan builder 内部，不能再被下游发射逻辑拿来补形状分支。
 - 依赖：T3010b2a
 
-### T3009a [TODO] 为 immediate-resume arm 的 `resume(value)` 接回专用 lowering，删除 `resume_placeholder` local
+### T3009a [DONE] 为 immediate-resume arm 的 `resume(value)` 接回专用 lowering，删除 `resume_placeholder` local
 - 描述：`T3010b2a` 已把 body-side post-suspend tail 改写到 synthetic resume slot 上，但 `effect_resume_yield_int_basic.scoop` 仍卡在 arm 内 `resume(41)` 走 generic call（`unsupported_main_body: call callee`）。在继续 body tail 端到端验收前，必须先让 `-> resume` arm 内的 `resume(value)` 生成专用 lowering，而不是继续依赖占位 local。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中新增 immediate-resume arm dedicated lowering：`rewrite_immediate_resume_arm_body` / `rewrite_immediate_resume_tail_expr` 会把 tail-position 的 `resume(value)` 改写为普通 payload 表达式，并递归覆盖 nested block / `if` / `when` 的尾部值位置。
+  - `emit_execute_arm_body` 不再为 `HandleArmKind::ImmediateResume` 注入 `resume_placeholder` 假 local；arm body 现在直接求值改写后的 payload，`ArmResumeMatchedSite` terminator 继续负责写 continuation payload 并调用 `scoop_continuation_resume(...)`。
+  - 已新增 2 条 emitter 单测，锁定 block tail 与 `if` branch tail 的 `resume(value)` 都会被改写成普通 payload 表达式。
+  - 已验证 `cargo test -p scoopc immediate_resume_arm_body -- --nocapture`、`cargo test -p scoopc state_machine -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 定向验证结果：
+    - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop -o /tmp/t3009a_yield_basic` 通过。
+    - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_finally_normal.scoop -o /tmp/t3009a_finally_normal` 通过。
+    - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop -o /tmp/t3009a_if_else` 已不再报 `call callee`，而是继续暴露已由 `T3012` 跟踪的 `value coercion` 缺口。
+    - 直接运行 `effect_resume_yield_int_basic.scoop` 时，程序已不再在 codegen 阶段报 `call callee`，而是继续进入 `before` / `in_handler`，说明 immediate-resume lowering 缺口已收口，下一层 post-suspend tail/runtime 问题留给 `T3010b2b`。
 - 目标：
   - `HandleArmKind::ImmediateResume` 的 arm body 在 LLVM emitter 中不再把 `resume(...)` 交给 generic `codegen_call`。
   - `resume(value)` 应直接产出 ArmResumeMatchedSite terminator 所需的 resume payload，并删除 `resume_placeholder` 假 local。

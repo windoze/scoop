@@ -47,6 +47,152 @@ const STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
 /// The handle entry reads this and propagates the return upward.
 const STATE_TAG_FUNCTION_RETURNED: u32 = 0xFFFF_FFFF;
 
+fn rewrite_immediate_resume_arm_body(
+    arm: &hir::HandleArm,
+    resume_symbol: hir::SymbolId,
+) -> Result<hir::Expr, LlvmEmitError> {
+    let hir::ExprKind::Block(block) = &arm.body.kind else {
+        return Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "immediate resume arm body",
+            at: arm.body.span.into(),
+        });
+    };
+
+    let mut rewritten_block = block.clone();
+    let Some(tail_stmt) = rewritten_block.stmts.last_mut() else {
+        return Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "immediate resume arm tail statement",
+            at: arm.body.span.into(),
+        });
+    };
+    let rewritten_tail = rewrite_immediate_resume_tail_stmt(tail_stmt, resume_symbol)?;
+    rewritten_block.ty = rewritten_tail.ty;
+
+    Ok(hir::Expr {
+        span: arm.body.span,
+        ty: rewritten_tail.ty,
+        kind: hir::ExprKind::Block(rewritten_block),
+    })
+}
+
+fn rewrite_immediate_resume_tail_stmt(
+    stmt: &mut hir::Stmt,
+    resume_symbol: hir::SymbolId,
+) -> Result<hir::Expr, LlvmEmitError> {
+    let hir::StmtKind::Expr(expr) = &mut stmt.kind else {
+        return Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "immediate resume arm tail statement",
+            at: stmt.span.into(),
+        });
+    };
+    let rewritten = rewrite_immediate_resume_tail_expr(expr, resume_symbol)?;
+    stmt.ty = rewritten.ty;
+    *expr = rewritten.clone();
+    Ok(rewritten)
+}
+
+fn rewrite_immediate_resume_tail_expr(
+    expr: &hir::Expr,
+    resume_symbol: hir::SymbolId,
+) -> Result<hir::Expr, LlvmEmitError> {
+    if let Some(payload) = extract_immediate_resume_payload_expr(expr, resume_symbol)? {
+        return Ok(payload);
+    }
+
+    match &expr.kind {
+        hir::ExprKind::Block(block) => {
+            let mut rewritten_block = block.clone();
+            let Some(tail_stmt) = rewritten_block.stmts.last_mut() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "immediate resume nested block tail",
+                    at: expr.span.into(),
+                });
+            };
+            let rewritten_tail = rewrite_immediate_resume_tail_stmt(tail_stmt, resume_symbol)?;
+            rewritten_block.ty = rewritten_tail.ty;
+            Ok(hir::Expr {
+                span: expr.span,
+                ty: rewritten_tail.ty,
+                kind: hir::ExprKind::Block(rewritten_block),
+            })
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            let rewritten_then = rewrite_immediate_resume_tail_expr(then_branch, resume_symbol)?;
+            let rewritten_else =
+                else_branch
+                    .as_ref()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "immediate resume if tail without else",
+                        at: expr.span.into(),
+                    })?;
+            let rewritten_else = rewrite_immediate_resume_tail_expr(rewritten_else, resume_symbol)?;
+            Ok(hir::Expr {
+                span: expr.span,
+                ty: rewritten_then.ty,
+                kind: hir::ExprKind::If {
+                    cond: cond.clone(),
+                    then_branch: Box::new(rewritten_then),
+                    else_branch: Some(Box::new(rewritten_else)),
+                },
+            })
+        }
+        hir::ExprKind::When { subject, arms } => {
+            let mut rewritten_arms = arms.clone();
+            for arm in &mut rewritten_arms {
+                arm.body = rewrite_immediate_resume_tail_expr(&arm.body, resume_symbol)?;
+            }
+            let result_ty = rewritten_arms
+                .first()
+                .map(|arm| arm.body.ty)
+                .unwrap_or(expr.ty);
+            Ok(hir::Expr {
+                span: expr.span,
+                ty: result_ty,
+                kind: hir::ExprKind::When {
+                    subject: subject.clone(),
+                    arms: rewritten_arms,
+                },
+            })
+        }
+        _ => Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "immediate resume arm tail expression",
+            at: expr.span.into(),
+        }),
+    }
+}
+
+fn extract_immediate_resume_payload_expr(
+    expr: &hir::Expr,
+    resume_symbol: hir::SymbolId,
+) -> Result<Option<hir::Expr>, LlvmEmitError> {
+    let hir::ExprKind::Call { callee, args } = &expr.kind else {
+        return Ok(None);
+    };
+    let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind else {
+        return Ok(None);
+    };
+    if *id != resume_symbol {
+        return Ok(None);
+    }
+
+    let payload = match args.as_slice() {
+        [hir::CallArg::Positional(payload)] => payload.clone(),
+        [hir::CallArg::Named { value, .. }] => value.clone(),
+        _ => {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "immediate resume call arity",
+                at: expr.span.into(),
+            });
+        }
+    };
+
+    Ok(Some(payload))
+}
+
 /// Tracks the frame struct layout for a specific handle expression, mapping
 /// `UnifiedFrameField` indices to LLVM struct field indices.
 pub(super) struct FrameLayout<'ctx> {
@@ -1743,27 +1889,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // For ImmediateResume arms, bind the `resume` function symbol.
-        // For EscapeContinuation arms, bind the continuation as a local.
+        // EscapeContinuation arms bind the continuation as a local.  Immediate
+        // resume arms are handled by dedicated tail-expression lowering below,
+        // so they no longer need a placeholder `resume` local.
         match arm.kind {
-            hir::HandleArmKind::ImmediateResume { resume } => {
-                // The resume symbol is a placeholder — the actual resume
-                // mechanism is handled by ArmResumeMatchedSite terminator.
-                // Register a dummy local so codegen doesn't fail on references.
-                let unit_ty = CgTy::Unit;
-                let dummy_ptr = self
-                    .builder
-                    .build_alloca(self.context.i8_type(), "resume_placeholder")?;
-                self.env.insert(
-                    resume,
-                    CgLocal {
-                        hir_ty: None,
-                        ty: unit_ty,
-                        ptr: dummy_ptr,
-                        mutable: false,
-                    },
-                );
-            }
+            hir::HandleArmKind::ImmediateResume { .. } => {}
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 // Load the continuation pointer from the frame's
                 // resume_gc_ref slot (where Suspend stored it).
@@ -1854,8 +1984,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // Execute the arm body.
-        self.codegen_expr_in_expected_context(&arm.body, None)
+        // Execute the arm body. Immediate-resume arms dedicatedly rewrite the
+        // tail `resume(value)` into a payload-producing expression; the actual
+        // continuation resume still happens in ArmResumeMatchedSite.
+        match arm.kind {
+            hir::HandleArmKind::ImmediateResume { resume } => {
+                let rewritten = rewrite_immediate_resume_arm_body(arm, resume)?;
+                let payload_cg_ty =
+                    self.cg_ty_of(rewritten.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "immediate resume payload type",
+                            at: rewritten.span.into(),
+                        })?;
+                self.codegen_expr_in_expected_context(&rewritten, Some(payload_cg_ty))
+            }
+            _ => self.codegen_expr_in_expected_context(&arm.body, None),
+        }
     }
 
     /// Read a binder value from the TLS perform slot.
@@ -1938,5 +2082,306 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::session::Session;
+    use crate::source::SourceFile;
+    use crate::ty::TypeStore;
+    use crate::typecheck;
+
+    #[test]
+    fn immediate_resume_arm_body_rewrites_tail_resume_call_to_payload_expr() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        Yield.next()
+    } with {
+        Yield.next() -> resume {
+            println("in_handler")
+            resume(41)
+        }
+    }
+}
+"#,
+        );
+
+        let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let arm = handle.arms.first().expect("expected an arm");
+        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
+            panic!("expected immediate-resume arm");
+        };
+
+        let rewritten = rewrite_immediate_resume_arm_body(arm, resume)
+            .expect("immediate-resume arm should rewrite");
+        let hir::ExprKind::Block(block) = &rewritten.kind else {
+            panic!("rewritten arm body should stay a block");
+        };
+        let Some(hir::Stmt {
+            kind: hir::StmtKind::Expr(tail_expr),
+            ..
+        }) = block.stmts.last()
+        else {
+            panic!("rewritten block should keep an expr tail");
+        };
+
+        assert_eq!(source.slice(tail_expr.span), "41");
+        assert!(matches!(tail_expr.kind, hir::ExprKind::Literal(_)));
+    }
+
+    #[test]
+    fn immediate_resume_arm_body_rewrites_if_branch_tails() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    handle {
+        Yield.next()
+    } with {
+        Yield.next() -> resume {
+            if (flag) {
+                resume(1)
+            } else {
+                resume(2)
+            }
+        }
+    }
+}
+"#,
+        );
+
+        let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let arm = handle.arms.first().expect("expected an arm");
+        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
+            panic!("expected immediate-resume arm");
+        };
+
+        let rewritten = rewrite_immediate_resume_arm_body(arm, resume)
+            .expect("immediate-resume arm should rewrite");
+        let hir::ExprKind::Block(block) = &rewritten.kind else {
+            panic!("rewritten arm body should stay a block");
+        };
+        let Some(hir::Stmt {
+            kind: hir::StmtKind::Expr(tail_expr),
+            ..
+        }) = block.stmts.last()
+        else {
+            panic!("rewritten block should keep an expr tail");
+        };
+        let hir::ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } = &tail_expr.kind
+        else {
+            panic!("rewritten tail should stay an if expression");
+        };
+        let else_branch = else_branch
+            .as_ref()
+            .expect("if tail should keep else branch");
+
+        assert_eq!(source.slice(last_block_tail_expr(then_branch).span), "1");
+        assert_eq!(source.slice(last_block_tail_expr(else_branch).span), "2");
+    }
+
+    fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
+        let session = Session::new().expect("session");
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let mut ast = parse_file(&source).expect("parse");
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).expect("index")
+        };
+
+        let headers =
+            crate::resolve::check_file_headers(&source, &ast, &index).expect("resolve headers");
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers)
+            .expect("resolve bodies");
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        let mut env = typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).expect("env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("extend type env");
+
+        typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check annotations");
+        typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check type refs");
+        typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check exprs");
+
+        let mut unit: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &[(&source, &ast)],
+            &[],
+            &typecheck_types,
+        )
+        .expect("lower");
+        (source, lowered)
+    }
+
+    fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
+        for item in &file.items {
+            if let hir::Item::Fun(fun) = item
+                && let Some(body) = &fun.body
+                && let Some(handle) = first_handle_in_block(body)
+            {
+                return Some((fun, handle));
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {
+        for stmt in &block.stmts {
+            if let Some(handle) = first_handle_in_stmt(stmt) {
+                return Some(handle);
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_stmt(stmt: &hir::Stmt) -> Option<&hir::HandleExpr> {
+        match &stmt.kind {
+            hir::StmtKind::Expr(expr) => first_handle_in_expr(expr),
+            hir::StmtKind::Val(decl) => decl.init.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::StmtKind::While { cond, body } => {
+                first_handle_in_expr(cond).or_else(|| first_handle_in_block(body))
+            }
+            hir::StmtKind::Return { value } => value.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => None,
+        }
+    }
+
+    fn first_handle_in_expr(expr: &hir::Expr) -> Option<&hir::HandleExpr> {
+        match &expr.kind {
+            hir::ExprKind::Handle(handle) => Some(handle),
+            hir::ExprKind::Block(block) => first_handle_in_block(block),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => first_handle_in_expr(cond)
+                .or_else(|| first_handle_in_expr(then_branch))
+                .or_else(|| else_branch.as_deref().and_then(first_handle_in_expr)),
+            hir::ExprKind::When { subject, arms } => first_handle_in_expr(subject).or_else(|| {
+                arms.iter()
+                    .find_map(|arm| arm.guard.as_ref().and_then(first_handle_in_expr))
+                    .or_else(|| arms.iter().find_map(|arm| first_handle_in_expr(&arm.body)))
+            }),
+            hir::ExprKind::Unary { expr, .. }
+            | hir::ExprKind::Cast { expr, .. }
+            | hir::ExprKind::TypeCheck { expr, .. }
+            | hir::ExprKind::MemberAccess { receiver: expr, .. } => first_handle_in_expr(expr),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::ExprKind::Call { callee, args } => first_handle_in_expr(callee).or_else(|| {
+                args.iter().find_map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                    hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+                })
+            }),
+            hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+            }),
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| first_handle_in_expr(&field.value)),
+            hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_handle_in_expr),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                let hir::InterpolatedStringPart::Expr { expr } = part else {
+                    return None;
+                };
+                first_handle_in_expr(expr)
+            }),
+            hir::ExprKind::Closure(closure) => first_handle_in_expr(&closure.body),
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => None,
+        }
+    }
+
+    fn last_block_tail_expr(expr: &hir::Expr) -> &hir::Expr {
+        let hir::ExprKind::Block(block) = &expr.kind else {
+            panic!("expected block expression");
+        };
+        let Some(hir::Stmt {
+            kind: hir::StmtKind::Expr(tail_expr),
+            ..
+        }) = block.stmts.last()
+        else {
+            panic!("expected block tail expression");
+        };
+        tail_expr
     }
 }
