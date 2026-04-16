@@ -399,8 +399,16 @@
   - 非阻塞观察：`HandleStateOp::VarRef` 的 `unwrap_or(CgValue::unit())` 是对 plan builder 冗余子表达式 ops 的容错处理，不是 shape-based 分流，但属于 plan builder 合同设计的已知限制。此 fallback 仅在 top-level 函数名引用时触发（这些 VarRef ops 总是被后续 Call op 覆盖），不影响正确性。
 - 依赖：T3006
 
-### T3007 [TODO] 删除统一主线接管后剩余的 legacy effect codegen 死代码
+### T3007 [DONE] 删除统一主线接管后剩余的 legacy effect codegen 死代码
 - 描述：在统一主线可工作后，继续删除剩余 legacy effect codegen 文件、helper 与不再可达的过渡分支，避免仓库再次回到旧路线。包括 T3005 移除 flag-based unwind 生产调用后残留的 `emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure` 函数定义、`raise_target_stack` 字段及其配套 runtime ABI 声明（如已无其他消费者）。
+- 进展：
+  - 已移除 `mod.rs` 中 `EffectOpTagState` 上过时的 `#[allow(dead_code)]`（T2999 时标注，现已被生产路径消费）。
+  - 已删除 `runtime_abi.rs` 中 4 个无生产消费者的 dead ABI 声明：`declare_runtime_effect_set_active_with_trace`、`declare_runtime_effect_handler_stack_set_active`、`declare_runtime_effect_handler_stack_unwind_to_tag`、`declare_runtime_effect_handler_stack_swap_top`。已删除对应的 `runtime_symbols.rs` 常量。
+  - 已保留 `declare_runtime_thread_spawn_join_resume_u64`（被 `mod.rs:8166` 的 thread spawn+join 路径消费，非 dead code），移除其 `#[allow(dead_code)]` 注解。
+  - 已清理 `effect/mod.rs`：移除 4 个不再需要的 `pub(super)` re-export（emitter 直接从 skeleton 模块导入）；更新 `#[allow(dead_code)]` 注释，准确反映当前状态（模块内 test 基础设施需要 blanket 保护）。
+  - 已删除 `state_machine_emitter.rs` 中未使用的 `STATE_TAG_SUSPENDED` 常量。
+  - 已清理 `state_machine_emitter.rs`、`effect/mod.rs`、`runtime_abi.rs` 中引用已完成任务编号的过时注释（T3004a/b/c/d section headers、T3002/T3005 transitional block comments、T3005 stale TODO）。
+  - 已验证 `cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）、`cargo run -p scoop --features llvm -- test`（963 fixtures）全部通过。
 - 目标：
   - 删除不再被生产路径引用的 legacy effect codegen 文件与 helper。
   - 删除 flag-based unwind 相关函数定义与 runtime ABI 声明（若 sysroot intrinsic 仍需 `is_active` / `set_active` / `clear` 等少量 ABI，保留对应声明，仅删除纯服务于 flag-based unwind 的部分）。

@@ -23,11 +23,6 @@ pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_POP: &str = "scoop_effect_handler_stack_pop";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_stack_push";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE: &str =
-    "scoop_effect_handler_stack_set_active";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
-pub(super) const SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG: &str =
-    "scoop_effect_handler_stack_unwind_to_tag";
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";
@@ -44,7 +39,6 @@ pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64: &str = "scoop_effect_perfo
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2: &str =
     "scoop_effect_perform_slot_write_u64_2";
 pub(super) const SCOOP_EFFECT_SET_ACTIVE: &str = "scoop_effect_set_active";
-pub(super) const SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE: &str = "scoop_effect_set_active_with_trace";
 pub(super) const SCOOP_ENTER_NATIVE: &str = "scoop_enter_native";
 pub(super) const SCOOP_ENV_GET: &str = "scoop_env_get";
 pub(super) const SCOOP_EXECUTOR_CREATE: &str = "scoop_executor_create";

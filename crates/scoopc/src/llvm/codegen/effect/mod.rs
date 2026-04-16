@@ -1,25 +1,19 @@
-//! effect codegen（T0102e：从 `codegen/mod.rs` 拆分）。
+//! 统一 state-machine effect codegen。
 //!
-//! 统一 state-machine 主线 effect codegen：
-//! - plan builder / segment / transform 骨架在 `unified_state_machine_skeleton` 模块
-//! - LLVM emitter 在 `state_machine_emitter.rs`（T3004a+）
-//! - 旧的分流与配套 helper 已删除；lowering 只从统一合同出发。
+//! - plan builder / segment 投影 / transform / lowering contract 在 `unified_state_machine_skeleton` 模块
+//! - LLVM emitter 在 `state_machine_emitter` 模块
+//! - lowering 只从统一合同（`UnifiedHandleLoweringContract`）出发。
 
 use super::*;
 
-// T3004a：state machine LLVM emitter — 从 UnifiedHandleLoweringContract 生成
+// State machine LLVM emitter：从 UnifiedHandleLoweringContract 生成
 // LLVM IR（frame type、step function、handle 入口）。
 mod state_machine_emitter;
 
-// T2999/T3002：统一 state-machine 骨架是后续 effect LLVM lowering 的唯一候选合同。
-// 内部实现细节（plan builder、segment 投影、validation helper 等）保留在
-// `unified_state_machine_skeleton` 模块内，该模块整体 #[allow(dead_code)] 因为
-// 生产入口尚未完整接线。
-//
-// T3002 变更：核心类型（HandleStateMachinePlan、HandleSegmentList、
-// UnifiedHandleStateMachine）现在从模块中 re-export 出来，以便 T3003+ 的
-// 生产代码可以直接引用。每个 re-export 带有独立的 #[allow(dead_code)]，
-// 在后续 lowering 接线时逐个移除即可；不再被 blanket dead_code 遮蔽。
+// State machine 骨架（plan builder、segment 投影、transform、lowering contract）。
+// 生产入口（state_machine_emitter）直接从此模块导入所需类型。
+// blanket #[allow(dead_code)]：模块内包含大量仅用于测试的 structural_signature 方法、
+// accessor 和中间辅助结构，这些是 include! 文件内测试基础设施的一部分。
 #[allow(dead_code)]
 mod unified_state_machine_skeleton {
     use super::*;
@@ -28,17 +22,6 @@ mod unified_state_machine_skeleton {
     include!("state_machine_segments.rs");
     include!("state_machine_transform.rs");
 }
-
-// 后续 T3003+ 的统一 lowering 合同将消费这些类型。每个 re-export 的
-// #[allow(unused_imports)] 在该类型被生产入口实际引用后移除。
-#[allow(unused_imports)]
-pub(super) use unified_state_machine_skeleton::HandleStateMachinePlan;
-#[allow(unused_imports)]
-pub(super) use unified_state_machine_skeleton::HandleSegmentList;
-#[allow(unused_imports)]
-pub(super) use unified_state_machine_skeleton::UnifiedHandleStateMachine;
-#[allow(unused_imports)]
-pub(super) use unified_state_machine_skeleton::UnifiedHandleLoweringContract;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Emit code for a standalone `perform` expression (outside of a state

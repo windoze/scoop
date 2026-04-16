@@ -1249,10 +1249,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-// T3002/T3005：以下 effect ABI 声明已被 `codegen_sysroot_effect_intrinsics`（sysroot
-// 测试辅助 intrinsic lowering）、`codegen_perform_expr`（standalone perform）、
-// `emit_raise_runtime_error_variant` 与 state machine emitter 等生产路径消费，
-// 不再需要 blanket dead_code 保护。
+// Effect runtime ABI 声明：被 `codegen_sysroot_effect_intrinsics`、`codegen_perform_expr`、
+// `emit_raise_runtime_error_variant` 与 state machine emitter 等生产路径消费。
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_runtime_effect_is_active(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_IS_ACTIVE;
@@ -1273,20 +1271,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_effect_set_active(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
-    pub(super) fn declare_runtime_effect_set_active_with_trace(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col)`
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i32_ty.into(), i32_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -1325,49 +1309,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
-    pub(super) fn declare_runtime_effect_handler_stack_set_active(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_handler_stack_set_active(ScoopEffectHandlerFrame* frame, uint32_t active)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
-    pub(super) fn declare_runtime_effect_handler_stack_unwind_to_tag(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag)`
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i32_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
-    pub(super) fn declare_runtime_effect_handler_stack_swap_top(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void* scoop_effect_handler_stack_swap_top(void* new_top)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -1435,7 +1376,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
-    #[allow(dead_code)] // T3002：统一 lowering 尚未接回
     pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_RESUME_U64;
         if let Some(existing) = self.module.get_function(NAME) {

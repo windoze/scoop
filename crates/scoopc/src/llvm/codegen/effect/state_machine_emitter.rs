@@ -11,17 +11,7 @@
 //! - Cleanup scope (finally block) execution via CleanupEnter branching
 //! - Nested handle expressions via recursive codegen delegation
 //!
-//! T3004a: skeleton — frame type, step function with placeholder state blocks,
-//!         handle expression entry.
-//! T3004b: op emission per state block, frame slot GEP read/write, basic
-//!         terminators, result passing through frame.
-//! T3004c: suspend/resume mechanism, handler arm dispatch, arm execution,
-//!         perform op emission, continuation allocation.
-//! T3004d: cleanup scope enter/exit, nested handle recursive emission,
-//!         emitter completeness.
-//!
-//! All emission decisions are driven by the state machine contract; no source
-//! shapes, old scanner results, or old mode selections are consulted.
+//! All emission decisions are driven by the state machine contract.
 
 use std::collections::HashMap;
 
@@ -53,16 +43,6 @@ const STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
 /// body wants to return from the *enclosing function*, not just the handle.
 /// The handle entry reads this and propagates the return upward.
 const STATE_TAG_FUNCTION_RETURNED: u32 = 0xFFFF_FFFF;
-
-/// Sentinel state_tag value: the handle body has suspended (a `perform` or
-/// suspending call happened) and the dispatch loop should read the op_tag
-/// from the TLS perform slot and dispatch to the matching handler arm.
-/// The Suspend terminator sets state_tag to the *resume_state* (a normal
-/// state id), not this sentinel — this constant is unused as a tag value
-/// but reserved for future use.  The dispatch loop detects suspension by
-/// checking the TLS active flag, not by comparing state_tag.
-#[allow(dead_code)]
-const STATE_TAG_SUSPENDED: u32 = 0xFFFF_FFFD;
 
 /// Tracks the frame struct layout for a specific handle expression, mapping
 /// `UnifiedFrameField` indices to LLVM struct field indices.
@@ -97,7 +77,7 @@ impl<'ctx> FrameLayout<'ctx> {
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // ------------------------------------------------------------------
-    // Frame layout generation (T3004a)
+    // Frame layout generation
     // ------------------------------------------------------------------
 
     /// Generate the LLVM struct type for a state machine frame.
@@ -180,7 +160,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // ------------------------------------------------------------------
-    // Step function generation (T3004a skeleton + T3004b op emission)
+    // Step function generation
     // ------------------------------------------------------------------
 
     /// Generate the step function for a state machine.
@@ -191,7 +171,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// On entry it stores resume_word and resume_gc_ref into the frame, loads
     /// state_tag, and dispatches via `switch` to per-state basic blocks.
     ///
-    /// T3004b: each state block emits its ops and terminates with the
+    /// Each state block emits its ops and terminates with the
     /// appropriate LLVM terminator (branch, return, etc.).
     fn emit_effect_step_function(
         &mut self,
@@ -336,7 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(unreachable_bb);
         self.builder.build_unreachable()?;
 
-        // T3004b: emit ops and terminators for each state block.
+        // Emit ops and terminators for each state block.
         for state in states {
             let bb = state_bb_map[&state.id()];
             self.builder.position_at_end(bb);
@@ -414,7 +394,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // ------------------------------------------------------------------
-    // Per-state op emission (T3004b)
+    // Per-state op emission
     // ------------------------------------------------------------------
 
     /// Emit LLVM IR for all ops in a single state, returning the last value
@@ -794,7 +774,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // ------------------------------------------------------------------
-    // Per-state terminator emission (T3004b)
+    // Per-state terminator emission
     // ------------------------------------------------------------------
 
     /// Emit the LLVM terminator for a state block.
@@ -1272,7 +1252,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // ------------------------------------------------------------------
-    // Handle expression entry with dispatch loop (T3004a + T3004b + T3004c)
+    // Handle expression entry with dispatch loop
     // ------------------------------------------------------------------
 
     /// Implement `handle` expression codegen via the unified state machine.
@@ -1604,16 +1584,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_int_value();
 
-        // If state_tag == FUNCTION_RETURNED, propagate early return.
-        // For now, treat it as normal completion (T3005 will handle proper
-        // early-return propagation to the enclosing function).
+        // TODO: if state_tag == FUNCTION_RETURNED, propagate early return to
+        // the enclosing function instead of treating it as normal completion.
         let _ = post_state_tag;
 
         self.read_result_from_frame(span, result_cg_ty, raw_ptr, &frame_layout)
     }
 
     // ------------------------------------------------------------------
-    // T3004c helper methods: perform op, arm body, resume payload
+    // Helper methods: perform op, arm body, resume payload
     // ------------------------------------------------------------------
 
     /// Emit a `perform` op: evaluate the perform expression's args and write

@@ -224,9 +224,8 @@ struct ReturnContext<'ctx> {
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
 }
 
-// T2999：稳定 effect op-tag 分配器会在统一 lowering 接回时继续使用；
-// 当前主入口尚未消费该状态机，因此把 dead_code 边界限定在这个保留结构上。
-#[allow(dead_code)]
+/// 稳定 effect op-tag 分配器：为每个 effect op FQN 分配唯一 u32 tag，
+/// 供 state machine emitter、codegen_perform_expr 与 emit_raise 消费。
 #[derive(Debug)]
 pub(super) struct EffectOpTagState {
     map: HashMap<String, u32>,

@@ -205,14 +205,17 @@
 - 已在 `crates/scoopc/src/llvm/codegen/**` 中定向检索 shape / scanner / CalleeSuspend / suspendable / flag-based / emit_effect_unwind 等关键词，确认零生产代码命中。
 - 已复查 `emit_state_ops`（29 个变体）、`emit_state_terminator`（9 个变体）的完整 match，以及 `expr.rs` 入口和 `effect/mod.rs` 三个主入口，确认全部走统一 state machine 主线。
 - 审查结论：**当前 effect LLVM codegen 生产代码中不存在 shape-based logic**。T3006 的所有改动均基于类型信息或 state machine 合同数据驱动。
-- 阶段 E（T3006 + T3006R）全部完成。下一步进入阶段 F（T3007：删除 legacy 死代码）。
+- 阶段 E（T3006 + T3006R）全部完成。
 
 ### 阶段 F：收尾 legacy 清理
 
-#### T3007：删除统一主线接管后剩余的 legacy effect codegen 死代码
-- 在统一 LLVM 主线稳定后，继续删除仓库里剩余的 legacy effect codegen 文件、helper、注释与过渡分支。
-- 包括 T3005 移除生产调用后残留的 flag-based unwind 函数定义（`emit_effect_unwind_if_active`、`emit_effect_is_active_i1`、`fun_ty_effects_is_pure`）与 `raise_target_stack` 字段定义及配套 runtime ABI 声明。
-- 目标是让仓库结构本身也与”统一主线”一致，既无旧 shape-based 实现残留，也无 flag-based unwind 机制残留。
+#### T3007：删除统一主线接管后剩余的 legacy effect codegen 死代码（已完成）
+- 已移除 `EffectOpTagState` 上过时的 `#[allow(dead_code)]`（现已被生产消费）。
+- 已删除 `runtime_abi.rs` 中 4 个无消费者的 dead ABI 声明（`set_active_with_trace`、`handler_stack_set_active`、`handler_stack_unwind_to_tag`、`handler_stack_swap_top`）及对应 `runtime_symbols.rs` 常量。已保留 `thread_spawn_join_resume_u64`（被 thread spawn+join 路径消费）。
+- 已清理 `effect/mod.rs`：移除 4 个未使用的 `pub(super)` re-export；更新 skeleton 模块的 `#[allow(dead_code)]` 注释，准确反映 test 基础设施需求。
+- 已删除 `state_machine_emitter.rs` 中未使用的 `STATE_TAG_SUSPENDED` 常量。
+- 已清理 emitter 与 effect 模块中引用已完成任务编号的过时注释。
+- 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（213 passed）、`cargo run -p scoop --features llvm -- test`（963 fixtures）。
 
 #### T3007R：Review
 - 最终审查 effect codegen 生产实现，确认仓库中只剩统一主线，没有可重新接回的 shape-based legacy 或 flag-based unwind 机制。
