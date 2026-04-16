@@ -449,8 +449,259 @@
   - `runtime_abi.rs` 和 `runtime_symbols.rs` 中无 `#[allow(dead_code)]`；T3007 删除的 4 个 dead ABI 声明已完全移除。
   - `expr.rs` 中 `Perform` / `Handle` 入口为单路径透传。
   - 唯一保留的 `#[allow(dead_code)]` 位于 `unified_state_machine_skeleton` 模块级别，合理服务于测试基础设施。
-  - T30（统一 effect LLVM codegen）阶段全部完成。后续 LLVM 阶段可直接在统一主线上继续推进。
+  - 截至 `T3007R`，legacy cleanup 已完成；但 2026-04-16 的 effect 回归审查确认统一主线仍存在 frame/continuation ABI、`resume` lowering、state-machine expression 分片、handler stack 语义与 early-return propagation 等运行语义缺口，因此追加 `T3008+` 收口任务，`T30` 以这些补充任务全部完成为准。
 - 依赖：T3007
+
+> 补充说明（2026-04-16 effect 回归审查）：
+> `T3007R` 只证明 legacy shape-based / flag-based 路线已清零，并不等于统一主线已经语义闭环。当前 `T3006` 暂时 xfail 的 run-pass fixtures 暴露出以下缺口：`malloc` raw frame 与 continuation `addrspace(1)` ABI 不一致；`resume(...)` / `Continuation.resume(...)` 仍回落到 generic call；state-machine plan/emitter 仍为不可独立求值的 expression fragment 生成生产 op；frame slot mutability / capture metadata 会把真实 `var` 冻成 immutable；payload/result transport 仍局限于 `u64 word`；handler stack 只注册首个 op_tag 且 escaped continuation 捕获了已 pop 的 stack frame；`STATE_TAG_FUNCTION_RETURNED` 目前只写不读。以下 `T3008+` 任务用于把统一主线从“已接线”推进到“完整且正确可工作”。
+
+### T3008 [TODO] 将 full-state-machine frame 接入 GC typed alloc，并统一 `state` / continuation ABI 到 `addrspace(1)`
+- 描述：当前 `codegen_handle_expr_via_state_machine` 用 `malloc` 分配 raw frame，`emit_effect_step_function` 把 `state` 形参声明为 native `ptr`，而 `declare_runtime_continuation_alloc` / runtime continuation trace 明确把 `state` 视为 GC-managed `ptr addrspace(1)`。这同时导致 LLVM verifier 报 `ptr` / `ptr addrspace(1)` 不匹配，以及 runtime 侧对 `k->state` 的 pin/trace 语义失真。
+- 目标：
+  - `codegen_handle_expr_via_state_machine` 不再用 `malloc` 分配 raw frame；改为 GC-managed typed frame object，并显式覆盖 system fields + user slots 的 trace 合同。
+  - `emit_effect_step_function`、`declare_runtime_continuation_alloc`、continuation struct 中的 `state` 槽位与所有调用点对 `state` 指针的地址空间约定统一为 `addrspace(1)`。
+  - 统一 frame/continuation 合同中不再依赖“用局部 bitcast 压过 verifier”这类过渡手段。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`
+  - 上述用例不再出现 `ptr` / `ptr addrspace(1)` 的 LLVM module verification 错误。
+  - `cargo check -p scoopc`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3007R
+
+### T3008R [TODO] Review：确认 effect frame / continuation ABI 修复不是靠 verifier hack 糊过去
+- 描述：在 `T3008` 之后只审查生产代码，确认 frame / continuation ABI 已真正收口，而不是靠局部 bitcast、raw pointer 绕路或缺失 trace descriptor 暂时把 verifier 压过去；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 unified effect frame 的生产分配路径中不再存在 `malloc` raw frame。
+  - 确认 `state` 在 step function、continuation alloc、continuation trace、resume 调用链上的地址空间与 GC 语义完全一致。
+  - 确认 frame object 的 trace 合同真实覆盖所有 GC ref slot，而不是默认为“无引用字段”。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“full-state-machine frame 与 continuation ABI 已按 `addrspace(1)` + GC trace 合同收口，无 raw-frame / verifier-hack 残留”。
+- 依赖：T3008
+
+### T3009 [TODO] 为 `resume(...)` / `Continuation.resume(...)` 接回专用 lowering，删除 placeholder local
+- 描述：当前 `ImmediateResume` arm 仅把 `resume` 绑定成 dummy local，随后 `resume(41)` 仍走 generic `codegen_call` 并报 `call callee`；`Continuation.resume(...)` 虽已被 lowering side table 标记为 builtin suspend call，但统一 emitter / 普通 codegen 尚未形成一条真正闭合的生产路径。
+- 目标：
+  - `ImmediateResume` arm 中的 `resume(...)` 不再经由 placeholder local + generic call；而是直接 lower 到统一的 resume payload 写入 + continuation resume 调用链。
+  - `Continuation.resume(...)` 在 unified state-machine 路径与普通 codegen 路径上都走专用 lowering，不再依赖 generic member access / generic call fallback。
+  - `resume(...)` 与 `Continuation.resume(...)` 共用同一套 resume payload 合同（word/gc_ref 选择、RuntimeError 路径、one-shot 语义）。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - 上述用例不再出现 `暂不支持的 main 代码生成节点：call callee`。
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3008R
+
+### T3009R [TODO] Review：确认 resume 调用不再回落到 generic call / member access
+- 描述：在 `T3009` 之后只审查生产代码，确认 `resume(...)` 与 `Continuation.resume(...)` 已接回专用 lowering，而不是通过 dummy local、成员名猜测或 generic `codegen_call` 暂时跑通；若发现回落路径，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `state_machine_emitter.rs` 中不存在 `resume_placeholder` 这类过渡占位。
+  - 确认统一主线对 `resume(...)` / `Continuation.resume(...)` 的生产路径不再命中 generic `call callee` / `member access target` fallback。
+  - 确认 side table / contract 输入仍只来自类型/符号/ABI 信息，而不是按成员名或源码形状二次猜测。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“resume 调用已由专用 lowering 完整接管，无 placeholder / generic fallback 残留”。
+- 依赖：T3009
+
+### T3010 [TODO] 收口 unified state machine 的 expression 分片策略，移除不可独立求值的 fragment op
+- 描述：当前 plan builder 会先为 `Call`/`MemberAccess`/`Binary` 等复合表达式递归生成 callee / receiver / operand 子 expression，再在后续 state 中重新发射整棵表达式；emitter 对这些中间 op 又直接调用 generic `codegen_expr`，于是出现 `member access target`、`comparison lhs/rhs`、`equality lhs`、`integer binary op lhs` 等“只在 fragment 被单独执行时才成立”的错误。
+- 目标：
+  - state-machine plan 不再为会被整棵表达式再次求值的 callee / receiver / operand fragment 生成生产 op；只保留真正独立可执行、或真正承担 state-machine 语义边界的 op。
+  - emitter 中的每个生产 op 都必须有独立可执行语义；不再依赖“先 emit fragment，失败就吞掉，后面再让整棵 expr 覆盖”的容错策略。
+  - 统一 contract / emitter 的 op 粒度与后续 verifier / runtime 语义保持一一对应，避免同一表达式被 state-machine 层“拆开又重算”。
+- 验收：
+  - 重新跑当前 `T3006` xfail 子集时，不再出现以下错误类别：
+    - `暂不支持的 main 代码生成节点：member access target`
+    - `暂不支持的 main 代码生成节点：comparison lhs`
+    - `暂不支持的 main 代码生成节点：comparison rhs`
+    - `暂不支持的 main 代码生成节点：equality lhs`
+    - `暂不支持的 main 代码生成节点：integer binary op lhs`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3009R
+
+### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
+- 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `HandleStateOp` 的生产消费者只接收独立可执行 op 或明确 no-op 语义 marker。
+  - 确认 emitter 不再依赖 `VarRef` 式的“失败就吞掉”容错来保持 state-machine 可运行。
+  - 确认统一主线没有重新引入按源码形状或局部 AST 片段做补丁式分流的逻辑。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“state-machine expression emission 粒度已收口；生产 op 不再含 fragment-only 伪执行路径”。
+- 依赖：T3010
+
+### T3011 [TODO] 修正 unified contract 中 frame slot 的 mutability / capture metadata
+- 描述：当前 plan builder 在“第一次看到 local ref”或“arm capture 外层 local”时会先创建 `mutable: false` 的 `FrameSlot`，后续也不会回填真实声明信息，导致原本是 `var` 的 slot 在 unified emitter / stmt codegen 中被冻结成 immutable，并报 `assignment to immutable local`。
+- 目标：
+  - frame slot 的 mutability 必须以声明点为真值来源；若 slot 先由 local ref / capture 路径占坑，后续接入声明信息时需要回填真实 `mutable` 状态，而不是保持默认 `false`。
+  - arm capture、cross-state local、resume 后继续赋值等路径都应消费同一份 authoritative slot metadata。
+  - unified emitter / `codegen_assign_stmt` 观察到的 mutability 与前端声明语义一致，不再被 state-machine 中间结构篡改。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再出现 `暂不支持的 main 代码生成节点：assignment to immutable local`。
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3010R
+
+### T3011R [TODO] Review：确认 frame slot mutability / capture 元数据已按声明点收口
+- 描述：在 `T3011` 之后只审查生产代码，确认 unified contract 中的 slot metadata 已由声明点驱动，不再有“先占坑成 immutable、后续永不修正”的残留；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 local ref、arm capture、resume 边界与普通 `val/var` 声明最终都汇聚到同一份 slot metadata。
+  - 确认 emitter / stmt codegen 不再依赖 slot 创建顺序来决定 mutability。
+  - 确认没有为了过回归而在 `codegen_assign_stmt` 层面加 effect-only 特判。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“frame slot mutability / capture metadata 已与声明语义对齐，无顺序依赖或 effect-only patch”。
+- 依赖：T3011
+
+### T3012 [TODO] 补齐 unified path 的 expected-context / closure / coercion 支持
+- 描述：当前 unified emitter 对整棵表达式的重发射仍经常缺少稳定 expected context，导致 enum variant ctor、`print/println` 参数整形、`when`/`if` tail value、closure 值和某些 `coerce_value` 路径在 state-machine 中仍会报 `enum variant ctor call without expected enum type`、`sysroot print/println arg type`、`expression kind`、`value coercion`。
+- 目标：
+  - 统一 state-machine 路径在发射整棵 expr、arm body、handle result、local initializer、binder/result readback 时，补齐与普通 codegen 等价的 expected context 传递。
+  - closure / function-value 相关表达式在 unified 路径上不再命中 `ExprKind::Closure` 的占位错误；间接 perform / indirect resume / closure-captured local 路径可执行。
+  - 对 enum unit variant ctor、`print/println` 参数、tail value coercion 等 case，state-machine 路径与非 effect 路径复用同一套值整形规则。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再出现以下错误类别：
+    - `暂不支持的 main 代码生成节点：expression kind`
+    - `暂不支持的 main 代码生成节点：enum variant ctor call without expected enum type`
+    - `暂不支持的 main 代码生成节点：sysroot print/println arg type`
+    - 仅因 expected context 缺失引发的 `暂不支持的 main 代码生成节点：value coercion`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3011R
+
+### T3012R [TODO] Review：确认 unified path 的 expected context 与 closure 支持已与普通 codegen 对齐
+- 描述：在 `T3012` 之后只审查生产代码，确认 unified path 不再靠 effect-only 特判或 fixture patch 传递 expected context，也不再把 closure case 留在占位错误后面；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 expected context 的来源都来自类型/slot/result 合同，而不是按 fixture 形状硬编码。
+  - 确认 unified path 中的 closure / function-value 支持与普通 codegen 使用同一套生产逻辑。
+  - 确认 effect codegen 没有重新引入按 `single`/`indirect`/`nested` 等源码分类分流的补丁。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“unified path 的 expected context / closure 支持已与普通 codegen 对齐，无 effect-only workaround 残留”。
+- 依赖：T3012
+
+### T3013 [TODO] 扩展 effect payload / handle result / resume payload transport，覆盖 composite 值
+- 描述：当前统一主线仍把大量 payload/result 运输建立在 `u64 word` 假设上，遇到 tuple/struct/boxed enum payload/continuation ref 等 composite 值就会报 `u64 word from composite value`，并阻塞 handle result、perform binder、resume payload 三条链路的一致性。
+- 目标：
+  - 统一主线的 payload/result transport 需要同时覆盖 word-sized scalar、GC ref 与 composite 值；禁止通过 `ptr <-> int` 编码绕过去。
+  - `perform` binder、handle result readback、continuation resume payload 三条路径共享同一套传输合同，而不是各自单独扩展。
+  - 对 tuple/struct/boxed enum payload 等非 word 值，明确采用 `resume_gc_ref` / typed boxing / 等价 GC-safe 方案。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/handle_compound_result.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_nonresuming_payload_struct_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再出现 `暂不支持的 main 代码生成节点：u64 word from composite value`。
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3012R
+
+### T3013R [TODO] Review：确认 payload/result transport 已统一收口到 GC-safe 合同
+- 描述：在 `T3013` 之后只审查生产代码，确认 payload/result transport 的扩展不是零散地在三四个调用点各补一个特殊分支，而是真正形成统一、GC-safe、可审计的合同；若发现散落 patch，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `perform` binder、handle result、resume payload 三条链路使用同一套 value transport 约定。
+  - 确认 composite 值的运输路径不依赖 `ptr <-> int`、native-only side channel 或 effect-only 特判。
+  - 确认 continuation / frame trace 合同与新的 composite transport 仍然一致。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“payload/result transport 已统一收口到 GC-safe 合同，无散落特判或非法 ptr/int 编码残留”。
+- 依赖：T3013
+
+### T3014 [TODO] 修正 handler stack 的 multi-op registration 与 unmatched effect 外传
+- 描述：当前 handle 入口只把第一个 dispatch entry 的 `op_tag` push 到 runtime handler stack，`dispatch_unmatched` 也会直接落到 `handle_done`，导致 multi-arm handler 不能完整注册、不同 effect 的 nested handler 也会错误吞掉本应继续向外传播的 perform。
+- 目标：
+  - 每个 dispatch entry 的 effect op 都必须在 runtime 动态上下文中有可匹配的注册表示，而不是只注册首个 op。
+  - 当前 handle 未匹配到 `op_tag` 时，不得把 effect 吞掉；必须清理本 handle 自己的 runtime 注册后继续向外传播。
+  - nested different-op handles 的 runtime stack 形态要与 compile-time dispatch 一致，不允许“编译时看起来会冒泡，运行时却被内层 handle 吃掉”。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_op_tag_two_effects_nested_dispatch.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3013R
+
+### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
+- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
+  - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
+  - 确认 effect codegen / runtime ABI 对“向外传播”没有 shape-based 或 fixture-based 特判。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
+- 依赖：T3014
+
+### T3015 [TODO] 修正 arm 执行期 self-inactive 语义与 escaped continuation 的 handler context lifetime
+- 描述：runtime 明确要求 arm body 执行期当前 handler instance 必须视为 inactive，避免自捕获；而当前统一主线既没有在 arm body 执行期间切 active bit，也让 continuation 捕获了稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
+- 目标：
+  - arm body 执行期间，触发当前 arm 的 handler instance 必须被临时置为 inactive；arm body 中再次 perform 同一 op 应命中外层 handler，而不是自捕获。
+  - escaped continuation 不再捕获会在 `handle_done` 中被 pop/清空的 stack-alloc handler frame；需要改为可持久化、可恢复、与 continuation 生命周期一致的 handler context 表示。
+  - continuation resume 时安装/恢复的 handler context 与 suspend 点语义一致，跨线程 / 延迟恢复仍然成立。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_arm_performs_outer_effect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_scheduler_round_robin.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3014R
+
+### T3015R [TODO] Review：确认 handler active/inactive 与 escaped continuation context 已真正闭环
+- 描述：在 `T3015` 之后只审查生产代码，确认 arm self-inactive 语义与 escaped continuation 的 handler context 生命周期已经形成可审计的闭环，而不是继续依赖 stack-alloc frame 指针恰好“暂时没炸”；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 arm body 执行期当前 handler 的 active 状态变化有明确、对称、可恢复的生产路径。
+  - 确认 continuation 捕获/恢复的 handler context 生命周期独立于外层 `handle` 的栈帧生命周期。
+  - 确认跨线程 / 延迟 resume 不再依赖悬空 handler frame 指针。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“handler active/inactive 与 escaped continuation context 已闭环，无 stack-frame lifetime 漏洞残留”。
+- 依赖：T3015
+
+### T3016 [TODO] 接通 handle 内 `return` 的 function-return propagation
+- 描述：当前 `ReturnFromFunction` terminator 会把 `STATE_TAG_FUNCTION_RETURNED` 写进 frame，但 handle 入口读取 `post_state_tag` 后仍把它直接丢掉；这意味着 handle 内显式 `return` 还没有真正向 enclosing function 传播。
+- 目标：
+  - `codegen_handle_expr_via_state_machine` 在读到 `STATE_TAG_FUNCTION_RETURNED` 时，必须接通 enclosing function 的 return 传播，而不是继续走普通 handle result 读回路径。
+  - `return` 与 cleanup/finally/nested handle 的交互语义要与普通 codegen 一致，不允许“finally 跑完了，但函数没真正返回”。
+  - 不通过 effect-only 特判绕过现有 return/cleanup 合同；统一复用既有函数返回基础设施。
+- 验收：
+  - 新增并跑通 dedicated run-pass fixtures：至少覆盖“handle 内显式 `return`”“`finally` 后显式 `return`”“nested handle 内显式 `return`”三类代表性 case。
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3015R
+
+### T3016R [TODO] Review：确认 function-return sentinel 已真正接回 enclosing function return 合同
+- 描述：在 `T3016` 之后只审查生产代码，确认 `STATE_TAG_FUNCTION_RETURNED` 已真正被消费并接入既有 return 基础设施，而不是另起一套 effect-only 返回旁路；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 handle entry 对 `STATE_TAG_FUNCTION_RETURNED` 的处理与普通 `return_context` / cleanup 机制一致。
+  - 确认 nested handle / finally / early return 的组合不再依赖未消费 sentinel 或重复写 result slot。
+  - 确认 unified effect 主线没有重新引入 flag-based unwind 式的函数返回旁路。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“function-return sentinel 已接回 enclosing function return 合同，无 effect-only 返回旁路残留”。
+- 依赖：T3016
+
+### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
+- 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
+- 目标：
+  - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
+  - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
+  - 恢复 “effect run-pass fixtures 默认就是 passing baseline” 的仓库形态。
+- 验收：
+  - `rg -n "T3006: 暂时标记为 fail|EXPECT: fail" tests/fixtures/run-pass -S`
+    对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
+  - `cargo run -p scoop --features llvm -- test`
+  - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
+- 依赖：T3016R
+
+### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
+- 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 effect 统一主线相关 run-pass fixtures 已恢复为 passing baseline。
+  - 确认生产代码中无新增 shape-based / flag-based / effect-only fallback，用于“只让 fixture 过”的临时逻辑。
+  - 在完成本任务后，`T30` 才可重新声明为阶段性完成。
+- 验收：
+  - 若审查发现问题，相关生产代码或基线形态已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“effect unified codegen 已成为稳定 passing baseline；`T3006` 临时 xfail 已回收，无 test-only workaround 残留”。
+- 依赖：T3017
 
 > 以下四个主题从 `TODO-3.md` 顺延迁入，按原顺序重编号为 `T31`～`T34`，仅对与当前 `T30` 主线直接相关的依赖与表述做最小更新。
 
