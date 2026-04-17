@@ -1297,12 +1297,26 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
-    let (object_inits, object_ctor_call_sites) =
-        collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    let (object_inits, object_ctor_call_sites) = collect_object_inits(
+        source,
+        &ast,
+        &index,
+        &type_kinds,
+        None,
+        &mut types,
+        builtins,
+    );
     ctor_call_sites.extend(object_ctor_call_sites);
     // T1312：收集 class 初始化信息（Appendix B.2.2）。
-    let (class_inits, class_ctor_call_sites) =
-        collect_class_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    let (class_inits, class_ctor_call_sites) = collect_class_inits(
+        source,
+        &ast,
+        &index,
+        &type_kinds,
+        None,
+        &mut types,
+        builtins,
+    );
     ctor_call_sites.extend(class_ctor_call_sites);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
@@ -1419,10 +1433,10 @@ pub fn lower_for_compilation_unit(
     };
 
     let (object_inits, object_ctor_call_sites) =
-        collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+        collect_object_inits(source, file, index, &type_kinds, None, &mut types, builtins);
     ctor_call_sites.extend(object_ctor_call_sites);
     let (class_inits, class_ctor_call_sites) =
-        collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
+        collect_class_inits(source, file, index, &type_kinds, None, &mut types, builtins);
     ctor_call_sites.extend(class_ctor_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
@@ -1578,15 +1592,29 @@ pub fn lower_for_compilation_unit_multi_files(
     let mut object_inits = ObjectInitIndex::new();
     let mut class_inits = ClassInitIndex::new();
     for (source, file) in files_to_lower {
-        let (file_object_inits, file_object_ctor_call_sites) =
-            collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+        let (file_object_inits, file_object_ctor_call_sites) = collect_object_inits(
+            source,
+            file,
+            index,
+            &type_kinds,
+            Some(typecheck_types),
+            &mut types,
+            builtins,
+        );
         object_inits.extend(file_object_inits);
         if source.path() == entry_source.path() {
             ctor_call_sites.extend(file_object_ctor_call_sites);
         }
 
-        let (file_class_inits, file_class_ctor_call_sites) =
-            collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
+        let (file_class_inits, file_class_ctor_call_sites) = collect_class_inits(
+            source,
+            file,
+            index,
+            &type_kinds,
+            Some(typecheck_types),
+            &mut types,
+            builtins,
+        );
         class_inits.extend(file_class_inits);
         if source.path() == entry_source.path() {
             ctor_call_sites.extend(file_class_ctor_call_sites);
@@ -1770,7 +1798,9 @@ pub(crate) fn lower_member_fun_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
+    use crate::hir::{ClassInitStep, ObjectInitStep};
     use crate::resolve::Index;
+    use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
     use std::collections::HashSet;
     use std::path::PathBuf;
@@ -2020,6 +2050,131 @@ mod tests {
                 | StmtKind::Continue { .. }
                 | StmtKind::Todo(_) => {}
             }
+        }
+    }
+
+    fn lower_typed_single_source_file(sess: &Session, source: &SourceFile) -> LoweredHir {
+        let mut ast = parse_file(source).unwrap();
+        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast).unwrap();
+
+        typecheck::check_file_headers(source, &ast).unwrap();
+        typecheck::check_file_struct_decls(source, &ast).unwrap();
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &sess.sysroot().files {
+                unit.push((&file.source, &file.ast));
+            }
+            unit.push((source, &ast));
+            Index::build(&unit).unwrap()
+        };
+        let headers = crate::resolve::check_file_headers(source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(source, &ast, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        typecheck::check_file_annotations(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_properties(source, &ast, &index, &env).unwrap();
+        typecheck::check_file_inheritance(source, &ast, &index).unwrap();
+        typecheck::check_file_interfaces(source, &ast, &index, &env).unwrap();
+        typecheck::check_file_override_effects(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_refs(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_where_clauses(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_overload_conflicts(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_exprs(
+            source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &sess.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((source, &ast));
+
+        lower_for_compilation_unit_multi_files(
+            source,
+            &index,
+            &unit,
+            &[(source, &ast)],
+            &[],
+            &types,
+        )
+        .unwrap()
+    }
+
+    fn assert_raise_runtime_error_effect_ty(types: &TypeStore, effect_ty: TypeId) {
+        let TypeKind::Ref(RefTypeKind::Nominal(effect_nominal)) = types.kind(effect_ty) else {
+            panic!(
+                "effect_ty 应为 effect nominal，实际为 {:?}",
+                types.kind(effect_ty)
+            );
+        };
+        assert_eq!(effect_nominal.fqn, "scoop.core.Raise");
+        assert_eq!(effect_nominal.args.len(), 1);
+
+        match types.kind(effect_nominal.args[0]) {
+            TypeKind::Ref(RefTypeKind::Nominal(arg_nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(arg_nominal)) => {
+                assert_eq!(arg_nominal.fqn, "scoop.core.RuntimeError");
+            }
+            other => panic!("Raise 的类型实参应为 RuntimeError，实际为 {:?}", other),
         }
     }
 
@@ -2394,5 +2549,87 @@ fun main(): Int { return id(1) }
         assert!(!unresolved_member_names.iter().any(|name| name == "score"));
         assert!(!unresolved_member_names.iter().any(|name| name == "port"));
         assert!(top_level_call_fqns.iter().any(|fqn| fqn == "doubleScore"));
+    }
+
+    #[test]
+    fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t3014b>",
+            r#"
+package fixtures.t3014b
+
+import scoop.core.*
+
+object BoomObject {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+class BoomClass() {
+    val x: Int = Raise.raise(RuntimeError.NullAssertionFailed)
+}
+
+fun main(): Int { return 0 }
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+
+        let object_init = lowered
+            .object_inits
+            .get("fixtures.t3014b.BoomObject")
+            .expect("应收集到 BoomObject 的 object init");
+        let object_block = match object_init.steps.as_slice() {
+            [ObjectInitStep::InitBlock { block }] => block,
+            steps => panic!("BoomObject init steps 形态不符合预期: {:?}", steps),
+        };
+        let object_stmt = match object_block.stmts.as_slice() {
+            [stmt] => stmt,
+            stmts => panic!("BoomObject init block 语句数不符合预期: {:?}", stmts),
+        };
+        let object_effect_ty = match &object_stmt.kind {
+            StmtKind::Expr(Expr {
+                kind: ExprKind::Perform { effect_ty, op, .. },
+                ..
+            }) => {
+                assert_eq!(op.fqn, "scoop.core.Raise.raise");
+                *effect_ty
+            }
+            other => panic!(
+                "BoomObject init 应 lower 为 Perform 语句，实际为 {:?}",
+                other
+            ),
+        };
+        assert_raise_runtime_error_effect_ty(&lowered.types, object_effect_ty);
+
+        let class_init = lowered
+            .class_inits
+            .get("fixtures.t3014b.BoomClass")
+            .expect("应收集到 BoomClass 的 class init");
+        let class_property_init = class_init
+            .steps
+            .iter()
+            .find_map(|step| match step {
+                ClassInitStep::PropertyInit { field_fqn, init }
+                    if field_fqn == "fixtures.t3014b.BoomClass.x" =>
+                {
+                    Some(init)
+                }
+                _ => None,
+            })
+            .expect("BoomClass.x 应存在 property initializer");
+        let class_effect_ty = match &class_property_init.kind {
+            ExprKind::Perform { effect_ty, op, .. } => {
+                assert_eq!(op.fqn, "scoop.core.Raise.raise");
+                *effect_ty
+            }
+            other => panic!(
+                "BoomClass.x initializer 应 lower 为 Perform，实际为 {:?}",
+                other
+            ),
+        };
+        assert_raise_runtime_error_effect_ty(&lowered.types, class_effect_ty);
     }
 }

@@ -499,6 +499,7 @@ pub(super) fn collect_object_inits(
     file: &ast::File,
     index: &Index,
     type_kinds: &HashMap<String, ast::TypeKind>,
+    typecheck_types: Option<&TypeStore>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> (ObjectInitIndex, CtorCallSiteIndex) {
@@ -510,7 +511,7 @@ pub(super) fn collect_object_inits(
         index,
         types,
         HirLoweringSetup {
-            typecheck_types: None,
+            typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
             builtins,
@@ -639,6 +640,7 @@ pub(super) fn collect_class_inits(
     file: &ast::File,
     index: &Index,
     type_kinds: &HashMap<String, ast::TypeKind>,
+    typecheck_types: Option<&TypeStore>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> (ClassInitIndex, CtorCallSiteIndex) {
@@ -650,7 +652,7 @@ pub(super) fn collect_class_inits(
         index,
         types,
         HirLoweringSetup {
-            typecheck_types: None,
+            typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
             builtins,

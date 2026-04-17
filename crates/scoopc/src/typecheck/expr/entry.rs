@@ -309,8 +309,21 @@ fn check_file_exprs_impl(
                 &pkg_prefix,
                 &mut lower,
             )?,
+            ast::Item::Object(obj) => check_object_decl_init_exprs(
+                FileExprShared {
+                    source,
+                    file,
+                    builtins,
+                    top_level_types: &top_level_types,
+                    top_level_funs: &top_level_funs,
+                    member_mutabilities: &member_mutabilities,
+                    struct_field_types: &struct_field_types,
+                },
+                obj,
+                &pkg_prefix,
+                &mut lower,
+            )?,
             ast::Item::ExtensionProperty(_)
-            | ast::Item::Object(_)
             | ast::Item::TypeAlias(_)
             | ast::Item::ComptimeIf(_) => {}
         }
@@ -563,6 +576,55 @@ fn check_class_member_fun_bodies_in_type_decl(
                 continue;
             };
             check_class_member_fun_bodies_in_type_decl(shared, nested, &type_fqn, lower)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn check_object_decl_init_exprs(
+    shared: FileExprShared<'_>,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let Some(obj_name) = obj
+        .name
+        .as_ref()
+        .map(|id| source.slice(id.span).to_string())
+        .or_else(|| match obj.kind {
+            ast::ObjectKind::Companion => Some("Companion".to_string()),
+            ast::ObjectKind::Object => None,
+        })
+    else {
+        return Ok(());
+    };
+    let obj_fqn = if prefix.is_empty() {
+        obj_name
+    } else {
+        format!("{prefix}.{obj_name}")
+    };
+
+    if let Some(body) = &obj.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) => {
+                    check_object_property_initializer_exprs(shared, p, lower)?;
+                }
+                ast::TypeMember::InitBlock(b) => {
+                    check_object_init_block_exprs(shared, b, lower)?;
+                }
+                ast::TypeMember::Type(nested) => {
+                    check_class_member_fun_bodies_in_type_decl(shared, nested, &obj_fqn, lower)?;
+                }
+                ast::TypeMember::Object(nested) => {
+                    check_object_decl_init_exprs(shared, nested, &obj_fqn, lower)?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
         }
     }
 
@@ -840,6 +902,52 @@ fn check_class_property_initializer_exprs(
     })
 }
 
+fn check_object_property_initializer_exprs(
+    shared: FileExprShared<'_>,
+    p: &ast::PropertyDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let builtins = shared.builtins;
+    if p.delegate.is_some() {
+        return Ok(());
+    }
+
+    let Some(init) = &p.init else {
+        return Ok(());
+    };
+    let Some(ty_ref) = &p.ty else {
+        return Ok(());
+    };
+
+    let expected = lower.lower_type_ref(ty_ref)?;
+    let empty_locals = HashMap::new();
+    let found = expr_infer_inputs(shared.stmt_shared(), &empty_locals).infer_in_expected(
+        lower,
+        init,
+        expected,
+        ExpectedTypeFrom::new(format!(
+            "object property `{}` 的类型注解",
+            source.slice(p.name.span)
+        )),
+    )?;
+
+    if is_type_assignable(found, expected, lower, builtins) {
+        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
+        return Ok(());
+    }
+
+    if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::InitializerTypeMismatch {
+        expected: lower.fmt_type(expected),
+        found: lower.fmt_type(found),
+        span: init.span.into(),
+    })
+}
+
 /// 检查 class header 的 `: Base(args...)` super ctor args（T1327c）。
 ///
 /// 说明：
@@ -1027,6 +1135,34 @@ fn check_class_init_block_exprs(
     let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
 
     // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
+    let mut state = StmtExprState {
+        locals: &mut locals,
+        stable_bindings: &mut stable_bindings,
+        mutable_bindings: &mut mutable_bindings,
+    };
+    check_block_exprs(
+        shared.stmt_shared(),
+        &b.body,
+        lower,
+        &mut state,
+        StmtExprFlow {
+            loop_depth: 0,
+            expected_return_ty: None,
+        },
+    )?;
+
+    Ok(())
+}
+
+fn check_object_init_block_exprs(
+    shared: FileExprShared<'_>,
+    b: &ast::InitBlockDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    let mut stable_bindings: HashSet<Span> = HashSet::new();
+    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
