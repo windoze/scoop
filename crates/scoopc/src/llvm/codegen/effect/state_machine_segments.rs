@@ -923,6 +923,7 @@ impl HandleSegmentList {
                         SuspendSiteKind::CallMaySuspend { .. }
                             | SuspendSiteKind::CallStateMachineCallee { .. }
                             | SuspendSiteKind::ClassCtorInit { .. }
+                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.resume_path.is_none()
                     {
                         return Err(format!(
@@ -934,7 +935,6 @@ impl HandleSegmentList {
                     if matches!(
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
-                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.resume_path.is_some()
                     {
                         return Err(format!(

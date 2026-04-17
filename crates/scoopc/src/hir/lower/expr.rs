@@ -481,7 +481,8 @@ impl<'a> HirLowering<'a> {
                 finally,
             } => {
                 let handle = self.lower_handle_expr(pkg_prefix, body, arms, finally.as_ref());
-                (ExprKind::Handle(handle), self.builtins.any)
+                let ty = self.typechecked_expr_ty(e.span).unwrap_or(handle.body.ty);
+                (ExprKind::Handle(handle), ty)
             }
             ast::ExprKind::Async { body } => {
                 // T0619：`async { ... }` 是 `Async` effect 的语法糖。
@@ -596,7 +597,8 @@ impl<'a> HirLowering<'a> {
                     arms: vec![arm],
                     finally: None,
                 };
-                (ExprKind::Handle(handle), self.builtins.any)
+                let ty = self.typechecked_expr_ty(e.span).unwrap_or(handle.body.ty);
+                (ExprKind::Handle(handle), ty)
             }
             ast::ExprKind::Spawn { body } => {
                 // T0620：`spawn { ... }`（结构化并发最小模型）。

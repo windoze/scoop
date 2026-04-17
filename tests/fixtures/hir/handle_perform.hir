@@ -16,7 +16,7 @@ File {
                     Block {
                         span: 47..125,
                         ty: TypeId(
-                            0,
+                            5,
                         ),
                         stmts: [
                             Stmt {
@@ -28,7 +28,7 @@ File {
                                     Expr {
                                         span: 51..123,
                                         ty: TypeId(
-                                            0,
+                                            5,
                                         ),
                                         kind: Handle(
                                             HandleExpr {

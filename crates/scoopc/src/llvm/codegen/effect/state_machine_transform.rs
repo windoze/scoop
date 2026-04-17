@@ -1173,6 +1173,7 @@ impl UnifiedHandleStateMachine {
                         SuspendSiteKind::CallMaySuspend { .. }
                             | SuspendSiteKind::CallStateMachineCallee { .. }
                             | SuspendSiteKind::ClassCtorInit { .. }
+                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.resume_path.is_none()
                     {
                         return Err(format!(
@@ -1184,7 +1185,6 @@ impl UnifiedHandleStateMachine {
                     if matches!(
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
-                            | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.resume_path.is_some()
                     {
                         return Err(format!(
@@ -3270,6 +3270,219 @@ fun demo(): Int {
         assert_eq!(plan_resume_path, "val-init -> call-arg#0 -> binary-lhs");
         assert_eq!(plan_resume_path, segment_resume_path);
         assert_eq!(plan_resume_path, machine_resume_path);
+    }
+
+    #[test]
+    fn nested_handle_boundary_preserves_resume_path_and_slot() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val y: Int = (handle {
+            val inner: Int = Yield.next()
+            inner + 1
+        } with {
+            Yield.next() -> resume {
+                resume(41)
+            }
+        }) + 2
+        y
+    } with {
+        Yield.next() -> 99
+    }
+    result
+}
+"#,
+        );
+        let source_plan = build_source_plan_from_lowered(&lowered);
+        let segment_list = source_plan.build_segment_list();
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("unified machine should build for nested handle boundary");
+
+        let plan_resume_path = source_plan
+            .suspend_sites
+            .iter()
+            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
+            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected nested handle boundary resume_path in source plan");
+        let segment_resume_path = segment_list
+            .suspend_sites
+            .iter()
+            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
+            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected nested handle boundary resume_path in segment list");
+        let machine_resume_path = machine
+            .suspend_sites
+            .iter()
+            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
+            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
+            .expect("expected nested handle boundary resume_path in unified machine");
+        assert_eq!(plan_resume_path, "val-init -> binary-lhs");
+        assert_eq!(plan_resume_path, segment_resume_path);
+        assert_eq!(plan_resume_path, machine_resume_path);
+
+        let plan_resume_has_slot = source_plan
+            .states
+            .iter()
+            .flat_map(|state| state.actions.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                    resume_slot,
+                    ..
+                } => Some(resume_slot.is_some()),
+                _ => None,
+            })
+            .expect("expected nested handle boundary ResumeAfterSite in source plan");
+        let segment_resume_has_slot = segment_list
+            .segments
+            .iter()
+            .flat_map(|segment| segment.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                    resume_slot,
+                    ..
+                } => Some(resume_slot.is_some()),
+                _ => None,
+            })
+            .expect("expected nested handle boundary ResumeAfterSite in segment list");
+        let machine_resume_has_slot = machine
+            .states
+            .iter()
+            .flat_map(|state| state.ops.iter())
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                    resume_slot,
+                    ..
+                } => Some(resume_slot.is_some()),
+                _ => None,
+            })
+            .expect("expected nested handle boundary ResumeAfterSite in unified machine");
+        assert!(plan_resume_has_slot);
+        assert!(segment_resume_has_slot);
+        assert!(machine_resume_has_slot);
+
+        let resumed_binary = source_plan
+            .states
+            .iter()
+            .find_map(|state| {
+                let has_nested_resume_marker = state.actions.iter().any(|op| {
+                    matches!(
+                        op,
+                        HandleStateOp::ResumeAfterSite {
+                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                            ..
+                        }
+                    )
+                });
+                if !has_nested_resume_marker {
+                    return None;
+                }
+                state.actions.iter().find_map(|op| match op {
+                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
+                    _ => None,
+                })
+            })
+            .expect("expected post-resume binary expr for nested handle boundary");
+        let hir::ExprKind::Binary { lhs, .. } = &resumed_binary.kind else {
+            panic!("expected post-resume nested handle expression to stay a binary expr");
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) = &lhs.kind else {
+            panic!("expected nested handle lhs to rewrite to synthetic resume slot");
+        };
+        assert!(
+            name.starts_with("__resume_site"),
+            "expected nested handle lhs to read synthetic resume slot, got {name}"
+        );
+
+        let segment_resumed_binary = segment_list
+            .segments
+            .iter()
+            .find_map(|segment| {
+                let has_nested_resume_marker = segment.ops.iter().any(|op| {
+                    matches!(
+                        op,
+                        HandleStateOp::ResumeAfterSite {
+                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                            ..
+                        }
+                    )
+                });
+                if !has_nested_resume_marker {
+                    return None;
+                }
+                segment.ops.iter().find_map(|op| match op {
+                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
+                    _ => None,
+                })
+            })
+            .expect("expected post-resume binary expr in segment list");
+        let hir::ExprKind::Binary {
+            lhs: segment_lhs, ..
+        } = &segment_resumed_binary.kind
+        else {
+            panic!("expected segment post-resume nested handle expression to stay a binary expr");
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::Local {
+            name: segment_name, ..
+        }) = &segment_lhs.kind
+        else {
+            panic!("expected segment nested handle lhs to rewrite to synthetic resume slot");
+        };
+        assert!(
+            segment_name.starts_with("__resume_site"),
+            "expected segment nested handle lhs to read synthetic resume slot, got {segment_name}"
+        );
+
+        let machine_resumed_binary = machine
+            .states
+            .iter()
+            .find_map(|state| {
+                let has_nested_resume_marker = state.ops.iter().any(|op| {
+                    matches!(
+                        op,
+                        HandleStateOp::ResumeAfterSite {
+                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
+                            ..
+                        }
+                    )
+                });
+                if !has_nested_resume_marker {
+                    return None;
+                }
+                state.ops.iter().find_map(|op| match op {
+                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
+                    _ => None,
+                })
+            })
+            .expect("expected post-resume binary expr in unified machine");
+        let hir::ExprKind::Binary {
+            lhs: machine_lhs, ..
+        } = &machine_resumed_binary.kind
+        else {
+            panic!("expected unified post-resume nested handle expression to stay a binary expr");
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::Local {
+            name: machine_name, ..
+        }) = &machine_lhs.kind
+        else {
+            panic!("expected unified nested handle lhs to rewrite to synthetic resume slot");
+        };
+        assert!(
+            machine_name.starts_with("__resume_site"),
+            "expected unified nested handle lhs to read synthetic resume slot, got {machine_name}"
+        );
     }
 
     #[test]

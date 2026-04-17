@@ -1,44 +1,59 @@
-# 执行计划
+# 本次执行计划（决策摘要版）
 
-## 当前目标
-- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
+说明：按要求记录执行计划、关键决策与进度更新。这里写的是可审计的决策摘要与步骤，不包含冗长的内部推理原文。
 
-## 约束与执行原则
-- 先检查最新提交是否提到已有问题；如果有，优先修复这些问题。
-- 先读取 `TODO.md`，定位第一个未完成任务。
-- 如果该任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
-- 任何发现的规格不匹配、缺失特性或错误实现，都必须作为正式任务写回 `TODO.md`，调整依赖顺序，不能用变通方案跳过。
-- 实现后必须运行相关测试，并尽量补充必要测试；同时确保 `cargo clippy --all-targets -- -D warnings` 无告警。
-- 完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次清晰的 Git commit，然后停止。
+## 目标
 
-## 步骤计划
-1. 查看最新一次提交，确认是否提到需要先处理的遗留问题。
-2. 读取 `TODO.md`，找出第一个未完成任务。
-3. 读取 `PLAN.md`、相关源码与测试，确认任务范围与依赖。
-4. 如任务过大，先拆分并更新计划文件；否则直接开始实现。
-5. 修改代码并补充/调整测试。
-6. 运行格式化、相关测试、必要的全量检查与 `clippy`。
-7. 更新 `TODO.md`、`PLAN.md`、本文件中的进度记录。
-8. 提交 Git commit，停止本轮工作。
+完成 `TODO.md` 中第一个未完成任务；如果存在前置阻塞或最新提交提到的遗留问题，则先处理这些问题。完成后更新计划与任务状态，提交 git commit，然后停止。
+
+## 初始步骤
+
+1. 检查最新一次 git commit 的提交信息与改动，确认是否明确提到遗留问题需要先修复。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前计划、依赖关系与任务上下文。
+4. 如首个未完成任务过大或存在缺失前置能力，先把任务拆分或重排，并同步更新 `TODO.md` 与 `PLAN.md`。
+
+## 执行步骤
+
+1. 实现当前应执行的那个任务。
+2. 运行相关测试，并补充必要测试。
+3. 如测试暴露规范不一致、缺失能力或遗留问题，先修复；若无法在本轮直接修复，则按要求把阻塞显式写回 `TODO.md`/`PLAN.md`。
+4. 更新 `TODO.md` 与 `PLAN.md`，记录完成情况或依赖调整。
+5. 提交一次 git commit，随后停止，不继续做下一个任务。
+
+## 质量要求
+
+1. 优先保证实现与规范一致，不接受临时绕过。
+2. 需要关注 `cargo test --all`、相关定向测试，以及 `cargo clippy --all-targets -- -D warnings` 是否通过。
+3. 不回退用户已有改动；若工作区存在无关修改，仅在必要范围内工作。
 
 ## 进度记录
-- 已创建初始执行计划，尚未开始代码与仓库状态检查。
-- 已检查最新提交 `44f2edb87e2cc102cfdff5f20cf08cc0d0299399`，提交主题为 `[T3009b0a1d] Fix ObjectInitAccess inactive continue path`，未发现额外的提交说明或明确列出的未修复遗留问题。
-- 已读取 `TODO.md` / `PLAN.md`，定位到当前第一个未完成任务为 `T3009b0a1dR`：复审 `ObjectInitAccessBoundary` 的 inactive-path 是否真正统一收口到 state-machine 合同。
-- 已阅读关键生产代码：
-  - `state_machine_emitter.rs` 中 `UnifiedStateTerminator::Suspend` 的共享 inactive/active 分流；
-  - `state_machine_plan.rs` 中 object value / property access 到 `ObjectInitAccessBoundary` 的建模；
-  - `mod.rs` 中 `codegen_object_value_access` / `codegen_object_property_access` 的普通 codegen 路径。
-- 当前已核实的要点：
-  - `SuspendSiteKind::ObjectInitAccess` 已进入共享 `suspend_site_uses_inactive_continue_path` 集合；
-  - step function 生成期间会临时清空 `current_fun_return_ty` / `return_context`，因此普通 `emit_ordinary_call_effect_propagation_check` 不会在 unified state-machine 内提前返回，inactive/active 分流仍由共享 `Suspend` terminator 负责；
-  - 目前尚未发现按 object 名称、属性名或源码形状决定 inactive-path 的新分流。
-- 已完成验证：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop` 通过，输出与 golden 一致；
-  - `cargo test --all` 通过；
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 本轮结论：
-  - 未发现需要修复的新生产代码问题；
-  - `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同，没有回流为 object 专用 patch 或源码形状分流；
-  - 当前下一任务已推进为 `T3009b0a1e`。
-- 下一步：检查工作区差异，提交 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 的更新，然后停止本轮工作。
+
+- [已完成] 创建本计划文件并写入初始执行方案。
+- [已完成] 检查最新提交、`TODO.md`、`PLAN.md`，确认本轮目标。
+- [已完成] 确认最新提交 `c0152aa` 为 `T3009b0a1dR` review 提交；提交信息未声明额外遗留 bug 需要先于当前任务处理。
+- [已完成] 确认 `TODO.md` 中第一个未完成任务为 `T3009b0a1e`：修正 unified `NestedHandleBoundary` 的 inactive-continue / active-dispatch 合同。
+- [已完成] 阅读相邻任务与代码实现，确认该任务可直接实现，无需再拆分 `TODO.md`。
+- [已完成] 在统一 state-machine 合同内实现 `NestedHandleBoundary` 的 inactive/active 分流，并补上 authoritative `resume_path` + synthetic resume slot，避免 inactive-path 重跑 inner handle。
+- [已完成] 修复上游 HIR lowering：`ExprKind::Handle` 改为保留真实 result type，而不是一律写成 `Any`，从而避免 nested-boundary resume slot 被错误降成 `Ref`。
+- [已完成] 新增 run-pass fixture `effect_handle_nested_handle_boundary_inactive_basic.scoop`、transform 单测 `nested_handle_boundary_preserves_resume_path_and_slot`，并同步更新 HIR golden。
+- [已完成] 验证通过：
+  - `cargo test -p scoopc nested_handle_boundary_preserves_resume_path_and_slot -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- [已完成] 更新 `TODO.md` / `PLAN.md` / 本文件，已把下一步推进到 `T3009b0a1eR`。
+- [进行中] 提交 `T3009b0a1e` 相关变更并停止。
+
+## 当前任务理解
+
+- 当前问题位于统一 state-machine emitter 的共享 suspend boundary 合同。
+- 已完成的 `SuspendCall` / `ObjectInitAccessBoundary` 都已接入“TLS inactive 时留在当前 state machine 内继续执行 caller-tail；TLS active 时才 outward dispatch”的合同。
+- 当前待补的是 `NestedHandleBoundary`：outer `handle` 包 inner `handle` 时，inner handle 如果 inactive 成功返回，outer state machine 不应被误判为 suspend 并提前退出。
+- 该任务看起来仍然是共享 boundary 规则收口问题，优先尝试直接实现；若发现它依赖新的缺失前置能力，再按要求回写 `TODO.md` / `PLAN.md`。
+
+## 下一步
+
+1. 把 `T3009b0a1e` 标记为完成，并把执行顺序推进到 `T3009b0a1eR`。
+2. 检查工作区 diff，确认仅包含本轮任务相关变更。
+3. 提交 git commit，然后停止。

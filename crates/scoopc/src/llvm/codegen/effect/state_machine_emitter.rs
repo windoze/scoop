@@ -990,6 +990,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let resume_value = self.read_result_from_frame(at, cg_ty, state_ptr, frame_layout)?;
         self.store_local_value(at, slot_ptr, cg_ty, resume_value)?;
+        self.env.insert(
+            resume_slot.id(),
+            CgLocal {
+                hir_ty: Some(resume_slot.ty()),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(resume_slot.ty())),
+                ty: cg_ty,
+                ptr: slot_ptr,
+                mutable: resume_slot.mutable(),
+            },
+        );
         Ok(())
     }
 
@@ -1628,6 +1638,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | SuspendSiteKind::CallStateMachineCallee { .. }
                 | SuspendSiteKind::ObjectInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
+                | SuspendSiteKind::NestedHandleBoundary { .. }
         )
     }
 

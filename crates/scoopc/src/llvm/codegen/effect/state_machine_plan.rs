@@ -2093,6 +2093,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     );
                     self.set_terminator(current_state, StateTerminator::Suspend { site_id });
                     let resume_state = self.new_state(format!("resume.after.site{site_id}"));
+                    let resume_slot = self.new_resume_temp_slot(site_id, expr);
                     self.record_resume_source_expr(site_id, expr);
                     self.push_action(
                         resume_state,
@@ -2101,7 +2102,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             reason: ResumeAfterSiteReason::NestedHandleBoundary,
                             source_span: expr.span,
                             source_ty: expr.ty,
-                            resume_slot: None,
+                            resume_slot: Some(resume_slot),
                         },
                     );
                     self.set_suspend_resume_target(site_id, resume_state);
@@ -2992,9 +2993,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
             }
             hir::ExprKind::Handle(_) => {
-                // Nested handle boundaries still use their own state machine
-                // contract. `T3010b2+` will decide how/if they project into
-                // resume fragments of the outer handle.
+                // Nested handle boundaries keep their own inner state machine
+                // contract. We still record the outer resume_path on the
+                // boundary expression itself so inactive returns can feed the
+                // authoritative nested-handle result into the outer caller-tail
+                // without re-running the inner handle.
             }
         }
     }
@@ -3014,6 +3017,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             | SuspendSiteKind::CallStateMachineCallee { .. }
                             | SuspendSiteKind::ClassCtorInit { .. },
                         hir::ExprKind::Call { .. },
+                    )
+                    | (
+                        SuspendSiteKind::NestedHandleBoundary { .. },
+                        hir::ExprKind::Handle(_),
                     )
             );
             kind_matches && site.span == expr.span && site.resume_path.is_none()

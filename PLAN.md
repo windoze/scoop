@@ -30,6 +30,7 @@
 > 2026-04-17 当前轮复审阻塞更新：开始执行 `T3009b0a1cR` 时，继续审查 `UnifiedStateTerminator::Suspend` 并用最小 repro 验证后发现，shared inactive-path 缺口还不止 `SuspendCall` / `RuntimeRaiseBoundary`。direct object/property access 的最小复现 `handle { Config.x + 1 } with { Raise.raise(err: RuntimeError) -> 10 }` 当前只打印 `before`、`config.init`；outer `handle` 包 inner `handle { helper(false) + 1 }` 的最小 repro 当前只打印到 `inner_after`，`outer_after` 与最终结果都不会继续。这说明 `ObjectInitAccessBoundary` 与 `NestedHandleBoundary` 仍被建模成“求值后无条件 suspend”，inactive 成功路径没有留在当前 state machine 内。与此同时，`SuspendCall` 本身的复审已确认当前 inactive/active 分流只按 `SuspendSiteKind` + TLS active 驱动，没有读取 callee 名称或源码形状；但由于三类 boundary 仍共用同一个 `UnifiedStateTerminator::Suspend` 出口，当前还不能为“单一 state-machine 合同”下最终复审结论。顺序因此再次前移为：`T3009b0a1c`（已完成）→ `T3009b0a1d`（先修 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR` → `T3009b0a1e`（再修 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR` → `T3009b0a1cR` → `T3009b0a2`（随后继续收口 shared `RuntimeRaiseBoundary`）→ `T3009b0` → `T3009b0a1b` → `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 > 2026-04-17 当前轮完成更新：`T3009b0a1d` 已完成。`UnifiedStateTerminator::Suspend` 现在把 `SuspendSiteKind::ObjectInitAccess` 纳入与 `SuspendCall` 相同的 TLS-active 分流：inactive 时把 boundary 结果写回 frame 并 branch 到 `resume_state`，active 时才 continuation + dispatch 返回。新增 run-pass fixture `effect_handle_object_init_access_inactive_basic.scoop` 同时锁定 direct object value access、property access 的 inactive-path caller-tail 和 property access 的 active dispatch。已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。为闭环验证还顺手收回了已恢复通过的 stale xfail `effect_escape_continuation_resume_cross_thread.scoop`；整套 `cargo run -p scoop --features llvm -- test` 仍会在后续 `T3017` 范围内的另一个 stale xfail `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 处停止，因此当前主线下一项仍是 `T3009b0a1dR`。
 > 2026-04-17 当前轮复审完成更新：`T3009b0a1dR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs` 与 `mod.rs` 后确认：`ObjectInitAccessBoundary` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::ObjectInitAccess` + TLS active 决定；`HandlePlanContext::from_codegen` 里的 `object_value_fqns` / `object_property_fqns` 仅来自 `object_inits` 元数据，用于 plan 阶段 suspend-site 建模，不参与 emitter 选路；ordinary `codegen_object_value_access` / `codegen_object_property_access` 中的 TLS active 检查在 step function 内因 `current_fun_return_ty` / `return_context` 被清空而失效，不会形成绕开 state-machine 的 side channel。验证通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1e`。
+> 2026-04-17 当前轮完成更新：`T3009b0a1e` 已完成。`UnifiedStateTerminator::Suspend` 现已把 `SuspendSiteKind::NestedHandleBoundary` 纳入 shared inactive-continue / active-dispatch 合同：inner handle inactive 返回时，把 authoritative 结果写回 frame 并 branch 到 `resume_state`；只有 TLS active 时才继续 continuation + outward dispatch。为避免 inactive-path 重跑 inner handle，`NestedHandleBoundary` 现在与 `SuspendCall` 一样携带 `resume_path` + synthetic resume slot，outer caller-tail 中的 nested handle 子表达式会被改写成读取 `__resume_site*`。实现过程中还顺手修复了更上游的类型源错误：HIR lowering 不再把 `ExprKind::Handle` 一律标成 `Any`，而是保留 typechecked handle result type，否则 nested-boundary resume slot 会被错误降成 `Ref`。已新增 run-pass fixture `effect_handle_nested_handle_boundary_inactive_basic.scoop` 与 transform 单测 `nested_handle_boundary_preserves_resume_path_and_slot`，并同步更新 `tests/fixtures/hir/handle_perform.hir` golden。验证通过：定向单测、定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1eR`。
 
 ## 0. 工作原则
 
@@ -522,17 +523,16 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0a1e`
-2. `T3009b0a1eR`
-3. `T3009b0a1cR`
-4. `T3009b0a2`
-5. `T3009b0`
-6. `T3009b0a1b`
-7. `T3009b0aR`
-8. `T3009b0R`
-9. `T3010b2b1b`
-10. `T3010b2b1`
-11. `T3010b2b`
+1. `T3009b0a1eR`
+2. `T3009b0a1cR`
+3. `T3009b0a2`
+4. `T3009b0`
+5. `T3009b0a1b`
+6. `T3009b0aR`
+7. `T3009b0R`
+8. `T3010b2b1b`
+9. `T3010b2b1`
+10. `T3010b2b`
 12. `T3010R`
 13. `T3011`
 14. `T3011R`

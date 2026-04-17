@@ -906,13 +906,23 @@
   - 生产代码中未发现 object 名称特判、属性名特判、源码形状分流，或绕开 state-machine 合同的 direct object/property access 结果旁路。
 - 依赖：T3009b0a1d
 
-### T3009b0a1e [TODO] 修正 unified `NestedHandleBoundary` 的 inactive-continue / active-dispatch 合同
+### T3009b0a1e [DONE] 修正 unified `NestedHandleBoundary` 的 inactive-continue / active-dispatch 合同
 - 描述：同一次 `T3009b0a1cR` 复审继续用最小 nested repro 验证后确认，`NestedHandleBoundary` 也仍被统一 terminator 建模成“求值后无条件 suspend”。最小复现是 outer `handle` 包一层 inner `handle { helper(false) + 1 }`：当前输出只到 `inner_after`，`outer_after` 与最终结果都不会继续，说明 inner handle 明明 inactive 返回，outer state machine 却仍被错误截断。与 `ObjectInitAccessBoundary` 不同，这条路径不能靠“重新求值原表达式”糊过去，否则会把 inner handle 整体重跑一遍，因此需要 authoritative 的 inactive continue / result transport 合同。
+- 进展：
+  - `UnifiedStateTerminator::Suspend` 现已把 `SuspendSiteKind::NestedHandleBoundary` 纳入与 `SuspendCall` 相同的 TLS-active 分流：inner handle inactive 返回时，把 authoritative 结果写回 frame 并直接 branch 到 `resume_state`；只有 TLS active 时才继续 continuation alloc + outward dispatch。
+  - `NestedHandleBoundary` 现已携带 `resume_path` + synthetic resume slot，plan/segment/unified machine 的 resume-after-site 状态会把 outer caller-tail 中的 nested handle 子表达式改写为读取 `__resume_site*`，避免 inactive-path 通过重跑 inner handle 取值。
+  - 顺手修复了更上游的 HIR lowering 类型源错误：`ExprKind::Handle` 不再统一写成 `Any`，而是保留 typechecked handle result type；否则 nested-boundary synthetic resume slot 会被错误降成 `Ref`。已同步更新 `tests/fixtures/hir/handle_perform.hir` golden。
+  - 已新增 run-pass fixture `tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop` 与 transform 单测 `nested_handle_boundary_preserves_resume_path_and_slot`，分别锁定端到端 inactive/active 合同和 plan→segment→machine 的 authoritative resume transport。
 - 目标：
   - `NestedHandleBoundary` 在 inner handle inactive 返回时，outer state machine 必须继续执行 caller-tail，不能把 inactive 成功返回误判成 outward dispatch。
   - 当 inner handle 确实把 effect 向外传播并令 TLS active 时，outer state machine 仍需交回 enclosing dispatch loop。
   - 修复不能通过重跑 inner handle、专判 nested 结构或在 outer call site 增加局部补丁完成；authoritative 数据通路必须继续收口到统一 state-machine 合同。
 - 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
+  - `cargo test -p scoopc nested_handle_boundary_preserves_resume_path_and_slot -- --nocapture`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
