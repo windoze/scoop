@@ -4,6 +4,7 @@
 //! 以便后续把 `expr/stmt/block/sugar` 等实现分拆到独立文件时，避免循环依赖与 `pub(crate)` 漫延。
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -11,6 +12,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::parser::ParseError;
 use crate::resolve::ResolveError;
+use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeStore};
 
@@ -25,6 +27,12 @@ pub(super) struct GenericDelegatedPropertyInfo {
     pub(super) name: String,
     pub(super) delegate_field_fqn: String,
     pub(super) property_meta_fqn: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct DelegatedPropertyDeclContext<'a> {
+    pub(super) source: &'a SourceFile,
+    pub(super) file: &'a ast::File,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,7 +54,8 @@ impl StdLazyThreadSafetyMode {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct LazyDelegatedPropertyInfo {
+pub(super) struct LazyDelegatedPropertyInfo<'a> {
+    pub(super) decl: DelegatedPropertyDeclContext<'a>,
     pub(super) name: String,
     /// 属性类型（用于生成缓存字段的类型与 lazy initializer 的返回类型上下文）。
     pub(super) ty: Option<ast::TypeRef>,
@@ -63,7 +72,8 @@ pub(super) struct LazyDelegatedPropertyInfo {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct ObservableDelegatedPropertyInfo {
+pub(super) struct ObservableDelegatedPropertyInfo<'a> {
+    pub(super) decl: DelegatedPropertyDeclContext<'a>,
     pub(super) name: String,
     pub(super) property_fqn: String,
     pub(super) ty: Option<ast::TypeRef>,
@@ -75,7 +85,8 @@ pub(super) struct ObservableDelegatedPropertyInfo {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct VetoableDelegatedPropertyInfo {
+pub(super) struct VetoableDelegatedPropertyInfo<'a> {
+    pub(super) decl: DelegatedPropertyDeclContext<'a>,
     pub(super) name: String,
     pub(super) property_fqn: String,
     pub(super) ty: Option<ast::TypeRef>,
@@ -87,17 +98,17 @@ pub(super) struct VetoableDelegatedPropertyInfo {
 }
 
 #[derive(Debug, Clone)]
-pub(super) enum DelegatedPropertyInfo {
+pub(super) enum DelegatedPropertyInfo<'a> {
     /// 通用 delegated property lowering：仍按 spec 生成 `getValue/setValue` 调用形状（T1210）。
     ///
     /// 注意：当前 LLVM 后端不要求该路径可执行（主要用于 dump-hir/fixtures 稳定输出）。
     Generic(GenericDelegatedPropertyInfo),
     /// 标准 delegates：`lazy`（spec §10.4）。
-    Lazy(LazyDelegatedPropertyInfo),
+    Lazy(LazyDelegatedPropertyInfo<'a>),
     /// 标准 delegates：`observable`（spec §10.4）。
-    Observable(ObservableDelegatedPropertyInfo),
+    Observable(ObservableDelegatedPropertyInfo<'a>),
     /// 标准 delegates：`vetoable`（spec §10.4）。
-    Vetoable(VetoableDelegatedPropertyInfo),
+    Vetoable(VetoableDelegatedPropertyInfo<'a>),
     /// map-backed delegated properties（spec §10.4）。
     ///
     /// 早期阶段的实现策略：
@@ -107,7 +118,7 @@ pub(super) enum DelegatedPropertyInfo {
     MapBacked,
 }
 
-pub(super) type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
+pub(super) type DelegatedPropertyIndex<'a> = HashMap<String, DelegatedPropertyInfo<'a>>;
 
 /// 一个顶层函数的“默认参数信息”（用于在 HIR lowering 阶段做 call-site 默认参数补齐）。
 ///
@@ -218,8 +229,13 @@ pub struct LoweredHir {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum SymbolKey {
-    Local { decl_span: Span },
-    TopLevel { fqn: String },
+    Local {
+        source_path: PathBuf,
+        decl_span: Span,
+    },
+    TopLevel {
+        fqn: String,
+    },
 }
 
 /// 一个最小的 symbol interner：把“解析后的符号键”映射为一个紧凑的 `SymbolId`。
@@ -234,8 +250,11 @@ pub(super) struct SymbolInterner {
 }
 
 impl SymbolInterner {
-    pub(super) fn intern_local(&mut self, decl_span: Span) -> SymbolId {
-        self.intern(SymbolKey::Local { decl_span })
+    pub(super) fn intern_local(&mut self, source_path: &Path, decl_span: Span) -> SymbolId {
+        self.intern(SymbolKey::Local {
+            source_path: source_path.to_path_buf(),
+            decl_span,
+        })
     }
 
     pub(super) fn intern_top_level(&mut self, fqn: String) -> SymbolId {

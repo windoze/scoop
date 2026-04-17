@@ -2102,21 +2102,21 @@ impl<'a> HirLowering<'a> {
                 }
                 DelegatedPropertyInfo::Observable(info) => {
                     return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        pkg_prefix,
                         member.span,
                         receiver,
                         fqn,
-                        info.ty,
+                        info.decl,
+                        info.ty.as_ref(),
                         info.mutex_field_fqn,
                     );
                 }
                 DelegatedPropertyInfo::Vetoable(info) => {
                     return self.lower_observable_vetoable_delegated_property_get_from_receiver(
-                        pkg_prefix,
                         member.span,
                         receiver,
                         fqn,
-                        info.ty,
+                        info.decl,
+                        info.ty.as_ref(),
                         info.mutex_field_fqn,
                     );
                 }

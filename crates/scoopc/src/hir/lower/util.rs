@@ -504,7 +504,7 @@ pub(super) fn collect_object_inits(
     builtins: BuiltinTypes,
 ) -> (ObjectInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let delegated_properties = DelegatedPropertyIndex::new();
+    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -645,7 +645,7 @@ pub(super) fn collect_class_inits(
     builtins: BuiltinTypes,
 ) -> (ClassInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let delegated_properties = DelegatedPropertyIndex::new();
+    let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -1307,20 +1307,32 @@ fn parse_std_delegate_expr(
     }
 }
 
-pub(super) fn collect_delegated_properties(
-    pairs: &[(&SourceFile, &ast::File)],
-) -> DelegatedPropertyIndex {
-    let mut out: DelegatedPropertyIndex = HashMap::new();
+pub(super) fn collect_delegated_properties<'a>(
+    pairs: &[(&'a SourceFile, &'a ast::File)],
+) -> DelegatedPropertyIndex<'a> {
+    let mut out: DelegatedPropertyIndex<'a> = HashMap::new();
 
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             match item {
                 ast::Item::Type(ty) => {
-                    collect_delegated_properties_in_type_decl(source, ty, &pkg_prefix, &mut out);
+                    collect_delegated_properties_in_type_decl(
+                        source,
+                        file,
+                        ty,
+                        &pkg_prefix,
+                        &mut out,
+                    );
                 }
                 ast::Item::Object(obj) => {
-                    collect_delegated_properties_in_object_decl(source, obj, &pkg_prefix, &mut out);
+                    collect_delegated_properties_in_object_decl(
+                        source,
+                        file,
+                        obj,
+                        &pkg_prefix,
+                        &mut out,
+                    );
                 }
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
@@ -1334,11 +1346,12 @@ pub(super) fn collect_delegated_properties(
     out
 }
 
-fn collect_delegated_properties_in_type_decl(
-    source: &SourceFile,
+fn collect_delegated_properties_in_type_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
     decl: &ast::TypeDecl,
     prefix: &str,
-    out: &mut DelegatedPropertyIndex,
+    out: &mut DelegatedPropertyIndex<'a>,
 ) {
     let local_name = source.slice(decl.name.span);
     let owner_fqn = join_prefix(prefix, local_name);
@@ -1362,6 +1375,7 @@ fn collect_delegated_properties_in_type_decl(
                                 .requires_mutex()
                                 .then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
                             DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
+                                decl: DelegatedPropertyDeclContext { source, file },
                                 name: name.clone(),
                                 ty: p.ty.clone(),
                                 mode,
@@ -1375,6 +1389,7 @@ fn collect_delegated_properties_in_type_decl(
                             let mutex_field_fqn =
                                 Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
+                                decl: DelegatedPropertyDeclContext { source, file },
                                 name: name.clone(),
                                 property_fqn: prop_fqn.clone(),
                                 ty: p.ty.clone(),
@@ -1386,6 +1401,7 @@ fn collect_delegated_properties_in_type_decl(
                             let mutex_field_fqn =
                                 Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
+                                decl: DelegatedPropertyDeclContext { source, file },
                                 name: name.clone(),
                                 property_fqn: prop_fqn.clone(),
                                 ty: p.ty.clone(),
@@ -1410,10 +1426,12 @@ fn collect_delegated_properties_in_type_decl(
                     out.entry(prop_fqn).or_insert(info);
                 }
                 ast::TypeMember::Type(nested) => {
-                    collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);
+                    collect_delegated_properties_in_type_decl(
+                        source, file, nested, &owner_fqn, out,
+                    );
                 }
                 ast::TypeMember::Object(obj) => {
-                    collect_delegated_properties_in_object_decl(source, obj, &owner_fqn, out);
+                    collect_delegated_properties_in_object_decl(source, file, obj, &owner_fqn, out);
                 }
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::Property(_)
@@ -1425,11 +1443,12 @@ fn collect_delegated_properties_in_type_decl(
     }
 }
 
-fn collect_delegated_properties_in_object_decl(
-    source: &SourceFile,
+fn collect_delegated_properties_in_object_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
     obj: &ast::ObjectDecl,
     prefix: &str,
-    out: &mut DelegatedPropertyIndex,
+    out: &mut DelegatedPropertyIndex<'a>,
 ) {
     let obj_name = match &obj.name {
         Some(name) => source.slice(name.span).to_string(),
@@ -1462,6 +1481,7 @@ fn collect_delegated_properties_in_object_decl(
                             .requires_mutex()
                             .then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
                         DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
+                            decl: DelegatedPropertyDeclContext { source, file },
                             name: name.clone(),
                             ty: p.ty.clone(),
                             mode,
@@ -1474,6 +1494,7 @@ fn collect_delegated_properties_in_object_decl(
                     Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
                         let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
+                            decl: DelegatedPropertyDeclContext { source, file },
                             name: name.clone(),
                             property_fqn: prop_fqn.clone(),
                             ty: p.ty.clone(),
@@ -1484,6 +1505,7 @@ fn collect_delegated_properties_in_object_decl(
                     Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
                         let mutex_field_fqn = Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
+                            decl: DelegatedPropertyDeclContext { source, file },
                             name: name.clone(),
                             property_fqn: prop_fqn.clone(),
                             ty: p.ty.clone(),
@@ -1508,10 +1530,10 @@ fn collect_delegated_properties_in_object_decl(
                 out.entry(prop_fqn).or_insert(info);
             }
             ast::TypeMember::Type(nested) => {
-                collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);
+                collect_delegated_properties_in_type_decl(source, file, nested, &owner_fqn, out);
             }
             ast::TypeMember::Object(nested) => {
-                collect_delegated_properties_in_object_decl(source, nested, &owner_fqn, out);
+                collect_delegated_properties_in_object_decl(source, file, nested, &owner_fqn, out);
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)

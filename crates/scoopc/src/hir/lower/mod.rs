@@ -59,7 +59,7 @@ struct HirLowering<'a> {
     ///
     /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
     /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
-    delegated_properties: &'a DelegatedPropertyIndex,
+    delegated_properties: &'a DelegatedPropertyIndex<'a>,
     /// 顶层函数默认参数信息索引：`fqn -> params(default)`（用于 call-site 默认参数补齐，T1305）。
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
     /// ctor 调用点候选集合：callee span → candidate type fqns。
@@ -93,7 +93,7 @@ struct HirLowering<'a> {
 struct HirLoweringSetup<'a> {
     typecheck_types: Option<&'a TypeStore>,
     type_kinds: &'a HashMap<String, ast::TypeKind>,
-    delegated_properties: &'a DelegatedPropertyIndex,
+    delegated_properties: &'a DelegatedPropertyIndex<'a>,
     builtins: BuiltinTypes,
 }
 
@@ -153,7 +153,7 @@ impl<'a> HirLowering<'a> {
     }
 
     fn intern_local_symbol(&mut self, decl_span: Span, mutable: bool) -> SymbolId {
-        let id = self.symbols.intern_local(decl_span);
+        let id = self.symbols.intern_local(self.source.path(), decl_span);
         match self.local_mutability.get(&id).copied() {
             // 同一 decl_span 不应出现冲突的 mutability，但为了降低与 resolver 交互时的脆弱性：
             // - 若任一方认为它是 `var`，则提升为 `var`；
@@ -166,6 +166,22 @@ impl<'a> HirLowering<'a> {
             }
         }
         id
+    }
+
+    fn with_foreign_ast_context<T>(
+        &mut self,
+        source: &'a SourceFile,
+        file: &'a ast::File,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous_source = self.source;
+        let previous_file = self.file;
+        self.source = source;
+        self.file = file;
+        let result = f(self);
+        self.source = previous_source;
+        self.file = previous_file;
+        result
     }
 
     fn lower_file(&mut self) -> File {
@@ -2806,6 +2822,174 @@ fun main(): Int {
         let main_body = main_fun.body.as_ref().expect("main 应有 body");
         let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
             .expect("observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        assert_raise_int_effect_ty(&lowered.types, effect_ty);
+    }
+
+    #[test]
+    fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_cross_file_observable_delegate_callback()
+     {
+        let sess = Session::new().unwrap();
+        let src_model = SourceFile::new_virtual(
+            "<t3014cr_model>",
+            r#"
+package fixtures.t3014cr
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Counter() {
+    var x: Int by observable(0) { old, new ->
+        if (new == 1) {
+            Raise.raise(7)
+        }
+        println(old)
+    }
+}
+"#,
+        );
+        let src_main = SourceFile::new_virtual(
+            "<t3014cr_main>",
+            r#"
+package fixtures.t3014cr
+
+import scoop.core.*
+
+fun main(): Int {
+    val counter: Counter = Counter()
+    try {
+        counter.x = 1
+    } catch (e: Int) {
+        println(e)
+    }
+    return 0
+}
+"#,
+        );
+
+        let mut ast_model = parse_file(&src_model).unwrap();
+        let mut ast_main = parse_file(&src_main).unwrap();
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for f in &sess.sysroot().files {
+                unit.push((&f.source, &f.ast));
+            }
+            unit.push((&src_model, &ast_model));
+            unit.push((&src_main, &ast_main));
+            Index::build(&unit).unwrap()
+        };
+
+        let headers_model =
+            crate::resolve::check_file_headers(&src_model, &ast_model, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_model, &mut ast_model, &index, &headers_model)
+            .unwrap();
+        let headers_main =
+            crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&src_model, &ast_model, &index)
+            .unwrap();
+        env.extend_from_file(&src_main, &ast_main, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        typecheck::check_file_annotations(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_properties(&src_model, &ast_model, &index, &env).unwrap();
+        typecheck::check_file_inheritance(&src_model, &ast_model, &index).unwrap();
+        typecheck::check_file_interfaces(&src_model, &ast_model, &index, &env).unwrap();
+        typecheck::check_file_override_effects(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_refs(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_where_clauses(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_overload_conflicts(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_exprs(
+            &src_model,
+            &ast_model,
+            &index,
+            &headers_model.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .unwrap();
+        typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            unit.push((&f.source, &f.ast));
+        }
+        unit.push((&src_model, &ast_model));
+        unit.push((&src_main, &ast_main));
+
+        let lowered = lower_for_compilation_unit_multi_files(
+            &src_main,
+            &index,
+            &unit,
+            &[(&src_main, &ast_main)],
+            &[],
+            &types,
+        )
+        .unwrap();
+
+        let main_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t3014cr.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t3014cr.main");
+        let main_body = main_fun.body.as_ref().expect("main 应有 body");
+        let effect_ty = find_raise_perform_effect_ty_in_block(main_body).expect(
+            "跨文件 observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform",
+        );
         assert_raise_int_effect_ty(&lowered.types, effect_ty);
     }
 }

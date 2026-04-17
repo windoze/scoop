@@ -1474,8 +1474,14 @@
   - `cargo run -p scoop --features llvm -- test` 不再首先停在 `delegated_property_observable_raise_does_not_poison_mutex.scoop`
 - 依赖：T3014bR
 
-### T3014cR [TODO] Review：确认 delegated-property observable 的 effect-instance key 已按统一合同收口
+### T3014cR [DONE] Review：确认 delegated-property observable 的 effect-instance key 已按统一合同收口
 - 描述：在 `T3014c` 之后只审查生产代码，确认 delegated-property observable callback、state-machine `emit_perform_op` 与统一 dispatch 对 `Raise.raise(...)` 使用的是同一套 `effect_instance_key` 合同，而不是为跑过 fixture 临时加 fallback；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 复审 `crates/scoopc/src/typecheck/expr/entry.rs`、`crates/scoopc/src/hir/lower/sugar.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 后确认：ordinary `perform`、state-machine `emit_perform_op` 与 dispatch matching 仍统一经 `effect_instance_key()` / `matching_effect_instance_keys_for_handled_effect()` 取 key，没有 delegated-property observable callback 专用 fallback。
+  - 审查过程中发现并修复一个真实生产缺口：标准 delegated-property side table 之前只保存声明点 AST，却不绑定声明点 `SourceFile` / `ast::File`。跨文件使用 `lazy/observable/vetoable` 时，lowering 会在使用点文件上下文里直接 lower 声明点 callback / initializer AST，导致 `inferred_performed_effect_tys` / `inferred_expr_tys` / `inferred_binding_tys` 可能查错文件，且 local `SymbolId` 可能因“仅按 span intern”与使用点局部冲突。
+  - 现已为标准 delegated-property info 补齐声明点上下文，并让 `lazy/observable/vetoable` 的 foreign-AST lowering 显式切回声明点 `SourceFile` / `ast::File`；同时把 HIR lowering 的 local symbol interning 从“仅按 span”升级为“源文件 + span”，避免跨文件 inline AST 冲突。
+  - 已新增 typed-lowering 回归 `lower_for_compilation_unit_multi_files_preserves_effect_ty_in_cross_file_observable_delegate_callback`，锁定“属性声明在一文件、赋值发生在另一文件”时，observable callback 内 `Raise.raise(7)` 仍保留 `Perform.effect_ty = Raise<Int>`。
+  - 已验证：新增多文件低层回归、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 未回退到本任务对应 fixture，当前首个停止点仍是已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`）。
 - 目标：
   - 确认 delegated-property callback 内的 `Raise.raise(...)` 与其它 unified state-machine perform 路径共用同一套 `effect_instance_key` 语义。
   - 确认 delegated property / observable / callback 路径没有回流 shape-based、fixture-based 或 runtime-error-only 特判。
@@ -1483,6 +1489,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“delegated-property observable 的 effect-instance key 已按统一合同收口，无 callback-path fallback 残留”。
+- 审查结论：
+  - delegated-property observable 的 effect-instance key 已按统一合同收口，无 callback-path fallback 残留。
+  - 跨文件 delegated-property lowering 现在也会回到声明点上下文读取 typecheck side tables；`Raise.raise(...)` 的 `Perform.effect_ty` 不再因 callback/initializer AST 被错文件 lowering 而退化为 `Any`。
 - 依赖：T3014c
 
 ### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致

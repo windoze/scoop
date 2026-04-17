@@ -97,6 +97,27 @@ impl<'a> HirLowering<'a> {
             .unwrap_or(self.builtins.any)
     }
 
+    fn lower_delegated_property_ty(
+        &mut self,
+        decl: DelegatedPropertyDeclContext<'a>,
+        ty: Option<&ast::TypeRef>,
+    ) -> TypeId {
+        self.with_foreign_ast_context(decl.source, decl.file, |this| {
+            this.delegated_property_ty(ty)
+        })
+    }
+
+    fn lower_delegated_property_expr(
+        &mut self,
+        pkg_prefix: &str,
+        decl: DelegatedPropertyDeclContext<'a>,
+        expr: &ast::Expr,
+    ) -> Expr {
+        self.with_foreign_ast_context(decl.source, decl.file, |this| {
+            this.lower_expr(pkg_prefix, expr)
+        })
+    }
+
     fn member_access_to_class_field(
         &mut self,
         span: Span,
@@ -126,8 +147,9 @@ impl<'a> HirLowering<'a> {
         pkg_prefix: &str,
         span: Span,
         receiver: Expr,
-        info: &LazyDelegatedPropertyInfo,
+        info: &LazyDelegatedPropertyInfo<'a>,
     ) -> ExprKind {
+        let decl = info.decl;
         let inited_name = format!("{}$lazy_inited", info.name);
         let value_name = format!("{}$lazy_value", info.name);
 
@@ -148,7 +170,8 @@ impl<'a> HirLowering<'a> {
                 info.value_field_fqn.clone(),
             );
 
-            let init_value = self.lower_expr(pkg_prefix, &info.initializer_body);
+            let init_value =
+                self.lower_delegated_property_expr(pkg_prefix, decl, &info.initializer_body);
             let assign_value = Stmt {
                 span,
                 ty: self.builtins.unit,
@@ -196,7 +219,7 @@ impl<'a> HirLowering<'a> {
 
             let false_body = Expr {
                 span,
-                ty: self.delegated_property_ty(info.ty.as_ref()),
+                ty: self.lower_delegated_property_ty(decl, info.ty.as_ref()),
                 kind: ExprKind::Block(Block {
                     span,
                     ty: self.builtins.any,
@@ -268,7 +291,7 @@ impl<'a> HirLowering<'a> {
             info.value_field_fqn.clone(),
         );
 
-        let value_ty = self.delegated_property_ty(info.ty.as_ref());
+        let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
 
         // 说明：早期 LLVM codegen 的 `when` 结果合流（phi）对“arm body 内部再产生分支”的情况
         // 仍较脆弱（会触发 dominance/CFG 校验失败）。为保证 run-pass 可回归，
@@ -310,7 +333,11 @@ impl<'a> HirLowering<'a> {
                     name: Some(computed_name.clone()),
                     mutable: false,
                     ty: value_ty,
-                    init: Some(self.lower_expr(pkg_prefix, &info.initializer_body)),
+                    init: Some(self.lower_delegated_property_expr(
+                        pkg_prefix,
+                        decl,
+                        &info.initializer_body,
+                    )),
                 };
                 let computed_ref = Expr {
                     span: computed_span,
@@ -374,7 +401,11 @@ impl<'a> HirLowering<'a> {
                     name: Some(computed_name.clone()),
                     mutable: false,
                     ty: value_ty,
-                    init: Some(self.lower_expr(pkg_prefix, &info.initializer_body)),
+                    init: Some(self.lower_delegated_property_expr(
+                        pkg_prefix,
+                        decl,
+                        &info.initializer_body,
+                    )),
                 };
                 let computed_ref = Expr {
                     span: computed_span,
@@ -526,17 +557,17 @@ impl<'a> HirLowering<'a> {
 
     pub(super) fn lower_observable_vetoable_delegated_property_get_from_receiver(
         &mut self,
-        pkg_prefix: &str,
         span: Span,
         receiver: Expr,
         property_fqn: &str,
-        ty: Option<ast::TypeRef>,
+        decl: DelegatedPropertyDeclContext<'a>,
+        ty: Option<&ast::TypeRef>,
         mutex_field_fqn: Option<String>,
     ) -> (ExprKind, TypeId) {
         // observable/vetoable（T1326b）：
         // - 读取需要具备并发可见性（避免 data race）；
         // - 早期阶段通过一个 per-property 的 `Mutex` 保护 backing field 读写。
-        let value_ty = self.delegated_property_ty(ty.as_ref());
+        let value_ty = self.lower_delegated_property_ty(decl, ty);
         let property_name = property_fqn
             .rsplit('.')
             .next()
@@ -545,7 +576,7 @@ impl<'a> HirLowering<'a> {
 
         let mutex_fqn = mutex_field_fqn.unwrap_or_else(|| {
             // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
-            format!("__missing__{}.{}$delegate_mutex", pkg_prefix, property_name)
+            format!("__missing__.{property_fqn}$delegate_mutex")
         });
         let mutex_name = format!("{property_name}$delegate_mutex");
         let mutex_field =
@@ -628,19 +659,20 @@ impl<'a> HirLowering<'a> {
         member_span: Span,
         receiver: &ast::Expr,
         rhs: &ast::Expr,
-        info: &ObservableDelegatedPropertyInfo,
+        info: &ObservableDelegatedPropertyInfo<'a>,
     ) -> Option<Expr> {
         if info.on_change.params.len() != 2 {
             return None;
         }
 
-        let value_ty = self.delegated_property_ty(info.ty.as_ref());
+        let decl = info.decl;
+        let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
         let receiver = self.lower_expr(pkg_prefix, receiver);
 
         let old_param = &info.on_change.params[0];
         let new_param = &info.on_change.params[1];
-        let old_name = old_param.name.text(self.source).to_string();
-        let new_name = new_param.name.text(self.source).to_string();
+        let old_name = old_param.name.text(decl.source).to_string();
+        let new_name = new_param.name.text(decl.source).to_string();
 
         let old_id = self.intern_local_symbol(old_param.name.span, false);
         let new_id = self.intern_local_symbol(new_param.name.span, false);
@@ -720,7 +752,8 @@ impl<'a> HirLowering<'a> {
             },
         };
 
-        let callback_body = self.lower_expr(pkg_prefix, &info.on_change.body);
+        let callback_body =
+            self.lower_delegated_property_expr(pkg_prefix, decl, &info.on_change.body);
 
         let block = Block {
             span,
@@ -761,19 +794,20 @@ impl<'a> HirLowering<'a> {
         member_span: Span,
         receiver: &ast::Expr,
         rhs: &ast::Expr,
-        info: &VetoableDelegatedPropertyInfo,
+        info: &VetoableDelegatedPropertyInfo<'a>,
     ) -> Option<Expr> {
         if info.on_change.params.len() != 2 {
             return None;
         }
 
-        let value_ty = self.delegated_property_ty(info.ty.as_ref());
+        let decl = info.decl;
+        let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
         let receiver = self.lower_expr(pkg_prefix, receiver);
 
         let old_param = &info.on_change.params[0];
         let new_param = &info.on_change.params[1];
-        let old_name = old_param.name.text(self.source).to_string();
-        let new_name = new_param.name.text(self.source).to_string();
+        let old_name = old_param.name.text(decl.source).to_string();
+        let new_name = new_param.name.text(decl.source).to_string();
 
         let old_id = self.intern_local_symbol(old_param.name.span, false);
         let new_id = self.intern_local_symbol(new_param.name.span, false);
@@ -840,7 +874,7 @@ impl<'a> HirLowering<'a> {
             init: Some(field_access(self, receiver.clone())),
         };
 
-        let ok_expr = self.lower_expr(pkg_prefix, &info.on_change.body);
+        let ok_expr = self.lower_delegated_property_expr(pkg_prefix, decl, &info.on_change.body);
 
         let new_ref = Expr {
             span,
