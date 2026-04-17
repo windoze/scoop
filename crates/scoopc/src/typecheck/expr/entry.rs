@@ -859,9 +859,15 @@ fn check_class_property_initializer_exprs(
 ) -> Result<(), ExprTypeError> {
     let source = shared.file.source;
     let builtins = shared.file.builtins;
-    // delegated property 的语义由 `typecheck::properties` 覆盖；这里避免引入不完整的 delegate expr typecheck。
     if p.delegate.is_some() {
-        return Ok(());
+        let (locals, _, _) = class_init_locals(shared, lower)?;
+        return check_standard_delegated_property_inline_exprs(
+            shared.stmt_shared(),
+            source,
+            p,
+            &locals,
+            lower,
+        );
     }
 
     let Some(init) = &p.init else {
@@ -910,7 +916,14 @@ fn check_object_property_initializer_exprs(
     let source = shared.source;
     let builtins = shared.builtins;
     if p.delegate.is_some() {
-        return Ok(());
+        let empty_locals = HashMap::new();
+        return check_standard_delegated_property_inline_exprs(
+            shared.stmt_shared(),
+            source,
+            p,
+            &empty_locals,
+            lower,
+        );
     }
 
     let Some(init) = &p.init else {
@@ -946,6 +959,127 @@ fn check_object_property_initializer_exprs(
         found: lower.fmt_type(found),
         span: init.span.into(),
     })
+}
+
+fn check_standard_delegated_property_inline_exprs(
+    shared: StmtExprShared<'_>,
+    source: &SourceFile,
+    property: &ast::PropertyDecl,
+    outer_locals: &HashMap<Span, TypeId>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let Some(delegate) = &property.delegate else {
+        return Ok(());
+    };
+    let Some(property_ty_ref) = &property.ty else {
+        return Ok(());
+    };
+
+    let ast::ExprKind::Call { callee, args } = &delegate.kind else {
+        return Ok(());
+    };
+    let Some(delegate_fqn) = unique_top_level_fun_fqn_from_callee(callee) else {
+        return Ok(());
+    };
+
+    let property_ty = lower.lower_type_ref(property_ty_ref)?;
+    let property_name = source.slice(property.name.span);
+
+    match delegate_fqn.as_str() {
+        "scoop.delegates.lazy" => {
+            let Some(last_arg) = args.last() else {
+                return Ok(());
+            };
+            let ast::ExprKind::Lambda(lambda) = &last_arg.kind else {
+                return Ok(());
+            };
+            if !lambda.params.is_empty() {
+                return Ok(());
+            }
+
+            let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
+                lower,
+                lambda.body.as_ref(),
+                property_ty,
+                ExpectedTypeFrom::new(format!(
+                    "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
+                )),
+            )?;
+        }
+        "scoop.delegates.observable" | "scoop.delegates.vetoable" => {
+            let Some(initial) = args.first() else {
+                return Ok(());
+            };
+            let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
+                lower,
+                initial,
+                property_ty,
+                ExpectedTypeFrom::new(format!("委托属性 `{property_name}` 的初始值")),
+            )?;
+
+            let Some(last_arg) = args.last() else {
+                return Ok(());
+            };
+            let ast::ExprKind::Lambda(lambda) = &last_arg.kind else {
+                return Ok(());
+            };
+            if lambda.params.len() != 2 {
+                return Ok(());
+            }
+
+            let mut callback_locals = outer_locals.clone();
+            callback_locals.insert(lambda.params[0].name.span, property_ty);
+            callback_locals.insert(lambda.params[1].name.span, property_ty);
+            let callback_return_ty = if delegate_fqn == "scoop.delegates.observable" {
+                shared.builtins.unit
+            } else {
+                shared.builtins.bool_
+            };
+            let callback_kind = if delegate_fqn == "scoop.delegates.observable" {
+                "observable"
+            } else {
+                "vetoable"
+            };
+            let _ = expr_infer_inputs(shared, &callback_locals).infer_in_expected(
+                lower,
+                lambda.body.as_ref(),
+                callback_return_ty,
+                ExpectedTypeFrom::new(format!(
+                    "{callback_kind} 委托属性 `{property_name}` 的回调返回类型"
+                )),
+            )?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+
+    if let Some(call) = id.call.as_ref() {
+        let mut funs: Vec<String> = call
+            .candidates
+            .iter()
+            .filter_map(|candidate| match candidate {
+                ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                ast::CallCandidate::Constructor { .. } => None,
+            })
+            .collect();
+        funs.sort();
+        funs.dedup();
+        if funs.len() == 1 {
+            return Some(funs[0].clone());
+        }
+    }
+
+    match id.resolved.as_ref() {
+        Some(ast::ResolvedValueRef::TopLevel { fqn }) => Some(fqn.clone()),
+        _ => None,
+    }
 }
 
 /// 检查 class header 的 `: Base(args...)` super ctor args（T1327c）。

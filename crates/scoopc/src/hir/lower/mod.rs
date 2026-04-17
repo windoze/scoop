@@ -2178,6 +2178,134 @@ mod tests {
         }
     }
 
+    fn assert_raise_int_effect_ty(types: &TypeStore, effect_ty: TypeId) {
+        let TypeKind::Ref(RefTypeKind::Nominal(effect_nominal)) = types.kind(effect_ty) else {
+            panic!(
+                "effect_ty 应为 effect nominal，实际为 {:?}",
+                types.kind(effect_ty)
+            );
+        };
+        assert_eq!(effect_nominal.fqn, "scoop.core.Raise");
+        assert_eq!(effect_nominal.args.len(), 1);
+        assert!(
+            matches!(
+                types.kind(effect_nominal.args[0]),
+                TypeKind::Value(ValueTypeKind::Int)
+            ),
+            "Raise 的类型实参应为 Int，实际为 {:?}",
+            types.kind(effect_nominal.args[0])
+        );
+    }
+
+    fn find_raise_perform_effect_ty_in_block(block: &Block) -> Option<TypeId> {
+        block
+            .stmts
+            .iter()
+            .find_map(find_raise_perform_effect_ty_in_stmt)
+    }
+
+    fn find_raise_perform_effect_ty_in_stmt(stmt: &Stmt) -> Option<TypeId> {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => find_raise_perform_effect_ty_in_expr(expr),
+            StmtKind::Val(val) => val
+                .init
+                .as_ref()
+                .and_then(find_raise_perform_effect_ty_in_expr),
+            StmtKind::Assign { lhs, rhs, .. } => find_raise_perform_effect_ty_in_expr(lhs)
+                .or_else(|| find_raise_perform_effect_ty_in_expr(rhs)),
+            StmtKind::While { cond, body } => find_raise_perform_effect_ty_in_expr(cond)
+                .or_else(|| find_raise_perform_effect_ty_in_block(body)),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .and_then(find_raise_perform_effect_ty_in_expr),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => None,
+        }
+    }
+
+    fn find_raise_perform_effect_ty_in_expr(expr: &Expr) -> Option<TypeId> {
+        match &expr.kind {
+            ExprKind::Perform { effect_ty, op, .. } if op.fqn == "scoop.core.Raise.raise" => {
+                Some(*effect_ty)
+            }
+            ExprKind::Call { callee, args } => find_raise_perform_effect_ty_in_expr(callee)
+                .or_else(|| {
+                    args.iter().find_map(|arg| match arg {
+                        CallArg::Positional(expr) => find_raise_perform_effect_ty_in_expr(expr),
+                        CallArg::Named { value, .. } => find_raise_perform_effect_ty_in_expr(value),
+                    })
+                }),
+            ExprKind::MemberAccess { receiver, .. } => {
+                find_raise_perform_effect_ty_in_expr(receiver)
+            }
+            ExprKind::When { subject, arms } => find_raise_perform_effect_ty_in_expr(subject)
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(find_raise_perform_effect_ty_in_expr)
+                            .or_else(|| find_raise_perform_effect_ty_in_expr(&arm.body))
+                    })
+                }),
+            ExprKind::Block(block) => find_raise_perform_effect_ty_in_block(block),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => find_raise_perform_effect_ty_in_expr(cond)
+                .or_else(|| find_raise_perform_effect_ty_in_expr(then_branch))
+                .or_else(|| {
+                    else_branch
+                        .as_deref()
+                        .and_then(find_raise_perform_effect_ty_in_expr)
+                }),
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. } => find_raise_perform_effect_ty_in_expr(expr),
+            ExprKind::Binary { lhs, rhs, .. } => find_raise_perform_effect_ty_in_expr(lhs)
+                .or_else(|| find_raise_perform_effect_ty_in_expr(rhs)),
+            ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| find_raise_perform_effect_ty_in_expr(&field.value)),
+            ExprKind::TupleLit { elements } => elements
+                .iter()
+                .find_map(find_raise_perform_effect_ty_in_expr),
+            ExprKind::InterpolatedString { parts, .. } => {
+                parts.iter().find_map(|part| match part {
+                    crate::hir::InterpolatedStringPart::Expr { expr } => {
+                        find_raise_perform_effect_ty_in_expr(expr)
+                    }
+                    crate::hir::InterpolatedStringPart::Text { .. } => None,
+                })
+            }
+            ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                CallArg::Positional(expr) => find_raise_perform_effect_ty_in_expr(expr),
+                CallArg::Named { value, .. } => find_raise_perform_effect_ty_in_expr(value),
+            }),
+            ExprKind::Handle(handle) => find_raise_perform_effect_ty_in_block(&handle.body)
+                .or_else(|| {
+                    handle
+                        .arms
+                        .iter()
+                        .find_map(|arm| find_raise_perform_effect_ty_in_expr(&arm.body))
+                })
+                .or_else(|| {
+                    handle
+                        .finally
+                        .as_ref()
+                        .and_then(find_raise_perform_effect_ty_in_block)
+                }),
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Closure(_)
+            | ExprKind::Missing
+            | ExprKind::Todo(_) => None,
+        }
+    }
+
     #[test]
     fn lower_minimal_file_smoke() {
         let sess = Session::new().unwrap();
@@ -2631,5 +2759,53 @@ fun main(): Int { return 0 }
             ),
         };
         assert_raise_runtime_error_effect_ty(&lowered.types, class_effect_ty);
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_preserves_effect_ty_in_observable_delegate_callback() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t3014c>",
+            r#"
+package fixtures.t3014c
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Counter() {
+    var x: Int by observable(0) { old, new ->
+        if (new == 1) {
+            Raise.raise(7)
+        }
+        println(old)
+    }
+}
+
+fun main(): Int {
+    val counter: Counter = Counter()
+    try {
+        counter.x = 1
+    } catch (e: Int) {
+        println(e)
+    }
+    return 0
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let main_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t3014c.main" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t3014c.main");
+        let main_body = main_fun.body.as_ref().expect("main 应有 body");
+        let effect_ty = find_raise_perform_effect_ty_in_block(main_body)
+            .expect("observable callback 内的 Raise.raise 应被 lower 为带 effect_ty 的 Perform");
+        assert_raise_int_effect_ty(&lowered.types, effect_ty);
     }
 }

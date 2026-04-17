@@ -1455,8 +1455,14 @@
   - `T3010b2b0a0` 已锁定的 ordinary propagation 语义仍成立：class/object-init helper 触发 `Raise.raise(RuntimeError.*)` 时，当前 callee 会立即终止，outer `try/catch` 继续稳定命中，caller tail 不会继续执行。
 - 依赖：T3014b
 
-### T3014c [TODO] 修正 delegated-property observable 回调内 `Raise.raise(...)` 的 state-machine `effect_instance_key` 缺口
+### T3014c [DONE] 修正 delegated-property observable 回调内 `Raise.raise(...)` 的 state-machine `effect_instance_key` 缺口
 - 描述：完成 `T3014b` 后复跑 `cargo run -p scoop --features llvm -- test`，suite 的首个失败点推进到 `tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`；直接运行报 `UnsupportedMainBody { kind: "state machine perform effect instance key" }`。这说明 delegated-property observable 回调中的 `Raise.raise(7)` 进入 unified state-machine `emit_perform_op` 路径后，仍无法稳定获得与 dispatch 合同一致的 `effect_instance_key`。该问题不再属于 ordinary hidden-suspend helper 路径，而是另一条尚未显式跟踪的 effect-instance key 缺口，必须在继续 `T3014R` 前单独收口。
+- 进展：
+  - 已确认根因不是 runtime dispatch/ABI 缺 `effect_instance_key`，而是 `typecheck::check_file_exprs()` 之前直接跳过带 `delegate` 的属性表达式，导致标准 delegated property 的 inline body（`lazy` initializer、`observable`/`vetoable` 的 initial/callback）从未写入 `inferred_performed_effect_tys`。
+  - 已在 `crates/scoopc/src/typecheck/expr/entry.rs` 中新增标准 delegated-property inline 表达式检查：`lazy` initializer body、`observable`/`vetoable` initial expr 与 callback body 现在都会按 lowering 的真实 inline 语义进入 expected-context type inference；其中 `observable` callback 的 `Raise.raise(7)` 会稳定写回 `Perform.effect_ty = Raise<Int>`，不再退化为 `Any`。
+  - 修复过程中未采用“把整个 delegate 调用按普通 call typecheck”这条错误路径，避免把 effectful `observable` callback 误判为违反 sysroot 纯 lambda 签名，从而保持既有 delegated-property + `Raise` 语义不回退。
+  - 已新增 typed lowering 回归 `lower_typed_single_source_file_preserves_effect_ty_in_observable_delegate_callback`，锁定 observable callback 内 `Raise.raise(7)` 的 `Perform.effect_ty`。
+  - 已验证：新增低层回归、`lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点已前移到已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），不再停在本任务对应的 delegated-property observable blocker。
 - 目标：
   - delegated-property observable 回调中的 `Raise.raise(...)` 走 unified state-machine perform lowering 时，能够稳定获得与 dispatch 合同一致的 `effect_instance_key`，不再报 `state machine perform effect instance key`。
   - `observable` + `Raise.raise` 的既有语义继续成立：回调 raise 被外层 `try/catch` 捕获后，同一属性的后续读写仍可继续执行，不会出现 mutex poison / 锁泄漏 / callback 路径被截断。

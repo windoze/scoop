@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3014c` 已完成。根因确认不是 runtime dispatch/ABI 缺少 `effect_instance_key`，而是 `typecheck::check_file_exprs()` 之前会直接跳过带 `delegate` 的属性表达式，导致标准 delegated property 的 inline body（`lazy` initializer、`observable`/`vetoable` 的 initial expr 与 callback body）从未写入 `inferred_performed_effect_tys`；HIR lowering 虽仍会把 observable callback inline 到 delegated-property assign lowering，但其中 `Raise.raise(7)` 的 `Perform.effect_ty` 只能退化为 `Any`，最终 unified state-machine `emit_perform_op` 在 `effect_instance_key(effect_ty)` 处报 `UnsupportedMainBody { kind: "state machine perform effect instance key" }`。现已在 `crates/scoopc/src/typecheck/expr/entry.rs` 中新增标准 delegated-property inline 表达式检查，只对 lowering 真正会 inline 的几段表达式做 expected-context inference，避免把整个 delegate 调用错误地按普通纯 lambda 签名 typecheck；新增 typed lowering 回归 `lower_typed_single_source_file_preserves_effect_ty_in_observable_delegate_callback` 后，observable callback 内 `Raise.raise(7)` 会稳定保留 `Perform.effect_ty = Raise<Int>`。验证通过：新增低层回归、`lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables`、`delegated_property_observable_raise_does_not_poison_mutex.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点已前移到已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），不再停在 delegated-property observable blocker。当前 effect 主线下一项推进到 `T3014cR`。
 > 2026-04-18 当前轮复审更新：`T3014bR` 已完成。复审 `crates/scoopc/src/llvm/codegen/mod.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs` 后确认，ordinary `codegen_perform_expr` 与 unified state-machine `emit_perform_op` 都统一调用 `effect_instance_key(effect_ty)`；`emit_raise_runtime_error_variant` 直接写入的 `EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR` 也正是 `effect_instance_key()` 对 `Raise<RuntimeError>` 的固定返回值，不存在另一套 runtime-error-only key 合同。继续复审 `hir/lower/util.rs`、`hir/lower/expr.rs` 与 `typecheck/expr/entry.rs` 后确认，class/object-init hidden-suspend 路径的修复仅是把既有 typed side table 链路补回通用 lowering：`collect_object_inits()` / `collect_class_inits()` 现可接收 `typecheck_types`，而 object property initializer / `init {}` block 也会写回 `inferred_performed_effect_tys`，最终仍统一经 `ctx.lower_expr(...)` 生成带真实 `Perform.effect_ty` 的 HIR。验证通过：低层回归测试、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`、`effect_same_op_multi_arm_dispatch_effect_instance.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个真实失败点仍为 `delegated_property_observable_raise_does_not_poison_mutex.scoop`（`UnsupportedMainBody { kind: "state machine perform effect instance key" }`）。因此 `T3014bR` 可判定完成，当前 effect 主线下一项推进到 `T3014c`。
 > 2026-04-18 当前轮完成更新：`T3014b` 已完成。根因分两层：其一，`lower_for_compilation_unit_multi_files()` 之前只给顶层 HIR lowering 透传 `typecheck_types`，`collect_object_inits()` / `collect_class_inits()` 这两个 side-table lowering 仍硬编码 `None`，导致 object/class init 内 `Raise.raise(RuntimeError.*)` 的 `Perform.effect_ty` 在 side table 中退化为 `Any`；其二，`typecheck::check_file_exprs()` 之前完全跳过 `ast::Item::Object`，object property initializer / `init {}` block 从未写回 `inferred_performed_effect_tys`，即便 side-table lowering 拿到了 `typecheck_types` 也无法恢复。现已同时修复这两层断点，并新增低层回归测试 `lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables` 锁定 multi-file typed lowering 产出的 `object_inits` / `class_inits` side tables必须保留 `Raise<RuntimeError>` 的 `Perform.effect_ty`。验证通过：定向低层单测、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。复跑 `cargo run -p scoop --features llvm -- test` 后，suite 已不再首先停在 `class_init_hidden_raise_helper_try_catch_basic.scoop`，新的首个失败点推进到 `delegated_property_observable_raise_does_not_poison_mutex.scoop`（`UnsupportedMainBody { kind: "state machine perform effect instance key" }`）。按阻塞规则，现已新增前置任务 `T3014c` / `T3014cR` 跟踪 delegated-property observable callback 的统一 key 缺口；当前 effect 主线下一项推进到 `T3014bR`。
 > 2026-04-18 当前轮阻塞更新：继续执行 `T3014R` 复审时，先同步了 `tests/fixtures/hir/handle_mixed_arm_kinds.hir` 与 `tests/fixtures/hir/safe_call_not_null_assert.hir` 的 `Perform.effect_ty` stale golden，以恢复 HIR fixture 基线；在此之后复跑 `cargo run -p scoop --features llvm -- test`，suite 新的首个真实失败点推进到 `class_init_hidden_raise_helper_try_catch_basic.scoop`，直接运行报 `UnsupportedMainBody { kind: "effect instance key" }`。这说明 `T3014a` 引入 effect-instance key 合同后，ordinary hidden-suspend `Raise.raise(RuntimeError.*)` lowering 仍不能稳定产出 key，打回了 `T3010b2b0a0` 已锁定的 class/object-init helper run-pass 语义。按阻塞规则，现已新增前置任务 `T3014b` / `T3014bR` 先收口该回归，并把 `T3014R` 顺延到其后；本轮到此停止。
@@ -558,33 +559,31 @@
 
 ## 4. 当前执行顺序
 
-1. `T3014c`
-2. `T3014cR`
-3. `T3014R`
-4. `T3009b`
-5. `T3009bR`
-6. `T3015`
-7. `T3015R`
-8. `T3016`
-9. `T3016R`
-10. `T3016R`
-11. `T3017`
-12. `T3017R`
-13. `T3103`
-13. `T3104`
-14. `T3201`
-15. `T3202`
-16. `T3203`
-17. `T3204`
-18. `T3205`
-19. `T3301`
-20. `T3302`
-21. `T3303`
-22. `T3401`
-23. `T3401a`
-24. `T3401b`
-25. `T3401c`
-26. `T3402`
-27. `T3403`
-28. `T3404`
-29. `T3405`
+1. `T3014cR`
+2. `T3014R`
+3. `T3009b`
+4. `T3009bR`
+5. `T3015`
+6. `T3015R`
+7. `T3016`
+8. `T3016R`
+9. `T3017`
+10. `T3017R`
+11. `T3103`
+12. `T3104`
+13. `T3201`
+14. `T3202`
+15. `T3203`
+16. `T3204`
+17. `T3205`
+18. `T3301`
+19. `T3302`
+20. `T3303`
+21. `T3401`
+22. `T3401a`
+23. `T3401b`
+24. `T3401c`
+25. `T3402`
+26. `T3403`
+27. `T3404`
+28. `T3405`
