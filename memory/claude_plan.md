@@ -1,59 +1,65 @@
-# 执行计划
+# 执行计划与进度记录
 
-## 说明
+说明：按要求先记录执行计划与进度。这里记录的是可审计的高层推理、步骤分解、发现与决策，不包含逐字内部思维。
 
-按要求先记录执行计划与进度。这里不会写入逐字内部思维过程，而是记录可审计的执行步骤、判断依据摘要、风险点与阶段性结论，便于后续检查。
+## 初始目标
 
-## 当前目标
+本轮只完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果发现其前置依赖缺失、规范不匹配或任务过大，则先更新 `TODO.md` 与 `PLAN.md`，提交这些调整后停止。
+## 初始执行计划
 
-## 执行步骤
+1. 检查最新一次 Git 提交信息，确认是否提到任何现存问题。
+2. 如果最新提交明确提到需要修复的现存问题，先定位并修复这些问题，再继续任务流。
+3. 阅读 `TODO.md`，识别第一个未完成任务。
+4. 阅读 `PLAN.md`，理解当前计划、依赖关系与上下文。
+5. 判断该任务是否过大：
+   - 如果可直接完成，则开始实现。
+   - 如果过大，则把任务拆分为更小子任务，并更新 `PLAN.md` 与 `TODO.md`，随后执行拆分后的第一个子任务。
+6. 实现任务，必要时补充或重构代码，以保证实现符合规范而不是依赖临时绕过方案。
+7. 运行相关验证：
+   - 至少运行与改动直接相关的测试；
+   - 如有必要，运行更广泛的测试与质量检查，如 `cargo test`、`cargo clippy --all-targets -- -D warnings`、`cargo fmt --check`。
+8. 若过程中发现规范缺口、实现缺陷或依赖缺失：
+   - 不绕过；
+   - 先把缺陷转化为更前置的 `TODO.md` 任务并更新 `PLAN.md`；
+   - 视情况提交变更后停止。
+9. 任务完成后：
+   - 更新 `TODO.md`，标记任务完成；
+   - 更新 `PLAN.md`，反映当前状态；
+   - 更新本文件记录结果与测试情况；
+   - 提交 Git commit；
+   - 停止，不继续下一个任务。
 
-1. 检查最近一次提交：
-   - 查看最新 commit message 与改动。
-   - 确认是否显式提到已知问题、临时修复、待补事项或回归。
-   - 若存在“提交中已承认但未修复的问题”，优先修复这些问题，再继续当前任务流。
-2. 读取计划与任务文件：
-   - 打开 `TODO.md`，定位第一个未完成任务。
-   - 打开 `PLAN.md`，核对现有分解与优先级是否一致。
-3. 评估首个未完成任务：
-   - 判断是否可以在本轮完整落地。
-   - 若任务过大或依赖缺失，则把它拆成更小子任务，并更新 `PLAN.md`/`TODO.md`，本轮只执行拆分后的第一个子任务。
-4. 实施：
-   - 阅读相关模块、测试与规范。
-   - 在不引入 workaround、shim、fixture-only hack 的前提下完成实现。
-   - 若途中发现规范缺口或实现边界问题，先把缺口补成新的前置任务并调整顺序，然后停止。
-5. 验证：
-   - 运行与改动相关的测试。
-   - 至少补跑必要的 `cargo fmt`、相关测试，以及在可行范围内执行 `cargo clippy --all-targets -- -D warnings`。
-6. 文档与任务状态更新：
-   - 更新 `memory/claude_plan.md` 记录关键进展、计划变更与结论。
-   - 在 `TODO.md` 中把本轮完成的任务标记为完成。
-   - 在 `PLAN.md` 中同步当前状态与后续项。
-7. 提交：
-   - 用清晰的提交信息提交本轮全部改动。
-   - 完成一个任务后停止，不继续下一个任务。
+## 进度日志
 
-## 初始检查重点
-
-- 是否存在最近提交中提到但未解决的问题。
-- 首个未完成任务是否依赖尚未实现的语言特性、运行时能力或标准库支持。
-- 是否已有未提交改动会影响本轮工作；若有，必须避免覆盖用户改动。
-
-## 进度记录
-
-- 2026-04-17：已创建计划文件，下一步检查最新提交与任务列表。
-- 2026-04-17：已检查 `git log -1 --stat`。最新提交 `[T3010b2b1] Close arm-body outward propagation validation` 的提交信息本身未声明新的遗留问题；后续仍需以当前测试结果为准确认是否存在更早未跟踪 blocker。
-- 2026-04-17：已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务是 `T3010b2b`：基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式。
-- 2026-04-17：下一步将先复现 `T3010b2b` 当前的实际失败点，优先检查：
-  - 全量 LLVM fixture 当前停在何处；
-  - 是否仍是 `T3017` 记录的 stale `EXPECT: fail` 截断，还是 `T3010b2b` 已可由更小定向用例直接复现；
-  - 该任务是否需要继续拆分成新的前置子任务。
-- 2026-04-17：已完成 `T3010b2b` 的验证闭环：
-  - `effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop`、`async_await_minimal_int_basic.scoop` 继续通过。
-  - 扫描当前全部带 `EXPECT: fail` 的 run-pass fixture，未再出现 `member access target` / `comparison lhs|rhs` / `equality lhs` / `integer binary op lhs` 这些 `T3010b2b` 负责的 body-tail fragment 错误。
-  - 将 4 条代表性 post-suspend tail xfail fixture 临时去掉 `EXPECT: fail` 头后按普通 run-pass 复验，`fixtures: ok (4)`，证明 resumed tail / nested escape handle / mixed source-path cleanup 已正常通过。
-  - `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop --features llvm -- test` 的首个失败点为 `continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该问题已由 `T3017` 跟踪。
-- 2026-04-17：已同步 `TODO.md` / `PLAN.md`，将 `T3010b2b` 标记为完成，并把执行顺序推进到新的首个未完成任务 `T3010R`。
-- 2026-04-17：下一步提交本轮结果并停止，等待下一轮继续处理 `T3010R`。
+- 已创建本文件并写入初始计划。
+- 已检查最新提交：`[T3010b2b] Close post-suspend tail validation`。提交消息本身未额外标注需要先修复的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前首个未完成任务是 `T3010R`。
+- 已开始执行 `T3010R` 的生产代码审查。
+- 审查发现一个与 `T3010R` 目标直接冲突的真实残留：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中，`HandleStateOp::VarRef` 仍使用 `codegen_expr_in_expected_context(...).unwrap_or(CgValue::unit())`。
+  - 这意味着 emitter 仍在依赖“VarRef 失败后吞掉并回退为 unit”的容错路径，与“生产 op 必须是独立可执行 op 或明确 no-op marker”的目标不符。
+- 当前修复计划：
+  1. 移除 `HandleStateOp::VarRef` 的吞错 fallback，让 unsupported standalone value ref 直接暴露为 codegen 错误，而不是伪执行成功。
+  2. 修正对应的过时注释，明确 `VarRef` 不再承担 fragment-only 伪执行角色。
+  3. 补一条定向测试，锁定纯 statement call 的 callee 不会再生成 standalone `VarRef` fragment op。
+  4. 运行定向测试、全量 Rust 测试与 clippy；如有必要再跑 LLVM fixture 验证。
+- 已完成代码修复：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+    - 删除 `HandleStateOp::VarRef` 的 `unwrap_or(CgValue::unit())` fallback。
+    - 更新注释，要求 standalone `VarRef` 必须独立可执行。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
+    - 收紧 `source_plan_keeps_only_whole_call_for_pure_statement_args_and_pure_if_condition`，新增对 pure statement callee 不得生成 `VarRef` fragment 的断言。
+- 已完成验证：
+  - `cargo fmt --all`
+  - `cargo test -p scoopc source_plan_ -- --nocapture`
+  - `cargo test -p scoopc runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`
+- 验证结果摘要：
+  - 定向测试、全量 Rust 测试与 clippy 全部通过。
+  - LLVM fixture suite 仍停在既有 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`。该问题已由 `TODO.md` 中现有任务 `T3017` 跟踪，不是本轮新回归。
+- 文档状态：
+  - 已更新 `TODO.md`：`T3010R` 标记为完成并记录复审结论。
+  - 已更新 `PLAN.md`：补入 `T3010R` 的修复/验证记录，并把下一项推进到 `T3011`。

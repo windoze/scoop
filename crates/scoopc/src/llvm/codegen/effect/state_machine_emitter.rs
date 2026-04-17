@@ -670,20 +670,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Expression ops: delegate to existing codegen ---
                 //
-                // VarRef is handled separately: the plan builder decomposes
-                // composite expressions (Call, Binary, etc.) by recursing
-                // into sub-expressions, emitting a VarRef op for each callee
-                // or operand.  These standalone VarRef results are always
-                // overwritten by the subsequent composite op (which carries
-                // the full original expression and re-evaluates everything).
-                // For top-level function names, `codegen_var_ref` fails
-                // because functions are not standalone values.  We produce a
-                // unit fallback for any VarRef codegen failure since the
-                // result is never consumed.
+                // Standalone value references that survive into the unified
+                // state machine must remain independently executable. If a
+                // VarRef cannot be lowered here, that is a real production
+                // bug or unsupported language feature and should surface the
+                // same way it would in ordinary expr codegen.
                 HandleStateOp::VarRef { expr } => {
-                    let val = self
-                        .codegen_expr_in_expected_context(expr, None)
-                        .unwrap_or(CgValue::unit());
+                    let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                 }
                 HandleStateOp::Literal { expr }

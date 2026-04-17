@@ -3417,19 +3417,19 @@ fun demo(seed: Int): Int {
 "#;
 
         let source_plan = build_source_plan(source);
-        let statement_arg_span = source_plan
+        let (statement_callee_span, statement_arg_span) = source_plan
             .states
             .iter()
             .flat_map(|state| state.actions.iter())
             .find_map(|op| match op {
                 HandleStateOp::Call { expr } => {
-                    let hir::ExprKind::Call { args, .. } = &expr.kind else {
+                    let hir::ExprKind::Call { callee, args } = &expr.kind else {
                         return None;
                     };
                     let [hir::CallArg::Positional(arg_expr)] = args.as_slice() else {
                         return None;
                     };
-                    Some(arg_expr.span)
+                    Some((callee.span, arg_expr.span))
                 }
                 _ => None,
             })
@@ -3446,6 +3446,12 @@ fun demo(seed: Int): Int {
             })
             .expect("expected if-branch terminator");
 
+        assert!(
+            !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
+                matches!(op, HandleStateOp::VarRef { expr } if expr.span == statement_callee_span)
+            }),
+            "pure statement callees should stay inside the whole Call op instead of emitting VarRef fragments"
+        );
         assert!(
             !source_plan.states.iter().flat_map(|state| state.actions.iter()).any(|op| {
                 matches!(op, HandleStateOp::BinaryExpr { expr } if expr.span == statement_arg_span)

@@ -1188,8 +1188,19 @@
   - `cargo run -p scoop --features llvm -- test`（首个失败点：`tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，由 `T3017` 跟踪）
 - 依赖：T3010b2b1
 
-### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
+### T3010R [DONE] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
 - 描述：在 `T3010` 之后只审查生产代码，确认 unified contract / emitter 的 op 粒度已经收口，不再存在“fragment op 只是为后续整棵 expr 服务、自己却仍走生产 codegen”的残留；若发现这类残留，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs` 中 `resume_path` / synthetic resume slot / `HandleStateOp` 生产消费链，确认恢复值改写仍停留在 plan 层，emitter 未回扫 AST。
+  - 复审中发现真实残留：`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `HandleStateOp::VarRef` 仍使用 `codegen_expr_in_expected_context(...).unwrap_or(CgValue::unit())` 吞掉 codegen 失败，属于 fragment-era 的伪执行 fallback。
+  - 已删除该 fallback，`VarRef` 现改为直接传播真实 codegen 结果/错误，与 ordinary expr codegen 保持一致；同时更新注释，明确 standalone `VarRef` 必须是独立可执行 op，而不是“失败后吞掉”的占位路径。
+  - 已收紧 `state_machine_segments.rs` 的定向测试 `source_plan_keeps_only_whole_call_for_pure_statement_args_and_pure_if_condition`：纯 statement call 的 callee 现在也被锁定为不得生成 standalone `VarRef` fragment op。
+- 已验证：
+  - `cargo test -p scoopc source_plan_ -- --nocapture`
+  - `cargo test -p scoopc runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`（仍停在 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`；该既有问题已由 `T3017` 跟踪，非本轮回归）
 - 目标：
   - 确认 `HandleStateOp` 的生产消费者只接收独立可执行 op 或明确 no-op 语义 marker。
   - 确认 emitter 不再依赖 `VarRef` 式的“失败就吞掉”容错来保持 state-machine 可运行。
@@ -1197,6 +1208,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“state-machine expression emission 粒度已收口；生产 op 不再含 fragment-only 伪执行路径”。
+- 审查结论：
+  - `HandleStateOp` 的生产消费面已收口为独立可执行 op 或明确语义 marker；没有再保留“先拆 fragment，再靠整棵 expr 重算覆盖”的伪执行路径。
+  - emitter 不再依赖 `VarRef` 的吞错 fallback；若仍出现不可独立执行的 standalone `VarRef`，现在会像普通 expr codegen 一样直接暴露真实错误。
+  - 统一主线中未发现按源码形状、局部 AST 片段或旧 fragment 分类做补丁式分流的生产逻辑回流。
 - 依赖：T3010b2b
 
 ### T3011 [TODO] 修正 unified contract 中 frame slot 的 mutability / capture metadata
