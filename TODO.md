@@ -1757,11 +1757,14 @@
   - 本轮复审未发现需要修复的新增生产代码问题；更宽的 shared resumed-body / caller-tail 验收仍继续留在后续 `T3009b2`。
 - 依赖：T3015a
 
-### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
+### T3009b2 [DONE] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
 - 描述：在 `T3009b2a` / `T3009b2b` / `T3009b2bR` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。shared matrix 还要继续覆盖本轮已接回 nested expression 之外、仍待统一验收的 nested statement-container source-path 变体（例如 block / if / when / while body 内的 ordinary callee suspend source）；但在真正完成这些 matrix 之前，必须先由 `T3015a` 补齐“第一次 resumed segment 后的下一次 perform 重新进入 captured handler dispatch loop”的更前置合同。
 - 进展：
   - ordinary callee 对 `source_path.frames` 的 statement-container rebuild 已不再在 `Block / IfThen / IfElse / WhenArm / WhileBody` 上直接返回 `None`；`WhileBody` 现在使用 synthetic first-iteration flag，保证 resume 后先完成当前迭代尾部，再回到 loop cond。
   - 新增 focused reproducer `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 后确认，shared matrix 当前仍先被 `T3015a` 的 handler redispatch 缺口卡住：第一次 `resume(...)` 可继续到下一次 indirect callee，但新的 outward perform 不会重新进入 captured handler dispatch loop。
+  - 在 `T3015a` / `T3015aR` 收口 redispatch 后重新复跑本任务验收矩阵，8 条 run-pass fixture 已全部通过：覆盖 helper / closure / function-value callee，tail / non-tail caller-tail，scalar / ref / composite payload，以及 multi-site 与 statement-container source-path 变体。
+  - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过；当前 shared resumed-body / caller-tail 合同已满足验收，无需再补新的生产代码。
+  - 当前结论：`T3009b2a`、`T3009b2b` 与 `T3015a` 的前序修复已把 `T3009b2` 的共享语义面一并收口，下一步推进到 `T3009b2R` 做生产代码复审。
 - 目标：
   - indirect callee（普通 helper / closure / function-value callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
   - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。

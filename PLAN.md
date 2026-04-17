@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3009b2` 已完成。本轮未再修改生产代码，而是按任务验收重新复跑 shared resumed-body / caller-tail 矩阵；结果表明前序 `T3009b2a`、`T3009b2b` 与 `T3015a` 的修复已经把该任务的共享语义面一并收口。8 条定向 run-pass fixture 全部通过：`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`、`effect_escape_continuation_indirect_perform_tail_return_int.scoop`、`effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`、`effect_multi_escape_indirect_callee_suspend_matrix.scoop` 与 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`；其中 multi-site indirect callee 与 statement-container source-path 变体都确认继续共享同一套 continuation + dispatch-loop + resumed-body caller-tail 合同，没有新增按 helper/closure/fixture 名称分流的补丁。已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前 effect 主线下一项推进到 `T3009b2R`。
+>
 > 2026-04-18 当前轮复审更新：`T3015aR` 已完成。复审 `runtime/c/scoop_runtime.c`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 后确认，runtime 侧 continuation 现在通过 `scoop_effect_handler_stack_snapshot_clone()` 捕获 continuation-owned handler stack 堆快照，并在 `scoop_continuation_resume_common()` 中 pin continuation、安装快照、step 返回后恢复 caller TLS、释放快照；compiler 侧 `emit_effect_runtime_functions()` 统一生成 `step_fn + dispatch_loop_fn` 双入口，初始 handle 入口与 `UnifiedStateTerminator::Suspend` materialize 的 continuation 都捕获同一个 `scoop.effect.dispatch.*` 入口，不会在 escaped continuation resume 后退回 raw `step_fn`。`emit_dispatch_loop_body()` / `emit_dispatch_arm_execution()` 继续用同一套 dispatch-check / outward-propagate loop 处理 arm body 再次 perform、multi-site indirect callee matrix 与 statement-container rebuild（`Block / IfThen / IfElse / WhenArm / WhileBody`），未发现按 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 等 fixture 名称分流的补丁。已验证 `cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack`、两条 `cargo test -p scoopc ... -- --nocapture` IR/dispatch 定向测试、三条 run-pass matrix + `continuation_resume_ref_class.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2`。
 >
 > 2026-04-18 当前轮完成更新：`T3015a` 已完成。根因分成两层并已一并收口：第一层是 runtime continuation 之前只捕获原始 TLS handler frame 指针，`handle` 返回时这些栈上 frame 会被 `pop` 成 inactive，导致 resumed segment 的下一次 `perform` 虽然仍会写 perform slot，但再也找不到 captured handler；现已把 `runtime/c/scoop_runtime.c` 改为捕获 continuation-owned 的 handler stack 堆快照，并在 `scoop_continuation_resume_common()` 中 pin continuation、安装快照、step 返回后释放快照并恢复 caller TLS。第二层是 compiler 之前把 escaped continuation 的 resume 入口绑到了 raw `step_fn`，导致第一次 resumed segment 之后的新 `perform` 没有重新进入 handle dispatch loop；现已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中额外生成 `scoop.effect.dispatch.*` 入口，并让 `Suspend` terminator 分配 continuation 时捕获该 dispatch-loop entry，而不是 raw `step_fn`。修复 redispatch 后，`statement-container` matrix 进一步暴露 `WhileBody` rebuild 的 synthetic first-iteration 条件仍写成非短路 `resume_first || cond`；现已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 改成显式 `if (resume_first) true else cond`，恢复“先完成当前迭代尾部，再回到 cond”的语义。已回收 4 条同根因 run-pass fixture 的 `EXPECT: fail`（`effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`、`effect_escape_continuation_multi_perform_while_loop.scoop`、`continuation_resume_ref_class.scoop`），并验证 `cargo test -p scoop_runtime --test continuation_one_shot`、`cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack`、`cargo test -p scoopc escaped_continuation_ir_uses_dispatch_loop_entry_for_resume -- --nocapture`、4 条定向 `cargo run -p scoop --features llvm -- run ...`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3015aR`。
@@ -579,31 +581,30 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b2`
-2. `T3009b2R`
-3. `T3009b`
-4. `T3009bR`
-5. `T3015`
-6. `T3015R`
-7. `T3016`
-8. `T3016R`
-9. `T3017`
-10. `T3017R`
-11. `T3103`
-12. `T3104`
-13. `T3201`
-14. `T3202`
-15. `T3203`
-16. `T3204`
-17. `T3205`
-18. `T3301`
-19. `T3302`
-20. `T3303`
-21. `T3401`
-22. `T3401a`
-23. `T3401b`
-24. `T3401c`
-25. `T3402`
-26. `T3403`
-27. `T3404`
-28. `T3405`
+1. `T3009b2R`
+2. `T3009b`
+3. `T3009bR`
+4. `T3015`
+5. `T3015R`
+6. `T3016`
+7. `T3016R`
+8. `T3017`
+9. `T3017R`
+10. `T3103`
+11. `T3104`
+12. `T3201`
+13. `T3202`
+14. `T3203`
+15. `T3204`
+16. `T3205`
+17. `T3301`
+18. `T3302`
+19. `T3303`
+20. `T3401`
+21. `T3401a`
+22. `T3401b`
+23. `T3401c`
+24. `T3402`
+25. `T3403`
+26. `T3404`
+27. `T3405`
