@@ -1782,8 +1782,39 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3015aR
 
+### T3009b2c [TODO] 收口 ordinary indirect callee 多 suspend-site 的 resumed-body caller-tail 合同
+- 描述：开始执行 `T3009b2R` 复审后，用基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 的最小变体继续探测 ordinary indirect callee 的 resumed-body caller-tail 边界，确认当前 production 仍有未跟踪缺口：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `build_ordinary_callee_suspend_plan_from_unified_contract()` 只有在 `builder.suspend_sites.len() == 1` 时才建立 `CalleeSuspendPlan`。一旦同一个 ordinary helper / closure body 内存在多个 suspend site（例如 `if` 的 then / else 分支都执行 `Ask.ask(...)`），fresh path 仍会 outward perform，但 resume 时因为根本没有 callee suspend state，outer `ResumeAfterSite(Call)` 会直接走 inactive 分支，把 `resume` payload 当作整次调用结果，导致 callee 自己的 post-suspend body 与 caller-tail 被跳过。这与 `T3009b2R` 目标“间接 callee resumed-body caller-tail 已统一接回”矛盾，必须先前置修复。
+- 进展：
+  - 已用基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 的变体复现：把 `viaIf` 的 then / else 两个分支都改为 `Ask.ask(...)` 后，`resume("if")` 的实际输出缺失 `if_resume` / `if_after` / `I:if`，并直接在 outer caller 处打印 `after_if -> if`，说明 resumed callee body 被短路。
+  - 根因已定位为 ordinary callee plan builder 的 single-site 前提，以及 `codegen_top_level_fun` / `codegen_closure_fun_body` 目前只支持单一 `plan.resume_tail` 的 fresh/resume 双入口。
+- 目标：
+  - ordinary top-level helper / closure / function-value callee 在存在多个 suspend site 时，仍能通过统一 callee-suspend-state 合同恢复到正确 site 的 resumed body。
+  - `ResumeAfterSite(Call)` 不能再把 `resume` payload 当作整次调用结果，除非确实不存在需要 replay 的 callee suspend state。
+  - 多 suspend-site ordinary callee 仍不得引入新的 callee-shape / source-shape / fixture-name 特判。
+- 验收：
+  - 新增 focused run-pass fixture：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b2
+
+### T3009b2cR [TODO] Review：确认 multi-site ordinary indirect callee 的 resumed-body caller-tail 已统一接回
+- 描述：在 `T3009b2c` 之后只审查生产代码，确认多 suspend-site ordinary callee 的 resumed-body / caller-tail 仍通过统一 callee-suspend-state + continuation 合同接回，而不是为 `if` / `when` / branch 数量单独打 patch；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 multi-site ordinary callee resume 会回到正确 site 的 post-suspend body。
+  - 确认 top-level helper / closure / function-value callee 共享同一套 site 选择与 restore 机制。
+  - 确认生产代码中没有新的 shape-based / fixture-only patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“multi-site ordinary indirect callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 依赖：T3009b2c
+
 ### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
 - 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation / callee-suspend-state 合同，而不是为 `fetchGreeting()` / `callIt { ... }` / `counter()` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 复审先定位到一个更前置的真实生产缺口：ordinary indirect callee 目前只在“恰好一个 suspend site”时建立 `CalleeSuspendPlan`；多 suspend-site 情况下，resume 后仍会把 payload 直接当作整次调用结果，跳过 callee post-suspend body。
+  - 该问题已按阻塞规则前置拆成 `T3009b2c` → `T3009b2cR`；本任务顺延到这两个前置任务之后继续完成总复审。
 - 目标：
   - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
   - 确认 tail-return 与 non-tail indirect callee 路径共享同一套 resumed-body / caller-tail 机制。
@@ -1791,7 +1822,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“间接 callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留”。
-- 依赖：T3009b2
+- 依赖：T3009b2cR
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 剩余 composite resume payload 收口到统一合同
 - 描述：`T3009b1` 已先修复 direct enum/local-VarRef payload 的 precise type 解析，`T3009b2` 将继续补齐 indirect callee suspend 后 resumed-body caller-tail。剩余部分是在这些前置闭环后，回到原始 composite transport 目标：让 escaped continuation 的 `k.resume(value)` 在 direct/indirect 路径上都能稳定覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，并与 `T3013` 的共享 effect transport 完全对齐，而不是回退到 generic path 或另起 continuation-only 通道。

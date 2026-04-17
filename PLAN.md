@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞更新：开始执行 `T3009b2R` 复审后，基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 构造最小变体，确认 ordinary indirect callee 在“同一 callee 内有多个 suspend site”时仍未真正接回统一 resumed-body caller-tail：`build_ordinary_callee_suspend_plan_from_unified_contract()` 只有在 `builder.suspend_sites.len() == 1` 时才建立 `CalleeSuspendPlan`，导致 `viaIf` 的 then / else 两个分支都执行 `Ask.ask(...)` 时，resume 后 outer `ResumeAfterSite(Call)` 会直接把 payload 当作整次调用结果，缺失 `if_resume` / `if_after` / `I:if`，说明 callee 自己的 post-suspend body 被跳过。这是比当前 `T3009b2R` 更前置的真实生产缺口，已按阻塞规则前置拆成 `T3009b2c` → `T3009b2cR`，并让 `T3009b2R` 顺延依赖 `T3009b2cR`。本轮只同步任务与计划，不继续实现。当前 effect 主线下一项推进到 `T3009b2c`。
+>
 > 2026-04-18 当前轮完成更新：`T3009b2` 已完成。本轮未再修改生产代码，而是按任务验收重新复跑 shared resumed-body / caller-tail 矩阵；结果表明前序 `T3009b2a`、`T3009b2b` 与 `T3015a` 的修复已经把该任务的共享语义面一并收口。8 条定向 run-pass fixture 全部通过：`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`、`effect_escape_continuation_indirect_perform_tail_return_int.scoop`、`effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`、`effect_multi_escape_indirect_callee_suspend_matrix.scoop` 与 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`；其中 multi-site indirect callee 与 statement-container source-path 变体都确认继续共享同一套 continuation + dispatch-loop + resumed-body caller-tail 合同，没有新增按 helper/closure/fixture 名称分流的补丁。已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前 effect 主线下一项推进到 `T3009b2R`。
 >
 > 2026-04-18 当前轮复审更新：`T3015aR` 已完成。复审 `runtime/c/scoop_runtime.c`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 后确认，runtime 侧 continuation 现在通过 `scoop_effect_handler_stack_snapshot_clone()` 捕获 continuation-owned handler stack 堆快照，并在 `scoop_continuation_resume_common()` 中 pin continuation、安装快照、step 返回后恢复 caller TLS、释放快照；compiler 侧 `emit_effect_runtime_functions()` 统一生成 `step_fn + dispatch_loop_fn` 双入口，初始 handle 入口与 `UnifiedStateTerminator::Suspend` materialize 的 continuation 都捕获同一个 `scoop.effect.dispatch.*` 入口，不会在 escaped continuation resume 后退回 raw `step_fn`。`emit_dispatch_loop_body()` / `emit_dispatch_arm_execution()` 继续用同一套 dispatch-check / outward-propagate loop 处理 arm body 再次 perform、multi-site indirect callee matrix 与 statement-container rebuild（`Block / IfThen / IfElse / WhenArm / WhileBody`），未发现按 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 等 fixture 名称分流的补丁。已验证 `cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack`、两条 `cargo test -p scoopc ... -- --nocapture` IR/dispatch 定向测试、三条 run-pass matrix + `continuation_resume_ref_class.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2`。
@@ -581,30 +583,32 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b2R`
-2. `T3009b`
-3. `T3009bR`
-4. `T3015`
-5. `T3015R`
-6. `T3016`
-7. `T3016R`
-8. `T3017`
-9. `T3017R`
-10. `T3103`
-11. `T3104`
-12. `T3201`
-13. `T3202`
-14. `T3203`
-15. `T3204`
-16. `T3205`
-17. `T3301`
-18. `T3302`
-19. `T3303`
-20. `T3401`
-21. `T3401a`
-22. `T3401b`
-23. `T3401c`
-24. `T3402`
-25. `T3403`
-26. `T3404`
-27. `T3405`
+1. `T3009b2c`
+2. `T3009b2cR`
+3. `T3009b2R`
+4. `T3009b`
+5. `T3009bR`
+6. `T3015`
+7. `T3015R`
+8. `T3016`
+9. `T3016R`
+10. `T3017`
+11. `T3017R`
+12. `T3103`
+13. `T3104`
+14. `T3201`
+15. `T3202`
+16. `T3203`
+17. `T3204`
+18. `T3205`
+19. `T3301`
+20. `T3302`
+21. `T3303`
+22. `T3401`
+23. `T3401a`
+24. `T3401b`
+25. `T3401c`
+26. `T3402`
+27. `T3403`
+28. `T3404`
+29. `T3405`
