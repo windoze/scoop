@@ -999,8 +999,13 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a1cR
 
-### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
+### T3009b0 [DONE] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
 - 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，`T3009b0a1a` 也把 resumed path 所需的 frame-metadata writeback 合同补到了 step-return 出口。但继续真跑验收后又确认，caller-tail 当前还被更基础的 `RuntimeRaiseBoundary` 合同错误截断；该 shared 前置已由 `T3009b0a2` 承接。本任务在其之后继续完成 escaped continuation 的 scalar/ref payload transport 与 dedicated resume caller-tail 的正式验收。
+- 进展：
+  - 已确认 `crates/scoopc/src/llvm/codegen/mod.rs` 通过 `continuation_resume_call_sites` 对 `Continuation.resume(...)` 做 dedicated builtin 分派，不再依赖 generic member access / generic call 兜底。
+  - 已确认 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中的 `codegen_continuation_resume_builtin` 复用共享 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，已覆盖 Unit、标量 word 与 GC ref payload。
+  - 已正式验收 `effect_escape_continuation_resume_unit.scoop`、`effect_escape_continuation_resume_bool.scoop`、`effect_escape_continuation_resume_string.scoop` 与 `effect_resume_nested_escape_handle_tail.scoop`，均通过且不再出现 `call callee` 回退。
+  - 已验证 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 对 typecheck 已确认的 `Continuation.resume(...)` 调用点提供显式 lowering，不再回落到 generic member access / generic call。
   - 复用现有 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，先覆盖 Unit、标量 word 与 GC ref payload。

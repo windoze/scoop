@@ -34,6 +34,7 @@
 > 2026-04-17 当前轮复审完成更新：`T3009b0a1eR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs`、`state_machine_transform.rs`、`expr.rs` 与 `hir/lower/expr.rs` 后确认：`NestedHandleBoundary` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::NestedHandleBoundary` + TLS active 决定；authoritative nested-handle result transport 仍由 `resume_path` + synthetic resume slot 驱动，resume-after-site 后续表达式会读取 `__resume_site*`，不会重跑 inner handle；`ExprKind::Handle` 入口也仍统一进入 `codegen_handle_expr` / `codegen_handle_expr_via_state_machine`，没有 outer emitter、普通 call codegen 或 shape-based 分流回流。验证通过：`cargo test -p scoopc nested_handle_boundary_preserves_resume_path_and_slot -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1cR`。
 > 2026-04-17 当前轮复审完成更新：`T3009b0a1cR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs`、`expr.rs`、`mod.rs` 与 `effect/mod.rs` 后确认：`SuspendCall` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::{CallMaySuspend, CallStateMachineCallee, ClassCtorInit}` + TLS active 决定；`HandleStateOp::SuspendCall` 本身只求值调用表达式，不携带 call-site/callee 专用分支；post-call caller-tail 的 authoritative 数据通路仍是 `resume_path` + synthetic resume slot，计划/segment/unified contract 都会校验该元数据。ordinary call 的 TLS active 检查仍只存在于普通 frame 路径，而 step function 生成期间会清空 `current_fun_return_ty` / `return_context`，因此不存在把 inactive-path 回流成 ordinary helper side channel 的补丁。验证通过：`cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a2`。
 > 2026-04-17 当前轮完成更新：`T3009b0a2` 已完成。`state_machine_emitter.rs` 的 shared `Suspend` terminator 现已把 `SuspendSiteKind::RuntimeRaise` 与其它可“成功返回本地 caller-tail”的 boundary 一样纳入 TLS active 分流：`Continuation.resume(...)` / `x as T` 成功时走 `site*_inactive` 把结果写入 frame resume 槽并 branch 到 `resume_state`，只有实际触发 `Raise.raise` 时才走 `site*_active` outward dispatch。新增 IR 单测 `runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch` 锁定这一共享结构；定向 fixture `type_check_cast_is_as_asq_basic.scoop` 与 `effect_escape_continuation_resume_unit.scoop` 已恢复预期输出，`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前主线下一项推进到 `T3009b0`。
+> 2026-04-17 当前轮完成更新：`T3009b0` 已完成。复查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 后确认，当前分支里的 production 路径已对 typecheck 标记过的 `Continuation.resume(...)` 做 dedicated lowering：普通 call 入口通过 `continuation_resume_call_sites` 直接分派到 `codegen_continuation_resume_builtin`，后者复用共享 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，覆盖 Unit、标量 word 与 GC ref payload，不再回落到 generic member access / generic call。正式验收通过：`effect_escape_continuation_resume_unit.scoop`、`effect_escape_continuation_resume_bool.scoop`、`effect_escape_continuation_resume_string.scoop`、`effect_resume_nested_escape_handle_tail.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1b`。
 
 ## 0. 工作原则
 
@@ -526,38 +527,37 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0`
-2. `T3009b0a1b`
-3. `T3009b0aR`
-4. `T3009b0R`
-5. `T3010b2b1b`
-6. `T3010b2b1`
-7. `T3010b2b`
-8. `T3010R`
-9. `T3011`
-10. `T3011R`
-11. `T3012`
-12. `T3012R`
-13. `T3013`
-14. `T3013R`
-15. `T3009b`
-16. `T3009bR`
-17. `T3014`
-18. `T3014R`
-19. `T3015`
-20. `T3015R`
-21. `T3016`
-22. `T3016R`
-23. `T3017`
-24. `T3017R`
-25. `T3103`
-26. `T3104`
-27. `T3201`
-30. `T3202`
-31. `T3203`
-32. `T3204`
-33. `T3205`
-34. `T3301`
+1. `T3009b0a1b`
+2. `T3009b0aR`
+3. `T3009b0R`
+4. `T3010b2b1b`
+5. `T3010b2b1`
+6. `T3010b2b`
+7. `T3010R`
+8. `T3011`
+9. `T3011R`
+10. `T3012`
+11. `T3012R`
+12. `T3013`
+13. `T3013R`
+14. `T3009b`
+15. `T3009bR`
+16. `T3014`
+17. `T3014R`
+18. `T3015`
+19. `T3015R`
+20. `T3016`
+21. `T3016R`
+22. `T3017`
+23. `T3017R`
+24. `T3103`
+25. `T3104`
+26. `T3201`
+27. `T3202`
+28. `T3203`
+29. `T3204`
+30. `T3205`
+31. `T3301`
 35. `T3302`
 36. `T3303`
 37. `T3401`
