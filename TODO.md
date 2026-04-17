@@ -1110,8 +1110,12 @@
   - `T3010b2b1b` 原本预期的独立 unified expected-context / coercion 缺口已不存在；相关 fixture 仍带 `EXPECT: fail` 只是 `T3017` 要统一回收的 stale expectation，不再阻塞 `T3010b2b1` 的语义推进。
 - 依赖：T3009b0R
 
-### T3010b2b1b1 [TODO] 同步 `handle_perform` 的 MIR golden，恢复全量 fixture 验证入口
+### T3010b2b1b1 [DONE] 同步 `handle_perform` 的 MIR golden，恢复全量 fixture 验证入口
 - 描述：在完成 `T3010b2b1b` 的 focused 验证后复跑 `cargo run -p scoop --features llvm -- test`，suite 没有先停在 effect 主线上，而是先在 `tests/fixtures/mir/handle_perform.scoop` 报 `handle_perform.mir` snapshot mismatch。当前 `scoop dump-mir tests/fixtures/mir/handle_perform.scoop` 的输出中，handle result 临时 local `tmp0` 的类型已从 golden 中的 `TypeId(0)` 变为 `TypeId(5)`；这与此前 `ExprKind::Handle` 保留 typechecked result type 的修正一致，当时已同步更新 `tests/fixtures/hir/handle_perform.hir`，但遗漏了对应 MIR golden。
+- 进展：
+  - 已复审 `tests/fixtures/hir/handle_perform.hir`、`crates/scoopc/src/hir/lower/expr.rs` 与 `crates/scoopc/src/mir/lower.rs`：HIR 中 `handle` 表达式类型本就是 `TypeId(5)`，MIR lowering 也明确以 `lower_handle_expr(expr.span, expr.ty, ...)` 为 handle result local 分配类型，因此 `tmp0: TypeId(5)` 属于既有 type 修正的自然结果，不是新的 MIR lowering 退化。
+  - 已同步更新 `tests/fixtures/mir/handle_perform.mir`，使 handle result 临时 local `tmp0` 的类型与当前 `dump-mir` 输出一致。
+  - 已复跑 `cargo run -p scoop --features llvm -- test`；suite 已越过 `handle_perform.mir` snapshot mismatch，新的首个失败点推进到 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`。该问题已由 `T3017` 显式跟踪，不属于本任务新增 blocker。
 - 目标：
   - 确认 `handle_perform` 的 MIR 变化确实来自预期的 handle result type 源修正，而不是新的 MIR lowering 退化。
   - 同步 `tests/fixtures/mir/handle_perform.mir` golden，恢复 MIR fixture 基线。
@@ -1119,6 +1123,12 @@
 - 验收：
   - `cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop` 与 golden 一致。
   - MIR fixtures 子集通过。
+- 已验证：
+  - `diff -u tests/fixtures/mir/handle_perform.mir <(cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop)`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/mir`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2b1b
 
 ### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收

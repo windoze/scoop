@@ -39,6 +39,7 @@
 > 2026-04-17 当前轮复审完成更新：`T3009b0aR` 已完成。复审 `state_machine_emitter.rs` 的 outer-slot frame metadata / shared writeback helper、`effect/mod.rs` 的 `codegen_continuation_resume_builtin` 与 `mod.rs` 的 call-site 分派后，确认 outer-scope local 写回仍只由 unified handle frame metadata 驱动；`ReturnHandle` / `ReturnFromFunction` / `Suspend` / `Arm*` 返回出口以及 `handle_done` / `handle_propagate` 复用同一 helper，`Continuation.resume(...)` lowering 没有承担 outer-local 同步职责。已验证：`handle_outer_scope_seeding_includes_arm_and_finally_locals`、`escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`、两个 focused writeback fixtures、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0R`。
 > 2026-04-17 当前轮复审完成更新：`T3009b0R` 已完成。复审 `crates/scoopc/src/llvm/codegen/mod.rs`、`expr.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs` 后确认：`Continuation.resume(...)` 的 builtin 语义仍只由 `continuation_resume_call_sites` 驱动；ordinary path 与 unified state-machine path 都通过同一个 `codegen_call -> codegen_continuation_resume_builtin` 分派进入共享 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，没有回流 generic member access / generic call fallback。已验证：call-site marker 分类单测、`effect_escape_continuation_resume_unit.scoop` / `..._bool.scoop` / `..._string.scoop` / `effect_resume_nested_escape_handle_tail.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3010b2b1b`。
 > 2026-04-17 当前轮重新基线更新：`T3010b2b1b` 已完成。重新运行 `effect_resume_nested_escape_handle_tail.scoop`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop` 与 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 后，原先记录的 `value coercion` / `unknown local value` 路径均未再复现；复审 `state_machine_emitter.rs` 也确认 immediate-resume arm body 与其余 nested/indirect arm-body 表达式都统一走 `codegen_expr_in_expected_context` + shared `coerce_value`，不存在独立的 expected-context/coercion 旁路。因此 `T3010b2b1b` 已收窄为“确认缺口已消失”的 rebaseline 任务，并可视为完成。继续复跑 `cargo run -p scoop --features llvm -- test` 时，suite 当前先停在未跟踪的 MIR snapshot mismatch：`tests/fixtures/mir/handle_perform.scoop` 对应的 `handle_perform.mir` golden 仍保留旧的 handle result 临时类型；这与此前 `ExprKind::Handle` 保留 typechecked result type 的修正一致，但当时只同步了 HIR golden。顺序因此更新为：`T3010b2b1b1`（先同步 `handle_perform` 的 MIR golden，恢复全量 fixture 验证入口）→ `T3010b2b1`（继续 arm-body nested/indirect outward propagation 语义验收）→ `T3010b2b`。
+> 2026-04-17 当前轮完成更新：`T3010b2b1b1` 已完成。已复审 `tests/fixtures/hir/handle_perform.hir`、`crates/scoopc/src/hir/lower/expr.rs` 与 `crates/scoopc/src/mir/lower.rs`，确认 `handle_perform` 的 MIR 漂移只是在 `ExprKind::Handle` 保留 typechecked result type 后，`lower_handle_expr(expr.span, expr.ty, ...)` 使 handle result 临时 local `tmp0` 也跟着从 `TypeId(0)` 变为 `TypeId(5)`；这不是新的 lowering 回归。同步更新 `tests/fixtures/mir/handle_perform.mir` 后，`diff -u ... <(cargo run -p scoop -- dump-mir ...)`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。继续复跑 `cargo run -p scoop --features llvm -- test` 时，suite 已越过 MIR snapshot mismatch，新的首个失败点推进到 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`；该 expectation cleanup 已由 `T3017` 跟踪，不改变 effect 主线当前顺序，下一项仍是 `T3010b2b1`。
 
 ## 0. 工作原则
 
@@ -531,26 +532,25 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b1b1`
-2. `T3010b2b1`
-3. `T3010b2b`
-4. `T3010R`
-5. `T3011`
-6. `T3011R`
-7. `T3012`
-8. `T3012R`
-9. `T3013`
-10. `T3013R`
-11. `T3009b`
-12. `T3009bR`
-13. `T3014`
-14. `T3014R`
-15. `T3015`
-17. `T3015R`
-18. `T3016`
-19. `T3016R`
-20. `T3017`
-21. `T3017R`
+1. `T3010b2b1`
+2. `T3010b2b`
+3. `T3010R`
+4. `T3011`
+5. `T3011R`
+6. `T3012`
+7. `T3012R`
+8. `T3013`
+9. `T3013R`
+10. `T3009b`
+11. `T3009bR`
+12. `T3014`
+13. `T3014R`
+14. `T3015`
+15. `T3015R`
+16. `T3016`
+17. `T3016R`
+18. `T3017`
+19. `T3017R`
 22. `T3103`
 23. `T3104`
 24. `T3201`

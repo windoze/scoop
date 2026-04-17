@@ -21,7 +21,7 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    5,
                                 ),
                             },
                             LocalDecl {
