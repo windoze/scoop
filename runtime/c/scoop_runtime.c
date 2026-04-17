@@ -441,7 +441,7 @@ SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 //   并将指针存入此 TLS 变量，以便 handle body 的 dispatch trampoline 取回并保存到 ContState。
 // - 存入前该对象应已被 PIN（避免 GC 搬迁），handler 侧取回后负责 unpin。
 // - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
-SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
+static SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
 
 static void scoop_effect_perform_slot_drop_gc_ref(void) {
   if (__scoop_effect_perform_slot.payload_gc_ref != 0) {
@@ -638,12 +638,14 @@ void *scoop_callee_suspend_state_get(void) {
   return __scoop_callee_suspend_state;
 }
 
-void scoop_callee_suspend_state_set(void *state) {
-  __scoop_callee_suspend_state = state;
-}
-
 void scoop_callee_suspend_state_clear(void) {
   __scoop_callee_suspend_state = 0;
+}
+
+// test-only helper：允许 runtime 集成测试显式种入一个“调用方原 TLS”哨兵值，
+// 用于验证 continuation resume 会在 step_fn 返回后恢复该状态。
+void scoop_test_callee_suspend_state_set(void *state) {
+  __scoop_callee_suspend_state = state;
 }
 
 // effect runtime（TODO T1411c）：读取最近一次 non-resuming effect 的诊断信息。

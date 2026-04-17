@@ -49,7 +49,7 @@ unsafe extern "C" {
     fn scoop_thread_unregister();
 
     fn scoop_callee_suspend_state_get() -> *mut c_void;
-    fn scoop_callee_suspend_state_set(state: *mut c_void);
+    fn scoop_test_callee_suspend_state_set(state: *mut c_void);
 
     fn scoop_effect_handler_stack_push(frame: *mut ScoopEffectHandlerFrame, op_tag: u32);
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
@@ -133,7 +133,7 @@ fn continuation_resume_temporarily_restores_captured_callee_suspend_state() {
             "captured callee suspend sentinel must be allocated"
         );
 
-        scoop_callee_suspend_state_set(saved_tls_state);
+        scoop_test_callee_suspend_state_set(saved_tls_state);
         OBSERVED_CALLEE_SUSPEND_STATE.store(ptr::null_mut(), Ordering::SeqCst);
 
         let k = scoop_continuation_alloc(ptr::null_mut(), Some(observe_callee_suspend_state_step));

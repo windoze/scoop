@@ -13,8 +13,8 @@ unsafe extern "C" {
     fn scoop_effect_clear();
 
     fn scoop_callee_suspend_state_get() -> *mut c_void;
-    fn scoop_callee_suspend_state_set(state: *mut c_void);
     fn scoop_callee_suspend_state_clear();
+    fn scoop_test_callee_suspend_state_set(state: *mut c_void);
 
     fn scoop_effect_perform_slot_write_u64_with_gc_ref(
         op_tag: u32,
@@ -181,7 +181,7 @@ fn effect_tls_callee_suspend_state_clear_and_unregister_are_observable() {
         let once = scoop_sync_once_create();
         assert!(!once.is_null(), "sync once object must be allocated");
 
-        scoop_callee_suspend_state_set(once);
+        scoop_test_callee_suspend_state_set(once);
         assert_eq!(
             scoop_callee_suspend_state_get(),
             once,
@@ -194,7 +194,7 @@ fn effect_tls_callee_suspend_state_clear_and_unregister_are_observable() {
             "clear should remove the previously stored callee suspend TLS value"
         );
 
-        scoop_callee_suspend_state_set(once);
+        scoop_test_callee_suspend_state_set(once);
         assert_eq!(scoop_callee_suspend_state_get(), once);
         scoop_thread_unregister();
         assert!(

@@ -1602,8 +1602,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b1R
 
-### T3009b2aR [TODO] Review：确认 continuation/runtime ABI 对 `callee_suspend_state` 的捕获没有回流成裸 TLS 旁路
+### T3009b2aR [DONE] Review：确认 continuation/runtime ABI 对 `callee_suspend_state` 的捕获没有回流成裸 TLS 旁路
 - 描述：在 `T3009b2a` 之后只审查生产代码与 runtime 合同，确认 `callee_suspend_state` 已成为 continuation 的正式组成部分，而不是继续仅靠 TLS 侥幸残留；若发现 capture/restore 仍未闭环或 emitter/runtime 只对单个 fixture 做局部补丁，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_runtime_api.h`，确认编译器生产路径只在 `Suspend` terminator 中执行一次 `scoop_callee_suspend_state_get() + clear()` 并写入 continuation 字段，runtime 生产路径只在 `scoop_continuation_resume_common()` 中把 continuation 捕获值临时恢复进 TLS，step_fn 返回后恢复 caller 原 TLS。
+  - 复审过程中发现一个真实 ABI 旁路：`runtime/c/scoop_runtime_api.h` 仍把裸 TLS 符号 `__scoop_callee_suspend_state` 作为正式导出符号暴露，且仅供测试使用的 `scoop_callee_suspend_state_set` 仍以通用 runtime API 形式存在。现已把 TLS 变量收紧为 runtime 内部静态存储，并把 setter 改名为显式 test helper `scoop_test_callee_suspend_state_set`，避免 continuation 持久化合同之外再暴露裸 TLS/通用 setter 旁路。
+  - 已验证 `cargo test -p scoop_runtime --test continuation_one_shot`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoop_runtime abi_exports_allowlist -- --nocapture`、`cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 continuation/runtime ABI 中存在单一 authoritative 的 callee suspend state capture/restore 通路。
   - 确认普通线程 TLS 只作为运行期临时寄存，不再承担“continuation 持久化存储”的语义职责。
@@ -1611,6 +1615,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“continuation/runtime ABI 已正式捕获 callee suspend state，无裸 TLS 持久化旁路残留”。
+- 审查结论：
+  - continuation/runtime ABI 已正式捕获 `callee_suspend_state`；continuation 是跨 `handle` 返回 / 跨线程 `resume` 的唯一 authoritative owner。
+  - 普通线程 TLS 现在只承担“当前正在执行的 resumed body 的临时寄存”职责；裸 TLS 全局与通用 setter 不再作为生产 ABI 暴露。
+  - 未发现按 callee 名称、fixture 名称或源码形状分流的 capture/restore 逻辑。
 - 依赖：T3009b2a
 
 ### T3009b2b [TODO] 接回 ordinary indirect callee 的 resumed-body restore 路径，并让 `SuspendCall` resume 不再把 payload 误当整次调用结果

@@ -1,89 +1,58 @@
-# 本轮执行计划（继续 T3009b2a）
+# Claude Plan
 
-## 当前判断
-
-- 已检查上一轮留下的上下文：最新提交 `095ff94f6130527f9b47443ecf0154f6d77940aa` 未暴露需要先于 `TODO.md` 继续处理的额外既有问题。
-- `TODO.md` 的首个未完成项已经被拆分，当前应执行的是 `T3009b2a`：把 `callee_suspend_state` 纳入 continuation/runtime ABI 捕获合同。
-- 上一轮已经完成了 LLVM 侧的一部分接线：
-  - `runtime_symbols.rs` 新增 `SCOOP_CALLEE_SUSPEND_STATE_GET` / `SCOOP_CALLEE_SUSPEND_STATE_CLEAR`
-  - `runtime_abi.rs` 新增对应 runtime 声明，并把 LLVM continuation struct 扩展到第 8 个字段 `captured_callee_suspend_state`
-  - `state_machine_emitter.rs` 在 `UnifiedStateTerminator::Suspend` 路径里把 `scoop_callee_suspend_state_get()` 的结果写入 continuation，并在捕获后清空 TLS suspend state
-- 这说明本轮的主要工作不再是重新拆任务，而是把 runtime/C 侧结构与恢复路径补齐，并做最小而充分的验证，完成 `T3009b2a` 后立即停止，不推进到 `T3009b2b`。
+说明：按当前执行约束，此文件记录“可验证的决策摘要、执行计划、进度更新与变更原因”，不记录逐字内部推理。
 
 ## 本轮目标
 
-完成 `T3009b2a`，确保 continuation/runtime ABI 正式携带并恢复 `callee_suspend_state`，使之后的 ordinary indirect callee resumed-body restore 拥有稳定、可验证的承载合同。
+完成 `TODO.md` 中第一个未完成任务；如果遇到前置缺陷或规格不匹配，先把该问题作为更高优先级任务纳入 `TODO.md` / `PLAN.md`，提交后停止。
 
-## 约束
+## 初始执行计划
 
-- 只做 `T3009b2a`，不提前实现 `T3009b2b` 或最终 shared 验收。
-- 不能恢复已删除的 shape-based 路线，也不能做 fixture-only workaround。
-- 必须持续更新本文件记录关键进展。
-- 修改文件时使用 `apply_patch`。
-- 完成后必须更新 `TODO.md` / `PLAN.md`，运行测试与 `clippy`，提交 git commit，然后停止。
+1. 检查最新一次 Git 提交，确认是否提到已知问题、遗留修复项或显式 TODO。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对任务上下文、依赖与当前计划。
+4. 检查工作树状态，识别是否存在用户未提交改动，避免误覆盖。
+5. 评估第一个未完成任务：
+   - 如果任务边界清晰且本轮可完成，直接实现。
+   - 如果任务过大，先拆分为可执行子任务，更新 `TODO.md` 与 `PLAN.md`，本轮只执行第一个子任务。
+   - 如果实现过程中发现更早的规格缺口/已有缺陷，先新增前置任务并重排依赖，再停止。
+6. 对已实现变更运行相关验证：
+   - 最小必要测试；
+   - 如任务影响范围允许，运行更完整的测试/检查（包括 `cargo fmt`、相关 `cargo test`、必要时 `cargo clippy --all-targets -- -D warnings`）。
+7. 更新文档状态：
+   - 在 `TODO.md` 标记完成或重排任务；
+   - 在 `PLAN.md` 记录完成情况、拆分结果或阻塞原因；
+   - 在本文件记录关键进度与决策。
+8. 提交本轮所有改动，提交后停止，不继续下一个任务。
 
-## 具体执行步骤
+## 进度日志
 
-1. 检查当前工作区改动，确认上一轮对 LLVM 侧文件的未提交修改仍然存在且没有冲突。
-2. 阅读以下关键文件，确认 C runtime 中 continuation 结构、trace、resume、alloc 路径的当前实现与字段顺序：
-   - `runtime/c/scoop_runtime.c`
-   - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
-   - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
-3. 在 C runtime 中实现 ABI 对齐：
-   - 给 `ScoopContinuation` 增加 `captured_callee_suspend_state`
-   - 更新布局断言、必要的初始化与 trace/diagnostic 辅助
-   - 在 `scoop_continuation_resume_common()` 中把 continuation 中捕获的 suspend state 恢复回 TLS
-4. 检查 LLVM 侧结构字段索引与 C runtime 顺序是否完全一致；若有偏差，修正索引或布局声明。
-5. 补测试：
-   - 优先增加一个 LLVM/IR 定向测试，验证 suspend 路径会调用 `scoop_callee_suspend_state_get` / `clear`，并把值写入 continuation 的新增字段
-   - 如果现有测试框架更适合做布局或声明断言，则在对应模块添加断言测试
-6. 运行验证：
-   - 先跑与本任务直接相关的测试
-   - 再跑 `cargo test --all`
-   - 再跑 `cargo clippy --all-targets -- -D warnings`
-7. 若验证通过：
-   - 更新本文件记录完成情况
-   - 把 `TODO.md` 中 `T3009b2a` 标记为完成
-   - 更新 `PLAN.md` 反映当前进度与后续依赖
-   - 生成一次提交，只包含本轮逻辑必要变更
-8. 若验证过程中暴露出更前置、真实且未跟踪的规范缺口：
-   - 停止继续实现下游逻辑
-   - 在 `TODO.md` / `PLAN.md` 中新增或重排依赖任务
-   - 更新本文件说明阻塞原因
-   - 提交这些计划调整后停止
-
-## 完成判据
-
-- continuation 的 LLVM 布局与 C runtime 布局一致
-- suspend 捕获时会把 `callee_suspend_state` 持久化到 continuation 中
-- continuation resume 时会把该状态恢复回 runtime TLS
-- 新增或更新的测试能覆盖这条 ABI 合同
-- `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过
-- `TODO.md` / `PLAN.md` / 本文件已同步更新，并完成 git commit
-
-## 当前进展（2026-04-18 本轮执行中）
-
-- 已完成 runtime/C 侧接线：
-  - `ScoopContinuation` 新增 `captured_callee_suspend_state`
-  - continuation trace 现会追踪该字段
-  - `scoop_continuation_alloc()` 会把该字段初始化为 `0`
-  - `scoop_continuation_resume_common()` 现会在 step_fn 动态范围内恢复 captured callee state 到 TLS，并在返回后恢复调用方原 TLS 值
-  - 为避免 moving GC 在 resumed body 消费前让 TLS raw 指针失效，resume 动态范围内对 captured callee state 做了 pin/unpin
-  - `scoop_thread_unregister()` 现会清空 `__scoop_callee_suspend_state`
-- 已完成测试补充：
-  - `state_machine_emitter.rs` 新增 IR 定向测试，锁定 suspend 路径会调用 `scoop_callee_suspend_state_get` / `clear` 并写入 continuation 新字段
-  - `continuation_one_shot.rs` 新增 runtime 行为测试，锁定 continuation resume 会临时恢复 captured callee state，并在返回后恢复调用方原 TLS
-  - `effect_tls.rs` 新增 TLS 可观测测试，锁定 `clear` 与 `thread_unregister` 都会清空 callee suspend TLS
-- 已完成定向验证：
+- 已创建本轮计划文件，下一步开始检查最新提交与任务列表。
+- 已检查最新提交、`TODO.md`、`PLAN.md` 与工作树：当前第一个未完成任务是 `T3009b2aR`。
+- 审查 `callee_suspend_state` 生产路径后确认：
+  - LLVM 生产发射只在 `Suspend` terminator 中执行一次 `get + clear`，把当前 TLS suspend state 提升进 continuation 字段；
+  - runtime 生产路径只在 `scoop_continuation_resume_common()` 中把 continuation 捕获值临时恢复进 TLS，并在 step_fn 返回后恢复 caller 原 TLS；
+  - 当前未发现按 callee 名称、fixture 名称或源码形状分流的捕获逻辑。
+- 审查同时发现一个需要直接修复的 ABI 边界问题：
+  - `runtime/c/scoop_runtime_api.h` 仍把裸 TLS 符号 `__scoop_callee_suspend_state` 作为正式导出符号暴露；
+  - `scoop_callee_suspend_state_set` 当前只被运行时测试使用，却仍以通用 runtime API 的形式暴露。
+- 下一步修复：
+  1. 把 `__scoop_callee_suspend_state` 收紧为 runtime 内部静态 TLS，不再作为 ABI 导出。
+  2. 移除通用导出的 `scoop_callee_suspend_state_set`，改为显式 test helper，避免形成生产旁路。
+  3. 更新相关测试、allowlist 与任务文档，然后跑定向测试、全量测试与 clippy。
+- 已完成 ABI 收紧：
+  - `runtime/c/scoop_runtime.c` 中的 `__scoop_callee_suspend_state` 已改为 `static` TLS；
+  - 原通用 setter 已改为 test helper `scoop_test_callee_suspend_state_set`；
+  - `runtime/c/scoop_runtime_api.h` allowlist 与相关运行时测试已同步更新。
+- 已完成验证：
   - `cargo test -p scoop_runtime --test continuation_one_shot`
   - `cargo test -p scoop_runtime --test effect_tls`
+  - `cargo test -p scoop_runtime abi_exports_allowlist -- --nocapture`
   - `cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`
-- 已完成全量验证：
-  - `cargo fmt`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 已完成任务状态同步：
-  - `TODO.md` 已把 `T3009b2a` 标记为完成
-  - `PLAN.md` 已记录本轮完成情况，并将下一项推进到 `T3009b2aR`
-- 剩余步骤：
-  - git commit 并停止
+- 本轮结论：
+  - `T3009b2aR` 可收口完成；
+  - continuation/runtime ABI 现已以 continuation 字段为唯一持久化 owner；
+  - TLS 只承担运行期动态范围内的临时寄存职责，不再以裸导出符号形式暴露。
+- 下一步：更新 Git 状态，提交本轮变更，停止在 `T3009b2b` 之前。

@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3009b2aR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_runtime_api.h` 后确认，编译器生产路径只在 `UnifiedStateTerminator::Suspend` 中执行一次 `scoop_callee_suspend_state_get() + clear()`，并把结果写入 continuation 的 `captured_callee_suspend_state` 字段；runtime 生产路径只在 `scoop_continuation_resume_common()` 中把该字段临时恢复进 TLS，step_fn 返回后恢复 caller 原 TLS，没有 fixture-only / callee-name-only / source-shape 分流。复审过程中发现并修复了一个真实 ABI 旁路：`runtime/c/scoop_runtime_api.h` 仍把裸 TLS 符号 `__scoop_callee_suspend_state` 作为正式导出符号暴露，且仅供测试使用的 `scoop_callee_suspend_state_set` 仍以通用 runtime API 形式存在。现已把该 TLS 收紧为 runtime 内部静态存储，并把 setter 改成显式 test helper `scoop_test_callee_suspend_state_set`；继续保留 `get/clear` 作为编译器/定向测试需要的最小接口。已验证 `cargo test -p scoop_runtime --test continuation_one_shot`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoop_runtime abi_exports_allowlist -- --nocapture`、`cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2b`。
 > 2026-04-18 当前轮完成更新：`T3009b2a` 已完成。LLVM 侧 continuation ABI 现在正式包含第 8 个字段 `captured_callee_suspend_state`，`UnifiedStateTerminator::Suspend` 在分配 continuation 后会调用 `scoop_callee_suspend_state_get()` 把当前 TLS callee suspend state 提升进 continuation，并立即 `clear()` TLS；C runtime 的 `ScoopContinuation` 也已同步扩展该字段，更新了布局断言、GC trace 与 alloc 初始化。`scoop_continuation_resume_common()` 现会在 step_fn 动态范围内恢复 captured callee suspend state 到 TLS，并在返回后恢复 caller 原 TLS；为避免 moving GC 在 resumed body 真正消费它之前让 TLS raw 指针失效，还对该 captured state 做了动态范围 pin/unpin。新增验证覆盖两半合同：一条 LLVM IR 定向测试锁定 suspend 捕获，一条 continuation runtime 测试锁定 resume restore，另加一条 TLS 测试锁定 clear/unregister 语义。已验证 `cargo test -p scoop_runtime --test continuation_one_shot`、`cargo test -p scoop_runtime --test effect_tls`、`cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2aR`。
 > 2026-04-18 当前轮复审更新：`T3009b1R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`llvm/codegen/mod.rs`、`hir/lower/expr.rs`、`typecheck/expr/call.rs` 与 `effect/state_machine_plan.rs` 后确认，`Continuation.resume(...)` 仍只依赖 typecheck 确认的 builtin call-site marker 与精确类型来源，没有为 direct enum fixture 引入按成员名 / 局部形状分流的补丁。复审过程中发现并修复了一个残留缺口：`resolve_expr_cg_ty()` 虽被 `Continuation.resume(...)` payload fallback 复用，但原实现只看局部 env，再直接回退到 `expr.ty`；而 HIR lowering 会把所有 `VarRef`（包括 top-level const）统一降成 `Any`。现已把该 helper 改为在保留局部 `CgLocal.ty` 优先级的同时复用 `resolve_expr_concrete_type()`，从而把 top-level `VarRef` / concrete call result 也纳入 precise payload type 解析。新增 run-pass 回归 `continuation_resume_top_level_const_payload.scoop` 后，direct enum、top-level const payload、tuple、struct-with-ref、continuation payload 全部通过；`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前 effect 主线下一项推进到 `T3009b2`。
 > 2026-04-18 当前轮拆分更新：开始执行原 `T3009b2` 后，继续复现 `effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`，确认当前 shared blocker 比任务标题更宽：不仅 `SuspendCall` resume path 仍把 payload 误当整次调用结果，runtime/LLVM continuation ABI 也完全没有把 ordinary indirect callee 的 `callee_suspend_state` 纳入 continuation 捕获。仓库里仅残留裸 TLS `__scoop_callee_suspend_state` 与历史 runtime 访问器，而 `ScoopContinuation` 只捕获 handler stack、body `state`、`resume_state_tag` 与 payload 双槽；若不先补这层合同，后续 ordinary callee resumed-body restore 无论同线程还是跨线程都没有 authoritative 存储位置。按复杂度与前置依赖，现已把原 `T3009b2` 拆成：`T3009b2a`（先把 `callee_suspend_state` 纳入 continuation/runtime ABI 捕获合同）→ `T3009b2aR` → `T3009b2b`（再接回 ordinary indirect callee 的 resumed-body restore，并让 `SuspendCall` resume 不再把 payload 误当整次调用结果）→ `T3009b2bR` → `T3009b2` / `T3009b2R`（最后收口 helper/closure/composite payload 的 shared 验收矩阵）。同时把 `effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 显式纳入 `T3009b2` 最终验收，因为它们与原先两条 string/struct-with-ref fixture 属于同一 resumed-body caller-tail 根因。当前 effect 主线下一项推进到 `T3009b2a`。
@@ -565,31 +566,33 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b2`
-2. `T3009b2R`
-3. `T3009b`
-4. `T3009bR`
-5. `T3015`
-6. `T3015R`
-7. `T3016`
-8. `T3016R`
-9. `T3017`
-10. `T3017R`
-11. `T3103`
-12. `T3104`
-13. `T3201`
-14. `T3202`
-15. `T3203`
-16. `T3204`
-17. `T3205`
-18. `T3301`
-19. `T3302`
-20. `T3303`
-21. `T3401`
-22. `T3401a`
-23. `T3401b`
-24. `T3401c`
-25. `T3402`
-26. `T3403`
-27. `T3404`
-28. `T3405`
+1. `T3009b2b`
+2. `T3009b2bR`
+3. `T3009b2`
+4. `T3009b2R`
+5. `T3009b`
+6. `T3009bR`
+7. `T3015`
+8. `T3015R`
+9. `T3016`
+10. `T3016R`
+11. `T3017`
+12. `T3017R`
+13. `T3103`
+14. `T3104`
+15. `T3201`
+16. `T3202`
+17. `T3203`
+18. `T3204`
+19. `T3205`
+20. `T3301`
+21. `T3302`
+22. `T3303`
+23. `T3401`
+24. `T3401a`
+25. `T3401b`
+26. `T3401c`
+27. `T3402`
+28. `T3403`
+29. `T3404`
+30. `T3405`
