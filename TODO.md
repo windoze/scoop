@@ -1782,11 +1782,15 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3015aR
 
-### T3009b2c [TODO] 收口 ordinary indirect callee 多 suspend-site 的 resumed-body caller-tail 合同
+### T3009b2c [DONE] 收口 ordinary indirect callee 多 suspend-site 的 resumed-body caller-tail 合同
 - 描述：开始执行 `T3009b2R` 复审后，用基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 的最小变体继续探测 ordinary indirect callee 的 resumed-body caller-tail 边界，确认当前 production 仍有未跟踪缺口：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `build_ordinary_callee_suspend_plan_from_unified_contract()` 只有在 `builder.suspend_sites.len() == 1` 时才建立 `CalleeSuspendPlan`。一旦同一个 ordinary helper / closure body 内存在多个 suspend site（例如 `if` 的 then / else 分支都执行 `Ask.ask(...)`），fresh path 仍会 outward perform，但 resume 时因为根本没有 callee suspend state，outer `ResumeAfterSite(Call)` 会直接走 inactive 分支，把 `resume` payload 当作整次调用结果，导致 callee 自己的 post-suspend body 与 caller-tail 被跳过。这与 `T3009b2R` 目标“间接 callee resumed-body caller-tail 已统一接回”矛盾，必须先前置修复。
 - 进展：
   - 已用基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 的变体复现：把 `viaIf` 的 then / else 两个分支都改为 `Ask.ask(...)` 后，`resume("if")` 的实际输出缺失 `if_resume` / `if_after` / `I:if`，并直接在 outer caller 处打印 `after_if -> if`，说明 resumed callee body 被短路。
   - 根因已定位为 ordinary callee plan builder 的 single-site 前提，以及 `codegen_top_level_fun` / `codegen_closure_fun_body` 目前只支持单一 `plan.resume_tail` 的 fresh/resume 双入口。
+  - 已将 `CalleeSuspendPlan` 扩为 multi-site 结构：按每个 `Perform` site 分别保存 `resume_slot`、`resume_tail` 与 site-local `saved_locals`，并用 union locals 定义单一 callee suspend-state 堆对象布局。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 给 ordinary callee suspend-state 增加 `site_tag` 字段；fresh path 在保存 state 时写入当前 site，resume path 先读取 `site_tag` 再分派到对应 `resume_site*` block。`codegen_top_level_fun` 与 `codegen_closure_fun_body` 现已共用同一套 multi-site resume dispatch helper。
+  - 已新增 focused run-pass fixture `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`，覆盖同一 ordinary helper 的 true/false 分支各自挂一个 suspend site，并新增 IR 定向测试 `ordinary_multi_site_callee_materializes_resume_site_dispatch` 锁定 `site_tag` 驱动的 resume-site dispatch。
+  - 已验证 `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - ordinary top-level helper / closure / function-value callee 在存在多个 suspend site 时，仍能通过统一 callee-suspend-state 合同恢复到正确 site 的 resumed body。
   - `ResumeAfterSite(Call)` 不能再把 `resume` payload 当作整次调用结果，除非确实不存在需要 replay 的 callee suspend state。

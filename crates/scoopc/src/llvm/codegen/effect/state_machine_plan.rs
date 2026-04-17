@@ -6257,54 +6257,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         builder.attach_suspend_source_paths();
         builder.attach_suspend_resume_paths();
 
-        if builder.suspend_sites.len() != 1 {
+        if builder.suspend_sites.is_empty() {
             return None;
         }
 
-        let site = builder.suspend_sites.first()?.clone();
-        if !matches!(site.kind, SuspendSiteKind::Perform { .. }) {
-            return None;
-        }
-
-        let source_path = site.source_path.as_ref()?;
-        let resume_path = site.resume_path.as_ref()?;
-        let source_expr = builder.resume_source_exprs.get(&site.id)?;
-        let resume_slot = builder.resume_slot_for_site(site.id)?;
-        let resume_slot_ty = ordinary_callee_resume_slot_type(
-            body,
-            source_path,
-            resume_path,
-            declared_return_ty,
-            &resume_slot,
-        );
         let mut allocate_synthetic_symbol_id = || context.allocate_synthetic_symbol_id();
-        let resume_tail = build_ordinary_callee_resume_tail_block(
-            &synthetic_handle.body,
-            source_path,
-            source_expr,
-            resume_path,
-            &resume_slot,
-            &mut allocate_synthetic_symbol_id,
-        )?;
+        let mut resume_sites = Vec::new();
 
-        let saved_locals = site
-            .available_locals
-            .iter()
-            .filter_map(|id| builder.frame_slots.get(id))
-            .map(|slot| CalleeSuspendSavedLocal {
-                id: slot.id(),
-                name: slot.name().to_string(),
-                ty: slot.ty(),
-                mutable: slot.mutable(),
-            })
-            .collect::<Vec<_>>();
+        for site in &builder.suspend_sites {
+            if !matches!(site.kind, SuspendSiteKind::Perform { .. }) {
+                return None;
+            }
+
+            let source_path = site.source_path.as_ref()?;
+            let resume_path = site.resume_path.as_ref()?;
+            let source_expr = builder.resume_source_exprs.get(&site.id)?;
+            let resume_slot = builder.resume_slot_for_site(site.id)?;
+            let resume_slot_ty = ordinary_callee_resume_slot_type(
+                body,
+                source_path,
+                resume_path,
+                declared_return_ty,
+                &resume_slot,
+            );
+            let resume_tail = build_ordinary_callee_resume_tail_block(
+                &synthetic_handle.body,
+                source_path,
+                source_expr,
+                resume_path,
+                &resume_slot,
+                &mut allocate_synthetic_symbol_id,
+            )?;
+
+            let saved_locals = site
+                .available_locals
+                .iter()
+                .filter_map(|id| builder.frame_slots.get(id))
+                .map(|slot| CalleeSuspendSavedLocal {
+                    id: slot.id(),
+                    name: slot.name().to_string(),
+                    ty: slot.ty(),
+                    mutable: slot.mutable(),
+                })
+                .collect::<Vec<_>>();
+
+            resume_sites.push(CalleeSuspendResumeSite {
+                site_id: site.id,
+                span: site.span,
+                saved_locals,
+                resume_slot_id: resume_slot.id(),
+                resume_slot_name: resume_slot.name().to_string(),
+                resume_slot_ty,
+                resume_tail,
+            });
+        }
+
+        let mut seen_local_ids = HashSet::new();
+        let mut saved_locals = Vec::new();
+        for site in &resume_sites {
+            for local in &site.saved_locals {
+                if seen_local_ids.insert(local.id) {
+                    saved_locals.push(local.clone());
+                }
+            }
+        }
 
         Some(CalleeSuspendPlan {
             saved_locals,
-            resume_slot_id: resume_slot.id(),
-            resume_slot_name: resume_slot.name().to_string(),
-            resume_slot_ty,
-            resume_tail,
+            resume_sites,
         })
     }
 

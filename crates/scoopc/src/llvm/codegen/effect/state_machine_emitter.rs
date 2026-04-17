@@ -3337,6 +3337,64 @@ fun main(): Int {
     }
 
     #[test]
+    fn ordinary_multi_site_callee_materializes_resume_site_dispatch() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+fun viaBranch(flag: Bool, base: Int): String / (Ask) {
+    val result: String = if (flag) do {
+        val inner: String = Ask.ask(base + 1)
+        f"T:{inner}"
+    } else do {
+        val inner: String = Ask.ask(base + 2)
+        f"F:{inner}"
+    }
+    result
+}
+
+fun main(): Int {
+    val _: String = handle {
+        viaBranch(true, 10)
+    } with {
+        Ask.ask(seed), k -> {
+            "fallback"
+        }
+    }
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("callee_resume_site_tag"),
+            "multi-site ordinary callee resume path should read the saved resume site tag"
+        );
+        assert!(
+            ir.contains("resume_site0"),
+            "multi-site ordinary callee should materialize a dedicated resume block for site0"
+        );
+        assert!(
+            ir.contains("resume_site1"),
+            "multi-site ordinary callee should materialize a dedicated resume block for site1"
+        );
+    }
+
+    #[test]
     fn runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch() {
         let source = SourceFile::new_virtual(
             "<mem>",

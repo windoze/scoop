@@ -1,0 +1,88 @@
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_multi_site_callee_branch.stdout
+//
+// T3009b2c: ordinary indirect callee with multiple branch-local perform sites
+// must resume the correct post-suspend body for each site, instead of
+// short-circuiting the resume payload back to the outer caller.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun viaBranch(flag: Bool, base: Int): String / (Ask) {
+    val result: String = if (flag) do {
+        println("true_enter")
+        val inner: String = Ask.ask(base + 1)
+        println("true_resume")
+        println(inner)
+        f"T:{inner}"
+    } else do {
+        println("false_enter")
+        val inner: String = Ask.ask(base + 2)
+        println("false_resume")
+        println(inner)
+        f"F:{inner}"
+    }
+    println("branch_after")
+    println(result)
+    result
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: String = handle {
+        println("body")
+        val first: String = viaBranch(true, 10)
+        println("after_true")
+        println(first)
+
+        val second: String = viaBranch(false, 20)
+        println("after_false")
+        println(second)
+        second
+    } with {
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            "fallback"
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

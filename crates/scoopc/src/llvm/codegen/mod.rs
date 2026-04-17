@@ -160,16 +160,43 @@ struct CalleeSuspendSavedLocal {
 
 /// 一个 ordinary callee 的最小 resumed-body 恢复计划。
 ///
-/// fresh path 在 suspend site 外传前保存 `saved_locals`；resume path 则把
-/// transport payload 写入 synthetic resume slot，并执行已经按统一
-/// suspend-site 合同重写好的 `resume_tail`。
+/// 每个 resume site 都有自己独立的 `resume_slot` / `resume_tail` 与要恢复的 locals；
+/// plan 本身则保存“所有 site 的 union locals”，用于定义 callee suspend-state 的
+/// 统一堆对象布局。
 #[derive(Debug, Clone)]
-struct CalleeSuspendPlan {
+struct CalleeSuspendResumeSite {
+    site_id: u32,
+    span: crate::span::Span,
     saved_locals: Vec<CalleeSuspendSavedLocal>,
     resume_slot_id: hir::SymbolId,
     resume_slot_name: String,
     resume_slot_ty: TypeId,
     resume_tail: hir::Block,
+}
+
+impl CalleeSuspendResumeSite {
+    fn site_tag(&self) -> u32 {
+        self.site_id
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CalleeSuspendPlan {
+    saved_locals: Vec<CalleeSuspendSavedLocal>,
+    resume_sites: Vec<CalleeSuspendResumeSite>,
+}
+
+impl CalleeSuspendPlan {
+    fn resume_site_for_span(&self, span: crate::span::Span) -> Option<&CalleeSuspendResumeSite> {
+        self.resume_sites.iter().find(|site| site.span == span)
+    }
+
+    fn saved_local_field_index(&self, local_id: hir::SymbolId) -> Option<u32> {
+        self.saved_locals
+            .iter()
+            .position(|local| local.id == local_id)
+            .map(|index| 4 + index as u32)
+    }
 }
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
@@ -1288,6 +1315,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_return(at, declared_return_cg, value)
     }
 
+    fn codegen_callee_resume_dispatch(
+        &mut self,
+        at: crate::span::Span,
+        llvm_fun: FunctionValue<'ctx>,
+        plan: &CalleeSuspendPlan,
+        base_env: &Env<'ctx>,
+        declared_return_cg: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        let resume_state = self.begin_callee_suspend_resume(at, plan)?;
+        let invalid_bb = self
+            .context
+            .append_basic_block(llvm_fun, "resume_invalid_site");
+        let mut resume_site_blocks: Vec<(usize, inkwell::basic_block::BasicBlock<'ctx>)> =
+            Vec::with_capacity(plan.resume_sites.len());
+        let mut cases = Vec::with_capacity(plan.resume_sites.len());
+
+        for (index, site) in plan.resume_sites.iter().enumerate() {
+            let bb = self
+                .context
+                .append_basic_block(llvm_fun, &format!("resume_site{}", site.site_tag()));
+            cases.push((
+                self.context
+                    .i32_type()
+                    .const_int(site.site_tag() as u64, false),
+                bb,
+            ));
+            resume_site_blocks.push((index, bb));
+        }
+
+        self.builder
+            .build_switch(resume_state.site_tag, invalid_bb, &cases)?;
+
+        for (index, bb) in resume_site_blocks {
+            let site = &plan.resume_sites[index];
+            self.builder.position_at_end(bb);
+            self.env = base_env.clone();
+            self.emit_callee_suspend_resume_site_prologue(at, plan, site, resume_state)?;
+            self.current_callee_suspend_plan = Some(plan.clone());
+            let ret_v =
+                self.codegen_block_as_return_value(&site.resume_tail, declared_return_cg)?;
+            self.current_callee_suspend_plan = None;
+            self.finish_function_return_path(at, declared_return_cg, ret_v)?;
+        }
+
+        self.builder.position_at_end(invalid_bb);
+        self.builder.build_unreachable()?;
+        Ok(())
+    }
+
     pub(crate) fn codegen_top_level_fun(
         mut self,
         fun: &hir::FunDecl,
@@ -1350,13 +1426,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
 
             self.builder.position_at_end(resume_bb);
-            self.env = base_env.clone();
-            self.emit_callee_suspend_resume_prologue(fun.span, plan)?;
-            self.current_callee_suspend_plan = Some(plan.clone());
-            let ret_v =
-                self.codegen_block_as_return_value(&plan.resume_tail, declared_return_cg)?;
-            self.current_callee_suspend_plan = None;
-            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
+            self.codegen_callee_resume_dispatch(
+                fun.span,
+                llvm_fun,
+                plan,
+                &base_env,
+                declared_return_cg,
+            )?;
         } else {
             let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
             self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
@@ -10959,13 +11035,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
 
             self.builder.position_at_end(resume_bb);
-            self.env = base_env.clone();
-            self.emit_callee_suspend_resume_prologue(closure.span, plan)?;
-            self.current_callee_suspend_plan = Some(plan.clone());
-            let ret_v =
-                self.codegen_block_as_return_value(&plan.resume_tail, declared_return_cg)?;
-            self.current_callee_suspend_plan = None;
-            self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
+            self.codegen_callee_resume_dispatch(
+                closure.span,
+                llvm_fun,
+                plan,
+                &base_env,
+                declared_return_cg,
+            )?;
         } else {
             let body_expr = closure.body.as_ref();
             let ret_v = match &body_expr.kind {

@@ -30,6 +30,20 @@ enum EffectTransportKind {
     BoxedComposite,
 }
 
+const CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX: u32 = 1;
+const CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX: u32 = 2;
+const CALLEE_SUSPEND_STATE_SITE_TAG_INDEX: u32 = 3;
+const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 = 4;
+
+#[derive(Clone, Copy)]
+pub(super) struct CalleeSuspendResumeState<'ctx> {
+    pub(super) state_ty: StructType<'ctx>,
+    pub(super) state_ptr: PointerValue<'ctx>,
+    pub(super) resume_word: IntValue<'ctx>,
+    pub(super) resume_gc_ref: PointerValue<'ctx>,
+    pub(super) site_tag: IntValue<'ctx>,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn ordinary_effect_propagation_enabled(&self) -> bool {
         self.current_fun_return_ty.is_some()
@@ -94,6 +108,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.llvm_gc_object_header_type().into(),
                 self.context.i64_type().into(),
                 self.llvm_gc_i8_ptr_type().into(),
+                self.context.i32_type().into(),
             ],
             false,
         );
@@ -128,6 +143,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_gc_object_header_type().into(),
             self.context.i64_type().into(),
             self.llvm_gc_i8_ptr_type().into(),
+            self.context.i32_type().into(),
         ];
         for local in &plan.saved_locals {
             let cg_ty = self
@@ -189,6 +205,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         plan: &CalleeSuspendPlan,
+        site: &CalleeSuspendResumeSite,
     ) -> Result<(), LlvmEmitError> {
         let state_ty = self.get_or_create_current_callee_suspend_state_type(at, plan)?;
         let state_desc =
@@ -227,37 +244,67 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_ptr_type(self.gc_address_space()),
             "callee_suspend_state_ptr",
         )?;
-        let resume_word_gep =
-            self.builder
-                .build_struct_gep(state_ty, state_ptr, 1, "callee_suspend_resume_word")?;
+        let resume_word_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX,
+            "callee_suspend_resume_word",
+        )?;
         self.builder
             .build_store(resume_word_gep, self.context.i64_type().const_zero())?;
         let resume_gc_ref_gep = self.builder.build_struct_gep(
             state_ty,
             state_ptr,
-            2,
+            CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX,
             "callee_suspend_resume_gc_ref",
         )?;
         self.builder
             .build_store(resume_gc_ref_gep, self.llvm_gc_i8_ptr_type().const_null())?;
+        let site_tag_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_SITE_TAG_INDEX,
+            "callee_suspend_site_tag",
+        )?;
+        let site_tag = self
+            .context
+            .i32_type()
+            .const_int(site.site_tag() as u64, false);
+        self.builder.build_store(site_tag_gep, site_tag)?;
+
+        let active_locals = site
+            .saved_locals
+            .iter()
+            .map(|local| local.id)
+            .collect::<HashSet<_>>();
 
         for (index, local_plan) in plan.saved_locals.iter().enumerate() {
-            let local = self
-                .env
-                .get(local_plan.id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee suspend local not found",
-                    at: at.into(),
-                })?;
-            let field_index = 3 + index as u32;
+            let field_index = CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX + index as u32;
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
                 field_index,
                 &format!("callee_suspend_save_{}", local_plan.id.as_u32()),
             )?;
-            let value = self.load_existing_local_value(at, local)?;
-            self.store_local_value(at, field_ptr, local.ty, value)?;
+            let cg_ty = self
+                .cg_ty_of(local_plan.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee suspend local type",
+                    at: at.into(),
+                })?;
+            let value = if active_locals.contains(&local_plan.id) {
+                let local =
+                    self.env
+                        .get(local_plan.id)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "callee suspend local not found",
+                            at: at.into(),
+                        })?;
+                self.load_existing_local_value(at, local)?
+            } else {
+                self.default_value(at, cg_ty)?
+            };
+            self.store_local_value(at, field_ptr, cg_ty, value)?;
         }
 
         let publish = self.declare_runtime_callee_suspend_state_publish();
@@ -282,14 +329,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let resume_word_gep = self.builder.build_struct_gep(
             prefix_ty,
             prefix_ptr,
-            1,
+            CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX,
             "callee_suspend_prefix_resume_word",
         )?;
         self.builder.build_store(resume_word_gep, resume_word)?;
         let resume_gc_ref_gep = self.builder.build_struct_gep(
             prefix_ty,
             prefix_ptr,
-            2,
+            CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX,
             "callee_suspend_prefix_resume_gc_ref",
         )?;
         self.builder.build_store(resume_gc_ref_gep, resume_gc_ref)?;
@@ -297,11 +344,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn emit_callee_suspend_resume_prologue(
+    pub(super) fn begin_callee_suspend_resume(
         &mut self,
         at: crate::span::Span,
         plan: &CalleeSuspendPlan,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<CalleeSuspendResumeState<'ctx>, LlvmEmitError> {
         let state_ty = self.get_or_create_current_callee_suspend_state_type(at, plan)?;
         let state_raw = self.current_callee_suspend_state_ptr(at, "callee_suspend_resume_state")?;
         let state_ptr = self.builder.build_pointer_cast(
@@ -314,9 +361,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder
             .build_call(clear, &[], "clear_callee_suspend_state")?;
 
-        let resume_word_gep =
-            self.builder
-                .build_struct_gep(state_ty, state_ptr, 1, "callee_resume_word_gep")?;
+        let resume_word_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX,
+            "callee_resume_word_gep",
+        )?;
         let resume_word = self
             .builder
             .build_load(
@@ -325,9 +375,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "callee_resume_word",
             )?
             .into_int_value();
-        let resume_gc_ref_gep =
-            self.builder
-                .build_struct_gep(state_ty, state_ptr, 2, "callee_resume_gc_ref_gep")?;
+        let resume_gc_ref_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX,
+            "callee_resume_gc_ref_gep",
+        )?;
         let resume_gc_ref = self
             .builder
             .build_load(
@@ -337,17 +390,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_pointer_value();
 
-        for (index, local_plan) in plan.saved_locals.iter().enumerate() {
+        let site_tag_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_SITE_TAG_INDEX,
+            "callee_resume_site_tag_gep",
+        )?;
+        let site_tag = self
+            .builder
+            .build_load(
+                self.context.i32_type(),
+                site_tag_gep,
+                "callee_resume_site_tag",
+            )?
+            .into_int_value();
+
+        Ok(CalleeSuspendResumeState {
+            state_ty,
+            state_ptr,
+            resume_word,
+            resume_gc_ref,
+            site_tag,
+        })
+    }
+
+    pub(super) fn emit_callee_suspend_resume_site_prologue(
+        &mut self,
+        at: crate::span::Span,
+        plan: &CalleeSuspendPlan,
+        site: &CalleeSuspendResumeSite,
+        resume_state: CalleeSuspendResumeState<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        for local_plan in &site.saved_locals {
             let cg_ty = self
                 .cg_ty_of(local_plan.ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "callee resume local type",
                     at: at.into(),
                 })?;
-            let field_index = 3 + index as u32;
+            let field_index = plan.saved_local_field_index(local_plan.id).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee resume local field index",
+                    at: at.into(),
+                },
+            )?;
             let field_ptr = self.builder.build_struct_gep(
-                state_ty,
-                state_ptr,
+                resume_state.state_ty,
+                resume_state.state_ptr,
                 field_index,
                 &format!("callee_resume_local_{}", local_plan.id.as_u32()),
             )?;
@@ -384,26 +473,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let resume_slot_cg_ty =
-            self.cg_ty_of(plan.resume_slot_ty)
+            self.cg_ty_of(site.resume_slot_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "callee resume slot type",
                     at: at.into(),
                 })?;
-        let resume_slot_value =
-            self.decode_effect_transport_value(at, resume_word, resume_gc_ref, resume_slot_cg_ty)?;
-        let resume_slot_name = if plan.resume_slot_name.is_empty() {
-            format!("callee_resume_slot_{}", plan.resume_slot_id.as_u32())
+        let resume_slot_value = self.decode_effect_transport_value(
+            at,
+            resume_state.resume_word,
+            resume_state.resume_gc_ref,
+            resume_slot_cg_ty,
+        )?;
+        let resume_slot_name = if site.resume_slot_name.is_empty() {
+            format!("callee_resume_slot_{}", site.resume_slot_id.as_u32())
         } else {
-            format!("resumed_{}", plan.resume_slot_name)
+            format!("resumed_{}", site.resume_slot_name)
         };
         let resume_slot_ptr = self.create_entry_alloca(at, &resume_slot_name, resume_slot_cg_ty)?;
         self.store_local_value(at, resume_slot_ptr, resume_slot_cg_ty, resume_slot_value)?;
         self.env.insert(
-            plan.resume_slot_id,
+            site.resume_slot_id,
             CgLocal {
-                hir_ty: Some(plan.resume_slot_ty),
+                hir_ty: Some(site.resume_slot_ty),
                 call_may_suspend: self
-                    .local_call_may_suspend_from_hir_ty(Some(plan.resume_slot_ty)),
+                    .local_call_may_suspend_from_hir_ty(Some(site.resume_slot_ty)),
                 ty: resume_slot_cg_ty,
                 ptr: resume_slot_ptr,
                 mutable: false,
@@ -667,7 +760,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if self.ordinary_effect_propagation_enabled() {
             if let Some(plan) = self.current_callee_suspend_plan.clone() {
-                self.emit_callee_suspend_state_save(span, &plan)?;
+                let site =
+                    plan.resume_site_for_span(span)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "callee suspend resume site for perform",
+                            at: span.into(),
+                        })?;
+                self.emit_callee_suspend_state_save(span, &plan, site)?;
             }
             self.emit_ordinary_non_resuming_effect_exit(span, "effect_perform")?;
             // After emitting the early-return edge, the builder continues in a
