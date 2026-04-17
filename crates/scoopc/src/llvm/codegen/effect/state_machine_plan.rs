@@ -1565,7 +1565,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         seed_from_outer_scope: false,
                         owner_arm: None,
                     };
-                    self.frame_slots.entry(id).or_insert_with(|| slot.clone());
+                    // Declarations are the authoritative source of slot
+                    // metadata. If an earlier fallback path pre-seeded this
+                    // symbol as immutable / outer-scope, overwrite it here.
+                    self.frame_slots.insert(id, slot.clone());
                     env.push(slot.clone());
                     self.push_action(
                         state,
@@ -3887,6 +3890,19 @@ fn collect_outer_scope_slots(
     slots
 }
 
+fn collect_known_local_metadata_in_handle(
+    handle: &hir::HandleExpr,
+    out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
+) {
+    collect_known_local_metadata_in_block(&handle.body, out);
+    for arm in &handle.arms {
+        collect_known_local_metadata_in_expr(&arm.body, out);
+    }
+    if let Some(finally_block) = handle.finally.as_ref() {
+        collect_known_local_metadata_in_block(finally_block, out);
+    }
+}
+
 #[cfg(test)]
 fn collect_known_local_metadata_in_fun(
     fun: &hir::FunDecl,
@@ -3906,7 +3922,6 @@ fn collect_known_local_metadata_in_fun(
     }
 }
 
-#[cfg(test)]
 fn collect_known_local_metadata_in_block(
     block: &hir::Block,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -3916,7 +3931,6 @@ fn collect_known_local_metadata_in_block(
     }
 }
 
-#[cfg(test)]
 fn collect_known_local_metadata_in_stmt(
     stmt: &hir::Stmt,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -3957,7 +3971,6 @@ fn collect_known_local_metadata_in_stmt(
     }
 }
 
-#[cfg(test)]
 fn collect_known_local_metadata_in_expr(
     expr: &hir::Expr,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -4045,10 +4058,7 @@ fn collect_known_local_metadata_in_expr(
             }
         }
         hir::ExprKind::Handle(handle) => {
-            collect_known_local_metadata_in_block(&handle.body, out);
-            if let Some(finally_block) = &handle.finally {
-                collect_known_local_metadata_in_block(finally_block, out);
-            }
+            collect_known_local_metadata_in_handle(handle, out);
         }
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
@@ -5159,6 +5169,10 @@ impl HandlePlanContext {
             object_property_fqns,
         }
     }
+
+    fn extend_known_local_metadata_from_handle(&mut self, handle: &hir::HandleExpr) {
+        collect_known_local_metadata_in_handle(handle, &mut self.known_local_metadata);
+    }
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -5274,7 +5288,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         handle: &hir::HandleExpr,
     ) -> UnifiedHandleLoweringContract {
-        let context = HandlePlanContext::from_codegen(self);
+        let mut context = HandlePlanContext::from_codegen(self);
+        context.extend_known_local_metadata_from_handle(handle);
         let source_plan = HandleStateMachinePlan::build_with_context(self.types, handle, &context);
 
         // Phase 1 → segments: project the plan into segments and validate the builder contract.

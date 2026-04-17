@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-17 当前轮实现更新：`T3011` 已完成。修复点分两层：一是 `build_unified_lowering_contract()` 现在会把当前 `handle` 自身的 local metadata 合并进生产态 `HandlePlanContext::from_codegen()`，避免 nested/unified 子路径丢失声明点 mutability；二是 `build_stmt(Val)` 遇到真实声明时会直接覆盖旧 slot metadata，不再保留先前 fallback 占坑留下的 `mutable: false` / `seed_from_outer_scope` 残值。已新增结构回归 `declared_handle_local_overwrites_placeholder_slot_metadata` 与 `handle_context_extension_recovers_nested_handle_outer_var_mutability`。验证通过：`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`、当前 `EXPECT: fail` run-pass 子集扫描（未再出现 `assignment to immutable local`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail` `continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。因此 effect 主线当前顺序推进到 `T3011R`。
 > 2026-04-17 当前轮复审更新：`T3010R` 已完成。复审 `state_machine_plan.rs` / `state_machine_segments.rs` / `state_machine_transform.rs` / `state_machine_emitter.rs` 后确认，resume-tail 改写仍停留在 plan 层，emitter 未回扫 AST；同时发现并修复了一个真实残留：`HandleStateOp::VarRef` 仍保留 `unwrap_or(CgValue::unit())` 吞错 fallback。该 fallback 现已删除，standalone `VarRef` 必须像普通 expr codegen 一样独立成功或直接报错。另已把 `source_plan_keeps_only_whole_call_for_pure_statement_args_and_pure_if_condition` 收紧为同时禁止纯 statement call 的 callee 落成 `VarRef` fragment。验证通过：`cargo test -p scoopc source_plan_ -- --nocapture`、`cargo test -p scoopc runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop --features llvm -- test` 仍只停在 `continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该既有问题已由 `T3017` 跟踪。因此 effect 主线当前顺序推进到 `T3011`。
 > 2026-04-17 当前轮验收更新：`T3010b2b` 已完成。重新验证 `effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop` 与 `async_await_minimal_int_basic.scoop` 均通过；随后对当前全部带 `EXPECT: fail` 的 run-pass fixture 扫描 `member access target` / `comparison lhs|rhs` / `equality lhs` / `integer binary op lhs`，确认这些 post-suspend body-tail fragment 错误已全部消失。再把 `effect_resume_finally_body_raise_after_resume.scoop`、`effect_resume_nested_escape_handle_tail.scoop`、`effect_resume_mixed_escape_direct_finally.scoop` 与 `effect_resume_mixed_source_path_matrix.scoop` 临时去掉 `EXPECT: fail` 头后按普通 run-pass 复验，`fixtures: ok (4)`；说明 resume landing 现已只继续剩余 tail，不会重放原 suspend site。继续复跑 `cargo run -p scoop --features llvm -- test` 后，suite 的首个失败点仍为 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该问题已由 `T3017` 跟踪。因此 effect 主线当前顺序推进到 `T3010R`。
 > 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（已完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3010b2aR`（已完成：收紧 `ResumeAfterSite` 边界，确认 emitter 未回扫 AST）、`T3009a`（本轮完成：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）、`T3009aR`（下一步：review dedicated lowering 是否仍可能回落到 generic call）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
@@ -546,23 +547,20 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b`
-2. `T3010R`
-3. `T3011`
-4. `T3011R`
-5. `T3012`
-6. `T3012R`
-7. `T3013`
-8. `T3013R`
-9. `T3009b`
-10. `T3009bR`
-11. `T3014`
-12. `T3014R`
-13. `T3015`
-14. `T3015R`
-15. `T3016`
-16. `T3016R`
-17. `T3017`
+1. `T3011R`
+2. `T3012`
+3. `T3012R`
+4. `T3013`
+5. `T3013R`
+6. `T3009b`
+7. `T3009bR`
+8. `T3014`
+9. `T3014R`
+10. `T3015`
+11. `T3015R`
+12. `T3016`
+13. `T3016R`
+14. `T3017`
 18. `T3017R`
 22. `T3103`
 23. `T3104`

@@ -1214,8 +1214,14 @@
   - 统一主线中未发现按源码形状、局部 AST 片段或旧 fragment 分类做补丁式分流的生产逻辑回流。
 - 依赖：T3010b2b
 
-### T3011 [TODO] 修正 unified contract 中 frame slot 的 mutability / capture metadata
+### T3011 [DONE] 修正 unified contract 中 frame slot 的 mutability / capture metadata
 - 描述：当前 plan builder 在“第一次看到 local ref”或“arm capture 外层 local”时会先创建 `mutable: false` 的 `FrameSlot`，后续也不会回填真实声明信息，导致原本是 `var` 的 slot 在 unified emitter / stmt codegen 中被冻结成 immutable，并报 `assignment to immutable local`。
+- 进展：
+  - `build_unified_lowering_contract()` 现在会在生产态 `HandlePlanContext::from_codegen()` 的基础上，补充当前 `handle` 自身的 local metadata，避免 nested/unified 子路径丢失声明点 mutability。
+  - `build_stmt(Val)` 在遇到真实声明时会直接覆盖同 `SymbolId` 的旧 slot metadata，消除“先占坑成 immutable / outer-scope、后续永不回填”的顺序依赖。
+  - 已新增结构回归 `declared_handle_local_overwrites_placeholder_slot_metadata` 与 `handle_context_extension_recovers_nested_handle_outer_var_mutability`，分别锁定“声明覆盖旧 slot”与“当前 handle 元数据补入生产 context 后 nested handle 仍保留 outer `var` mutability”。
+  - 已验证 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`、当前 `T3006` xfail 子集扫描（未再出现 `assignment to immutable local`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 均通过。
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。
 - 目标：
   - frame slot 的 mutability 必须以声明点为真值来源；若 slot 先由 local ref / capture 路径占坑，后续接入声明信息时需要回填真实 `mutable` 状态，而不是保持默认 `false`。
   - arm capture、cross-state local、resume 后继续赋值等路径都应消费同一份 authoritative slot metadata。

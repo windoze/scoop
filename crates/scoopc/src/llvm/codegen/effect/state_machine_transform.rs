@@ -3889,6 +3889,145 @@ fun demo(): Int {
         );
     }
 
+    #[test]
+    fn declared_handle_local_overwrites_placeholder_slot_metadata() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        var saved: Int = 0
+        val _: Int = Yield.next()
+        saved = 1
+        saved
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
+        let context = collect_plan_context(&lowered, fun);
+        let first_stmt = handle
+            .body
+            .stmts
+            .first()
+            .expect("expected first handle-body statement");
+        let hir::StmtKind::Val(decl) = &first_stmt.kind else {
+            panic!("expected first statement to be a local declaration");
+        };
+        let saved_id = decl.id.expect("expected declared local id");
+        let mut builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
+        builder.frame_slots.insert(
+            saved_id,
+            FrameSlot {
+                id: saved_id,
+                name: "saved".to_string(),
+                ty: decl.ty,
+                mutable: false,
+                seed_from_outer_scope: true,
+                owner_arm: None,
+            },
+        );
+
+        let entry = builder.new_state("entry");
+        let mut env = ScopeEnv::default();
+        let _ = builder.build_stmt(first_stmt, entry, &mut env);
+
+        let saved_slot = builder
+            .frame_slots
+            .get(&saved_id)
+            .expect("declaration should keep a frame slot");
+        assert!(saved_slot.mutable(), "declaration must restore mutability");
+        assert!(
+            !saved_slot.seed_from_outer_scope(),
+            "declaration must clear stale outer-scope seeding metadata"
+        );
+    }
+
+    #[test]
+    fn handle_context_extension_recovers_nested_handle_outer_var_mutability() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Unit
+}
+
+fun demo(): Int {
+    handle {
+        var saved: Int = 0
+        val _: Int = handle {
+            val _: Unit = Yield.next()
+            saved = saved + 1
+            saved
+        } with {
+            Yield.next() -> resume {
+                resume(())
+            }
+        }
+        saved
+    } with {
+        Yield.next() -> resume {
+            resume(())
+        }
+    }
+}
+"#,
+        );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected an outer handle");
+        let first_stmt = handle
+            .body
+            .stmts
+            .first()
+            .expect("expected first handle-body statement");
+        let hir::StmtKind::Val(decl) = &first_stmt.kind else {
+            panic!("expected first statement to be a local declaration");
+        };
+        let saved_id = decl.id.expect("expected declared local id");
+
+        let mut context = collect_plan_context(&lowered, fun);
+        context.known_local_metadata.remove(&saved_id);
+        context.extend_known_local_metadata_from_handle(handle);
+
+        let saved_meta = context
+            .known_local_metadata
+            .get(&saved_id)
+            .expect("handle extension should recover local metadata");
+        assert!(saved_meta.mutable, "outer handle var should stay mutable");
+
+        let outer_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let nested = outer_plan
+            .nested_handles
+            .first()
+            .expect("expected nested handle plan");
+        let saved_slot = nested
+            .frame_layout
+            .slots
+            .get(&saved_id)
+            .expect("nested handle should expose captured outer local slot");
+        assert!(
+            saved_slot.seed_from_outer_scope(),
+            "nested handle should still classify saved as an outer-scope slot"
+        );
+        assert!(
+            saved_slot.mutable(),
+            "nested handle should preserve outer var mutability"
+        );
+    }
+
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);
