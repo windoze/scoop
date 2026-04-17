@@ -863,16 +863,62 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a1a
 
+### T3009b0a1d [TODO] 修正 unified `ObjectInitAccessBoundary` 的 inactive-continue / active-dispatch 合同
+- 描述：开始执行 `T3009b0a1cR` 复审时，用最小 repro `handle { Config.x + 1 } with { Raise.raise(err: RuntimeError) -> 10 }` 直接验证发现，shared `UnifiedStateTerminator::Suspend` 的 inactive-path 缺口并不只在 `SuspendCall` / `RuntimeRaiseBoundary`。direct object/property access 当前仍通过 `ObjectInitAccessBoundary` 落到“求值后无条件 suspend”：程序只打印 `before`、`config.init` 就提前退出，`after` 与最终结果都不会出现。这说明 object init / property access 在 inactive 成功路径上没有留在当前 state machine 内继续执行 caller-tail，而是被错误地 continuation + dispatch 化。由于这是与 `SuspendCall` 共用同一 terminator 出口的更前置 boundary 缺口，必须先补齐。
+- 目标：
+  - `ObjectInitAccessBoundary` 在 object value / property access 最终 inactive 返回时，必须留在当前 state machine 内继续执行 caller-tail，不能无条件 continuation alloc + set active + return。
+  - 当 object init / hidden raise 确实令 TLS active 时，当前 step function 仍需把控制权交回 enclosing `handle` / `try` 的 dispatch loop，而不是继续执行 boundary 后语句。
+  - 修复必须收口到共享 boundary 合同，不能对具体 object 名称、属性名或单个 fixture 做特判。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b0a1c
+
+### T3009b0a1dR [TODO] Review：确认 `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同
+- 描述：在 `T3009b0a1d` 之后只审查生产代码，确认 object value / property access 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在 `codegen_object_value_access` / `codegen_object_property_access` 或具体 object 名称上局部绕过；若发现对象名特判、源码形状分流或新 side channel，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `ObjectInitAccessBoundary` 的 inactive/active 分流只由统一 contract 与 TLS active 结果驱动，不读取 object 名称、属性名、源码形状或旧 scanner 结果。
+  - 确认 inactive-path 没有回流成 ordinary helper / object-init 专用 patch。
+  - 确认生产代码没有为 direct object/property access 新增脱离 state-machine 合同的结果旁路。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“`ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 依赖：T3009b0a1d
+
+### T3009b0a1e [TODO] 修正 unified `NestedHandleBoundary` 的 inactive-continue / active-dispatch 合同
+- 描述：同一次 `T3009b0a1cR` 复审继续用最小 nested repro 验证后确认，`NestedHandleBoundary` 也仍被统一 terminator 建模成“求值后无条件 suspend”。最小复现是 outer `handle` 包一层 inner `handle { helper(false) + 1 }`：当前输出只到 `inner_after`，`outer_after` 与最终结果都不会继续，说明 inner handle 明明 inactive 返回，outer state machine 却仍被错误截断。与 `ObjectInitAccessBoundary` 不同，这条路径不能靠“重新求值原表达式”糊过去，否则会把 inner handle 整体重跑一遍，因此需要 authoritative 的 inactive continue / result transport 合同。
+- 目标：
+  - `NestedHandleBoundary` 在 inner handle inactive 返回时，outer state machine 必须继续执行 caller-tail，不能把 inactive 成功返回误判成 outward dispatch。
+  - 当 inner handle 确实把 effect 向外传播并令 TLS active 时，outer state machine 仍需交回 enclosing dispatch loop。
+  - 修复不能通过重跑 inner handle、专判 nested 结构或在 outer call site 增加局部补丁完成；authoritative 数据通路必须继续收口到统一 state-machine 合同。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b0a1dR
+
+### T3009b0a1eR [TODO] Review：确认 `NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同
+- 描述：在 `T3009b0a1e` 之后只审查生产代码，确认 nested handle 的 inactive-path 已真正回到统一 state-machine 合同，没有把 inner-handle result transport 或 caller-tail continue 散回 outer emitter、普通 call codegen 或 shape-based 分流；若发现这类回流，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `NestedHandleBoundary` 的 inactive/active 分流只由统一 contract 与 TLS active 驱动，不读取 nested handle 形状或通过局部补丁短路。
+  - 确认 inactive 成功路径不会通过“重跑 inner handle”或其它非 authoritative side channel 取值。
+  - 确认生产代码没有把 nested handle 边界修复回流成 effect-only patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“`NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 依赖：T3009b0a1e
+
 ### T3009b0a1cR [TODO] Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同
-- 描述：在 `T3009b0a1c` 之后只审查生产代码，确认 `SuspendCall` 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在某个 callee / fixture 上局部绕过；若发现 call-site 特判、源码形状分流或把 inactive 路径重新塞回 ordinary helper，本任务需要直接修复并复审。
+- 描述：在 `T3009b0a1c` 之后只审查生产代码，确认 `SuspendCall` 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在某个 callee / fixture 上局部绕过；若发现 call-site 特判、源码形状分流或把 inactive 路径重新塞回 ordinary helper，本任务需要直接修复并复审。当前复审已先确认 `SuspendCall` 本身的 inactive/active 分流只按 `SuspendSiteKind` + TLS active 驱动，但同一 shared `UnifiedStateTerminator::Suspend` 上又暴露出更前置的 `ObjectInitAccessBoundary` / `NestedHandleBoundary` inactive-path 缺口；因此本 review 顺延到这些 boundary 收口后再落最终结论。
 - 目标：
   - 确认 `SuspendCall` 的 inactive/active 分流只由统一 contract 与 TLS active 结果驱动，不读取源码形状、callee 名称或旧 scanner 结果。
   - 确认 `resume_path` / synthetic resume slot 仍是 post-call caller-tail 的唯一数据通路，没有新增 call-only side channel。
   - 确认生产代码没有把 `SuspendCall` 的 inactive-path 修复回流成 `Continuation.resume(...)` / hidden-suspend helper 专用 patch。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“unified SuspendCall 的 inactive-path 已统一收口到 state-machine 合同”。
-- 依赖：T3009b0a1c
+  - 审查结论明确记录“unified `SuspendCall` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 依赖：T3009b0a1eR
 
 ### T3009b0a2 [TODO] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
 - 描述：`T3009b0a1c` 前移后，当前共享 contract 问题收窄到 `RuntimeRaiseBoundary` 自身。unified state-machine 现在把 `RuntimeRaiseBoundary`（至少覆盖 `Continuation.resume(...)` 与 `x as T`）统一建模成“求值表达式后无条件 `Suspend`”：step function 先发出 `scoop_continuation_resume(...)` / cast code，再立刻走 `alloc continuation + set_active + return`。结果是 boundary expression 的 inactive 成功路径也会被截断，caller-tail 永远接不回。最小复现包括：`effect_escape_continuation_resume_unit.scoop` 当前输出停在 `after_pause`，缺少 `after_resume` / `done`；`type_check_cast_is_as_asq_basic.scoop` 当前在首个成功 `as` 后停在 `x is Base: true`，未继续打印 `Impl.ping` / `42` / `10`。由于这是在 `SuspendCall` 之外仍然阻塞 `T3009b0` 的 shared boundary 合同错误，必须在 dedicated resume lowering 前继续收口。

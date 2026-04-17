@@ -1,92 +1,63 @@
-# 执行计划与决策记录
+# 执行计划与决策摘要
 
-## 说明
-
-按要求，我会在这个文件里持续记录执行计划、关键进展、以及必要的决策摘要。
-出于安全与协作边界考虑，这里记录的是可审计的决策过程摘要、假设、步骤和结果，而不是不加筛选的内部思维流。
-
-## 初始目标
+## 目标
 
 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
 ## 初始执行步骤
 
-1. 检查最新一次 git 提交，确认提交信息里是否提到任何已知问题；如果有，先修复这些问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，确认现有计划与任务依赖关系。
-4. 如首个未完成任务过大或存在隐藏依赖，先把任务拆成更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`；本轮只执行拆分后的第一个子任务。
-5. 实现该任务，并补充或调整必要测试。
-6. 运行相关验证，至少覆盖：
-   - 受影响范围的定向测试
-   - 必要时运行更广的 `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 必要时 `cargo fmt --check` 或 `cargo fmt`
-7. 更新文档与计划：
-   - 在 `TODO.md` 中标记任务完成，或如被阻塞则按要求重排任务
-   - 在 `PLAN.md` 中记录状态变化、依赖、阻塞原因（如有）
-   - 持续更新本文件，记录关键进展
-8. 使用清晰的提交信息提交本轮改动。
-9. 停止，不继续执行下一个任务。
+1. 检查最新一次 Git 提交，确认是否提到了需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认现有计划、依赖关系和任务上下文。
+4. 如果当前任务过大或存在阻塞，先把任务拆分并更新 `TODO.md` 与 `PLAN.md`，本轮只处理拆分后的第一个子任务。
+5. 实现当前目标任务所需代码修改。
+6. 运行与改动直接相关的测试，并补充必要测试。
+7. 运行质量检查，至少包含格式、测试，以及在可行范围内执行 `cargo clippy --all-targets -- -D warnings`。
+8. 更新 `TODO.md`、`PLAN.md`，记录完成情况或阻塞原因。
+9. 提交 Git commit，然后停止，不继续下一个任务。
 
-## 当前假设
+## 当前已知约束
 
-- 仓库可能存在未提交改动，因此任何修改前都需要检查 `git status`，避免覆盖用户已有工作。
-- “最新提交中提到的问题” 需要通过检查最近一次提交信息以及必要时查看其改动内容来判断。
-- 如果实现过程中发现规范不匹配、缺失语言特性或依赖性缺陷，不能绕过，必须先更新 `TODO.md` / `PLAN.md` 反映真实依赖，再决定本轮是否转为处理该前置问题。
+- 需要先检查最新提交中是否有必须优先修复的问题。
+- 不能用规避方案绕过规范缺口；若发现规范不匹配，必须先把问题加入 `TODO.md` 并调整依赖顺序。
+- 在执行过程中，这个文件会持续更新，记录关键决策、进度和计划调整。
 
-## 待确认事项
+## 待确认信息
 
-- 最新提交是否声明了尚未修复的问题。
-- `TODO.md` 中第一个未完成任务的范围和复杂度。
-- 当前工作树是否干净，以及是否存在与本轮任务冲突的用户改动。
+- 最新提交是否声明了既有问题。
+- 第一个未完成任务是什么，是否存在前置依赖或需要拆分。
+- 当前工作树是否有未提交改动需要避让。
 
-## 进度
+## 当前结论（更新）
 
-- 已创建本计划文件，等待开始仓库检查。
-- 已检查工作树：当前只有本文件处于未提交状态。
-- 已检查最新提交 `f69965eef95bd81cbbbf2003882c9bd7e4824365`：该提交未修复生产问题，而是把一个新的前置 blocker 记录为 `T3009b0a1c` / `T3009b0a1cR`。
-- 已读取 `TODO.md` / `PLAN.md` 并定位首个未完成任务：`T3009b0a1c`「修正 unified SuspendCall 的 inactive-continue / active-dispatch 合同」。
+- 最新提交为 `[T3009b0a1c] Fix SuspendCall inactive continue path`。提交说明本身没有额外声明新的“必须先修”的既有问题；当前最直接的后续项就是其复审任务。
+- `TODO.md` 中首个未完成任务是 `T3009b0a1cR`：**Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同**。
+- 当前工作树只有 `memory/claude_plan.md` 的计划更新，未发现其他未提交改动需要避让。
 
-## 当前任务判断
+## 本轮执行计划（细化）
 
-- 当前首个未完成任务边界明确，暂不需要进一步拆分。
-- 预期改动集中在 unified state-machine emitter / terminator 的 call-boundary 路径，重点检查：
-  - `state_machine_emitter.rs`
-  - 可能涉及的 contract / segment / plan 结构
-  - 相关定向 fixture 与 IR / 单元测试
+1. 读取 `T3009b0a1cR` 在 `TODO.md` / `PLAN.md` 中的完整描述，明确验收标准。
+2. 查看最新提交 diff，确认它改动了哪些生产代码与测试。
+3. 定向审查相关生产代码，重点检查：
+   - `SuspendCall` inactive-path 是否仍存在旁路、旧 fallback 或 effect-only patch；
+   - inactive / active 两条路径是否都由统一 state-machine 语义驱动；
+   - 是否引入新的遗漏分支或与相邻 `RuntimeRaiseBoundary` 逻辑不一致的问题。
+4. 运行定向测试与必要的全量质量检查；若审查发现问题，直接修复并补测。
+5. 更新 `TODO.md`、`PLAN.md`、本计划文件，记录复审结论或修复内容。
+6. 提交本轮变更并停止。
 
-## 当前任务执行计划
+## 复审结果（更新）
 
-1. 阅读 `SuspendCall` 相关生产代码，确认当前 inactive-path 为什么会被无条件建模成 suspend。
-2. 运行最小复现或已有定向 fixture，确认失败形态并锁定入口。
-3. 修改统一 lowering / emitter，让 `SuspendCall` 在 TLS inactive 时继续当前 state machine caller-tail，在 TLS active 时仍按统一 dispatch 路径返回。
-4. 如缺少足够测试，补充或收紧与 `SuspendCall` inactive-path 直接相关的测试。
-5. 运行定向验证，再跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，提交本轮改动并停止。
+- 已确认 `T3009b0a1c` 的实现本身没有回到 callee 名称 / 源码形状分流：`state_machine_emitter.rs` 中 `SuspendCall` 的 inactive/active 分流只按 `SuspendSiteKind` + TLS active 驱动，且 step function 会暂时清空 `current_fun_return_ty`，普通 call codegen 不会在 step function 内偷偷走 ordinary-frame propagation。
+- 但在继续复审同一个 shared `UnifiedStateTerminator::Suspend` 出口时，发现两个未在 `TODO.md` 显式跟踪的更前置生产缺口：
+  - direct `ObjectInitAccessBoundary` 最小复现：`handle { Config.x + 1 } with { Raise.raise(err: RuntimeError) -> 10 }` 当前只打印 `before`、`config.init`，`after` 与结果不会继续。
+  - `NestedHandleBoundary` 最小复现：outer `handle` 包 inner `handle { helper(false) + 1 }` 时，当前只打印到 `inner_after`，`outer_after` 与结果不会继续。
+- 这说明 shared `Suspend` terminator 仍把 `ObjectInitAccessBoundary` / `NestedHandleBoundary` 建模成“求值后无条件 suspend”。因此当前还不能把 `T3009b0a1cR` 标成完成；需要先把这两个更前置 blocker 加入 `TODO.md` 并前移顺序。
 
-## 当前任务完成情况
+## 本轮计划调整
 
-- 已定位根因：`HandleStateOp::SuspendCall` 自身只是正常求值，真正错误的是 `UnifiedStateTerminator::Suspend` 对 call-like suspend site 无条件执行 continuation alloc + set_active + return。
-- 已完成生产修复：
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
-  - 对 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit` 三类 site，在 terminator 中先检查 TLS active。
-  - inactive 时：把 call 结果写入 frame resume 槽并 branch 到 `resume_state`，继续当前 step function 内的 caller-tail。
-  - active 时：保持原有 continuation alloc + outward dispatch 路径。
-- 已补充缺失验收 fixture：
-  - `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
-  - `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.stdout`
-- 已完成验证：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo fmt --check`
-
-## 当前状态
-
-- `T3009b0a1c` 已完成并已在 `TODO.md` 标记为 done。
-- `PLAN.md` 已更新执行顺序，下一步为 `T3009b0a1cR`。
-- 本轮剩余工作：
-  1. 检查最终 diff 与 git 状态。
-  2. 以本任务为主题提交一次 Git commit。
-  3. 停止，等待下一轮执行 review 任务。
+1. 在 `TODO.md` 中新增 `T3009b0a1d` / `T3009b0a1dR`，先修并复审 `ObjectInitAccessBoundary` 的 inactive-path。
+2. 在 `TODO.md` 中新增 `T3009b0a1e` / `T3009b0a1eR`，再修并复审 `NestedHandleBoundary` 的 inactive-path。
+3. 将 `T3009b0a1cR` 保持为 `[TODO]`，并移动到上述前置任务之后。
+4. 更新 `PLAN.md` 记录新的 blocker、最小复现和执行顺序。
+5. 提交计划重排变更并停止，等待下一轮先处理新的前置任务。
