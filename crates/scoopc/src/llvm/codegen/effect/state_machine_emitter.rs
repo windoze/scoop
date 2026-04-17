@@ -378,23 +378,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // Step function generation
     // ------------------------------------------------------------------
 
-    /// Generate the step function for a state machine.
+    /// Generate both runtime entry points for a handle state machine.
     ///
-    /// The step function has the continuation step signature:
-    ///   `void step_fn(ptr addrspace(1) %state, i64 %resume_word, ptr addrspace(1) %resume_gc_ref)`
-    ///
-    /// On entry it stores resume_word and resume_gc_ref into the frame, loads
-    /// state_tag, and dispatches via `switch` to per-state basic blocks.
-    ///
-    /// Each state block emits its ops and terminates with the
-    /// appropriate LLVM terminator (branch, return, etc.).
-    fn emit_effect_step_function(
+    /// - `step_fn` 只执行状态机本体，不负责 handler dispatch。
+    /// - `dispatch_loop_fn` 负责调用 `step_fn` 并在每次返回后继续跑 handler
+    ///   dispatch loop，这样 escaped continuation resume 时也会重新进入
+    ///   captured handler 的统一派发路径。
+    fn emit_effect_runtime_functions(
         &mut self,
         span: crate::span::Span,
         contract: &UnifiedHandleLoweringContract,
         frame_layout: &FrameLayout<'ctx>,
-    ) -> Result<inkwell::values::FunctionValue<'ctx>, LlvmEmitError> {
-        // Step function signature: (ptr addrspace(1), i64, ptr addrspace(1)) -> void
+    ) -> Result<
+        (
+            inkwell::values::FunctionValue<'ctx>,
+            inkwell::values::FunctionValue<'ctx>,
+        ),
+        LlvmEmitError,
+    > {
+        // Runtime resume entry signature: (ptr addrspace(1), i64, ptr addrspace(1)) -> void
         let state_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
@@ -403,9 +405,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             [state_ptr_ty.into(), i64_ty.into(), gc_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
 
-        let fn_name = format!("scoop.effect.step.{:x}", span.start ^ (span.end << 16));
-        let step_fn = self.module.add_function(&fn_name, fn_ty, None);
+        let suffix = span.start ^ (span.end << 16);
+        let step_fn =
+            self.module
+                .add_function(&format!("scoop.effect.step.{suffix:x}"), fn_ty, None);
         step_fn.set_call_conventions(0);
+        let dispatch_loop_fn =
+            self.module
+                .add_function(&format!("scoop.effect.dispatch.{suffix:x}"), fn_ty, None);
+        dispatch_loop_fn.set_call_conventions(0);
 
         // Save caller's codegen context.
         let saved_block = self.builder.get_insert_block();
@@ -416,7 +424,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
 
         // --- Generate step function body ---
-        let result = self.emit_step_function_body(span, contract, frame_layout, step_fn);
+        let step_result =
+            self.emit_step_function_body(span, contract, frame_layout, step_fn, dispatch_loop_fn);
 
         // Restore caller's codegen context.
         self.loop_context_stack = saved_loop_stack;
@@ -428,8 +437,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(saved);
         }
 
-        result?;
-        Ok(step_fn)
+        step_result?;
+        self.emit_dispatch_loop_body(span, contract, frame_layout, step_fn, dispatch_loop_fn)?;
+
+        if let Some(saved) = saved_block {
+            self.builder.position_at_end(saved);
+        }
+
+        Ok((step_fn, dispatch_loop_fn))
     }
 
     /// Inner body of step function generation, separated so we can use `?`
@@ -440,6 +455,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
         frame_layout: &FrameLayout<'ctx>,
         step_fn: inkwell::values::FunctionValue<'ctx>,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let entry_bb = self.context.append_basic_block(step_fn, "entry");
         self.builder.position_at_end(entry_bb);
@@ -554,10 +570,324 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 contract,
                 &state_bb_map,
                 step_fn,
+                dispatch_loop_fn,
             )?;
 
             self.env.pop_scope();
         }
+
+        Ok(())
+    }
+
+    /// Emit the reusable handler dispatch loop around `step_fn`.
+    ///
+    /// 约定：
+    /// - 调用方负责在进入本函数前安装当前 handle 的 runtime handler frames；
+    /// - 本函数只负责“推进 step_fn + 处理 perform/arm dispatch/cleanup”，并把最终
+    ///   的 active flag / perform slot / frame result 留给外层调用者消费。
+    fn emit_dispatch_loop_body(
+        &mut self,
+        span: crate::span::Span,
+        contract: &UnifiedHandleLoweringContract,
+        frame_layout: &FrameLayout<'ctx>,
+        step_fn: inkwell::values::FunctionValue<'ctx>,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let entry_bb = self.context.append_basic_block(dispatch_loop_fn, "entry");
+        self.builder.position_at_end(entry_bb);
+
+        let frame_ptr = dispatch_loop_fn
+            .get_nth_param(0)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "dispatch loop state param",
+                at: span.into(),
+            })?
+            .into_pointer_value();
+        let resume_word_param = dispatch_loop_fn
+            .get_nth_param(1)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "dispatch loop resume_word param",
+                at: span.into(),
+            })?
+            .into_int_value();
+        let resume_gc_ref_param = dispatch_loop_fn
+            .get_nth_param(2)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "dispatch loop resume_gc_ref param",
+                at: span.into(),
+            })?
+            .into_pointer_value();
+
+        let i64_zero = self.context.i64_type().const_int(0, false);
+        let gc_null = self.llvm_gc_i8_ptr_type().const_null();
+
+        self.builder.build_call(
+            step_fn,
+            &[
+                frame_ptr.into(),
+                resume_word_param.into(),
+                resume_gc_ref_param.into(),
+            ],
+            "",
+        )?;
+
+        let dispatch_check_bb = self
+            .context
+            .append_basic_block(dispatch_loop_fn, "dispatch_check");
+        let dispatch_arm_bb = self
+            .context
+            .append_basic_block(dispatch_loop_fn, "dispatch_arm");
+        let cleanup_entry_state = contract
+            .cleanup_scopes()
+            .first()
+            .map(|scope| scope.entry_state());
+        let handle_cleanup_propagate_check_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_check")
+        });
+        let handle_cleanup_propagate_run_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_run")
+        });
+        let handle_cleanup_done_check_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_check")
+        });
+        let handle_cleanup_done_run_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_run")
+        });
+        let handle_propagate_bb = self
+            .context
+            .append_basic_block(dispatch_loop_fn, "handle_propagate");
+        let handle_done_bb = self
+            .context
+            .append_basic_block(dispatch_loop_fn, "handle_done");
+        let outward_target_bb = handle_cleanup_propagate_check_bb.unwrap_or(handle_propagate_bb);
+        let arm_done_target_bb = handle_cleanup_done_check_bb.unwrap_or(handle_done_bb);
+
+        self.builder.build_unconditional_branch(dispatch_check_bb)?;
+
+        self.builder.position_at_end(dispatch_check_bb);
+        let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
+        self.builder
+            .build_conditional_branch(is_active, dispatch_arm_bb, handle_done_bb)?;
+
+        self.builder.position_at_end(dispatch_arm_bb);
+        let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
+        let op_tag_raw = self
+            .builder
+            .build_call(read_op_tag_fn, &[], "performed_op_tag")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_op_tag return",
+                at: span.into(),
+            })?
+            .into_int_value();
+        let read_effect_instance_key_fn =
+            self.declare_runtime_effect_perform_slot_read_effect_instance_key();
+        let effect_instance_key_raw = self
+            .builder
+            .build_call(
+                read_effect_instance_key_fn,
+                &[],
+                "performed_effect_instance_key",
+            )?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_effect_instance_key return",
+                at: span.into(),
+            })?
+            .into_int_value();
+
+        if contract.dispatch_entries().is_empty() {
+            self.builder.build_unconditional_branch(outward_target_bb)?;
+        } else {
+            let unmatched_bb = self
+                .context
+                .append_basic_block(dispatch_loop_fn, "dispatch_unmatched");
+            let arm_by_id = contract
+                .arms()
+                .iter()
+                .map(|arm| (arm.arm_id(), arm))
+                .collect::<HashMap<_, _>>();
+
+            let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+                Vec::new();
+
+            for dispatch_entry in contract.dispatch_entries() {
+                let op_fqn = dispatch_entry.op_fqn();
+                let tag = self.effect_op_tag(op_fqn);
+                let tag_val = self.context.i32_type().const_int(tag as u64, false);
+                let dispatch_arms = dispatch_entry.arms();
+                if dispatch_arms.is_empty() {
+                    continue;
+                }
+
+                let check_blocks = dispatch_arms
+                    .iter()
+                    .map(|dispatch_arm| {
+                        self.context.append_basic_block(
+                            dispatch_loop_fn,
+                            &format!("dispatch_arm_{}_check", dispatch_arm.arm_id()),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                cases.push((tag_val, check_blocks[0]));
+
+                for (index, dispatch_arm) in dispatch_arms.iter().enumerate() {
+                    let unified_arm = arm_by_id.get(&dispatch_arm.arm_id()).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "dispatch arm metadata not found",
+                            at: span.into(),
+                        },
+                    )?;
+                    let next_bb = check_blocks.get(index + 1).copied().unwrap_or(unmatched_bb);
+                    let matching_keys = self.matching_effect_instance_keys_for_handled_effect(
+                        unified_arm.effect_ty(),
+                        op_fqn,
+                    );
+                    let arm_bb = self.emit_dispatch_arm_execution(
+                        dispatch_loop_fn,
+                        frame_ptr,
+                        frame_layout,
+                        step_fn,
+                        i64_zero,
+                        gc_null,
+                        unified_arm,
+                        outward_target_bb,
+                        arm_done_target_bb,
+                        dispatch_check_bb,
+                        span,
+                    )?;
+
+                    self.builder.position_at_end(check_blocks[index]);
+                    if matching_keys.is_empty() {
+                        self.builder.build_unconditional_branch(next_bb)?;
+                    } else {
+                        let arm_matches = self.int_matches_any_u32(
+                            effect_instance_key_raw,
+                            &matching_keys,
+                            &format!("arm_{}_effect_instance_match", dispatch_arm.arm_id()),
+                        )?;
+                        self.builder
+                            .build_conditional_branch(arm_matches, arm_bb, next_bb)?;
+                    }
+                }
+            }
+
+            self.builder.position_at_end(dispatch_arm_bb);
+            if dispatch_arm_bb.get_terminator().is_none() {
+                if cases.is_empty() {
+                    self.builder.build_unconditional_branch(unmatched_bb)?;
+                } else {
+                    self.builder
+                        .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+                }
+            }
+
+            self.builder.position_at_end(unmatched_bb);
+            self.builder.build_unconditional_branch(outward_target_bb)?;
+        }
+
+        if let (
+            Some(cleanup_entry_state),
+            Some(cleanup_propagate_check_bb),
+            Some(cleanup_propagate_run_bb),
+            Some(cleanup_done_check_bb),
+            Some(cleanup_done_run_bb),
+        ) = (
+            cleanup_entry_state,
+            handle_cleanup_propagate_check_bb,
+            handle_cleanup_propagate_run_bb,
+            handle_cleanup_done_check_bb,
+            handle_cleanup_done_run_bb,
+        ) {
+            self.builder.position_at_end(cleanup_propagate_check_bb);
+            let cleanup_already_ran = self.read_cleanup_flag_i1(
+                frame_ptr,
+                frame_layout,
+                "cleanup_propagate_already_ran",
+            )?;
+            self.builder.build_conditional_branch(
+                cleanup_already_ran,
+                handle_propagate_bb,
+                cleanup_propagate_run_bb,
+            )?;
+
+            self.builder.position_at_end(cleanup_propagate_run_bb);
+            self.write_state_tag(
+                frame_ptr,
+                frame_layout,
+                cleanup_entry_state,
+                "set_cleanup_propagate_state",
+            )?;
+            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                frame_ptr,
+                frame_layout,
+                "cleanup_propagate_resume_word",
+                "cleanup_propagate_resume_gc_ref",
+            )?;
+            self.builder.build_call(
+                step_fn,
+                &[
+                    frame_ptr.into(),
+                    cleanup_resume_word.into(),
+                    cleanup_resume_gc_ref.into(),
+                ],
+                "",
+            )?;
+            self.builder
+                .build_unconditional_branch(handle_propagate_bb)?;
+
+            self.builder.position_at_end(cleanup_done_check_bb);
+            let cleanup_already_ran =
+                self.read_cleanup_flag_i1(frame_ptr, frame_layout, "cleanup_done_already_ran")?;
+            self.builder.build_conditional_branch(
+                cleanup_already_ran,
+                handle_done_bb,
+                cleanup_done_run_bb,
+            )?;
+
+            self.builder.position_at_end(cleanup_done_run_bb);
+            self.write_state_tag(
+                frame_ptr,
+                frame_layout,
+                cleanup_entry_state,
+                "set_cleanup_done_state",
+            )?;
+            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                frame_ptr,
+                frame_layout,
+                "cleanup_done_resume_word",
+                "cleanup_done_resume_gc_ref",
+            )?;
+            self.builder.build_call(
+                step_fn,
+                &[
+                    frame_ptr.into(),
+                    cleanup_resume_word.into(),
+                    cleanup_resume_gc_ref.into(),
+                ],
+                "",
+            )?;
+            let cleanup_active = self.emit_effect_is_active_i1(span, "cleanup_done_is_active")?;
+            self.builder.build_conditional_branch(
+                cleanup_active,
+                handle_propagate_bb,
+                handle_done_bb,
+            )?;
+        }
+
+        self.builder.position_at_end(handle_propagate_bb);
+        self.builder.build_return(None)?;
+
+        self.builder.position_at_end(handle_done_bb);
+        let clear_fn = self.declare_runtime_effect_clear();
+        self.builder.build_call(clear_fn, &[], "")?;
+        self.builder.build_return(None)?;
 
         Ok(())
     }
@@ -1334,6 +1664,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
         state_bb_map: &HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>>,
         step_fn: inkwell::values::FunctionValue<'ctx>,
+        dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         // If a suspend-related op already terminated the block (returned
         // early with `build_return`), the current block already has a
@@ -1449,14 +1780,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
 
                 // Allocate a continuation object (GC-managed) that captures
-                // the frame pointer and step_fn.
-                let step_fn_ptr = step_fn.as_global_value().as_pointer_value();
+                // the frame pointer and the reusable dispatch-loop entry.
+                let dispatch_loop_fn_ptr = dispatch_loop_fn.as_global_value().as_pointer_value();
                 let cont_alloc = self.declare_runtime_continuation_alloc();
                 let cont = self
                     .builder
                     .build_call(
                         cont_alloc,
-                        &[state_ptr.into(), step_fn_ptr.into()],
+                        &[state_ptr.into(), dispatch_loop_fn_ptr.into()],
                         "continuation",
                     )?
                     .try_as_basic_value()
@@ -1919,9 +2250,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 1. Build the unified lowering contract.
         let contract = self.build_unified_lowering_contract(handle);
 
-        // 2. Generate frame layout and step function.
+        // 2. Generate frame layout, raw state-machine step function, and the
+        //    reusable dispatch-loop entry used by both initial execution and
+        //    escaped-continuation resume.
         let frame_layout = self.emit_effect_frame_layout(span, &contract)?;
-        let step_fn = self.emit_effect_step_function(span, &contract, &frame_layout)?;
+        let (_step_fn, dispatch_loop_fn) =
+            self.emit_effect_runtime_functions(span, &contract, &frame_layout)?;
 
         // 3. Allocate the frame as a GC-managed typed object.
         let frame_size = self.target_data.get_store_size(&frame_layout.frame_type);
@@ -2004,20 +2338,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let handler_frames = self.allocate_registered_handler_frames(&contract)?;
         let has_dispatch = !handler_frames.is_empty();
 
-        // 5. Call the step function for initial body execution.
+        // 5. Call the reusable dispatch-loop entry for initial body execution.
         let i64_zero = self.context.i64_type().const_int(0, false);
         let gc_null = self.llvm_gc_i8_ptr_type().const_null();
         self.builder.build_call(
-            step_fn,
+            dispatch_loop_fn,
             &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
             "",
         )?;
 
-        // 6. Dispatch loop.
-        //
-        // After each step_fn return, check the TLS active flag.
-        // If active → a perform happened; read op_tag, dispatch to arm.
-        // If not active → body completed (or early return); exit loop.
+        // 6. The reusable dispatch loop has finished. Inspect the effect TLS:
+        //    active => outward propagation; inactive => handle completed.
         let result_cg_ty = expected
             .or_else(|| self.cg_ty_of(contract.result_ty()))
             .unwrap_or(CgTy::Unit);
@@ -2038,258 +2369,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Some(self.builder.build_alloca(llvm_ty, "handle_result_slot")?)
             }
         };
-
-        let dispatch_check_bb = self
-            .context
-            .append_basic_block(current_fn, "dispatch_check");
-        let dispatch_arm_bb = self.context.append_basic_block(current_fn, "dispatch_arm");
-        let cleanup_entry_state = contract
-            .cleanup_scopes()
-            .first()
-            .map(|scope| scope.entry_state());
-        let handle_cleanup_propagate_check_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(current_fn, "handle_cleanup_propagate_check")
-        });
-        let handle_cleanup_propagate_run_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(current_fn, "handle_cleanup_propagate_run")
-        });
-        let handle_cleanup_done_check_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(current_fn, "handle_cleanup_done_check")
-        });
-        let handle_cleanup_done_run_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(current_fn, "handle_cleanup_done_run")
-        });
         let handle_propagate_bb = self
             .context
             .append_basic_block(current_fn, "handle_propagate");
         let handle_done_bb = self.context.append_basic_block(current_fn, "handle_done");
         let handle_exit_bb = self.context.append_basic_block(current_fn, "handle_exit");
-        let outward_target_bb = handle_cleanup_propagate_check_bb.unwrap_or(handle_propagate_bb);
-        let arm_done_target_bb = handle_cleanup_done_check_bb.unwrap_or(handle_done_bb);
-
-        // Jump to the dispatch check after the initial step_fn call.
-        self.builder.build_unconditional_branch(dispatch_check_bb)?;
-
-        // --- dispatch_check: test active flag ---
-        self.builder.position_at_end(dispatch_check_bb);
-        let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
+        let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_result_is_active")?;
         self.builder
-            .build_conditional_branch(is_active, dispatch_arm_bb, handle_done_bb)?;
-
-        // --- dispatch_arm: read op_tag, dispatch to arm or outward propagate ---
-        self.builder.position_at_end(dispatch_arm_bb);
-
-        // Read op_tag from TLS perform slot.
-        let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
-        let op_tag_raw = self
-            .builder
-            .build_call(read_op_tag_fn, &[], "performed_op_tag")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_op_tag return",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let read_effect_instance_key_fn =
-            self.declare_runtime_effect_perform_slot_read_effect_instance_key();
-        let effect_instance_key_raw = self
-            .builder
-            .build_call(
-                read_effect_instance_key_fn,
-                &[],
-                "performed_effect_instance_key",
-            )?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_effect_instance_key return",
-                at: span.into(),
-            })?
-            .into_int_value();
-
-        if contract.dispatch_entries().is_empty() {
-            self.builder.build_unconditional_branch(outward_target_bb)?;
-        } else {
-            let unmatched_bb = self
-                .context
-                .append_basic_block(current_fn, "dispatch_unmatched");
-            let arm_by_id = contract
-                .arms()
-                .iter()
-                .map(|arm| (arm.arm_id(), arm))
-                .collect::<HashMap<_, _>>();
-
-            let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
-                Vec::new();
-
-            for dispatch_entry in contract.dispatch_entries() {
-                let op_fqn = dispatch_entry.op_fqn();
-                let tag = self.effect_op_tag(op_fqn);
-                let tag_val = self.context.i32_type().const_int(tag as u64, false);
-                let dispatch_arms = dispatch_entry.arms();
-                if dispatch_arms.is_empty() {
-                    continue;
-                }
-
-                let check_blocks = dispatch_arms
-                    .iter()
-                    .map(|dispatch_arm| {
-                        self.context.append_basic_block(
-                            current_fn,
-                            &format!("dispatch_arm_{}_check", dispatch_arm.arm_id()),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                cases.push((tag_val, check_blocks[0]));
-
-                for (index, dispatch_arm) in dispatch_arms.iter().enumerate() {
-                    let unified_arm = arm_by_id.get(&dispatch_arm.arm_id()).copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "dispatch arm metadata not found",
-                            at: span.into(),
-                        },
-                    )?;
-                    let next_bb = check_blocks.get(index + 1).copied().unwrap_or(unmatched_bb);
-                    let matching_keys = self.matching_effect_instance_keys_for_handled_effect(
-                        unified_arm.effect_ty(),
-                        op_fqn,
-                    );
-                    let arm_bb = self.emit_dispatch_arm_execution(
-                        current_fn,
-                        frame_ptr,
-                        &frame_layout,
-                        step_fn,
-                        i64_zero,
-                        gc_null,
-                        unified_arm,
-                        outward_target_bb,
-                        arm_done_target_bb,
-                        dispatch_check_bb,
-                        span,
-                    )?;
-
-                    self.builder.position_at_end(check_blocks[index]);
-                    if matching_keys.is_empty() {
-                        self.builder.build_unconditional_branch(next_bb)?;
-                    } else {
-                        let arm_matches = self.int_matches_any_u32(
-                            effect_instance_key_raw,
-                            &matching_keys,
-                            &format!("arm_{}_effect_instance_match", dispatch_arm.arm_id()),
-                        )?;
-                        self.builder
-                            .build_conditional_branch(arm_matches, arm_bb, next_bb)?;
-                    }
-                }
-            }
-
-            self.builder.position_at_end(dispatch_arm_bb);
-            if dispatch_arm_bb.get_terminator().is_none() {
-                if cases.is_empty() {
-                    self.builder.build_unconditional_branch(unmatched_bb)?;
-                } else {
-                    self.builder
-                        .build_switch(op_tag_raw, unmatched_bb, &cases)?;
-                }
-            }
-
-            self.builder.position_at_end(unmatched_bb);
-            self.builder.build_unconditional_branch(outward_target_bb)?;
-        }
-
-        if let (
-            Some(cleanup_entry_state),
-            Some(cleanup_propagate_check_bb),
-            Some(cleanup_propagate_run_bb),
-            Some(cleanup_done_check_bb),
-            Some(cleanup_done_run_bb),
-        ) = (
-            cleanup_entry_state,
-            handle_cleanup_propagate_check_bb,
-            handle_cleanup_propagate_run_bb,
-            handle_cleanup_done_check_bb,
-            handle_cleanup_done_run_bb,
-        ) {
-            self.builder.position_at_end(cleanup_propagate_check_bb);
-            let cleanup_already_ran = self.read_cleanup_flag_i1(
-                frame_ptr,
-                &frame_layout,
-                "cleanup_propagate_already_ran",
-            )?;
-            self.builder.build_conditional_branch(
-                cleanup_already_ran,
-                handle_propagate_bb,
-                cleanup_propagate_run_bb,
-            )?;
-
-            self.builder.position_at_end(cleanup_propagate_run_bb);
-            self.write_state_tag(
-                frame_ptr,
-                &frame_layout,
-                cleanup_entry_state,
-                "set_cleanup_propagate_state",
-            )?;
-            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
-                frame_ptr,
-                &frame_layout,
-                "cleanup_propagate_resume_word",
-                "cleanup_propagate_resume_gc_ref",
-            )?;
-            self.builder.build_call(
-                step_fn,
-                &[
-                    frame_ptr.into(),
-                    cleanup_resume_word.into(),
-                    cleanup_resume_gc_ref.into(),
-                ],
-                "",
-            )?;
-            self.builder
-                .build_unconditional_branch(handle_propagate_bb)?;
-
-            self.builder.position_at_end(cleanup_done_check_bb);
-            let cleanup_already_ran =
-                self.read_cleanup_flag_i1(frame_ptr, &frame_layout, "cleanup_done_already_ran")?;
-            self.builder.build_conditional_branch(
-                cleanup_already_ran,
-                handle_done_bb,
-                cleanup_done_run_bb,
-            )?;
-
-            self.builder.position_at_end(cleanup_done_run_bb);
-            self.write_state_tag(
-                frame_ptr,
-                &frame_layout,
-                cleanup_entry_state,
-                "set_cleanup_done_state",
-            )?;
-            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
-                frame_ptr,
-                &frame_layout,
-                "cleanup_done_resume_word",
-                "cleanup_done_resume_gc_ref",
-            )?;
-            self.builder.build_call(
-                step_fn,
-                &[
-                    frame_ptr.into(),
-                    cleanup_resume_word.into(),
-                    cleanup_resume_gc_ref.into(),
-                ],
-                "",
-            )?;
-            let cleanup_active = self.emit_effect_is_active_i1(span, "cleanup_done_is_active")?;
-            self.builder.build_conditional_branch(
-                cleanup_active,
-                handle_propagate_bb,
-                handle_done_bb,
-            )?;
-        }
+            .build_conditional_branch(is_active, handle_propagate_bb, handle_done_bb)?;
 
         // --- handle_propagate: preserve active/perform slot, pop handler, and
         // let the outer boundary observe the outward-propagating effect. ---
@@ -2311,11 +2398,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
-        // --- handle_done: clear effect TLS, pop handler frame, read result ---
+        // --- handle_done: reusable dispatch loop already cleared effect TLS;
+        // pop handler frames, restore outer vars, and read the final result. ---
         self.builder.position_at_end(handle_done_bb);
-
-        let clear_fn = self.declare_runtime_effect_clear();
-        self.builder.build_call(clear_fn, &[], "")?;
 
         if has_dispatch {
             self.pop_registered_handler_frames(&handler_frames)?;
@@ -3140,6 +3225,52 @@ fun main(): Int {
         assert!(
             ir.contains("captured_callee_suspend_state"),
             "IR should name the captured callee suspend state value flowing into the continuation"
+        );
+    }
+
+    #[test]
+    fn escaped_continuation_ir_uses_dispatch_loop_entry_for_resume() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+fun main(): Int {
+    return handle {
+        Suspend.pause()
+    } with {
+        Suspend.pause(), k -> {
+            0
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("define void @scoop.effect.dispatch."),
+            "escaped continuation lowering should materialize a dedicated dispatch-loop entry"
+        );
+        let continuation_alloc_call = ir
+            .lines()
+            .find(|line| line.contains("call ") && line.contains("@scoop_continuation_alloc"))
+            .expect("expected a continuation allocation call in IR");
+        assert!(
+            continuation_alloc_call.contains("@scoop.effect.dispatch."),
+            "continuation allocation should capture the dispatch-loop entry instead of the raw step function"
         );
     }
 

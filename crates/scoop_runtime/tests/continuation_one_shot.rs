@@ -3,7 +3,7 @@ use scoop_runtime as _;
 
 use core::ffi::c_void;
 use core::ptr;
-use core::sync::atomic::{AtomicPtr, Ordering};
+use core::sync::atomic::{AtomicPtr, AtomicU32, AtomicUsize, Ordering};
 
 // 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）。
 #[repr(C)]
@@ -42,6 +42,12 @@ type ScoopContinuationStepFn =
 
 static OBSERVED_CALLEE_SUSPEND_STATE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 
+struct HandlerSnapshotObservations {
+    found_ptr: AtomicUsize,
+    found_op_tag: AtomicU32,
+    found_active: AtomicU32,
+}
+
 unsafe extern "C" {
     fn scoop_runtime_init();
 
@@ -53,6 +59,7 @@ unsafe extern "C" {
 
     fn scoop_effect_handler_stack_push(frame: *mut ScoopEffectHandlerFrame, op_tag: u32);
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
+    fn scoop_effect_handler_stack_find_nearest(op_tag: u32) -> *mut ScoopEffectHandlerFrame;
     fn scoop_effect_handler_stack_top() -> *mut ScoopEffectHandlerFrame;
 
     fn scoop_continuation_alloc(
@@ -75,6 +82,35 @@ extern "C" fn observe_callee_suspend_state_step(
     unsafe {
         OBSERVED_CALLEE_SUSPEND_STATE.store(scoop_callee_suspend_state_get(), Ordering::SeqCst);
     }
+}
+
+extern "C" fn observe_handler_snapshot_step(
+    state: *mut c_void,
+    _resume_word: u64,
+    _resume_gc_ref: *mut c_void,
+) {
+    if state.is_null() {
+        return;
+    }
+
+    let observations = unsafe { &*(state as *const HandlerSnapshotObservations) };
+    let found = unsafe { scoop_effect_handler_stack_find_nearest(42) };
+    observations
+        .found_ptr
+        .store(found as usize, Ordering::SeqCst);
+    if found.is_null() {
+        observations.found_op_tag.store(0, Ordering::SeqCst);
+        observations.found_active.store(0, Ordering::SeqCst);
+        return;
+    }
+
+    let found_ref = unsafe { &*found };
+    observations
+        .found_op_tag
+        .store(found_ref.op_tag, Ordering::SeqCst);
+    observations
+        .found_active
+        .store(found_ref.active, Ordering::SeqCst);
 }
 
 #[test]
@@ -101,9 +137,29 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
         );
 
         let prefix = &*(k as *const ScoopContinuation);
+        let captured = prefix.captured_handler_stack_top;
+        assert!(
+            !captured.is_null(),
+            "continuation must keep a non-null handler snapshot when a handler is active"
+        );
         assert_eq!(
-            prefix.captured_handler_stack_top, top,
-            "continuation must capture handler stack top at suspension point"
+            (*captured).op_tag,
+            42,
+            "captured handler snapshot must preserve the active op_tag"
+        );
+        assert_eq!(
+            (*captured).active,
+            1,
+            "captured handler snapshot must stay active for future redispatch"
+        );
+        assert_eq!(
+            (*captured).prev,
+            ptr::null_mut(),
+            "single-frame handler stack should clone to a single-frame snapshot"
+        );
+        assert_ne!(
+            captured, top,
+            "continuation must not keep borrowing the original stack-allocated handler frame"
         );
 
         // one-shot：第一次成功，第二次必须失败（spec §5.5：runtime error）。
@@ -112,6 +168,74 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
         assert_eq!(scoop_continuation_try_resume(k), 0);
 
         scoop_effect_handler_stack_pop(&mut frame);
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_frame_pops() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+        assert_eq!(scoop_effect_handler_stack_top(), ptr::null_mut());
+
+        let mut frame = ScoopEffectHandlerFrame {
+            prev: ptr::null_mut(),
+            op_tag: 0,
+            active: 0,
+        };
+        scoop_effect_handler_stack_push(&mut frame, 42);
+
+        let observations = Box::new(HandlerSnapshotObservations {
+            found_ptr: AtomicUsize::new(0),
+            found_op_tag: AtomicU32::new(0),
+            found_active: AtomicU32::new(0),
+        });
+        let observations_ptr = Box::into_raw(observations) as *mut c_void;
+
+        let k = scoop_continuation_alloc(observations_ptr, Some(observe_handler_snapshot_step));
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
+
+        scoop_effect_handler_stack_pop(&mut frame);
+        assert_eq!(
+            scoop_effect_handler_stack_top(),
+            ptr::null_mut(),
+            "popping the original handler must clear the caller TLS stack"
+        );
+
+        scoop_continuation_resume(k);
+
+        assert_eq!(
+            scoop_effect_handler_stack_top(),
+            ptr::null_mut(),
+            "resume must restore the caller TLS handler stack after step_fn returns"
+        );
+
+        let observations = Box::from_raw(observations_ptr as *mut HandlerSnapshotObservations);
+        assert_ne!(
+            observations.found_ptr.load(Ordering::SeqCst),
+            0,
+            "resumed continuation must still observe a matching handler frame"
+        );
+        assert_ne!(
+            observations.found_ptr.load(Ordering::SeqCst),
+            (&mut frame as *mut ScoopEffectHandlerFrame) as usize,
+            "matching handler must come from the continuation snapshot, not the popped original frame"
+        );
+        assert_eq!(
+            observations.found_op_tag.load(Ordering::SeqCst),
+            42,
+            "resumed continuation must redispatch through the captured handler op_tag"
+        );
+        assert_eq!(
+            observations.found_active.load(Ordering::SeqCst),
+            1,
+            "captured handler snapshot must remain active during resumed execution"
+        );
+
         scoop_thread_unregister();
     }
 }

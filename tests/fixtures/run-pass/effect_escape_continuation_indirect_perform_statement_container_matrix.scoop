@@ -1,7 +1,3 @@
-// EXPECT: fail
-// T3015a blocker: first resume can reach the next indirect callee, but the
-// next outward perform still fails to redispatch into the captured handler
-// loop, so the resumed caller-tail truncates after the first resumed segment.
 // RUN-STDOUT: effect_escape_continuation_indirect_perform_statement_container_matrix.stdout
 //
 // T3009b2: ordinary indirect callee resumed-body restore must also cover

@@ -411,6 +411,20 @@ typedef struct ScoopEffectHandlerFrame {
   uint32_t active;
 } ScoopEffectHandlerFrame;
 
+// continuation 捕获的 handler stack 快照。
+//
+// 说明：
+// - runtime TLS 里的 handler frame 可能来自编译器生成的栈上 `alloca`；
+// - escaped continuation 跨出 `handle` 之后，这些原始 frame 会被 `pop` 并失活；
+// - 因此 continuation 不能只保存“原始 frame 指针”，而必须保存一份可跨返回存活的快照。
+//
+// 快照本身不含 GC 引用，因此这里直接使用 native heap 分配，并在 continuation
+// release / one-shot resume 结束后释放。
+typedef struct ScoopCapturedHandlerStack {
+  uint64_t frame_count;
+  ScoopEffectHandlerFrame frames[];
+} ScoopCapturedHandlerStack;
+
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(
     offsetof(ScoopEffectHandlerFrame, prev) == 0,
@@ -453,6 +467,56 @@ static void scoop_effect_perform_slot_drop_gc_ref(void) {
 static void scoop_effect_perform_slot_reset(void) {
   scoop_effect_perform_slot_drop_gc_ref();
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
+
+// 克隆当前 handler stack 链，生成可脱离原始 TLS frame 生命周期的独立快照。
+static ScoopEffectHandlerFrame *scoop_effect_handler_stack_snapshot_clone(
+    const ScoopEffectHandlerFrame *top) {
+  if (top == 0) {
+    return 0;
+  }
+
+  uint64_t depth = 0;
+  for (const ScoopEffectHandlerFrame *it = top; it != 0; it = it->prev) {
+    depth++;
+  }
+
+  const size_t prefix_bytes = offsetof(ScoopCapturedHandlerStack, frames);
+  if (depth > (((uint64_t)SIZE_MAX) - (uint64_t)prefix_bytes) / (uint64_t)sizeof(ScoopEffectHandlerFrame)) {
+    return 0;
+  }
+
+  const size_t total_bytes =
+      prefix_bytes + ((size_t)depth * sizeof(ScoopEffectHandlerFrame));
+  ScoopCapturedHandlerStack *snapshot =
+      (ScoopCapturedHandlerStack *)malloc(total_bytes);
+  if (snapshot == 0) {
+    return 0;
+  }
+
+  snapshot->frame_count = depth;
+  const ScoopEffectHandlerFrame *src = top;
+  for (uint64_t index = 0; index < depth; index++) {
+    snapshot->frames[index].op_tag = src->op_tag;
+    snapshot->frames[index].active = src->active;
+    snapshot->frames[index].prev =
+        (index + 1 < depth) ? &snapshot->frames[index + 1] : 0;
+    src = src->prev;
+  }
+
+  return &snapshot->frames[0];
+}
+
+// 释放由 `scoop_effect_handler_stack_snapshot_clone` 创建的 handler stack 快照。
+static void scoop_effect_handler_stack_snapshot_free(ScoopEffectHandlerFrame *top) {
+  if (top == 0) {
+    return;
+  }
+
+  ScoopCapturedHandlerStack *snapshot =
+      (ScoopCapturedHandlerStack *)((uint8_t *)top -
+                                    offsetof(ScoopCapturedHandlerStack, frames));
+  free(snapshot);
 }
 
 static inline void scoop_effect_trace_reset(uint32_t src_line, uint32_t src_col) {
@@ -884,7 +948,12 @@ typedef struct ScoopContinuation {
   // handler arm 会临时把 frame.state_tag 改成 arm entry state；resume 前必须先恢复这里记录的 body state。
   uint32_t resume_state_tag;
 
-  // 捕获的 handler stack（suspension 点的 TLS 栈顶指针；Appendix A）。
+  // 捕获的 handler stack 快照（Appendix A）。
+  //
+  // 说明：
+  // - continuation 不能借用原始 TLS 栈上的 handler frame，因为 `handle` 返回时这些
+  //   frame 会被 `pop` 并失活；
+  // - 这里保存的是一份 continuation 自己拥有的堆上快照，resume 时临时装回 TLS。
   ScoopEffectHandlerFrame *captured_handler_stack_top;
 
   // heap state machine 指针（由编译器生成；应当是 GC-managed heap 对象）。
@@ -975,6 +1044,8 @@ static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visit
   return refs;
 }
 
+static void scoop_continuation_release(void *object);
+
 static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
     .abi_version = 0,
     .flags = 0,
@@ -985,11 +1056,21 @@ static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
     ._reserved_u32 = 0,
     .trace_bitmap = 0,
     .trace_fn = scoop_continuation_trace,
-    .release_fn = 0,
+    .release_fn = scoop_continuation_release,
 };
 
 // `scoop_alloc` 在文件后部定义；这里提供前置声明以避免隐式声明警告/错误。
 void *scoop_alloc(uint64_t size);
+
+static void scoop_continuation_release(void *object) {
+  if (object == 0) {
+    return;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)object;
+  scoop_effect_handler_stack_snapshot_free(k->captured_handler_stack_top);
+  k->captured_handler_stack_top = 0;
+}
 
 void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   // 约定：为保持 API 易用，允许在未显式 init/register 的情况下被调用。
@@ -1006,8 +1087,19 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
     scoop_pin(state);
   }
 
-  ScoopContinuation *k = (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
+  ScoopEffectHandlerFrame *captured_handler_stack_top =
+      scoop_effect_handler_stack_snapshot_clone(__scoop_effect_handler_stack_top);
+  if (__scoop_effect_handler_stack_top != 0 && captured_handler_stack_top == 0) {
+    if (state != 0) {
+      scoop_unpin(state);
+    }
+    return 0;
+  }
+
+  ScoopContinuation *k =
+      (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
   if (k == 0) {
+    scoop_effect_handler_stack_snapshot_free(captured_handler_stack_top);
     if (state != 0) {
       scoop_unpin(state);
     }
@@ -1021,7 +1113,7 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   // 默认 continuation 只承载“step(state, payload)”语义；只有编译器生成的
   // effect frame continuation 会在 suspend 时显式写入 body resume state。
   k->resume_state_tag = SCOOP_CONTINUATION_RESUME_STATE_UNSET;
-  k->captured_handler_stack_top = __scoop_effect_handler_stack_top;
+  k->captured_handler_stack_top = captured_handler_stack_top;
   k->state = state;
   k->step_fn = step_fn;
   k->resume_word = 0;
@@ -1064,8 +1156,11 @@ uint32_t scoop_continuation_try_resume(void *continuation) {
 // runtime 在调用 step_fn 时把两个槽位都传入。
 static void scoop_continuation_resume_common(void *continuation) {
   ScoopContinuation *k = (ScoopContinuation *)continuation;
+  scoop_pin(continuation);
+  ScoopEffectHandlerFrame *captured_handler_stack_top =
+      k->captured_handler_stack_top;
   ScoopEffectHandlerFrame *saved =
-      scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
+      scoop_effect_handler_stack_swap_top(captured_handler_stack_top);
   void *saved_callee_suspend_state = __scoop_callee_suspend_state;
   void *captured_callee_suspend_state = k->captured_callee_suspend_state;
 
@@ -1092,6 +1187,9 @@ static void scoop_continuation_resume_common(void *continuation) {
     scoop_unpin(captured_callee_suspend_state);
   }
   (void)scoop_effect_handler_stack_swap_top(saved);
+  scoop_effect_handler_stack_snapshot_free(captured_handler_stack_top);
+  k->captured_handler_stack_top = 0;
+  scoop_unpin(continuation);
 }
 
 // one-shot 检查 + Raise 的公共入口：返回 1 表示可以继续 resume，0 表示已触发 Raise。

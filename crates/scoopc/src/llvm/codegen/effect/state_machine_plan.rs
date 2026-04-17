@@ -4256,11 +4256,10 @@ fn build_resume_tail_while_stmt(
     let loop_cond = hir::Expr {
         span: cond.span,
         ty: bool_ty,
-        kind: hir::ExprKind::Binary {
-            lhs: Box::new(resume_first_var.clone()),
-            op: ast::BinaryOp::LogOr,
-            op_span: cond.span,
-            rhs: Box::new(cond.clone()),
+        kind: hir::ExprKind::If {
+            cond: Box::new(resume_first_var.clone()),
+            then_branch: Box::new(make_bool_literal_expr(cond.span, bool_ty, true)),
+            else_branch: Some(Box::new(cond.clone())),
         },
     };
 

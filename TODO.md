@@ -1699,8 +1699,13 @@
   - 更广的 shared resumed-body matrix 仍继续留在后续 `T3009b2`，包括 multi-site 与 nested statement-container source-path 变体的统一验收。
 - 依赖：T3009b2b1
 
-### T3015a [TODO] 修正 escaped continuation 在第一次 resumed segment 后的下一次 perform 无法重新进入 captured handler dispatch loop
+### T3015a [DONE] 修正 escaped continuation 在第一次 resumed segment 后的下一次 perform 无法重新进入 captured handler dispatch loop
 - 描述：开始执行 `T3009b2` 的 shared matrix 后，先把 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 里 ordinary callee 对 `source_path.frames` 非空直接返回 `None` 的缺口补齐为真实 rebuild（`Block / IfThen / IfElse / WhenArm / WhileBody`，其中 `WhileBody` 用 synthetic first-iteration flag 保住“先完成当前迭代尾部，再回到 cond”的语义），并新增 focused reproducer `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`。继续直接运行该 matrix 与既有 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 后确认，更前置 blocker 不是 statement-container source-path rebuild 本身，而是 escaped continuation 在第一次 `resume(...)` 后继续执行 resumed caller-tail 到下一个 indirect callee 时，新的 outward perform 仍不会重新进入 captured handler 的 dispatch loop；当前输出会在第二个 callee 的 `if_enter` / `counter_enter` 之后直接截断，说明 handler redispatch 只覆盖了第一段 resumed segment。
+- 进展：
+  - `runtime/c/scoop_runtime.c` 的 continuation 不再捕获会在 `handle` 退出时被 `pop`/失活的栈上 handler frame，而是捕获 continuation-owned 的 handler stack 堆快照；`scoop_continuation_resume_common()` 也会 pin continuation、安装该快照、在 step 返回后释放快照并恢复 caller TLS。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现在会为每个 unified handle 额外生成 `scoop.effect.dispatch.*` 入口；`Suspend` terminator 分配 continuation 时捕获的是 dispatch-loop entry，而不是 raw `step_fn`，因此 escaped continuation resume 后会重新跑统一 handler dispatch loop。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `WhileBody` resumed-tail 重写已把 synthetic first-iteration 条件从非短路的 `resume_first || cond` 改成显式 `if (resume_first) true else cond`，恢复“先完成当前迭代尾部，再回到 cond”的语义。
+  - 已回收 4 条同根因 run-pass fixture 的 `EXPECT: fail`：`effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`、`effect_escape_continuation_multi_perform_while_loop.scoop`、`continuation_resume_ref_class.scoop`。
 - 目标：
   - escaped continuation 在 `handle` 已返回后的 `resume(...)` 动态范围内，resumed caller-tail 进入下一次 indirect callee / next perform 时，必须重新命中 captured handler dispatch loop，而不是在第一段 resumed segment 后直接截断。
   - 该 redispatch 语义必须同时覆盖既有 multi-site indirect callee matrix 与新的 statement-container indirect callee matrix，不按 callee/source shape 特判。
@@ -1709,6 +1714,16 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_multi_perform_while_loop.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
+  - `cargo test -p scoop_runtime --test continuation_one_shot`
+  - `cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack`
+  - `cargo test -p scoopc escaped_continuation_ir_uses_dispatch_loop_entry_for_resume -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_multi_perform_while_loop.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_ref_class.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b2bR

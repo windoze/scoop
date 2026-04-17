@@ -3,7 +3,7 @@ use scoop_runtime as _;
 
 use core::ffi::c_void;
 use core::ptr;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 // 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）。
 #[repr(C)]
@@ -34,8 +34,10 @@ unsafe extern "C" {
 }
 
 struct ResumeObservations {
-    expected_top: *mut ScoopEffectHandlerFrame,
+    expected_original_top: *mut ScoopEffectHandlerFrame,
     observed_top: AtomicUsize,
+    observed_op_tag: AtomicU32,
+    observed_active: AtomicU32,
     observed_value: AtomicU64,
 }
 
@@ -49,6 +51,18 @@ extern "C" fn observe_step(state: *mut c_void, resume_value: u64, _resume_gc_ref
     observations
         .observed_top
         .store(top as usize, Ordering::SeqCst);
+    if top.is_null() {
+        observations.observed_op_tag.store(0, Ordering::SeqCst);
+        observations.observed_active.store(0, Ordering::SeqCst);
+    } else {
+        let top_ref = unsafe { &*top };
+        observations
+            .observed_op_tag
+            .store(top_ref.op_tag, Ordering::SeqCst);
+        observations
+            .observed_active
+            .store(top_ref.active, Ordering::SeqCst);
+    }
     observations
         .observed_value
         .store(resume_value, Ordering::SeqCst);
@@ -77,8 +91,10 @@ fn continuation_resume_swaps_handler_stack_across_threads_and_restores_after() {
     };
 
     let observations = Box::new(ResumeObservations {
-        expected_top: captured_top,
+        expected_original_top: captured_top,
         observed_top: AtomicUsize::new(0),
+        observed_op_tag: AtomicU32::new(0),
+        observed_active: AtomicU32::new(0),
         observed_value: AtomicU64::new(0),
     });
     let observations_ptr = Box::into_raw(observations) as *mut c_void;
@@ -115,10 +131,25 @@ fn continuation_resume_swaps_handler_stack_across_threads_and_restores_after() {
     }
 
     let observations = unsafe { Box::from_raw(observations_ptr as *mut ResumeObservations) };
-    assert_eq!(
+    assert_ne!(
         observations.observed_top.load(Ordering::SeqCst),
-        observations.expected_top as usize,
-        "step_fn must observe captured handler stack top"
+        0,
+        "step_fn must observe a non-null captured handler snapshot"
+    );
+    assert_eq!(
+        observations.observed_op_tag.load(Ordering::SeqCst),
+        77,
+        "step_fn must observe the captured handler op_tag"
+    );
+    assert_eq!(
+        observations.observed_active.load(Ordering::SeqCst),
+        1,
+        "captured handler snapshot must stay active during resumed execution"
+    );
+    assert_ne!(
+        observations.observed_top.load(Ordering::SeqCst),
+        observations.expected_original_top as usize,
+        "cross-thread resume must install a continuation-owned handler snapshot, not borrow the original stack frame"
     );
     assert_eq!(
         observations.observed_value.load(Ordering::SeqCst),
