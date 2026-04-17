@@ -1,62 +1,87 @@
-# 执行计划与进度记录
+## 当前执行说明
 
-## 说明
+按照要求，我会先在本文件记录一份**可公开的执行依据摘要**与**分步执行计划**，随后再开始读取提交记录、`TODO.md`、`PLAN.md` 和代码库内容。
 
-按要求先记录执行计划与后续进度。这里记录的是可审计的计划、判断依据和关键决策，不包含不可审计的内部推理细节。
+说明：我不会在文件中记录原样的内部私有推理内容，但会持续维护足够详细的任务判断依据、计划、进度、阻塞项和结论，便于审查执行过程。
 
-## 初始计划
+## 初始目标
 
-1. 检查最近一次 Git 提交，确认提交说明里是否提到已有但未修复的问题。
-2. 如最近一次提交暴露出仍未处理的问题，先定位并修复这些问题，再继续后续步骤。
-3. 读取 `TODO.md`，找出第一个未完成任务。
-4. 判断该任务是否足够小且可以在本轮完整交付。
-5. 如果任务过大，则把它拆成更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后只执行拆分后的第一个子任务。
-6. 实现当前目标任务。
-7. 运行与改动相关的验证：
-   - 最小必要测试
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 如任务涉及格式或夹具，再运行相应命令
-8. 更新文档与任务状态：
-   - 更新 `TODO.md`
-   - 更新 `PLAN.md`
-   - 必要时继续更新本文件中的进度记录
-9. 检查工作区变更，确保没有误改或遗漏。
-10. 使用清晰的提交信息提交本轮改动，然后停止，不进入下一项任务。
+本轮只完成一件事：
+
+1. 检查最新提交是否提到已有问题，如有则先修复。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 判断该任务是否需要拆分；若需要，则更新 `PLAN.md` 与 `TODO.md`。
+4. 实现当前应执行的首个任务。
+5. 运行相关测试与质量检查，修复发现的问题。
+6. 更新 `TODO.md`、`PLAN.md`、本文件。
+7. 提交 git commit，然后停止，不继续下一个任务。
+
+## 预定执行步骤
+
+1. 查看最近一次提交信息与变更摘要，确认是否显式提到待修复问题。
+2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
+3. 如任务过大或存在前置缺陷，先整理依赖关系并改写计划。
+4. 定位相关代码、测试与规范位置，确认实现边界。
+5. 修改代码并补充/调整测试。
+6. 运行至少与本任务直接相关的测试；若改动影响较广，则扩大测试范围。
+7. 运行格式化、lint 与必要的全量/增量检查，目标是无 warning。
+8. 更新任务文档状态并记录结果。
+9. 使用清晰的提交信息提交本轮改动。
 
 ## 进度记录
 
-- 已创建本文件并写入初始计划。
-- 已检查最近一次提交 `d995dabe42ddbd9abe7baeb5fa3bd0795fb3b4cf`，提交说明仅为 `[T3009b0a] Front-load outer-slot writeback blocker`，未附带额外“已知未修复问题”说明，因此当前无需在任务外先修新的提交遗留问题。
-- 已读取 `TODO.md` 与 `PLAN.md`，确认第一个未完成任务为 `T3009b0a`：把 unified handle frame 中 outer-scope `var` slot 的写回接回 enclosing locals。
-- 当前判断：先不继续拆分 `T3009b0a`。需要先阅读 `state_machine_emitter`、frame slot metadata 与相关 fixture，确认缺口是否集中在“handle 完成后的统一写回路径”；若实现面超出单轮闭环，再回头拆分并同步更新 `PLAN.md` / `TODO.md`。
-- 已完成实现面定位：
-  - `seed_outer_scope_frame_slots` 只负责把 outer locals/params 拷入 handle frame。
-  - `handle_done` 当前只清理 TLS / handler stack 并读取结果，没有把 frame 中被修改的 outer mutable slot 写回 enclosing locals。
-  - `handle_propagate` 当前会直接 outward propagate，也没有写回；若不在这里同步，则 finally/arm 对 outer `var` 的改动会在 outward propagation 场景下丢失或只停留在 frame 副本里。
-- 当前实施方案：
-  1. 在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中新增统一 helper，按 frame metadata 遍历 slot，只同步 `seed_from_outer_scope && mutable && owner_arm == None` 的 slot。
-  2. 在 `handle_done` 与 `handle_propagate` 两个出口都调用该 helper，确保普通 body、arm body、finally 都经过同一条 authoritative writeback 路径。
-  3. 先跑 `effect_escape_continuation_resume_unit.scoop` / `effect_escape_continuation_resume_string.scoop` 验证 blocker 是否解除；若这些 fixture 因修复而转绿，再决定是否同步移除对应的 stale xfail 标记。
-- 新发现的关键事实：
-  - 仅补 emitter writeback 还不够。复跑 `effect_escape_continuation_resume_unit.scoop` / `..._string.scoop` 后，输出仍然是 `missing`。
-  - 根因进一步定位到 plan builder：`HandleStateMachinePlan::build()` 当前只对 `handle.body.stmts` 调用 `collect_outer_scope_slots(...)`，没有把 arm body / `finally` 中引用的 outer locals 纳入 outer seeded slots。
-  - 因而 `saved` 这类“只在 escape arm 中赋值”的外层 `var` 根本没有进入 frame authoritative slot，后续 writeback helper 自然无从同步。
-- 计划调整（仍在 `T3009b0a` 范围内，不单独拆任务）：
-  1. 扩展 outer-scope slot 收集范围，从仅 `handle.body` 改为覆盖整个 handle：body、arms、finally。
-  2. 显式排除 handle 内声明的局部（body locals、arm binder / resume / continuation locals、finally locals），避免把 handle 内部局部误标为 outer seeded slot。
-  3. 保留已接上的统一 writeback helper，再次验证最小 repro。
-- 当前实现进度：
-  - 已在 `state_machine_emitter.rs` 中新增 metadata 驱动的 outer-slot writeback helper，并接到 `handle_done` / `handle_propagate` 两个出口。
-  - 已在 `state_machine_plan.rs` 中把 outer-scope slot 收集范围扩展到整个 `handle`（body、arms、finally），并显式排除 arm binder / resume / continuation locals 以及 handle 内局部。
-  - 已新增结构测试 `handle_outer_scope_seeding_includes_arm_and_finally_locals`，锁定“只在 arm/finally 中引用的 outer local 也必须 seed；`k` 之类 arm 局部不得误入 outer seeded slot”。
-  - 已新增 focused fixture `effect_escape_continuation_outer_var_writeback_basic.scoop`，覆盖 body/arm/finally 三类 outer `var` 写回；该 fixture 当前通过。
-  - 复跑 `effect_escape_continuation_resume_unit.scoop` / `..._string.scoop` 后，`saved` 不再丢失，输出已从 `missing` 推进到 resumed body 执行阶段；剩余“`resume(...)` 返回后未继续执行 caller tail”的问题属于下一任务 `T3009b0` 的 dedicated resume lowering / return path 范围。
-- 已完成验证：
-  - `cargo test -p scoopc handle_outer_scope_seeding_includes_arm_and_finally_locals -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 已完成文档更新：
-  - `TODO.md` 已将 `T3009b0a` 标记为完成，并记录 focused fixture 与剩余 blocker 归属 `T3009b0`。
-  - `PLAN.md` 已记录本轮完成情况，并把下一步执行顺序推进到 `T3009b0aR -> T3009b0 -> ...`。
+- 已完成：创建本计划文件并写入初始执行计划。
+- 已完成：检查最新提交 `f7ab537922a45684d837718384e6ed1b62761382`（`[T3009b0a] Write back outer-scope handle slots`），提交信息本身未额外声明独立于任务列表之外的新 pre-existing issue。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T3009b0aR`。
+- 当前任务：`T3009b0aR` Review，目标是确认 outer-scope slot 的收集与写回属于 unified handle 合同的一部分，而不是只对 escaped continuation / 特定 fixture 生效的局部补丁。
+
+## 当前任务执行计划（T3009b0aR）
+
+1. 阅读 `TODO.md` / `PLAN.md` 中 `T3009b0a` 与 `T3009b0aR` 的上下文，明确 review 验收标准。
+2. 审查相关生产代码，重点关注：
+   - outer-scope slot 收集范围是否覆盖整个 `handle`（body、arms、finally），而非单一路径；
+   - seeded slot writeback 是否在统一的 handle 退出路径上执行，而非仅在 escaped continuation 或单 fixture 路径触发；
+   - 是否存在按 effect 形状、特定 op、特定 fixture 追加的分支。
+3. 如发现实现缺口，直接修复生产代码并补测试。
+4. 运行与该 review 直接相关的验证；至少包括定向测试，必要时补跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录 review 结论与任何修复。
+6. 提交本轮 commit，然后停止。
+
+## 本轮审查结果与计划调整
+
+- 已审查的生产路径：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+    - `collect_outer_scope_slots(...)` 现已覆盖整个 `handle`（body、arms、finally），并显式排除 arm binder / resume / continuation locals / handle 内局部。
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+    - `seed_outer_scope_frame_slots(...)` 与 `write_back_outer_scope_frame_slots(...)` 都由 `FrameSlot.seed_from_outer_scope` + mutability metadata 驱动；
+    - 初次 handle 退出时的写回统一挂在 `handle_propagate` 与 `handle_done`，不是按 arm kind/fixture 名称分流。
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs`
+    - `codegen_continuation_resume_builtin(...)` 当前只负责 payload 写入 continuation + 调用 runtime `scoop_continuation_resume(...)` + ordinary effect propagation check，本身没有 outer-slot writeback 逻辑。
+  - `runtime/c/scoop_runtime.c`
+    - `scoop_continuation_resume_common(...)` 当前只恢复 handler stack / resume_state_tag 并直接调用 `step_fn`，没有任何 outer-local writeback 钩子。
+
+- 新发现的未跟踪问题：
+  - outer-scope slot 写回目前只覆盖“第一次离开 handle”的 `handle_done` / `handle_propagate`。
+  - escaped continuation 在 handle 返回后通过 `k.resume(...)` 继续执行 body / finally 时，当前 resume 完成路径没有统一的 frame-metadata 驱动 writeback 出口。
+  - 用临时最小 repro 运行 `cargo run -p scoop --features llvm -- run memory/t3009b0aR_resume_writeback_repro.scoop`，观察到输出：
+    - `body_before`
+    - `arm_saved`
+    - `after_handle`
+    - `before`
+    - `body_after`
+  - 这说明 resumed body 已继续执行，但当前 post-resume completion path 既没有形成可复审的统一 outer-local 同步合同，也仍受下一任务 `T3009b0` 的 caller-tail 缺口影响。
+
+- 结论：
+  - `T3009b0aR` 不能在当前状态下完成。
+  - 已按要求把新前置缺口整理为 `T3009b0a1`，并在 `TODO.md` / `PLAN.md` 中把 `T3009b0aR` 顺延到它之后。
+
+## 当前状态
+
+- 已完成：
+  - 检查最新提交、读取 `TODO.md` / `PLAN.md`。
+  - 定位首个未完成任务 `T3009b0aR`。
+  - 完成该 review 的生产代码审查，并识别出新的未跟踪前置缺口。
+  - 更新 `TODO.md` / `PLAN.md`，新增 `T3009b0a1`，重排后续顺序。
+- 当前收尾：
+  - 清理临时复现文件。
+  - 检查改动并提交本轮 commit。

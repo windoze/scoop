@@ -22,6 +22,7 @@
 > 2026-04-17 当前轮重新基线更新：继续按“新最小 repro”执行 `T3010b2b1b` 后发现，真正的首个 blocker 进一步前移为 escaped continuation 的 `Continuation.resume(...)` dedicated lowering 缺口。`effect_resume_nested_escape_handle_tail.scoop` 与已在 `T3009b` 名下的 `effect_escape_continuation_resume_unit.scoop` / `effect_escape_continuation_resume_string.scoop` 现在都一致在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`；与此同时，state-machine plan 已通过 `continuation_resume_call_sites` 正确把这些 call site 分类为 builtin `Continuation.resume`。这说明当前问题不是 unified expected-context/coercion，而是 unified emitter / 普通 call path 仍未对 escaped continuation 的 `k.resume(...)` 做 dedicated lowering。顺序因此再次前移为：`T3010b2b1a`（已完成）→ `T3010b2b1b0`（已完成）→ `T3009b0`（先接通 scalar/ref escaped continuation resume lowering）→ `T3009b0R` → `T3010b2b1b`（再重新检查是否仍有独立 expected-context/coercion 缺口）→ `T3010b2b1`；原 `T3009b` 收窄为在 `T3013R` 之后把同一路径扩展到 composite resume payload。
 > 2026-04-17 当前轮阻塞更新：开始执行 `T3009b0` 并接通 call-span 驱动的 `Continuation.resume(...)` dedicated lowering 原型后，`effect_escape_continuation_resume_unit.scoop` 已不再报 `call callee`，但新的首个失败点进一步前移为 outer-scope mutable slot 写回缺口。具体表现为：escape arm 内 `saved = Some(k)` 已执行并打印 `arm_saved`，离开 `handle` 后 `saved` 仍为 `None`，说明 unified path 目前只把 outer locals/params 通过 `seed_outer_scope_frame_slots` 复制进 effect frame，却没有在 handle 完成后把被 frame 改写的 outer-scope slot 写回 enclosing local alloca。由于这会先于 escaped continuation resume 的 payload/transport 验收暴露，顺序再次前移为：`T3009b0a`（先修 outer-scope seeded slot writeback）→ `T3009b0aR` → `T3009b0`（再继续 scalar/ref resume lowering 验收）→ `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 > 2026-04-17 当前轮完成更新：`T3009b0a` 已完成。修复不止在 emitter 出口补 writeback，还包括把 unified contract 的 outer-scope slot 收集从仅 `handle.body` 扩到整个 `handle`（body、arms、finally），并排除 arm binder / resume / continuation locals 与 handle 内部局部。`handle_done` / `handle_propagate` 现在都会按 metadata 统一回写 seeded outer mutable slot。已新增结构测试 `handle_outer_scope_seeding_includes_arm_and_finally_locals` 与 focused fixture `effect_escape_continuation_outer_var_writeback_basic.scoop`。复跑 `effect_escape_continuation_resume_unit.scoop`、`..._string.scoop` 与 `..._bool.scoop` 后，输出都已越过 `missing`，说明 outer-local 保存阶段已打通；剩余 `resume(...)` 返回后 caller tail 未继续的问题明确留给下一步 `T3009b0/T3009b0R`。
+> 2026-04-17 当前轮 review 更新：开始执行 `T3009b0aR` 时，继续审查 `write_back_outer_scope_frame_slots` 与 `codegen_continuation_resume_builtin` 后发现一个尚未被 `TODO.md` 跟踪的前置缺口：outer-slot writeback 目前仍只挂在 `codegen_handle_expr_via_state_machine` 的 `handle_done` / `handle_propagate`。这覆盖了“第一次离开 handle”时 body / arm / finally 的 outer-local 写回，但 escaped continuation 在 handle 返回后通过 `k.resume(...)` 继续执行 body / finally 时，runtime `scoop_continuation_resume` 只直接调用 continuation `step_fn`，没有任何统一的 frame-metadata 驱动 writeback 出口。用最小临时 repro 验证时，输出为 `body_before` → `arm_saved` → `after_handle` → `before` → `body_after`，说明 resumed body 已继续执行，而 post-resume completion path 仍未形成可复审的统一 outer-local 同步合同。因此顺序再次前移为：`T3009b0a`（已完成）→ `T3009b0a1`（先补 escaped continuation 恢复完成路径的 outer-slot writeback 合同）→ `T3009b0aR` → `T3009b0` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 
 ## 0. 工作原则
 
@@ -405,7 +406,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + writeback）→ `T3009b0aR` → `T3009b0`（接通 escaped continuation 的 scalar/ref resume dedicated lowering）→ `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1`（先补 escaped continuation 恢复完成路径的 outer-slot writeback 合同）→ `T3009b0aR` → `T3009b0`（接通 escaped continuation 的 scalar/ref resume dedicated lowering）→ `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -514,15 +515,16 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0aR`
-2. `T3009b0`
-3. `T3009b0R`
-4. `T3010b2b1`
-5. `T3010b2b`
-6. `T3010R`
-7. `T3011`
-8. `T3011R`
-9. `T3012`
+1. `T3009b0a1`
+2. `T3009b0aR`
+3. `T3009b0`
+4. `T3009b0R`
+5. `T3010b2b1`
+6. `T3010b2b`
+7. `T3010R`
+8. `T3011`
+9. `T3011R`
+10. `T3012`
 10. `T3012R`
 11. `T3013`
 12. `T3013R`
