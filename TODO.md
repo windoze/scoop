@@ -1359,6 +1359,45 @@
   - composite 值统一通过 typed GC box + `resume_gc_ref` / perform-slot `gc_ref` / frame `resume_gc_ref` 传递；continuation / frame trace 已覆盖这些 GC 槽位，因此 transport 与 GC 可达性合同保持一致。
 - 依赖：T3013
 
+### T3014 [DONE] 修正 handler stack 的 multi-op registration 与 unmatched effect 外传
+- 描述：当前统一 state-machine handle 的 `dispatch_unmatched` 路径已正确 outward propagate；本任务剩余需要收口的是 handle 入口只把第一个 dispatch entry 的 `op_tag` push 到 runtime handler stack，导致 multi-op handler 捕获到的动态 effect context 不完整。生产实现必须把每个 dispatch entry 都注册到 runtime handler stack，并在所有退出路径上对称弹栈。
+- 进展：
+  - 已复查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`，确认 `dispatch_unmatched` 当前直接分支到 `outward_target_bb`，不会再把未匹配 effect 吞进 `handle_done`；因此本轮真实缺口收窄为 multi-op registration。
+  - 已新增 `allocate_registered_handler_frames` / `pop_registered_handler_frames` helper，把 handle 入口的 runtime handler 注册收口为单一实现。
+  - handle 入口现在会为 `contract.dispatch_entries()` 中的每个 entry 分配独立的 `ScoopEffectHandlerFrame`，逐个 `scoop_effect_handler_stack_push(frame, op_tag)`，从而让 continuation 捕获到完整的 handler stack 链。
+  - `handle_propagate` 与 `handle_done` 两个出口现在都会按逆序逐个 pop 所有已注册 frame，保持与 runtime stack 的 LIFO 合同一致。
+  - 已新增 LLVM IR 定向测试 `multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack`，锁定 multi-op handle 会生成一帧一 tag 的注册与对应 pop 序列。
+- 目标：
+  - 每个 dispatch entry 的 effect op 都必须在 runtime 动态上下文中有可匹配的注册表示，而不是只注册首个 op。
+  - 当前 handle 未匹配到 `op_tag` 时，不得把 effect 吞掉；当前生产路径应继续保持 outward propagation 合同。
+  - nested different-op handles 的 runtime stack 形态要与 compile-time dispatch 一致，不允许“编译时看起来会冒泡，运行时捕获到的 handler stack 却缺边”。
+- 已验证：
+  - `cargo test -p scoopc multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack -- --nocapture`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_op_tag_two_effects_nested_dispatch.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），未出现新的更早 handler-stack 失败点。
+- 验收：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_op_tag_two_effects_nested_dispatch.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3013R
+
+### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
+- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；若发现这类问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
+  - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
+  - 确认 effect codegen / runtime ABI 对“向外传播”没有 shape-based 或 fixture-based 特判。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
+- 依赖：T3014
+
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
 - 描述：`T3009b0` 会先接通 escaped continuation 的 Unit/标量/GC-ref payload 专用 lowering；`T3013`/`T3013R` 会统一完成 composite value transport。本任务在其后再把两者接回：让 `k.resume(value)` 在保留 dedicated lowering 的同时覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，而不是回退到 generic path 或另起 continuation-only 传输通道。
 - 目标：
@@ -1385,33 +1424,6 @@
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“escaped continuation resume 调用已由专用 lowering 完整接管，无 generic member-access fallback 残留”。
 - 依赖：T3009b
-
-### T3014 [TODO] 修正 handler stack 的 multi-op registration 与 unmatched effect 外传
-- 描述：当前 handle 入口只把第一个 dispatch entry 的 `op_tag` push 到 runtime handler stack，`dispatch_unmatched` 也会直接落到 `handle_done`，导致 multi-arm handler 不能完整注册、不同 effect 的 nested handler 也会错误吞掉本应继续向外传播的 perform。
-- 进展：
-  - `T3008a` 消除 `ptr` / `ptr addrspace(1)` verifier 阻塞后，`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 会持续重复打印 `inner_catch` / `0` 而无法到达 `middle_catch` / `outer_catch`；`effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 与 `effect_op_tag_two_effects_nested_dispatch.scoop` 也会在 10s 超时窗口内挂起。
-  - 这与 Appendix A.4 “handler arm body 在自身 dispatch scope 外执行” 的预期正相反，进一步确认当前 runtime handler stack 语义确实是主阻塞项，而不是单纯 fixture 配置问题。
-- 目标：
-  - 每个 dispatch entry 的 effect op 都必须在 runtime 动态上下文中有可匹配的注册表示，而不是只注册首个 op。
-  - 当前 handle 未匹配到 `op_tag` 时，不得把 effect 吞掉；必须清理本 handle 自己的 runtime 注册后继续向外传播。
-  - nested different-op handles 的 runtime stack 形态要与 compile-time dispatch 一致，不允许“编译时看起来会冒泡，运行时却被内层 handle 吃掉”。
-- 验收：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_op_tag_two_effects_nested_dispatch.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
-  - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3013R
-
-### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
-- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；若发现这类问题，本任务需要直接修复并复审。
-- 目标：
-  - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
-  - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
-  - 确认 effect codegen / runtime ABI 对“向外传播”没有 shape-based 或 fixture-based 特判。
-- 验收：
-  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
-- 依赖：T3014
 
 ### T3015 [TODO] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
 - 描述：`T3010b2b1` 会先收口同步 arm body 内 non-resuming effect 的外传 / cleanup / self-inactive 直接阻塞；本任务保留 escaped continuation 在 `handle` 返回后的 handler context 生命周期、以及延迟 / 跨线程 resume 时 active/inactive 恢复语义的剩余缺口。当前统一主线仍让 continuation 捕获稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。

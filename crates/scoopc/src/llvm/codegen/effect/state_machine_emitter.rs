@@ -1811,43 +1811,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .const_int(contract.entry_state() as u64, false);
         self.builder.build_store(state_tag_gep, entry_state_val)?;
 
-        // Allocate a handler frame on the stack for handler-stack registration.
-        let handler_frame_ty = self.llvm_effect_handler_frame_type();
-        let handler_frame_ptr = self
-            .builder
-            .build_alloca(handler_frame_ty, "handler_frame")?;
-
-        // Zero-initialize the handler frame.
-        let handler_frame_size = self.target_data.get_store_size(&handler_frame_ty);
-        let handler_frame_size_val = self
-            .llvm_ptr_sized_int_type(None)
-            .const_int(handler_frame_size, false);
-        let handler_frame_i8 = self.builder.build_pointer_cast(
-            handler_frame_ptr,
-            self.llvm_i8_ptr_type(),
-            "handler_frame_i8",
-        )?;
-        let zero = self.context.i8_type().const_zero();
-        let _ = self
-            .builder
-            .build_memset(handler_frame_i8, 1, zero, handler_frame_size_val)?;
-
-        // Push the handler frame onto the handler stack for each effect
-        // operation handled by this handler.  For simplicity, we push once
-        // with the first dispatch entry's op_tag; a more complete
-        // implementation would push one frame per op.
-        // For now, if there are dispatch entries, push for the first one.
-        let has_dispatch = !contract.dispatch_entries().is_empty();
-        if has_dispatch {
-            // Use op_tag 0 as a catch-all for the handler.
-            // Individual op_tags are checked in the dispatch logic.
-            let first_op_fqn = contract.dispatch_entries()[0].op_fqn();
-            let op_tag = self.effect_op_tag(first_op_fqn);
-            let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
-            let push_fn = self.declare_runtime_effect_handler_stack_push();
-            self.builder
-                .build_call(push_fn, &[handler_frame_ptr.into(), op_tag_val.into()], "")?;
-        }
+        // Runtime handler-stack registration must represent every dispatched
+        // op_tag, so captured continuation contexts preserve the full dynamic
+        // effect scope rather than only the first entry.
+        let handler_frames = self.allocate_registered_handler_frames(&contract)?;
+        let has_dispatch = !handler_frames.is_empty();
 
         // 5. Call the step function for initial body execution.
         let i64_zero = self.context.i64_type().const_int(0, false);
@@ -2220,9 +2188,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(handle_propagate_bb);
 
         if has_dispatch {
-            let pop_fn = self.declare_runtime_effect_handler_stack_pop();
-            self.builder
-                .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
+            self.pop_registered_handler_frames(&handler_frames)?;
         }
 
         self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
@@ -2244,9 +2210,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_call(clear_fn, &[], "")?;
 
         if has_dispatch {
-            let pop_fn = self.declare_runtime_effect_handler_stack_pop();
-            self.builder
-                .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
+            self.pop_registered_handler_frames(&handler_frames)?;
         }
 
         self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
@@ -2574,6 +2538,70 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
         self.decode_effect_transport_value(at, word, gc_ref, cg_ty)
     }
+
+    fn allocate_registered_handler_frames(
+        &mut self,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<Vec<PointerValue<'ctx>>, LlvmEmitError> {
+        let dispatch_entries = contract.dispatch_entries();
+        if dispatch_entries.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let handler_frame_size = self.target_data.get_store_size(&handler_frame_ty);
+        let handler_frame_size_val = self
+            .llvm_ptr_sized_int_type(None)
+            .const_int(handler_frame_size, false);
+        let zero = self.context.i8_type().const_zero();
+        let push_fn = self.declare_runtime_effect_handler_stack_push();
+
+        let mut handler_frames = Vec::with_capacity(dispatch_entries.len());
+        for (index, dispatch_entry) in dispatch_entries.iter().enumerate() {
+            let handler_frame_ptr = self
+                .builder
+                .build_alloca(handler_frame_ty, &format!("handler_frame_{index}"))?;
+            let handler_frame_i8 = self.builder.build_pointer_cast(
+                handler_frame_ptr,
+                self.llvm_i8_ptr_type(),
+                &format!("handler_frame_{index}_i8"),
+            )?;
+            let _ = self
+                .builder
+                .build_memset(handler_frame_i8, 1, zero, handler_frame_size_val)?;
+
+            let op_tag = self.effect_op_tag(dispatch_entry.op_fqn());
+            let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
+            self.builder.build_call(
+                push_fn,
+                &[handler_frame_ptr.into(), op_tag_val.into()],
+                &format!("push_handler_frame_{index}"),
+            )?;
+            handler_frames.push(handler_frame_ptr);
+        }
+
+        Ok(handler_frames)
+    }
+
+    fn pop_registered_handler_frames(
+        &mut self,
+        handler_frames: &[PointerValue<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        if handler_frames.is_empty() {
+            return Ok(());
+        }
+
+        let pop_fn = self.declare_runtime_effect_handler_stack_pop();
+        for (index, handler_frame_ptr) in handler_frames.iter().enumerate().rev() {
+            self.builder.build_call(
+                pop_fn,
+                &[(*handler_frame_ptr).into()],
+                &format!("pop_handler_frame_{index}"),
+            )?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -2834,6 +2862,65 @@ fun main(): Int {
         assert!(
             ir.contains("site0_active"),
             "runtime raise boundary should still preserve the active outward-dispatch path"
+        );
+    }
+
+    #[test]
+    fn multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Alpha {
+    fun fail(code: Int): Nothing
+}
+
+effect Beta {
+    fun stop(msg: String): Nothing
+}
+
+fun main(): Int {
+    return handle {
+        0
+    } with {
+        Alpha.fail(code: Int) -> {
+            code
+        }
+        Beta.stop(msg: String) -> {
+            0
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        let push_count = ir
+            .matches("call void @scoop_effect_handler_stack_push")
+            .count();
+        let pop_count = ir
+            .matches("call void @scoop_effect_handler_stack_pop")
+            .count();
+
+        assert_eq!(
+            push_count, 2,
+            "multi-op handle should push one runtime handler frame per dispatch entry"
+        );
+        assert_eq!(
+            pop_count, 4,
+            "each registered handler frame should be popped on both done and propagate exits"
+        );
+        assert!(
+            ir.contains("handler_frame_0"),
+            "IR should materialize a dedicated runtime handler frame for the first op"
+        );
+        assert!(
+            ir.contains("handler_frame_1"),
+            "IR should materialize a dedicated runtime handler frame for the second op"
         );
     }
 
