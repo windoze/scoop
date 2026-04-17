@@ -19,6 +19,7 @@
 > 2026-04-17 当前轮阻塞更新：继续复跑 `cargo run -p scoop --features llvm -- test` 后，首个真实失败点推进到 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`，当前 unified path 在 inner escape-cont arm 的间接调用结果整形上仍报 `暂不支持的 main 代码生成节点：value coercion`。这不再是 arm cleanup/self-capture 逻辑缺口，而是一个直接阻塞当前链路的 expected-context/coercion 前置。因此 `T3010b2b1` 继续细化为：`T3010b2b1a`（已完成：direct arm-body outward propagation/finally/no-perform result）→ `T3010b2b1b`（下一步：前移修复 nested arm indirect path 所需的 unified value coercion / expected-context 最小前置）→ `T3010b2b1`（随后回到剩余 nested/indirect outward propagation 验收）。
 > 2026-04-17 当前轮继续定位更新：开始执行 `T3010b2b1b` 时，用定向复现 + backtrace 确认更前置的真实 blocker 并不是 value coercion 本身，而是 synthetic resume slot `__resume_site0` 与 outer local 复用了同一个 `SymbolId`。结果是 inner handle 入口 `seed_outer_scope_frame_slots` 会把 outer `_ : Unit` 误种到期望 `Int` 的 synthetic resume slot 上，在真正进入 unified expected-context 逻辑前就先触发 `Unit -> Int` coercion。由于这个 bug 当前未被 `TODO.md` 显式跟踪，顺序需再次前移为：`T3010b2b1a`（已完成）→ `T3010b2b1b0`（先修 synthetic resume slot id / frame seeding 合同）→ `T3010b2b1b`（再继续 unified value coercion / expected-context）→ `T3010b2b1`。
 > 2026-04-17 当前轮完成更新：`T3010b2b1b0` 已完成。synthetic resume slot 现在通过共享 symbol floor/cursor 在嵌套 handle 间分配全局唯一 `SymbolId`，`seed_outer_scope_frame_slots` 也只会 seed 显式 outer-scope slot。定向复现 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 现已直接通过；同时顺带回收了 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`、`effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_reperform_from_escape_arm.scoop`、`effect_handle_yield_and_step_finally.scoop` 与 `effect_handler_stack_nearest_and_arm_outside_scope.scoop` 这些历史 xfail。继续复跑 `cargo run -p scoop --features llvm -- test` 后，suite 当前首先停在另一条 stale xfail `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`，说明下一步需要由 `T3017` 统一回收剩余 expectation；而 `T3010b2b1b` 的原始目标 fixture 已不再失败，需在后续执行时按新的最小 repro 重新基线化剩余 expected-context/coercion 缺口。
+> 2026-04-17 当前轮重新基线更新：继续按“新最小 repro”执行 `T3010b2b1b` 后发现，真正的首个 blocker 进一步前移为 escaped continuation 的 `Continuation.resume(...)` dedicated lowering 缺口。`effect_resume_nested_escape_handle_tail.scoop` 与已在 `T3009b` 名下的 `effect_escape_continuation_resume_unit.scoop` / `effect_escape_continuation_resume_string.scoop` 现在都一致在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`；与此同时，state-machine plan 已通过 `continuation_resume_call_sites` 正确把这些 call site 分类为 builtin `Continuation.resume`。这说明当前问题不是 unified expected-context/coercion，而是 unified emitter / 普通 call path 仍未对 escaped continuation 的 `k.resume(...)` 做 dedicated lowering。顺序因此再次前移为：`T3010b2b1a`（已完成）→ `T3010b2b1b0`（已完成）→ `T3009b0`（先接通 scalar/ref escaped continuation resume lowering）→ `T3009b0R` → `T3010b2b1b`（再重新检查是否仍有独立 expected-context/coercion 缺口）→ `T3010b2b1`；原 `T3009b` 收窄为在 `T3013R` 之后把同一路径扩展到 composite resume payload。
 
 ## 0. 工作原则
 
@@ -402,7 +403,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3010b2b1b`（按新的最小 repro 重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0`（先接通 escaped continuation 的 scalar/ref resume dedicated lowering）→ `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -511,40 +512,42 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b1`
-2. `T3010b2b`
-3. `T3010R`
-4. `T3011`
-5. `T3011R`
-6. `T3012`
-7. `T3012R`
-8. `T3013`
-9. `T3013R`
-10. `T3009b`
-11. `T3009bR`
-12. `T3014`
-13. `T3014R`
-14. `T3015`
-15. `T3015R`
-16. `T3016`
-17. `T3016R`
-18. `T3017`
-19. `T3017R`
-20. `T3103`
-21. `T3104`
-22. `T3201`
-23. `T3202`
-24. `T3203`
-25. `T3204`
-26. `T3205`
-27. `T3301`
-28. `T3302`
-29. `T3303`
-30. `T3401`
-31. `T3401a`
-32. `T3401b`
-33. `T3401c`
-34. `T3402`
-35. `T3403`
-36. `T3404`
-37. `T3405`
+1. `T3009b0`
+2. `T3009b0R`
+3. `T3010b2b1`
+4. `T3010b2b`
+5. `T3010R`
+6. `T3011`
+7. `T3011R`
+8. `T3012`
+9. `T3012R`
+10. `T3013`
+11. `T3013R`
+12. `T3009b`
+13. `T3009bR`
+14. `T3014`
+15. `T3014R`
+16. `T3015`
+17. `T3015R`
+18. `T3016`
+19. `T3016R`
+20. `T3017`
+21. `T3017R`
+22. `T3103`
+23. `T3104`
+24. `T3201`
+25. `T3202`
+26. `T3203`
+27. `T3204`
+28. `T3205`
+29. `T3301`
+30. `T3302`
+31. `T3303`
+32. `T3401`
+33. `T3401a`
+34. `T3401b`
+35. `T3401c`
+36. `T3402`
+37. `T3403`
+38. `T3404`
+39. `T3405`

@@ -807,17 +807,43 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b1a
 
-### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
-- 描述：`T3010b2b1b0` 完成后，原先用来锚定本任务的 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 已恢复通过，说明此前观测到的 `value coercion` 很大一部分来自 synthetic resume slot id / frame seeding 冲突，而不是稳定存在的独立 emitter 缺口。本任务保留为“重新基线化 nested arm / nested handle / indirect helper call 链路上的剩余 unified expected-context / coercion 缺口”：后续执行时需要先以新的最小 repro 重新定位真实首个失败点；若该前置已不再缺失，应把本任务进一步收窄或直接删除，避免继续围绕已通过 fixture 工作。
+### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
+- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。由于这批 repro 只覆盖 Unit/Bool/String 等现有 scalar/ref transport，不能继续等 `T3013` 的 composite payload 一起处理，必须先前移接通 dedicated lowering。
 - 目标：
-  - 重新定位 nested arm / nested handle / indirect helper call 路径上是否仍存在统一 expected-context / coercion 缺口，并给出新的最小 repro。
+  - 对 typecheck 已确认的 `Continuation.resume(...)` 调用点提供显式 lowering，不再回落到 generic member access / generic call。
+  - 复用现有 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，先覆盖 Unit、标量 word 与 GC ref payload。
+  - 不新增 continuation-only / fixture-only side channel；composite resume payload 仍由后续 `T3013` + `T3009b` 统一收口。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_bool.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3010b2b1b0
+
+### T3009b0R [TODO] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call
+- 描述：在 `T3009b0` 之后只审查生产代码，确认 escaped continuation 的 `Continuation.resume(...)` 已有 dedicated lowering，并且当前仅覆盖 scalar/ref transport 的实现没有偷偷塞回 generic member access / generic call；若发现回落或散落 patch，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `Continuation.resume(...)` 在 unified state-machine emitter 与普通 call path 中都有显式 lowering 分派，不再依赖 generic call callee 兜底。
+  - 确认 scalar/ref payload 仍复用统一 continuation runtime ABI，不存在 escaped-continuation-only 特例通道。
+  - 确认 `T3013` / `T3009b` 后续扩展 composite payload 时，当前 dedicated lowering 可以作为单一基线继续扩展。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“escaped continuation resume 的 scalar/ref lowering 已 dedicated 化，且未回落到 generic call 路径”。
+- 依赖：T3009b0
+
+### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
+- 描述：`T3010b2b1b0` 完成后，原先用来锚定本任务的 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 已恢复通过；继续重新基线化时，新的最小 repro 变为 `effect_resume_nested_escape_handle_tail.scoop`，但其首个失败点并不是 `value coercion`，而是 escaped continuation 的 `Continuation.resume(...)` 仍在 unified emitter 中回落到 generic call path 并报 `call callee`。这个更前置的缺口已由 `T3009b0/T3009b0R` 承接；本任务保留为“在 dedicated escaped-continuation resume lowering 接通之后，再重新检查 nested arm / nested handle / indirect helper call 链路上是否还存在独立的 unified expected-context / coercion 缺口”。若届时该前置已不再缺失，应继续收窄或删除本任务，避免继续围绕已通过 fixture 工作。
+- 目标：
+  - 在 `T3009b0R` 之后重新定位 nested arm / nested handle / indirect helper call 路径上是否仍存在统一 expected-context / coercion 缺口，并给出新的最小 repro。
   - 若缺口仍存在，统一 state-machine emitter 需要为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中同类 `value coercion`。
   - 实现必须复用统一 expected-context/coercion 逻辑，不能加 fixture-only / arm-only / nested-only workaround。
 - 验收：
   - 新的最小 repro 能稳定复现并验证修复后的 nested/indirect expected-context / coercion 行为。
   - 重新跑当前相关 xfail / run-pass 子集时，不再因为这类 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
   - 若执行期 `cargo run -p scoop --features llvm -- test` 仍先停在 `T3017` 的 stale xfail expectation cleanup，上述最小 repro 与相关子集仍应先独立通过；待 `T3017` 回收后再把全量 suite 作为追加验收。
-- 依赖：T3010b2b1b0
+- 依赖：T3009b0R
 
 ### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
 - 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 会先补齐当前链路缺失的 unified value coercion / expected-context 前置。本任务在其之后回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
@@ -942,23 +968,26 @@
   - 审查结论明确记录“payload/result transport 已统一收口到 GC-safe 合同，无散落特判或非法 ptr/int 编码残留”。
 - 依赖：T3013
 
-### T3009b [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 接回专用 lowering，并覆盖 composite resume payload
-- 描述：在 immediate-resume arm 的 `resume(value)` 由 `T3009a` 单独接通之后，escaped continuation 的 `k.resume(value)` 仍需要 dedicated lowering。该路径不仅不能再回落到 generic member access，还必须与 `T3013` 的 composite payload transport 一起覆盖 ref / aggregate / richer resume payload。
+### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
+- 描述：`T3009b0` 会先接通 escaped continuation 的 Unit/标量/GC-ref payload 专用 lowering；`T3013`/`T3013R` 会统一完成 composite value transport。本任务在其后再把两者接回：让 `k.resume(value)` 在保留 dedicated lowering 的同时覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，而不是回退到 generic path 或另起 continuation-only 传输通道。
 - 目标：
-  - 为 `Continuation.resume(...)` 提供专用 codegen 入口，不再依赖 generic member access 路径。
-  - `k.resume(...)` 直接消费显式 continuation 值，并统一走 runtime continuation ABI。
+  - 在 `T3009b0` 的 dedicated lowering 之上扩展 `Continuation.resume(...)` 的 composite payload transport，不再局限于 word/ref。
+  - `k.resume(...)` 继续直接消费显式 continuation 值，并统一走 runtime continuation ABI。
   - 对 composite payload 的 transport 与 `T3013` 对齐，不新增 task-only / continuation-only 特例通道。
 - 验收：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
-  - 重新跑当前 `T3006` xfail 子集时，不再出现 `暂不支持的 main 代码生成节点：member access target`（限 escaped continuation 路径）。
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再出现 escaped continuation 路径上的 `u64 word from composite value` / composite resume transport 相关失败。
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3013R
+- 依赖：T3013R、T3009b0R
 
 ### T3009bR [TODO] Review：确认 escaped continuation resume 调用不再回落到 generic member access
-- 描述：在 `T3009b` 之后只审查生产代码，确认 `Continuation.resume(...)` 已有 dedicated lowering，不再隐藏在 generic member access 中；若发现回落，本任务需要直接修复并复审。
+- 描述：在 `T3009b` 之后只审查生产代码，确认 `Continuation.resume(...)` 的 dedicated lowering 已统一覆盖 scalar/ref + composite payload，不再隐藏在 generic member access / generic call 中；若发现回落，本任务需要直接修复并复审。
 - 目标：
-  - 确认 `Continuation.resume(...)` 有显式 lowering 分派，并与 `T3013` payload 合同一致。
+  - 确认 `Continuation.resume(...)` 有显式 lowering 分派，并与 `T3009b0` + `T3013` 的 payload 合同一致。
   - 确认 LLVM emitter / runtime ABI / helper 中不再保留 escaped continuation 的 placeholder-only glue。
   - 确认没有为过回归而在 generic member access 中加 effect-only 特判。
 - 验收：
