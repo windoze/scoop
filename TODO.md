@@ -1579,23 +1579,86 @@
   - 生产代码中不存在为 direct enum fixture 临时加的成员名 / 局部形状 patch；state-machine segmentation 也仍只依赖 typecheck side table 标记的 `Continuation.resume` 调用点。
 - 依赖：T3009b1
 
-### T3009b2 [TODO] 修正 escaped continuation 的间接 callee 在 suspend 点后的 resumed-body caller-tail
-- 描述：继续执行原 `T3009b` 的 xfail 子集验收时发现，当前 blocker 已不再是 direct composite transport：`effect_escape_continuation_indirect_perform_tail_return_int.scoop` 与 `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop` 都已通过，但 `effect_escape_continuation_indirect_perform_resume_string.scoop` 和 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 仍会在 resumed indirect callee 中跳过 suspend 点之后的语句，只把 resume 值直接返回给 caller。表现为 `fetchGreeting()` / `callIt { ... }` 中 `perform` 之后的 `println(prefix)` / `println(reply.label)` / `println(reply.score)` 不会执行，`callIt` 结果仍停在 arm fallback `0`。这说明当前更前置的真实缺口是“间接 callee suspend 后 resumed-body caller-tail”尚未接回，而不是 `Continuation.resume(...)` 的 direct payload transport；必须先把该 shared 语义补齐，原 `T3009b` 才能继续收尾 composite payload。
+### T3009b2a [DONE] 把 indirect callee 的 `callee_suspend_state` 纳入 continuation/runtime ABI 捕获合同
+- 描述：开始真正实现 `T3009b2` 时，继续复现 `effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 后确认，当前缺口不只是“resume 值被 caller-tail 误用”。更前置的问题是：runtime 虽保留了裸 TLS `__scoop_callee_suspend_state`，但 `ScoopContinuation` / LLVM continuation ABI 只捕获 handler stack、body `state`、`resume_state_tag` 与 payload 双槽，完全没有把 ordinary indirect callee 的 suspend state 纳入 continuation。若不先补这层合同，即便后续接回 callee 自己的 resumed body，`handle` 返回后或跨线程 `resume` 时也没有 authoritative 位置保存/恢复该 state。先把 continuation/runtime ABI 正式扩展为可捕获 `callee_suspend_state`，再继续后续 ordinary callee restore 逻辑。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` / `runtime_abi.rs` / `effect/state_machine_emitter.rs` 中接好 `scoop_callee_suspend_state_get` / `clear` 与 LLVM continuation 第 8 个字段 `captured_callee_suspend_state`，使 `UnifiedStateTerminator::Suspend` 在分配 continuation 后会把当前 TLS callee suspend state 提升进 continuation，并立即清空 TLS。
+  - 已在 `runtime/c/scoop_runtime.c` 中把 `ScoopContinuation` 扩展为正式持有 `captured_callee_suspend_state`：同步更新了布局断言、GC trace、alloc 初始化、resume 动态范围 restore 逻辑，以及 `thread_unregister` 的 TLS 清理。
+  - `scoop_continuation_resume_common()` 现会在 step_fn 动态范围内把 continuation 捕获的 callee suspend state 恢复到 TLS，并在返回后恢复 caller 原 TLS；同时对该 captured state 做动态范围 pin/unpin，避免 moving GC 在 resumed body 消费前让 TLS raw 指针失效。
+  - 已新增一条 LLVM IR 定向测试和两条 runtime 行为测试，分别锁定 suspend 捕获、resume restore 与 TLS clear/unregister 语义。
 - 目标：
-  - indirect callee（普通 helper / closure callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
-  - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。
-  - composite payload（如 `Reply { label, score }`）在上述 resumed-body 路径中能被真正读回并消费，而不是“值到 caller 了但 callee body 被跳过”。
+  - `ScoopContinuation` 结构、runtime trace/alloc/resume 逻辑与 LLVM `llvm_continuation_struct_type()` 必须显式携带 captured callee suspend state，而不是继续依赖裸 TLS 残留。
+  - state-machine `Suspend` 终止点在分配 continuation 时，必须把当前线程的 `callee_suspend_state` 捕获进 continuation。
+  - 这一步只补“捕获/恢复合同”，不在本任务内重新引入旧的 shape-based callee resume codegen。
+- 已验证：
+  - `cargo test -p scoop_runtime --test continuation_one_shot`
+  - `cargo test -p scoop_runtime --test effect_tls`
+  - `cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_tail_return_int.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
+  - 新增 IR/结构定向测试，锁定 continuation IR 会捕获 callee suspend state，且 runtime continuation 布局/trace 合同与 LLVM 一致。
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b1R
 
+### T3009b2aR [TODO] Review：确认 continuation/runtime ABI 对 `callee_suspend_state` 的捕获没有回流成裸 TLS 旁路
+- 描述：在 `T3009b2a` 之后只审查生产代码与 runtime 合同，确认 `callee_suspend_state` 已成为 continuation 的正式组成部分，而不是继续仅靠 TLS 侥幸残留；若发现 capture/restore 仍未闭环或 emitter/runtime 只对单个 fixture 做局部补丁，本任务需要直接修复并复审。
+- 目标：
+  - 确认 continuation/runtime ABI 中存在单一 authoritative 的 callee suspend state capture/restore 通路。
+  - 确认普通线程 TLS 只作为运行期临时寄存，不再承担“continuation 持久化存储”的语义职责。
+  - 确认没有为当前 indirect fixtures 引入 fixture-only / callee-name-only 捕获逻辑。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“continuation/runtime ABI 已正式捕获 callee suspend state，无裸 TLS 持久化旁路残留”。
+- 依赖：T3009b2a
+
+### T3009b2b [TODO] 接回 ordinary indirect callee 的 resumed-body restore 路径，并让 `SuspendCall` resume 不再把 payload 误当整次调用结果
+- 描述：`T3009b2a` 之后，继续把 ordinary indirect callee（普通 top-level helper / closure / function-value callee）的 suspend state save/restore 与 caller-tail 合同正式接回。当前 `SuspendCall` 的 `ResumeAfterSite` 会把恢复值注入 synthetic resume slot，并把 post-call caller-tail 重写成“直接读这个 slot”；这对 tail-return / closure-tail 场景恰好等价，但对 `fetchGreeting()`、`compute()`、`counter()`、`callIt { ... }` 这类 non-tail indirect callee 会把 `resume` payload 误当成整个调用结果，导致 callee 自己的 post-suspend body 被跳过。需要让 callee 在 resume 后重新进入自己的 resumed body，返回真实 call result，再由 outer caller-tail 继续消费。
+- 目标：
+  - ordinary indirect callee 在 outward perform 时能保存自己的 post-suspend state，并在 resume 后恢复 locals/captures 与 resumed body。
+  - outer `SuspendCall` resume 逻辑不再把 payload 直接当作整次调用结果注入 caller-tail；tail-return 与 non-tail 场景继续共享单一合同。
+  - top-level helper / closure / function-value callee 的恢复逻辑不得回流为旧的源码形状分流。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b2aR
+
+### T3009b2bR [TODO] Review：确认 ordinary indirect callee 的 resumed-body restore 已统一接回
+- 描述：在 `T3009b2b` 之后只审查生产代码，确认 ordinary indirect callee 的 resumed-body restore / caller-tail 已形成统一 continuation + suspend-state 合同，而不是对 `fetchGreeting()` / `counter()` / `callIt { ... }` 等 fixture 单独打补丁；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
+  - 确认 top-level helper / closure / function-value callee 共用同一套 resumed-body restore 机制。
+  - 确认没有把旧 callee-shape / source-shape 特判重新带回生产路径。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“ordinary indirect callee resumed-body restore 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 依赖：T3009b2b
+
+### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
+- 描述：在 `T3009b2a` / `T3009b2b` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。
+- 目标：
+  - indirect callee（普通 helper / closure / function-value callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
+  - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。
+  - composite payload（如 `Reply { label, score }`）与 scalar/ref payload 都必须在上述 resumed-body 路径中被真正读回并消费，而不是“值到了 caller 但 callee body 被跳过”。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_tail_return_int.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b2bR
+
 ### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
-- 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation 合同，而不是为 `fetchGreeting()` / `callIt { ... }` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
+- 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation / callee-suspend-state 合同，而不是为 `fetchGreeting()` / `callIt { ... }` / `counter()` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
 - 目标：
   - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
   - 确认 tail-return 与 non-tail indirect callee 路径共享同一套 resumed-body / caller-tail 机制。

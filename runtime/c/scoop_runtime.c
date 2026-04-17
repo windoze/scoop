@@ -591,6 +591,7 @@ void scoop_thread_unregister(void) {
   // 先释放 effect slot 持有的 pin，再把线程标记为未注册。
   __scoop_effect_active = 0;
   __scoop_effect_handler_stack_top = 0;
+  __scoop_callee_suspend_state = 0;
   scoop_effect_perform_slot_reset();
   scoop_effect_trace_reset(0, 0);
 
@@ -887,6 +888,14 @@ typedef struct ScoopContinuation {
   // runtime 在调用 step_fn 时把两个槽位都传入，由 step_fn 按类型选取。
   uint64_t resume_word;
   void *resume_gc_ref;  // GC-traced（见 scoop_continuation_trace）
+
+  // ordinary indirect callee 的 suspend state。
+  //
+  // 说明：
+  // - 该对象语义上是 GC-managed suspend state；
+  // - TLS `__scoop_callee_suspend_state` 只承担“当前运行中的 resumed body”临时寄存职责；
+  // - continuation 才是跨 `handle` 返回 / 跨线程 `resume` 的 authoritative owner。
+  void *captured_callee_suspend_state;  // GC-traced（见 scoop_continuation_trace）
 } ScoopContinuation;
 
 typedef struct ScoopEffectFrameBase {
@@ -903,6 +912,9 @@ _Static_assert(offsetof(ScoopContinuation, hdr) == 0,
                "ScoopContinuation.hdr offset must be 0");
 _Static_assert(offsetof(ScoopContinuation, resumed) == sizeof(ScoopGcObjectHeader),
                "ScoopContinuation.resumed offset must be sizeof(ScoopGcObjectHeader)");
+_Static_assert(offsetof(ScoopContinuation, resume_state_tag) ==
+                   offsetof(ScoopContinuation, resumed) + sizeof(uint32_t),
+               "ScoopContinuation.resume_state_tag must follow resumed");
 _Static_assert(offsetof(ScoopContinuation, captured_handler_stack_top) ==
                    (sizeof(ScoopGcObjectHeader) + 8u),
                "ScoopContinuation.captured_handler_stack_top offset must be header + 8");
@@ -913,6 +925,10 @@ _Static_assert(offsetof(ScoopContinuation, resume_word) ==
 _Static_assert(offsetof(ScoopContinuation, resume_gc_ref) ==
                    offsetof(ScoopContinuation, resume_word) + sizeof(uint64_t),
                "ScoopContinuation.resume_gc_ref must follow resume_word");
+_Static_assert(
+    offsetof(ScoopContinuation, captured_callee_suspend_state) ==
+        offsetof(ScoopContinuation, resume_gc_ref) + sizeof(void *),
+    "ScoopContinuation.captured_callee_suspend_state must follow resume_gc_ref");
 _Static_assert((sizeof(ScoopContinuation) % sizeof(void *)) == 0,
                "ScoopContinuation size must be pointer-aligned");
 #endif
@@ -935,6 +951,13 @@ static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visit
   // T1607：`resume_gc_ref` 可能持有 GC-managed 的 resume payload（String/Ref/boxed compound）。
   if (k->resume_gc_ref != 0) {
     void **slot = (void **)&k->resume_gc_ref;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  // T3009b2a：continuation 正式持有 indirect callee suspend state。
+  if (k->captured_callee_suspend_state != 0) {
+    void **slot = (void **)&k->captured_callee_suspend_state;
     visitor(slot, ctx);
     refs++;
   }
@@ -993,6 +1016,7 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->step_fn = step_fn;
   k->resume_word = 0;
   k->resume_gc_ref = 0;
+  k->captured_callee_suspend_state = 0;
 
   if (state != 0) {
     scoop_unpin(state);
@@ -1032,6 +1056,16 @@ static void scoop_continuation_resume_common(void *continuation) {
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   ScoopEffectHandlerFrame *saved =
       scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
+  void *saved_callee_suspend_state = __scoop_callee_suspend_state;
+  void *captured_callee_suspend_state = k->captured_callee_suspend_state;
+
+  // T3009b2a：TLS 只承担“当前 resumed body 正在消费哪个 callee state”的临时职责；
+  // continuation 自己才是持久化 owner。为了避免 moving GC 在 TLS raw 指针尚未被
+  // resumed callee 消费前搬迁对象，这里对 captured state 做一次动态范围 pin。
+  if (captured_callee_suspend_state != 0) {
+    scoop_pin(captured_callee_suspend_state);
+  }
+  __scoop_callee_suspend_state = captured_callee_suspend_state;
 
   if (k->state != 0 &&
       k->resume_state_tag != SCOOP_CONTINUATION_RESUME_STATE_UNSET) {
@@ -1043,6 +1077,10 @@ static void scoop_continuation_resume_common(void *continuation) {
     k->step_fn(k->state, k->resume_word, k->resume_gc_ref);
   }
 
+  __scoop_callee_suspend_state = saved_callee_suspend_state;
+  if (captured_callee_suspend_state != 0) {
+    scoop_unpin(captured_callee_suspend_state);
+  }
   (void)scoop_effect_handler_stack_swap_top(saved);
 }
 

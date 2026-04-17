@@ -1332,6 +1332,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder
                     .build_store(cont_resume_state_gep, resume_state_val)?;
 
+                // Lift any currently outstanding ordinary indirect-callee
+                // suspend state into the continuation itself. From this point
+                // on the continuation, not thread-local TLS, is the
+                // authoritative owner across handle exit / cross-thread resume.
+                let get_callee_state = self.declare_runtime_callee_suspend_state_get();
+                let captured_callee_state = self
+                    .builder
+                    .build_call(get_callee_state, &[], "captured_callee_suspend_state")?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "callee_suspend_state_get return value",
+                        at: span.into(),
+                    })?
+                    .into_pointer_value();
+                let cont_callee_state_gep = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont,
+                    8, // captured_callee_suspend_state
+                    "cont_callee_suspend_state",
+                )?;
+                self.builder
+                    .build_store(cont_callee_state_gep, captured_callee_state)?;
+
+                let clear_callee_state = self.declare_runtime_callee_suspend_state_clear();
+                self.builder
+                    .build_call(clear_callee_state, &[], "clear_callee_suspend_state")?;
+
                 // Store the continuation pointer into the dedicated runtime
                 // slot so later step_fn re-entry cannot overwrite it by
                 // refreshing resume_gc_ref from the call parameters.
@@ -2899,6 +2927,60 @@ fun main() {
         assert!(
             ir.contains("writeback_outer_slot_storage_"),
             "writeback path should address the frame-recorded outer-slot storage metadata"
+        );
+    }
+
+    #[test]
+    fn suspend_ir_captures_callee_suspend_state_into_continuation() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+fun callIt(): Int / Suspend {
+    Suspend.pause()
+}
+
+fun main(): Int {
+    return handle {
+        callIt()
+    } with {
+        Suspend.pause(), k -> {
+            0
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("@scoop_callee_suspend_state_get"),
+            "suspend path should read any outstanding callee suspend state from runtime TLS"
+        );
+        assert!(
+            ir.contains("@scoop_callee_suspend_state_clear"),
+            "suspend path should clear the runtime TLS callee suspend state after capture"
+        );
+        assert!(
+            ir.contains("cont_callee_suspend_state"),
+            "continuation layout should materialize a dedicated field GEP for captured callee suspend state"
+        );
+        assert!(
+            ir.contains("captured_callee_suspend_state"),
+            "IR should name the captured callee suspend state value flowing into the continuation"
         );
     }
 
