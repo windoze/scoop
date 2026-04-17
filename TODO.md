@@ -928,8 +928,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a1dR
 
-### T3009b0a1eR [TODO] Review：确认 `NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同
+### T3009b0a1eR [DONE] Review：确认 `NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同
 - 描述：在 `T3009b0a1e` 之后只审查生产代码，确认 nested handle 的 inactive-path 已真正回到统一 state-machine 合同，没有把 inner-handle result transport 或 caller-tail continue 散回 outer emitter、普通 call codegen 或 shape-based 分流；若发现这类回流，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`：`NestedHandleBoundary` 的 inactive/active 分流只经由 shared `Suspend` terminator 里的 `suspend_site_uses_inactive_continue_path()` 与 TLS `is_active` 判断。`HandleStateOp::NestedHandleBoundary` 自身仅委托 `codegen_expr_in_expected_context(expr, None)` 生成 inner handle，不包含 outer-emitter caller-tail 特判或普通 call 旁路。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_transform.rs`：`NestedHandleBoundary` 的 suspend site 会稳定携带 `resume_path` + synthetic resume slot，`ResumeAfterSite` 后续 consumer 会改写为读取 `__resume_site*`，inactive-path 不会通过重跑 inner handle 取值。
+  - 已复审 `crates/scoopc/src/llvm/codegen/expr.rs` 与 `crates/scoopc/src/hir/lower/expr.rs`：`ExprKind::Handle` 仍统一进入 `codegen_handle_expr` / `codegen_handle_expr_via_state_machine`，HIR lowering 也保留 typechecked handle result type；未发现 nested-handle 专用入口、shape-based 分流或 outer emitter 补丁回流。
 - 目标：
   - 确认 `NestedHandleBoundary` 的 inactive/active 分流只由统一 contract 与 TLS active 驱动，不读取 nested handle 形状或通过局部补丁短路。
   - 确认 inactive 成功路径不会通过“重跑 inner handle”或其它非 authoritative side channel 取值。
@@ -937,6 +941,14 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“`NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 已验证：
+  - `cargo test -p scoopc nested_handle_boundary_preserves_resume_path_and_slot -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - `NestedHandleBoundary` 的 inactive-path 已统一收口到 state-machine 合同。inactive/active 分流只由 shared `Suspend` terminator 读取 `SuspendSiteKind::NestedHandleBoundary` 与 TLS active 决定。
+  - 生产代码中未发现重跑 inner handle 取值、outer emitter / 普通 call codegen 旁路、源码形状分流，或 effect-only patch 回流。
 - 依赖：T3009b0a1e
 
 ### T3009b0a1cR [TODO] Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同

@@ -31,6 +31,7 @@
 > 2026-04-17 当前轮完成更新：`T3009b0a1d` 已完成。`UnifiedStateTerminator::Suspend` 现在把 `SuspendSiteKind::ObjectInitAccess` 纳入与 `SuspendCall` 相同的 TLS-active 分流：inactive 时把 boundary 结果写回 frame 并 branch 到 `resume_state`，active 时才 continuation + dispatch 返回。新增 run-pass fixture `effect_handle_object_init_access_inactive_basic.scoop` 同时锁定 direct object value access、property access 的 inactive-path caller-tail 和 property access 的 active dispatch。已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。为闭环验证还顺手收回了已恢复通过的 stale xfail `effect_escape_continuation_resume_cross_thread.scoop`；整套 `cargo run -p scoop --features llvm -- test` 仍会在后续 `T3017` 范围内的另一个 stale xfail `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 处停止，因此当前主线下一项仍是 `T3009b0a1dR`。
 > 2026-04-17 当前轮复审完成更新：`T3009b0a1dR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs` 与 `mod.rs` 后确认：`ObjectInitAccessBoundary` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::ObjectInitAccess` + TLS active 决定；`HandlePlanContext::from_codegen` 里的 `object_value_fqns` / `object_property_fqns` 仅来自 `object_inits` 元数据，用于 plan 阶段 suspend-site 建模，不参与 emitter 选路；ordinary `codegen_object_value_access` / `codegen_object_property_access` 中的 TLS active 检查在 step function 内因 `current_fun_return_ty` / `return_context` 被清空而失效，不会形成绕开 state-machine 的 side channel。验证通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1e`。
 > 2026-04-17 当前轮完成更新：`T3009b0a1e` 已完成。`UnifiedStateTerminator::Suspend` 现已把 `SuspendSiteKind::NestedHandleBoundary` 纳入 shared inactive-continue / active-dispatch 合同：inner handle inactive 返回时，把 authoritative 结果写回 frame 并 branch 到 `resume_state`；只有 TLS active 时才继续 continuation + outward dispatch。为避免 inactive-path 重跑 inner handle，`NestedHandleBoundary` 现在与 `SuspendCall` 一样携带 `resume_path` + synthetic resume slot，outer caller-tail 中的 nested handle 子表达式会被改写成读取 `__resume_site*`。实现过程中还顺手修复了更上游的类型源错误：HIR lowering 不再把 `ExprKind::Handle` 一律标成 `Any`，而是保留 typechecked handle result type，否则 nested-boundary resume slot 会被错误降成 `Ref`。已新增 run-pass fixture `effect_handle_nested_handle_boundary_inactive_basic.scoop` 与 transform 单测 `nested_handle_boundary_preserves_resume_path_and_slot`，并同步更新 `tests/fixtures/hir/handle_perform.hir` golden。验证通过：定向单测、定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1eR`。
+> 2026-04-17 当前轮复审完成更新：`T3009b0a1eR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs`、`state_machine_transform.rs`、`expr.rs` 与 `hir/lower/expr.rs` 后确认：`NestedHandleBoundary` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::NestedHandleBoundary` + TLS active 决定；authoritative nested-handle result transport 仍由 `resume_path` + synthetic resume slot 驱动，resume-after-site 后续表达式会读取 `__resume_site*`，不会重跑 inner handle；`ExprKind::Handle` 入口也仍统一进入 `codegen_handle_expr` / `codegen_handle_expr_via_state_machine`，没有 outer emitter、普通 call codegen 或 shape-based 分流回流。验证通过：`cargo test -p scoopc nested_handle_boundary_preserves_resume_path_and_slot -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_nested_handle_boundary_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1cR`。
 
 ## 0. 工作原则
 
@@ -414,7 +415,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1d`（已完成：补齐 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR`（已完成：确认 inactive-path 仍只按统一合同分流）→ `T3009b0a1e`（再修 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR` → `T3009b0a1cR` → `T3009b0a2`（再收口 shared `RuntimeRaiseBoundary`）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1d`（已完成：补齐 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR`（已完成：确认 inactive-path 仍只按统一合同分流）→ `T3009b0a1e`（已完成：补齐 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR`（已完成：确认 nested-handle inactive-path 未回流为旁路补丁）→ `T3009b0a1cR` → `T3009b0a2`（再收口 shared `RuntimeRaiseBoundary`）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -523,48 +524,47 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0a1eR`
-2. `T3009b0a1cR`
-3. `T3009b0a2`
-4. `T3009b0`
-5. `T3009b0a1b`
-6. `T3009b0aR`
-7. `T3009b0R`
-8. `T3010b2b1b`
-9. `T3010b2b1`
-10. `T3010b2b`
-12. `T3010R`
-13. `T3011`
-14. `T3011R`
-15. `T3012`
-16. `T3012R`
-17. `T3013`
-18. `T3013R`
-19. `T3009b`
-20. `T3009bR`
-21. `T3014`
-22. `T3014R`
-23. `T3015`
-24. `T3015R`
-25. `T3016`
-26. `T3016R`
-27. `T3017`
-28. `T3017R`
-29. `T3103`
-30. `T3104`
-31. `T3201`
-32. `T3202`
-33. `T3203`
-34. `T3204`
-35. `T3205`
-36. `T3301`
-37. `T3302`
-38. `T3303`
-39. `T3401`
-40. `T3401a`
-41. `T3401b`
-42. `T3401c`
-43. `T3402`
-44. `T3403`
-45. `T3404`
-46. `T3405`
+1. `T3009b0a1cR`
+2. `T3009b0a2`
+3. `T3009b0`
+4. `T3009b0a1b`
+5. `T3009b0aR`
+6. `T3009b0R`
+7. `T3010b2b1b`
+8. `T3010b2b1`
+9. `T3010b2b`
+10. `T3010R`
+11. `T3011`
+12. `T3011R`
+13. `T3012`
+14. `T3012R`
+15. `T3013`
+16. `T3013R`
+17. `T3009b`
+18. `T3009bR`
+19. `T3014`
+20. `T3014R`
+21. `T3015`
+22. `T3015R`
+23. `T3016`
+24. `T3016R`
+25. `T3017`
+26. `T3017R`
+27. `T3103`
+28. `T3104`
+29. `T3201`
+30. `T3202`
+31. `T3203`
+32. `T3204`
+33. `T3205`
+34. `T3301`
+35. `T3302`
+36. `T3303`
+37. `T3401`
+38. `T3401a`
+39. `T3401b`
+40. `T3401c`
+41. `T3402`
+42. `T3403`
+43. `T3404`
+44. `T3405`
