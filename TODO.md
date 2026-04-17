@@ -789,8 +789,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b0R
 
+### T3010b2b1b0 [TODO] 修正 synthetic resume slot 的 `SymbolId` 冲突与 nested handle frame seeding 合同
+- 描述：开始执行 `T3010b2b1b` 并对 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 做定向定位后确认，当前首个失败点并不只是 expected-context。inner handle 入口的 `seed_outer_scope_frame_slots` 会把 outer local `_ : Unit` 误当成 synthetic resume slot `__resume_site0 : Int` 写入 inner frame；根因是 synthetic resume slot 复用了与外层局部变量相同的 `SymbolId`，导致 env / frame-slot 查找冲突，在真正进入 `T3010b2b1b` 的 unified coercion 逻辑前就先触发 `Unit -> Int` coercion。这个前置 bug 当前未在 TODO 中显式跟踪，必须先前移修复。
+- 目标：
+  - synthetic resume slot 必须拥有与源码局部变量、capture local、outer-scope seeded local 都不冲突的唯一标识。
+  - `seed_outer_scope_frame_slots` 只拷贝真实 outer locals，不得再把 synthetic resume slot 与同 id 的局部变量混淆。
+  - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 不再在 inner handle entry 的 frame seeding 阶段提前报 `Unit -> Int` coercion。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再因为 `seed_outer_scope_frame_slots` / synthetic resume slot id 冲突提前失败
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3010b2b1a
+
 ### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
-- 描述：`T3010b2b1a` 完成并复跑全量 LLVM fixtures 后，新的首个真实失败点推进到 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`：inner escape-cont arm 中 `val _: Int = doFire(code * 3)` 这条 unified path 仍报 `暂不支持的 main 代码生成节点：value coercion`。这属于 broader expected-context/coercion 缺口中的一个最小、当前链路直接依赖的前置子问题，必须先前移解决，否则 `T3010b2b1` 无法继续完成 nested/indirect outward propagation 验收。
+- 描述：`T3010b2b1a` 完成后最初暴露出的首个真实失败点是 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 的 `value coercion`。本轮进一步定位发现，在真正进入这条 unified expected-context/coercion 缺口前，还存在更前置的 synthetic resume slot `SymbolId` 冲突（`T3010b2b1b0`）。待其修复后，本任务再回到原始目标：补齐 inner escape-cont arm / nested handle / indirect helper call 这条链路的 unified expected-context/coercion 前置，否则 `T3010b2b1` 无法继续完成 nested/indirect outward propagation 验收。
 - 目标：
   - 在 inner escape-cont arm / nested handle / indirect helper call 这条路径上，统一 state-machine emitter 能为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中 `value coercion`。
   - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 可执行并把 `EffectB.fireB` 正确向外传播到 outer handler。
@@ -799,7 +812,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
   - 重新跑当前 `T3006` xfail 子集时，不再因为这条 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3010b2b1a
+- 依赖：T3010b2b1b0
 
 ### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
 - 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 会先补齐当前链路缺失的 unified value coercion / expected-context 前置。本任务在其之后回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
