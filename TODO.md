@@ -1300,8 +1300,22 @@
   - 生产代码中未发现按 `single` / `indirect` / `nested` / callee shape 分流的 effect codegen 补丁回流。
 - 依赖：T3012
 
-### T3013 [TODO] 扩展 effect payload / handle result / resume payload transport，覆盖 composite 值
+### T3013 [DONE] 扩展 effect payload / handle result / resume payload transport，覆盖 composite 值
 - 描述：当前统一主线仍把大量 payload/result 运输建立在 `u64 word` 假设上，遇到 tuple/struct/boxed enum payload/continuation ref 等 composite 值就会报 `u64 word from composite value`，并阻塞 handle result、perform binder、resume payload 三条链路的一致性。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中新增 `EffectTransportKind` 与共享 helper：`encode_effect_transport_value`、`decode_effect_transport_value`、`box_effect_transport_value`、`unbox_effect_transport_value`，统一把 effect transport 收口为 `Word` / `GcRef` / `BoxedComposite` 三类。
+  - `codegen_perform_expr`、state-machine `emit_perform_op`、handle result 的 frame read/write 与 `Continuation.resume(...)` payload write/read 现在都复用同一套 helper；tuple/struct/含 payload enum 等非 word 值通过 typed GC box 走 `resume_gc_ref` / perform-slot `gc_ref` / frame `resume_gc_ref`，不再依赖 `u64 word` 假设。
+  - `Continuation.resume(value)` 现优先从 receiver 的 `Continuation<T>` 提取 authoritative payload type，避免 HIR 中 payload expr 已退化成 `Any/Ref` 时走错 expected-type / coercion 路径。
+  - 定向验证通过：
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/handle_compound_result.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_nonresuming_payload_struct_indirect.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+    - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `tests/fixtures/run-pass/continuation_resume_enum.scoop` 已不再报 `u64 word from composite value`；当前残留错误收窄为 richer enum escaped-continuation 路径上的 `value coercion`，继续由后续 `T3009b` 收口。
+  - `tests/fixtures/run-pass/continuation_resume_ref_class.scoop` 在临时去掉 xfail 后暴露出 resumed body 第二次 `perform` 不会重新进入 captured handler dispatch loop、caller-tail 在第一次 `resume` 后被截断的更前置缺口；这属于 `T3015` 的 handler-context lifetime / redispatch 语义问题，而不是当前 transport 根因，因此已恢复为带真实原因的 xfail。
+  - `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop --features llvm -- test` 已越过 transport 相关失败点，当前首个停止点是 `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop` 的 stale `EXPECT: fail`，由 `T3017` 跟踪。
 - 目标：
   - 统一主线的 payload/result transport 需要同时覆盖 word-sized scalar、GC ref 与 composite 值；禁止通过 `ptr <-> int` 编码绕过去。
   - `perform` binder、handle result readback、continuation resume payload 三条路径共享同一套传输合同，而不是各自单独扩展。
@@ -1384,6 +1398,7 @@
 - 进展：
   - `T3010a` 完成后的全量 LLVM fixture 首个失败点已推进到 `effect_escape_continuation_arm_performs_outer_effect.scoop`。直接运行显示当前输出会打印 binder `0`、继续落到 `unreachable_arm`，且没有命中外层 `EffectB` handler，符合本任务要修的 self-inactive / 外层 effect 传播缺口。
   - 同类 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 直接运行也会打印 `0` 并继续到 `unreachable_arm`，进一步确认这不是单个 fixture 偶发，而是 escape-continuation arm 执行期的统一语义缺口。
+  - `T3013` 临时放开 `continuation_resume_ref_class.scoop` 后，又进一步确认了 handler-context lifetime 的另一侧症状：`continuation_resume_ref_class.scoop`、`effect_escape_continuation_multi_perform_while_loop.scoop` 与 `effect_escape_continuation_gc_stress_multi_string.scoop` 都会在第一次 `resume(...)` 后继续执行到 resumed body 的下一次 `perform`，但不会重新进入 captured handler 的 dispatch loop，caller-tail 因而在第一次 resumed segment 后直接截断。这说明“`handle` 返回后的 escaped continuation 仍可多次 suspend/redispatch”目前尚未闭环，属于本任务范围。
 - 目标：
   - arm body 执行期间，触发当前 arm 的 handler instance 必须被临时置为 inactive；arm body 中再次 perform 同一 op 应命中外层 handler，而不是自捕获。
   - escaped continuation 不再捕获会在 `handle_done` 中被 pop/清空的 stack-alloc handler frame；需要改为可持久化、可恢复、与 continuation 生命周期一致的 handler context 表示。

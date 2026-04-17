@@ -1672,34 +1672,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        match val.ty {
-            CgTy::Unit | CgTy::Never => {
-                // No runtime value to store.
-            }
-            CgTy::String | CgTy::Ref => {
-                // GC-managed pointer → resume_gc_ref.
-                if let Some(raw) = val.value {
-                    let gep = self.builder.build_struct_gep(
-                        frame_layout.frame_type,
-                        state_ptr,
-                        frame_layout.resume_gc_ref_index(),
-                        "result_gc_ref",
-                    )?;
-                    self.builder.build_store(gep, raw)?;
-                }
-            }
-            _ => {
-                // Scalar / composite → coerce to u64 word and store.
-                let word = self.coerce_u64_word(span, val)?;
-                let gep = self.builder.build_struct_gep(
-                    frame_layout.frame_type,
-                    state_ptr,
-                    frame_layout.resume_word_index(),
-                    "result_word",
-                )?;
-                self.builder.build_store(gep, word)?;
-            }
-        }
+        let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
+        let word_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.resume_word_index(),
+            "result_word",
+        )?;
+        self.builder.build_store(word_gep, word)?;
+        let gc_ref_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.resume_gc_ref_index(),
+            "result_gc_ref",
+        )?;
+        self.builder.build_store(gc_ref_gep, gc_ref)?;
         Ok(())
     }
 
@@ -1712,157 +1699,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match result_cg_ty {
-            CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Never => Ok(CgValue::never()),
-            CgTy::String | CgTy::Ref => {
-                // Load GC ref from resume_gc_ref.
-                let gep = self.builder.build_struct_gep(
-                    frame_layout.frame_type,
-                    frame_ptr,
-                    frame_layout.resume_gc_ref_index(),
-                    "read_result_gc_ref",
-                )?;
-                let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
-                let loaded = self.builder.build_load(gc_ptr_ty, gep, "result_ref")?;
-                self.cg_value_from_loaded(span, result_cg_ty, loaded)
-            }
-            _ => {
-                // Load scalar word from resume_word and narrow to target type.
-                let gep = self.builder.build_struct_gep(
-                    frame_layout.frame_type,
-                    frame_ptr,
-                    frame_layout.resume_word_index(),
-                    "read_result_word",
-                )?;
-                let i64_ty = self.context.i64_type();
-                let loaded = self
-                    .builder
-                    .build_load(i64_ty, gep, "result_u64")?
-                    .into_int_value();
-
-                // Narrow from u64 to the actual result type.
-                self.narrow_u64_word_to_cg_value(span, loaded, result_cg_ty)
-            }
-        }
-    }
-
-    /// Convert a u64 word (loaded from resume_word) back to the target CgTy.
-    fn narrow_u64_word_to_cg_value(
-        &mut self,
-        span: crate::span::Span,
-        word: IntValue<'ctx>,
-        target: CgTy,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match target {
-            CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Never => Ok(CgValue::never()),
-            CgTy::Bool => {
-                let trunc = self.builder.build_int_truncate(
-                    word,
-                    self.context.bool_type(),
-                    "u64_to_bool",
-                )?;
-                Ok(CgValue::bool(trunc))
-            }
-            CgTy::Int(int_ty) => {
-                let from = IntTy {
-                    bits: 64,
-                    signed: false,
-                };
-                let narrowed = self.cast_int(word, from, int_ty)?;
-                Ok(CgValue::int(narrowed, int_ty))
-            }
-            CgTy::Float64 => {
-                let f64_ty = self.context.f64_type();
-                let bits = self
-                    .builder
-                    .build_bit_cast(word, f64_ty, "u64_to_f64")?
-                    .into_float_value();
-                Ok(CgValue::float(bits, CgTy::Float64))
-            }
-            CgTy::Float32 => {
-                let i32_trunc =
-                    self.builder
-                        .build_int_truncate(word, self.context.i32_type(), "u64_to_u32")?;
-                let f32_ty = self.context.f32_type();
-                let bits = self
-                    .builder
-                    .build_bit_cast(i32_trunc, f32_ty, "u32_to_f32")?
-                    .into_float_value();
-                Ok(CgValue::float(bits, CgTy::Float32))
-            }
-            CgTy::String | CgTy::Ref => {
-                // Should not reach here — GC refs use resume_gc_ref.
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "narrow u64 to gc ref",
-                    at: span.into(),
-                })
-            }
-            CgTy::Enum(enum_ty) => {
-                let layout = self.cg_enum_layout(span, enum_ty)?;
-                match layout.repr {
-                    CgEnumRepr::ValueOnly { underlying } => {
-                        // Value-only enums are plain integers — truncate u64.
-                        let narrowed = self.cast_int(
-                            word,
-                            IntTy {
-                                bits: 64,
-                                signed: false,
-                            },
-                            underlying,
-                        )?;
-                        Ok(CgValue {
-                            ty: CgTy::Enum(enum_ty),
-                            value: Some(narrowed.into()),
-                        })
-                    }
-                    CgEnumRepr::TaggedUnion => {
-                        // Construct { tag, payload_word=0, payload_ptr=null }
-                        // from the u64 word (which encodes the tag).
-                        // Only valid for fieldless-variant enums transported
-                        // via the perform slot (e.g. RuntimeError).
-                        let llvm_ty = self.llvm_enum_value_type(span, enum_ty)?.into_struct_type();
-                        let tag_i32 = self.builder.build_int_truncate(
-                            word,
-                            self.context.i32_type(),
-                            "enum_tag_from_u64",
-                        )?;
-                        let payload_word_ty = self.int_type(self.enum_payload_ty());
-                        let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
-
-                        let mut agg: AggregateValueEnum<'_> = llvm_ty.get_undef().into();
-                        agg = self
-                            .builder
-                            .build_insert_value(agg, tag_i32, 0, "enum_tag")?;
-                        agg = self.builder.build_insert_value(
-                            agg,
-                            payload_word_ty.const_int(0, false),
-                            1,
-                            "enum_payload_word",
-                        )?;
-                        agg = self.builder.build_insert_value(
-                            agg,
-                            payload_ptr_ty.const_null(),
-                            2,
-                            "enum_payload_ptr",
-                        )?;
-                        Ok(CgValue {
-                            ty: CgTy::Enum(enum_ty),
-                            value: Some(agg.as_basic_value_enum()),
-                        })
-                    }
-                    _ => Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "narrow u64 to niche enum (not yet supported)",
-                        at: span.into(),
-                    }),
-                }
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "narrow u64 to composite type (not yet supported)",
-                at: span.into(),
-            }),
-        }
+        let (word, gc_ref) = self.read_frame_resume_payload(
+            frame_ptr,
+            frame_layout,
+            "read_result_word",
+            "read_result_gc_ref",
+        )?;
+        self.decode_effect_transport_value(span, word, gc_ref, result_cg_ty)
     }
 
     // ------------------------------------------------------------------
@@ -2482,35 +2325,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgValue::unit()
         };
 
-        // Write to TLS perform slot based on payload type.
-        match payload_val.ty {
-            CgTy::Unit | CgTy::Never => {
-                // No payload — write op_tag with zero payload.
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                let zero = self.context.i64_type().const_int(0, false);
-                self.builder
-                    .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
-            }
-            CgTy::String | CgTy::Ref => {
-                // GC ref payload — use the gc_ref variant.
-                let word = self.context.i64_type().const_int(0, false);
-                let gc_ref = payload_val.value.map(|v| v.into_pointer_value());
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
-                let gc_ref_val = gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), word.into(), gc_ref_val.into()],
-                    "",
-                )?;
-            }
-            _ => {
-                // Scalar payload — coerce to u64 and write.
-                let word = self.coerce_u64_word(span, payload_val)?;
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                self.builder
-                    .build_call(write_fn, &[op_tag_val.into(), word.into()], "")?;
-            }
-        }
+        let (word, gc_ref) = self.encode_effect_transport_value(span, payload_val)?;
+        let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+        self.builder.build_call(
+            write_fn,
+            &[op_tag_val.into(), word.into(), gc_ref.into()],
+            "",
+        )?;
 
         Ok(())
     }
@@ -2729,39 +2550,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         cg_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        match cg_ty {
-            CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Never => Ok(CgValue::never()),
-            CgTy::String | CgTy::Ref => {
-                // Read GC ref from perform slot.
-                let read_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
-                let raw = self
-                    .builder
-                    .build_call(read_fn, &[], "binder_gc_ref")?
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "perform_slot_read_gc_ref return",
-                        at: at.into(),
-                    })?;
-                self.cg_value_from_loaded(at, cg_ty, raw)
-            }
-            _ => {
-                // Read u64 word and narrow.
-                let read_fn = self.declare_runtime_effect_perform_slot_read_u64();
-                let raw = self
-                    .builder
-                    .build_call(read_fn, &[], "binder_word")?
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "perform_slot_read_u64 return",
-                        at: at.into(),
-                    })?
-                    .into_int_value();
-                self.narrow_u64_word_to_cg_value(at, raw, cg_ty)
-            }
-        }
+        let read_word_fn = self.declare_runtime_effect_perform_slot_read_u64();
+        let word = self
+            .builder
+            .build_call(read_word_fn, &[], "binder_word")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_u64 return",
+                at: at.into(),
+            })?
+            .into_int_value();
+        let read_gc_ref_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
+        let gc_ref = self
+            .builder
+            .build_call(read_gc_ref_fn, &[], "binder_gc_ref")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_gc_ref return",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+        self.decode_effect_transport_value(at, word, gc_ref, cg_ty)
     }
 }
 

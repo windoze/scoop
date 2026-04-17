@@ -23,6 +23,13 @@ mod unified_state_machine_skeleton {
     include!("state_machine_transform.rs");
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EffectTransportKind {
+    Word,
+    GcRef,
+    BoxedComposite,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn ordinary_effect_propagation_enabled(&self) -> bool {
         self.current_fun_return_ty.is_some()
@@ -162,9 +169,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///
     /// The authoritative semantic marker is `continuation_resume_call_sites`;
     /// codegen does not infer this builtin from member names or receiver
-    /// shapes. Scalar payloads flow through `resume_word`, GC refs through
-    /// `resume_gc_ref`, and composite payloads continue to be rejected until
-    /// `T3013`/`T3009b`.
+    /// shapes. Payload transport follows the shared effect transport contract:
+    /// scalar / word-sized enums flow through `resume_word`, direct GC refs
+    /// flow through `resume_gc_ref`, and non-word composite values use a
+    /// typed GC box carried by `resume_gc_ref`.
     pub(super) fn codegen_continuation_resume_builtin(
         &mut self,
         span: crate::span::Span,
@@ -204,7 +212,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let payload_expected = self.cg_ty_of(payload_expr.ty);
+        // `Continuation.resume(value)` 的 authoritative payload type 来自
+        // receiver 的 `Continuation<T>` 实参，而不是 arg expr 自身可能被
+        // HIR 降级成的 `Any/Ref` 类型。
+        let payload_expected = match self.types.kind(receiver.ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() == 1 =>
+            {
+                self.cg_ty_of(nominal.args[0])
+            }
+            _ => self.cg_ty_of(payload_expr.ty),
+        };
         let payload = self.codegen_expr_in_expected_context(payload_expr, payload_expected)?;
         let payload = if let Some(expected_cg) = payload_expected {
             self.coerce_value(payload_expr.span, payload, expected_cg)?
@@ -247,32 +265,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_expr_in_expected_context(arg_expr, None)?
         };
 
-        // Write to TLS perform slot (same logic as state machine emit_perform_op).
-        match payload_val.ty {
-            CgTy::Unit | CgTy::Never => {
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                let zero = self.context.i64_type().const_int(0, false);
-                self.builder
-                    .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
-            }
-            CgTy::String | CgTy::Ref => {
-                let word = self.context.i64_type().const_int(0, false);
-                let gc_ref = payload_val.value.map(|v| v.into_pointer_value());
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
-                let gc_ref_val = gc_ref.unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
-                self.builder.build_call(
-                    write_fn,
-                    &[op_tag_val.into(), word.into(), gc_ref_val.into()],
-                    "",
-                )?;
-            }
-            _ => {
-                let word = self.coerce_u64_word(span, payload_val)?;
-                let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-                self.builder
-                    .build_call(write_fn, &[op_tag_val.into(), word.into()], "")?;
-            }
-        }
+        // Shared effect transport: word / direct GC ref / boxed composite all
+        // collapse to the runtime's `(word0, gc_ref)` perform-slot ABI.
+        let (word, gc_ref) = self.encode_effect_transport_value(span, payload_val)?;
+        let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
+        self.builder.build_call(
+            write_fn,
+            &[op_tag_val.into(), word.into(), gc_ref.into()],
+            "",
+        )?;
 
         // Set the TLS active flag to signal that an effect was performed.
         let set_active = self.declare_runtime_effect_set_active();
@@ -412,6 +413,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_int_z_extend(tag, i64_ty, "enum_tag_u64")?)
                     }
+                    CgEnumRepr::Niche {
+                        storage: crate::ty::layout::NicheStorage::U8,
+                        ..
+                    } => {
+                        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "u64 word from niche enum (no value)",
+                            at: at.into(),
+                        })?;
+                        let BasicValueEnum::IntValue(raw) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "u64 word from niche enum (u8)",
+                                at: at.into(),
+                            });
+                        };
+                        Ok(self
+                            .builder
+                            .build_int_z_extend(raw, i64_ty, "niche_u8_to_u64")?)
+                    }
                     _ => Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "u64 word from niche enum (not yet supported)",
                         at: at.into(),
@@ -425,8 +444,366 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(super) fn narrow_u64_word_to_cg_value(
+        &mut self,
+        span: crate::span::Span,
+        word: IntValue<'ctx>,
+        target: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match target {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool => {
+                let trunc = self.builder.build_int_truncate(
+                    word,
+                    self.context.bool_type(),
+                    "u64_to_bool",
+                )?;
+                Ok(CgValue::bool(trunc))
+            }
+            CgTy::Int(int_ty) => {
+                let from = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let narrowed = self.cast_int(word, from, int_ty)?;
+                Ok(CgValue::int(narrowed, int_ty))
+            }
+            CgTy::Float64 => {
+                let f64_ty = self.context.f64_type();
+                let bits = self
+                    .builder
+                    .build_bit_cast(word, f64_ty, "u64_to_f64")?
+                    .into_float_value();
+                Ok(CgValue::float(bits, CgTy::Float64))
+            }
+            CgTy::Float32 => {
+                let i32_trunc =
+                    self.builder
+                        .build_int_truncate(word, self.context.i32_type(), "u64_to_u32")?;
+                let f32_ty = self.context.f32_type();
+                let bits = self
+                    .builder
+                    .build_bit_cast(i32_trunc, f32_ty, "u32_to_f32")?
+                    .into_float_value();
+                Ok(CgValue::float(bits, CgTy::Float32))
+            }
+            CgTy::String | CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "narrow u64 to gc ref",
+                at: span.into(),
+            }),
+            CgTy::Enum(enum_ty) => {
+                let layout = self.cg_enum_layout(span, enum_ty)?;
+                match layout.repr {
+                    CgEnumRepr::ValueOnly { underlying } => {
+                        let narrowed = self.cast_int(
+                            word,
+                            IntTy {
+                                bits: 64,
+                                signed: false,
+                            },
+                            underlying,
+                        )?;
+                        Ok(CgValue {
+                            ty: CgTy::Enum(enum_ty),
+                            value: Some(narrowed.into()),
+                        })
+                    }
+                    CgEnumRepr::TaggedUnion => {
+                        // Fieldless tagged-union enums continue to use tag-only
+                        // word transport. Rich tagged unions are routed through
+                        // boxed transport before reaching this helper.
+                        let llvm_ty = self.llvm_enum_value_type(span, enum_ty)?.into_struct_type();
+                        let tag_i32 = self.builder.build_int_truncate(
+                            word,
+                            self.context.i32_type(),
+                            "enum_tag_from_u64",
+                        )?;
+                        let payload_word_ty = self.int_type(self.enum_payload_ty());
+                        let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
+
+                        let mut agg: AggregateValueEnum<'_> = llvm_ty.get_undef().into();
+                        agg = self
+                            .builder
+                            .build_insert_value(agg, tag_i32, 0, "enum_tag")?;
+                        agg = self.builder.build_insert_value(
+                            agg,
+                            payload_word_ty.const_int(0, false),
+                            1,
+                            "enum_payload_word",
+                        )?;
+                        agg = self.builder.build_insert_value(
+                            agg,
+                            payload_ptr_ty.const_null(),
+                            2,
+                            "enum_payload_ptr",
+                        )?;
+                        Ok(CgValue {
+                            ty: CgTy::Enum(enum_ty),
+                            value: Some(agg.as_basic_value_enum()),
+                        })
+                    }
+                    CgEnumRepr::Niche {
+                        storage: crate::ty::layout::NicheStorage::U8,
+                        ..
+                    } => {
+                        let narrowed = self.builder.build_int_truncate(
+                            word,
+                            self.context.i8_type(),
+                            "u64_to_niche_u8",
+                        )?;
+                        Ok(CgValue {
+                            ty: CgTy::Enum(enum_ty),
+                            value: Some(narrowed.into()),
+                        })
+                    }
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "narrow u64 to niche enum (not yet supported)",
+                        at: span.into(),
+                    }),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "narrow u64 to composite type (not yet supported)",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn effect_transport_kind(
+        &mut self,
+        at: crate::span::Span,
+        cg_ty: CgTy,
+    ) -> Result<EffectTransportKind, LlvmEmitError> {
+        Ok(match cg_ty {
+            CgTy::Unit
+            | CgTy::Never
+            | CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
+            | CgTy::Int(_) => EffectTransportKind::Word,
+            CgTy::String | CgTy::Ref => EffectTransportKind::GcRef,
+            CgTy::Tuple(_) | CgTy::Struct(_) => EffectTransportKind::BoxedComposite,
+            CgTy::Enum(enum_ty) => {
+                let layout = self.cg_enum_layout(at, enum_ty)?;
+                match layout.repr {
+                    CgEnumRepr::ValueOnly { .. } => EffectTransportKind::Word,
+                    CgEnumRepr::Niche {
+                        storage: crate::ty::layout::NicheStorage::U8,
+                        ..
+                    } => EffectTransportKind::Word,
+                    CgEnumRepr::Niche {
+                        storage: crate::ty::layout::NicheStorage::Pointer,
+                        ..
+                    } => EffectTransportKind::GcRef,
+                    CgEnumRepr::TaggedUnion => {
+                        if layout
+                            .variants
+                            .iter()
+                            .any(|variant| !variant.fields.is_empty())
+                        {
+                            EffectTransportKind::BoxedComposite
+                        } else {
+                            EffectTransportKind::Word
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    fn effect_transport_box_identity(
+        &self,
+        at: crate::span::Span,
+        cg_ty: CgTy,
+    ) -> Result<(String, String, String), LlvmEmitError> {
+        let (kind, type_id, display) = match cg_ty {
+            CgTy::Tuple(type_id) => ("tuple", type_id, self.types.display(type_id).to_string()),
+            CgTy::Struct(type_id) => ("struct", type_id, self.types.display(type_id).to_string()),
+            CgTy::Enum(type_id) => ("enum", type_id, self.types.display(type_id).to_string()),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect transport box identity",
+                    at: at.into(),
+                });
+            }
+        };
+        let suffix = format!(
+            "{}_{}_{}",
+            kind,
+            type_id.as_u32(),
+            sanitize_llvm_ident(&display)
+        );
+        Ok((
+            format!("scoop.runtime.EffectValueBox__{suffix}"),
+            format!("__scoop_type_desc_runtime__effect_value_box__{suffix}"),
+            format!("scoop.runtime.EffectValueBox<{display}>"),
+        ))
+    }
+
+    fn llvm_effect_transport_box_object_type(
+        &mut self,
+        at: crate::span::Span,
+        cg_ty: CgTy,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let (type_name, _, _) = self.effect_transport_box_identity(at, cg_ty)?;
+        if let Some(existing) = self.context.get_struct_type(&type_name) {
+            return Ok(existing);
+        }
+
+        let payload_ty = self.llvm_basic_type_of(at, cg_ty)?;
+        let ty = self.context.opaque_struct_type(&type_name);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into(), payload_ty], false);
+        Ok(ty)
+    }
+
+    fn get_or_create_effect_transport_box_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        cg_ty: CgTy,
+        obj_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let (_, global_name, canonical_name) = self.effect_transport_box_identity(at, cg_ty)?;
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: &canonical_name,
+            obj_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
+    }
+
+    fn box_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "effect transport boxed payload value",
+            at: at.into(),
+        })?;
+        let obj_ty = self.llvm_effect_transport_box_object_type(at, value.ty)?;
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let desc =
+            self.get_or_create_effect_transport_box_type_desc_global(at, value.ty, obj_ty)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "effect_value_box_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[desc_i8.into(), size_v.into()],
+            "rt_alloc_effect_value_box",
+        )?;
+        let raw_ptr =
+            call.try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "scoop_alloc_typed return value (effect value box)",
+                    at: at.into(),
+                })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw_ptr else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return type (effect value box)",
+                at: at.into(),
+            });
+        };
+
+        let obj_ptr = self.builder.build_pointer_cast(
+            raw_ptr,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "effect_value_box_obj_ptr",
+        )?;
+        let payload_gep =
+            self.builder
+                .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
+        self.builder.build_store(payload_gep, raw)?;
+        Ok(self.builder.build_pointer_cast(
+            raw_ptr,
+            self.llvm_gc_i8_ptr_type(),
+            "effect_value_box_as_gc_i8",
+        )?)
+    }
+
+    fn unbox_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        boxed_ref: PointerValue<'ctx>,
+        target: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let obj_ty = self.llvm_effect_transport_box_object_type(at, target)?;
+        let obj_ptr = self.builder.build_pointer_cast(
+            boxed_ref,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "effect_value_box_obj_ptr",
+        )?;
+        let payload_gep =
+            self.builder
+                .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
+        let payload_ty = self.llvm_basic_type_of(at, target)?;
+        let loaded =
+            self.builder
+                .build_load(payload_ty, payload_gep, "effect_value_box_payload")?;
+        self.cg_value_from_loaded(at, target, loaded)
+    }
+
+    pub(super) fn encode_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let zero_word = self.context.i64_type().const_zero();
+        let null_gc_ref = self.llvm_gc_i8_ptr_type().const_null();
+        match self.effect_transport_kind(at, value.ty)? {
+            EffectTransportKind::Word => Ok((self.coerce_u64_word(at, value)?, null_gc_ref)),
+            EffectTransportKind::GcRef => {
+                let gc_ref = match value.value {
+                    Some(raw) => raw.into_pointer_value(),
+                    None => null_gc_ref,
+                };
+                Ok((zero_word, gc_ref))
+            }
+            EffectTransportKind::BoxedComposite => {
+                let boxed = self.box_effect_transport_value(at, value)?;
+                Ok((zero_word, boxed))
+            }
+        }
+    }
+
+    pub(super) fn decode_effect_transport_value(
+        &mut self,
+        at: crate::span::Span,
+        word: IntValue<'ctx>,
+        gc_ref: PointerValue<'ctx>,
+        target: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match target {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => match self.effect_transport_kind(at, target)? {
+                EffectTransportKind::Word => self.narrow_u64_word_to_cg_value(at, word, target),
+                EffectTransportKind::GcRef => self.cg_value_from_loaded(at, target, gc_ref.into()),
+                EffectTransportKind::BoxedComposite => {
+                    self.unbox_effect_transport_value(at, gc_ref, target)
+                }
+            },
+        }
+    }
+
     /// Write a resume payload into a continuation's `resume_word` /
-    /// `resume_gc_ref` fields using the shared scalar/ref transport contract.
+    /// `resume_gc_ref` fields using the shared effect transport contract.
     pub(super) fn write_resume_payload_to_continuation(
         &mut self,
         span: crate::span::Span,
@@ -434,33 +811,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         cont_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let cont_ty = self.llvm_continuation_struct_type();
-
-        match val.ty {
-            CgTy::Unit | CgTy::Never => {
-                // No payload to write.
-            }
-            CgTy::String | CgTy::Ref => {
-                if let Some(raw) = val.value {
-                    let gep = self.builder.build_struct_gep(
-                        cont_ty,
-                        cont_ptr,
-                        7, // resume_gc_ref
-                        "cont_resume_gc_ref",
-                    )?;
-                    self.builder.build_store(gep, raw)?;
-                }
-            }
-            _ => {
-                let word = self.coerce_u64_word(span, val)?;
-                let gep = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6, // resume_word
-                    "cont_resume_word",
-                )?;
-                self.builder.build_store(gep, word)?;
-            }
-        }
+        let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
+        let word_gep = self.builder.build_struct_gep(
+            cont_ty,
+            cont_ptr,
+            6, // resume_word
+            "cont_resume_word",
+        )?;
+        self.builder.build_store(word_gep, word)?;
+        let gc_ref_gep = self.builder.build_struct_gep(
+            cont_ty,
+            cont_ptr,
+            7, // resume_gc_ref
+            "cont_resume_gc_ref",
+        )?;
+        self.builder.build_store(gc_ref_gep, gc_ref)?;
         Ok(())
     }
 
