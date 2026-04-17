@@ -1387,8 +1387,22 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3013R
 
+### T3014a [TODO] 补齐同一 `op_fqn` 下多 arm 的 unified handler dispatch 合同
+- 描述：在准备执行 `T3014R` 复审时发现，`DispatchPlan` / `UnifiedDispatchEntry` / `SuspendSite.matching_arms()` 都保留了“同一 `op_fqn` 可关联多个 arm”的 lowering 合同，但 `state_machine_emitter.rs` 的 handle dispatch 仍只按 `op_tag` switch，并在命中某个 `dispatch_entry` 后静默取 `dispatch_entry.arms().first()`。这会把其余 arm 直接丢掉，使生产 dispatch 与现有 typecheck/lowering 合同不一致；在 generic effect / 不同 handled-effect 实例共享同一 op 的场景下，这不再是 review 可忽略的实现细节，而是必须先修复的前置缺口。
+- 目标：
+  - 明确并落实 unified handler dispatch 对“同一 `op_fqn` 多 arm”的生产合同，不能继续把 `dispatch_entries()` 收缩成单 arm 特例。
+  - `state_machine_emitter.rs` 不得再静默依赖 `dispatch_entry.arms().first()`；direct perform、resumed body 与 outward propagation 路径都必须消费完整的 dispatch metadata。
+  - 若 dispatch 判定需要额外的 runtime / state-machine 元数据，需显式补齐对应 lowering / ABI 合同，而不是靠源码形状、fixture 顺序或默认“第一个 arm”维持表面通过。
+  - 新增最小回归覆盖同一 `op_fqn` 多 arm 场景，证明后续 arm 不会在 production dispatch 中被静默丢弃。
+- 验收：
+  - 生产代码中不再出现把 `dispatch_entry.arms()` 静默收缩为首个 arm 的 dispatch 主路径。
+  - 至少一个定向回归覆盖“同一 `op_fqn` 多 arm”场景，并能稳定区分正确 arm dispatch。
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3014
+
 ### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
-- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；若发现这类问题，本任务需要直接修复并复审。
+- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；本轮复审进一步发现同一 `op_fqn` 多 arm 的 dispatch 合同尚未闭环，已拆出前置 `T3014a`。待该前置任务完成后，本任务再继续确认 registration / outward propagation / dispatch 合同已经统一收口；若发现问题，本任务需要直接修复并复审。
 - 目标：
   - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
   - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
@@ -1396,7 +1410,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
-- 依赖：T3014
+- 依赖：T3014a
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
 - 描述：`T3009b0` 会先接通 escaped continuation 的 Unit/标量/GC-ref payload 专用 lowering；`T3013`/`T3013R` 会统一完成 composite value transport。本任务在其后再把两者接回：让 `k.resume(value)` 在保留 dedicated lowering 的同时覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，而不是回退到 generic path 或另起 continuation-only 传输通道。
