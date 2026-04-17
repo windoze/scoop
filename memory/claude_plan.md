@@ -1,67 +1,96 @@
-# 本轮执行计划（摘要版）
+# 执行计划
 
-说明：这里记录的是可执行的思路摘要与步骤计划，用于跟踪本轮任务进展，不展开内部推理细节。
+说明：这里记录的是可公开的执行计划、决策摘要与进度更新，不包含私有推理细节。
 
-## 目标
+## 初始计划
 
-完成 `TODO.md` 中第一个未完成任务；如果在执行前发现最新提交提到的既有问题，先修复这些问题；完成后更新计划与任务状态，运行相关测试，并提交 git commit，然后停止。
-
-## 预定步骤
-
-1. 检查最新一次 git commit 的提交信息与变更，确认是否提到尚未修复的问题。
+1. 查看最新一次 Git 提交，确认提交说明中是否提到尚未处理的问题；若存在，先修复这些既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务上下文、依赖与可能已有拆分计划。
-4. 如果首个未完成任务过大或存在前置缺口：
-   - 拆分为更小子任务；
-   - 更新 `PLAN.md`；
-   - 调整 `TODO.md` 中的任务顺序与依赖；
-   - 本轮只执行拆分后的第一个子任务。
-5. 阅读相关代码、测试和规范材料，确认正确实现路径，避免引入规避性方案。
-6. 实现任务所需改动，并在关键步骤完成后同步更新本文件。
-7. 运行与改动相关的测试，并补充必要测试；同时确保 `cargo clippy --all-targets -- -D warnings` 不产生告警（若本轮改动范围允许，需要验证）。
-8. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或阻塞原因。
-9. 检查工作区差异，整理提交内容，使用清晰的提交信息创建 commit。
-10. 停止，不继续处理下一个任务。
+3. 判断该任务是否过大：
+   - 如果可直接完成，则进入实现阶段。
+   - 如果过大，则先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，本次只执行拆分后的第一个子任务。
+4. 阅读与当前任务相关的代码、测试、规范和文档，确认实现边界与依赖。
+5. 实现当前任务，必要时补充或调整测试。
+6. 运行相关验证：
+   - 最小相关测试集
+   - 如有必要，运行更广泛的回归测试
+   - `cargo fmt`
+   - `cargo clippy --all-targets -- -D warnings`
+7. 更新项目文档与计划文件：
+   - 在 `TODO.md` 中标记当前任务完成，或在受阻时重排任务依赖
+   - 在 `PLAN.md` 中记录当前状态、依赖变化与后续顺序
+   - 持续更新本文件记录关键进展
+8. 使用清晰的 Git 提交信息提交本次改动。
+9. 停止，不继续处理下一个任务。
 
-## 进度记录
+## 进度日志
 
-- 已创建本轮计划文件。
-- 已检查最新一次 git commit：`[T3010b2b0a] Lock hidden-suspend caller coverage`。提交信息本身未额外声明新的未入账历史问题；`PLAN.md` / `TODO.md` 中记录的后续 blocker 仍为已排队的 `T3010b2b1`。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T3010b2b0R`：复审 ordinary callee frame 在 non-resuming perform / hidden-suspend 返回 active 后的终止语义，确认未回流旧 flag-based unwind / shape-based 路线。
-- 已更新 `TODO.md` / `PLAN.md`：`T3010b2b0R` 已标记完成，后续首个未完成任务变为 `T3010b2b1`。
-- 已检查工作区差异：当前仅保留 `PLAN.md`、`TODO.md` 与 `memory/claude_plan.md` 三处本轮更新。
-- 下一步：
-  1. 创建本轮 git commit，然后停止。
+- 已创建本计划文件，准备检查最新提交与任务列表。
+- 已检查最新提交：`1b008ba8605909085a6ad2d8887c715a699b26bb`，提交标题为 `[T3010b2b0R] Review non-resuming callee propagation`。提交说明未直接新增独立 issue；其内容主要是 review 与计划推进。
+- 已检查 `TODO.md` / `PLAN.md`：
+  - 当前第一个未完成任务是 `T3010b2b1`：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义。
+  - 目前未发现需要再前插的新前置任务；先按 `T3010b2b1` 执行。
 
-## 已完成的复审与验证
+## 当前任务：T3010b2b1
 
-- 已审阅 `crates/scoopc/src/llvm/codegen/effect/mod.rs`：
-  - ordinary-frame propagation 只通过 `emit_ordinary_non_resuming_effect_exit` 与 `emit_ordinary_call_effect_propagation_check` 两个 helper 发射；
-  - `emit_effect_propagation_return` 只负责“默认返回值/return_bb”控制流，不会清掉 TLS active；
-  - direct non-resuming 路径只从 `codegen_perform_expr` 与 `codegen_cast_as_expr` 的 runtime raise fail-path 接入。
-- 已审阅 `crates/scoopc/src/llvm/codegen/mod.rs`：
-  - ordinary call propagation check 已接到 direct/vtable/itable/funptr/closure/operator/object property/object init 等调用面；
-  - hidden-suspend object/property/class-init 路径继续沿统一 active-check 合同传播；
-  - 未发现旧 `emit_effect_unwind_if_active`、`raise_target_stack` 或 callee/source shape 分流回流。
-- 已审阅 `crates/scoopc/src/llvm/codegen/control_flow.rs`：
-  - 未发现 effect 专用 CFG 分流或 active/clear/unwind 逻辑；只有局部变量元数据里的 `call_may_suspend` 赋值，与本任务无旧路径回流关系。
-- 已审阅 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的关键边界：
-  - step function 生成前会暂存并清空 `current_fun_return_ty` / `return_context`，说明 ordinary-frame propagation helper 不会误闯统一 state-machine step/dispatch；
-  - handle dispatch 仍通过 state machine 的 `is_active -> clear_active -> dispatch` 路径工作，caller-side 语义未被普通 callee 早退逻辑破坏。
-- 已完成关键词检索：
-  - `emit_effect_unwind_if_active` / `raise_target_stack` / `CalleeSuspend` / `scan_for_callee_suspend` / `suspendable` 在生产代码中无命中；
-  - ordinary callee 路径没有使用 `declare_runtime_effect_clear` / `clear_active`，说明不会吞掉 active。
-- 已完成定向验证：
-  - `target/debug/scoop run tests/fixtures/run-pass/nothing_raise_in_helper_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/object_property_init_raise_helper_try_catch_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_helper_object_property_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_member_helper_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
-  - `target/debug/scoop run tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`
-  - `cargo test -p scoopc segment_dump_classifies_hidden_suspend_ -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 已复跑全量 LLVM fixture：`target/debug/scoop test` 仍首先失败于已知后续 blocker `tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`，与 `T3010b2b1` 一致，未把失败点拉回到本轮复审范围之前。
+### 已知目标
+
+1. 复现并确认 arm body 中 non-resuming effect 的错误行为：
+   - arm body 里的 `Raise.raise(...)` 后仍继续执行 `arm_unreachable`
+   - sibling arm 错误自捕获
+   - `finally` 在向外传播前没有恰好执行一次
+2. 读取相关实现，重点检查：
+   - unified state machine emitter 中 arm body / cleanup / outward propagation 路径
+   - effect handler active/inactive 状态切换
+   - handle dispatch loop 与 arm 执行后的控制流
+3. 如果确认任务边界仍过大，再细化拆分并更新 `PLAN.md` / `TODO.md`；否则直接实现。
+4. 实现后运行最小定向验证，再补充全量相关测试与 lint。
+5. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+### 当前判断的根因
+
+1. `emit_execute_arm_body` 目前把整个 arm body 当作普通表达式直接交给 `codegen_expr_in_expected_context`，但 step function 生成时显式清空了 `current_fun_return_ty` / `return_context`，导致 arm body 内的 `Raise.raise(...)` 只会写 TLS active，不会像普通函数 frame 那样立刻终止当前 step function；于是 `arm_unreachable` 继续执行。
+2. `codegen_handle_expr_via_state_machine` 的 dispatch loop 在进入 arm 前只调用了 `scoop_effect_clear_active()`，没有把当前 handler frame 置为 inactive；因此 arm body 再次触发 effect 时，当前 handle 仍会把它当作自己可处理的 active 返回重新 dispatch，出现 sibling arm 自捕获。
+3. 当前 dispatch loop 对“当前 handle 不该继续接住的 active”没有 outward propagation 路径：`dispatch_unmatched` 直接走 `handle_done`，而 `handle_done` 会 `scoop_effect_clear()`，导致原本应该向外传播的 effect 被吞掉，`finally` 也被绕过。
+
+### 计划中的实现
+
+1. 给 runtime ABI / symbol 补上 `scoop_effect_handler_stack_set_active` 声明。
+2. 在 `emit_execute_arm_body` 内部，包一层仅针对 arm body 的“ordinary effect propagation”上下文，让 arm body 中的 non-resuming perform/call 在 active 时直接从 step function 返回，阻止继续执行 arm body 后续语句。
+3. 重构 `codegen_handle_expr_via_state_machine` 的 dispatch/arm 路径：
+   - arm 执行前把当前 handler frame 设为 inactive；
+   - arm 正常完成后恢复 active 并回到 `dispatch_check`；
+   - arm 执行期若返回 active，则先走当前 handle 的 cleanup/`finally`，然后弹出 handler frame，保留 TLS active + perform slot，改走 outward propagation。
+4. 让 handle 的 unmatched/propagation 路径不再清空 TLS active；在 ordinary frame 中沿用现有 helper 继续向 caller 传播，在 state-machine/nested-handle 场景下返回 default value 但保留 active，供外层边界继续处理。
+5. 跑三个定向 fixture、相关单测、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`，确认没有新回归。
+
+## 当前结果
+
+### 已完成实现（对应新拆分子任务 `T3010b2b1a`）
+
+1. 已修复 arm body direct non-resuming effect 在 unified state-machine 中继续执行后续语句的问题：
+   - arm body 内 direct `Raise.raise(...)` / indirect helper call 触发 active 后会立刻结束当前 step function；
+   - sibling arm 不再自捕获 arm body 内再次触发的 effect。
+2. 已把 handle-level cleanup/`finally` 接回 arm return 与 outward propagation 出口，并用 frame `cleanup_flag` 防止重复执行。
+3. 已修复 cleanup 重入 step function 时覆盖已有 handle result 的问题；finally 运行后仍保留正确 result。
+4. 已回收并验证以下同根因 fixture：
+   - `effect_resume_finally_arm_raise.scoop`
+   - `effect_escape_continuation_finally_arm_raise.scoop`
+   - `effect_multi_nonresuming_raise_custom_finally.scoop`
+   - `effect_escape_continuation_finally_no_perform.scoop`
+   - `effect_escape_continuation_zero_perform_returns_body.scoop`
+   - `effect_no_perform_handle_elim_basic.scoop`
+5. 已验证：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+
+### 新发现的前置阻塞
+
+1. 继续执行全量 `cargo run -p scoop --features llvm -- test` 后，新的首个真实失败点为：
+   - `tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+2. 定向复现结果：
+   - 当前 unified path 在 inner escape-cont arm 中的间接调用结果整形上报 `暂不支持的 main 代码生成节点：value coercion`
+3. 结论：
+   - 这属于 broader expected-context / coercion 范围里的一个最小前置缺口，但它直接阻塞当前 `T3010b2b1` 链路；
+   - 因此原 `T3010b2b1` 已继续细化为：`T3010b2b1a`（已完成）→ `T3010b2b1b`（下一步：前移修复这条 nested arm indirect path 的 unified value coercion / expected-context）→ `T3010b2b1`（随后回到剩余 nested/indirect outward propagation 验收）；
+   - 当前不应在本轮里直接展开更广的 `T3012`，而应更新 `TODO.md` / `PLAN.md` 反映新的子任务顺序后提交并停止。

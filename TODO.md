@@ -767,18 +767,53 @@
   - caller 侧 state-machine dispatch 未被破坏：step function 会隔离 ordinary-frame helper 所依赖的 `current_fun_return_ty` / `return_context`，而 handle dispatch 仍通过统一 `is_active -> clear_active -> dispatch` 路径消费 active。
 - 依赖：T3010b2b0a
 
-### T3010b2b1 [TODO] 修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义
-- 描述：在 `T3010b2b0` 完成后复现当前验收用例时可见：普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，但 arm body 中的 `Raise.raise(...)` 仍会错误继续执行到 `arm_unreachable`，sibling `Raise.raise` arm 也仍会自捕获，`finally` 没有在向外传播前恰好执行一次。`T3010b2b0` 已先修掉普通 callee frame 在 non-resuming perform 后继续执行的更基础缺口；本任务接着专注收口 arm body 执行期特有的 self-inactive / cleanup / outward propagation 语义。
+### T3010b2b1a [DONE] 修正 handle arm body direct non-resuming effect 的外传 / finally cleanup / no-perform handle result 语义
+- 描述：在 `T3010b2b0` 完成后复现 arm-body 相关验收用例时可见：arm body 中的 `Raise.raise(...)` 仍会继续执行到 `arm_unreachable`，sibling `Raise.raise` arm 会自捕获，`finally` 只在 body 正常落到 `CleanupEnter` 时执行，arm return / outward propagation / no-perform body 的路径都会绕开 cleanup，且某些 no-perform handle 仍返回 `0` 而不是 body 的真实值。本子任务先收口这批 direct 路径。
+- 进展：
+  - 已在 `state_machine_emitter.rs` 中把 arm body 的整棵表达式重发射临时置于 ordinary effect propagation 合同下，使 arm body 内 direct `Raise.raise(...)` / indirect helper call 触发的 active 会立刻结束当前 step function，而不会继续执行 arm body 后续语句。
+  - 已重构 handle dispatch 出口：matched arm 在进入 arm state 前先消费当前 perform 的 active；arm step 返回后根据 `state_tag` 区分“arm 自身再次 perform”与“arm resume 后 body 再次 perform”，前者直接走 outward propagation，不再回落到 sibling arm 自捕获。
+  - 已把 handle-level cleanup/`finally` 从“只覆盖 body 正常收尾”扩展到 arm return/outward propagation，并通过 frame `cleanup_flag` 防止重复执行；cleanup 重入 step function 前会保留 frame 中已有的 handle result，避免 `finally` 把结果覆盖成 `0`。
+  - 已顺带回收 4 条同根因 xfail：`effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_no_perform.scoop`、`effect_escape_continuation_zero_perform_returns_body.scoop`、`effect_no_perform_handle_elim_basic.scoop`。
 - 目标：
-  - arm body 中触发的 unmatched non-resuming effect 不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
-  - arm body 执行期间当前 handler instance 必须处于 dispatch scope 外 / self-inactive；sibling arms 不得自捕获 arm body 内再次触发的 effect。
-  - immediate-resume、escape continuation 与 pure non-resuming source-handle 在 arm body 内共享同一套外传 / cleanup 语义。
+  - arm body 中 direct unmatched non-resuming effect 不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
+  - sibling arms 不得自捕获 arm body 内 direct 触发的再次 perform。
+  - no-perform handle body、arm normal return 与 finally 组合时，handle result 必须保持为 body/arm 的真实值。
 - 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_arm_raise.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
-  - `cargo run -p scoop --features llvm -- test`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_no_perform.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_zero_perform_returns_body.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_no_perform_handle_elim_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b0R
+
+### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
+- 描述：`T3010b2b1a` 完成并复跑全量 LLVM fixtures 后，新的首个真实失败点推进到 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`：inner escape-cont arm 中 `val _: Int = doFire(code * 3)` 这条 unified path 仍报 `暂不支持的 main 代码生成节点：value coercion`。这属于 broader expected-context/coercion 缺口中的一个最小、当前链路直接依赖的前置子问题，必须先前移解决，否则 `T3010b2b1` 无法继续完成 nested/indirect outward propagation 验收。
+- 目标：
+  - 在 inner escape-cont arm / nested handle / indirect helper call 这条路径上，统一 state-machine emitter 能为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中 `value coercion`。
+  - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 可执行并把 `EffectB.fireB` 正确向外传播到 outer handler。
+  - 实现必须复用统一 expected-context/coercion 逻辑，不能加 fixture-only / arm-only / nested-only workaround。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+  - 重新跑当前 `T3006` xfail 子集时，不再因为这条 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3010b2b1a
+
+### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
+- 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 会先补齐当前链路缺失的 unified value coercion / expected-context 前置。本任务在其之后回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
+- 目标：
+  - arm body 中 nested/indirect 触发的 unmatched non-resuming effect 同样不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
+  - immediate-resume、escape continuation 与 pure non-resuming source-handle 在 arm body 内共享同一套 direct + nested/indirect outward propagation 语义。
+  - `cargo run -p scoop --features llvm -- test` 在 arm-body outward propagation 语义上不再被更早 fixture 阻塞。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T3010b2b1b
 
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
 - 描述：`T3010b2a` 已把 body tail 改写到 synthetic resume slot，`T3009a` 将补上 arm 内 `resume(value)` 的专用 lowering。两者接通后，再回到端到端语义收口：resume landing 只能继续剩余 tail，不能重放 suspend 前已经求值的路径。

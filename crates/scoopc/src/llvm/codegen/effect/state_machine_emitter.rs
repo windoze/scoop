@@ -20,7 +20,7 @@ use super::*;
 
 use super::unified_state_machine_skeleton::{
     HandleBranchCondition, HandleStateOp, UnifiedFrameField, UnifiedFrameSystemField,
-    UnifiedHandleLoweringContract, UnifiedState, UnifiedStateTerminator,
+    UnifiedHandleLoweringContract, UnifiedState, UnifiedStateContext, UnifiedStateTerminator,
 };
 
 /// System field indices in the frame struct.
@@ -182,6 +182,7 @@ fn extract_immediate_resume_payload_expr(
 /// `UnifiedFrameField` indices to LLVM struct field indices.
 pub(super) struct FrameLayout<'ctx> {
     pub(super) frame_type: inkwell::types::StructType<'ctx>,
+    cleanup_flag_index: Option<u32>,
     continuation_index: u32,
 }
 
@@ -200,6 +201,10 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn continuation_index(&self) -> u32 {
         self.continuation_index
+    }
+
+    pub(super) fn cleanup_flag_index(&self) -> Option<u32> {
+        self.cleanup_flag_index
     }
 
     /// Return the LLVM struct field index for a user slot given its
@@ -250,6 +255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i64_ty.into(),    // resume_word
             gc_ptr_ty.into(), // resume_gc_ref
         ];
+        let mut cleanup_flag_index = None;
 
         // Optional system fields from the schema.
         for field in system_fields {
@@ -260,6 +266,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // Already added above.
                 }
                 UnifiedFrameField::System(UnifiedFrameSystemField::CleanupFlag) => {
+                    cleanup_flag_index = Some(field_types.len() as u32);
                     field_types.push(i32_ty.into());
                 }
                 UnifiedFrameField::System(UnifiedFrameSystemField::OneShotFlag) => {
@@ -303,6 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(FrameLayout {
             frame_type,
+            cleanup_flag_index,
             continuation_index,
         })
     }
@@ -491,6 +499,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // Fresh env scope for this state's locals.
             self.env.push_scope();
+
+            if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
+                self.write_cleanup_flag(state_ptr, frame_layout, true, "cleanup_entered")?;
+            }
 
             // Pre-populate frame slot locals so cross-state references work.
             // Each state gets its own GEP instructions (required for LLVM
@@ -1310,6 +1322,156 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    /// Load the frame's current `state_tag`.
+    fn read_state_tag(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.state_tag_index(),
+            &format!("{name}_ptr"),
+        )?;
+        Ok(self
+            .builder
+            .build_load(self.context.i32_type(), gep, name)?
+            .into_int_value())
+    }
+
+    fn read_frame_resume_payload(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        word_name: &str,
+        gc_name: &str,
+    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let resume_word_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.resume_word_index(),
+            &format!("{word_name}_ptr"),
+        )?;
+        let resume_word = self
+            .builder
+            .build_load(self.context.i64_type(), resume_word_gep, word_name)?
+            .into_int_value();
+
+        let resume_gc_ref_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.resume_gc_ref_index(),
+            &format!("{gc_name}_ptr"),
+        )?;
+        let resume_gc_ref = self
+            .builder
+            .build_load(self.llvm_gc_i8_ptr_type(), resume_gc_ref_gep, gc_name)?
+            .into_pointer_value();
+
+        Ok((resume_word, resume_gc_ref))
+    }
+
+    fn write_cleanup_flag(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        value: bool,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(cleanup_flag_index) = frame_layout.cleanup_flag_index() else {
+            return Ok(());
+        };
+        let gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            cleanup_flag_index,
+            &format!("{name}_ptr"),
+        )?;
+        let raw = self.context.i32_type().const_int(u64::from(value), false);
+        self.builder.build_store(gep, raw)?;
+        Ok(())
+    }
+
+    fn read_cleanup_flag_i1(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let Some(cleanup_flag_index) = frame_layout.cleanup_flag_index() else {
+            return Ok(self.context.bool_type().const_zero());
+        };
+        let gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            cleanup_flag_index,
+            &format!("{name}_ptr"),
+        )?;
+        let raw = self
+            .builder
+            .build_load(self.context.i32_type(), gep, name)?
+            .into_int_value();
+        Ok(self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            raw,
+            self.context.i32_type().const_zero(),
+            &format!("{name}_bool"),
+        )?)
+    }
+
+    /// Read the TLS effect active flag and coerce it to an LLVM `i1`.
+    fn emit_effect_is_active_i1(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let is_active_fn = self.declare_runtime_effect_is_active();
+        let active_raw = self
+            .builder
+            .build_call(is_active_fn, &[], name)?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect is_active return",
+                at: at.into(),
+            })?
+            .into_int_value();
+        Ok(self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            active_raw,
+            self.context.i32_type().const_int(0, false),
+            &format!("{name}_bool"),
+        )?)
+    }
+
+    /// Return `true` iff `state_tag` equals one of the provided state IDs.
+    fn state_tag_matches_any(
+        &mut self,
+        state_tag: IntValue<'ctx>,
+        state_ids: &[u32],
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let i1_ty = self.context.bool_type();
+        let mut matches = i1_ty.const_zero();
+        for (index, state_id) in state_ids.iter().enumerate() {
+            let cmp = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                state_tag,
+                self.context.i32_type().const_int(*state_id as u64, false),
+                &format!("{name}_{index}_eq"),
+            )?;
+            matches = if index == 0 {
+                cmp
+            } else {
+                self.builder
+                    .build_or(matches, cmp, &format!("{name}_{index}_or"))?
+            };
+        }
+        Ok(matches)
+    }
+
     /// Store a CgValue into the frame's resume_word / resume_gc_ref fields,
     /// used for passing the handle result or early-return value back to the
     /// caller.
@@ -1681,38 +1843,56 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
+        let result_slot = match result_cg_ty {
+            CgTy::Unit | CgTy::Never => None,
+            _ => {
+                let llvm_ty = self.llvm_basic_type_of(span, result_cg_ty)?;
+                Some(self.builder.build_alloca(llvm_ty, "handle_result_slot")?)
+            }
+        };
+
         let dispatch_check_bb = self
             .context
             .append_basic_block(current_fn, "dispatch_check");
         let dispatch_arm_bb = self.context.append_basic_block(current_fn, "dispatch_arm");
+        let cleanup_entry_state = contract
+            .cleanup_scopes()
+            .first()
+            .map(|scope| scope.entry_state());
+        let handle_cleanup_propagate_check_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(current_fn, "handle_cleanup_propagate_check")
+        });
+        let handle_cleanup_propagate_run_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(current_fn, "handle_cleanup_propagate_run")
+        });
+        let handle_cleanup_done_check_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(current_fn, "handle_cleanup_done_check")
+        });
+        let handle_cleanup_done_run_bb = cleanup_entry_state.map(|_| {
+            self.context
+                .append_basic_block(current_fn, "handle_cleanup_done_run")
+        });
+        let handle_propagate_bb = self
+            .context
+            .append_basic_block(current_fn, "handle_propagate");
         let handle_done_bb = self.context.append_basic_block(current_fn, "handle_done");
+        let handle_exit_bb = self.context.append_basic_block(current_fn, "handle_exit");
+        let outward_target_bb = handle_cleanup_propagate_check_bb.unwrap_or(handle_propagate_bb);
+        let arm_done_target_bb = handle_cleanup_done_check_bb.unwrap_or(handle_done_bb);
 
         // Jump to the dispatch check after the initial step_fn call.
         self.builder.build_unconditional_branch(dispatch_check_bb)?;
 
         // --- dispatch_check: test active flag ---
         self.builder.position_at_end(dispatch_check_bb);
-        let is_active_fn = self.declare_runtime_effect_is_active();
-        let active_raw = self
-            .builder
-            .build_call(is_active_fn, &[], "is_active")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect is_active return",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let is_active = self.builder.build_int_compare(
-            inkwell::IntPredicate::NE,
-            active_raw,
-            self.context.i32_type().const_int(0, false),
-            "active_bool",
-        )?;
+        let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
         self.builder
             .build_conditional_branch(is_active, dispatch_arm_bb, handle_done_bb)?;
 
-        // --- dispatch_arm: read op_tag, clear active, dispatch to arm ---
+        // --- dispatch_arm: read op_tag, dispatch to arm or outward propagate ---
         self.builder.position_at_end(dispatch_arm_bb);
 
         // Read op_tag from TLS perform slot.
@@ -1728,12 +1908,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?
             .into_int_value();
 
-        // Clear only the active flag. The arm body still needs the perform
-        // slot payload for binder setup; the full slot reset happens once the
-        // handle expression finishes.
-        let clear_fn = self.declare_runtime_effect_clear_active();
-        self.builder.build_call(clear_fn, &[], "")?;
-
         // Build a switch on op_tag → arm entry state.
         // For each dispatch entry, compute the op_tag and route to the
         // arm's entry state in the step function.  The arm states are
@@ -1744,8 +1918,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // caller), we call step_fn again after setting state_tag to the
         // arm's entry state.
         if contract.dispatch_entries().is_empty() {
-            // No arms to dispatch to — just branch to done.
-            self.builder.build_unconditional_branch(handle_done_bb)?;
+            // No arms to dispatch to — the effect is unmatched and must
+            // propagate out of the current handle.
+            self.builder.build_unconditional_branch(outward_target_bb)?;
         } else {
             // For each dispatch entry, create a handler arm block.
             let unmatched_bb = self
@@ -1763,14 +1938,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // For each arm in this dispatch entry, pick the first arm
                 // (single-arm dispatch is the common case for now).
                 if let Some(first_arm) = dispatch_entry.arms().first() {
+                    let unified_arm = contract
+                        .arms()
+                        .iter()
+                        .find(|arm| arm.arm_id() == first_arm.arm_id())
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "dispatch arm metadata not found",
+                            at: span.into(),
+                        })?;
                     let arm_bb = self
                         .context
                         .append_basic_block(current_fn, &format!("arm_{}", first_arm.arm_id()));
+                    let arm_effect_bb = self.context.append_basic_block(
+                        current_fn,
+                        &format!("arm_{}_effect", first_arm.arm_id()),
+                    );
+                    let arm_complete_bb = self.context.append_basic_block(
+                        current_fn,
+                        &format!("arm_{}_complete", first_arm.arm_id()),
+                    );
                     cases.push((tag_val, arm_bb));
 
                     // In the arm block: set state_tag to arm entry state,
-                    // call step_fn, then loop back to dispatch_check.
+                    // clear the consumed body active flag, and call step_fn.
                     self.builder.position_at_end(arm_bb);
+
+                    // The current perform has matched this handle, so consume
+                    // the active flag before entering the arm body. The arm
+                    // still reads its binder payload from the perform slot.
+                    let clear_active_fn = self.declare_runtime_effect_clear_active();
+                    self.builder.build_call(clear_active_fn, &[], "")?;
 
                     let arm_entry_state = first_arm.entry_state();
                     self.write_state_tag(
@@ -1791,10 +1988,73 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "",
                     )?;
 
-                    // After arm execution, loop back to check if more
-                    // performs happened (the arm may have resumed the
-                    // body which then performed again).
-                    self.builder.build_unconditional_branch(dispatch_check_bb)?;
+                    let arm_active = self.emit_effect_is_active_i1(
+                        span,
+                        &format!("arm_{}_is_active", first_arm.arm_id()),
+                    )?;
+                    self.builder.build_conditional_branch(
+                        arm_active,
+                        arm_effect_bb,
+                        arm_complete_bb,
+                    )?;
+
+                    // If the arm returned with TLS active set, distinguish two
+                    // cases:
+                    // - active while still in the current arm context:
+                    //   the arm body itself raised/performed, so the current
+                    //   handle must not redispatch to a sibling arm; instead it
+                    //   runs cleanup/`finally` and propagates outward.
+                    // - active after the arm resumed the body and the body
+                    //   performed again: dispatch as usual.
+                    self.builder.position_at_end(arm_effect_bb);
+                    let arm_state_tag = self.read_state_tag(
+                        frame_ptr,
+                        &frame_layout,
+                        &format!("arm_{}_state_tag", first_arm.arm_id()),
+                    )?;
+                    let arm_context_active = self.state_tag_matches_any(
+                        arm_state_tag,
+                        unified_arm.body_states(),
+                        &format!("arm_{}_body_state", first_arm.arm_id()),
+                    )?;
+                    self.builder.build_conditional_branch(
+                        arm_context_active,
+                        outward_target_bb,
+                        dispatch_check_bb,
+                    )?;
+
+                    self.builder.position_at_end(arm_complete_bb);
+                    let arm_complete_state_tag = self.read_state_tag(
+                        frame_ptr,
+                        &frame_layout,
+                        &format!("arm_{}_complete_state_tag", first_arm.arm_id()),
+                    )?;
+                    let arm_handle_returned = self.builder.build_int_compare(
+                        inkwell::IntPredicate::EQ,
+                        arm_complete_state_tag,
+                        self.context
+                            .i32_type()
+                            .const_int(STATE_TAG_HANDLE_RETURNED as u64, false),
+                        &format!("arm_{}_handle_returned", first_arm.arm_id()),
+                    )?;
+                    let arm_function_returned = self.builder.build_int_compare(
+                        inkwell::IntPredicate::EQ,
+                        arm_complete_state_tag,
+                        self.context
+                            .i32_type()
+                            .const_int(STATE_TAG_FUNCTION_RETURNED as u64, false),
+                        &format!("arm_{}_function_returned", first_arm.arm_id()),
+                    )?;
+                    let arm_terminal = self.builder.build_or(
+                        arm_handle_returned,
+                        arm_function_returned,
+                        &format!("arm_{}_terminal", first_arm.arm_id()),
+                    )?;
+                    self.builder.build_conditional_branch(
+                        arm_terminal,
+                        arm_done_target_bb,
+                        dispatch_check_bb,
+                    )?;
                 }
             }
 
@@ -1827,13 +2087,122 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_switch(op_tag_raw, unmatched_bb, &cases)?;
             }
 
-            // Unmatched op_tag: this shouldn't normally happen for well-formed
-            // programs.  Branch to handle_done.
+            // Unmatched op_tag: this handle has no matching arm. Preserve the
+            // perform slot + active flag so the effect can propagate outward.
             self.builder.position_at_end(unmatched_bb);
-            self.builder.build_unconditional_branch(handle_done_bb)?;
+            self.builder.build_unconditional_branch(outward_target_bb)?;
         }
 
-        // --- handle_done: pop handler frame, read result ---
+        if let (
+            Some(cleanup_entry_state),
+            Some(cleanup_propagate_check_bb),
+            Some(cleanup_propagate_run_bb),
+            Some(cleanup_done_check_bb),
+            Some(cleanup_done_run_bb),
+        ) = (
+            cleanup_entry_state,
+            handle_cleanup_propagate_check_bb,
+            handle_cleanup_propagate_run_bb,
+            handle_cleanup_done_check_bb,
+            handle_cleanup_done_run_bb,
+        ) {
+            self.builder.position_at_end(cleanup_propagate_check_bb);
+            let cleanup_already_ran = self.read_cleanup_flag_i1(
+                frame_ptr,
+                &frame_layout,
+                "cleanup_propagate_already_ran",
+            )?;
+            self.builder.build_conditional_branch(
+                cleanup_already_ran,
+                handle_propagate_bb,
+                cleanup_propagate_run_bb,
+            )?;
+
+            self.builder.position_at_end(cleanup_propagate_run_bb);
+            self.write_state_tag(
+                frame_ptr,
+                &frame_layout,
+                cleanup_entry_state,
+                "set_cleanup_propagate_state",
+            )?;
+            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                frame_ptr,
+                &frame_layout,
+                "cleanup_propagate_resume_word",
+                "cleanup_propagate_resume_gc_ref",
+            )?;
+            self.builder.build_call(
+                step_fn,
+                &[
+                    frame_ptr.into(),
+                    cleanup_resume_word.into(),
+                    cleanup_resume_gc_ref.into(),
+                ],
+                "",
+            )?;
+            self.builder
+                .build_unconditional_branch(handle_propagate_bb)?;
+
+            self.builder.position_at_end(cleanup_done_check_bb);
+            let cleanup_already_ran =
+                self.read_cleanup_flag_i1(frame_ptr, &frame_layout, "cleanup_done_already_ran")?;
+            self.builder.build_conditional_branch(
+                cleanup_already_ran,
+                handle_done_bb,
+                cleanup_done_run_bb,
+            )?;
+
+            self.builder.position_at_end(cleanup_done_run_bb);
+            self.write_state_tag(
+                frame_ptr,
+                &frame_layout,
+                cleanup_entry_state,
+                "set_cleanup_done_state",
+            )?;
+            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                frame_ptr,
+                &frame_layout,
+                "cleanup_done_resume_word",
+                "cleanup_done_resume_gc_ref",
+            )?;
+            self.builder.build_call(
+                step_fn,
+                &[
+                    frame_ptr.into(),
+                    cleanup_resume_word.into(),
+                    cleanup_resume_gc_ref.into(),
+                ],
+                "",
+            )?;
+            let cleanup_active = self.emit_effect_is_active_i1(span, "cleanup_done_is_active")?;
+            self.builder.build_conditional_branch(
+                cleanup_active,
+                handle_propagate_bb,
+                handle_done_bb,
+            )?;
+        }
+
+        // --- handle_propagate: preserve active/perform slot, pop handler, and
+        // let the outer boundary observe the outward-propagating effect. ---
+        self.builder.position_at_end(handle_propagate_bb);
+
+        if has_dispatch {
+            let pop_fn = self.declare_runtime_effect_handler_stack_pop();
+            self.builder
+                .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
+        }
+
+        if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_non_resuming_effect_exit(span, "handle_outward_effect")?;
+        }
+
+        if let Some(result_slot) = result_slot {
+            let default = self.default_value(span, result_cg_ty)?;
+            self.store_local_value(span, result_slot, result_cg_ty, default)?;
+        }
+        self.builder.build_unconditional_branch(handle_exit_bb)?;
+
+        // --- handle_done: clear effect TLS, pop handler frame, read result ---
         self.builder.position_at_end(handle_done_bb);
 
         let clear_fn = self.declare_runtime_effect_clear();
@@ -1845,28 +2214,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
         }
 
-        // 7. Read the handle result from the frame.
-        // Check state_tag for completion mode.
-        let state_tag_gep_post = self.builder.build_struct_gep(
-            frame_layout.frame_type,
-            frame_ptr,
-            frame_layout.state_tag_index(),
-            "post_state_tag_ptr",
-        )?;
-        let post_state_tag = self
-            .builder
-            .build_load(
-                self.context.i32_type(),
-                state_tag_gep_post,
-                "post_state_tag",
-            )?
-            .into_int_value();
-
         // TODO: if state_tag == FUNCTION_RETURNED, propagate early return to
         // the enclosing function instead of treating it as normal completion.
-        let _ = post_state_tag;
+        let _ = self.read_state_tag(frame_ptr, &frame_layout, "post_state_tag")?;
 
-        self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)
+        if let Some(result_slot) = result_slot {
+            let result =
+                self.read_result_from_frame(span, result_cg_ty, frame_ptr, &frame_layout)?;
+            self.store_local_value(span, result_slot, result_cg_ty, result)?;
+        }
+        self.builder.build_unconditional_branch(handle_exit_bb)?;
+
+        self.builder.position_at_end(handle_exit_bb);
+        match result_cg_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                let result_slot = result_slot.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle result slot missing",
+                    at: span.into(),
+                })?;
+                let llvm_ty = self.llvm_basic_type_of(span, result_cg_ty)?;
+                let raw = self
+                    .builder
+                    .build_load(llvm_ty, result_slot, "handle_result")?;
+                self.cg_value_from_loaded(span, result_cg_ty, raw)
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -2111,7 +2485,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         local_id,
                         CgLocal {
                             hir_ty: Some(type_id),
-                            call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(type_id)),
+                            call_may_suspend: self
+                                .local_call_may_suspend_from_hir_ty(Some(type_id)),
                             ty: cg_ty,
                             ptr: slot_ptr,
                             mutable: slot.slot().mutable(),
@@ -2121,10 +2496,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // Execute the arm body. Immediate-resume arms dedicatedly rewrite the
-        // tail `resume(value)` into a payload-producing expression; the actual
-        // continuation resume still happens in ArmResumeMatchedSite.
-        match arm.kind {
+        // Execute the arm body under the same "active => immediately exit the
+        // current frame" contract used by ordinary callees.
+        //
+        // Arm bodies are currently emitted as one opaque expression tree
+        // instead of being segmented into state-machine ops. Without a
+        // temporary ordinary-frame return type, a non-resuming effect raised
+        // inside the arm would only set TLS active and then keep executing the
+        // rest of the arm body. Setting `current_fun_return_ty = Never` lets
+        // the existing ordinary propagation helpers terminate the step
+        // function immediately when arm-local code performs.
+        let saved_return_ctx = self.return_context.take();
+        let saved_return_ty = self.current_fun_return_ty.take();
+        self.current_fun_return_ty = Some(CgTy::Never);
+
+        let result = match arm.kind {
             hir::HandleArmKind::ImmediateResume { resume } => {
                 let rewritten = rewrite_immediate_resume_arm_body(arm, resume)?;
                 let payload_cg_ty =
@@ -2136,7 +2522,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_expr_in_expected_context(&rewritten, Some(payload_cg_ty))
             }
             _ => self.codegen_expr_in_expected_context(&arm.body, None),
-        }
+        };
+
+        self.current_fun_return_ty = saved_return_ty;
+        self.return_context = saved_return_ctx;
+        result
     }
 
     /// Read a binder value from the TLS perform slot.
