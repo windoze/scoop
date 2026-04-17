@@ -884,8 +884,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a1c
 
-### T3009b0a1dR [TODO] Review：确认 `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同
+### T3009b0a1dR [DONE] Review：确认 `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同
 - 描述：在 `T3009b0a1d` 之后只审查生产代码，确认 object value / property access 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在 `codegen_object_value_access` / `codegen_object_property_access` 或具体 object 名称上局部绕过；若发现对象名特判、源码形状分流或新 side channel，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`：`UnifiedStateTerminator::Suspend` 对 `SuspendSiteKind::ObjectInitAccess` 的 inactive/active 分流只经由 `suspend_site_uses_inactive_continue_path` 与 TLS `is_active` 判断，不读取 object 名称、属性名或源码形状。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`：`ObjectInitAccess` 仅由 `HandlePlanContext::from_codegen` 基于 `object_inits` / `object.properties` 元数据构造的 `object_value_fqns`、`object_property_fqns` 集合分类；这些 FQN 只用于 suspend-site 语义建模，不参与 emitter 中的 inactive/active 选路。
+  - 已复审 `crates/scoopc/src/llvm/codegen/mod.rs`：`codegen_object_value_access` / `codegen_object_property_access` 仍只保留 ordinary-frame 的统一 TLS active 检查；step function 生成期间会清空 `current_fun_return_ty` / `return_context`，因此这条 ordinary patch 在 unified state-machine 内不会提前返回，也不会绕开 shared `Suspend` terminator。
 - 目标：
   - 确认 `ObjectInitAccessBoundary` 的 inactive/active 分流只由统一 contract 与 TLS active 结果驱动，不读取 object 名称、属性名、源码形状或旧 scanner 结果。
   - 确认 inactive-path 没有回流成 ordinary helper / object-init 专用 patch。
@@ -893,6 +897,13 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“`ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同。inactive/active 分流仅由统一 `Suspend` terminator 读取 `SuspendSiteKind::ObjectInitAccess` 与 TLS active 决定。
+  - 生产代码中未发现 object 名称特判、属性名特判、源码形状分流，或绕开 state-machine 合同的 direct object/property access 结果旁路。
 - 依赖：T3009b0a1d
 
 ### T3009b0a1e [TODO] 修正 unified `NestedHandleBoundary` 的 inactive-continue / active-dispatch 合同

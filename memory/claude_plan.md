@@ -1,40 +1,44 @@
-# 当前执行计划
+# 执行计划
 
-说明：按要求先记录执行计划与进度。这里记录的是可审计的执行摘要、步骤和决策，不包含冗长的内部推演。
+## 当前目标
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
 
-## 初始目标
+## 约束与执行原则
+- 先检查最新提交是否提到已有问题；如果有，优先修复这些问题。
+- 先读取 `TODO.md`，定位第一个未完成任务。
+- 如果该任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+- 任何发现的规格不匹配、缺失特性或错误实现，都必须作为正式任务写回 `TODO.md`，调整依赖顺序，不能用变通方案跳过。
+- 实现后必须运行相关测试，并尽量补充必要测试；同时确保 `cargo clippy --all-targets -- -D warnings` 无告警。
+- 完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次清晰的 Git commit，然后停止。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果遇到前置缺陷、规范不匹配或任务过大，则先调整 `TODO.md` / `PLAN.md`，提交后停止。
-
-## 执行步骤
-
-1. 检查最新一次 Git 提交，确认是否提到需要先修复的遗留问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`、相关代码与测试，判断该任务是否可直接完成。
-4. 若任务过大，拆分为更小子任务，并更新 `PLAN.md` 与 `TODO.md`，然后执行新的第一个子任务。
-5. 实现任务所需代码修改，确保不引入规避性方案或与规范不一致的行为。
-6. 运行相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，并修复发现的问题。
-7. 更新 `TODO.md`、`PLAN.md`、本文件，记录完成情况或阻塞关系。
-8. 使用清晰的 Git 提交信息提交本轮改动，然后停止，不继续后续任务。
-
-## 约束与判定
-
-- 若最新提交提到已有问题，则这些问题优先处理，处理完后再进入 `TODO.md` 的当前任务。
-- 若发现规范缺口、实现边界或缺失语言特性阻塞当前任务，必须先把该问题整理成更前置的任务并更新计划，然后提交并停止。
-- 不接受临时兼容、测试特判、fixture-only 修补或其他规避实现。
+## 步骤计划
+1. 查看最新一次提交，确认是否提到需要先处理的遗留问题。
+2. 读取 `TODO.md`，找出第一个未完成任务。
+3. 读取 `PLAN.md`、相关源码与测试，确认任务范围与依赖。
+4. 如任务过大，先拆分并更新计划文件；否则直接开始实现。
+5. 修改代码并补充/调整测试。
+6. 运行格式化、相关测试、必要的全量检查与 `clippy`。
+7. 更新 `TODO.md`、`PLAN.md`、本文件中的进度记录。
+8. 提交 Git commit，停止本轮工作。
 
 ## 进度记录
-
-- 已完成：创建本计划文件。
-- 已完成：检查最新提交，确认最新提交主要是追踪 blocker 的计划更新，未带出新的未修生产代码。
-- 已完成：读取 `TODO.md` / `PLAN.md`，定位首个未完成任务为 `T3009b0a1d`（修正 unified `ObjectInitAccessBoundary` 的 inactive-continue / active-dispatch 合同）。
-- 已完成：评估任务规模，可直接实现，无需继续拆分 `TODO.md` / `PLAN.md`。
-- 已完成：用最小复现确认当前失败行为：
-  - 复现程序：`handle { ReadyConfig.x + 1 } with { Raise.raise(err: RuntimeError) -> 10 }`
-  - 当前输出只到 `inactive_before`、`ready.init`，说明 direct object/property access 仍被 shared `Suspend` terminator 无条件走 suspend 返回。
-- 已完成：修改统一 `Suspend` terminator，让 `ObjectInitAccessBoundary` 在 TLS inactive 时回到当前 state machine 继续 caller-tail，在 TLS active 时继续走 dispatch 返回路径。
-- 已完成：新增 run-pass fixture `tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`，锁定 direct object value/property access 的 inactive-path 与 active dispatch。
-- 已完成：验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 均通过。
-- 已完成：在验证过程中顺手收回一个已恢复通过的 stale xfail：`tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`。
-- 备注：整套 `cargo run -p scoop --features llvm -- test` 当前仍会停在另一个已存在的 stale xfail `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`；该收尾属于既有 `T3017` 范围，不改变本轮首个未完成主线任务已完成的结论。
-- 已完成：更新任务状态与计划文件，准备提交本轮改动。
+- 已创建初始执行计划，尚未开始代码与仓库状态检查。
+- 已检查最新提交 `44f2edb87e2cc102cfdff5f20cf08cc0d0299399`，提交主题为 `[T3009b0a1d] Fix ObjectInitAccess inactive continue path`，未发现额外的提交说明或明确列出的未修复遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，定位到当前第一个未完成任务为 `T3009b0a1dR`：复审 `ObjectInitAccessBoundary` 的 inactive-path 是否真正统一收口到 state-machine 合同。
+- 已阅读关键生产代码：
+  - `state_machine_emitter.rs` 中 `UnifiedStateTerminator::Suspend` 的共享 inactive/active 分流；
+  - `state_machine_plan.rs` 中 object value / property access 到 `ObjectInitAccessBoundary` 的建模；
+  - `mod.rs` 中 `codegen_object_value_access` / `codegen_object_property_access` 的普通 codegen 路径。
+- 当前已核实的要点：
+  - `SuspendSiteKind::ObjectInitAccess` 已进入共享 `suspend_site_uses_inactive_continue_path` 集合；
+  - step function 生成期间会临时清空 `current_fun_return_ty` / `return_context`，因此普通 `emit_ordinary_call_effect_propagation_check` 不会在 unified state-machine 内提前返回，inactive/active 分流仍由共享 `Suspend` terminator 负责；
+  - 目前尚未发现按 object 名称、属性名或源码形状决定 inactive-path 的新分流。
+- 已完成验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop` 通过，输出与 golden 一致；
+  - `cargo test --all` 通过；
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 本轮结论：
+  - 未发现需要修复的新生产代码问题；
+  - `ObjectInitAccessBoundary` 的 inactive-path 已统一收口到 state-machine 合同，没有回流为 object 专用 patch 或源码形状分流；
+  - 当前下一任务已推进为 `T3009b0a1e`。
+- 下一步：检查工作区差异，提交 `TODO.md` / `PLAN.md` / `memory/claude_plan.md` 的更新，然后停止本轮工作。
