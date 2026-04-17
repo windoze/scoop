@@ -1728,15 +1728,33 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b2bR
 
-### T3015aR [TODO] Review：确认 resumed segment 的下一次 perform 已重新进入 captured handler dispatch loop
+### T3015aR [DONE] Review：确认 resumed segment 的下一次 perform 已重新进入 captured handler dispatch loop
 - 描述：在 `T3015a` 之后只审查生产代码，确认 escaped continuation 在第一次 resumed segment 后的下一次 perform 已通过统一 handler-context / redispatch 合同重新命中 captured handler，而不是继续依赖“第一段 resumed segment 恰好还没把动态上下文用坏”的偶然行为；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 复审 `runtime/c/scoop_runtime.c` 确认 continuation 现在通过 `scoop_effect_handler_stack_snapshot_clone()` 捕获 continuation-owned handler stack 快照，并在 `scoop_continuation_resume_common()` 中 pin continuation、安装快照、step 返回后恢复 caller TLS、释放快照；captured handler context 不再依赖会在 `handle` 退出时被 `pop` 的原始栈上 frame。
+  - 复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 确认 `emit_effect_runtime_functions()` 统一生成 `step_fn + dispatch_loop_fn` 双入口；`codegen_handle_expr_via_state_machine()` 的初始执行与 `UnifiedStateTerminator::Suspend` 分配 continuation 时捕获的都是同一个 `scoop.effect.dispatch.*` 入口，escaped continuation resume 不会回到 raw `step_fn`。
+  - 复审 `emit_dispatch_loop_body()` / `emit_dispatch_arm_execution()` / `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 确认 arm body 内再次 perform、multi-site indirect callee matrix 与 statement-container rebuild（`Block / IfThen / IfElse / WhenArm / WhileBody`）共享同一套 dispatch-check / outward-propagate / generic resume-tail 机制；生产代码中未发现 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 等 fixture 名称分流。
 - 目标：
   - 确认 resumed caller-tail 里的下一次 indirect callee / outward perform 会稳定重新进入 captured handler dispatch loop。
   - 确认 multi-site 与 statement-container matrix 共享同一套生产 redispatch 机制。
   - 确认没有为 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 之类 fixture 单独打 patch。
+- 已验证：
+  - `cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack`
+  - `cargo test -p scoopc escaped_continuation_ir_uses_dispatch_loop_entry_for_resume -- --nocapture`
+  - `cargo test -p scoopc indirect_if_branch_callee_keeps_handle_call_site_active_dispatch -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_multi_perform_while_loop.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_ref_class.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“第一次 resumed segment 后的下一次 perform 已重新进入 captured handler dispatch loop，无 fixture-only / shape-based patch 残留”。
+- 审查结论：
+  - 第一次 resumed segment 后的下一次 perform 已重新进入 captured handler dispatch loop。authoritative 合同由 runtime handler-stack heap snapshot 与 compiler `scoop.effect.dispatch.*` dispatch-loop entry 共同提供，而不是依赖“第一段 resumed segment 恰好仍挂着旧 TLS frame”的偶然行为。
+  - multi-site indirect callee matrix 与 statement-container matrix 共享同一套生产 redispatch 机制：都是 captured handler stack + `scoop.effect.dispatch.*` + dispatch-check / outward-propagate loop 的组合，没有为 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 等 fixture 单独打 patch。
+  - 本轮复审未发现需要修复的新增生产代码问题；更宽的 shared resumed-body / caller-tail 验收仍继续留在后续 `T3009b2`。
 - 依赖：T3015a
 
 ### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
