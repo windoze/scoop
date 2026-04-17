@@ -13247,16 +13247,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Try to dispatch a binary operator to a user-defined method on a struct type.
     /// Returns `Some(result)` if the LHS is a struct with the corresponding operator method,
     /// `None` if the LHS is not a struct type (caller should use builtin integer path).
-    /// Resolve the effective CgTy for an expression, checking the local env first
-    /// (since HIR lowering often assigns `Any` to VarRef expressions).
+    /// Resolve the effective CgTy for an expression, preferring concrete type
+    /// sources over the often-widened HIR `expr.ty`.
     fn resolve_expr_cg_ty(&self, expr: &hir::Expr) -> Option<CgTy> {
-        // Try the local environment first (has accurate types for locals).
+        // Locals keep their exact lowered codegen type in the environment, so
+        // prefer that before reconstructing from a TypeId.
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind
             && let Some(local) = self.env.get(*id)
         {
             return Some(local.ty);
         }
-        // Fall back to HIR expression type.
+
+        // HIR lowering writes all VarRef expressions as `Any`, including
+        // top-level refs. Reuse the broader concrete-type resolver so builtin
+        // call sites like `Continuation.resume(payload)` do not regress when
+        // the payload comes from a top-level typed binding.
+        if let Some(concrete_ty) = self.resolve_expr_concrete_type(expr) {
+            return self.cg_ty_of(concrete_ty);
+        }
+
         self.cg_ty_of(expr.ty)
     }
 

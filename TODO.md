@@ -1552,8 +1552,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3013R、T3009b0R
 
-### T3009b1R [TODO] Review：确认 `Continuation.resume(...)` 的 precise type 解析不再依赖宽化 `VarRef` HIR type
+### T3009b1R [DONE] Review：确认 `Continuation.resume(...)` 的 precise type 解析不再依赖宽化 `VarRef` HIR type
 - 描述：在 `T3009b1` 之后只审查生产代码，确认 `Continuation.resume(...)` 对 receiver / payload 的类型解析已经统一走精确的 env/type 信息，而不是继续依赖 `VarRef` 上经常被宽化成 `Any/Ref` 的 HIR type；若发现回流，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs::codegen_continuation_resume_builtin()`、`crates/scoopc/src/llvm/codegen/mod.rs::resolve_expr_concrete_type()`、`resolve_expr_cg_ty()`、`codegen_var_ref()` 以及 `typecheck` / `state_machine_plan` 中 `Continuation.resume` 调用点 side table 接线，确认 builtin 入口仍只依赖 typecheck 确认的 call-site marker，没有按成员名 / 局部形状做 fixture-only 分流。
+  - 复审过程中发现并修复了一个此前残留的生产缺口：`resolve_expr_cg_ty()` 虽已用于 `Continuation.resume(...)` payload fallback，但原实现只优先读取局部 env，然后直接回退到 `expr.ty`；而 HIR lowering 会把所有 `VarRef`（包括 top-level const）降成 `Any`。这意味着 `k.resume(TOP_LEVEL_CONST)` 之类路径仍会把 payload 误降成 `Ref`。现已把 fallback 改为复用 `resolve_expr_concrete_type()`，在保留局部 `CgLocal.ty` 优先级的同时覆盖 top-level `VarRef` / typechecked call result 等 concrete-type 来源。
+  - 已新增 run-pass 回归 `tests/fixtures/run-pass/continuation_resume_top_level_const_payload.scoop`，锁定“top-level typed `VarRef` payload 不再退回 widened `Any`”的路径。
 - 目标：
   - 确认 builtin 入口优先读取精确 `Continuation<T>` receiver type，而不是把 `receiver.ty` 当 authoritative source。
   - 确认 payload fallback 路径统一走 `resolve_expr_cg_ty(...)` 等精确来源，不再把 local enum / tuple / struct payload 误降成 `Ref`。
@@ -1561,6 +1565,18 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“`Continuation.resume(...)` 已按精确类型信息解析 receiver/payload，无宽化 `VarRef` fallback 残留”。
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_top_level_const_payload.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - `Continuation.resume(...)` 已按精确类型信息解析 receiver/payload，无宽化 `VarRef` fallback 残留。
+  - receiver 继续优先通过 `resolve_expr_concrete_type(receiver)` 提取 `Continuation<T>` 的 authoritative payload type；payload fallback 现在在局部 env 之外，还会覆盖 top-level `VarRef` 与其它 concrete-type 来源，不再把 widened `Any` 误当成 `Ref`。
+  - 生产代码中不存在为 direct enum fixture 临时加的成员名 / 局部形状 patch；state-machine segmentation 也仍只依赖 typecheck side table 标记的 `Continuation.resume` 调用点。
 - 依赖：T3009b1
 
 ### T3009b2 [TODO] 修正 escaped continuation 的间接 callee 在 suspend 点后的 resumed-body caller-tail
