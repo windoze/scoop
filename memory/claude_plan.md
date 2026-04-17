@@ -1,44 +1,70 @@
-# 2026-04-18 当前轮执行计划
+# 执行计划
 
-## 目标
-完成 `TODO.md` 中当前首个未完成任务 `T3009b2b`，完成后立即停止，不进入下一个任务。
+## 约束
 
-## 已知上下文
-- 上一轮已完成该任务的核心实现，修复 ordinary indirect callee 在 effect suspend / resume 场景下的 resumed-body replay 问题。
-- 代码改动已覆盖 LLVM codegen、effect state machine、runtime TLS publish，以及相关 run-pass fixtures。
-- 目前已知 `cargo check -p scoopc` 与 `cargo test --all` 通过，但还需要补齐本轮要求的最终验收、文档更新与提交。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在继续实现前，先检查最新提交是否提到任何遗留问题；若有，则这些问题优先进入本轮范围。
+- 若当前首个未完成任务过大，需要先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 执行过程中如发现任何与规范不一致、依赖缺失、实现边界不完整的问题，不能绕过，必须先把问题整理成新的前置任务并更新计划文件。
 
-## 执行步骤
-1. 检查最近一次提交信息，确认是否提到任何需要先修复的 pre-existing issue；若存在，优先处理。
-2. 确认 `TODO.md` 中首个未完成任务仍为 `T3009b2b`，并核对 `PLAN.md` 当前状态，避免与现有计划冲突。
-3. 运行剩余必须的验证命令：
-   - `cargo clippy --all-targets -- -D warnings`
-   - 按任务验收方式运行相关 LLVM fixture。
-4. 若验证失败，直接修复问题并重新验证；若验证通过，更新文档：
-   - `TODO.md` 将 `T3009b2b` 标记为完成，并记录必要说明。
-   - `PLAN.md` 记录本轮完成情况与后续边界。
-   - `memory/claude_plan.md` 追加进度与结果。
-5. 检查工作区差异，确认只包含本任务相关修改。
-6. 使用明确提交信息创建 git commit，例如 `[T3009b2b] Restore ordinary indirect callee resumed-body replay`。
-7. 停止，不继续处理后续任务。
+## 初始步骤
 
-## 注意事项
-- 不采用 workaround；若发现新的 spec mismatch，必须先更新 `TODO.md` / `PLAN.md` 后再停止。
-- 不回退未授权的现有改动。
-- 对外记录仅写可审阅计划、进度与结论，不记录不可审阅的内部推理细节。
+1. 检查最新一次 Git 提交信息，确认是否提到了已知问题、后续修复项或未完成事项。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md` 与任务相关上下文文件，确认该任务是否已经有既定拆分或依赖。
+4. 如任务过大，先拆分并更新 `PLAN.md` / `TODO.md`，然后只执行拆分后的第一个子任务。
 
-## 进度更新
-- 已检查最近一次提交 `f533a1e [T3009b2aR] Seal callee suspend TLS ABI bypass`，未发现需要在本轮任务前插队修复的额外 pre-existing issue。
-- 已确认 `TODO.md` 当前首个未完成任务仍为 `T3009b2b`，`PLAN.md` 当前执行顺序也与此一致。
-- `cargo clippy --all-targets -- -D warnings` 初次执行时失败，暴露 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 `emit_resume_after_call_site` helper 参数过多的真实 lint 问题。
-- 已通过删除未使用的 `_state` 参数收紧该 helper 形状；行为未改动。
-- 重新执行 `cargo clippy --all-targets -- -D warnings` 后已通过。
-- 已按 `TODO.md` 验收命令通过 4 条关键 LLVM fixture：
-  - `effect_escape_continuation_indirect_perform_basic.scoop`
-  - `effect_escape_continuation_indirect_perform_closure_locals.scoop`
-  - `effect_escape_continuation_indirect_perform_resume_string.scoop`
-  - `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
-- `cargo test --all` 已重新通过，确认本轮对 ordinary indirect callee resumed-body restore 的实现与最后的 lint 修正未引入回归。
-- 已更新 `TODO.md` 将 `T3009b2b` 标记为完成，并更新 `PLAN.md` 记录本轮完成情况；下一项待执行任务应为 `T3009b2bR`。
-- `cargo fmt` 与 `cargo fmt --check` 已通过，确认当前工作区格式对齐。
-- 下一步只剩检查工作区、创建提交 `[T3009b2b] Restore ordinary indirect callee resumed-body replay`，然后停止。
+## 实施步骤
+
+1. 定位相关代码、测试、规范或文档。
+2. 实现任务所需改动，避免引入权宜方案。
+3. 为改动补充或调整测试。
+4. 运行必要验证，至少覆盖与本任务直接相关的测试；若改动影响范围较大，再补充更广的检查。
+5. 处理验证中发现的问题，直到结果稳定。
+
+## 收尾步骤
+
+1. 更新 `TODO.md`，将本轮完成的任务标记为已完成；若任务被拆分或重排，也同步维护顺序与依赖。
+2. 更新 `PLAN.md`，记录本轮进展、剩余工作与任何计划调整。
+3. 视执行进展更新本文件，记录关键判断、当前状态与后续动作。
+4. 检查工作区状态，确认提交内容仅包含本轮相关变更。
+5. 使用清晰提交信息创建 Git 提交，然后停止。
+
+## 当前状态
+
+- 已写入初始计划。
+- 已检查最新提交 `5addbc2 [T3009b2b] Restore ordinary indirect callee resumed-body replay`；提交说明未额外列出遗留问题。
+- 已读取 `TODO.md` 与 `PLAN.md`；当前第一个未完成任务是 `T3009b2bR`：Review ordinary indirect callee 的 resumed-body restore 是否已统一接回。
+- 已完成对 `T3009b2bR` 的首轮生产代码复审，结论是当前不能直接判定 review 完成。
+- 下一步：核对计划文件改动、整理本轮阻塞结论并提交。
+
+## T3009b2bR 细化计划
+
+1. 阅读 `TODO.md` 中 `T3009b2bR`、`T3009b2b`、`T3009b2aR` 相邻段落，提炼本次 review 的显式验收点。
+2. 审查最近提交触及的关键生产文件：
+   - `crates/scoopc/src/llvm/codegen/mod.rs`
+   - `crates/scoopc/src/llvm/codegen/effect/mod.rs`
+   - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+   - `runtime/c/scoop_runtime.c`
+   - `runtime/c/scoop_runtime_api.h`
+3. 重点确认以下风险面：
+   - fresh path 与 resume path 是否共用统一合同，而不是按源码形状或 callee 名称分流。
+   - ordinary indirect callee 的 locals/captures restore 是否覆盖 top-level helper 与 closure 两类路径。
+   - continuation 捕获 / 恢复后的 TLS 生命周期与 pin/unpin 是否对称，是否会留下悬垂状态或重复消费。
+   - `ResumeAfterSite(Call)` 是否只在确有 callee suspend state 时 replay 原 call，inactive path 是否仍保持原合同。
+4. 若发现生产代码问题，在本轮 review 内直接修复，并补充必要测试。
+5. 运行定向测试；若影响面要求更高，再补充全量回归与 lint。
+6. 更新 `TODO.md`、`PLAN.md`、本文件并创建提交，然后停止。
+
+## T3009b2bR 复审结果
+
+- 在 `crates/scoopc/src/llvm/codegen/mod.rs` 发现新的源码形状前提：
+  - `CalleeSuspendPlan` 注释明确声明当前只覆盖“block 中单个 direct-perform \`val\` 绑定”的稳定子集。
+  - `build_block_callee_suspend_plan()` 会扫描该 block 形状，并据此决定是否生成 ordinary callee 的 fresh/resume 双入口。
+- 该实现与 `TODO.md` 顶部约束冲突：
+  - 生产 effect codegen 禁止根据源码 / 代码形状分流。
+  - LLVM lowering 的单一输入应为 state machine，而不应再回看源码 block 形状。
+- 因此本轮不能把 `T3009b2bR` 标记完成，已按依赖关系新增前置任务 `T3009b2b1`，要求先移除 block-shape 扫描前提，再继续复审 `T3009b2bR`。
+- 本轮已更新：
+  - `TODO.md`：插入 `T3009b2b1`，并把 `T3009b2bR` 改为依赖该任务。
+  - `PLAN.md`：记录当前轮复审阻塞原因，并把执行顺序改为先做 `T3009b2b1`。

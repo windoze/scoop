@@ -1649,8 +1649,19 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b2aR
 
+### T3009b2b1 [TODO] 去掉 ordinary callee resumed-body restore 对 block 形状扫描的前提
+- 描述：开始执行 `T3009b2bR` 复审后确认，`crates/scoopc/src/llvm/codegen/mod.rs` 新增的 `CalleeSuspendPlan` 仍把 ordinary callee 的 resumed-body restore 建立在“block 中单个 direct-perform `val` 绑定”的稳定子集上：`build_block_callee_suspend_plan()` 会扫描该源码形状来决定是否生成 fresh/resume 双入口，而 `codegen_top_level_fun` / `codegen_closure_fun_body` 也据此切换路径。这与本文件顶部“生产 effect codegen 禁止按源码 / 代码形状分流、LLVM lowering 的单一输入应为 state machine”的总约束冲突，因此必须先把 ordinary callee resumed-body restore 收口为不依赖 block 形状扫描的统一 suspend-site 合同，再继续复审。
+- 目标：
+  - ordinary top-level helper / closure / function-value callee 的 resumed-body restore 不再依赖 `val x = perform(...)` 这类 block 形状扫描。
+  - fresh path / resume path 的接线依据只能来自统一 suspend-site / continuation / callee-state 合同，不再读取源码形状。
+  - `T3009b2b` 已恢复的 basic / closure-locals / string / struct-with-ref 路径继续通过，不回退成 fixture-only 补丁。
+- 验收：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 不再通过扫描“block 中单个 direct-perform `val` 绑定”来决定是否生成 callee resume 路径。
+  - `T3009b2bR` 可以在不保留源码形状分流的前提下完成复审。
+- 依赖：T3009b2b
+
 ### T3009b2bR [TODO] Review：确认 ordinary indirect callee 的 resumed-body restore 已统一接回
-- 描述：在 `T3009b2b` 之后只审查生产代码，确认 ordinary indirect callee 的 resumed-body restore / caller-tail 已形成统一 continuation + suspend-state 合同，而不是对 `fetchGreeting()` / `counter()` / `callIt { ... }` 等 fixture 单独打补丁；若发现旁路，本任务需要直接修复并复审。
+- 描述：在 `T3009b2b1` 之后只审查生产代码，确认 ordinary indirect callee 的 resumed-body restore / caller-tail 已形成统一 continuation + suspend-state 合同，而不是对 `fetchGreeting()` / `counter()` / `callIt { ... }` 等 fixture 单独打补丁；若发现旁路，本任务需要直接修复并复审。
 - 目标：
   - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
   - 确认 top-level helper / closure / function-value callee 共用同一套 resumed-body restore 机制。
@@ -1658,7 +1669,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“ordinary indirect callee resumed-body restore 已统一接回，无 shape-based / fixture-only patch 残留”。
-- 依赖：T3009b2b
+- 依赖：T3009b2b1
 
 ### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
 - 描述：在 `T3009b2a` / `T3009b2b` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。
