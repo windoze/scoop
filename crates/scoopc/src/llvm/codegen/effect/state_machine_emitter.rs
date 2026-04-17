@@ -32,6 +32,8 @@ use super::unified_state_machine_skeleton::{
 ///   field 3: resume_gc_ref (ptr addrspace(1)) — GC ref resume payload / handle result ref
 ///   field 4+: optional system fields (cleanup_flag, one_shot_flag)
 ///   then: user slots
+///   then: raw native pointers to authoritative outer-scope mutable storage
+///         for metadata-driven writeback across handle exits / resumes
 ///   final field: suspended continuation pointer (ptr addrspace(1))
 const FRAME_OBJECT_HEADER_FIELD_COUNT: u32 = 1;
 const FRAME_FIELD_STATE_TAG: u32 = 1;
@@ -184,6 +186,7 @@ pub(super) struct FrameLayout<'ctx> {
     pub(super) frame_type: inkwell::types::StructType<'ctx>,
     cleanup_flag_index: Option<u32>,
     continuation_index: u32,
+    outer_scope_storage_indices: HashMap<hir::SymbolId, u32>,
 }
 
 impl<'ctx> FrameLayout<'ctx> {
@@ -205,6 +208,10 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn cleanup_flag_index(&self) -> Option<u32> {
         self.cleanup_flag_index
+    }
+
+    pub(super) fn outer_scope_storage_index(&self, slot_id: hir::SymbolId) -> Option<u32> {
+        self.outer_scope_storage_indices.get(&slot_id).copied()
     }
 
     /// Return the LLVM struct field index for a user slot given its
@@ -232,6 +239,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///   and optionally cleanup_flag (i32), one_shot_flag (i32).
     /// - User slots: one field per `UnifiedFrameSlot`, typed according to the
     ///   slot's `TypeId`.
+    /// - Outer-scope storage pointers: one native `i8*` per seeded mutable
+    ///   outer slot, so both the initial handle exit and later continuation
+    ///   resumes can write back through the same frame metadata contract.
     /// - Suspended continuation: a runtime-only GC ref slot appended after the
     ///   schema so step_fn re-entry can refresh public resume payload fields
     ///   without clobbering the captured continuation.
@@ -247,6 +257,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let native_i8_ptr_ty = self.llvm_i8_ptr_type();
 
         // Build the system field types in declaration order.
         let mut field_types: Vec<inkwell::types::BasicTypeEnum<'ctx>> = vec![
@@ -297,6 +308,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             field_types.push(llvm_ty);
         }
 
+        let mut outer_scope_storage_indices = HashMap::new();
+        let mut writeback_slots: Vec<(usize, hir::SymbolId)> = frame
+            .slots()
+            .iter()
+            .filter_map(|slot| {
+                let frame_slot = slot.slot();
+                (frame_slot.owner_arm().is_none()
+                    && frame_slot.seed_from_outer_scope()
+                    && frame_slot.mutable())
+                .then_some((slot.field_index(), frame_slot.id()))
+            })
+            .collect();
+        writeback_slots.sort_by_key(|(field_index, _)| *field_index);
+        for (_field_index, slot_id) in writeback_slots {
+            let storage_index = field_types.len() as u32;
+            field_types.push(native_i8_ptr_ty.into());
+            outer_scope_storage_indices.insert(slot_id, storage_index);
+        }
+
         // Keep the suspended continuation in a dedicated runtime-only slot
         // after the schema fields so `user_slot_llvm_index` stays aligned with
         // `UnifiedFrameSchema::field_index()`.
@@ -312,6 +342,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             frame_type,
             cleanup_flag_index,
             continuation_index,
+            outer_scope_storage_indices,
         })
     }
 
@@ -973,9 +1004,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() {
                 continue;
             }
-            let Some(local) = self.env.get(slot.id()) else {
-                continue;
-            };
+            let local = self
+                .env
+                .get(slot.id())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect frame seed outer-scope local",
+                    at: at.into(),
+                })?;
 
             let target_cg_ty =
                 self.cg_ty_of(slot.ty())
@@ -1006,6 +1041,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let value = self.coerce_value(at, value, target_cg_ty)?;
             self.store_local_value(at, slot_ptr, target_cg_ty, value)?;
+
+            if slot.mutable()
+                && let Some(storage_index) = frame_layout.outer_scope_storage_index(slot.id())
+            {
+                let storage_ptr_gep = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    frame_ptr,
+                    storage_index,
+                    &format!("seed_outer_slot_storage_{}", slot.id().as_u32()),
+                )?;
+                let storage_ptr = self.builder.build_pointer_cast(
+                    local.ptr,
+                    self.llvm_i8_ptr_type(),
+                    &format!("seed_outer_slot_storage_ptr_{}", slot.id().as_u32()),
+                )?;
+                self.builder.build_store(storage_ptr_gep, storage_ptr)?;
+            }
         }
         Ok(())
     }
@@ -1013,10 +1065,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Write back authoritative outer-scope mutable slots from the unified
     /// handle frame to their original enclosing local storage.
     ///
-    /// These slots are copied into the frame at handle entry via
-    /// `seed_outer_scope_frame_slots`. After the handle finishes (or propagates
-    /// outward after running cleanup), the frame copy is the authoritative
-    /// value and must be synchronized back to the enclosing local alloca/box.
+    /// The original storage address is recorded in the frame itself when the
+    /// handle seeds outer-scope slots. This lets the same helper run both on
+    /// the initial handle exit and on later continuation-driven step-function
+    /// returns, without depending on the caller's current env.
     fn write_back_outer_scope_frame_slots(
         &mut self,
         at: crate::span::Span,
@@ -1030,19 +1082,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continue;
             }
 
-            let local = self
-                .env
-                .get(slot.id())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "outer-scope frame writeback local",
+            let storage_index = frame_layout.outer_scope_storage_index(slot.id()).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "outer-scope frame writeback storage index",
                     at: at.into(),
-                })?;
-            if !local.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "outer-scope frame writeback immutable local",
-                    at: at.into(),
-                });
-            }
+                },
+            )?;
 
             let slot_cg_ty =
                 self.cg_ty_of(slot.ty())
@@ -1057,6 +1102,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 field_index,
                 &format!("writeback_outer_slot_{}", slot.id().as_u32()),
             )?;
+            let storage_ptr_gep = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                frame_ptr,
+                storage_index,
+                &format!("writeback_outer_slot_storage_{}", slot.id().as_u32()),
+            )?;
+            let storage_ptr = self
+                .builder
+                .build_load(
+                    self.llvm_i8_ptr_type(),
+                    storage_ptr_gep,
+                    &format!("writeback_outer_slot_storage_ptr_{}", slot.id().as_u32()),
+                )?
+                .into_pointer_value();
 
             let value = match slot_cg_ty {
                 CgTy::Unit => CgValue::unit(),
@@ -1071,7 +1130,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.cg_value_from_loaded(at, slot_cg_ty, loaded)?
                 }
             };
-            self.store_local_value(at, local.ptr, local.ty, value)?;
+            let storage_ptr = self.builder.build_pointer_cast(
+                storage_ptr,
+                self.llvm_ptr_type(AddressSpace::default()),
+                &format!("writeback_outer_slot_target_{}", slot.id().as_u32()),
+            )?;
+            self.store_local_value(at, storage_ptr, slot_cg_ty, value)?;
         }
         Ok(())
     }
@@ -1159,6 +1223,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     STATE_TAG_HANDLE_RETURNED,
                     "state_tag_handle_done",
                 )?;
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
 
@@ -1174,6 +1239,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     STATE_TAG_FUNCTION_RETURNED,
                     "state_tag_fn_return",
                 )?;
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
 
@@ -1242,6 +1308,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // Return from the step function.  The dispatch loop in the
                 // handle entry will detect the active flag and dispatch.
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
 
@@ -1268,6 +1335,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     STATE_TAG_HANDLE_RETURNED,
                     "state_tag_arm_handle_done",
                 )?;
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
 
@@ -1298,6 +1366,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // After resume returns, the step_fn has finished (or
                 // suspended again — the dispatch loop handles that).
                 // Return void to let the dispatch loop continue.
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
 
@@ -1315,6 +1384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     STATE_TAG_HANDLE_RETURNED,
                     "state_tag_arm_escape_done",
                 )?;
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
                 self.builder.build_return(None)?;
             }
         }
@@ -2645,6 +2715,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 mod tests {
     use super::*;
 
+    use crate::llvm::emit_minimal_main_ir;
     use crate::parser::parse_file;
     use crate::resolve::Index;
     use crate::session::Session;
@@ -2811,6 +2882,51 @@ fun demo(): Int {
             .expect("non-block immediate-resume arm should rewrite");
 
         assert!(matches!(rewritten.kind, hir::ExprKind::Literal(_)));
+    }
+
+    #[test]
+    fn escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Unit
+}
+
+fun main() {
+    var saved: Continuation<Unit>? = None()
+    var note: String = "before"
+
+    val _: Unit = handle {
+        val _pause: Unit = Suspend.pause()
+        note = "after_resume"
+    } with {
+        Suspend.pause(), k -> {
+            saved = Some(k)
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        assert!(
+            ir.contains("seed_outer_slot_storage_"),
+            "effect frame should record authoritative outer-slot storage pointers"
+        );
+        assert!(
+            ir.contains("writeback_outer_slot_storage_ptr_"),
+            "writeback path should load outer-slot storage pointers from the frame metadata"
+        );
+        assert!(
+            ir.contains("writeback_outer_slot_storage_"),
+            "writeback path should address the frame-recorded outer-slot storage metadata"
+        );
     }
 
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {

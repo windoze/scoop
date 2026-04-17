@@ -826,31 +826,24 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b1b0
 
-### T3009b0a1 [TODO] 为 escaped continuation 的恢复完成路径补齐 outer-scope seeded slot 写回合同
-- 描述：开始执行 `T3009b0aR` 复审时，检查 `write_back_outer_scope_frame_slots` 与 `codegen_continuation_resume_builtin` 后发现，当前 outer-scope slot 写回仍只挂在 `codegen_handle_expr_via_state_machine` 的 `handle_done` / `handle_propagate`。这足以修复“初次离开 handle”时 body / arm / finally 对 outer `var` 的写回，但 escaped continuation 在 handle 返回后通过 `Continuation.resume(...)` 继续执行 body / finally 时，runtime `scoop_continuation_resume` 只直接调用 continuation `step_fn`；当前 dedicated lowering / runtime 路径没有任何 frame-metadata 驱动的统一 writeback 出口。用最小临时 repro 复现时，程序输出停在 `body_after`，说明 resumed body 已继续执行，而后续 completion path 仍未形成可复审的统一 outer-local 同步合同。这个缺口当前未在 TODO 中显式跟踪，必须先前移修复，再继续 `T3009b0aR`。
+### T3009b0a1a [DONE] 把 resumed completion path 所需的 outer-slot 写回目标纳入 frame metadata，并接到统一 step-return 出口
+- 描述：原 `T3009b0a1` 在落地时发现，想用 run-pass fixture 直接观测“`resume()` 返回点的 outer-local 已同步”，还需要先等 `T3009b0` 把 escaped continuation 的 caller-tail 接回；否则程序仍会停在 `body_after` / `body_resumed`，调用点读不到 resumed body 之后的状态。先独立收口当前真正可实现、也更基础的生产合同：让 authoritative outer-slot 的写回目标不再依赖 handle 入口外层 `env`，而是记录在 effect frame metadata 中，并由 step function 的返回出口与现有 `handle_done` / `handle_propagate` 共享同一 helper。
+- 进展：
+  - `FrameLayout` 现在会为每个 `seed_from_outer_scope && mutable` 的 slot 追加 native storage pointer field，作为 authoritative writeback target metadata。
+  - `seed_outer_scope_frame_slots` 在 seeding outer locals/params 时会同步把原始 storage pointer 写进 frame；若 contract 声明需要 seeded outer slot 却取不到 enclosing local，当前直接报错而不是静默跳过。
+  - `write_back_outer_scope_frame_slots` 已改成只读取 frame metadata，不再依赖 caller `env`；`ReturnHandle` / `ReturnFromFunction` / `Suspend` / `Arm*` 返回出口与外层 `handle_done` / `handle_propagate` 现共用同一 helper。
+  - 已新增 LLVM IR 单测 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`，锁定 frame 中已记录 outer-slot storage metadata，且 step function / handle 出口都会发出 metadata-driven writeback 路径。
 - 目标：
-  - 为 escaped continuation 在 `k.resume(...)` 之后的完成 / 向外传播路径补齐与 `handle_done` / `handle_propagate` 等价的 outer-scope seeded slot 写回合同。
-  - authoritative outer slot 的来源与写回目标仍必须由统一 frame metadata 驱动，不能在 `Continuation.resume(...)` call site 上追加局部补丁。
-  - resumed body、resume 后命中的 `finally` / cleanup 对 outer mutable locals/params 的赋值必须在调用点可见，而不只在“第一次离开 handle”时可见。
+  - 把 outer-slot writeback target 收口进 frame metadata，使 resumed continuation 后续只要跑同一个 `step_fn` 返回出口，就能复用同一写回 helper。
+  - 不在 `Continuation.resume(...)` call site 上追加局部补丁；authoritative source/target 必须继续由统一 frame metadata 驱动。
 - 验收：
-  - 新增一个 focused fixture，锁定 escaped continuation `resume(...)` 返回后 outer `var` 已与 resumed body/finally 保持同步。
+  - `cargo test -p scoopc escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a
 
-### T3009b0aR [TODO] Review：确认 outer-scope slot 写回没有回流成 effect-only patch
-- 描述：在 `T3009b0a1` 之后只审查生产代码，确认 outer-scope local 的写回是统一合同的一部分，而不是在 `Continuation.resume` / escape arm / 单个 fixture 路径上额外打补丁；若发现只对特定 effect 场景生效的 patch，本任务需要直接修复并复审。
-- 目标：
-  - 确认 outer-scope seeded slot 的 authoritative 来源与写回目标都由统一 frame metadata 驱动，不依赖 arm kind、callee 名称或 fixture 形状。
-  - 确认“第一次离开 handle”的 `handle_done` / `handle_propagate` 与 escaped continuation `resume(...)` 之后的完成 / 向外传播路径都共享同一套 outer-slot 写回合同，而不是分别拼接补丁。
-  - 确认当前 dedicated `Continuation.resume` lowering 仍只负责 runtime resume/payload transport，不偷偷承担 outer-local 同步职责。
-- 验收：
-  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“outer-scope slot 写回已统一收口，且未回流为 effect-only patch”。
-- 依赖：T3009b0a1
-
 ### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
-- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，但 `T3009b0aR` 继续审查后又发现 escaped continuation 在 `k.resume(...)` 之后的完成路径仍缺统一 outer-slot writeback 合同，因此该前置现在由 `T3009b0a1/T3009b0aR` 接手。本任务在其后继续完成 scalar/ref payload transport 与 resume caller-tail 的正式验收。
+- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，而 `T3009b0a1a` 又把 resumed path 所需的 frame-metadata writeback 合同补到了 step-return 出口。本任务在其后继续完成 scalar/ref payload transport 与 resume caller-tail 的正式验收。
 - 目标：
   - 对 typecheck 已确认的 `Continuation.resume(...)` 调用点提供显式 lowering，不再回落到 generic member access / generic call。
   - 复用现有 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，先覆盖 Unit、标量 word 与 GC ref payload。
@@ -862,7 +855,29 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3009b0aR
+- 依赖：T3009b0a1a
+
+### T3009b0a1b [TODO] 在 caller-tail 已接回后，用 focused fixture 验证 resumed completion path 的 outer-slot 写回
+- 描述：`T3009b0a1a` 已把 authoritative outer-slot writeback target 收口进 frame metadata，并让 step-return 出口复用同一 helper。但当前直接复现 `k.resume(...)` 时，程序仍会停在 `body_after` / `body_resumed`，说明 resumed body 已执行、而 caller-tail 尚未继续；在这个状态下无法用 run-pass fixture 直接观测“`resume()` 返回点的 outer-local 已同步”。因此把“可观测验收”拆成独立子任务，等 `T3009b0` 接回 escaped continuation 的 caller-tail 后，再新增 focused fixture 锁定恢复完成路径的外层写回可见性。
+- 目标：
+  - 新增一个 focused fixture，锁定 escaped continuation `resume(...)` 返回后，outer `var` 已与 resumed body / cleanup 保持同步。
+  - 该 fixture 必须直接观测调用点可见的 outer local，而不是只看 resumed body 内部输出。
+- 验收：
+  - focused fixture 通过，且输出明确覆盖“handle 初次离开时旧值仍在、`resume()` 返回后新值可见”。
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b0
+
+### T3009b0aR [TODO] Review：确认 outer-scope slot 写回没有回流成 effect-only patch
+- 描述：在 `T3009b0a1a` + `T3009b0` + `T3009b0a1b` 之后只审查生产代码，确认 outer-scope local 的写回是统一合同的一部分，而不是在 `Continuation.resume` / escape arm / 单个 fixture 路径上额外打补丁；若发现只对特定 effect 场景生效的 patch，本任务需要直接修复并复审。
+- 目标：
+  - 确认 outer-scope seeded slot 的 authoritative 来源与写回目标都由统一 frame metadata 驱动，不依赖 arm kind、callee 名称或 fixture 形状。
+  - 确认“第一次离开 handle”的 `handle_done` / `handle_propagate` 与 escaped continuation `resume(...)` 之后的完成 / 向外传播路径都共享同一套 outer-slot 写回合同，而不是分别拼接补丁。
+  - 确认当前 dedicated `Continuation.resume` lowering 仍只负责 runtime resume/payload transport，不偷偷承担 outer-local 同步职责。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“outer-scope slot 写回已统一收口，且未回流为 effect-only patch”。
+- 依赖：T3009b0a1b
 
 ### T3009b0R [TODO] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call
 - 描述：在 `T3009b0` 之后只审查生产代码，确认 escaped continuation 的 `Continuation.resume(...)` 已有 dedicated lowering，并且当前仅覆盖 scalar/ref transport 的实现没有偷偷塞回 generic member access / generic call；若发现回落或散落 patch，本任务需要直接修复并复审。
