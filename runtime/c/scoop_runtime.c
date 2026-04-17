@@ -634,6 +634,14 @@ void scoop_effect_clear_active(void) {
 }
 
 // T1606f-2：callee suspend state 访问器。
+//
+// ordinary indirect callee fresh path 先把 post-suspend locals/captures 保存成
+// GC-managed state object，再通过 publish 把它暂存到当前线程 TLS；outer unified
+// `Suspend` terminator 会立刻把这个值提升进 continuation 并清空 TLS。
+void scoop_callee_suspend_state_publish(void *state) {
+  __scoop_callee_suspend_state = state;
+}
+
 void *scoop_callee_suspend_state_get(void) {
   return __scoop_callee_suspend_state;
 }

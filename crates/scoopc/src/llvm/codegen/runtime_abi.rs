@@ -1323,6 +1323,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// 发布当前 ordinary indirect-callee 的 suspend state 到 runtime TLS。
+    ///
+    /// 语义上该 state 始终是 GC-managed 对象；编译器 fresh path 保存完 locals/captures
+    /// 后调用 publish，outer state-machine 的 `Suspend` terminator 再用 get+clear 把它
+    /// 提升为 continuation 的正式字段。
+    pub(super) fn declare_runtime_callee_suspend_state_publish(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CALLEE_SUSPEND_STATE_PUBLISH;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// 读取当前线程暂存的 indirect callee suspend state。
     ///
     /// 该值在 runtime 中以 `void*` 暴露，但语义上始终指向 GC-managed 的

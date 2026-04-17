@@ -30,6 +30,7 @@
   X(scoop_alloc_typed) \
   X(scoop_callee_suspend_state_clear) \
   X(scoop_callee_suspend_state_get) \
+  X(scoop_callee_suspend_state_publish) \
   X(scoop_array_builder_build_array) \
   X(scoop_array_builder_build_mutable_array) \
   X(scoop_array_builder_new) \

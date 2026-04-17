@@ -1621,12 +1621,25 @@
   - 未发现按 callee 名称、fixture 名称或源码形状分流的 capture/restore 逻辑。
 - 依赖：T3009b2a
 
-### T3009b2b [TODO] 接回 ordinary indirect callee 的 resumed-body restore 路径，并让 `SuspendCall` resume 不再把 payload 误当整次调用结果
+### T3009b2b [DONE] 接回 ordinary indirect callee 的 resumed-body restore 路径，并让 `SuspendCall` resume 不再把 payload 误当整次调用结果
 - 描述：`T3009b2a` 之后，继续把 ordinary indirect callee（普通 top-level helper / closure / function-value callee）的 suspend state save/restore 与 caller-tail 合同正式接回。当前 `SuspendCall` 的 `ResumeAfterSite` 会把恢复值注入 synthetic resume slot，并把 post-call caller-tail 重写成“直接读这个 slot”；这对 tail-return / closure-tail 场景恰好等价，但对 `fetchGreeting()`、`compute()`、`counter()`、`callIt { ... }` 这类 non-tail indirect callee 会把 `resume` payload 误当成整个调用结果，导致 callee 自己的 post-suspend body 被跳过。需要让 callee 在 resume 后重新进入自己的 resumed body，返回真实 call result，再由 outer caller-tail 继续消费。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/mod.rs` 中引入最小 `CalleeSuspendPlan` / `CalleeSuspendSavedLocal` 以及 `build_*_callee_suspend_plan`、`build_callee_suspend_resume_tail_block`、`finish_function_return_path` 等 helper，让 ordinary top-level helper 与 closure fun body 拥有 fresh/resume 双入口：fresh path 在 outward `perform` 前保存 post-suspend locals/captures，resume path 则在恢复后继续执行原 resumed body tail。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中补齐 callee suspend state save/publish/restore helpers；ordinary frame 在存在 `current_callee_suspend_plan` 时，会先把 resume payload 与 post-suspend locals/captures 写入 callee suspend state，再沿既有 outward propagation 返回。resume 时通过 `emit_callee_suspend_resume_prologue` 从 TLS/continuation captured state 恢复 locals 与 resume payload。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中把 unified `ResumeAfterSite(Call)` 改为“有 callee suspend state 才 replay 原 call expr、并把真实 call result 写回 synthetic resume slot；否则保持既有 inactive path”，不再把 `resume` payload 直接当作整次调用结果。
+  - 已在 `runtime/c/scoop_runtime.c` / `runtime/c/scoop_runtime_api.h` 与 LLVM runtime ABI 中接入 `scoop_callee_suspend_state_publish`，让 ordinary callee 的 suspend state 能通过统一 TLS 暂存并被 continuation 捕获；`Suspend` terminator 把该 state 捕获进 continuation 后还会 `unpin`，避免 pin 泄漏。
+  - 四条 indirect resumed-body run-pass fixture 已移除旧的 `EXPECT: fail`，恢复为 passing baseline。验收过程中还顺手收紧了 `emit_resume_after_call_site` 的 helper 签名，消除 `clippy::too_many_arguments`，保持零 warning 门槛。
 - 目标：
   - ordinary indirect callee 在 outward perform 时能保存自己的 post-suspend state，并在 resume 后恢复 locals/captures 与 resumed body。
   - outer `SuspendCall` resume 逻辑不再把 payload 直接当作整次调用结果注入 caller-tail；tail-return 与 non-tail 场景继续共享单一合同。
   - top-level helper / closure / function-value callee 的恢复逻辑不得回流为旧的源码形状分流。
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`

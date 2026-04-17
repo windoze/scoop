@@ -149,6 +149,28 @@ impl<'ctx> Env<'ctx> {
     }
 }
 
+/// 普通 indirect callee 的 suspend-state 里需要保存的一个局部绑定。
+#[derive(Debug, Clone)]
+struct CalleeSuspendSavedLocal {
+    id: hir::SymbolId,
+    name: String,
+    ty: TypeId,
+    mutable: bool,
+}
+
+/// 一个 ordinary callee 的最小 resumed-body 恢复计划。
+///
+/// 当前阶段只覆盖“block 中单个 direct-perform `val` 绑定”的稳定子集：
+/// fresh path 在该 `perform` 外传前保存 `saved_locals`，resume path 用
+/// transport payload 重新绑定 `perform_binding_id`，然后只重放其后的 tail。
+#[derive(Debug, Clone)]
+struct CalleeSuspendPlan {
+    perform_stmt_index: usize,
+    perform_binding_id: hir::SymbolId,
+    perform_binding_ty: TypeId,
+    saved_locals: Vec<CalleeSuspendSavedLocal>,
+}
+
 pub(crate) struct MainCodegen<'a, 'ctx> {
     context: &'ctx Context,
     module: &'a Module<'ctx>,
@@ -234,6 +256,16 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// 目前仅 higher-order 间接调用生成的 lambda 函数会设置该字段；
     /// `emit_return` 会据此改为“store 到 sret + ret void”。
     current_sret_return_ptr: Option<PointerValue<'ctx>>,
+    /// 当前正在生成的 ordinary callee resumed-body 保存/恢复计划。
+    ///
+    /// 说明：
+    /// - 仅在“direct perform 外传后需要由 outer state-machine resume 重放原 call”这一
+    ///   普通 callee 路径上设置；
+    /// - `codegen_perform_expr` 在 ordinary frame 中观察到该字段时，会先保存 callee
+    ///   suspend state，再走现有的 active-flag 外传返回；
+    /// - 进入其它独立函数体（例如 closure body、effect step_fn）时必须保存/恢复此字段，
+    ///   避免把外层计划泄漏到不相关的代码生成上下文。
+    current_callee_suspend_plan: Option<CalleeSuspendPlan>,
     /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
     top_level_const_eval_stack: Vec<String>,
 }
@@ -415,6 +447,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             loop_context_stack: Vec::new(),
             return_context: None,
             current_sret_return_ptr: None,
+            current_callee_suspend_plan: None,
             top_level_const_eval_stack: Vec::new(),
         }
     }
@@ -1208,6 +1241,145 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
+    fn build_block_callee_suspend_plan(
+        &self,
+        block: &hir::Block,
+        mut available_locals: Vec<CalleeSuspendSavedLocal>,
+    ) -> Option<CalleeSuspendPlan> {
+        let mut plan: Option<CalleeSuspendPlan> = None;
+
+        for (stmt_index, stmt) in block.stmts.iter().enumerate() {
+            if let hir::StmtKind::Val(decl) = &stmt.kind {
+                if let Some(init) = decl.init.as_ref()
+                    && matches!(init.kind, hir::ExprKind::Perform { .. })
+                {
+                    let binding_id = decl.id?;
+                    if plan.is_some() || stmt_index + 1 >= block.stmts.len() {
+                        return None;
+                    }
+                    plan = Some(CalleeSuspendPlan {
+                        perform_stmt_index: stmt_index,
+                        perform_binding_id: binding_id,
+                        perform_binding_ty: decl.ty,
+                        saved_locals: available_locals.clone(),
+                    });
+                }
+
+                if let Some(id) = decl.id {
+                    available_locals.push(CalleeSuspendSavedLocal {
+                        id,
+                        name: decl
+                            .name
+                            .clone()
+                            .unwrap_or_else(|| format!("local_{}", id.as_u32())),
+                        ty: decl.ty,
+                        mutable: decl.mutable,
+                    });
+                }
+            }
+        }
+
+        plan
+    }
+
+    fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
+        let body = fun.body.as_ref()?;
+        let seed_locals = fun
+            .params
+            .iter()
+            .map(|param| CalleeSuspendSavedLocal {
+                id: param.id,
+                name: param.name.clone(),
+                ty: param.ty,
+                mutable: false,
+            })
+            .collect::<Vec<_>>();
+        self.build_block_callee_suspend_plan(body, seed_locals)
+    }
+
+    fn build_closure_callee_suspend_plan(
+        &self,
+        closure: &hir::ClosureExpr,
+        param_bindings: &[(hir::SymbolId, String, TypeId)],
+        capture_bindings: &[(hir::SymbolId, String, TypeId)],
+    ) -> Option<CalleeSuspendPlan> {
+        let hir::ExprKind::Block(block) = &closure.body.kind else {
+            return None;
+        };
+
+        let mut seed_locals = capture_bindings
+            .iter()
+            .map(|(id, name, ty)| CalleeSuspendSavedLocal {
+                id: *id,
+                name: name.clone(),
+                ty: *ty,
+                mutable: false,
+            })
+            .collect::<Vec<_>>();
+        seed_locals.extend(
+            param_bindings
+                .iter()
+                .map(|(id, name, ty)| CalleeSuspendSavedLocal {
+                    id: *id,
+                    name: name.clone(),
+                    ty: *ty,
+                    mutable: false,
+                }),
+        );
+
+        self.build_block_callee_suspend_plan(block, seed_locals)
+    }
+
+    fn build_callee_suspend_resume_tail_block(
+        &self,
+        block: &hir::Block,
+        plan: &CalleeSuspendPlan,
+    ) -> hir::Block {
+        let tail_stmts = block
+            .stmts
+            .iter()
+            .skip(plan.perform_stmt_index + 1)
+            .cloned()
+            .collect::<Vec<_>>();
+        let tail_span = tail_stmts
+            .first()
+            .map(|stmt| stmt.span)
+            .unwrap_or(block.span);
+        hir::Block {
+            span: tail_span,
+            ty: block.ty,
+            stmts: tail_stmts,
+        }
+    }
+
+    fn finish_function_return_path(
+        &mut self,
+        at: crate::span::Span,
+        declared_return_cg: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+
+        if let Some(return_ctx) = self.return_context {
+            if let Some(alloca) = return_ctx.return_alloca
+                && let Some(raw) = value.value
+            {
+                self.builder.build_store(alloca, raw)?;
+            }
+            self.builder
+                .build_unconditional_branch(return_ctx.return_bb)?;
+            return Ok(());
+        }
+
+        self.emit_return(at, declared_return_cg, value)
+    }
+
     pub(crate) fn codegen_top_level_fun(
         mut self,
         fun: &hir::FunDecl,
@@ -1249,20 +1421,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return_alloca,
         });
 
-        let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
+        let callee_suspend_plan = self.build_fun_callee_suspend_plan(fun);
+        let base_env = self.env.clone();
 
-        // Normal path: store return value and branch to return_bb.
-        if self
-            .builder
-            .get_insert_block()
-            .is_some_and(|bb| bb.get_terminator().is_none())
-        {
-            if let Some(alloca) = return_alloca
-                && let Some(raw) = ret_v.value
-            {
-                self.builder.build_store(alloca, raw)?;
-            }
-            self.builder.build_unconditional_branch(return_bb)?;
+        if let Some(plan) = callee_suspend_plan.as_ref() {
+            let tls_state =
+                self.current_callee_suspend_state_ptr(fun.span, "callee_suspend_entry_state")?;
+            let is_resume =
+                self.ptr_is_non_null(fun.span, tls_state, "callee_suspend_entry_is_resume")?;
+            let fresh_bb = self.context.append_basic_block(llvm_fun, "fresh_entry");
+            let resume_bb = self.context.append_basic_block(llvm_fun, "resume_entry");
+            self.builder
+                .build_conditional_branch(is_resume, resume_bb, fresh_bb)?;
+
+            self.builder.position_at_end(fresh_bb);
+            self.env = base_env.clone();
+            self.current_callee_suspend_plan = Some(plan.clone());
+            let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
+            self.current_callee_suspend_plan = None;
+            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
+
+            self.builder.position_at_end(resume_bb);
+            self.env = base_env.clone();
+            self.emit_callee_suspend_resume_prologue(fun.span, plan)?;
+            self.current_callee_suspend_plan = Some(plan.clone());
+            let resume_tail = self.build_callee_suspend_resume_tail_block(body, plan);
+            let ret_v = self.codegen_block_as_return_value(&resume_tail, declared_return_cg)?;
+            self.current_callee_suspend_plan = None;
+            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
+        } else {
+            let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
+            self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
         }
 
         // Emit the return block.
@@ -10629,6 +10818,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
+        let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
         self.env.push_scope();
 
         // 入口的返回类型由期望函数类型决定（用于 Raise 的"早退默认值"）。
@@ -10821,25 +11011,78 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let body_expr = closure.body.as_ref();
-        let ret_v = match &body_expr.kind {
-            hir::ExprKind::Block(block) => {
-                self.codegen_block_as_return_value(block, declared_return_cg)?
-            }
-            _ => {
-                let v =
-                    self.codegen_expr_in_expected_context(body_expr, Some(declared_return_cg))?;
-                if declared_return_cg == CgTy::Unit {
-                    CgValue::unit()
-                } else {
-                    self.coerce_value(body_expr.span, v, declared_return_cg)?
-                }
-            }
-        };
+        let callee_suspend_plan =
+            self.build_closure_callee_suspend_plan(closure, param_bindings, capture_bindings);
+        let base_env = self.env.clone();
 
-        self.emit_return(closure.span, declared_return_cg, ret_v)?;
+        if let Some(plan) = callee_suspend_plan.as_ref() {
+            let tls_state = self.current_callee_suspend_state_ptr(
+                closure.span,
+                "closure_callee_suspend_entry_state",
+            )?;
+            let is_resume = self.ptr_is_non_null(
+                closure.span,
+                tls_state,
+                "closure_callee_suspend_entry_is_resume",
+            )?;
+            let fresh_bb = self.context.append_basic_block(llvm_fun, "fresh_entry");
+            let resume_bb = self.context.append_basic_block(llvm_fun, "resume_entry");
+            self.builder
+                .build_conditional_branch(is_resume, resume_bb, fresh_bb)?;
+
+            self.builder.position_at_end(fresh_bb);
+            self.env = base_env.clone();
+            self.current_callee_suspend_plan = Some(plan.clone());
+            let body_expr = closure.body.as_ref();
+            let ret_v = match &body_expr.kind {
+                hir::ExprKind::Block(block) => {
+                    self.codegen_block_as_return_value(block, declared_return_cg)?
+                }
+                _ => {
+                    let v =
+                        self.codegen_expr_in_expected_context(body_expr, Some(declared_return_cg))?;
+                    if declared_return_cg == CgTy::Unit {
+                        CgValue::unit()
+                    } else {
+                        self.coerce_value(body_expr.span, v, declared_return_cg)?
+                    }
+                }
+            };
+            self.current_callee_suspend_plan = None;
+            self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
+
+            self.builder.position_at_end(resume_bb);
+            self.env = base_env.clone();
+            self.emit_callee_suspend_resume_prologue(closure.span, plan)?;
+            self.current_callee_suspend_plan = Some(plan.clone());
+            let hir::ExprKind::Block(block) = &closure.body.kind else {
+                unreachable!("closure callee suspend plan requires block body");
+            };
+            let resume_tail = self.build_callee_suspend_resume_tail_block(block, plan);
+            let ret_v = self.codegen_block_as_return_value(&resume_tail, declared_return_cg)?;
+            self.current_callee_suspend_plan = None;
+            self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
+        } else {
+            let body_expr = closure.body.as_ref();
+            let ret_v = match &body_expr.kind {
+                hir::ExprKind::Block(block) => {
+                    self.codegen_block_as_return_value(block, declared_return_cg)?
+                }
+                _ => {
+                    let v =
+                        self.codegen_expr_in_expected_context(body_expr, Some(declared_return_cg))?;
+                    if declared_return_cg == CgTy::Unit {
+                        CgValue::unit()
+                    } else {
+                        self.coerce_value(body_expr.span, v, declared_return_cg)?
+                    }
+                }
+            };
+            self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
+        }
 
         self.current_sret_return_ptr = None;
+        self.current_callee_suspend_plan = saved_callee_suspend_plan;
         self.env.pop_scope();
         Ok(())
     }

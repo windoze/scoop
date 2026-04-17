@@ -1,58 +1,44 @@
-# Claude Plan
+# 2026-04-18 当前轮执行计划
 
-说明：按当前执行约束，此文件记录“可验证的决策摘要、执行计划、进度更新与变更原因”，不记录逐字内部推理。
+## 目标
+完成 `TODO.md` 中当前首个未完成任务 `T3009b2b`，完成后立即停止，不进入下一个任务。
 
-## 本轮目标
+## 已知上下文
+- 上一轮已完成该任务的核心实现，修复 ordinary indirect callee 在 effect suspend / resume 场景下的 resumed-body replay 问题。
+- 代码改动已覆盖 LLVM codegen、effect state machine、runtime TLS publish，以及相关 run-pass fixtures。
+- 目前已知 `cargo check -p scoopc` 与 `cargo test --all` 通过，但还需要补齐本轮要求的最终验收、文档更新与提交。
 
-完成 `TODO.md` 中第一个未完成任务；如果遇到前置缺陷或规格不匹配，先把该问题作为更高优先级任务纳入 `TODO.md` / `PLAN.md`，提交后停止。
+## 执行步骤
+1. 检查最近一次提交信息，确认是否提到任何需要先修复的 pre-existing issue；若存在，优先处理。
+2. 确认 `TODO.md` 中首个未完成任务仍为 `T3009b2b`，并核对 `PLAN.md` 当前状态，避免与现有计划冲突。
+3. 运行剩余必须的验证命令：
+   - `cargo clippy --all-targets -- -D warnings`
+   - 按任务验收方式运行相关 LLVM fixture。
+4. 若验证失败，直接修复问题并重新验证；若验证通过，更新文档：
+   - `TODO.md` 将 `T3009b2b` 标记为完成，并记录必要说明。
+   - `PLAN.md` 记录本轮完成情况与后续边界。
+   - `memory/claude_plan.md` 追加进度与结果。
+5. 检查工作区差异，确认只包含本任务相关修改。
+6. 使用明确提交信息创建 git commit，例如 `[T3009b2b] Restore ordinary indirect callee resumed-body replay`。
+7. 停止，不继续处理后续任务。
 
-## 初始执行计划
+## 注意事项
+- 不采用 workaround；若发现新的 spec mismatch，必须先更新 `TODO.md` / `PLAN.md` 后再停止。
+- 不回退未授权的现有改动。
+- 对外记录仅写可审阅计划、进度与结论，不记录不可审阅的内部推理细节。
 
-1. 检查最新一次 Git 提交，确认是否提到已知问题、遗留修复项或显式 TODO。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对任务上下文、依赖与当前计划。
-4. 检查工作树状态，识别是否存在用户未提交改动，避免误覆盖。
-5. 评估第一个未完成任务：
-   - 如果任务边界清晰且本轮可完成，直接实现。
-   - 如果任务过大，先拆分为可执行子任务，更新 `TODO.md` 与 `PLAN.md`，本轮只执行第一个子任务。
-   - 如果实现过程中发现更早的规格缺口/已有缺陷，先新增前置任务并重排依赖，再停止。
-6. 对已实现变更运行相关验证：
-   - 最小必要测试；
-   - 如任务影响范围允许，运行更完整的测试/检查（包括 `cargo fmt`、相关 `cargo test`、必要时 `cargo clippy --all-targets -- -D warnings`）。
-7. 更新文档状态：
-   - 在 `TODO.md` 标记完成或重排任务；
-   - 在 `PLAN.md` 记录完成情况、拆分结果或阻塞原因；
-   - 在本文件记录关键进度与决策。
-8. 提交本轮所有改动，提交后停止，不继续下一个任务。
-
-## 进度日志
-
-- 已创建本轮计划文件，下一步开始检查最新提交与任务列表。
-- 已检查最新提交、`TODO.md`、`PLAN.md` 与工作树：当前第一个未完成任务是 `T3009b2aR`。
-- 审查 `callee_suspend_state` 生产路径后确认：
-  - LLVM 生产发射只在 `Suspend` terminator 中执行一次 `get + clear`，把当前 TLS suspend state 提升进 continuation 字段；
-  - runtime 生产路径只在 `scoop_continuation_resume_common()` 中把 continuation 捕获值临时恢复进 TLS，并在 step_fn 返回后恢复 caller 原 TLS；
-  - 当前未发现按 callee 名称、fixture 名称或源码形状分流的捕获逻辑。
-- 审查同时发现一个需要直接修复的 ABI 边界问题：
-  - `runtime/c/scoop_runtime_api.h` 仍把裸 TLS 符号 `__scoop_callee_suspend_state` 作为正式导出符号暴露；
-  - `scoop_callee_suspend_state_set` 当前只被运行时测试使用，却仍以通用 runtime API 的形式暴露。
-- 下一步修复：
-  1. 把 `__scoop_callee_suspend_state` 收紧为 runtime 内部静态 TLS，不再作为 ABI 导出。
-  2. 移除通用导出的 `scoop_callee_suspend_state_set`，改为显式 test helper，避免形成生产旁路。
-  3. 更新相关测试、allowlist 与任务文档，然后跑定向测试、全量测试与 clippy。
-- 已完成 ABI 收紧：
-  - `runtime/c/scoop_runtime.c` 中的 `__scoop_callee_suspend_state` 已改为 `static` TLS；
-  - 原通用 setter 已改为 test helper `scoop_test_callee_suspend_state_set`；
-  - `runtime/c/scoop_runtime_api.h` allowlist 与相关运行时测试已同步更新。
-- 已完成验证：
-  - `cargo test -p scoop_runtime --test continuation_one_shot`
-  - `cargo test -p scoop_runtime --test effect_tls`
-  - `cargo test -p scoop_runtime abi_exports_allowlist -- --nocapture`
-  - `cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 本轮结论：
-  - `T3009b2aR` 可收口完成；
-  - continuation/runtime ABI 现已以 continuation 字段为唯一持久化 owner；
-  - TLS 只承担运行期动态范围内的临时寄存职责，不再以裸导出符号形式暴露。
-- 下一步：更新 Git 状态，提交本轮变更，停止在 `T3009b2b` 之前。
+## 进度更新
+- 已检查最近一次提交 `f533a1e [T3009b2aR] Seal callee suspend TLS ABI bypass`，未发现需要在本轮任务前插队修复的额外 pre-existing issue。
+- 已确认 `TODO.md` 当前首个未完成任务仍为 `T3009b2b`，`PLAN.md` 当前执行顺序也与此一致。
+- `cargo clippy --all-targets -- -D warnings` 初次执行时失败，暴露 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 `emit_resume_after_call_site` helper 参数过多的真实 lint 问题。
+- 已通过删除未使用的 `_state` 参数收紧该 helper 形状；行为未改动。
+- 重新执行 `cargo clippy --all-targets -- -D warnings` 后已通过。
+- 已按 `TODO.md` 验收命令通过 4 条关键 LLVM fixture：
+  - `effect_escape_continuation_indirect_perform_basic.scoop`
+  - `effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+- `cargo test --all` 已重新通过，确认本轮对 ordinary indirect callee resumed-body restore 的实现与最后的 lint 修正未引入回归。
+- 已更新 `TODO.md` 将 `T3009b2b` 标记为完成，并更新 `PLAN.md` 记录本轮完成情况；下一项待执行任务应为 `T3009b2bR`。
+- `cargo fmt` 与 `cargo fmt --check` 已通过，确认当前工作区格式对齐。
+- 下一步只剩检查工作区、创建提交 `[T3009b2b] Restore ordinary indirect callee resumed-body replay`，然后停止。

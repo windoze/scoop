@@ -19,9 +19,9 @@ use super::unified_state_machine_skeleton::FrameSlot;
 use super::*;
 
 use super::unified_state_machine_skeleton::{
-    HandleBranchCondition, HandleStateOp, SuspendSiteKind, UnifiedArm, UnifiedFrameField,
-    UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState, UnifiedStateContext,
-    UnifiedStateTerminator,
+    HandleBranchCondition, HandleStateOp, ResumeAfterSiteReason, SuspendSiteKind, UnifiedArm,
+    UnifiedFrameField, UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState,
+    UnifiedStateContext, UnifiedStateTerminator,
 };
 
 /// System field indices in the frame struct.
@@ -412,6 +412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_env = std::mem::take(&mut self.env);
         let saved_return_ctx = self.return_context.take();
         let saved_return_ty = self.current_fun_return_ty.take();
+        let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
         let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
 
         // --- Generate step function body ---
@@ -419,6 +420,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Restore caller's codegen context.
         self.loop_context_stack = saved_loop_stack;
+        self.current_callee_suspend_plan = saved_callee_suspend_plan;
         self.current_fun_return_ty = saved_return_ty;
         self.return_context = saved_return_ctx;
         self.env = saved_env;
@@ -737,6 +739,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // --- Resume landing: no-op marker ---
                 HandleStateOp::ResumeAfterSite {
+                    site_id,
+                    reason,
                     source_span,
                     resume_slot,
                     ..
@@ -747,13 +751,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // so the rewritten post-suspend HIR can consume it via the
                     // normal local-read path.
                     if let Some(resume_slot) = resume_slot.as_ref() {
-                        self.emit_resume_value_to_frame_slot(
-                            *source_span,
-                            resume_slot,
-                            state_ptr,
-                            frame_layout,
-                            contract,
-                        )?;
+                        let should_replay_call = if matches!(reason, ResumeAfterSiteReason::Call) {
+                            contract
+                                .machine()
+                                .get_suspend_site(*site_id)
+                                .is_some_and(|site| {
+                                    matches!(
+                                        site.kind(),
+                                        SuspendSiteKind::CallMaySuspend { .. }
+                                            | SuspendSiteKind::CallStateMachineCallee { .. }
+                                    )
+                                })
+                        } else {
+                            false
+                        };
+                        if should_replay_call {
+                            let val = self.emit_resume_after_call_site(
+                                *site_id,
+                                *source_span,
+                                resume_slot,
+                                state_ptr,
+                                frame_layout,
+                                contract,
+                            )?;
+                            last_value = Some(val);
+                        } else {
+                            self.emit_resume_value_to_frame_slot(
+                                *source_span,
+                                resume_slot,
+                                state_ptr,
+                                frame_layout,
+                                contract,
+                            )?;
+                        }
                     }
                 }
 
@@ -953,10 +983,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(at, cg_ty, loaded)
     }
 
-    fn emit_resume_value_to_frame_slot(
+    fn store_value_to_frame_slot(
         &mut self,
         at: crate::span::Span,
         resume_slot: &FrameSlot,
+        value: CgValue<'ctx>,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
@@ -981,8 +1012,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "resume slot type",
                 at: at.into(),
             })?;
-        let resume_value = self.read_result_from_frame(at, cg_ty, state_ptr, frame_layout)?;
-        self.store_local_value(at, slot_ptr, cg_ty, resume_value)?;
+        let value = self.coerce_value(at, value, cg_ty)?;
+        self.store_local_value(at, slot_ptr, cg_ty, value)?;
         self.env.insert(
             resume_slot.id(),
             CgLocal {
@@ -994,6 +1025,128 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         );
         Ok(())
+    }
+
+    fn emit_resume_value_to_frame_slot(
+        &mut self,
+        at: crate::span::Span,
+        resume_slot: &FrameSlot,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        let cg_ty = self
+            .cg_ty_of(resume_slot.ty())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "resume slot type",
+                at: at.into(),
+            })?;
+        let resume_value = self.read_result_from_frame(at, cg_ty, state_ptr, frame_layout)?;
+        self.store_value_to_frame_slot(
+            at,
+            resume_slot,
+            resume_value,
+            state_ptr,
+            frame_layout,
+            contract,
+        )
+    }
+
+    fn lookup_suspend_call_expr<'hir>(
+        &self,
+        contract: &'hir UnifiedHandleLoweringContract,
+        site_id: u32,
+    ) -> Option<&'hir hir::Expr> {
+        contract.states().iter().find_map(|state| {
+            state.ops().iter().find_map(|op| match op {
+                HandleStateOp::SuspendCall {
+                    site_id: op_site_id,
+                    expr,
+                } if *op_site_id == site_id => Some(expr.as_ref()),
+                _ => None,
+            })
+        })
+    }
+
+    fn emit_resume_after_call_site(
+        &mut self,
+        site_id: u32,
+        source_span: crate::span::Span,
+        resume_slot: &FrameSlot,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let step_fn = self.current_codegen_function(source_span)?;
+        let current_callee_state = self.current_callee_suspend_state_ptr(
+            source_span,
+            &format!("site{site_id}_callee_suspend_state"),
+        )?;
+        let has_callee_state = self.ptr_is_non_null(
+            source_span,
+            current_callee_state,
+            &format!("site{site_id}_has_callee_suspend_state"),
+        )?;
+        let replay_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_resume_replay"));
+        let inactive_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_resume_inactive"));
+        let merge_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_resume_merge"));
+        self.builder
+            .build_conditional_branch(has_callee_state, replay_bb, inactive_bb)?;
+
+        self.builder.position_at_end(inactive_bb);
+        self.emit_resume_value_to_frame_slot(
+            source_span,
+            resume_slot,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(replay_bb);
+        let (resume_word, resume_gc_ref) = self.read_frame_resume_payload(
+            state_ptr,
+            frame_layout,
+            "callee_resume_word",
+            "callee_resume_gc_ref",
+        )?;
+        self.emit_resume_payload_into_callee_suspend_state(
+            source_span,
+            current_callee_state,
+            resume_word,
+            resume_gc_ref,
+        )?;
+        let call_expr = self.lookup_suspend_call_expr(contract, site_id).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "resume.after.call source expression",
+                at: source_span.into(),
+            },
+        )?;
+        let call_result = self.codegen_expr_in_expected_context(call_expr, None)?;
+        self.store_value_to_frame_slot(
+            source_span,
+            resume_slot,
+            call_result,
+            state_ptr,
+            frame_layout,
+            contract,
+        )?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        self.emit_read_local_from_frame(
+            resume_slot.id(),
+            source_span,
+            state_ptr,
+            frame_layout,
+            contract,
+        )
     }
 
     fn seed_outer_scope_frame_slots(
@@ -1359,6 +1512,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let clear_callee_state = self.declare_runtime_callee_suspend_state_clear();
                 self.builder
                     .build_call(clear_callee_state, &[], "clear_callee_suspend_state")?;
+                let unpin_callee_state = self.declare_runtime_gc_unpin();
+                self.builder.build_call(
+                    unpin_callee_state,
+                    &[captured_callee_state.into()],
+                    "unpin_callee_suspend_state_after_capture",
+                )?;
 
                 // Store the continuation pointer into the dedicated runtime
                 // slot so later step_fn re-entry cannot overwrite it by

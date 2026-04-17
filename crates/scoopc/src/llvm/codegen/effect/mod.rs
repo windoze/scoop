@@ -48,6 +48,365 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
+    pub(super) fn ptr_is_non_null(
+        &mut self,
+        _at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let raw =
+            self.builder
+                .build_ptr_to_int(ptr, self.context.i64_type(), &format!("{name}_int"))?;
+        Ok(self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            raw,
+            self.context.i64_type().const_zero(),
+            name,
+        )?)
+    }
+
+    pub(super) fn current_callee_suspend_state_ptr(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let get_state = self.declare_runtime_callee_suspend_state_get();
+        self.builder
+            .build_call(get_state, &[], name)?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "callee_suspend_state_get return value",
+                at: at.into(),
+            })
+            .map(BasicValueEnum::into_pointer_value)
+    }
+
+    fn llvm_callee_suspend_state_prefix_type(&self) -> StructType<'ctx> {
+        const NAME: &str = "scoop.runtime.CalleeSuspendStatePrefix";
+        if let Some(existing) = self.context.get_struct_type(NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(NAME);
+        ty.set_body(
+            &[
+                self.llvm_gc_object_header_type().into(),
+                self.context.i64_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+            ],
+            false,
+        );
+        ty
+    }
+
+    fn current_callee_suspend_state_names(
+        &self,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> (String, String) {
+        let func_name = llvm_fun.get_name().to_str().unwrap_or("anon");
+        let func_name_san = sanitize_llvm_ident(func_name);
+        (
+            format!("scoop.runtime.CalleeSuspendState__{func_name_san}"),
+            format!("__scoop_type_desc_callee_suspend__{func_name_san}"),
+        )
+    }
+
+    fn get_or_create_current_callee_suspend_state_type(
+        &mut self,
+        at: crate::span::Span,
+        plan: &CalleeSuspendPlan,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let llvm_fun = self.current_codegen_function(at)?;
+        let (type_name, _) = self.current_callee_suspend_state_names(llvm_fun);
+        if let Some(existing) = self.context.get_struct_type(&type_name) {
+            return Ok(existing);
+        }
+
+        let ty = self.context.opaque_struct_type(&type_name);
+        let mut fields: Vec<BasicTypeEnum<'ctx>> = vec![
+            self.llvm_gc_object_header_type().into(),
+            self.context.i64_type().into(),
+            self.llvm_gc_i8_ptr_type().into(),
+        ];
+        for local in &plan.saved_locals {
+            let cg_ty = self
+                .cg_ty_of(local.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee suspend local type",
+                    at: at.into(),
+                })?;
+            fields.push(self.llvm_basic_type_of(at, cg_ty)?);
+        }
+        ty.set_body(&fields, false);
+        Ok(ty)
+    }
+
+    fn get_or_create_current_callee_suspend_state_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        state_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let llvm_fun = self.current_codegen_function(at)?;
+        let (canonical_name, global_name) = self.current_callee_suspend_state_names(llvm_fun);
+        let trace_start_offset_bytes = self.target_data.offset_of_element(&state_ty, 2).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "callee suspend trace_start offset",
+                at: at.into(),
+            },
+        )?;
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            canonical_name: &canonical_name,
+            obj_ty: state_ty,
+            trace_start_offset_bytes,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
+    }
+
+    fn load_existing_local_value(
+        &mut self,
+        at: crate::span::Span,
+        local: CgLocal<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match local.ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local.ptr, "callee_suspend_load")?;
+                self.cg_value_from_loaded(at, local.ty, loaded)
+            }
+        }
+    }
+
+    pub(super) fn emit_callee_suspend_state_save(
+        &mut self,
+        at: crate::span::Span,
+        plan: &CalleeSuspendPlan,
+    ) -> Result<(), LlvmEmitError> {
+        let state_ty = self.get_or_create_current_callee_suspend_state_type(at, plan)?;
+        let state_desc =
+            self.get_or_create_current_callee_suspend_state_type_desc_global(at, state_ty)?;
+        let total_size = self
+            .context
+            .i64_type()
+            .const_int(self.target_data.get_store_size(&state_ty), false);
+        let desc_i8 = self.builder.build_pointer_cast(
+            state_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "callee_suspend_state_desc_i8",
+        )?;
+        let alloc = self.declare_runtime_alloc_typed();
+        let state_raw = self
+            .builder
+            .build_call(
+                alloc,
+                &[desc_i8.into(), total_size.into()],
+                "callee_suspend_state_alloc",
+            )?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "callee suspend state alloc return value",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+
+        let pin = self.declare_runtime_gc_pin();
+        self.builder
+            .build_call(pin, &[state_raw.into()], "callee_suspend_state_pin")?;
+
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "callee_suspend_state_ptr",
+        )?;
+        let resume_word_gep =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "callee_suspend_resume_word")?;
+        self.builder
+            .build_store(resume_word_gep, self.context.i64_type().const_zero())?;
+        let resume_gc_ref_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            2,
+            "callee_suspend_resume_gc_ref",
+        )?;
+        self.builder
+            .build_store(resume_gc_ref_gep, self.llvm_gc_i8_ptr_type().const_null())?;
+
+        for (index, local_plan) in plan.saved_locals.iter().enumerate() {
+            let local = self
+                .env
+                .get(local_plan.id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee suspend local not found",
+                    at: at.into(),
+                })?;
+            let field_index = 3 + index as u32;
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_index,
+                &format!("callee_suspend_save_{}", local_plan.id.as_u32()),
+            )?;
+            let value = self.load_existing_local_value(at, local)?;
+            self.store_local_value(at, field_ptr, local.ty, value)?;
+        }
+
+        let publish = self.declare_runtime_callee_suspend_state_publish();
+        self.builder
+            .build_call(publish, &[state_raw.into()], "publish_callee_suspend_state")?;
+        Ok(())
+    }
+
+    pub(super) fn emit_resume_payload_into_callee_suspend_state(
+        &mut self,
+        at: crate::span::Span,
+        state_raw: PointerValue<'ctx>,
+        resume_word: IntValue<'ctx>,
+        resume_gc_ref: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let prefix_ty = self.llvm_callee_suspend_state_prefix_type();
+        let prefix_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "callee_suspend_prefix_ptr",
+        )?;
+        let resume_word_gep = self.builder.build_struct_gep(
+            prefix_ty,
+            prefix_ptr,
+            1,
+            "callee_suspend_prefix_resume_word",
+        )?;
+        self.builder.build_store(resume_word_gep, resume_word)?;
+        let resume_gc_ref_gep = self.builder.build_struct_gep(
+            prefix_ty,
+            prefix_ptr,
+            2,
+            "callee_suspend_prefix_resume_gc_ref",
+        )?;
+        self.builder.build_store(resume_gc_ref_gep, resume_gc_ref)?;
+        let _ = at;
+        Ok(())
+    }
+
+    pub(super) fn emit_callee_suspend_resume_prologue(
+        &mut self,
+        at: crate::span::Span,
+        plan: &CalleeSuspendPlan,
+    ) -> Result<(), LlvmEmitError> {
+        let state_ty = self.get_or_create_current_callee_suspend_state_type(at, plan)?;
+        let state_raw = self.current_callee_suspend_state_ptr(at, "callee_suspend_resume_state")?;
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "callee_suspend_resume_ptr",
+        )?;
+
+        let clear = self.declare_runtime_callee_suspend_state_clear();
+        self.builder
+            .build_call(clear, &[], "clear_callee_suspend_state")?;
+
+        let resume_word_gep =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "callee_resume_word_gep")?;
+        let resume_word = self
+            .builder
+            .build_load(
+                self.context.i64_type(),
+                resume_word_gep,
+                "callee_resume_word",
+            )?
+            .into_int_value();
+        let resume_gc_ref_gep =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 2, "callee_resume_gc_ref_gep")?;
+        let resume_gc_ref = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                resume_gc_ref_gep,
+                "callee_resume_gc_ref",
+            )?
+            .into_pointer_value();
+
+        for (index, local_plan) in plan.saved_locals.iter().enumerate() {
+            let cg_ty = self
+                .cg_ty_of(local_plan.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee resume local type",
+                    at: at.into(),
+                })?;
+            let field_index = 3 + index as u32;
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_index,
+                &format!("callee_resume_local_{}", local_plan.id.as_u32()),
+            )?;
+            let restored = match cg_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => {
+                    let llvm_ty = self.llvm_basic_type_of(at, cg_ty)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        field_ptr,
+                        &format!("callee_resume_load_{}", local_plan.id.as_u32()),
+                    )?;
+                    self.cg_value_from_loaded(at, cg_ty, loaded)?
+                }
+            };
+            let name = if local_plan.name.is_empty() {
+                format!("resumed_local_{}", local_plan.id.as_u32())
+            } else {
+                format!("resumed_{}", local_plan.name)
+            };
+            let ptr = self.create_entry_alloca(at, &name, cg_ty)?;
+            self.store_local_value(at, ptr, cg_ty, restored)?;
+            self.env.insert(
+                local_plan.id,
+                CgLocal {
+                    hir_ty: Some(local_plan.ty),
+                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(local_plan.ty)),
+                    ty: cg_ty,
+                    ptr,
+                    mutable: local_plan.mutable,
+                },
+            );
+        }
+
+        let binding_cg_ty =
+            self.cg_ty_of(plan.perform_binding_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee resume binding type",
+                    at: at.into(),
+                })?;
+        let binding_value =
+            self.decode_effect_transport_value(at, resume_word, resume_gc_ref, binding_cg_ty)?;
+        let binding_ptr = self.create_entry_alloca(at, "callee_resume_binding", binding_cg_ty)?;
+        self.store_local_value(at, binding_ptr, binding_cg_ty, binding_value)?;
+        self.env.insert(
+            plan.perform_binding_id,
+            CgLocal {
+                hir_ty: Some(plan.perform_binding_ty),
+                call_may_suspend: self
+                    .local_call_may_suspend_from_hir_ty(Some(plan.perform_binding_ty)),
+                ty: binding_cg_ty,
+                ptr: binding_ptr,
+                mutable: false,
+            },
+        );
+        Ok(())
+    }
+
     /// 当前普通 callee frame 观察到 effect 已 active 时，立即把默认返回值交给 caller。
     ///
     /// 这条路径只用于 ordinary frame 的 effect 传播：
@@ -302,6 +661,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_call(set_active, &[], "")?;
 
         if self.ordinary_effect_propagation_enabled() {
+            if let Some(plan) = self.current_callee_suspend_plan.clone() {
+                self.emit_callee_suspend_state_save(span, &plan)?;
+            }
             self.emit_ordinary_non_resuming_effect_exit(span, "effect_perform")?;
             return Ok(CgValue::never());
         }
