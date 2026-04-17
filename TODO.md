@@ -842,8 +842,31 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a
 
+### T3009b0a1c [TODO] 修正 unified `SuspendCall` 的 inactive-continue / active-dispatch 合同
+- 描述：开始真正实现 `T3009b0a2` 时，用最小 repro `handle { helper(false) + 1 } with { Ask.ask() -> 2 }` 重新复现后确认，当前更前置的 shared blocker 并不只在 `RuntimeRaiseBoundary`。unified state-machine 里由 `SuspendCall` 承接的 call boundary（至少覆盖 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit`）仍被统一 terminator 建模成“求值后无条件 `Suspend`”：`helper(false)` 明明没有 perform，程序却直接空输出退出，本应打印 `8`。这说明 inactive 成功路径没有留在当前 state machine 内继续执行 caller-tail，而是被错误地分配 continuation、设置 active 并交回 dispatch。由于这个合同比 `RuntimeRaiseBoundary` 更基础，且 `T3009b0a2` 依赖同一条 caller-tail / resume-fragment 主线，必须先前移修复。
+- 目标：
+  - `SuspendCall` 驱动的 call boundary 在 callee 返回 inactive 时，必须留在当前 state machine 内继续执行 caller-tail，不能无条件 `alloc continuation + set active + return`。
+  - 只有 callee 确实让 TLS active 时，当前 step function 才把控制权交回 enclosing `handle` 的 dispatch loop 或继续向外传播。
+  - 修复必须继续复用已有 `resume_path` / synthetic resume slot / contract-driven rewrite 数据通路，不能按 callee 名称、源码形状或单个 fixture 打补丁。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b0a1a
+
+### T3009b0a1cR [TODO] Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同
+- 描述：在 `T3009b0a1c` 之后只审查生产代码，确认 `SuspendCall` 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在某个 callee / fixture 上局部绕过；若发现 call-site 特判、源码形状分流或把 inactive 路径重新塞回 ordinary helper，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `SuspendCall` 的 inactive/active 分流只由统一 contract 与 TLS active 结果驱动，不读取源码形状、callee 名称或旧 scanner 结果。
+  - 确认 `resume_path` / synthetic resume slot 仍是 post-call caller-tail 的唯一数据通路，没有新增 call-only side channel。
+  - 确认生产代码没有把 `SuspendCall` 的 inactive-path 修复回流成 `Continuation.resume(...)` / hidden-suspend helper 专用 patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“unified SuspendCall 的 inactive-path 已统一收口到 state-machine 合同”。
+- 依赖：T3009b0a1c
+
 ### T3009b0a2 [TODO] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
-- 描述：真正按 `T3009b0` 的验收 fixture 复现后确认，当前更前置且尚未被 `TODO.md` 跟踪的缺口并不只在 escaped continuation 自身。unified state-machine 现在把 `RuntimeRaiseBoundary`（至少覆盖 `Continuation.resume(...)` 与 `x as T`）统一建模成“求值表达式后无条件 `Suspend`”：step function 先发出 `scoop_continuation_resume(...)` / cast code，再立刻走 `alloc continuation + set_active + return`。结果是 boundary expression 的 inactive 成功路径也会被截断，caller-tail 永远接不回。最小复现包括：`effect_escape_continuation_resume_unit.scoop` 当前输出停在 `after_pause`，缺少 `after_resume` / `done`；`type_check_cast_is_as_asq_basic.scoop` 当前在首个成功 `as` 后停在 `x is Base: true`，未继续打印 `Impl.ping` / `42` / `10`。由于这是比 `T3009b0` 更基础的 shared boundary 合同错误，必须先前移修复。
+- 描述：`T3009b0a1c` 前移后，当前共享 contract 问题收窄到 `RuntimeRaiseBoundary` 自身。unified state-machine 现在把 `RuntimeRaiseBoundary`（至少覆盖 `Continuation.resume(...)` 与 `x as T`）统一建模成“求值表达式后无条件 `Suspend`”：step function 先发出 `scoop_continuation_resume(...)` / cast code，再立刻走 `alloc continuation + set_active + return`。结果是 boundary expression 的 inactive 成功路径也会被截断，caller-tail 永远接不回。最小复现包括：`effect_escape_continuation_resume_unit.scoop` 当前输出停在 `after_pause`，缺少 `after_resume` / `done`；`type_check_cast_is_as_asq_basic.scoop` 当前在首个成功 `as` 后停在 `x is Base: true`，未继续打印 `Impl.ping` / `42` / `10`。由于这是在 `SuspendCall` 之外仍然阻塞 `T3009b0` 的 shared boundary 合同错误，必须在 dedicated resume lowering 前继续收口。
 - 目标：
   - `RuntimeRaiseBoundary` 驱动的表达式在 inactive 成功路径上必须留在当前 state machine 内继续执行 caller-tail；不能无条件分配 caller continuation、设置 active 并提前返回。
   - 当 boundary expression 确实令 TLS active（例如 `Continuation.resume` 的 second-resume 运行期错误、`as` cast fail-path），当前 step function 必须把控制权交回 enclosing `handle` / `try` 的 dispatch loop，而不是继续执行 boundary 之后的语句。
@@ -853,7 +876,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3009b0a1a
+- 依赖：T3009b0a1cR
 
 ### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
 - 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，`T3009b0a1a` 也把 resumed path 所需的 frame-metadata writeback 合同补到了 step-return 出口。但继续真跑验收后又确认，caller-tail 当前还被更基础的 `RuntimeRaiseBoundary` 合同错误截断；该 shared 前置已由 `T3009b0a2` 承接。本任务在其之后继续完成 escaped continuation 的 scalar/ref payload transport 与 dedicated resume caller-tail 的正式验收。
