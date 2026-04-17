@@ -1636,6 +1636,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind,
             SuspendSiteKind::CallMaySuspend { .. }
                 | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::RuntimeRaise { .. }
                 | SuspendSiteKind::ObjectInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
                 | SuspendSiteKind::NestedHandleBoundary { .. }
@@ -2986,6 +2987,49 @@ fun main() {
         assert!(
             ir.contains("writeback_outer_slot_storage_"),
             "writeback path should address the frame-recorded outer-slot storage metadata"
+        );
+    }
+
+    #[test]
+    fn runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+open class Base()
+class Impl() : Base()
+
+fun main(): Int {
+    val x: Any = Impl()
+
+    val _: Unit = try {
+        val _b: Base = x as Base
+        println("after_cast")
+    } catch (e: RuntimeError) {
+        println("caught")
+    }
+
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        assert!(
+            ir.contains("site0_is_active"),
+            "runtime raise boundary should check TLS active before deciding whether to continue"
+        );
+        assert!(
+            ir.contains("site0_inactive"),
+            "runtime raise boundary should keep the inactive success path in the current state machine"
+        );
+        assert!(
+            ir.contains("site0_active"),
+            "runtime raise boundary should still preserve the active outward-dispatch path"
         );
     }
 

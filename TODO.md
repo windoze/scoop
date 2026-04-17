@@ -976,13 +976,23 @@
   - 生产代码中未发现 callee 名称特判、源码形状分流、ordinary helper 专用补丁，或把 `SuspendCall` inactive-path 回流成 `Continuation.resume(...)` / hidden-suspend helper 局部绕过。
 - 依赖：T3009b0a1eR
 
-### T3009b0a2 [TODO] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
+### T3009b0a2 [DONE] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
 - 描述：`T3009b0a1c` 前移后，当前共享 contract 问题收窄到 `RuntimeRaiseBoundary` 自身。unified state-machine 现在把 `RuntimeRaiseBoundary`（至少覆盖 `Continuation.resume(...)` 与 `x as T`）统一建模成“求值表达式后无条件 `Suspend`”：step function 先发出 `scoop_continuation_resume(...)` / cast code，再立刻走 `alloc continuation + set_active + return`。结果是 boundary expression 的 inactive 成功路径也会被截断，caller-tail 永远接不回。最小复现包括：`effect_escape_continuation_resume_unit.scoop` 当前输出停在 `after_pause`，缺少 `after_resume` / `done`；`type_check_cast_is_as_asq_basic.scoop` 当前在首个成功 `as` 后停在 `x is Base: true`，未继续打印 `Impl.ping` / `42` / `10`。由于这是在 `SuspendCall` 之外仍然阻塞 `T3009b0` 的 shared boundary 合同错误，必须在 dedicated resume lowering 前继续收口。
+- 进展：
+  - 已将 `SuspendSiteKind::RuntimeRaise` 纳入 shared `Suspend` terminator 的 inactive-continue 集合。`RuntimeRaiseBoundary` 求值后现在会先读取 TLS active：inactive 时把结果写入 frame resume 槽并直接 branch 到 `resume_state`，active 时才继续走现有 outward-dispatch 路径。
+  - 已新增 IR 级单测 `runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch`，锁定 `RuntimeRaiseBoundary` 仍经由统一 state-machine 合同生成 `site*_is_active` / `site*_inactive` / `site*_active` 三段结构，而不是靠 `Continuation.resume(...)` 或 cast 特判。
+  - 任务验收 fixture 已恢复：`type_check_cast_is_as_asq_basic.scoop` 重新打印 `Impl.ping` / `42` / `10` / `done`；`effect_escape_continuation_resume_unit.scoop` 重新打印 `after_resume` / `done`。
 - 目标：
   - `RuntimeRaiseBoundary` 驱动的表达式在 inactive 成功路径上必须留在当前 state machine 内继续执行 caller-tail；不能无条件分配 caller continuation、设置 active 并提前返回。
   - 当 boundary expression 确实令 TLS active（例如 `Continuation.resume` 的 second-resume 运行期错误、`as` cast fail-path），当前 step function 必须把控制权交回 enclosing `handle` / `try` 的 dispatch loop，而不是继续执行 boundary 之后的语句。
   - 修复必须收口到共享 `RuntimeRaiseBoundary` 合同，不能只对 `Continuation.resume(...)` 或单个 fixture 特判。
 - 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
+  - `cargo test -p scoopc runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch -- --nocapture`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
   - `cargo test --all`
