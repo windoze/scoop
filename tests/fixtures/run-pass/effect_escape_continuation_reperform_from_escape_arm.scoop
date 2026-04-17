@@ -1,6 +1,6 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
+// EXPECT: pass
+// T3010b2b1b0: synthetic resume slot id / nested frame seeding 修复后，
+// escape-continuation arm 内 re-perform 同 effect 的路由已恢复通过。
 // RUN-STDOUT: effect_escape_continuation_reperform_from_escape_arm.stdout
 //
 // T1606d: Re-perform the same effect from an escape-continuation arm.

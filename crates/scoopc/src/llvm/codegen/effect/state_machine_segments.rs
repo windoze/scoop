@@ -4029,11 +4029,19 @@ fun demo(limit: Int): Int {
             &object_value_fqns,
             &object_property_fqns,
         );
+        let next_synthetic_symbol_raw = known_local_metadata
+            .keys()
+            .copied()
+            .map(hir::SymbolId::as_u32)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
 
         HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
             known_local_metadata,
+            next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,

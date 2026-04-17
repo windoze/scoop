@@ -1,5 +1,6 @@
-// EXPECT: fail
-// T3012: unified path 仍缺少这条 escaped-continuation fixture 所需的 value coercion / expected-context 支持。
+// EXPECT: pass
+// T3010b2b1b0: synthetic resume slot id / nested frame seeding 修复后，
+// escaped-continuation arm body 向外 perform 的这条路径已恢复通过。
 // RUN-STDOUT: effect_escape_continuation_arm_performs_outer_effect.stdout
 //
 // T1606d: Escape-continuation arm body performs a different effect.

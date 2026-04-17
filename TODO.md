@@ -789,8 +789,13 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b0R
 
-### T3010b2b1b0 [TODO] 修正 synthetic resume slot 的 `SymbolId` 冲突与 nested handle frame seeding 合同
+### T3010b2b1b0 [DONE] 修正 synthetic resume slot 的 `SymbolId` 冲突与 nested handle frame seeding 合同
 - 描述：开始执行 `T3010b2b1b` 并对 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 做定向定位后确认，当前首个失败点并不只是 expected-context。inner handle 入口的 `seed_outer_scope_frame_slots` 会把 outer local `_ : Unit` 误当成 synthetic resume slot `__resume_site0 : Int` 写入 inner frame；根因是 synthetic resume slot 复用了与外层局部变量相同的 `SymbolId`，导致 env / frame-slot 查找冲突，在真正进入 `T3010b2b1b` 的 unified coercion 逻辑前就先触发 `Unit -> Int` coercion。这个前置 bug 当前未在 TODO 中显式跟踪，必须先前移修复。
+- 进展：
+  - 已把 synthetic symbol 分配从“每个 handle 本地 `max(id)+1`”改为共享 floor/cursor 分配：floor 由当前 `handle` 子树与 `known_local_metadata` 共同抬高，真正分配通过共享 cursor 完成，避免 outer/local/nested handle 间复用同一 `SymbolId`。
+  - 已让 `seed_outer_scope_frame_slots` 只 seed 显式 outer-scope slot，不再因为 `env.get(id)` 命中而把 synthetic resume slot、普通 handle local 或 arm binder 误当成可 seed 局部。
+  - 已新增两条定向单测：锁定 outer/inner handle synthetic resume slot `SymbolId` 不再冲突，以及 nested handle frame seeding 不会把 `__resume_site*` 标成 outer-scope seed slot。
+  - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 现已直接通过；同时顺带回收了 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`、`effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_reperform_from_escape_arm.scoop`、`effect_handle_yield_and_step_finally.scoop` 与 `effect_handler_stack_nearest_and_arm_outside_scope.scoop` 这批历史 xfail。
 - 目标：
   - synthetic resume slot 必须拥有与源码局部变量、capture local、outer-scope seeded local 都不冲突的唯一标识。
   - `seed_outer_scope_frame_slots` 只拷贝真实 outer locals，不得再把 synthetic resume slot 与同 id 的局部变量混淆。
@@ -803,15 +808,15 @@
 - 依赖：T3010b2b1a
 
 ### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
-- 描述：`T3010b2b1a` 完成后最初暴露出的首个真实失败点是 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 的 `value coercion`。本轮进一步定位发现，在真正进入这条 unified expected-context/coercion 缺口前，还存在更前置的 synthetic resume slot `SymbolId` 冲突（`T3010b2b1b0`）。待其修复后，本任务再回到原始目标：补齐 inner escape-cont arm / nested handle / indirect helper call 这条链路的 unified expected-context/coercion 前置，否则 `T3010b2b1` 无法继续完成 nested/indirect outward propagation 验收。
+- 描述：`T3010b2b1b0` 完成后，原先用来锚定本任务的 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 已恢复通过，说明此前观测到的 `value coercion` 很大一部分来自 synthetic resume slot id / frame seeding 冲突，而不是稳定存在的独立 emitter 缺口。本任务保留为“重新基线化 nested arm / nested handle / indirect helper call 链路上的剩余 unified expected-context / coercion 缺口”：后续执行时需要先以新的最小 repro 重新定位真实首个失败点；若该前置已不再缺失，应把本任务进一步收窄或直接删除，避免继续围绕已通过 fixture 工作。
 - 目标：
-  - 在 inner escape-cont arm / nested handle / indirect helper call 这条路径上，统一 state-machine emitter 能为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中 `value coercion`。
-  - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 可执行并把 `EffectB.fireB` 正确向外传播到 outer handler。
+  - 重新定位 nested arm / nested handle / indirect helper call 路径上是否仍存在统一 expected-context / coercion 缺口，并给出新的最小 repro。
+  - 若缺口仍存在，统一 state-machine emitter 需要为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中同类 `value coercion`。
   - 实现必须复用统一 expected-context/coercion 逻辑，不能加 fixture-only / arm-only / nested-only workaround。
 - 验收：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
-  - 重新跑当前 `T3006` xfail 子集时，不再因为这条 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
-  - `cargo run -p scoop --features llvm -- test`
+  - 新的最小 repro 能稳定复现并验证修复后的 nested/indirect expected-context / coercion 行为。
+  - 重新跑当前相关 xfail / run-pass 子集时，不再因为这类 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
+  - 若执行期 `cargo run -p scoop --features llvm -- test` 仍先停在 `T3017` 的 stale xfail expectation cleanup，上述最小 repro 与相关子集仍应先独立通过；待 `T3017` 回收后再把全量 suite 作为追加验收。
 - 依赖：T3010b2b1b0
 
 ### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收

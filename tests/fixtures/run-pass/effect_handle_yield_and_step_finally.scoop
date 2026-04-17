@@ -1,6 +1,6 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3010b2b1b0: synthetic resume slot id / nested frame seeding 修复后，
+// 该 handle/yield/finally 路径已恢复通过，不再需要保留历史 xfail。
 // RUN-STDOUT: effect_handle_yield_and_step_finally.stdout
 
 import scoop.core.*

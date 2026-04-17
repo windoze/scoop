@@ -970,7 +970,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         for unified_slot in contract.frame().slots() {
             let slot = unified_slot.slot();
-            if slot.owner_arm().is_some() {
+            if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() {
                 continue;
             }
             let Some(local) = self.env.get(slot.id()) else {

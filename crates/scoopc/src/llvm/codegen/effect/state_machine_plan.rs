@@ -1,4 +1,5 @@
 use crate::ast;
+use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
 use crate::hir;
@@ -15,6 +16,7 @@ struct HandlePlanContext {
     known_fun_effects: HashMap<String, bool>,
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
     known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
+    next_synthetic_symbol_raw: Cell<u32>,
     ctor_call_targets: HashMap<Span, Vec<String>>,
     continuation_resume_call_sites: HashSet<Span>,
     object_value_fqns: HashSet<String>,
@@ -1184,6 +1186,7 @@ pub(crate) struct FrameSlot {
     name: String,
     ty: TypeId,
     mutable: bool,
+    seed_from_outer_scope: bool,
     owner_arm: Option<ArmPlanId>,
 }
 
@@ -1204,6 +1207,10 @@ impl FrameSlot {
         self.mutable
     }
 
+    pub(crate) fn seed_from_outer_scope(&self) -> bool {
+        self.seed_from_outer_scope
+    }
+
     pub(crate) fn owner_arm(&self) -> Option<ArmPlanId> {
         self.owner_arm
     }
@@ -1217,6 +1224,7 @@ impl FrameSlot {
             ^ self.name.len()
             ^ ((self.ty.as_u32() as usize) << 1)
             ^ ((usize::from(self.mutable)) << 2)
+            ^ ((usize::from(self.seed_from_outer_scope)) << 3)
             ^ self.owner_arm.unwrap_or(0) as usize
     }
 }
@@ -1353,7 +1361,6 @@ struct HandlePlanBuilder<'a, 'hir> {
     next_state_id: PlanStateId,
     next_site_id: SuspendSiteId,
     next_cleanup_id: CleanupScopeId,
-    next_synthetic_symbol_raw: u32,
     states: Vec<PlanState>,
     suspend_sites: Vec<SuspendSitePlan>,
     arm_plans: Vec<ArmPlan>,
@@ -1412,6 +1419,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         handle: &'hir hir::HandleExpr,
         context: &'a HandlePlanContext,
     ) -> Self {
+        context.reserve_synthetic_symbol_floor(next_synthetic_symbol_seed(
+            handle,
+            &context.known_local_metadata,
+        ));
         Self {
             types,
             handle,
@@ -1420,7 +1431,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             next_state_id: 0,
             next_site_id: 0,
             next_cleanup_id: 0,
-            next_synthetic_symbol_raw: next_synthetic_symbol_seed(handle),
             states: Vec::new(),
             suspend_sites: Vec::new(),
             arm_plans: Vec::new(),
@@ -1555,6 +1565,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             .unwrap_or_else(|| format!("local{}", id.as_u32())),
                         ty: decl.ty,
                         mutable: decl.mutable,
+                        seed_from_outer_scope: false,
                         owner_arm: None,
                     };
                     self.frame_slots.entry(id).or_insert_with(|| slot.clone());
@@ -2225,11 +2236,20 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     })
             }
             hir::ExprKind::Perform { .. } => true,
-            hir::ExprKind::Handle(handle) => {
-                HandleStateMachinePlan::build_with_context(self.types, handle, self.context)
-                    .contains_suspend_subtree()
-            }
+            hir::ExprKind::Handle(handle) => self.handle_contains_suspend_subtree(handle),
         }
+    }
+
+    fn handle_contains_suspend_subtree(&self, handle: &hir::HandleExpr) -> bool {
+        self.block_contains_suspend_subtree(&handle.body)
+            || handle
+                .arms
+                .iter()
+                .any(|arm| self.expr_contains_suspend_subtree(&arm.body))
+            || handle
+                .finally
+                .as_ref()
+                .is_some_and(|finally_block| self.block_contains_suspend_subtree(finally_block))
     }
 
     fn block_contains_suspend_subtree(&self, block: &hir::Block) -> bool {
@@ -2404,6 +2424,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     name: binder.name.clone(),
                     ty: binder.ty,
                     mutable: false,
+                    seed_from_outer_scope: false,
                     owner_arm: Some(arm_id),
                 })
                 .collect::<Vec<_>>();
@@ -3013,13 +3034,13 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         site_id: SuspendSiteId,
         source_expr: &'hir hir::Expr,
     ) -> FrameSlot {
-        let id = hir::SymbolId::from_raw(self.next_synthetic_symbol_raw);
-        self.next_synthetic_symbol_raw = self.next_synthetic_symbol_raw.saturating_add(1);
+        let id = self.context.allocate_synthetic_symbol_id();
         let slot = FrameSlot {
             id,
             name: format!("__resume_site{site_id}"),
             ty: source_expr.ty,
             mutable: false,
+            seed_from_outer_scope: false,
             owner_arm: None,
         };
         self.frame_slots.insert(id, slot.clone());
@@ -3173,6 +3194,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             name: name.to_string(),
             ty: metadata.map_or(fallback_ty, |meta| meta.ty),
             mutable: metadata.is_some_and(|meta| meta.mutable),
+            seed_from_outer_scope: false,
             owner_arm: None,
         }
     }
@@ -3684,8 +3706,11 @@ fn make_resume_slot_var_expr(source_expr: &hir::Expr, resume_slot: &FrameSlot) -
     }
 }
 
-fn next_synthetic_symbol_seed(handle: &hir::HandleExpr) -> u32 {
-    let mut ids = HashSet::new();
+fn next_synthetic_symbol_seed(
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> u32 {
+    let mut ids = known_local_metadata.keys().copied().collect::<HashSet<_>>();
     for stmt in &handle.body.stmts {
         collect_declared_local_ids_in_stmt(stmt, &mut ids);
         collect_used_locals_in_stmt_static(stmt, &mut ids);
@@ -3821,6 +3846,7 @@ fn collect_outer_scope_slots(
                 name,
                 ty: metadata.map_or(ty, |meta| meta.ty),
                 mutable: metadata.is_some_and(|meta| meta.mutable),
+                seed_from_outer_scope: true,
                 owner_arm: None,
             }
         })
@@ -5024,6 +5050,20 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
 }
 
 impl HandlePlanContext {
+    fn reserve_synthetic_symbol_floor(&self, floor: u32) {
+        let current = self.next_synthetic_symbol_raw.get();
+        if floor > current {
+            self.next_synthetic_symbol_raw.set(floor);
+        }
+    }
+
+    fn allocate_synthetic_symbol_id(&self) -> hir::SymbolId {
+        let raw = self.next_synthetic_symbol_raw.get();
+        self.next_synthetic_symbol_raw
+            .set(raw.saturating_add(1));
+        hir::SymbolId::from_raw(raw)
+    }
+
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
         let ctor_call_targets = cg
             .ctor_call_sites
@@ -5068,11 +5108,19 @@ impl HandlePlanContext {
                 }
             }
         }
+        let next_synthetic_symbol_raw = known_local_metadata
+            .keys()
+            .copied()
+            .map(hir::SymbolId::as_u32)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
 
         Self {
             known_fun_effects,
             known_local_fun_effects,
             known_local_metadata,
+            next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             ctor_call_targets,
             continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
             object_value_fqns,

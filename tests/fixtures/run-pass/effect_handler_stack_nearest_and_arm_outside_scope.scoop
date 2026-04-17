@@ -1,6 +1,6 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// continuation_alloc 的 frame 指针类型不匹配（ptr vs ptr addrspace(1)）。
+// EXPECT: pass
+// T3010b2b1b0: synthetic resume slot id / nested frame seeding 修复后，
+// 最近匹配 handler + arm outside scope 的这条路径已恢复通过。
 // RUN-STDOUT: effect_handler_stack_nearest_and_arm_outside_scope.stdout
 //
 // T0913: effect runtime（Appendix A）回归：
@@ -34,4 +34,3 @@ fun main(): Int {
     println("after_outer")
     return x
 }
-

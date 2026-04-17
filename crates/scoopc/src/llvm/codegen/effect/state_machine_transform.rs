@@ -3435,6 +3435,190 @@ fun demo(): Int {
         }
     }
 
+    #[test]
+    fn nested_handles_allocate_unique_synthetic_resume_slot_ids() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(seed: Int): Int {
+    val result: Int = handle {
+        val marker: Int = seed + 1
+        val _: Int = handle {
+            val inner: Int = Yield.next()
+            marker + inner
+        } with {
+            Yield.next() -> resume {
+                resume(41)
+            }
+        }
+        val outer: Int = Yield.next()
+        outer + marker
+    } with {
+        Yield.next() -> resume {
+            resume(42)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let max_source_symbol_id = context
+            .known_local_metadata
+            .keys()
+            .copied()
+            .map(hir::SymbolId::as_u32)
+            .max()
+            .unwrap_or(0);
+
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let outer_resume_slots = machine
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().name().starts_with("__resume_site"))
+            .map(|slot| slot.slot().id())
+            .collect::<Vec<_>>();
+        assert!(
+            !outer_resume_slots.is_empty(),
+            "outer handle should allocate a synthetic resume slot"
+        );
+
+        let nested = machine
+            .nested_handles()
+            .first()
+            .expect("expected nested handle machine");
+        let nested_resume_slots = nested
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().name().starts_with("__resume_site"))
+            .map(|slot| slot.slot().id())
+            .collect::<Vec<_>>();
+        assert!(
+            !nested_resume_slots.is_empty(),
+            "nested handle should allocate a synthetic resume slot"
+        );
+
+        let synthetic_ids = outer_resume_slots
+            .iter()
+            .chain(nested_resume_slots.iter())
+            .map(|id| id.as_u32())
+            .collect::<Vec<_>>();
+        let unique_ids = synthetic_ids.iter().copied().collect::<HashSet<_>>();
+        assert_eq!(
+            unique_ids.len(),
+            synthetic_ids.len(),
+            "synthetic resume slots must not reuse SymbolId across nested handles"
+        );
+        assert!(
+            synthetic_ids
+                .iter()
+                .all(|id| *id > max_source_symbol_id),
+            "synthetic resume slot ids must stay above all source local ids"
+        );
+    }
+
+    #[test]
+    fn nested_handle_outer_scope_seeding_marks_only_real_outer_slots() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(seed: Int): Int {
+    val result: Int = handle {
+        val marker: Int = seed + 1
+        val _: Int = handle {
+            val inner: Int = Yield.next()
+            marker + inner
+        } with {
+            Yield.next() -> resume {
+                resume(41)
+            }
+        }
+        val outer: Int = Yield.next()
+        outer + marker
+    } with {
+        Yield.next() -> resume {
+            resume(42)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+        let nested = machine
+            .nested_handles()
+            .first()
+            .expect("expected nested handle machine");
+
+        let seeded_slot_names = nested
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().seed_from_outer_scope())
+            .map(|slot| slot.slot().name().to_string())
+            .collect::<Vec<_>>();
+        assert!(
+            seeded_slot_names.iter().any(|name| name == "marker"),
+            "nested handle should seed captured outer local marker"
+        );
+        assert!(
+            !seeded_slot_names
+                .iter()
+                .any(|name| name.starts_with("__resume_site")),
+            "synthetic resume slots must not be treated as outer-scope seed slots"
+        );
+
+        let synthetic_resume_slots = nested
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().name().starts_with("__resume_site"))
+            .collect::<Vec<_>>();
+        assert!(
+            !synthetic_resume_slots.is_empty(),
+            "nested handle should still expose a synthetic resume slot"
+        );
+        assert!(
+            synthetic_resume_slots
+                .iter()
+                .all(|slot| !slot.slot().seed_from_outer_scope()),
+            "synthetic resume slots must never be seeded from outer scope"
+        );
+    }
+
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);
@@ -3692,11 +3876,19 @@ fun demo(): Int {
             &object_value_fqns,
             &object_property_fqns,
         );
+        let next_synthetic_symbol_raw = known_local_metadata
+            .keys()
+            .copied()
+            .map(hir::SymbolId::as_u32)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
 
         HandlePlanContext {
             known_fun_effects,
             known_local_fun_effects,
             known_local_metadata,
+            next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,
