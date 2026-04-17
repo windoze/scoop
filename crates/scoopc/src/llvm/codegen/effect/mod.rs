@@ -670,7 +670,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.emit_callee_suspend_state_save(span, &plan)?;
             }
             self.emit_ordinary_non_resuming_effect_exit(span, "effect_perform")?;
-            return Ok(CgValue::never());
+            // After emitting the early-return edge, the builder continues in a
+            // dead block so enclosing expression codegen can finish structurally.
+            // Feed that dead path a correctly typed dummy value instead of
+            // `Never`, otherwise containers like `perform(...) + 1` still fail
+            // before the resumed-body path gets a chance to take over.
+            return self.default_value(span, expected.unwrap_or(CgTy::Unit));
         }
 
         // Return a default value for the expected type.  The actual resume

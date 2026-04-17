@@ -2622,20 +2622,22 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let Some(init) = decl.init.as_ref() else {
                     return;
                 };
-                if matches!(
-                    init.kind,
-                    hir::ExprKind::Perform { .. } | hir::ExprKind::Call { .. }
-                ) {
-                    self.record_suspend_source_path(init, top_level_stmt_idx, path);
-                } else {
-                    self.attach_suspend_source_paths_in_expr(init, top_level_stmt_idx, path);
-                }
+                self.attach_suspend_source_paths_in_expr(init, top_level_stmt_idx, path);
             }
             hir::StmtKind::Expr(expr) => {
                 self.attach_suspend_source_paths_in_expr(expr, top_level_stmt_idx, path);
             }
-            hir::StmtKind::Assign { .. } | hir::StmtKind::Return { .. } => {}
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.attach_suspend_source_paths_in_expr(lhs, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(rhs, top_level_stmt_idx, path);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(value) = value.as_ref() {
+                    self.attach_suspend_source_paths_in_expr(value, top_level_stmt_idx, path);
+                }
+            }
             hir::StmtKind::While { cond, body } => {
+                self.attach_suspend_source_paths_in_expr(cond, top_level_stmt_idx, path);
                 for (stmt_idx, body_stmt) in body.stmts.iter().enumerate() {
                     path.push(SuspendSourceFramePath::WhileBody {
                         while_cond_span: cond.span,
@@ -2660,6 +2662,48 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         path: &mut Vec<SuspendSourceFramePath>,
     ) {
         match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Closure(_)
+            | hir::ExprKind::Handle(_)
+            | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.attach_suspend_source_paths_in_expr(
+                        &field.value,
+                        top_level_stmt_idx,
+                        path,
+                    );
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for element in elements {
+                    self.attach_suspend_source_paths_in_expr(element, top_level_stmt_idx, path);
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    let hir::InterpolatedStringPart::Expr { expr: part_expr } = part else {
+                        continue;
+                    };
+                    self.attach_suspend_source_paths_in_expr(
+                        part_expr,
+                        top_level_stmt_idx,
+                        path,
+                    );
+                }
+            }
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. } => {
+                self.attach_suspend_source_paths_in_expr(inner, top_level_stmt_idx, path);
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.attach_suspend_source_paths_in_expr(lhs, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(rhs, top_level_stmt_idx, path);
+            }
             hir::ExprKind::Block(block) => {
                 for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
                     path.push(SuspendSourceFramePath::Block {
@@ -2671,10 +2715,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
             }
             hir::ExprKind::If {
+                cond,
                 then_branch,
                 else_branch,
                 ..
             } => {
+                self.attach_suspend_source_paths_in_expr(cond, top_level_stmt_idx, path);
                 if let hir::ExprKind::Block(block) = &then_branch.kind {
                     for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
                         path.push(SuspendSourceFramePath::IfThen {
@@ -2689,6 +2735,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         );
                         let _ = path.pop();
                     }
+                } else {
+                    self.attach_suspend_source_paths_in_expr(
+                        then_branch,
+                        top_level_stmt_idx,
+                        path,
+                    );
                 }
                 if let Some(else_expr) = else_branch.as_deref()
                     && let hir::ExprKind::Block(block) = &else_expr.kind
@@ -2706,10 +2758,24 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         );
                         let _ = path.pop();
                     }
+                } else if let Some(else_expr) = else_branch.as_deref() {
+                    self.attach_suspend_source_paths_in_expr(
+                        else_expr,
+                        top_level_stmt_idx,
+                        path,
+                    );
                 }
             }
-            hir::ExprKind::When { arms, .. } => {
+            hir::ExprKind::When { subject, arms } => {
+                self.attach_suspend_source_paths_in_expr(subject, top_level_stmt_idx, path);
                 for (arm_index, when_arm) in arms.iter().enumerate() {
+                    if let Some(guard) = when_arm.guard.as_ref() {
+                        self.attach_suspend_source_paths_in_expr(
+                            guard,
+                            top_level_stmt_idx,
+                            path,
+                        );
+                    }
                     if let hir::ExprKind::Block(block) = &when_arm.body.kind {
                         for (stmt_idx, stmt) in block.stmts.iter().enumerate() {
                             path.push(SuspendSourceFramePath::WhenArm {
@@ -2725,10 +2791,57 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             );
                             let _ = path.pop();
                         }
+                    } else {
+                        self.attach_suspend_source_paths_in_expr(
+                            &when_arm.body,
+                            top_level_stmt_idx,
+                            path,
+                        );
                     }
                 }
             }
-            _ => {}
+            hir::ExprKind::MemberAccess { receiver, .. } => {
+                self.attach_suspend_source_paths_in_expr(receiver, top_level_stmt_idx, path);
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.record_suspend_source_path(expr, top_level_stmt_idx, path);
+                self.attach_suspend_source_paths_in_expr(callee, top_level_stmt_idx, path);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(arg_expr) => self
+                            .attach_suspend_source_paths_in_expr(
+                                arg_expr,
+                                top_level_stmt_idx,
+                                path,
+                            ),
+                        hir::CallArg::Named { value, .. } => self
+                            .attach_suspend_source_paths_in_expr(
+                                value,
+                                top_level_stmt_idx,
+                                path,
+                            ),
+                    }
+                }
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                self.record_suspend_source_path(expr, top_level_stmt_idx, path);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(arg_expr) => self
+                            .attach_suspend_source_paths_in_expr(
+                                arg_expr,
+                                top_level_stmt_idx,
+                                path,
+                            ),
+                        hir::CallArg::Named { value, .. } => self
+                            .attach_suspend_source_paths_in_expr(
+                                value,
+                                top_level_stmt_idx,
+                                path,
+                            ),
+                    }
+                }
+            }
         }
     }
 
@@ -5229,6 +5342,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
         &self,
         body: &hir::Block,
+        declared_return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
         let synthetic_handle = hir::HandleExpr {
             body: body.clone(),
@@ -5265,6 +5379,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let resume_path = site.resume_path.as_ref()?;
         let source_expr = builder.resume_source_exprs.get(&site.id)?;
         let resume_slot = builder.resume_slot_for_site(site.id)?;
+        let resume_slot_ty = ordinary_callee_resume_slot_type(
+            body,
+            source_path,
+            resume_path,
+            declared_return_ty,
+            &resume_slot,
+        );
         let resume_tail = build_ordinary_callee_resume_tail_block(
             &synthetic_handle.body,
             source_path,
@@ -5289,7 +5410,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             saved_locals,
             resume_slot_id: resume_slot.id(),
             resume_slot_name: resume_slot.name().to_string(),
-            resume_slot_ty: resume_slot.ty(),
+            resume_slot_ty,
             resume_tail,
         })
     }
@@ -5442,5 +5563,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
 
         UnifiedHandleLoweringContract { machine }
+    }
+}
+
+fn ordinary_callee_resume_slot_type(
+    body: &hir::Block,
+    source_path: &SuspendSourcePath,
+    resume_path: &SuspendResumePath,
+    declared_return_ty: TypeId,
+    resume_slot: &FrameSlot,
+) -> TypeId {
+    match resume_path.consumer {
+        SuspendResumeConsumer::ExprStmt
+            if source_path.frames.is_empty()
+                && source_path.top_level_stmt_idx + 1 == body.stmts.len() =>
+        {
+            declared_return_ty
+        }
+        SuspendResumeConsumer::ReturnValue if source_path.frames.is_empty() => declared_return_ty,
+        _ => resume_slot.ty(),
     }
 }

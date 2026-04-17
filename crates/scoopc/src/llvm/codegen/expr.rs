@@ -19,7 +19,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 effect_ty,
                 op,
                 args,
-            } => self.codegen_perform_expr(expr.span, *effect_ty, op, args, expected),
+            } => self.codegen_perform_expr(
+                expr.span,
+                *effect_ty,
+                op,
+                args,
+                expected.or_else(|| self.cg_ty_of(expr.ty)),
+            ),
             hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, expected),
             hir::ExprKind::Block(block) => {
                 self.codegen_block_value_in_expected_context(block, expected)
@@ -133,7 +139,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 effect_ty,
                 op,
                 args,
-            } => self.codegen_perform_expr(expr.span, *effect_ty, op, args, None),
+            } => self.codegen_perform_expr(expr.span, *effect_ty, op, args, self.cg_ty_of(expr.ty)),
             hir::ExprKind::Handle(handle) => {
                 // T1611: infer expected type from HIR when not in expected context,
                 // so statement-position handles don't need `val _: Unit = ...` workaround.

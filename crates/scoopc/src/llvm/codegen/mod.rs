@@ -1243,17 +1243,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
-        self.build_ordinary_callee_suspend_plan_from_unified_contract(fun.body.as_ref()?)
+        self.build_ordinary_callee_suspend_plan_from_unified_contract(
+            fun.body.as_ref()?,
+            fun.return_ty,
+        )
     }
 
     fn build_closure_callee_suspend_plan(
         &self,
         closure: &hir::ClosureExpr,
+        return_ty: TypeId,
     ) -> Option<CalleeSuspendPlan> {
         let hir::ExprKind::Block(block) = &closure.body.kind else {
             return None;
         };
-        self.build_ordinary_callee_suspend_plan_from_unified_contract(block)
+        self.build_ordinary_callee_suspend_plan_from_unified_contract(block, return_ty)
     }
 
     fn finish_function_return_path(
@@ -10915,7 +10919,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let callee_suspend_plan = self.build_closure_callee_suspend_plan(closure);
+        let callee_suspend_plan = self.build_closure_callee_suspend_plan(closure, fun_ty.return_ty);
         let base_env = self.env.clone();
 
         if let Some(plan) = callee_suspend_plan.as_ref() {

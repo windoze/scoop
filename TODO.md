@@ -1671,19 +1671,36 @@
   - `T3009b2bR` 可以在不保留源码形状分流的前提下完成复审。
 - 依赖：T3009b2b
 
-### T3009b2bR [TODO] Review：确认 ordinary indirect callee 的 resumed-body restore 已统一接回
+### T3009b2bR [DONE] Review：确认 ordinary indirect callee 的 resumed-body restore 已统一接回
 - 描述：在 `T3009b2b1` 之后只审查生产代码，确认 ordinary indirect callee 的 resumed-body restore / caller-tail 已形成统一 continuation + suspend-state 合同，而不是对 `fetchGreeting()` / `counter()` / `callIt { ... }` 等 fixture 单独打补丁；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 复审先定位到一个真实生产缺口：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `attach_suspend_source_paths()` 只会给顶层 `Perform/Call` 记录 source path，ordinary callee 内 `Ask.get(x) + 1` 这类 nested expression suspend source 根本不会生成 `CalleeSuspendPlan`。现已把 source-path 遍历补齐到 `Struct/Tuple/Interpolated/Unary/Binary/MemberAccess/Call/Perform` 以及 `Assign` / `Return` / `While` 条件等表达式树深度，并新增 run-pass 回归 `effect_escape_continuation_indirect_perform_nested_expr.scoop` 锁定该路径。
+  - fresh path 上 ordinary frame 原先仍会把 outward `perform` 的 `Never/default` 继续送进外层表达式，导致 `perform(...) + 1` 在 dead path 上报 `integer binary op lhs`。现已把 `codegen_perform_expr()` 在 ordinary propagation 模式下改为返回“带正确类型的 dead-path dummy value”，让外层表达式只在无前驱 dead block 中结构性收尾，而真实语义仍由 early return + resumed-body path 决定。
+  - 复审过程中又暴露出 tail expr ordinary callee 的另一处合同缺口：`Suspend.pause()` 这类尾部表达式语句会把 synthetic resume slot 错绑到语句位置类型，触发 `value coercion`。现已把 ordinary callee plan builder 改为显式接收 declared return type，并在 tail `ExprStmt` / `ReturnValue` consumer 上用声明返回类型修正 `resume_slot_ty`；现有 LLVM IR 定向测试 `suspend_ir_captures_callee_suspend_state_into_continuation` 已恢复通过。
 - 目标：
   - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
   - 确认 top-level helper / closure / function-value callee 共用同一套 resumed-body restore 机制。
   - 确认没有把旧 callee-shape / source-shape 特判重新带回生产路径。
+- 已验证：
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_nested_expr.scoop`
+  - `cargo test -p scoopc suspend_ir_captures_callee_suspend_state_into_continuation -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“ordinary indirect callee resumed-body restore 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 审查结论：
+  - ordinary indirect callee 的 resumed-body restore 已统一接回。top-level helper / closure / function-value callee 现在都通过同一套 unified suspend-site / continuation / callee-suspend-state 合同进入 fresh/resume 双入口，不再靠 fixture 名称、callee 形状或旧 block-shape 扫描决定路径。
+  - 本轮新增的 nested-expression ordinary callee 路径与既有 basic / closure-locals / string / struct-with-ref 路径共享同一套生产机制，无 fixture-only patch 残留。
+  - 更广的 shared resumed-body matrix 仍继续留在后续 `T3009b2`，包括 multi-site 与 nested statement-container source-path 变体的统一验收。
 - 依赖：T3009b2b1
 
 ### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
-- 描述：在 `T3009b2a` / `T3009b2b` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。
+- 描述：在 `T3009b2a` / `T3009b2b` / `T3009b2bR` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。shared matrix 还要继续覆盖本轮已接回 nested expression 之外、仍待统一验收的 nested statement-container source-path 变体（例如 block / if / when / while body 内的 ordinary callee suspend source）。
 - 目标：
   - indirect callee（普通 helper / closure / function-value callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
   - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。

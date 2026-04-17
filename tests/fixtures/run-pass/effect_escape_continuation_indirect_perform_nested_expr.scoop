@@ -1,0 +1,51 @@
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_nested_expr.stdout
+//
+// T3009b2bR: indirect callee resumed-body restore must also work when the
+// suspend source is nested inside an expression rather than occupying the
+// whole top-level statement.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun compute(): Int / (Ask) {
+    val base: Int = 10
+    val value: Int = Ask.get(base) + 1
+    println("compute_after")
+    println(value)
+    value + 100
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        println("body_start")
+        val v: Int = compute()
+        println("body_done")
+        println(v)
+        v
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            0
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(32)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+}
