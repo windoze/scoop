@@ -1328,8 +1328,24 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3012R
 
-### T3013R [TODO] Review：确认 payload/result transport 已统一收口到 GC-safe 合同
+### T3013R [DONE] Review：确认 payload/result transport 已统一收口到 GC-safe 合同
 - 描述：在 `T3013` 之后只审查生产代码，确认 payload/result transport 的扩展不是零散地在三四个调用点各补一个特殊分支，而是真正形成统一、GC-safe、可审计的合同；若发现散落 patch，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`effect/state_machine_emitter.rs`、`runtime_abi.rs` 与 `runtime/c/scoop_runtime.c`，对照 standalone `perform`、state-machine `Perform` op、handle result frame read/write、arm binder readback 与 `Continuation.resume(...)` payload write/read 的完整生产链路。
+  - 已确认三条 transport 链路都统一收口到 `encode_effect_transport_value` / `decode_effect_transport_value`：standalone `codegen_perform_expr` 与 state-machine `emit_perform_op` 共用同一套 encode helper，handle result 通过 `store_result_to_frame` / `read_result_from_frame` 复用同一对 helper，continuation resume payload 通过 `write_resume_payload_to_continuation` 复用同一套 encode 逻辑，arm binder 则通过 `read_binder_from_perform_slot` 走同一套 decode 逻辑。
+  - 已确认 composite transport 不依赖 `ptr <-> int` 或额外 side channel：`EffectTransportKind::BoxedComposite` 统一分配 typed GC box，并仅通过 `perform_slot.gc_ref` / frame `resume_gc_ref` / continuation `resume_gc_ref` 传递；`effect/mod.rs` 中对 GC ref / composite 的 word path 会直接报错，生产 lowering 不存在偷偷把 GC 指针压成整数的旁路。
+  - 已确认 GC trace 合同与 transport 保持一致：continuation runtime trace 显式追踪 `state` 与 `resume_gc_ref`；effect frame type descriptor 从 payload 起始 offset 生成 trace bitmap，覆盖 public `resume_gc_ref` 与 runtime-only continuation slot；因此 boxed composite payload 在 suspend / resume / handle result 期间都可被 GC 正确追踪。
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/handle_compound_result.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_nonresuming_payload_struct_indirect.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `cargo test -p scoopc async_await_ir_preserves_continuation_slot_and_perform_payload -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），未出现新的更早 transport 失败点。
 - 目标：
   - 确认 `perform` binder、handle result、resume payload 三条链路使用同一套 value transport 约定。
   - 确认 composite 值的运输路径不依赖 `ptr <-> int`、native-only side channel 或 effect-only 特判。
@@ -1337,6 +1353,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“payload/result transport 已统一收口到 GC-safe 合同，无散落特判或非法 ptr/int 编码残留”。
+- 审查结论：
+  - payload/result transport 已统一收口到 GC-safe 合同，无散落特判或非法 ptr/int 编码残留。
+  - `perform` binder、handle result、resume payload 三条链路都使用同一套 `Word` / `GcRef` / `BoxedComposite` transport 约定；生产代码中不存在“某一条链路单独扩展、另一条链路继续保留 word-only 假设”的分叉。
+  - composite 值统一通过 typed GC box + `resume_gc_ref` / perform-slot `gc_ref` / frame `resume_gc_ref` 传递；continuation / frame trace 已覆盖这些 GC 槽位，因此 transport 与 GC 可达性合同保持一致。
 - 依赖：T3013
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
