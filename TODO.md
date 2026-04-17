@@ -951,8 +951,12 @@
   - 生产代码中未发现重跑 inner handle 取值、outer emitter / 普通 call codegen 旁路、源码形状分流，或 effect-only patch 回流。
 - 依赖：T3009b0a1e
 
-### T3009b0a1cR [TODO] Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同
+### T3009b0a1cR [DONE] Review：确认 unified `SuspendCall` 的 inactive-path 已回到单一 state-machine 合同
 - 描述：在 `T3009b0a1c` 之后只审查生产代码，确认 `SuspendCall` 的 inactive 成功路径已经统一收口到 state-machine 合同，而不是在某个 callee / fixture 上局部绕过；若发现 call-site 特判、源码形状分流或把 inactive 路径重新塞回 ordinary helper，本任务需要直接修复并复审。当前复审已先确认 `SuspendCall` 本身的 inactive/active 分流只按 `SuspendSiteKind` + TLS active 驱动，但同一 shared `UnifiedStateTerminator::Suspend` 上又暴露出更前置的 `ObjectInitAccessBoundary` / `NestedHandleBoundary` inactive-path 缺口；因此本 review 顺延到这些 boundary 收口后再落最终结论。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`：`HandleStateOp::SuspendCall` 自身只委托 `codegen_expr_in_expected_context(expr, None)` 求值，inactive/active 分流只经由 shared `UnifiedStateTerminator::Suspend` 内的 `suspend_site_uses_inactive_continue_path()` 与 TLS `is_active` 判断。`CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit` 三类 call boundary 共用同一条 emitter 路径，没有 callee 名称特判或 call-site 补丁。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs` 与 `state_machine_transform.rs`：三类 call suspend site 都要求携带 `resume_path`，并在 `ResumeAfterSite` 状态分配 synthetic resume slot；post-call caller-tail 会统一改写为读取 `__resume_site*`，没有新增 `SuspendCall` 专用 side channel。
+  - 已复审 `crates/scoopc/src/llvm/codegen/expr.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs`：表达式入口仍统一经由 `codegen_call`，`Continuation.resume(...)` 只依赖 `continuation_resume_call_sites` side table，不按成员名/receiver 形状推断；ordinary direct/vtable/itable/funptr/closure/object-init call 仍共享 `emit_ordinary_call_effect_propagation_check`，而 step function 在 `emit_effect_step_function` 内会暂时清空 `current_fun_return_ty` / `return_context`，因此不会形成绕开 state-machine 的 ordinary-helper side channel。
 - 目标：
   - 确认 `SuspendCall` 的 inactive/active 分流只由统一 contract 与 TLS active 结果驱动，不读取源码形状、callee 名称或旧 scanner 结果。
   - 确认 `resume_path` / synthetic resume slot 仍是 post-call caller-tail 的唯一数据通路，没有新增 call-only side channel。
@@ -960,6 +964,16 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“unified `SuspendCall` 的 inactive-path 已统一收口到 state-machine 合同”。
+- 已验证：
+  - `cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - unified `SuspendCall` 的 inactive-path 已统一收口到 state-machine 合同。inactive/active 分流只由 shared `Suspend` terminator 读取 `SuspendSiteKind::{CallMaySuspend, CallStateMachineCallee, ClassCtorInit}` 与 TLS active 决定。
+  - `resume_path` + synthetic resume slot 仍是 post-call caller-tail 的唯一 authoritative 数据通路；计划、segment 与 unified machine 的合同校验都会拒绝缺失该元数据的 call-like suspend site。
+  - 生产代码中未发现 callee 名称特判、源码形状分流、ordinary helper 专用补丁，或把 `SuspendCall` inactive-path 回流成 `Continuation.resume(...)` / hidden-suspend helper 局部绕过。
 - 依赖：T3009b0a1eR
 
 ### T3009b0a2 [TODO] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
