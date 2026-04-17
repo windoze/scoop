@@ -1494,8 +1494,26 @@
   - 跨文件 delegated-property lowering 现在也会回到声明点上下文读取 typecheck side tables；`Raise.raise(...)` 的 `Perform.effect_ty` 不再因 callback/initializer AST 被错文件 lowering 而退化为 `Any`。
 - 依赖：T3014c
 
-### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
+### T3014R [DONE] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
 - 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；此前复审已先后拆出 same-op multi-arm dispatch 前置缺口 `T3014a`、ordinary hidden-suspend runtime-error raise regression `T3014b`，以及本轮全量验证继续前移后暴露的 delegated-property observable callback key 缺口 `T3014c`。待这些前置任务完成后，本任务再继续确认 registration / outward propagation / dispatch 合同已经统一收口；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs` 与 `runtime/c/scoop_runtime.c`。
+  - 已确认 `allocate_registered_handler_frames()` 逐个消费 `contract.dispatch_entries()`，为每个 dispatch entry 分配独立 `ScoopEffectHandlerFrame` 并按 `op_tag` 注册到 runtime handler stack；`handle_done` / `handle_propagate` 两个出口都通过 `pop_registered_handler_frames()` 逆序对称弹栈，与 runtime LIFO 合同一致。
+  - 已确认 `dispatch_unmatched` 只会分支到 `outward_target_bb`，并在存在 cleanup scope 时经 `handle_cleanup_propagate_*` 执行 cleanup 后进入 `handle_propagate`；未匹配 effect 不会穿过 `handle_done` 正常完成路径。
+  - 已确认 continuation runtime 在 `scoop_continuation_alloc()` 中捕获当前 `__scoop_effect_handler_stack_top`，而 multi-op handle 现已把全部 dispatch entry 注册到该栈上，因此跨 suspend/escaped continuation 恢复时保留的是完整动态 handler 链，而不是首个 op-tag 的残缺上下文。
+- 已验证：
+  - `cargo test -p scoopc --features llvm multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack -- --nocapture`
+  - `cargo test -p scoopc --features llvm same_op_multi_arm_dispatch_ir_reads_effect_instance_key -- --nocapture`
+  - `cargo test -p scoop_runtime --test effect_tls -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_custom_indirect.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_op_tag_two_effects_nested_dispatch.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_same_op_multi_arm_dispatch_effect_instance.scoop`（进程退出码 `23`，符合 fixture 预期）
+  - `target/debug/scoop run tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`（仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`，对应 `T3017`）
 - 目标：
   - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
   - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
@@ -1503,6 +1521,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
+- 审查结论：
+  - multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留。
+  - runtime handler registration 与 `dispatch_entries()` 现在是一一对应关系；same-op 多 arm 继续在单个 dispatch entry 内按 `effect_instance_key` 顺序判定，不存在“只注册第一个 op / 只消费第一个 arm”的回流。
+  - unmatched perform、cleanup 后 outward propagation 与 ordinary non-resuming effect exit 仍统一复用 TLS active + shared exit 合同，没有 handle-only、shape-based 或 fixture-only 特判。
 - 依赖：T3014cR
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload

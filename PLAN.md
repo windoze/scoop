@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3014R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/effect/mod.rs`、`llvm/codegen/effect/state_machine_segments.rs`、`llvm/codegen/effect/state_machine_transform.rs` 与 `runtime/c/scoop_runtime.c` 后确认，runtime handler registration 已与 `dispatch_entries()` 一一对应：handle 入口会为每个 dispatch entry 分配独立 `ScoopEffectHandlerFrame` 并逐个 push，`handle_done` / `handle_propagate` 两个出口按逆序对称 pop；same-op 多 arm 仍只在单个 dispatch entry 内按 `effect_instance_key` 顺序判定，没有回流到“首个 arm / 首个 op-tag”特例。`dispatch_unmatched` 也只会流向 `outward_target_bb`，若存在 cleanup scope 则经 `handle_cleanup_propagate_*` 跑完 cleanup 后进入 `handle_propagate`，不会穿过 `handle_done` 正常完成路径；而 `handle_propagate` 向外传播时继续复用 shared `emit_ordinary_non_resuming_effect_exit()`，没有 handle-only / shape-based / fixture-only 特判。验证通过：两条 LLVM IR 定向测试、`effect_tls`、多条 handler-stack / same-op / delegated-property fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`）。当前 effect 主线下一项推进到 `T3009b`。
 > 2026-04-18 当前轮复审更新：`T3014cR` 已完成。复审 `crates/scoopc/src/typecheck/expr/entry.rs`、`hir/lower/sugar.rs`、`llvm/codegen/effect/mod.rs`、`llvm/codegen/effect/state_machine_emitter.rs` 与 `llvm/codegen/mod.rs` 后确认，delegated-property observable callback、ordinary `perform` 与 unified state-machine `emit_perform_op` / dispatch 仍统一经 `effect_instance_key()` / `matching_effect_instance_keys_for_handled_effect()` 收口，没有 callback-path / runtime-error-only / fixture-only fallback。复审过程中发现并修复了一个此前未显式跟踪的生产缺口：标准 delegated-property side table 只保存声明点 AST，却未绑定声明点 `SourceFile` / `ast::File`；跨文件使用 `lazy/observable/vetoable` 时，lowering 会在使用点文件上下文里直接 lower 声明点 callback / initializer AST，既可能查错 `inferred_performed_effect_tys` 等 side table，也会让 local `SymbolId` 因“仅按 span intern”与使用点局部冲突。现已为标准 delegated-property info 补齐声明点上下文，并让 foreign-AST lowering 显式切回声明点 `SourceFile` / `ast::File`；同时把 HIR lowering 的 local symbol interning 升级为“源文件 + span”。新增多文件低层回归 `lower_for_compilation_unit_multi_files_preserves_effect_ty_in_cross_file_observable_delegate_callback` 后，跨文件 observable callback 内 `Raise.raise(7)` 会稳定保留 `Perform.effect_ty = Raise<Int>`。验证通过：新增低层回归、`delegated_property_observable_raise_does_not_poison_mutex.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 未回退到 delegated-property observable fixture，当前首个停止点仍是已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`）。当前 effect 主线下一项推进到 `T3014R`。
 > 2026-04-18 当前轮完成更新：`T3014c` 已完成。根因确认不是 runtime dispatch/ABI 缺少 `effect_instance_key`，而是 `typecheck::check_file_exprs()` 之前会直接跳过带 `delegate` 的属性表达式，导致标准 delegated property 的 inline body（`lazy` initializer、`observable`/`vetoable` 的 initial expr 与 callback body）从未写入 `inferred_performed_effect_tys`；HIR lowering 虽仍会把 observable callback inline 到 delegated-property assign lowering，但其中 `Raise.raise(7)` 的 `Perform.effect_ty` 只能退化为 `Any`，最终 unified state-machine `emit_perform_op` 在 `effect_instance_key(effect_ty)` 处报 `UnsupportedMainBody { kind: "state machine perform effect instance key" }`。现已在 `crates/scoopc/src/typecheck/expr/entry.rs` 中新增标准 delegated-property inline 表达式检查，只对 lowering 真正会 inline 的几段表达式做 expected-context inference，避免把整个 delegate 调用错误地按普通纯 lambda 签名 typecheck；新增 typed lowering 回归 `lower_typed_single_source_file_preserves_effect_ty_in_observable_delegate_callback` 后，observable callback 内 `Raise.raise(7)` 会稳定保留 `Perform.effect_ty = Raise<Int>`。验证通过：新增低层回归、`lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables`、`delegated_property_observable_raise_does_not_poison_mutex.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点已前移到已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），不再停在 delegated-property observable blocker。当前 effect 主线下一项推进到 `T3014cR`。
 > 2026-04-18 当前轮复审更新：`T3014bR` 已完成。复审 `crates/scoopc/src/llvm/codegen/mod.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs` 后确认，ordinary `codegen_perform_expr` 与 unified state-machine `emit_perform_op` 都统一调用 `effect_instance_key(effect_ty)`；`emit_raise_runtime_error_variant` 直接写入的 `EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR` 也正是 `effect_instance_key()` 对 `Raise<RuntimeError>` 的固定返回值，不存在另一套 runtime-error-only key 合同。继续复审 `hir/lower/util.rs`、`hir/lower/expr.rs` 与 `typecheck/expr/entry.rs` 后确认，class/object-init hidden-suspend 路径的修复仅是把既有 typed side table 链路补回通用 lowering：`collect_object_inits()` / `collect_class_inits()` 现可接收 `typecheck_types`，而 object property initializer / `init {}` block 也会写回 `inferred_performed_effect_tys`，最终仍统一经 `ctx.lower_expr(...)` 生成带真实 `Perform.effect_ty` 的 HIR。验证通过：低层回归测试、`class_init_hidden_raise_helper_try_catch_basic.scoop`、`object_property_init_raise_helper_try_catch_basic.scoop`、`effect_handle_hidden_suspend_helper_object_property_basic.scoop`、`effect_same_op_multi_arm_dispatch_effect_instance.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个真实失败点仍为 `delegated_property_observable_raise_does_not_poison_mutex.scoop`（`UnsupportedMainBody { kind: "state machine perform effect instance key" }`）。因此 `T3014bR` 可判定完成，当前 effect 主线下一项推进到 `T3014c`。
@@ -560,30 +561,29 @@
 
 ## 4. 当前执行顺序
 
-1. `T3014R`
-2. `T3009b`
-3. `T3009bR`
-4. `T3015`
-5. `T3015R`
-6. `T3016`
-7. `T3016R`
-8. `T3017`
-9. `T3017R`
-11. `T3103`
-12. `T3104`
-13. `T3201`
-14. `T3202`
-15. `T3203`
-16. `T3204`
-17. `T3205`
-18. `T3301`
-19. `T3302`
-20. `T3303`
-21. `T3401`
-22. `T3401a`
-23. `T3401b`
-24. `T3401c`
-25. `T3402`
-26. `T3403`
-27. `T3404`
-28. `T3405`
+1. `T3009b`
+2. `T3009bR`
+3. `T3015`
+4. `T3015R`
+5. `T3016`
+6. `T3016R`
+7. `T3017`
+8. `T3017R`
+9. `T3103`
+10. `T3104`
+11. `T3201`
+12. `T3202`
+13. `T3203`
+14. `T3204`
+15. `T3205`
+16. `T3301`
+17. `T3302`
+18. `T3303`
+19. `T3401`
+20. `T3401a`
+21. `T3401b`
+22. `T3401c`
+23. `T3402`
+24. `T3403`
+25. `T3404`
+26. `T3405`
