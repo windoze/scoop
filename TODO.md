@@ -1019,13 +1019,20 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a2
 
-### T3009b0a1b [TODO] 在 caller-tail 已接回后，用 focused fixture 验证 resumed completion path 的 outer-slot 写回
+### T3009b0a1b [DONE] 在 caller-tail 已接回后，用 focused fixture 验证 resumed completion path 的 outer-slot 写回
 - 描述：`T3009b0a1a` 已把 authoritative outer-slot writeback target 收口进 frame metadata，并让 step-return 出口复用同一 helper。但当前直接复现 `k.resume(...)` 时，程序仍会停在 `body_after` / `body_resumed`，说明 resumed body 已执行、而 caller-tail 尚未继续；在这个状态下无法用 run-pass fixture 直接观测“`resume()` 返回点的 outer-local 已同步”。因此把“可观测验收”拆成独立子任务，等 `T3009b0` 接回 escaped continuation 的 caller-tail 后，再新增 focused fixture 锁定恢复完成路径的外层写回可见性。
+- 进展：
+  - 已新增 focused run-pass fixture `tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.scoop`，直接锁定“handle 初次离开时 outer `var` 仍保持旧值；`k.resume(...)` 返回后调用点可见值已更新”为同一条 resumed completion path 合同。
+  - 该 fixture 使用最小 escaped continuation 场景：`outerValue` 在 `Suspend.pause()` 之后才改写，因此 `after_handle` 时仍打印旧值 `5`，`k.resume(41)` 返回后再打印新值 `42`，避免只在 resumed body 内部观察到写回。
 - 目标：
   - 新增一个 focused fixture，锁定 escaped continuation `resume(...)` 返回后，outer `var` 已与 resumed body / cleanup 保持同步。
   - 该 fixture 必须直接观测调用点可见的 outer local，而不是只看 resumed body 内部输出。
 - 验收：
   - focused fixture 通过，且输出明确覆盖“handle 初次离开时旧值仍在、`resume()` 返回后新值可见”。
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0

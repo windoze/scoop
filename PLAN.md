@@ -35,6 +35,7 @@
 > 2026-04-17 当前轮复审完成更新：`T3009b0a1cR` 已完成。复审 `state_machine_emitter.rs`、`state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs`、`expr.rs`、`mod.rs` 与 `effect/mod.rs` 后确认：`SuspendCall` 的 inactive/active 分流仍只由 shared `Suspend` terminator 读取 `SuspendSiteKind::{CallMaySuspend, CallStateMachineCallee, ClassCtorInit}` + TLS active 决定；`HandleStateOp::SuspendCall` 本身只求值调用表达式，不携带 call-site/callee 专用分支；post-call caller-tail 的 authoritative 数据通路仍是 `resume_path` + synthetic resume slot，计划/segment/unified contract 都会校验该元数据。ordinary call 的 TLS active 检查仍只存在于普通 frame 路径，而 step function 生成期间会清空 `current_fun_return_ty` / `return_context`，因此不存在把 inactive-path 回流成 ordinary helper side channel 的补丁。验证通过：`cargo test -p scoopc resume_path_is_preserved_from_plan_to_segments_to_unified_machine -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a2`。
 > 2026-04-17 当前轮完成更新：`T3009b0a2` 已完成。`state_machine_emitter.rs` 的 shared `Suspend` terminator 现已把 `SuspendSiteKind::RuntimeRaise` 与其它可“成功返回本地 caller-tail”的 boundary 一样纳入 TLS active 分流：`Continuation.resume(...)` / `x as T` 成功时走 `site*_inactive` 把结果写入 frame resume 槽并 branch 到 `resume_state`，只有实际触发 `Raise.raise` 时才走 `site*_active` outward dispatch。新增 IR 单测 `runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch` 锁定这一共享结构；定向 fixture `type_check_cast_is_as_asq_basic.scoop` 与 `effect_escape_continuation_resume_unit.scoop` 已恢复预期输出，`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前主线下一项推进到 `T3009b0`。
 > 2026-04-17 当前轮完成更新：`T3009b0` 已完成。复查 `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 后确认，当前分支里的 production 路径已对 typecheck 标记过的 `Continuation.resume(...)` 做 dedicated lowering：普通 call 入口通过 `continuation_resume_call_sites` 直接分派到 `codegen_continuation_resume_builtin`，后者复用共享 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，覆盖 Unit、标量 word 与 GC ref payload，不再回落到 generic member access / generic call。正式验收通过：`effect_escape_continuation_resume_unit.scoop`、`effect_escape_continuation_resume_bool.scoop`、`effect_escape_continuation_resume_string.scoop`、`effect_resume_nested_escape_handle_tail.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0a1b`。
+> 2026-04-17 当前轮完成更新：`T3009b0a1b` 已完成。新增 focused fixture `effect_escape_continuation_resume_outer_var_writeback.scoop`，直接锁定“handle 初次离开时 outer `var` 仍保持旧值；`k.resume(...)` 返回后调用点可见值更新”为 resumed completion path 的统一 writeback 合同。定向运行输出为 `after_handle -> 5 -> after_resume -> 42 -> done`，证明 caller-tail 接回后，resumed body 对 outer slot 的改写已经通过 frame metadata 写回到 caller 可见 local。已验证：定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前主线下一项推进到 `T3009b0aR`。
 
 ## 0. 工作原则
 
@@ -418,7 +419,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1d`（已完成：补齐 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR`（已完成：确认 inactive-path 仍只按统一合同分流）→ `T3009b0a1e`（已完成：补齐 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR`（已完成：确认 nested-handle inactive-path 未回流为旁路补丁）→ `T3009b0a1cR`（已完成：确认 call-like inactive-path 未回流成普通 call/ordinary helper 补丁）→ `T3009b0a2`（已完成：共享 `RuntimeRaiseBoundary` inactive-path / active-dispatch 分流）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1d`（已完成：补齐 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR`（已完成：确认 inactive-path 仍只按统一合同分流）→ `T3009b0a1e`（已完成：补齐 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR`（已完成：确认 nested-handle inactive-path 未回流为旁路补丁）→ `T3009b0a1cR`（已完成：确认 call-like inactive-path 未回流成普通 call/ordinary helper 补丁）→ `T3009b0a2`（已完成：共享 `RuntimeRaiseBoundary` inactive-path / active-dispatch 分流）→ `T3009b0`（已完成：escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（已完成：focused fixture 可观测验收 resumed completion path 的 outer-slot 写回）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -527,44 +528,43 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0a1b`
-2. `T3009b0aR`
-3. `T3009b0R`
-4. `T3010b2b1b`
-5. `T3010b2b1`
-6. `T3010b2b`
-7. `T3010R`
-8. `T3011`
-9. `T3011R`
-10. `T3012`
-11. `T3012R`
-12. `T3013`
-13. `T3013R`
-14. `T3009b`
-15. `T3009bR`
-16. `T3014`
-17. `T3014R`
-18. `T3015`
-19. `T3015R`
-20. `T3016`
-21. `T3016R`
-22. `T3017`
-23. `T3017R`
-24. `T3103`
-25. `T3104`
-26. `T3201`
-27. `T3202`
-28. `T3203`
-29. `T3204`
-30. `T3205`
-31. `T3301`
-35. `T3302`
-36. `T3303`
-37. `T3401`
-38. `T3401a`
-39. `T3401b`
-40. `T3401c`
-41. `T3402`
-42. `T3403`
-43. `T3404`
-44. `T3405`
+1. `T3009b0aR`
+2. `T3009b0R`
+3. `T3010b2b1b`
+4. `T3010b2b1`
+5. `T3010b2b`
+6. `T3010R`
+7. `T3011`
+8. `T3011R`
+9. `T3012`
+10. `T3012R`
+11. `T3013`
+12. `T3013R`
+13. `T3009b`
+14. `T3009bR`
+15. `T3014`
+16. `T3014R`
+17. `T3015`
+18. `T3015R`
+19. `T3016`
+20. `T3016R`
+21. `T3017`
+22. `T3017R`
+23. `T3103`
+24. `T3104`
+25. `T3201`
+26. `T3202`
+27. `T3203`
+28. `T3204`
+29. `T3205`
+30. `T3301`
+31. `T3302`
+32. `T3303`
+33. `T3401`
+34. `T3401a`
+35. `T3401b`
+36. `T3401c`
+37. `T3402`
+38. `T3403`
+39. `T3404`
+40. `T3405`

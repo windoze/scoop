@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_outer_var_writeback.stdout
+//
+// T3009b0a1b：在 escaped continuation 的 caller-tail 已接回后，
+// `resume()` 返回点必须能直接观察到 resumed completion path 对 outer `var`
+// 的写回，而不是只在 resumed body 内部可见。
+//
+// 覆盖：
+// - handle 初次离开时，perform 之后的 outer-slot 改写尚未发生；
+// - `Continuation.resume(...)` 返回后，resumed body 对 outer `var` 的改写已同步回 caller。
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int>? = None()
+    var outerValue: Int = 5
+
+    val _: Unit = handle {
+        val resumed: Int = Suspend.pause()
+        outerValue = resumed + 1
+    } with {
+        Suspend.pause(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+    println(outerValue)
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(41)
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+            println(outerValue)
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
