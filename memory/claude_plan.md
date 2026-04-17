@@ -2,55 +2,49 @@
 
 ## 约束说明
 
-- 按要求先写入本文件，再进行仓库检查与命令执行。
-- 这里记录的是可公开的分析摘要、执行计划、进展和决策，不包含逐字内部推理。
-- 本轮目标是：先处理最新提交中提到的既有问题（若存在），然后完成 `TODO.md` 中第一个未完成任务；若任务过大，则先拆分并更新 `PLAN.md` / `TODO.md`，随后只执行拆分后的第一个子任务。
+- 按用户要求，本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在开始任何仓库检查命令前，先写入本计划文件。
+- 计划文件会在关键步骤完成或计划调整时持续更新。
+- 这里记录的是可审计的执行思路与步骤摘要，不包含与实现无关的内部推理细节。
 
-## 初始步骤
+## 预定步骤
 
-1. 检查最新一次 git 提交的提交信息与变更，确认是否明确提到尚未解决的既有问题。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，理解当前计划、任务编号与依赖关系。
-4. 判断该任务是否可在本轮完整落地：
-   - 若可以，直接实现、补测试、运行验证、更新文档与任务状态、提交 git commit。
-   - 若不可以，拆成更小的子任务，更新 `PLAN.md` 与 `TODO.md`，本轮只完成第一个子任务。
-5. 在实现过程中如发现任何规范不匹配、缺失特性、回归或“只能靠绕过才能继续”的情况：
-   - 先把该问题建成前置任务并调整 `TODO.md` 顺序；
-   - 更新 `PLAN.md` 说明阻塞原因；
-   - 如当前任务因此不能继续，则提交这些计划性改动后停止。
-6. 完成实现后运行相关验证：
-   - 至少运行与改动直接相关的测试；
-   - 若改动触及公共编译/运行路径，再补 `cargo test --all` 或更小但充分的验证；
-   - 运行 `cargo clippy --all-targets -- -D warnings`（若与当前任务范围相关且耗时可接受）。
-7. 更新 `TODO.md`、`PLAN.md`、本文件，并创建一次清晰的 git 提交。
+1. 检查最新一次 Git 提交，确认提交信息或改动中是否明确提到尚未修复的问题；如果有，优先修复这些既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖与现有拆分情况。
+4. 如果该任务过大或存在前置依赖缺口，则先更新 `PLAN.md` 与 `TODO.md`，将任务拆成更小子任务，并只执行新的第一个子任务。
+5. 实现当前目标任务，必要时阅读相关代码、测试与规范文档。
+6. 运行相关测试与质量检查，至少覆盖本次改动的直接影响范围；如果任务范围允许，还应运行更完整的检查。
+7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
+8. 使用清晰的 Git 提交信息提交本轮变更。
+9. 停止，不继续处理下一个任务。
 
-## 进展记录
+## 当前状态
 
-- 已创建本文件，准备开始检查最新提交与任务列表。
-- 已检查最新提交 `79485a39e3af09ae1c7d9bd6541febc84eaa597f`（`[T3009b0aR] Review outer-scope slot writeback contract`）：
-  - 本次提交只更新了 `PLAN.md`、`TODO.md` 与本记录文件，没有新增生产代码修改。
-  - 提交信息未明确提出一个尚未修复、且必须先于 `TODO.md` 第一项执行的额外代码问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T3009b0R`：
-  - 任务类型：review。
-  - 任务目标：确认 escaped continuation 的 `Continuation.resume(...)` scalar/ref dedicated lowering 在普通 call path 与 unified state-machine 路径中都已 dedicated 化，不再回落到 generic member access / generic call。
-- 当前执行策略：
-  1. 审查 `crates/scoopc/src/llvm/codegen/mod.rs` 中 call 分派是否以 `continuation_resume_call_sites` 为唯一 builtin 标记来源。
-  2. 审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 `codegen_continuation_resume_builtin` 是否只负责共享 ABI + payload transport，不夹带 escaped-continuation-only 特判。
-  3. 审查 unified state-machine 相关模块是否仍通过统一 call 路径消费该 dedicated lowering，而不是在 emitter 中另起 generic fallback。
-  4. 运行与 `Continuation.resume(...)` 直接相关的结构测试 / focused fixtures / 全量质量门槛，确认 review 结论成立。
-- 已完成 `T3009b0R` 复审，结论如下：
-  - `codegen_call` 仍以 `continuation_resume_call_sites` 为唯一 builtin 语义来源，并在普通 call lowering 最前面直接分派到 `codegen_continuation_resume_builtin`。
-  - `codegen_member_access` 中不存在按成员名/receiver 类型识别 `Continuation.resume` 的旁路补丁；普通 member access 没有回流 effect-only 特判。
-  - unified state-machine emitter 对相关 `HandleStateOp` 统一委托 `codegen_expr_in_expected_context`，最终仍走同一个 `codegen_call -> codegen_continuation_resume_builtin` 分派，因此 ordinary path 与 state-machine path 共用一套 dedicated lowering。
-  - `codegen_continuation_resume_builtin` 仍只复用共享 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport；composite payload 继续留给 `T3013` / `T3009b`，没有新增 continuation-only side channel。
-- 本轮验证结果：
-  - 通过：`cargo test -p scoopc continuation_resume_hidden_suspend_classification_requires_typechecked_call_site_marker -- --nocapture`
-  - 通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
-  - 通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_bool.scoop`
-  - 通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
-  - 通过：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
-  - 通过：`cargo test --all`
-  - 通过：`cargo clippy --all-targets -- -D warnings`
-- 下一步：
-  - 更新 `TODO.md` / `PLAN.md`，将 `T3009b0R` 标记为完成，并把队列推进到 `T3010b2b1b`。
-  - 提交本轮改动并停止，等待下一次调用。
+- 已创建计划文件。
+- 已检查最新提交 `eea8f752af66136977e32946f33639e6e95f8155`（`[T3009b0R] Review escaped continuation resume lowering`）。
+- 已确认最新提交没有额外引入一个需要先于 `TODO.md` 排序处理的独立缺陷；提交只是把 `T3009b0R` 标记完成，并把当前执行顺序推进到 `T3010b2b1b`。
+- 已定位首个未完成任务：`T3010b2b1b`。
+
+## 针对当前任务的细化计划
+
+1. 复现 `T3010b2b1b` 描述中提到的当前最小问题路径，优先检查 `effect_resume_nested_escape_handle_tail.scoop` 以及可能相关的 nested arm / nested handle / indirect helper fixtures，确认真实失败模式是否仍是 unified expected-context / coercion 缺口。
+2. 阅读 unified state-machine emitter、普通表达式 codegen、以及 value coercion / expected-context 相关实现，找出 nested/indirect arm-body 路径与 direct 路径的差异。
+3. 如果缺口真实存在且任务规模可控，直接修复并补充最小化测试。
+4. 如果复现后发现原任务描述已经过时，需要更小或更前置的任务，则按用户要求更新 `TODO.md` / `PLAN.md`，调整任务顺序并在本轮停止。
+
+## 当前发现
+
+- `T3010b2b1b` 的三个 focused fixture 当前都已通过：
+  - `effect_resume_nested_escape_handle_tail.scoop`
+  - `effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`
+  - `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+- 代码复审结果与运行结果一致：当前 unified arm-body 路径已经统一复用 `codegen_expr_in_expected_context` / `coerce_value`，没有独立的 expected-context / coercion 缺口需要修复。
+- 因此本轮将 `T3010b2b1b` 视为“重新基线化后确认缺口已消失”的任务，并把它标记完成。
+- 在扩大验证时，`cargo run -p scoop --features llvm -- test` 先暴露了一个未在 `TODO.md` 跟踪的问题：`tests/fixtures/mir/handle_perform.scoop` 的 MIR golden 过期。
+
+## 计划调整
+
+1. 更新 `TODO.md` / `PLAN.md`：将 `T3010b2b1b` 标记完成，并新增前置任务以修复 `handle_perform.mir` golden mismatch。
+2. 记录该 MIR 问题为何会先于 `T3010b2b1` 阻塞更大范围验证。
+3. 本轮到此停止，不继续进入新增任务的实现。

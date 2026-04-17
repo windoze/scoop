@@ -1088,8 +1088,12 @@
   - 当前 payload transport 仍统一复用 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` 两条共享通道；composite payload 仍明确留给后续 `T3013` / `T3009b` 扩展。
 - 依赖：T3009b0
 
-### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
+### T3010b2b1b [DONE] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
 - 描述：`T3010b2b1b0` 完成后，原先用来锚定本任务的 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 已恢复通过；继续重新基线化时，新的最小 repro 变为 `effect_resume_nested_escape_handle_tail.scoop`，但其首个失败点并不是 `value coercion`，而是 escaped continuation 的 `Continuation.resume(...)` 仍在 unified emitter 中回落到 generic call path 并报 `call callee`。这个更前置的缺口已由 `T3009b0/T3009b0R` 承接；本任务保留为“在 dedicated escaped-continuation resume lowering 接通之后，再重新检查 nested arm / nested handle / indirect helper call 链路上是否还存在独立的 unified expected-context / coercion 缺口”。若届时该前置已不再缺失，应继续收窄或删除本任务，避免继续围绕已通过 fixture 工作。
+- 进展：
+  - 已重新运行 `effect_resume_nested_escape_handle_tail.scoop`、`effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop` 与 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`；三条 focused fixture 当前都稳定通过，原注释中记录的 `value coercion` / `unknown local value` 失败模式不再复现。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 arm-body 发射路径：immediate-resume 分支会把改写后的 body 以 `payload_cg_ty` 传给 `codegen_expr_in_expected_context`，其余 nested handle / indirect helper / arm-body 表达式统一复用 `codegen_expr_in_expected_context` 与共享 `coerce_value` 逻辑，不存在单独的 arm-only / nested-only expected-context 旁路。
+  - 结合代码复审与 focused fixture，确认 `T3009b0/T3009b0R` 接通 dedicated `Continuation.resume(...)` lowering 后，不再剩余一个独立的 unified expected-context / coercion 前置缺口；后续工作直接回到 `T3010b2b1` 的 outward propagation / cleanup 语义验收。
 - 目标：
   - 在 `T3009b0R` 之后重新定位 nested arm / nested handle / indirect helper call 路径上是否仍存在统一 expected-context / coercion 缺口，并给出新的最小 repro。
   - 若缺口仍存在，统一 state-machine emitter 需要为局部绑定、丢弃绑定、tail value/readback 提供足够的 expected context，不再命中同类 `value coercion`。
@@ -1098,10 +1102,27 @@
   - 新的最小 repro 能稳定复现并验证修复后的 nested/indirect expected-context / coercion 行为。
   - 重新跑当前相关 xfail / run-pass 子集时，不再因为这类 arm-body/nested 路径报 `暂不支持的 main 代码生成节点：value coercion`
   - 若执行期 `cargo run -p scoop --features llvm -- test` 仍先停在 `T3017` 的 stale xfail expectation cleanup，上述最小 repro 与相关子集仍应先独立通过；待 `T3017` 回收后再把全量 suite 作为追加验收。
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail_multi_perform_nonunit.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+- 结论：
+  - `T3010b2b1b` 原本预期的独立 unified expected-context / coercion 缺口已不存在；相关 fixture 仍带 `EXPECT: fail` 只是 `T3017` 要统一回收的 stale expectation，不再阻塞 `T3010b2b1` 的语义推进。
 - 依赖：T3009b0R
 
+### T3010b2b1b1 [TODO] 同步 `handle_perform` 的 MIR golden，恢复全量 fixture 验证入口
+- 描述：在完成 `T3010b2b1b` 的 focused 验证后复跑 `cargo run -p scoop --features llvm -- test`，suite 没有先停在 effect 主线上，而是先在 `tests/fixtures/mir/handle_perform.scoop` 报 `handle_perform.mir` snapshot mismatch。当前 `scoop dump-mir tests/fixtures/mir/handle_perform.scoop` 的输出中，handle result 临时 local `tmp0` 的类型已从 golden 中的 `TypeId(0)` 变为 `TypeId(5)`；这与此前 `ExprKind::Handle` 保留 typechecked result type 的修正一致，当时已同步更新 `tests/fixtures/hir/handle_perform.hir`，但遗漏了对应 MIR golden。
+- 目标：
+  - 确认 `handle_perform` 的 MIR 变化确实来自预期的 handle result type 源修正，而不是新的 MIR lowering 退化。
+  - 同步 `tests/fixtures/mir/handle_perform.mir` golden，恢复 MIR fixture 基线。
+  - 复跑 MIR 相关 fixture 子集，确保后续 `cargo run -p scoop --features llvm -- test` 不再先被这个 snapshot mismatch 截断。
+- 验收：
+  - `cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop` 与 golden 一致。
+  - MIR fixtures 子集通过。
+- 依赖：T3010b2b1b
+
 ### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
-- 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 会先补齐当前链路缺失的 unified value coercion / expected-context 前置。本任务在其之后回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
+- 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 已重新基线化并确认不存在独立的 unified value coercion / expected-context 前置，当前先恢复 MIR fixture 验证入口（`T3010b2b1b1`），再回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
 - 目标：
   - arm body 中 nested/indirect 触发的 unmatched non-resuming effect 同样不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
   - immediate-resume、escape continuation 与 pure non-resuming source-handle 在 arm body 内共享同一套 direct + nested/indirect outward propagation 语义。
@@ -1112,7 +1133,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3010b2b1b
+- 依赖：T3010b2b1b1
 
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
 - 描述：`T3010b2a` 已把 body tail 改写到 synthetic resume slot，`T3009a` 将补上 arm 内 `resume(value)` 的专用 lowering。两者接通后，再回到端到端语义收口：resume landing 只能继续剩余 tail，不能重放 suspend 前已经求值的路径。
