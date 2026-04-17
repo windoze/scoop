@@ -1,62 +1,51 @@
-# 当前执行计划
+# 执行计划与进度记录
 
-## 说明
+## 约束与目标
 
-根据仓库要求与本次任务约束，本文件记录的是可审计的高层推理摘要、执行计划、关键决策与进度更新，不包含逐字内部思维过程。
+- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在开始任何终端命令前，先建立本文件，记录计划与后续关键进展。
+- 必须先检查最新提交是否提到需要先修复的既有问题；若存在，则这些问题优先于 `TODO.md` 任务。
+- 若当前首个未完成任务过大，需要先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后仅执行拆分后的第一个子任务。
+- 实现后必须运行相关测试，并尽量满足无警告构建/检查要求。
+- 需要同步更新 `TODO.md`、`PLAN.md`，并创建 Git 提交。
 
-## 目标
+## 初始执行计划
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+1. 查看最新一次 Git 提交，确认提交信息中是否指出尚未修复的既有问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md` 以及与该任务直接相关的代码/规范上下文，判断任务边界与依赖。
+4. 若任务过大或被缺失特性/规格不匹配阻塞：
+   - 拆分或重排 `TODO.md`；
+   - 更新 `PLAN.md` 说明原因、依赖与新顺序；
+   - 若本轮只能完成拆分/重排，则提交这些变更并停止。
+5. 若任务可直接实施：
+   - 修改代码实现任务；
+   - 补充或调整测试；
+   - 运行相关验证，必要时迭代修复；
+   - 更新 `TODO.md` 与 `PLAN.md`；
+   - 提交本轮变更并停止。
 
-## 初始步骤
+## 记录规范
 
-1. 检查最新一次 Git 提交，确认提交信息是否提到任何已知问题、遗留修复或需先处理的事项。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如果该任务过大或存在前置依赖缺失，先阅读相关上下文，必要时在 `PLAN.md` / `TODO.md` 中拆分任务、补充依赖并重排顺序。
-4. 仅在前置问题已处理完毕后，实现当前应执行的首个任务。
-5. 运行相关测试，并补足必要测试，确保实现符合规范。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件的状态记录。
-7. 提交本轮变更，随后停止。
+- 每完成一个关键步骤，就在本文件追加“进度更新”。
+- 若计划调整，记录调整原因、影响范围与新的执行顺序。
 
-## 当前已知约束
+## 进度更新
 
-- 必须先检查最新提交中提到的既有问题；如有，需优先修复。
-- 不能以规避、临时兼容或仅夹具通过的方式交付任务。
-- 若发现规范缺口或前置能力缺失，必须把真实问题加入 `TODO.md` 并调整依赖顺序，而不是绕过。
-- 需要尽量保证编译、测试、lint 无告警。
-
-## 待确认项
-
-- 最新提交是否声明了未解决问题。
-- `TODO.md` 中第一个未完成任务的内容、范围和依赖。
-- 当前工作树是否存在未提交改动，需要在执行中避免覆盖。
-
-## 进度记录
-
-- 已创建本计划文件，准备开始检查提交记录与任务列表。
-- 已检查当前工作树：仅本文件有未提交修改。
-- 已读取最新提交与任务列表；当前第一个未完成任务为 `T3011`。
-- 最新提交信息未直接声明新的未修问题；`PLAN.md` 中提到的 `T3017` stale `EXPECT: fail` 仍是已跟踪后续任务，不改变本轮首要任务顺序。
-- 已完成首轮代码勘察：
-  - `FrameSlot.mutable` 在 emitter / `codegen_assign_stmt` 中会直接决定是否允许赋值。
-  - `HandlePlanContext::from_codegen()` 生产态只从当前 `cg.env` 收集局部元数据，不会主动并入当前 `handle` 内部声明。
-  - `build_stmt(Val)` 对已有 slot 使用 `or_insert_with`，若先前已被错误占坑，则声明点不会回填 authoritative 元数据。
-- 已完成首轮复现：
-  - `TODO.md` 点名的验收 fixture `tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop` 当前已通过。
-  - 扫描当前 `EXPECT: fail` run-pass 子集，未直接复现 `assignment to immutable local`。
-- 当前判断：
-  - `T3011` 更像“消除生产态 slot metadata 的潜在顺序依赖并补结构回归”，而不是单一现成 fixture 修复。
-  - 下一步将补定向单测，覆盖“handle 内声明元数据进入生产 context”与“后续声明覆盖先前占坑 slot”这两条链路，然后实现对应修复。
-- 已完成实现：
-  - `build_unified_lowering_contract()` 现在会在生产态 `from_codegen()` context 基础上，补充当前 `handle` 自身的 local metadata。
-  - `build_stmt(Val)` 遇到真实声明时会直接覆盖同 `SymbolId` 的旧 slot，消除“先占坑后永不回填”的顺序依赖。
-- 已新增并通过的结构回归：
-  - `declared_handle_local_overwrites_placeholder_slot_metadata`
-  - `handle_context_extension_recovers_nested_handle_outer_var_mutability`
-- 已完成验证：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop` 通过。
-  - 扫描当前 `EXPECT: fail` run-pass 子集，未发现 `assignment to immutable local`。
-  - `cargo test --all` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-  - `cargo run -p scoop --features llvm -- test` 仍只停在既有 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`，与已跟踪的 `T3017` 一致，未出现新的更早失败点。
-- 已更新 `TODO.md` / `PLAN.md`：`T3011` 标记为完成，下一项未完成任务已推进到 `T3011R`。
+- 已创建计划文件，下一步将检查最新提交信息与待办列表。
+- 已检查最新提交 `adf733aa1b7cd2160e0da85cc1d453cc94a4ecfe`（`[T3011] Fix unified frame slot mutability metadata`），未发现提交信息里额外声明一个需要先于 `TODO.md` 继续处理的新既有问题。
+- 已确认 `TODO.md` 中首个未完成任务为 `T3011R`，属于 review 任务；无需再拆分，直接审查 unified contract 中 frame slot mutability / capture 元数据的数据流与消费面。
+- 已完成生产代码复审：
+  - `state_machine_plan.rs` 中 `build_stmt(Val)` 会以声明点为准覆盖同 `SymbolId` 的旧 slot metadata，不保留先前 fallback 占坑的 `mutable: false` / `seed_from_outer_scope: true` 残值。
+  - `collect_outer_scope_slots()` 与 `authoritative_local_slot()` 都从 `known_local_metadata` 读取权威 mutability/ty；`build_unified_lowering_contract()` 会先基于当前 codegen env 建立 context，再补入当前 `handle` 自身的 local metadata，保证 nested handle / arm capture / finally 路径能看到声明点信息。
+  - `state_machine_emitter.rs` 中 `populate_frame_slots_in_env()`、`emit_read_local_from_frame()`、`emit_execute_arm_body()`、outer-scope seeding/writeback 都直接消费 unified frame slot metadata；赋值仍统一走 `codegen_assign_stmt()`，未发现 effect-only mutable 特判。
+- 已完成定向验证：
+  - `cargo test -p scoopc declared_handle_local_overwrites_placeholder_slot_metadata -- --nocapture`
+  - `cargo test -p scoopc handle_context_extension_recovers_nested_handle_outer_var_mutability -- --nocapture`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
+- 已完成全量质量门槛验证：
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test` 结果仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。
+- 当前结论：`T3011R` 无新增生产代码问题；下一步只需把审查结论同步回 `TODO.md` / `PLAN.md`，然后提交并停止。

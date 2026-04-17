@@ -1232,8 +1232,14 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010R
 
-### T3011R [TODO] Review：确认 frame slot mutability / capture 元数据已按声明点收口
+### T3011R [DONE] Review：确认 frame slot mutability / capture 元数据已按声明点收口
 - 描述：在 `T3011` 之后只审查生产代码，确认 unified contract 中的 slot metadata 已由声明点驱动，不再有“先占坑成 immutable、后续永不修正”的残留；若发现这类问题，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`：`build_stmt(Val)` 会以真实声明覆盖旧 slot metadata；`collect_outer_scope_slots()` 与 `authoritative_local_slot()` 都从 `known_local_metadata` 读取权威 mutability / type，不依赖占坑顺序。
+  - 已审查 `build_unified_lowering_contract()`：生产态 `HandlePlanContext::from_codegen()` 先收集当前 env 中可见 locals，再由 `extend_known_local_metadata_from_handle(handle)` 补入当前 `handle` 自身声明，nested handle / arm / finally 路径都能看到声明点元数据。
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/stmt.rs`：frame slot 预注册、read-back、arm capture 恢复、outer-scope seeding/writeback 均直接消费 unified slot metadata；赋值仍统一走通用 `codegen_assign_stmt()`，没有新增 effect-only mutable 特判。
+  - 已验证 `cargo test -p scoopc declared_handle_local_overwrites_placeholder_slot_metadata -- --nocapture`、`cargo test -p scoopc handle_context_extension_recovers_nested_handle_outer_var_mutability -- --nocapture`、`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`、`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。
 - 目标：
   - 确认 local ref、arm capture、resume 边界与普通 `val/var` 声明最终都汇聚到同一份 slot metadata。
   - 确认 emitter / stmt codegen 不再依赖 slot 创建顺序来决定 mutability。
@@ -1241,6 +1247,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“frame slot mutability / capture metadata 已与声明语义对齐，无顺序依赖或 effect-only patch”。
+- 审查结论：
+  - frame slot mutability / capture metadata 已与声明语义对齐：声明点是唯一真值来源，capture / resume / outer-scope seeding 只消费同一份 authoritative metadata。
+  - emitter / stmt codegen 不依赖 slot 创建顺序决定 mutability，也不存在 effect-only mutable patch。
 - 依赖：T3011
 
 ### T3012 [TODO] 补齐 unified path 的 expected-context / closure / coercion 支持
