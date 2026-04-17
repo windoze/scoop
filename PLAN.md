@@ -24,6 +24,7 @@
 > 2026-04-17 当前轮完成更新：`T3009b0a` 已完成。修复不止在 emitter 出口补 writeback，还包括把 unified contract 的 outer-scope slot 收集从仅 `handle.body` 扩到整个 `handle`（body、arms、finally），并排除 arm binder / resume / continuation locals 与 handle 内部局部。`handle_done` / `handle_propagate` 现在都会按 metadata 统一回写 seeded outer mutable slot。已新增结构测试 `handle_outer_scope_seeding_includes_arm_and_finally_locals` 与 focused fixture `effect_escape_continuation_outer_var_writeback_basic.scoop`。复跑 `effect_escape_continuation_resume_unit.scoop`、`..._string.scoop` 与 `..._bool.scoop` 后，输出都已越过 `missing`，说明 outer-local 保存阶段已打通；剩余 `resume(...)` 返回后 caller tail 未继续的问题明确留给下一步 `T3009b0/T3009b0R`。
 > 2026-04-17 当前轮 review 更新：开始执行 `T3009b0aR` 时，继续审查 `write_back_outer_scope_frame_slots` 与 `codegen_continuation_resume_builtin` 后发现一个尚未被 `TODO.md` 跟踪的前置缺口：outer-slot writeback 目前仍只挂在 `codegen_handle_expr_via_state_machine` 的 `handle_done` / `handle_propagate`。这覆盖了“第一次离开 handle”时 body / arm / finally 的 outer-local 写回，但 escaped continuation 在 handle 返回后通过 `k.resume(...)` 继续执行 body / finally 时，runtime `scoop_continuation_resume` 只直接调用 continuation `step_fn`，没有任何统一的 frame-metadata 驱动 writeback 出口。用最小临时 repro 验证时，输出为 `body_before` → `arm_saved` → `after_handle` → `before` → `body_after`，说明 resumed body 已继续执行，而 post-resume completion path 仍未形成可复审的统一 outer-local 同步合同。因此顺序再次前移为：`T3009b0a`（已完成）→ `T3009b0a1`（先补 escaped continuation 恢复完成路径的 outer-slot writeback 合同）→ `T3009b0aR` → `T3009b0` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 > 2026-04-17 当前轮拆分完成更新：真正开始实现 `T3009b0a1` 后，用临时 repro 与 focused fixture 草案复现发现，当前 `k.resume(...)` 虽已能继续执行 resumed body，但 caller-tail 仍会在 `body_after` / `body_resumed` 处截断；因此“`resume()` 返回点可见的 outer-local 已同步”这一 run-pass 验收实际上受 `T3009b0` 阻塞，不能与写回合同基础设施绑成同一个任务。顺序因此再次细化为：`T3009b0a1a`（本轮完成：把 authoritative outer-slot writeback target 收口进 effect frame metadata，并接到统一 step-return 出口）→ `T3009b0`（先接回 escaped continuation 的 caller-tail / scalar-ref resume lowering 正式验收）→ `T3009b0a1b`（随后新增 focused fixture，直接观测 `resume()` 返回点的 outer-local 同步）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。`T3009b0a1a` 已新增 LLVM IR 单测 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`，锁定 frame metadata + step-return writeback 基础设施。
+> 2026-04-17 当前轮重新定位更新：真正按 `T3009b0` 验收继续复现后，发现更前置的 shared blocker 不是 payload transport，而是 unified `RuntimeRaiseBoundary` 合同本身。当前 `Continuation.resume(...)` 与 `x as T` 这类 boundary expression 在 state machine 中都被建模成“求值后无条件 `Suspend`”：例如 `try { k.resume(()) ; ... } catch` 的 step function 会先调用 `scoop_continuation_resume(...)`，随后立刻 `alloc continuation + set_active + return`；`type_check_cast_is_as_asq_basic.scoop` 也在首个成功 `as` 后就停在 `x is Base: true`。这说明 inactive 成功路径没有继续 caller-tail，而是被错误截断。由于这个缺口比 escaped continuation dedicated lowering 更基础、且当前未被 `TODO.md` 跟踪，顺序再次前移为：`T3009b0a1a`（已完成）→ `T3009b0a2`（先修 shared `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref dedicated lowering 正式验收）→ `T3009b0a1b` → `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 
 ## 0. 工作原则
 
@@ -407,7 +408,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0`（先接通 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a2`（先修 shared `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -516,18 +517,19 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0`
-2. `T3009b0a1b`
-3. `T3009b0aR`
-4. `T3009b0R`
-5. `T3010b2b1`
-6. `T3010b2b`
-7. `T3010R`
-8. `T3011`
-9. `T3011R`
-10. `T3012`
-11. `T3012R`
-12. `T3013`
+1. `T3009b0a2`
+2. `T3009b0`
+3. `T3009b0a1b`
+4. `T3009b0aR`
+5. `T3009b0R`
+6. `T3010b2b1`
+7. `T3010b2b`
+8. `T3010R`
+9. `T3011`
+10. `T3011R`
+11. `T3012`
+12. `T3012R`
+13. `T3013`
 13. `T3013R`
 13. `T3009b`
 14. `T3009bR`

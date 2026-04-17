@@ -842,8 +842,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a
 
+### T3009b0a2 [TODO] 修正 unified `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同
+- 描述：真正按 `T3009b0` 的验收 fixture 复现后确认，当前更前置且尚未被 `TODO.md` 跟踪的缺口并不只在 escaped continuation 自身。unified state-machine 现在把 `RuntimeRaiseBoundary`（至少覆盖 `Continuation.resume(...)` 与 `x as T`）统一建模成“求值表达式后无条件 `Suspend`”：step function 先发出 `scoop_continuation_resume(...)` / cast code，再立刻走 `alloc continuation + set_active + return`。结果是 boundary expression 的 inactive 成功路径也会被截断，caller-tail 永远接不回。最小复现包括：`effect_escape_continuation_resume_unit.scoop` 当前输出停在 `after_pause`，缺少 `after_resume` / `done`；`type_check_cast_is_as_asq_basic.scoop` 当前在首个成功 `as` 后停在 `x is Base: true`，未继续打印 `Impl.ping` / `42` / `10`。由于这是比 `T3009b0` 更基础的 shared boundary 合同错误，必须先前移修复。
+- 目标：
+  - `RuntimeRaiseBoundary` 驱动的表达式在 inactive 成功路径上必须留在当前 state machine 内继续执行 caller-tail；不能无条件分配 caller continuation、设置 active 并提前返回。
+  - 当 boundary expression 确实令 TLS active（例如 `Continuation.resume` 的 second-resume 运行期错误、`as` cast fail-path），当前 step function 必须把控制权交回 enclosing `handle` / `try` 的 dispatch loop，而不是继续执行 boundary 之后的语句。
+  - 修复必须收口到共享 `RuntimeRaiseBoundary` 合同，不能只对 `Continuation.resume(...)` 或单个 fixture 特判。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b0a1a
+
 ### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
-- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，而 `T3009b0a1a` 又把 resumed path 所需的 frame-metadata writeback 合同补到了 step-return 出口。本任务在其后继续完成 scalar/ref payload transport 与 resume caller-tail 的正式验收。
+- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型；初次离开 handle 的 outer-scope slot 写回已由 `T3009b0a` 修复，`T3009b0a1a` 也把 resumed path 所需的 frame-metadata writeback 合同补到了 step-return 出口。但继续真跑验收后又确认，caller-tail 当前还被更基础的 `RuntimeRaiseBoundary` 合同错误截断；该 shared 前置已由 `T3009b0a2` 承接。本任务在其之后继续完成 escaped continuation 的 scalar/ref payload transport 与 dedicated resume caller-tail 的正式验收。
 - 目标：
   - 对 typecheck 已确认的 `Continuation.resume(...)` 调用点提供显式 lowering，不再回落到 generic member access / generic call。
   - 复用现有 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，先覆盖 Unit、标量 word 与 GC ref payload。
@@ -855,7 +868,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3009b0a1a
+- 依赖：T3009b0a2
 
 ### T3009b0a1b [TODO] 在 caller-tail 已接回后，用 focused fixture 验证 resumed completion path 的 outer-slot 写回
 - 描述：`T3009b0a1a` 已把 authoritative outer-slot writeback target 收口进 frame metadata，并让 step-return 出口复用同一 helper。但当前直接复现 `k.resume(...)` 时，程序仍会停在 `body_after` / `body_resumed`，说明 resumed body 已执行、而 caller-tail 尚未继续；在这个状态下无法用 run-pass fixture 直接观测“`resume()` 返回点的 outer-local 已同步”。因此把“可观测验收”拆成独立子任务，等 `T3009b0` 接回 escaped continuation 的 caller-tail 后，再新增 focused fixture 锁定恢复完成路径的外层写回可见性。
