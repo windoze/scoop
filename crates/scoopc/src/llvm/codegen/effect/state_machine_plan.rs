@@ -1520,6 +1520,19 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
+    fn resume_slot_for_site(&self, site_id: SuspendSiteId) -> Option<FrameSlot> {
+        self.states.iter().find_map(|state| {
+            state.actions.iter().find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    site_id: resume_site_id,
+                    resume_slot: Some(slot),
+                    ..
+                } if *resume_site_id == site_id => Some(slot.clone()),
+                _ => None,
+            })
+        })
+    }
+
     fn build_block(
         &mut self,
         block: &'hir hir::Block,
@@ -3275,6 +3288,37 @@ fn rewrite_state_op_with_resume_slot(
         | HandleStateOp::ImplicitElseUnit { .. }
         | HandleStateOp::ExecuteArmBody { .. } => {}
     }
+}
+
+fn build_ordinary_callee_resume_tail_block(
+    body: &hir::Block,
+    source_path: &SuspendSourcePath,
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+) -> Option<hir::Block> {
+    if !source_path.frames.is_empty() {
+        return None;
+    }
+
+    let mut tail_stmts = body
+        .stmts
+        .iter()
+        .skip(source_path.top_level_stmt_idx)
+        .cloned()
+        .collect::<Vec<_>>();
+    let first_stmt = tail_stmts.first_mut()?;
+    rewrite_stmt_with_resume_slot(first_stmt, source_expr, resume_path, resume_slot);
+
+    let tail_span = tail_stmts
+        .first()
+        .map(|stmt| stmt.span)
+        .unwrap_or(body.span);
+    Some(hir::Block {
+        span: tail_span,
+        ty: body.ty,
+        stmts: tail_stmts,
+    })
 }
 
 fn rewrite_state_terminator_with_resume_slot(
@@ -5182,6 +5226,74 @@ impl HandlePlanContext {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
+        &self,
+        body: &hir::Block,
+    ) -> Option<CalleeSuspendPlan> {
+        let synthetic_handle = hir::HandleExpr {
+            body: body.clone(),
+            arms: Vec::new(),
+            finally: None,
+        };
+
+        let mut context = HandlePlanContext::from_codegen(self);
+        context.extend_known_local_metadata_from_handle(&synthetic_handle);
+
+        let mut builder = HandlePlanBuilder::new(self.types, &synthetic_handle, &context);
+        let outer_slots =
+            collect_outer_scope_slots(&synthetic_handle, &context.known_local_metadata);
+        let mut env = ScopeEnv::with_outer(outer_slots.clone());
+        for slot in &outer_slots {
+            builder.frame_slots.insert(slot.id, slot.clone());
+        }
+
+        let entry_state = builder.new_state("ordinary.body.entry");
+        let _body_end_state = builder.build_block(&synthetic_handle.body, entry_state, &mut env);
+        builder.attach_suspend_source_paths();
+        builder.attach_suspend_resume_paths();
+
+        if builder.suspend_sites.len() != 1 {
+            return None;
+        }
+
+        let site = builder.suspend_sites.first()?.clone();
+        if !matches!(site.kind, SuspendSiteKind::Perform { .. }) {
+            return None;
+        }
+
+        let source_path = site.source_path.as_ref()?;
+        let resume_path = site.resume_path.as_ref()?;
+        let source_expr = builder.resume_source_exprs.get(&site.id)?;
+        let resume_slot = builder.resume_slot_for_site(site.id)?;
+        let resume_tail = build_ordinary_callee_resume_tail_block(
+            &synthetic_handle.body,
+            source_path,
+            source_expr,
+            resume_path,
+            &resume_slot,
+        )?;
+
+        let saved_locals = site
+            .available_locals
+            .iter()
+            .filter_map(|id| builder.frame_slots.get(id))
+            .map(|slot| CalleeSuspendSavedLocal {
+                id: slot.id(),
+                name: slot.name().to_string(),
+                ty: slot.ty(),
+                mutable: slot.mutable(),
+            })
+            .collect::<Vec<_>>();
+
+        Some(CalleeSuspendPlan {
+            saved_locals,
+            resume_slot_id: resume_slot.id(),
+            resume_slot_name: resume_slot.name().to_string(),
+            resume_slot_ty: resume_slot.ty(),
+            resume_tail,
+        })
+    }
+
     fn ensure_known_fun_call_suspend_cache(&self) {
         if self.known_fun_call_suspend_cache.borrow().is_some() {
             return;

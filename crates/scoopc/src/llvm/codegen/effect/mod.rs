@@ -383,24 +383,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let binding_cg_ty =
-            self.cg_ty_of(plan.perform_binding_ty)
+        let resume_slot_cg_ty =
+            self.cg_ty_of(plan.resume_slot_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee resume binding type",
+                    kind: "callee resume slot type",
                     at: at.into(),
                 })?;
-        let binding_value =
-            self.decode_effect_transport_value(at, resume_word, resume_gc_ref, binding_cg_ty)?;
-        let binding_ptr = self.create_entry_alloca(at, "callee_resume_binding", binding_cg_ty)?;
-        self.store_local_value(at, binding_ptr, binding_cg_ty, binding_value)?;
+        let resume_slot_value =
+            self.decode_effect_transport_value(at, resume_word, resume_gc_ref, resume_slot_cg_ty)?;
+        let resume_slot_name = if plan.resume_slot_name.is_empty() {
+            format!("callee_resume_slot_{}", plan.resume_slot_id.as_u32())
+        } else {
+            format!("resumed_{}", plan.resume_slot_name)
+        };
+        let resume_slot_ptr = self.create_entry_alloca(at, &resume_slot_name, resume_slot_cg_ty)?;
+        self.store_local_value(at, resume_slot_ptr, resume_slot_cg_ty, resume_slot_value)?;
         self.env.insert(
-            plan.perform_binding_id,
+            plan.resume_slot_id,
             CgLocal {
-                hir_ty: Some(plan.perform_binding_ty),
+                hir_ty: Some(plan.resume_slot_ty),
                 call_may_suspend: self
-                    .local_call_may_suspend_from_hir_ty(Some(plan.perform_binding_ty)),
-                ty: binding_cg_ty,
-                ptr: binding_ptr,
+                    .local_call_may_suspend_from_hir_ty(Some(plan.resume_slot_ty)),
+                ty: resume_slot_cg_ty,
+                ptr: resume_slot_ptr,
                 mutable: false,
             },
         );

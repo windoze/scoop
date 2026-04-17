@@ -160,15 +160,16 @@ struct CalleeSuspendSavedLocal {
 
 /// 一个 ordinary callee 的最小 resumed-body 恢复计划。
 ///
-/// 当前阶段只覆盖“block 中单个 direct-perform `val` 绑定”的稳定子集：
-/// fresh path 在该 `perform` 外传前保存 `saved_locals`，resume path 用
-/// transport payload 重新绑定 `perform_binding_id`，然后只重放其后的 tail。
+/// fresh path 在 suspend site 外传前保存 `saved_locals`；resume path 则把
+/// transport payload 写入 synthetic resume slot，并执行已经按统一
+/// suspend-site 合同重写好的 `resume_tail`。
 #[derive(Debug, Clone)]
 struct CalleeSuspendPlan {
-    perform_stmt_index: usize,
-    perform_binding_id: hir::SymbolId,
-    perform_binding_ty: TypeId,
     saved_locals: Vec<CalleeSuspendSavedLocal>,
+    resume_slot_id: hir::SymbolId,
+    resume_slot_name: String,
+    resume_slot_ty: TypeId,
+    resume_tail: hir::Block,
 }
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
@@ -1241,115 +1242,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         result
     }
 
-    fn build_block_callee_suspend_plan(
-        &self,
-        block: &hir::Block,
-        mut available_locals: Vec<CalleeSuspendSavedLocal>,
-    ) -> Option<CalleeSuspendPlan> {
-        let mut plan: Option<CalleeSuspendPlan> = None;
-
-        for (stmt_index, stmt) in block.stmts.iter().enumerate() {
-            if let hir::StmtKind::Val(decl) = &stmt.kind {
-                if let Some(init) = decl.init.as_ref()
-                    && matches!(init.kind, hir::ExprKind::Perform { .. })
-                {
-                    let binding_id = decl.id?;
-                    if plan.is_some() || stmt_index + 1 >= block.stmts.len() {
-                        return None;
-                    }
-                    plan = Some(CalleeSuspendPlan {
-                        perform_stmt_index: stmt_index,
-                        perform_binding_id: binding_id,
-                        perform_binding_ty: decl.ty,
-                        saved_locals: available_locals.clone(),
-                    });
-                }
-
-                if let Some(id) = decl.id {
-                    available_locals.push(CalleeSuspendSavedLocal {
-                        id,
-                        name: decl
-                            .name
-                            .clone()
-                            .unwrap_or_else(|| format!("local_{}", id.as_u32())),
-                        ty: decl.ty,
-                        mutable: decl.mutable,
-                    });
-                }
-            }
-        }
-
-        plan
-    }
-
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
-        let body = fun.body.as_ref()?;
-        let seed_locals = fun
-            .params
-            .iter()
-            .map(|param| CalleeSuspendSavedLocal {
-                id: param.id,
-                name: param.name.clone(),
-                ty: param.ty,
-                mutable: false,
-            })
-            .collect::<Vec<_>>();
-        self.build_block_callee_suspend_plan(body, seed_locals)
+        self.build_ordinary_callee_suspend_plan_from_unified_contract(fun.body.as_ref()?)
     }
 
     fn build_closure_callee_suspend_plan(
         &self,
         closure: &hir::ClosureExpr,
-        param_bindings: &[(hir::SymbolId, String, TypeId)],
-        capture_bindings: &[(hir::SymbolId, String, TypeId)],
     ) -> Option<CalleeSuspendPlan> {
         let hir::ExprKind::Block(block) = &closure.body.kind else {
             return None;
         };
-
-        let mut seed_locals = capture_bindings
-            .iter()
-            .map(|(id, name, ty)| CalleeSuspendSavedLocal {
-                id: *id,
-                name: name.clone(),
-                ty: *ty,
-                mutable: false,
-            })
-            .collect::<Vec<_>>();
-        seed_locals.extend(
-            param_bindings
-                .iter()
-                .map(|(id, name, ty)| CalleeSuspendSavedLocal {
-                    id: *id,
-                    name: name.clone(),
-                    ty: *ty,
-                    mutable: false,
-                }),
-        );
-
-        self.build_block_callee_suspend_plan(block, seed_locals)
-    }
-
-    fn build_callee_suspend_resume_tail_block(
-        &self,
-        block: &hir::Block,
-        plan: &CalleeSuspendPlan,
-    ) -> hir::Block {
-        let tail_stmts = block
-            .stmts
-            .iter()
-            .skip(plan.perform_stmt_index + 1)
-            .cloned()
-            .collect::<Vec<_>>();
-        let tail_span = tail_stmts
-            .first()
-            .map(|stmt| stmt.span)
-            .unwrap_or(block.span);
-        hir::Block {
-            span: tail_span,
-            ty: block.ty,
-            stmts: tail_stmts,
-        }
+        self.build_ordinary_callee_suspend_plan_from_unified_contract(block)
     }
 
     fn finish_function_return_path(
@@ -1445,8 +1349,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.env = base_env.clone();
             self.emit_callee_suspend_resume_prologue(fun.span, plan)?;
             self.current_callee_suspend_plan = Some(plan.clone());
-            let resume_tail = self.build_callee_suspend_resume_tail_block(body, plan);
-            let ret_v = self.codegen_block_as_return_value(&resume_tail, declared_return_cg)?;
+            let ret_v =
+                self.codegen_block_as_return_value(&plan.resume_tail, declared_return_cg)?;
             self.current_callee_suspend_plan = None;
             self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
         } else {
@@ -11011,8 +10915,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let callee_suspend_plan =
-            self.build_closure_callee_suspend_plan(closure, param_bindings, capture_bindings);
+        let callee_suspend_plan = self.build_closure_callee_suspend_plan(closure);
         let base_env = self.env.clone();
 
         if let Some(plan) = callee_suspend_plan.as_ref() {
@@ -11055,11 +10958,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.env = base_env.clone();
             self.emit_callee_suspend_resume_prologue(closure.span, plan)?;
             self.current_callee_suspend_plan = Some(plan.clone());
-            let hir::ExprKind::Block(block) = &closure.body.kind else {
-                unreachable!("closure callee suspend plan requires block body");
-            };
-            let resume_tail = self.build_callee_suspend_resume_tail_block(block, plan);
-            let ret_v = self.codegen_block_as_return_value(&resume_tail, declared_return_cg)?;
+            let ret_v =
+                self.codegen_block_as_return_value(&plan.resume_tail, declared_return_cg)?;
             self.current_callee_suspend_plan = None;
             self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
         } else {

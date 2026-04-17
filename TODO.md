@@ -1649,12 +1649,23 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b2aR
 
-### T3009b2b1 [TODO] 去掉 ordinary callee resumed-body restore 对 block 形状扫描的前提
+### T3009b2b1 [DONE] 去掉 ordinary callee resumed-body restore 对 block 形状扫描的前提
 - 描述：开始执行 `T3009b2bR` 复审后确认，`crates/scoopc/src/llvm/codegen/mod.rs` 新增的 `CalleeSuspendPlan` 仍把 ordinary callee 的 resumed-body restore 建立在“block 中单个 direct-perform `val` 绑定”的稳定子集上：`build_block_callee_suspend_plan()` 会扫描该源码形状来决定是否生成 fresh/resume 双入口，而 `codegen_top_level_fun` / `codegen_closure_fun_body` 也据此切换路径。这与本文件顶部“生产 effect codegen 禁止按源码 / 代码形状分流、LLVM lowering 的单一输入应为 state machine”的总约束冲突，因此必须先把 ordinary callee resumed-body restore 收口为不依赖 block 形状扫描的统一 suspend-site 合同，再继续复审。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中新增 `build_ordinary_callee_suspend_plan_from_unified_contract()`，复用统一 state-machine 的 `HandlePlanBuilder` / suspend-site / resume-path 元数据，为 ordinary callee 生成 `saved_locals + synthetic resume slot + rewritten resume_tail`，不再让 `mod.rs` 自己扫描 block 形状决定是否接 callee resume path。
+  - 已重写 `crates/scoopc/src/llvm/codegen/mod.rs` 中的 `CalleeSuspendPlan`：删除 `perform_stmt_index` / `perform_binding_id` / `perform_binding_ty`，top-level fun 与 closure body 都统一改为消费上面的 contract；resume path 直接执行 plan 内冻结的 `resume_tail`，而不是依赖“单个 direct-perform `val` 绑定”再现拼接 tail block。
+  - 已重写 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 resume prologue：resume payload 现在恢复进 synthetic resume slot，而不是重新构造旧的 `perform` 绑定 local；ordinary frame 仍只在真实 outward `perform` 前保存 callee state，因此现有 indirect callee resumed-body 路径保持不变。
 - 目标：
   - ordinary top-level helper / closure / function-value callee 的 resumed-body restore 不再依赖 `val x = perform(...)` 这类 block 形状扫描。
   - fresh path / resume path 的接线依据只能来自统一 suspend-site / continuation / callee-state 合同，不再读取源码形状。
   - `T3009b2b` 已恢复的 basic / closure-locals / string / struct-with-ref 路径继续通过，不回退成 fixture-only 补丁。
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - `crates/scoopc/src/llvm/codegen/mod.rs` 不再通过扫描“block 中单个 direct-perform `val` 绑定”来决定是否生成 callee resume 路径。
   - `T3009b2bR` 可以在不保留源码形状分流的前提下完成复审。
