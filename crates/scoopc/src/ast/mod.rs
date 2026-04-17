@@ -39,6 +39,18 @@ pub struct File {
     /// - HIR lowering 在 build/test 路径下会读取该表，避免这类 binder 退回到 `Any`；
     /// - 该表不参与 AST Debug 输出，避免影响 parse fixtures。
     pub(crate) inferred_binding_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 写回的“perform span -> performed effect 实例 TypeId” side table。
+    ///
+    /// 说明：
+    /// - 该表只记录真正会进入 perform-slot / unified handler dispatch 的 effect 实例；
+    /// - HIR lowering 读取它，把 `perform` 从“只知道 op FQN”提升为“同时知道 effect 实例类型”。
+    pub(crate) inferred_performed_effect_tys: RefCell<HashMap<Span, TypeId>>,
+    /// typecheck 写回的“handle arm op span -> handled effect 实例 TypeId” side table。
+    ///
+    /// 说明：
+    /// - parser 当前不支持在 handle arm head 里显式写 `Effect<T>.op(...)`；
+    /// - HIR lowering 读取该表，才能把 dispatch 建立在真实 handled-effect 合同上。
+    pub(crate) inferred_handle_arm_effect_tys: RefCell<HashMap<Span, TypeId>>,
     /// typecheck 补回的 safe member access 解析结果（按 member name 的源码 span 索引）。
     ///
     /// 说明：
@@ -84,6 +96,28 @@ impl File {
 
     pub fn inferred_binding_ty(&self, span: Span) -> Option<TypeId> {
         self.inferred_binding_tys.borrow().get(&span).copied()
+    }
+
+    pub fn replace_inferred_performed_effect_tys(&self, inferred: HashMap<Span, TypeId>) {
+        *self.inferred_performed_effect_tys.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_performed_effect_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_performed_effect_tys
+            .borrow()
+            .get(&span)
+            .copied()
+    }
+
+    pub fn replace_inferred_handle_arm_effect_tys(&self, inferred: HashMap<Span, TypeId>) {
+        *self.inferred_handle_arm_effect_tys.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_handle_arm_effect_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_handle_arm_effect_tys
+            .borrow()
+            .get(&span)
+            .copied()
     }
 
     pub fn replace_safe_member_access_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {

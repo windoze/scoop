@@ -58,7 +58,9 @@ use crate::syntax::string_literal::{
     StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
 };
 use crate::ty::layout::{NicheStorage, TypeLayout};
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::LlvmEmitError;
 
@@ -169,6 +171,10 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    nominal_kinds: &'a hir::NominalKindIndex,
+    nominal_variances: &'a hir::NominalVarianceIndex,
+    direct_supertypes: &'a hir::DirectSupertypesIndex,
+    builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
     /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
@@ -203,6 +209,13 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 所有顶层函数 / nested helper / step trampoline 都必须共享同一份状态，
     ///   否则跨函数 perform 的 op_tag 会错位。
     effect_op_tags: Rc<RefCell<EffectOpTagState>>,
+    /// 编译单元内“effect FQN -> 已知 effect 实例 TypeId 列表”。
+    ///
+    /// 用途：
+    /// - same-op multi-arm dispatch 需要把 runtime perform-slot 中的 effect-instance key
+    ///   与“当前程序里可能出现的 effect 实例集合”对齐；
+    /// - 这里采用闭包世界（当前编译单元）收集，避免在 emitter 内重复扫描 `TypeStore`。
+    known_effect_instances_by_effect_fqn: HashMap<String, Vec<TypeId>>,
     /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
     /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
     ///
@@ -257,6 +270,39 @@ impl EffectOpTagState {
     }
 }
 
+const EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR: u32 = u32::MAX;
+
+fn collect_known_effect_instance_types_by_effect_fqn(
+    types: &TypeStore,
+    nominal_kinds: &hir::NominalKindIndex,
+) -> HashMap<String, Vec<TypeId>> {
+    let mut by_effect_fqn: HashMap<String, Vec<TypeId>> = HashMap::new();
+
+    for type_id in types.iter_ids() {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(type_id) else {
+            continue;
+        };
+        if !matches!(nominal_kinds.get(&nominal.fqn), Some(ast::TypeKind::Effect)) {
+            continue;
+        }
+        by_effect_fqn
+            .entry(nominal.fqn.clone())
+            .or_default()
+            .push(type_id);
+    }
+
+    for ids in by_effect_fqn.values_mut() {
+        ids.sort_by(|lhs, rhs| {
+            let lhs_display = types.display(*lhs).to_string();
+            let rhs_display = types.display(*rhs).to_string();
+            lhs_display.cmp(&rhs_display).then_with(|| lhs.cmp(rhs))
+        });
+        ids.dedup();
+    }
+
+    by_effect_fqn
+}
+
 pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) context: &'ctx Context,
     pub(super) module: &'a Module<'ctx>,
@@ -277,6 +323,10 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    pub(super) nominal_kinds: &'a hir::NominalKindIndex,
+    pub(super) nominal_variances: &'a hir::NominalVarianceIndex,
+    pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
+    pub(super) builtins: BuiltinTypes,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
@@ -315,10 +365,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            nominal_kinds,
+            nominal_variances,
+            direct_supertypes,
+            builtins,
             extern_funs,
             fun_index,
             effect_op_tags,
         } = inputs;
+        let known_effect_instances_by_effect_fqn =
+            collect_known_effect_instance_types_by_effect_fqn(types, nominal_kinds);
         Self {
             context,
             module,
@@ -341,6 +397,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            nominal_kinds,
+            nominal_variances,
+            direct_supertypes,
+            builtins,
             fun_index,
             env: Env::default(),
             known_fun_call_suspend_cache: RefCell::new(None),
@@ -350,6 +410,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_init_layout_cache: HashMap::new(),
             current_fun_return_ty: None,
             effect_op_tags,
+            known_effect_instances_by_effect_fqn,
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
@@ -512,6 +573,233 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         state.next = state.next.saturating_add(1);
         state.map.insert(fqn.to_string(), tag);
         tag
+    }
+
+    fn effect_nominal(&self, ty: TypeId) -> Option<&NominalType> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return None;
+        };
+        if !matches!(
+            self.nominal_kinds.get(&nominal.fqn),
+            Some(ast::TypeKind::Effect)
+        ) {
+            return None;
+        }
+        Some(nominal)
+    }
+
+    fn is_runtime_error_type(&self, ty: TypeId) -> bool {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                nominal.fqn == "scoop.core.RuntimeError"
+            }
+            _ => false,
+        }
+    }
+
+    fn is_raise_runtime_error_effect(&self, effect_ty: TypeId) -> bool {
+        let Some(nominal) = self.effect_nominal(effect_ty) else {
+            return false;
+        };
+        nominal.fqn == "scoop.core.Raise"
+            && nominal.args.len() == 1
+            && self.is_runtime_error_type(nominal.args[0])
+    }
+
+    fn known_effect_instance_types_for_fqn(&self, effect_fqn: &str) -> Vec<TypeId> {
+        let mut ids = self
+            .known_effect_instances_by_effect_fqn
+            .get(effect_fqn)
+            .cloned()
+            .unwrap_or_default();
+
+        ids.extend(self.types.iter_ids().filter(|type_id| {
+            let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(*type_id) else {
+                return false;
+            };
+            nominal.fqn == effect_fqn
+                && matches!(
+                    self.nominal_kinds.get(&nominal.fqn),
+                    Some(ast::TypeKind::Effect)
+                )
+        }));
+
+        ids.sort_by(|lhs, rhs| {
+            let lhs_display = self.types.display(*lhs).to_string();
+            let rhs_display = self.types.display(*rhs).to_string();
+            lhs_display.cmp(&rhs_display).then_with(|| lhs.cmp(rhs))
+        });
+        ids.dedup();
+        ids
+    }
+
+    pub(super) fn effect_instance_key(&self, effect_ty: TypeId) -> Option<u32> {
+        if self.is_raise_runtime_error_effect(effect_ty) {
+            return Some(EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR);
+        }
+
+        let nominal = self.effect_nominal(effect_ty)?;
+        self.known_effect_instance_types_for_fqn(&nominal.fqn)
+            .iter()
+            .position(|candidate| *candidate == effect_ty)
+            .and_then(|index| u32::try_from(index).ok())
+    }
+
+    fn nominal_is_subtype_by_fqn(&self, found_fqn: &str, expected_fqn: &str) -> bool {
+        if found_fqn == expected_fqn {
+            return true;
+        }
+
+        let mut stack: Vec<&str> = vec![found_fqn];
+        let mut seen: HashSet<&str> = HashSet::new();
+
+        while let Some(current) = stack.pop() {
+            if !seen.insert(current) {
+                continue;
+            }
+            if current == expected_fqn {
+                return true;
+            }
+            let Some(supers) = self.direct_supertypes.get(current) else {
+                continue;
+            };
+            for super_fqn in supers {
+                stack.push(super_fqn.as_str());
+            }
+        }
+
+        false
+    }
+
+    fn dispatch_type_assignable(&self, found: TypeId, expected: TypeId) -> bool {
+        if found == expected {
+            return true;
+        }
+        if found == self.builtins.nothing {
+            return true;
+        }
+        if expected == self.builtins.any {
+            return matches!(
+                self.types.kind(found),
+                TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Param(_)
+            );
+        }
+
+        let found_kind = self.types.kind(found);
+        let expected_kind = self.types.kind(expected);
+
+        if matches!(expected_kind, TypeKind::Param(_)) {
+            return true;
+        }
+        if matches!(found_kind, TypeKind::Param(_)) {
+            return true;
+        }
+
+        match (found_kind, expected_kind) {
+            (
+                TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
+                TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+            ) => {
+                if found_nominal.fqn != expected_nominal.fqn {
+                    if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
+                        return false;
+                    }
+                    return self
+                        .nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn);
+                }
+
+                match (found_nominal.eff.as_ref(), expected_nominal.eff.as_ref()) {
+                    (None, None) => {}
+                    (Some(found), Some(expected)) => {
+                        if !found.is_subset_of(expected) {
+                            return false;
+                        }
+                    }
+                    _ => return false,
+                }
+
+                if found_nominal.args.len() != expected_nominal.args.len() {
+                    return false;
+                }
+
+                let variances = self.nominal_variances.get(&found_nominal.fqn);
+                for (index, (found_arg, expected_arg)) in found_nominal
+                    .args
+                    .iter()
+                    .copied()
+                    .zip(expected_nominal.args.iter().copied())
+                    .enumerate()
+                {
+                    let declared = variances
+                        .and_then(|values| values.get(index).copied())
+                        .unwrap_or(None);
+                    let both_ref = self.types.is_ref(found_arg) && self.types.is_ref(expected_arg);
+
+                    match declared {
+                        None => {
+                            if found_arg != expected_arg {
+                                return false;
+                            }
+                        }
+                        Some(ast::TypeParamVariance::Out) if both_ref => {
+                            if !self.dispatch_type_assignable(found_arg, expected_arg) {
+                                return false;
+                            }
+                        }
+                        Some(ast::TypeParamVariance::In) if both_ref => {
+                            if !self.dispatch_type_assignable(expected_arg, found_arg) {
+                                return false;
+                            }
+                        }
+                        Some(_) => {
+                            if found_arg != expected_arg {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub(super) fn handled_effect_matches_performed(
+        &self,
+        handled_effect: TypeId,
+        performed_effect: TypeId,
+    ) -> bool {
+        self.dispatch_type_assignable(handled_effect, performed_effect)
+    }
+
+    pub(super) fn matching_effect_instance_keys_for_handled_effect(
+        &self,
+        handled_effect: TypeId,
+        op_fqn: &str,
+    ) -> Vec<u32> {
+        let effect_fqn = self
+            .effect_nominal(handled_effect)
+            .map(|nominal| nominal.fqn.as_str())
+            .or_else(|| op_fqn.rsplit_once('.').map(|(owner, _)| owner))
+            .unwrap_or(op_fqn);
+        let candidates = self.known_effect_instance_types_for_fqn(effect_fqn);
+        if candidates.is_empty() {
+            return Vec::new();
+        }
+
+        let mut keys = candidates
+            .iter()
+            .copied()
+            .filter(|performed_effect| {
+                self.handled_effect_matches_performed(handled_effect, *performed_effect)
+            })
+            .filter_map(|performed_effect| self.effect_instance_key(performed_effect))
+            .collect::<Vec<_>>();
+        keys.sort_unstable();
+        keys.dedup();
+        keys
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -10049,6 +10337,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 class_itables: self.class_itables,
                 ctor_call_sites: self.ctor_call_sites,
                 continuation_resume_call_sites: self.continuation_resume_call_sites,
+                nominal_kinds: self.nominal_kinds,
+                nominal_variances: self.nominal_variances,
+                direct_supertypes: self.direct_supertypes,
+                builtins: self.builtins,
                 extern_funs: self.extern_funs,
                 fun_index: self.fun_index,
                 effect_op_tags: Rc::clone(&self.effect_op_tags),
@@ -12573,6 +12865,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables: self.class_itables,
             ctor_call_sites: self.ctor_call_sites,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
+            nominal_kinds: self.nominal_kinds,
+            nominal_variances: self.nominal_variances,
+            direct_supertypes: self.direct_supertypes,
+            builtins: self.builtins,
             extern_funs: self.extern_funs,
             fun_index: self.fun_index,
             effect_op_tags: Rc::clone(&self.effect_op_tags),

@@ -422,6 +422,78 @@ pub(super) fn collect_type_decl_kinds(
     out
 }
 
+pub(super) fn collect_nominal_variances(
+    pairs: &[(&SourceFile, &ast::File)],
+) -> HashMap<String, Vec<Option<ast::TypeParamVariance>>> {
+    let mut out: HashMap<String, Vec<Option<ast::TypeParamVariance>>> = HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            let fqn = join_prefix(&pkg_prefix, ty.name.text(source));
+            out.insert(
+                fqn,
+                ty.type_params.iter().map(|param| param.variance).collect(),
+            );
+        }
+    }
+    out
+}
+
+pub(super) fn collect_direct_supertypes(
+    pairs: &[(&SourceFile, &ast::File)],
+    index: &Index,
+) -> HashMap<String, Vec<String>> {
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+        for item in &file.items {
+            match item {
+                ast::Item::Type(ty) => {
+                    let fqn = join_prefix(&pkg_prefix, ty.name.text(source));
+                    out.insert(fqn, resolve_supertypes(source, file, &ty.supertypes, index));
+                }
+                ast::Item::Object(obj) => {
+                    let Some(name) = obj.name.as_ref() else {
+                        continue;
+                    };
+                    let fqn = join_prefix(&pkg_prefix, name.text(source));
+                    out.insert(
+                        fqn,
+                        resolve_supertypes(source, file, &obj.supertypes, index),
+                    );
+                }
+                ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_) => {}
+            }
+        }
+    }
+
+    out
+}
+
+fn resolve_supertypes(
+    source: &SourceFile,
+    file: &ast::File,
+    supertypes: &[ast::SuperType],
+    index: &Index,
+) -> Vec<String> {
+    let mut resolved = supertypes
+        .iter()
+        .filter_map(|super_ty| index.type_ref_to_fqn_in_file(source, file, &super_ty.ty))
+        .collect::<Vec<_>>();
+    resolved.sort();
+    resolved.dedup();
+    resolved
+}
+
 pub(super) fn collect_object_inits(
     source: &SourceFile,
     file: &ast::File,

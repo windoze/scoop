@@ -425,6 +425,18 @@ pub(crate) struct TypeLowering<'a> {
     /// - 保存 `handle` arm binder 这类不一定有显式类型注解、但 HIR/codegen 仍需要真实类型的绑定；
     /// - typecheck 成功后写回到 `ast::File` 的 side table，供 HIR lowering 复用。
     inferred_binding_tys: HashMap<Span, TypeId>,
+    /// 当前文件中“perform span -> performed effect 实例 TypeId”。
+    ///
+    /// 用途：
+    /// - 供 HIR lowering / LLVM effect codegen 读取 direct perform / await / join 的真实 effect 实例；
+    /// - 与 `performed_effects` 不同：这里是稳定 side table，而不是当前函数体的临时 required-effects 收集缓冲。
+    inferred_performed_effect_tys: HashMap<Span, TypeId>,
+    /// 当前文件中“handle arm op span -> handled effect 实例 TypeId”。
+    ///
+    /// 用途：
+    /// - parser 当前不支持显式 `Effect<T>.op(...)` handler head；
+    /// - 因此 lowering/codegen 必须读取 typecheck 推导出的 handled effect 实例，而不是只看语法层路径。
+    inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
     /// `receiver?.member` 在 typecheck 阶段补做出的成员解析结果。
     ///
     /// 用途：
@@ -544,6 +556,8 @@ impl<'a> TypeLowering<'a> {
             performed_effects: Vec::new(),
             inferred_expr_tys: HashMap::new(),
             inferred_binding_tys: HashMap::new(),
+            inferred_performed_effect_tys: HashMap::new(),
+            inferred_handle_arm_effect_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             monomorph_requests: None,
@@ -1189,6 +1203,14 @@ impl<'a> TypeLowering<'a> {
         self.inferred_binding_tys.insert(span, ty);
     }
 
+    pub(super) fn record_inferred_performed_effect_ty(&mut self, span: Span, ty: TypeId) {
+        self.inferred_performed_effect_tys.insert(span, ty);
+    }
+
+    pub(super) fn record_inferred_handle_arm_effect_ty(&mut self, span: Span, ty: TypeId) {
+        self.inferred_handle_arm_effect_tys.insert(span, ty);
+    }
+
     pub(super) fn record_safe_member_access_resolution(
         &mut self,
         member_span: Span,
@@ -1208,6 +1230,14 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_inferred_binding_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_binding_tys)
+    }
+
+    pub(super) fn take_inferred_performed_effect_tys(&mut self) -> HashMap<Span, TypeId> {
+        std::mem::take(&mut self.inferred_performed_effect_tys)
+    }
+
+    pub(super) fn take_inferred_handle_arm_effect_tys(&mut self) -> HashMap<Span, TypeId> {
+        std::mem::take(&mut self.inferred_handle_arm_effect_tys)
     }
 
     pub(super) fn take_safe_member_access_resolutions(

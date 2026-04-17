@@ -12,12 +12,12 @@ use crate::ast;
 use crate::parser::ParseError;
 use crate::resolve::ResolveError;
 use crate::span::Span;
-use crate::ty::TypeStore;
+use crate::ty::{BuiltinTypes, TypeStore};
 
 use super::super::{
-    ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, EnumLayoutIndex,
-    ExternFunIndex, File, FunDecl, ObjectInitIndex, StructLayoutIndex, SymbolId,
-    TopLevelConstIndex, TopLevelVarIndex,
+    ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
+    EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
+    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelVarIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -206,6 +206,14 @@ pub struct LoweredHir {
     pub ctor_call_sites: CtorCallSiteIndex,
     /// typecheck 已确认的 `Continuation.resume` 调用点集合。
     pub continuation_resume_call_sites: ContinuationResumeCallSiteIndex,
+    /// nominal 类型种类索引（effect/class/interface/...）。
+    pub nominal_kinds: NominalKindIndex,
+    /// nominal 声明处 variance 索引。
+    pub nominal_variances: NominalVarianceIndex,
+    /// nominal 直接超类型索引。
+    pub direct_supertypes: DirectSupertypesIndex,
+    /// 当前 lowering 使用的 builtin TypeId 集合。
+    pub builtins: BuiltinTypes,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

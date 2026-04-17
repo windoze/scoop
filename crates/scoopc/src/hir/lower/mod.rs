@@ -1256,6 +1256,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     }
     pairs.push((source, &ast));
     let type_kinds = collect_type_decl_kinds(&pairs);
+    let nominal_variances = collect_nominal_variances(&pairs);
+    let direct_supertypes = collect_direct_supertypes(&pairs, &index);
     let delegated_properties = collect_delegated_properties(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
@@ -1349,6 +1351,10 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        nominal_kinds: type_kinds,
+        nominal_variances,
+        direct_supertypes,
+        builtins,
     })
 }
 
@@ -1369,6 +1375,8 @@ pub fn lower_for_compilation_unit(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let nominal_variances = collect_nominal_variances(compilation_unit);
+    let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
@@ -1457,6 +1465,10 @@ pub fn lower_for_compilation_unit(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        nominal_kinds: type_kinds,
+        nominal_variances,
+        direct_supertypes,
+        builtins,
     })
 }
 
@@ -1475,6 +1487,8 @@ pub fn lower_for_compilation_unit_multi_files(
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let nominal_variances = collect_nominal_variances(compilation_unit);
+    let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
@@ -1634,6 +1648,10 @@ pub fn lower_for_compilation_unit_multi_files(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        nominal_kinds: type_kinds,
+        nominal_variances,
+        direct_supertypes,
+        builtins,
     })
 }
 

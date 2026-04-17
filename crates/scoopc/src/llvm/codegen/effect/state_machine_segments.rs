@@ -33,6 +33,7 @@ struct HandleSegmentDispatchTarget {
 struct HandleSegmentArmBody {
     arm_id: ArmPlanId,
     op_fqn: String,
+    effect_ty: TypeId,
     body_entry_segment: HandleSegmentId,
     body_segments: Vec<HandleSegmentId>,
     binder_slots: Vec<hir::SymbolId>,
@@ -1753,6 +1754,7 @@ impl HandleSegmentArmBody {
         Ok(ArmPlan {
             id: self.arm_id,
             op_fqn: self.op_fqn.clone(),
+            effect_ty: self.effect_ty,
             binder_slots,
             capture_locals: self.capture_locals.clone(),
             body_entry_state: self.body_entry_segment,
@@ -1760,7 +1762,10 @@ impl HandleSegmentArmBody {
     }
 
     fn structural_signature(&self) -> usize {
-        let mut acc = self.arm_id as usize ^ self.op_fqn.len() ^ (self.body_entry_segment as usize);
+        let mut acc = self.arm_id as usize
+            ^ self.op_fqn.len()
+            ^ self.effect_ty.as_u32() as usize
+            ^ (self.body_entry_segment as usize);
         for segment_id in &self.body_segments {
             acc ^= (*segment_id as usize) << 3;
         }
@@ -2098,6 +2103,7 @@ fn build_segment_arm_bodies(
             HandleSegmentArmBody {
                 arm_id: arm.id,
                 op_fqn: arm.op_fqn.clone(),
+                effect_ty: arm.effect_ty,
                 body_entry_segment: arm.body_entry_state,
                 body_segments,
                 binder_slots: arm.binder_slots.iter().map(|slot| slot.id).collect(),

@@ -29,6 +29,8 @@ pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_OP_TAG: &str =
     "scoop_effect_perform_slot_read_op_tag";
+pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_EFFECT_INSTANCE_KEY: &str =
+    "scoop_effect_perform_slot_read_effect_instance_key";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_GC_REF: &str =
     "scoop_effect_perform_slot_read_gc_ref";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_U64: &str = "scoop_effect_perform_slot_read_u64";

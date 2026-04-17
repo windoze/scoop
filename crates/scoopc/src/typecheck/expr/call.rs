@@ -3626,6 +3626,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         effect_type_args,
         call_expr.span,
     )?;
+    lower.record_inferred_performed_effect_ty(call_expr.span, effect_instance);
     lower.record_performed_effect(effect_instance, call_expr.span);
 
     Ok(Some(instantiated.return_ty))

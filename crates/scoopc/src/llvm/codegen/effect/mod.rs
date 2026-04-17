@@ -247,12 +247,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_perform_expr(
         &mut self,
         span: crate::span::Span,
+        effect_ty: TypeId,
         op: &hir::EffectOpRef,
         args: &[hir::CallArg],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let op_tag = self.effect_op_tag(&op.fqn);
         let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
+        let effect_instance_key =
+            self.effect_instance_key(effect_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect instance key",
+                    at: span.into(),
+                })?;
+        let effect_instance_key_val = self
+            .context
+            .i32_type()
+            .const_int(effect_instance_key as u64, false);
 
         // Evaluate the payload from the first positional/named arg (if any).
         let payload_val = if args.is_empty() {
@@ -271,7 +282,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
         self.builder.build_call(
             write_fn,
-            &[op_tag_val.into(), word.into(), gc_ref.into()],
+            &[
+                op_tag_val.into(),
+                effect_instance_key_val.into(),
+                word.into(),
+                gc_ref.into(),
+            ],
             "",
         )?;
 
@@ -312,14 +328,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Use the well-known Raise.raise FQN (op_tag = 1 by convention).
         let op_tag = self.effect_op_tag("scoop.core.Raise.raise");
         let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
+        let effect_instance_key_val = self
+            .context
+            .i32_type()
+            .const_int(EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR as u64, false);
 
         // Write a zero payload (the variant name is not yet part of the
         // runtime payload protocol — this is a minimal implementation that
         // signals "a Raise happened" without encoding the variant).
         let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
         let zero = self.context.i64_type().const_int(0, false);
-        self.builder
-            .build_call(write_fn, &[op_tag_val.into(), zero.into()], "")?;
+        self.builder.build_call(
+            write_fn,
+            &[
+                op_tag_val.into(),
+                effect_instance_key_val.into(),
+                zero.into(),
+            ],
+            "",
+        )?;
 
         // Set the TLS active flag.
         let set_active = self.declare_runtime_effect_set_active();
@@ -927,7 +954,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::unit())
             }
             "scoop.core.__scoop_effect_slot_write" => {
-                if args.len() != 2 {
+                if args.len() != 3 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect slot_write arity mismatch",
                         at: span.into(),
@@ -941,22 +968,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let value_word = self.codegen_sysroot_effect_intrinsic_word_arg(
                     span,
-                    &args[1],
+                    &args[2],
                     "effect slot_write value",
                 )?;
+                let effect_instance_key_word = self.codegen_sysroot_effect_intrinsic_word_arg(
+                    span,
+                    &args[1],
+                    "effect slot_write effect_instance_key",
+                )?;
                 let op_tag = self.cast_int(op_tag_word, word_ty, op_tag_ty)?;
+                let effect_instance_key =
+                    self.cast_int(effect_instance_key_word, word_ty, op_tag_ty)?;
                 let value = self.cast_int(value_word, word_ty, slot_word_ty)?;
 
                 let rt = self.declare_runtime_effect_perform_slot_write_u64();
                 let _ = self.builder.build_call(
                     rt,
-                    &[op_tag.into(), value.into()],
+                    &[op_tag.into(), effect_instance_key.into(), value.into()],
                     "effect_slot_write_u64",
                 )?;
                 Ok(CgValue::unit())
             }
             "scoop.core.__scoop_effect_slot_write2" => {
-                if args.len() != 3 {
+                if args.len() != 4 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect slot_write2 arity mismatch",
                         at: span.into(),
@@ -970,25 +1004,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let word0_raw = self.codegen_sysroot_effect_intrinsic_word_arg(
                     span,
-                    &args[1],
+                    &args[2],
                     "effect slot_write2 word0",
                 )?;
                 let word1_raw = self.codegen_sysroot_effect_intrinsic_word_arg(
                     span,
-                    &args[2],
+                    &args[3],
                     "effect slot_write2 word1",
                 )?;
+                let effect_instance_key_word = self.codegen_sysroot_effect_intrinsic_word_arg(
+                    span,
+                    &args[1],
+                    "effect slot_write2 effect_instance_key",
+                )?;
                 let op_tag = self.cast_int(op_tag_word, word_ty, op_tag_ty)?;
+                let effect_instance_key =
+                    self.cast_int(effect_instance_key_word, word_ty, op_tag_ty)?;
                 let word0 = self.cast_int(word0_raw, word_ty, slot_word_ty)?;
                 let word1 = self.cast_int(word1_raw, word_ty, slot_word_ty)?;
 
                 let rt = self.declare_runtime_effect_perform_slot_write_u64_2();
                 let _ = self.builder.build_call(
                     rt,
-                    &[op_tag.into(), word0.into(), word1.into()],
+                    &[
+                        op_tag.into(),
+                        effect_instance_key.into(),
+                        word0.into(),
+                        word1.into(),
+                    ],
                     "effect_slot_write_u64_2",
                 )?;
                 Ok(CgValue::unit())
+            }
+            "scoop.core.__scoop_effect_slot_read_effect_instance_key" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_effect_instance_key arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_perform_slot_read_effect_instance_key();
+                let call =
+                    self.builder
+                        .build_call(rt, &[], "effect_slot_read_effect_instance_key")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_effect_instance_key return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(effect_instance_key) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_effect_instance_key return type",
+                        at: span.into(),
+                    });
+                };
+                let effect_instance_key_word =
+                    self.cast_int(effect_instance_key, op_tag_ty, word_ty)?;
+                Ok(CgValue::int(effect_instance_key_word, word_ty))
             }
             "scoop.core.__scoop_effect_slot_read_op_tag" => {
                 if !args.is_empty() {

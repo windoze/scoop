@@ -650,6 +650,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        nominal_kinds: &lowered.nominal_kinds,
+        nominal_variances: &lowered.nominal_variances,
+        direct_supertypes: &lowered.direct_supertypes,
+        builtins: lowered.builtins,
         extern_funs: &lowered.extern_funs,
         fun_index: &fun_index,
         effect_op_tags: Rc::clone(&effect_op_tags),
@@ -770,6 +774,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            nominal_kinds: &lowered.nominal_kinds,
+            nominal_variances: &lowered.nominal_variances,
+            direct_supertypes: &lowered.direct_supertypes,
+            builtins: lowered.builtins,
             extern_funs: &lowered.extern_funs,
             fun_index: &fun_index,
             effect_op_tags: Rc::clone(&effect_op_tags),
@@ -850,6 +858,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        nominal_kinds: &lowered.nominal_kinds,
+        nominal_variances: &lowered.nominal_variances,
+        direct_supertypes: &lowered.direct_supertypes,
+        builtins: lowered.builtins,
         extern_funs: &lowered.extern_funs,
         fun_index: &fun_index,
         effect_op_tags: Rc::clone(&effect_op_tags),
@@ -1949,19 +1961,20 @@ import scoop.core.*
 
 fun main(): Int {
     __scoop_effect_clear()
-    __scoop_effect_slot_write(9, 33)
-    __scoop_effect_slot_write2(7, 11, 22)
+    __scoop_effect_slot_write(9, 4, 33)
+    __scoop_effect_slot_write2(7, 5, 11, 22)
     __scoop_effect_set_active()
 
     val active: Int = __scoop_effect_is_active()
     val tag: Int = __scoop_effect_slot_read_op_tag()
+    val key: Int = __scoop_effect_slot_read_effect_instance_key()
     val len: Int = __scoop_effect_slot_read_len_words()
     val single: Int = __scoop_effect_slot_read_value()
     val w0: Int = __scoop_effect_slot_read_word(0)
     val w1: Int = __scoop_effect_slot_read_word(1)
 
     // 让返回值依赖这些调用，避免未来优化/重写时被意外删除。
-    active + tag + len + single + w0 + w1
+    active + tag + key + len + single + w0 + w1
 }
 "#,
         );
@@ -1992,6 +2005,10 @@ fun main(): Int {
         assert!(
             ir.contains("@scoop_effect_perform_slot_read_op_tag"),
             "IR 应包含对 scoop_effect_perform_slot_read_op_tag 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_read_effect_instance_key"),
+            "IR 应包含对 scoop_effect_perform_slot_read_effect_instance_key 的引用"
         );
         assert!(
             ir.contains("@scoop_effect_perform_slot_read_len_words"),
@@ -2071,7 +2088,7 @@ fun main(): Int {
             "Suspend 应把 body resume state 写入 continuation，而不是继续依赖可变的 frame.state_tag"
         );
         assert!(
-            !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32 2, i64 0)"),
+            !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32 2, i32 0, i64 0)"),
             "state-machine perform 不应把 Async.await 的 payload 覆盖成默认 0"
         );
     }

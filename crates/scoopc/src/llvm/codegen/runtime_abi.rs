@@ -1407,10 +1407,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value)`
+        // `void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint32_t effect_instance_key, uint64_t value)`
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i32_ty.into(), i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [i32_ty.into(), i32_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1423,12 +1424,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag, uint64_t word0, void* gc_ref)`
+        // `void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag, uint32_t effect_instance_key, uint64_t word0, void* gc_ref)`
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i32_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 4] = [
+            i32_ty.into(),
+            i32_ty.into(),
+            i64_ty.into(),
+            gc_i8_ptr_ty.into(),
+        ];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1439,11 +1444,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag, uint64_t word0, uint64_t word1)`
+        // `void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag, uint32_t effect_instance_key, uint64_t word0, uint64_t word1)`
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i32_ty.into(), i64_ty.into(), i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 4] =
+            [i32_ty.into(), i32_ty.into(), i64_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -1455,6 +1460,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint32_t scoop_effect_perform_slot_read_op_tag(void)`
+        let fn_ty = self.context.i32_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_effect_perform_slot_read_effect_instance_key(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_PERFORM_SLOT_READ_EFFECT_INSTANCE_KEY;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_effect_perform_slot_read_effect_instance_key(void)`
         let fn_ty = self.context.i32_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }

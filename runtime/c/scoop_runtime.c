@@ -338,6 +338,9 @@ typedef struct ScoopEffectPerformSlot {
   // payload 的有效 word 数（0..=SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS）。
   uint32_t payload_len_words;
 
+  // effect instance key（由 lowering/codegen 写入；用于区分同一 op_tag 下的不同 effect 实例）。
+  uint32_t effect_instance_key;
+
   // payload words：低层 ABI 以 “word 序列” 形式传递复合数据。
   uint64_t payload_words[SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS];
 
@@ -378,11 +381,14 @@ _Static_assert(
     offsetof(ScoopEffectPerformSlot, payload_len_words) == 4,
     "ScoopEffectPerformSlot.payload_len_words offset must be 4");
 _Static_assert(
-    offsetof(ScoopEffectPerformSlot, payload_words) == 8,
-    "ScoopEffectPerformSlot.payload_words offset must be 8");
+    offsetof(ScoopEffectPerformSlot, effect_instance_key) == 8,
+    "ScoopEffectPerformSlot.effect_instance_key offset must be 8");
+_Static_assert(
+    offsetof(ScoopEffectPerformSlot, payload_words) == 16,
+    "ScoopEffectPerformSlot.payload_words offset must be 16");
 _Static_assert(
     offsetof(ScoopEffectPerformSlot, payload_gc_ref) ==
-        (8u + 8u * SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS),
+        (16u + 8u * SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS),
     "ScoopEffectPerformSlot.payload_gc_ref offset must follow payload_words");
 #endif
 
@@ -661,10 +667,13 @@ uintptr_t scoop_effect_trace_unwind_len(void) {
 // 说明：
 // - `op_tag` 用于区分 operation（后续任务会定义稳定的 tag 分配规则）。
 // - 当前阶段不做任何 dispatch/unwind；仅提供 TLS slot 的读写，以便后续 lowering 接入并可回归验证。
-void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
+void scoop_effect_perform_slot_write_u64(uint32_t op_tag,
+                                         uint32_t effect_instance_key,
+                                         uint64_t value) {
   scoop_effect_perform_slot_drop_gc_ref();
   __scoop_effect_perform_slot.op_tag = op_tag;
   __scoop_effect_perform_slot.payload_len_words = 1;
+  __scoop_effect_perform_slot.effect_instance_key = effect_instance_key;
   __scoop_effect_perform_slot.payload_words[0] = value;
   // 清理剩余 words，避免测试/调试读取到“上一次”的脏数据。
   for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
@@ -673,12 +682,14 @@ void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
 }
 
 void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag,
+                                                     uint32_t effect_instance_key,
                                                      uint64_t word0,
                                                      void *gc_ref) {
   scoop_effect_perform_slot_drop_gc_ref();
 
   __scoop_effect_perform_slot.op_tag = op_tag;
   __scoop_effect_perform_slot.payload_len_words = 1;
+  __scoop_effect_perform_slot.effect_instance_key = effect_instance_key;
   __scoop_effect_perform_slot.payload_words[0] = word0;
   for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
     __scoop_effect_perform_slot.payload_words[i] = 0;
@@ -693,11 +704,13 @@ void scoop_effect_perform_slot_write_u64_with_gc_ref(uint32_t op_tag,
 }
 
 void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag,
-                                          uint64_t word0,
-                                          uint64_t word1) {
+                                           uint32_t effect_instance_key,
+                                           uint64_t word0,
+                                           uint64_t word1) {
   scoop_effect_perform_slot_drop_gc_ref();
   __scoop_effect_perform_slot.op_tag = op_tag;
   __scoop_effect_perform_slot.payload_len_words = 2;
+  __scoop_effect_perform_slot.effect_instance_key = effect_instance_key;
   __scoop_effect_perform_slot.payload_words[0] = word0;
   __scoop_effect_perform_slot.payload_words[1] = word1;
   for (uint32_t i = 2; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
@@ -707,6 +720,10 @@ void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag,
 
 uint32_t scoop_effect_perform_slot_read_op_tag(void) {
   return __scoop_effect_perform_slot.op_tag;
+}
+
+uint32_t scoop_effect_perform_slot_read_effect_instance_key(void) {
+  return __scoop_effect_perform_slot.effect_instance_key;
 }
 
 uint32_t scoop_effect_perform_slot_read_len_words(void) {
@@ -1041,10 +1058,12 @@ static uint32_t scoop_continuation_resume_try(void *continuation) {
 
   if (!scoop_continuation_try_resume(continuation)) {
     const uint32_t OP_TAG_RAISE = 1u;
+    const uint32_t EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR = UINT32_MAX;
     const uint64_t PAYLOAD_KIND_RUNTIME_ERROR = 2u;
     const uint64_t RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED = 2u;
     scoop_effect_perform_slot_write_u64_2(
         OP_TAG_RAISE,
+        EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR,
         PAYLOAD_KIND_RUNTIME_ERROR,
         RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED);
     scoop_effect_set_active();

@@ -211,6 +211,8 @@ fn check_file_exprs_impl(
     let builtins = request.builtins;
     file.replace_inferred_expr_tys(HashMap::new());
     file.replace_inferred_binding_tys(HashMap::new());
+    file.replace_inferred_performed_effect_tys(HashMap::new());
+    file.replace_inferred_handle_arm_effect_tys(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
@@ -320,6 +322,12 @@ fn check_file_exprs_impl(
     request
         .file
         .replace_inferred_binding_tys(lower.take_inferred_binding_tys());
+    request
+        .file
+        .replace_inferred_performed_effect_tys(lower.take_inferred_performed_effect_tys());
+    request
+        .file
+        .replace_inferred_handle_arm_effect_tys(lower.take_inferred_handle_arm_effect_tys());
     request
         .file
         .replace_safe_member_access_resolved(lower.take_safe_member_access_resolutions());

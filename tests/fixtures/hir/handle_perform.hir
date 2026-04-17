@@ -50,6 +50,9 @@ File {
                                                                         0,
                                                                     ),
                                                                     kind: Perform {
+                                                                        effect_ty: TypeId(
+                                                                            0,
+                                                                        ),
                                                                         op: EffectOpRef {
                                                                             span: 70..75,
                                                                             fqn: "scoop.core.Raise.raise",

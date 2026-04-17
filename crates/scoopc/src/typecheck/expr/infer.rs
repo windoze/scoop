@@ -560,6 +560,7 @@ fn infer_await_expr_type(
         Vec::new(),
         await_expr.span,
     )?;
+    lower.record_inferred_performed_effect_ty(await_expr.span, async_effect);
     lower.record_performed_effect(async_effect, await_expr.span);
     Ok(result_ty)
 }
@@ -595,6 +596,7 @@ fn infer_join_expr_type(
 
     let async_effect =
         lower.lower_type_fqn_with_args(ASYNC_EFFECT_FQN.to_string(), Vec::new(), join_span)?;
+    lower.record_inferred_performed_effect_ty(join_span, async_effect);
     lower.record_performed_effect(async_effect, join_span);
 
     Ok(result_ty)
@@ -1676,6 +1678,7 @@ pub(super) fn infer_handle_expr_type(
         seen_heads.push((current_head, lowered.handled_effect));
         seen.push(lowered.handled_effect);
         handled_effects.push(lowered.handled_effect);
+        lower.record_inferred_handle_arm_effect_ty(arm.op.span, lowered.handled_effect);
 
         let mut arm_locals = inputs.locals.clone();
         for (decl_span, ty) in lowered.binder_tys.iter().copied() {

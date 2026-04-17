@@ -166,9 +166,10 @@ impl HandleStateMachinePlan {
                 )
             };
             out.push_str(&format!(
-                "{pad}  arm{} op={} body_entry=s{}\n",
+                "{pad}  arm{} op={} effect={} body_entry=s{}\n",
                 arm.id,
                 arm.op_fqn,
+                types.display(arm.effect_ty),
                 arm.body_entry_state,
             ));
             out.push_str(&format!("{pad}    binders={binders}\n"));
@@ -1113,6 +1114,7 @@ impl SuspendSiteKind {
 struct ArmPlan {
     id: ArmPlanId,
     op_fqn: String,
+    effect_ty: TypeId,
     binder_slots: Vec<FrameSlot>,
     capture_locals: Vec<hir::SymbolId>,
     body_entry_state: PlanStateId,
@@ -1270,7 +1272,10 @@ impl SuspendSitePlan {
 
 impl ArmPlan {
     fn structural_signature(&self) -> usize {
-        let mut acc = self.id as usize ^ self.op_fqn.len() ^ self.body_entry_state as usize;
+        let mut acc = self.id as usize
+            ^ self.op_fqn.len()
+            ^ self.effect_ty.as_u32() as usize
+            ^ self.body_entry_state as usize;
         for slot in &self.binder_slots {
             acc ^= slot.structural_signature();
         }
@@ -2028,7 +2033,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 );
                 state
             }
-            hir::ExprKind::Perform { op, args } => {
+            hir::ExprKind::Perform { op, args, .. } => {
                 let mut state = current_state;
                 for arg in args {
                     state = match arg {
@@ -2485,6 +2490,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             self.arm_plans.push(ArmPlan {
                 id: arm_id,
                 op_fqn: arm.op.op.fqn.clone(),
+                effect_ty: arm.op.effect_ty,
                 binder_slots,
                 capture_locals,
                 body_entry_state,

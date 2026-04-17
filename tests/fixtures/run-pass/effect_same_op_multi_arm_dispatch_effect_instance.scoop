@@ -1,0 +1,43 @@
+// EXPECT: pass
+// EXPECT-EXIT: 23
+// 目标：同一 `Raise.raise` 在多个 arm 间分发时，production dispatch 必须按 handled effect instance 选择正确 arm。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+open class Base()
+
+class Sub() : Base()
+
+fun raiseBase(): Int / Raise<Base> {
+    val err: Base = Base()
+    Raise.raise(err)
+}
+
+fun raiseSub(): Int / Raise<Sub> {
+    val err: Sub = Sub()
+    Raise.raise(err)
+}
+
+fun handleBase(): Int {
+    return handle {
+        raiseBase()
+    } with {
+        Raise.raise(err: Sub) -> 1
+        Raise.raise(err: Base) -> 2
+    }
+}
+
+fun handleSub(): Int {
+    return handle {
+        raiseSub()
+    } with {
+        Raise.raise(err: Sub) -> 3
+        Raise.raise(err: Base) -> 4
+    }
+}
+
+fun main(): Int {
+    return handleBase() * 10 + handleSub()
+}

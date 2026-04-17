@@ -254,7 +254,7 @@ impl<'a> HirLowering<'a> {
                 })() {
                     (kind, ty)
                 } else if let Some((kind, ty)) =
-                    self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
+                    self.try_lower_effect_op_call_expr(pkg_prefix, e.span, callee, args)
                 {
                     (kind, typechecked_call_ty.unwrap_or(ty))
                 } else if let Some((kind, ty)) = (|| {
@@ -645,8 +645,23 @@ impl<'a> HirLowering<'a> {
                     span: *await_span,
                     fqn: Self::ASYNC_AWAIT_FQN.to_string(),
                 };
+                let effect_ty = self
+                    .typechecked_performed_effect_ty(e.span)
+                    .unwrap_or_else(|| {
+                        let effect_path = ast::TypePath {
+                            span: *await_span,
+                            segments: vec![
+                                ast::Ident::synthetic(*await_span, "scoop"),
+                                ast::Ident::synthetic(*await_span, "core"),
+                                ast::Ident::synthetic(*await_span, "Async"),
+                            ],
+                            args: Vec::new(),
+                        };
+                        self.lower_type_path(&effect_path)
+                    });
                 (
                     ExprKind::Perform {
+                        effect_ty,
                         op,
                         args: vec![CallArg::Positional(inner)],
                     },
@@ -1013,6 +1028,18 @@ impl<'a> HirLowering<'a> {
     fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_binding_ty(span)?;
+        Some(self.types.re_intern_from(typecheck_types, ty))
+    }
+
+    fn typechecked_performed_effect_ty(&mut self, span: Span) -> Option<TypeId> {
+        let typecheck_types = self.typecheck_types?;
+        let ty = self.file.inferred_performed_effect_ty(span)?;
+        Some(self.types.re_intern_from(typecheck_types, ty))
+    }
+
+    fn typechecked_handle_arm_effect_ty(&mut self, span: Span) -> Option<TypeId> {
+        let typecheck_types = self.typecheck_types?;
+        let ty = self.file.inferred_handle_arm_effect_ty(span)?;
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
@@ -2171,6 +2198,7 @@ impl<'a> HirLowering<'a> {
     fn try_lower_effect_op_call_expr(
         &mut self,
         pkg_prefix: &str,
+        call_span: Span,
         callee: &ast::Expr,
         args: &[ast::Expr],
     ) -> Option<(ExprKind, TypeId)> {
@@ -2188,11 +2216,21 @@ impl<'a> HirLowering<'a> {
             span: member.span,
             fqn: fqn.clone(),
         };
+        let effect_ty = self
+            .typechecked_performed_effect_ty(call_span)
+            .unwrap_or(self.builtins.any);
         let args = args
             .iter()
             .map(|arg| self.lower_call_arg(pkg_prefix, arg))
             .collect();
-        Some((ExprKind::Perform { op, args }, self.builtins.any))
+        Some((
+            ExprKind::Perform {
+                effect_ty,
+                op,
+                args,
+            },
+            self.builtins.any,
+        ))
     }
 
     fn is_effect_op_fqn(&self, fqn: &str) -> bool {
@@ -2528,6 +2566,9 @@ impl<'a> HirLowering<'a> {
             span,
             ty: self.builtins.any,
             kind: ExprKind::Perform {
+                effect_ty: self
+                    .typechecked_performed_effect_ty(span)
+                    .unwrap_or_else(|| self.synth_raise_runtime_error_effect_ty(span)),
                 op: EffectOpRef {
                     span,
                     fqn: Self::RAISE_RAISE_FQN.to_string(),
@@ -2535,6 +2576,27 @@ impl<'a> HirLowering<'a> {
                 args: vec![CallArg::Positional(error_expr)],
             },
         }
+    }
+
+    fn synth_raise_runtime_error_effect_ty(&mut self, span: Span) -> TypeId {
+        let raise_path = ast::TypePath {
+            span,
+            segments: vec![
+                ast::Ident::synthetic(span, "scoop"),
+                ast::Ident::synthetic(span, "core"),
+                ast::Ident::synthetic(span, "Raise"),
+            ],
+            args: vec![ast::TypeRef::Path(ast::TypePath {
+                span,
+                segments: vec![
+                    ast::Ident::synthetic(span, "scoop"),
+                    ast::Ident::synthetic(span, "core"),
+                    ast::Ident::synthetic(span, "RuntimeError"),
+                ],
+                args: Vec::new(),
+            })],
+        };
+        self.lower_type_path(&raise_path)
     }
 
     /// Synthesize `Some(inner)` as a `Call { callee: UnresolvedIdent("Some"), args: [inner] }`.
@@ -2607,7 +2669,9 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_handle_op(&mut self, _pkg_prefix: &str, op: &ast::HandleOp) -> HandleOp {
-        let effect_ty = self.lower_type_path(&op.effect);
+        let effect_ty = self
+            .typechecked_handle_arm_effect_ty(op.span)
+            .unwrap_or_else(|| self.lower_type_path(&op.effect));
         let effect_fqn = self.index.type_ref_to_fqn_in_file(
             self.source,
             self.file,

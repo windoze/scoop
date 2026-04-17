@@ -261,6 +261,7 @@ impl UnifiedDispatchArm {
 pub(crate) struct UnifiedArm {
     arm_id: ArmPlanId,
     op_fqn: String,
+    effect_ty: TypeId,
     entry_state: UnifiedStateId,
     body_states: Vec<UnifiedStateId>,
     binder_slots: Vec<hir::SymbolId>,
@@ -275,6 +276,10 @@ impl UnifiedArm {
 
     pub(crate) fn op_fqn(&self) -> &str {
         &self.op_fqn
+    }
+
+    pub(crate) fn effect_ty(&self) -> TypeId {
+        self.effect_ty
     }
 
     pub(crate) fn entry_state(&self) -> UnifiedStateId {
@@ -1614,6 +1619,7 @@ impl UnifiedArm {
         Self {
             arm_id: arm.arm_id,
             op_fqn: arm.op_fqn.clone(),
+            effect_ty: arm.effect_ty,
             entry_state: arm.body_entry_segment,
             body_states: sorted_segment_ids(&arm.body_segments),
             binder_slots: sorted_symbol_ids(&arm.binder_slots),

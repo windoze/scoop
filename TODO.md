@@ -1387,13 +1387,30 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3013R
 
-### T3014a [TODO] 补齐同一 `op_fqn` 下多 arm 的 unified handler dispatch 合同
+### T3014a [DONE] 补齐同一 `op_fqn` 下多 arm 的 unified handler dispatch 合同
 - 描述：在准备执行 `T3014R` 复审时发现，`DispatchPlan` / `UnifiedDispatchEntry` / `SuspendSite.matching_arms()` 都保留了“同一 `op_fqn` 可关联多个 arm”的 lowering 合同，但 `state_machine_emitter.rs` 的 handle dispatch 仍只按 `op_tag` switch，并在命中某个 `dispatch_entry` 后静默取 `dispatch_entry.arms().first()`。这会把其余 arm 直接丢掉，使生产 dispatch 与现有 typecheck/lowering 合同不一致；在 generic effect / 不同 handled-effect 实例共享同一 op 的场景下，这不再是 review 可忽略的实现细节，而是必须先修复的前置缺口。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 same-op dispatch 已按源码顺序逐 arm 检查，不再把 `dispatch_entry.arms()` 收缩成首个 arm。
+  - 修复 `crates/scoopc/src/llvm/codegen/mod.rs::matching_effect_instance_keys_for_handled_effect()` 错把 `op_fqn` 当作 effect FQN 查找候选集合的问题；现在优先按 handled effect 的 nominal FQN 收集 effect-instance keys，必要时才从 `op_fqn` 回退推导。
+  - 收紧 LLVM IR 回归 `same_op_multi_arm_dispatch_ir_reads_effect_instance_key`：不仅要求读取 `effect_instance_key`，还要求生成实际的 `arm_*_effect_instance_match_*` 比较，避免“读了 key 但没参与匹配”的假阳性。
+  - 新增 run-pass fixture `tests/fixtures/run-pass/effect_same_op_multi_arm_dispatch_effect_instance.scoop`，锁定 `Raise.raise` 同一 `op_fqn` 下 `Sub`/`Base` 两个 arm 的实际分发结果为 `23`。
+  - 为完成全量收尾，同步更新 `crates/scoop_runtime/tests/effect_tls.rs` 到新的 perform-slot ABI（新增 `effect_instance_key` 参数与读回断言），并更新 `tests/fixtures/hir/handle_perform.hir` 以反映 `ExprKind::Perform { effect_ty, .. }` 的当前 HIR 结构。
 - 目标：
   - 明确并落实 unified handler dispatch 对“同一 `op_fqn` 多 arm”的生产合同，不能继续把 `dispatch_entries()` 收缩成单 arm 特例。
   - `state_machine_emitter.rs` 不得再静默依赖 `dispatch_entry.arms().first()`；direct perform、resumed body 与 outward propagation 路径都必须消费完整的 dispatch metadata。
   - 若 dispatch 判定需要额外的 runtime / state-machine 元数据，需显式补齐对应 lowering / ABI 合同，而不是靠源码形状、fixture 顺序或默认“第一个 arm”维持表面通过。
   - 新增最小回归覆盖同一 `op_fqn` 多 arm 场景，证明后续 arm 不会在 production dispatch 中被静默丢弃。
+- 已验证：
+  - `cargo test -p scoopc --features llvm same_op_multi_arm_dispatch_ir_reads_effect_instance_key -- --nocapture`
+  - `cargo test -p scoopc --features llvm multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack -- --nocapture`
+  - `cargo test -p scoopc --features llvm effect_runtime_intrinsics_are_emitted_as_symbol_calls -- --nocapture`
+  - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_runtime_slot_abi_basic.scoop -o /tmp/effect_slot`
+  - 直接执行 `/tmp/effect_slot`，退出码 `48`
+  - `cargo run -p scoop --features llvm -- build tests/fixtures/run-pass/effect_same_op_multi_arm_dispatch_effect_instance.scoop -o /tmp/sameop`
+  - 直接执行 `/tmp/sameop`，退出码 `23`
+  - `cargo test -p scoop_runtime --test effect_tls -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - 生产代码中不再出现把 `dispatch_entry.arms()` 静默收缩为首个 arm 的 dispatch 主路径。
   - 至少一个定向回归覆盖“同一 `op_fqn` 多 arm”场景，并能稳定区分正确 arm dispatch。

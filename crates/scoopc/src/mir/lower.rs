@@ -572,7 +572,7 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::Call { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "call lowering pending")
             }
-            hir::ExprKind::Perform { op, args } => {
+            hir::ExprKind::Perform { op, args, .. } => {
                 self.lower_perform_expr(expr.span, expr.ty, op, args)
             }
             hir::ExprKind::Handle(handle) => self.lower_handle_expr(expr.span, expr.ty, handle),

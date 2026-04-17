@@ -19,7 +19,7 @@ use super::unified_state_machine_skeleton::FrameSlot;
 use super::*;
 
 use super::unified_state_machine_skeleton::{
-    HandleBranchCondition, HandleStateOp, SuspendSiteKind, UnifiedFrameField,
+    HandleBranchCondition, HandleStateOp, SuspendSiteKind, UnifiedArm, UnifiedFrameField,
     UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState, UnifiedStateContext,
     UnifiedStateTerminator,
 };
@@ -1908,25 +1908,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?
             .into_int_value();
+        let read_effect_instance_key_fn =
+            self.declare_runtime_effect_perform_slot_read_effect_instance_key();
+        let effect_instance_key_raw = self
+            .builder
+            .build_call(
+                read_effect_instance_key_fn,
+                &[],
+                "performed_effect_instance_key",
+            )?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_effect_instance_key return",
+                at: span.into(),
+            })?
+            .into_int_value();
 
-        // Build a switch on op_tag → arm entry state.
-        // For each dispatch entry, compute the op_tag and route to the
-        // arm's entry state in the step function.  The arm states are
-        // inside the step_fn, so we call step_fn with the arm's entry
-        // state pre-set in state_tag.
-        //
-        // Since the arm states live inside the step function (not the
-        // caller), we call step_fn again after setting state_tag to the
-        // arm's entry state.
         if contract.dispatch_entries().is_empty() {
-            // No arms to dispatch to — the effect is unmatched and must
-            // propagate out of the current handle.
             self.builder.build_unconditional_branch(outward_target_bb)?;
         } else {
-            // For each dispatch entry, create a handler arm block.
             let unmatched_bb = self
                 .context
                 .append_basic_block(current_fn, "dispatch_unmatched");
+            let arm_by_id = contract
+                .arms()
+                .iter()
+                .map(|arm| (arm.arm_id(), arm))
+                .collect::<HashMap<_, _>>();
 
             let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
                 Vec::new();
@@ -1935,161 +1944,73 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let op_fqn = dispatch_entry.op_fqn();
                 let tag = self.effect_op_tag(op_fqn);
                 let tag_val = self.context.i32_type().const_int(tag as u64, false);
+                let dispatch_arms = dispatch_entry.arms();
+                if dispatch_arms.is_empty() {
+                    continue;
+                }
 
-                // For each arm in this dispatch entry, pick the first arm
-                // (single-arm dispatch is the common case for now).
-                if let Some(first_arm) = dispatch_entry.arms().first() {
-                    let unified_arm = contract
-                        .arms()
-                        .iter()
-                        .find(|arm| arm.arm_id() == first_arm.arm_id())
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                let check_blocks = dispatch_arms
+                    .iter()
+                    .map(|dispatch_arm| {
+                        self.context.append_basic_block(
+                            current_fn,
+                            &format!("dispatch_arm_{}_check", dispatch_arm.arm_id()),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                cases.push((tag_val, check_blocks[0]));
+
+                for (index, dispatch_arm) in dispatch_arms.iter().enumerate() {
+                    let unified_arm = arm_by_id.get(&dispatch_arm.arm_id()).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
                             kind: "dispatch arm metadata not found",
                             at: span.into(),
-                        })?;
-                    let arm_bb = self
-                        .context
-                        .append_basic_block(current_fn, &format!("arm_{}", first_arm.arm_id()));
-                    let arm_effect_bb = self.context.append_basic_block(
-                        current_fn,
-                        &format!("arm_{}_effect", first_arm.arm_id()),
+                        },
+                    )?;
+                    let next_bb = check_blocks.get(index + 1).copied().unwrap_or(unmatched_bb);
+                    let matching_keys = self.matching_effect_instance_keys_for_handled_effect(
+                        unified_arm.effect_ty(),
+                        op_fqn,
                     );
-                    let arm_complete_bb = self.context.append_basic_block(
+                    let arm_bb = self.emit_dispatch_arm_execution(
                         current_fn,
-                        &format!("arm_{}_complete", first_arm.arm_id()),
-                    );
-                    cases.push((tag_val, arm_bb));
-
-                    // In the arm block: set state_tag to arm entry state,
-                    // clear the consumed body active flag, and call step_fn.
-                    self.builder.position_at_end(arm_bb);
-
-                    // The current perform has matched this handle, so consume
-                    // the active flag before entering the arm body. The arm
-                    // still reads its binder payload from the perform slot.
-                    let clear_active_fn = self.declare_runtime_effect_clear_active();
-                    self.builder.build_call(clear_active_fn, &[], "")?;
-
-                    let arm_entry_state = first_arm.entry_state();
-                    self.write_state_tag(
                         frame_ptr,
                         &frame_layout,
-                        arm_entry_state,
-                        &format!("set_arm_state_{}", first_arm.arm_id()),
-                    )?;
-
-                    // The arm's binder values come from the perform slot,
-                    // but the arm body reads them via frame slots (set up
-                    // by ExecuteArmBody ops inside the step_fn).
-                    // Just call step_fn and let the internal arm states
-                    // handle binder setup and body execution.
-                    self.builder.build_call(
                         step_fn,
-                        &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
-                        "",
-                    )?;
-
-                    let arm_active = self.emit_effect_is_active_i1(
-                        span,
-                        &format!("arm_{}_is_active", first_arm.arm_id()),
-                    )?;
-                    self.builder.build_conditional_branch(
-                        arm_active,
-                        arm_effect_bb,
-                        arm_complete_bb,
-                    )?;
-
-                    // If the arm returned with TLS active set, distinguish two
-                    // cases:
-                    // - active while still in the current arm context:
-                    //   the arm body itself raised/performed, so the current
-                    //   handle must not redispatch to a sibling arm; instead it
-                    //   runs cleanup/`finally` and propagates outward.
-                    // - active after the arm resumed the body and the body
-                    //   performed again: dispatch as usual.
-                    self.builder.position_at_end(arm_effect_bb);
-                    let arm_state_tag = self.read_state_tag(
-                        frame_ptr,
-                        &frame_layout,
-                        &format!("arm_{}_state_tag", first_arm.arm_id()),
-                    )?;
-                    let arm_context_active = self.state_tag_matches_any(
-                        arm_state_tag,
-                        unified_arm.body_states(),
-                        &format!("arm_{}_body_state", first_arm.arm_id()),
-                    )?;
-                    self.builder.build_conditional_branch(
-                        arm_context_active,
+                        i64_zero,
+                        gc_null,
+                        unified_arm,
                         outward_target_bb,
-                        dispatch_check_bb,
-                    )?;
-
-                    self.builder.position_at_end(arm_complete_bb);
-                    let arm_complete_state_tag = self.read_state_tag(
-                        frame_ptr,
-                        &frame_layout,
-                        &format!("arm_{}_complete_state_tag", first_arm.arm_id()),
-                    )?;
-                    let arm_handle_returned = self.builder.build_int_compare(
-                        inkwell::IntPredicate::EQ,
-                        arm_complete_state_tag,
-                        self.context
-                            .i32_type()
-                            .const_int(STATE_TAG_HANDLE_RETURNED as u64, false),
-                        &format!("arm_{}_handle_returned", first_arm.arm_id()),
-                    )?;
-                    let arm_function_returned = self.builder.build_int_compare(
-                        inkwell::IntPredicate::EQ,
-                        arm_complete_state_tag,
-                        self.context
-                            .i32_type()
-                            .const_int(STATE_TAG_FUNCTION_RETURNED as u64, false),
-                        &format!("arm_{}_function_returned", first_arm.arm_id()),
-                    )?;
-                    let arm_terminal = self.builder.build_or(
-                        arm_handle_returned,
-                        arm_function_returned,
-                        &format!("arm_{}_terminal", first_arm.arm_id()),
-                    )?;
-                    self.builder.build_conditional_branch(
-                        arm_terminal,
                         arm_done_target_bb,
                         dispatch_check_bb,
+                        span,
                     )?;
+
+                    self.builder.position_at_end(check_blocks[index]);
+                    if matching_keys.is_empty() {
+                        self.builder.build_unconditional_branch(next_bb)?;
+                    } else {
+                        let arm_matches = self.int_matches_any_u32(
+                            effect_instance_key_raw,
+                            &matching_keys,
+                            &format!("arm_{}_effect_instance_match", dispatch_arm.arm_id()),
+                        )?;
+                        self.builder
+                            .build_conditional_branch(arm_matches, arm_bb, next_bb)?;
+                    }
                 }
             }
 
-            // Position back at dispatch_arm to emit the switch.
-            // We need to re-position because we moved the builder to arm blocks.
-            // Actually, the switch should be built at the end of dispatch_arm_bb
-            // before the arm blocks.  Let me restructure: build arm blocks first
-            // (without switch), then go back and emit switch at dispatch_arm_bb.
-            //
-            // The dispatch_arm_bb currently has: read_op_tag + clear.
-            // We need to append the switch after those.  But we already moved
-            // to other blocks.  The switch needs to be the terminator of
-            // dispatch_arm_bb.  Since we built the arm blocks after positioning
-            // at dispatch_arm_bb's ops, we need to go back.
-
-            // Actually, we already read op_tag and cleared — the dispatch_arm_bb
-            // doesn't have a terminator yet because we moved to arm blocks.
-            // However, inkwell appends instructions to whatever block is current.
-            // The op_tag read and clear are in dispatch_arm_bb.  The arm block
-            // code was positioned in separate blocks.  So dispatch_arm_bb still
-            // needs its terminator.
-
             self.builder.position_at_end(dispatch_arm_bb);
-            // Note: the read_op_tag and clear calls are already in this block
-            // from the code above.  However, because we moved the builder to
-            // arm blocks and came back, the instructions should still be
-            // correctly placed.  Let's verify by checking if there's a terminator.
             if dispatch_arm_bb.get_terminator().is_none() {
-                self.builder
-                    .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+                if cases.is_empty() {
+                    self.builder.build_unconditional_branch(unmatched_bb)?;
+                } else {
+                    self.builder
+                        .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+                }
             }
 
-            // Unmatched op_tag: this handle has no matching arm. Preserve the
-            // perform slot + active flag so the effect can propagate outward.
             self.builder.position_at_end(unmatched_bb);
             self.builder.build_unconditional_branch(outward_target_bb)?;
         }
@@ -2248,6 +2169,136 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // Helper methods: perform op, arm body, resume payload
     // ------------------------------------------------------------------
 
+    fn int_matches_any_u32(
+        &mut self,
+        value: IntValue<'ctx>,
+        candidates: &[u32],
+        label: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        if candidates.is_empty() {
+            return Ok(self.context.bool_type().const_zero());
+        }
+
+        let int_ty = value.get_type();
+        let mut matched = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            value,
+            int_ty.const_int(candidates[0] as u64, false),
+            &format!("{label}_0"),
+        )?;
+        for (index, candidate) in candidates.iter().copied().enumerate().skip(1) {
+            let cmp = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                value,
+                int_ty.const_int(candidate as u64, false),
+                &format!("{label}_{index}"),
+            )?;
+            matched = self
+                .builder
+                .build_or(matched, cmp, &format!("{label}_or_{index}"))?;
+        }
+
+        Ok(matched)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_dispatch_arm_execution(
+        &mut self,
+        current_fn: FunctionValue<'ctx>,
+        frame_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        step_fn: FunctionValue<'ctx>,
+        i64_zero: IntValue<'ctx>,
+        gc_null: PointerValue<'ctx>,
+        unified_arm: &UnifiedArm,
+        outward_target_bb: inkwell::basic_block::BasicBlock<'ctx>,
+        arm_done_target_bb: inkwell::basic_block::BasicBlock<'ctx>,
+        dispatch_check_bb: inkwell::basic_block::BasicBlock<'ctx>,
+        span: crate::span::Span,
+    ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, LlvmEmitError> {
+        let arm_id = unified_arm.arm_id();
+        let arm_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm_{arm_id}"));
+        let arm_effect_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm_{arm_id}_effect"));
+        let arm_complete_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("arm_{arm_id}_complete"));
+
+        self.builder.position_at_end(arm_bb);
+
+        let clear_active_fn = self.declare_runtime_effect_clear_active();
+        self.builder.build_call(clear_active_fn, &[], "")?;
+
+        self.write_state_tag(
+            frame_ptr,
+            frame_layout,
+            unified_arm.entry_state(),
+            &format!("set_arm_state_{arm_id}"),
+        )?;
+
+        self.builder.build_call(
+            step_fn,
+            &[frame_ptr.into(), i64_zero.into(), gc_null.into()],
+            "",
+        )?;
+
+        let arm_active = self.emit_effect_is_active_i1(span, &format!("arm_{arm_id}_is_active"))?;
+        self.builder
+            .build_conditional_branch(arm_active, arm_effect_bb, arm_complete_bb)?;
+
+        self.builder.position_at_end(arm_effect_bb);
+        let arm_state_tag =
+            self.read_state_tag(frame_ptr, frame_layout, &format!("arm_{arm_id}_state_tag"))?;
+        let arm_context_active = self.state_tag_matches_any(
+            arm_state_tag,
+            unified_arm.body_states(),
+            &format!("arm_{arm_id}_body_state"),
+        )?;
+        self.builder.build_conditional_branch(
+            arm_context_active,
+            outward_target_bb,
+            dispatch_check_bb,
+        )?;
+
+        self.builder.position_at_end(arm_complete_bb);
+        let arm_complete_state_tag = self.read_state_tag(
+            frame_ptr,
+            frame_layout,
+            &format!("arm_{arm_id}_complete_state_tag"),
+        )?;
+        let arm_handle_returned = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            arm_complete_state_tag,
+            self.context
+                .i32_type()
+                .const_int(STATE_TAG_HANDLE_RETURNED as u64, false),
+            &format!("arm_{arm_id}_handle_returned"),
+        )?;
+        let arm_function_returned = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            arm_complete_state_tag,
+            self.context
+                .i32_type()
+                .const_int(STATE_TAG_FUNCTION_RETURNED as u64, false),
+            &format!("arm_{arm_id}_function_returned"),
+        )?;
+        let arm_terminal = self.builder.build_or(
+            arm_handle_returned,
+            arm_function_returned,
+            &format!("arm_{arm_id}_terminal"),
+        )?;
+        self.builder.build_conditional_branch(
+            arm_terminal,
+            arm_done_target_bb,
+            dispatch_check_bb,
+        )?;
+
+        Ok(arm_bb)
+    }
+
     /// Emit a `perform` op: evaluate the perform expression's args and write
     /// the op_tag + payload to the TLS perform slot.
     fn emit_perform_op(
@@ -2258,6 +2309,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let op_tag = self.effect_op_tag(op_fqn);
         let op_tag_val = self.context.i32_type().const_int(op_tag as u64, false);
+        let effect_ty = match &expr.kind {
+            hir::ExprKind::Perform { effect_ty, .. } => *effect_ty,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "state machine perform effect type",
+                    at: expr.span.into(),
+                });
+            }
+        };
+        let effect_instance_key =
+            self.effect_instance_key(effect_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "state machine perform effect instance key",
+                    at: expr.span.into(),
+                })?;
+        let effect_instance_key_val = self
+            .context
+            .i32_type()
+            .const_int(effect_instance_key as u64, false);
 
         let payload_expr = match &expr.kind {
             hir::ExprKind::Perform { args, .. } => match args.as_slice() {
@@ -2293,7 +2363,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
         self.builder.build_call(
             write_fn,
-            &[op_tag_val.into(), word.into(), gc_ref.into()],
+            &[
+                op_tag_val.into(),
+                effect_instance_key_val.into(),
+                word.into(),
+                gc_ref.into(),
+            ],
             "",
         )?;
 
@@ -2608,11 +2683,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 mod tests {
     use super::*;
 
-    use crate::llvm::emit_minimal_main_ir;
+    use crate::llvm::{emit_minimal_main_ir, emit_minimal_main_ir_from_lowered_hir};
     use crate::parser::parse_file;
     use crate::resolve::Index;
     use crate::session::Session;
-    use crate::source::SourceFile;
+    use crate::source::{SourceFile, SourceMap};
     use crate::ty::TypeStore;
     use crate::typecheck;
 
@@ -2779,8 +2854,7 @@ fun demo(): Int {
 
     #[test]
     fn escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback() {
-        let source = SourceFile::new_virtual(
-            "<mem>",
+        let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
 
@@ -2806,7 +2880,13 @@ fun main() {
 "#,
         );
         let session = Session::new().expect("session");
-        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
 
         assert!(
             ir.contains("seed_outer_slot_storage_"),
@@ -2921,6 +3001,96 @@ fun main(): Int {
         assert!(
             ir.contains("handler_frame_1"),
             "IR should materialize a dedicated runtime handler frame for the second op"
+        );
+    }
+
+    #[test]
+    fn same_op_multi_arm_dispatch_ir_reads_effect_instance_key() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+open class Base()
+class Sub() : Base()
+
+fun raiseSub(): Int / Raise<Sub> {
+    val err: Sub = Sub()
+    Raise.raise(err)
+}
+
+fun main(): Int {
+    return handle {
+        raiseSub()
+    } with {
+        Raise.raise(err: Sub) -> {
+            1
+        }
+        Raise.raise(err: Base) -> {
+            2
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_read_effect_instance_key"),
+            "same-op multi-arm dispatch should read effect_instance_key from the perform slot"
+        );
+        assert!(
+            ir.contains("dispatch_arm_0_check"),
+            "first same-op arm should have an explicit effect-instance check block"
+        );
+        assert!(
+            ir.contains("dispatch_arm_1_check"),
+            "later same-op sibling arm should keep its own effect-instance check block"
+        );
+        assert!(
+            ir.contains("arm_0_effect_instance_match_0"),
+            "same-op dispatch should generate an effect-instance compare for the first arm"
+        );
+        assert!(
+            ir.contains("arm_1_effect_instance_match_0"),
+            "same-op dispatch should generate an effect-instance compare for later sibling arms"
+        );
+    }
+
+    #[test]
+    fn typed_lowering_preserves_raise_helper_performed_effect_instance() {
+        let (_, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+open class Base()
+class Sub() : Base()
+
+fun raiseSub(): Int / Raise<Sub> {
+    val err: Sub = Sub()
+    Raise.raise(err)
+}
+"#,
+        );
+
+        let perform = first_perform_in_fun(&lowered.file, "raiseSub").expect("expected perform");
+        let hir::ExprKind::Perform { effect_ty, .. } = perform.kind else {
+            panic!("expected perform expr");
+        };
+        let effect_text = lowered.types.display(effect_ty).to_string();
+        assert!(
+            effect_text.contains("Raise") && effect_text.contains("Sub"),
+            "expected performed effect instance to mention Raise<Sub>, got {effect_text}"
         );
     }
 
@@ -3081,6 +3251,102 @@ fun main(): Int {
                 first_handle_in_expr(expr)
             }),
             hir::ExprKind::Closure(closure) => first_handle_in_expr(&closure.body),
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => None,
+        }
+    }
+
+    fn first_perform_in_fun<'a>(file: &'a hir::File, name: &str) -> Option<&'a hir::Expr> {
+        for item in &file.items {
+            if let hir::Item::Fun(fun) = item
+                && fun.name == name
+                && let Some(body) = &fun.body
+                && let Some(expr) = first_perform_in_block(body)
+            {
+                return Some(expr);
+            }
+        }
+        None
+    }
+
+    fn first_perform_in_block(block: &hir::Block) -> Option<&hir::Expr> {
+        for stmt in &block.stmts {
+            if let Some(expr) = first_perform_in_stmt(stmt) {
+                return Some(expr);
+            }
+        }
+        None
+    }
+
+    fn first_perform_in_stmt(stmt: &hir::Stmt) -> Option<&hir::Expr> {
+        match &stmt.kind {
+            hir::StmtKind::Expr(expr) => first_perform_in_expr(expr),
+            hir::StmtKind::Val(decl) => decl.init.as_ref().and_then(first_perform_in_expr),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                first_perform_in_expr(lhs).or_else(|| first_perform_in_expr(rhs))
+            }
+            hir::StmtKind::While { cond, body } => {
+                first_perform_in_expr(cond).or_else(|| first_perform_in_block(body))
+            }
+            hir::StmtKind::Return { value } => value.as_ref().and_then(first_perform_in_expr),
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => None,
+        }
+    }
+
+    fn first_perform_in_expr(expr: &hir::Expr) -> Option<&hir::Expr> {
+        match &expr.kind {
+            hir::ExprKind::Perform { .. } => Some(expr),
+            hir::ExprKind::Block(block) => first_perform_in_block(block),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => first_perform_in_expr(cond)
+                .or_else(|| first_perform_in_expr(then_branch))
+                .or_else(|| else_branch.as_deref().and_then(first_perform_in_expr)),
+            hir::ExprKind::When { subject, arms } => first_perform_in_expr(subject).or_else(|| {
+                arms.iter()
+                    .find_map(|arm| arm.guard.as_ref().and_then(first_perform_in_expr))
+                    .or_else(|| arms.iter().find_map(|arm| first_perform_in_expr(&arm.body)))
+            }),
+            hir::ExprKind::Unary { expr, .. }
+            | hir::ExprKind::Cast { expr, .. }
+            | hir::ExprKind::TypeCheck { expr, .. }
+            | hir::ExprKind::MemberAccess { receiver: expr, .. } => first_perform_in_expr(expr),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                first_perform_in_expr(lhs).or_else(|| first_perform_in_expr(rhs))
+            }
+            hir::ExprKind::Call { callee, args } => first_perform_in_expr(callee).or_else(|| {
+                args.iter().find_map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => first_perform_in_expr(expr),
+                    hir::CallArg::Named { value, .. } => first_perform_in_expr(value),
+                })
+            }),
+            hir::ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| first_perform_in_expr(&field.value)),
+            hir::ExprKind::TupleLit { elements } => elements.iter().find_map(first_perform_in_expr),
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                let hir::InterpolatedStringPart::Expr { expr } = part else {
+                    return None;
+                };
+                first_perform_in_expr(expr)
+            }),
+            hir::ExprKind::Handle(handle) => first_perform_in_block(&handle.body)
+                .or_else(|| {
+                    handle
+                        .arms
+                        .iter()
+                        .find_map(|arm| first_perform_in_expr(&arm.body))
+                })
+                .or_else(|| handle.finally.as_ref().and_then(first_perform_in_block)),
+            hir::ExprKind::Closure(closure) => first_perform_in_expr(&closure.body),
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
             | hir::ExprKind::VarRef(_)

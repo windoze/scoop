@@ -233,12 +233,13 @@ fun __scoop_effect_set_active(): Unit
 fun __scoop_effect_clear(): Unit
 
 // perform slot v0：单 word 载荷（兼容 T0613）。
-fun __scoop_effect_slot_write(opTag: Int, value: Int): Unit
+fun __scoop_effect_slot_write(opTag: Int, effectInstanceKey: Int, value: Int): Unit
 fun __scoop_effect_slot_read_op_tag(): Int
+fun __scoop_effect_slot_read_effect_instance_key(): Int
 fun __scoop_effect_slot_read_value(): Int
 
 // perform slot v1：多 word 载荷（TODO T0630）。
-fun __scoop_effect_slot_write2(opTag: Int, word0: Int, word1: Int): Unit
+fun __scoop_effect_slot_write2(opTag: Int, effectInstanceKey: Int, word0: Int, word1: Int): Unit
 fun __scoop_effect_slot_read_len_words(): Int
 fun __scoop_effect_slot_read_word(index: Int): Int
 

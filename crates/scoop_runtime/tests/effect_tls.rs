@@ -14,12 +14,19 @@ unsafe extern "C" {
 
     fn scoop_effect_perform_slot_write_u64_with_gc_ref(
         op_tag: u32,
+        effect_instance_key: u32,
         value: u64,
         gc_ref: *mut c_void,
     );
-    fn scoop_effect_perform_slot_write_u64(op_tag: u32, value: u64);
-    fn scoop_effect_perform_slot_write_u64_2(op_tag: u32, word0: u64, word1: u64);
+    fn scoop_effect_perform_slot_write_u64(op_tag: u32, effect_instance_key: u32, value: u64);
+    fn scoop_effect_perform_slot_write_u64_2(
+        op_tag: u32,
+        effect_instance_key: u32,
+        word0: u64,
+        word1: u64,
+    );
     fn scoop_effect_perform_slot_read_op_tag() -> u32;
+    fn scoop_effect_perform_slot_read_effect_instance_key() -> u32;
     fn scoop_effect_perform_slot_read_len_words() -> u32;
     fn scoop_effect_perform_slot_read_gc_ref() -> *mut c_void;
     fn scoop_effect_perform_slot_read_u64() -> u64;
@@ -64,15 +71,17 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         // clear 后应回到初值。
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
-        // write 1 word 后可读回。
-        scoop_effect_perform_slot_write_u64(7, 123);
+        // write 1 word 后可读回，包括 effect_instance_key。
+        scoop_effect_perform_slot_write_u64(7, 5, 123);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 7);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 5);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 123);
@@ -80,8 +89,9 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
         // write 2 words：复合 payload（TODO T0630）的最小可观测行为。
-        scoop_effect_perform_slot_write_u64_2(9, 11, 22);
+        scoop_effect_perform_slot_write_u64_2(9, 6, 11, 22);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 9);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 6);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 2);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 11);
@@ -93,6 +103,7 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         // clear 会清空 slot（包括 len 与所有 words）。
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
@@ -100,11 +111,13 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
         // unregister 会清空 TLS：slot 必须回到初值。
-        scoop_effect_perform_slot_write_u64(1, 42);
+        scoop_effect_perform_slot_write_u64(1, 8, 42);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 42);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 8);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         scoop_thread_unregister();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
@@ -120,25 +133,30 @@ fn effect_tls_perform_slot_gc_ref_read_write_is_observable() {
 
         scoop_effect_clear();
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
 
         let once = scoop_sync_once_create();
         assert!(!once.is_null(), "sync once object must be allocated");
 
-        scoop_effect_perform_slot_write_u64_with_gc_ref(13, 77, once);
+        scoop_effect_perform_slot_write_u64_with_gc_ref(13, 17, 77, once);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 13);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 17);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 77);
         assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
 
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
 
-        scoop_effect_perform_slot_write_u64_with_gc_ref(21, 99, once);
+        scoop_effect_perform_slot_write_u64_with_gc_ref(21, 29, 99, once);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 29);
         assert_eq!(scoop_effect_perform_slot_read_gc_ref(), once);
         scoop_thread_unregister();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_effect_instance_key(), 0);
         assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert!(scoop_effect_perform_slot_read_gc_ref().is_null());
     }

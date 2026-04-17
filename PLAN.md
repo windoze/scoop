@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-17 当前轮完成更新：`T3014a` 已完成。same-op multi-arm unified dispatch 现在会在命中 `dispatch_entry` 后按源码顺序逐 arm 读取并比较 `effect_instance_key`，不再把同一 `op_fqn` 的 arms 静默收缩成首个 arm。根因修复点在于 `matching_effect_instance_keys_for_handled_effect()` 原先误把 `op_fqn` 当作 effect FQN 查候选集合，导致 production dispatch 虽读了 key 却始终得到空匹配集；现已改为优先按 handled effect 的 nominal FQN 收集 keys。新增 run-pass fixture `effect_same_op_multi_arm_dispatch_effect_instance.scoop` 后，直接执行返回 `23`；同时为完成全量收尾，同步把 `crates/scoop_runtime/tests/effect_tls.rs` 对齐到新增 `effect_instance_key` ABI，并更新 `tests/fixtures/hir/handle_perform.hir` 以反映 `Perform.effect_ty`。验证通过：三条 LLVM 定向测试、`effect_runtime_slot_abi_basic.scoop`（退出码 `48`）、`effect_same_op_multi_arm_dispatch_effect_instance.scoop`（退出码 `23`）、`cargo test -p scoop_runtime --test effect_tls`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前 effect 主线下一项推进到 `T3014R`。
 > 2026-04-17 当前轮阻塞更新：原计划执行 `T3014R` 复审时，沿 `typecheck -> DispatchPlan -> UnifiedDispatchEntry -> state_machine_emitter` 复查发现，一个尚未显式跟踪的前置缺口仍在：`DispatchPlan` / `UnifiedDispatchEntry` / `SuspendSite.matching_arms()` 都保留“同一 `op_fqn` 可关联多个 arm”的合同，但 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 当前在 dispatch 命中某个 entry 后仍静默取 `dispatch_entry.arms().first()`，runtime `op_tag` 也只按原始 `op_fqn` 分派。这意味着当前生产 dispatch 还没有真正消费完整合同，`T3014R` 不能在这个前提下宣告“multi-op registration 与 unmatched propagation 已统一收口”。按阻塞规则，现已新增前置任务 `T3014a` 来补齐 same-op multi-arm dispatch 合同，并把 `T3014R` 移到其后；本轮到此停止，等待下轮先完成 `T3014a`。
 > 2026-04-17 当前轮实现更新：按最新提交复审再次点名的既有问题前置处理后，`T3014` 已完成。复查 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 后确认，`dispatch_unmatched` 当前已直接 outward propagate；本轮真实残留缺口是 handle 入口只为首个 `dispatch entry` 注册 runtime handler frame。现已新增 `allocate_registered_handler_frames` / `pop_registered_handler_frames` helper，把 handle 入口改为为 `contract.dispatch_entries()` 中的每个 op-tag 分配独立 `ScoopEffectHandlerFrame` 并逐个 push，在 `handle_done` / `handle_propagate` 两条出口按逆序逐个 pop，保证 continuation 捕获到完整的动态 handler stack。新增 LLVM IR 定向测试 `multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack` 锁定 multi-op handle 的一帧一 tag 注册；定向验证 `effect_multi_nonresuming_custom_indirect.scoop`、`effect_op_tag_two_effects_nested_dispatch.scoop`、`effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），未出现新的更早 handler-stack 失败点。当前 effect 主线下一项推进到 `T3014R`。
 > 2026-04-17 当前轮复审更新：`T3013R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`effect/state_machine_emitter.rs`、`runtime_abi.rs` 与 `runtime/c/scoop_runtime.c` 后确认，standalone `perform`、state-machine `emit_perform_op`、handle result frame read/write、arm binder readback 与 `Continuation.resume(...)` payload write/read 已统一收口到 `encode_effect_transport_value` / `decode_effect_transport_value`；composite 值统一经 typed GC box + `perform_slot.gc_ref` / frame `resume_gc_ref` / continuation `resume_gc_ref` 传递，不依赖 `ptr <-> int` 或 native-only side channel。continuation runtime trace 会显式追踪 `resume_gc_ref`，effect frame type descriptor 的 trace bitmap 也覆盖 public `resume_gc_ref` 与 runtime-only continuation slot，因此新的 transport 与 GC 可达性合同一致。定向验证 `handle_compound_result.scoop`、`effect_nonresuming_payload_struct_indirect.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_struct.scoop`、`continuation_resume_tuple.scoop`、`continuation_resume_struct_with_ref.scoop` 与 `cargo test -p scoopc async_await_ir_preserves_continuation_slot_and_perform_payload -- --nocapture` 全部通过；`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 stale `EXPECT: fail` `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`（`T3017`），未出现新的更早 transport 失败点。审查过程中再次确认 handle 入口只注册首个 op-tag 的旧问题仍存在，但该缺口已由现有 `T3014` 跟踪，与本轮 transport 合同复审独立。当前 effect 主线下一项推进到 `T3009b`。
@@ -554,15 +555,14 @@
 
 ## 4. 当前执行顺序
 
-1. `T3014a`
-2. `T3014R`
-3. `T3009b`
-4. `T3009bR`
-5. `T3015`
-6. `T3015R`
-7. `T3016`
-8. `T3016R`
-9. `T3017`
+1. `T3014R`
+2. `T3009b`
+3. `T3009bR`
+4. `T3015`
+5. `T3015R`
+6. `T3016`
+7. `T3016R`
+8. `T3017`
 10. `T3017R`
 11. `T3103`
 12. `T3104`

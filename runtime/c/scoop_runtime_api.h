@@ -60,6 +60,7 @@
   X(scoop_effect_handler_stack_unwind_to_tag) \
   X(scoop_effect_handler_stack_top) \
   X(scoop_effect_is_active) \
+  X(scoop_effect_perform_slot_read_effect_instance_key) \
   X(scoop_effect_perform_slot_read_len_words) \
   X(scoop_effect_perform_slot_read_op_tag) \
   X(scoop_effect_perform_slot_read_gc_ref) \

@@ -333,6 +333,7 @@ pub enum ExprKind {
     /// - 在 AST 中该形态通常表现为 `Effect.op(args...)` 的调用表达式；
     /// - 在后续 lowering（MIR/effect lowering）中会拥有特殊控制流语义（非普通函数调用）。
     Perform {
+        effect_ty: TypeId,
         op: EffectOpRef,
         args: Vec<CallArg>,
     },
@@ -643,6 +644,15 @@ pub struct ClassCtorParam {
 /// - LLVM codegen 需要知道“该 UnresolvedIdent 实际上是 ctor 调用”，因此这里把候选集合以 side table
 ///   的形式保留下来。
 pub type CtorCallSiteIndex = HashMap<Span, Vec<String>>;
+
+/// `nominal FQN -> ast::TypeKind` 的索引（由 HIR lowering 构建，供后端识别 effect/class/interface/...）。
+pub type NominalKindIndex = HashMap<String, ast::TypeKind>;
+
+/// `nominal FQN -> declaration-site variances` 的索引。
+pub type NominalVarianceIndex = HashMap<String, Vec<Option<ast::TypeParamVariance>>>;
+
+/// `nominal FQN -> 直接超类型 FQN 列表` 的索引。
+pub type DirectSupertypesIndex = HashMap<String, Vec<String>>;
 
 /// typecheck 已确认的 `Continuation.resume` 调用点集合（call expr span）。
 ///
