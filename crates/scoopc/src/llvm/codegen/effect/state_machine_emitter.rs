@@ -19,8 +19,9 @@ use super::unified_state_machine_skeleton::FrameSlot;
 use super::*;
 
 use super::unified_state_machine_skeleton::{
-    HandleBranchCondition, HandleStateOp, UnifiedFrameField, UnifiedFrameSystemField,
-    UnifiedHandleLoweringContract, UnifiedState, UnifiedStateContext, UnifiedStateTerminator,
+    HandleBranchCondition, HandleStateOp, SuspendSiteKind, UnifiedFrameField,
+    UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState, UnifiedStateContext,
+    UnifiedStateTerminator,
 };
 
 /// System field indices in the frame struct.
@@ -1243,7 +1244,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
 
-            UnifiedStateTerminator::Suspend { resume_state, .. } => {
+            UnifiedStateTerminator::Suspend {
+                site_id,
+                resume_state,
+            } => {
+                let site = contract.machine().get_suspend_site(*site_id).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "suspend terminator site metadata",
+                        at: span.into(),
+                    },
+                )?;
+                let resume_bb = self.lookup_state_bb(*resume_state, state_bb_map, span)?;
+
+                if Self::suspend_site_uses_inactive_continue_path(site.kind()) {
+                    let inactive_continue_bb = self
+                        .context
+                        .append_basic_block(step_fn, &format!("site{site_id}_inactive"));
+                    let active_suspend_bb = self
+                        .context
+                        .append_basic_block(step_fn, &format!("site{site_id}_active"));
+                    let is_active =
+                        self.emit_effect_is_active_i1(span, &format!("site{site_id}_is_active"))?;
+
+                    self.builder.build_conditional_branch(
+                        is_active,
+                        active_suspend_bb,
+                        inactive_continue_bb,
+                    )?;
+
+                    self.builder.position_at_end(inactive_continue_bb);
+                    let call_result = last_value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "suspend call inactive continuation result",
+                        at: span.into(),
+                    })?;
+                    self.store_result_to_frame(span, call_result, state_ptr, frame_layout)?;
+                    self.builder.build_unconditional_branch(resume_bb)?;
+
+                    self.builder.position_at_end(active_suspend_bb);
+                }
+
                 // Save the resume state_tag so step_fn re-enters at the
                 // right state after the handler arm resumes.
                 self.write_state_tag(
@@ -1580,6 +1619,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i32_type().const_int(0, false),
             &format!("{name}_bool"),
         )?)
+    }
+
+    fn suspend_site_uses_inactive_continue_path(kind: &SuspendSiteKind) -> bool {
+        matches!(
+            kind,
+            SuspendSiteKind::CallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ClassCtorInit { .. }
+        )
     }
 
     /// Return `true` iff `state_tag` equals one of the provided state IDs.

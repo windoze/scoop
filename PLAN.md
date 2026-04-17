@@ -26,6 +26,7 @@
 > 2026-04-17 当前轮拆分完成更新：真正开始实现 `T3009b0a1` 后，用临时 repro 与 focused fixture 草案复现发现，当前 `k.resume(...)` 虽已能继续执行 resumed body，但 caller-tail 仍会在 `body_after` / `body_resumed` 处截断；因此“`resume()` 返回点可见的 outer-local 已同步”这一 run-pass 验收实际上受 `T3009b0` 阻塞，不能与写回合同基础设施绑成同一个任务。顺序因此再次细化为：`T3009b0a1a`（本轮完成：把 authoritative outer-slot writeback target 收口进 effect frame metadata，并接到统一 step-return 出口）→ `T3009b0`（先接回 escaped continuation 的 caller-tail / scalar-ref resume lowering 正式验收）→ `T3009b0a1b`（随后新增 focused fixture，直接观测 `resume()` 返回点的 outer-local 同步）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。`T3009b0a1a` 已新增 LLVM IR 单测 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`，锁定 frame metadata + step-return writeback 基础设施。
 > 2026-04-17 当前轮重新定位更新：真正按 `T3009b0` 验收继续复现后，发现更前置的 shared blocker 不是 payload transport，而是 unified `RuntimeRaiseBoundary` 合同本身。当前 `Continuation.resume(...)` 与 `x as T` 这类 boundary expression 在 state machine 中都被建模成“求值后无条件 `Suspend`”：例如 `try { k.resume(()) ; ... } catch` 的 step function 会先调用 `scoop_continuation_resume(...)`，随后立刻 `alloc continuation + set_active + return`；`type_check_cast_is_as_asq_basic.scoop` 也在首个成功 `as` 后就停在 `x is Base: true`。这说明 inactive 成功路径没有继续 caller-tail，而是被错误截断。由于这个缺口比 escaped continuation dedicated lowering 更基础、且当前未被 `TODO.md` 跟踪，顺序再次前移为：`T3009b0a1a`（已完成）→ `T3009b0a2`（先修 shared `RuntimeRaiseBoundary` 的 inactive-continue / active-dispatch 合同）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref dedicated lowering 正式验收）→ `T3009b0a1b` → `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
 > 2026-04-17 当前轮再定位更新：真正开始落地 `T3009b0a2` 时，用最小 repro `handle { helper(false) + 1 } with { Ask.ask() -> 2 }` 发现 shared blocker 还要更前置：不仅 `RuntimeRaiseBoundary`，连 `SuspendCall`（至少覆盖 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit`）的 inactive 成功路径也仍被统一 terminator 误当成“求值后无条件 suspend”。`helper(false)` 明明没有 perform，程序却直接空输出退出，本应打印 `8`。这说明当前缺口并非 `RuntimeRaiseBoundary` 独有，而是 call-like boundary 的 inactive-continue / active-dispatch 合同仍未真正接通。由于这个问题会先于 `T3009b0a2` 暴露、且当前未被 `TODO.md` 显式跟踪，顺序再次前移为：`T3009b0a1a`（已完成）→ `T3009b0a1c`（先修 unified `SuspendCall` 的 inactive-continue / active-dispatch 合同）→ `T3009b0a1cR` → `T3009b0a2`（再收口 shared `RuntimeRaiseBoundary`）→ `T3009b0`（随后继续 escaped continuation 的 scalar/ref dedicated lowering / caller-tail）→ `T3009b0a1b` → `T3009b0aR` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
+> 2026-04-17 当前轮完成更新：`T3009b0a1c` 已完成。`UnifiedStateTerminator::Suspend` 现已对 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit` 三类 call boundary 统一执行 TLS active 分流：callee 返回 inactive 时，把 call 结果写入 frame resume 槽并直接 branch 到 `resume_state`；只有 active 时才继续分配 continuation、保留 outward dispatch。已新增 fixture `effect_handle_suspend_call_inactive_helper_basic.scoop`，同时锁定 inactive caller-tail 与 active resume dispatch；并复跑 `effect_handle_hidden_suspend_local_closure_helper_basic.scoop` 确认 `CallMaySuspend` 现有 active-path 未回退。验证通过：两条定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。下一步进入 `T3009b0a1cR`，只审查生产代码是否仍保持单一 state-machine 合同。
 
 ## 0. 工作原则
 
@@ -409,7 +410,7 @@
 #### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
-- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（先修 unified `SuspendCall` 的 inactive-continue / active-dispatch 合同）→ `T3009b0a1cR` → `T3009b0a2`（再收口 shared `RuntimeRaiseBoundary`）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
+- 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1cR` → `T3009b0a2`（再收口 shared `RuntimeRaiseBoundary`）→ `T3009b0`（再完成 escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（caller-tail 接通后再做 focused fixture 可观测验收）→ `T3009b0aR` → `T3009b0R` → `T3010b2b1b`（在 dedicated resume lowering 接通后，再重新基线化剩余 unified value coercion / expected-context 缺口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
 
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
@@ -518,31 +519,30 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b0a1c`
-2. `T3009b0a1cR`
-3. `T3009b0a2`
-4. `T3009b0`
-5. `T3009b0a1b`
-6. `T3009b0aR`
-7. `T3009b0R`
-8. `T3010b2b1`
-9. `T3010b2b`
-10. `T3010R`
-11. `T3011`
-12. `T3011R`
-13. `T3012`
-14. `T3012R`
-15. `T3013`
-16. `T3013R`
-17. `T3009b`
-18. `T3009bR`
-19. `T3014`
-20. `T3014R`
-21. `T3015`
-22. `T3015R`
-23. `T3016`
-24. `T3016R`
-25. `T3017`
+1. `T3009b0a1cR`
+2. `T3009b0a2`
+3. `T3009b0`
+4. `T3009b0a1b`
+5. `T3009b0aR`
+6. `T3009b0R`
+7. `T3010b2b1`
+8. `T3010b2b`
+9. `T3010R`
+10. `T3011`
+11. `T3011R`
+12. `T3012`
+13. `T3012R`
+14. `T3013`
+15. `T3013R`
+16. `T3009b`
+17. `T3009bR`
+18. `T3014`
+19. `T3014R`
+20. `T3015`
+21. `T3015R`
+22. `T3016`
+23. `T3016R`
+24. `T3017`
 26. `T3017R`
 27. `T3103`
 28. `T3104`

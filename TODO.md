@@ -842,8 +842,17 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a
 
-### T3009b0a1c [TODO] 修正 unified `SuspendCall` 的 inactive-continue / active-dispatch 合同
+### T3009b0a1c [DONE] 修正 unified `SuspendCall` 的 inactive-continue / active-dispatch 合同
 - 描述：开始真正实现 `T3009b0a2` 时，用最小 repro `handle { helper(false) + 1 } with { Ask.ask() -> 2 }` 重新复现后确认，当前更前置的 shared blocker 并不只在 `RuntimeRaiseBoundary`。unified state-machine 里由 `SuspendCall` 承接的 call boundary（至少覆盖 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit`）仍被统一 terminator 建模成“求值后无条件 `Suspend`”：`helper(false)` 明明没有 perform，程序却直接空输出退出，本应打印 `8`。这说明 inactive 成功路径没有留在当前 state machine 内继续执行 caller-tail，而是被错误地分配 continuation、设置 active 并交回 dispatch。由于这个合同比 `RuntimeRaiseBoundary` 更基础，且 `T3009b0a2` 依赖同一条 caller-tail / resume-fragment 主线，必须先前移修复。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中收口 `UnifiedStateTerminator::Suspend`：对 `CallMaySuspend` / `CallStateMachineCallee` / `ClassCtorInit` 三类 `SuspendCall` site，先读取 TLS active；inactive 时把 call 结果写回 frame resume 槽并直接 branch 到 `resume_state`，active 时才走原有 continuation alloc + dispatch 返回路径。
+  - 修复保持在统一 state-machine emitter 内完成，没有把 inactive-path 补丁散回普通 call codegen、callee 名称分支或源码形状判断。
+  - 已新增 run-pass fixture `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`，同时锁定 inactive caller-tail 继续执行与 active resume dispatch 两条路径。
+  - 已验证：
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - `SuspendCall` 驱动的 call boundary 在 callee 返回 inactive 时，必须留在当前 state machine 内继续执行 caller-tail，不能无条件 `alloc continuation + set active + return`。
   - 只有 callee 确实让 TLS active 时，当前 step function 才把控制权交回 enclosing `handle` 的 dispatch loop 或继续向外传播。
