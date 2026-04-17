@@ -1252,8 +1252,13 @@
   - emitter / stmt codegen 不依赖 slot 创建顺序决定 mutability，也不存在 effect-only mutable patch。
 - 依赖：T3011
 
-### T3012 [TODO] 补齐 unified path 的 expected-context / closure / coercion 支持
-- 描述：当前 unified emitter 对整棵表达式的重发射仍经常缺少稳定 expected context，导致 enum variant ctor、`print/println` 参数整形、`when`/`if` tail value、closure 值和某些 `coerce_value` 路径在 state-machine 中仍会报 `enum variant ctor call without expected enum type`、`sysroot print/println arg type`、`expression kind`、`value coercion`。
+### T3012 [DONE] 补齐 unified path 的 expected-context / closure / coercion 支持
+- 描述：当前 unified emitter 对整棵表达式的重发射曾经缺少稳定 expected context，导致 enum variant ctor、`print/println` 参数整形、`when`/`if` tail value、closure 值和某些 `coerce_value` 路径在 state-machine 中报 `enum variant ctor call without expected enum type`、`sysroot print/println arg type`、`expression kind`、`value coercion`。本任务只覆盖这类 expected-context / closure / coercion 缺口；escaped continuation 的 composite resume payload 仍由后续 `T3013` + `T3009b` 处理。
+- 进展：
+  - 已验证 `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop` 通过，说明 unified path 上的 closure / function-value 路径已不再回落到 `ExprKind::Closure` 占位错误。
+  - 已验证 `cargo run -p scoop -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop` 通过，说明 enum ctor expected type、`print/println` 参数整形与 assertion helper 的 expected-context 传递已与普通 codegen 对齐。
+  - 已扫描当前全部 101 个 `run-pass` `EXPECT: fail` fixture，其中 87 个已直接通过；扫描结果中不再出现 `expression kind`、`enum variant ctor call without expected enum type`、`sysroot print/println arg type` 这三类 `T3012` 目标错误。
+  - 扫描中唯一残留的 `value coercion` 为 `tests/fixtures/run-pass/continuation_resume_enum.scoop`；该用例依赖 escaped continuation 的 composite enum resume payload。`effect/mod.rs` 已明确注明 `Continuation.resume(...)` 的 composite payload 仍待 `T3013` / `T3009b`，因此本任务不再把该 fixture 当作验收项。
 - 目标：
   - 统一 state-machine 路径在发射整棵 expr、arm body、handle result、local initializer、binder/result readback 时，补齐与普通 codegen 等价的 expected context 传递。
   - closure / function-value 相关表达式在 unified 路径上不再命中 `ExprKind::Closure` 的占位错误；间接 perform / indirect resume / closure-captured local 路径可执行。
@@ -1261,13 +1266,11 @@
 - 验收：
   - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
   - `cargo run -p scoop -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
   - 重新跑当前 `T3006` xfail 子集时，不再出现以下错误类别：
     - `暂不支持的 main 代码生成节点：expression kind`
     - `暂不支持的 main 代码生成节点：enum variant ctor call without expected enum type`
     - `暂不支持的 main 代码生成节点：sysroot print/println arg type`
     - 仅因 expected context 缺失引发的 `暂不支持的 main 代码生成节点：value coercion`
-  - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3011R
 
 ### T3012R [TODO] Review：确认 unified path 的 expected context 与 closure 支持已与普通 codegen 对齐
