@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-17 当前轮验收更新：重新执行 `T3010b2b1` 的四个验收 fixture：`effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_arm_raise.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop` 与 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`，现已全部通过。继续复跑 `cargo run -p scoop --features llvm -- test` 后，suite 的首个失败点已前移到 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该问题已由 `T3017` 跟踪。这说明 arm-body nested/indirect outward propagation / cleanup 语义已不再是更早 blocker，`T3010b2b1` 可记为完成，当前顺序推进到 `T3010b2b`。
 > 2026-04-16 更新：`T3007R` 之后 effect 主线并未真正语义闭环；`T3008aR` 已完成并确认 frame/continuation ABI 无 verifier-hack 残留。`T3009` 的试探实现进一步确认它受 expression-fragment 重算缺口与 `T3013` 的 composite payload transport 缺口阻塞。为避免把“纯表达式拆片错误”“body tail 的 resume 值注入”和“arm 内 `resume(value)` 专用 lowering”继续混在同一任务里，`T3010` 已细化为：`T3010a`（已完成：清理纯表达式 fragment-only op）、`T3010b1`（已完成：冻结 `resume_path` 合同）、`T3010b2a`（已完成：在 resume state 中引入 synthetic resume slot，并把后续 HIR payload 改写为读取该 slot）、`T3010b2aR`（已完成：收紧 `ResumeAfterSite` 边界，确认 emitter 未回扫 AST）、`T3009a`（本轮完成：接通 immediate-resume arm 的 `resume(value)` 专用 lowering）、`T3009aR`（下一步：review dedicated lowering 是否仍可能回落到 generic call）和 `T3010b2b`（随后回到端到端 post-suspend tail 验收）。原 `T3009` 现收窄为 `T3009b`：只覆盖 escaped continuation 的 `Continuation.resume(...)` 与 composite payload，继续排在 `T3013R` 之后。
 > 2026-04-17 更新：`T3009aR` 已完成后，`T3010b2b` 的定向修复已接通多条 comparison / branch / nested-block / mixed-raise fixture，并修复了 outer slot metadata、initial frame seed 与 continuation `resume_state_tag` runtime 回归。但重新跑全量 `cargo run -p scoop --features llvm -- test` 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；结合 `effect_resume_finally_arm_raise.scoop` 与 `effect_multi_nonresuming_raise_custom_finally.scoop` 的复跑结果，确认当前更前置的 blocker 是“arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup”统一语义缺口。因此将 `T3010b2b` 拆为前置的 `T3010b2b1`（先修 arm body 语义）与后续的 `T3010b2b`（继续 post-suspend tail 验收）。
 > 2026-04-17 进一步复现更新：继续验证 `effect_multi_nonresuming_raise_custom_finally.scoop` 时发现，阻塞并不只在 arm body。`throwAlarm()` 内部的 `Alarm.trip(...)` 之后仍会继续执行 `throw_alarm_unreachable`；`nothing_raise_in_helper_basic.scoop` 里的 `alwaysFail()` 也会在 `Raise.raise(...)` 后继续打印 `unreachable_in_helper`。这说明在继续 `T3010b2b1` 前，还缺一个更基础的前置条件：普通 callee frame 在 non-resuming perform 后必须终止自身执行，而不能只写 active flag 后继续跑到后续语句。因此顺序进一步细化为 `T3010b2b0`（先修普通 callee frame 的 non-resuming perform 终止语义）→ `T3010b2b0R` → `T3010b2b1` → `T3010b2b`。
@@ -420,7 +421,9 @@
   - `target/debug/scoop test`（首个失败点仍是已知 blocker `effect_escape_continuation_finally_arm_raise.scoop`，对应 `T3010b2b1`）
 - 审查结论：**non-resuming callee frame 终止语义已统一收口，且未回流旧 flag-based unwind / shape-based 路线**。ordinary callee 只读取 TLS active 并按统一 early-return 合同终止自身；caller-side state-machine dispatch 仍独立接管 active。
 
-#### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（待办）
+#### T3010b2b1：修正 handle arm body 内 non-resuming effect 的外传 / self-inactive / finally cleanup 语义（已完成）
+- 2026-04-17 当前轮完成更新：重新执行 `effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_arm_raise.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop` 与 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 后，四条 targeted LLVM run-pass fixture 全部通过。说明 direct arm-body raise/helper、escape continuation arm、pure non-resuming source-handle，以及 nested/indirect perform outward propagation 现已统一落在同一套 cleanup / finally / outward propagation 合同上。
+- 继续复跑 `cargo run -p scoop --features llvm -- test` 后，suite 已不再在 arm-body outward propagation 语义上更早失败；当前首个失败点是 `continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，已由 `T3017` 跟踪。因此本任务无需再拆分新前置，下一项可直接回到 `T3010b2b`。
 - 2026-04-17 复跑全量 LLVM fixture 后，首个失败点推进到 `effect_escape_continuation_finally_arm_raise.scoop`；定向复跑 `effect_resume_finally_arm_raise.scoop` 也确认 arm body 中的 `Raise.raise(...)` 仍会继续落到 `arm_unreachable`，sibling `Raise.raise` arm 仍会自捕获，`finally` 也没有在向外传播前执行。
 - `T3010b2b0` 完成后，`effect_multi_nonresuming_raise_custom_finally.scoop` 中普通 helper frame 已不再继续执行 `throw_alarm_unreachable`，说明更基础的 ordinary callee propagation 缺口已关闭；该 fixture 剩余的 `mixed_finally` / outer catch / sibling self-capture 缺口现明确归本任务处理。
 - 当前顺序已进一步细化为：`T3010b2b1a`（已完成：direct 路径）→ `T3010b2b1b0`（已完成：synthetic resume slot id / frame seeding）→ `T3009b0a`（已完成：outer-scope slot 收集 + 初次 handle 退出写回）→ `T3009b0a1a`（已完成：frame-metadata writeback target + step-return 出口）→ `T3009b0a1c`（已完成：统一 `SuspendCall` 的 inactive-path / active-dispatch 分流）→ `T3009b0a1d`（已完成：补齐 `ObjectInitAccessBoundary` inactive-path）→ `T3009b0a1dR`（已完成：确认 inactive-path 仍只按统一合同分流）→ `T3009b0a1e`（已完成：补齐 `NestedHandleBoundary` inactive-path）→ `T3009b0a1eR`（已完成：确认 nested-handle inactive-path 未回流为旁路补丁）→ `T3009b0a1cR`（已完成：确认 call-like inactive-path 未回流成普通 call/ordinary helper 补丁）→ `T3009b0a2`（已完成：共享 `RuntimeRaiseBoundary` inactive-path / active-dispatch 分流）→ `T3009b0`（已完成：escaped continuation 的 scalar/ref resume dedicated lowering / caller-tail）→ `T3009b0a1b`（已完成：focused fixture 可观测验收 resumed completion path 的 outer-slot 写回）→ `T3009b0aR`（已完成：确认 outer-slot 写回仍只由 frame metadata + shared exits 驱动）→ `T3009b0R`（已完成：确认 dedicated resume lowering 未回流 generic call）→ `T3010b2b1b`（已完成：rebaseline 后确认不存在独立 expected-context/coercion 缺口）→ `T3010b2b1b1`（先同步 `handle_perform` MIR golden，恢复全量 fixture 验证入口）→ `T3010b2b1`（剩余 nested/indirect outward propagation 验收）。
@@ -428,7 +431,7 @@
 #### T3010b2b：基于 synthetic resume slot + immediate-resume lowering 回到端到端 post-suspend tail 验收（待办）
 - 已完成的前置修复包括：`while` / `if` branch condition 读取集补齐、outer slot authoritative metadata 回填、首次进入 `step_fn` 前 seeding outer locals/params 到 frame、以及 continuation `resume_state_tag` 仅在显式设置时才写回 frame。
 - 在这些修复之后，`effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop`、`async_await_minimal_int_basic.scoop` 与多条 comparison / branch / nested-block / mixed-raise fixture 已恢复到 passing 基线。
-- 待 `T3010b2b1` 收口 arm-body non-resuming effect 语义后，再继续验收 `effect_resume_yield_int_basic.scoop` 与当前 xfail 子集中的 `comparison lhs` / `integer binary op lhs` / `equality lhs` 等 body-tail case，目标是确认 resume landing 只继续剩余 tail，而不是再回到原 suspend site。
+- `T3010b2b1` 已完成；当前可直接继续验收 `effect_resume_yield_int_basic.scoop` 与当前 xfail 子集中的 `comparison lhs` / `integer binary op lhs` / `equality lhs` 等 body-tail case，目标是确认 resume landing 只继续剩余 tail，而不是再回到原 suspend site。
 
 ### 阶段 G：effect 主线收口后，切回 `do` block / closure 消歧
 
@@ -532,25 +535,24 @@
 
 ## 4. 当前执行顺序
 
-1. `T3010b2b1`
-2. `T3010b2b`
-3. `T3010R`
-4. `T3011`
-5. `T3011R`
-6. `T3012`
-7. `T3012R`
-8. `T3013`
-9. `T3013R`
-10. `T3009b`
-11. `T3009bR`
-12. `T3014`
-13. `T3014R`
-14. `T3015`
-15. `T3015R`
-16. `T3016`
-17. `T3016R`
-18. `T3017`
-19. `T3017R`
+1. `T3010b2b`
+2. `T3010R`
+3. `T3011`
+4. `T3011R`
+5. `T3012`
+6. `T3012R`
+7. `T3013`
+8. `T3013R`
+9. `T3009b`
+10. `T3009bR`
+11. `T3014`
+12. `T3014R`
+13. `T3015`
+14. `T3015R`
+15. `T3016`
+16. `T3016R`
+17. `T3017`
+18. `T3017R`
 22. `T3103`
 23. `T3104`
 24. `T3201`

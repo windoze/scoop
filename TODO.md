@@ -1131,8 +1131,11 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2b1b
 
-### T3010b2b1 [TODO] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
+### T3010b2b1 [DONE] 收口 handle arm body nested/indirect non-resuming effect 的剩余外传 / self-inactive / finally 验收
 - 描述：`T3010b2b1a` 已接通 direct arm-body raise/helper call、arm return/finally、以及 no-perform handle result；`T3010b2b1b` 已重新基线化并确认不存在独立的 unified value coercion / expected-context 前置，当前先恢复 MIR fixture 验证入口（`T3010b2b1b1`），再回到原始语义目标：继续验证 nested handle、indirect perform、resume 后再 perform 等 arm-body 场景，确认它们与 direct 路径共享同一套 outward propagation / cleanup 语义。
+- 进展：
+  - 已重新执行 `effect_resume_finally_arm_raise.scoop`、`effect_escape_continuation_finally_arm_raise.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop` 与 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`，四个验收 fixture 全部通过；说明 immediate-resume、escape continuation、pure non-resuming source-handle，以及 arm body nested/indirect perform 路径都已共享同一套 outward propagation / cleanup 语义。
+  - 已复跑 `cargo run -p scoop --features llvm -- test`；suite 不再在 arm-body outward propagation 语义上更早失败，当前首个失败点为 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该 expectation cleanup 已由 `T3017` 跟踪，不再阻塞本任务收口。
 - 目标：
   - arm body 中 nested/indirect 触发的 unmatched non-resuming effect 同样不得落回当前 handle 的正常完成路径；必须先经过 cleanup / `finally`，再继续向外传播。
   - immediate-resume、escape continuation 与 pure non-resuming source-handle 在 arm body 内共享同一套 direct + nested/indirect outward propagation 语义。
@@ -1143,6 +1146,14 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
   - `cargo run -p scoop --features llvm -- test`
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_arm_raise.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_nonresuming_raise_custom_finally.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2b1b1
 
 ### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
@@ -1150,7 +1161,7 @@
 - 进展：
   - 已修复 `while` / `if` branch condition 未进入 `state.reads`、outer slot 首次建模时类型退化为 `Any`、handle 首次进入 `step_fn` 前未 seed outer locals/params 到 effect frame，以及 continuation `resume_state_tag` 误写回 frame 的 runtime 回归。
   - `effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop`、`async_await_minimal_int_basic.scoop`，以及多条 comparison / branch / nested-block / mixed-raise 相关 fixture 已恢复到稳定 passing 基线。
-  - 全量 LLVM fixture 现已推进到 arm body non-resuming effect 语义缺口，因此本任务在完成前先依赖 `T3010b2b1`。
+  - `T3010b2b1` 已完成；全量 LLVM fixture 不再被 arm-body non-resuming effect 语义更早阻塞，当前首先停在 `T3017` 跟踪的 stale `EXPECT: fail`。因此本任务现可作为下一项继续推进。
 - 目标：
   - 基于 `resume_path` + synthetic resume slot + immediate-resume lowering，为真正跨 suspend 的复合表达式接通可执行的 post-suspend tail。
   - `BindLocal` / `Assign` / `Return` / branch / expression statement 对跨 suspend 表达式都消费同一套恢复片段合同，而不是各自局部重算。
