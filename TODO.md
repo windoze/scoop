@@ -1156,12 +1156,14 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3010b2b1b1
 
-### T3010b2b [TODO] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
+### T3010b2b [DONE] 基于 synthetic resume slot + immediate-resume lowering 接通可执行的 post-suspend continuation tail，禁止 resume 后重放原表达式
 - 描述：`T3010b2a` 已把 body tail 改写到 synthetic resume slot，`T3009a` 将补上 arm 内 `resume(value)` 的专用 lowering。两者接通后，再回到端到端语义收口：resume landing 只能继续剩余 tail，不能重放 suspend 前已经求值的路径。
 - 进展：
   - 已修复 `while` / `if` branch condition 未进入 `state.reads`、outer slot 首次建模时类型退化为 `Any`、handle 首次进入 `step_fn` 前未 seed outer locals/params 到 effect frame，以及 continuation `resume_state_tag` 误写回 frame 的 runtime 回归。
   - `effect_resume_yield_int_basic.scoop`、`effect_resume_finally_normal.scoop`、`async_await_minimal_int_basic.scoop`，以及多条 comparison / branch / nested-block / mixed-raise 相关 fixture 已恢复到稳定 passing 基线。
-  - `T3010b2b1` 已完成；全量 LLVM fixture 不再被 arm-body non-resuming effect 语义更早阻塞，当前首先停在 `T3017` 跟踪的 stale `EXPECT: fail`。因此本任务现可作为下一项继续推进。
+  - 已对当前全部带 `EXPECT: fail` 的 run-pass fixture 扫描 `member access target` / `comparison lhs|rhs` / `equality lhs` / `integer binary op lhs` 错误类别，确认这些 body-tail fragment 错误已全部消失。
+  - 已将 `effect_resume_finally_body_raise_after_resume.scoop`、`effect_resume_nested_escape_handle_tail.scoop`、`effect_resume_mixed_escape_direct_finally.scoop` 与 `effect_resume_mixed_source_path_matrix.scoop` 临时移除 `EXPECT: fail` 头后按普通 fixture 复验，`fixtures: ok (4)`；说明 resumed tail、nested escape handle 与 mixed source-path cleanup 已可按正常 run-pass 通过。
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个失败点为 `tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，该问题仍由 `T3017` 跟踪，不再属于本任务缺口。
 - 目标：
   - 基于 `resume_path` + synthetic resume slot + immediate-resume lowering，为真正跨 suspend 的复合表达式接通可执行的 post-suspend tail。
   - `BindLocal` / `Assign` / `Return` / branch / expression statement 对跨 suspend 表达式都消费同一套恢复片段合同，而不是各自局部重算。
@@ -1175,6 +1177,15 @@
     - `暂不支持的 main 代码生成节点：equality lhs`
     - `暂不支持的 main 代码生成节点：integer binary op lhs`
   - `cargo run -p scoop --features llvm -- test`
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_normal.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`
+  - 对当前全部 `EXPECT: fail` 的 run-pass fixture 扫描 `member access target` / `comparison lhs|rhs` / `equality lhs` / `integer binary op lhs`：无命中
+  - 临时复制并移除 `EXPECT: fail` 头后运行 `target/debug/scoop test --fixtures "$tmpdir"`：`effect_resume_finally_body_raise_after_resume.scoop`、`effect_resume_nested_escape_handle_tail.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test`（首个失败点：`tests/fixtures/run-pass/continuation_resume_continuation.scoop` 的 stale `EXPECT: fail`，由 `T3017` 跟踪）
 - 依赖：T3010b2b1
 
 ### T3010R [TODO] Review：确认 state-machine 生产 op 不再包含“先拆 fragment 再整棵重算”的双轨语义
