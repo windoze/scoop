@@ -1418,8 +1418,33 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3014
 
+### T3014b [TODO] 修正 ordinary hidden-suspend `Raise.raise(RuntimeError.*)` 路径的 `effect_instance_key` 回归
+- 描述：执行 `T3014R` 复审时，先补齐 `tests/fixtures/hir/handle_mixed_arm_kinds.hir` 与 `tests/fixtures/hir/safe_call_not_null_assert.hir` 的 `Perform.effect_ty` stale golden 后，复跑 `cargo run -p scoop --features llvm -- test` 暴露出新的生产回归：`tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop` 直接运行会报 `UnsupportedMainBody { kind: "effect instance key" }`。这说明 same-op dispatch 引入 `effect_instance_key` 合同后，ordinary `perform` lowering 在 hidden-suspend class ctor / object property helper 路径上仍不能为 `Raise.raise(RuntimeError.*)` 产出稳定 key；既有 `T3010b2b0a0` run-pass 基线因此重新失效，必须先作为 `T3014R` 的前置缺口收口。
+- 目标：
+  - `codegen_perform_expr` 及其相邻 lowering 在 ordinary hidden-suspend path 上处理 `Raise.raise(RuntimeError.*)` 时，能够稳定得到与统一 dispatch 合同一致的 `effect_instance_key`，不再报 `unsupported_main_body`。
+  - class ctor / object property / helper 这条 hidden-suspend ordinary propagation 路径继续保持 `T3010b2b0a0` 已锁定的“当前 callee 立即终止、outer try/catch 命中、caller tail 不继续执行”语义。
+  - 修复必须走统一 effect-instance key 合同，不得为 runtime error raise 或 hidden-suspend helper 单独塞源码形状特判。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/object_property_init_raise_helper_try_catch_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test` 不再首先停在 `class_init_hidden_raise_helper_try_catch_basic.scoop`
+- 依赖：T3014a、T3010b2b0R
+
+### T3014bR [TODO] Review：确认 hidden-suspend runtime-error raise lowering 已按统一 `effect_instance_key` 合同收口
+- 描述：在 `T3014b` 之后只审查生产代码，确认 ordinary `perform` lowering、runtime Raise helper 与 hidden-suspend class/object-init 路径对 `Raise.raise(RuntimeError.*)` 使用的是同一套 `effect_instance_key` 合同，而不是为跑过 fixture 临时加 fallback；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `Raise.raise(RuntimeError.*)` 在 ordinary 路径与 unified state-machine 路径之间没有分叉的 effect-instance key 语义。
+  - 确认 hidden-suspend helper / ctor / object property 路径没有回流 shape-based、fixture-based 或 runtime-error-only 特判。
+  - 确认 `T3010b2b0a0` 已锁定的 ordinary propagation 语义仍成立，没有被 `T3014a` 的 dispatch key 改动破坏。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“hidden-suspend runtime-error raise lowering 已按统一 `effect_instance_key` 合同收口，无 ordinary-path fallback 残留”。
+- 依赖：T3014b
+
 ### T3014R [TODO] Review：确认 multi-op handler registration 与 unmatched propagation 已与合同一致
-- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；本轮复审进一步发现同一 `op_fqn` 多 arm 的 dispatch 合同尚未闭环，已拆出前置 `T3014a`。待该前置任务完成后，本任务再继续确认 registration / outward propagation / dispatch 合同已经统一收口；若发现问题，本任务需要直接修复并复审。
+- 描述：在 `T3014` 之后只审查生产代码，确认 multi-op handler registration 与 unmatched propagation 已形成统一语义，而不是在 dispatch loop 里拼临时分支把个别 fixture 打绿；此前复审已先后拆出 same-op multi-arm dispatch 前置缺口 `T3014a`，以及本轮全量验证中新暴露的 ordinary hidden-suspend runtime-error raise regression `T3014b`。待这些前置任务完成后，本任务再继续确认 registration / outward propagation / dispatch 合同已经统一收口；若发现问题，本任务需要直接修复并复审。
 - 目标：
   - 确认 runtime handler registration 与 contract `dispatch_entries()` 一一对应。
   - 确认 unmatched perform 的传播路径不再穿过 `handle_done` 正常完成路径。
@@ -1427,7 +1452,7 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“multi-op handler registration 与 unmatched propagation 已按统一合同收口，无吞 effect 的错误完成路径残留”。
-- 依赖：T3014a
+- 依赖：T3014bR
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
 - 描述：`T3009b0` 会先接通 escaped continuation 的 Unit/标量/GC-ref payload 专用 lowering；`T3013`/`T3013R` 会统一完成 composite value transport。本任务在其后再把两者接回：让 `k.resume(value)` 在保留 dedicated lowering 的同时覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，而不是回退到 generic path 或另起 continuation-only 传输通道。

@@ -153,6 +153,9 @@ File {
                                                                                                                         0,
                                                                                                                     ),
                                                                                                                     kind: Perform {
+                                                                                                                        effect_ty: TypeId(
+                                                                                                                            0,
+                                                                                                                        ),
                                                                                                                         op: EffectOpRef {
                                                                                                                             span: 284..288,
                                                                                                                             fqn: "fixtures.hir.Yield.next",
@@ -284,6 +287,9 @@ File {
                                                                                                                                     0,
                                                                                                                                 ),
                                                                                                                                 kind: Perform {
+                                                                                                                                    effect_ty: TypeId(
+                                                                                                                                        0,
+                                                                                                                                    ),
                                                                                                                                     op: EffectOpRef {
                                                                                                                                         span: 370..377,
                                                                                                                                         fqn: "fixtures.hir.Ask.current",
@@ -364,6 +370,9 @@ File {
                                                                                                                                 0,
                                                                                                                             ),
                                                                                                                             kind: Perform {
+                                                                                                                                effect_ty: TypeId(
+                                                                                                                                    0,
+                                                                                                                                ),
                                                                                                                                 op: EffectOpRef {
                                                                                                                                     span: 432..436,
                                                                                                                                     fqn: "fixtures.hir.Boom.boom",
