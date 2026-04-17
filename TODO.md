@@ -807,8 +807,32 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b1a
 
+### T3009b0a [TODO] 把 unified handle frame 中 outer-scope `var` slot 的写回接回 enclosing locals
+- 描述：开始执行 `T3009b0` 的首个目标 fixture 后，`effect_escape_continuation_resume_unit.scoop` 已不再报 `暂不支持的 main 代码生成节点：call callee`，但 escape arm 中的 `saved = Some(k)` 离开 `handle` 后仍然读到 `None`。当前 unified path 只在 `codegen_handle_expr_via_state_machine` 入口通过 `seed_outer_scope_frame_slots` 把 outer locals/params 复制到 effect frame，却没有在 handle 正常完成后把被 frame 改写的 outer-scope mutable slot 写回原来的 enclosing local alloca，导致 arm body / finally / handle body 对外层 `var` 的赋值丢失。这个更前置缺口当前未在 TODO 中显式跟踪，但它会直接阻塞 escaped continuation 被保存出来，因而必须先于 `T3009b0` 修复。
+- 目标：
+  - 明确 unified contract 中哪些 frame slot 代表 seeded outer-scope locals/params，并在 handle 完成路径把这些 authoritative slot 写回原 enclosing locals。
+  - 只对真实 outer-scope mutable locals/params 执行写回；arm binder、synthetic resume slot、capture-only temp 与 handle 内部局部不得被误写回。
+  - handle body、escape arm 与 finally 对 outer `var` 的赋值在离开 handle 后必须可见，不能依赖 effect-only side channel 或副本语义。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3010b2b1b0
+
+### T3009b0aR [TODO] Review：确认 outer-scope slot 写回没有回流成 effect-only patch
+- 描述：在 `T3009b0a` 之后只审查生产代码，确认 outer-scope local 的写回是统一合同的一部分，而不是在 `Continuation.resume` / escape arm / 单个 fixture 路径上额外打补丁；若发现只对特定 effect 场景生效的 patch，本任务需要直接修复并复审。
+- 目标：
+  - 确认 outer-scope seeded slot 的 authoritative 来源与写回目标都由统一 frame metadata 驱动，不依赖 arm kind、callee 名称或 fixture 形状。
+  - 确认 handle 完成路径上的写回覆盖普通 body、arm body 与 finally，而不是只覆盖 escaped continuation 保存场景。
+  - 确认当前 dedicated `Continuation.resume` lowering 仍只负责 runtime resume/payload transport，不偷偷承担 outer-local 同步职责。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“outer-scope slot 写回已统一收口，且未回流为 effect-only patch”。
+- 依赖：T3009b0a
+
 ### T3009b0 [TODO] 为 escaped continuation 的 `Continuation.resume(...)` 先接回 scalar/ref payload 专用 lowering
-- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。由于这批 repro 只覆盖 Unit/Bool/String 等现有 scalar/ref transport，不能继续等 `T3013` 的 composite payload 一起处理，必须先前移接通 dedicated lowering。
+- 描述：开始执行 `T3010b2b1b` 并按新最小 repro 重新基线化后确认，当前首个 blocker 已不再是 `value coercion`。`effect_resume_nested_escape_handle_tail.scoop`、`effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 最初都在 `k.resume(...)` 处报 `暂不支持的 main 代码生成节点：call callee`。上游 `continuation_resume_call_sites` 已把这些 call site 标记为 builtin `Continuation.resume`，说明真实缺口在 LLVM 侧：unified state-machine emitter/普通 call path 仍把 escaped continuation 的 `k.resume(...)` 回落到 generic `codegen_expr_in_expected_context` / generic call path。当前分支已前置接通 dedicated lowering 原型，但复跑 `effect_escape_continuation_resume_unit.scoop` 后又暴露出更前置的 outer-scope mutable slot 写回缺口：escape arm 里的 `saved = Some(k)` 离开 handle 后仍读到 `None`。该 blocker 已由 `T3009b0a/T3009b0aR` 接手；本任务在其后继续完成 scalar/ref payload transport 的正式验收。
 - 目标：
   - 对 typecheck 已确认的 `Continuation.resume(...)` 调用点提供显式 lowering，不再回落到 generic member access / generic call。
   - 复用现有 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` transport，先覆盖 Unit、标量 word 与 GC ref payload。
@@ -820,7 +844,7 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3010b2b1b0
+- 依赖：T3009b0aR
 
 ### T3009b0R [TODO] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call
 - 描述：在 `T3009b0` 之后只审查生产代码，确认 escaped continuation 的 `Continuation.resume(...)` 已有 dedicated lowering，并且当前仅覆盖 scalar/ref transport 的实现没有偷偷塞回 generic member access / generic call；若发现回落或散落 patch，本任务需要直接修复并复审。

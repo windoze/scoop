@@ -1037,6 +1037,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0125：call expression 的结果 TypeId（用于泛型 class ctor 的 mangled FQN 查找）。
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if self.continuation_resume_call_sites.contains(&span) {
+            return self.codegen_continuation_resume_builtin(span, callee, args);
+        }
+
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。
         //
         // 说明：

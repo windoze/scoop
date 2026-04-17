@@ -158,6 +158,69 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    /// Lower the builtin `Continuation.resume(value)` call.
+    ///
+    /// The authoritative semantic marker is `continuation_resume_call_sites`;
+    /// codegen does not infer this builtin from member names or receiver
+    /// shapes. Scalar payloads flow through `resume_word`, GC refs through
+    /// `resume_gc_ref`, and composite payloads continue to be rejected until
+    /// `T3013`/`T3009b`.
+    pub(super) fn codegen_continuation_resume_builtin(
+        &mut self,
+        span: crate::span::Span,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume callee shape",
+                at: callee.span.into(),
+            });
+        };
+
+        let [arg] = args else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume arity",
+                at: span.into(),
+            });
+        };
+        let payload_expr = match arg {
+            hir::CallArg::Positional(expr) => expr,
+            hir::CallArg::Named { value, .. } => value,
+        };
+
+        let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+        let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
+        let Some(raw_continuation) = continuation.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        let payload_expected = self.cg_ty_of(payload_expr.ty);
+        let payload = self.codegen_expr_in_expected_context(payload_expr, payload_expected)?;
+        let payload = if let Some(expected_cg) = payload_expected {
+            self.coerce_value(payload_expr.span, payload, expected_cg)?
+        } else {
+            payload
+        };
+        self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
+
+        let resume_fn = self.declare_runtime_continuation_resume();
+        self.builder
+            .build_call(resume_fn, &[cont_ptr.into()], "continuation_resume")?;
+
+        self.emit_ordinary_call_effect_propagation_check(span, "continuation_resume_effect")?;
+        Ok(CgValue::unit())
+    }
+
     /// Emit code for a standalone `perform` expression (outside of a state
     /// machine step function).  Writes the op_tag + payload to the TLS
     /// perform slot, sets the active flag, and returns a default value.
@@ -360,6 +423,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             }),
         }
+    }
+
+    /// Write a resume payload into a continuation's `resume_word` /
+    /// `resume_gc_ref` fields using the shared scalar/ref transport contract.
+    pub(super) fn write_resume_payload_to_continuation(
+        &mut self,
+        span: crate::span::Span,
+        val: CgValue<'ctx>,
+        cont_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let cont_ty = self.llvm_continuation_struct_type();
+
+        match val.ty {
+            CgTy::Unit | CgTy::Never => {
+                // No payload to write.
+            }
+            CgTy::String | CgTy::Ref => {
+                if let Some(raw) = val.value {
+                    let gep = self.builder.build_struct_gep(
+                        cont_ty,
+                        cont_ptr,
+                        7, // resume_gc_ref
+                        "cont_resume_gc_ref",
+                    )?;
+                    self.builder.build_store(gep, raw)?;
+                }
+            }
+            _ => {
+                let word = self.coerce_u64_word(span, val)?;
+                let gep = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6, // resume_word
+                    "cont_resume_word",
+                )?;
+                self.builder.build_store(gep, word)?;
+            }
+        }
+        Ok(())
     }
 
     fn effect_intrinsic_word_int_ty(&self) -> IntTy {

@@ -2569,47 +2569,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
     }
-
-    /// Write a resume payload into a continuation struct's resume_word /
-    /// resume_gc_ref fields.
-    fn write_resume_payload_to_continuation(
-        &mut self,
-        span: crate::span::Span,
-        val: CgValue<'ctx>,
-        cont_ptr: PointerValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let cont_ty = self.llvm_continuation_struct_type();
-
-        match val.ty {
-            CgTy::Unit | CgTy::Never => {
-                // No payload to write.
-            }
-            CgTy::String | CgTy::Ref => {
-                // GC ref → continuation's resume_gc_ref (field 7).
-                if let Some(raw) = val.value {
-                    let gep = self.builder.build_struct_gep(
-                        cont_ty,
-                        cont_ptr,
-                        7, // resume_gc_ref
-                        "cont_resume_gc_ref",
-                    )?;
-                    self.builder.build_store(gep, raw)?;
-                }
-            }
-            _ => {
-                // Scalar → coerce to u64 and write to resume_word (field 6).
-                let word = self.coerce_u64_word(span, val)?;
-                let gep = self.builder.build_struct_gep(
-                    cont_ty,
-                    cont_ptr,
-                    6, // resume_word
-                    "cont_resume_word",
-                )?;
-                self.builder.build_store(gep, word)?;
-            }
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
