@@ -863,13 +863,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0a1a
 
-### T3009b0a1d [TODO] 修正 unified `ObjectInitAccessBoundary` 的 inactive-continue / active-dispatch 合同
+### T3009b0a1d [DONE] 修正 unified `ObjectInitAccessBoundary` 的 inactive-continue / active-dispatch 合同
 - 描述：开始执行 `T3009b0a1cR` 复审时，用最小 repro `handle { Config.x + 1 } with { Raise.raise(err: RuntimeError) -> 10 }` 直接验证发现，shared `UnifiedStateTerminator::Suspend` 的 inactive-path 缺口并不只在 `SuspendCall` / `RuntimeRaiseBoundary`。direct object/property access 当前仍通过 `ObjectInitAccessBoundary` 落到“求值后无条件 suspend”：程序只打印 `before`、`config.init` 就提前退出，`after` 与最终结果都不会出现。这说明 object init / property access 在 inactive 成功路径上没有留在当前 state machine 内继续执行 caller-tail，而是被错误地 continuation + dispatch 化。由于这是与 `SuspendCall` 共用同一 terminator 出口的更前置 boundary 缺口，必须先补齐。
+- 进展：
+  - 已把 `SuspendSiteKind::ObjectInitAccess` 纳入 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 shared inactive-continue 分支集合；`UnifiedStateTerminator::Suspend` 现在会在 TLS inactive 时把 boundary 结果写回 frame 并 branch 到 `resume_state`，只有 TLS active 时才继续走 continuation alloc + dispatch 返回。
+  - 已把 inactive-path 的内部错误文案从 `suspend call inactive continuation result` 泛化为 `suspend boundary inactive continuation result`，避免 shared boundary 收口后继续带着 call-only 语义。
+  - 已新增 run-pass fixture `tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`，同时锁定 direct object value access、property access 的 inactive-path caller-tail，以及 property access 的 active dispatch。
+  - 在验证过程中顺手收回了已恢复通过的过时期望 `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`（`EXPECT: fail` → `pass`）；整套 LLVM fixture 仍被后续 `T3017` 范围内的其它 stale xfail 挡住，不影响本任务生产合同收口。
 - 目标：
   - `ObjectInitAccessBoundary` 在 object value / property access 最终 inactive 返回时，必须留在当前 state machine 内继续执行 caller-tail，不能无条件 continuation alloc + set active + return。
   - 当 object init / hidden raise 确实令 TLS active 时，当前 step function 仍需把控制权交回 enclosing `handle` / `try` 的 dispatch loop，而不是继续执行 boundary 后语句。
   - 修复必须收口到共享 boundary 合同，不能对具体 object 名称、属性名或单个 fixture 做特判。
 - 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`

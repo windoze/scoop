@@ -1,6 +1,6 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3006 / T3017：此前因统一 state-machine 主线切换而临时 xfail；
+// 当前 cross-thread escaped continuation resume 已恢复稳定通过。
 // RUN-STDOUT: effect_escape_continuation_resume_cross_thread.stdout
 //
 // T0618：跨线程 resume（spec §5.5）
@@ -42,4 +42,3 @@ fun main() {
         None -> println("missing")
     }
 }
-

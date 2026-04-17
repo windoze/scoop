@@ -1274,7 +1274,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     self.builder.position_at_end(inactive_continue_bb);
                     let call_result = last_value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "suspend call inactive continuation result",
+                        kind: "suspend boundary inactive continuation result",
                         at: span.into(),
                     })?;
                     self.store_result_to_frame(span, call_result, state_ptr, frame_layout)?;
@@ -1626,6 +1626,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind,
             SuspendSiteKind::CallMaySuspend { .. }
                 | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ObjectInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
         )
     }
