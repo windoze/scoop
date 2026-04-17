@@ -1442,10 +1442,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn build(mut self) -> HandleStateMachinePlan {
-        let outer_slots = collect_outer_scope_slots(
-            self.handle.body.stmts.as_slice(),
-            &self.context.known_local_metadata,
-        );
+        let outer_slots = collect_outer_scope_slots(self.handle, &self.context.known_local_metadata);
         let mut env = ScopeEnv::with_outer(outer_slots.clone());
         for slot in &outer_slots {
             self.frame_slots.insert(slot.id, slot.clone());
@@ -3823,17 +3820,45 @@ fn try_extract_callee_fqn(callee: &hir::Expr) -> Option<String> {
 }
 
 fn collect_outer_scope_slots(
-    stmts: &[hir::Stmt],
+    handle: &hir::HandleExpr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) -> Vec<FrameSlot> {
     let mut declared = HashSet::new();
-    for stmt in stmts {
+    for stmt in &handle.body.stmts {
         collect_declared_local_ids_in_stmt(stmt, &mut declared);
+    }
+    for arm in &handle.arms {
+        for binder in &arm.op.binders {
+            declared.insert(binder.id);
+        }
+        match arm.kind {
+            hir::HandleArmKind::NonResuming => {}
+            hir::HandleArmKind::ImmediateResume { resume } => {
+                declared.insert(resume);
+            }
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                declared.insert(continuation);
+            }
+        }
+        collect_declared_local_ids_in_expr(&arm.body, &mut declared);
+    }
+    if let Some(finally_block) = handle.finally.as_ref() {
+        for stmt in &finally_block.stmts {
+            collect_declared_local_ids_in_stmt(stmt, &mut declared);
+        }
     }
 
     let mut used = HashMap::new();
-    for stmt in stmts {
+    for stmt in &handle.body.stmts {
         collect_local_refs_in_stmt(stmt, &mut used);
+    }
+    for arm in &handle.arms {
+        collect_local_refs_in_expr(&arm.body, &mut used);
+    }
+    if let Some(finally_block) = handle.finally.as_ref() {
+        for stmt in &finally_block.stmts {
+            collect_local_refs_in_stmt(stmt, &mut used);
+        }
     }
 
     let mut slots = used

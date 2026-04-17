@@ -1,59 +1,62 @@
-# 执行计划与决策摘要
+# 执行计划与进度记录
 
-说明：这里记录可审阅的执行计划、关键判断和进度更新，不包含未整理的内部推理草稿。随着仓库检查、实现和测试推进，我会持续更新本文件。
+## 说明
 
-## 初始目标
+按要求先记录执行计划与后续进度。这里记录的是可审计的计划、判断依据和关键决策，不包含不可审计的内部推理细节。
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果存在更早暴露的前置缺陷，则先修复前置缺陷，再处理该任务。
+## 初始计划
 
-## 初始步骤
+1. 检查最近一次 Git 提交，确认提交说明里是否提到已有但未修复的问题。
+2. 如最近一次提交暴露出仍未处理的问题，先定位并修复这些问题，再继续后续步骤。
+3. 读取 `TODO.md`，找出第一个未完成任务。
+4. 判断该任务是否足够小且可以在本轮完整交付。
+5. 如果任务过大，则把它拆成更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后只执行拆分后的第一个子任务。
+6. 实现当前目标任务。
+7. 运行与改动相关的验证：
+   - 最小必要测试
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 如任务涉及格式或夹具，再运行相应命令
+8. 更新文档与任务状态：
+   - 更新 `TODO.md`
+   - 更新 `PLAN.md`
+   - 必要时继续更新本文件中的进度记录
+9. 检查工作区变更，确保没有误改或遗漏。
+10. 使用清晰的提交信息提交本轮改动，然后停止，不进入下一项任务。
 
-1. 检查最新一次 Git 提交，确认提交信息是否提到已知问题、遗留缺陷或需要先处理的事项。
-2. 阅读 `TODO.md`，识别当前第一个未完成任务。
-3. 结合 `PLAN.md`、相关代码和测试，判断该任务是否可以在本轮完整完成。
-4. 如果任务过大或存在明确前置依赖：
-   - 在 `PLAN.md` 中拆分为更小子任务；
-   - 在 `TODO.md` 中调整顺序，使依赖关系正确；
-   - 本轮只执行拆分后的第一个子任务。
-5. 实现任务对应的代码改动。
-6. 运行相关测试，并补充必要测试；同时检查格式、lint 与告警情况。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或阻塞原因。
-8. 以清晰提交信息提交本轮改动，然后停止，不进入下一任务。
+## 进度记录
 
-## 当前假设
-
-- 仓库可能已有未提交修改；除非与当前任务直接冲突，否则不回退。
-- 若最新提交或执行过程中暴露规范不匹配、缺失语言特性或运行时缺陷，则必须先把该问题显式纳入 `TODO.md` 并按依赖顺序处理，不能绕过。
-- 若任务需要的实现边界不清晰，会先查看相关模块、测试夹具和规范文档后再落地修改。
-
-## 待确认事项
-
-- 最新提交是否明确提到需要优先修复的问题。
-- `TODO.md` 中第一个未完成任务的范围、依赖和可测试入口。
-- 当前工作树是否存在需要避让的用户修改。
-
-## 进度更新（2026-04-17）
-
-- 已检查工作树：当前未提交改动只有本文件本身。
-- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务是 `T3009b0`：
-  - 任务：为 escaped continuation 的 `Continuation.resume(...)` 接回 scalar/ref payload 的专用 lowering。
-  - 当前依赖顺序：`T3009b0` → `T3009b0R` → `T3010b2b1b` → `T3010b2b1`。
-- `PLAN.md` 已记录该任务被前移的原因：此前以为是 unified expected-context / coercion 缺口，但重新基线化后确认更前置的 blocker 是 escaped continuation `k.resume(...)` 仍落到 generic call path，报“暂不支持的 main 代码生成节点：call callee”。
-
-## 下一步
-
-1. 读取最新提交正文，确认是否还有未单列到 `TODO.md` 的前置问题。
-2. 阅读 `TODO.md` 中 `T3009b0` 与相关 review 任务的详细描述。
-3. 定向检索 `Continuation.resume`、`continuation_resume_call_sites`、state-machine emitter / 普通 call lowering 相关代码。
-4. 运行最小复现或定向测试，确认当前失败形态。
-5. 设计并实现 dedicated lowering，仅覆盖 scalar/ref payload；若实现中暴露更前置且未跟踪的规范缺口，则先回写 `TODO.md` / `PLAN.md` 并停止。
-
-## 阻塞更新（2026-04-17）
-
-- 已在生产代码中前置接通 `Continuation.resume(...)` 的 call-span dedicated lowering 原型：`codegen_call` 会优先读取 `continuation_resume_call_sites`，并走共享的 continuation payload/runtime resume helper，而不再直接回落到 generic `call callee`。
-- 复跑 `tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop` 后确认，`call callee` 已不再是首个失败点，但暴露出一个更前置且此前未被 `TODO.md` 跟踪的缺口：
-  - escape arm 内 `saved = Some(k)` 已执行且打印 `arm_saved`；
-  - 离开 `handle` 后读取 `saved` 仍为 `None`，程序打印 `missing`；
-  - 这说明 unified path 目前只把 outer-scope locals/params seed 进 effect frame，没有在 handle 完成后把被 frame 改写的 outer-scope mutable slot 写回 enclosing local。
-- 该缺口会直接阻塞 escaped continuation 被保存并在后续 `k.resume(...)` 路径中读出，因此不能继续把 `T3009b0` 标记为完成。
-- 已决定按流程把该 blocker 前移为新的前置任务 `T3009b0a` / `T3009b0aR`，然后停止本轮，不继续推进 `T3009b0`。
+- 已创建本文件并写入初始计划。
+- 已检查最近一次提交 `d995dabe42ddbd9abe7baeb5fa3bd0795fb3b4cf`，提交说明仅为 `[T3009b0a] Front-load outer-slot writeback blocker`，未附带额外“已知未修复问题”说明，因此当前无需在任务外先修新的提交遗留问题。
+- 已读取 `TODO.md` 与 `PLAN.md`，确认第一个未完成任务为 `T3009b0a`：把 unified handle frame 中 outer-scope `var` slot 的写回接回 enclosing locals。
+- 当前判断：先不继续拆分 `T3009b0a`。需要先阅读 `state_machine_emitter`、frame slot metadata 与相关 fixture，确认缺口是否集中在“handle 完成后的统一写回路径”；若实现面超出单轮闭环，再回头拆分并同步更新 `PLAN.md` / `TODO.md`。
+- 已完成实现面定位：
+  - `seed_outer_scope_frame_slots` 只负责把 outer locals/params 拷入 handle frame。
+  - `handle_done` 当前只清理 TLS / handler stack 并读取结果，没有把 frame 中被修改的 outer mutable slot 写回 enclosing locals。
+  - `handle_propagate` 当前会直接 outward propagate，也没有写回；若不在这里同步，则 finally/arm 对 outer `var` 的改动会在 outward propagation 场景下丢失或只停留在 frame 副本里。
+- 当前实施方案：
+  1. 在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中新增统一 helper，按 frame metadata 遍历 slot，只同步 `seed_from_outer_scope && mutable && owner_arm == None` 的 slot。
+  2. 在 `handle_done` 与 `handle_propagate` 两个出口都调用该 helper，确保普通 body、arm body、finally 都经过同一条 authoritative writeback 路径。
+  3. 先跑 `effect_escape_continuation_resume_unit.scoop` / `effect_escape_continuation_resume_string.scoop` 验证 blocker 是否解除；若这些 fixture 因修复而转绿，再决定是否同步移除对应的 stale xfail 标记。
+- 新发现的关键事实：
+  - 仅补 emitter writeback 还不够。复跑 `effect_escape_continuation_resume_unit.scoop` / `..._string.scoop` 后，输出仍然是 `missing`。
+  - 根因进一步定位到 plan builder：`HandleStateMachinePlan::build()` 当前只对 `handle.body.stmts` 调用 `collect_outer_scope_slots(...)`，没有把 arm body / `finally` 中引用的 outer locals 纳入 outer seeded slots。
+  - 因而 `saved` 这类“只在 escape arm 中赋值”的外层 `var` 根本没有进入 frame authoritative slot，后续 writeback helper 自然无从同步。
+- 计划调整（仍在 `T3009b0a` 范围内，不单独拆任务）：
+  1. 扩展 outer-scope slot 收集范围，从仅 `handle.body` 改为覆盖整个 handle：body、arms、finally。
+  2. 显式排除 handle 内声明的局部（body locals、arm binder / resume / continuation locals、finally locals），避免把 handle 内部局部误标为 outer seeded slot。
+  3. 保留已接上的统一 writeback helper，再次验证最小 repro。
+- 当前实现进度：
+  - 已在 `state_machine_emitter.rs` 中新增 metadata 驱动的 outer-slot writeback helper，并接到 `handle_done` / `handle_propagate` 两个出口。
+  - 已在 `state_machine_plan.rs` 中把 outer-scope slot 收集范围扩展到整个 `handle`（body、arms、finally），并显式排除 arm binder / resume / continuation locals 以及 handle 内局部。
+  - 已新增结构测试 `handle_outer_scope_seeding_includes_arm_and_finally_locals`，锁定“只在 arm/finally 中引用的 outer local 也必须 seed；`k` 之类 arm 局部不得误入 outer seeded slot”。
+  - 已新增 focused fixture `effect_escape_continuation_outer_var_writeback_basic.scoop`，覆盖 body/arm/finally 三类 outer `var` 写回；该 fixture 当前通过。
+  - 复跑 `effect_escape_continuation_resume_unit.scoop` / `..._string.scoop` 后，`saved` 不再丢失，输出已从 `missing` 推进到 resumed body 执行阶段；剩余“`resume(...)` 返回后未继续执行 caller tail”的问题属于下一任务 `T3009b0` 的 dedicated resume lowering / return path 范围。
+- 已完成验证：
+  - `cargo test -p scoopc handle_outer_scope_seeding_includes_arm_and_finally_locals -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已完成文档更新：
+  - `TODO.md` 已将 `T3009b0a` 标记为完成，并记录 focused fixture 与剩余 blocker 归属 `T3009b0`。
+  - `PLAN.md` 已记录本轮完成情况，并把下一步执行顺序推进到 `T3009b0aR -> T3009b0 -> ...`。

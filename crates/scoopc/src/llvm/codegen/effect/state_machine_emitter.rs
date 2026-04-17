@@ -1010,6 +1010,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    /// Write back authoritative outer-scope mutable slots from the unified
+    /// handle frame to their original enclosing local storage.
+    ///
+    /// These slots are copied into the frame at handle entry via
+    /// `seed_outer_scope_frame_slots`. After the handle finishes (or propagates
+    /// outward after running cleanup), the frame copy is the authoritative
+    /// value and must be synchronized back to the enclosing local alloca/box.
+    fn write_back_outer_scope_frame_slots(
+        &mut self,
+        at: crate::span::Span,
+        frame_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        for unified_slot in contract.frame().slots() {
+            let slot = unified_slot.slot();
+            if slot.owner_arm().is_some() || !slot.seed_from_outer_scope() || !slot.mutable() {
+                continue;
+            }
+
+            let local = self
+                .env
+                .get(slot.id())
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "outer-scope frame writeback local",
+                    at: at.into(),
+                })?;
+            if !local.mutable {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "outer-scope frame writeback immutable local",
+                    at: at.into(),
+                });
+            }
+
+            let slot_cg_ty =
+                self.cg_ty_of(slot.ty())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "outer-scope frame writeback slot type",
+                        at: at.into(),
+                    })?;
+            let field_index = frame_layout.user_slot_llvm_index(unified_slot.field_index());
+            let slot_ptr = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                frame_ptr,
+                field_index,
+                &format!("writeback_outer_slot_{}", slot.id().as_u32()),
+            )?;
+
+            let value = match slot_cg_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                _ => {
+                    let llvm_ty = self.llvm_basic_type_of(at, slot_cg_ty)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        slot_ptr,
+                        &format!("writeback_outer_load_{}", slot.id().as_u32()),
+                    )?;
+                    self.cg_value_from_loaded(at, slot_cg_ty, loaded)?
+                }
+            };
+            self.store_local_value(at, local.ptr, local.ty, value)?;
+        }
+        Ok(())
+    }
+
     /// Emit a statement-type op (Assign, etc.) by dispatching to existing
     /// statement codegen.  The env must already contain the referenced locals
     /// (via prior BindLocal / ReadLocal ops in the same state).
@@ -2192,6 +2258,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
         }
 
+        self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
+
         if self.ordinary_effect_propagation_enabled() {
             self.emit_ordinary_non_resuming_effect_exit(span, "handle_outward_effect")?;
         }
@@ -2213,6 +2281,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_call(pop_fn, &[handler_frame_ptr.into()], "")?;
         }
+
+        self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
 
         // TODO: if state_tag == FUNCTION_RETURNED, propagate early return to
         // the enclosing function instead of treating it as normal completion.

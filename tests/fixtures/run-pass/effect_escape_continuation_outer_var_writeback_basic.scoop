@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_outer_var_writeback_basic.stdout
+//
+// T3009b0a：unified handle frame 必须把 outer-scope mutable slot 写回 enclosing locals。
+//
+// 覆盖：
+// - handle body 对 outer `var` 的赋值在 handle 结束后可见；
+// - escape arm 对 outer `var`（保存 continuation）的赋值在 handle 结束后可见；
+// - finally 对 outer `var` 的赋值在 handle 结束后可见。
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Unit
+}
+
+fun main() {
+    var bodySeen: Int = 0
+    var saved: Continuation<Unit>? = None()
+    var note: String = "before"
+
+    val _: Unit = handle {
+        bodySeen = 11
+        val _pause: Unit = Suspend.pause()
+    } with {
+        Suspend.pause(), k -> {
+            saved = Some(k)
+        }
+    } finally {
+        note = "after"
+    }
+
+    println("after_handle")
+    println(bodySeen)
+    when (saved) {
+        Some(_) -> println("arm_saved")
+        None -> println("missing")
+    }
+    println(note)
+}

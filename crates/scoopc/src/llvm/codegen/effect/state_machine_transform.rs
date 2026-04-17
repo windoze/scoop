@@ -3619,6 +3619,63 @@ fun demo(seed: Int): Int {
         );
     }
 
+    #[test]
+    fn handle_outer_scope_seeding_includes_arm_and_finally_locals() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    var saved: Int = 0
+    val result: Int = handle {
+        val _: Int = Yield.next()
+        7
+    } with {
+        Yield.next(), k -> {
+            saved = 41
+            0
+        }
+    } finally {
+        saved = saved + 1
+    }
+    result + saved
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let seeded_slot_names = machine
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().seed_from_outer_scope())
+            .map(|slot| slot.slot().name().to_string())
+            .collect::<Vec<_>>();
+        assert!(
+            seeded_slot_names.iter().any(|name| name == "saved"),
+            "outer local used only in arm/finally should still be seeded into the handle frame"
+        );
+        assert!(
+            !seeded_slot_names.iter().any(|name| name == "k"),
+            "escape continuation local must not be treated as an outer-scope seed slot"
+        );
+    }
+
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);

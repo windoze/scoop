@@ -807,15 +807,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b1a
 
-### T3009b0a [TODO] 把 unified handle frame 中 outer-scope `var` slot 的写回接回 enclosing locals
+### T3009b0a [DONE] 把 unified handle frame 中 outer-scope `var` slot 的写回接回 enclosing locals
 - 描述：开始执行 `T3009b0` 的首个目标 fixture 后，`effect_escape_continuation_resume_unit.scoop` 已不再报 `暂不支持的 main 代码生成节点：call callee`，但 escape arm 中的 `saved = Some(k)` 离开 `handle` 后仍然读到 `None`。当前 unified path 只在 `codegen_handle_expr_via_state_machine` 入口通过 `seed_outer_scope_frame_slots` 把 outer locals/params 复制到 effect frame，却没有在 handle 正常完成后把被 frame 改写的 outer-scope mutable slot 写回原来的 enclosing local alloca，导致 arm body / finally / handle body 对外层 `var` 的赋值丢失。这个更前置缺口当前未在 TODO 中显式跟踪，但它会直接阻塞 escaped continuation 被保存出来，因而必须先于 `T3009b0` 修复。
+- 进展：
+  - 已把 unified contract 的 outer-scope slot 收集范围从仅 `handle.body` 扩展到整个 `handle`（body、arms、finally），并显式排除 arm binder / resume / continuation locals 以及 handle 内部局部，避免把 `k` 或内部局部误标为 seeded outer slot。
+  - 已在 `state_machine_emitter.rs` 中新增 metadata 驱动的 `write_back_outer_scope_frame_slots` helper，并接到 `handle_done` 与 `handle_propagate` 两个出口；authoritative outer slot 现在会统一从 frame 回写到 enclosing local。
+  - 已新增结构测试 `handle_outer_scope_seeding_includes_arm_and_finally_locals`，锁定“只在 arm/finally 中引用的 outer local 也必须进入 outer seeded slots，arm 局部不得混入”。
+  - 已新增 focused fixture `effect_escape_continuation_outer_var_writeback_basic.scoop`，覆盖 handle body / escape arm / finally 对 outer `var` 的写回；该 fixture 已通过。
+  - 复跑 `effect_escape_continuation_resume_unit.scoop` 与 `effect_escape_continuation_resume_string.scoop` 后，输出已不再落到 `missing`，而是推进到 resumed body 执行阶段；剩余 `resume(...)` 返回后未继续执行 caller tail 的问题转交下一任务 `T3009b0`。
 - 目标：
   - 明确 unified contract 中哪些 frame slot 代表 seeded outer-scope locals/params，并在 handle 完成路径把这些 authoritative slot 写回原 enclosing locals。
   - 只对真实 outer-scope mutable locals/params 执行写回；arm binder、synthetic resume slot、capture-only temp 与 handle 内部局部不得被误写回。
   - handle body、escape arm 与 finally 对 outer `var` 的赋值在离开 handle 后必须可见，不能依赖 effect-only side channel 或副本语义。
 - 验收：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
+  - `cargo test -p scoopc handle_outer_scope_seeding_includes_arm_and_finally_locals -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3010b2b1b0
