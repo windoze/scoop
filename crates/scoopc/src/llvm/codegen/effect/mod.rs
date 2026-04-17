@@ -215,13 +215,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `Continuation.resume(value)` 的 authoritative payload type 来自
         // receiver 的 `Continuation<T>` 实参，而不是 arg expr 自身可能被
         // HIR 降级成的 `Any/Ref` 类型。
-        let payload_expected = match self.types.kind(receiver.ty) {
+        let receiver_ty = self
+            .resolve_expr_concrete_type(receiver)
+            .unwrap_or(receiver.ty);
+        let payload_expected = match self.types.kind(receiver_ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() == 1 =>
             {
                 self.cg_ty_of(nominal.args[0])
             }
-            _ => self.cg_ty_of(payload_expr.ty),
+            // HIR VarRef 常被宽化成 `Any/Ref`；fallback 也需要先看 env 中
+            // 的精确局部类型，否则 `val payload: Result = ...; k.resume(payload)`
+            // 这类路径会把 enum payload 误判成 `Ref`。
+            _ => self.resolve_expr_cg_ty(payload_expr),
         };
         let payload = self.codegen_expr_in_expected_context(payload_expr, payload_expected)?;
         let payload = if let Some(expected_cg) = payload_expected {

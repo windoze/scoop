@@ -1527,21 +1527,84 @@
   - unmatched perform、cleanup 后 outward propagation 与 ordinary non-resuming effect exit 仍统一复用 TLS active + shared exit 合同，没有 handle-only、shape-based 或 fixture-only 特判。
 - 依赖：T3014cR
 
-### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 扩展到 composite resume payload
-- 描述：`T3009b0` 会先接通 escaped continuation 的 Unit/标量/GC-ref payload 专用 lowering；`T3013`/`T3013R` 会统一完成 composite value transport。本任务在其后再把两者接回：让 `k.resume(value)` 在保留 dedicated lowering 的同时覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，而不是回退到 generic path 或另起 continuation-only 传输通道。
+### T3009b1 [DONE] 修正 `Continuation.resume(...)` 在局部 `VarRef` payload / receiver 上丢失 precise type，恢复 direct enum payload
+- 描述：开始执行原 `T3009b` 后先复跑 direct composite fixture，确认 tuple / struct / struct-with-ref / continuation-ref payload 已能通过，真正残留的 direct blocker 收窄为 `continuation_resume_enum.scoop`：`val payload: Result = Ok(42); k.resume(payload)` 会在 LLVM 侧报 `UnsupportedMainBody { kind: "value coercion" }`。根因不是 enum transport 本身，而是 `codegen_continuation_resume_builtin()` 直接读取 `receiver.ty` / `payload_expr.ty`；但 HIR `VarRef` 经常被宽化为 `Any/Ref`，导致 builtin fallback 把 local enum payload 误判成 `Ref`，最终走到 `Enum -> Ref` 的错误 coercion。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/mod.rs::codegen_continuation_resume_builtin()` 现已改为优先通过 `resolve_expr_concrete_type(receiver)` 读取 receiver 的精确 `Continuation<T>` type argument，并在 fallback 时改用 `resolve_expr_cg_ty(payload_expr)`，不再盲信 `VarRef` 的宽化 HIR type。
+  - `tests/fixtures/run-pass/continuation_resume_enum.scoop` 已移除 stale `EXPECT: fail`；direct enum payload 现在会与 tuple / struct / continuation-ref 一样走 dedicated resume lowering + shared effect transport，而不是在 builtin 入口退化成 `Ref` coercion。
+  - 继续验收原 `T3009b` 时又暴露出一个尚未显式跟踪的、更前置的生产缺口：`effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 仍会在 resumed indirect callee 中跳过 suspend 点之后的语句；tail-return 版本已通过，说明 blocker 不再是 payload transport 本身，而是“间接 callee suspend 后 resumed-body caller-tail”没有接回。该缺口已拆分成新的前置任务 `T3009b2` / `T3009b2R`，原 `T3009b` 顺延到其后继续完成剩余 composite transport 收尾。
 - 目标：
-  - 在 `T3009b0` 的 dedicated lowering 之上扩展 `Continuation.resume(...)` 的 composite payload transport，不再局限于 word/ref。
+  - `Continuation.resume(...)` 在 direct payload 场景下，不因 `VarRef` 的 HIR 宽化丢失 `Continuation<T>` 的真实 payload 类型。
+  - direct enum payload 与既有 tuple / struct / continuation-ref payload 统一走 dedicated lowering + shared transport，不回退到 `value coercion` / generic path。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已验证：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3013R、T3009b0R
+
+### T3009b1R [TODO] Review：确认 `Continuation.resume(...)` 的 precise type 解析不再依赖宽化 `VarRef` HIR type
+- 描述：在 `T3009b1` 之后只审查生产代码，确认 `Continuation.resume(...)` 对 receiver / payload 的类型解析已经统一走精确的 env/type 信息，而不是继续依赖 `VarRef` 上经常被宽化成 `Any/Ref` 的 HIR type；若发现回流，本任务需要直接修复并复审。
+- 目标：
+  - 确认 builtin 入口优先读取精确 `Continuation<T>` receiver type，而不是把 `receiver.ty` 当 authoritative source。
+  - 确认 payload fallback 路径统一走 `resolve_expr_cg_ty(...)` 等精确来源，不再把 local enum / tuple / struct payload 误降成 `Ref`。
+  - 确认没有为 direct enum fixture 临时加仅按成员名 / 局部形状识别的 patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“`Continuation.resume(...)` 已按精确类型信息解析 receiver/payload，无宽化 `VarRef` fallback 残留”。
+- 依赖：T3009b1
+
+### T3009b2 [TODO] 修正 escaped continuation 的间接 callee 在 suspend 点后的 resumed-body caller-tail
+- 描述：继续执行原 `T3009b` 的 xfail 子集验收时发现，当前 blocker 已不再是 direct composite transport：`effect_escape_continuation_indirect_perform_tail_return_int.scoop` 与 `effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop` 都已通过，但 `effect_escape_continuation_indirect_perform_resume_string.scoop` 和 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 仍会在 resumed indirect callee 中跳过 suspend 点之后的语句，只把 resume 值直接返回给 caller。表现为 `fetchGreeting()` / `callIt { ... }` 中 `perform` 之后的 `println(prefix)` / `println(reply.label)` / `println(reply.score)` 不会执行，`callIt` 结果仍停在 arm fallback `0`。这说明当前更前置的真实缺口是“间接 callee suspend 后 resumed-body caller-tail”尚未接回，而不是 `Continuation.resume(...)` 的 direct payload transport；必须先把该 shared 语义补齐，原 `T3009b` 才能继续收尾 composite payload。
+- 目标：
+  - indirect callee（普通 helper / closure callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
+  - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。
+  - composite payload（如 `Reply { label, score }`）在上述 resumed-body 路径中能被真正读回并消费，而不是“值到 caller 了但 callee body 被跳过”。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_tail_return_int.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b1R
+
+### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
+- 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation 合同，而不是为 `fetchGreeting()` / `callIt { ... }` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
+  - 确认 tail-return 与 non-tail indirect callee 路径共享同一套 resumed-body / caller-tail 机制。
+  - 确认没有把旧 callee-shape / source-shape 特判重新带回生产路径。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“间接 callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 依赖：T3009b2
+
+### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 剩余 composite resume payload 收口到统一合同
+- 描述：`T3009b1` 已先修复 direct enum/local-VarRef payload 的 precise type 解析，`T3009b2` 将继续补齐 indirect callee suspend 后 resumed-body caller-tail。剩余部分是在这些前置闭环后，回到原始 composite transport 目标：让 escaped continuation 的 `k.resume(value)` 在 direct/indirect 路径上都能稳定覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，并与 `T3013` 的共享 effect transport 完全对齐，而不是回退到 generic path 或另起 continuation-only 通道。
+- 目标：
+  - 在 `T3009b0` 的 dedicated lowering 之上完成 escaped continuation composite payload 的剩余收口，不再局限于 word/ref，也不再受 indirect resumed-body 缺口影响。
   - `k.resume(...)` 继续直接消费显式 continuation 值，并统一走 runtime continuation ABI。
   - 对 composite payload 的 transport 与 `T3013` 对齐，不新增 task-only / continuation-only 特例通道。
 - 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_struct_with_ref.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_enum.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`
   - 重新跑当前 `T3006` xfail 子集时，不再出现 escaped continuation 路径上的 `u64 word from composite value` / composite resume transport 相关失败。
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3013R、T3009b0R
+- 依赖：T3009b2R
 
 ### T3009bR [TODO] Review：确认 escaped continuation resume 调用不再回落到 generic member access
 - 描述：在 `T3009b` 之后只审查生产代码，确认 `Continuation.resume(...)` 的 dedicated lowering 已统一覆盖 scalar/ref + composite payload，不再隐藏在 generic member access / generic call 中；若发现回落，本任务需要直接修复并复审。
