@@ -1037,8 +1037,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b0
 
-### T3009b0aR [TODO] Review：确认 outer-scope slot 写回没有回流成 effect-only patch
+### T3009b0aR [DONE] Review：确认 outer-scope slot 写回没有回流成 effect-only patch
 - 描述：在 `T3009b0a1a` + `T3009b0` + `T3009b0a1b` 之后只审查生产代码，确认 outer-scope local 的写回是统一合同的一部分，而不是在 `Continuation.resume` / escape arm / 单个 fixture 路径上额外打补丁；若发现只对特定 effect 场景生效的 patch，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中的 `emit_effect_frame_layout`、`seed_outer_scope_frame_slots`、`write_back_outer_scope_frame_slots` 与所有 step-function / handle 出口，确认 authoritative outer-slot source 与 writeback target 都由 frame metadata 驱动；`ReturnHandle` / `ReturnFromFunction` / `Suspend` / `Arm*` 返回出口，以及 `handle_done` / `handle_propagate` 共享同一个 writeback helper。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`：`codegen_continuation_resume_builtin` 仅负责 payload transport、`scoop_continuation_resume(...)` 调用与 ordinary effect propagation check，不包含 outer-slot 写回或 caller-local 同步补丁；普通 call 入口也仍只通过 `continuation_resume_call_sites` 做 builtin 分派。
+  - 已补跑结构单测 `handle_outer_scope_seeding_includes_arm_and_finally_locals`、IR 单测 `escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback`，以及 focused fixtures `effect_escape_continuation_outer_var_writeback_basic.scoop` / `effect_escape_continuation_resume_outer_var_writeback.scoop`，确认“初次离开 handle”和“`resume()` 返回后完成”两条路径都保持同一合同。
 - 目标：
   - 确认 outer-scope seeded slot 的 authoritative 来源与写回目标都由统一 frame metadata 驱动，不依赖 arm kind、callee 名称或 fixture 形状。
   - 确认“第一次离开 handle”的 `handle_done` / `handle_propagate` 与 escaped continuation `resume(...)` 之后的完成 / 向外传播路径都共享同一套 outer-slot 写回合同，而不是分别拼接补丁。
@@ -1046,6 +1050,16 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“outer-scope slot 写回已统一收口，且未回流为 effect-only patch”。
+- 已验证：
+  - `cargo test -p scoopc handle_outer_scope_seeding_includes_arm_and_finally_locals -- --nocapture`
+  - `cargo test -p scoopc escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - outer-scope slot 写回已统一收口，且未回流为 effect-only patch。生产代码里唯一的 authoritative source/target 都来自 unified handle frame metadata，所有 handle/step 返回出口复用同一个 writeback helper。
+  - `Continuation.resume(...)` dedicated lowering 仍只负责 runtime resume 与 payload transport；outer-local 同步没有散落到 builtin call path、escape arm 或 fixture 专用补丁中。
 - 依赖：T3009b0a1b
 
 ### T3009b0R [TODO] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call

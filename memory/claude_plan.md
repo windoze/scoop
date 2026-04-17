@@ -1,72 +1,72 @@
-# 本轮执行计划
+# 当前执行计划
 
-## 目标
+说明：这里记录的是可见的执行计划、判断依据摘要与进度更新，不包含逐字内部思维。
+
+## 初始目标
 
 本轮只完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
 
-## 约束与执行原则
+## 约束与执行顺序
 
-- 先检查最新提交是否提到已有问题；若有，先修复这些问题。
-- 之后读取 `TODO.md`，定位第一个未完成任务。
-- 若该任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
-- 实现时不得使用规避方案、临时补丁、仅夹具生效的 hack，必须符合规范。
-- 若发现规范缺口、实现边界或前置依赖缺失，需要先把问题转化为新的 `TODO.md` 任务，调整顺序，更新 `PLAN.md`，提交并停止。
-- 代码修改后需要运行相关测试，并尽量保证 `cargo clippy --all-targets -- -D warnings` 无警告。
-- 完成后需要更新 `TODO.md`、`PLAN.md`，并创建一次 git 提交，然后停止。
+1. 先检查最近一次提交，确认是否提到已有问题；若有，先修复这些问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 如果该任务过大，先拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
+4. 实现当前应执行的首个任务或子任务。
+5. 运行相关测试与必要的质量检查，至少覆盖受影响范围；若任务完成，尽量补充更全面验证。
+6. 更新文档状态：
+   - 在 `TODO.md` 中标记完成，或在阻塞时按要求重排任务。
+   - 在 `PLAN.md` 中记录当前状态、依赖和后续顺序。
+   - 持续更新本文件，记录关键步骤与计划变化。
+7. 提交 git commit，然后停止，不继续做下一个任务。
 
-## 初始步骤计划
+## 预期检查项
 
-1. 查看最新一次 git 提交的提交信息与改动，确认是否显式提到待修复问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
-3. 评估该任务是否可以在一轮内完整完成；若不能，设计最小可执行子任务并更新计划文件。
-4. 阅读相关代码、测试、规范或文档，确认实现边界与潜在依赖。
-5. 实现本轮目标任务。
-6. 运行与改动直接相关的测试；如改动范围较广，再补充更全面的测试与 lint。
-7. 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`，记录完成情况或阻塞原因。
-8. 提交本轮改动，提交信息引用对应任务编号；随后停止，不进入下一个任务。
+- 最近一次提交的提交信息与变更摘要
+- `TODO.md`
+- `PLAN.md`
+- 如有必要，`README.md`、相关源码、相关测试和规范文档
 
-## 记录方式
+## 风险与处理原则
 
-- 我会在关键节点更新本文件，记录当前判断、计划变化、已完成步骤、测试结果以及是否存在阻塞。
-- 若发现最新提交中提到的问题属于本轮前置修复项，会先记录问题，再优先处理。
+- 如果发现规范缺口、实现缺口或测试依赖缺失，不能绕过，必须先把前置修复任务写入 `TODO.md` 并调整顺序。
+- 不回退用户已有修改；若遇到冲突，先理解现状，再只改动完成当前任务所需部分。
+- 任何关键进展、计划变更、阻塞原因，都会同步更新到本文件。
 
-## 当前状态
+## 进度记录
 
-- 已创建本计划文件。
-- 已检查最新提交 `c6c7bc9f5a21b16865bdbcf37dc6683de272acee`：提交信息为 `[T3009b0] Mark continuation resume scalar/ref lowering done`，未显式声明新的待修复遗留问题。
-- 已读取 `TODO.md` / `PLAN.md`，当前第一个未完成任务为 `T3010b2b1b`：补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置。
-- 进一步核对后，先前对首个未完成任务的识别有误：`TODO.md` 中更早的未完成项实际是 `T3009b0a1b`，其后才是 `T3009b0aR`、`T3009b0R` 与 `T3010b2b1b`。
-- `T3009b0a1b` 的目标是在 `T3009b0` 已接回 caller-tail 后，新增 focused fixture，直接观察 escaped continuation `resume()` 返回点可见的 outer-slot 写回。
-- 已检查现有相关 fixture：
-  - `effect_escape_continuation_outer_var_writeback_basic.scoop` 只覆盖第一次离开 handle 时 body/arm/finally 对 outer slot 的写回。
-  - `effect_escape_continuation_resume_unit.scoop` 等 fixture 覆盖 resume caller-tail 已接回，但没有直接观察 outer local 在 `resume()` 返回点的可见值。
-- 当前判断：`T3009b0a1b` 可以在本轮完整完成，预计不需要新的生产代码修改，重点是补 focused fixture 并完成定向验证。
-- 下一步：
-  1. 新增一个 focused run-pass fixture，要求输出明确覆盖“初次离开 handle 时旧值仍在；`resume()` 返回后新值可见”。
-  2. 运行该 fixture，并补跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-  3. 更新 `TODO.md` / `PLAN.md` / 本文件并提交，仅完成这一项后停止。
+- 已创建本计划文件，接下来将检查最近一次提交与任务清单。
+- 已检查最新提交 `3b8f29f`，提交标题为 `[T3009b0a1b] Add resumed outer-slot writeback fixture`，无正文说明额外遗留问题。
+- 已定位 `TODO.md` 中首个未完成任务为 `T3009b0aR`：Review「确认 outer-scope slot 写回没有回流成 effect-only patch」。
 
-## 当前进展
+## 当前执行计划（针对 T3009b0aR）
 
-- 已新增 fixture：
-  - `tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.scoop`
-  - `tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.stdout`
-- fixture 语义：
-  - `outerValue` 仅在 `Suspend.pause()` 返回后改写，因此 `handle` 初次离开时调用点仍可见旧值 `5`。
-  - `k.resume(41)` 返回后再次在调用点打印 `outerValue`，应可见新值 `42`。
+1. 阅读 `TODO.md` 中 `T3009b0aR` 及其直接前置任务 `T3009b0a` / `T3009b0a1a` / `T3009b0a1b` 的描述。
+2. 检查实现 outer-slot 写回的生产代码与相关测试，确认写回触发点、适用边界和非 effect 路径是否共享同一合同。
+3. 运行定向测试；必要时补充更小的 repro 来验证 “inactive / resumed completion / non-effect path” 等边界。
+4. 若发现生产问题，立即修复并重新验证；若未发现问题，则整理审查结论。
+5. 更新 `TODO.md`、`PLAN.md`、本文件并提交 commit，然后停止。
+
+## 当前审查结论（进行中）
+
+- outer-slot seeding / writeback 的生产实现集中在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`。
+- `seed_outer_scope_frame_slots` 会在 handle 入口把 outer mutable slot 的原始 storage pointer 记录进 frame metadata。
+- `write_back_outer_scope_frame_slots` 只从 frame metadata 读取 authoritative target，不依赖 caller `env`。
+- 统一 step-function 返回出口（`ReturnHandle` / `ReturnFromFunction` / `Suspend` / `ArmReturnHandle` / `ArmResumeMatchedSite` / `ArmMaterializeContinuation`）以及 `handle_done` / `handle_propagate` 都复用同一个 writeback helper。
+- `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 `codegen_continuation_resume_builtin` 仅负责 payload transport、调用 `scoop_continuation_resume` 和 ordinary effect propagation check，没有 outer-slot 写回逻辑。
+- 下一步：用定向 IR/fixture 与全量测试验证以上审查结论。
+
+## 完成情况
+
+- 复审完成，未发现需要修复的生产代码问题。
+- 已确认 outer-slot 写回没有回流成 effect-only patch：
+  - outer-slot authoritative source/target 都由 unified handle frame metadata 驱动；
+  - `ReturnHandle` / `ReturnFromFunction` / `Suspend` / `Arm*` 返回出口与 `handle_done` / `handle_propagate` 共用 `write_back_outer_scope_frame_slots`；
+  - `codegen_continuation_resume_builtin` 不承担 outer-local 同步职责。
 - 已完成验证：
+  - `cargo test -p scoopc handle_outer_scope_seeding_includes_arm_and_finally_locals -- --nocapture`
+  - `cargo test -p scoopc escaped_continuation_resume_ir_records_outer_slot_storage_and_writeback -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_outer_var_writeback_basic.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_outer_var_writeback.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 验证结果：
-  - 定向 fixture 输出为 `after_handle / 5 / after_resume / 42 / done`，符合任务要求。
-  - `cargo test --all` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 已更新 `TODO.md`：`T3009b0a1b` 标记为完成。
-- 已更新 `PLAN.md`：新增本轮完成记录，并将当前执行顺序前移到 `T3009b0aR`。
-
-## 剩余收尾步骤
-
-1. 检查工作区 diff，确认本轮只包含 fixture、计划与任务状态更新。
-2. 创建 git 提交，提交信息使用任务号 `T3009b0a1b`。
-3. 提交后停止，不进入下一个任务。
+- 已更新 `TODO.md` 与 `PLAN.md`，下一项未完成任务推进为 `T3009b0R`。
