@@ -1699,8 +1699,36 @@
   - 更广的 shared resumed-body matrix 仍继续留在后续 `T3009b2`，包括 multi-site 与 nested statement-container source-path 变体的统一验收。
 - 依赖：T3009b2b1
 
+### T3015a [TODO] 修正 escaped continuation 在第一次 resumed segment 后的下一次 perform 无法重新进入 captured handler dispatch loop
+- 描述：开始执行 `T3009b2` 的 shared matrix 后，先把 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 里 ordinary callee 对 `source_path.frames` 非空直接返回 `None` 的缺口补齐为真实 rebuild（`Block / IfThen / IfElse / WhenArm / WhileBody`，其中 `WhileBody` 用 synthetic first-iteration flag 保住“先完成当前迭代尾部，再回到 cond”的语义），并新增 focused reproducer `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`。继续直接运行该 matrix 与既有 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 后确认，更前置 blocker 不是 statement-container source-path rebuild 本身，而是 escaped continuation 在第一次 `resume(...)` 后继续执行 resumed caller-tail 到下一个 indirect callee 时，新的 outward perform 仍不会重新进入 captured handler 的 dispatch loop；当前输出会在第二个 callee 的 `if_enter` / `counter_enter` 之后直接截断，说明 handler redispatch 只覆盖了第一段 resumed segment。
+- 目标：
+  - escaped continuation 在 `handle` 已返回后的 `resume(...)` 动态范围内，resumed caller-tail 进入下一次 indirect callee / next perform 时，必须重新命中 captured handler dispatch loop，而不是在第一段 resumed segment 后直接截断。
+  - 该 redispatch 语义必须同时覆盖既有 multi-site indirect callee matrix 与新的 statement-container indirect callee matrix，不按 callee/source shape 特判。
+  - 第一次 resumed segment 之后的下一次 suspend 仍应 materialize 新 continuation 并返回给 caller，允许 `after_resumeN` 继续执行。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_multi_perform_while_loop.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3009b2bR
+
+### T3015aR [TODO] Review：确认 resumed segment 的下一次 perform 已重新进入 captured handler dispatch loop
+- 描述：在 `T3015a` 之后只审查生产代码，确认 escaped continuation 在第一次 resumed segment 后的下一次 perform 已通过统一 handler-context / redispatch 合同重新命中 captured handler，而不是继续依赖“第一段 resumed segment 恰好还没把动态上下文用坏”的偶然行为；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 resumed caller-tail 里的下一次 indirect callee / outward perform 会稳定重新进入 captured handler dispatch loop。
+  - 确认 multi-site 与 statement-container matrix 共享同一套生产 redispatch 机制。
+  - 确认没有为 `counter()` / `viaIf()` / `viaWhen()` / `viaWhile()` 之类 fixture 单独打 patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“第一次 resumed segment 后的下一次 perform 已重新进入 captured handler dispatch loop，无 fixture-only / shape-based patch 残留”。
+- 依赖：T3015a
+
 ### T3009b2 [TODO] 收口 escaped continuation indirect callee 的 shared resumed-body / caller-tail 验收矩阵
-- 描述：在 `T3009b2a` / `T3009b2b` / `T3009b2bR` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。shared matrix 还要继续覆盖本轮已接回 nested expression 之外、仍待统一验收的 nested statement-container source-path 变体（例如 block / if / when / while body 内的 ordinary callee suspend source）。
+- 描述：在 `T3009b2a` / `T3009b2b` / `T3009b2bR` 完成后，回到原始 shared 语义目标，统一收口 indirect callee 的 resumed-body caller-tail。除最初暴露的 `effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 外，`effect_escape_continuation_indirect_perform_basic.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `effect_multi_escape_indirect_callee_suspend_matrix.scoop` 也属于同一根因：resume 后 ordinary callee 应先完成自己的 post-suspend body，再把真实 call result 交回 outer caller-tail。shared matrix 还要继续覆盖本轮已接回 nested expression 之外、仍待统一验收的 nested statement-container source-path 变体（例如 block / if / when / while body 内的 ordinary callee suspend source）；但在真正完成这些 matrix 之前，必须先由 `T3015a` 补齐“第一次 resumed segment 后的下一次 perform 重新进入 captured handler dispatch loop”的更前置合同。
+- 进展：
+  - ordinary callee 对 `source_path.frames` 的 statement-container rebuild 已不再在 `Block / IfThen / IfElse / WhenArm / WhileBody` 上直接返回 `None`；`WhileBody` 现在使用 synthetic first-iteration flag，保证 resume 后先完成当前迭代尾部，再回到 loop cond。
+  - 新增 focused reproducer `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 后确认，shared matrix 当前仍先被 `T3015a` 的 handler redispatch 缺口卡住：第一次 `resume(...)` 可继续到下一次 indirect callee，但新的 outward perform 不会重新进入 captured handler dispatch loop。
 - 目标：
   - indirect callee（普通 helper / closure / function-value callee）在 suspend 点恢复后，必须继续执行 suspend 点之后的 resumed body，而不是直接把 resume 值短路回 caller。
   - non-tail indirect perform 路径与已通过的 tail-return / closure-tail 路径共享同一套 resumed-body / caller-tail 合同，不新增 callee-shape 特判。
@@ -1713,9 +1741,10 @@
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_tail_return_int.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3009b2bR
+- 依赖：T3015aR
 
 ### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
 - 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation / callee-suspend-state 合同，而不是为 `fetchGreeting()` / `callIt { ... }` / `counter()` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
@@ -1757,11 +1786,11 @@
 - 依赖：T3009b
 
 ### T3015 [TODO] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
-- 描述：`T3010b2b1` 会先收口同步 arm body 内 non-resuming effect 的外传 / cleanup / self-inactive 直接阻塞；本任务保留 escaped continuation 在 `handle` 返回后的 handler context 生命周期、以及延迟 / 跨线程 resume 时 active/inactive 恢复语义的剩余缺口。当前统一主线仍让 continuation 捕获稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
+- 描述：`T3010b2b1` 会先收口同步 arm body 内 non-resuming effect 的外传 / cleanup / self-inactive 直接阻塞；`T3015a` 再先拆走“第一次 resumed segment 后的下一次 perform 重新进入 captured handler dispatch loop”这个单线程 shared blocker。本任务保留 escaped continuation 在 `handle` 返回后的持久 handler context 生命周期、以及延迟 / 跨线程 resume 时 active/inactive 恢复语义的剩余缺口。当前统一主线仍让 continuation 捕获稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
 - 进展：
   - `T3010a` 完成后的全量 LLVM fixture 首个失败点已推进到 `effect_escape_continuation_arm_performs_outer_effect.scoop`。直接运行显示当前输出会打印 binder `0`、继续落到 `unreachable_arm`，且没有命中外层 `EffectB` handler，符合本任务要修的 self-inactive / 外层 effect 传播缺口。
   - 同类 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 直接运行也会打印 `0` 并继续到 `unreachable_arm`，进一步确认这不是单个 fixture 偶发，而是 escape-continuation arm 执行期的统一语义缺口。
-  - `T3013` 临时放开 `continuation_resume_ref_class.scoop` 后，又进一步确认了 handler-context lifetime 的另一侧症状：`continuation_resume_ref_class.scoop`、`effect_escape_continuation_multi_perform_while_loop.scoop` 与 `effect_escape_continuation_gc_stress_multi_string.scoop` 都会在第一次 `resume(...)` 后继续执行到 resumed body 的下一次 `perform`，但不会重新进入 captured handler 的 dispatch loop，caller-tail 因而在第一次 resumed segment 后直接截断。这说明“`handle` 返回后的 escaped continuation 仍可多次 suspend/redispatch”目前尚未闭环，属于本任务范围。
+  - `T3013` 临时放开 `continuation_resume_ref_class.scoop` 后暴露出的“第一次 resumed segment 后的下一次 perform 不会重新进入 captured handler dispatch loop”现已前置拆成 `T3015a` / `T3015aR`；本任务继续保留更宽的 handler-context 生命周期问题：continuation 不应依赖稍后会被 pop 的 stack-alloc handler frame，延迟 / 跨线程 resume 也必须保持 active/inactive 恢复闭环。
 - 目标：
   - arm body 执行期间，触发当前 arm 的 handler instance 必须被临时置为 inactive；arm body 中再次 perform 同一 op 应命中外层 handler，而不是自捕获。
   - escaped continuation 不再捕获会在 `handle_done` 中被 pop/清空的 stack-alloc handler frame；需要改为可持久化、可恢复、与 continuation 生命周期一致的 handler context 表示。
@@ -1771,7 +1800,7 @@
   - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`
   - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_scheduler_round_robin.scoop`
   - `cargo run -p scoop --features llvm -- test`
-- 依赖：T3014R、T3010b2b1
+- 依赖：T3015aR、T3014R、T3010b2b1
 
 ### T3015R [TODO] Review：确认 handler active/inactive 与 escaped continuation context 已真正闭环
 - 描述：在 `T3015` 之后只审查生产代码，确认 arm self-inactive 语义与 escaped continuation 的 handler context 生命周期已经形成可审计的闭环，而不是继续依赖 stack-alloc frame 指针恰好“暂时没炸”；若发现这类问题，本任务需要直接修复并复审。

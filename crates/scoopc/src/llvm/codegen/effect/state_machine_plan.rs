@@ -3409,29 +3409,921 @@ fn build_ordinary_callee_resume_tail_block(
     source_expr: &hir::Expr,
     resume_path: &SuspendResumePath,
     resume_slot: &FrameSlot,
+    allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
 ) -> Option<hir::Block> {
-    if !source_path.frames.is_empty() {
-        return None;
-    }
+    build_resume_tail_block_from_stmt_slice(
+        body,
+        source_path.top_level_stmt_idx,
+        &source_path.frames,
+        source_expr,
+        resume_path,
+        resume_slot,
+        allocate_synthetic_symbol_id,
+    )
+}
 
-    let mut tail_stmts = body
+fn build_resume_tail_block_from_stmt_slice(
+    block: &hir::Block,
+    start_idx: usize,
+    frames: &[SuspendSourceFramePath],
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+    allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
+) -> Option<hir::Block> {
+    let first_stmt = block.stmts.get(start_idx)?;
+    let mut tail_stmts = block
         .stmts
         .iter()
-        .skip(source_path.top_level_stmt_idx)
+        .skip(start_idx)
         .cloned()
         .collect::<Vec<_>>();
-    let first_stmt = tail_stmts.first_mut()?;
-    rewrite_stmt_with_resume_slot(first_stmt, source_expr, resume_path, resume_slot);
+    tail_stmts[0] = build_resume_tail_stmt(
+        first_stmt,
+        frames,
+        source_expr,
+        resume_path,
+        resume_slot,
+        allocate_synthetic_symbol_id,
+    )?;
 
     let tail_span = tail_stmts
         .first()
         .map(|stmt| stmt.span)
-        .unwrap_or(body.span);
+        .unwrap_or(block.span);
     Some(hir::Block {
         span: tail_span,
-        ty: body.ty,
+        ty: block.ty,
         stmts: tail_stmts,
     })
+}
+
+fn build_resume_tail_stmt(
+    stmt: &hir::Stmt,
+    frames: &[SuspendSourceFramePath],
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+    allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
+) -> Option<hir::Stmt> {
+    if frames.is_empty() {
+        let mut rewritten = stmt.clone();
+        rewrite_stmt_with_resume_slot(&mut rewritten, source_expr, resume_path, resume_slot);
+        return Some(rewritten);
+    }
+
+    match &stmt.kind {
+        hir::StmtKind::Expr(expr) => {
+            let rebuilt_expr = build_resume_tail_expr(
+                expr,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            Some(hir::Stmt {
+                span: stmt.span,
+                ty: stmt.ty,
+                kind: hir::StmtKind::Expr(rebuilt_expr),
+            })
+        }
+        hir::StmtKind::Val(decl) => {
+            let init = decl.init.as_ref()?;
+            let rebuilt_init = build_resume_tail_expr(
+                init,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            let mut rebuilt_decl = decl.clone();
+            rebuilt_decl.init = Some(rebuilt_init);
+            Some(hir::Stmt {
+                span: stmt.span,
+                ty: stmt.ty,
+                kind: hir::StmtKind::Val(rebuilt_decl),
+            })
+        }
+        hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+            if let Some(rebuilt_lhs) = build_resume_tail_expr(
+                lhs,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Stmt {
+                    span: stmt.span,
+                    ty: stmt.ty,
+                    kind: hir::StmtKind::Assign {
+                        lhs: rebuilt_lhs,
+                        eq_span: *eq_span,
+                        rhs: rhs.clone(),
+                    },
+                });
+            }
+
+            let rebuilt_rhs = build_resume_tail_expr(
+                rhs,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            Some(hir::Stmt {
+                span: stmt.span,
+                ty: stmt.ty,
+                kind: hir::StmtKind::Assign {
+                    lhs: lhs.clone(),
+                    eq_span: *eq_span,
+                    rhs: rebuilt_rhs,
+                },
+            })
+        }
+        hir::StmtKind::While { cond, body } => {
+            if let Some(SuspendSourceFramePath::WhileBody {
+                while_cond_span,
+                while_body_span,
+                stmt_idx,
+            }) = frames.first()
+                && cond.span == *while_cond_span
+                && body.span == *while_body_span
+            {
+                let current_iteration_tail = build_resume_tail_block_from_stmt_slice(
+                    body,
+                    *stmt_idx,
+                    &frames[1..],
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                    allocate_synthetic_symbol_id,
+                )?;
+                return Some(build_resume_tail_while_stmt(
+                    stmt,
+                    cond,
+                    body,
+                    current_iteration_tail,
+                    allocate_synthetic_symbol_id,
+                ));
+            }
+
+            let rebuilt_cond = build_resume_tail_expr(
+                cond,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            Some(hir::Stmt {
+                span: stmt.span,
+                ty: stmt.ty,
+                kind: hir::StmtKind::While {
+                    cond: rebuilt_cond,
+                    body: body.clone(),
+                },
+            })
+        }
+        hir::StmtKind::Return { value } => {
+            let expr = value.as_ref()?;
+            let rebuilt = build_resume_tail_expr(
+                expr,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            Some(hir::Stmt {
+                span: stmt.span,
+                ty: stmt.ty,
+                kind: hir::StmtKind::Return {
+                    value: Some(rebuilt),
+                },
+            })
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => None,
+    }
+}
+
+fn build_resume_tail_expr(
+    expr: &hir::Expr,
+    frames: &[SuspendSourceFramePath],
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+    resume_slot: &FrameSlot,
+    allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
+) -> Option<hir::Expr> {
+    if frames.is_empty() {
+        return Some(rewrite_expr_with_resume_slot(
+            expr,
+            source_expr,
+            resume_path,
+            resume_slot,
+        ));
+    }
+
+    if let Some(frame) = frames.first() {
+        match frame {
+            SuspendSourceFramePath::Block {
+                block_span,
+                stmt_idx,
+            } => {
+                if let hir::ExprKind::Block(block) = &expr.kind
+                    && block.span == *block_span
+                {
+                    let rebuilt_block = build_resume_tail_block_from_stmt_slice(
+                        block,
+                        *stmt_idx,
+                        &frames[1..],
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )?;
+                    return Some(make_block_expr_with_original_span(expr, rebuilt_block));
+                }
+            }
+            SuspendSourceFramePath::IfThen {
+                if_span,
+                then_span,
+                stmt_idx,
+            } => {
+                if let hir::ExprKind::If { then_branch, .. } = &expr.kind
+                    && expr.span == *if_span
+                    && let hir::ExprKind::Block(block) = &then_branch.kind
+                    && block.span == *then_span
+                {
+                    let rebuilt_block = build_resume_tail_block_from_stmt_slice(
+                        block,
+                        *stmt_idx,
+                        &frames[1..],
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )?;
+                    return Some(make_block_expr_with_original_span(expr, rebuilt_block));
+                }
+            }
+            SuspendSourceFramePath::IfElse {
+                if_span,
+                else_span,
+                stmt_idx,
+            } => {
+                if let hir::ExprKind::If {
+                    else_branch: Some(else_branch),
+                    ..
+                } = &expr.kind
+                    && expr.span == *if_span
+                    && let hir::ExprKind::Block(block) = &else_branch.kind
+                    && block.span == *else_span
+                {
+                    let rebuilt_block = build_resume_tail_block_from_stmt_slice(
+                        block,
+                        *stmt_idx,
+                        &frames[1..],
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )?;
+                    return Some(make_block_expr_with_original_span(expr, rebuilt_block));
+                }
+            }
+            SuspendSourceFramePath::WhenArm {
+                when_span,
+                arm_index,
+                arm_span,
+                stmt_idx,
+            } => {
+                if let hir::ExprKind::When { arms, .. } = &expr.kind
+                    && expr.span == *when_span
+                    && let Some(arm) = arms.get(*arm_index)
+                    && let hir::ExprKind::Block(block) = &arm.body.kind
+                    && block.span == *arm_span
+                {
+                    let rebuilt_block = build_resume_tail_block_from_stmt_slice(
+                        block,
+                        *stmt_idx,
+                        &frames[1..],
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )?;
+                    return Some(make_block_expr_with_original_span(expr, rebuilt_block));
+                }
+            }
+            SuspendSourceFramePath::WhileBody { .. } => {}
+        }
+    }
+
+    match &expr.kind {
+        hir::ExprKind::StructLit { fields, ty } => {
+            for (field_index, field) in fields.iter().enumerate() {
+                let Some(rebuilt_value) = build_resume_tail_expr(
+                    &field.value,
+                    frames,
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                    allocate_synthetic_symbol_id,
+                ) else {
+                    continue;
+                };
+                let mut rebuilt_fields = fields.clone();
+                rebuilt_fields[field_index].value = rebuilt_value;
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::StructLit {
+                        ty: *ty,
+                        fields: rebuilt_fields,
+                    },
+                });
+            }
+            None
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for (element_index, element) in elements.iter().enumerate() {
+                let Some(rebuilt_element) = build_resume_tail_expr(
+                    element,
+                    frames,
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                    allocate_synthetic_symbol_id,
+                ) else {
+                    continue;
+                };
+                let mut rebuilt_elements = elements.clone();
+                rebuilt_elements[element_index] = rebuilt_element;
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::TupleLit {
+                        elements: rebuilt_elements,
+                    },
+                });
+            }
+            None
+        }
+        hir::ExprKind::InterpolatedString { raw, parts } => {
+            for (part_index, part) in parts.iter().enumerate() {
+                let hir::InterpolatedStringPart::Expr { expr: part_expr } = part else {
+                    continue;
+                };
+                let Some(rebuilt_expr) = build_resume_tail_expr(
+                    part_expr,
+                    frames,
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                    allocate_synthetic_symbol_id,
+                ) else {
+                    continue;
+                };
+                let mut rebuilt_parts = parts.clone();
+                rebuilt_parts[part_index] =
+                    hir::InterpolatedStringPart::Expr { expr: rebuilt_expr };
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::InterpolatedString {
+                        raw: *raw,
+                        parts: rebuilt_parts,
+                    },
+                });
+            }
+            None
+        }
+        hir::ExprKind::Unary {
+            op,
+            op_span,
+            expr: inner,
+        } => build_resume_tail_expr(
+            inner,
+            frames,
+            source_expr,
+            resume_path,
+            resume_slot,
+            allocate_synthetic_symbol_id,
+        )
+        .map(|rewritten_inner| hir::Expr {
+            span: expr.span,
+            ty: expr.ty,
+            kind: hir::ExprKind::Unary {
+                op: *op,
+                op_span: *op_span,
+                expr: Box::new(rewritten_inner),
+            },
+        }),
+        hir::ExprKind::TypeCheck {
+            expr: inner,
+            op,
+            op_span,
+            target_ty,
+        } => build_resume_tail_expr(
+            inner,
+            frames,
+            source_expr,
+            resume_path,
+            resume_slot,
+            allocate_synthetic_symbol_id,
+        )
+        .map(|rewritten_inner| hir::Expr {
+            span: expr.span,
+            ty: expr.ty,
+            kind: hir::ExprKind::TypeCheck {
+                expr: Box::new(rewritten_inner),
+                op: *op,
+                op_span: *op_span,
+                target_ty: *target_ty,
+            },
+        }),
+        hir::ExprKind::Cast {
+            expr: inner,
+            op,
+            op_span,
+            target_ty,
+        } => build_resume_tail_expr(
+            inner,
+            frames,
+            source_expr,
+            resume_path,
+            resume_slot,
+            allocate_synthetic_symbol_id,
+        )
+        .map(|rewritten_inner| hir::Expr {
+            span: expr.span,
+            ty: expr.ty,
+            kind: hir::ExprKind::Cast {
+                expr: Box::new(rewritten_inner),
+                op: *op,
+                op_span: *op_span,
+                target_ty: *target_ty,
+            },
+        }),
+        hir::ExprKind::Binary { lhs, op, op_span, rhs } => {
+            if let Some(rewritten_lhs) = build_resume_tail_expr(
+                lhs,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::Binary {
+                        lhs: Box::new(rewritten_lhs),
+                        op: *op,
+                        op_span: *op_span,
+                        rhs: rhs.clone(),
+                    },
+                });
+            }
+
+            build_resume_tail_expr(
+                rhs,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )
+            .map(|rewritten_rhs| hir::Expr {
+                span: expr.span,
+                ty: expr.ty,
+                kind: hir::ExprKind::Binary {
+                    lhs: lhs.clone(),
+                    op: *op,
+                    op_span: *op_span,
+                    rhs: Box::new(rewritten_rhs),
+                },
+            })
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            if let Some(rewritten_cond) = build_resume_tail_expr(
+                cond,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::If {
+                        cond: Box::new(rewritten_cond),
+                        then_branch: then_branch.clone(),
+                        else_branch: else_branch.clone(),
+                    },
+                });
+            }
+
+            if let Some(rewritten_then) = build_resume_tail_expr(
+                then_branch,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::If {
+                        cond: cond.clone(),
+                        then_branch: Box::new(rewritten_then),
+                        else_branch: else_branch.clone(),
+                    },
+                });
+            }
+
+            let else_branch_expr = else_branch.as_deref()?;
+            let rewritten_else = build_resume_tail_expr(
+                else_branch_expr,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            )?;
+            Some(hir::Expr {
+                span: expr.span,
+                ty: expr.ty,
+                kind: hir::ExprKind::If {
+                    cond: cond.clone(),
+                    then_branch: then_branch.clone(),
+                    else_branch: Some(Box::new(rewritten_else)),
+                },
+            })
+        }
+        hir::ExprKind::When { subject, arms } => {
+            if let Some(rewritten_subject) = build_resume_tail_expr(
+                subject,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::When {
+                        subject: Box::new(rewritten_subject),
+                        arms: arms.clone(),
+                    },
+                });
+            }
+
+            for (arm_index, arm) in arms.iter().enumerate() {
+                if let Some(guard) = arm.guard.as_ref()
+                    && let Some(rewritten_guard) = build_resume_tail_expr(
+                        guard,
+                        frames,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )
+                {
+                    let mut rebuilt_arms = arms.clone();
+                    rebuilt_arms[arm_index].guard = Some(rewritten_guard);
+                    return Some(hir::Expr {
+                        span: expr.span,
+                        ty: expr.ty,
+                        kind: hir::ExprKind::When {
+                            subject: subject.clone(),
+                            arms: rebuilt_arms,
+                        },
+                    });
+                }
+
+                if let Some(rewritten_body) = build_resume_tail_expr(
+                    &arm.body,
+                    frames,
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                    allocate_synthetic_symbol_id,
+                ) {
+                    let mut rebuilt_arms = arms.clone();
+                    rebuilt_arms[arm_index].body = rewritten_body;
+                    return Some(hir::Expr {
+                        span: expr.span,
+                        ty: expr.ty,
+                        kind: hir::ExprKind::When {
+                            subject: subject.clone(),
+                            arms: rebuilt_arms,
+                        },
+                    });
+                }
+            }
+            None
+        }
+        hir::ExprKind::MemberAccess { receiver, member } => build_resume_tail_expr(
+            receiver,
+            frames,
+            source_expr,
+            resume_path,
+            resume_slot,
+            allocate_synthetic_symbol_id,
+        )
+        .map(|rewritten_receiver| hir::Expr {
+            span: expr.span,
+            ty: expr.ty,
+            kind: hir::ExprKind::MemberAccess {
+                receiver: Box::new(rewritten_receiver),
+                member: member.clone(),
+            },
+        }),
+        hir::ExprKind::Call { callee, args } => {
+            if let Some(rewritten_callee) = build_resume_tail_expr(
+                callee,
+                frames,
+                source_expr,
+                resume_path,
+                resume_slot,
+                allocate_synthetic_symbol_id,
+            ) {
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::Call {
+                        callee: Box::new(rewritten_callee),
+                        args: args.clone(),
+                    },
+                });
+            }
+
+            for (arg_index, arg) in args.iter().enumerate() {
+                let rebuilt = match arg {
+                    hir::CallArg::Positional(arg_expr) => build_resume_tail_expr(
+                        arg_expr,
+                        frames,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )
+                    .map(hir::CallArg::Positional),
+                    hir::CallArg::Named {
+                        name,
+                        name_span,
+                        value,
+                    } => build_resume_tail_expr(
+                        value,
+                        frames,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )
+                    .map(|rewritten_value| hir::CallArg::Named {
+                        name: name.clone(),
+                        name_span: *name_span,
+                        value: rewritten_value,
+                    }),
+                };
+                let Some(rewritten_arg) = rebuilt else {
+                    continue;
+                };
+                let mut rebuilt_args = args.clone();
+                rebuilt_args[arg_index] = rewritten_arg;
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::Call {
+                        callee: callee.clone(),
+                        args: rebuilt_args,
+                    },
+                });
+            }
+            None
+        }
+        hir::ExprKind::Perform { effect_ty, op, args } => {
+            for (arg_index, arg) in args.iter().enumerate() {
+                let rebuilt = match arg {
+                    hir::CallArg::Positional(arg_expr) => build_resume_tail_expr(
+                        arg_expr,
+                        frames,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )
+                    .map(hir::CallArg::Positional),
+                    hir::CallArg::Named {
+                        name,
+                        name_span,
+                        value,
+                    } => build_resume_tail_expr(
+                        value,
+                        frames,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                        allocate_synthetic_symbol_id,
+                    )
+                    .map(|rewritten_value| hir::CallArg::Named {
+                        name: name.clone(),
+                        name_span: *name_span,
+                        value: rewritten_value,
+                    }),
+                };
+                let Some(rewritten_arg) = rebuilt else {
+                    continue;
+                };
+                let mut rebuilt_args = args.clone();
+                rebuilt_args[arg_index] = rewritten_arg;
+                return Some(hir::Expr {
+                    span: expr.span,
+                    ty: expr.ty,
+                    kind: hir::ExprKind::Perform {
+                        effect_ty: *effect_ty,
+                        op: op.clone(),
+                        args: rebuilt_args,
+                    },
+                });
+            }
+            None
+        }
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Block(_)
+        | hir::ExprKind::Closure(_)
+        | hir::ExprKind::Handle(_)
+        | hir::ExprKind::Todo(_) => None,
+    }
+}
+
+fn make_block_expr_with_original_span(original_expr: &hir::Expr, block: hir::Block) -> hir::Expr {
+    hir::Expr {
+        span: original_expr.span,
+        ty: original_expr.ty,
+        kind: hir::ExprKind::Block(block),
+    }
+}
+
+fn make_block_expr(span: Span, ty: TypeId, block: hir::Block) -> hir::Expr {
+    hir::Expr {
+        span,
+        ty,
+        kind: hir::ExprKind::Block(block),
+    }
+}
+
+fn make_local_var_expr(span: Span, ty: TypeId, id: hir::SymbolId, name: &str) -> hir::Expr {
+    hir::Expr {
+        span,
+        ty,
+        kind: hir::ExprKind::VarRef(hir::ValueRef::Local {
+            id,
+            name: name.to_string(),
+            decl_span: span,
+        }),
+    }
+}
+
+fn make_bool_literal_expr(span: Span, ty: TypeId, value: bool) -> hir::Expr {
+    hir::Expr {
+        span,
+        ty,
+        kind: hir::ExprKind::Literal(hir::LiteralKind::Bool(value)),
+    }
+}
+
+fn make_assign_stmt(span: Span, ty: TypeId, lhs: hir::Expr, rhs: hir::Expr) -> hir::Stmt {
+    hir::Stmt {
+        span,
+        ty,
+        kind: hir::StmtKind::Assign {
+            lhs,
+            eq_span: span,
+            rhs,
+        },
+    }
+}
+
+// 对 `while` body 内部的 suspend source，resume 后必须先完成当前迭代尾部，
+// 然后才回到原 loop 的后续迭代；不能重新从 cond 之前开始，也不能丢掉
+// `break/continue` 对当前 loop 的控制流语义。
+fn build_resume_tail_while_stmt(
+    original_stmt: &hir::Stmt,
+    cond: &hir::Expr,
+    body: &hir::Block,
+    current_iteration_tail: hir::Block,
+    allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
+) -> hir::Stmt {
+    let resume_first_id = allocate_synthetic_symbol_id();
+    let resume_first_name = format!("__resume_loop_first{}", resume_first_id.as_u32());
+    let bool_ty = cond.ty;
+
+    let resume_first_decl = hir::Stmt {
+        span: original_stmt.span,
+        ty: original_stmt.ty,
+        kind: hir::StmtKind::Val(hir::ValDecl {
+            span: original_stmt.span,
+            id: Some(resume_first_id),
+            name: Some(resume_first_name.clone()),
+            mutable: true,
+            ty: bool_ty,
+            init: Some(make_bool_literal_expr(original_stmt.span, bool_ty, true)),
+        }),
+    };
+
+    let resume_first_var =
+        make_local_var_expr(original_stmt.span, bool_ty, resume_first_id, &resume_first_name);
+    let loop_cond = hir::Expr {
+        span: cond.span,
+        ty: bool_ty,
+        kind: hir::ExprKind::Binary {
+            lhs: Box::new(resume_first_var.clone()),
+            op: ast::BinaryOp::LogOr,
+            op_span: cond.span,
+            rhs: Box::new(cond.clone()),
+        },
+    };
+
+    let clear_resume_first = make_assign_stmt(
+        original_stmt.span,
+        original_stmt.ty,
+        resume_first_var.clone(),
+        make_bool_literal_expr(original_stmt.span, bool_ty, false),
+    );
+
+    let mut first_iteration_stmts = vec![clear_resume_first];
+    first_iteration_stmts.extend(current_iteration_tail.stmts);
+    let first_iteration_block = hir::Block {
+        span: current_iteration_tail.span,
+        ty: body.ty,
+        stmts: first_iteration_stmts,
+    };
+
+    let loop_body_if = hir::Expr {
+        span: original_stmt.span,
+        ty: body.ty,
+        kind: hir::ExprKind::If {
+            cond: Box::new(resume_first_var),
+            then_branch: Box::new(make_block_expr(
+                first_iteration_block.span,
+                body.ty,
+                first_iteration_block,
+            )),
+            else_branch: Some(Box::new(make_block_expr(body.span, body.ty, body.clone()))),
+        },
+    };
+    let loop_body = hir::Block {
+        span: body.span,
+        ty: body.ty,
+        stmts: vec![hir::Stmt {
+            span: original_stmt.span,
+            ty: body.ty,
+            kind: hir::StmtKind::Expr(loop_body_if),
+        }],
+    };
+    let resumed_loop = hir::Stmt {
+        span: original_stmt.span,
+        ty: original_stmt.ty,
+        kind: hir::StmtKind::While {
+            cond: loop_cond,
+            body: loop_body,
+        },
+    };
+
+    let wrapper_block = hir::Block {
+        span: original_stmt.span,
+        ty: original_stmt.ty,
+        stmts: vec![resume_first_decl, resumed_loop],
+    };
+    hir::Stmt {
+        span: original_stmt.span,
+        ty: original_stmt.ty,
+        kind: hir::StmtKind::Expr(make_block_expr(
+            original_stmt.span,
+            original_stmt.ty,
+            wrapper_block,
+        )),
+    }
 }
 
 fn rewrite_state_terminator_with_resume_slot(
@@ -5386,12 +6278,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             declared_return_ty,
             &resume_slot,
         );
+        let mut allocate_synthetic_symbol_id = || context.allocate_synthetic_symbol_id();
         let resume_tail = build_ordinary_callee_resume_tail_block(
             &synthetic_handle.body,
             source_path,
             source_expr,
             resume_path,
             &resume_slot,
+            &mut allocate_synthetic_symbol_id,
         )?;
 
         let saved_locals = site

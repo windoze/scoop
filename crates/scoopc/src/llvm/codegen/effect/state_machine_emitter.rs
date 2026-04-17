@@ -3144,6 +3144,68 @@ fun main(): Int {
     }
 
     #[test]
+    fn indirect_if_branch_callee_keeps_handle_call_site_active_dispatch() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+fun viaIf(flag: Bool, base: Int): String / (Ask) {
+    val result: String = if (flag) do {
+        println("if_enter")
+        val inner: String = Ask.ask(base + 2)
+        println("if_resume")
+        println(inner)
+        f"I:{inner}"
+    } else do {
+        "if_else"
+    }
+    println("if_after")
+    println(result)
+    result
+}
+
+fun main(): Int {
+    val _: String = handle {
+        viaIf(true, 20)
+    } with {
+        Ask.ask(seed), k -> {
+            "fallback"
+        }
+    }
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("site0_is_active"),
+            "outer handle should still check TLS active around the indirect if-branch callee call"
+        );
+        assert!(
+            ir.contains("site0_active"),
+            "outer handle should preserve the active-dispatch path for the indirect if-branch callee call"
+        );
+        assert!(
+            ir.contains("callee_suspend_entry_is_resume"),
+            "ordinary if-branch callee should still build a fresh/resume dual-entry contract"
+        );
+    }
+
+    #[test]
     fn runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch() {
         let source = SourceFile::new_virtual(
             "<mem>",

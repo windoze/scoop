@@ -1,0 +1,177 @@
+// EXPECT: fail
+// T3015a blocker: first resume can reach the next indirect callee, but the
+// next outward perform still fails to redispatch into the captured handler
+// loop, so the resumed caller-tail truncates after the first resumed segment.
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_statement_container_matrix.stdout
+//
+// T3009b2: ordinary indirect callee resumed-body restore must also cover
+// shared statement-container source paths.
+// - `viaBlock` suspends inside a nested block expression.
+// - `viaIf` suspends inside an `if` branch block.
+// - `viaWhen` suspends inside a `when` arm block.
+// - `viaWhile` suspends inside a `while` body and must finish the current
+//   iteration tail before the loop condition is checked again.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+class Cell(var k: Continuation<String>?, var seen: Int)
+
+fun viaBlock(base: Int): String / (Ask) {
+    val result: String = do {
+        println("block_enter")
+        val prefix: String = "B:"
+        val inner: String = Ask.ask(base + 1)
+        println("block_resume")
+        println(inner)
+        f"{prefix}{inner}"
+    }
+    println("block_after")
+    println(result)
+    result
+}
+
+fun viaIf(flag: Bool, base: Int): String / (Ask) {
+    val result: String = if (flag) do {
+        println("if_enter")
+        val inner: String = Ask.ask(base + 2)
+        println("if_resume")
+        println(inner)
+        f"I:{inner}"
+    } else do {
+        "if_else"
+    }
+    println("if_after")
+    println(result)
+    result
+}
+
+fun viaWhen(mode: Int, base: Int): String / (Ask) {
+    val result: String = when (mode) {
+        0 -> do {
+            println("when_enter")
+            val inner: String = Ask.ask(base + 3)
+            println("when_resume")
+            println(inner)
+            f"W:{inner}"
+        }
+        else -> "when_else"
+    }
+    println("when_after")
+    println(result)
+    result
+}
+
+fun keepLooping(i: Int): Bool {
+    println("while_cond")
+    println(i)
+    i < 1
+}
+
+fun viaWhile(base: Int): String / (Ask) {
+    var current: String = "seed"
+    var i: Int = 0
+    while (keepLooping(i)) {
+        println("while_enter")
+        current = Ask.ask(base + 4)
+        println("while_resume")
+        println(current)
+        i = i + 1
+    }
+    println("while_after")
+    println(current)
+    f"{current}!"
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val result: String = handle {
+        println("body_start")
+        val block: String = viaBlock(10)
+        println("after_block")
+        println(block)
+
+        val if_value: String = viaIf(true, 20)
+        println("after_if")
+        println(if_value)
+
+        val when_value: String = viaWhen(0, 30)
+        println("after_when")
+        println(when_value)
+
+        val while_value: String = viaWhile(40)
+        println("after_while")
+        println(while_value)
+        while_value
+    } with {
+        Ask.ask(seed), k -> {
+            cell.seen = cell.seen + 1
+            println("arm")
+            println(cell.seen)
+            println(seed)
+            cell.k = Some(k)
+            "fallback"
+        }
+    }
+
+    println("after_handle")
+    println(result)
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("block")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("if")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k3.resume("when")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+
+    when (cell.k) {
+        Some(k4) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k4.resume("loop")
+            } catch (e: RuntimeError) {
+                println("unexpected_resume4")
+            }
+        }
+        None -> println("missing4")
+    }
+    println("after_resume4")
+    println("done")
+}
