@@ -1062,8 +1062,12 @@
   - `Continuation.resume(...)` dedicated lowering 仍只负责 runtime resume 与 payload transport；outer-local 同步没有散落到 builtin call path、escape arm 或 fixture 专用补丁中。
 - 依赖：T3009b0a1b
 
-### T3009b0R [TODO] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call
+### T3009b0R [DONE] Review：确认 escaped continuation resume 的 scalar/ref lowering 不再回落到 generic call
 - 描述：在 `T3009b0` 之后只审查生产代码，确认 escaped continuation 的 `Continuation.resume(...)` 已有 dedicated lowering，并且当前仅覆盖 scalar/ref transport 的实现没有偷偷塞回 generic member access / generic call；若发现回落或散落 patch，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_call`：`continuation_resume_call_sites` 检查位于普通 call lowering 的最前面，typecheck 已确认的 `Continuation.resume(...)` 会直接分派到 `codegen_continuation_resume_builtin`，不会先落入 generic member access / generic call 兜底。
+  - 已复审 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_member_access` 与相邻 call/member 入口；生产代码中不存在按成员名、receiver 形状或 `Continuation` 类型去偷偷识别 `resume` 的旁路特判，builtin 语义唯一来源仍是 call-site side table。
+  - 已复审 `crates/scoopc/src/llvm/codegen/expr.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs`：unified state-machine emitter 对 `HandleStateOp::Call` / `RuntimeRaiseBoundary` / `NestedHandle*` 等相关表达式统一委托 `codegen_expr_in_expected_context`，最终仍走同一个 `codegen_call -> codegen_continuation_resume_builtin` 分派；`codegen_continuation_resume_builtin` 只复用共享 continuation runtime ABI、`resume_word` / `resume_gc_ref` transport 与 ordinary effect propagation check，不包含 escaped-continuation-only side channel。
 - 目标：
   - 确认 `Continuation.resume(...)` 在 unified state-machine emitter 与普通 call path 中都有显式 lowering 分派，不再依赖 generic call callee 兜底。
   - 确认 scalar/ref payload 仍复用统一 continuation runtime ABI，不存在 escaped-continuation-only 特例通道。
@@ -1071,6 +1075,17 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“escaped continuation resume 的 scalar/ref lowering 已 dedicated 化，且未回落到 generic call 路径”。
+- 已验证：
+  - `cargo test -p scoopc continuation_resume_hidden_suspend_classification_requires_typechecked_call_site_marker -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_bool.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_escape_handle_tail.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 审查结论：
+  - escaped continuation 的 `Continuation.resume(...)` scalar/ref lowering 已 dedicated 化，且未回落到 generic call 路径。ordinary path 与 unified state-machine path 共享同一个 `codegen_call -> codegen_continuation_resume_builtin` builtin 分派，不存在额外的 member-access fallback。
+  - 当前 payload transport 仍统一复用 continuation runtime ABI 与 `resume_word` / `resume_gc_ref` 两条共享通道；composite payload 仍明确留给后续 `T3013` / `T3009b` 扩展。
 - 依赖：T3009b0
 
 ### T3010b2b1b [TODO] 补齐 nested arm indirect outward propagation 所需的 unified value coercion / expected-context 前置
