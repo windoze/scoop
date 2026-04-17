@@ -1273,8 +1273,19 @@
     - 仅因 expected context 缺失引发的 `暂不支持的 main 代码生成节点：value coercion`
 - 依赖：T3011R
 
-### T3012R [TODO] Review：确认 unified path 的 expected context 与 closure 支持已与普通 codegen 对齐
+### T3012R [DONE] Review：确认 unified path 的 expected context 与 closure 支持已与普通 codegen 对齐
 - 描述：在 `T3012` 之后只审查生产代码，确认 unified path 不再靠 effect-only 特判或 fixture patch 传递 expected context，也不再把 closure case 留在占位错误后面；若发现这类问题，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/expr.rs`、`control_flow.rs`、`stmt.rs`、`mod.rs`、`effect/mod.rs`、`effect/state_machine_plan.rs` 与 `effect/state_machine_emitter.rs`，对照 ordinary / unified 两条生产路径中的 initializer、call、`if`/`when`、handle result、arm body 与 continuation resume 入口。
+  - 已确认 unified path 的 expected context 来源仍是类型/slot/result 合同：`BindLocal` 复用普通 `codegen_initializer_expr`，handle 结果类型来自 `codegen_handle_expr(..., expected)` 与 `contract.result_ty()`，`if`/`when`/block/call/`print`/`println` 等值整形继续复用 ordinary codegen 的 `codegen_if_expr`、`codegen_when_expr`、`codegen_call` 与 `codegen_sysroot_print_like`。
+  - 已确认 closure / function-value 路径没有 effect-only 分支：局部初始化继续走 `codegen_initializer_expr`，call-arg / receiver-arg 场景继续由 ordinary `codegen_call` 按参数类型调用 `codegen_closure_expr`，unified state machine 只负责 frame/result carrier，不额外实现一套 closure lowering。
+  - 已确认 `Continuation.resume(...)` 的 builtin 分派仍只由 `continuation_resume_call_sites` 这个 typechecked side table 驱动，`effect/mod.rs` 中仅用 `MemberAccess` 结构抽取 receiver；生产代码未重新引入按 `single`/`indirect`/`nested`/callee shape 选择 lowering 路径的分流。
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/std_test_assertions_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail`：`tests/fixtures/run-pass/continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。
 - 目标：
   - 确认 expected context 的来源都来自类型/slot/result 合同，而不是按 fixture 形状硬编码。
   - 确认 unified path 中的 closure / function-value 支持与普通 codegen 使用同一套生产逻辑。
@@ -1282,6 +1293,11 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“unified path 的 expected context / closure 支持已与普通 codegen 对齐，无 effect-only workaround 残留”。
+- 审查结论：
+  - unified path 的 expected context / closure 支持已与普通 codegen 对齐，无 effect-only workaround 残留。
+  - expected context 继续由声明类型、handle result 类型、call 参数类型与 ordinary control-flow codegen 的输出类型合同驱动；unified emitter 没有按 fixture 形状、源码形状或旧分类结果硬编码 expected type。
+  - closure / function-value 支持继续复用 ordinary `codegen_initializer_expr` / `codegen_call` / `codegen_closure_expr` 生产逻辑；state machine 只承担 suspension/result carrier 角色，没有演化出 effect-only closure lowering。
+  - 生产代码中未发现按 `single` / `indirect` / `nested` / callee shape 分流的 effect codegen 补丁回流。
 - 依赖：T3012
 
 ### T3013 [TODO] 扩展 effect payload / handle result / resume payload transport，覆盖 composite 值

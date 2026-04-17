@@ -4,6 +4,7 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-17 当前轮复审更新：`T3012R` 已完成。复审 `expr.rs`、`control_flow.rs`、`stmt.rs`、`mod.rs`、`effect/mod.rs`、`effect/state_machine_plan.rs` 与 `effect/state_machine_emitter.rs` 后确认，unified path 中的 expected context 仍由声明类型、handle result、call 参数与 ordinary control-flow 输出类型合同驱动：`BindLocal` 继续复用 `codegen_initializer_expr`，handle result 通过 `codegen_handle_expr(..., expected)` 与 `contract.result_ty()` 决定，`if`/`when`/call/`print`/`println` 等路径继续复用 ordinary codegen；closure / function-value 也仍通过 `codegen_initializer_expr` / `codegen_call` / `codegen_closure_expr` 的普通生产逻辑进入 lowering，没有 effect-only closure 分支。定向验证 `effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `std_test_assertions_basic.scoop` 通过，`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过；复跑 `cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail` `continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。因此 effect 主线当前顺序推进到 `T3013`。
 > 2026-04-17 当前轮收口更新：`T3012` 已完成，但任务边界需要先纠正。重新运行其两条定向验收 fixture 后，`effect_escape_continuation_indirect_perform_closure_locals.scoop` 与 `std_test_assertions_basic.scoop` 都已通过；随后对当前全部 101 个 `run-pass` `EXPECT: fail` fixture 做快速扫描，其中 87 个已直接通过，且不再出现 `expression kind`、`enum variant ctor call without expected enum type`、`sysroot print/println arg type` 三类 `T3012` 目标错误。扫描中唯一残留的 `value coercion` 是 `continuation_resume_enum.scoop`，但它并不属于 expected-context/closure 层：`effect/mod.rs::codegen_continuation_resume_builtin()` 已明确注明 composite resume payload 仍待 `T3013` / `T3009b`，而 `coerce_u64_word()` / `narrow_u64_word_to_cg_value()` 对 tagged-union enum 仍只保留 tag，尚未提供 richer payload transport。因此本轮先把 `continuation_resume_enum.scoop` 从 `T3012` 验收中移除，继续留在已有的 `T3013` + `T3009b` 路径下；`T3012` 本身则按“unified path 的 expected-context / closure / coercion 支持已与普通 codegen 对齐”收口完成。当前 effect 主线下一项推进到 `T3012R`。
 > 2026-04-17 当前轮复审更新：`T3011R` 已完成。复审 `state_machine_plan.rs`、`state_machine_emitter.rs` 与 `stmt.rs` 后确认，frame slot 的 mutability / capture 元数据已经按声明点收口：`build_stmt(Val)` 会覆盖旧 placeholder slot，`collect_outer_scope_slots()` / `authoritative_local_slot()` 统一从 `known_local_metadata` 读取权威 mutability，emitter 的 frame-slot 预注册、read-back、arm capture 恢复与 outer-scope seeding/writeback 都直接消费 unified slot metadata；赋值仍统一走通用 `codegen_assign_stmt()`，没有 effect-only mutable patch。定向验证 `declared_handle_local_overwrites_placeholder_slot_metadata`、`handle_context_extension_recovers_nested_handle_outer_var_mutability`、`effect_escape_continuation_resume_unit.scoop`、`effect_escape_continuation_outer_var_writeback_basic.scoop` 均通过；`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail` `continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。因此 effect 主线当前顺序推进到 `T3012`。
 > 2026-04-17 当前轮实现更新：`T3011` 已完成。修复点分两层：一是 `build_unified_lowering_contract()` 现在会把当前 `handle` 自身的 local metadata 合并进生产态 `HandlePlanContext::from_codegen()`，避免 nested/unified 子路径丢失声明点 mutability；二是 `build_stmt(Val)` 遇到真实声明时会直接覆盖旧 slot metadata，不再保留先前 fallback 占坑留下的 `mutable: false` / `seed_from_outer_scope` 残值。已新增结构回归 `declared_handle_local_overwrites_placeholder_slot_metadata` 与 `handle_context_extension_recovers_nested_handle_outer_var_mutability`。验证通过：`cargo run -p scoop -- run tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop`、当前 `EXPECT: fail` run-pass 子集扫描（未再出现 `assignment to immutable local`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop --features llvm -- test` 仍只停在已跟踪的 stale `EXPECT: fail` `continuation_resume_continuation.scoop`（`T3017`），未出现新的更早失败点。因此 effect 主线当前顺序推进到 `T3011R`。
@@ -549,36 +550,33 @@
 
 ## 4. 当前执行顺序
 
-1. `T3011R`
-2. `T3012`
-3. `T3012R`
-4. `T3013`
-5. `T3013R`
-6. `T3009b`
-7. `T3009bR`
-8. `T3014`
-9. `T3014R`
-10. `T3015`
-11. `T3015R`
-12. `T3016`
-13. `T3016R`
-14. `T3017`
-18. `T3017R`
-22. `T3103`
-23. `T3104`
-24. `T3201`
-25. `T3202`
-26. `T3203`
-27. `T3204`
-28. `T3205`
-29. `T3301`
-30. `T3302`
-31. `T3303`
-32. `T3401`
-33. `T3401a`
-34. `T3401b`
-35. `T3401c`
-36. `T3402`
-37. `T3403`
-38. `T3404`
-39. `T3405`
+1. `T3013`
+2. `T3013R`
+3. `T3009b`
+4. `T3009bR`
+5. `T3014`
+6. `T3014R`
+7. `T3015`
+8. `T3015R`
+9. `T3016`
+10. `T3016R`
+11. `T3017`
+12. `T3017R`
+13. `T3103`
+14. `T3104`
+15. `T3201`
+16. `T3202`
+17. `T3203`
+18. `T3204`
+19. `T3205`
+20. `T3301`
+21. `T3302`
+22. `T3303`
+23. `T3401`
+24. `T3401a`
+25. `T3401b`
+26. `T3401c`
+27. `T3402`
+28. `T3403`
+29. `T3404`
+30. `T3405`
