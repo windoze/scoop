@@ -1,6 +1,6 @@
 // EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// T3304: 当前该 fixture 的真实阻塞不是统一 effect codegen，而是多 import 下 `None()`
+// 命中 `Option.None` 与 `LazyThreadSafetyMode.None` 的 enum ctor 歧义；待名称解析/expected-type 消歧收口后回收。
 // RUN-STDOUT: gc_continuation_multi_thread_concurrent_alloc_resume.stdout
 //
 // T1705: Multi-thread + GC + escaping continuation — worker threads resume continuations.

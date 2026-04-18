@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
 // RUN-STDOUT: std_test_assertions_basic.stdout
 //
 // 目标：T1320a `scoop.test` 最小断言工具（assertions）run-pass 可执行回归。

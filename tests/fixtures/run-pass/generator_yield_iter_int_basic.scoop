@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
 // RUN-STDOUT: generator_yield_iter_int_basic.stdout
 //
 // T0621: generator/yield（库级实现验证，spec §5.7）

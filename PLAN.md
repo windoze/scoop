@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：继续执行 `T3017` 的 expectation cleanup 时，我先把当前 worktree 中 72 个 `EXPECT: fail` 候选逐条用官方 runner 复核，并已将其中 66 条 stale expectation 改回 `EXPECT: pass`；run-pass 下全部 `T3006` 临时注释也已清空，仅剩 6 条真实 `EXPECT: fail`（4 条本来就应保持失败语义的负向/诊断 fixture，外加已分别转记到 `T3304` / `T3406` 的 2 条非 effect blocker）。在此基础上继续执行 `cargo run -p scoop --features llvm -- test` 后，suite 不再停在 stale xfail，而是前进到本来就应 passing 的 `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`。该 fixture 当前直接报 `scoop::llvm::module_verification_failed`：`Terminator found in the middle of a basic block! label %resume_site0`。由于这正是 `T3009b0a1c` / `T3009b0a1cR` 曾新增来锁定 unified `SuspendCall` inactive-continue / active-dispatch 合同的回归用例，说明当前 shared production contract 已重新退化成非法 IR，而不是 expectation 形态问题。按阻塞规则，现已在 `T3017` 前新增 `T3016i` → `T3016iR`，先修复并复审这条更前置的 `SuspendCall` inactive helper verifier 回归，再继续 effect run-pass baseline cleanup。当前 effect 主线下一项改为 `T3016i`。
+>
 > 2026-04-18 当前轮复审更新：`T3016hR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_emitter.rs` 后确认，`T3016h` 的修复仍严格停留在统一 frame metadata / slot seeding 合同内：`collect_outer_scope_slots()` 继续只根据 declared-local 与 used-local 差集生成 `seed_from_outer_scope` 槽位，`collect_declared_local_ids_in_closure()` 现统一把显式 closure 形参与 resolver 注入的隐式 `it` binder 视作 closure 内声明局部；emitter 侧 `seed_outer_scope_frame_slots()` / `write_back_outer_scope_frame_slots()` 也仍只消费通用 frame slot metadata，没有读取 stdlib helper 名称、Task adapter 名称、fixture 名称或源码形状做额外分流。已复验 `cargo test -p scoopc handle_outer_scope_seeding -- --nocapture`、两条目标 fixture、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
 >
 > 2026-04-18 当前轮完成更新：`T3016h` 已完成。重新复现 `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 后确认，共享生产 blocker 不在具体 stdlib helper，而在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 closure declared-local 收集：`collect_declared_local_ids_in_expr()` 递归进入 closure body 时，没有把 lambda 显式形参与 resolver 为隐式单参 lambda 注入的 synthetic `it` binder 视为“closure 内声明局部”，导致外层 handle / try-catch 把 `v` / `acc` / `x` / `it` 误收为 `seed_from_outer_scope` frame slots，随后 emitter 在 `seed_outer_scope_frame_slots()` 中从当前外层 `env` 取不到对应 local storage 而报 `effect frame seed outer-scope local`。现已补齐这条 declared-local 合同，并新增两条 unified state-machine 结构测试，分别锁定显式 closure 参数与隐式 `it` 都不会再被误判成 outer-scope seed slot；真正的外层捕获则继续保留。同步把 `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 从 stale `EXPECT: fail` 恢复为 `EXPECT: pass`。已验证两条目标 fixture 直跑、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016hR`。
@@ -665,25 +667,27 @@
 
 ## 4. 当前执行顺序
 
-1. `T3017`
-2. `T3017R`
-3. `T3103`
-4. `T3104`
-5. `T3201`
-6. `T3202`
-7. `T3203`
-8. `T3204`
-9. `T3205`
-10. `T3301`
-11. `T3302`
-12. `T3303`
-13. `T3304`
-14. `T3401`
-15. `T3401a`
-16. `T3401b`
-17. `T3401c`
-18. `T3402`
-19. `T3403`
-20. `T3404`
-21. `T3405`
-22. `T3406`
+1. `T3016i`
+2. `T3016iR`
+3. `T3017`
+4. `T3017R`
+5. `T3103`
+6. `T3104`
+7. `T3201`
+8. `T3202`
+9. `T3203`
+10. `T3204`
+11. `T3205`
+12. `T3301`
+13. `T3302`
+14. `T3303`
+15. `T3304`
+16. `T3401`
+17. `T3401a`
+18. `T3401b`
+19. `T3401c`
+20. `T3402`
+21. `T3403`
+22. `T3404`
+23. `T3405`
+24. `T3406`

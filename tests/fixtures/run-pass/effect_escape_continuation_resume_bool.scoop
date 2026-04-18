@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
 // RUN-STDOUT: effect_escape_continuation_resume_bool.stdout
 //
 // 目标：T1607 — resume payload 为 Bool（scalar 通道，通过 resume_word 传递并截断到 i1）。

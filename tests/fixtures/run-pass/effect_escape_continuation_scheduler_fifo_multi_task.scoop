@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
 // RUN-STDOUT: effect_escape_continuation_scheduler_fifo_multi_task.stdout
 //
 // T1701: FIFO scheduler with multiple independent tasks.

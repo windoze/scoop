@@ -1,6 +1,6 @@
 // EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// T3406: 当前真实阻塞是 LLVM lowering 仍会把 `!!` 非空断言收口成
+// `when arm type mismatch`；待非空断言值语义/codegen 收口后回收该 fixture。
 // RUN-STDOUT: not_null_assert_basic.stdout
 //
 // T0108: `!!` (non-null assert) codegen.

@@ -2431,8 +2431,36 @@
 - 审查结论：
   - stdlib/task adapter outer-local seeding 已按统一 frame metadata 合同收口，无 helper-specific workaround 残留。
   - 修复面仍只落在 closure declared-local 收集与统一 slot seeding metadata；`Executor.await`、`assertTrue`、`require` 等 helper 名称没有进入 effect 生产 lowering 决策面。
-  - 当前 effect 主线下一项推进到 `T3017`：回收剩余 stale `EXPECT: fail`，恢复 effect run-pass 基线。
+  - `T3017` expectation cleanup 已先行清空 run-pass 中残留的 `T3006` 临时标记，但全量 runner 随后暴露出新的更前置回归 `effect_handle_suspend_call_inactive_helper_basic.scoop`；当前 effect 主线下一项改为 `T3016i`。
 - 依赖：T3016h
+
+### T3016i [TODO] 修复 unified `SuspendCall` inactive helper 路径再次生成非法 LLVM IR 的回归
+- 描述：执行 `T3017` 的全量 `cargo run -p scoop --features llvm -- test` 验收时，suite 不再停在 stale xfail，而是前进到本来就应 passing 的 `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`。该 fixture 当前直接在 LLVM verifier 阶段失败：`scoop::llvm::module_verification_failed` / `Terminator found in the middle of a basic block! label %resume_site0`。这说明此前由 `T3009b0a1c` / `T3009b0a1cR` 收口的 unified `SuspendCall` inactive-continue / active-dispatch 合同又发生了生产回退：在 `helper(false)` 这类 callee inactive 返回路径上，step function 生成的 `resume_site*` block 结构不再合法，caller-tail 无法继续。由于 `T3017` 的目标是恢复 effect run-pass passing baseline，而当前 baseline 已被这个 pass fixture 先行阻塞，必须先新增并修复这条更前置的生产回归。
+- 进展：
+  - 已在当前 worktree 中回收 66 个 stale `EXPECT: fail` 并清空 run-pass 下全部 `T3006` 临时注释；因此本次全量 runner 暴露出的 `effect_handle_suspend_call_inactive_helper_basic.scoop` 是新的首个真实 blocker，而不再是 expectation 形态问题。
+  - 已用 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop` 复现真实失败，当前诊断稳定为 `scoop::llvm::module_verification_failed`：`Terminator found in the middle of a basic block! label %resume_site0`。
+  - 已复查 `T3009b0a1c` / `T3009b0a1cR` 的既有计划记录：该 fixture 正是当时新增来锁定 `SuspendCall` inactive-path caller-tail / active-dispatch 合同的回归用例，说明这是 shared production contract 的回退，而不是新的 fixture-only 用例。
+- 目标：
+  - `effect_handle_suspend_call_inactive_helper_basic.scoop` 恢复为正常 run-pass，不再触发 LLVM module verification failure。
+  - `SuspendCall` 的 inactive helper 路径重新生成结构合法的 `resume_state` / `resume_site` 控制流，callee inactive 返回后继续 caller-tail；同一 fixture 内的 active dispatch 语义保持不退化。
+  - 修复仍停留在统一 state-machine / `Suspend` terminator / resume-path 合同内，不按 helper 名称、fixture 名称或源码形状打补丁。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016hR
+
+### T3016iR [TODO] Review：确认 unified `SuspendCall` inactive helper IR 修复仍停留在单一 state-machine 合同
+- 描述：在 `T3016i` 之后复审 `SuspendCall` inactive helper 回归，确认修复只通过统一 state-machine / `Suspend` terminator / resume-path 合同恢复合法 IR 与 caller-tail 继续执行，而不是为 `helper(false)`、局部 helper、特定 fixture 或 `CallMaySuspend` 某个子形状单独绕路；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `effect_handle_suspend_call_inactive_helper_basic.scoop` 的修复仍只读取统一 suspend-site metadata 与 TLS active 结果。
+  - 确认不会因修复 verifier failure 而把 inactive-path 回流成 helper-specific branch、旧 shape-based 判定或 effect-only fallback。
+  - 完成后再回到 `T3017`，继续 effect run-pass baseline expectation cleanup 的最终收口。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“unified `SuspendCall` inactive helper IR 修复已收口到单一 state-machine 合同，无 helper-specific workaround 残留”。
+- 依赖：T3016i
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
@@ -2442,6 +2470,8 @@
   - 2026-04-18 本轮 expectation scan 把 83 条残留 `T3006` xfail 临时切回 `EXPECT: pass` 做了正式 runner 验证，确认 `T3017` 不能直接执行：至少存在四类更前置的真实生产缺口，分别由 `T3016a`（cleanup/finally completion 恢复）、`T3016b`（resumed-body tail replay）、`T3016c`（outer-body `Continuation.resume(...)` lowering）、`T3016d`（GC stress continuation/object-graph 存活）承接。
   - 2026-04-18 本轮重新启动 expectation cleanup 时，再次用官方 runner 验证 61 条 effect / continuation 相关 `EXPECT: fail` 候选，发现 `T3017` 仍有新的前置 blocker：pass 基线中的 `effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`，以及 xfail 中的 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 都会在 inner arm/catch 再次 perform 后继续执行 `unreachable_after_*`。该共享回归现由新增的 `T3016e` / `T3016eR` 承接。
   - 2026-04-18 本轮进一步对 75 条仍带 `EXPECT: fail` 的 run-pass fixture 做了逐条单独验证：其中 62 条现在已是 stale expectation，可直接恢复 passing baseline；4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）属于本来就应继续保持失败语义的诊断/负向 fixture，只需在本任务中去掉 stale `T3006` 原因；其余 9 条真实失败里，effect 主线 blocker 现由新增的 `T3016f` / `T3016g` / `T3016h` 承接，非 effect 残留 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 与 `not_null_assert_basic.scoop` 则已分别转记到 `T3304` / `T3406`。
+  - 2026-04-18 本轮已先行在 worktree 中落实上述 cleanup：72 个 `EXPECT: fail` 中已有 66 个通过官方 runner 复核后改回 `EXPECT: pass`，run-pass 下全部 `T3006` 临时注释已清空，仅剩 6 条真实 `EXPECT: fail`（4 条本来就应失败的负向/诊断 fixture，外加已转记到 `T3304` / `T3406` 的 2 条 blocker）。
+  - 继续执行本任务的最终验收时，`cargo run -p scoop --features llvm -- test` 不再停在 stale xfail，而是前进到新的更前置 pass-fixture 回归 `effect_handle_suspend_call_inactive_helper_basic.scoop`；当前其真实失败为 `scoop::llvm::module_verification_failed` / `Terminator found in the middle of a basic block! label %resume_site0`，已新增 `T3016i` / `T3016iR` 承接。因此本任务顺延到 `T3016iR` 之后继续。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -2451,7 +2481,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016hR
+- 依赖：T3016iR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。

@@ -1,6 +1,4 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
 // RUN-STDOUT: object_once_init_cross_thread.stdout
 //
 // T0918：runtime once 原语：`object` 初始化在跨线程访问下仍只执行一次。
