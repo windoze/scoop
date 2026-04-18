@@ -2532,8 +2532,13 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016jR
 
-### T3016kR [TODO] Review：确认 non-resuming effect trace hook 恢复已回到统一 activation/span 合同
+### T3016kR [DONE] Review：确认 non-resuming effect trace hook 恢复已回到统一 activation/span 合同
 - 描述：在 `T3016k` 之后只审查生产代码，确认 trace line/col 恢复仍严格停留在统一的 runtime activation/span 映射合同内，没有为 `Raise.raise`、`try/catch`、某个 fixture 或特定 helper 恢复 fixture-only、shape-based 或 call-site hardcode；若发现此类残留，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`、`runtime_abi.rs` 与 `effect/mod.rs` 的生产路径，确认 ordinary `perform` 与 runtime-error `Raise.raise` 都通过共享的 `emit_effect_set_active_with_trace()` → `declare_runtime_effect_set_active_with_trace()` → `scoop_effect_set_active_with_trace(...)` ABI 链路发布 trace，没有按 fixture 名称、golden 内容或源码字符串匹配分流。
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 `effect_trace_line_col()` 与 `state_machine_emitter.rs` 中 `UnifiedStateTerminator::Suspend` / `suspend_site_uses_inactive_continue_path()`，确认 line/col 统一来自当前 codegen source + HIR span 映射；state-machine suspend 只按 `SuspendSiteKind` 合同决定是否在 outer suspend 出口补发 traceful activation，没有恢复 shape-based 或 helper-specific 旁路。
+  - 已额外核对剩余 plain `scoop_effect_set_active()` 生产调用点：当前仅保留在 `scoop.core.__scoop_effect_set_active` sysroot intrinsic lowering 中，供 runtime/TLS ABI 测试使用；non-resuming effect 生产路径不再回落到无 trace activation。
+  - 已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`（输出 `16` / `5`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 ordinary perform、runtime-error raise 与 unified state-machine suspend 共享同一套 trace activation helper / ABI。
   - 确认 line/col 来源于通用 span 映射，不依赖 fixture 名称、golden 内容或源码字符串匹配。
@@ -2541,6 +2546,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“non-resuming effect trace hook 已统一收口到共享 activation/span 合同，无 fixture-only workaround 残留”。
+- 审查结论：
+  - non-resuming effect trace hook 已统一收口到共享 activation/span 合同，无 fixture-only workaround 残留。
+  - ordinary `perform`、runtime-error `Raise.raise` 与 unified state-machine suspend 共享同一套 traceful activation ABI；其中 direct `Perform` site 由 outer suspend 补发 trace，call-boundary / runtime-raise / nested-boundary 路径则保留 inner producer 已写入的原始 trace，不会被无 trace activation 覆盖。
+  - trace line/col 的来源统一为 `effect_trace_line_col()` 基于当前 source + HIR span 的通用映射；生产代码中不存在按 fixture、`try/catch` 形状、特定 helper 名称或源码字符串硬编码 line/col 的分支。
 - 依赖：T3016k
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
