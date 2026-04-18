@@ -2379,14 +2379,23 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016fR
 
-### T3016gR [TODO] Review：确认 resumed-body raise-after-resume 已闭环到统一 cleanup/propagation 合同
+### T3016gR [DONE] Review：确认 resumed-body raise-after-resume 已闭环到统一 cleanup/propagation 合同
 - 描述：在 `T3016g` 之后只审查生产代码，确认 `resume(...)` 之后的再次 outward raise 不再走独立 completion/finally shortcut，而是统一复用现有 cleanup/propagation 合同；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 dispatch loop、`handle_cleanup_propagate_*`、`handle_cleanup_done_*` 与 `UnifiedStateTerminator::ArmResumeMatchedSite` 相关生产路径，确认 `T3016g` 的修复只是在 shared cleanup-propagation 路径进入 `finally` 前保存 propagating `state_tag`，并在 shared cleanup 普通出口泄露 terminal sentinel 时恢复该非终止状态；没有新增 immediate-resume 专用 completion/finally shortcut。
+  - 已确认 cleanup/completion 协调仍统一依赖 `state_tag`、cleanup flag 与既有 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED` 合同：普通完成路径继续走 `capture_terminal_state_tag_for_cleanup` / `restore_terminal_state_tag_after_cleanup`，outward propagation 路径统一走 `restore_propagating_state_tag_after_cleanup` 后返回外层 dispatch，不存在按 arm 形状分叉的第二套协议。
+  - 已定向检索生产 lowering 路径，未发现 `effect_resume_finally_body_raise_after_resume`、`handle_unreachable`、`boom` 等 fixture/helper 名称参与决策；也未发现基于 `ImmediateResume` 或 `resume(...)` 形状单独接入 cleanup/runtime 特判的分支。
+  - 已复验 `cargo test -p scoopc cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit -- --nocapture`、3 条目标 fixture、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均通过。
 - 目标：
   - 确认 `finally` 的执行次数、handle completion tag 与 outward propagation 仍由统一 state-machine 出口协调。
   - 确认没有为 `effect_resume_finally_body_raise_after_resume.scoop` 单独加 test-only 分支或 runtime 特判。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“resume 后 body 再次 outward raise 已按统一 cleanup/propagation 合同收口，无 fixture-only workaround 残留”。
+- 审查结论：
+  - `resume(...)` 之后 body 再次 outward raise 已按统一 cleanup/propagation 合同收口，无 fixture-only workaround 残留。
+  - shared `finally` cleanup 仍只执行一次；若 cleanup 普通出口把传播路径误写成 terminal completion，dispatch loop 会恢复原 propagating `state_tag` 并继续向外传播，因此 completion tag 与 outward propagation 仍由同一套 state-machine 出口协调。
+  - 当前 effect 主线下一项推进到 `T3016h`：修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口。
 - 依赖：T3016g
 
 ### T3016h [TODO] 修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口
