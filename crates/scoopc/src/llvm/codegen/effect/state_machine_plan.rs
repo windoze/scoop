@@ -207,15 +207,22 @@ impl HandleStateMachinePlan {
                     .collect::<Vec<_>>()
                     .join(", ");
                 out.push_str(&format!(
-                    "{pad}  site{} kind={} span={:?} resume=s{} arms=[{}]\n",
+                    "{pad}  site{} kind={} span={:?} owner=s{} resume=s{} arms=[{}]\n",
                     site.id,
                     site.kind.label(),
                     site.span,
+                    site.owner_state,
                     site.resume_target,
                     matching
                 ));
                 out.push_str(&format!("{pad}    available=[{available}]\n"));
                 out.push_str(&format!("{pad}    captures=[{captures}]\n"));
+                if let Some(escape_resume_target) = site.escape_resume_target {
+                    out.push_str(&format!(
+                        "{pad}    escape-resume=s{}\n",
+                        escape_resume_target
+                    ));
+                }
                 if let Some(detail) = site.kind.detail() {
                     out.push_str(&format!("{pad}    detail={detail}\n"));
                 }
@@ -686,7 +693,9 @@ struct SuspendSitePlan {
     id: SuspendSiteId,
     span: Span,
     kind: SuspendSiteKind,
+    owner_state: PlanStateId,
     resume_target: PlanStateId,
+    escape_resume_target: Option<PlanStateId>,
     matching_arms: Vec<ArmPlanId>,
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
@@ -1249,8 +1258,12 @@ impl SuspendSitePlan {
         let mut acc = self.id as usize
             ^ self.span.start
             ^ self.span.end
+            ^ (self.owner_state as usize)
             ^ self.resume_target as usize
             ^ self.kind.structural_signature();
+        if let Some(escape_resume_target) = self.escape_resume_target {
+            acc ^= (escape_resume_target as usize) << 2;
+        }
         for arm in &self.matching_arms {
             acc ^= *arm as usize;
         }
@@ -1502,6 +1515,8 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         self.attach_suspend_source_paths();
         self.attach_suspend_resume_paths();
         self.materialize_resume_fragments();
+        self.attach_escape_resume_targets();
+        self.compute_capture_sets();
         let frame_layout = self.build_frame_layout();
 
         let _ = final_exit_state;
@@ -1756,7 +1771,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 if let Some(kind) = self.classify_hidden_suspend_var_ref(value_ref) {
                     self.record_expr_reads(current_state, expr);
                     let site_id =
-                        self.new_suspend_site(expr.span, kind, env.available_ids());
+                        self.new_suspend_site(expr.span, kind, env.available_ids(), current_state);
                     self.push_action(
                         current_state,
                         HandleStateOp::ObjectInitAccessBoundary {
@@ -1860,6 +1875,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             reason: "ClassCastFailed".to_string(),
                         },
                         env.available_ids(),
+                        state,
                     );
                     self.push_action(
                         state,
@@ -1897,7 +1913,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 let state = self.build_expr_if_suspend_subtree(receiver, current_state, env);
                 if let Some(kind) = self.classify_hidden_suspend_member_access(member) {
                     self.record_expr_reads(state, expr);
-                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
+                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids(), state);
                     self.push_action(
                         state,
                         HandleStateOp::ObjectInitAccessBoundary {
@@ -2012,7 +2028,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
                 if let Some(kind) = self.classify_suspend_call(expr, callee) {
                     self.record_expr_reads(state, expr);
-                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids());
+                    let site_id = self.new_suspend_site(expr.span, kind, env.available_ids(), state);
                     self.push_action(
                         state,
                         HandleStateOp::SuspendCall {
@@ -2065,6 +2081,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         op_fqn: op.fqn.clone(),
                     },
                     env.available_ids(),
+                    state,
                 );
                 self.push_action(
                     state,
@@ -2103,6 +2120,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                             detail: format!("nested#{nested_id}"),
                         },
                         env.available_ids(),
+                        current_state,
                     );
                     self.push_action(
                         current_state,
@@ -2568,7 +2586,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             })
             .collect::<HashMap<_, _>>();
         for site in &mut self.suspend_sites {
-            let reachable = reachable_states(site.resume_target, &successors);
+            let mut reachable = reachable_states(site.resume_target, &successors);
+            if let Some(escape_resume_target) = site.escape_resume_target {
+                reachable.extend(reachable_states(escape_resume_target, &successors));
+            }
             let mut used_after = reachable
                 .into_iter()
                 .flat_map(|state_id| state_reads.get(&state_id).cloned().unwrap_or_default())
@@ -3343,6 +3364,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         span: Span,
         kind: SuspendSiteKind,
         available_locals: Vec<hir::SymbolId>,
+        owner_state: PlanStateId,
     ) -> SuspendSiteId {
         let id = self.next_site_id;
         self.next_site_id = self.next_site_id.saturating_add(1);
@@ -3350,7 +3372,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             id,
             span,
             kind,
+            owner_state,
             resume_target: 0,
+            escape_resume_target: None,
             matching_arms: Vec::new(),
             available_locals,
             capture_locals: Vec::new(),
@@ -3367,6 +3391,55 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .find(|site| site.id == site_id)
             .expect("site should exist");
         site.resume_target = resume_target;
+    }
+
+    fn attach_escape_resume_targets(&mut self) {
+        let original_state_count = self.states.len();
+        let mut replay_states = Vec::<(SuspendSiteId, PlanState)>::new();
+
+        for state in self.states.iter().take(original_state_count) {
+            let Some(HandleStateOp::ResumeAfterSite {
+                resume_slot: Some(_),
+                ..
+            }) = state.actions.first()
+            else {
+                continue;
+            };
+            let StateTerminator::Suspend { site_id } = state.terminator else {
+                continue;
+            };
+            if state.actions.len() <= 1 {
+                continue;
+            }
+
+            let replay_state_id = self.next_state_id + replay_states.len() as u32;
+            let replay_state = PlanState {
+                id: replay_state_id,
+                label: format!("{}.escape-replay.site{site_id}", state.label),
+                actions: state.actions[1..].to_vec(),
+                terminator: state.terminator.clone(),
+                reads: state.reads.clone(),
+            };
+            replay_states.push((site_id, replay_state));
+        }
+
+        if replay_states.is_empty() {
+            return;
+        }
+
+        self.next_state_id = self
+            .next_state_id
+            .saturating_add(replay_states.len() as u32);
+        for (site_id, replay_state) in replay_states {
+            let replay_state_id = replay_state.id;
+            self.states.push(replay_state);
+            let site = self
+                .suspend_sites
+                .iter_mut()
+                .find(|site| site.id == site_id)
+                .expect("escape replay target site should exist");
+            site.escape_resume_target = Some(replay_state_id);
+        }
     }
 
     fn record_stmt_reads(&mut self, _state_id: PlanStateId, _stmt: &hir::Stmt) {

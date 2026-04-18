@@ -1231,7 +1231,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Suspending call: evaluate call expression normally ---
-                HandleStateOp::SuspendCall { expr, .. } => {
+                HandleStateOp::SuspendCall { site_id, expr } => {
+                    self.seed_replayed_callee_resume_payload_if_present(
+                        *site_id,
+                        expr.span,
+                        state_ptr,
+                        frame_layout,
+                    )?;
                     let val = self.codegen_expr_in_expected_context(expr, None)?;
                     last_value = Some(val);
                     // If the callee performed, the TLS active flag is set.
@@ -1567,6 +1573,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => None,
             })
         })
+    }
+
+    fn seed_replayed_callee_resume_payload_if_present(
+        &mut self,
+        site_id: u32,
+        span: crate::span::Span,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let step_fn = self.current_codegen_function(span)?;
+        let current_callee_state = self.current_callee_suspend_state_ptr(
+            span,
+            &format!("site{site_id}_callee_replay_state"),
+        )?;
+        let has_callee_state = self.ptr_is_non_null(
+            span,
+            current_callee_state,
+            &format!("site{site_id}_has_callee_replay_state"),
+        )?;
+        let seed_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_seed_callee_resume"));
+        let continue_bb = self
+            .context
+            .append_basic_block(step_fn, &format!("site{site_id}_after_callee_seed"));
+        self.builder
+            .build_conditional_branch(has_callee_state, seed_bb, continue_bb)?;
+
+        self.builder.position_at_end(seed_bb);
+        let (resume_word, resume_gc_ref) = self.read_frame_resume_payload(
+            state_ptr,
+            frame_layout,
+            "replay_callee_resume_word",
+            "replay_callee_resume_gc_ref",
+        )?;
+        self.emit_resume_payload_into_callee_suspend_state(
+            span,
+            current_callee_state,
+            resume_word,
+            resume_gc_ref,
+        )?;
+        self.builder.build_unconditional_branch(continue_bb)?;
+
+        self.builder.position_at_end(continue_bb);
+        Ok(())
     }
 
     fn emit_resume_after_call_site(
@@ -3213,6 +3264,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_val")?
                     .into_pointer_value();
+                self.retarget_escaped_continuation_resume_state(arm_id, cont_ptr, contract)?;
 
                 // Find or alloc frame slot for the continuation local.
                 if let Some(field_index) = contract.frame().get_slot_field_index(continuation) {
@@ -3325,6 +3377,66 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_fun_return_ty = saved_return_ty;
         self.return_context = saved_return_ctx;
         result
+    }
+
+    fn retarget_escaped_continuation_resume_state(
+        &mut self,
+        arm_id: u32,
+        cont_ptr: PointerValue<'ctx>,
+        contract: &UnifiedHandleLoweringContract,
+    ) -> Result<(), LlvmEmitError> {
+        let replay_sites = contract
+            .suspend_sites()
+            .iter()
+            .filter_map(|site| {
+                site.escape_resume_state()
+                    .map(|escape_resume_state| (site.resume_state(), escape_resume_state, site.id()))
+            })
+            .collect::<Vec<_>>();
+        if replay_sites.is_empty() {
+            return Ok(());
+        }
+
+        let cont_ty = self.llvm_continuation_struct_type();
+        let resume_state_gep = self.builder.build_struct_gep(
+            cont_ty,
+            cont_ptr,
+            2, // resume_state_tag
+            "cont_escape_resume_state_tag",
+        )?;
+        let current_tag = self
+            .builder
+            .build_load(
+                self.context.i32_type(),
+                resume_state_gep,
+                "cont_escape_resume_state_load",
+            )?
+            .into_int_value();
+
+        let mut replay_tag = current_tag;
+        for (index, (resume_state, escape_resume_state, site_id)) in replay_sites.iter().enumerate()
+        {
+            let matches_site = self.builder.build_int_compare(
+                inkwell::IntPredicate::EQ,
+                current_tag,
+                self.context.i32_type().const_int(*resume_state as u64, false),
+                &format!("arm{arm_id}_site{site_id}_escape_resume_match"),
+            )?;
+            replay_tag = self
+                .builder
+                .build_select(
+                    matches_site,
+                    self.context
+                        .i32_type()
+                        .const_int(*escape_resume_state as u64, false),
+                    replay_tag,
+                    &format!("arm{arm_id}_escape_resume_tag{index}"),
+                )?
+                .into_int_value();
+        }
+
+        self.builder.build_store(resume_state_gep, replay_tag)?;
+        Ok(())
     }
 
     /// Read a binder value from the TLS perform slot.

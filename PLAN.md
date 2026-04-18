@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3016b` 已完成。为收口 block/if/while mixed direct+indirect resumed-body tail replay，`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现在会在 `materialize_resume_fragments()` 之后为“以 `ResumeAfterSite` 开头、且再次 suspend 的 resumed-body state”生成 synthetic `escape_resume_target`，该 replay state 复用当前 resumed segment 的后缀，但剔除头部旧 site 的 `ResumeAfterSite`，从而 replay direct 之后、indirect 之前的 prefix 时不会误消费新的 resume payload。为让这条 replay state 真正恢复 ordinary indirect callee，suspend-site 元数据已贯穿 plan → segments → unified machine 合同，并在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `EscapeContinuation` arm 绑定 continuation 时按当前 `resume_state_tag` 重写到 `escape_resume_target`；同时 `SuspendCall` 在检测到 captured callee suspend state 时会先把当前 resume payload 注入该 callee state，再重放 call boundary。新增结构测试 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`，并将 4 条恢复的 fixture `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`..._if_multi.scoop`、`..._while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 改回 `EXPECT: pass`。已验证 4 条 fixture 定向运行、新增结构单测、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016bR`。
+>
 > 2026-04-18 当前轮复审更新：`T3016b0R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 后确认，`T3016b0` 的初版修复还残留一个真实 consumer 路径缺口：当 statement-position `when` arm 的 enclosing `when` 结果继续被外层 consumer（如 `println(when (...))` / `val x = when (...)`）读取时，旧逻辑只会删除 standalone `WhenExpr`，却不会改写真正消费该值的后续 action，因此恢复后仍会重放同一 arm。现已把 `materialize_resume_fragments()` 收口为统一的 materialized-when rewrite：若 enclosing `when` 还有后续 consumer，就把该 consumer 中的 `when` 子表达式改写为基于 `source_path` suffix 构造的 arm-tail block，并同步裁掉 resume state 里已被该 block 覆盖的显式 arm-tail actions 与 standalone `WhenExpr`；若没有后续 consumer，则继续只删除已被覆盖的 standalone `WhenExpr`。新增结构测试 `source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block` 与 run-pass fixture `effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`，并复验原 fixture `effect_escape_continuation_perform_in_when_arm.scoop`。已验证两条 fixture 定向运行、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016b`。
 >
 > 2026-04-18 当前轮完成更新：`T3016b0` 已完成。`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `materialize_resume_fragments()` 现在会在继续执行 resume-slot rewrite 的同时，识别 statement-position `when` arm 恢复态中“已经由 arm tail 物化”的 enclosing `WhenExpr`，并且只在后续没有 consumer 继续依赖该 `when` 值时才剔除它，避免恢复后先跑正确 arm tail、再错误重放整个 `when`。新增结构测试 `source_plan_elides_enclosing_when_expr_after_when_arm_resume` 锁定恢复状态不再保留 enclosing `WhenExpr`，并将 fixture `effect_escape_continuation_perform_in_when_arm.scoop` 改回 `EXPECT: pass`。已验证该 fixture 定向运行、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016b0R`。
@@ -619,30 +621,28 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016b0R`
-2. `T3016b`
-3. `T3016bR`
-4. `T3016c`
-5. `T3016cR`
-6. `T3016d`
-7. `T3016dR`
-8. `T3017`
-9. `T3017R`
-10. `T3103`
-11. `T3104`
-12. `T3201`
-13. `T3202`
-14. `T3203`
-15. `T3204`
-16. `T3205`
-17. `T3301`
-18. `T3302`
-19. `T3303`
-20. `T3401`
-21. `T3401a`
-22. `T3401b`
-23. `T3401c`
-24. `T3402`
-25. `T3403`
-26. `T3404`
-27. `T3405`
+1. `T3016bR`
+2. `T3016c`
+3. `T3016cR`
+4. `T3016d`
+5. `T3016dR`
+6. `T3017`
+7. `T3017R`
+8. `T3103`
+9. `T3104`
+10. `T3201`
+11. `T3202`
+12. `T3203`
+13. `T3204`
+14. `T3205`
+15. `T3301`
+16. `T3302`
+17. `T3303`
+18. `T3401`
+19. `T3401a`
+20. `T3401b`
+21. `T3401c`
+22. `T3402`
+23. `T3403`
+24. `T3404`
+25. `T3405`

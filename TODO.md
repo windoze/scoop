@@ -2078,8 +2078,21 @@
   - 修复继续只依赖 `source_path` / `resume_path` / state action 元数据与 materialized tail block，不重新扫描 AST 或源码文本。
 - 依赖：T3016b0
 
-### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/if/while mixed direct+indirect 路径中的 prefix 丢失回归
+### T3016b [DONE] 修正 escaped continuation resumed-body tail replay 在 block/if/while mixed direct+indirect 路径中的 prefix 丢失回归
 - 描述：把 `when` arm 的 enclosing-container replay 单独拆出后，`T3017` expectation scan 中剩余的 resumed-body 缺口仍然阻塞：`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在第二次 `resume(...)` 时丢失 direct 之后、indirect 之前的 prefix；同族的 `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 也都暴露了相同方向的问题。说明当前 resumed segment 在 direct + indirect mixed suspend-site 组合上，仍未把“当前 resumed-body segment 的起点”完整带入后续 site 的 caller-tail / loop-tail rebuild。
+- 进展：
+  - 已为 suspend-site 元数据补充 escaped continuation 专用 `escape_resume_target`，在 plan → segments → unified state machine 合同中贯通，并把 owner state 从“由 terminator 反推”改成显式元数据，允许同一 site 同时拥有正常 owner state 与 synthetic escape replay state。
+  - 已在 `materialize_resume_fragments()` 之后为“以 `ResumeAfterSite` 开头、且再次 suspend 的 resumed-body state”生成 synthetic replay state：该 state 复用当前 resumed segment 的后缀，但剔除头部旧 site 的 `ResumeAfterSite`，从而 replay direct 之后、indirect 之前的 prefix 时不会误消费新的 resume payload。
+  - 已在 `EscapeContinuation` arm 绑定 continuation 时，按 continuation 当前 `resume_state_tag` 将其重定向到 `escape_resume_target`；同时在真正 replay `SuspendCall` 前补上“若存在 captured callee suspend state，则先把当前 resume payload 写回 callee state”的统一注入逻辑，保证 prefix replay 后 ordinary callee 仍能正确恢复。
+  - 已新增结构测试 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`，并将 4 条恢复的 run-pass fixture 改回 `EXPECT: pass`。
+  - 已验证：
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+    - `cargo test -p scoopc source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 对 direct + indirect mixed suspend-site，后续 `resume(...)` 要先 replay 当前 resumed segment 中 direct 之后、indirect 之前应保留的 prefix，再继续 indirect site 之后的 tail。
   - nested block、`if`/`while` 与 ordinary callee caller-tail 共享同一套 resumed-body rebuild 合同。

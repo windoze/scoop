@@ -420,6 +420,7 @@ pub(crate) struct UnifiedSuspendSite {
     kind: SuspendSiteKind,
     owner_state: UnifiedStateId,
     resume_state: UnifiedStateId,
+    escape_resume_state: Option<UnifiedStateId>,
     matching_arms: Vec<ArmPlanId>,
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
@@ -446,6 +447,10 @@ impl UnifiedSuspendSite {
 
     pub(crate) fn resume_state(&self) -> UnifiedStateId {
         self.resume_state
+    }
+
+    pub(crate) fn escape_resume_state(&self) -> Option<UnifiedStateId> {
+        self.escape_resume_state
     }
 
     pub(crate) fn matching_arms(&self) -> &[ArmPlanId] {
@@ -1023,6 +1028,14 @@ impl UnifiedHandleStateMachine {
                     site.id, site.resume_state
                 ));
             }
+            if let Some(escape_resume_state) = site.escape_resume_state
+                && !state_by_id.contains_key(&escape_resume_state)
+            {
+                return Err(format!(
+                    "{path}: site{} escape-resume state s{} is missing from states[]",
+                    site.id, escape_resume_state
+                ));
+            }
 
             let owner_state = state_by_id
                 .get(&site.owner_state)
@@ -1364,6 +1377,12 @@ impl UnifiedHandleStateMachine {
                 ));
                 out.push_str(&format!("{pad}    available=[{available}]\n"));
                 out.push_str(&format!("{pad}    captures=[{captures}]\n"));
+                if let Some(escape_resume_state) = site.escape_resume_state {
+                    out.push_str(&format!(
+                        "{pad}    escape-resume=s{}\n",
+                        escape_resume_state
+                    ));
+                }
                 if let Some(detail) = site.kind.detail() {
                     out.push_str(&format!("{pad}    detail={detail}\n"));
                 }
@@ -1782,6 +1801,7 @@ impl UnifiedSuspendSite {
             kind: site.kind.clone(),
             owner_state: site.owner_segment,
             resume_state: site.resume_segment,
+            escape_resume_state: site.escape_resume_segment,
             matching_arms: sorted_arm_ids(&site.matching_arms),
             available_locals: sorted_symbol_ids(&site.available_locals),
             capture_locals: sorted_symbol_ids(&site.capture_locals),

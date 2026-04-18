@@ -113,6 +113,7 @@ struct HandleSegmentSuspendSite {
     kind: SuspendSiteKind,
     owner_segment: HandleSegmentId,
     resume_segment: HandleSegmentId,
+    escape_resume_segment: Option<HandleSegmentId>,
     matching_arms: Vec<ArmPlanId>,
     available_locals: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
@@ -257,18 +258,10 @@ impl HandleSegmentList {
             &arm_bodies,
         );
         let dispatch_entries = build_segment_dispatch_entries(&plan.dispatch_plan, &arm_bodies);
-        let suspend_owners = build_suspend_owner_segments(&plan.states);
         let suspend_sites = plan
             .suspend_sites
             .iter()
-            .map(|site| {
-                HandleSegmentSuspendSite::from_plan(
-                    site,
-                    *suspend_owners
-                        .get(&site.id)
-                        .expect("segment projection missing suspend owner state"),
-                )
-            })
+            .map(HandleSegmentSuspendSite::from_plan)
             .collect::<Vec<_>>();
         let resume_targets = suspend_sites
             .iter()
@@ -813,6 +806,15 @@ impl HandleSegmentList {
                     site.resume_segment
                 ));
             }
+            if let Some(escape_resume_segment) = site.escape_resume_segment
+                && !segment_by_id.contains_key(&escape_resume_segment)
+            {
+                return Err(format!(
+                    "{path}: site{} escape-resume seg{} is missing from segments[]",
+                    site.id,
+                    escape_resume_segment
+                ));
+            }
 
             let owner = segment_by_id
                 .get(&site.owner_segment)
@@ -1107,7 +1109,9 @@ impl HandleSegmentList {
                             site_id
                         )
                     })?;
-                    if site.owner_segment != segment.id {
+                    let is_escape_replay_segment =
+                        site.escape_resume_segment == Some(segment.id);
+                    if site.owner_segment != segment.id && !is_escape_replay_segment {
                         return Err(format!(
                             "{path}: seg{} points to site{} but site owner is seg{}",
                             segment.id,
@@ -1352,6 +1356,12 @@ impl HandleSegmentList {
                 ));
                 out.push_str(&format!("{pad}    available=[{available}]\n"));
                 out.push_str(&format!("{pad}    captures=[{captures}]\n"));
+                if let Some(escape_resume_segment) = site.escape_resume_segment {
+                    out.push_str(&format!(
+                        "{pad}    escape-resume=seg{}\n",
+                        escape_resume_segment
+                    ));
+                }
                 if let Some(detail) = site.kind.detail() {
                     out.push_str(&format!("{pad}    detail={detail}\n"));
                 }
@@ -1783,13 +1793,14 @@ impl HandleSegmentArmBody {
 }
 
 impl HandleSegmentSuspendSite {
-    fn from_plan(site: &SuspendSitePlan, owner_segment: HandleSegmentId) -> Self {
+    fn from_plan(site: &SuspendSitePlan) -> Self {
         Self {
             id: site.id,
             span: site.span,
             kind: site.kind.clone(),
-            owner_segment,
+            owner_segment: site.owner_state,
             resume_segment: site.resume_target,
+            escape_resume_segment: site.escape_resume_target,
             matching_arms: site.matching_arms.clone(),
             available_locals: site.available_locals.clone(),
             capture_locals: site.capture_locals.clone(),
@@ -1805,6 +1816,9 @@ impl HandleSegmentSuspendSite {
             ^ ((self.owner_segment as usize) << 1)
             ^ self.resume_segment as usize
             ^ self.kind.structural_signature();
+        if let Some(escape_resume_segment) = self.escape_resume_segment {
+            acc ^= (escape_resume_segment as usize) << 2;
+        }
         for arm_id in &self.matching_arms {
             acc ^= *arm_id as usize;
         }
@@ -1828,7 +1842,9 @@ impl HandleSegmentSuspendSite {
             id: self.id,
             span: self.span,
             kind: self.kind.clone(),
+            owner_state: self.owner_segment,
             resume_target: self.resume_segment,
+            escape_resume_target: self.escape_resume_segment,
             matching_arms: self.matching_arms.clone(),
             available_locals: self.available_locals.clone(),
             capture_locals: self.capture_locals.clone(),
@@ -2188,16 +2204,6 @@ fn build_segment_dispatch_entries(
                     }
                 })
                 .collect(),
-        })
-        .collect()
-}
-
-fn build_suspend_owner_segments(states: &[PlanState]) -> HashMap<SuspendSiteId, HandleSegmentId> {
-    states
-        .iter()
-        .filter_map(|state| match state.terminator {
-            StateTerminator::Suspend { site_id } => Some((site_id, state.id)),
-            _ => None,
         })
         .collect()
 }
@@ -3832,6 +3838,98 @@ fun demo(): Int {
             },
             other => panic!("expected call expr, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+fun fetch(seed: Int): String / (Ask) {
+    val msg: String = Ask.ask(seed + 1)
+    println(msg)
+    msg
+}
+
+fun demo(): Int {
+    handle {
+        val first: String = Ask.ask(10)
+        println(first)
+        val second: String = fetch(20)
+        println(second)
+        0
+    } with {
+        Ask.ask(seed), k -> {
+            println(seed)
+            7
+        }
+    }
+}
+"#,
+        );
+
+        let call_site = source_plan
+            .suspend_sites
+            .iter()
+            .find(|site| {
+                matches!(
+                    site.kind,
+                    SuspendSiteKind::CallMaySuspend { .. }
+                        | SuspendSiteKind::CallStateMachineCallee { .. }
+                ) && site.escape_resume_target.is_some()
+            })
+            .expect("expected indirect call site to gain an escape replay target");
+
+        let owner_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.id == call_site.owner_state)
+            .expect("call-site owner state should exist");
+        assert!(
+            matches!(
+                owner_state.actions.first(),
+                Some(HandleStateOp::ResumeAfterSite { .. })
+            ),
+            "owner state should still begin with the preceding ResumeAfterSite marker"
+        );
+
+        let replay_state = source_plan
+            .states
+            .iter()
+            .find(|state| Some(state.id) == call_site.escape_resume_target)
+            .expect("escape replay state should exist");
+        assert_ne!(
+            replay_state.id, owner_state.id,
+            "escape replay target must be a distinct synthetic state"
+        );
+        assert!(
+            !matches!(
+                replay_state.actions.first(),
+                Some(HandleStateOp::ResumeAfterSite { .. })
+            ),
+            "escape replay state must skip the stale ResumeAfterSite marker so the new resume payload survives until the later call boundary"
+        );
+        assert!(
+            matches!(
+                replay_state.actions.first(),
+                Some(HandleStateOp::BindLocal { .. })
+            ),
+            "escape replay state should begin by restoring locals from the already-materialized resume slots"
+        );
+        assert!(
+            matches!(
+                replay_state.terminator,
+                StateTerminator::Suspend { site_id } if site_id == call_site.id
+            ),
+            "escape replay state must still suspend at the same indirect call site"
+        );
     }
 
     #[test]

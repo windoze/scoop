@@ -1,54 +1,65 @@
-# 本轮执行计划
+# 当前执行计划
 
-## 说明
+说明：按系统安全约束，这里记录的是可审计的执行计划、判断依据和进度日志，不包含不可审计的逐字内部推理。
 
-按要求先写入计划文件，再开始读取仓库信息和执行命令。这里记录的是可审计的执行计划、决策依据摘要和后续进度，不包含逐字内部推理。
+## 初始计划
 
-## 初始目标
-
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前发现最新提交中提到的遗留问题，先修复这些问题，再处理该任务。
-
-## 计划步骤
-
-1. 查看最新一次 Git 提交的提交信息与变更摘要，确认是否明确提到遗留问题、已知缺陷或待修复事项。
-2. 如果最新提交提到需要先处理的遗留问题：
-   - 定位相关代码、测试与文档；
-   - 实现修复；
-   - 运行针对性测试与必要的全量校验；
-   - 更新 `TODO.md` / `PLAN.md` / 本文件；
-   - 提交 Git commit；
-   - 若这些修复本身已构成本轮唯一工作，则停止。
-3. 读取 `TODO.md`，找到第一个未完成任务。
-4. 判断该任务是否可在本轮完整落地：
-   - 若可以，直接实现；
-   - 若过大或存在前置缺口，则拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并只执行拆分后的第一个子任务。
-5. 在实现前检查相关模块、测试、规范说明和现有实现边界，确认不存在规避式实现或与规范不一致的隐藏阻塞。
-6. 完成实现后运行充分测试，至少包含：
-   - 受影响模块的定向测试；
-   - 必要的集成/fixture 测试；
-   - `cargo fmt --check`；
-   - `cargo clippy --all-targets -- -D warnings`；
-   - 如改动影响范围较大，再补充 `cargo test --all` 或合适子集。
+1. 检查最新一次 git 提交的信息，确认是否显式提到任何已知遗留问题。
+2. 阅读 `TODO.md`，找出第一个未完成任务。
+3. 阅读 `PLAN.md`，核对该任务的上下文、依赖和现有拆分情况。
+4. 如首个未完成任务过大或存在前置缺口：
+   - 将任务拆分为更小子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md` 的排序与依赖；
+   - 本轮只执行拆分后的第一个子任务，或在被前置问题阻塞时仅提交计划调整。
+5. 实现本轮目标任务，必要时补充或调整代码结构。
+6. 运行相关验证：
+   - 优先运行与改动直接相关的测试；
+   - 如任务影响范围足够大，再补充更广的测试；
+   - 按要求检查无警告构建与 `clippy` 状态。
 7. 更新文档与任务状态：
-   - 在 `TODO.md` 中标记本轮完成的任务；
-   - 在 `PLAN.md` 中更新当前状态、后续顺序与任何新增依赖；
-   - 在本文件中记录关键发现、计划调整和测试结果。
-8. 使用清晰的提交信息创建 Git commit，然后停止，不继续下一个任务。
+   - 在 `TODO.md` 中标记完成；
+   - 在 `PLAN.md` 中记录当前状态；
+   - 持续更新本文件中的进度日志。
+8. 提交本轮改动，提交信息与任务编号对齐。
+9. 停止，不继续下一个任务。
 
-## 当前状态
+## 进度日志
 
-- 已检查最新提交：`485e568 [T3016b0] Fix when-arm resumed-body replay`。提交说明本身未声明新的遗留问题需要优先独立处理。
-- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T3016b0R`：Review `statement-position when arm` 恢复后不再重放 enclosing `when`。
-- 复审过程中确认了一个真实残留：当 enclosing `when` 的结果继续被外层 consumer（如 `println(when (...))`）读取时，旧逻辑只删除 standalone `WhenExpr`，没有改写真正 consumer，恢复后仍会重放 arm。
-- 已完成修复：
-  - `materialize_resume_fragments()` 现在会在存在后续 consumer 时，把 consumer 中的 `when` 子表达式改写为 materialized arm-tail block，并同步删除 resume state 中已被覆盖的显式 arm-tail actions 与 standalone `WhenExpr`。
-  - 无后续 consumer 时，仍只删除已被 resumed-body 覆盖的 standalone `WhenExpr`。
-  - 已新增结构测试 `source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block` 和 run-pass fixture `effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`。
+- 已创建本文件并写入初始计划。
+- 已检查最新提交 `13fd69b219ebe3afd71a2309bc2891fb8ff3a07d`（`[T3016b0R] Fix nested when consumer replay`）。提交信息未声明新的未修复遗留问题；当前工作区仅有本文件变更。
+- 已读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T3016b`：修正 escaped continuation resumed-body tail replay 在 block/if/while mixed direct+indirect 路径中的 prefix 丢失回归。
+- 当前判断：`T3016b` 已在前一轮拆分后具备独立边界，先不继续拆分；先按任务验收项定向复现四条 fixture，再根据复现结果决定是否需要补充子任务。
+- 下一步：
+  1. 直跑 `T3016b` 的四条验收 fixture，记录失败模式是否一致。
+  2. 阅读 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 中与 `resume_path` / resumed-body rebuild / materialization 相关逻辑。
+  3. 在统一 state-machine 合同内修复 prefix replay 缺口，补定向测试，再跑任务要求的验证。
+- 已完成四条 fixture 的定向复现与期望对比：
+  - `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`..._if_multi.scoop`、`..._direct_indirect_while.scoop`、`..._while_multi.scoop` 均表现为“第二次（或后续）`resume(...)` 直接恢复间接 callee，自身 resumed-body segment 中 direct 之后、indirect 之前的 prefix 没有 replay”。
+  - 具体现象：输出缺少期望中的 `after_direct` / `label` / `first` 等 prefix 行，然后直接进入 `fetch_resume`。
+- 当前实现判断：
+  - 不是 `fetch`/ordinary callee 自身恢复坏了；`fetch_resume` 与 indirect tail 本身是能恢复的。
+  - 根因在 escaped continuation：site2 逃逸出来的 continuation 仍保留默认 `resume_state = after-site`，后续 `k.resume(...)` 直接跳回 site2 的 after-site，而不是先回到“当前 resumed-body segment 的 replay 入口”。
+  - 仅把 continuation 的 resume target 改成 owner state 不够，因为 owner state 头部往往还有前一个 site 的 `ResumeAfterSite`，会错误消费当前新的 resume payload。
+- 修复方案（准备实施）：
+  1. 在 plan 阶段为“以 `ResumeAfterSite` 开头、并再次 suspend 的 resumed-body state”生成一个专供 escaped continuation 使用的 replay state：它复用当前 state 的后缀，但去掉开头那个旧 site 的 `ResumeAfterSite`。
+  2. 给 suspend-site 元数据增加可选的 `escape_resume_target`，并贯穿 plan → segments → unified machine 合同。
+  3. `EscapeContinuation` arm 在把 continuation 绑定给局部 `k` 前，根据当前 continuation 的 `resume_state_tag`，若命中带 `escape_resume_target` 的 site，则把 tag 改写成该 replay target；`ImmediateResume` arm 保持现有 after-site 语义不变。
+  4. 重新计算 capture sets，并补结构测试锁定 replay target 与 continuation retarget 合同。
+- 已完成实现：
+  - `state_machine_plan.rs`：为 suspend-site 增加显式 `owner_state` 与可选 `escape_resume_target`；在 `materialize_resume_fragments()` 后生成 synthetic escape replay state，并重算 capture sets。
+  - `state_machine_segments.rs` / `state_machine_transform.rs`：把 `escape_resume_target` 贯穿到 segment/unified contract，同时允许同一 suspend site 同时拥有正常 owner state 和 escape replay state。
+  - `state_machine_emitter.rs`：`EscapeContinuation` arm 绑定 continuation 时按当前 `resume_state_tag` 重定向到 `escape_resume_target`；真正 replay `SuspendCall` 前若存在 captured callee suspend state，则先把当前 resume payload 写回 callee state。
+  - fixtures：将 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`..._if_multi.scoop`、`..._while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 改回 `EXPECT: pass`。
+  - tests：新增结构测试 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`。
 - 已完成验证：
-  - `cargo test -p scoopc source_plan_elides_enclosing_when_expr_after_when_arm_resume -- --nocapture`
-  - `cargo test -p scoopc source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block -- --nocapture`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`
+  - `cargo check -p scoopc`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+  - `cargo test -p scoopc source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 当前任务 `T3016b0R` 已完成；下一项待执行任务为 `T3016b`。
+- 已同步更新 `TODO.md` / `PLAN.md`，本轮目标任务 `T3016b` 已标记完成；下一项为 `T3016bR`。
+- 待完成的最后一步：整理变更后提交 git commit，然后停止。
