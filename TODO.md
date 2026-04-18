@@ -2106,8 +2106,20 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016b0R
 
-### T3016bR [TODO] Review：确认 resumed-body tail replay 已统一回到 state-machine resume-path 合同
+### T3016bR [DONE] Review：确认 resumed-body tail replay 已统一回到 state-machine resume-path 合同
 - 描述：在 `T3016b` 之后只审查生产代码，确认 block/if/while mixed direct+indirect replay 的修复继续停留在 state-machine contract，而不是重新引入按源码容器/语句形状分流的补丁；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs`，确认 mixed direct+indirect replay 的新增逻辑只围绕统一状态机合同展开：`attach_escape_resume_targets()` 只针对“以 `ResumeAfterSite` 开头、且再次 suspend 的 resumed-body state”生成 synthetic replay state，不读取 block/if/while 等源码容器类别。
+  - 已确认 `escape_resume_target` 只是 suspend-site 元数据的一部分，按 plan → segments → unified machine 合同贯通；segment / unified validation 只校验“owner state + replay state 可共享同一 suspend site”的结构约束，没有让 emitter 重新扫描源码或按 direct/indirect 名字分流。
+  - 已确认 emitter 侧只做两件统一合同内的消费：`EscapeContinuation` arm 绑定 continuation 时，根据 continuation 自带的 `resume_state_tag` 重写到 `escape_resume_target`；真正 replay `SuspendCall` 前，如果 continuation 捕获了 ordinary callee suspend state，就把当前 frame 的 resume payload 注回该 callee state。两处都不按 block/if/while 或 fixture 形状做旁路。
+  - 已复验：
+    - `cargo test -p scoopc source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 确认 resumed-body rebuild 仍以统一 `resume_path` / suspend-site 元数据为输入。
   - 确认不存在按 `block` / `if` / `while body` / direct-vs-indirect 局部形状硬编码的 test-only 旁路。
@@ -2115,6 +2127,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“resumed-body tail replay 已按统一 resume-path 合同收口，无形状分流回流”。
+- 审查结论：
+  - resumed-body tail replay 已按统一 `resume_path` / suspend-site 合同收口，无形状分流回流。
+  - block/if/while mixed direct+indirect replay 的新增生产逻辑只消费状态机元数据与 continuation/runtime ABI，不存在 test-only 旁路。
 - 依赖：T3016b
 
 ### T3016c [TODO] 接回 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
