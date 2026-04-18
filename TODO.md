@@ -81,13 +81,16 @@
 
 ## T4003：调用语义早期门禁
 
-### T4003 [TODO] 收口函数值 / funptr / constructor delegation 的调用语义差异（拆分执行）
+### T4003 [DONE] 收口函数值 / funptr / constructor delegation 的调用语义差异（拆分执行）
 - 说明：
   - 原任务同时跨越 `FunPtr<F>` receiver signature、顶层泛型函数值 / `callee<T>` 表示、以及 ctor delegation 的命名/默认参数绑定三套基础设施。
   - 为保证每轮只提交一个完整且可验证的切片，现拆分为 `T4003a -> T4003b -> T4003c` 顺序推进。
 - 验收：
   - 子任务全部完成后，对应调用形态都有回归。
   - `ISSUES.md` 第 4 条收窄或关闭。
+- 完成：
+  - `T4003a` / `T4003b` / `T4003c` / `T4003R` 已按顺序收口函数值、`FunPtr` 与 ctor delegation 的统一调用语义。
+  - 在推进 `T4004` 前额外插入的 `T4003S` / `T4003SR` / `T4003T` / `T4003TR` 两组前置 blocker 与 review 也已完成，后续顶层 pattern binding 可直接建立在统一的顶层 immutable value 与局部 destructuring 主线上继续推进。
 - 依赖：T4002R
 
 ### T4003a [DONE] 打通 `FunPtr<F>` 的 receiver function type 调用语义
@@ -253,10 +256,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003SR
 
-### T4003TR [TODO] Review：确认局部 destructuring 主线已可被顶层复用
+### T4003TR [DONE] Review：确认局部 destructuring 主线已可被顶层复用
 - 重点：
   - 不接受把局部 pattern binding 仅靠“匿名 val + 特判读取”糊过去。
   - 顶层后续应能直接复用同一套 binder lowering / 投影语义。
+- 完成：
+  - 复审 `lower_local_pattern_val_stmt -> codegen_val_decl` 主线后，确认局部 destructuring 现已通过“合成 subject + 多条命名 binder `ValDecl`”落到现有局部绑定语义；LLVM `codegen_val_decl` 仍显式拒绝匿名 `ValDecl`，因此当前实现不存在“匿名 val + 特判读取”的旁路。
+  - 复审 `synth_pattern_runtime_check_expr`、`synth_pattern_binding_init_expr` 与 `collect_pattern_binders` 后，确认 tuple / struct / enum variant 的投影与运行期校验已被抽成接受任意 subject `Expr` 的通用 helper；后续顶层实现只需补齐 binder 符号安装与 `top_level_immutable_values` once-init 承载，无需另开一套 destructuring / 投影语义。
+  - 额外用临时 probe `makePair()` 复验 destructuring initializer 只求值一次（stdout 为 `7`、`42`），与 HIR 中的 synthetic subject 结构一致，没有发现重复求值裂缝。
+- 已验证：
+  - `cargo run -p scoop -- run /tmp/t4003tr_local_single_eval_probe.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (16)`）
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (327)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003T
 
 ## T4004：顶层 `val` pattern binding
