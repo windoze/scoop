@@ -615,6 +615,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 self.emit_state_terminator(
                     span,
+                    state,
                     state.terminator(),
                     last_value,
                     state_ptr,
@@ -1827,6 +1828,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn emit_state_terminator(
         &mut self,
         span: crate::span::Span,
+        state: &UnifiedState,
         terminator: &UnifiedStateTerminator,
         last_value: Option<CgValue<'ctx>>,
         state_ptr: PointerValue<'ctx>,
@@ -1847,7 +1849,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match terminator {
             UnifiedStateTerminator::Goto { next_state } => {
-                if self.state_preserves_handle_result_on_entry(contract, *next_state)
+                if self.should_relay_last_value_through_goto(state, contract, *next_state)
                     && let Some(val) = last_value
                 {
                     self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
@@ -2141,6 +2143,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         Ok(())
+    }
+
+    fn should_relay_last_value_through_goto(
+        &self,
+        state: &UnifiedState,
+        contract: &UnifiedHandleLoweringContract,
+        next_state: u32,
+    ) -> bool {
+        // Body/arm tail values may need to survive one or more transparent
+        // merge states before hitting ReturnHandle, but cleanup/finally state
+        // values are never the authoritative handle result. By the time we
+        // enter cleanup, the real terminal payload has already been written to
+        // the frame via CleanupEnter / arm completion / function-return paths.
+        if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
+            return false;
+        }
+        self.state_preserves_handle_result_on_entry(contract, next_state)
     }
 
     fn state_preserves_handle_result_on_entry(

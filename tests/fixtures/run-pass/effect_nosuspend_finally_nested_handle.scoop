@@ -1,4 +1,4 @@
-// EXPECT: fail
+// EXPECT: pass
 // RUN-STDOUT: effect_nosuspend_finally_nested_handle.stdout
 // T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
 // 该 fixture 在当前 codegen 路径上尚未通过。

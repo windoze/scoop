@@ -1997,11 +1997,14 @@
   - 审查结论明确记录“no-suspend tail merge result transport 已闭环，并与 cleanup/finally completion 合同兼容”。
 - 依赖：T3016a0
 
-### T3016a [TODO] 修正 escaped continuation 完成态的 cleanup/finally replay 与 no-suspend handle result 回归
+### T3016a [DONE] 修正 escaped continuation 完成态的 cleanup/finally replay 与 no-suspend handle result 回归
 - 描述：开始回收 `T3006` xfail 时，把残留 fixture 临时改回 `EXPECT: pass` 后发现，escaped continuation 完成态与 no-suspend handle 的完成合同还没真正闭环。`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop` 在 resumed completion 后会额外再执行一次 `finally` / `cleanup`；`effect_nosuspend_finally_nested_handle.scoop` 则把本应为 `16/26` 的 handle 结果打成 `0`。这说明当前统一 state-machine 在 cleanup 退出后恢复 terminal completion mode / handle result slot 时仍有生产缺口，不能继续直接做 `T3017` expectation cleanup。
 - 进展：
   - 当前分支已落地两条 finally/completion 定向 hardening：`CleanupEnter` 会在 `cleanup_flag` 已置位时直接跳过 cleanup entry，`dispatch_check` 会在读取 TLS active 前优先尊重 terminal `state_tag`。这些改动仍是 `T3016a` 的后续修复基础，但本身不代表 `T3016a` 已闭环。
   - `T3016a0` 完成后重新直跑 `tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`，当前仍输出 `0/0`；说明 nested-handle + finally 的 completion/result contract 仍需在 `T3016a` 中继续收口，而不是 `T3016a0` 的同一最小缺口。
+  - 已确认剩余根因是 `emit_state_terminator()` 为 `Goto -> transparent completion relay` 新增的 `last_value -> result slot` 接力逻辑也错误应用到了 cleanup context：`finally/cleanup` 体本身的尾值（通常为 `Unit`）会在 cleanup 退出时覆盖先前已经写入 frame 的真实 handle result。
+  - 现已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中新增 `should_relay_last_value_through_goto()`，禁止 cleanup context 通过 `Goto` 重写 handle result slot；body/arm 的 tail value 仍可跨 transparent merge state relay 到 `ReturnHandle` / `CleanupEnter`。
+  - 已将 `tests/fixtures/run-pass/effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop` 四条 fixture 改回 `EXPECT: pass`，并验证 4 条定向运行、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - escaped continuation resumed completion 只执行一次 `finally` / `cleanup`，不再在 body 真正完成后重复 replay。
   - no-suspend nested handle + finally 路径继续返回真实 handle result，不再回退到默认 `0` / 空结果。
