@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_interface_named_args_basic.stdout
+//
+// T4003R：itable member call 的命名实参与 direct/vtable 路径复用同一套绑定逻辑。
+
+import scoop.core.*
+
+fun mark(n: Int): Int {
+    println(500 + n)
+    return n
+}
+
+interface IFace {
+    fun mix(a: Int, b: Int): Int
+}
+
+class Impl() : IFace {
+    fun mix(a: Int, b: Int): Int {
+        return 300 + a * 10 + b
+    }
+}
+
+fun main(): Int {
+    val face: IFace = Impl()
+    println(face.mix(b = mark(2), a = mark(1)))
+    return 0
+}

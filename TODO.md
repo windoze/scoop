@@ -159,9 +159,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003b
 
-### T4003R [TODO] Review：确认调用系统不再按 callee 形态分裂
+### T4003R [DONE] Review：确认调用系统不再按 callee 形态分裂
 - 重点：
   - direct call、member call、function-value call、funptr call 不能各自维护不同规则分支。
+- 完成：
+  - 复审 typecheck / HIR / LLVM 后确认存在一个既有裂缝：function value / funptr 已能在 codegen 侧按命名实参重排，但顶层 direct call、vtable member call 与 itable member call 仍各自要求纯位置实参，导致命名实参在 build 阶段落入 `named call arg` 一类后端错误；顶层泛型 direct call 的 monomorph FQN 解析也仍按位置索引读取实参，无法与命名实参共享同一套绑定语义。
+  - 已将 LLVM 调用参数绑定收口为共享主线：`map_call_args_to_params_by_name` 负责统一映射 named/positional args，`codegen_bound_call_args` 负责按源码顺序求值后再按形参顺序归位。direct call、vtable、itable、function-value、funptr 现都复用该主线；`scoop.unsafe.invoke` 不再单独重排命名实参，而是直接复用 funptr callable-value binder。
+  - 已把顶层泛型 direct call 的 monomorph FQN 解析切到同一套命名实参映射，避免 `pick(b = ..., a = ...)` 这类场景因按位置索引读取实参而漏掉 concrete type 绑定。
+  - 已新增 3 条 run-pass 回归：
+    - `tests/fixtures/run-pass/top_level_generic_named_args_basic.scoop`
+    - `tests/fixtures/run-pass/member_call_virtual_named_args_basic.scoop`
+    - `tests/fixtures/run-pass/member_call_interface_named_args_basic.scoop`
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003r-run-pass`（`fixtures: ok (6)`，覆盖 direct/member/function-value/funptr 命名调用）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (327)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003c
 
 ## T4004：顶层 pattern binding

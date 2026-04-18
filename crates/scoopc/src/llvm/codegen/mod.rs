@@ -89,6 +89,16 @@ struct ClosureParamBindings {
     captures: Vec<hir::Capture>,
 }
 
+/// 一次调用点中某个"已按形参顺序归位"的 LLVM 实参结果。
+///
+/// `pointer_value` 只在值最终表现为指针时填充，供 vtable/itable 等需要复用 receiver
+/// 原始指针的路径读取；普通 direct call / function-value call 仅消费 `value`。
+#[derive(Clone, Copy)]
+struct EvaluatedCallArg<'ctx> {
+    value: inkwell::values::BasicMetadataValueEnum<'ctx>,
+    pointer_value: Option<PointerValue<'ctx>>,
+}
+
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
@@ -2229,127 +2239,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_int_value();
 
-        // `scoop.unsafe.invoke(...)` 是一个普通 extension fun，因此在 HIR/codegen 入口仍可能携带
-        // 命名实参；但真正的 funptr indirect call 只接受按签名顺序排好的位置实参。
-        //
-        // 这里按 sysroot `invoke` 的命名约定重排：
-        // - 非 receiver 签名：`a0`, `a1`, ...
-        // - receiver 签名：`receiver`, `a0`, `a1`, ...
-        let normalized_call_args: Vec<hir::CallArg> = if call_args
-            .iter()
-            .all(|arg| matches!(arg, hir::CallArg::Positional(_)))
-        {
-            call_args.to_vec()
-        } else {
-            let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
-            let mut seen_named = false;
-            let mut positional_count = 0usize;
-            for arg in call_args {
-                match arg {
-                    hir::CallArg::Positional(_) => {
-                        if seen_named {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr invoke positional after named",
-                                at: span.into(),
-                            });
-                        }
-                        positional_count = positional_count.saturating_add(1);
-                    }
-                    hir::CallArg::Named { .. } => {
-                        seen_named = true;
-                    }
-                }
-            }
-
-            if positional_count > expected_arity {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "funptr invoke arity mismatch",
-                    at: span.into(),
-                });
-            }
-
-            let mut mapping: Vec<Option<&hir::Expr>> = vec![None; expected_arity];
-            for (slot_idx, arg) in call_args.iter().take(positional_count).enumerate() {
-                let hir::CallArg::Positional(expr) = arg else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke positional arg kind",
-                        at: span.into(),
-                    });
-                };
-                let Some(slot) = mapping.get_mut(slot_idx) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke arity mismatch",
-                        at: span.into(),
-                    });
-                };
-                *slot = Some(expr);
-            }
-
-            for arg in call_args.iter().skip(positional_count) {
-                let hir::CallArg::Named { name, value, .. } = arg else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke named arg kind",
-                        at: span.into(),
-                    });
-                };
-
-                let slot_idx = if fun_ty.receiver.is_some() && name == "receiver" {
-                    Some(0usize)
-                } else if let Some(suffix) = name.strip_prefix('a') {
-                    suffix
-                        .parse::<usize>()
-                        .ok()
-                        .map(|idx| idx + usize::from(fun_ty.receiver.is_some()))
-                } else {
-                    None
-                };
-
-                let Some(slot_idx) = slot_idx.filter(|idx| *idx < expected_arity) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke named arg slot",
-                        at: span.into(),
-                    });
-                };
-                let Some(slot) = mapping.get_mut(slot_idx) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke named arg slot",
-                        at: span.into(),
-                    });
-                };
-                if slot.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr invoke duplicate arg",
-                        at: span.into(),
-                    });
-                }
-                *slot = Some(value);
-            }
-
-            if mapping.iter().any(|slot| slot.is_none()) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "funptr invoke missing arg",
-                    at: span.into(),
-                });
-            }
-
-            mapping
-                .into_iter()
-                .map(|expr| {
-                    hir::CallArg::Positional(
-                        expr.expect("checked above: every slot is filled").clone(),
-                    )
-                })
-                .collect()
-        };
-
-        self.codegen_funptr_value_call(
-            span,
-            callee_span,
-            loaded,
-            int_ty,
-            fun_ty,
-            normalized_call_args.as_slice(),
-        )
+        self.codegen_funptr_value_call(span, callee_span, loaded, int_ty, fun_ty, call_args)
     }
 
     fn codegen_sysroot_funptr_to_uintptr(
@@ -9288,6 +9178,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Option<String> {
         let sig_fun = self.fun_index.get(fqn).copied()?;
+        let decl_param_names: Vec<String> = sig_fun
+            .params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect();
+        let arg_to_param = self.map_call_args_to_params_by_name(&decl_param_names, args)?;
+        let mut param_to_arg: Vec<Option<usize>> = vec![None; sig_fun.params.len()];
+        for (arg_idx, param_idx) in arg_to_param.iter().copied().enumerate() {
+            let slot = param_to_arg.get_mut(param_idx)?;
+            *slot = Some(arg_idx);
+        }
 
         // 收集签名中出现的所有 Param 类型名（保持出现顺序）
         let mut param_names: Vec<String> = Vec::new();
@@ -9321,9 +9222,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             // 获取对应 call arg 的具体类型
-            let arg = args.get(idx)?;
-            let hir::CallArg::Positional(arg_expr) = arg else {
-                continue;
+            let arg_idx = param_to_arg.get(idx).copied().flatten()?;
+            let arg = args.get(arg_idx)?;
+            let arg_expr = match arg {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
             };
             let concrete_ty = self.resolve_expr_concrete_type(arg_expr);
             if let Some(ty) = concrete_ty {
@@ -9467,30 +9370,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let mut llvm_args = Vec::with_capacity(args.len());
-        for (idx, arg) in args.iter().enumerate() {
-            let hir::CallArg::Positional(expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named call arg",
-                    at: span.into(),
-                });
-            };
-
-            let target_cg = self.cg_ty_of(sig_fun.params[idx].ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "call arg type",
-                    at: expr.span.into(),
-                },
-            )?;
-            let v = match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, sig_fun.params[idx].ty)?
-                }
-                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
-            };
-            let coerced = self.coerce_value(expr.span, v, target_cg)?;
-            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
-        }
+        let param_names: Vec<String> = sig_fun
+            .params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect();
+        let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
+        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = self
+            .codegen_bound_call_args(
+                span,
+                callee_span,
+                &param_names,
+                &param_tys,
+                args,
+                "call arg binding",
+            )?
+            .into_iter()
+            .map(|slot| slot.value)
+            .collect();
 
         let llvm_name = self
             .extern_funs
@@ -9716,56 +9613,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // 2) 求值实参，并记录 receiver（第 0 个参数）用于 vtable slot lookup。
-        let mut receiver_ptr: Option<PointerValue<'ctx>> = None;
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(args.len());
-        for (idx, arg) in args.iter().enumerate() {
-            let hir::CallArg::Positional(expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named vtable call arg",
-                    at: span.into(),
-                });
-            };
-
-            let param_ty = sig_fun.params[idx].ty;
-            let target_cg = self
-                .cg_ty_of(param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "vtable call arg type",
-                    at: expr.span.into(),
-                })?;
-
-            let v = match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param_ty)?
-                }
-                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
-            };
-            let coerced = self.coerce_value(expr.span, v, target_cg)?;
-
-            if idx == 0 {
-                let Some(raw) = coerced.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call receiver value",
-                        at: expr.span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call receiver type",
-                        at: expr.span.into(),
-                    });
-                };
-                receiver_ptr = Some(ptr);
-            }
-
-            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
-        }
-
-        let receiver_ptr = receiver_ptr.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "vtable call receiver",
-            at: callee_span.into(),
-        })?;
+        let param_names: Vec<String> = sig_fun
+            .params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect();
+        let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
+        let evaluated_args = self.codegen_bound_call_args(
+            span,
+            callee_span,
+            &param_names,
+            &param_tys,
+            args,
+            "vtable call arg binding",
+        )?;
+        let receiver_ptr = evaluated_args
+            .first()
+            .and_then(|arg| arg.pointer_value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "vtable call receiver type",
+                at: callee_span.into(),
+            })?;
+        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            evaluated_args.into_iter().map(|arg| arg.value).collect();
 
         // 3) 从 `this.header.type_desc.vtable[slot]` 取出目标函数指针并执行 indirect call。
         let fn_i8 = self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?;
@@ -9928,56 +9798,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // 2) 求值实参，并记录 receiver（第 0 个参数）用于 itable lookup。
-        let mut receiver_ptr: Option<PointerValue<'ctx>> = None;
-        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            Vec::with_capacity(args.len());
-        for (idx, arg) in args.iter().enumerate() {
-            let hir::CallArg::Positional(expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named itable call arg",
-                    at: span.into(),
-                });
-            };
-
-            let param_ty = sig_fun.params[idx].ty;
-            let target_cg = self
-                .cg_ty_of(param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "itable call arg type",
-                    at: expr.span.into(),
-                })?;
-
-            let v = match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param_ty)?
-                }
-                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
-            };
-            let coerced = self.coerce_value(expr.span, v, target_cg)?;
-
-            if idx == 0 {
-                let Some(raw) = coerced.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call receiver value",
-                        at: expr.span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call receiver type",
-                        at: expr.span.into(),
-                    });
-                };
-                receiver_ptr = Some(ptr);
-            }
-
-            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
-        }
-
-        let receiver_ptr = receiver_ptr.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "itable call receiver",
-            at: callee_span.into(),
-        })?;
+        let param_names: Vec<String> = sig_fun
+            .params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect();
+        let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
+        let evaluated_args = self.codegen_bound_call_args(
+            span,
+            callee_span,
+            &param_names,
+            &param_tys,
+            args,
+            "itable call arg binding",
+        )?;
+        let receiver_ptr = evaluated_args
+            .first()
+            .and_then(|arg| arg.pointer_value)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "itable call receiver type",
+                at: callee_span.into(),
+            })?;
+        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            evaluated_args.into_iter().map(|arg| arg.value).collect();
 
         // 3) 从 `this.header.type_desc.itable` 查找 interface entry 并取出 `methods[slot]`。
         let fn_i8 = self.load_interface_itable_slot_fn_ptr_i8(
@@ -10475,32 +10318,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn callable_value_param_names(&self, fun_ty: &crate::ty::FunctionType) -> Vec<String> {
-        let mut out =
-            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
-        if fun_ty.receiver.is_some() {
-            out.push("receiver".to_string());
-        }
-        for idx in 0..fun_ty.params.len() {
-            out.push(format!("a{idx}"));
-        }
-        out
-    }
-
-    fn codegen_callable_value_args(
-        &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
-        fun_ty: &crate::ty::FunctionType,
+    /// 把调用点上的 positional/named HIR 实参映射为 `arg_idx -> param_idx`。
+    ///
+    /// 约束与前端 typecheck 保持一致：
+    /// - 一旦出现命名实参，后续不能再出现位置实参；
+    /// - 所有命名都必须命中形参；
+    /// - 每个形参必须且只能被一个显式实参提供。
+    fn map_call_args_to_params_by_name(
+        &self,
+        param_names: &[String],
         args: &[hir::CallArg],
-        kind: &'static str,
-    ) -> Result<Vec<inkwell::values::BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
-        let param_names = self.callable_value_param_names(fun_ty);
+    ) -> Option<Vec<usize>> {
         if args.len() != param_names.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
+            return None;
         }
 
         let mut seen_named = false;
@@ -10509,12 +10339,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             match arg {
                 hir::CallArg::Positional(_) => {
                     if seen_named {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind,
-                            at: span.into(),
-                        });
+                        return None;
                     }
-                    positional_count += 1;
+                    positional_count = positional_count.saturating_add(1);
                 }
                 hir::CallArg::Named { .. } => {
                     seen_named = true;
@@ -10522,77 +10349,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
+        if positional_count > param_names.len() {
+            return None;
+        }
+
         let mut param_to_arg: Vec<Option<usize>> = vec![None; param_names.len()];
-        for (arg_idx, slot) in param_to_arg.iter_mut().enumerate().take(positional_count) {
+        for (slot_idx, arg_idx) in (0..positional_count).enumerate() {
+            let slot = param_to_arg.get_mut(slot_idx)?;
             *slot = Some(arg_idx);
         }
+
         for (arg_idx, arg) in args.iter().enumerate().skip(positional_count) {
             let hir::CallArg::Named { name, .. } = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                });
+                return None;
             };
-            let Some(slot_idx) = param_names.iter().position(|param| param == name) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                });
-            };
-            let slot =
-                param_to_arg
-                    .get_mut(slot_idx)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind,
-                        at: span.into(),
-                    })?;
+            let slot_idx = param_names.iter().position(|param| param == name)?;
+            let slot = param_to_arg.get_mut(slot_idx)?;
             if slot.is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                });
+                return None;
             }
             *slot = Some(arg_idx);
         }
-        if param_to_arg.iter().any(|slot| slot.is_none()) {
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in param_to_arg.into_iter().enumerate() {
+            let arg_idx = arg_idx?;
+            let slot = arg_to_param.get_mut(arg_idx)?;
+            if slot.is_some() {
+                return None;
+            }
+            *slot = Some(param_idx);
+        }
+
+        arg_to_param.into_iter().collect()
+    }
+
+    /// 在保持源码求值顺序的前提下，把调用点实参求值并归位为"按形参顺序排列"的 LLVM 实参。
+    fn codegen_bound_call_args(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        param_names: &[String],
+        param_tys: &[TypeId],
+        args: &[hir::CallArg],
+        kind: &'static str,
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        if param_names.len() != param_tys.len() || args.len() != param_names.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind,
                 at: span.into(),
             });
         }
 
-        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
-        for (param_idx, arg_idx) in param_to_arg.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
-            let slot = arg_to_param
-                .get_mut(arg_idx)
+        let arg_to_param = self
+            .map_call_args_to_params_by_name(param_names, args)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            })?;
+
+        let mut evaluated: Vec<Option<EvaluatedCallArg<'ctx>>> = vec![None; param_names.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx =
+                arg_to_param
+                    .get(arg_idx)
+                    .copied()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: span.into(),
+                    })?;
+            let param_ty = *param_tys
+                .get(param_idx)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind,
-                    at: span.into(),
+                    at: callee_span.into(),
                 })?;
-            *slot = Some(param_idx);
-        }
-
-        let mut evaluated: Vec<Option<inkwell::values::BasicMetadataValueEnum<'ctx>>> =
-            vec![None; param_names.len()];
-        for (arg_idx, arg) in args.iter().enumerate() {
-            let param_idx = arg_to_param.get(arg_idx).copied().flatten().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                },
-            )?;
-            let param_ty = match fun_ty.receiver {
-                Some(receiver_ty) if param_idx == 0 => receiver_ty,
-                Some(_) => fun_ty.params[param_idx - 1],
-                None => fun_ty.params[param_idx],
-            };
             let target_cg = self
                 .cg_ty_of(param_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind,
+                    kind: "call arg type",
                     at: callee_span.into(),
                 })?;
             let expr = match arg {
@@ -10606,7 +10441,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
             };
             let coerced = self.coerce_value(expr.span, v, target_cg)?;
-            evaluated[param_idx] = Some(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+            let pointer_value = match coerced.value {
+                Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                _ => None,
+            };
+            let value = self.as_llvm_arg_value(expr.span, target_cg, coerced)?;
+            let slot = evaluated
+                .get_mut(param_idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                })?;
+            *slot = Some(EvaluatedCallArg {
+                value,
+                pointer_value,
+            });
         }
 
         evaluated
@@ -10618,6 +10467,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             })
             .collect()
+    }
+
+    fn callable_value_param_names(&self, fun_ty: &crate::ty::FunctionType) -> Vec<String> {
+        let mut out =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
+        if fun_ty.receiver.is_some() {
+            out.push("receiver".to_string());
+        }
+        for idx in 0..fun_ty.params.len() {
+            out.push(format!("a{idx}"));
+        }
+        out
+    }
+
+    fn callable_value_param_tys(&self, fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
+        let mut out =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
+        if let Some(receiver_ty) = fun_ty.receiver {
+            out.push(receiver_ty);
+        }
+        out.extend(fun_ty.params.iter().copied());
+        out
+    }
+
+    fn codegen_callable_value_args(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[hir::CallArg],
+        kind: &'static str,
+    ) -> Result<Vec<inkwell::values::BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        let param_tys = self.callable_value_param_tys(fun_ty);
+        Ok(self
+            .codegen_bound_call_args(span, callee_span, &param_names, &param_tys, args, kind)?
+            .into_iter()
+            .map(|slot| slot.value)
+            .collect())
     }
 
     fn codegen_function_value_call(

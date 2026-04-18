@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_generic_named_args_basic.stdout
+//
+// T4003R：顶层 direct call 的命名实参在 monomorph rewrite 后仍应保持统一绑定语义。
+// - named arg 重排后要命中真实形参名；
+// - 实参求值顺序仍按源码顺序，而不是按形参顺序。
+
+import scoop.core.*
+
+fun mark(n: Int): Int {
+    println(300 + n)
+    return n
+}
+
+fun <T> pick(a: T, b: Int): T {
+    return a
+}
+
+fun main(): Int {
+    println(pick(b = mark(2), a = mark(1)))
+    return 0
+}
