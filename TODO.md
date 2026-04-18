@@ -220,23 +220,59 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003S
 
-## T4004：顶层 pattern binding
-
-### T4004 [TODO] 打通顶层 `val` / `var` 的 pattern binding
-- 前置说明：
-  - `T4003S` / `T4003SR` 已收口普通顶层 `val` 的独立 once-init 读取语义与递归初始化失败路径；顶层 pattern binder 现可直接复用 `top_level_immutable_values` 主线，而不必回退到 `const val` / 静态 `var` 旁路。
+### T4003T [TODO] 收口局部 `val` pattern binding 的可执行 lowering / codegen
+- 说明：
+  - 在尝试启动 `T4004` 时，最小 probe `fun main(): Int { val pair: (Int, Int) = (1, 2); val (a, b) = pair; return a + b }` 当前会在 build 阶段报 `scoop::llvm::unsupported_main_body: anonymous val binding`。
+  - 这说明局部 `val` destructuring 目前只完成了 parser/typecheck，HIR `ValDecl` 仍把 pattern 绑定降成匿名声明，后端缺少统一的 binder lowering；若继续直接做顶层 pattern binding，只会引入额外的顶层专用 ad-hoc 路径，违反后续 review 对“顶层/局部复用同一套语义”的要求。
 - 范围：
-  - 顶层声明头接受 pattern binding。
-  - 与局部解构绑定保持一致的 lowering / binding 规则。
+  - 让局部 `val` pattern binding 在 HIR / LLVM 主线上可执行，initializer 只求值一次，binder 读取复用统一的解构/投影语义。
+  - tuple / struct / enum variant destructuring 与既有 `typecheck::val_pat` 规则对齐。
+  - `var` destructuring 继续按 spec §4.2 报错，不新增例外分支。
 - 验收：
-  - 新增 typecheck / lowering / run-pass fixtures。
-  - `ISSUES.md` 第 6 条收窄或关闭。
+  - 上述最小 probe 可 build/run。
+  - 新增 lowering / run-pass 回归，覆盖 tuple / struct / enum variant binder 的读取。
+  - 局部 pattern binding 不再落入 `anonymous val binding` unsupported。
 - 依赖：T4003SR
+
+### T4003TR [TODO] Review：确认局部 destructuring 主线已可被顶层复用
+- 重点：
+  - 不接受把局部 pattern binding 仅靠“匿名 val + 特判读取”糊过去。
+  - 顶层后续应能直接复用同一套 binder lowering / 投影语义。
+- 依赖：T4003T
+
+## T4004：顶层 `val` pattern binding
+
+### T4004 [TODO] 打通顶层 `val` 的 pattern binding（拆分执行）
+- 说明：
+  - 复查 spec §4.2 / Appendix B.11 后确认 destructuring 仅适用于 `val`；`var` 不支持 destructuring patterns，因此原“顶层 `val` / `var`”表述收窄为“顶层 `val`”。
+  - 顶层版本还同时跨越“binder 符号安装 / 类型收集”和“once-init lowering / codegen”两条主线；为避免单轮横跨前端与后端两套基础设施，现拆分为 `T4004a -> T4004b -> T4004R` 顺序推进。
+- 验收：
+  - 子任务全部完成后，顶层 tuple / struct / enum destructuring 可跨文件引用并稳定执行。
+  - `ISSUES.md` 第 6 条收窄或关闭。
+- 依赖：T4003TR
+
+### T4004a [TODO] 打通顶层 `val` pattern binder 的符号安装、类型收集与静态门禁
+- 范围：
+  - 顶层 pattern binder 安装到 value namespace / `top_level_types`，同文件与跨文件引用可见。
+  - 顶层 `val` pattern binding 的整体类型可来自显式注解或 initializer 推断，并把 binder 类型分发到各个名字。
+  - 顶层 `var` pattern binding 继续按 spec §4.2 拒绝，错误与局部规则对齐。
+- 验收：
+  - 新增 typecheck / 多文件回归：顶层 tuple / struct / enum binder 被其它顶层声明和其它文件引用。
+- 依赖：T4003TR
+
+### T4004b [TODO] 打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering
+- 范围：
+  - 顶层 pattern initializer 只求值一次；各 binder 复用统一投影结果，不得把 initializer 重复展开到每个 binder。
+  - 非 `const` 顶层 binder 复用 `top_level_immutable_values` 主线，保持初始化顺序、可见性与循环引用失败路径稳定。
+  - 新增 lowering / run-pass 回归，覆盖 tuple / struct / enum 顶层 binder 读取。
+- 验收：
+  - 顶层 binder 在 `main`、其它顶层 initializer 与跨文件调用中可稳定 build/run。
+- 依赖：T4004a
 
 ### T4004R [TODO] Review：确认顶层与局部 pattern binding 复用同一套语义
 - 重点：
   - 不接受“顶层单独走一套 ad-hoc lowering”。
-- 依赖：T4004
+- 依赖：T4004b
 
 ## T4005：Elvis `?:` lowering / codegen
 

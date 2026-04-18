@@ -26,6 +26,8 @@
 > 2026-04-19 当前轮完成更新：`T4003S` 已完成。HIR lowering 现会为命名的非 `const` 顶层 `val` 收集独立的 `top_level_immutable_values` side table，避免继续把普通顶层 immutable value 混进 `const val` 或静态 `var` 旁路；LLVM codegen 现为这类绑定统一生成 module-local backing global、once guard 与按需定义的 init function，读取时先确保初始化再加载结果，因此 `val x: Int = 41; fun main(): Int { return x + 1 }` 已可稳定 build/run。与此同时，reachable function collector 现在会递归扫描顶层 immutable value initializer；effect state-machine 也已把顶层 `val` 读取识别为隐藏的一次性初始化边界，避免后端只在普通路径下偶然成立。已新增 `top_level_val_read_minimal_ok` build fixture 与 `top_level_val_runtime_read_basic` run-pass 回归，覆盖 `main` 读取、顶层 initializer 之间的依赖读取，以及 Int/String 顶层 immutable value 的 once-init 语义。已验证最小 probe build+run、`cargo run -p scoop -- test --fixtures /tmp/t4003s-run-pass`（`fixtures: ok (1)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003SR`。
 >
 > 2026-04-19 当前轮完成更新：`T4003SR` 已完成。复审普通顶层 `val` 的新主线后，确认命名的非 `const` 顶层 `val` 现统一走 `top_level_immutable_values` side table + module-local backing global + once guard + init function 表示，不再借用 `const val` 或静态 `var` 旁路；reachable function collector 与 effect state-machine 也继续复用同一入口，因此 `T4004` 无需再开第四套 binder 表示。复审同时发现一个既有语义裂缝：`scoop_once_begin` 为避免死锁会在同线程重入时返回 `0`，而旧的访问路径会把“init 已返回”直接当成“值可读”，导致 `val x: Int = x + 1` 或“helper 间接回读顶层 `val`”这类程序错误地读取到零初始化 backing global。当前已在 `codegen_top_level_immutable_value_access` 中新增 guard-state 后置检查：init function 返回后若 guard 仍未进入 `initialized`，则立即以退出码 `1` 终止，阻止递归初始化把未初始化值伪装成合法结果。已新增 `top_level_val_recursive_init_is_error` run-pass 回归，并与既有 `top_level_val_runtime_read_basic` 一起在 `/tmp/t4003sr-run-pass` 子集验证通过（`fixtures: ok (2)`）；同时复验了 `top_level_val_read_minimal_ok` build probe（退出码 `42`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004`。
+>
+> 2026-04-19 当前轮计划调整：在正式执行 `T4004` 前，又补做了最小 probe `fun main(): Int { val pair: (Int, Int) = (1, 2); val (a, b) = pair; return a + b }`，结果 `cargo run -p scoop -- build /tmp/t4004_local_destructuring_probe.scoop -o /tmp/t4004_local_destructuring_probe.out` 在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: anonymous val binding`。这说明局部 `val` pattern binding 目前只完成了 parser/typecheck，尚未进入可执行 lowering/codegen 主线；若继续直接做顶层 pattern binding，只能额外开一条顶层专用 binder lowering，违反 `T4004R` 对“顶层/局部复用同一套语义”的要求。同时，复查 spec §4.2 / Appendix B.11 后确认 destructuring 仅适用于 `val`，`var` 仍应继续拒绝 pattern binding，因此原 `T4004` 的“`val` / `var`”表述本身也需要收窄。基于这两个发现，现已在 `T4003SR` 与 `T4004` 之间插入新的前置任务 `T4003T -> T4003TR`：先收口局部 `val` pattern binding 的 HIR / LLVM 主线，再推进顶层版本；并将原 `T4004` 拆分为 `T4004a -> T4004b -> T4004R`，只覆盖顶层 `val` pattern binding。当前本轮到此停止，等待下一次调用从 `T4003T` 开始。
 
 ## 0. 工作原则
 
@@ -42,12 +44,13 @@
 2. `ISSUES.md` 第 3 条：lambda 推断与 receiver lambda
 3. `ISSUES.md` 第 4 条：调用语义早期门禁
 4. 新增 blocker：普通顶层 `val` 的可执行读取语义
-5. `ISSUES.md` 第 6 条：顶层 pattern binding
-6. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
-7. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
-8. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-9. `ISSUES.md` 第 1 条：effect / continuation 完整性
-10. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+5. 新增 blocker：局部 `val` pattern binding 的可执行 lowering / codegen
+6. `ISSUES.md` 第 6 条：顶层 `val` pattern binding
+7. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
+8. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
+9. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+10. `ISSUES.md` 第 1 条：effect / continuation 完整性
+11. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -65,9 +68,9 @@
 
 ### P3. 语法到 lowering 的缺口收口
 
-- 先收口普通顶层 `val` 的可执行读取语义，再推进顶层 pattern binding 与 Elvis `?:` 的 lowering / codegen。
+- 先收口普通顶层 `val` 的可执行读取语义，再收口局部 `val` pattern binding 的可执行 lowering/codegen，最后推进顶层 `val` pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
-- 当前状态：`T4003S` / `T4003SR` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，并在递归初始化重入时走明确失败路径。P3 当前下一项为 `T4004`。
+- 当前状态：`T4003S` / `T4003SR` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，并在递归初始化重入时走明确失败路径。新发现局部 `val` destructuring 仍停留在“可 typecheck、不可执行”的半实现状态，因此 P3 当前下一项改为 `T4003T`；其后再进入拆分后的 `T4004a -> T4004b -> T4004R`。
 
 ### P4. compilation-unit 与 runtime type info 收口
 
