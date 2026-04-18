@@ -2612,8 +2612,12 @@
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
 - 依赖：T3016lR
 
-### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
+### T3017R [DONE] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复核 `tests/fixtures/run-pass` 基线：`rg -n "T3006|xfail|EXPECT: fail" tests/fixtures/run-pass -g '*.scoop'` 仅剩 6 条真实失败语义 fixture，其中 4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）本来就应保持失败；其余 2 条（`gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`not_null_assert_basic.scoop`）已分别由 `T3304` / `T3406` 跟踪。`rg -n "T3006: 暂时标记为 fail" tests/fixtures/run-pass` 已无命中。
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的 effect 相关生产入口；检索确认 `emit_effect_unwind_if_active`、`raise_target_stack`、`scan_for_callee_suspend`、`codegen_top_level_fun_suspendable`、`codegen_closure_fun_body_suspendable`、`CalleeSuspendResumeMode` 等旧 shape/flag 主路径符号均已清零，`handle_propagate` 与 ordinary outward propagation 继续共享统一 state-machine / ordinary-frame 合同，没有为 fixture 保绿而加回分流。
+  - 已验证 `cargo run -p scoop --features llvm -- test`（`fixtures: ok (992)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。runner 过程中出现的 `WARN` 仅为部分 fixture 触发的语义诊断日志，不属于 Rust 编译或 lint warning。
 - 目标：
   - 确认 effect 统一主线相关 run-pass fixtures 已恢复为 passing baseline。
   - 确认生产代码中无新增 shape-based / flag-based / effect-only fallback，用于“只让 fixture 过”的临时逻辑。
@@ -2621,6 +2625,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码或基线形态已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“effect unified codegen 已成为稳定 passing baseline；`T3006` 临时 xfail 已回收，无 test-only workaround 残留”。
+- 审查结论：
+  - effect unified codegen 已成为稳定 passing baseline；`T3006` 临时 xfail 已回收，无 test-only workaround 残留。
+  - `T30` 可重新声明为阶段性完成；后续任务队列转入 `T31` 的 `T3103`。
 - 依赖：T3017
 
 > 以下四个主题从 `TODO-3.md` 顺延迁入，按原顺序重编号为 `T31`～`T34`，仅对与当前 `T30` 主线直接相关的依赖与表述做最小更新。
