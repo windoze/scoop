@@ -2273,12 +2273,22 @@
   - 当前修复依赖的是统一的 effect frame type descriptor、continuation `trace_fn` 与 statepoint/root relocation 合同，而不是延后回收、放宽超时或 fixture 特判。
 - 依赖：T3016d
 
-### T3016e [TODO] 修正 nested handler arm / `try-catch` rethrow 在再次 perform 后错误继续当前 body 的回归
+### T3016e [DONE] 修正 nested handler arm / `try-catch` rethrow 在再次 perform 后错误继续当前 body 的回归
 - 描述：开始执行 `T3017` 的 expectation cleanup 时，在临时 fixtures 根目录中把 61 条 effect / continuation 相关 `EXPECT: fail` 候选统一切回 `EXPECT: pass` 并用官方 runner 验证，结果立即暴露出一个更前置、此前未显式跟踪的真实生产回归：`tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 与 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 当前都会在 inner arm/catch 内再次 `Raise.raise(...)` / `Boom.boom(...)` 之后继续执行 `unreachable_after_inner` / `unreachable_after_middle`，而不是向外层最近 handler/catch 传播。
 - 进展：
   - 已确认这不是 stale expectation/golden 问题：上述三条 fixture 直接运行时都返回 `0`，但 stdout 实际落到 `unreachable_after_*`，与各自 golden 明确不一致。
   - 已确认问题边界不是 `Raise.raise` 或 `try/catch` 独有：等价的显式 `handle { ... } with { ... }` 自定义 non-resuming effect fixture 与 `try/catch` lowering 版本都失败，说明 blocker 位于二者共享的 nested handler arm outward-propagation / arm-outside-scope 合同，而不是单一路径的 sugar/golden 偏差。
   - 因此 `T3017` 不能继续当作 expectation cleanup 任务执行，需先恢复这条生产语义。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 为 arm body 增加精确的 outward-suspend 判定，并将其纳入 `HandleStateMachinePlan::may_suspend_outward()`：non-resuming / escape arm 直接按 `expr_contains_suspend_subtree()` 统计；immediate-resume arm 则剥除由当前 arm 自己消费的尾部 `resume(...)` 后再判断，避免把自洽 nested handle 误升级成 boundary。
+  - 已沿 `state_machine_segments.rs` 的 round-trip 投影补齐 `body_may_suspend_outward` 元数据，并新增 unified transform 结构测试 `nested_handle_with_non_resuming_arm_rethrow_materializes_outer_boundary`，锁定“自洽 immediate-resume nested handle 仍不生成 `NestedHandleBoundary`，但 non-resuming arm rethrow nested handle 必须生成 outer boundary”。
+  - 已恢复 3 条目标 fixture 的真实 passing 语义；其中 `tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 已从历史 `EXPECT: fail` 改回 `EXPECT: pass`。
+  - 已验证：
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+    - `cargo test -p scoopc nested_handle_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 恢复 nested handler 的“最近匹配 + arm body 在自身 dispatch scope 外执行”合同：inner arm/catch 内再次 perform / rethrow non-resuming effect 时，必须向外层最近匹配 handler/catch 传播，不能继续执行当前或中间 body 的后续语句。
   - 统一修复显式 `handle` 与 `try/catch` lowering 两条路径，避免只让其中一条恢复。

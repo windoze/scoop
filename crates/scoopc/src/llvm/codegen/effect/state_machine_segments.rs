@@ -38,6 +38,7 @@ struct HandleSegmentArmBody {
     body_segments: Vec<HandleSegmentId>,
     binder_slots: Vec<hir::SymbolId>,
     capture_locals: Vec<hir::SymbolId>,
+    body_may_suspend_outward: bool,
     cleanup_scope_stack: Vec<CleanupScopeId>,
 }
 
@@ -1768,6 +1769,7 @@ impl HandleSegmentArmBody {
             binder_slots,
             capture_locals: self.capture_locals.clone(),
             body_entry_state: self.body_entry_segment,
+            body_may_suspend_outward: self.body_may_suspend_outward,
         })
     }
 
@@ -1775,7 +1777,8 @@ impl HandleSegmentArmBody {
         let mut acc = self.arm_id as usize
             ^ self.op_fqn.len()
             ^ self.effect_ty.as_u32() as usize
-            ^ (self.body_entry_segment as usize);
+            ^ (self.body_entry_segment as usize)
+            ^ (usize::from(self.body_may_suspend_outward) << 1);
         for segment_id in &self.body_segments {
             acc ^= (*segment_id as usize) << 3;
         }
@@ -2124,6 +2127,7 @@ fn build_segment_arm_bodies(
                 body_segments,
                 binder_slots: arm.binder_slots.iter().map(|slot| slot.id).collect(),
                 capture_locals: arm.capture_locals.clone(),
+                body_may_suspend_outward: arm.body_may_suspend_outward,
                 cleanup_scope_stack,
             }
         })

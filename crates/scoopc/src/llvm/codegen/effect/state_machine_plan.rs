@@ -126,6 +126,10 @@ impl HandleStateMachinePlan {
                 .iter()
                 .any(SuspendSitePlan::may_suspend_outward)
             || self
+                .arm_plans
+                .iter()
+                .any(|arm| arm.body_may_suspend_outward)
+            || self
                 .nested_handles
                 .iter()
                 .any(Self::may_suspend_outward)
@@ -1169,6 +1173,7 @@ struct ArmPlan {
     binder_slots: Vec<FrameSlot>,
     capture_locals: Vec<hir::SymbolId>,
     body_entry_state: PlanStateId,
+    body_may_suspend_outward: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1343,7 +1348,8 @@ impl ArmPlan {
         let mut acc = self.id as usize
             ^ self.op_fqn.len()
             ^ self.effect_ty.as_u32() as usize
-            ^ self.body_entry_state as usize;
+            ^ self.body_entry_state as usize
+            ^ (usize::from(self.body_may_suspend_outward) << 1);
         for slot in &self.binder_slots {
             acc ^= slot.structural_signature();
         }
@@ -1456,6 +1462,102 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             HandleStateMachinePlan::build_with_context(self.types, handle, self.context)
                 .may_suspend_outward()
         })
+    }
+
+    fn arm_body_may_suspend_outward(&self, arm: &hir::HandleArm) -> bool {
+        match arm.kind {
+            hir::HandleArmKind::NonResuming | hir::HandleArmKind::EscapeContinuation { .. } => {
+                self.expr_contains_suspend_subtree(&arm.body)
+            }
+            hir::HandleArmKind::ImmediateResume { resume } => {
+                self.immediate_resume_arm_tail_may_suspend_outward(&arm.body, resume)
+            }
+        }
+    }
+
+    fn immediate_resume_arm_tail_may_suspend_outward(
+        &self,
+        expr: &hir::Expr,
+        resume_symbol: hir::SymbolId,
+    ) -> bool {
+        if let Some(payload) = self.extract_immediate_resume_payload_expr(expr, resume_symbol) {
+            return self.expr_contains_suspend_subtree(payload);
+        }
+
+        match &expr.kind {
+            hir::ExprKind::Block(block) => {
+                let Some((tail_stmt, prefix_stmts)) = block.stmts.split_last() else {
+                    return true;
+                };
+                prefix_stmts
+                    .iter()
+                    .any(|stmt| self.stmt_contains_suspend_subtree(stmt))
+                    || self.immediate_resume_arm_tail_stmt_may_suspend_outward(
+                        tail_stmt,
+                        resume_symbol,
+                    )
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr_contains_suspend_subtree(cond)
+                    || self.immediate_resume_arm_tail_may_suspend_outward(
+                        then_branch,
+                        resume_symbol,
+                    )
+                    || else_branch.as_deref().is_none_or(|expr| {
+                        self.immediate_resume_arm_tail_may_suspend_outward(expr, resume_symbol)
+                    })
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.expr_contains_suspend_subtree(subject)
+                    || arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .is_some_and(|guard| self.expr_contains_suspend_subtree(guard))
+                            || self.immediate_resume_arm_tail_may_suspend_outward(
+                                &arm.body,
+                                resume_symbol,
+                            )
+                    })
+            }
+            _ => true,
+        }
+    }
+
+    fn immediate_resume_arm_tail_stmt_may_suspend_outward(
+        &self,
+        stmt: &hir::Stmt,
+        resume_symbol: hir::SymbolId,
+    ) -> bool {
+        let hir::StmtKind::Expr(expr) = &stmt.kind else {
+            return true;
+        };
+        self.immediate_resume_arm_tail_may_suspend_outward(expr, resume_symbol)
+    }
+
+    fn extract_immediate_resume_payload_expr<'hir_expr>(
+        &self,
+        expr: &'hir_expr hir::Expr,
+        resume_symbol: hir::SymbolId,
+    ) -> Option<&'hir_expr hir::Expr> {
+        let hir::ExprKind::Call { callee, args } = &expr.kind else {
+            return None;
+        };
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind else {
+            return None;
+        };
+        if *id != resume_symbol {
+            return None;
+        }
+
+        match args.as_slice() {
+            [hir::CallArg::Positional(payload)] => Some(payload),
+            [hir::CallArg::Named { value, .. }] => Some(value),
+            _ => None,
+        }
     }
 
     fn local_function_value_may_suspend_when_called(&self, expr: &hir::Expr) -> bool {
@@ -2586,6 +2688,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 }
             };
             self.set_terminator(body_entry_state, StateTerminator::ArmExit(arm_exit));
+            let body_may_suspend_outward = self.arm_body_may_suspend_outward(arm);
 
             self.arm_plans.push(ArmPlan {
                 id: arm_id,
@@ -2594,6 +2697,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 binder_slots,
                 capture_locals,
                 body_entry_state,
+                body_may_suspend_outward,
             });
         }
     }

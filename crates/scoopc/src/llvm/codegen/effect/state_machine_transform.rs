@@ -3370,6 +3370,66 @@ fun demo(): Int {
     }
 
     #[test]
+    fn nested_handle_with_non_resuming_arm_rethrow_materializes_outer_boundary() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val inner: Int = handle {
+            Boom.boom(10)
+            111
+        } with {
+            Boom.boom(code: Int) -> {
+                Boom.boom(20)
+                222
+            }
+        }
+        inner
+    } with {
+        Boom.boom(code: Int) -> 0
+    }
+    result
+}
+"#,
+        );
+        let source_plan = build_source_plan_from_lowered(&lowered);
+        let segment_list = source_plan.build_segment_list();
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("nested rethrow handle should still transform");
+
+        assert!(
+            source_plan
+                .suspend_sites
+                .iter()
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle with arm-body rethrow should materialize an outer boundary in source plan"
+        );
+        assert!(
+            segment_list
+                .suspend_sites
+                .iter()
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle with arm-body rethrow should materialize an outer boundary in segment list"
+        );
+        assert!(
+            machine
+                .suspend_sites
+                .iter()
+                .any(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "nested handle with arm-body rethrow should materialize an outer boundary in unified machine"
+        );
+    }
+
+    #[test]
     fn unified_lowering_contract_provides_complete_read_access() {
         let lowered = lower_typed_single_source(
             r#"
