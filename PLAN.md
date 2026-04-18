@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3009b2cR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 后确认，ordinary indirect callee 的 multi-site resumed-body caller-tail 仍完全建立在统一 callee-suspend-state 合同上：plan builder 只按 `builder.suspend_sites` 全量生成 `resume_sites`，fresh path 仅保存 `site_tag + union locals`，resume path 只读取 `site_tag` 并经共享 `codegen_callee_resume_dispatch()` 分派回对应 `resume_tail`；`codegen_top_level_fun` 与 `codegen_closure_fun_body` 共用同一套入口，function-value callee 仍通过 closure body codegen 复用这套机制。定向检索 production code 未发现 `viaBranch`、`fetchGreeting`、`callIt`、`counter` 等 fixture/helper 名称或按 branch 数量/源码形状切分的新旁路。已验证 `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`、multi-site branch fixture、statement-container matrix、closure locals fixture、`effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2R`。
+>
 > 2026-04-18 当前轮完成更新：`T3009b2c` 已完成。ordinary indirect callee 的 `CalleeSuspendPlan` 已从 single-site 扩成 multi-site：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现在会为同一个 ordinary helper / closure body 中的每个 `Perform` site 分别构建 `resume_slot`、`resume_tail` 与 site-local `saved_locals`，再用 union locals 定义统一 callee suspend-state 布局；`crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 ordinary callee suspend-state 也新增 `site_tag` 字段，fresh path 保存 state 时写入当前 site，resume path 读取 `site_tag` 后分派到 `resume_site*` blocks；`crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_top_level_fun` / `codegen_closure_fun_body` 已共用这套 multi-site resume dispatch，而不是只执行单一 `plan.resume_tail`。新增 focused fixture `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop` 与 IR 定向测试 `ordinary_multi_site_callee_materializes_resume_site_dispatch` 后，最小复现中原先缺失的 `if_resume` / `if_after` / `I:if` 已恢复；并已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b2cR`。
 >
 > 2026-04-18 当前轮阻塞更新：开始执行 `T3009b2R` 复审后，基于 `effect_escape_continuation_indirect_perform_statement_container_matrix.scoop` 构造最小变体，确认 ordinary indirect callee 在“同一 callee 内有多个 suspend site”时仍未真正接回统一 resumed-body caller-tail：`build_ordinary_callee_suspend_plan_from_unified_contract()` 只有在 `builder.suspend_sites.len() == 1` 时才建立 `CalleeSuspendPlan`，导致 `viaIf` 的 then / else 两个分支都执行 `Ask.ask(...)` 时，resume 后 outer `ResumeAfterSite(Call)` 会直接把 payload 当作整次调用结果，缺失 `if_resume` / `if_after` / `I:if`，说明 callee 自己的 post-suspend body 被跳过。这是比当前 `T3009b2R` 更前置的真实生产缺口，已按阻塞规则前置拆成 `T3009b2c` → `T3009b2cR`，并让 `T3009b2R` 顺延依赖 `T3009b2cR`。本轮只同步任务与计划，不继续实现。当前 effect 主线下一项推进到 `T3009b2c`。
@@ -585,29 +587,27 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009b2c`
-2. `T3009b2cR`
-3. `T3009b2R`
-4. `T3009b`
-5. `T3009bR`
-6. `T3015`
-7. `T3015R`
-8. `T3016`
-9. `T3016R`
-10. `T3017`
-11. `T3017R`
-12. `T3103`
-13. `T3104`
-14. `T3201`
-15. `T3202`
-16. `T3203`
-17. `T3204`
-18. `T3205`
-19. `T3301`
-20. `T3302`
-21. `T3303`
-22. `T3401`
-23. `T3401a`
+1. `T3009b2R`
+2. `T3009b`
+3. `T3009bR`
+4. `T3015`
+5. `T3015R`
+6. `T3016`
+7. `T3016R`
+8. `T3017`
+9. `T3017R`
+10. `T3103`
+11. `T3104`
+12. `T3201`
+13. `T3202`
+14. `T3203`
+15. `T3204`
+16. `T3205`
+17. `T3301`
+18. `T3302`
+19. `T3303`
+20. `T3401`
+21. `T3401a`
 24. `T3401b`
 25. `T3401c`
 26. `T3402`

@@ -1803,8 +1803,13 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3009b2
 
-### T3009b2cR [TODO] Review：确认 multi-site ordinary indirect callee 的 resumed-body caller-tail 已统一接回
+### T3009b2cR [DONE] Review：确认 multi-site ordinary indirect callee 的 resumed-body caller-tail 已统一接回
 - 描述：在 `T3009b2c` 之后只审查生产代码，确认多 suspend-site ordinary callee 的 resumed-body / caller-tail 仍通过统一 callee-suspend-state + continuation 合同接回，而不是为 `if` / `when` / branch 数量单独打 patch；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs`。确认 multi-site ordinary callee plan 仅基于统一 `builder.suspend_sites` 生成 `resume_sites`，fresh path 只保存 `site_tag + union locals`，resume path 只读取 `site_tag` 后经共享 `codegen_callee_resume_dispatch` 回到对应 `resume_tail`，没有按 `if` / `when` / branch 数量选择另一套 lowering。
+  - 已确认 top-level helper 与 closure body 共用同一套 ordinary callee suspend/resume 入口：`codegen_top_level_fun` 与 `codegen_closure_fun_body` 都通过 `build_*_callee_suspend_plan(...)` + `codegen_callee_resume_dispatch(...)` 接入同一机制；function-value callee 仍复用 closure body codegen，不存在额外特判。
+  - 已定向检索生产代码，未发现 `viaBranch`、`fetchGreeting`、`callIt`、`counter` 等 fixture/helper 名称回流到 LLVM effect codegen，也未发现新的 branch-count / source-shape 条件分支。
+  - 已验证 `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 multi-site ordinary callee resume 会回到正确 site 的 post-suspend body。
   - 确认 top-level helper / closure / function-value callee 共享同一套 site 选择与 restore 机制。
@@ -1812,6 +1817,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“multi-site ordinary indirect callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 审查结论：
+  - multi-site ordinary indirect callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留。
+  - ordinary callee 的 multi-site 支持只建立在统一 `resume_sites + site_tag + shared dispatch` 合同上；生产代码中不存在按 `if` / `when` / branch 数量或 fixture/helper 名称分流的 effect lowering 旁路。
 - 依赖：T3009b2c
 
 ### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
