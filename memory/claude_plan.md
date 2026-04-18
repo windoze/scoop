@@ -1,69 +1,49 @@
-# 本轮执行计划
+# 当前执行计划
 
 ## 约束说明
 
-- 本轮目标：只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在开始任何实际代码实现前，先记录计划，并在关键进展或计划变化时持续更新本文件。
-- 如发现最新提交中提到的遗留问题，需优先修复，再进入 `TODO.md` 任务。
-- 如当前首个未完成任务过大或被前置缺陷阻塞，必须先更新 `PLAN.md` 与 `TODO.md`，将任务拆分或重排依赖，然后仅执行新的首个子任务。
-- 不接受规避式实现；任何与规范不符的问题都必须转化为显式任务并按依赖顺序处理。
+- 按要求先记录计划，再进行任何仓库检查或命令执行。
+- 这里记录的是可审阅的执行方案与决策摘要，不包含不可审计的内部推理展开。
+- 本次调用只处理 `TODO.md` 中第一个未完成任务；若遇到阻塞，则按要求改写 `TODO.md` / `PLAN.md` 后提交并停止。
 
-## 初始执行步骤
+## 初始步骤
 
-1. 检查最新一次 Git 提交的信息，确认是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，识别当前第一个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务是否已有计划、依赖或上下文约束。
-4. 评估该任务是否可以在本轮完整落地：
-   - 若可以：直接实现、补测试、验证、更新文档与任务状态。
-   - 若不可以：把任务拆分为更小的子任务，更新 `PLAN.md` 与 `TODO.md`，并执行新的第一个子任务。
-5. 在实现过程中，如发现规范缺口、语言功能缺失、已有 bug 或测试基础设施问题：
-   - 先确认是否构成当前任务的真实前置依赖；
-   - 若构成阻塞，则先在 `TODO.md` 中新增/重排修复任务，并在 `PLAN.md` 说明原因；
-   - 本轮仅处理新的首个任务。
-6. 对完成的任务执行充分验证，至少覆盖：
-   - 相关 Rust 单测 / 集成测试 / fixture 测试；
-   - 必要时执行 `cargo fmt`；
-   - 必要时执行 `cargo clippy --all-targets -- -D warnings`；
-   - 确认没有引入新的编译或 lint 警告。
-7. 完成后更新：
-   - `TODO.md`：将本轮任务标记为完成；
-   - `PLAN.md`：记录当前状态、后续顺序、任何依赖变化；
-   - `memory/claude_plan.md`：补充执行结果与关键决策。
-8. 最后创建一次 Git 提交，提交信息清晰描述本轮完成内容，然后停止。
+1. 检查最新一次 Git 提交，确认提交说明中是否提到尚未修复的问题；若有，则优先修复这些既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md` 与相关上下文，确认该任务的依赖、范围和验收标准。
+4. 如果该任务过大，则将其拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后执行拆分后的第一个子任务。
 
-## 当前状态
+## 当前进展（进行中）
 
-- 已检查最新提交：`8d25808cf4641f3a0815897c01a08457cfdc9b52`，提交信息为 `[T3016a0] Track tail-merge blocker before cleanup repair`。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务为 `T3016a0`：修正 no-suspend handle 尾部 control-flow merge 的 result transport 回归。
-- 已确认最新提交中提到的前置问题与 `T3016a0` 一致，因此本轮无需再额外插入更早任务，直接处理该 blocker。
-- 已运行最小复现：
+- 已检查最新提交 `e5eb91e [T3016a0] Repair tail-merge result transport` 的提交正文；正文未额外列出需要先插队修复的既有问题。
+- 已定位当前首个未完成任务为 `T3016a0R`：复审 no-suspend tail merge result transport 是否真正回到统一 completion/result 合同。
+- 已完成定向审查：`state_preserves_handle_result_on_entry()` 仅基于 unified state machine 的 state/terminator 元数据递归判断透明 relay，允许继续传递结果的 state 也仅限 marker/no-op（`StmtEmpty` / `CleanupEdgeComplete` / `ReturnToEnclosingExpression`），未重新引入源码形状分流。
+- 已完成定向验证：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_tail_if_result.scoop`
-  - 当前实际输出为 `0` / `0`，而期望输出为 `13` / `15`。
-- 当前诊断：
-  - `handle { if (flag) { 13 } else { 15 } }` 在 plan 阶段会生成独立 `if.merge` state。
-  - 现有 emitter 只会在“下一跳直接进入 `ReturnHandle` / `CleanupEnter` 完成入口”时，把 `last_value` 写入 frame result slot。
-  - 对于 `then/else -> if.merge(no-op) -> ReturnHandle` 这类透明 Goto 链，`last_value` 没有跨 merge state 继续 transport，最终 `ReturnHandle` 读到的是默认结果槽，因此出现 `0/0`。
-- 下一步修复计划：
-  1. 在 unified emitter 中把“carried result 可继续保留”的判断从单跳扩展为递归透明链判断，覆盖 `Goto -> ... -> ReturnHandle/ReturnFromFunction/ArmReturnHandle/...` 这类 completion path。
-  2. 保持透明状态的判定严格，只允许无副作用、不会改写 carried result 的 op 作为 relay。
-  3. 补充针对 tail `if/else` merge 形状的回归测试，避免以后再次只覆盖“直接尾值”而漏掉 merge state。
-  4. 跑通定向 fixture、全量测试与 clippy，然后更新 `TODO.md`、`PLAN.md` 和本文件。
-
-## 本轮结果
-
-- 已完成 `T3016a0` 代码实现：
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现已支持递归透明 `Goto` 链的 carried-result transport。
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs` 新增结构测试 `tail_if_else_result_flows_through_transparent_merge_state`。
-  - `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 已从 `EXPECT: fail` 改回 `EXPECT: pass`。
-- 已完成验证：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_tail_if_result.scoop`
-    输出已恢复为 `13 / 15`。
   - `cargo test -p scoopc tail_if_else_result_flows_through_transparent_merge_state -- --nocapture`
+  - `cargo test -p scoopc cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally -- --nocapture`
+  - `cargo test -p scoopc dispatch_loop_ir_checks_terminal_state_before_tls_active -- --nocapture`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 额外核对：
-  - 重新直跑 `tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop` 后，当前分支仍输出 `0 / 0`。
-  - 该问题已由现有 `T3016a` 跟踪，说明 `T3016a0` 修复的是更基础的 transparent tail-merge 缺口，但不等于 `T3016a` 已闭环。
-- 文档状态：
-  - `TODO.md` 已将 `T3016a0` 标记为完成。
-  - `PLAN.md` 已将下一项推进到 `T3016a0R`，并同步记录本轮验证结果。
+- 审查结论：`T3016a0` 的 tail-merge result transport 修复已闭环，且未冲掉 cleanup/finally completion 的后续修复前提；`effect_nosuspend_finally_nested_handle.scoop` 仍输出 `0/0`，说明剩余缺口继续属于后续 `T3016a`。
+- 下一步：把 review 结论写回 `TODO.md` / `PLAN.md`，提交本轮变更并停止。
+
+## 执行策略
+
+1. 先在不破坏现有未提交修改的前提下检查工作区状态。
+2. 阅读与当前任务直接相关的源码、测试、规范或设计文档。
+3. 实现任务所需修改，必要时补充或调整测试。
+4. 运行与改动相关的验证命令；若任务涉及通用质量门禁，则补充运行格式化、测试和 `clippy` 检查。
+5. 若发现任何规范不匹配、缺失特性或现存缺陷阻塞当前任务：
+   - 将该问题提升为新的前置任务写入 `TODO.md`；
+   - 在 `PLAN.md` 记录阻塞原因和依赖关系；
+   - 提交这些计划性变更并停止。
+
+## 收尾步骤
+
+1. 完成后将当前任务在 `TODO.md` 中标记为已完成。
+2. 更新 `PLAN.md` 反映实际完成情况和后续顺序。
+3. 复查 `memory/claude_plan.md`，补充已完成的关键步骤和任何计划调整。
+4. 使用清晰的 Git 提交信息提交本次变更。
+5. 停止，不继续处理后续任务。

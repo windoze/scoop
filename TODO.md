@@ -1979,8 +1979,15 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016R
 
-### T3016a0R [TODO] Review：确认 no-suspend tail merge result transport 已回到统一 completion/result 合同
+### T3016a0R [DONE] Review：确认 no-suspend tail merge result transport 已回到统一 completion/result 合同
 - 描述：在 `T3016a0` 之后只审查生产代码，确认 tail `if/else` merge 的修复没有靠形状特判或 test-only 分支，而是把结果 transport 正式接回统一 state-machine 完成态合同；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `emit_state_terminator()`、`state_preserves_handle_result_on_entry()` 与 dispatch/cleanup done 主路径。确认 tail-result relay 只由 unified state machine 的 `Goto`/terminator 合同驱动：递归透明判断仅消费 state machine 自身的 state/terminator 元数据，并且只允许 `StmtEmpty` / `CleanupEdgeComplete` / `ReturnToEnclosingExpression` 这类 marker/no-op state 继续传递 carried result。
+  - 已确认生产代码没有重新引入按 `if/else`、block 或 tail 源码形状选路的旧 lowering。当前实现既不读取源码 AST 形状，也不为 tail `if/else` 建专门 emitter 分支；唯一新增逻辑是“目标状态链是否透明”的统一 machine 级判断。
+  - 已复核 cleanup/finally 兼容性：`CleanupEnter` 仍通过 persisted `cleanup_flag` 控制是否重入 cleanup，dispatch loop 仍先看 terminal `state_tag` 再看 TLS active。直接运行 `tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop` 仍输出 `0/0`，说明剩余缺口仍属于 `T3016a` 要修的 cleanup/finally completion 恢复，而不是 `T3016a0` 的 tail-merge relay 回退。
+- 审查结论：
+  - no-suspend tail merge result transport 已闭环，并与 cleanup/finally completion 合同兼容。
+  - 生产代码未引入 shape-based / fixture-only patch；tail merge 修复保持在统一 state-machine completion/result 合同内部。
 - 目标：
   - 确认 `Goto`/merge/`ReturnHandle` 之间的 result transport 不再只覆盖“直接尾值”，而是覆盖 no-op merge state。
   - 确认修复不会冲掉 `T3016a` 需要的 cleanup/finally completion 恢复。
