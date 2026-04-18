@@ -2496,8 +2496,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016iR
 
-### T3016jR [TODO] Review：确认 closure/function-value non-resuming outward propagation 已回到统一 ordinary-frame 合同
+### T3016jR [DONE] Review：确认 closure/function-value non-resuming outward propagation 已回到统一 ordinary-frame 合同
 - 描述：在 `T3016j` 之后只审查生产代码，确认 ordinary closure / function-value callee 的 non-resuming outward propagation 修复仍严格停留在统一 ordinary-frame propagation / return contract 内，没有为 closure body、`callIt { ... }` 或特定 fixture/helper 恢复 shape-based、test-only 或 function-value-only 旁路；若发现此类残留，本任务需要直接修复并复审。
+- 进展：
+  - 已审查 `crates/scoopc/src/llvm/codegen/mod.rs` 中 `setup_function_return_context`、`emit_function_return_block`、`finish_function_return_path`、`codegen_top_level_fun`、`codegen_closure_fun_body` 与 `codegen_function_value_call` 的生产路径，确认 closure body 与 ordinary helper 共享同一套 function-level `return_context` / `return_bb` / `return_alloca` 合同，没有按 closure 形状或 function-value call site 单独分流。
+  - 已审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 `emit_effect_propagation_return` 与 `emit_ordinary_call_effect_propagation_check`，确认 outward propagation 仍只依赖通用的 `current_fun_return_ty` + `return_context`，没有为 closure、`callIt { ... }`、fixture 名称或特定 helper 名称添加 test-only / shape-based 旁路。
+  - 已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_local.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 ordinary helper 与 closure/function-value callee 共享同一套 non-resuming outward propagation / return contract。
   - 确认生产代码中没有按 closure 形状、fixture 名称或特定 helper 分流的补丁。
@@ -2505,6 +2509,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“closure/function-value non-resuming outward propagation 已统一收口，无 fixture-only workaround 残留”。
+- 审查结论：
+  - closure/function-value non-resuming outward propagation 已统一收口到共享的 ordinary-frame return contract，无 fixture-only workaround 残留。
+  - 当前 closure/function-value call path 的 active-check、默认返回值传播与最终 return emission 均复用普通 callee 的通用逻辑，没有恢复 shape-based、helper-specific 或 test-only 分支。
 - 依赖：T3016j
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
