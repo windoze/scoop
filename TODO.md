@@ -2359,11 +2359,16 @@
 - 审查结论：
   - top-level multi-escape replay 已按统一 resume-path 合同收口，无 fixture-only / shape-based 补丁残留。
   - 当前修复只复用 suspend site 既有的 `source_path` / `resume_path` / `escape_resume_target` 元数据来裁剪 replay 边界并重定向 continuation，不存在为特定 helper、direct/indirect 顺序或 fixture 手工补 prefix 的旁路。
-  - 当前 effect 主线下一项推进到 `T3016g`：修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归。
+  - 当前 effect 主线下一项推进到 `T3016gR`：Review resumed-body raise-after-resume 的 cleanup/propagation 合同是否仍保持统一收口。
 - 依赖：T3016f
 
-### T3016g [TODO] 修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归
+### T3016g [DONE] 修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归
 - 描述：`T3017` 当前扫描还暴露出另一条独立的 effect 生产缺口：`effect_resume_finally_body_raise_after_resume.scoop` 现会输出 `finally -> handle_unreachable -> result -> 0`，而不是在 `resume(41)` 后执行 `boom()` 触发 `Raise.raise(77)`、跑完 `finally` 后向外层 `catch` 传播。这说明 immediate-resume arm 恢复后的 body 在再次命中 non-resuming outward effect 时，当前 cleanup/completion 合同仍会把异常传播误当普通 handle 完成吞掉。
+- 进展：
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `handle_cleanup_propagate_run` 路径上保存进入 shared `finally` 前的 propagating `state_tag`，并在 cleanup 普通出口把它误写成 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED` 时恢复该非终止状态，避免 resumed-body outward effect 被吞成普通 handle 完成。
+  - 已新增 emitter IR 单测 `cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`，锁定 shared cleanup 出口不会把 propagation 路径改写成 terminal completion。
+  - 已将 `tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop` 从 stale `EXPECT: fail` 切回 `EXPECT: pass`。
+  - 已验证目标 fixture、`effect_resume_finally_arm_raise.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - resumed body 在 `resume(...)` 之后再次触发 `Raise.raise(...)` / 等价 non-resuming outward effect 时，必须在 `finally` 恰好执行一次后继续向外传播。
   - 不能继续执行 `handle_unreachable` 或把 handle result 静默打成 `0`。

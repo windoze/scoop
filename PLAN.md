@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3016g` 已完成。复现 `effect_resume_finally_body_raise_after_resume.scoop` 后确认，真正缺口不在 immediate-resume arm 专用 lowering 本身，而在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `handle_cleanup_propagate_run`：resumed body 再次 outward `Raise.raise(...)` 时，shared `finally` cleanup 会沿普通 `cleanup_exit -> exit_state -> ReturnHandle` 出口把 `state_tag` 写成 terminal sentinel，导致外层 dispatch 把 propagation 误判成 handle 正常完成。现已在 cleanup-propagate 路径进入 shared cleanup 前保存 propagating `state_tag`，并在 cleanup 普通出口泄露 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED` 时恢复该非终止状态；这样 finally 仍只执行一次，但 outward effect 会继续沿统一 cleanup/propagation 合同向外传播。同步新增 emitter IR 单测 `cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`，并把 `effect_resume_finally_body_raise_after_resume.scoop` 从 stale `EXPECT: fail` 切回 `EXPECT: pass`。已验证目标 fixture、`effect_resume_finally_arm_raise.scoop`、`effect_multi_nonresuming_raise_custom_finally.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016gR`。
+>
 > 2026-04-18 当前轮复审更新：`T3016fR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs` 后确认，`T3016f` 的 top-level multi-site replay 修复仍严格停留在统一 state-machine / resume-path / continuation 合同内：`attach_escape_resume_targets()` 只利用 suspend site 已有的 `source_path.top_level_stmt_idx`，把 synthetic replay state 裁剪到“当前 top-level statement 内仍需 replay 的 action”；`escape_resume_target`、`source_path` 与 `resume_path` 继续仅作为 plan → segments → unified machine 的元数据 round-trip，而 emitter 侧公开访问面仍只有 `escape_resume_state()`，不会重新按源码形状、helper 名称或 mixed direct/indirect 顺序做额外分流。已复验 `source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site`、`source_plan_trims_escape_replay_to_current_top_level_statement`、`resume_path_is_preserved_from_plan_to_segments_to_unified_machine` 三条结构测试，4 条目标 fixture、1 条 `T3016b` block regression、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016g`。
 >
 > 2026-04-18 当前轮完成更新：`T3016f` 已完成。重新复现 `effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`、`effect_multi_escape_custom_nonresuming_indirect_multi.scoop`、`effect_multi_escape_indirect_multi.scoop` 与 `effect_resume_mixed_multi_escape_direct_indirect.scoop` 后确认，top-level multi-site replay 的真正缺口不在 runtime continuation 或 ordinary callee replay 本身，而在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `attach_escape_resume_targets()`：此前 synthetic replay state 直接复制“上一个 `ResumeAfterSite` 之后的整段 owner-state 后缀”，因此当当前 call-like site 已经跨过前一个 top-level statement 时，会把 `after_first` / `after_a1` 这类已完成语句也一并重放。现已把 replay action 选择改成基于当前 suspend site 的 `source_path.top_level_stmt_idx` 裁剪，只保留当前 top-level statement 内的 replay 前缀；这样跨 statement 的旧 prefix 被剔除，而 `T3016b` 既有的同 statement nested block replay 仍保留。同步新增结构测试 `source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site` 与 `source_plan_trims_escape_replay_to_current_top_level_statement`，并额外复验 4 条目标 fixture、1 条 block regression、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。本轮只修复生产 replay 合同，stale `EXPECT: fail` 的统一回收仍留给后续 `T3017`。当前 effect 主线下一项推进到 `T3016fR`。
@@ -657,31 +659,28 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016f`
-2. `T3016fR`
-3. `T3016g`
-4. `T3016gR`
-5. `T3016h`
-6. `T3016hR`
-7. `T3017`
-8. `T3017R`
-9. `T3103`
-10. `T3104`
-11. `T3201`
-12. `T3202`
-13. `T3203`
-14. `T3204`
-15. `T3205`
-16. `T3301`
-17. `T3302`
-18. `T3303`
-19. `T3304`
-20. `T3401`
-21. `T3401a`
-22. `T3401b`
-23. `T3401c`
-24. `T3402`
-25. `T3403`
-26. `T3404`
-27. `T3405`
-28. `T3406`
+1. `T3016gR`
+2. `T3016h`
+3. `T3016hR`
+4. `T3017`
+5. `T3017R`
+6. `T3103`
+7. `T3104`
+8. `T3201`
+9. `T3202`
+10. `T3203`
+11. `T3204`
+12. `T3205`
+13. `T3301`
+14. `T3302`
+15. `T3303`
+16. `T3304`
+17. `T3401`
+18. `T3401a`
+19. `T3401b`
+20. `T3401c`
+21. `T3402`
+22. `T3403`
+23. `T3404`
+24. `T3405`
+25. `T3406`

@@ -949,6 +949,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
 
                 self.builder.position_at_end(cleanup_propagate_run_bb);
+                let cleanup_propagate_pre_state_tag = self.read_state_tag(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_propagate_pre_state_tag",
+                )?;
                 self.write_state_tag(
                     frame_ptr,
                     frame_layout,
@@ -969,6 +974,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         cleanup_resume_gc_ref.into(),
                     ],
                     "",
+                )?;
+                self.restore_propagating_state_tag_after_cleanup(
+                    frame_ptr,
+                    frame_layout,
+                    cleanup_propagate_pre_state_tag,
+                    "cleanup_propagate_restore_propagating_state",
                 )?;
                 self.builder
                     .build_unconditional_branch(handle_propagate_bb)?;
@@ -2547,6 +2558,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i32_type().const_zero(),
             &format!("{name}_clear_completion"),
         )?;
+        Ok(())
+    }
+
+    fn restore_propagating_state_tag_after_cleanup(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        propagating_state_tag: IntValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let current_state_tag =
+            self.read_state_tag(state_ptr, frame_layout, &format!("{name}_current_state"))?;
+        let current_terminal = self.state_tag_matches_any(
+            current_state_tag,
+            &[STATE_TAG_HANDLE_RETURNED, STATE_TAG_FUNCTION_RETURNED],
+            &format!("{name}_terminal_state"),
+        )?;
+        let restored_state_tag = self
+            .builder
+            .build_select(
+                current_terminal,
+                propagating_state_tag,
+                current_state_tag,
+                &format!("{name}_value"),
+            )?
+            .into_int_value();
+        let state_tag_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.state_tag_index(),
+            &format!("{name}_state_tag_ptr"),
+        )?;
+        self.builder
+            .build_store(state_tag_gep, restored_state_tag)?;
         Ok(())
     }
 
@@ -4380,6 +4425,50 @@ fun main(): Int {
         assert!(
             ir.contains("cleanup_enter_already_ran"),
             "CleanupEnter lowering should branch on the persisted cleanup flag before reentering the cleanup scope"
+        );
+    }
+
+    #[test]
+    fn cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        42
+    } with {
+        Yield.next() -> 0
+    } finally {
+        println("cleanup")
+    }
+
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        assert!(
+            ir.contains("cleanup_propagate_pre_state_tag"),
+            "cleanup propagate path should preserve the pre-cleanup state tag before entering shared finally"
+        );
+        assert!(
+            ir.contains("cleanup_propagate_restore_propagating_state_terminal_state"),
+            "cleanup propagate path should detect shared finally exits that leak terminal sentinels"
+        );
+        assert!(
+            ir.contains("cleanup_propagate_restore_propagating_state_value"),
+            "cleanup propagate path should restore the propagating state instead of leaving a terminal completion tag behind"
         );
     }
 

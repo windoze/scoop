@@ -1,6 +1,6 @@
-// EXPECT: fail
-// T3006: 暂时标记为 fail——统一 state-machine codegen (T3005) 切换后，
-// 部分 main body codegen 节点尚未在 state-machine 路径上支持。
+// EXPECT: pass
+// T3016g: resumed body 在 `resume(value)` 后再次 `Raise.raise(...)` 时，
+// shared finally cleanup 仍需保持 outward propagation，不得把 handle 误判成正常完成。
 // RUN-STDOUT: effect_resume_finally_body_raise_after_resume.stdout
 //
 // T2003a: immediate-resume + finally when resumed body raises.
