@@ -454,6 +454,13 @@ pub(crate) struct TypeLowering<'a> {
     /// - 记录 `foo` / `foo<T>` 在值位置被视作函数值时的精确目标；
     /// - HIR lowering 读取后把它们合成为 closure object，而不是误走顶层值读取路径。
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
+    /// typecheck 选中的 ctor 调用绑定信息。
+    ///
+    /// 用途：
+    /// - 记录 direct class ctor call、class header super ctor call、secondary ctor delegation
+    ///   的最终 ctor 目标与参数绑定；
+    /// - HIR lowering / codegen 读取后统一执行命名实参重排与默认值补齐，避免再按 arity 猜测。
+    typechecked_ctor_call_bindings: HashMap<Span, ast::CtorCallBinding>,
     /// 单态化（monomorphization）请求收集器（T0712）。
     ///
     /// 说明：
@@ -569,6 +576,7 @@ impl<'a> TypeLowering<'a> {
             typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             top_level_fun_value_refs: HashMap::new(),
+            typechecked_ctor_call_bindings: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
@@ -1271,6 +1279,23 @@ impl<'a> TypeLowering<'a> {
             .insert(expr_span, ast::TopLevelFunValueRef { fqn, type_args });
     }
 
+    pub(super) fn record_typechecked_ctor_call_binding(
+        &mut self,
+        call_span: Span,
+        owner_fqn: String,
+        ctor_span: Option<Span>,
+        arg_mapping: Vec<Option<usize>>,
+    ) {
+        self.typechecked_ctor_call_bindings.insert(
+            call_span,
+            ast::CtorCallBinding {
+                owner_fqn,
+                ctor_span,
+                arg_mapping,
+            },
+        );
+    }
+
     pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_expr_tys)
     }
@@ -1307,6 +1332,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::TopLevelFunValueRef> {
         std::mem::take(&mut self.top_level_fun_value_refs)
+    }
+
+    pub(super) fn take_typechecked_ctor_call_bindings(
+        &mut self,
+    ) -> HashMap<Span, ast::CtorCallBinding> {
+        std::mem::take(&mut self.typechecked_ctor_call_bindings)
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {

@@ -81,6 +81,16 @@ pub struct File {
     /// - HIR lowering 读取它，把该表达式合成为零捕获 closure，而不是误当成普通顶层值读取；
     /// - `type_args` 保留 typecheck 阶段的具体实例化结果，供后续 monomorphized FQN 选择复用。
     pub(crate) top_level_fun_value_refs: RefCell<HashMap<Span, TopLevelFunValueRef>>,
+    /// typecheck 选中的 ctor 调用绑定信息（按调用 span 索引）。
+    ///
+    /// 说明：
+    /// - 覆盖普通 `Class(...)` 构造调用、class header `: Base(...)` super ctor 调用，
+    ///   以及 secondary ctor 的 `: this(...)` / `: super(...)`；
+    /// - 记录“最终选中的 ctor 目标 + 形参槽位到调用点实参索引的绑定”，避免 HIR/codegen 再按
+    ///   callee 形状或 arity 重新猜测；
+    /// - `arg_mapping[param_idx] = Some(arg_idx)` 表示该形参由调用点第 `arg_idx` 个显式实参提供，
+    ///   `None` 表示由默认值补齐。
+    pub(crate) typechecked_ctor_call_bindings: RefCell<HashMap<Span, CtorCallBinding>>,
 }
 
 impl std::fmt::Debug for File {
@@ -172,12 +182,30 @@ impl File {
     pub fn top_level_fun_value_ref(&self, span: Span) -> Option<TopLevelFunValueRef> {
         self.top_level_fun_value_refs.borrow().get(&span).cloned()
     }
+
+    pub fn replace_typechecked_ctor_call_bindings(&self, bindings: HashMap<Span, CtorCallBinding>) {
+        *self.typechecked_ctor_call_bindings.borrow_mut() = bindings;
+    }
+
+    pub fn typechecked_ctor_call_binding(&self, span: Span) -> Option<CtorCallBinding> {
+        self.typechecked_ctor_call_bindings
+            .borrow()
+            .get(&span)
+            .cloned()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct TopLevelFunValueRef {
     pub fqn: String,
     pub type_args: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CtorCallBinding {
+    pub owner_fqn: String,
+    pub ctor_span: Option<Span>,
+    pub arg_mapping: Vec<Option<usize>>,
 }
 
 #[derive(Debug, Clone)]

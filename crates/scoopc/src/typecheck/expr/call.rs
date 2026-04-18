@@ -66,7 +66,7 @@ pub(in super::super) struct EnumTypeSubstContext<'a> {
 /// - 这里提前推导所有实参类型，保证：
 ///   - 子表达式的类型错误不会被重载筛选吞掉；
 ///   - 后续候选过滤只做纯比较，不再递归进入表达式树。
-fn collect_call_arg_infos<'a>(
+pub(super) fn collect_call_arg_infos<'a>(
     inputs: ExprInferInputs<'_>,
     args: &'a [ast::Expr],
     lower: &mut TypeLowering<'_>,
@@ -209,7 +209,7 @@ fn missing_required_param_names_in_named_call(
 /// 当前阶段（T1306）强约束：
 /// - 命名参数之后不能再出现位置参数；
 /// - 同名命名参数不允许出现两次（无论是否能匹配到重载）。
-fn check_call_arg_named_rules(
+pub(super) fn check_call_arg_named_rules(
     callee: &str,
     call_args: &[CallArgInfo<'_>],
 ) -> Result<(), ExprTypeError> {
@@ -523,6 +523,17 @@ fn expand_param_arg_pairs(mapping: &[ParamArgBinding]) -> Vec<(usize, usize)> {
     out
 }
 
+fn callable_value_param_names(fun: &crate::ty::FunctionType) -> Vec<String> {
+    let mut out = Vec::with_capacity(fun.params.len() + usize::from(fun.receiver.is_some()));
+    if fun.receiver.is_some() {
+        out.push("receiver".to_string());
+    }
+    for idx in 0..fun.params.len() {
+        out.push(format!("a{idx}"));
+    }
+    out
+}
+
 fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -> Option<usize> {
     if param_has_defaults.len() != param_is_vararg.len() {
         return None;
@@ -792,21 +803,6 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    // 当前阶段（TODO T0710/T0153）最小实现：允许调用"局部值中的函数类型"（lambda/闭包/函数值）。
-    //
-    // 约束：
-    // - receiver function type（`T.(...) -> ...`）沿用类型层约定：receiver 视为显式第 0 个实参；
-    // - 暂不支持命名实参（function type 不携带形参名）。
-    if args
-        .iter()
-        .any(|a| matches!(a.kind, ast::ExprKind::NamedArg { .. }))
-    {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "函数值调用（暂不支持命名实参）",
-            span: call_expr.span.into(),
-        });
-    }
-
     let Some(callee_ty) = inputs.locals.get(&callee_decl_span).copied() else {
         // 防御性：resolver 已把该引用绑定为 local，但 typecheck locals 未包含该 decl。
         return Err(ExprTypeError::UnsupportedExpr {
@@ -823,7 +819,25 @@ fn infer_function_value_call_expr_type(
     };
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
-    let expected_arity = fun.params.len() + usize::from(fun.receiver.is_some());
+    let param_names = callable_value_param_names(&fun);
+    let expected_arity = param_names.len();
+    if call_args.iter().any(|arg| arg.is_spread) {
+        let span = call_args
+            .iter()
+            .find(|arg| arg.is_spread)
+            .map(|arg| arg.expr.span)
+            .unwrap_or(call_expr.span);
+        return Err(ExprTypeError::SpreadArgRequiresVararg {
+            callee: callee_name.to_string(),
+            span: span.into(),
+        });
+    }
+    check_call_arg_named_rules(callee_name, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        callee_name,
+        &call_args,
+        std::iter::once(param_names.as_slice()),
+    )?;
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -834,16 +848,35 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    let expected_arg_ty = |idx: usize| match fun.receiver {
-        Some(receiver_ty) if idx == 0 => (receiver_ty, true, 0usize),
-        Some(_) => (fun.params[idx - 1], false, idx),
-        None => (fun.params[idx], false, idx + 1),
+    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
+    let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let slot = arg_to_param
+            .get_mut(arg_idx)
+            .expect("mapped function-value arg index should stay in range");
+        *slot = Some(param_idx);
+    }
+
+    let expected_arg_ty = |param_idx: usize| match fun.receiver {
+        Some(receiver_ty) if param_idx == 0 => (receiver_ty, true, 0usize),
+        Some(_) => (fun.params[param_idx - 1], false, param_idx),
+        None => (fun.params[param_idx], false, param_idx + 1),
     };
 
     // 在"期望类型语境"下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
-    for (idx, arg) in call_args.iter().enumerate() {
-        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(idx);
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        let param_idx = arg_to_param
+            .get(arg_idx)
+            .copied()
+            .flatten()
+            .expect("mapped function-value arg should have target param");
+        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(param_idx);
         let found_ty = inputs.infer_in_expected(
             lower,
             arg.expr,
@@ -858,12 +891,17 @@ fn infer_function_value_call_expr_type(
     }
 
     // 再做"可赋值"检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
-    for (idx, (arg, found_ty)) in call_args
+    for (arg_idx, (arg, found_ty)) in call_args
         .iter()
         .zip(checked_arg_tys.iter().copied())
         .enumerate()
     {
-        let (expected_ty, is_receiver, _display_idx) = expected_arg_ty(idx);
+        let param_idx = arg_to_param
+            .get(arg_idx)
+            .copied()
+            .flatten()
+            .expect("mapped function-value arg should have target param");
+        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(param_idx);
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
             check_fn_value_to_any_erasure_gate(
                 found_ty,
@@ -889,7 +927,7 @@ fn infer_function_value_call_expr_type(
         }
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: callee_name.to_string(),
-            index: idx + 1,
+            index: display_idx,
             expected: lower.fmt_type(expected_ty),
             found: lower.fmt_type(found_ty),
             span: arg.expr.span.into(),
@@ -946,16 +984,6 @@ fn infer_funptr_type_call_expr_type(
         });
     }
 
-    if args
-        .iter()
-        .any(|a| matches!(a.kind, ast::ExprKind::NamedArg { .. }))
-    {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "函数指针调用（暂不支持命名实参）",
-            span: call_expr.span.into(),
-        });
-    }
-
     let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(callee_ty) else {
         return Err(ExprTypeError::CalleeNotCallable {
             callee: callee_name.to_string(),
@@ -978,7 +1006,25 @@ fn infer_funptr_type_call_expr_type(
     };
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
-    let expected_arity = fun.params.len() + usize::from(fun.receiver.is_some());
+    let param_names = callable_value_param_names(&fun);
+    let expected_arity = param_names.len();
+    if call_args.iter().any(|arg| arg.is_spread) {
+        let span = call_args
+            .iter()
+            .find(|arg| arg.is_spread)
+            .map(|arg| arg.expr.span)
+            .unwrap_or(call_expr.span);
+        return Err(ExprTypeError::SpreadArgRequiresVararg {
+            callee: callee_name.to_string(),
+            span: span.into(),
+        });
+    }
+    check_call_arg_named_rules(callee_name, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        callee_name,
+        &call_args,
+        std::iter::once(param_names.as_slice()),
+    )?;
 
     if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
@@ -989,15 +1035,34 @@ fn infer_funptr_type_call_expr_type(
         });
     }
 
-    let expected_arg_ty = |idx: usize| match fun.receiver {
-        Some(receiver_ty) if idx == 0 => (receiver_ty, true, 0usize),
-        Some(_) => (fun.params[idx - 1], false, idx),
-        None => (fun.params[idx], false, idx + 1),
+    let Some(mapping) = map_call_args_to_params(&call_args, &param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
+    let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let slot = arg_to_param
+            .get_mut(arg_idx)
+            .expect("mapped funptr arg index should stay in range");
+        *slot = Some(param_idx);
+    }
+
+    let expected_arg_ty = |param_idx: usize| match fun.receiver {
+        Some(receiver_ty) if param_idx == 0 => (receiver_ty, true, 0usize),
+        Some(_) => (fun.params[param_idx - 1], false, param_idx),
+        None => (fun.params[param_idx], false, param_idx + 1),
     };
 
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
-    for (idx, arg) in call_args.iter().enumerate() {
-        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(idx);
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        let param_idx = arg_to_param
+            .get(arg_idx)
+            .copied()
+            .flatten()
+            .expect("mapped funptr arg should have target param");
+        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(param_idx);
         let found_ty = inputs.infer_in_expected(
             lower,
             arg.expr,
@@ -1011,12 +1076,17 @@ fn infer_funptr_type_call_expr_type(
         checked_arg_tys.push(found_ty);
     }
 
-    for (idx, (arg, found_ty)) in call_args
+    for (arg_idx, (arg, found_ty)) in call_args
         .iter()
         .zip(checked_arg_tys.iter().copied())
         .enumerate()
     {
-        let (expected_ty, is_receiver, _display_idx) = expected_arg_ty(idx);
+        let param_idx = arg_to_param
+            .get(arg_idx)
+            .copied()
+            .flatten()
+            .expect("mapped funptr arg should have target param");
+        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(param_idx);
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
             check_fn_value_to_any_erasure_gate(
                 found_ty,
@@ -1041,7 +1111,7 @@ fn infer_funptr_type_call_expr_type(
         }
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: callee_name.to_string(),
-            index: idx + 1,
+            index: display_idx,
             expected: lower.fmt_type(expected_ty),
             found: lower.fmt_type(found_ty),
             span: arg.expr.span.into(),
@@ -3110,6 +3180,271 @@ pub(super) fn is_ctor_visible_from(
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct MatchedCtorOverload {
+    pub(super) owner_fqn: String,
+    pub(super) ctor_span: Option<Span>,
+    pub(super) arg_mapping: Vec<Option<usize>>,
+    /// `call_args[arg_idx]` 对应的"期望类型"。
+    pub(super) expected_arg_tys: Vec<TypeId>,
+    /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
+    pub(super) defaults_used: usize,
+    /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
+    pub(super) signature: String,
+    /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
+    pub(super) inferred_type_args: Vec<TypeId>,
+}
+
+fn is_strictly_more_specific_ctor_overload(
+    a: &MatchedCtorOverload,
+    b: &MatchedCtorOverload,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    let a_le_b = a
+        .expected_arg_tys
+        .iter()
+        .zip(b.expected_arg_tys.iter())
+        .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
+    let b_le_a = b
+        .expected_arg_tys
+        .iter()
+        .zip(a.expected_arg_tys.iter())
+        .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
+
+    a_le_b && !b_le_a
+}
+
+pub(super) fn pick_most_specific_ctor_overload(
+    candidates: &[MatchedCtorOverload],
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Option<usize> {
+    for (idx, cand) in candidates.iter().enumerate() {
+        let mut ok = true;
+        for (other_idx, other) in candidates.iter().enumerate() {
+            if idx == other_idx {
+                continue;
+            }
+            if !is_strictly_more_specific_ctor_overload(cand, other, lower, builtins) {
+                ok = false;
+                break;
+            }
+        }
+        if ok {
+            return Some(idx);
+        }
+    }
+
+    let min_defaults = candidates
+        .iter()
+        .map(|c| c.defaults_used)
+        .min()
+        .unwrap_or(0);
+    let mut it = candidates
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.defaults_used == min_defaults);
+    let (idx, _) = it.next()?;
+    if it.next().is_some() {
+        return None;
+    }
+    Some(idx)
+}
+
+pub(super) fn collect_matched_ctor_overloads_for_owner(
+    inputs: ExprInferInputs<'_>,
+    owner_fqn: &str,
+    call_span: Span,
+    callee_for_diag: &str,
+    call_args: &[CallArgInfo<'_>],
+    exclude_ctor_span: Option<Span>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Vec<MatchedCtorOverload>, ExprTypeError> {
+    let builtins = inputs.builtins;
+    let source = inputs.source;
+    let use_cone = lower.index().cone_of_source(source);
+
+    if call_args.iter().any(|arg| arg.is_spread) {
+        let span = call_args
+            .iter()
+            .find(|arg| arg.is_spread)
+            .map(|arg| arg.expr.span)
+            .unwrap_or(call_span);
+        return Err(ExprTypeError::SpreadArgRequiresVararg {
+            callee: callee_for_diag.to_string(),
+            span: span.into(),
+        });
+    }
+
+    let Some(ctors) = lower.index().constructors.get(owner_fqn).cloned() else {
+        return Ok(Vec::new());
+    };
+
+    let mut visible: Vec<&ConstructorOverload> = ctors
+        .iter()
+        .filter(|ctor| is_ctor_visible_from(use_cone, source, ctor))
+        .collect();
+    if let Some(exclude) = exclude_ctor_span {
+        visible.retain(|ctor| ctor.span != exclude);
+    }
+
+    check_call_named_args_exist_in_any_candidate(
+        callee_for_diag,
+        call_args,
+        visible
+            .iter()
+            .map(|ctor| {
+                ctor.params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+            .iter()
+            .map(|names| names.as_slice()),
+    )?;
+
+    let type_param_names: Vec<String> = lower
+        .env()
+        .type_symbol(owner_fqn)
+        .map(|sym| sym.type_param_names.clone())
+        .unwrap_or_default();
+
+    let mut matched: Vec<MatchedCtorOverload> = Vec::new();
+    for ctor in visible {
+        let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
+        let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
+
+        let Some(mapping) =
+            map_call_args_to_params_with_defaults(call_args, &param_names, &param_has_defaults)
+        else {
+            continue;
+        };
+
+        let mut param_tys: Vec<TypeId> = Vec::with_capacity(ctor.params.len());
+        let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
+        let mut ok = true;
+        for p in &ctor.params {
+            let Some(ty_ref) = p.ty.as_ref() else {
+                ok = false;
+                break;
+            };
+            let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+                &ctor.decl_file,
+                &type_param_names,
+                ty_ref,
+            )?;
+            param_tys.push(ty);
+            param_ty_strs.push(lower.fmt_type(ty));
+        }
+        if !ok {
+            continue;
+        }
+
+        let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let Some(expected_ty) = param_tys.get(param_idx).copied() else {
+                ok = false;
+                break;
+            };
+
+            expected_arg_tys[arg_idx] = expected_ty;
+            let arg = &call_args[arg_idx];
+            let found_ty = arg.ty;
+
+            if is_type_assignable(found_ty, expected_ty, lower, builtins)
+                || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+            {
+                continue;
+            }
+
+            ok = false;
+            break;
+        }
+
+        if !ok {
+            continue;
+        }
+
+        let inferred_type_args = {
+            let mut inferred: HashMap<String, TypeId> = HashMap::new();
+            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                let Some(arg_idx) = arg_idx else { continue };
+                let Some(&expected_ty) = param_tys.get(param_idx) else {
+                    continue;
+                };
+                if let TypeKind::Param(p) = lower.type_kind(expected_ty) {
+                    let arg_ty = call_args[arg_idx].ty;
+                    inferred.entry(p.name.clone()).or_insert(arg_ty);
+                }
+            }
+            type_param_names
+                .iter()
+                .map(|name| inferred.get(name).copied().unwrap_or(builtins.any))
+                .collect::<Vec<_>>()
+        };
+
+        let defaults_used = mapping.iter().filter(|arg_idx| arg_idx.is_none()).count();
+        matched.push(MatchedCtorOverload {
+            owner_fqn: owner_fqn.to_string(),
+            ctor_span: Some(ctor.span),
+            arg_mapping: mapping,
+            expected_arg_tys,
+            defaults_used,
+            signature: format!("{owner_fqn}({})", param_ty_strs.join(", ")),
+            inferred_type_args,
+        });
+    }
+
+    Ok(matched)
+}
+
+pub(super) fn select_ctor_overload_for_owner(
+    inputs: ExprInferInputs<'_>,
+    owner_fqn: &str,
+    call_span: Span,
+    callee_for_diag: &str,
+    call_args: &[CallArgInfo<'_>],
+    exclude_ctor_span: Option<Span>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<MatchedCtorOverload, ExprTypeError> {
+    let mut matched = collect_matched_ctor_overloads_for_owner(
+        inputs,
+        owner_fqn,
+        call_span,
+        callee_for_diag,
+        call_args,
+        exclude_ctor_span,
+        lower,
+    )?;
+
+    if matched.is_empty() {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_for_diag.to_string(),
+            span: call_span.into(),
+        });
+    }
+    if matched.len() == 1 {
+        return Ok(matched.pop().expect("len == 1"));
+    }
+
+    let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, inputs.builtins) else {
+        let candidates =
+            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+        return Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_for_diag.to_string(),
+            candidates,
+            span: call_span.into(),
+        });
+    };
+
+    Ok(matched.swap_remove(idx))
+}
+
 fn infer_class_constructor_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
@@ -3139,7 +3474,6 @@ fn infer_class_constructor_call_expr_type(
         return Ok(None);
     }
 
-    // T0454 目标：先只覆盖 class constructors（struct literal 的规则独立）。
     ctor_types.retain(|ty_fqn| {
         matches!(
             lower.env().type_symbol(ty_fqn).map(|s| s.kind),
@@ -3150,8 +3484,6 @@ fn infer_class_constructor_call_expr_type(
         return Ok(None);
     }
 
-    // spec §6.2：`const fun` 禁止创建引用类型实例（class 构造需要堆分配）；`String` 是唯一例外，
-    // 但当前阶段并不通过 ctor 调用构造 `String`（字符串字面量已覆盖 `String` 的 const 语义）。
     if lower.in_const_context() {
         return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
             ty: source.slice(callee.span).to_string(),
@@ -3160,17 +3492,11 @@ fn infer_class_constructor_call_expr_type(
     }
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
-
     let use_cone = lower.index().cone_of_source(source);
     let callee_name = source.slice(callee.span).to_string();
     check_call_arg_named_rules(&callee_name, &call_args)?;
 
     if call_args_have_named(&call_args) {
-        // 预检查：如果某个命名实参的 name 在所有可见 ctor 中都不存在，则该调用必然非法。
-        //
-        // 说明：class ctor 的候选集合来自 resolver 的 call candidates（可能包含多个类型），
-        // 因此这里按"所有可见 ctor 的形参名并集"做一次 name existence 检查，便于给出
-        // name-span 的稳定诊断（fixtures 断言）。
         let mut all_names: HashSet<String> = HashSet::new();
         for ty_fqn in ctor_types.iter() {
             let Some(ctors) = lower.index().constructors.get(ty_fqn) else {
@@ -3200,186 +3526,17 @@ fn infer_class_constructor_call_expr_type(
         }
     }
 
-    #[derive(Debug, Clone)]
-    struct MatchedCtorOverload {
-        ty_fqn: String,
-        /// `call_args[arg_idx]` 对应的"期望类型"。
-        expected_arg_tys: Vec<TypeId>,
-        /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
-        defaults_used: usize,
-        /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
-        signature: String,
-        /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
-        inferred_type_args: Vec<TypeId>,
-    }
-
-    fn is_strictly_more_specific_ctor_overload(
-        a: &MatchedCtorOverload,
-        b: &MatchedCtorOverload,
-        lower: &TypeLowering<'_>,
-        builtins: BuiltinTypes,
-    ) -> bool {
-        let a_le_b = a
-            .expected_arg_tys
-            .iter()
-            .zip(b.expected_arg_tys.iter())
-            .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
-        let b_le_a = b
-            .expected_arg_tys
-            .iter()
-            .zip(a.expected_arg_tys.iter())
-            .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
-
-        a_le_b && !b_le_a
-    }
-
-    fn pick_most_specific_ctor_overload(
-        candidates: &[MatchedCtorOverload],
-        lower: &TypeLowering<'_>,
-        builtins: BuiltinTypes,
-    ) -> Option<usize> {
-        // Kotlin-like most-specific：
-        // - 若候选 A 的每个期望实参类型都可赋值到候选 B 的对应期望类型，
-        //   且至少一个位置严格更具体，则认为 A 严格更具体。
-        for (idx, cand) in candidates.iter().enumerate() {
-            let mut ok = true;
-            for (other_idx, other) in candidates.iter().enumerate() {
-                if idx == other_idx {
-                    continue;
-                }
-                if !is_strictly_more_specific_ctor_overload(cand, other, lower, builtins) {
-                    ok = false;
-                    break;
-                }
-            }
-            if ok {
-                return Some(idx);
-            }
-        }
-
-        // tie-break：默认参数更少者优先（"非默认参数优先"）。
-        let min_defaults = candidates
-            .iter()
-            .map(|c| c.defaults_used)
-            .min()
-            .unwrap_or(0);
-        let mut it = candidates
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| c.defaults_used == min_defaults);
-        let (idx, _) = it.next()?;
-        if it.next().is_some() {
-            return None;
-        }
-        Some(idx)
-    }
-
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
-
     for ty_fqn in ctor_types {
-        let Some(ctors) = lower.index().constructors.get(&ty_fqn).cloned() else {
-            continue;
-        };
-
-        for ctor in ctors
-            .iter()
-            .filter(|c| is_ctor_visible_from(use_cone, source, c))
-        {
-            let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
-            let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
-
-            let Some(mapping) = map_call_args_to_params_with_defaults(
-                &call_args,
-                &param_names,
-                &param_has_defaults,
-            ) else {
-                continue;
-            };
-
-            // T0125：泛型 class 的 ctor 参数类型可能引用 type params（如 `T`）。
-            // 需要将 type param names 注入 lowering 作用域，使其解析为 TypeKind::Param。
-            let type_param_names: Vec<String> = lower
-                .env()
-                .type_symbol(&ty_fqn)
-                .map(|sym| sym.type_param_names.clone())
-                .unwrap_or_default();
-
-            let mut param_tys: Vec<TypeId> = Vec::with_capacity(ctor.params.len());
-            let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
-            let mut ok = true;
-            for p in &ctor.params {
-                let Some(ty_ref) = p.ty.as_ref() else {
-                    ok = false;
-                    break;
-                };
-                let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
-                    &ctor.decl_file,
-                    &type_param_names,
-                    ty_ref,
-                )?;
-                param_tys.push(ty);
-                param_ty_strs.push(lower.fmt_type(ty));
-            }
-            if !ok {
-                continue;
-            }
-
-            let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
-            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                let Some(arg_idx) = arg_idx else {
-                    continue;
-                };
-
-                let Some(expected_ty) = param_tys.get(param_idx).copied() else {
-                    ok = false;
-                    break;
-                };
-
-                expected_arg_tys[arg_idx] = expected_ty;
-
-                let arg = &call_args[arg_idx];
-                let found_ty = arg.ty;
-
-                if is_type_assignable(found_ty, expected_ty, lower, builtins) {
-                    continue;
-                }
-                if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
-                    continue;
-                }
-                ok = false;
-                break;
-            }
-
-            if ok {
-                // T0125：从 param_tys (TypeKind::Param) 与 arg types 推断 type args。
-                let inferred_type_args = {
-                    use std::collections::HashMap;
-                    let mut inferred: HashMap<String, TypeId> = HashMap::new();
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else { continue };
-                        let Some(&expected_ty) = param_tys.get(param_idx) else {
-                            continue;
-                        };
-                        if let crate::ty::TypeKind::Param(p) = lower.type_kind(expected_ty) {
-                            let arg_ty = call_args[arg_idx].ty;
-                            inferred.entry(p.name.clone()).or_insert(arg_ty);
-                        }
-                    }
-                    type_param_names
-                        .iter()
-                        .map(|name| inferred.get(name).copied().unwrap_or(builtins.any))
-                        .collect::<Vec<_>>()
-                };
-                let defaults_used = mapping.iter().filter(|a| a.is_none()).count();
-                matched.push(MatchedCtorOverload {
-                    ty_fqn: ty_fqn.clone(),
-                    expected_arg_tys,
-                    defaults_used,
-                    signature: format!("{ty_fqn}({})", param_ty_strs.join(", ")),
-                    inferred_type_args,
-                });
-            }
-        }
+        matched.extend(collect_matched_ctor_overloads_for_owner(
+            inputs,
+            &ty_fqn,
+            call_expr.span,
+            &callee_name,
+            &call_args,
+            None,
+            lower,
+        )?);
     }
 
     if matched.is_empty() {
@@ -3388,25 +3545,29 @@ fn infer_class_constructor_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-    if matched.len() == 1 {
-        let m = matched.pop().expect("len == 1");
-        let ty = lower.lower_type_fqn_with_args(m.ty_fqn, m.inferred_type_args, callee.span)?;
-        return Ok(Some(ty));
-    }
-
-    let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, builtins) else {
-        let candidates =
-            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
-        return Err(ExprTypeError::AmbiguousOverload {
-            callee: callee_name,
-            candidates,
-            span: call_expr.span.into(),
-        });
+    let chosen = if matched.len() == 1 {
+        matched.pop().expect("len == 1")
+    } else {
+        let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, builtins) else {
+            let candidates =
+                join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_name,
+                candidates,
+                span: call_expr.span.into(),
+            });
+        };
+        matched.swap_remove(idx)
     };
 
-    let chosen = matched.swap_remove(idx);
+    lower.record_typechecked_ctor_call_binding(
+        call_expr.span,
+        chosen.owner_fqn.clone(),
+        chosen.ctor_span,
+        chosen.arg_mapping.clone(),
+    );
     let ty =
-        lower.lower_type_fqn_with_args(chosen.ty_fqn, chosen.inferred_type_args, callee.span)?;
+        lower.lower_type_fqn_with_args(chosen.owner_fqn, chosen.inferred_type_args, callee.span)?;
     Ok(Some(ty))
 }
 

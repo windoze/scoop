@@ -1151,9 +1151,9 @@ fn collect_reachable_top_level_funs<'a>(
             collector.scan_fun(fun);
         }
 
-        if let Some((class_fqn, arity)) = collector.ctor_queue.pop_front() {
+        if let Some((class_fqn, ctor_span)) = collector.ctor_queue.pop_front() {
             progressed = true;
-            collector.scan_ctor(&class_fqn, arity);
+            collector.scan_ctor(&class_fqn, ctor_span);
         }
 
         if !progressed {
@@ -1180,8 +1180,8 @@ struct ReachabilityCollector<'a> {
     fun_queue: VecDeque<String>,
     reachable_funs: HashSet<String>,
 
-    seen_ctors: HashSet<(String, usize)>,
-    ctor_queue: VecDeque<(String, usize)>,
+    seen_ctors: HashSet<(String, Option<Span>)>,
+    ctor_queue: VecDeque<(String, Option<Span>)>,
 
     scanned_class_init_steps: HashSet<String>,
     scanned_top_level_consts: HashSet<String>,
@@ -1229,51 +1229,50 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
-    fn enqueue_ctor(&mut self, class_fqn: String, arity: usize) {
-        let key = (class_fqn, arity);
+    fn enqueue_ctor(&mut self, class_fqn: String, ctor_span: Option<Span>) {
+        let key = (class_fqn, ctor_span);
         if self.seen_ctors.insert(key.clone()) {
             self.ctor_queue.push_back(key);
         }
     }
 
-    fn enqueue_ctor_candidates(&mut self, callee_span: Span, arg_count: usize) {
-        let Some(candidates) = self.ctor_call_sites.get(&callee_span) else {
+    fn enqueue_ctor_call_site(&mut self, call_span: Span) {
+        let Some(info) = self.ctor_call_sites.get(&call_span) else {
             return;
         };
 
-        // 仅关心 class ctor call：筛出在 class init side table 中存在的候选。
-        let mut class_candidates: Vec<String> = candidates
-            .iter()
-            .filter(|fqn| self.class_inits.contains_key(*fqn))
-            .cloned()
-            .collect();
-        class_candidates.sort();
-        class_candidates.dedup();
+        self.enqueue_ctor(info.class_fqn.clone(), info.ctor_span);
+    }
 
-        for class_fqn in class_candidates {
-            self.enqueue_ctor(class_fqn, arg_count);
+    fn pick_ctor_by_call_target<'b>(
+        &self,
+        class: &'b hir::ClassInit,
+        ctor_span: Option<Span>,
+    ) -> Option<&'b hir::ClassCtor> {
+        match ctor_span {
+            Some(span) => class.ctors.iter().find(|ctor| ctor.span == span),
+            None => {
+                if class.ctors.is_empty() {
+                    return None;
+                }
+                let mut matching: Vec<&hir::ClassCtor> = class
+                    .ctors
+                    .iter()
+                    .filter(|ctor| ctor.params.is_empty())
+                    .collect();
+                if matching.len() != 1 {
+                    return None;
+                }
+                Some(matching.pop().expect("len == 1"))
+            }
         }
     }
 
-    fn pick_ctor_by_arity<'b>(
-        &self,
-        class: &'b hir::ClassInit,
-        arity: usize,
-    ) -> Option<&'b hir::ClassCtor> {
-        // 无显式 ctor：视为隐式 0-参 primary ctor。
-        if class.ctors.is_empty() {
-            return None;
+    fn scan_call_arg(&mut self, arg: &hir::CallArg) {
+        match arg {
+            hir::CallArg::Positional(expr) => self.scan_expr(expr),
+            hir::CallArg::Named { value, .. } => self.scan_expr(value),
         }
-
-        let mut matching: Vec<&hir::ClassCtor> = class
-            .ctors
-            .iter()
-            .filter(|ctor| ctor.params.len() == arity)
-            .collect();
-        if matching.len() != 1 {
-            return None;
-        }
-        Some(matching.pop().expect("len == 1"))
     }
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
@@ -1361,14 +1360,11 @@ impl<'a> ReachabilityCollector<'a> {
                     self.scan_expr(callee);
                 }
 
-                // constructor call：callee span 会在 HIR side table 中出现候选集合。
-                self.enqueue_ctor_candidates(callee.span, args.len());
+                // constructor call：调用 span 会在 HIR side table 中出现已选 ctor 绑定。
+                self.enqueue_ctor_call_site(expr.span);
 
                 for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(e) => self.scan_expr(e),
-                        hir::CallArg::Named { value, .. } => self.scan_expr(value),
-                    }
+                    self.scan_call_arg(arg);
                 }
             }
             hir::ExprKind::Closure(c) => self.scan_expr(&c.body),
@@ -1422,7 +1418,7 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
-    fn scan_ctor(&mut self, class_fqn: &str, arity: usize) {
+    fn scan_ctor(&mut self, class_fqn: &str, ctor_span: Option<Span>) {
         let Some(class) = self.class_inits.get(class_fqn) else {
             return;
         };
@@ -1440,32 +1436,38 @@ impl<'a> ReachabilityCollector<'a> {
             self.scan_class_init_steps(class);
         }
 
-        let ctor = self.pick_ctor_by_arity(class, arity);
+        let ctor = self.pick_ctor_by_call_target(class, ctor_span);
 
         // delegation / super ctor args
         match ctor {
             Some(ctor) if ctor.kind == hir::ClassCtorKind::Secondary => {
                 if let Some(deleg) = ctor.delegation.as_ref() {
-                    for e in &deleg.args {
-                        self.scan_expr(e);
+                    for arg in &deleg.args {
+                        self.scan_call_arg(arg);
                     }
-                    match deleg.kind {
-                        ast::CtorDelegationKind::This => {
-                            self.enqueue_ctor(class.fqn.clone(), deleg.args.len());
-                        }
-                        ast::CtorDelegationKind::Super => {
-                            if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                                self.enqueue_ctor(super_fqn.to_string(), deleg.args.len());
+                    if let Some(call) = deleg.call.as_ref() {
+                        self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                    } else {
+                        match deleg.kind {
+                            ast::CtorDelegationKind::This => {
+                                self.enqueue_ctor(class.fqn.clone(), None);
+                            }
+                            ast::CtorDelegationKind::Super => {
+                                if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                                    self.enqueue_ctor(super_fqn.to_string(), None);
+                                }
                             }
                         }
                     }
                 } else {
                     // secondary ctor（无 delegation）：走 class header 的 super ctor args。
-                    for e in &class.super_ctor_args {
-                        self.scan_expr(e);
+                    for arg in &class.super_ctor_args {
+                        self.scan_call_arg(arg);
                     }
-                    if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                        self.enqueue_ctor(super_fqn.to_string(), class.super_ctor_args.len());
+                    if let Some(call) = class.super_ctor_call.as_ref() {
+                        self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                    } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                        self.enqueue_ctor(super_fqn.to_string(), None);
                     }
                 }
 
@@ -1476,11 +1478,21 @@ impl<'a> ReachabilityCollector<'a> {
             }
             _ => {
                 // primary ctor（或隐式 0-参 primary ctor）：走 class header 的 super ctor args。
-                for e in &class.super_ctor_args {
-                    self.scan_expr(e);
+                for arg in &class.super_ctor_args {
+                    self.scan_call_arg(arg);
                 }
-                if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                    self.enqueue_ctor(super_fqn.to_string(), class.super_ctor_args.len());
+                if let Some(call) = class.super_ctor_call.as_ref() {
+                    self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                    self.enqueue_ctor(super_fqn.to_string(), None);
+                }
+            }
+        }
+
+        if let Some(ctor) = ctor {
+            for param in &ctor.params {
+                if let Some(default_value) = param.default_value.as_ref() {
+                    self.scan_expr(default_value);
                 }
             }
         }

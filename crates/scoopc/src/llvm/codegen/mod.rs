@@ -2112,13 +2112,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
             // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
-            if let Some(candidates) = self.ctor_call_sites.get(&callee.span) {
+            if let Some(site) = self.ctor_call_sites.get(&span) {
                 return self.codegen_class_ctor_call(
                     span,
                     callee.span,
                     name,
                     args,
-                    candidates,
+                    site,
                     result_ty,
                 );
             }
@@ -2433,130 +2433,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         _name: &str,
         args: &[hir::CallArg],
-        candidates: &[String],
+        site: &hir::CtorCallInfo,
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 1) 选择唯一可用的 class candidate（HIR side table 里必须存在该 class 的 init 信息）。
-        //
-        // T0125：对于泛型 class，优先使用 mangled FQN 查找（如 "pkg.Box<Int>"）。
-        // 通过 result_ty 的 Nominal 类型参数构造 mangled key。
-        let mut class_candidates: Vec<&String> = candidates
-            .iter()
-            .filter(|fqn| self.class_inits.contains_key(*fqn))
-            .collect();
-        class_candidates.sort();
-        class_candidates.dedup();
-
-        let class_fqn = match class_candidates.as_slice() {
-            [one] => {
-                let base_fqn = (*one).clone();
-                // T0125：如果 result_ty 提供了类型参数，尝试使用 mangled FQN 查找。
-                if let Some(rty) = result_ty {
-                    if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
-                        if !nominal.args.is_empty() {
-                            let mangled = self.nominal_layout_key(nominal);
-                            if self.class_inits.contains_key(&mangled) {
-                                mangled
-                            } else {
-                                base_fqn
-                            }
-                        } else {
-                            base_fqn
-                        }
+        let base_fqn = site.class_fqn.clone();
+        let class_fqn = if let Some(rty) = result_ty {
+            if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
+                if !nominal.args.is_empty() {
+                    let mangled = self.nominal_layout_key(nominal);
+                    if self.class_inits.contains_key(&mangled) {
+                        mangled
                     } else {
                         base_fqn
                     }
                 } else {
                     base_fqn
                 }
-            }
-            [] => {
-                // T0125：base FQN 不在 class_inits 中，但可能仅有 mangled 版本（pure generic class）。
-                // 通过 result_ty 查找。
-                if let Some(rty) = result_ty {
-                    if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
-                        if !nominal.args.is_empty() {
-                            let mangled = self.nominal_layout_key(nominal);
-                            if self.class_inits.contains_key(&mangled) {
-                                mangled
-                            } else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "class ctor call candidate class",
-                                    at: callee_span.into(),
-                                });
-                            }
-                        } else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class ctor call candidate class",
-                                at: callee_span.into(),
-                            });
-                        }
-                    } else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor call candidate class",
-                            at: callee_span.into(),
-                        });
-                    }
-                } else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor call candidate class",
-                        at: callee_span.into(),
-                    });
-                }
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call candidate class (ambiguous)",
-                    at: callee_span.into(),
-                });
-            }
-        };
-        let class = self.class_init_layout(callee_span, &class_fqn)?;
-
-        // 2) 仅支持 positional args，并按源码顺序求值。
-        let mut positional_args: Vec<&hir::Expr> = Vec::with_capacity(args.len());
-        for arg in args {
-            match arg {
-                hir::CallArg::Positional(expr) => positional_args.push(expr),
-                hir::CallArg::Named { .. } => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor call named arg",
-                        at: span.into(),
-                    });
-                }
-            }
-        }
-
-        // 3) 在 ctor 集合中选择匹配项（按参数个数）；若 class 未显式声明任何 ctor，则视为隐式 0-参 primary ctor。
-        let matching: Vec<Option<&hir::ClassCtor>> = if class.ctors.is_empty() {
-            if positional_args.is_empty() {
-                vec![None]
             } else {
-                Vec::new()
+                base_fqn
             }
         } else {
-            class
-                .ctors
-                .iter()
-                .filter(|ctor| ctor.params.len() == positional_args.len())
-                .map(Some)
-                .collect()
+            base_fqn
         };
-
-        if matching.is_empty() {
+        if !self.class_inits.contains_key(&class_fqn) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor call overload mismatch",
+                kind: "class ctor call candidate class",
                 at: callee_span.into(),
             });
         }
-        if matching.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor call overload ambiguous",
-                at: callee_span.into(),
-            });
-        }
+        let class = self.class_init_layout(callee_span, &class_fqn)?;
 
-        let selected_ctor = matching[0];
+        let selected_ctor = self.pick_class_ctor_by_target(
+            callee_span,
+            &class,
+            site.ctor_span,
+            args.len(),
+            None,
+            "class ctor call overload mismatch/ambiguous",
+        )?;
         let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
@@ -2626,19 +2540,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   - 否则先执行 super ctor call，再执行本类的参数属性赋值、property initializer、init blocks，
         //     最后执行 secondary ctor body（若有）。
 
-        // 调用点实参求值（按源码顺序），供"被调用的 ctor"注入 params locals。
-        let mut evaluated_args: Vec<CgValue<'ctx>> = Vec::with_capacity(positional_args.len());
-        for (param, arg_expr) in ctor_params.iter().zip(positional_args.iter()) {
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param type",
-                    at: callee_span.into(),
-                })?;
-            let v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
-            let v = self.coerce_value(arg_expr.span, v, param_cg)?;
-            evaluated_args.push(v);
-        }
+        let evaluated_args = self.codegen_class_ctor_eval_args(
+            callee_span,
+            callee_span,
+            args,
+            Some(site),
+            ctor_params,
+            "class ctor call arg eval",
+        )?;
 
         self.codegen_class_ctor_invoke(
             span,
@@ -2655,15 +2564,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    fn pick_class_ctor_by_arity<'b>(
+    fn pick_class_ctor_by_target<'b>(
         &self,
         at: crate::span::Span,
         class: &'b hir::ClassInit,
+        target_ctor_span: Option<crate::span::Span>,
         arg_count: usize,
         exclude_ctor_span: Option<crate::span::Span>,
         kind: &'static str,
     ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
-        // 若 class 未显式声明任何 ctor，则视为隐式 0-参 primary ctor。
+        if let Some(target_span) = target_ctor_span {
+            let mut matching: Vec<&hir::ClassCtor> = class
+                .ctors
+                .iter()
+                .filter(|ctor| ctor.span == target_span)
+                .collect();
+            if let Some(exclude) = exclude_ctor_span {
+                matching.retain(|ctor| ctor.span != exclude);
+            }
+            if matching.len() != 1 {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                });
+            }
+            return Ok(Some(matching[0]));
+        }
+
         if class.ctors.is_empty() {
             return if arg_count == 0 {
                 Ok(None)
@@ -2704,30 +2631,181 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         callee_span: crate::span::Span,
-        arg_exprs: &[hir::Expr],
+        args: &[hir::CallArg],
+        call_info: Option<&hir::CtorCallInfo>,
         ctor_params: &[hir::ClassCtorParam],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
-        if arg_exprs.len() != ctor_params.len() {
+        let mapping: Vec<Option<usize>> = if let Some(info) = call_info {
+            if info.arg_mapping.len() != ctor_params.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                });
+            }
+            info.arg_mapping.clone()
+        } else {
+            if args.len() > ctor_params.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                });
+            }
+
+            let mut out = vec![None; ctor_params.len()];
+            for (arg_idx, arg) in args.iter().enumerate() {
+                if !matches!(arg, hir::CallArg::Positional(_)) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: at.into(),
+                    });
+                }
+                out[arg_idx] = Some(arg_idx);
+            }
+            out
+        };
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let slot = arg_to_param
+                .get_mut(arg_idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                })?;
+            if slot.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: at.into(),
+                });
+            }
+            *slot = Some(param_idx);
+        }
+        if arg_to_param.iter().any(|slot| slot.is_none()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind,
                 at: at.into(),
             });
         }
 
-        let mut out: Vec<CgValue<'ctx>> = Vec::with_capacity(arg_exprs.len());
-        for (param, arg_expr) in ctor_params.iter().zip(arg_exprs.iter()) {
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param type",
-                    at: callee_span.into(),
-                })?;
-            let v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
-            let v = self.coerce_value(arg_expr.span, v, param_cg)?;
-            out.push(v);
-        }
-        Ok(out)
+        let mut param_values: Vec<Option<CgValue<'ctx>>> = vec![None; ctor_params.len()];
+        self.env.push_scope();
+
+        let result = (|| {
+            for (arg_idx, arg) in args.iter().enumerate() {
+                let param_idx =
+                    arg_to_param[arg_idx].ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: at.into(),
+                    })?;
+                let param = &ctor_params[param_idx];
+                let param_cg =
+                    self.cg_ty_of(param.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class ctor param type",
+                            at: callee_span.into(),
+                        })?;
+                let expr = match arg {
+                    hir::CallArg::Positional(expr) => expr,
+                    hir::CallArg::Named { value, .. } => value,
+                };
+                let v = match &expr.kind {
+                    hir::ExprKind::Closure(closure) => {
+                        self.codegen_closure_expr(expr.span, closure, param.ty)?
+                    }
+                    _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
+                };
+                let v = self.coerce_value(expr.span, v, param_cg)?;
+                let stored = self.bind_class_ctor_call_param_value(
+                    callee_span,
+                    kind,
+                    &ctor_params[param_idx],
+                    expr.span,
+                    v,
+                )?;
+                param_values[param_idx] = Some(stored);
+            }
+
+            for (param_idx, param) in ctor_params.iter().enumerate() {
+                if param_values[param_idx].is_some() {
+                    continue;
+                }
+                let default_value =
+                    param
+                        .default_value
+                        .as_ref()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind,
+                            at: callee_span.into(),
+                        })?;
+                let param_cg =
+                    self.cg_ty_of(param.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class ctor param type",
+                            at: callee_span.into(),
+                        })?;
+                let v = match &default_value.kind {
+                    hir::ExprKind::Closure(closure) => {
+                        self.codegen_closure_expr(default_value.span, closure, param.ty)?
+                    }
+                    _ => self.codegen_expr_in_expected_context(default_value, Some(param_cg))?,
+                };
+                let v = self.coerce_value(default_value.span, v, param_cg)?;
+                let stored = self.bind_class_ctor_call_param_value(
+                    callee_span,
+                    kind,
+                    param,
+                    default_value.span,
+                    v,
+                )?;
+                param_values[param_idx] = Some(stored);
+            }
+
+            param_values
+                .into_iter()
+                .map(|value| {
+                    value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: at.into(),
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })();
+
+        self.env.pop_scope();
+        result
+    }
+
+    fn bind_class_ctor_call_param_value(
+        &mut self,
+        callee_span: crate::span::Span,
+        _kind: &'static str,
+        param: &hir::ClassCtorParam,
+        expr_span: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let param_cg = self
+            .cg_ty_of(param.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor param type",
+                at: callee_span.into(),
+            })?;
+        let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+        let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
+        self.env.insert(
+            param.id,
+            CgLocal {
+                hir_ty: Some(param.ty),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                ty: param_cg,
+                ptr,
+                mutable: false,
+            },
+        );
+        Ok(stored)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2736,7 +2814,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee_span: crate::span::Span,
         class: &hir::ClassInit,
-        super_arg_exprs: &[hir::Expr],
+        super_args: &[hir::CallArg],
+        super_call: Option<&hir::CtorCallInfo>,
         obj_ptr: PointerValue<'ctx>,
         stack: &mut HashSet<(String, crate::span::Span)>,
         kind: &'static str,
@@ -2746,10 +2825,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let super_class = self.class_init_layout(callee_span, super_fqn)?;
-        let super_ctor = self.pick_class_ctor_by_arity(
+        let super_ctor = self.pick_class_ctor_by_target(
             callee_span,
             &super_class,
-            super_arg_exprs.len(),
+            super_call.and_then(|call| call.ctor_span),
+            super_args.len(),
             None,
             kind,
         )?;
@@ -2761,7 +2841,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let super_values = self.codegen_class_ctor_eval_args(
             callee_span,
             callee_span,
-            super_arg_exprs,
+            super_args,
+            super_call,
             super_ctor_params,
             kind,
         )?;
@@ -2968,9 +3049,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 match deleg.kind {
                     ast::CtorDelegationKind::This => {
-                        let target = self.pick_class_ctor_by_arity(
+                        let target = self.pick_class_ctor_by_target(
                             callee_span,
                             class,
+                            deleg.call.as_ref().and_then(|call| call.ctor_span),
                             deleg.args.len(),
                             Some(ctor_span),
                             "class this delegation overload mismatch/ambiguous",
@@ -2984,6 +3066,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             callee_span,
                             callee_span,
                             deleg.args.as_slice(),
+                            deleg.call.as_ref(),
                             target_params,
                             "class this delegation arg eval",
                         )?;
@@ -3011,6 +3094,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             callee_span,
                             class,
                             deleg.args.as_slice(),
+                            deleg.call.as_ref(),
                             obj_ptr,
                             stack,
                             "class super delegation overload mismatch/ambiguous",
@@ -3041,6 +3125,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 callee_span,
                 class,
                 class.super_ctor_args.as_slice(),
+                class.super_ctor_call.as_ref(),
                 obj_ptr,
                 stack,
                 "class super ctor call overload mismatch/ambiguous",
@@ -10349,34 +10434,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        for (idx, arg) in args.iter().enumerate() {
-            let hir::CallArg::Positional(expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named funptr call arg",
-                    at: span.into(),
-                });
-            };
-
-            let param_ty = match fun_ty.receiver {
-                Some(receiver_ty) if idx == 0 => receiver_ty,
-                Some(_) => fun_ty.params[idx - 1],
-                None => fun_ty.params[idx],
-            };
-            let target_cg = self
-                .cg_ty_of(param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "funptr call arg type",
-                    at: expr.span.into(),
-                })?;
-
-            let v = match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param_ty)?
-                }
-                _ => self.codegen_expr(expr)?,
-            };
-            let coerced = self.coerce_value(expr.span, v, target_cg)?;
-            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        for arg in self.codegen_callable_value_args(
+            span,
+            callee_span,
+            fun_ty,
+            args,
+            "funptr call arg binding",
+        )? {
+            llvm_args.push(arg);
         }
 
         let call_site = self.builder.build_indirect_call(
@@ -10408,6 +10473,151 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
+    }
+
+    fn callable_value_param_names(&self, fun_ty: &crate::ty::FunctionType) -> Vec<String> {
+        let mut out =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
+        if fun_ty.receiver.is_some() {
+            out.push("receiver".to_string());
+        }
+        for idx in 0..fun_ty.params.len() {
+            out.push(format!("a{idx}"));
+        }
+        out
+    }
+
+    fn codegen_callable_value_args(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[hir::CallArg],
+        kind: &'static str,
+    ) -> Result<Vec<inkwell::values::BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
+        let param_names = self.callable_value_param_names(fun_ty);
+        if args.len() != param_names.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        }
+
+        let mut seen_named = false;
+        let mut positional_count = 0usize;
+        for arg in args {
+            match arg {
+                hir::CallArg::Positional(_) => {
+                    if seen_named {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind,
+                            at: span.into(),
+                        });
+                    }
+                    positional_count += 1;
+                }
+                hir::CallArg::Named { .. } => {
+                    seen_named = true;
+                }
+            }
+        }
+
+        let mut param_to_arg: Vec<Option<usize>> = vec![None; param_names.len()];
+        for (arg_idx, slot) in param_to_arg.iter_mut().enumerate().take(positional_count) {
+            *slot = Some(arg_idx);
+        }
+        for (arg_idx, arg) in args.iter().enumerate().skip(positional_count) {
+            let hir::CallArg::Named { name, .. } = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                });
+            };
+            let Some(slot_idx) = param_names.iter().position(|param| param == name) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                });
+            };
+            let slot =
+                param_to_arg
+                    .get_mut(slot_idx)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind,
+                        at: span.into(),
+                    })?;
+            if slot.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                });
+            }
+            *slot = Some(arg_idx);
+        }
+        if param_to_arg.iter().any(|slot| slot.is_none()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: span.into(),
+            });
+        }
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in param_to_arg.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let slot = arg_to_param
+                .get_mut(arg_idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                })?;
+            *slot = Some(param_idx);
+        }
+
+        let mut evaluated: Vec<Option<inkwell::values::BasicMetadataValueEnum<'ctx>>> =
+            vec![None; param_names.len()];
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param.get(arg_idx).copied().flatten().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                },
+            )?;
+            let param_ty = match fun_ty.receiver {
+                Some(receiver_ty) if param_idx == 0 => receiver_ty,
+                Some(_) => fun_ty.params[param_idx - 1],
+                None => fun_ty.params[param_idx],
+            };
+            let target_cg = self
+                .cg_ty_of(param_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: callee_span.into(),
+                })?;
+            let expr = match arg {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
+            };
+            let v = match &expr.kind {
+                hir::ExprKind::Closure(closure) => {
+                    self.codegen_closure_expr(expr.span, closure, param_ty)?
+                }
+                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
+            };
+            let coerced = self.coerce_value(expr.span, v, target_cg)?;
+            evaluated[param_idx] = Some(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        }
+
+        evaluated
+            .into_iter()
+            .map(|slot| {
+                slot.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind,
+                    at: span.into(),
+                })
+            })
+            .collect()
     }
 
     fn codegen_function_value_call(
@@ -10521,34 +10731,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
         llvm_args.push(env_ptr.into());
-        for (idx, arg) in args.iter().enumerate() {
-            let hir::CallArg::Positional(expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named function value call arg",
-                    at: span.into(),
-                });
-            };
-
-            let param_ty = match fun_ty.receiver {
-                Some(receiver_ty) if idx == 0 => receiver_ty,
-                Some(_) => fun_ty.params[idx - 1],
-                None => fun_ty.params[idx],
-            };
-            let target_cg = self
-                .cg_ty_of(param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function value call arg type",
-                    at: expr.span.into(),
-                })?;
-
-            let v = match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param_ty)?
-                }
-                _ => self.codegen_expr(expr)?,
-            };
-            let coerced = self.coerce_value(expr.span, v, target_cg)?;
-            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        for arg in self.codegen_callable_value_args(
+            span,
+            callee_span,
+            fun_ty,
+            args,
+            "function value call arg binding",
+        )? {
+            llvm_args.push(arg);
         }
 
         let call_site = self.builder.build_indirect_call(

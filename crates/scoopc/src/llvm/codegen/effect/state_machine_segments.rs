@@ -4422,16 +4422,7 @@ fun demo(limit: Int): Int {
             .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
             .collect::<HashMap<_, _>>();
 
-        let ctor_call_targets = lowered
-            .ctor_call_sites
-            .iter()
-            .map(|(span, targets)| {
-                let mut stable_targets = targets.clone();
-                stable_targets.sort();
-                stable_targets.dedup();
-                (*span, stable_targets)
-            })
-            .collect::<HashMap<_, _>>();
+        let ctor_call_targets = lowered.ctor_call_sites.clone();
         let object_value_fqns: HashSet<String> = lowered.object_inits.keys().cloned().collect();
         let object_property_fqns: HashSet<String> = lowered
             .object_inits

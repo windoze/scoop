@@ -16,6 +16,8 @@
 > 2026-04-19 当前轮完成更新：`T4003a` 已完成。`FunPtr<F>` 不再把 receiver function type 当作 early error；typecheck 中的 funptr direct call 已改为与函数值调用一致，按“receiver 作为第 0 个显式实参”检查；LLVM indirect funptr call 也同步支持 receiver 参数位。与此同时，sysroot `scoop.unsafe.FunPtr` 现在补齐了 receiver 形态的 `invoke` overload，并在 intrinsic codegen 入口把 named args 按 `receiver` / `a0` / `a1` 约定重排为位置实参，因此 `fp(receiver, arg)`、`fp.invoke(receiver, arg)` 与 `fp.invoke(receiver = ..., a0 = ...)` 现已统一可执行。已新增 `unsafe_funptr_receiver_call_basic` run-pass 回归，并复验既有 funptr 运行用例。已验证 `cargo run -p scoop -- test --fixtures target/t4003a-fixtures/run-pass`（`fixtures: ok (3)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003b`。
 >
 > 2026-04-19 当前轮完成更新：`T4003b` 已完成。顶层函数在值位置现在可形成一等函数值，`callee<T>` 也不再限于“仅能作为直接调用 callee 的透明包装”，而是可以被赋值、传递给 higher-order 调用并在后续再次调用。实现上，AST / parser / typecheck 新增了顶层函数值的 side table 与 expected-context 反推路径：bare 顶层函数值与 `callee<T>` 会先进入统一的函数值推断，generic function value 可根据 expected function type 反推出 type args，而 higher-order 场景下 bare 顶层函数值候选会先以占位 `Any` 参与参数预收集，避免在 expected-type 生效前过早报 `generic_type_arg_not_inferred`。HIR lowering 则把最终选中的顶层函数值统一合成为零捕获 closure 包装，直接复用现有 function-value call / monomorph / codegen 主线，没有再引入第三套运行时表示。parser 同时放宽了 type-apply lookahead，因此 `callee<T>` 既能继续直接调用，也能作为普通值表达式存在。已新增 `top_level_generic_function_value_basic` run-pass 与 `top_level_generic_function_value_needs_type_info_is_error` typecheck 回归；已验证定向 build+run、定向 run-pass / typecheck fixtures、全量 `tests/fixtures/typecheck`（`fixtures: ok (327)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003c`。
+>
+> 2026-04-19 当前轮完成更新：`T4003c` 已完成。函数值 direct call、direct `FunPtr` call 与 class ctor / ctor delegation 现在共用一套命名实参与默认参数绑定主线：typecheck 侧对函数值 / funptr 使用统一的合成形参名 `receiver` / `a0` / `a1` / ... 做 named-arg 映射，ctor 侧则把“已选中的 ctor 目标 + `arg_mapping`”写入新的 side table，供 HIR lowering 与 LLVM codegen 直接消费，不再按 arity 猜目标或在后端重做一遍绑定。ctor 参数默认值也已进入 HIR / LLVM 主线，显式实参按源码顺序求值，缺失形参再按绑定后的形参顺序补默认值；`class header : Base(...)`、secondary ctor `: this(...) / : super(...)`、以及普通 direct class ctor call 现已全部走同一套绑定数据。收口过程中还顺手把 effect state-machine 消费 ctor call target 的旧接口切到 `CtorCallInfo`，并给无完整 typecheck 的 IR 测试入口补了 resolver 级 ctor fallback，避免 `emit_minimal_main_ir` 在 direct class ctor call 上退化到 enum variant ctor 分支。已新增 `function_value_named_args_basic`、`unsafe_funptr_direct_named_call_basic`、`class_ctor_named_default_and_delegation_basic` 三个 run-pass 回归，并验证定向 build+run、`/tmp/t4003c-fixtures` run-pass 子集（`fixtures: ok (6)`）、`/tmp/t4003c-typecheck` 子集（`fixtures: ok (10)`）、全量 `tests/fixtures/typecheck`（`fixtures: ok (327)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003R`。
 
 ## 0. 工作原则
 
@@ -50,7 +52,7 @@
 
 - 依次补齐 lambda 推断、receiver lambda、函数值 / funptr / constructor delegation 的调用语义缺口。
 - 目标是把前端最常用的表达式与调用规则统一到同一条类型检查主线上。
-- 当前状态：`T4002` / `T4002R` / `T4003a` / `T4003b` 已完成；`T4003` 还剩最后一个切片 `T4003c`，用于收口函数值 / funptr / ctor delegation 的命名实参与默认参数绑定。
+- 当前状态：`T4002` / `T4002R` / `T4003a` / `T4003b` / `T4003c` 已完成；下一项进入 `T4003R`，复审调用系统是否仍按 callee 形态分裂。
 
 ### P3. 语法到 lowering 的缺口收口
 

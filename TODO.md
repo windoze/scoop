@@ -131,7 +131,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003a
 
-### T4003c [TODO] 为函数值 / funptr / ctor delegation 收口命名实参与默认参数绑定
+### T4003c [DONE] 为函数值 / funptr / ctor delegation 收口命名实参与默认参数绑定
 - 范围：
   - 函数值与 funptr 的命名实参支持边界不再靠早期硬拒绝分流。
   - `super(...)` / `this(...)` 构造器委托调用接入与普通调用一致的命名 / 默认参数绑定语义。
@@ -139,6 +139,24 @@
 - 验收：
   - 对应调用形态都有回归。
   - constructor delegation 不再只允许位置参数。
+- 已完成：
+  - typecheck 为 direct function-value call / direct `FunPtr` call 统一启用命名实参与参数重排，形参命名规则收口为 `receiver` / `a0` / `a1` / ...，并与 LLVM codegen 使用同一套映射。
+  - class ctor / header super ctor / `this(...)` / `super(...)` 统一改为记录 typechecked ctor binding side table，HIR 与 LLVM 直接复用已选中的 ctor 目标与 `arg_mapping`，不再按 arity 重新猜。
+  - ctor 参数默认值已进入 HIR / LLVM 主线，显式实参保持源码顺序求值，缺失形参再按绑定后的形参顺序补默认值。
+  - effect state-machine 相关的 ctor call target 消费点已切到新的 `CtorCallInfo` 模型；无完整 typecheck 的 IR 测试入口也补上了基于 resolver call-shape 的保守 ctor fallback，避免 `emit_minimal_main_ir` 路径把 direct class ctor call 误掉进 enum variant ctor 分支。
+  - 新增 run-pass 回归：
+    - `tests/fixtures/run-pass/function_value_named_args_basic.scoop`
+    - `tests/fixtures/run-pass/unsafe_funptr_direct_named_call_basic.scoop`
+    - `tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop`
+- 已验证：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/function_value_named_args_basic.scoop -o /tmp/fv_named.out`
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/unsafe_funptr_direct_named_call_basic.scoop -o /tmp/fp_named.out`
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop -o /tmp/ctor_named.out`
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003c-fixtures`（`fixtures: ok (6)`）
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003c-typecheck`（`fixtures: ok (10)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (327)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003b
 
 ### T4003R [TODO] Review：确认调用系统不再按 callee 形态分裂

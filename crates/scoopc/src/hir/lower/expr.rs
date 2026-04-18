@@ -5,6 +5,7 @@
 //! - 规则与 span 选择尽量保持与原先 `lower/mod.rs` 一致，避免 HIR fixtures 输出漂移。
 
 use crate::ast;
+use crate::resolve::{ConstructorOverload, ParamSig, Visibility};
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
@@ -349,26 +350,14 @@ impl<'a> HirLowering<'a> {
                 {
                     (kind, typechecked_call_ty.unwrap_or(ty))
                 } else {
-                    // T1312：class ctor call 仍会被降低为 `UnresolvedIdent`，
-                    // 但 codegen 需要知道它的 ctor candidates（来自 resolver 的 `ValueIdent.call`）。
+                    // class ctor call 仍会被降低为 `UnresolvedIdent`，
+                    // 但 codegen 需要知道 typecheck 已选中的 ctor 目标与参数绑定。
                     if let ast::ExprKind::Ident(id) = &callee.kind
-                        && let Some(call) = id.call.as_ref()
+                        && let Some(binding) = self
+                            .typechecked_ctor_call_info(e.span)
+                            .or_else(|| self.resolver_fallback_ctor_call_info(id, args))
                     {
-                        let mut ctor_candidates: Vec<String> = call
-                            .candidates
-                            .iter()
-                            .filter_map(|c| match c {
-                                ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
-                                ast::CallCandidate::Fun { .. } => None,
-                            })
-                            .collect();
-                        if !ctor_candidates.is_empty() {
-                            ctor_candidates.sort();
-                            ctor_candidates.dedup();
-                            self.ctor_call_sites
-                                .entry(id.span)
-                                .or_insert(ctor_candidates);
-                        }
+                        self.ctor_call_sites.entry(e.span).or_insert(binding);
                     }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
@@ -1061,6 +1050,154 @@ impl<'a> HirLowering<'a> {
             .map(|ty| self.types.re_intern_from(typecheck_types, ty))
             .collect();
         Some((fun_ref.fqn, type_args))
+    }
+
+    fn typechecked_ctor_call_info(&self, span: Span) -> Option<super::super::CtorCallInfo> {
+        let binding = self.file.typechecked_ctor_call_binding(span)?;
+        Some(super::super::CtorCallInfo {
+            class_fqn: binding.owner_fqn,
+            ctor_span: binding.ctor_span,
+            arg_mapping: binding.arg_mapping,
+        })
+    }
+
+    /// 无完整 typecheck 的 lowering/IR 测试入口仍可能需要识别简单 direct class ctor call。
+    ///
+    /// 说明：
+    /// - 优先使用 typecheck side table；这里只作为 resolver 级 fallback；
+    /// - 仅依据 resolver 的 ctor 候选集合与调用形状恢复“唯一可判定”的目标；
+    /// - 若存在重载歧义、vararg/spread、或需要更深类型信息才能决定的情况，则返回 `None`，
+    ///   让无 typecheck 路径保持保守失败，而不是猜错目标 ctor。
+    fn resolver_fallback_ctor_call_info(
+        &self,
+        callee: &ast::ValueIdent,
+        args: &[ast::Expr],
+    ) -> Option<super::super::CtorCallInfo> {
+        let call = callee.call.as_ref()?;
+        let mut ctor_types: Vec<String> = call
+            .candidates
+            .iter()
+            .filter_map(|candidate| match candidate {
+                ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+                ast::CallCandidate::Fun { .. } => None,
+            })
+            .collect();
+        ctor_types.sort();
+        ctor_types.dedup();
+
+        if ctor_types.len() != 1 {
+            return None;
+        }
+        let owner_fqn = ctor_types.pop()?;
+
+        let visible_ctors: Vec<&ConstructorOverload> = self
+            .index
+            .constructors
+            .get(&owner_fqn)
+            .into_iter()
+            .flatten()
+            .filter(|ctor| self.resolver_ctor_visible(ctor))
+            .collect();
+
+        if visible_ctors.is_empty() {
+            return if args.is_empty() {
+                Some(super::super::CtorCallInfo {
+                    class_fqn: owner_fqn,
+                    ctor_span: None,
+                    arg_mapping: Vec::new(),
+                })
+            } else {
+                None
+            };
+        }
+
+        let mut matched: Vec<(Option<Span>, Vec<Option<usize>>)> = visible_ctors
+            .iter()
+            .filter_map(|ctor| {
+                self.resolver_fallback_ctor_arg_mapping(&ctor.params, args)
+                    .map(|mapping| (Some(ctor.span), mapping))
+            })
+            .collect();
+
+        if matched.len() != 1 {
+            return None;
+        }
+        let (ctor_span, arg_mapping) = matched.pop()?;
+        Some(super::super::CtorCallInfo {
+            class_fqn: owner_fqn,
+            ctor_span,
+            arg_mapping,
+        })
+    }
+
+    fn resolver_ctor_visible(&self, ctor: &ConstructorOverload) -> bool {
+        match ctor.visibility {
+            Visibility::Public => true,
+            Visibility::Internal => ctor.decl_cone == self.index.cone_of_source(self.source),
+            Visibility::Private => ctor.decl_file == self.source.path(),
+        }
+    }
+
+    fn resolver_fallback_ctor_arg_mapping(
+        &self,
+        params: &[ParamSig],
+        args: &[ast::Expr],
+    ) -> Option<Vec<Option<usize>>> {
+        if params.iter().any(|param| param.is_vararg) {
+            return None;
+        }
+
+        let mut seen_named = false;
+        let mut positional_count = 0usize;
+        for arg in args {
+            match &arg.kind {
+                ast::ExprKind::NamedArg { .. } => {
+                    seen_named = true;
+                }
+                ast::ExprKind::SpreadArg { .. } => {
+                    return None;
+                }
+                _ => {
+                    if seen_named {
+                        return None;
+                    }
+                    positional_count = positional_count.saturating_add(1);
+                }
+            }
+        }
+
+        if positional_count > params.len() {
+            return None;
+        }
+
+        let mut param_to_arg: Vec<Option<usize>> = vec![None; params.len()];
+        for arg_idx in 0..positional_count {
+            *param_to_arg.get_mut(arg_idx)? = Some(arg_idx);
+        }
+
+        for (arg_idx, arg) in args.iter().enumerate().skip(positional_count) {
+            let ast::ExprKind::NamedArg { name, .. } = &arg.kind else {
+                return None;
+            };
+            let name_text = name.text(self.source);
+            let slot_idx = params.iter().position(|param| param.name == name_text)?;
+            let slot = param_to_arg.get_mut(slot_idx)?;
+            if slot.is_some() {
+                return None;
+            }
+            *slot = Some(arg_idx);
+        }
+
+        for (idx, param) in params.iter().enumerate() {
+            if param_to_arg.get(idx)?.is_some() {
+                continue;
+            }
+            if !param.has_default {
+                return None;
+            }
+        }
+
+        Some(param_to_arg)
     }
 
     fn synthetic_top_level_fun_value_param_span(&self, base_span: Span, ordinal: usize) -> Span {
@@ -2979,7 +3116,7 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    fn lower_call_arg(&mut self, pkg_prefix: &str, arg: &ast::Expr) -> CallArg {
+    pub(super) fn lower_call_arg(&mut self, pkg_prefix: &str, arg: &ast::Expr) -> CallArg {
         match &arg.kind {
             ast::ExprKind::NamedArg { name, value, .. } => CallArg::Named {
                 name: name.text(self.source).to_string(),

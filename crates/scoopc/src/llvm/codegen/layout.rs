@@ -75,6 +75,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             source_path: base.source_path,
             super_class_fqn: base.super_class_fqn,
             super_ctor_args_span: base.super_ctor_args_span,
+            super_ctor_call: base.super_ctor_call,
             super_ctor_args: base.super_ctor_args,
             this_id: base.this_id,
             fields,

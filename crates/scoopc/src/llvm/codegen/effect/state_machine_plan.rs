@@ -17,7 +17,7 @@ struct HandlePlanContext {
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
     known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
-    ctor_call_targets: HashMap<Span, Vec<String>>,
+    ctor_call_targets: HashMap<Span, hir::CtorCallInfo>,
     continuation_resume_call_sites: HashSet<Span>,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
@@ -2535,14 +2535,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             };
         }
 
-        if let Some(targets) = self.context.ctor_call_targets.get(&callee.span) {
-            let mut stable_targets = targets.clone();
-            stable_targets.sort();
-            stable_targets.dedup();
-            let class_name = if stable_targets.is_empty() {
+        if let Some(target) = self.context.ctor_call_targets.get(&expr.span) {
+            let class_name = if target.class_fqn.is_empty() {
                 format!("ctor@{:?}", callee.span)
             } else {
-                stable_targets.join("|")
+                target.class_fqn.clone()
             };
             return Some(SuspendSiteKind::ClassCtorInit { class_name });
         }
@@ -6059,7 +6056,7 @@ fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
 struct SuspendCallAnalysis<'a> {
     types: &'a TypeStore,
     known_fun_effects: &'a HashMap<String, bool>,
-    ctor_call_targets: &'a HashMap<Span, Vec<String>>,
+    ctor_call_targets: &'a HashMap<Span, hir::CtorCallInfo>,
     continuation_resume_call_sites: &'a HashSet<Span>,
     object_value_fqns: &'a HashSet<String>,
     object_property_fqns: &'a HashSet<String>,
@@ -6361,7 +6358,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             }
             hir::ExprKind::Call { callee, args } => {
                 self.continuation_resume_call_sites.contains(&expr.span)
-                    || self.ctor_call_targets.contains_key(&callee.span)
+                    || self.ctor_call_targets.contains_key(&expr.span)
                     || self.function_value_may_suspend_when_called(callee, known_locals)
                     || self.expr_may_suspend(callee, known_locals)
                     || args.iter().any(|arg| match arg {
@@ -6444,7 +6441,7 @@ impl<'a> SuspendCallAnalysis<'a> {
 fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    ctor_call_targets: &HashMap<Span, Vec<String>>,
+    ctor_call_targets: &HashMap<Span, hir::CtorCallInfo>,
     continuation_resume_call_sites: &HashSet<Span>,
     object_value_fqns: &HashSet<String>,
     object_property_fqns: &HashSet<String>,
@@ -6501,7 +6498,7 @@ fn collect_known_local_fun_call_suspendability_in_fun(
     fun: &hir::FunDecl,
     types: &TypeStore,
     known_fun_effects: &HashMap<String, bool>,
-    ctor_call_targets: &HashMap<Span, Vec<String>>,
+    ctor_call_targets: &HashMap<Span, hir::CtorCallInfo>,
     continuation_resume_call_sites: &HashSet<Span>,
     object_value_fqns: &HashSet<String>,
     object_property_fqns: &HashSet<String>,
@@ -7111,16 +7108,7 @@ impl HandlePlanContext {
     }
 
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
-        let ctor_call_targets = cg
-            .ctor_call_sites
-            .iter()
-            .map(|(span, targets)| {
-                let mut stable_targets = targets.clone();
-                stable_targets.sort();
-                stable_targets.dedup();
-                (*span, stable_targets)
-            })
-            .collect();
+        let ctor_call_targets = cg.ctor_call_sites.clone();
         let object_value_fqns = cg.object_inits.keys().cloned().collect();
         let object_property_fqns = cg
             .object_inits
@@ -7283,16 +7271,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return;
         }
 
-        let ctor_call_targets = self
-            .ctor_call_sites
-            .iter()
-            .map(|(span, targets)| {
-                let mut stable_targets = targets.clone();
-                stable_targets.sort();
-                stable_targets.dedup();
-                (*span, stable_targets)
-            })
-            .collect::<HashMap<_, _>>();
+        let ctor_call_targets = self.ctor_call_sites.clone();
         let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
         let object_property_fqns = self
             .object_inits
@@ -7348,16 +7327,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let ctor_call_targets = self
-            .ctor_call_sites
-            .iter()
-            .map(|(span, targets)| {
-                let mut stable_targets = targets.clone();
-                stable_targets.sort();
-                stable_targets.dedup();
-                (*span, stable_targets)
-            })
-            .collect::<HashMap<_, _>>();
+        let ctor_call_targets = self.ctor_call_sites.clone();
         let object_value_fqns = self.object_inits.keys().cloned().collect::<HashSet<_>>();
         let object_property_fqns = self
             .object_inits

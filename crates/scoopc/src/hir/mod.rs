@@ -580,8 +580,10 @@ pub struct ClassInit {
     pub super_class_fqn: Option<String>,
     /// class header 的 super ctor args 括号 span（若存在 `: Base(...)`）。
     pub super_ctor_args_span: Option<Span>,
+    /// class header 的 super ctor 调用绑定（若存在 `: Base(args...)`）。
+    pub super_ctor_call: Option<CtorCallInfo>,
     /// class header 的 super ctor args（若存在 `: Base(args...)`）。
-    pub super_ctor_args: Vec<Expr>,
+    pub super_ctor_args: Vec<CallArg>,
     /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
     pub this_id: SymbolId,
     /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
@@ -636,7 +638,8 @@ pub struct ClassCtor {
 pub struct ClassCtorDelegation {
     pub kind: ast::CtorDelegationKind,
     pub span: Span,
-    pub args: Vec<Expr>,
+    pub call: Option<CtorCallInfo>,
+    pub args: Vec<CallArg>,
 }
 
 #[derive(Debug, Clone)]
@@ -646,20 +649,31 @@ pub struct ClassCtorParam {
     pub decl_span: Span,
     pub ty: TypeId,
     pub has_default: bool,
+    pub default_value: Option<Expr>,
     /// 该参数是否同时声明为 `val/var` 参数属性（仅 primary ctor 适用）。
     pub is_property: bool,
     /// 当 `is_property=true` 时，该属性对应的字段 FQN。
     pub property_field_fqn: Option<String>,
 }
 
-/// 调用点的“构造候选集合”索引：callee span → candidate type fqns。
+#[derive(Debug, Clone)]
+pub struct CtorCallInfo {
+    pub class_fqn: String,
+    pub ctor_span: Option<Span>,
+    /// `arg_mapping[param_idx] = Some(arg_idx)`：该形参由调用点第 `arg_idx` 个显式实参提供；
+    /// `None`：该形参由默认值补齐。
+    pub arg_mapping: Vec<Option<usize>>,
+}
+
+/// 调用点的 ctor 绑定索引：call span → 已选中的 ctor 调用信息。
 ///
 /// 说明：
-/// - resolver 会在 `ValueIdent.call` 中写回 call candidates（T0319），但 HIR v0 仍会把 ctor 调用
-///   的 callee 降为 `UnresolvedIdent`，以保持 dump 输出稳定；
-/// - LLVM codegen 需要知道“该 UnresolvedIdent 实际上是 ctor 调用”，因此这里把候选集合以 side table
-///   的形式保留下来。
-pub type CtorCallSiteIndex = HashMap<Span, Vec<String>>;
+/// - HIR v0 仍会把 ctor 调用的 callee 保留为 `UnresolvedIdent`，以保持 dump 输出稳定；
+/// - LLVM codegen 需要知道“该调用实际是哪个 ctor、如何把 named/default args 绑定到形参”，
+///   因此这里把 typecheck 已确认的绑定结果以 side table 的形式保留下来；
+/// - key 使用整个 call expr 的 span，而不是 callee ident span，避免默认值补齐与 named arg
+///   绑定信息在后端丢失。
+pub type CtorCallSiteIndex = HashMap<Span, CtorCallInfo>;
 
 /// `nominal FQN -> ast::TypeKind` 的索引（由 HIR lowering 构建，供后端识别 effect/class/interface/...）。
 pub type NominalKindIndex = HashMap<String, ast::TypeKind>;

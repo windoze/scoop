@@ -2,12 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast;
 use crate::monomorph::MonomorphKey;
-use crate::resolve::{ConstructorOverload, ImportTable, Index};
+use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 
-use super::call::{check_fn_value_to_any_erasure_gate, is_ctor_visible_from};
+use super::call::{
+    check_call_arg_named_rules, check_fn_value_to_any_erasure_gate, collect_call_arg_infos,
+    select_ctor_overload_for_owner,
+};
 use super::collect::{
     collect_member_mutabilities, collect_struct_field_types, collect_top_level_fun_signatures,
     collect_top_level_value_types,
@@ -19,7 +22,7 @@ use super::stmt::{
     check_expr_stmt, check_fun_body_exprs, check_required_effects_for_fun_decl, check_stmt_exprs,
     expr_infer_inputs,
 };
-use super::util::{expr_kind_name, join_overload_signatures, package_prefix};
+use super::util::package_prefix;
 
 use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 
@@ -217,6 +220,7 @@ fn check_file_exprs_impl(
     file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
+    file.replace_typechecked_ctor_call_bindings(HashMap::new());
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     if request.collect_monomorph {
         lower.enable_monomorph_collection();
@@ -355,6 +359,9 @@ fn check_file_exprs_impl(
     request
         .file
         .replace_top_level_fun_value_refs(lower.take_top_level_fun_value_refs());
+    request
+        .file
+        .replace_typechecked_ctor_call_bindings(lower.take_typechecked_ctor_call_bindings());
     let monomorph = lower.take_monomorph_keys();
     let type_insts = lower.take_type_instantiation_keys();
     Ok((monomorph, type_insts))
@@ -1154,12 +1161,12 @@ fn check_class_super_ctor_call_exprs(
     Ok(())
 }
 
-/// 在“已知 ctor 所属类型”的前提下，对 ctor call 的 args 做最小 typecheck。
+/// 在“已知 ctor 所属类型”的前提下，对 ctor call 的 args 做完整参数绑定 typecheck。
 ///
-/// 当前阶段约束（与 LLVM codegen 对齐）：
-/// - 仅按 arity 匹配 ctor overload；
-/// - 逐个实参按形参类型做 assignable 检查（允许 int literal 吸收）；
-/// - defaults/named/spread/vararg 的完整调用规则留给后续任务补齐。
+/// 说明：
+/// - 与普通 `Class(...)` 构造调用共用同一套 ctor 绑定逻辑；
+/// - 这里不仅验证 named/default 参数规则，还会把“最终选中的 ctor 目标 + 绑定映射”
+///   写入 typecheck side table，供 HIR/codegen 复用。
 fn check_ctor_call_args_by_arity(
     inputs: ExprInferInputs<'_>,
     request: CtorCallCheckRequest<'_>,
@@ -1172,107 +1179,24 @@ fn check_ctor_call_args_by_arity(
         args,
         exclude_ctor_span,
     } = request;
-    let builtins = inputs.builtins;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    check_call_arg_named_rules(&callee_for_diag, &call_args)?;
+    let chosen = select_ctor_overload_for_owner(
+        inputs,
+        ctor_owner_ty_fqn,
+        call_span,
+        &callee_for_diag,
+        &call_args,
+        exclude_ctor_span,
+        lower,
+    )?;
 
-    // 当前阶段（T1327c）约束：super ctor args / ctor delegation args 仅支持位置参数。
-    //
-    // 备注：这些位置并非普通调用点（`callee(args...)`），HIR lowering 也不会把它们转成 `CallArg`，
-    // 因此这里必须显式拒绝 `name = value` / `*spread` 语法，以避免后续 lowering/codegen 落到 `todo` 分支。
-    for arg in args {
-        match &arg.kind {
-            ast::ExprKind::NamedArg { .. } | ast::ExprKind::SpreadArg { .. } => {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: expr_kind_name(&arg.kind),
-                    span: arg.span.into(),
-                });
-            }
-            _ => {}
-        }
-    }
-
-    let use_cone = lower.index().cone_of_source(inputs.source);
-    let Some(ctors) = lower.index().constructors.get(ctor_owner_ty_fqn).cloned() else {
-        return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_for_diag.clone(),
-            span: call_span.into(),
-        });
-    };
-
-    let mut visible: Vec<&ConstructorOverload> = ctors
-        .iter()
-        .filter(|c| is_ctor_visible_from(use_cone, inputs.source, c))
-        .collect();
-    if let Some(exclude) = exclude_ctor_span {
-        visible.retain(|c| c.span != exclude);
-    }
-
-    let mut matching: Vec<&ConstructorOverload> = visible
-        .iter()
-        .copied()
-        .filter(|c| c.params.len() == args.len())
-        .collect();
-
-    if matching.is_empty() {
-        return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_for_diag.clone(),
-            span: call_span.into(),
-        });
-    }
-    if matching.len() != 1 {
-        let mut sigs: Vec<String> = Vec::with_capacity(matching.len());
-        for ctor in &matching {
-            let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
-            for p in &ctor.params {
-                let Some(ty_ref) = p.ty.as_ref() else {
-                    param_ty_strs.push(lower.fmt_type(builtins.any));
-                    continue;
-                };
-                let ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
-                param_ty_strs.push(lower.fmt_type(ty));
-            }
-            sigs.push(format!("{ctor_owner_ty_fqn}({})", param_ty_strs.join(", ")));
-        }
-        return Err(ExprTypeError::AmbiguousOverload {
-            callee: callee_for_diag,
-            candidates: join_overload_signatures(sigs),
-            span: call_span.into(),
-        });
-    }
-
-    let ctor = matching.pop().expect("len == 1");
-    for (idx, (arg, param)) in args.iter().zip(ctor.params.iter()).enumerate() {
-        let expected = match param.ty.as_ref() {
-            Some(ty_ref) => lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?,
-            None => builtins.any,
-        };
-
-        let found = inputs.infer_in_expected(
-            lower,
-            arg,
-            expected,
-            ExpectedTypeFrom::new(format!(
-                "constructor `{}` 的第 {} 个参数",
-                ctor_owner_ty_fqn,
-                idx + 1
-            )),
-        )?;
-
-        if is_type_assignable(found, expected, lower, builtins) {
-            check_fn_value_to_any_erasure_gate(found, expected, arg.span, lower, builtins)?;
-            continue;
-        }
-        if literal_absorbs_to_expected(arg, expected, inputs.source, lower, builtins) {
-            continue;
-        }
-
-        return Err(ExprTypeError::CallArgTypeMismatch {
-            callee: callee_for_diag,
-            index: idx + 1,
-            expected: lower.fmt_type(expected),
-            found: lower.fmt_type(found),
-            span: arg.span.into(),
-        });
-    }
+    lower.record_typechecked_ctor_call_binding(
+        call_span,
+        chosen.owner_fqn,
+        chosen.ctor_span,
+        chosen.arg_mapping,
+    );
 
     Ok(())
 }

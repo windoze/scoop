@@ -1,0 +1,50 @@
+// EXPECT: pass
+// RUN-STDOUT: class_ctor_named_default_and_delegation_basic.stdout
+//
+// T4003c：
+// - direct class ctor call 支持 named/default args，并按 typecheck 选中的 ctor 执行；
+// - `: this(...)` / `: super(...)` / class header `: Base(...)` 统一接入 named/default 绑定；
+// - 显式实参按源码顺序求值，缺省值按形参顺序补齐。
+
+import scoop.core.*
+
+fun mark(n: Int): Int {
+    println(1000 + n)
+    return n
+}
+
+open class Base(x: Int = 11, y: Int = 22) {
+    val sum: Int = x + y
+
+    init {
+        println(x)
+        println(y)
+    }
+}
+
+class Derived : Base(mark(90)) {
+    constructor(tag: Int, x: Int = 33, y: Int = 44) : super(y = mark(y)) {
+        println(tag)
+        println(x)
+        println(300)
+    }
+
+    constructor() : this(tag = mark(1), y = mark(2)) {
+        println(400)
+    }
+}
+
+class HeaderDerived() : Base(y = mark(9)) {}
+
+fun main(): Int {
+    println(5000)
+    val _a: Derived = Derived()
+
+    println(6000)
+    val _b: Derived = Derived(x = mark(5), tag = mark(6))
+
+    println(7000)
+    val _c: HeaderDerived = HeaderDerived()
+    println(8000)
+    return 0
+}

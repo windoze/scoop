@@ -19,10 +19,10 @@ use super::{HirLowering, HirLoweringSetup};
 
 use super::super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
-    ClassField, ClassInit, ClassInitIndex, ClassInitStep, CtorCallSiteIndex, EnumLayout,
-    EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, ExternAbi, ExternFun,
-    ExternFunIndex, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef, ObjectInit,
-    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, StmtKind, StructCLayout,
+    ClassField, ClassInit, ClassInitIndex, ClassInitStep, CtorCallInfo, CtorCallSiteIndex,
+    EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, ExternAbi,
+    ExternFun, ExternFunIndex, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef,
+    ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, StmtKind, StructCLayout,
     StructFieldLayout, StructLayout, StructLayoutIndex, SymbolId, ValueRef, WhenPat,
 };
 
@@ -770,27 +770,36 @@ fn collect_class_decl_init(
         })
         .find(|fqn| matches!(ctx.type_kinds.get(fqn), Some(ast::TypeKind::Class)));
 
-    // class header 的 `: Base(args...)`：记录 super ctor args（若存在）。
-    let (super_ctor_args_span, super_ctor_args) = decl
+    // class header 的 `: Base(args...)`：记录 super ctor args 与 typecheck 已选定的绑定（若存在）。
+    let (super_ctor_args_span, super_ctor_call, super_ctor_args) = decl
         .supertypes
         .iter()
         .find(|st| st.ctor_args_span.is_some())
         .map(|st| {
             let span = st.ctor_args_span;
+            let call = ctx
+                .file
+                .typechecked_ctor_call_binding(st.span)
+                .map(|binding| CtorCallInfo {
+                    class_fqn: binding.owner_fqn,
+                    ctor_span: binding.ctor_span,
+                    arg_mapping: binding.arg_mapping,
+                });
             let args = st
                 .ctor_args
                 .iter()
-                .map(|arg| ctx.lower_expr(pkg_prefix, arg))
+                .map(|arg| ctx.lower_call_arg(pkg_prefix, arg))
                 .collect::<Vec<_>>();
-            (span, args)
+            (span, call, args)
         })
-        .unwrap_or((None, Vec::new()));
+        .unwrap_or((None, None, Vec::new()));
 
     let mut init = ClassInit {
         fqn: class_fqn.to_string(),
         source_path: ctx.source.path().to_path_buf(),
         super_class_fqn,
         super_ctor_args_span,
+        super_ctor_call,
         super_ctor_args,
         this_id,
         fields: Vec::new(),
@@ -832,6 +841,10 @@ fn collect_class_decl_init(
                 decl_span: p.name.span,
                 ty,
                 has_default: p.default_value.is_some(),
+                default_value: p
+                    .default_value
+                    .as_ref()
+                    .map(|expr| ctx.lower_expr(pkg_prefix, expr)),
                 is_property,
                 property_field_fqn: property_field_fqn.clone(),
             });
@@ -1114,6 +1127,10 @@ fn collect_class_decl_init(
                             decl_span: p.name.span,
                             ty,
                             has_default: p.default_value.is_some(),
+                            default_value: p
+                                .default_value
+                                .as_ref()
+                                .map(|expr| ctx.lower_expr(pkg_prefix, expr)),
                             is_property: false,
                             property_field_fqn: None,
                         });
@@ -1122,10 +1139,18 @@ fn collect_class_decl_init(
                     let delegation = ctor.delegation_call.as_ref().map(|d| ClassCtorDelegation {
                         kind: d.kind,
                         span: d.span,
+                        call: ctx
+                            .file
+                            .typechecked_ctor_call_binding(d.span)
+                            .map(|binding| CtorCallInfo {
+                                class_fqn: binding.owner_fqn,
+                                ctor_span: binding.ctor_span,
+                                arg_mapping: binding.arg_mapping,
+                            }),
                         args: d
                             .args
                             .iter()
-                            .map(|arg| ctx.lower_expr(pkg_prefix, arg))
+                            .map(|arg| ctx.lower_call_arg(pkg_prefix, arg))
                             .collect::<Vec<_>>(),
                     });
                     let body = ctx.lower_block(pkg_prefix, &ctor.body);
@@ -2495,6 +2520,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
                         decl_span: p.decl_span,
                         ty: substitute_type_param(types, p.ty, &param_map),
                         has_default: p.has_default,
+                        default_value: p.default_value.clone(),
                         is_property: p.is_property,
                         property_field_fqn: p.property_field_fqn.clone(),
                     })
@@ -2511,6 +2537,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
                 source_path: base_init.source_path.clone(),
                 super_class_fqn: base_init.super_class_fqn.clone(),
                 super_ctor_args_span: base_init.super_ctor_args_span,
+                super_ctor_call: base_init.super_ctor_call.clone(),
                 super_ctor_args: base_init.super_ctor_args.clone(),
                 this_id: base_init.this_id,
                 fields,
