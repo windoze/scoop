@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016cR` 已完成。复审 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs` 后确认，outer-body `Continuation.resume(...)` 的 production lowering 仍只由 `continuation_resume_call_sites` 驱动：`codegen_call()` 仅在 side table 命中时调用 `codegen_continuation_resume_builtin()`，`classify_builtin_suspend_call()` 也只按同一 side table 把 builtin resume 建模为 `RuntimeRaise("Continuation.resume")`，不存在按成员名、receiver 类型或源码形状分流。同步复审 unified state-machine 合同后确认，自洽 nested handle 通过 `may_suspend_outward()` 留在自身状态机内，不再在 outer machine 物化 `NestedHandleBoundary`；escaped continuation replay 也只对 call-like / boundary site 分配 `escape_resume_target`，direct `perform` / `runtime-raise` continuation 不会被错误重定向回旧 owner-state replay。因此 outer-body / nested-handle `resume(...)` 路径已经不再回落到 generic `call callee`、`effect frame seed outer-scope local` 或 silent exit。已验证 3 条定向结构/IR 单测、目标 fixture 直跑、`cargo test -p scoop_runtime continuation_resume_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016d`。
+>
 > 2026-04-18 当前轮完成更新：`T3016c` 已完成。`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现在会把 escaped continuation 的 `escape_resume_target` 收口为只对真正需要 replay 的 call-like / nested-boundary site 分配，direct `perform` / `runtime-raise` continuation 不再被错误重定向到旧 owner-state replay；因此 `effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 的第二次 outer-body `resume(...)` 已恢复到正确的第二个 perform 之后路径，fixture 已改回 `EXPECT: pass`。同时新增结构测试 `source_plan_does_not_assign_escape_replay_target_for_later_perform_site`，并把 nested-handle skeleton/transform 测试同步到新的生产合同：自洽 immediate-resume nested handle 仍各自编译为独立状态机，但不再进入 outer machine 的 `NestedHandleBoundary` / suspend-subtree 重写。已验证目标 fixture 直跑、`cargo test -p scoop_runtime continuation_resume_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016cR`。
 >
 > 2026-04-18 当前轮复审更新：`T3016c0R` 已完成。复审 `crates/scoopc/src/typecheck/expr/stmt.rs` 与 `typecheck/expr/call.rs` 时确认，`T3016c0` 的初版修复还残留一个真实生产缺口：statement-position call 分支即使已经先由 `infer_effect_op_call_expr_type(...)` 接管，仍会无条件调用 `infer_continuation_resume_call_expr_type(...)`；当 effect op 恰好也叫 `resume` 时，会把 effect type 限定符误送入 builtin `Continuation.resume` helper，违反“side table 只记录 typecheck 已证实 builtin call site”的目标。现已把语句路径收口为“仅当当前 call 未被 effect-op helper 接管时才运行 builtin resume helper”，并新增 HIR lowering 单测 `lower_typed_single_source_file_does_not_record_effect_op_named_resume_as_builtin_call_site`，锁定 effect op `resume` 会继续 lower 为 `Perform` 且不会污染 `continuation_resume_call_sites`。已复验两条 HIR lowering 定向单测、4 条相关 fixtures 的最小根目录定向 `scoop test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016c`。
@@ -631,28 +633,25 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016c`
-2. `T3016cR`
-3. `T3016d`
-4. `T3016dR`
-5. `T3017`
-6. `T3017R`
-6. `T3017R`
-8. `T3103`
-9. `T3104`
-10. `T3201`
-11. `T3202`
-12. `T3203`
-13. `T3204`
-14. `T3205`
-15. `T3301`
-16. `T3302`
-17. `T3303`
-18. `T3401`
-19. `T3401a`
-20. `T3401b`
-21. `T3401c`
-22. `T3402`
-23. `T3403`
-24. `T3404`
-25. `T3405`
+1. `T3016d`
+2. `T3016dR`
+3. `T3017`
+4. `T3017R`
+5. `T3103`
+6. `T3104`
+7. `T3201`
+8. `T3202`
+9. `T3203`
+10. `T3204`
+11. `T3205`
+12. `T3301`
+13. `T3302`
+14. `T3303`
+15. `T3401`
+16. `T3401a`
+17. `T3401b`
+18. `T3401c`
+19. `T3402`
+20. `T3403`
+21. `T3404`
+22. `T3405`

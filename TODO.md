@@ -2194,8 +2194,19 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016c0R
 
-### T3016cR [TODO] Review：确认 outer-body `Continuation.resume(...)` 的生产 lowering 不再回落到 generic call 或 nested-frame seeding 缺口
+### T3016cR [DONE] Review：确认 outer-body `Continuation.resume(...)` 的生产 lowering 不再回落到 generic call 或 nested-frame seeding 缺口
 - 描述：在 `T3016c` 之后只审查生产代码，确认 outer-body / nested-handle resume 已统一接回 dedicated lowering 与 runtime dispatch 合同，而不是靠 fixture 特判；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/effect/mod.rs`，确认 `Continuation.resume(...)` 的 codegen 入口仍只由 `continuation_resume_call_sites` 驱动；`codegen_call()` 仅在 side table 命中时调用 `codegen_continuation_resume_builtin()`，没有按成员名、receiver 类型或源码形状推断 builtin。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs`，确认 outer-body / nested-handle resume 仍完全收口在统一 state-machine 合同内：`classify_builtin_suspend_call()` 只按同一 side table 建模 builtin resume；自洽 nested handle 通过 `may_suspend_outward()` 留在自身状态机内，不再在 outer machine 物化 `NestedHandleBoundary`；escaped continuation replay 也只对 call-like / boundary site 分配 `escape_resume_target`，direct `perform` / `runtime-raise` continuation 不会被错误重定向回旧 owner-state replay。
+  - 已验证：
+    - `cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`
+    - `cargo test -p scoopc source_plan_does_not_assign_escape_replay_target_for_later_perform_site -- --nocapture`
+    - `cargo test -p scoopc self_contained_nested_handle_does_not_materialize_outer_boundary_resume_path -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_outer_resume_inner_multi.scoop`
+    - `cargo test -p scoop_runtime continuation_resume_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 确认 `Continuation.resume(...)` 的 codegen 调用点仍只依赖 typecheck side table，不按成员名/源码形状分流。
   - 确认 outer body / nested handle resume 与现有 escaped continuation runtime 合同一致，且 nested inner-frame seeding 已闭环。
@@ -2203,6 +2214,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“outer-body `Continuation.resume(...)` 已统一接回，无 generic call fallback、nested-frame seeding 缺口或 silent exit 残留”。
+- 审查结论：
+  - outer-body `Continuation.resume(...)` 已统一接回 dedicated lowering：生产代码只认 typecheck side table，不存在 generic member-call fallback。
+  - 自洽 nested handle 不再被外层 state machine 错误抽成 `NestedHandleBoundary`，因此 outer `when` arm / nested handle / `Continuation.resume(...)` 路径中的 binder scope 与 inner-frame seeding 已闭环。
+  - `generic call callee`、`effect frame seed outer-scope local` 与 silent exit 在当前 outer-body / nested-handle resume 路径上均已消失。
 - 依赖：T3016c
 
 ### T3016d [TODO] 修正 GC stress 下 escaped continuation 与深对象图捕获的存活 / 恢复缺口
