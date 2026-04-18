@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3009bR` 已完成。复审 `crates/scoopc/src/resolve/scopes.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c` 后确认，`Continuation.resume(...)` 的 builtin 语义仍只由 `continuation_resume_call_sites` side table 驱动：typecheck 记录 call span，HIR lowering 原样带入，`codegen_call()` 与 state-machine segmentation 都只按 call span 命中专用 lowering / hidden-suspend 分类，没有按成员名 `"resume"`、FQN `"scoop.core.Continuation.resume"` 或 receiver 形状做 generic member-access / generic call fallback。`codegen_continuation_resume_builtin()` 继续直接把 payload 写入 continuation 的 `resume_word` / `resume_gc_ref` 槽位，并调用 `scoop_continuation_resume()`；runtime 侧 `scoop_continuation_resume_common()` 继续统一负责 captured handler context 与 callee suspend state 的恢复，因此 scalar/ref/composite payload 仍和 `T3013` 共享同一套 transport 合同，没有 continuation-only placeholder glue。已验证一条 `scoopc` call-site marker 定向测试、`cargo test -p scoop_runtime continuation_resume_ -- --nocapture`、7 条 `Continuation.resume(...)` / indirect escaped-continuation run-pass fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点仍是 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`，属于 `T3017` 的 expectation cleanup，而不是 `T3009bR` 的生产 blocker。当前 effect 主线下一项推进到 `T3015`。
+>
 > 2026-04-18 当前轮完成更新：`T3009b` 已完成。复查 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 与现有 composite transport 实现后确认，escaped continuation 的 `Continuation.resume(...)` 已与 `T3013` 共享同一套 `Word / GcRef / BoxedComposite` transport 合同：`codegen_continuation_resume_builtin()` 继续直接消费显式 continuation 值，payload authoritative type 优先来自 receiver `Continuation<T>`；tuple / struct / rich enum 统一经 boxed composite + `resume_gc_ref` 传输，`String` / class / continuation 等 GC ref 继续走 `resume_gc_ref`，word-sized payload 继续走 `resume_word`，没有 continuation-only 特例通道或 generic member-access 回退。已验证 `continuation_resume_tuple.scoop`、`continuation_resume_struct.scoop`、`continuation_resume_struct_with_ref.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。串行复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 fixture 单独运行已成功，属于 `T3017` 的 expectation cleanup，而不是 `T3009b` 的生产 blocker。当前 effect 主线下一项推进到 `T3009bR`。
 >
 > 2026-04-18 当前轮复审更新：`T3009b2R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `runtime/c/scoop_runtime.c` 后确认，indirect callee 的 resumed-body caller-tail 已形成统一 continuation + callee-suspend-state 合同：ordinary callee 侧通过 `resume_sites + site_tag + codegen_callee_resume_dispatch()` 回到正确 `resume_tail`，outer handle 侧通过共享 `emit_resume_after_call_site()` 在存在 captured callee state 时重放原 call expr，让 callee 自己完成 post-suspend body，而不是把 payload 直接短路回 caller；continuation/runtime 侧则通过 `captured_callee_suspend_state` 与 `scoop_continuation_resume_common()` 的 TLS 恢复保证该合同跨 `handle` 返回和跨线程 resume 仍成立。定向检索 production code 未发现 `fetchGreeting`、`callIt`、`counter`、`viaBranch`、`viaIf` 等 fixture/helper 名称回流到 effect codegen，也未发现按 callee/source shape、branch 数量分流的新旁路。已验证两条 `scoopc` IR/dispatch 定向测试、一条 `scoop_runtime` continuation 定向测试、9 条 indirect-callee run-pass fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3009b`。
@@ -591,28 +593,27 @@
 
 ## 4. 当前执行顺序
 
-1. `T3009bR`
-2. `T3015`
-3. `T3015R`
-4. `T3016`
-5. `T3016R`
-6. `T3017`
-7. `T3017R`
-8. `T3103`
-9. `T3104`
-10. `T3201`
-12. `T3202`
-13. `T3203`
-14. `T3204`
-15. `T3205`
-16. `T3301`
-17. `T3302`
-18. `T3303`
-19. `T3401`
-20. `T3401a`
-21. `T3401b`
-22. `T3401c`
-23. `T3402`
-24. `T3403`
-25. `T3404`
-26. `T3405`
+1. `T3015`
+2. `T3015R`
+3. `T3016`
+4. `T3016R`
+5. `T3017`
+6. `T3017R`
+7. `T3103`
+8. `T3104`
+9. `T3201`
+10. `T3202`
+11. `T3203`
+12. `T3204`
+13. `T3205`
+14. `T3301`
+15. `T3302`
+16. `T3303`
+17. `T3401`
+18. `T3401a`
+19. `T3401b`
+20. `T3401c`
+21. `T3402`
+22. `T3403`
+23. `T3404`
+24. `T3405`

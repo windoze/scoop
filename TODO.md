@@ -1864,8 +1864,14 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3009b2R
 
-### T3009bR [TODO] Review：确认 escaped continuation resume 调用不再回落到 generic member access
+### T3009bR [DONE] Review：确认 escaped continuation resume 调用不再回落到 generic member access
 - 描述：在 `T3009b` 之后只审查生产代码，确认 `Continuation.resume(...)` 的 dedicated lowering 已统一覆盖 scalar/ref + composite payload，不再隐藏在 generic member access / generic call 中；若发现回落，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/resolve/scopes.rs`、`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs` 与 `runtime/c/scoop_runtime.c`。
+  - 已确认 builtin 语义只由 `continuation_resume_call_sites` side table 驱动：typecheck 记录 call-site，HIR lowering 原样带入，`codegen_call()` 与 state-machine plan 都只按 call span 命中专用 lowering / hidden-suspend 分类；production code 中不存在按成员名 `"resume"`、FQN `"scoop.core.Continuation.resume"` 或 receiver 形状做 generic member-access fallback 的 codegen 旁路。
+  - 已确认 escaped continuation 的 payload transport 继续统一走共享合同：`codegen_continuation_resume_builtin()` 直接写 continuation 的 `resume_word` / `resume_gc_ref` 槽位，再调用 `scoop_continuation_resume()`；runtime 侧 `scoop_continuation_resume_common()` 负责恢复 captured handler context 与 callee suspend state。保留的 `scoop_continuation_resume_u64()` 仅是兼容旧 ABI 的 runtime helper，并未被 `Continuation.resume(...)` 生产 lowering 作为 placeholder glue 使用。
+  - 已验证 `cargo test -p scoopc continuation_resume_hidden_suspend_classification_requires_typechecked_call_site_marker -- --nocapture`、`cargo test -p scoop_runtime continuation_resume_ -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/continuation_resume_tuple.scoop`、`continuation_resume_struct.scoop`、`continuation_resume_struct_with_ref.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop`、`effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 expectation cleanup 已由 `T3017` 跟踪，不属于本任务新增 blocker。
 - 目标：
   - 确认 `Continuation.resume(...)` 有显式 lowering 分派，并与 `T3009b0` + `T3013` 的 payload 合同一致。
   - 确认 LLVM emitter / runtime ABI / helper 中不再保留 escaped continuation 的 placeholder-only glue。
@@ -1873,6 +1879,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“escaped continuation resume 调用已由专用 lowering 完整接管，无 generic member-access fallback 残留”。
+- 审查结论：
+  - escaped continuation resume 调用已由专用 lowering 完整接管，无 generic member-access fallback 残留。
+  - `Continuation.resume(...)` 的 scalar/ref/composite payload 都继续复用 `T3013` 的共享 `resume_word` / `resume_gc_ref` / boxed composite transport 合同，没有 continuation-only 通道或 effect-only 占位 glue。
+  - 当前全量 LLVM fixture suite 的首个停止点仍然是 `T3017` 已跟踪的 stale expectation，而不是 `Continuation.resume(...)` 或 generic member-access 生产回退。
 - 依赖：T3009b
 
 ### T3015 [TODO] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
