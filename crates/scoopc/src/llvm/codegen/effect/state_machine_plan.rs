@@ -3597,12 +3597,23 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             if state.actions.len() <= 1 {
                 continue;
             }
+            let Some(site) = self
+                .suspend_sites
+                .iter()
+                .find(|site| site.id == site_id)
+            else {
+                continue;
+            };
+            let replay_actions = self.escape_replay_actions_for_site(state, site);
+            if replay_actions.is_empty() {
+                continue;
+            }
 
             let replay_state_id = self.next_state_id + replay_states.len() as u32;
             let replay_state = PlanState {
                 id: replay_state_id,
                 label: format!("{}.escape-replay.site{site_id}", state.label),
-                actions: state.actions[1..].to_vec(),
+                actions: replay_actions,
                 terminator: state.terminator.clone(),
                 reads: state.reads.clone(),
             };
@@ -3625,6 +3636,31 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 .find(|site| site.id == site_id)
                 .expect("escape replay target site should exist");
             site.escape_resume_target = Some(replay_state_id);
+        }
+    }
+
+    fn escape_replay_actions_for_site(
+        &self,
+        state: &PlanState,
+        site: &SuspendSitePlan,
+    ) -> Vec<HandleStateOp> {
+        let Some(source_path) = site.source_path.as_ref() else {
+            return state.actions[1..].to_vec();
+        };
+        let Some(stmt) = self.handle.body.stmts.get(source_path.top_level_stmt_idx) else {
+            return state.actions[1..].to_vec();
+        };
+
+        let replay_actions = state.actions[1..]
+            .iter()
+            .filter(|op| state_op_within_stmt_span(op, stmt.span))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        if replay_actions.is_empty() {
+            state.actions[1..].to_vec()
+        } else {
+            replay_actions
         }
     }
 
@@ -4776,6 +4812,48 @@ fn state_op_contains_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
         | HandleStateOp::LoopReentry { .. }
         | HandleStateOp::ImplicitElseUnit { .. }
         | HandleStateOp::ExecuteArmBody { .. } => false,
+    }
+}
+
+fn state_op_within_stmt_span(op: &HandleStateOp, stmt_span: Span) -> bool {
+    let span_within_stmt = |span: Span| span.start >= stmt_span.start && span.end <= stmt_span.end;
+
+    match op {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl } => {
+            span_within_stmt(decl.span)
+        }
+        HandleStateOp::Assign { stmt }
+        | HandleStateOp::Return { stmt }
+        | HandleStateOp::TodoStmt { stmt, .. }
+        | HandleStateOp::StmtEmpty { stmt }
+        | HandleStateOp::WhileCondHeader { stmt }
+        | HandleStateOp::Break { stmt }
+        | HandleStateOp::Continue { stmt } => span_within_stmt(stmt.span),
+        HandleStateOp::ExprMissing { expr }
+        | HandleStateOp::Literal { expr }
+        | HandleStateOp::ReadLocal { expr, .. }
+        | HandleStateOp::ObjectInitAccessBoundary { expr, .. }
+        | HandleStateOp::VarRef { expr }
+        | HandleStateOp::StructLit { expr }
+        | HandleStateOp::TupleLit { expr }
+        | HandleStateOp::InterpolatedString { expr }
+        | HandleStateOp::Expr { expr }
+        | HandleStateOp::RuntimeRaiseBoundary { expr, .. }
+        | HandleStateOp::BinaryExpr { expr }
+        | HandleStateOp::WhenExpr { expr }
+        | HandleStateOp::SuspendCall { expr, .. }
+        | HandleStateOp::Call { expr }
+        | HandleStateOp::Perform { expr, .. }
+        | HandleStateOp::NestedHandleBoundary { expr, .. }
+        | HandleStateOp::NestedHandle { expr, .. }
+        | HandleStateOp::Closure { expr }
+        | HandleStateOp::TodoExpr { expr, .. } => span_within_stmt(expr.span),
+        HandleStateOp::ResumeAfterSite { source_span, .. } => span_within_stmt(*source_span),
+        HandleStateOp::ImplicitElseUnit { span } => span_within_stmt(*span),
+        HandleStateOp::ExecuteArmBody { arm, .. } => span_within_stmt(arm.span),
+        HandleStateOp::CleanupEdgeComplete
+        | HandleStateOp::ReturnToEnclosingExpression
+        | HandleStateOp::LoopReentry { .. } => false,
     }
 }
 

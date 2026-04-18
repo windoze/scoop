@@ -2322,8 +2322,14 @@
   - 当前 effect 主线的下一项真实工作仍是 `T3017`：回收剩余 stale `EXPECT: fail`，全量 fixture suite 的首个停止点与该任务记录一致。
 - 依赖：T3016e
 
-### T3016f [TODO] 修正 multi-escape resumed-body 在 top-level 多 site direct/indirect 序列中的 prefix replay 回归
+### T3016f [DONE] 修正 multi-escape resumed-body 在 top-level 多 site direct/indirect 序列中的 prefix replay 回归
 - 描述：重新执行 `T3017` 的逐条 expectation cleanup 时，把 75 条仍带 `EXPECT: fail` 的 run-pass fixture 单独切回 `EXPECT: pass` 后发现，`effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`、`effect_multi_escape_custom_nonresuming_indirect_multi.scoop`、`effect_multi_escape_indirect_multi.scoop` 与 `effect_resume_mixed_multi_escape_direct_indirect.scoop` 仍存在一个未跟踪的共享生产回归：后续 `resume(...)` 返回后，stdout 会错误重放已经完成过的 tail prefix（例如再次打印 `after_a1` / `after_first`），然后才继续 `fetch_resume` / `countIndirect_resume`。这说明当前 unified replay contract 只覆盖了 `T3016b` 已锁定的 block/if/while mixed container，却还没有把 top-level multi-site direct/indirect 序列、以及 immediate+escape mixed leaf 的“当前 resumed segment 起点”正确带入下一次 replay。
+- 进展：
+  - 已确认根因位于 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `attach_escape_resume_targets()`：此前 synthetic replay state 直接复制“上一个 `ResumeAfterSite` 之后的整段 owner-state 后缀”，会把 later top-level statement 之前已经完成的 `println(...)` / bind 前缀一并带入 replay。
+  - 现已改为按当前 suspend site 的 `source_path.top_level_stmt_idx` 裁剪 replay actions，只保留当前 top-level statement 内、且仍需在下一次 escape replay 前执行的动作；这样 top-level 多 site 序列不再重放更早已完成的 statement，而 `T3016b` 已修复的同 statement nested block prefix replay 仍保持不变。
+  - 已新增两条结构测试：`source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site` 与 `source_plan_trims_escape_replay_to_current_top_level_statement`，分别锁定“同 statement 保留 prefix”与“跨 top-level statement 裁掉旧 prefix”。
+  - 已验证 4 条目标 fixture、1 条 `T3016b` block regression、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 本任务只修复生产 replay 合同；对应 fixture 的 stale `EXPECT: fail` 回收仍由后续 `T3017` 统一处理。
 - 目标：
   - top-level 多 site direct/indirect/mixed 序列在每次 `resume(...)` 后只从当前 site 的剩余 tail 继续，不再重放更早已完成的 prefix。
   - escape-only、带 sibling custom non-resuming arm，以及 immediate+escape mixed leaf 三类路径共享同一套 resumed-body replay 合同。

@@ -3847,7 +3847,101 @@ fun demo(): Int {
     }
 
     #[test]
-    fn source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site() {
+    fn source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): String
+}
+
+fun fetch(seed: Int): String / (Ask) {
+    val msg: String = Ask.ask(seed + 1)
+    println(msg)
+    msg
+}
+
+fun demo(): Int {
+    handle {
+        do {
+            val first: String = Ask.ask(10)
+            println(first)
+            val second: String = fetch(20)
+            println(second)
+        }
+        0
+    } with {
+        Ask.ask(seed), k -> {
+            println(seed)
+            7
+        }
+    }
+}
+"#,
+        );
+
+        let call_site = source_plan
+            .suspend_sites
+            .iter()
+            .find(|site| {
+                matches!(
+                    site.kind,
+                    SuspendSiteKind::CallMaySuspend { .. }
+                        | SuspendSiteKind::CallStateMachineCallee { .. }
+                ) && site.escape_resume_target.is_some()
+            })
+            .expect("expected indirect call site to gain an escape replay target");
+
+        let owner_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.id == call_site.owner_state)
+            .expect("call-site owner state should exist");
+        assert!(
+            matches!(
+                owner_state.actions.first(),
+                Some(HandleStateOp::ResumeAfterSite { .. })
+            ),
+            "owner state should still begin with the preceding ResumeAfterSite marker"
+        );
+
+        let replay_state = source_plan
+            .states
+            .iter()
+            .find(|state| Some(state.id) == call_site.escape_resume_target)
+            .expect("escape replay state should exist");
+        assert_ne!(
+            replay_state.id, owner_state.id,
+            "escape replay target must be a distinct synthetic state"
+        );
+        assert!(
+            !matches!(
+                replay_state.actions.first(),
+                Some(HandleStateOp::ResumeAfterSite { .. })
+            ),
+            "escape replay state must skip the stale ResumeAfterSite marker so the new resume payload survives until the later call boundary"
+        );
+        assert!(
+            matches!(
+                replay_state.actions.first(),
+                Some(HandleStateOp::BindLocal { .. })
+            ),
+            "same-statement escape replay should keep the already-executed nested-block prefix before the indirect site"
+        );
+        assert!(
+            matches!(
+                replay_state.terminator,
+                StateTerminator::Suspend { site_id } if site_id == call_site.id
+            ),
+            "escape replay state must still suspend at the same indirect call site"
+        );
+    }
+
+    #[test]
+    fn source_plan_trims_escape_replay_to_current_top_level_statement() {
         let source_plan = build_source_plan(
             r#"
 package a
@@ -3911,23 +4005,17 @@ fun demo(): Int {
             .iter()
             .find(|state| Some(state.id) == call_site.escape_resume_target)
             .expect("escape replay state should exist");
-        assert_ne!(
-            replay_state.id, owner_state.id,
-            "escape replay target must be a distinct synthetic state"
-        );
-        assert!(
-            !matches!(
-                replay_state.actions.first(),
-                Some(HandleStateOp::ResumeAfterSite { .. })
-            ),
-            "escape replay state must skip the stale ResumeAfterSite marker so the new resume payload survives until the later call boundary"
+        assert_eq!(
+            replay_state.actions.len(),
+            1,
+            "top-level replay should start at the current statement boundary instead of replaying earlier completed statements"
         );
         assert!(
             matches!(
                 replay_state.actions.first(),
-                Some(HandleStateOp::BindLocal { .. })
+                Some(HandleStateOp::SuspendCall { site_id, .. }) if *site_id == call_site.id
             ),
-            "escape replay state should begin by restoring locals from the already-materialized resume slots"
+            "top-level replay should only keep the current indirect call boundary before re-suspending"
         );
         assert!(
             matches!(
