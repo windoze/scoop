@@ -1145,6 +1145,20 @@ uint32_t scoop_continuation_try_resume(void *continuation) {
   return 0;
 }
 
+// Runtime-originated `Raise<RuntimeError>` 必须与编译器侧
+// `encode_effect_transport_value()` 保持同一套 perform-slot 合同：
+// unit enum variant 作为单 word tag 传输，`gc_ref` 置空。
+static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
+  const uint32_t OP_TAG_RAISE = 1u;
+  const uint32_t EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR = UINT32_MAX;
+  scoop_effect_perform_slot_write_u64_with_gc_ref(
+      OP_TAG_RAISE,
+      EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR,
+      variant_tag,
+      0);
+  scoop_effect_set_active();
+}
+
 // 执行 continuation 的一步推进（由编译器生成的 step_fn 实现状态机推进）。
 //
 // 语义（spec §5.5）：
@@ -1203,16 +1217,9 @@ static uint32_t scoop_continuation_resume_try(void *continuation) {
   }
 
   if (!scoop_continuation_try_resume(continuation)) {
-    const uint32_t OP_TAG_RAISE = 1u;
-    const uint32_t EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR = UINT32_MAX;
-    const uint64_t PAYLOAD_KIND_RUNTIME_ERROR = 2u;
     const uint64_t RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED = 2u;
-    scoop_effect_perform_slot_write_u64_2(
-        OP_TAG_RAISE,
-        EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR,
-        PAYLOAD_KIND_RUNTIME_ERROR,
+    scoop_effect_raise_runtime_error_variant(
         RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED);
-    scoop_effect_set_active();
     return 0;
   }
   return 1;

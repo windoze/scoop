@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016lR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `runtime/c/scoop_runtime.c` 后确认，`T3016l` 的修复没有停留在 cast-only workaround：编译器合成的 runtime-error raise 与普通 `Raise.raise(RuntimeError.X)` 继续共享 `encode_effect_transport_value()` 的统一 transport 合同。复审中还发现 runtime 侧 `scoop_continuation_resume_try()` 仍在用旧的 `scoop_effect_perform_slot_write_u64_2(...)` 双 word payload 发布 `RuntimeError.ContinuationAlreadyResumed`；该真实生产问题已在本任务内直接修复为共享的 single-word enum-tag + null `gc_ref` transport，并新增 runtime 回归 `continuation_double_resume_uses_shared_runtime_error_transport_contract` 锁定 `payload_len_words == 1`。已复验该 runtime 定向测试、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
+>
 > 2026-04-18 当前轮完成更新：`T3016l` 已完成。已将 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `emit_raise_runtime_error_variant()` 从“固定写零 payload”改为“先合成具体 `scoop.core.RuntimeError.<Variant>` unit enum 值，再复用共享 `encode_effect_transport_value()` + `scoop_effect_perform_slot_write_u64_with_gc_ref(...)` 写入 TLS perform slot”的统一生产路径，因此 synthesized `x as T` 失败与普通 `Raise.raise(RuntimeError.X)` 重新共用同一套 runtime-error variant transport 合同。同步新增 emitter IR 回归 `runtime_raise_boundary_ir_preserves_runtime_error_variant_payload`，锁定 `ClassCastFailed` 不再被塌缩成零 payload；并已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`（输出恢复为 `caught: cast` / `2`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016lR`。
 >
 > 2026-04-18 当前轮阻塞重排更新：重新执行 `T3017` 的全量 runner 验收后，`cargo run -p scoop --features llvm -- test` 已越过此前的 stale xfail 与最近一轮 effect blocker，但新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`；进一步排查确认 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，注释中也明确写着 “variant name is not yet part of the runtime payload protocol”。说明 synthesized `Raise.raise(RuntimeError.*)` 的共享生产合同仍会把具体 runtime-error 变体塌缩成 `RuntimeError.NullAssertionFailed`，这是真实生产回归而不是 golden 漂移。按阻塞规则，现已在 `T3017` 前新增 `T3016l` → `T3016lR`，先恢复 RuntimeError variant payload 合同，再继续 effect run-pass baseline cleanup。当前 effect 主线下一项改为 `T3016l`。
@@ -687,13 +689,13 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016l`
-2. `T3016lR`
-3. `T3017`
-4. `T3017R`
-5. `T3103`
-6. `T3104`
-7. `T3201`
+1. `T3017`
+2. `T3017R`
+3. `T3103`
+4. `T3104`
+5. `T3201`
+6. `T3202`
+7. `T3203`
 8. `T3202`
 9. `T3203`
 10. `T3204`

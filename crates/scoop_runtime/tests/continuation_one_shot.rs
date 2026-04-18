@@ -54,6 +54,14 @@ unsafe extern "C" {
     fn scoop_thread_register();
     fn scoop_thread_unregister();
 
+    fn scoop_effect_is_active() -> u32;
+    fn scoop_effect_clear();
+    fn scoop_effect_perform_slot_read_op_tag() -> u32;
+    fn scoop_effect_perform_slot_read_effect_instance_key() -> u32;
+    fn scoop_effect_perform_slot_read_len_words() -> u32;
+    fn scoop_effect_perform_slot_read_gc_ref() -> *mut c_void;
+    fn scoop_effect_perform_slot_read_u64() -> u64;
+
     fn scoop_callee_suspend_state_get() -> *mut c_void;
     fn scoop_test_callee_suspend_state_set(state: *mut c_void);
 
@@ -168,6 +176,59 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
         assert_eq!(scoop_continuation_try_resume(k), 0);
 
         scoop_effect_handler_stack_pop(&mut frame);
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_double_resume_uses_shared_runtime_error_transport_contract() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+        scoop_effect_clear();
+
+        let k = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
+
+        scoop_continuation_resume(k);
+        scoop_effect_clear();
+
+        scoop_continuation_resume(k);
+
+        assert_eq!(
+            scoop_effect_is_active(),
+            1,
+            "double resume should publish Raise<RuntimeError> through the active TLS flag"
+        );
+        assert_eq!(
+            scoop_effect_perform_slot_read_op_tag(),
+            1,
+            "double resume should raise through the canonical Raise.raise op_tag"
+        );
+        assert_eq!(
+            scoop_effect_perform_slot_read_effect_instance_key(),
+            u32::MAX,
+            "double resume should use the dedicated Raise<RuntimeError> effect instance key"
+        );
+        assert_eq!(
+            scoop_effect_perform_slot_read_len_words(),
+            1,
+            "RuntimeError unit variants must travel through the shared single-word transport"
+        );
+        assert!(
+            scoop_effect_perform_slot_read_gc_ref().is_null(),
+            "ContinuationAlreadyResumed is a unit RuntimeError variant and must not publish a gc_ref payload"
+        );
+        assert_eq!(
+            scoop_effect_perform_slot_read_u64(),
+            2,
+            "double resume should transport the concrete ContinuationAlreadyResumed variant tag"
+        );
+
+        scoop_effect_clear();
         scoop_thread_unregister();
     }
 }

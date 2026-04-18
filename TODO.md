@@ -2568,8 +2568,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016kR
 
-### T3016lR [TODO] Review：确认 RuntimeError variant payload 恢复已回到统一 raise/transport 合同
+### T3016lR [DONE] Review：确认 RuntimeError variant payload 恢复已回到统一 raise/transport 合同
 - 描述：在 `T3016l` 之后只审查生产代码，确认具体 `RuntimeError` 变体的传输仍由统一 runtime payload / catch-matching 合同驱动，没有为 `x as T`、`try/catch`、某个 fixture 或特定 variant 恢复 fixture-only hardcode、tag 特判或字符串分流；若发现此类残留，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `runtime/c/scoop_runtime.c` 的 runtime-error raise / transport / catch-dispatch 生产路径，确认 `emit_raise_runtime_error_variant()` 与普通 `Raise.raise(RuntimeError.X)` 已共享同一套 `encode_effect_transport_value()` 合同。
+  - 复审中发现 runtime 侧 `scoop_continuation_resume_try()` 仍用 `scoop_effect_perform_slot_write_u64_2(...)` 发布 `RuntimeError.ContinuationAlreadyResumed`，只是因为 `payload_words[0] == 2` 恰好等于当前 enum unit variant tag 才未在现有 catch fixture 中显性炸出。该生产问题已在本任务内修复为统一的单 word + `gc_ref = null` transport，并通过新的 runtime 回归测试锁定 `payload_len_words == 1`。
+  - 已新增 runtime 测试 `continuation_double_resume_uses_shared_runtime_error_transport_contract`，并复验 `cargo test -p scoop_runtime continuation_double_resume_uses_shared_runtime_error_transport_contract -- --exact`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 synthesized runtime-error raise 与普通 `Raise.raise(RuntimeError.X)` 在统一 effect transport 中保留一致的具体 variant 语义。
   - 确认生产代码不再把 `RuntimeError` payload 塌缩成零值，也不依赖 cast-only / fixture-only 分支修复 `ClassCastFailed`。
@@ -2577,6 +2581,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“RuntimeError variant payload 已统一收口到共享 raise/transport 合同，无 cast-only workaround 残留”。
+- 审查结论：
+  - RuntimeError variant payload 已统一收口到共享 raise/transport 合同，无 cast-only workaround 残留。
+  - 编译器合成的 `emit_raise_runtime_error_variant()`、普通 `Raise.raise(RuntimeError.X)`，以及 runtime 侧 double-resume 触发的 `RuntimeError.ContinuationAlreadyResumed` 现在都通过同一套 single-word enum tag + `gc_ref = null` transport 进入 TLS perform slot。
+  - 生产代码中已不存在依赖旧的双 word runtime-error 私有编码、`payload kind` 哨兵值或某个特定 fixture / cast 路径特判才能保持 catch 语义的旁路。
 - 依赖：T3016l
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
