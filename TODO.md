@@ -1843,8 +1843,12 @@
   - helper / closure / function-value callee、tail-return / non-tail caller-tail，以及 multi-site / statement-container 变体都继续共享同一套 continuation + callee-suspend-state + replayed call expression 合同。
 - 依赖：T3009b2cR
 
-### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 剩余 composite resume payload 收口到统一合同
+### T3009b [DONE] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 剩余 composite resume payload 收口到统一合同
 - 描述：`T3009b1` 已先修复 direct enum/local-VarRef payload 的 precise type 解析，`T3009b2` 将继续补齐 indirect callee suspend 后 resumed-body caller-tail。剩余部分是在这些前置闭环后，回到原始 composite transport 目标：让 escaped continuation 的 `k.resume(value)` 在 direct/indirect 路径上都能稳定覆盖 tuple/struct/boxed enum/continuation ref 等 richer payload，并与 `T3013` 的共享 effect transport 完全对齐，而不是回退到 generic path 或另起 continuation-only 通道。
+- 进展：
+  - `Continuation.resume(...)` 的 composite payload 已收口到共享 effect transport 合同：`codegen_continuation_resume_builtin()` 继续直接消费显式 continuation 值，payload authoritative type 优先来自 receiver 的 `Continuation<T>`；word-sized payload 继续走 `resume_word`，`String` / class / continuation 等 GC ref 继续走 `resume_gc_ref`，tuple / struct / rich enum 统一经 boxed composite + `resume_gc_ref` 传输。
+  - 已验证 `continuation_resume_tuple.scoop`、`continuation_resume_struct.scoop`、`continuation_resume_struct_with_ref.scoop`、`continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_indirect_perform_resume_string.scoop` 与 `effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop` 全部通过。
+  - 已验证 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`。该 fixture 单独运行已成功，expectation cleanup 由 `T3017` 跟踪，不属于本任务新增 blocker。
 - 目标：
   - 在 `T3009b0` 的 dedicated lowering 之上完成 escaped continuation composite payload 的剩余收口，不再局限于 word/ref，也不再受 indirect resumed-body 缺口影响。
   - `k.resume(...)` 继续直接消费显式 continuation 值，并统一走 runtime continuation ABI。
@@ -1925,6 +1929,7 @@
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
   - `T3008a` 已先行回收 24 个只因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；剩余 `T3006` xfail 现在对应的是更深层的真实语义缺口，而不再是 frame/continuation ABI 失配。
+  - 当前 `cargo run -p scoop --features llvm -- test` 的首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 fixture 单独运行已成功，等待本任务统一回收 expectation 并继续推进全量基线。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
