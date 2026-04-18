@@ -971,32 +971,36 @@ fn infer_funptr_type_call_expr_type(
         });
     };
 
-    if fun.receiver.is_some() {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "函数指针调用（暂不支持 receiver function type）",
-            span: call_expr.span.into(),
-        });
-    }
-
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let expected_arity = fun.params.len() + usize::from(fun.receiver.is_some());
 
-    if call_args.len() != fun.params.len() {
+    if call_args.len() != expected_arity {
         return Err(ExprTypeError::CallArityMismatch {
             callee: callee_name.to_string(),
-            expected: fun.params.len(),
+            expected: expected_arity,
             found: call_args.len(),
             span: call_expr.span.into(),
         });
     }
 
+    let expected_arg_ty = |idx: usize| match fun.receiver {
+        Some(receiver_ty) if idx == 0 => (receiver_ty, true, 0usize),
+        Some(_) => (fun.params[idx - 1], false, idx),
+        None => (fun.params[idx], false, idx + 1),
+    };
+
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
     for (idx, arg) in call_args.iter().enumerate() {
-        let expected_ty = fun.params[idx];
+        let (expected_ty, is_receiver, display_idx) = expected_arg_ty(idx);
         let found_ty = inputs.infer_in_expected(
             lower,
             arg.expr,
             expected_ty,
-            ExpectedTypeFrom::new(format!("函数指针 `{callee_name}` 的第 {} 个参数", idx + 1)),
+            ExpectedTypeFrom::new(if is_receiver {
+                format!("函数指针 `{callee_name}` 的 receiver")
+            } else {
+                format!("函数指针 `{callee_name}` 的第 {} 个参数", display_idx)
+            }),
         )?;
         checked_arg_tys.push(found_ty);
     }
@@ -1006,7 +1010,7 @@ fn infer_funptr_type_call_expr_type(
         .zip(checked_arg_tys.iter().copied())
         .enumerate()
     {
-        let expected_ty = fun.params[idx];
+        let (expected_ty, is_receiver, _display_idx) = expected_arg_ty(idx);
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
             check_fn_value_to_any_erasure_gate(
                 found_ty,
@@ -1020,6 +1024,14 @@ fn infer_funptr_type_call_expr_type(
         }
         if literal_absorbs_to_expected(arg.expr, expected_ty, inputs.source, lower, builtins) {
             continue;
+        }
+        if is_receiver {
+            return Err(ExprTypeError::CallReceiverTypeMismatch {
+                callee: callee_name.to_string(),
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg.expr.span.into(),
+            });
         }
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: callee_name.to_string(),

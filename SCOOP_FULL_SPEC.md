@@ -2739,6 +2739,7 @@ Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) 
 Function pointers:
 
 - `FunPtr<F>` represents an opaque native function pointer for the function type `F` (e.g. `F = (Int, Int) -> Int`).
+- If `F` is a receiver function type `T.(A1, ..., An) -> R`, the receiver is passed as the first explicit argument when invoking the pointer (for example, `fp(receiver, a1, ..., an)` or `fp.invoke(receiver, a1, ..., an)`).
 - Calling a function pointer is unsafe and must require an unsafe context.
 - `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
 

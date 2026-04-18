@@ -10,6 +10,10 @@
 > 2026-04-19 当前轮完成更新：`T4002` 已完成。lambda 推断现统一按函数签名驱动：expected-type 向下传播不再写死 0/1/2 参数；无 expected type 的 lambda 在“显式参数类型”与零参数场景下也能直接定型；receiver lambda 的隐式 `this` 已在 resolver / typecheck / HIR / LLVM closure codegen 主线上贯通，并按 receiver 实际类型完成 member access / method call late resolve。补充回归覆盖了多参数 expected-type 推断、无 expected type 的显式参数 lambda、scope functions 的 receiver lambda，以及 receiver lambda 遮蔽外层 `this` 的执行路径。已验证 `target/debug/scoop test --fixtures target/t4002-fixtures/infer`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures target/t4002-fixtures/run-pass`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4002R`。
 >
 > 2026-04-19 当前轮完成更新：`T4002R` 已完成。复审确认 lambda expected-type 推断仍统一走“按函数签名收集候选，再仅对 lambda 实参进入 expected-context typecheck”的主线，没有回流到按 direct/member/function-value 某一调用形状分别补推断；同时发现并修复了一个既有 lowering 裂缝：嵌套 receiver lambda 的 `this.member(...)` 在 typecheck 阶段会按 receiver 实际类型晚解析，但 HIR lowering 仍可能沿用 resolver 的旧成员决议与旧 `this` 绑定，导致 `receiver_lambda_this_shadows_outer_this` 错误输出 `99`。当前已通过 `typechecked_member_resolved` side table 与 receiver-lambda lowering `this` 上下文统一成员最终决议，并让内建字符串/标量成员方法继续保留为后端 intrinsic member-call 路径，修复后该回归输出已改为 `3`。已验证 `target/debug/scoop test --fixtures target/t4002r-fixtures/infer`（`fixtures: ok (1)`）、`target/debug/scoop test --fixtures target/t4002r-fixtures/run-pass`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003`。
+>
+> 2026-04-19 当前轮计划调整：原 `T4003` 同时覆盖 `FunPtr<F>` receiver signature、顶层泛型函数值 / `callee<T>` 一等值、以及 ctor delegation 的命名 / 默认参数绑定，横跨 typecheck 公共调用绑定、HIR/lowering 表示与 class ctor side table 三套基础设施，单轮完整收口风险过高。现已将其拆分为 `T4003a -> T4003b -> T4003c`：先打通 `FunPtr` receiver function type 调用主线，再处理顶层泛型函数值与 `callee<T>`，最后收口函数值 / funptr / ctor delegation 的命名实参和默认参数绑定。当前本轮执行目标切换为 `T4003a`。
+>
+> 2026-04-19 当前轮完成更新：`T4003a` 已完成。`FunPtr<F>` 不再把 receiver function type 当作 early error；typecheck 中的 funptr direct call 已改为与函数值调用一致，按“receiver 作为第 0 个显式实参”检查；LLVM indirect funptr call 也同步支持 receiver 参数位。与此同时，sysroot `scoop.unsafe.FunPtr` 现在补齐了 receiver 形态的 `invoke` overload，并在 intrinsic codegen 入口把 named args 按 `receiver` / `a0` / `a1` 约定重排为位置实参，因此 `fp(receiver, arg)`、`fp.invoke(receiver, arg)` 与 `fp.invoke(receiver = ..., a0 = ...)` 现已统一可执行。已新增 `unsafe_funptr_receiver_call_basic` run-pass 回归，并复验既有 funptr 运行用例。已验证 `cargo run -p scoop -- test --fixtures target/t4003a-fixtures/run-pass`（`fixtures: ok (3)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003b`。
 
 ## 0. 工作原则
 
@@ -44,7 +48,7 @@
 
 - 依次补齐 lambda 推断、receiver lambda、函数值 / funptr / constructor delegation 的调用语义缺口。
 - 目标是把前端最常用的表达式与调用规则统一到同一条类型检查主线上。
-- 当前状态：`T4002` / `T4002R` 已完成；lambda 推断与 receiver lambda 现已确认走统一主线，下一步进入 `T4003` 收口函数值 / funptr / constructor delegation 的调用语义差异。
+- 当前状态：`T4002` / `T4002R` 与 `T4003a` 已完成；`T4003` 仍按 `T4003b -> T4003c` 继续推进。当前下一个切片是顶层泛型函数值与 `callee<T>` 一等值传递，之后再处理函数值 / funptr / ctor delegation 的命名实参与默认参数绑定收口。
 
 ### P3. 语法到 lowering 的缺口收口
 

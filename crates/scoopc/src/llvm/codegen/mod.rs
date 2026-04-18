@@ -2229,7 +2229,127 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
             .into_int_value();
 
-        self.codegen_funptr_value_call(span, callee_span, loaded, int_ty, fun_ty, call_args)
+        // `scoop.unsafe.invoke(...)` 是一个普通 extension fun，因此在 HIR/codegen 入口仍可能携带
+        // 命名实参；但真正的 funptr indirect call 只接受按签名顺序排好的位置实参。
+        //
+        // 这里按 sysroot `invoke` 的命名约定重排：
+        // - 非 receiver 签名：`a0`, `a1`, ...
+        // - receiver 签名：`receiver`, `a0`, `a1`, ...
+        let normalized_call_args: Vec<hir::CallArg> = if call_args
+            .iter()
+            .all(|arg| matches!(arg, hir::CallArg::Positional(_)))
+        {
+            call_args.to_vec()
+        } else {
+            let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+            let mut seen_named = false;
+            let mut positional_count = 0usize;
+            for arg in call_args {
+                match arg {
+                    hir::CallArg::Positional(_) => {
+                        if seen_named {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr invoke positional after named",
+                                at: span.into(),
+                            });
+                        }
+                        positional_count = positional_count.saturating_add(1);
+                    }
+                    hir::CallArg::Named { .. } => {
+                        seen_named = true;
+                    }
+                }
+            }
+
+            if positional_count > expected_arity {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "funptr invoke arity mismatch",
+                    at: span.into(),
+                });
+            }
+
+            let mut mapping: Vec<Option<&hir::Expr>> = vec![None; expected_arity];
+            for (slot_idx, arg) in call_args.iter().take(positional_count).enumerate() {
+                let hir::CallArg::Positional(expr) = arg else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke positional arg kind",
+                        at: span.into(),
+                    });
+                };
+                let Some(slot) = mapping.get_mut(slot_idx) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke arity mismatch",
+                        at: span.into(),
+                    });
+                };
+                *slot = Some(expr);
+            }
+
+            for arg in call_args.iter().skip(positional_count) {
+                let hir::CallArg::Named { name, value, .. } = arg else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke named arg kind",
+                        at: span.into(),
+                    });
+                };
+
+                let slot_idx = if fun_ty.receiver.is_some() && name == "receiver" {
+                    Some(0usize)
+                } else if let Some(suffix) = name.strip_prefix('a') {
+                    suffix
+                        .parse::<usize>()
+                        .ok()
+                        .map(|idx| idx + usize::from(fun_ty.receiver.is_some()))
+                } else {
+                    None
+                };
+
+                let Some(slot_idx) = slot_idx.filter(|idx| *idx < expected_arity) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke named arg slot",
+                        at: span.into(),
+                    });
+                };
+                let Some(slot) = mapping.get_mut(slot_idx) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke named arg slot",
+                        at: span.into(),
+                    });
+                };
+                if slot.is_some() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr invoke duplicate arg",
+                        at: span.into(),
+                    });
+                }
+                *slot = Some(value);
+            }
+
+            if mapping.iter().any(|slot| slot.is_none()) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "funptr invoke missing arg",
+                    at: span.into(),
+                });
+            }
+
+            mapping
+                .into_iter()
+                .map(|expr| {
+                    hir::CallArg::Positional(
+                        expr.expect("checked above: every slot is filled").clone(),
+                    )
+                })
+                .collect()
+        };
+
+        self.codegen_funptr_value_call(
+            span,
+            callee_span,
+            loaded,
+            int_ty,
+            fun_ty,
+            normalized_call_args.as_slice(),
+        )
     }
 
     fn codegen_sysroot_funptr_to_uintptr(
@@ -10158,14 +10278,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if fun_ty.receiver.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "receiver funptr call",
-                at: callee_span.into(),
-            });
-        }
-
-        if args.len() != fun_ty.params.len() {
+        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+        if args.len() != expected_arity {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "funptr call arity mismatch",
                 at: span.into(),
@@ -10182,10 +10296,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(fun_ty.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+            Vec::with_capacity(expected_arity + usize::from(hidden_sret_result_ty.is_some()));
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        if let Some(receiver_ty) = fun_ty.receiver {
+            llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
         }
         for ty in &fun_ty.params {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
@@ -10240,7 +10357,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let param_ty = fun_ty.params[idx];
+            let param_ty = match fun_ty.receiver {
+                Some(receiver_ty) if idx == 0 => receiver_ty,
+                Some(_) => fun_ty.params[idx - 1],
+                None => fun_ty.params[idx],
+            };
             let target_cg = self
                 .cg_ty_of(param_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {

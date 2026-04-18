@@ -81,21 +81,57 @@
 
 ## T4003：调用语义早期门禁
 
-### T4003 [TODO] 收口函数值 / funptr / constructor delegation 的调用语义差异
-- 范围：
-  - 函数值与 funptr 的命名实参支持边界。
-  - `callee<T>` 一等值传递。
-  - receiver function type 在调用路径上的统一语义。
-  - `super(...)` / `this(...)` 构造器委托调用不再只允许位置参数。
+### T4003 [TODO] 收口函数值 / funptr / constructor delegation 的调用语义差异（拆分执行）
+- 说明：
+  - 原任务同时跨越 `FunPtr<F>` receiver signature、顶层泛型函数值 / `callee<T>` 表示、以及 ctor delegation 的命名/默认参数绑定三套基础设施。
+  - 为保证每轮只提交一个完整且可验证的切片，现拆分为 `T4003a -> T4003b -> T4003c` 顺序推进。
 - 验收：
-  - 对应调用形态都有回归。
+  - 子任务全部完成后，对应调用形态都有回归。
   - `ISSUES.md` 第 4 条收窄或关闭。
 - 依赖：T4002R
+
+### T4003a [DONE] 打通 `FunPtr<F>` 的 receiver function type 调用语义
+- 范围：
+  - `FunPtr<T.(...) -> R>` 不再在类型 lowering 阶段被提前拒绝。
+  - direct call `fp(receiver, ...)` 与 `FunPtr.invoke(...)` 在 receiver signature 下统一按“receiver 作为第 0 个实参”检查与执行。
+  - 补充对应 unsafe run-pass / typecheck 回归。
+- 验收：
+  - `FunPtr` receiver signature 可通过 typecheck，并能在 unsafe context 中正确执行。
+  - direct call 与 `.invoke(...)` 语义一致。
+- 完成：
+  - 已移除 `FunPtr<F>` 对 receiver function type 的 early gate，并让 funptr direct call / sysroot `invoke` 统一按“receiver 作为第 0 个显式实参”做类型检查与 LLVM indirect call。
+  - 已为 `scoop.unsafe.FunPtr` 补充 receiver 形态的 `invoke` overload，使 `fp.invoke(receiver, ...)` 与命名实参路径可用。
+  - 已新增 `unsafe_funptr_receiver_call_basic` run-pass 回归，覆盖 direct call、`.invoke(...)` 与 `.invoke(receiver = ..., a0 = ...)`。
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures target/t4003a-fixtures/run-pass`（`fixtures: ok (3)`，含新增回归与既有 funptr 回归）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4002R
+
+### T4003b [TODO] 支持顶层泛型函数值与 `callee<T>` 一等值传递
+- 范围：
+  - 顶层函数在值位置可形成函数值。
+  - `callee<T>` 不再只允许作为 `Call` 的 callee 透明包装，而可作为一等值传递给 higher-order 调用。
+  - 对应 HIR / monomorph / codegen 路径补齐。
+- 验收：
+  - 新增 higher-order / run-pass 回归，覆盖 `callee<T>` 赋值、传参与后续调用。
+- 依赖：T4003a
+
+### T4003c [TODO] 为函数值 / funptr / ctor delegation 收口命名实参与默认参数绑定
+- 范围：
+  - 函数值与 funptr 的命名实参支持边界不再靠早期硬拒绝分流。
+  - `super(...)` / `this(...)` 构造器委托调用接入与普通调用一致的命名 / 默认参数绑定语义。
+  - 调用参数重排与默认值补齐所需的 side table / lowering 元数据补齐。
+- 验收：
+  - 对应调用形态都有回归。
+  - constructor delegation 不再只允许位置参数。
+- 依赖：T4003b
 
 ### T4003R [TODO] Review：确认调用系统不再按 callee 形态分裂
 - 重点：
   - direct call、member call、function-value call、funptr call 不能各自维护不同规则分支。
-- 依赖：T4003
+- 依赖：T4003c
 
 ## T4004：顶层 pattern binding
 

@@ -143,14 +143,6 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
-    #[error("`FunPtr<F>` 暂不支持 receiver function type 作为签名：{found}")]
-    #[diagnostic(code(scoop::typecheck::funptr_receiver_signature_not_supported))]
-    FunPtrReceiverSignatureNotSupported {
-        found: String,
-        #[label("这里的 F 是 receiver function type")]
-        span: miette::SourceSpan,
-    },
-
     #[error("value-only enum 的底层类型必须是整型标量：{enum_name} 的底层类型为 {found}")]
     #[diagnostic(code(scoop::typecheck::value_only_enum_underlying_not_integral))]
     ValueOnlyEnumUnderlyingNotIntegral {
@@ -1714,15 +1706,7 @@ impl<'a> TypeLowering<'a> {
         span: Span,
     ) -> Result<(), TypeLowerError> {
         match self.type_kind(sig) {
-            TypeKind::Ref(RefTypeKind::Function(fun)) => {
-                if fun.receiver.is_some() {
-                    return Err(TypeLowerError::FunPtrReceiverSignatureNotSupported {
-                        found: self.fmt_type(sig),
-                        span: span.into(),
-                    });
-                }
-                Ok(())
-            }
+            TypeKind::Ref(RefTypeKind::Function(_)) => Ok(()),
             // 允许占位 type param（例如在泛型声明内部出现 `FunPtr<F>`）。
             TypeKind::Param(_) => Ok(()),
             _ => Err(TypeLowerError::FunPtrSignatureMustBeFunction {

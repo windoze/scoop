@@ -109,6 +109,18 @@ fun <A, R> FunPtr<(A) -> R>.invoke(a0: A): R
 @Intrinsic @NoGC @Unsafe
 fun <A, B, R> FunPtr<(A, B) -> R>.invoke(a0: A, a1: B): R
 
+/// `FunPtr<T.() -> R>.invoke(receiver)`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <T, R> FunPtr<T.() -> R>.invoke(receiver: T): R
+
+/// `FunPtr<T.(A) -> R>.invoke(receiver, a0)`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <T, A, R> FunPtr<T.(A) -> R>.invoke(receiver: T, a0: A): R
+
+/// `FunPtr<T.(A, B) -> R>.invoke(receiver, a0, a1)`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <T, A, B, R> FunPtr<T.(A, B) -> R>.invoke(receiver: T, a0: A, a1: B): R
+
 // ---- Internal atomics（FFI/runtime oriented）----
 //
 // 说明：
