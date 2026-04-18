@@ -46,4 +46,5 @@
   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` -> `fixtures: ok (327)`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- [ ] 待更新 git 提交记录并结束本轮。
+- [x] 已提交 git：`ac41427`（`[T4003R] 收口 direct/member 命名调用绑定主线`）。
+- [x] 本轮任务完成，按要求停止在下一项 `T4004` 之前。
