@@ -3634,6 +3634,111 @@ fun demo(): Unit {
     }
 
     #[test]
+    fn source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+fun demo(): Unit {
+    handle {
+        println(when (1) {
+            1 -> {
+                println("before_ask")
+                val msg: String = Ask.ask()
+                println("after_ask")
+                msg
+            }
+            else -> "else_arm"
+        })
+        println("after_when")
+    } with {
+        Ask.ask(), k -> {
+            println("ask_arm")
+        }
+    }
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+        let outer_call = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::Call { expr } => Some(expr.as_ref()),
+                _ => None,
+            })
+            .expect("resume state should keep the outer consumer call");
+
+        assert!(
+            !resume_state
+                .actions
+                .iter()
+                .any(|op| matches!(op, HandleStateOp::BindLocal { .. })),
+            "resume state should not keep standalone arm-tail bindings once the enclosing consumer owns the rebuilt tail"
+        );
+        assert!(
+            !resume_state
+                .actions
+                .iter()
+                .any(|op| matches!(op, HandleStateOp::WhenExpr { .. })),
+            "resume state should not keep the enclosing when-expr once a later consumer is rewritten"
+        );
+
+        let hir::ExprKind::Call { args, .. } = &outer_call.kind else {
+            panic!("expected outer consumer call, got {:?}", outer_call.kind);
+        };
+        let Some(hir::CallArg::Positional(arg_expr)) = args.first() else {
+            panic!("expected positional call arg");
+        };
+        let hir::ExprKind::Block(block) = &arg_expr.kind else {
+            panic!("expected rewritten call arg to be a materialized block, got {:?}", arg_expr.kind);
+        };
+        let Some(hir::Stmt {
+            kind: hir::StmtKind::Val(decl),
+            ..
+        }) = block.stmts.first() else {
+            panic!("expected rewritten tail block to start with a synthetic val init");
+        };
+        let Some(init) = decl.init.as_ref() else {
+            panic!("expected synthetic val init to keep the resume payload");
+        };
+        match &init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected rewritten tail init to read the synthetic resume slot, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn source_plan_rewrites_nested_call_arg_resume_tail_to_synthetic_local() {
         let source_plan = build_source_plan(
             r#"

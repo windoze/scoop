@@ -2053,8 +2053,19 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016aR
 
-### T3016b0R [TODO] Review：确认 statement-position `when` arm resumed-body 恢复不再重放 enclosing `when`
+### T3016b0R [DONE] Review：确认 statement-position `when` arm resumed-body 恢复不再重放 enclosing `when`
 - 描述：在 `T3016b0` 之后只审查生产代码，确认 `when` arm 恢复路径的修复继续停留在统一 state-machine contract，而不是重新引入按 `when` 容器/arm 形状硬编码的旁路；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 后确认，`T3016b0` 的初版修复仍残留一个真实 consumer 路径缺口：当 statement-position `when` arm 的 enclosing `when` 结果继续被外层 consumer（如 `println(when (...))`）读取时，旧逻辑只会删除 standalone `WhenExpr`，却不会改写真正消费该值的后续 action，恢复后仍会重放 `before_ask` / `after_ask`。
+  - 现已把 `materialize_resume_fragments()` 收口为统一的 materialized-when rewrite：若 enclosing `when` 仍有后续 consumer，就把该 consumer 中的 `when` 子表达式改写为基于 `source_path` suffix 构造的 arm-tail block，并同时裁掉 resume state 里已被该 block 覆盖的显式 arm-tail actions 与 standalone `WhenExpr`；若无后续 consumer，则继续只删除已被覆盖的 standalone `WhenExpr`。
+  - 已新增结构测试 `source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block`，以及新的 run-pass fixture `effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`，锁定“外层 consumer 继续消费 `when` 结果”时不会再次命中同一 arm。
+  - 已验证：
+    - `cargo test -p scoopc source_plan_elides_enclosing_when_expr_after_when_arm_resume -- --nocapture`
+    - `cargo test -p scoopc source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block -- --nocapture`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 确认 `ResumeAfterSite` 后移除的是“已被 resumed-body 覆盖的 enclosing `when` 求值路径”，而不是靠 fixture 特判跳过某个具体打印/handler。
   - 确认修复只依赖统一 `source_path` / `resume_path` / state action 元数据，不重新扫描 AST 或源码文本。
@@ -2062,6 +2073,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“statement-position `when` arm resumed-body 恢复已回到统一 state-machine 合同，无 enclosing `when` replay 回流”。
+- 审查结论：
+  - statement-position `when` arm resumed-body 恢复已回到统一 state-machine 合同，无 enclosing `when` replay 回流。
+  - 修复继续只依赖 `source_path` / `resume_path` / state action 元数据与 materialized tail block，不重新扫描 AST 或源码文本。
 - 依赖：T3016b0
 
 ### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/if/while mixed direct+indirect 路径中的 prefix 丢失回归

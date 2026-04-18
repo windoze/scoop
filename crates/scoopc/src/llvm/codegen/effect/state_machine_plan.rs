@@ -3209,7 +3209,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .collect::<HashMap<_, _>>();
 
         for state in &mut self.states {
-            let rewrites = state
+            let mut rewrites = state
                 .actions
                 .iter()
                 .enumerate()
@@ -3243,7 +3243,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 })
                 .collect::<Vec<_>>();
 
-            let mut action_removals = Vec::new();
+            rewrites.sort_by(|lhs, rhs| rhs.0.cmp(&lhs.0));
 
             for (op_index, source_expr, resume_path, source_path, resume_slot) in rewrites {
                 for op in state.actions.iter_mut().skip(op_index + 1) {
@@ -3261,28 +3261,51 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     &resume_slot,
                 );
 
-                let enclosing_when_span = source_path.as_ref().and_then(|source_path| {
-                    source_path.frames.iter().rev().find_map(|frame| match frame {
-                        SuspendSourceFramePath::WhenArm { when_span, .. } => Some(*when_span),
-                        _ => None,
-                    })
-                });
-                if let Some(when_span) = enclosing_when_span
-                    && let Some(when_index) = find_elidable_enclosing_when_expr_index(
-                        &state.actions,
-                        op_index + 1,
-                        when_span,
-                        &state.terminator,
-                    )
-                {
-                    action_removals.push(when_index);
-                }
-            }
+                let Some(source_path) = source_path.as_ref() else {
+                    continue;
+                };
+                let mut allocate_synthetic_symbol_id = || self.context.allocate_synthetic_symbol_id();
+                let mut when_rewrite_input = MaterializedWhenResumeInput {
+                    source_path,
+                    source_expr: &source_expr,
+                    resume_path: &resume_path,
+                    resume_slot: &resume_slot,
+                    allocate_synthetic_symbol_id: &mut allocate_synthetic_symbol_id,
+                };
+                let Some(when_rewrite) = prepare_materialized_when_resume_rewrite(
+                    &state.actions,
+                    op_index,
+                    &state.terminator,
+                    &mut when_rewrite_input,
+                ) else {
+                    continue;
+                };
 
-            action_removals.sort_unstable();
-            action_removals.dedup();
-            for action_index in action_removals.into_iter().rev() {
-                state.actions.remove(action_index);
+                if let Some(replacement_expr) = when_rewrite.replacement_expr.as_ref() {
+                    for consumer_index in &when_rewrite.consumer_action_indices {
+                        rewrite_state_op_replacing_expr_span(
+                            &mut state.actions[*consumer_index],
+                            when_rewrite.when_span,
+                            replacement_expr,
+                        );
+                    }
+                    if when_rewrite.rewrite_terminator {
+                        rewrite_state_terminator_replacing_expr_span(
+                            &mut state.terminator,
+                            when_rewrite.when_span,
+                            replacement_expr,
+                        );
+                    }
+                }
+
+                let removal_start = if when_rewrite.replacement_expr.is_some() {
+                    op_index + 1
+                } else {
+                    when_rewrite.when_index
+                };
+                for action_index in (removal_start..=when_rewrite.when_index).rev() {
+                    state.actions.remove(action_index);
+                }
             }
         }
     }
@@ -4367,45 +4390,108 @@ fn rewrite_state_terminator_with_resume_slot(
     }
 }
 
-fn find_elidable_enclosing_when_expr_index(
-    actions: &[HandleStateOp],
-    start_index: usize,
+struct MaterializedWhenResumeRewrite {
     when_span: Span,
+    when_index: usize,
+    consumer_action_indices: Vec<usize>,
+    rewrite_terminator: bool,
+    replacement_expr: Option<hir::Expr>,
+}
+
+struct MaterializedWhenResumeInput<'a> {
+    source_path: &'a SuspendSourcePath,
+    source_expr: &'a hir::Expr,
+    resume_path: &'a SuspendResumePath,
+    resume_slot: &'a FrameSlot,
+    allocate_synthetic_symbol_id: &'a mut dyn FnMut() -> hir::SymbolId,
+}
+
+fn prepare_materialized_when_resume_rewrite(
+    actions: &[HandleStateOp],
+    resume_after_index: usize,
     terminator: &StateTerminator,
-) -> Option<usize> {
+    input: &mut MaterializedWhenResumeInput<'_>,
+) -> Option<MaterializedWhenResumeRewrite> {
+    let (when_frame_index, when_span) = input
+        .source_path
+        .frames
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(idx, op)| match op {
+            SuspendSourceFramePath::WhenArm { when_span, .. } => Some((idx, *when_span)),
+            _ => None,
+        })?;
+
     let when_index = actions
         .iter()
         .enumerate()
-        .skip(start_index)
+        .skip(resume_after_index + 1)
         .find_map(|(idx, op)| match op {
             HandleStateOp::WhenExpr { expr } if expr.span == when_span => Some(idx),
             _ => None,
         })?;
 
-    if actions[when_index + 1..]
+    let consumer_action_indices = actions[when_index + 1..]
         .iter()
-        .any(|op| state_op_directly_consumes_expr_span(op, when_span))
-        || state_terminator_directly_consumes_expr_span(terminator, when_span)
+        .enumerate()
+        .filter_map(|(offset, op)| {
+            state_op_contains_expr_span(op, when_span).then_some(when_index + 1 + offset)
+        })
+        .collect::<Vec<_>>();
+    let rewrite_terminator = state_terminator_contains_expr_span(terminator, when_span);
+
+    if consumer_action_indices.is_empty() && !rewrite_terminator
     {
-        return None;
+        return Some(MaterializedWhenResumeRewrite {
+            when_span,
+            when_index,
+            consumer_action_indices,
+            rewrite_terminator,
+            replacement_expr: None,
+        });
     }
 
-    Some(when_index)
+    let HandleStateOp::WhenExpr { expr: when_expr } = &actions[when_index] else {
+        return None;
+    };
+    let replacement_expr = build_resume_tail_expr(
+        when_expr,
+        &input.source_path.frames[when_frame_index..],
+        input.source_expr,
+        input.resume_path,
+        input.resume_slot,
+        input.allocate_synthetic_symbol_id,
+    )?;
+
+    debug_assert!(
+        consumer_action_indices.len() + usize::from(rewrite_terminator) <= 1,
+        "materialized when resume rewrite unexpectedly found multiple live consumers for span {:?}",
+        when_span
+    );
+
+    Some(MaterializedWhenResumeRewrite {
+        when_span,
+        when_index,
+        consumer_action_indices,
+        rewrite_terminator,
+        replacement_expr: Some(replacement_expr),
+    })
 }
 
-fn state_op_directly_consumes_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
+fn state_op_contains_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
     match op {
         HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl } => decl
             .init
             .as_ref()
-            .is_some_and(|init| init.span == expr_span),
+            .is_some_and(|init| expr_contains_span(init, expr_span)),
         HandleStateOp::Assign { stmt }
         | HandleStateOp::Return { stmt }
         | HandleStateOp::TodoStmt { stmt, .. }
         | HandleStateOp::StmtEmpty { stmt }
         | HandleStateOp::WhileCondHeader { stmt }
         | HandleStateOp::Break { stmt }
-        | HandleStateOp::Continue { stmt } => stmt_directly_consumes_expr_span(stmt, expr_span),
+        | HandleStateOp::Continue { stmt } => stmt_contains_expr_span(stmt, expr_span),
         HandleStateOp::ExprMissing { expr }
         | HandleStateOp::Literal { expr }
         | HandleStateOp::ReadLocal { expr, .. }
@@ -4424,7 +4510,7 @@ fn state_op_directly_consumes_expr_span(op: &HandleStateOp, expr_span: Span) -> 
         | HandleStateOp::NestedHandleBoundary { expr, .. }
         | HandleStateOp::NestedHandle { expr, .. }
         | HandleStateOp::Closure { expr }
-        | HandleStateOp::TodoExpr { expr, .. } => expr.span == expr_span,
+        | HandleStateOp::TodoExpr { expr, .. } => expr_contains_span(expr, expr_span),
         HandleStateOp::ResumeAfterSite { source_span, .. } => *source_span == expr_span,
         HandleStateOp::CleanupEdgeComplete
         | HandleStateOp::ReturnToEnclosingExpression
@@ -4434,16 +4520,26 @@ fn state_op_directly_consumes_expr_span(op: &HandleStateOp, expr_span: Span) -> 
     }
 }
 
-fn stmt_directly_consumes_expr_span(stmt: &hir::Stmt, expr_span: Span) -> bool {
+fn stmt_contains_expr_span(stmt: &hir::Stmt, expr_span: Span) -> bool {
     match &stmt.kind {
-        hir::StmtKind::Expr(expr) => expr.span == expr_span,
+        hir::StmtKind::Expr(expr) => expr_contains_span(expr, expr_span),
         hir::StmtKind::Val(decl) => decl
             .init
             .as_ref()
-            .is_some_and(|init| init.span == expr_span),
-        hir::StmtKind::Assign { lhs, rhs, .. } => lhs.span == expr_span || rhs.span == expr_span,
-        hir::StmtKind::While { cond, .. } => cond.span == expr_span,
-        hir::StmtKind::Return { value } => value.as_ref().is_some_and(|expr| expr.span == expr_span),
+            .is_some_and(|init| expr_contains_span(init, expr_span)),
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            expr_contains_span(lhs, expr_span) || expr_contains_span(rhs, expr_span)
+        }
+        hir::StmtKind::While { cond, body } => {
+            expr_contains_span(cond, expr_span)
+                || body
+                    .stmts
+                    .iter()
+                    .any(|stmt| stmt_contains_expr_span(stmt, expr_span))
+        }
+        hir::StmtKind::Return { value } => value
+            .as_ref()
+            .is_some_and(|expr| expr_contains_span(expr, expr_span)),
         hir::StmtKind::Empty
         | hir::StmtKind::Break { .. }
         | hir::StmtKind::Continue { .. }
@@ -4451,14 +4547,100 @@ fn stmt_directly_consumes_expr_span(stmt: &hir::Stmt, expr_span: Span) -> bool {
     }
 }
 
-fn state_terminator_directly_consumes_expr_span(
+fn expr_contains_span(expr: &hir::Expr, expr_span: Span) -> bool {
+    if expr.span == expr_span {
+        return true;
+    }
+
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Closure(_)
+        | hir::ExprKind::Todo(_) => false,
+        hir::ExprKind::StructLit { fields, .. } => fields
+            .iter()
+            .any(|field| expr_contains_span(&field.value, expr_span)),
+        hir::ExprKind::TupleLit { elements } => {
+            elements.iter().any(|element| expr_contains_span(element, expr_span))
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|part| {
+            matches!(
+                part,
+                hir::InterpolatedStringPart::Expr { expr }
+                    if expr_contains_span(expr, expr_span)
+            )
+        }),
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. } => expr_contains_span(inner, expr_span),
+        hir::ExprKind::Block(block) => block
+            .stmts
+            .iter()
+            .any(|stmt| stmt_contains_expr_span(stmt, expr_span)),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            expr_contains_span(lhs, expr_span) || expr_contains_span(rhs, expr_span)
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            expr_contains_span(cond, expr_span)
+                || expr_contains_span(then_branch, expr_span)
+                || else_branch
+                    .as_deref()
+                    .is_some_and(|else_branch| expr_contains_span(else_branch, expr_span))
+        }
+        hir::ExprKind::When { subject, arms } => {
+            expr_contains_span(subject, expr_span)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(|guard| expr_contains_span(guard, expr_span))
+                        || expr_contains_span(&arm.body, expr_span)
+                })
+        }
+        hir::ExprKind::MemberAccess { receiver, .. } => expr_contains_span(receiver, expr_span),
+        hir::ExprKind::Call { callee, args } => {
+            expr_contains_span(callee, expr_span)
+                || args.iter().any(|arg| match arg {
+                    hir::CallArg::Positional(arg_expr) => expr_contains_span(arg_expr, expr_span),
+                    hir::CallArg::Named { value, .. } => expr_contains_span(value, expr_span),
+                })
+        }
+        hir::ExprKind::Perform { args, .. } => args.iter().any(|arg| match arg {
+            hir::CallArg::Positional(arg_expr) => expr_contains_span(arg_expr, expr_span),
+            hir::CallArg::Named { value, .. } => expr_contains_span(value, expr_span),
+        }),
+        hir::ExprKind::Handle(handle) => {
+            handle
+                .body
+                .stmts
+                .iter()
+                .any(|stmt| stmt_contains_expr_span(stmt, expr_span))
+                || handle.arms.iter().any(|arm| expr_contains_span(&arm.body, expr_span))
+                || handle.finally.as_ref().is_some_and(|finally_block| {
+                    finally_block
+                        .stmts
+                        .iter()
+                        .any(|stmt| stmt_contains_expr_span(stmt, expr_span))
+                })
+        }
+    }
+}
+
+fn state_terminator_contains_expr_span(
     terminator: &StateTerminator,
     expr_span: Span,
 ) -> bool {
     match terminator {
         StateTerminator::Branch { condition, .. } => match condition {
             HandleBranchCondition::WhileCond { condition }
-            | HandleBranchCondition::IfCond { condition } => condition.span == expr_span,
+            | HandleBranchCondition::IfCond { condition } => {
+                expr_contains_span(condition, expr_span)
+            }
         },
         StateTerminator::Goto(_)
         | StateTerminator::Suspend { .. }
@@ -4467,6 +4649,234 @@ fn state_terminator_directly_consumes_expr_span(
         | StateTerminator::CleanupEnter { .. }
         | StateTerminator::ArmExit(_) => false,
     }
+}
+
+fn rewrite_state_op_replacing_expr_span(
+    op: &mut HandleStateOp,
+    target_span: Span,
+    replacement_expr: &hir::Expr,
+) {
+    match op {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl } => {
+            if let Some(init) = decl.init.as_mut() {
+                *init = rewrite_expr_replacing_span(init, target_span, replacement_expr);
+            }
+        }
+        HandleStateOp::Assign { stmt }
+        | HandleStateOp::Return { stmt }
+        | HandleStateOp::TodoStmt { stmt, .. }
+        | HandleStateOp::StmtEmpty { stmt }
+        | HandleStateOp::WhileCondHeader { stmt }
+        | HandleStateOp::Break { stmt }
+        | HandleStateOp::Continue { stmt } => {
+            rewrite_stmt_replacing_expr_span(stmt, target_span, replacement_expr);
+        }
+        HandleStateOp::ExprMissing { expr }
+        | HandleStateOp::Literal { expr }
+        | HandleStateOp::ReadLocal { expr, .. }
+        | HandleStateOp::ObjectInitAccessBoundary { expr, .. }
+        | HandleStateOp::VarRef { expr }
+        | HandleStateOp::StructLit { expr }
+        | HandleStateOp::TupleLit { expr }
+        | HandleStateOp::InterpolatedString { expr }
+        | HandleStateOp::Expr { expr }
+        | HandleStateOp::RuntimeRaiseBoundary { expr, .. }
+        | HandleStateOp::BinaryExpr { expr }
+        | HandleStateOp::WhenExpr { expr }
+        | HandleStateOp::SuspendCall { expr, .. }
+        | HandleStateOp::Call { expr }
+        | HandleStateOp::Perform { expr, .. }
+        | HandleStateOp::NestedHandleBoundary { expr, .. }
+        | HandleStateOp::NestedHandle { expr, .. }
+        | HandleStateOp::Closure { expr }
+        | HandleStateOp::TodoExpr { expr, .. } => {
+            **expr = rewrite_expr_replacing_span(expr, target_span, replacement_expr);
+        }
+        HandleStateOp::ResumeAfterSite { .. }
+        | HandleStateOp::CleanupEdgeComplete
+        | HandleStateOp::ReturnToEnclosingExpression
+        | HandleStateOp::LoopReentry { .. }
+        | HandleStateOp::ImplicitElseUnit { .. }
+        | HandleStateOp::ExecuteArmBody { .. } => {}
+    }
+}
+
+fn rewrite_state_terminator_replacing_expr_span(
+    terminator: &mut StateTerminator,
+    target_span: Span,
+    replacement_expr: &hir::Expr,
+) {
+    if let StateTerminator::Branch { condition, .. } = terminator {
+        rewrite_branch_condition_replacing_expr_span(condition, target_span, replacement_expr);
+    }
+}
+
+fn rewrite_stmt_replacing_expr_span(
+    stmt: &mut hir::Stmt,
+    target_span: Span,
+    replacement_expr: &hir::Expr,
+) {
+    match &mut stmt.kind {
+        hir::StmtKind::Expr(expr) => {
+            *expr = rewrite_expr_replacing_span(expr, target_span, replacement_expr);
+        }
+        hir::StmtKind::Val(decl) => {
+            if let Some(init) = decl.init.as_mut() {
+                *init = rewrite_expr_replacing_span(init, target_span, replacement_expr);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            *lhs = rewrite_expr_replacing_span(lhs, target_span, replacement_expr);
+            *rhs = rewrite_expr_replacing_span(rhs, target_span, replacement_expr);
+        }
+        hir::StmtKind::While { cond, body } => {
+            *cond = rewrite_expr_replacing_span(cond, target_span, replacement_expr);
+            for stmt in &mut body.stmts {
+                rewrite_stmt_replacing_expr_span(stmt, target_span, replacement_expr);
+            }
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value.as_mut() {
+                *expr = rewrite_expr_replacing_span(expr, target_span, replacement_expr);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn rewrite_branch_condition_replacing_expr_span(
+    condition: &mut HandleBranchCondition,
+    target_span: Span,
+    replacement_expr: &hir::Expr,
+) {
+    match condition {
+        HandleBranchCondition::WhileCond { condition }
+        | HandleBranchCondition::IfCond { condition } => {
+            **condition = rewrite_expr_replacing_span(condition, target_span, replacement_expr);
+        }
+    }
+}
+
+fn rewrite_expr_replacing_span(
+    expr: &hir::Expr,
+    target_span: Span,
+    replacement_expr: &hir::Expr,
+) -> hir::Expr {
+    if expr.span == target_span {
+        return replacement_expr.clone();
+    }
+
+    let mut rewritten = expr.clone();
+    match &mut rewritten.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Closure(_)
+        | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                field.value =
+                    rewrite_expr_replacing_span(&field.value, target_span, replacement_expr);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                *element = rewrite_expr_replacing_span(element, target_span, replacement_expr);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    *expr = rewrite_expr_replacing_span(expr, target_span, replacement_expr);
+                }
+            }
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. } => {
+            **inner = rewrite_expr_replacing_span(inner, target_span, replacement_expr);
+        }
+        hir::ExprKind::Block(block) => {
+            for stmt in &mut block.stmts {
+                rewrite_stmt_replacing_expr_span(stmt, target_span, replacement_expr);
+            }
+        }
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            **lhs = rewrite_expr_replacing_span(lhs, target_span, replacement_expr);
+            **rhs = rewrite_expr_replacing_span(rhs, target_span, replacement_expr);
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            **cond = rewrite_expr_replacing_span(cond, target_span, replacement_expr);
+            **then_branch =
+                rewrite_expr_replacing_span(then_branch, target_span, replacement_expr);
+            if let Some(else_branch) = else_branch.as_mut() {
+                **else_branch =
+                    rewrite_expr_replacing_span(else_branch, target_span, replacement_expr);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            **subject = rewrite_expr_replacing_span(subject, target_span, replacement_expr);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_mut() {
+                    *guard = rewrite_expr_replacing_span(guard, target_span, replacement_expr);
+                }
+                arm.body = rewrite_expr_replacing_span(&arm.body, target_span, replacement_expr);
+            }
+        }
+        hir::ExprKind::MemberAccess { receiver, .. } => {
+            **receiver = rewrite_expr_replacing_span(receiver, target_span, replacement_expr);
+        }
+        hir::ExprKind::Call { callee, args } => {
+            **callee = rewrite_expr_replacing_span(callee, target_span, replacement_expr);
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(arg_expr) => {
+                        *arg_expr =
+                            rewrite_expr_replacing_span(arg_expr, target_span, replacement_expr);
+                    }
+                    hir::CallArg::Named { value, .. } => {
+                        *value = rewrite_expr_replacing_span(value, target_span, replacement_expr);
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(arg_expr) => {
+                        *arg_expr =
+                            rewrite_expr_replacing_span(arg_expr, target_span, replacement_expr);
+                    }
+                    hir::CallArg::Named { value, .. } => {
+                        *value = rewrite_expr_replacing_span(value, target_span, replacement_expr);
+                    }
+                }
+            }
+        }
+        hir::ExprKind::Handle(handle) => {
+            for stmt in &mut handle.body.stmts {
+                rewrite_stmt_replacing_expr_span(stmt, target_span, replacement_expr);
+            }
+            for arm in &mut handle.arms {
+                arm.body = rewrite_expr_replacing_span(&arm.body, target_span, replacement_expr);
+            }
+            if let Some(finally_block) = handle.finally.as_mut() {
+                for stmt in &mut finally_block.stmts {
+                    rewrite_stmt_replacing_expr_span(stmt, target_span, replacement_expr);
+                }
+            }
+        }
+    }
+
+    rewritten
 }
 
 fn rewrite_stmt_with_resume_slot(

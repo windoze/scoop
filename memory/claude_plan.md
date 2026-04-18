@@ -1,51 +1,54 @@
 # 本轮执行计划
 
-更新时间：2026-04-18
+## 说明
 
-## 目标
+按要求先写入计划文件，再开始读取仓库信息和执行命令。这里记录的是可审计的执行计划、决策依据摘要和后续进度，不包含逐字内部推理。
 
-按 `TODO.md` 的顺序执行第一个未完成任务，并在完成后停止。
+## 初始目标
 
-## 初始计划
+本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前发现最新提交中提到的遗留问题，先修复这些问题，再处理该任务。
 
-1. 检查最新一次 Git 提交，确认是否提到了已知遗留问题。
-2. 如果最新提交提到了需要先修复的遗留问题，优先定位并修复这些问题。
-3. 阅读 `TODO.md`，找出第一个未完成任务。
-4. 阅读 `PLAN.md`，核对当前计划与任务依赖关系。
-5. 评估该任务是否足够小且可以在本轮完整交付。
-6. 如果任务过大，则把它拆分为更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，本轮只执行新的第一个子任务。
-7. 实现本轮目标任务。
-8. 运行与变更相关的测试，并补充必要测试。
-9. 运行质量检查，至少覆盖 `cargo fmt --check`、相关测试，以及尽量覆盖 `cargo clippy --all-targets -- -D warnings`。
-10. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
-11. 提交本轮修改，提交信息与任务编号对应。
-12. 停止，不继续处理下一个任务。
+## 计划步骤
 
-## 约束
+1. 查看最新一次 Git 提交的提交信息与变更摘要，确认是否明确提到遗留问题、已知缺陷或待修复事项。
+2. 如果最新提交提到需要先处理的遗留问题：
+   - 定位相关代码、测试与文档；
+   - 实现修复；
+   - 运行针对性测试与必要的全量校验；
+   - 更新 `TODO.md` / `PLAN.md` / 本文件；
+   - 提交 Git commit；
+   - 若这些修复本身已构成本轮唯一工作，则停止。
+3. 读取 `TODO.md`，找到第一个未完成任务。
+4. 判断该任务是否可在本轮完整落地：
+   - 若可以，直接实现；
+   - 若过大或存在前置缺口，则拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并只执行拆分后的第一个子任务。
+5. 在实现前检查相关模块、测试、规范说明和现有实现边界，确认不存在规避式实现或与规范不一致的隐藏阻塞。
+6. 完成实现后运行充分测试，至少包含：
+   - 受影响模块的定向测试；
+   - 必要的集成/fixture 测试；
+   - `cargo fmt --check`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 如改动影响范围较大，再补充 `cargo test --all` 或合适子集。
+7. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记本轮完成的任务；
+   - 在 `PLAN.md` 中更新当前状态、后续顺序与任何新增依赖；
+   - 在本文件中记录关键发现、计划调整和测试结果。
+8. 使用清晰的提交信息创建 Git commit，然后停止，不继续下一个任务。
 
-- 不接受规避式修复、临时兼容层或仅对夹具生效的补丁。
-- 如果发现规范不匹配、功能缺失或实现边界不完整，必须先在 `TODO.md` / `PLAN.md` 中建模为依赖任务，再决定是否继续。
-- 不回退用户已有修改；如果工作区存在无关脏改动，只在理解其影响后绕开处理。
+## 当前状态
 
-## 进度记录
-
-- 已创建本轮计划文件。
-- 已检查最新提交 `cde337f37f0f90d9e92c43cbe269bd73f0df8f86`（`[T3016aR] Review cleanup completion contract`）。提交信息未单独声明新的遗留问题需要先修。
-- 已确认 `TODO.md` 中首个未完成任务为 `T3016b`：修正 escaped continuation resumed-body tail replay 在 block/when/loop 混合控制流中的回归。
-- 已完成定向复现：
-  - `effect_escape_continuation_perform_in_when_arm.scoop`：恢复后先执行正确 arm tail，再错误重放 enclosing `when`，重复打印 `before_ask` / `after_ask`。
-  - `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop`：后续 `resume(...)` 丢失 direct 之后、indirect 之前的 prefix。
-- 当前判断：原 `T3016b` 范围过大，至少包含两个独立缺口，已据此拆分任务。
-- 已更新 `TODO.md` / `PLAN.md`：
-  - 新增前置任务 `T3016b0` / `T3016b0R`，专门修正 statement-position `when` arm resumed-body 恢复后重放 enclosing `when` 的回归。
-  - 原 `T3016b` / `T3016bR` 收窄为 block/if/while mixed direct+indirect 路径中的 resumed-segment prefix replay 缺口。
-- 当前本轮执行目标已切换为新的首个未完成任务 `T3016b0`。
-- `T3016b0` 已实现完成：
-  - `state_machine_plan.rs` 的 `materialize_resume_fragments()` 继续执行 resume-slot rewrite，但会在 statement-position `when` arm 的恢复态里剔除已被 arm tail 覆盖的 enclosing `WhenExpr`。
-  - 新增结构测试 `source_plan_elides_enclosing_when_expr_after_when_arm_resume`。
-  - `tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop` 已改回 `EXPECT: pass`。
+- 已检查最新提交：`485e568 [T3016b0] Fix when-arm resumed-body replay`。提交说明本身未声明新的遗留问题需要优先独立处理。
+- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务为 `T3016b0R`：Review `statement-position when arm` 恢复后不再重放 enclosing `when`。
+- 复审过程中确认了一个真实残留：当 enclosing `when` 的结果继续被外层 consumer（如 `println(when (...))`）读取时，旧逻辑只删除 standalone `WhenExpr`，没有改写真正 consumer，恢复后仍会重放 arm。
+- 已完成修复：
+  - `materialize_resume_fragments()` 现在会在存在后续 consumer 时，把 consumer 中的 `when` 子表达式改写为 materialized arm-tail block，并同步删除 resume state 中已被覆盖的显式 arm-tail actions 与 standalone `WhenExpr`。
+  - 无后续 consumer 时，仍只删除已被 resumed-body 覆盖的 standalone `WhenExpr`。
+  - 已新增结构测试 `source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block` 和 run-pass fixture `effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`。
 - 已完成验证：
+  - `cargo test -p scoopc source_plan_elides_enclosing_when_expr_after_when_arm_resume -- --nocapture`
+  - `cargo test -p scoopc source_plan_rewrites_nested_when_consumer_to_materialized_arm_tail_block -- --nocapture`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm_nested_consumer.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 当前待收尾：检查工作区、确认 `TODO.md` / `PLAN.md` 已标记完成，然后以 `T3016b0` 对应提交信息提交并停止。
+- 当前任务 `T3016b0R` 已完成；下一项待执行任务为 `T3016b`。
