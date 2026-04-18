@@ -37,6 +37,13 @@ impl TypeId {
 pub enum TypeKind {
     Ref(RefTypeKind),
     Value(ValueTypeKind),
+    /// `*` star projection 的内部表示。
+    ///
+    /// 说明：
+    /// - 仅应通过类型实参位置引入（例如 `Array<*>`）；
+    /// - `read_ty` 表示运行时可读视图（当前为 `Any?` 一类 boxed ref view）；
+    /// - 它不是普通的 ref/value 类型：typecheck 需要保留“只读/禁写”语义。
+    StarProjection(StarProjectionType),
     /// 类型参数（generic type parameter）。
     ///
     /// 说明：
@@ -117,6 +124,13 @@ pub struct NominalType {
     /// - 当前阶段我们把它视为 nominal type identity 的一部分（与 type args 类似）；
     /// - 更复杂的 row 变量/约束与子类型关系留给后续任务（T0515+）。
     pub eff: Option<EffectRow>,
+}
+
+/// `*` star projection 的最小内部表示。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StarProjectionType {
+    /// 运行时可读视图；当前等价于 boxed `Any?`。
+    pub read_ty: TypeId,
 }
 
 /// 类型参数类型（`T`）。
@@ -365,6 +379,11 @@ impl TypeStore {
         })))
     }
 
+    /// 构造一个 star projection 类型（例如 `Array<*>` 中的 `*`）。
+    pub fn ty_star_projection(&mut self, read_ty: TypeId) -> TypeId {
+        self.intern(TypeKind::StarProjection(StarProjectionType { read_ty }))
+    }
+
     /// 构造一个 union 类型（`A | B | ...`），并做最小规范化。
     pub fn ty_union(&mut self, variants: Vec<TypeId>) -> TypeId {
         let mut flat: Vec<TypeId> = Vec::with_capacity(variants.len());
@@ -504,6 +523,10 @@ impl TypeStore {
                     self.ty_union(new_variants)
                 }
             },
+            TypeKind::StarProjection(star) => {
+                let new_read_ty = self.re_intern_from(other, star.read_ty);
+                self.ty_star_projection(new_read_ty)
+            }
             TypeKind::Param(p) => self.intern(TypeKind::Param(p.clone())),
         }
     }
@@ -562,6 +585,7 @@ fn format_type(
         TypeKind::Ref(RefTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
         TypeKind::Ref(RefTypeKind::Function(fun)) => format_function_type(store, fun, f, depth),
         TypeKind::Ref(RefTypeKind::Union(u)) => format_union_type(store, u, f, depth),
+        TypeKind::StarProjection(_) => write!(f, "*"),
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),

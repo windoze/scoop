@@ -43,6 +43,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }))
             }
             TypeKind::Ref(_) => Some(CgTy::Ref),
+            TypeKind::StarProjection(star) => self.cg_ty_of(star.read_ty),
             TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),

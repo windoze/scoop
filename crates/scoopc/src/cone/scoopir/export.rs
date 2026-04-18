@@ -550,6 +550,9 @@ fn collect_type_params_from_type_id(
                 out.push(p.name.clone());
             }
         }
+        TypeKind::StarProjection(star) => {
+            collect_type_params_from_type_id(store, star.read_ty, seen, out, depth + 1);
+        }
         TypeKind::Ref(RefTypeKind::Nominal(NominalType { args, eff, .. }))
         | TypeKind::Value(ValueTypeKind::Nominal(NominalType { args, eff, .. })) => {
             for a in args {
@@ -688,6 +691,7 @@ fn to_ir_type(store: &TypeStore, id: TypeId, depth: usize) -> IrType {
             args: Vec::new(),
             eff: None,
         },
+        TypeKind::StarProjection(star) => to_ir_type(store, star.read_ty, depth + 1),
         TypeKind::Ref(RefTypeKind::String) => IrType::Named {
             fqn: "scoop.core.String".to_string(),
             args: Vec::new(),

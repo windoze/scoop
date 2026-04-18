@@ -1444,6 +1444,7 @@ fn type_layout(types: &TypeStore, target: TargetLayout, ty: TypeId) -> TypeLayou
     match types.kind(ty) {
         TypeKind::Ref(_) => pointer_layout(target),
         TypeKind::Param(_) => pointer_layout(target).without_niche(),
+        TypeKind::StarProjection(star) => type_layout(types, target, star.read_ty),
         TypeKind::Value(vk) => match vk {
             ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
             ValueTypeKind::Bool => TypeLayout::new(1, 1).with_niche(NicheDomain {

@@ -38,11 +38,11 @@
 - 影响：Kotlin-like 调用规则尚未在所有 callee 形态上统一落地，调用系统仍带着较多“按 callee 形态分流”的早期特判。
 - 证据：`crates/scoopc/src/typecheck/expr/call.rs:789-800`；`crates/scoopc/src/typecheck/expr/call.rs:943-978`；`crates/scoopc/src/typecheck/expr/call.rs:1560-1564`；`crates/scoopc/src/typecheck/expr/mod.rs:147-160`；`crates/scoopc/src/typecheck/expr/entry.rs:910-911`。
 
-## 5. 泛型约束、参数化超类型与 star projection 仍不完整
+## 5. 泛型约束、参数化超类型与 star projection 已收口
 
-- 现状：`where` 子句仍会直接拒绝带类型实参的 nominal bound；type env 记录 direct supertypes 时仍只保存 FQN、不保存 type args；赋值/上转规则也仍只在目标类型“未带实参”时做 nominal 上转；另外，spec §3.3 的 star projection 目前只是被弱化成 `Any`，并没有落地成 `out Any?` 那样的真实读视图 / 装箱语义，而在 enum-pattern 专用 lowering 里 `*` 仍会被直接拒绝。
-- 影响：泛型约束系统与参数化子类型关系当前只能覆盖较浅的 nominal 场景；`List<*>` 这类规范上有明确语义的类型写法，也还没有真实语义实现。
-- 证据：`crates/scoopc/src/typecheck/where_clause.rs:35-40`；`crates/scoopc/src/typecheck/type_env.rs:603-607`；`crates/scoopc/src/typecheck/assignable.rs:180-186`；`crates/scoopc/src/typecheck/lower.rs:1058-1063`；`crates/scoopc/src/typecheck/expr/call.rs:3303-3306`；`SCOOP_FULL_SPEC.md:432-432`。
+- 现状：`where` 子句已支持带类型实参的 nominal bound；`TypeEnv` 记录 direct supertypes 时会同时保留 FQN 与原始 type args；assignable / 上转规则已改为沿“具体化后的 direct supertypes”做 DFS；spec §3.3 的 star projection 也已落到独立的 typecheck 内部表示，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图，而不再直接退化成裸 `Any`。
+- 影响：泛型约束、参数化子类型关系与 `List<*>` / `Array<*>` 一类 star projection 主线现已贯通，不再是后续 lambda / 调用 / 跨文件实例化任务的前置 blocker；后续只需在 `T4001R` 中继续复核“没有回退到局部特判”。
+- 证据：`crates/scoopc/src/typecheck/type_env.rs:207-215`；`crates/scoopc/src/typecheck/lower.rs:1058-1071`；`crates/scoopc/src/typecheck/lower.rs:2181-2218`；`crates/scoopc/src/typecheck/assignable.rs:44-122`；`crates/scoopc/src/llvm/codegen/mod.rs:15082-15164`；`tests/fixtures/typecheck/where_clause_parameterized_bound_method_ok.scoop:1-22`；`tests/fixtures/typecheck/where_clause_parameterized_bound_not_satisfied_is_error.scoop:1-22`；`tests/fixtures/typecheck/star_projection_value_type_requires_boxing_is_error.scoop:1-11`；`tests/fixtures/typecheck/star_projection_nullable_ref_read_view_ok.scoop:1-12`；`tests/fixtures/run-pass/parameterized_supertype_interface_dispatch.scoop:1-33`；`tests/fixtures/run-pass/star_projection_array_read_view.scoop:1-23`。
 
 ## 6. 顶层 pattern binding 仍不支持
 

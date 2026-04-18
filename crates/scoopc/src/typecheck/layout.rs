@@ -130,6 +130,7 @@ impl<'a> LayoutComputer<'a> {
         let kind = self.types.kind(id).clone();
         let layout = match kind {
             TypeKind::Ref(_) => self.pointer_layout(),
+            TypeKind::StarProjection(star) => self.type_layout(star.read_ty)?,
             TypeKind::Param(_) => {
                 // 类型参数的实际 kind/布局需要在 monomorphization 后才能确定。
                 // 当前阶段用“指针大小的 opaque layout”占位，避免提前把 layout 语义耦合进推断系统。

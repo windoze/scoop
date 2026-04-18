@@ -1,0 +1,24 @@
+// EXPECT: pass
+// T4001: 参数化 nominal bound 应支持约束驱动的方法调用与实例化。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Producer<T> {
+    fun produce(): T
+}
+
+class StringProducer() : Producer<String> {
+    fun produce(): String {
+        return "ok"
+    }
+}
+
+class Box<T>(val producer: T) where T: Producer<String> {
+    fun read(): String {
+        return this.producer.produce()
+    }
+}
+
+val ok: Box<StringProducer> = Box(StringProducer())

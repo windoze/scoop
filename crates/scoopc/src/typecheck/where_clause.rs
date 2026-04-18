@@ -14,7 +14,7 @@ use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::lower::{TypeLowerError, TypeLowering};
 
@@ -28,14 +28,6 @@ pub enum WhereClauseError {
     #[diagnostic(code(scoop::typecheck::where_target_not_in_current_decl))]
     TargetNotInCurrentDecl {
         param: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("where 约束的 bound 暂不支持携带类型实参：{bound}")]
-    #[diagnostic(code(scoop::typecheck::where_bound_generic_not_supported))]
-    GenericBoundNotSupported {
-        bound: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -206,21 +198,12 @@ fn check_one_where_clause(
 
         let bound_ty = lower.lower_type_ref(&c.bound)?;
 
-        // 约束上界暂不支持“泛型 nominal type”（后续需要更完整的泛型超类型实例化/子类型规则）。
-        if nominal_type_id_has_args(bound_ty, lower) {
-            let bound_text = source.slice(c.bound.span()).to_string();
-            return Err(WhereClauseError::GenericBoundNotSupported {
-                bound: bound_text,
-                span: c.bound.span().into(),
-            });
-        }
-
         let key = (param.clone(), bound_ty);
         if let Some(prev_span) = seen.get(&key).copied() {
             return Err(WhereClauseError::DuplicateWhereConstraint {
                 param,
                 bound: lower.fmt_type(bound_ty),
-                first: prev_span.into(),
+                first: miette::SourceSpan::from(prev_span),
                 second: c.span.into(),
             });
         }
@@ -241,7 +224,7 @@ fn check_one_where_clause(
                     param,
                     a: lower.fmt_type(prev_ty),
                     b: lower.fmt_type(bound_ty),
-                    first: prev_span.into(),
+                    first: miette::SourceSpan::from(prev_span),
                     second: c.span.into(),
                 });
             }
@@ -256,14 +239,6 @@ fn collect_type_param_names(source: &SourceFile, params: &[ast::TypeParam]) -> V
         .iter()
         .map(|p| source.slice(p.name.span).to_string())
         .collect()
-}
-
-fn nominal_type_id_has_args(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
-    match lower.type_kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(n)) => !n.args.is_empty(),
-        TypeKind::Value(ValueTypeKind::Nominal(n)) => !n.args.is_empty(),
-        _ => false,
-    }
 }
 
 fn is_interface_like_bound(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {

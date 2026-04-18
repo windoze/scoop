@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR-AT: 11:22
+// EXPECT-ERROR: Array<*>
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val ints: Array<Int> = [1, 2, 3]
+val view: Array<*> = ints

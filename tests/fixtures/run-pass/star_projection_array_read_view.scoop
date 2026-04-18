@@ -1,0 +1,25 @@
+// EXPECT: pass
+// RUN-STDOUT: star_projection_array_read_view.stdout
+// EXPECT-EXIT: 0
+//
+// T4001:
+// - `Array<String>` 可上转为 `Array<*>`；
+// - `get()` 的读取结果应表现为 `Any?` 读视图，而不是裸 `Any`；
+// - star type 在 lowering / export / codegen 路径中不能泄露成新的公开语义节点。
+
+import scoop.core.*
+
+fun firstIsSome(xs: Array<*>): Bool {
+    val first: Any? = xs.get(0)
+    return when (first) {
+        Some(_) -> true
+        None() -> false
+    }
+}
+
+fun main(): Int {
+    val names: Array<String> = ["alpha", "beta"]
+    val view: Array<*> = names
+    println(firstIsSome(view))
+    return 0
+}

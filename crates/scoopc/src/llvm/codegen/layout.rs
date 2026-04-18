@@ -303,6 +303,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     next: 0,
                     end: 1,
                 }),
+            TypeKind::StarProjection(star) => self.type_layout(star.read_ty),
             TypeKind::Param(_) => TypeLayout::new(target.pointer_size, target.pointer_align),
             TypeKind::Value(v) => match v {
                 ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),

@@ -45,6 +45,97 @@ pub(super) fn nominal_is_subtype_by_fqn(
     false
 }
 
+fn nominal_type_args_assignable(
+    owner_fqn: &str,
+    found_args: &[TypeId],
+    expected_args: &[TypeId],
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    if found_args.len() != expected_args.len() {
+        return false;
+    }
+
+    let variances = lower.env().type_param_variances(owner_fqn);
+    for (idx, (found_arg, expected_arg)) in found_args
+        .iter()
+        .copied()
+        .zip(expected_args.iter().copied())
+        .enumerate()
+    {
+        if lower.is_star_projection(expected_arg) {
+            if lower.is_star_projection(found_arg) {
+                continue;
+            }
+            if !lower.is_star_projection_read_compatible(found_arg) {
+                return false;
+            }
+            continue;
+        }
+
+        if lower.is_star_projection(found_arg) {
+            return false;
+        }
+
+        let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
+        let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
+
+        match declared {
+            None => {
+                if found_arg != expected_arg {
+                    return false;
+                }
+            }
+            Some(ast::TypeParamVariance::Out) if both_ref => {
+                if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
+                    return false;
+                }
+            }
+            Some(ast::TypeParamVariance::In) if both_ref => {
+                if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
+                    return false;
+                }
+            }
+            Some(_) => {
+                if found_arg != expected_arg {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
+fn concrete_nominal_is_subtype(
+    found: TypeId,
+    expected: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    let mut stack: Vec<TypeId> = lower
+        .concrete_direct_supertypes(found)
+        .map(|supers| supers.to_vec())
+        .unwrap_or_default();
+    let mut seen: HashSet<TypeId> = HashSet::new();
+
+    while let Some(cur) = stack.pop() {
+        if !seen.insert(cur) {
+            continue;
+        }
+
+        if cur == expected || is_type_assignable(cur, expected, lower, builtins) {
+            return true;
+        }
+
+        if let Some(supers) = lower.concrete_direct_supertypes(cur) {
+            stack.extend(supers.iter().copied());
+        }
+    }
+
+    false
+}
+
 /// 检查“found 是否可赋值给 expected”（最小子集）。
 ///
 /// 当前阶段实现的最小规则（用于 `val` initializer / call args / `return` / where bound 等）：
@@ -71,6 +162,13 @@ pub(super) fn is_type_assignable(
     // 表达式求值不会返回一个 `Nothing` 的值（它只能通过 `raise/return` 等控制流中止）。
     if found == builtins.nothing {
         return true;
+    }
+
+    if let Some(read_view) = lower.star_projection_read_view(found) {
+        return is_type_assignable(read_view, expected, lower, builtins);
+    }
+    if lower.is_star_projection(expected) {
+        return false;
     }
 
     // spec §2 / §2.5：
@@ -131,59 +229,16 @@ pub(super) fn is_type_assignable(
                     }
                     _ => return false,
                 }
-                if found_nominal.args.len() != expected_nominal.args.len() {
-                    return false;
-                }
-
-                let variances = lower.env().type_param_variances(&found_nominal.fqn);
-
-                for (idx, (found_arg, expected_arg)) in found_nominal
-                    .args
-                    .iter()
-                    .copied()
-                    .zip(expected_nominal.args.iter().copied())
-                    .enumerate()
-                {
-                    let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
-
-                    // 默认：invariant（或者因为 value type 而禁用 variance）
-                    let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
-
-                    match declared {
-                        None => {
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::Out) if both_ref => {
-                            if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::In) if both_ref => {
-                            if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
-                                return false;
-                            }
-                        }
-                        Some(_) => {
-                            // value types（或 unknown kind，例如 type param）占位：variance 不生效。
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                    }
-                }
-
-                return true;
+                return nominal_type_args_assignable(
+                    &found_nominal.fqn,
+                    &found_nominal.args,
+                    &expected_nominal.args,
+                    lower,
+                    builtins,
+                );
             }
 
-            // 当前阶段的最小继承/实现规则：只在目标类型“未带实参”时做上转，
-            // 避免过早引入“泛型超类型实例化”的复杂语义。
-            if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
-                return false;
-            }
-
-            nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
+            concrete_nominal_is_subtype(found, expected, lower, builtins)
         }
         // builtin 标量值类型（Int/Bool/...）→ interface：允许 boxing，并复用 sysroot 的继承/实现关系。
         //
@@ -298,59 +353,18 @@ pub(super) fn is_type_assignable(
                 }
                 _ => return false,
             }
-            if found_nominal.args.len() != expected_nominal.args.len() {
-                return false;
-            }
-
-            let variances = lower.env().type_param_variances(&found_nominal.fqn);
-
-            for (idx, (found_arg, expected_arg)) in found_nominal
-                .args
-                .iter()
-                .copied()
-                .zip(expected_nominal.args.iter().copied())
-                .enumerate()
-            {
-                let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
-
-                // Kotlin-like restriction（spec §3.2）：
-                // variance 只对引用类型实参生效（值类型布局不同，需显式转换）。
-                let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
-
-                match declared {
-                    None => {
-                        if found_arg != expected_arg {
-                            return false;
-                        }
-                    }
-                    Some(ast::TypeParamVariance::Out) if both_ref => {
-                        if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
-                            return false;
-                        }
-                    }
-                    Some(ast::TypeParamVariance::In) if both_ref => {
-                        if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
-                            return false;
-                        }
-                    }
-                    Some(_) => {
-                        if found_arg != expected_arg {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            true
+            nominal_type_args_assignable(
+                &found_nominal.fqn,
+                &found_nominal.args,
+                &expected_nominal.args,
+                lower,
+                builtins,
+            )
         }
         (
-            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
-            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
-        ) => {
-            // value → interface：允许 boxing；同样限制目标不带 type args。
-            expected_nominal.args.is_empty()
-                && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
-        }
+            TypeKind::Value(ValueTypeKind::Nominal(_found_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(_expected_nominal)),
+        ) => concrete_nominal_is_subtype(found, expected, lower, builtins),
         (
             TypeKind::Ref(RefTypeKind::Function(found_fun)),
             TypeKind::Ref(RefTypeKind::Function(expected_fun)),

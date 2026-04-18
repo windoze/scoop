@@ -1,0 +1,37 @@
+// EXPECT: pass
+// RUN-STDOUT: parameterized_supertype_interface_dispatch.stdout
+// EXPECT-EXIT: 0
+//
+// T4001:
+// - `DerivedBox` 需要能沿 `DerivedBox -> BaseBox -> Tagged<Int>` 链路上转到 `Tagged<Int>`；
+// - 这要求 assignable 不能只看裸 FQN，而要沿具体化后的 direct supertypes 做 DFS；
+// - 上转后的 interface dispatch 仍应调用到 override 后的实现。
+
+import scoop.core.*
+
+interface Tagged<T> {
+    fun tag(): Int
+}
+
+open class BaseBox() : Tagged<Int> {
+    open fun tag(): Int {
+        return 10
+    }
+}
+
+class DerivedBox(val value: Int) : BaseBox() {
+    override fun tag(): Int {
+        return this.value
+    }
+}
+
+fun readTag(x: Tagged<Int>): Int {
+    return x.tag()
+}
+
+fun main(): Int {
+    val box: Tagged<Int> = DerivedBox(5)
+    println(readTag(box))
+    println(readTag(DerivedBox(9)))
+    return 0
+}

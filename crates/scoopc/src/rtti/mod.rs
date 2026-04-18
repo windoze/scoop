@@ -316,6 +316,7 @@ impl RttiContext {
                 None,
             ),
             TypeKind::Param(_) => (RttiKind::Opaque, None),
+            TypeKind::StarProjection(_) => (RttiKind::Ref, None),
             TypeKind::Value(vk) => match vk {
                 ValueTypeKind::Unit
                 | ValueTypeKind::Nothing
@@ -410,6 +411,7 @@ impl RttiContext {
         let layout = match kind {
             TypeKind::Ref(_) => self.pointer_layout(),
             TypeKind::Param(_) => self.pointer_layout().without_niche(),
+            TypeKind::StarProjection(star) => self.type_layout(star.read_ty)?,
             TypeKind::Value(vk) => match vk {
                 ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
                 ValueTypeKind::Bool => self.bool_layout(),

@@ -14,7 +14,7 @@
 
 ## T4001：泛型约束、参数化超类型与 star projection
 
-### T4001 [TODO] 收口泛型约束、参数化超类型与 star projection 语义
+### T4001 [DONE] 收口泛型约束、参数化超类型与 star projection 语义
 - 范围：
   - `where` 子句支持带类型实参的 nominal bound。
   - type env 记录 direct supertypes 时保留 type args。
@@ -23,6 +23,10 @@
 - 验收：
   - 覆盖 typecheck、assignable、lowering、必要的 run-pass / regression。
   - `ISSUES.md` 第 5 条收窄或关闭。
+- 完成：
+  - 已为 `TypeEnv` / `TypeLowering` / `assignable` / RTTI / LLVM codegen 补齐参数化超类型与 star projection 主线。
+  - 已新增 6 条回归 fixture，覆盖参数化 where bound、参数化超类型上转与 `Array<*>` 读视图。
+  - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、定向 run-pass、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
 - 依赖：无
 
 ### T4001R [TODO] Review：确认参数化超类型与 star projection 没有退回特判

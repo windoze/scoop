@@ -495,6 +495,8 @@ pub(crate) struct TypeLowering<'a> {
     ///   当接收者类型为 `TypeKind::Param` 时，查找该 param 的 bound 接口方法集合。
     /// - 与 `type_param_scopes` 对齐地 push/pop。
     where_bound_scopes: Vec<Vec<WhereBoundEntry>>,
+    /// 具体 nominal `TypeId` 的 direct supertypes（已完成 type param substitution）。
+    concrete_direct_supertypes: HashMap<TypeId, Vec<TypeId>>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -566,6 +568,7 @@ impl<'a> TypeLowering<'a> {
             nogc_context_depth: 0,
             const_context_depth: 0,
             where_bound_scopes: Vec::new(),
+            concrete_direct_supertypes: HashMap::new(),
         }
     }
 
@@ -582,6 +585,12 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn env(&self) -> &TypeEnv {
         self.env
+    }
+
+    pub(super) fn concrete_direct_supertypes(&self, ty: TypeId) -> Option<&[TypeId]> {
+        self.concrete_direct_supertypes
+            .get(&ty)
+            .map(|v| v.as_slice())
     }
 
     pub(super) fn push_unsafe_context(&mut self) {
@@ -1056,12 +1065,11 @@ impl<'a> TypeLowering<'a> {
                 Ok(self.types.ty_option(inner))
             }
             ast::TypeRef::Star { .. } => {
-                // spec §3.3：`*` 表示“未知类型实参（boxed ref view）”。
+                // spec §3.3：`*` 是真实的 star projection，而不是普通 `Any`。
                 //
-                // 当前阶段（T0437）先把它 lowering 为 `Any`：
-                // - 让 `List<*>` 这类类型在签名里可通过 lowering；
-                // - 更精确的 read-only/装箱语义留给后续任务（与 codegen/boxing 联动）。
-                Ok(self.builtins.any)
+                // 运行时读视图等价于 boxed `Any?`，但 typecheck 仍需保留“只读 / 禁写”语义，
+                // 因此这里用独立的 `TypeKind::StarProjection` 表示。
+                Ok(self.ty_star_projection())
             }
             ast::TypeRef::EffectRowArg { span, .. } => Err(TypeLowerError::UnsupportedTypeRef {
                 kind: "use-site effect row arg (`eff ...`)",
@@ -1314,6 +1322,40 @@ impl<'a> TypeLowering<'a> {
         self.types.is_ref(id)
     }
 
+    pub(super) fn star_projection_read_ty(&mut self) -> TypeId {
+        self.types.ty_option(self.builtins.any)
+    }
+
+    pub(super) fn ty_star_projection(&mut self) -> TypeId {
+        let read_ty = self.star_projection_read_ty();
+        self.types.ty_star_projection(read_ty)
+    }
+
+    pub(super) fn star_projection_read_view(&self, id: TypeId) -> Option<TypeId> {
+        match self.types.kind(id) {
+            TypeKind::StarProjection(star) => Some(star.read_ty),
+            _ => None,
+        }
+    }
+
+    pub(super) fn is_star_projection(&self, id: TypeId) -> bool {
+        matches!(self.types.kind(id), TypeKind::StarProjection(_))
+    }
+
+    /// `*` 的运行时读视图兼容性：
+    /// - 引用类型可直接作为 `Any?` 读取；
+    /// - `Option<Ref>` 复用 nullable-ref niche，同样可作为 `Any?` 读取；
+    /// - 其它值类型需要显式 boxing，因此不允许隐式上转到 `*`。
+    pub(super) fn is_star_projection_read_compatible(&self, id: TypeId) -> bool {
+        match self.types.kind(id) {
+            TypeKind::StarProjection(_) | TypeKind::Ref(_) => true,
+            TypeKind::Value(ValueTypeKind::Option(inner)) => {
+                matches!(self.types.kind(*inner), TypeKind::Ref(_))
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn ty_option(&mut self, inner: TypeId) -> TypeId {
         self.types.ty_option(inner)
     }
@@ -1540,6 +1582,12 @@ impl<'a> TypeLowering<'a> {
                         .types
                         .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
                 };
+                let (nominal_fqn, nominal_args) = match self.types.kind(id) {
+                    TypeKind::Value(ValueTypeKind::Nominal(n))
+                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn.clone(), n.args.clone()),
+                    _ => unreachable!("nominal lowering produced non-nominal type"),
+                };
+                self.ensure_concrete_direct_supertypes(id, &nominal_fqn, &nominal_args)?;
                 Ok(id)
             }
         }
@@ -1685,6 +1733,7 @@ impl<'a> TypeLowering<'a> {
 
         let ok = match self.type_kind(id) {
             TypeKind::Ref(_) => false,
+            TypeKind::StarProjection(_) => false,
             // 保守：类型参数可能实例化为引用类型，因此视为 non-GC-free。
             TypeKind::Param(_) => false,
             TypeKind::Value(v) => match v {
@@ -2118,9 +2167,59 @@ impl<'a> TypeLowering<'a> {
                         .types
                         .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
                 };
+                let (nominal_fqn, nominal_args) = match self.types.kind(id) {
+                    TypeKind::Value(ValueTypeKind::Nominal(n))
+                    | TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn.clone(), n.args.clone()),
+                    _ => unreachable!("nominal lowering produced non-nominal type"),
+                };
+                self.ensure_concrete_direct_supertypes(id, &nominal_fqn, &nominal_args)?;
                 Ok(id)
             }
         }
+    }
+
+    fn ensure_concrete_direct_supertypes(
+        &mut self,
+        nominal_ty: TypeId,
+        fqn: &str,
+        args: &[TypeId],
+    ) -> Result<(), TypeLowerError> {
+        if self.concrete_direct_supertypes.contains_key(&nominal_ty) {
+            return Ok(());
+        }
+
+        // 先插入占位，避免递归实例化（例如 `Foo<T> : Bar<Foo<T>>`）重复进入。
+        self.concrete_direct_supertypes
+            .insert(nominal_ty, Vec::new());
+
+        let Some(sym) = self.env.type_symbol(fqn) else {
+            return Ok(());
+        };
+
+        let bindings = sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(args.iter().copied())
+            .collect::<Vec<_>>();
+
+        let mut instantiated: Vec<TypeId> = Vec::new();
+        if let Some(super_infos) = self.env.direct_supertype_infos(fqn) {
+            for super_info in super_infos {
+                let super_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &sym.decl_file,
+                    bindings.iter().cloned(),
+                    &super_info.ty,
+                )?;
+                if !instantiated.contains(&super_ty) {
+                    instantiated.push(super_ty);
+                }
+            }
+        }
+
+        self.concrete_direct_supertypes
+            .insert(nominal_ty, instantiated);
+        Ok(())
     }
 
     fn lower_type_alias_fqn(

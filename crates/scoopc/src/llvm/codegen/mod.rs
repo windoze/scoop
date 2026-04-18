@@ -15085,11 +15085,87 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
+            (CgTy::String, CgTy::Enum(target_enum))
+            | (CgTy::Ref, CgTy::Enum(target_enum))
+            | (CgTy::Enum(_), CgTy::Enum(target_enum)) => {
+                if let Some(coerced) =
+                    self.try_coerce_pointer_like_to_option_enum(at, value, target_enum)?
+                {
+                    Ok(coerced)
+                } else {
+                    Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "value coercion",
+                        at: at.into(),
+                    })
+                }
+            }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value coercion",
                 at: at.into(),
             }),
         }
+    }
+
+    fn try_coerce_pointer_like_to_option_enum(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+        target_enum: TypeId,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Option(target_inner)) = self.types.kind(target_enum)
+        else {
+            return Ok(None);
+        };
+
+        if !matches!(
+            self.cg_enum_layout(at, target_enum)?.repr,
+            CgEnumRepr::Niche {
+                storage: NicheStorage::Pointer,
+                ..
+            }
+        ) {
+            return Ok(None);
+        }
+
+        let target_inner_cg =
+            self.cg_ty_of(*target_inner)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Option<T> inner type",
+                    at: at.into(),
+                })?;
+
+        let Some(raw) = value.value else {
+            return Ok(None);
+        };
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Ok(None);
+        };
+
+        match (value.ty, target_inner_cg) {
+            (CgTy::Ref, CgTy::Ref) | (CgTy::String, CgTy::String) | (CgTy::String, CgTy::Ref) => {}
+            (CgTy::Enum(source_enum), CgTy::Ref | CgTy::String)
+                if matches!(
+                    self.cg_enum_layout(at, source_enum)?.repr,
+                    CgEnumRepr::Niche {
+                        storage: NicheStorage::Pointer,
+                        ..
+                    }
+                ) => {}
+            _ => return Ok(None),
+        }
+
+        let target_llvm_ty = self.llvm_basic_type_of(at, CgTy::Enum(target_enum))?;
+        let BasicTypeEnum::PointerType(ptr_ty) = target_llvm_ty else {
+            return Ok(None);
+        };
+
+        let casted = self
+            .builder
+            .build_pointer_cast(ptr, ptr_ty, "option_ptr_coerce")?;
+        Ok(Some(CgValue {
+            ty: CgTy::Enum(target_enum),
+            value: Some(casted.into()),
+        }))
     }
 
     fn codegen_box_unit_to_ref(

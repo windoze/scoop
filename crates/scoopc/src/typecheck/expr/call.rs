@@ -3300,11 +3300,7 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
             let inner = lower_type_ref_with_enum_subst(ctx, inner, lower)?;
             Ok(lower.ty_option(inner))
         }
-        ast::TypeRef::Star { .. } => Err(TypeLowerError::UnsupportedTypeRef {
-            kind: "star projection (*)",
-            span: ctx.use_span.into(),
-        }
-        .into()),
+        ast::TypeRef::Star { .. } => Ok(lower.ty_star_projection()),
         ast::TypeRef::EffectRowArg { .. } => Err(TypeLowerError::UnsupportedTypeRef {
             kind: "use-site effect row arg (`eff ...`)",
             span: ctx.use_span.into(),
@@ -6450,6 +6446,7 @@ pub(super) fn substitute_single_type_param(
 
     match lower.type_kind(ty) {
         TypeKind::Param(_) => Ok(ty),
+        TypeKind::StarProjection(_) => Ok(ty),
         TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String) => Ok(ty),
         TypeKind::Value(ValueTypeKind::Unit)
         | TypeKind::Value(ValueTypeKind::Nothing)

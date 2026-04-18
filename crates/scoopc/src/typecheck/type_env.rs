@@ -204,6 +204,17 @@ pub struct WhereConstraintInfo {
     pub bound: ast::TypeRef,
 }
 
+/// nominal 类型声明头中的一条 direct supertype 定义。
+///
+/// 说明：
+/// - `fqn` 供旧的 FQN-only 调用方继续复用；
+/// - `ty` 保留原始 type args / `eff` use-site 语法，用于在具体实例化时做 substitution。
+#[derive(Debug, Clone)]
+pub struct DirectSupertypeInfo {
+    pub fqn: String,
+    pub ty: ast::TypeRef,
+}
+
 /// 单个源文件在 typecheck lowering 阶段需要的最小上下文信息。
 ///
 /// 用途：
@@ -297,6 +308,7 @@ pub struct TypeEnv {
     enums: HashMap<String, EnumDecl>,
     sources: HashMap<PathBuf, SourceFile>,
     supertypes: HashMap<String, Vec<String>>,
+    supertype_defs: HashMap<String, Vec<DirectSupertypeInfo>>,
     file_ctx: HashMap<PathBuf, FileTypeContext>,
     type_aliases: HashMap<String, TypeAliasInfo>,
     /// 编译目标平台（用于 capability gating；默认 host）。
@@ -422,9 +434,18 @@ impl TypeEnv {
         self.type_aliases.get(fqn)
     }
 
-    /// 返回给定 nominal type 的 direct supertypes（以 FQN 形式；不包含隐式 `Any`）。
+    /// 返回给定 nominal type 的 direct supertypes（仅 FQN 视图；不包含隐式 `Any`）。
+    ///
+    /// 说明：
+    /// - 该接口保留给仍只关心“继承图形状”的调用方；
+    /// - 若需要保留 type args / `eff` use-site 信息，请改用 `direct_supertype_infos`。
     pub fn direct_supertypes(&self, fqn: &str) -> Option<&[String]> {
         self.supertypes.get(fqn).map(|v| v.as_slice())
+    }
+
+    /// 返回给定 nominal type 的 direct supertypes（保留原始 type args / `eff` use-site 语法）。
+    pub fn direct_supertype_infos(&self, fqn: &str) -> Option<&[DirectSupertypeInfo]> {
+        self.supertype_defs.get(fqn).map(|v| v.as_slice())
     }
 
     /// 返回所有名字为 `variant_name` 的 enum variant 候选（跨所有已收集的 enum）。
@@ -606,6 +627,7 @@ impl TypeEnv {
         // - 当前只存储 “解析后的 FQN”，不存储 type args（更完整的泛型超类型实例化留给后续任务）。
         // - 不包含隐式 `Any`；`Any` 的顶类型语义由 typecheck 单独处理。
         let mut supers: Vec<String> = Vec::new();
+        let mut super_defs: Vec<DirectSupertypeInfo> = Vec::new();
         let skip_first_super = matches!(decl.kind, ast::TypeKind::Enum)
             && !decl.supertypes.is_empty()
             && decl.body.as_ref().is_some_and(|body| {
@@ -620,13 +642,20 @@ impl TypeEnv {
             .skip(if skip_first_super { 1 } else { 0 })
         {
             if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
-                supers.push(st_fqn);
+                supers.push(st_fqn.clone());
+                super_defs.push(DirectSupertypeInfo {
+                    fqn: st_fqn,
+                    ty: st.ty.clone(),
+                });
             }
         }
         supers.sort();
         supers.dedup();
         if !supers.is_empty() {
             self.supertypes.insert(fqn.clone(), supers);
+        }
+        if !super_defs.is_empty() {
+            self.supertype_defs.insert(fqn.clone(), super_defs);
         }
 
         let Some(body) = &decl.body else {
@@ -767,15 +796,23 @@ impl TypeEnv {
 
         // 记录 direct supertypes（与 nominal type 一致；不包含隐式 `Any`）。
         let mut supers: Vec<String> = Vec::new();
+        let mut super_defs: Vec<DirectSupertypeInfo> = Vec::new();
         for st in &obj.supertypes {
             if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
-                supers.push(st_fqn);
+                supers.push(st_fqn.clone());
+                super_defs.push(DirectSupertypeInfo {
+                    fqn: st_fqn,
+                    ty: st.ty.clone(),
+                });
             }
         }
         supers.sort();
         supers.dedup();
         if !supers.is_empty() {
             self.supertypes.insert(fqn.clone(), supers);
+        }
+        if !super_defs.is_empty() {
+            self.supertype_defs.insert(fqn.clone(), super_defs);
         }
 
         let Some(body) = &obj.body else {

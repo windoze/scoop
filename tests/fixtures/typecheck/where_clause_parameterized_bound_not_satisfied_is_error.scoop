@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 22:10
+// EXPECT-ERROR: 泛型约束不满足
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Producer<T> {
+    fun produce(): T
+}
+
+class IntProducer() : Producer<Int> {
+    fun produce(): Int {
+        return 1
+    }
+}
+
+class Box<T> where T: Producer<String> {}
+
+val bad: Box<IntProducer>

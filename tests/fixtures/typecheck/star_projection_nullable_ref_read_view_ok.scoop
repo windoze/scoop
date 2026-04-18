@@ -1,0 +1,13 @@
+// EXPECT: pass
+// T4001: `Array<String?>` 也应能通过 `*` 暴露为 `Any?` 读视图。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val noneName: String? = None()
+val someName: String? = Some("beta")
+val names: Array<String?> = [noneName, someName]
+val view: Array<*> = names
+val first: Any? = view.get(0)
+val second: Any? = view.get(1)
