@@ -624,7 +624,8 @@ impl TypeEnv {
         // 记录 direct supertypes（用于后续最小子类型/boxing 判断）。
         //
         // 注意：
-        // - 当前只存储 “解析后的 FQN”，不存储 type args（更完整的泛型超类型实例化留给后续任务）。
+        // - `supers` 保留 “解析后的 FQN” 视图，供只关心继承图形状的调用方复用；
+        // - `super_defs` 保留原始 `TypeRef`，供参数化超类型在 use-site 做 substitution；
         // - 不包含隐式 `Any`；`Any` 的顶类型语义由 typecheck 单独处理。
         let mut supers: Vec<String> = Vec::new();
         let mut super_defs: Vec<DirectSupertypeInfo> = Vec::new();

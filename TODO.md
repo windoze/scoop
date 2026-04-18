@@ -29,12 +29,16 @@
   - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、定向 run-pass、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
 - 依赖：无
 
-### T4001R [TODO] Review：确认参数化超类型与 star projection 没有退回特判
+### T4001R [DONE] Review：确认参数化超类型与 star projection 没有退回特判
 - 重点：
   - 不允许只对个别 interface / collection 做旁路特判。
   - star projection 不能只是换个位置继续降成 `Any`。
 - 验收：
   - review 结论明确写入提交说明或文档变更中。
+- 完成：
+  - 已复审 `TypeEnv -> TypeLowering -> assignable` 主线：参数化超类型通过 `direct_supertype_infos` 保留声明处 `TypeRef`，在实例化时统一 substitution 为 `concrete_direct_supertypes`，未引入 `Array` / `Collection` / 单个 interface 名称的旁路分支。
+  - 已复审 `TypeKind::StarProjection` 主线：`*` 在 typecheck 内保留为独立类型节点，只在 ScoopIR 导出、RTTI 布局和 LLVM CG 类型映射边界读取 `read_ty`，没有在前端主线上提前退化成 `Any`。
+  - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）与定向 run-pass `target/debug/scoop test --fixtures target/t4001r-fixtures/run-pass`（`fixtures: ok (2)`）。
 - 依赖：T4001
 
 ## T4002：lambda 推断与 receiver lambda

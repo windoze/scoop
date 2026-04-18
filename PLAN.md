@@ -5,7 +5,7 @@
 > 依据：`ISSUES.md` 当前审计结果  
 > 本轮主题：先收口核心语言与 codegen 缺口，再推进 effect 完整性与 `Task` 设计；executor framework 明确留到下一阶段。
 >
-> 2026-04-18 当前轮完成更新：`T4001` 已完成。`where` 子句现已支持带类型实参的 nominal bound；`TypeEnv` / `TypeLowering` 会保留并具体化 direct supertypes；assignable / 上转规则已改为沿具体化后的 supertype 链做 DFS；`*` 现作为 typecheck 内部 star projection 保留，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图。已补 4 条 typecheck fixture 与 2 条 run-pass fixture，并通过 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、T4001 定向 run-pass（`fixtures: ok (2)`）、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4001R`。
+> 2026-04-18 当前轮完成更新：`T4001` 与 `T4001R` 已完成。`where` 子句现已支持带类型实参的 nominal bound；`TypeEnv` / `TypeLowering` 会保留并具体化 direct supertypes；assignable / 上转规则已改为沿具体化后的 supertype 链做 DFS；`*` 现作为 typecheck 内部 star projection 保留，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图。复审确认上述语义走统一主线，没有新增 `Array` / `Collection` / 单个 interface 的旁路特判，也没有把 star projection 在前端主线上重新降回 `Any`。已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）与 T4001 定向 run-pass（`target/debug/scoop test --fixtures target/t4001r-fixtures/run-pass`，`fixtures: ok (2)`）。当前下一项推进到 `T4002`。
 
 ## 0. 工作原则
 
@@ -34,7 +34,7 @@
 
 - 先解决参数化 nominal bound、参数化超类型、star projection。
 - 目标是把 generic subtype / assignable / lowering 的基础打稳，避免后续 lambda、调用与跨文件实例化继续叠加在不稳定的类型关系上。
-- 当前状态：`T4001` 已完成，P1 的下一步是 `T4001R` 复审“没有退回局部特判 / `* -> Any` 伪实现”。
+- 当前状态：`T4001` / `T4001R` 已完成；P1 阶段收口完毕，下一步进入 P2 的 `T4002`。
 
 ### P2. 表达式推断与调用语义收口
 
