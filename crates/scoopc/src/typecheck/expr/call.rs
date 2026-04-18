@@ -3735,6 +3735,67 @@ fn try_infer_continuation_resume_call_expr_type(
     Ok(Some(ret))
 }
 
+pub(super) fn infer_continuation_resume_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let callee_expr: &ast::Expr = match &callee.kind {
+        ast::ExprKind::TypeApply {
+            callee: inner,
+            args,
+        } => {
+            let _explicit_type_args = args
+                .iter()
+                .map(|arg| lower.lower_type_ref(arg))
+                .collect::<Result<Vec<_>, _>>()?;
+            inner.as_ref()
+        }
+        _ => callee,
+    };
+
+    let source = inputs.source;
+
+    let (receiver, member, safe) = match &callee_expr.kind {
+        ast::ExprKind::MemberAccess { receiver, member } => (receiver.as_ref(), member, false),
+        ast::ExprKind::SafeMemberAccess {
+            receiver, member, ..
+        } => (receiver.as_ref(), member, true),
+        _ => return Ok(None),
+    };
+
+    if source.slice(member.span) != "resume" {
+        return Ok(None);
+    }
+
+    let receiver_ty = inputs.infer(lower, receiver)?;
+    let actual_receiver_ty = if safe {
+        match lower.type_kind(receiver_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+            _ => {
+                return Err(ExprTypeError::SafeAccessReceiverNotNullable {
+                    found: lower.fmt_type(receiver_ty),
+                    span: receiver.span.into(),
+                });
+            }
+        }
+    } else {
+        receiver_ty
+    };
+
+    try_infer_continuation_resume_call_expr_type(
+        inputs,
+        call_expr,
+        actual_receiver_ty,
+        member,
+        args,
+        safe,
+        lower,
+    )
+}
+
 fn infer_member_call_expr_type(
     inputs: ExprInferInputs<'_>,
     request: MemberCallRequest<'_>,

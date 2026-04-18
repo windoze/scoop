@@ -2826,6 +2826,55 @@ fun main(): Int {
     }
 
     #[test]
+    fn lower_typed_single_source_file_records_statement_position_continuation_resume_call_site() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t3016c0_stmt_resume>",
+            r#"
+package fixtures.t3016c0
+
+import scoop.core.*
+
+fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume(1)
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let run_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t3016c0.run" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t3016c0.run");
+        let body = run_fun.body.as_ref().expect("run 应有 body");
+        let resume_span = match body.stmts.as_slice() {
+            [
+                Stmt {
+                    kind: StmtKind::Expr(expr),
+                    ..
+                },
+            ] => match &expr.kind {
+                ExprKind::Call { .. } => expr.span,
+                other => panic!("run 的唯一语句应为 call expr，实际为 {:?}", other),
+            },
+            stmts => panic!("run body 语句数不符合预期: {:?}", stmts),
+        };
+
+        assert_eq!(lowered.continuation_resume_call_sites.len(), 1);
+        assert!(
+            lowered
+                .continuation_resume_call_sites
+                .contains(&resume_span),
+            "statement-position `Continuation.resume(...)` 应写入 continuation_resume_call_sites"
+        );
+    }
+
+    #[test]
     fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_cross_file_observable_delegate_callback()
      {
         let sess = Session::new().unwrap();

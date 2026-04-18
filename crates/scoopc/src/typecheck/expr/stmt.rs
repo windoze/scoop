@@ -7,7 +7,8 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::call::{
-    check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, infer_effect_op_call_expr_type,
+    check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate,
+    infer_continuation_resume_call_expr_type, infer_effect_op_call_expr_type,
 };
 use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
@@ -1253,6 +1254,16 @@ pub(super) fn check_expr_stmt(
                     lower,
                 )?;
             }
+
+            // `Continuation.resume(...)` 与表达式位置共用同一 builtin 规则：
+            // 这里必须补回 side table 与 required-effects 记录，避免语句位置静默绕过。
+            let _ = infer_continuation_resume_call_expr_type(
+                expr_infer_inputs_with_flow(shared, state.locals, flow),
+                expr,
+                callee.as_ref(),
+                args,
+                lower,
+            )?;
 
             Ok(())
         }

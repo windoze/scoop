@@ -1,0 +1,34 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 30:13
+// 目标：T3016c0：statement-position `Continuation.resume(...)` 在 pure main 的 outer body 中
+// 也必须记录 `Raise<RuntimeError>`，不能静默漏过到后续 codegen。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Ask {
+    fun get(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int>? = None()
+
+    val _ignored: Int = handle {
+        Ask.get()
+    } with {
+        Ask.get(), k -> {
+            saved = Some(k)
+            0
+        }
+    }
+
+    when (saved) {
+        Some(k) -> {
+            k.resume(42)
+        }
+        None -> {}
+    }
+}
