@@ -214,6 +214,7 @@ fn check_file_exprs_impl(
     file.replace_inferred_performed_effect_tys(HashMap::new());
     file.replace_inferred_handle_arm_effect_tys(HashMap::new());
     file.replace_safe_member_access_resolved(HashMap::new());
+    file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     if request.collect_monomorph {
@@ -344,6 +345,9 @@ fn check_file_exprs_impl(
     request
         .file
         .replace_safe_member_access_resolved(lower.take_safe_member_access_resolutions());
+    request
+        .file
+        .replace_typechecked_member_resolved(lower.take_typechecked_member_resolutions());
     request
         .file
         .replace_continuation_resume_call_sites(lower.take_continuation_resume_call_sites());

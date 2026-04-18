@@ -78,6 +78,13 @@ struct HirLowering<'a> {
     /// 侧把可变捕获降为 box/alias 语义。
     local_mutability: HashMap<SymbolId, bool>,
     next_closure: u32,
+    /// 当前 receiver lambda 中隐式 `this` 的合成声明 span。
+    ///
+    /// 说明：
+    /// - 普通函数 / 普通 lambda 为 `None`；
+    /// - receiver lambda lowering body 时会覆盖为当前 lambda 的合成 `this` 绑定；
+    /// - 嵌套普通 lambda 会继承外层 receiver lambda 的 `this`，嵌套 receiver lambda 会再次覆盖。
+    lambda_this_decl_span: Option<Span>,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
@@ -146,6 +153,7 @@ impl<'a> HirLowering<'a> {
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
+            lambda_this_decl_span: None,
             types,
             builtins,
             type_param_scopes: Vec::new(),
@@ -181,6 +189,18 @@ impl<'a> HirLowering<'a> {
         let result = f(self);
         self.source = previous_source;
         self.file = previous_file;
+        result
+    }
+
+    fn with_lambda_this_decl_span<T>(
+        &mut self,
+        lambda_this_decl_span: Option<Span>,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous = self.lambda_this_decl_span;
+        self.lambda_this_decl_span = lambda_this_decl_span;
+        let result = f(self);
+        self.lambda_this_decl_span = previous;
         result
     }
 

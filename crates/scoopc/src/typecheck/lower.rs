@@ -443,6 +443,13 @@ pub(crate) struct TypeLowering<'a> {
     /// - resolver 无法仅凭 nullable receiver 的语法形态写回 `member.resolved`；
     /// - lowering/codegen 仍需要稳定的成员解析结果，因此这里按 `member.span` 记录。
     safe_member_access_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
+    /// typecheck 最终确认的“member span -> 成员解析结果”。
+    ///
+    /// 用途：
+    /// - 普通 member access / member call / safe member access 的 lowering 统一优先读取这张表；
+    /// - 解决 resolver 初始决议与 typecheck 晚解析结果不一致时的语义分裂，
+    ///   例如 receiver lambda 中隐式 `this` 触发的 late-bound member resolution。
+    typechecked_member_resolutions: HashMap<Span, ast::ResolvedMemberRef>,
     /// typecheck 已确认的 `Continuation.resume` 调用点。
     ///
     /// 用途：
@@ -561,6 +568,7 @@ impl<'a> TypeLowering<'a> {
             inferred_performed_effect_tys: HashMap::new(),
             inferred_handle_arm_effect_tys: HashMap::new(),
             safe_member_access_resolutions: HashMap::new(),
+            typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
@@ -1241,6 +1249,15 @@ impl<'a> TypeLowering<'a> {
             .insert(member_span, resolved);
     }
 
+    pub(super) fn record_typechecked_member_resolution(
+        &mut self,
+        member_span: Span,
+        resolved: ast::ResolvedMemberRef,
+    ) {
+        self.typechecked_member_resolutions
+            .insert(member_span, resolved);
+    }
+
     pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span) {
         self.continuation_resume_call_sites.insert(call_span);
     }
@@ -1265,6 +1282,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::ResolvedMemberRef> {
         std::mem::take(&mut self.safe_member_access_resolutions)
+    }
+
+    pub(super) fn take_typechecked_member_resolutions(
+        &mut self,
+    ) -> HashMap<Span, ast::ResolvedMemberRef> {
+        std::mem::take(&mut self.typechecked_member_resolutions)
     }
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {

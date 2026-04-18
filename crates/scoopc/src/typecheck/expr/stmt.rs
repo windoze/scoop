@@ -1568,6 +1568,7 @@ fn check_assign_expr_stmt(
                     span: member.span.into(),
                 });
             };
+            lower.record_typechecked_member_resolution(member.span, resolved.clone());
 
             let fqn = match resolved {
                 ast::ResolvedMemberRef::Value { fqn } => fqn,

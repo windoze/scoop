@@ -4159,6 +4159,14 @@ fn infer_member_call_expr_type(
             }
         }
     });
+    if let Some(fqn) = resolved_member_fun_fqn {
+        lower.record_typechecked_member_resolution(
+            member.span,
+            ast::ResolvedMemberRef::Fun {
+                fqn: fqn.to_string(),
+            },
+        );
+    }
 
     // spec §15.10：GC pin/unpin（early stage）。
     //
@@ -5143,6 +5151,12 @@ fn infer_member_call_expr_type(
             }
         }
     };
+    lower.record_typechecked_member_resolution(
+        member.span,
+        ast::ResolvedMemberRef::ExtensionFun {
+            fqn: callee_fqn.clone(),
+        },
+    );
 
     // 当前阶段：优先使用"当前文件内"的函数签名信息；缺失时回退到 `Index`
     //（用于 sysroot / 跨文件扩展函数调用）。

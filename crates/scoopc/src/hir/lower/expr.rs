@@ -195,8 +195,8 @@ impl<'a> HirLowering<'a> {
                     let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
                         return None;
                     };
-                    let ast::ResolvedMemberRef::ExtensionFun { fqn } = member.resolved.as_ref()?
-                    else {
+                    let resolved = self.resolved_member_for_lowering(member);
+                    let ast::ResolvedMemberRef::ExtensionFun { fqn } = resolved.as_ref()? else {
                         return None;
                     };
 
@@ -269,7 +269,11 @@ impl<'a> HirLowering<'a> {
                     let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
                         return None;
                     };
-                    let ast::ResolvedMemberRef::Fun { fqn } = member.resolved.as_ref()? else {
+                    if self.should_keep_member_call_as_member_access(receiver, member) {
+                        return None;
+                    }
+                    let resolved = self.resolved_member_for_lowering(member);
+                    let ast::ResolvedMemberRef::Fun { fqn } = resolved.as_ref()? else {
                         return None;
                     };
 
@@ -1741,7 +1745,18 @@ impl<'a> HirLowering<'a> {
             })
             .collect();
 
-        let body = Box::new(self.lower_expr(pkg_prefix, lam.body.as_ref()));
+        let receiver_this_decl_span = typechecked_fun_ty.as_ref().and_then(|(_, fun_ty)| {
+            fun_ty
+                .receiver
+                .map(|_| ast::synthetic_lambda_receiver_this_decl_span(span))
+        });
+        let body = Box::new(match receiver_this_decl_span {
+            Some(receiver_this_decl_span) => self
+                .with_lambda_this_decl_span(Some(receiver_this_decl_span), |this| {
+                    this.lower_expr(pkg_prefix, lam.body.as_ref())
+                }),
+            None => self.lower_expr(pkg_prefix, lam.body.as_ref()),
+        });
         let captures = compute_closure_captures(&params, body.as_ref(), &self.local_mutability);
         (
             ExprKind::Closure(ClosureExpr {
@@ -2200,14 +2215,119 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    fn resolved_member_for_lowering(
+    pub(super) fn resolved_member_for_lowering(
         &self,
         member: &ast::MemberIdent,
     ) -> Option<ast::ResolvedMemberRef> {
-        member
-            .resolved
-            .clone()
+        self.file
+            .typechecked_member_resolved(member.span)
             .or_else(|| self.file.safe_member_access_resolved(member.span))
+            .or_else(|| member.resolved.clone())
+    }
+
+    fn should_keep_member_call_as_member_access(
+        &mut self,
+        receiver: &ast::Expr,
+        member: &ast::MemberIdent,
+    ) -> bool {
+        let Some(receiver_ty) = self.typechecked_expr_ty(receiver.span) else {
+            return false;
+        };
+        let member_name = self.source.slice(member.span);
+
+        if receiver_ty == self.builtins.string {
+            return matches!(
+                member_name,
+                "trimIndent"
+                    | "length"
+                    | "toInt"
+                    | "concat"
+                    | "hash"
+                    | "isEmpty"
+                    | "replace"
+                    | "charAt"
+                    | "repeat"
+                    | "compareTo"
+                    | "byteLength"
+                    | "getByte"
+                    | "unsafeSliceBytes"
+            );
+        }
+
+        if receiver_ty == self.builtins.int {
+            return matches!(member_name, "toString" | "hash");
+        }
+
+        if receiver_ty == self.builtins.bool_ {
+            return member_name == "toString";
+        }
+
+        if receiver_ty == self.builtins.char_ {
+            return matches!(member_name, "toInt" | "toString" | "hash");
+        }
+
+        if receiver_ty == self.builtins.float64 || receiver_ty == self.builtins.float32 {
+            return matches!(
+                member_name,
+                "toInt" | "toString" | "hash" | "abs" | "isNaN" | "isInfinite"
+            );
+        }
+
+        false
+    }
+
+    fn lower_ident_expr(&mut self, id: &ast::ValueIdent) -> (ExprKind, TypeId) {
+        let text = self.source.slice(id.span);
+        if text == "true" {
+            return (
+                ExprKind::Literal(LiteralKind::Bool(true)),
+                self.builtins.bool_,
+            );
+        }
+        if text == "false" {
+            return (
+                ExprKind::Literal(LiteralKind::Bool(false)),
+                self.builtins.bool_,
+            );
+        }
+
+        if text == "this"
+            && let Some(decl_span) = self.lambda_this_decl_span
+        {
+            return (
+                ExprKind::VarRef(ValueRef::Local {
+                    id: self.intern_local_symbol(decl_span, false),
+                    name: "this".to_string(),
+                    decl_span,
+                }),
+                self.builtins.any,
+            );
+        }
+
+        let Some(resolved) = id.resolved.as_ref() else {
+            // 典型场景：enum variant ctor 的 callee（`Some(1)`）/0-参数 variant 值（`None`）；
+            // resolver 会保留为“未 resolve”，让 typecheck 在期望类型语境下决议。
+            return (
+                ExprKind::UnresolvedIdent {
+                    name: text.to_string(),
+                },
+                self.builtins.any,
+            );
+        };
+
+        let resolved = match resolved {
+            ast::ResolvedValueRef::Local { name, decl_span } => ValueRef::Local {
+                id: self.intern_local_symbol(*decl_span, false),
+                name: name.clone(),
+                decl_span: *decl_span,
+            },
+            ast::ResolvedValueRef::TopLevel { fqn } => ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn: fqn.clone(),
+            },
+        };
+
+        (ExprKind::VarRef(resolved), self.builtins.any)
     }
 
     fn try_lower_effect_op_call_expr(
@@ -2220,7 +2340,8 @@ impl<'a> HirLowering<'a> {
         let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
             return None;
         };
-        let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
+        let resolved = self.resolved_member_for_lowering(member);
+        let Some(ast::ResolvedMemberRef::Fun { fqn }) = resolved.as_ref() else {
             return None;
         };
         if !self.is_effect_op_fqn(fqn) {
@@ -2981,47 +3102,6 @@ impl<'a> HirLowering<'a> {
             }),
             call_ty,
         ))
-    }
-
-    fn lower_ident_expr(&mut self, id: &ast::ValueIdent) -> (ExprKind, TypeId) {
-        let text = self.source.slice(id.span);
-        if text == "true" {
-            return (
-                ExprKind::Literal(LiteralKind::Bool(true)),
-                self.builtins.bool_,
-            );
-        }
-        if text == "false" {
-            return (
-                ExprKind::Literal(LiteralKind::Bool(false)),
-                self.builtins.bool_,
-            );
-        }
-
-        let Some(resolved) = id.resolved.as_ref() else {
-            // 典型场景：enum variant ctor 的 callee（`Some(1)`）/0-参数 variant 值（`None`）；
-            // resolver 会保留为“未 resolve”，让 typecheck 在期望类型语境下决议。
-            return (
-                ExprKind::UnresolvedIdent {
-                    name: text.to_string(),
-                },
-                self.builtins.any,
-            );
-        };
-
-        let resolved = match resolved {
-            ast::ResolvedValueRef::Local { name, decl_span } => ValueRef::Local {
-                id: self.intern_local_symbol(*decl_span, false),
-                name: name.clone(),
-                decl_span: *decl_span,
-            },
-            ast::ResolvedValueRef::TopLevel { fqn } => ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(fqn.clone()),
-                fqn: fqn.clone(),
-            },
-        };
-
-        (ExprKind::VarRef(resolved), self.builtins.any)
     }
 
     fn is_integer_type(&self, ty: TypeId) -> bool {

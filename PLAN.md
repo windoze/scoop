@@ -8,6 +8,8 @@
 > 2026-04-18 当前轮完成更新：`T4001` 与 `T4001R` 已完成。`where` 子句现已支持带类型实参的 nominal bound；`TypeEnv` / `TypeLowering` 会保留并具体化 direct supertypes；assignable / 上转规则已改为沿具体化后的 supertype 链做 DFS；`*` 现作为 typecheck 内部 star projection 保留，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图。复审确认上述语义走统一主线，没有新增 `Array` / `Collection` / 单个 interface 的旁路特判，也没有把 star projection 在前端主线上重新降回 `Any`。已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）与 T4001 定向 run-pass（`target/debug/scoop test --fixtures target/t4001r-fixtures/run-pass`，`fixtures: ok (2)`）。当前下一项推进到 `T4002`。
 >
 > 2026-04-19 当前轮完成更新：`T4002` 已完成。lambda 推断现统一按函数签名驱动：expected-type 向下传播不再写死 0/1/2 参数；无 expected type 的 lambda 在“显式参数类型”与零参数场景下也能直接定型；receiver lambda 的隐式 `this` 已在 resolver / typecheck / HIR / LLVM closure codegen 主线上贯通，并按 receiver 实际类型完成 member access / method call late resolve。补充回归覆盖了多参数 expected-type 推断、无 expected type 的显式参数 lambda、scope functions 的 receiver lambda，以及 receiver lambda 遮蔽外层 `this` 的执行路径。已验证 `target/debug/scoop test --fixtures target/t4002-fixtures/infer`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures target/t4002-fixtures/run-pass`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4002R`。
+>
+> 2026-04-19 当前轮完成更新：`T4002R` 已完成。复审确认 lambda expected-type 推断仍统一走“按函数签名收集候选，再仅对 lambda 实参进入 expected-context typecheck”的主线，没有回流到按 direct/member/function-value 某一调用形状分别补推断；同时发现并修复了一个既有 lowering 裂缝：嵌套 receiver lambda 的 `this.member(...)` 在 typecheck 阶段会按 receiver 实际类型晚解析，但 HIR lowering 仍可能沿用 resolver 的旧成员决议与旧 `this` 绑定，导致 `receiver_lambda_this_shadows_outer_this` 错误输出 `99`。当前已通过 `typechecked_member_resolved` side table 与 receiver-lambda lowering `this` 上下文统一成员最终决议，并让内建字符串/标量成员方法继续保留为后端 intrinsic member-call 路径，修复后该回归输出已改为 `3`。已验证 `target/debug/scoop test --fixtures target/t4002r-fixtures/infer`（`fixtures: ok (1)`）、`target/debug/scoop test --fixtures target/t4002r-fixtures/run-pass`（`fixtures: ok (4)`）、`target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003`。
 
 ## 0. 工作原则
 
@@ -42,7 +44,7 @@
 
 - 依次补齐 lambda 推断、receiver lambda、函数值 / funptr / constructor delegation 的调用语义缺口。
 - 目标是把前端最常用的表达式与调用规则统一到同一条类型检查主线上。
-- 当前状态：`T4002` 已完成；下一步进入 `T4002R`，复审“lambda 推断 / receiver lambda”是否真正走统一主线，而不是局部 call-shape 补丁。
+- 当前状态：`T4002` / `T4002R` 已完成；lambda 推断与 receiver lambda 现已确认走统一主线，下一步进入 `T4003` 收口函数值 / funptr / constructor delegation 的调用语义差异。
 
 ### P3. 语法到 lowering 的缺口收口
 

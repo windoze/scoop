@@ -60,6 +60,14 @@ pub struct File {
     ///   写回此表，供 HIR lowering / codegen 复用；
     /// - 该表同样不参与 AST Debug 输出，避免影响 parse fixtures。
     pub(crate) safe_member_access_resolved: RefCell<HashMap<Span, ResolvedMemberRef>>,
+    /// typecheck 最终确认的“member span -> 成员解析结果” side table。
+    ///
+    /// 说明：
+    /// - 覆盖普通 member access / member call / safe member access 的最终决议；
+    /// - 用于承载“resolver 先按语法环境给出初始决议，但 typecheck 在拿到 receiver 实际类型后
+    ///   做了晚解析/改写”的场景（例如 receiver lambda 的隐式 `this`）；
+    /// - HIR lowering / codegen 应优先读取这张表，而不是盲信 AST 上 `member.resolved` 的初始值。
+    pub(crate) typechecked_member_resolved: RefCell<HashMap<Span, ResolvedMemberRef>>,
     /// typecheck 已确认的 `Continuation.resume` 调用点（按整个 call expr 的源码 span 索引）。
     ///
     /// 说明：
@@ -126,6 +134,17 @@ impl File {
 
     pub fn safe_member_access_resolved(&self, span: Span) -> Option<ResolvedMemberRef> {
         self.safe_member_access_resolved
+            .borrow()
+            .get(&span)
+            .cloned()
+    }
+
+    pub fn replace_typechecked_member_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {
+        *self.typechecked_member_resolved.borrow_mut() = resolved;
+    }
+
+    pub fn typechecked_member_resolved(&self, span: Span) -> Option<ResolvedMemberRef> {
+        self.typechecked_member_resolved
             .borrow()
             .get(&span)
             .cloned()

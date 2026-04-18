@@ -156,6 +156,9 @@ impl<'a> Parser<'a> {
                 std::collections::HashMap::new(),
             ),
             safe_member_access_resolved: std::cell::RefCell::new(std::collections::HashMap::new()),
+            typechecked_member_resolved: std::cell::RefCell::new(
+                std::collections::HashMap::new(),
+            ),
             continuation_resume_call_sites: std::cell::RefCell::new(
                 std::collections::HashSet::new(),
             ),

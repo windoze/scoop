@@ -49,9 +49,8 @@ pub(super) fn infer_safe_member_access_expr_type(
         resolved.as_ref(),
         lower,
     )?;
-    if member.resolved.is_none()
-        && let Some(resolved) = inferred.resolved.clone()
-    {
+    if let Some(resolved) = inferred.resolved.clone() {
+        lower.record_typechecked_member_resolution(member.span, resolved.clone());
         lower.record_safe_member_access_resolution(member.span, resolved);
     }
 
@@ -239,16 +238,18 @@ pub(super) fn infer_member_access_expr_type(
         member.resolved.clone()
     };
 
-    Ok(
-        infer_member_access_with_receiver_ty(
-            inputs,
-            receiver_ty,
-            member,
-            resolved.as_ref(),
-            lower,
-        )?
-        .ty,
-    )
+    let inferred = infer_member_access_with_receiver_ty(
+        inputs,
+        receiver_ty,
+        member,
+        resolved.as_ref(),
+        lower,
+    )?;
+    if let Some(resolved) = inferred.resolved.clone() {
+        lower.record_typechecked_member_resolution(member.span, resolved);
+    }
+
+    Ok(inferred.ty)
 }
 
 fn infer_member_access_with_receiver_ty(

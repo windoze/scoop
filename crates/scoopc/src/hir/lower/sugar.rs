@@ -27,10 +27,11 @@ impl<'a> HirLowering<'a> {
         let ast::ExprKind::MemberAccess { receiver, member } = &lhs.kind else {
             return None;
         };
-        let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() else {
+        let resolved = self.resolved_member_for_lowering(member);
+        let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref() else {
             return None;
         };
-        let info = self.delegated_properties.get(fqn).cloned()?;
+        let info = self.delegated_properties.get(fqn.as_str()).cloned()?;
 
         match info {
             DelegatedPropertyInfo::Observable(info) => self
