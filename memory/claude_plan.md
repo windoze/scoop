@@ -1,54 +1,35 @@
 # 本轮执行计划
 
-## 说明
+说明：按要求记录可执行计划、关键判断、检查结果与进度更新；不记录逐字内部推理。
 
-按要求先记录本轮可审计的执行思路摘要与步骤计划。这里保留面向实现的决策摘要、检查项和进度，不写原始内部推理逐字稿。
+## 初始计划
 
-## 当前目标
-
-完成 `TODO.md` 中第一个未完成任务，并在完成后停止。
-
-## 执行步骤
-
-1. 检查最新一次 Git 提交的提交信息与改动，确认是否显式提到任何遗留问题。
-2. 若最新提交提到需要顺手修复或遗留修复项，先定位并修复这些问题，再继续主任务。
-3. 阅读 `TODO.md`，定位第一个未完成任务。
-4. 评估该任务是否过大：
-   - 如果可直接完成，进入实现。
-   - 如果过大，拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-5. 阅读相关代码、测试与规格文档，确认实现边界以及是否存在阻塞性的规格缺口。
-6. 实现当前任务，不引入规避性方案；若发现规格缺口，则先把缺口转化为更前置的 `TODO.md` 任务并更新 `PLAN.md`。
-7. 运行相关测试，并补充必要测试；同时检查格式、lint 与告警情况。
-8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
-9. 使用清晰的提交信息提交本轮变更，然后停止。
+1. 检查最新一次 Git 提交，确认提交信息或提交内容中是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务，并确认是否需要拆分。
+3. 如果任务过大：
+   - 在 `PLAN.md` 中补充细化步骤；
+   - 在 `TODO.md` 中把该任务拆成更小的子任务，并把当前要执行的第一个子任务放到首个未完成位置。
+4. 实现当前应执行的首个任务或子任务。
+5. 运行相关检查与测试，至少包括与改动相关的测试；如涉及全局质量约束，补充运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或必要子集。
+6. 更新文档与计划：
+   - 在 `TODO.md` 中标记当前任务完成，或在阻塞时按依赖顺序重排；
+   - 在 `PLAN.md` 中记录当前状态、阻塞关系和后续计划；
+   - 按需要继续更新本文件。
+7. 使用清晰的提交信息提交本轮所有变更，然后停止，不继续处理下一个任务。
 
 ## 进度记录
 
-- 已开始：创建本计划文件。
-- 已完成：检查最新提交 `79ed773e2f6c23ed7e0c63791262138121f7d1e4`；提交信息未额外声明“尚未修复的遗留问题”。
-- 已完成：读取 `TODO.md` / `PLAN.md`，定位首个未完成任务为 `T3016dR`。
-- 已完成：复审 `state_machine_emitter.rs`、`runtime_abi.rs`、`gc.rs` 与 `runtime/c/scoop_runtime.c`，确认 continuation / effect frame / resume payload / captured callee suspend state 都走统一 trace/root 合同，未发现 test-only 保活。
-- 已完成：新增 IR 回归 `escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`，锁定 escape arm 中 traced frame slot 与 entry-block spill slot 的组合 root 合同。
-- 已完成：验证 `cargo test -p scoopc effect_runtime_functions_use_gc_statepoint_strategy -- --nocapture`、`cargo test -p scoopc escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract -- --nocapture`、`cargo test -p scoop_runtime continuation_ -- --nocapture`、三条 `SCOOP_GC_STRESS=1` fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-- 已完成当前任务：`T3016dR`。
-- 下一任务（仅记录，不执行）：`T3017`。
-
-## `T3016dR` 复审计划
-
-1. 阅读 `TODO.md` 中 `T3016d` / `T3016dR` 描述与 `PLAN.md` 最近更新，明确上一轮修复声称覆盖的边界。
-2. 阅读最新提交改动涉及的生产代码，重点关注：
-   - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
-   - 相关 runtime tracing / continuation / GC safepoint 合同代码
-3. 确认修复机制是否属于统一生产合同，而不是 fixture-only、延迟回收、宽松超时或其它规避性手段。
-4. 运行与 GC stress / continuation / object graph 相关的定向测试，以及必要的全量质量门槛：
-   - 目标 fixture / 相关 runtime tests
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-5. 如果复审中发现真实生产缺口：
-   - 先修复代码与测试；
-   - 重新执行相关验证；
-   - 更新 `TODO.md` / `PLAN.md` / 本文件。
-6. 如果复审通过：
-   - 将 `T3016dR` 标记为完成；
-   - 更新 `PLAN.md` 与本文件；
-   - 提交本轮变更并停止。
+- 已创建本文件，准备开始仓库检查。
+- 已检查最新提交 `b05f769fcc3b5849b93227779df27a131f8be47e`（`[T3016dR] Review GC-stress continuation root contract`）。提交信息与变更说明未点名新的“必须先修”的遗留问题；当前已知待办仍以 `TODO.md` / `PLAN.md` 记录为准。
+- 已确认首个未完成任务是 `T3017`：回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线。
+- 已复核 `T3017` 的现有说明：此前为执行它而新增的四组前置问题（`T3016a`/`b`/`c`/`d`）都已完成，因此当前可以正式执行该任务。
+- 当前执行策略更新：
+  1. 先枚举 `tests/fixtures/run-pass` 下仍为 `EXPECT: fail` 的 effect / continuation / GC continuation 相关 fixtures。
+  2. 在临时目录中把这些候选 fixtures 改成 `EXPECT: pass`，使用官方 `scoop test --fixtures <tempdir>` 统一验证，识别哪些只是 stale expectation。
+  3. 若验证中出现新的真实生产缺口，按规则回写 `TODO.md` / `PLAN.md` 并停止；若没有，则回收仓库内对应 expectation 与过时注释。
+  4. 完成后运行任务要求的全量验证，并更新 `TODO.md`、`PLAN.md`、本文件与 Git 提交。
+- 已完成临时扫描：
+  - 在 `/tmp/scoop_t3017_scan` 中复制了 61 条 effect / continuation 相关 `run-pass` xfail fixture，并统一改成 `EXPECT: pass`。
+  - 官方 runner 首轮即在 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 失败；继续直接运行后确认，pass 基线里的 `effect_handler_stack_nearest_and_arm_outside_scope.scoop` 与 `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 也同样失败。
+  - 真实现象：inner arm/catch 内再次 `Raise.raise(...)` / `Boom.boom(...)` 后，程序错误继续执行 `unreachable_after_inner` / `unreachable_after_middle`，没有向外层最近 handler/catch 传播。
+  - 结论：这不是 stale expectation/golden，而是新的前置生产回归；已决定新增 `T3016e` / `T3016eR`，把 `T3017` 顺延到其后，本轮按阻塞处理收尾。

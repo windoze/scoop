@@ -2273,12 +2273,42 @@
   - 当前修复依赖的是统一的 effect frame type descriptor、continuation `trace_fn` 与 statepoint/root relocation 合同，而不是延后回收、放宽超时或 fixture 特判。
 - 依赖：T3016d
 
+### T3016e [TODO] 修正 nested handler arm / `try-catch` rethrow 在再次 perform 后错误继续当前 body 的回归
+- 描述：开始执行 `T3017` 的 expectation cleanup 时，在临时 fixtures 根目录中把 61 条 effect / continuation 相关 `EXPECT: fail` 候选统一切回 `EXPECT: pass` 并用官方 runner 验证，结果立即暴露出一个更前置、此前未显式跟踪的真实生产回归：`tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 与 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 当前都会在 inner arm/catch 内再次 `Raise.raise(...)` / `Boom.boom(...)` 之后继续执行 `unreachable_after_inner` / `unreachable_after_middle`，而不是向外层最近 handler/catch 传播。
+- 进展：
+  - 已确认这不是 stale expectation/golden 问题：上述三条 fixture 直接运行时都返回 `0`，但 stdout 实际落到 `unreachable_after_*`，与各自 golden 明确不一致。
+  - 已确认问题边界不是 `Raise.raise` 或 `try/catch` 独有：等价的显式 `handle { ... } with { ... }` 自定义 non-resuming effect fixture 与 `try/catch` lowering 版本都失败，说明 blocker 位于二者共享的 nested handler arm outward-propagation / arm-outside-scope 合同，而不是单一路径的 sugar/golden 偏差。
+  - 因此 `T3017` 不能继续当作 expectation cleanup 任务执行，需先恢复这条生产语义。
+- 目标：
+  - 恢复 nested handler 的“最近匹配 + arm body 在自身 dispatch scope 外执行”合同：inner arm/catch 内再次 perform / rethrow non-resuming effect 时，必须向外层最近匹配 handler/catch 传播，不能继续执行当前或中间 body 的后续语句。
+  - 统一修复显式 `handle` 与 `try/catch` lowering 两条路径，避免只让其中一条恢复。
+  - 恢复至少以下回归 fixture 的真实 passing 语义：`effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`、`effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016dR
+
+### T3016eR [TODO] Review：确认 nested handler arm outward propagation / arm-outside-scope 合同已重新闭环
+- 描述：在 `T3016e` 之后只审查生产代码，确认 nested handler arm / `try-catch` rethrow 的修复已真正回到统一 dispatch/propagation 合同，而不是靠 fixture 特判、shape-based 分流或临时 fallback 维持通过；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 inner arm/catch 内再次 perform / rethrow non-resuming effect 时，生产代码会统一沿 outward propagation 路径命中外层最近 handler/catch。
+  - 确认显式 `handle` 与 `try/catch` lowering 没有各自引入单独的特判逻辑。
+  - 确认不会再继续执行 `unreachable_after_inner` / `unreachable_after_middle` 这类当前 body 的后续语句。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“nested handler arm outward propagation / arm-outside-scope 合同已闭环，无 fixture-only workaround 残留”。
+- 依赖：T3016e
+
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
   - `T3008a` 已先行回收 24 个只因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；剩余 `T3006` xfail 现在对应的是更深层的真实语义缺口，而不再是 frame/continuation ABI 失配。
   - 当前 `cargo run -p scoop --features llvm -- test` 的首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 fixture 单独运行已成功，等待本任务统一回收 expectation 并继续推进全量基线。
   - 2026-04-18 本轮 expectation scan 把 83 条残留 `T3006` xfail 临时切回 `EXPECT: pass` 做了正式 runner 验证，确认 `T3017` 不能直接执行：至少存在四类更前置的真实生产缺口，分别由 `T3016a`（cleanup/finally completion 恢复）、`T3016b`（resumed-body tail replay）、`T3016c`（outer-body `Continuation.resume(...)` lowering）、`T3016d`（GC stress continuation/object-graph 存活）承接。
+  - 2026-04-18 本轮重新启动 expectation cleanup 时，再次用官方 runner 验证 61 条 effect / continuation 相关 `EXPECT: fail` 候选，发现 `T3017` 仍有新的前置 blocker：pass 基线中的 `effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`，以及 xfail 中的 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 都会在 inner arm/catch 再次 perform 后继续执行 `unreachable_after_*`。该共享回归现由新增的 `T3016e` / `T3016eR` 承接。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -2288,7 +2318,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016dR
+- 依赖：T3016eR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
