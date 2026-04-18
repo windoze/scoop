@@ -1,86 +1,52 @@
-# 本轮执行计划
+# 执行计划与进度记录
 
-更新时间：2026-04-18
+## 说明
 
-## 约束与目标
+按用户要求，本文件在任何仓库检查或代码执行前创建。
+我不会记录内部逐词思维过程，但会记录足够详细的执行计划、决策摘要、关键发现、变更步骤与进度更新，便于审查。
 
-- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在执行任务前，先检查最新提交是否提到已有问题；若有，这些问题优先纳入本轮范围并修复。
-- 任何发现的规格偏差、缺失能力或阻塞项，都必须先体现在 `TODO.md` / `PLAN.md` 中，再决定是否继续。
-- 实现后必须完成相关测试、更新文档状态，并提交 Git commit。
+## 当前任务总流程
 
-## 决策摘要
+1. 检查最新一次提交，确认提交说明中是否提到了已知问题、遗留问题或待修复项。
+2. 阅读 `TODO.md`，识别第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前计划、依赖关系和任务顺序是否与 `TODO.md` 一致。
+4. 若第一个未完成任务过大，则将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本次仅执行拆分后的第一个子任务。
+5. 实现本次应执行的任务。
+6. 运行相关测试、格式化、lint；若发现失败或规范偏差，优先修复。
+7. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或阻塞原因。
+8. 提交本次修改，随后停止，不进入下一个任务。
 
-- 先读取最新一次提交信息，确认是否显式提到遗留问题或待修复项。
-- 再读取 `TODO.md` 与 `PLAN.md`，定位第一个未完成任务，并判断任务是否足够小、是否有前置依赖。
-- 如果任务过大或被真实缺陷阻塞，则将任务拆分或重排，并同步更新 `TODO.md` 与 `PLAN.md`，本轮只处理新的第一个可执行子任务。
-- 如果任务可执行，则直接实现、补充或调整测试、运行必要的格式化/检查/测试命令，直到结果稳定。
-- 完成后更新 `TODO.md`、`PLAN.md`、本文件，并创建一次清晰的 Git 提交，然后停止。
+## 初始判断约束
 
-## 具体步骤
+- 只完成一个任务或一个新拆分出的首个子任务。
+- 如果发现规范不匹配、实现缺口或现有 bug 阻塞当前任务，必须先把该问题写入 `TODO.md` 并调整顺序，不能通过绕过方式继续。
+- 若最新提交中明确提到未解决问题，则这些问题优先于普通任务处理。
+- 需要尽量做到无编译警告，并运行合适的验证命令。
 
-1. 检查最新提交内容与提交说明。
-2. 读取 `TODO.md`、`PLAN.md`，确认当前优先级最高的未完成任务。
-3. 评估该任务：
-   - 是否可在本轮完整完成；
-   - 是否存在前置规格缺口、实现缺口或测试缺口；
-   - 是否需要先拆分任务。
-4. 若需拆分或重排：
-   - 更新 `TODO.md`；
-   - 更新 `PLAN.md`；
-   - 在本文件记录原因；
-   - 处理拆分后排在最前的那个任务。
-5. 实现代码改动。
-6. 运行格式化、静态检查和与该任务相关的测试；若失败则继续修复直到通过。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件的进度记录。
-8. 检查工作区差异，确认仅包含本轮应提交内容。
-9. 创建 Git 提交并停止。
+## 进度日志
 
-## 进度记录
-
-- 已创建本计划文件。
-- 已读取最新提交、`TODO.md` 与 `PLAN.md`。
-- 最新提交说明未显式挂出需要先修复的新遗留 issue；当前 `TODO.md` 中最前的未完成任务为 `T3009b2cR`。
-- 本轮目标已收敛为：复审 multi-site ordinary indirect callee 的 resumed-body caller-tail 是否真正统一接回；若复审发现真实生产缺口，则先修复该缺口再完成本轮任务。
-
-## 当前复审步骤（T3009b2cR）
-
-1. 审查最近为 `T3009b2c` 修改的生产代码：
-   - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
-   - `crates/scoopc/src/llvm/codegen/effect/mod.rs`
-   - `crates/scoopc/src/llvm/codegen/mod.rs`
-2. 审查与该任务直接相关的定向测试与 fixture，确认覆盖的是统一 resumed-body caller-tail 合同，而不是特化补丁。
-3. 运行与该任务匹配的定向验证：
-   - multi-site ordinary indirect callee focused fixture
-   - statement-container matrix
-   - 相关 IR / 单元测试
-4. 若复审发现缺口，直接修复并重复第 1-3 步；否则更新 `TODO.md` / `PLAN.md`，将 `T3009b2cR` 标记完成。
-
-## 复审结果
-
-- 已完成生产代码复审：
-  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `crates/scoopc/src/llvm/codegen/effect/mod.rs`
-- 已确认 multi-site ordinary callee 的核心合同仍是统一的：
-  - plan builder 只按 `builder.suspend_sites` 生成 `resume_sites`；
-  - fresh path 只保存 `site_tag + union locals`；
-  - resume path 只读取 `site_tag`，并经共享 `codegen_callee_resume_dispatch` 分派到对应 `resume_tail`。
-- 已确认 top-level helper 与 closure body 共用同一套 suspend/resume 入口；function-value callee 继续通过 closure body codegen 复用该机制。
-- 已检索生产代码，未发现 fixture/helper 名称或 branch 数量驱动的特判回流。
-
-## 已完成验证
-
-- `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`
-- `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_multi_site_callee_branch.scoop`
-- `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_statement_container_matrix.scoop`
-- `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
-- `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_callee_suspend_matrix.scoop`
-- `cargo test --all`
-- `cargo clippy --all-targets -- -D warnings`
-
-## 当前状态
-
-- 未发现需要在 `T3009b2cR` 内额外修复的生产缺口。
-- `TODO.md` / `PLAN.md` 已同步完成，`git diff --check` 通过。
-- 下一步：创建本轮提交并停止。
+- 2026-04-18：已创建本文件并写入初始执行计划。下一步将检查最新提交与任务列表。
+- 2026-04-18：已检查最新提交 `5394f81 [T3009b2cR] Review multi-site ordinary callee resume dispatch`。提交正文未声明新的待修遗留问题。
+- 2026-04-18：已读取 `TODO.md` / `PLAN.md`。当前第一个未完成任务是 `T3009b2R`：复审“间接 callee resumed-body caller-tail 已统一接回”。
+- 2026-04-18：判断 `T3009b2R` 属于可直接执行的复审任务，暂不需要先拆子任务。下一步将审查以下生产代码与验证链：
+  1. `crates/scoopc/src/llvm/codegen/mod.rs` 中 ordinary callee suspend/resume 入口。
+  2. `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中 callee suspend-state 保存/恢复。
+  3. `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中 unified contract 对 suspend site 的建模。
+  4. 与 indirect callee / multi-site / statement-container 相关的定向测试与 run-pass fixture。
+- 2026-04-18：已完成首轮代码复审，当前结论摘要如下：
+  - `build_ordinary_callee_suspend_plan_from_unified_contract()` 不再有 single-site 前提；它会遍历全部 `builder.suspend_sites`，为每个 `Perform` site 生成 `CalleeSuspendResumeSite`，并用 union locals 构建统一 `CalleeSuspendPlan.saved_locals`。
+  - `codegen_top_level_fun()` 与 `codegen_closure_fun_body()` 都通过 `build_*_callee_suspend_plan(...)` + `codegen_callee_resume_dispatch(...)` 接入同一 fresh/resume 双入口；未发现 top-level / closure / function-value 的分叉特判。
+  - `emit_callee_suspend_state_save()` / `begin_callee_suspend_resume()` 已把 `site_tag + resume_word + resume_gc_ref + saved locals` 纳入同一 callee suspend-state 对象；resume 通过 `site_tag` switch 回到对应 `resume_site*` block。
+  - `emit_resume_after_call_site()` 会优先检查是否存在 captured callee suspend-state；若存在，则把 resume payload 写回该 state 并重放原 call expr，让 callee 自己完成 resumed body，再把真实 call result 写回 frame slot，而不是把 payload 直接当成整次调用结果。
+  - continuation/runtime 侧已存在 `captured_callee_suspend_state` 合同：continuation 捕获该 state，resume 时临时恢复到 TLS，step 返回后再恢复 caller TLS。
+- 2026-04-18：未发现新的 fixture-name patch 或 branch-count/source-shape 特判回流到当前复审链路。下一步运行定向测试、全量 `cargo test --all` 和 `cargo clippy --all-targets -- -D warnings`。
+- 2026-04-18：定向验证已通过：
+  1. `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`
+  2. `cargo test -p scoopc indirect_if_branch_callee_keeps_handle_call_site_active_dispatch -- --nocapture`
+  3. `cargo test -p scoop_runtime continuation_resume_temporarily_restores_captured_callee_suspend_state -- --nocapture`
+  4. 9 条 indirect-callee / multi-site / statement-container / payload 相关 run-pass fixture
+- 2026-04-18：全量质量门槛已通过：
+  1. `cargo test --all`
+  2. `cargo clippy --all-targets -- -D warnings`
+- 2026-04-18：已更新 `TODO.md` 与 `PLAN.md`，将 `T3009b2R` 标记为完成。当前下一项为 `T3009b`。接下来只需检查工作树并提交本轮结果。
+- 2026-04-18：提交前检查完成。当前工作树仅包含 `TODO.md`、`PLAN.md` 与 `memory/claude_plan.md` 的本轮记录变更；准备提交 `[T3009b2R] Review indirect callee resumed-body caller-tail`，提交后停止。

@@ -1822,11 +1822,15 @@
   - ordinary callee 的 multi-site 支持只建立在统一 `resume_sites + site_tag + shared dispatch` 合同上；生产代码中不存在按 `if` / `when` / branch 数量或 fixture/helper 名称分流的 effect lowering 旁路。
 - 依赖：T3009b2c
 
-### T3009b2R [TODO] Review：确认间接 callee resumed-body caller-tail 已统一接回
+### T3009b2R [DONE] Review：确认间接 callee resumed-body caller-tail 已统一接回
 - 描述：在 `T3009b2` 之后只审查生产代码，确认 indirect callee 的 resumed-body caller-tail 已形成统一 state-machine / continuation / callee-suspend-state 合同，而不是为 `fetchGreeting()` / `callIt { ... }` / `counter()` 之类 fixture 临时加 patch；若发现旁路，本任务需要直接修复并复审。
 - 进展：
   - 复审先定位到一个更前置的真实生产缺口：ordinary indirect callee 目前只在“恰好一个 suspend site”时建立 `CalleeSuspendPlan`；多 suspend-site 情况下，resume 后仍会把 payload 直接当作整次调用结果，跳过 callee post-suspend body。
-  - 该问题已按阻塞规则前置拆成 `T3009b2c` → `T3009b2cR`；本任务顺延到这两个前置任务之后继续完成总复审。
+  - 该问题已按阻塞规则前置拆成 `T3009b2c` → `T3009b2cR`；本任务在这两个前置任务完成后继续执行总复审。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `runtime/c/scoop_runtime.c`。确认 ordinary indirect callee 的 resumed-body restore 统一建立在 `resume_sites + site_tag + shared codegen_callee_resume_dispatch()` 合同上；outer handle 侧的 `emit_resume_after_call_site()` 也会在存在 captured callee suspend state 时把 resume payload 写回该 state 并重放原 call expr，让 callee 自己完成 post-suspend body，而不是把 payload 直接短路回 caller。
+  - 已确认 continuation/runtime 与 caller-tail 路径保持同一合同：continuation 会捕获 `captured_callee_suspend_state`，`scoop_continuation_resume_common()` 在 resume 期间临时恢复 TLS `__scoop_callee_suspend_state`，step 返回后再恢复 caller TLS，因此 `handle` 返回后或跨线程 `resume` 时 ordinary indirect callee 仍能按同一 resumed-body 合同继续执行。
+  - 已定向检索生产代码，未发现 `fetchGreeting`、`callIt`、`counter`、`viaBranch`、`viaIf` 等 fixture/helper 名称回流到 LLVM effect codegen，也未发现按 callee/source shape、branch 数量或测试形状切分的新 lowering 旁路。
+  - 已验证 `cargo test -p scoopc ordinary_multi_site_callee_materializes_resume_site_dispatch -- --nocapture`、`cargo test -p scoopc indirect_if_branch_callee_keeps_handle_call_site_active_dispatch -- --nocapture`、`cargo test -p scoop_runtime continuation_resume_temporarily_restores_captured_callee_suspend_state -- --nocapture`、9 条 indirect-callee / multi-site / statement-container / payload run-pass fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 indirect callee suspend/resume 的 post-suspend body 不再被跳过。
   - 确认 tail-return 与 non-tail indirect callee 路径共享同一套 resumed-body / caller-tail 机制。
@@ -1834,6 +1838,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“间接 callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留”。
+- 审查结论：
+  - 间接 callee resumed-body caller-tail 已统一接回，无 shape-based / fixture-only patch 残留。
+  - helper / closure / function-value callee、tail-return / non-tail caller-tail，以及 multi-site / statement-container 变体都继续共享同一套 continuation + callee-suspend-state + replayed call expression 合同。
 - 依赖：T3009b2cR
 
 ### T3009b [TODO] 在 `T3009b0` dedicated lowering 基础上，把 escaped continuation 的 `Continuation.resume(...)` 剩余 composite resume payload 收口到统一合同
