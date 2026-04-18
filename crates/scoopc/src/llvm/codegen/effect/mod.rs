@@ -839,7 +839,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn emit_raise_runtime_error_variant(
         &mut self,
         span: crate::span::Span,
-        _variant: &str,
+        variant: &str,
     ) -> Result<(), LlvmEmitError> {
         // Use the well-known Raise.raise FQN (op_tag = 1 by convention).
         let op_tag = self.effect_op_tag("scoop.core.Raise.raise");
@@ -849,17 +849,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .i32_type()
             .const_int(EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR as u64, false);
 
-        // Write a zero payload (the variant name is not yet part of the
-        // runtime payload protocol — this is a minimal implementation that
-        // signals "a Raise happened" without encoding the variant).
-        let write_fn = self.declare_runtime_effect_perform_slot_write_u64();
-        let zero = self.context.i64_type().const_int(0, false);
+        // Synthesize the concrete `RuntimeError.Variant` enum value, then
+        // reuse the shared effect transport encoding so synthesized runtime
+        // errors and ordinary `Raise.raise(RuntimeError.X)` share one payload
+        // contract.
+        let variant_fqn = format!("scoop.core.RuntimeError.{variant}");
+        let payload = self
+            .try_codegen_qualified_enum_unit_variant_value(span, &variant_fqn)?
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "runtime error enum unit variant value",
+                at: span.into(),
+            })?;
+        let (word, gc_ref) = self.encode_effect_transport_value(span, payload)?;
+        let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();
         self.builder.build_call(
             write_fn,
             &[
                 op_tag_val.into(),
                 effect_instance_key_val.into(),
-                zero.into(),
+                word.into(),
+                gc_ref.into(),
             ],
             "",
         )?;

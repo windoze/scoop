@@ -2552,8 +2552,12 @@
   - trace line/col 的来源统一为 `effect_trace_line_col()` 基于当前 source + HIR span 的通用映射；生产代码中不存在按 fixture、`try/catch` 形状、特定 helper 名称或源码字符串硬编码 line/col 的分支。
 - 依赖：T3016k
 
-### T3016l [TODO] 恢复 synthesized `Raise.raise(RuntimeError.*)` 的具体 variant payload 合同
+### T3016l [DONE] 恢复 synthesized `Raise.raise(RuntimeError.*)` 的具体 variant payload 合同
 - 描述：重新执行 `T3017` 的全量 runner 验收后，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`，说明 `x as Other` 失败时当前抛出的不再是 `RuntimeError.ClassCastFailed`，而是被错误塌缩成了 `RuntimeError.NullAssertionFailed`。进一步检查确认 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，注释中也明确写着“variant name is not yet part of the runtime payload protocol”。这说明 synthesized runtime-error raise 的具体 variant 仍未接回统一 effect transport / catch 匹配合同；在此缺口修复前，`T3017` 不能继续把 pass fixture baseline 视为稳定。
+- 进展：
+  - 已将 `emit_raise_runtime_error_variant()` 改为先合成具体的 `scoop.core.RuntimeError.<Variant>` unit enum 值，再复用共享 `encode_effect_transport_value()` + `scoop_effect_perform_slot_write_u64_with_gc_ref(...)` 写入 TLS perform slot，不再把 payload 固定塌缩成 `0`。
+  - 已新增 emitter IR 回归 `runtime_raise_boundary_ir_preserves_runtime_error_variant_payload`，锁定 `x as Other` 失败路径会把 `ClassCastFailed` 的具体 variant tag 写进统一 runtime-error transport。
+  - 已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`，输出恢复为 `caught: cast` / `2`。
 - 目标：
   - 让 synthesized `Raise.raise(RuntimeError.*)` 在 codegen/runtime payload 里保留具体的 `RuntimeError` unit variant，而不是统一写成固定零 payload。
   - `x as T` 失败、`try/catch (e: RuntimeError)` 分派，以及统一 state-machine / ordinary effect path 中的 runtime-error transport 必须共享同一套 variant payload 合同，不能只对 cast fixture 特判。

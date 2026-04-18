@@ -4437,6 +4437,55 @@ fun main(): Int {
     }
 
     #[test]
+    fn runtime_raise_boundary_ir_preserves_runtime_error_variant_payload() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+open class Base()
+class Impl() : Base()
+class Other() : Base()
+
+fun main(): Int {
+    val x: Any = Impl()
+
+    val result: Int = try {
+        val _o: Other = x as Other
+        0
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> 1
+            ClassCastFailed -> 2
+            ContinuationAlreadyResumed -> 3
+        }
+    }
+
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        let payload_call = ir
+            .lines()
+            .find(|line| {
+                line.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref")
+                    && (line.contains("i32 -1") || line.contains("i32 4294967295"))
+            })
+            .expect("expected runtime-error raise payload write in IR");
+
+        assert!(
+            payload_call.contains("i64 1"),
+            "ClassCastFailed should be transported as its concrete RuntimeError variant tag, not a collapsed zero payload: {payload_call}"
+        );
+    }
+
+    #[test]
     fn multi_dispatch_handle_ir_registers_every_op_tag_on_handler_stack() {
         let source = SourceFile::new_virtual(
             "<mem>",
