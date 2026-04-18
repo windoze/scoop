@@ -3291,8 +3291,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                     );
                 } else {
-                    let alloca =
-                        self.create_entry_alloca(span, "cont_local", CgTy::Ref)?;
+                    let alloca = self.create_entry_alloca(span, "cont_local", CgTy::Ref)?;
                     self.builder.build_store(alloca, cont_ptr)?;
                     self.env.insert(
                         continuation,
@@ -3392,8 +3391,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .suspend_sites()
             .iter()
             .filter_map(|site| {
-                site.escape_resume_state()
-                    .map(|escape_resume_state| (site.resume_state(), escape_resume_state, site.id()))
+                site.escape_resume_state().map(|escape_resume_state| {
+                    (site.resume_state(), escape_resume_state, site.id())
+                })
             })
             .collect::<Vec<_>>();
         if replay_sites.is_empty() {
@@ -3422,7 +3422,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let matches_site = self.builder.build_int_compare(
                 inkwell::IntPredicate::EQ,
                 current_tag,
-                self.context.i32_type().const_int(*resume_state as u64, false),
+                self.context
+                    .i32_type()
+                    .const_int(*resume_state as u64, false),
                 &format!("arm{arm_id}_site{site_id}_escape_resume_match"),
             )?;
             replay_tag = self
@@ -3935,6 +3937,67 @@ fun main(): Int {
         assert!(
             dispatch_ir.contains("@llvm.experimental.gc.statepoint"),
             "effect dispatch loop should also contain rewritten statepoints after the GC strategy is enabled"
+        );
+    }
+
+    #[test]
+    fn escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(msg: String): Unit
+}
+
+class Cell(var saved: Continuation<Unit>?)
+
+fun main(): Int {
+    val none_k: Continuation<Unit>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        Suspend.pause("payload")
+    } with {
+        Suspend.pause(msg: String), k -> {
+            cell.saved = Some(k)
+        }
+    }
+
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
+        let switch_pos = step_ir
+            .find("switch i32")
+            .expect("expected step-function state dispatch switch");
+        let continuation_alloca_pos = step_ir
+            .find("cont_local = alloca ptr addrspace(1)")
+            .expect("expected escape-arm fallback continuation local to spill via alloca");
+
+        assert!(
+            continuation_alloca_pos < switch_pos,
+            "continuation spill slot must be created in the step-function entry block so statepoint rewriting can relocate it across later safepoints"
+        );
+        assert!(
+            step_ir.contains("arm_binder_"),
+            "escape-arm GC-ref binders should lower into traced effect-frame slots when the unified contract materializes a frame field"
+        );
+        assert!(
+            step_ir.contains("binder_gc_ref"),
+            "escape-arm binder root contract should still read the GC-ref payload from the runtime perform slot before storing it into the frame"
         );
     }
 

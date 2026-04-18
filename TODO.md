@@ -2247,8 +2247,20 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016cR
 
-### T3016dR [TODO] Review：确认 GC stress 下 continuation / captured object graph 的可达性合同已闭环
+### T3016dR [DONE] Review：确认 GC stress 下 continuation / captured object graph 的可达性合同已闭环
 - 描述：在 `T3016d` 之后只审查生产代码与 runtime tracing 合同，确认 GC stress 修复不是靠临时延后回收、放松超时或 fixture-only 保活；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/gc.rs` 与 `runtime/c/scoop_runtime.c`：effect frame 仍通过 `scoop_alloc_typed` + 自动生成 type descriptor 统一追踪 frame slots / `resume_gc_ref` / suspended continuation；`SCOOP_CONTINUATION_TYPE_DESC` 的 `trace_fn` 继续只枚举 continuation 正式持有的 `state`、`resume_gc_ref` 与 `captured_callee_suspend_state` 三类 GC-managed 引用。handler snapshot 仍是 native-owned 快照，由 `release_fn` 释放，不混入 GC roots。
+  - 已新增 emitter IR 回归 `escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract`，锁定 escape arm 中“有 frame slot 的 GC binder 走 traced frame field、无 frame slot 的 fallback continuation local 走 step entry-block spill slot”的组合 root 合同。
+  - 已验证：
+    - `cargo test -p scoopc effect_runtime_functions_use_gc_statepoint_strategy -- --nocapture`
+    - `cargo test -p scoopc escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract -- --nocapture`
+    - `cargo test -p scoop_runtime continuation_ -- --nocapture`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_deep_object_graph.scoop`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_alloc_heavy_resume.scoop`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - 确认 continuation、frame、resume payload、captured ref locals 与深对象图都走统一 trace / root 合同。
   - 确认 GC stress 路径没有新增“仅测试环境保活”的 workaround。
@@ -2256,6 +2268,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“GC stress 下 continuation 与 captured object graph 可达性合同已闭环，无 test-only 保活残留”。
+- 审查结论：
+  - GC stress 下 continuation 与 captured object graph 可达性合同已闭环，无 test-only 保活残留。
+  - 当前修复依赖的是统一的 effect frame type descriptor、continuation `trace_fn` 与 statepoint/root relocation 合同，而不是延后回收、放宽超时或 fixture 特判。
 - 依赖：T3016d
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线

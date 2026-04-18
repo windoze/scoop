@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016dR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`、`crates/scoopc/src/llvm/codegen/runtime_abi.rs`、`crates/scoopc/src/llvm/codegen/gc.rs` 与 `runtime/c/scoop_runtime.c` 后确认，GC stress 修复已收口到统一 trace/root 合同：effect frame 继续通过 `scoop_alloc_typed` + 自动生成 type descriptor 跟踪 frame slots / `resume_gc_ref` / suspended continuation，`SCOOP_CONTINUATION_TYPE_DESC` 的 `trace_fn` 只枚举 continuation 正式持有的 `state` / `resume_gc_ref` / `captured_callee_suspend_state` 三类 GC-managed 引用，native handler snapshot 仍只由 release 回调释放；没有为测试额外延后回收、放松超时或添加 fixture-only 保活。新增 emitter IR 回归 `escape_arm_gc_roots_use_frame_slot_or_entry_spill_contract` 后，escape arm 的 GC payload binder 继续走 traced frame field，而 fallback continuation local 也被锁定为 step entry-block spill slot。已验证 2 条 emitter 单测、`cargo test -p scoop_runtime continuation_ -- --nocapture`、3 条 `SCOOP_GC_STRESS=1` fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
+>
 > 2026-04-18 当前轮完成更新：`T3016d` 已完成。`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现在会为统一 effect runtime 生成的 `scoop.effect.step.*` / `scoop.effect.dispatch.*` 函数显式设置 `gc "statepoint-example"`，从而让这些函数内部的 safepoint 正式进入 `rewrite-statepoints-for-gc`；同时，无 frame slot 的 arm binder 与 `EscapeContinuation` arm 的 fallback continuation binder 也都改为 entry-block spill slot，避免 moving GC 在 safepoint 后留下陈旧 continuation/root 指针。新增 IR 回归 `effect_runtime_functions_use_gc_statepoint_strategy` 后，`effect_escape_continuation_gc_stress_multi_string.scoop`、`gc_continuation_escape_deep_object_graph.scoop`、`gc_continuation_escape_alloc_heavy_resume.scoop` 三条目标 fixture 已在 `SCOOP_GC_STRESS=1` 下恢复；`cargo test -p scoop_runtime continuation_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。当前 effect 主线下一项推进到 `T3016dR`。
 >
 > 2026-04-18 当前轮复审更新：`T3016cR` 已完成。复审 `crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs` 后确认，outer-body `Continuation.resume(...)` 的 production lowering 仍只由 `continuation_resume_call_sites` 驱动：`codegen_call()` 仅在 side table 命中时调用 `codegen_continuation_resume_builtin()`，`classify_builtin_suspend_call()` 也只按同一 side table 把 builtin resume 建模为 `RuntimeRaise("Continuation.resume")`，不存在按成员名、receiver 类型或源码形状分流。同步复审 unified state-machine 合同后确认，自洽 nested handle 通过 `may_suspend_outward()` 留在自身状态机内，不再在 outer machine 物化 `NestedHandleBoundary`；escaped continuation replay 也只对 call-like / boundary site 分配 `escape_resume_target`，direct `perform` / `runtime-raise` continuation 不会被错误重定向回旧 owner-state replay。因此 outer-body / nested-handle `resume(...)` 路径已经不再回落到 generic `call callee`、`effect frame seed outer-scope local` 或 silent exit。已验证 3 条定向结构/IR 单测、目标 fixture 直跑、`cargo test -p scoop_runtime continuation_resume_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016d`。
@@ -635,15 +637,15 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016dR`
-2. `T3017`
-3. `T3017R`
-4. `T3103`
-5. `T3104`
-6. `T3201`
-7. `T3202`
-8. `T3203`
-9. `T3204`
+1. `T3017`
+2. `T3017R`
+3. `T3103`
+4. `T3104`
+5. `T3201`
+6. `T3202`
+7. `T3203`
+8. `T3204`
+9. `T3205`
 10. `T3205`
 11. `T3301`
 12. `T3302`
