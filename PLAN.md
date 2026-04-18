@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016aR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 后确认，cleanup/finally completion 恢复仍完全收口在统一 completion/result 合同内：`dispatch_check` 先以 `state_tag` 识别 `HANDLE_RETURNED` / `FUNCTION_RETURNED`，仅在非终态时再读 TLS active；`CleanupEnter` 只负责把 body/arm 尾值写入 frame 并根据 persisted `cleanup_flag` 决定是否重入 cleanup；`capture_terminal_state_tag_for_cleanup()` / `restore_terminal_state_tag_after_cleanup()` 只在 cleanup done 路径中暂存并恢复 terminal tag，不会额外改写 result slot；`should_relay_last_value_through_goto()` 继续禁止 cleanup context 经由 transparent `Goto` 覆盖真实 handle result。已定向验证 `effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop`、`effect_handle_tail_if_result.scoop`，以及 `cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`dispatch_loop_ir_checks_terminal_state_before_tls_active`、`tail_if_else_result_flows_through_transparent_merge_state`；并复验 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016b`。
+>
 > 2026-04-18 当前轮完成更新：`T3016a` 已完成。继续收口 cleanup/finally completion contract 时，确认 `T3016a0` 引入的 tail-result relay 还残留一个 cleanup-context 特有覆盖点：`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 会在 `Goto` 进入 transparent completion relay state 前，把当前 `last_value` 预写到统一 result slot；该逻辑对普通 body/arm tail 是正确的，但 cleanup/finally state 自身的尾值只是 cleanup block 的 `Unit` 结果，不应覆盖先前已经由 `CleanupEnter` / arm completion / function-return path 写入 frame 的真实 handle result。现已新增 `should_relay_last_value_through_goto()`，明确禁止 cleanup context 经由 `Goto` 重写 result slot，因此 `effect_nosuspend_finally_nested_handle.scoop` 恢复输出 `16/26`，`effect_resume_mixed_escape_direct_finally.scoop` 与 `effect_resume_mixed_source_path_matrix.scoop` 的 `after_handle` 结果恢复为 `7`，而 `effect_escape_continuation_finally_multi_perform.scoop` 继续保持“只执行一次 finally/cleanup”的 completion 语义。已将上述 4 条 fixture 改回 `EXPECT: pass`，并验证 4 条定向运行、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016aR`。
 >
 > 2026-04-18 当前轮复审更新：`T3016a0R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 后确认，tail-merge result transport 的新增逻辑完全停留在 unified state machine 合同内部：`emit_state_terminator()` 只会在 `Goto` 进入“递归透明”的目标状态链前提前写回 result slot，而 `state_preserves_handle_result_on_entry()` 的递归判断只读取 machine 自身的 state/terminator 元数据，并且仅允许 `StmtEmpty` / `CleanupEdgeComplete` / `ReturnToEnclosingExpression` 这类 marker/no-op state 继续 relay carried result，没有重新读取 `if/else`、block 或 tail 源码形状。同步复审 dispatch/cleanup done 路径后确认，`CleanupEnter` 仍靠 persisted `cleanup_flag` 控制 cleanup 重入，dispatch loop 仍先检查 terminal `state_tag` 再检查 TLS active，因此 `T3016a0` 没有冲掉 `T3016a` 依赖的 completion 恢复前提。定向验证通过：`effect_handle_tail_if_result.scoop` 继续输出 `13/15`，结构/IR 定向测试 `tail_if_else_result_flows_through_transparent_merge_state`、`cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`dispatch_loop_ir_checks_terminal_state_before_tls_active` 全部通过；同时直跑 `effect_nosuspend_finally_nested_handle.scoop` 仍输出 `0/0`，说明剩余缺口仍明确属于 `T3016a` 的 cleanup/finally completion 恢复。已复验 `cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016a`。
@@ -611,32 +613,29 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016a0R`
-2. `T3016a`
-3. `T3016aR`
-4. `T3016b`
-5. `T3016bR`
-6. `T3016c`
-7. `T3016cR`
-8. `T3016d`
-9. `T3016dR`
-10. `T3017`
-11. `T3017R`
-12. `T3103`
-13. `T3104`
-14. `T3201`
-15. `T3202`
-16. `T3203`
-17. `T3204`
-18. `T3205`
-19. `T3301`
-20. `T3302`
-21. `T3303`
-22. `T3401`
-23. `T3401a`
-24. `T3401b`
-25. `T3401c`
-26. `T3402`
-27. `T3403`
-28. `T3404`
-29. `T3405`
+1. `T3016b`
+2. `T3016bR`
+3. `T3016c`
+4. `T3016cR`
+5. `T3016d`
+6. `T3016dR`
+7. `T3017`
+8. `T3017R`
+9. `T3103`
+10. `T3104`
+11. `T3201`
+12. `T3202`
+13. `T3203`
+14. `T3204`
+15. `T3205`
+16. `T3301`
+17. `T3302`
+18. `T3303`
+19. `T3401`
+20. `T3401a`
+21. `T3401b`
+22. `T3401c`
+23. `T3402`
+24. `T3403`
+25. `T3404`
+26. `T3405`

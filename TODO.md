@@ -2018,8 +2018,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016a0R
 
-### T3016aR [TODO] Review：确认 cleanup/finally completion 恢复不再重复 replay 或冲掉 handle result
+### T3016aR [DONE] Review：确认 cleanup/finally completion 恢复不再重复 replay 或冲掉 handle result
 - 描述：在 `T3016a` 之后只审查生产代码，确认 resumed completion 的 `finally` / `cleanup` 与 no-suspend handle result 都已收口到统一 completion/result 合同，而不是靠 fixture/golden 迁就；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 `dispatch_check`、`CleanupEnter`、`should_relay_last_value_through_goto()`、`capture_terminal_state_tag_for_cleanup()` 与 `restore_terminal_state_tag_after_cleanup()` 的生产路径，确认 terminal `state_tag` / `completion_tag` / frame result slot 的读写仍集中在统一 completion/result 合同内。
+  - 已确认 `dispatch_check` 继续先检查 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED`，只在非终态时才读取 TLS active；`CleanupEnter` 继续依赖 persisted `cleanup_flag` 控制 cleanup 是否重入；cleanup done 路径只暂存/恢复 terminal tag，不额外改写 result slot。
+  - 已定向验证 `effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop`、`effect_handle_tail_if_result.scoop`，以及 `cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally`、`dispatch_loop_ir_checks_terminal_state_before_tls_active`、`tail_if_else_result_flows_through_transparent_merge_state`；并复验 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`，全部通过。
 - 目标：
   - 确认 `completion_tag`、`state_tag`、frame result slot 与 handle done 路径之间没有新的双写或覆盖。
   - 确认 no-suspend handle、nested handle、escaped continuation completion 共用同一套完成态恢复逻辑。
@@ -2027,6 +2031,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“cleanup/finally completion 恢复已闭环，无重复 replay 或结果槽回退”。
+- 审查结论：
+  - cleanup/finally completion 恢复已闭环，无重复 replay 或结果槽回退。
+  - no-suspend handle、nested handle、escaped continuation completion 继续共用同一套 `state_tag` / `completion_tag` / frame result slot 恢复逻辑，未发现 fixture-only patch 或 shape-based 回流。
 - 依赖：T3016a
 
 ### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/when/loop 混合控制流中的回归
