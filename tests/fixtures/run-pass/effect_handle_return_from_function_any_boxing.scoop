@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handle_return_from_function_any_boxing.stdout
+//
+// T3016R：handle 内的 function-return 必须继续走普通函数返回的 coercion 合同。
+// 这里 `return 1` 需要按 `Any` 返回类型执行 `Int -> Any` boxing；否则 boxed object
+// 不会作为真正的函数返回值保活，GC 后 heap object count 会错误回落到 0。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun blackBoxAny(value: Any): Unit {}
+
+fun earlyReturnAny(): Any {
+    println("enter")
+    val _: Int = handle {
+        return 1
+    } with {
+        Yield.next() -> resume {
+            resume(0)
+        }
+    }
+
+    println("after_handle")
+    return 0
+}
+
+fun main(): Int {
+    val x: Any = earlyReturnAny()
+    __scoop_gc_collect()
+    println(__scoop_gc_debug_heap_object_count())
+    blackBoxAny(x)
+    return 0
+}

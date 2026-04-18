@@ -1940,8 +1940,14 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3015R
 
-### T3016R [TODO] Review：确认 function-return sentinel 已真正接回 enclosing function return 合同
+### T3016R [DONE] Review：确认 function-return sentinel 已真正接回 enclosing function return 合同
 - 描述：在 `T3016` 之后只审查生产代码，确认 `STATE_TAG_FUNCTION_RETURNED` 已真正被消费并接入既有 return 基础设施，而不是另起一套 effect-only 返回旁路；若发现这类问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 中 `ReturnFromFunction` terminator、`handle_done`、`effect_function_return_context`、`completion_tag`、`return_context` / `finish_function_return_path()` 的完整调用链，确认 `STATE_TAG_FUNCTION_RETURNED` 的消费路径继续汇入既有函数返回基础设施，而不是新增 effect-only 终点。
+  - 复审过程中发现一处真实合同缺口：`HandleStateOp::Return` 重新求值 `return expr` 时使用了 `expected = None`，导致 `handle` 内 `return` 在返回到 `Any` 等需要 coercion 的 enclosing function 时，没有按普通 `return` 路径执行 `codegen_expr_in_expected_context(..., Some(declared_return_ty))` / `coerce_value`。结果是值被直接写入 effect transport slots，`Int -> Any` 这类 boxing 返回值在函数出口前丢失。
+  - 已修复该缺口：`HandleStateOp::Return` 现在使用 `enclosing_function_return_ty()` 作为 expected context 重新求值返回表达式，保证 early-return payload 在写入 frame transport 前就与普通 `return` 一样完成 coercion。
+  - 已新增 dedicated run-pass fixture：`effect_handle_return_from_function_any_boxing.scoop`，锁定“handle 内 `return 1` 返回到 `Any` 时必须保留 boxed object 并在 GC 后仍存活”的回归。
+  - 已验证：新 fixture、既有 `effect_handle_return_from_function_basic.scoop` / `..._finally.scoop` / `..._nested_handle.scoop`、cleanup baseline `effect_handle_yield_and_step_finally.scoop`、`cargo test -p scoopc plan_and_segments_support_return_inside_handle_body_block_expression -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` stale `EXPECT: fail`，对应 `T3017`，未引入新的生产回归。
 - 目标：
   - 确认 handle entry 对 `STATE_TAG_FUNCTION_RETURNED` 的处理与普通 `return_context` / cleanup 机制一致。
   - 确认 nested handle / finally / early return 的组合不再依赖未消费 sentinel 或重复写 result slot。
@@ -1949,6 +1955,11 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“function-return sentinel 已接回 enclosing function return 合同，无 effect-only 返回旁路残留”。
+- 审查结论：
+  - function-return sentinel 已接回 enclosing function return 合同，无 effect-only 返回旁路残留。
+  - `codegen_handle_expr_via_state_machine()` 在读到 `STATE_TAG_FUNCTION_RETURNED` 后，只会通过 `finish_enclosing_function_return_path()` 进入两类既有返回基础设施：普通用户函数继续复用 `return_context` / `finish_function_return_path()`，step/dispatch runtime function 内的 nested handle 则先进入 `effect_function_return_context` 本地 return block，再把 payload 写回外层 handle frame 并继续走外层 cleanup/done 合同。
+  - `completion_tag` 只负责在 cleanup/finally replay 期间保留 terminal completion mode，本身不形成新的返回出口；cleanup 结束后恢复的仍是 `STATE_TAG_FUNCTION_RETURNED`，随后由统一 `handle_done` 路径消费。
+  - `HandleStateOp::Return` 现已按 enclosing function return type 求值并完成 coercion，因此 `handle` 内 `return` 与普通 `return` 在值语义上共用同一套返回合同，包括 `Int -> Any` boxing 这类返回值变换。
 - 依赖：T3016
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线

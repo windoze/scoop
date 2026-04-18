@@ -1181,7 +1181,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 HandleStateOp::Return { stmt } => {
                     if let hir::StmtKind::Return { value } = &stmt.kind {
                         if let Some(val_expr) = value {
-                            let val = self.codegen_expr_in_expected_context(val_expr, None)?;
+                            // Match ordinary `return` semantics: the handle-local
+                            // early-return payload must already be coerced to the
+                            // enclosing function's declared return type before it
+                            // is written into the shared effect transport slots.
+                            let expected_return_ty = self.enclosing_function_return_ty();
+                            let val = self
+                                .codegen_expr_in_expected_context(val_expr, expected_return_ty)?;
                             last_value = Some(val);
                         } else {
                             last_value = Some(CgValue::unit());
