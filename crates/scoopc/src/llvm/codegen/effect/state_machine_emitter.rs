@@ -4081,6 +4081,69 @@ fun main(): Int {
     }
 
     #[test]
+    fn when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun main(): Int {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val result: Int = try {
+        val _: Unit = handle {
+            val _: Int = Suspend.pause()
+        } with {
+            Suspend.pause(), k -> {
+                cell.k = Some(k)
+            }
+        }
+
+        when (cell.k) {
+            Some(k1) -> {
+                cell.k = none_k
+                val _: Unit = try {
+                    k1.resume(10)
+                } catch (e: RuntimeError) {
+                    println("resume_err")
+                }
+            }
+            None -> println("missing")
+        }
+
+        0
+    } catch (outer: RuntimeError) {
+        1
+    }
+
+    return result
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        assert!(
+            ir.contains("call void @scoop_continuation_resume"),
+            "outer when-arm try/catch should still lower Continuation.resume via the dedicated runtime entry"
+        );
+    }
+
+    #[test]
     fn same_op_multi_arm_dispatch_ir_reads_effect_instance_key() {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"

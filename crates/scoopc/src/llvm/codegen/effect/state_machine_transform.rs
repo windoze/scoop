@@ -2106,7 +2106,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn unified_state_machine_recurses_nested_handles_and_dispatch_tables() {
+    fn unified_state_machine_keeps_self_contained_nested_handle_out_of_outer_machine() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -2150,12 +2150,14 @@ fun demo(mode: Int): Int {
 }
 "#,
         );
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected an outer handle");
+        let context = collect_plan_context(&lowered, fun);
         let segment_list = build_segment_list_from_lowered(&lowered);
         let machine = segment_list
             .build_unified_state_machine()
             .expect("valid nested handle segments should transform");
 
-        assert_eq!(machine.nested_handles.len(), 1);
+        assert_eq!(machine.nested_handles.len(), 0);
         assert_eq!(machine.dispatch_entries.len(), 2);
         assert_eq!(
             machine
@@ -2174,7 +2176,12 @@ fun demo(mode: Int): Int {
             1
         );
 
-        let nested = &machine.nested_handles[0];
+        let nested_handle =
+            first_nested_handle_in_handle(handle).expect("expected self-contained nested handle");
+        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("nested handle should still build as its own machine");
         assert!(matches!(nested.storage, UnifiedStateMachineStorage::Heap));
         assert_eq!(nested.dispatch_entries.len(), 1);
         assert!(
@@ -2188,10 +2195,13 @@ fun demo(mode: Int): Int {
                 SuspendSiteKind::NestedHandleBoundary { .. }
             )
         });
-        assert!(has_nested_boundary_site, "expected nested handle boundary site");
+        assert!(
+            !has_nested_boundary_site,
+            "self-contained nested handle should not materialize an outer boundary site"
+        );
 
         let dump = machine.pretty_dump(&lowered.types);
-        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(!dump.contains("nested-handles:\n  nested#0"), "{dump}");
         assert!(dump.contains("a.Ask.current => [arm0(entry=s"), "{dump}");
         assert!(dump.contains("a.Boom.boom => [arm1(entry=s"), "{dump}");
     }
@@ -2681,7 +2691,7 @@ fun demo(flag: Bool): Int {
                 ],
             ),
             (
-                "nested_handle_boundary_and_nested_machine",
+                "self_contained_nested_handle_outer_dispatch",
                 r#"
 package a
 
@@ -2724,8 +2734,6 @@ fun demo(mode: Int): Int {
 }
 "#,
                 &[
-                    "kind=nested-handle-boundary",
-                    "nested-handles:\n  nested#0",
                     "dispatch:\n  a.Ask.current => [arm0(entry=s",
                     "a.Boom.boom => [arm1(entry=s",
                 ],
@@ -2961,7 +2969,7 @@ fun demo(seed: Int): Int {
                     "slot arg#",
                     "owner=arm0",
                     "lifted=yes",
-                    "nested-handles:\n  nested#0",
+                    "slot inner#",
                 ],
             ),
         ];
@@ -3303,7 +3311,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn nested_handle_boundary_preserves_resume_path_and_slot() {
+    fn self_contained_nested_handle_does_not_materialize_outer_boundary_resume_path() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -3336,182 +3344,28 @@ fun demo(): Int {
         let segment_list = source_plan.build_segment_list();
         let machine = segment_list
             .build_unified_state_machine()
-            .expect("unified machine should build for nested handle boundary");
+            .expect("unified machine should still build for self-contained nested handle");
 
-        let plan_resume_path = source_plan
-            .suspend_sites
-            .iter()
-            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
-            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
-            .expect("expected nested handle boundary resume_path in source plan");
-        let segment_resume_path = segment_list
-            .suspend_sites
-            .iter()
-            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
-            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
-            .expect("expected nested handle boundary resume_path in segment list");
-        let machine_resume_path = machine
-            .suspend_sites
-            .iter()
-            .find(|site| matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. }))
-            .and_then(|site| site.resume_path.as_ref().map(SuspendResumePath::label))
-            .expect("expected nested handle boundary resume_path in unified machine");
-        assert_eq!(plan_resume_path, "val-init -> binary-lhs");
-        assert_eq!(plan_resume_path, segment_resume_path);
-        assert_eq!(plan_resume_path, machine_resume_path);
-
-        let plan_resume_has_slot = source_plan
-            .states
-            .iter()
-            .flat_map(|state| state.actions.iter())
-            .find_map(|op| match op {
-                HandleStateOp::ResumeAfterSite {
-                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                    resume_slot,
-                    ..
-                } => Some(resume_slot.is_some()),
-                _ => None,
-            })
-            .expect("expected nested handle boundary ResumeAfterSite in source plan");
-        let segment_resume_has_slot = segment_list
-            .segments
-            .iter()
-            .flat_map(|segment| segment.ops.iter())
-            .find_map(|op| match op {
-                HandleStateOp::ResumeAfterSite {
-                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                    resume_slot,
-                    ..
-                } => Some(resume_slot.is_some()),
-                _ => None,
-            })
-            .expect("expected nested handle boundary ResumeAfterSite in segment list");
-        let machine_resume_has_slot = machine
-            .states
-            .iter()
-            .flat_map(|state| state.ops.iter())
-            .find_map(|op| match op {
-                HandleStateOp::ResumeAfterSite {
-                    reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                    resume_slot,
-                    ..
-                } => Some(resume_slot.is_some()),
-                _ => None,
-            })
-            .expect("expected nested handle boundary ResumeAfterSite in unified machine");
-        assert!(plan_resume_has_slot);
-        assert!(segment_resume_has_slot);
-        assert!(machine_resume_has_slot);
-
-        let resumed_binary = source_plan
-            .states
-            .iter()
-            .find_map(|state| {
-                let has_nested_resume_marker = state.actions.iter().any(|op| {
-                    matches!(
-                        op,
-                        HandleStateOp::ResumeAfterSite {
-                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                            ..
-                        }
-                    )
-                });
-                if !has_nested_resume_marker {
-                    return None;
-                }
-                state.actions.iter().find_map(|op| match op {
-                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
-                    _ => None,
-                })
-            })
-            .expect("expected post-resume binary expr for nested handle boundary");
-        let hir::ExprKind::Binary { lhs, .. } = &resumed_binary.kind else {
-            panic!("expected post-resume nested handle expression to stay a binary expr");
-        };
-        let hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) = &lhs.kind else {
-            panic!("expected nested handle lhs to rewrite to synthetic resume slot");
-        };
         assert!(
-            name.starts_with("__resume_site"),
-            "expected nested handle lhs to read synthetic resume slot, got {name}"
+            source_plan
+                .suspend_sites
+                .iter()
+                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "self-contained nested handle should not materialize an outer boundary in source plan"
         );
-
-        let segment_resumed_binary = segment_list
-            .segments
-            .iter()
-            .find_map(|segment| {
-                let has_nested_resume_marker = segment.ops.iter().any(|op| {
-                    matches!(
-                        op,
-                        HandleStateOp::ResumeAfterSite {
-                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                            ..
-                        }
-                    )
-                });
-                if !has_nested_resume_marker {
-                    return None;
-                }
-                segment.ops.iter().find_map(|op| match op {
-                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
-                    _ => None,
-                })
-            })
-            .expect("expected post-resume binary expr in segment list");
-        let hir::ExprKind::Binary {
-            lhs: segment_lhs, ..
-        } = &segment_resumed_binary.kind
-        else {
-            panic!("expected segment post-resume nested handle expression to stay a binary expr");
-        };
-        let hir::ExprKind::VarRef(hir::ValueRef::Local {
-            name: segment_name, ..
-        }) = &segment_lhs.kind
-        else {
-            panic!("expected segment nested handle lhs to rewrite to synthetic resume slot");
-        };
         assert!(
-            segment_name.starts_with("__resume_site"),
-            "expected segment nested handle lhs to read synthetic resume slot, got {segment_name}"
+            segment_list
+                .suspend_sites
+                .iter()
+                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "self-contained nested handle should not materialize an outer boundary in segment list"
         );
-
-        let machine_resumed_binary = machine
-            .states
-            .iter()
-            .find_map(|state| {
-                let has_nested_resume_marker = state.ops.iter().any(|op| {
-                    matches!(
-                        op,
-                        HandleStateOp::ResumeAfterSite {
-                            reason: ResumeAfterSiteReason::NestedHandleBoundary,
-                            ..
-                        }
-                    )
-                });
-                if !has_nested_resume_marker {
-                    return None;
-                }
-                state.ops.iter().find_map(|op| match op {
-                    HandleStateOp::BinaryExpr { expr } => Some(expr.as_ref()),
-                    _ => None,
-                })
-            })
-            .expect("expected post-resume binary expr in unified machine");
-        let hir::ExprKind::Binary {
-            lhs: machine_lhs, ..
-        } = &machine_resumed_binary.kind
-        else {
-            panic!("expected unified post-resume nested handle expression to stay a binary expr");
-        };
-        let hir::ExprKind::VarRef(hir::ValueRef::Local {
-            name: machine_name, ..
-        }) = &machine_lhs.kind
-        else {
-            panic!("expected unified nested handle lhs to rewrite to synthetic resume slot");
-        };
         assert!(
-            machine_name.starts_with("__resume_site"),
-            "expected unified nested handle lhs to read synthetic resume slot, got {machine_name}"
+            machine
+                .suspend_sites
+                .iter()
+                .all(|site| !matches!(site.kind, SuspendSiteKind::NestedHandleBoundary { .. })),
+            "self-contained nested handle should not materialize an outer boundary in unified machine"
         );
     }
 
@@ -3742,10 +3596,12 @@ fun demo(seed: Int): Int {
             "outer handle should allocate a synthetic resume slot"
         );
 
-        let nested = machine
-            .nested_handles()
-            .first()
-            .expect("expected nested handle machine");
+        let nested_handle =
+            first_nested_handle_in_handle(handle).expect("expected nested handle in outer body");
+        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("nested handle should transform as its own machine");
         let nested_resume_slots = nested
             .frame()
             .slots()
@@ -3817,14 +3673,16 @@ fun demo(seed: Int): Int {
 
         let source_plan =
             HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
-        let machine = source_plan
+        let _machine = source_plan
             .build_segment_list()
             .build_unified_state_machine()
             .expect("valid segment contract should transform");
-        let nested = machine
-            .nested_handles()
-            .first()
-            .expect("expected nested handle machine");
+        let nested_handle =
+            first_nested_handle_in_handle(handle).expect("expected nested handle in outer body");
+        let nested = HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context)
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("nested handle should transform as its own machine");
 
         let seeded_slot_names = nested
             .frame()
@@ -4038,11 +3896,10 @@ fun demo(): Int {
             .expect("handle extension should recover local metadata");
         assert!(saved_meta.mutable, "outer handle var should stay mutable");
 
-        let outer_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
-        let nested = outer_plan
-            .nested_handles
-            .first()
-            .expect("expected nested handle plan");
+        let nested_handle =
+            first_nested_handle_in_handle(handle).expect("expected nested handle in outer body");
+        let nested =
+            HandleStateMachinePlan::build_with_context(&lowered.types, nested_handle, &context);
         let saved_slot = nested
             .frame_layout
             .slots
@@ -4263,6 +4120,21 @@ fun demo(flag: Bool): Int {
             }
         }
         None
+    }
+
+    fn first_nested_handle_in_handle(handle: &hir::HandleExpr) -> Option<&hir::HandleExpr> {
+        first_handle_in_block(&handle.body).or_else(|| {
+            handle
+                .arms
+                .iter()
+                .find_map(|arm| first_handle_in_expr(&arm.body))
+                .or_else(|| {
+                    handle
+                        .finally
+                        .as_ref()
+                        .and_then(first_handle_in_block)
+                })
+        })
     }
 
     fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {

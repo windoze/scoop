@@ -2494,7 +2494,7 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
-    fn segment_dump_recurses_nested_handle_boundaries() {
+    fn segment_dump_keeps_self_contained_nested_handle_out_of_outer_machine() {
         let dump = build_segment_dump(
             r#"
 package a
@@ -2539,8 +2539,9 @@ fun demo(mode: Int): Int {
 "#,
         );
 
-        assert!(dump.contains("kind=nested-handle-boundary"), "{dump}");
-        assert!(dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(!dump.contains("kind=nested-handle-boundary"), "{dump}");
+        assert!(!dump.contains("nested-handles:\n  nested#0"), "{dump}");
+        assert!(!dump.contains("a.Yield.next => [arm"), "{dump}");
         assert!(dump.contains("site0 kind=perform"), "{dump}");
         assert!(
             dump.contains("dispatch:\n  a.Ask.current => [arm0(entry=seg"),
@@ -2827,7 +2828,8 @@ fun demo(): Int {
     }
 
     #[test]
-    fn segment_dump_records_frame_slot_metadata_for_outer_locals_binders_and_nested_handles() {
+    fn segment_dump_records_frame_slot_metadata_for_outer_locals_and_binders_when_nested_handle_is_self_contained(
+    ) {
         let dump = build_segment_dump(
             r#"
 package a
@@ -2873,7 +2875,7 @@ fun demo(seed: Int): Int {
         assert!(dump.contains("owner=handle-body"), "{dump}");
         assert!(dump.contains("owner=arm0"), "{dump}");
         assert!(dump.contains("lifted=yes"), "{dump}");
-        assert!(dump.contains("nested#0"), "{dump}");
+        assert!(!dump.contains("nested#0"), "{dump}");
     }
 
     #[test]
@@ -3929,6 +3931,72 @@ fun demo(): Int {
                 StateTerminator::Suspend { site_id } if site_id == call_site.id
             ),
             "escape replay state must still suspend at the same indirect call site"
+        );
+    }
+
+    #[test]
+    fn source_plan_does_not_assign_escape_replay_target_for_later_perform_site() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun demo(): Int {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        val first: Int = Yield.next()
+        println(first)
+        val second: Int = Yield.next()
+        println(second)
+    } with {
+        Yield.next(), k -> {
+            cell.k = Some(k)
+        }
+    }
+
+    0
+}
+"#,
+        );
+
+        let mut perform_sites = source_plan
+            .suspend_sites
+            .iter()
+            .filter(|site| matches!(site.kind, SuspendSiteKind::Perform { .. }))
+            .collect::<Vec<_>>();
+        perform_sites.sort_by_key(|site| site.id);
+        assert_eq!(
+            perform_sites.len(),
+            2,
+            "two direct perform sites should be present in the handle body"
+        );
+
+        let second_site = perform_sites[1];
+        let owner_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.id == second_site.owner_state)
+            .expect("later perform-site owner state should exist");
+        assert!(
+            matches!(
+                owner_state.actions.first(),
+                Some(HandleStateOp::ResumeAfterSite { .. })
+            ),
+            "the later perform site should still live in a state that starts from an earlier resume marker"
+        );
+        assert_eq!(
+            second_site.escape_resume_target,
+            None,
+            "direct perform continuations must resume at their dedicated post-perform state instead of replaying the earlier owner-state path"
         );
     }
 

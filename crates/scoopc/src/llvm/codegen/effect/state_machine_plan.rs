@@ -100,6 +100,37 @@ impl HandleStateMachinePlan {
                 .any(Self::contains_suspend_subtree)
     }
 
+    fn materializes_escape_continuation(&self) -> bool {
+        self.states.iter().any(|state| {
+            matches!(
+                state.terminator,
+                StateTerminator::ArmExit(ArmBodyExit::MaterializeContinuation)
+            )
+        }) || self
+            .nested_handles
+            .iter()
+            .any(Self::materializes_escape_continuation)
+    }
+
+    /// Return `true` iff this handle may propagate suspension/effect dispatch
+    /// to its enclosing state machine rather than resolving everything within
+    /// its own dispatch loop.
+    ///
+    /// Self-contained nested handles such as `try { k.resume(...) } catch`
+    /// still contain internal suspend sites, but they do not require the
+    /// enclosing `when` / block / outer handle to split around them.
+    fn may_suspend_outward(&self) -> bool {
+        self.materializes_escape_continuation()
+            || self
+                .suspend_sites
+                .iter()
+                .any(SuspendSitePlan::may_suspend_outward)
+            || self
+                .nested_handles
+                .iter()
+                .any(Self::may_suspend_outward)
+    }
+
     #[cfg(test)]
     fn write_pretty_dump(&self, types: &TypeStore, indent: usize, out: &mut String) {
         let pad = " ".repeat(indent);
@@ -1117,6 +1148,17 @@ impl SuspendSiteKind {
             SuspendSiteKind::NestedHandleBoundary { detail } => 0x77 ^ detail.len(),
         }
     }
+
+    fn needs_escape_resume_replay(&self) -> bool {
+        matches!(
+            self,
+            SuspendSiteKind::CallMaySuspend { .. }
+                | SuspendSiteKind::CallStateMachineCallee { .. }
+                | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::ClassCtorInit { .. }
+                | SuspendSiteKind::NestedHandleBoundary { .. }
+        )
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1281,6 +1323,19 @@ impl SuspendSitePlan {
         }
         acc
     }
+
+    fn may_suspend_outward(&self) -> bool {
+        match self.kind {
+            SuspendSiteKind::Perform { .. } | SuspendSiteKind::RuntimeRaise { .. } => {
+                self.matching_arms.is_empty()
+            }
+            SuspendSiteKind::CallMaySuspend { .. }
+            | SuspendSiteKind::CallStateMachineCallee { .. }
+            | SuspendSiteKind::ObjectInitAccess { .. }
+            | SuspendSiteKind::ClassCtorInit { .. }
+            | SuspendSiteKind::NestedHandleBoundary { .. } => true,
+        }
+    }
 }
 
 impl ArmPlan {
@@ -1389,6 +1444,20 @@ struct HandlePlanBuilder<'a, 'hir> {
 }
 
 impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
+    fn snapshot_synthetic_symbol_seed<T>(&self, f: impl FnOnce() -> T) -> T {
+        let saved_seed = self.context.next_synthetic_symbol_raw.get();
+        let result = f();
+        self.context.next_synthetic_symbol_raw.set(saved_seed);
+        result
+    }
+
+    fn nested_handle_may_suspend_outward(&self, handle: &hir::HandleExpr) -> bool {
+        self.snapshot_synthetic_symbol_seed(|| {
+            HandleStateMachinePlan::build_with_context(self.types, handle, self.context)
+                .may_suspend_outward()
+        })
+    }
+
     fn local_function_value_may_suspend_when_called(&self, expr: &hir::Expr) -> bool {
         SuspendCallAnalysis {
             types: self.types,
@@ -2110,7 +2179,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             hir::ExprKind::Handle(handle) => {
                 let nested_id = self.nested_handles.len();
                 let nested = HandleStateMachinePlan::build_with_context(self.types, handle, self.context);
-                let nested_may_suspend = nested.contains_suspend_subtree();
+                let nested_may_suspend = nested.may_suspend_outward();
                 self.nested_handles.push(nested);
                 if nested_may_suspend {
                     self.record_expr_reads(current_state, expr);
@@ -2273,7 +2342,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     })
             }
             hir::ExprKind::Perform { .. } => true,
-            hir::ExprKind::Handle(handle) => self.handle_contains_suspend_subtree(handle),
+            hir::ExprKind::Handle(handle) => self.nested_handle_may_suspend_outward(handle),
         }
     }
 
@@ -3396,6 +3465,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     fn attach_escape_resume_targets(&mut self) {
         let original_state_count = self.states.len();
         let mut replay_states = Vec::<(SuspendSiteId, PlanState)>::new();
+        let replayable_sites = self
+            .suspend_sites
+            .iter()
+            .filter(|site| site.kind.needs_escape_resume_replay())
+            .map(|site| site.id)
+            .collect::<HashSet<_>>();
 
         for state in self.states.iter().take(original_state_count) {
             let Some(HandleStateOp::ResumeAfterSite {
@@ -3408,6 +3483,13 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             let StateTerminator::Suspend { site_id } = state.terminator else {
                 continue;
             };
+            // Direct perform/runtime-raise continuations already resume at their
+            // dedicated post-site state. Rewriting them back into an owner-state
+            // replay path would duplicate earlier effects/prints and corrupt the
+            // captured continuation contract.
+            if !replayable_sites.contains(&site_id) {
+                continue;
+            }
             if state.actions.len() <= 1 {
                 continue;
             }

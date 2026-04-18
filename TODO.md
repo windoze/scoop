@@ -2170,8 +2170,19 @@
   - 重新分类后的 `effect_escape_continuation_finally_normal.scoop` 与现有 Pure / required-effects 基线一致。
 - 依赖：T3016c0
 
-### T3016c [TODO] 接回已被 typecheck 确认为 builtin 的 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
+### T3016c [DONE] 接回已被 typecheck 确认为 builtin 的 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
 - 描述：在 `T3016c0R` 之后，outer-body `Continuation.resume(...)` 剩下的才是纯 production gap。`effect_escape_continuation_finally_normal.scoop` 在改成 spec-correct 的 `try/catch` 版本后已经恢复为 `EXPECT: pass`，因此当前剩余 blocker 已收缩到 `when` / nested handle 外层 body 等更复杂场景：`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 在 outer body 连续 resume inner continuation 时仍暴露真实 codegen 缺口 `effect frame seed outer-scope local`，说明部分 post-handle / outer-handler-body builtin resume site 还没有全部命中 dedicated lowering 或正确的 nested-frame seeding / dispatch-resume 合同，`T3017` 不能在这个缺口未修前继续推进。
+- 进展：
+  - 已把 escaped continuation 的 `escape_resume_target` 收口为只对真正需要 replay 的 call-like / nested-boundary site 分配；direct `perform` / `runtime-raise` continuation 不再被错误重写到旧 owner-state replay，因此 `effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 第二次 `resume(...)` 已不再回到第一次 `perform` 之后的路径。
+  - 已新增结构测试 `source_plan_does_not_assign_escape_replay_target_for_later_perform_site`，并保留既有 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`，锁定“later perform site 不得生成 escape replay target，而 mixed direct/indirect call replay 仍保留”。
+  - 已修正 emitter 定向单测 `when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume` 的最小 IR 夹具，确保 outer `when` arm / nested handle / `Continuation.resume(...)` 继续走 dedicated runtime entry，而不是卡在无关的 effect-instance-key 限制。
+  - `tests/fixtures/run-pass/effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 已恢复为 `EXPECT: pass`，并通过直跑确认 stdout 与 golden 一致。
+  - 为与当前生产语义保持一致，nested-handle skeleton/transform 测试已同步到新的合同：自洽 immediate-resume nested handle 仍各自编译为独立状态机，但不再进入 outer machine 的 `NestedHandleBoundary` / suspend-subtree 重写。
+  - 已验证：
+    - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_outer_resume_inner_multi.scoop`
+    - `cargo test -p scoop_runtime continuation_resume_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - spec-correct 的 outer body、`when` arm、nested handle 外层 body 中 `Continuation.resume(...)` 都进入统一 dedicated lowering，不再回落到 generic `call callee`。
   - nested handle 外层 body resume inner continuation 后，控制流、stdout 与 result 都按既定 fixture 语义继续推进，不出现静默退出，也不再卡在 `effect frame seed outer-scope local`。
