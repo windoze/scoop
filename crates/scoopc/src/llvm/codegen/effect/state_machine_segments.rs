@@ -3574,6 +3574,66 @@ fun demo(): Int {
     }
 
     #[test]
+    fn source_plan_elides_enclosing_when_expr_after_when_arm_resume() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+fun demo(): Unit {
+    handle {
+        when (1) {
+            1 -> {
+                println("before_ask")
+                val msg: String = Ask.ask()
+                println("after_ask")
+                println(msg)
+            }
+            else -> println("else_arm")
+        }
+        println("after_when")
+    } with {
+        Ask.ask(), k -> {
+            println("ask_arm")
+        }
+    }
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+
+        assert!(
+            resume_state
+                .actions
+                .iter()
+                .any(|op| matches!(op, HandleStateOp::BindLocal { .. })),
+            "resume state should still bind the resumed arm local"
+        );
+        assert!(
+            !resume_state
+                .actions
+                .iter()
+                .any(|op| matches!(op, HandleStateOp::WhenExpr { .. })),
+            "resume state should not keep the enclosing when-expr once arm tail is materialized"
+        );
+    }
+
+    #[test]
     fn source_plan_rewrites_nested_call_arg_resume_tail_to_synthetic_local() {
         let source_plan = build_source_plan(
             r#"

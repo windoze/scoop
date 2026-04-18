@@ -2036,27 +2036,54 @@
   - no-suspend handle、nested handle、escaped continuation completion 继续共用同一套 `state_tag` / `completion_tag` / frame result slot 恢复逻辑，未发现 fixture-only patch 或 shape-based 回流。
 - 依赖：T3016a
 
-### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/when/loop 混合控制流中的回归
-- 描述：`T3017` 扫描还暴露了另一类更前置的真实语义缺口：`effect_escape_continuation_perform_in_when_arm.scoop` 在 resume 后会重复执行 `before_ask` 并再次命中 `ask_arm`；`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在 direct→indirect mixed block 中丢失 direct 之后、indirect 之前的 prefix；同族的 `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 也都在 expectation scan 中暴露了相同方向的 tail replay 偏差。说明当前 resumed-body rebuild 仍未在 block/when/loop 的 mixed suspend-site 组合上完整对齐统一 resume-path 合同。
+### T3016b0 [DONE] 修正 statement-position `when` arm resumed-body 在恢复后重放 enclosing `when` 的回归
+- 描述：执行 `T3016b` 的定向复现后，确认 `effect_escape_continuation_perform_in_when_arm.scoop` 的失败并不只是一般性的 tail replay 偏差，而是一个更小、更前置的 resumed-body 缺口：当 suspend site 位于 statement-position `when` arm block 内时，恢复路径会先执行正确的 arm tail，然后又在同一个 resume state 中重放外层 `WhenExpr`，导致 `before_ask` 被重复执行并再次命中 `ask_arm`。这说明当前 `ResumeAfterSite` 之后的 plan/materialization 还没有把“已进入 arm tail 恢复态”的 enclosing `when` 求值路径剔除干净。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `materialize_resume_fragments()` 现已在继续执行 resume-slot rewrite 的同时，识别 statement-position `when` arm 恢复态里“已被 arm tail 覆盖”的 enclosing `WhenExpr`，并只在没有后续 consumer 依赖该 `when` 值时剔除它，避免恢复后再次重放整个 `when`。
+  - 新增结构测试 `source_plan_elides_enclosing_when_expr_after_when_arm_resume`，直接锁定 `ResumeAfterSite` 之后的恢复状态不再保留 enclosing `WhenExpr`，同时保留 arm tail 本身的 `BindLocal` / tail ops。
+  - `tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop` 已改回 `EXPECT: pass`；定向运行输出恢复为 `body_start / before_ask / ask_arm / after_handle / after_ask / hello_when / after_when / after_resume / done`。
+  - 已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
-  - resume 后只继续当前 suspend site 之后的剩余 tail，不重复 pre-suspend prefix，也不跳过 direct/indirect site 之间应保留的语句。
-  - `when` arm、nested block、`if`/`while` 与 mixed direct+indirect suspend-site 共享同一套 resumed-body rebuild 合同。
-  - 继续禁止 emitter 回扫 AST/源码形状；修复必须落在统一 state-machine plan / resume-path / emitter 合同内。
+  - resume 后只执行命中 arm 中 suspend site 之后的剩余 tail，不再重放 enclosing `when` 的 arm prefix，也不再再次命中 handler。
+  - 修复必须继续停留在统一 state-machine plan / `source_path` / `resume_path` 合同内，不能回退到按源码形状特判 emitter。
+  - 为该回归补充定向测试，锁定 statement-position `when` arm block 的恢复语义。
 - 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016aR
+
+### T3016b0R [TODO] Review：确认 statement-position `when` arm resumed-body 恢复不再重放 enclosing `when`
+- 描述：在 `T3016b0` 之后只审查生产代码，确认 `when` arm 恢复路径的修复继续停留在统一 state-machine contract，而不是重新引入按 `when` 容器/arm 形状硬编码的旁路；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `ResumeAfterSite` 后移除的是“已被 resumed-body 覆盖的 enclosing `when` 求值路径”，而不是靠 fixture 特判跳过某个具体打印/handler。
+  - 确认修复只依赖统一 `source_path` / `resume_path` / state action 元数据，不重新扫描 AST 或源码文本。
+  - 确认 handler 不会在恢复同一 `when` arm tail 时被第二次命中。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“statement-position `when` arm resumed-body 恢复已回到统一 state-machine 合同，无 enclosing `when` replay 回流”。
+- 依赖：T3016b0
+
+### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/if/while mixed direct+indirect 路径中的 prefix 丢失回归
+- 描述：把 `when` arm 的 enclosing-container replay 单独拆出后，`T3017` expectation scan 中剩余的 resumed-body 缺口仍然阻塞：`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在第二次 `resume(...)` 时丢失 direct 之后、indirect 之前的 prefix；同族的 `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 也都暴露了相同方向的问题。说明当前 resumed segment 在 direct + indirect mixed suspend-site 组合上，仍未把“当前 resumed-body segment 的起点”完整带入后续 site 的 caller-tail / loop-tail rebuild。
+- 目标：
+  - 对 direct + indirect mixed suspend-site，后续 `resume(...)` 要先 replay 当前 resumed segment 中 direct 之后、indirect 之前应保留的 prefix，再继续 indirect site 之后的 tail。
+  - nested block、`if`/`while` 与 ordinary callee caller-tail 共享同一套 resumed-body rebuild 合同。
+  - 继续禁止 emitter 回扫 AST/源码形状；修复必须落在统一 state-machine plan / resume-path / emitter 合同内。
+- 验收：
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3016aR
+- 依赖：T3016b0R
 
 ### T3016bR [TODO] Review：确认 resumed-body tail replay 已统一回到 state-machine resume-path 合同
-- 描述：在 `T3016b` 之后只审查生产代码，确认 block/when/loop mixed replay 的修复继续停留在 state-machine contract，而不是重新引入按源码容器/语句形状分流的补丁；若发现问题，本任务需要直接修复并复审。
+- 描述：在 `T3016b` 之后只审查生产代码，确认 block/if/while mixed direct+indirect replay 的修复继续停留在 state-machine contract，而不是重新引入按源码容器/语句形状分流的补丁；若发现问题，本任务需要直接修复并复审。
 - 目标：
   - 确认 resumed-body rebuild 仍以统一 `resume_path` / suspend-site 元数据为输入。
-  - 确认不存在按 `when arm` / `while body` / direct-vs-indirect 局部形状硬编码的 test-only 旁路。
+  - 确认不存在按 `block` / `if` / `while body` / direct-vs-indirect 局部形状硬编码的 test-only 旁路。
   - 确认 direct + indirect mixed path 在相同 contract 下都能重建正确 tail。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。

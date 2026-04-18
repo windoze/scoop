@@ -3202,6 +3202,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .iter()
             .filter_map(|site| site.resume_path.clone().map(|path| (site.id, path)))
             .collect::<HashMap<_, _>>();
+        let source_paths = self
+            .suspend_sites
+            .iter()
+            .filter_map(|site| site.source_path.clone().map(|path| (site.id, path)))
+            .collect::<HashMap<_, _>>();
 
         for state in &mut self.states {
             let rewrites = state
@@ -3230,6 +3235,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                                 op_index,
                                 source_expr,
                                 resume_path,
+                                source_paths.get(site_id).cloned(),
                                 resume_slot.clone(),
                             )
                         }),
@@ -3237,7 +3243,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 })
                 .collect::<Vec<_>>();
 
-            for (op_index, source_expr, resume_path, resume_slot) in rewrites {
+            let mut action_removals = Vec::new();
+
+            for (op_index, source_expr, resume_path, source_path, resume_slot) in rewrites {
                 for op in state.actions.iter_mut().skip(op_index + 1) {
                     rewrite_state_op_with_resume_slot(
                         op,
@@ -3252,6 +3260,29 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     &resume_path,
                     &resume_slot,
                 );
+
+                let enclosing_when_span = source_path.as_ref().and_then(|source_path| {
+                    source_path.frames.iter().rev().find_map(|frame| match frame {
+                        SuspendSourceFramePath::WhenArm { when_span, .. } => Some(*when_span),
+                        _ => None,
+                    })
+                });
+                if let Some(when_span) = enclosing_when_span
+                    && let Some(when_index) = find_elidable_enclosing_when_expr_index(
+                        &state.actions,
+                        op_index + 1,
+                        when_span,
+                        &state.terminator,
+                    )
+                {
+                    action_removals.push(when_index);
+                }
+            }
+
+            action_removals.sort_unstable();
+            action_removals.dedup();
+            for action_index in action_removals.into_iter().rev() {
+                state.actions.remove(action_index);
             }
         }
     }
@@ -4333,6 +4364,108 @@ fn rewrite_state_terminator_with_resume_slot(
 ) {
     if let StateTerminator::Branch { condition, .. } = terminator {
         rewrite_branch_condition_with_resume_slot(condition, source_expr, resume_path, resume_slot);
+    }
+}
+
+fn find_elidable_enclosing_when_expr_index(
+    actions: &[HandleStateOp],
+    start_index: usize,
+    when_span: Span,
+    terminator: &StateTerminator,
+) -> Option<usize> {
+    let when_index = actions
+        .iter()
+        .enumerate()
+        .skip(start_index)
+        .find_map(|(idx, op)| match op {
+            HandleStateOp::WhenExpr { expr } if expr.span == when_span => Some(idx),
+            _ => None,
+        })?;
+
+    if actions[when_index + 1..]
+        .iter()
+        .any(|op| state_op_directly_consumes_expr_span(op, when_span))
+        || state_terminator_directly_consumes_expr_span(terminator, when_span)
+    {
+        return None;
+    }
+
+    Some(when_index)
+}
+
+fn state_op_directly_consumes_expr_span(op: &HandleStateOp, expr_span: Span) -> bool {
+    match op {
+        HandleStateOp::BindLocal { decl, .. } | HandleStateOp::DeclareAnonymousVal { decl } => decl
+            .init
+            .as_ref()
+            .is_some_and(|init| init.span == expr_span),
+        HandleStateOp::Assign { stmt }
+        | HandleStateOp::Return { stmt }
+        | HandleStateOp::TodoStmt { stmt, .. }
+        | HandleStateOp::StmtEmpty { stmt }
+        | HandleStateOp::WhileCondHeader { stmt }
+        | HandleStateOp::Break { stmt }
+        | HandleStateOp::Continue { stmt } => stmt_directly_consumes_expr_span(stmt, expr_span),
+        HandleStateOp::ExprMissing { expr }
+        | HandleStateOp::Literal { expr }
+        | HandleStateOp::ReadLocal { expr, .. }
+        | HandleStateOp::ObjectInitAccessBoundary { expr, .. }
+        | HandleStateOp::VarRef { expr }
+        | HandleStateOp::StructLit { expr }
+        | HandleStateOp::TupleLit { expr }
+        | HandleStateOp::InterpolatedString { expr }
+        | HandleStateOp::Expr { expr }
+        | HandleStateOp::RuntimeRaiseBoundary { expr, .. }
+        | HandleStateOp::BinaryExpr { expr }
+        | HandleStateOp::WhenExpr { expr }
+        | HandleStateOp::SuspendCall { expr, .. }
+        | HandleStateOp::Call { expr }
+        | HandleStateOp::Perform { expr, .. }
+        | HandleStateOp::NestedHandleBoundary { expr, .. }
+        | HandleStateOp::NestedHandle { expr, .. }
+        | HandleStateOp::Closure { expr }
+        | HandleStateOp::TodoExpr { expr, .. } => expr.span == expr_span,
+        HandleStateOp::ResumeAfterSite { source_span, .. } => *source_span == expr_span,
+        HandleStateOp::CleanupEdgeComplete
+        | HandleStateOp::ReturnToEnclosingExpression
+        | HandleStateOp::LoopReentry { .. }
+        | HandleStateOp::ImplicitElseUnit { .. }
+        | HandleStateOp::ExecuteArmBody { .. } => false,
+    }
+}
+
+fn stmt_directly_consumes_expr_span(stmt: &hir::Stmt, expr_span: Span) -> bool {
+    match &stmt.kind {
+        hir::StmtKind::Expr(expr) => expr.span == expr_span,
+        hir::StmtKind::Val(decl) => decl
+            .init
+            .as_ref()
+            .is_some_and(|init| init.span == expr_span),
+        hir::StmtKind::Assign { lhs, rhs, .. } => lhs.span == expr_span || rhs.span == expr_span,
+        hir::StmtKind::While { cond, .. } => cond.span == expr_span,
+        hir::StmtKind::Return { value } => value.as_ref().is_some_and(|expr| expr.span == expr_span),
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => false,
+    }
+}
+
+fn state_terminator_directly_consumes_expr_span(
+    terminator: &StateTerminator,
+    expr_span: Span,
+) -> bool {
+    match terminator {
+        StateTerminator::Branch { condition, .. } => match condition {
+            HandleBranchCondition::WhileCond { condition }
+            | HandleBranchCondition::IfCond { condition } => condition.span == expr_span,
+        },
+        StateTerminator::Goto(_)
+        | StateTerminator::Suspend { .. }
+        | StateTerminator::ReturnHandle
+        | StateTerminator::ReturnFromFunction
+        | StateTerminator::CleanupEnter { .. }
+        | StateTerminator::ArmExit(_) => false,
     }
 }
 
