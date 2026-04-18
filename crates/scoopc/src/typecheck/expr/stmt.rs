@@ -1201,6 +1201,7 @@ pub(super) fn check_local_val_decl_exprs(
             // - 在其声明之后可见（resolver 已建立作用域）
             // - 属于稳定绑定，可用于 smart cast（当前阶段仅记录）
             for (decl_span, ty) in bindings {
+                lower.record_inferred_binding_ty(decl_span, ty);
                 state.locals.insert(decl_span, ty);
                 state.stable_bindings.insert(decl_span);
             }

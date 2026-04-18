@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: local_val_destructuring_nested_variant_mismatch_is_error.stdout
+//
+// T4003T：局部 pattern binding 的运行期校验不能只沿“会被读取的 binder 路径”做懒检查；
+// 对 `(Some(x), y)` 这类嵌套 variant pattern，若第一个元素不匹配，整个声明必须立即失败。
+
+import scoop.core.*
+
+enum MyOpt {
+    Some(val value: Int),
+    None,
+}
+
+fun explode(pair: (MyOpt, Int)): Unit / Raise<RuntimeError> {
+    val (Some(_), y) = pair
+    println(y)
+}
+
+fun main(): Int {
+    val noneValue: MyOpt = None()
+    val pair: (MyOpt, Int) = (noneValue, 7)
+
+    val code: Int = try {
+        explode(pair)
+        99
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> 0
+            ClassCastFailed -> 1
+            ContinuationAlreadyResumed -> 2
+        }
+    }
+
+    println(code)
+    return 0
+}

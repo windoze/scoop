@@ -220,7 +220,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003S
 
-### T4003T [TODO] 收口局部 `val` pattern binding 的可执行 lowering / codegen
+### T4003T [DONE] 收口局部 `val` pattern binding 的可执行 lowering / codegen
 - 说明：
   - 在尝试启动 `T4004` 时，最小 probe `fun main(): Int { val pair: (Int, Int) = (1, 2); val (a, b) = pair; return a + b }` 当前会在 build 阶段报 `scoop::llvm::unsupported_main_body: anonymous val binding`。
   - 这说明局部 `val` destructuring 目前只完成了 parser/typecheck，HIR `ValDecl` 仍把 pattern 绑定降成匿名声明，后端缺少统一的 binder lowering；若继续直接做顶层 pattern binding，只会引入额外的顶层专用 ad-hoc 路径，违反后续 review 对“顶层/局部复用同一套语义”的要求。
@@ -232,6 +232,25 @@
   - 上述最小 probe 可 build/run。
   - 新增 lowering / run-pass 回归，覆盖 tuple / struct / enum variant binder 的读取。
   - 局部 pattern binding 不再落入 `anonymous val binding` unsupported。
+- 已完成：
+  - HIR lowering 现为局部 `val` pattern binding 生成 synthetic subject + 多条命名 `ValDecl`，initializer 只求值一次；tuple / struct / enum variant binder 统一走合成投影 / `when` 提取，不再把 pattern 绑定降成匿名局部。
+  - block / stmt lowering 现支持“单条 AST 语句展开成多条 HIR 语句”，为局部 destructuring 主线提供统一承载，而不是额外开一条顶层/局部分叉的 ad-hoc 后端路径。
+  - typecheck 现把局部 pattern binder 的推断类型写回 side table；`lower_val_decl` 也优先复用 initializer 的 typechecked type，避免 subject / tuple literal / enum-rich aggregate 在 codegen 侧退化成 `Any`。
+  - HIR struct layout 收集现补齐 body-property 风格的 struct 字段（含泛型实例化路径），修复 `struct Point { val x: Int; val y: Int }` 这类 destructuring / field access 的 LLVM 字段投影失败。
+  - 已新增回归：
+    - `tests/fixtures/hir/local_val_destructuring_lowering.scoop`
+    - `tests/fixtures/hir/local_val_destructuring_lowering.hir`
+    - `tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`
+    - `tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.stdout`
+    - `tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`
+    - `tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.stdout`
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003SR
 
 ### T4003TR [TODO] Review：确认局部 destructuring 主线已可被顶层复用

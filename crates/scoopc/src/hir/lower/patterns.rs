@@ -7,11 +7,16 @@
 use crate::ast;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
+use super::ValScope;
 use super::types::ExpectedExpr;
 
-use super::super::{WhenArm, WhenPat};
+use super::super::{
+    Block, Expr, ExprKind, LiteralKind, MemberAccess, MemberRef, Stmt, StmtKind, ValDecl, ValueRef,
+    WhenArm, WhenPat,
+};
 
 impl<'a> HirLowering<'a> {
     pub(super) fn lower_when_arm(
@@ -69,5 +74,507 @@ impl<'a> HirLowering<'a> {
                 WhenPat::BoolLit { span: *span, value }
             }
         }
+    }
+
+    pub(super) fn lower_local_pattern_val_stmt(
+        &mut self,
+        pkg_prefix: &str,
+        stmt_span: Span,
+        v: &ast::ValDecl,
+        out: &mut Vec<Stmt>,
+    ) {
+        let ast::ValBinding::Pattern(pattern) = &v.binding else {
+            unreachable!("only pattern val declarations should reach this helper");
+        };
+
+        let (subject_decl_span, subject_id, subject_name) =
+            self.fresh_synthetic_local(stmt_span, "__destructure_subject", false);
+        let mut subject_decl = self.lower_val_decl(pkg_prefix, v, ValScope::Local);
+        let subject_ty = subject_decl.ty;
+        subject_decl.id = Some(subject_id);
+        subject_decl.name = Some(subject_name.clone());
+        subject_decl.mutable = false;
+
+        out.push(Stmt {
+            span: stmt_span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(subject_decl),
+        });
+
+        let subject_ref = self.synth_local_ref(
+            pattern.span,
+            subject_ty,
+            subject_id,
+            subject_name,
+            subject_decl_span,
+        );
+
+        if self.pattern_contains_variant(pattern) {
+            out.push(Stmt {
+                span: stmt_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Expr(
+                    self.synth_pattern_runtime_check_expr(subject_ref.clone(), pattern),
+                ),
+            });
+        }
+
+        let mut binders = Vec::new();
+        collect_pattern_binders(pattern, &mut binders);
+        for binder in binders {
+            let binder_ty = self
+                .typechecked_binding_ty(binder.span)
+                .unwrap_or(self.builtins.any);
+            let Some(init) = self.synth_pattern_binding_init_expr(
+                subject_ref.clone(),
+                pattern,
+                binder.span,
+                binder_ty,
+            ) else {
+                continue;
+            };
+
+            out.push(Stmt {
+                span: stmt_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: stmt_span,
+                    id: Some(self.intern_local_symbol(binder.span, false)),
+                    name: Some(binder.text(self.source).to_string()),
+                    mutable: false,
+                    ty: binder_ty,
+                    init: Some(init),
+                }),
+            });
+        }
+    }
+
+    fn synth_pattern_runtime_check_expr(&mut self, subject: Expr, pattern: &ast::Pattern) -> Expr {
+        match &pattern.kind {
+            ast::PatternKind::Wildcard
+            | ast::PatternKind::Rest
+            | ast::PatternKind::Bind(_)
+            | ast::PatternKind::Missing => self.unit_expr(pattern.span),
+            ast::PatternKind::Tuple(elements) => {
+                let checks = elements
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, element)| match element.kind {
+                        ast::PatternKind::Rest => None,
+                        _ if !self.pattern_contains_variant(element) => None,
+                        _ => {
+                            let projected =
+                                self.synth_tuple_member_access(subject.clone(), element.span, idx);
+                            Some(self.synth_pattern_runtime_check_expr(projected, element))
+                        }
+                    })
+                    .collect();
+                self.unit_block_expr(pattern.span, checks)
+            }
+            ast::PatternKind::Struct { path, fields, .. } => {
+                let checks = fields
+                    .iter()
+                    .filter_map(|field| {
+                        let nested = field.value.as_deref()?;
+                        if !self.pattern_contains_variant(nested) {
+                            return None;
+                        }
+                        let projected =
+                            self.synth_struct_field_access(subject.clone(), path, field);
+                        Some(self.synth_pattern_runtime_check_expr(projected, nested))
+                    })
+                    .collect();
+                self.unit_block_expr(pattern.span, checks)
+            }
+            ast::PatternKind::Variant { path, args } => {
+                self.synth_variant_runtime_check_expr(subject, pattern.span, path, args)
+            }
+        }
+    }
+
+    fn synth_variant_runtime_check_expr(
+        &mut self,
+        subject: Expr,
+        span: Span,
+        path: &ast::TypePath,
+        args: &[ast::Pattern],
+    ) -> Expr {
+        let variant_name = path
+            .segments
+            .last()
+            .map(|segment| segment.text(self.source).to_string())
+            .unwrap_or_default();
+
+        let mut nested_checks = Vec::new();
+        let mut arm_args = Vec::with_capacity(args.len());
+        for arg in args {
+            match &arg.kind {
+                ast::PatternKind::Rest => arm_args.push(WhenPat::Rest { span: arg.span }),
+                _ if self.pattern_contains_variant(arg) => {
+                    let (bind_span, bind_id, bind_name) =
+                        self.fresh_synthetic_local(arg.span, "__destructure_check", false);
+                    arm_args.push(WhenPat::Bind {
+                        span: bind_span,
+                        id: bind_id,
+                        name: bind_name.clone(),
+                    });
+                    let nested_subject = self.synth_local_ref(
+                        arg.span,
+                        self.builtins.any,
+                        bind_id,
+                        bind_name,
+                        bind_span,
+                    );
+                    nested_checks.push(self.synth_pattern_runtime_check_expr(nested_subject, arg));
+                }
+                _ => arm_args.push(WhenPat::Wildcard { span: arg.span }),
+            }
+        }
+
+        Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::When {
+                subject: Box::new(subject),
+                arms: vec![
+                    WhenArm {
+                        span,
+                        pat: WhenPat::Variant {
+                            span,
+                            name_span: path
+                                .segments
+                                .last()
+                                .map(|segment| segment.span)
+                                .unwrap_or(span),
+                            name: variant_name,
+                            args: arm_args,
+                        },
+                        guard: None,
+                        arrow_span: span,
+                        body: self.unit_block_expr(span, nested_checks),
+                    },
+                    WhenArm {
+                        span,
+                        pat: WhenPat::Else { span },
+                        guard: None,
+                        arrow_span: span,
+                        body: self.synth_raise_null_assertion_failed(span),
+                    },
+                ],
+            },
+        }
+    }
+
+    fn synth_pattern_binding_init_expr(
+        &mut self,
+        subject: Expr,
+        pattern: &ast::Pattern,
+        target_span: Span,
+        target_ty: TypeId,
+    ) -> Option<Expr> {
+        match &pattern.kind {
+            ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => None,
+            ast::PatternKind::Bind(ident) => (ident.span == target_span).then_some(subject),
+            ast::PatternKind::Tuple(elements) => {
+                for (idx, element) in elements.iter().enumerate() {
+                    if matches!(element.kind, ast::PatternKind::Rest)
+                        || !pattern_contains_binding(element, target_span)
+                    {
+                        continue;
+                    }
+                    let projected =
+                        self.synth_tuple_member_access(subject.clone(), element.span, idx);
+                    return self.synth_pattern_binding_init_expr(
+                        projected,
+                        element,
+                        target_span,
+                        target_ty,
+                    );
+                }
+                None
+            }
+            ast::PatternKind::Struct { path, fields, .. } => {
+                for field in fields {
+                    match field.value.as_deref() {
+                        Some(nested) if pattern_contains_binding(nested, target_span) => {
+                            let projected =
+                                self.synth_struct_field_access(subject.clone(), path, field);
+                            return self.synth_pattern_binding_init_expr(
+                                projected,
+                                nested,
+                                target_span,
+                                target_ty,
+                            );
+                        }
+                        None if field.name.span == target_span => {
+                            return Some(self.synth_struct_field_access(
+                                subject.clone(),
+                                path,
+                                field,
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+                None
+            }
+            ast::PatternKind::Variant { path, args } => {
+                let target_index = args.iter().enumerate().find_map(|(idx, arg)| {
+                    pattern_contains_binding(arg, target_span).then_some(idx)
+                })?;
+                let variant_name = path
+                    .segments
+                    .last()
+                    .map(|segment| segment.text(self.source).to_string())
+                    .unwrap_or_default();
+
+                let mut arm_args = Vec::with_capacity(args.len());
+                let mut arm_body = None;
+                for (idx, arg) in args.iter().enumerate() {
+                    if matches!(arg.kind, ast::PatternKind::Rest) {
+                        arm_args.push(WhenPat::Rest { span: arg.span });
+                        continue;
+                    }
+
+                    if idx == target_index {
+                        let (bind_span, bind_id, bind_name) =
+                            self.fresh_synthetic_local(arg.span, "__destructure_extract", false);
+                        arm_args.push(WhenPat::Bind {
+                            span: bind_span,
+                            id: bind_id,
+                            name: bind_name.clone(),
+                        });
+                        let nested_subject = self.synth_local_ref(
+                            arg.span,
+                            self.builtins.any,
+                            bind_id,
+                            bind_name,
+                            bind_span,
+                        );
+                        arm_body = self.synth_pattern_binding_init_expr(
+                            nested_subject,
+                            arg,
+                            target_span,
+                            target_ty,
+                        );
+                    } else {
+                        arm_args.push(WhenPat::Wildcard { span: arg.span });
+                    }
+                }
+
+                Some(Expr {
+                    span: pattern.span,
+                    ty: target_ty,
+                    kind: ExprKind::When {
+                        subject: Box::new(subject),
+                        arms: vec![
+                            WhenArm {
+                                span: pattern.span,
+                                pat: WhenPat::Variant {
+                                    span: pattern.span,
+                                    name_span: path
+                                        .segments
+                                        .last()
+                                        .map(|segment| segment.span)
+                                        .unwrap_or(pattern.span),
+                                    name: variant_name,
+                                    args: arm_args,
+                                },
+                                guard: None,
+                                arrow_span: pattern.span,
+                                body: arm_body.unwrap_or_else(|| self.unit_expr(pattern.span)),
+                            },
+                            WhenArm {
+                                span: pattern.span,
+                                pat: WhenPat::Else { span: pattern.span },
+                                guard: None,
+                                arrow_span: pattern.span,
+                                body: self.synth_raise_null_assertion_failed(pattern.span),
+                            },
+                        ],
+                    },
+                })
+            }
+        }
+    }
+
+    fn pattern_contains_variant(&self, pattern: &ast::Pattern) -> bool {
+        match &pattern.kind {
+            ast::PatternKind::Variant { .. } => true,
+            ast::PatternKind::Tuple(elements) => elements
+                .iter()
+                .any(|element| self.pattern_contains_variant(element)),
+            ast::PatternKind::Struct { fields, .. } => fields.iter().any(|field| {
+                field
+                    .value
+                    .as_deref()
+                    .is_some_and(|nested| self.pattern_contains_variant(nested))
+            }),
+            ast::PatternKind::Wildcard
+            | ast::PatternKind::Rest
+            | ast::PatternKind::Bind(_)
+            | ast::PatternKind::Missing => false,
+        }
+    }
+
+    fn synth_local_ref(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        id: super::super::SymbolId,
+        name: String,
+        decl_span: Span,
+    ) -> Expr {
+        Expr {
+            span,
+            ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id,
+                name,
+                decl_span,
+            }),
+        }
+    }
+
+    fn synth_tuple_member_access(&mut self, receiver: Expr, span: Span, index: usize) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: MemberAccess {
+                    span,
+                    name: format!("_{index}"),
+                    resolved: None,
+                },
+            },
+        }
+    }
+
+    fn synth_struct_field_access(
+        &mut self,
+        receiver: Expr,
+        path: &ast::TypePath,
+        field: &ast::StructPatternField,
+    ) -> Expr {
+        let field_name = field.name.text(self.source).to_string();
+        Expr {
+            span: field.span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: MemberAccess {
+                    span: field.name.span,
+                    name: field_name.clone(),
+                    resolved: self.synth_struct_field_member_ref(
+                        path,
+                        &field_name,
+                        field.name.span,
+                    ),
+                },
+            },
+        }
+    }
+
+    fn synth_struct_field_member_ref(
+        &mut self,
+        path: &ast::TypePath,
+        field_name: &str,
+        field_span: Span,
+    ) -> Option<MemberRef> {
+        let nominal_ty = self.lower_type_ref(&ast::TypeRef::Path(path.clone()));
+        let owner_fqn = match self.types.kind(nominal_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.fqn.clone(),
+            _ => return None,
+        };
+        let field_fqn = format!("{owner_fqn}.{field_name}");
+        Some(MemberRef::Value {
+            id: self.symbols.intern_top_level(field_fqn.clone()),
+            fqn: field_fqn,
+        })
+        .filter(|_| !field_span.is_empty() || !owner_fqn.is_empty())
+    }
+
+    fn unit_expr(&self, span: Span) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Literal(LiteralKind::Unit),
+        }
+    }
+
+    fn unit_block_expr(&self, span: Span, steps: Vec<Expr>) -> Expr {
+        if steps.is_empty() {
+            return self.unit_expr(span);
+        }
+
+        let mut stmts: Vec<Stmt> = steps
+            .into_iter()
+            .map(|expr| Stmt {
+                span: expr.span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Expr(expr),
+            })
+            .collect();
+        stmts.push(Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.unit_expr(span)),
+        });
+
+        Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: self.builtins.unit,
+                stmts,
+            }),
+        }
+    }
+}
+
+fn collect_pattern_binders(pattern: &ast::Pattern, out: &mut Vec<ast::Ident>) {
+    match &pattern.kind {
+        ast::PatternKind::Bind(ident) => out.push(*ident),
+        ast::PatternKind::Tuple(elements) => {
+            for element in elements {
+                collect_pattern_binders(element, out);
+            }
+        }
+        ast::PatternKind::Struct { fields, .. } => {
+            for field in fields {
+                match field.value.as_deref() {
+                    Some(nested) => collect_pattern_binders(nested, out),
+                    None => out.push(field.name),
+                }
+            }
+        }
+        ast::PatternKind::Variant { args, .. } => {
+            for arg in args {
+                collect_pattern_binders(arg, out);
+            }
+        }
+        ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => {}
+    }
+}
+
+fn pattern_contains_binding(pattern: &ast::Pattern, target_span: Span) -> bool {
+    match &pattern.kind {
+        ast::PatternKind::Bind(ident) => ident.span == target_span,
+        ast::PatternKind::Tuple(elements) => elements
+            .iter()
+            .any(|element| pattern_contains_binding(element, target_span)),
+        ast::PatternKind::Struct { fields, .. } => {
+            fields.iter().any(|field| match field.value.as_deref() {
+                Some(nested) => pattern_contains_binding(nested, target_span),
+                None => field.name.span == target_span,
+            })
+        }
+        ast::PatternKind::Variant { args, .. } => args
+            .iter()
+            .any(|arg| pattern_contains_binding(arg, target_span)),
+        ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => false,
     }
 }

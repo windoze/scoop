@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: local_val_destructuring_tuple_struct_variant_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4003T：局部 `val` pattern binding 需要在 HIR / LLVM 主线上可执行，
+// 覆盖 tuple / struct / enum variant 三类 binder 的读取。
+
+import scoop.core.*
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+enum MaybeInt {
+    Some(val value: Int),
+    None,
+}
+
+fun main(): Int {
+    val pair: (Int, Int) = (1, 2)
+    val (a, b) = pair
+
+    val point: Point = Point { x: a + 10, y: b + 20 }
+    println(point.x)
+    println(point.y)
+    val Point { x, y } = point
+
+    val maybe: MaybeInt = Some(x + y)
+    val Some(total) = maybe
+
+    println(a)
+    println(b)
+    println(x)
+    println(y)
+    println(total)
+    return 0
+}

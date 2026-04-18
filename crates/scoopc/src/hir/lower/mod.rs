@@ -87,6 +87,8 @@ struct HirLowering<'a> {
     /// - receiver lambda lowering body 时会覆盖为当前 lambda 的合成 `this` 绑定；
     /// - 嵌套普通 lambda 会继承外层 receiver lambda 的 `this`，嵌套 receiver lambda 会再次覆盖。
     lambda_this_decl_span: Option<Span>,
+    /// 合成局部绑定计数器：用于给 lowering 生成的临时局部变量分配唯一 decl span / 名字。
+    next_synthetic_local: usize,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
@@ -157,6 +159,7 @@ impl<'a> HirLowering<'a> {
             local_mutability: HashMap::new(),
             next_closure: 0,
             lambda_this_decl_span: None,
+            next_synthetic_local: 0,
             types,
             builtins,
             type_param_scopes: Vec::new(),
@@ -177,6 +180,28 @@ impl<'a> HirLowering<'a> {
             }
         }
         id
+    }
+
+    fn fresh_synthetic_local(
+        &mut self,
+        anchor: Span,
+        prefix: &str,
+        mutable: bool,
+    ) -> (Span, SymbolId, String) {
+        let index = self.next_synthetic_local;
+        self.next_synthetic_local = self.next_synthetic_local.saturating_add(1);
+
+        // 刻意把合成 span 放到文件末尾之后，避免与真实源码 decl span 冲突。
+        let base = self
+            .source
+            .text()
+            .len()
+            .saturating_add(index.saturating_mul(2));
+        let span = Span::new(base, base.saturating_add(1));
+        let id = self.intern_local_symbol(span, mutable);
+        let name = format!("{prefix}_{index}");
+        let _ = anchor; // 目前仅保留参数，便于后续若需改成“锚定到原语句附近”时不改调用点。
+        (span, id, name)
     }
 
     fn with_foreign_ast_context<T>(
@@ -954,6 +979,10 @@ impl<'a> HirLowering<'a> {
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
         // T0124: lower the declared type first so we can pass it as expected type for struct literals.
         let declared_ty_early = v.ty.as_ref().map(|t| self.lower_type_ref(t));
+        let typechecked_init_ty = v
+            .init
+            .as_ref()
+            .and_then(|init| self.typechecked_expr_ty(init.span));
 
         // T1317c：数组字面量 `[...]` 的 lowering 依赖”期望的容器类型”（Array vs MutableArray）。
         // 这里从显式的类型注解（若存在）向 initializer 传播该 hint。
@@ -971,6 +1000,7 @@ impl<'a> HirLowering<'a> {
             .map(|e| self.lower_expr_with_expected(pkg_prefix, e, init_expected));
 
         let ty = declared_ty_early
+            .or(typechecked_init_ty)
             .or_else(|| init.as_ref().map(|e| e.ty))
             .unwrap_or(self.builtins.any);
 

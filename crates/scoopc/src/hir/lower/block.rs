@@ -29,26 +29,25 @@ impl<'a> HirLowering<'a> {
             let is_last = index + 1 == b.stmts.len();
             // T3102：只有最后一条且无尾分号的 Expr 语句才是 tail expression。
             let is_tail = is_last && !s.has_trailing_semi;
-            let stmt = if is_tail {
+            if is_tail {
                 match &s.kind {
                     ast::StmtKind::Expr(expr)
                         if !matches!(expr.kind, ast::ExprKind::Assign { .. }) =>
                     {
                         last_is_tail = true;
-                        Stmt {
+                        stmts.push(Stmt {
                             span: s.span,
                             ty: self.builtins.unit,
                             kind: StmtKind::Expr(
                                 self.lower_expr_with_expected(pkg_prefix, expr, expected),
                             ),
-                        }
+                        });
                     }
-                    _ => self.lower_stmt(pkg_prefix, s),
+                    _ => self.lower_stmt_into(pkg_prefix, s, &mut stmts),
                 }
             } else {
-                self.lower_stmt(pkg_prefix, s)
-            };
-            stmts.push(stmt);
+                self.lower_stmt_into(pkg_prefix, s, &mut stmts);
+            }
         }
 
         // T3102：只有 tail expression（无尾分号的最后 Expr 语句）才贡献 block 类型；

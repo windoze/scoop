@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ast;
 use crate::resolve::Index;
 use crate::source::SourceFile;
+use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
@@ -2006,20 +2007,25 @@ pub(super) fn collect_struct_layouts(
             let mut fields: Vec<StructFieldLayout> = Vec::new();
             if let Some(primary_ctor) = &ty.primary_ctor {
                 for p in &primary_ctor.params {
-                    let field_name = p.name.text(source).to_string();
-                    let field_fqn = format!("{fqn}.{field_name}");
                     let ty_fqn =
                         p.ty.as_ref()
                             .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
-
-                    fields.push(StructFieldLayout {
-                        span: p.name.span,
-                        name: field_name,
-                        fqn: field_fqn,
+                    push_struct_layout_field(
+                        &mut fields,
+                        &fqn,
+                        p.name.span,
+                        p.name.text(source).to_string(),
                         ty_fqn,
-                    });
+                    );
                 }
             }
+            append_struct_body_property_layout_fields(
+                source,
+                ty.body.as_ref(),
+                &fqn,
+                |ty_ref| index.type_ref_to_fqn_in_file(source, file, ty_ref),
+                &mut fields,
+            );
 
             out.insert(
                 fqn.clone(),
@@ -2212,6 +2218,56 @@ pub(super) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) ->
     }
 }
 
+fn push_struct_layout_field(
+    fields: &mut Vec<StructFieldLayout>,
+    owner_fqn: &str,
+    span: Span,
+    name: String,
+    ty_fqn: Option<String>,
+) {
+    let field_fqn = format!("{owner_fqn}.{name}");
+    fields.push(StructFieldLayout {
+        span,
+        name,
+        fqn: field_fqn,
+        ty_fqn,
+    });
+}
+
+fn append_struct_body_property_layout_fields(
+    source: &SourceFile,
+    body: Option<&ast::TypeBody>,
+    owner_fqn: &str,
+    mut resolve_ty_fqn: impl FnMut(&ast::TypeRef) -> Option<String>,
+    fields: &mut Vec<StructFieldLayout>,
+) {
+    let Some(body) = body else {
+        return;
+    };
+
+    for member in &body.members {
+        let ast::TypeMember::Property(property) = member else {
+            continue;
+        };
+
+        // 只有真正拥有 backing field 的属性才参与 value layout。
+        if property.delegate.is_some() || property.getter.is_some() || property.setter.is_some() {
+            continue;
+        }
+        let Some(ty_ref) = &property.ty else {
+            continue;
+        };
+
+        push_struct_layout_field(
+            fields,
+            owner_fqn,
+            property.name.span,
+            property.name.text(source).to_string(),
+            resolve_ty_fqn(ty_ref),
+        );
+    }
+}
+
 /// 收集泛型 struct 的具体实例化布局（T0124）。
 ///
 /// 在 typecheck 之后运行：扫描 TypeStore 中所有 `ValueTypeKind::Nominal`（args 非空），
@@ -2281,24 +2337,28 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             param_map.insert(name, nominal.args[idx]);
         }
 
-        // 为每个字段解析 ty_fqn
+        // 为每个字段解析 ty_fqn。
         let mut fields: Vec<StructFieldLayout> = Vec::new();
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
-                let field_name = p.name.text(source).to_string();
-                let field_fqn = format!("{}.{field_name}", nominal.fqn);
-
-                // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型
+                // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型。
                 let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
-
-                fields.push(StructFieldLayout {
-                    span: p.name.span,
-                    name: field_name,
-                    fqn: field_fqn,
+                push_struct_layout_field(
+                    &mut fields,
+                    &nominal.fqn,
+                    p.name.span,
+                    p.name.text(source).to_string(),
                     ty_fqn,
-                });
+                );
             }
         }
+        append_struct_body_property_layout_fields(
+            source,
+            decl.body.as_ref(),
+            &nominal.fqn,
+            |ty_ref| resolve_field_type_fqn(source, Some(ty_ref), &param_map, types),
+            &mut fields,
+        );
 
         out.insert(
             mangled.clone(),

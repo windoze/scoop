@@ -16,7 +16,18 @@ use super::super::{
 };
 
 impl<'a> HirLowering<'a> {
-    pub(super) fn lower_stmt(&mut self, pkg_prefix: &str, s: &ast::Stmt) -> Stmt {
+    pub(super) fn lower_stmt_into(&mut self, pkg_prefix: &str, s: &ast::Stmt, out: &mut Vec<Stmt>) {
+        if let ast::StmtKind::Val(v) = &s.kind
+            && matches!(v.binding, ast::ValBinding::Pattern(_))
+        {
+            self.lower_local_pattern_val_stmt(pkg_prefix, s.span, v, out);
+            return;
+        }
+
+        out.push(self.lower_stmt_single(pkg_prefix, s));
+    }
+
+    fn lower_stmt_single(&mut self, pkg_prefix: &str, s: &ast::Stmt) -> Stmt {
         let (kind, ty) = match &s.kind {
             ast::StmtKind::Empty => (StmtKind::Empty, self.builtins.unit),
             ast::StmtKind::Expr(e) => {

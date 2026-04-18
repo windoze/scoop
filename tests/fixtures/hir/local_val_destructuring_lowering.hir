@@ -1,0 +1,740 @@
+File {
+    items: [
+        Todo {
+            span: 43..89,
+            kind: "type",
+        },
+        Todo {
+            span: 91..144,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 146..337,
+                fqn: "fixtures.hir.use",
+                name: "use",
+                ty: TypeId(
+                    11,
+                ),
+                params: [
+                    Param {
+                        span: 154..159,
+                        id: S0,
+                        name: "maybe",
+                        ty: TypeId(
+                            10,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 171..337,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 177..206,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 177..206,
+                                        id: Some(
+                                            S1,
+                                        ),
+                                        name: Some(
+                                            "pair",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            12,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 200..206,
+                                                ty: TypeId(
+                                                    12,
+                                                ),
+                                                kind: TupleLit {
+                                                    elements: [
+                                                        Expr {
+                                                            span: 201..202,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                        Expr {
+                                                            span: 204..205,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 211..228,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 211..228,
+                                        id: Some(
+                                            S2,
+                                        ),
+                                        name: Some(
+                                            "__destructure_subject_0",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 224..228,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S1,
+                                                        name: "pair",
+                                                        decl_span: 181..185,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 211..228,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 211..228,
+                                        id: Some(
+                                            S3,
+                                        ),
+                                        name: Some(
+                                            "a",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 216..217,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 215..221,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S2,
+                                                                name: "__destructure_subject_0",
+                                                                decl_span: 338..339,
+                                                            },
+                                                        ),
+                                                    },
+                                                    member: MemberAccess {
+                                                        span: 216..217,
+                                                        name: "_0",
+                                                        resolved: None,
+                                                    },
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 211..228,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 211..228,
+                                        id: Some(
+                                            S4,
+                                        ),
+                                        name: Some(
+                                            "b",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 219..220,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 215..221,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S2,
+                                                                name: "__destructure_subject_0",
+                                                                decl_span: 338..339,
+                                                            },
+                                                        ),
+                                                    },
+                                                    member: MemberAccess {
+                                                        span: 219..220,
+                                                        name: "_1",
+                                                        resolved: None,
+                                                    },
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 234..273,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 234..273,
+                                        id: Some(
+                                            S5,
+                                        ),
+                                        name: Some(
+                                            "point",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            13,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 253..273,
+                                                ty: TypeId(
+                                                    13,
+                                                ),
+                                                kind: StructLit {
+                                                    ty: TypeId(
+                                                        13,
+                                                    ),
+                                                    fields: [
+                                                        StructLitField {
+                                                            span: 261..265,
+                                                            name: "x",
+                                                            name_span: 261..262,
+                                                            colon_span: 262..263,
+                                                            value: Expr {
+                                                                span: 264..265,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S3,
+                                                                        name: "a",
+                                                                        decl_span: 216..217,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                        StructLitField {
+                                                            span: 267..271,
+                                                            name: "y",
+                                                            name_span: 267..268,
+                                                            colon_span: 268..269,
+                                                            value: Expr {
+                                                                span: 270..271,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S4,
+                                                                        name: "b",
+                                                                        decl_span: 219..220,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 278..304,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 278..304,
+                                        id: Some(
+                                            S6,
+                                        ),
+                                        name: Some(
+                                            "__destructure_subject_1",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 299..304,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S5,
+                                                        name: "point",
+                                                        decl_span: 238..243,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 278..304,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 278..304,
+                                        id: Some(
+                                            S8,
+                                        ),
+                                        name: Some(
+                                            "x",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 290..291,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 282..296,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S6,
+                                                                name: "__destructure_subject_1",
+                                                                decl_span: 340..341,
+                                                            },
+                                                        ),
+                                                    },
+                                                    member: MemberAccess {
+                                                        span: 290..291,
+                                                        name: "x",
+                                                        resolved: Some(
+                                                            Value {
+                                                                id: S7,
+                                                                fqn: "fixtures.hir.Point.x",
+                                                            },
+                                                        ),
+                                                    },
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 278..304,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 278..304,
+                                        id: Some(
+                                            S10,
+                                        ),
+                                        name: Some(
+                                            "y",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 293..294,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 282..296,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S6,
+                                                                name: "__destructure_subject_1",
+                                                                decl_span: 340..341,
+                                                            },
+                                                        ),
+                                                    },
+                                                    member: MemberAccess {
+                                                        span: 293..294,
+                                                        name: "y",
+                                                        resolved: Some(
+                                                            Value {
+                                                                id: S9,
+                                                                fqn: "fixtures.hir.Point.y",
+                                                            },
+                                                        ),
+                                                    },
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 310..329,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 310..329,
+                                        id: Some(
+                                            S11,
+                                        ),
+                                        name: Some(
+                                            "__destructure_subject_2",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 324..329,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S0,
+                                                        name: "maybe",
+                                                        decl_span: 154..159,
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 310..329,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 314..321,
+                                        ty: TypeId(
+                                            2,
+                                        ),
+                                        kind: When {
+                                            subject: Expr {
+                                                span: 314..321,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S11,
+                                                        name: "__destructure_subject_2",
+                                                        decl_span: 342..343,
+                                                    },
+                                                ),
+                                            },
+                                            arms: [
+                                                WhenArm {
+                                                    span: 314..321,
+                                                    pat: Variant {
+                                                        span: 314..321,
+                                                        name_span: 314..318,
+                                                        name: "Some",
+                                                        args: [
+                                                            Wildcard {
+                                                                span: 319..320,
+                                                            },
+                                                        ],
+                                                    },
+                                                    guard: None,
+                                                    arrow_span: 314..321,
+                                                    body: Expr {
+                                                        span: 314..321,
+                                                        ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Literal(
+                                                            Unit,
+                                                        ),
+                                                    },
+                                                },
+                                                WhenArm {
+                                                    span: 314..321,
+                                                    pat: Else {
+                                                        span: 314..321,
+                                                    },
+                                                    guard: None,
+                                                    arrow_span: 314..321,
+                                                    body: Expr {
+                                                        span: 314..321,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Perform {
+                                                            effect_ty: TypeId(
+                                                                15,
+                                                            ),
+                                                            op: EffectOpRef {
+                                                                span: 314..321,
+                                                                fqn: "scoop.core.Raise.raise",
+                                                            },
+                                                            args: [
+                                                                Positional(
+                                                                    Expr {
+                                                                        span: 314..321,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: MemberAccess {
+                                                                            receiver: Expr {
+                                                                                span: 314..321,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Missing,
+                                                                            },
+                                                                            member: MemberAccess {
+                                                                                span: 314..321,
+                                                                                name: "NullAssertionFailed",
+                                                                                resolved: Some(
+                                                                                    Value {
+                                                                                        id: S12,
+                                                                                        fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            ],
+                                                        },
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 310..329,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 310..329,
+                                        id: Some(
+                                            S14,
+                                        ),
+                                        name: Some(
+                                            "v",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 314..321,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: When {
+                                                    subject: Expr {
+                                                        span: 314..321,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S11,
+                                                                name: "__destructure_subject_2",
+                                                                decl_span: 342..343,
+                                                            },
+                                                        ),
+                                                    },
+                                                    arms: [
+                                                        WhenArm {
+                                                            span: 314..321,
+                                                            pat: Variant {
+                                                                span: 314..321,
+                                                                name_span: 314..318,
+                                                                name: "Some",
+                                                                args: [
+                                                                    Bind {
+                                                                        span: 344..345,
+                                                                        id: S13,
+                                                                        name: "__destructure_extract_3",
+                                                                    },
+                                                                ],
+                                                            },
+                                                            guard: None,
+                                                            arrow_span: 314..321,
+                                                            body: Expr {
+                                                                span: 319..320,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S13,
+                                                                        name: "__destructure_extract_3",
+                                                                        decl_span: 344..345,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                        WhenArm {
+                                                            span: 314..321,
+                                                            pat: Else {
+                                                                span: 314..321,
+                                                            },
+                                                            guard: None,
+                                                            arrow_span: 314..321,
+                                                            body: Expr {
+                                                                span: 314..321,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Perform {
+                                                                    effect_ty: TypeId(
+                                                                        15,
+                                                                    ),
+                                                                    op: EffectOpRef {
+                                                                        span: 314..321,
+                                                                        fqn: "scoop.core.Raise.raise",
+                                                                    },
+                                                                    args: [
+                                                                        Positional(
+                                                                            Expr {
+                                                                                span: 314..321,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: MemberAccess {
+                                                                                    receiver: Expr {
+                                                                                        span: 314..321,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: Missing,
+                                                                                    },
+                                                                                    member: MemberAccess {
+                                                                                        span: 314..321,
+                                                                                        name: "NullAssertionFailed",
+                                                                                        resolved: Some(
+                                                                                            Value {
+                                                                                                id: S12,
+                                                                                                fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    ],
+                                                                },
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 334..335,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 334..335,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S3,
+                                                name: "a",
+                                                decl_span: 216..217,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -1,51 +1,74 @@
-## 当前回合执行计划
+# T4003T 执行记录
 
-说明：这里记录可审计的执行计划、关键判断依据、进度更新与计划调整。出于安全与协作边界考虑，不记录逐字内部推理，而是记录足以复核工作的决策摘要。
+## 当前任务
 
-### 初始目标
+- 目标任务：`T4003T` 收口局部 `val` pattern binding 的可执行 lowering / codegen。
+- 约束：只完成 `TODO.md` 中当前第一个未完成任务，完成后更新 `TODO.md`、`PLAN.md`、`memory/claude_plan.md`，提交 git commit 后停止。
+- 当前判断：AST / resolver / typecheck 已支持局部 `val` destructuring，剩余问题集中在 HIR lowering 产物进入 LLVM codegen 时的匿名局部绑定与 struct field 投影。
 
-1. 在不跳过任何前置问题的前提下，检查最新提交是否提到已有缺陷；若有，先纳入本轮范围并修复。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 判断该任务是否足够小且可在本轮完整实现、测试、文档化并提交。
-4. 若任务过大或被真实实现缺口阻塞：
-   - 细化为更小的子任务，更新 `PLAN.md` 与 `TODO.md`。
-   - 若存在规范不匹配、语言特性缺失、运行时缺口或错误实现，先把该缺口作为新的前置任务写入 `TODO.md`，调整依赖顺序，然后停止。
-5. 若任务可执行：
-   - 完整实现。
-   - 运行相关测试，并补充必要测试。
-   - 运行格式化、lint 与必要的全量或定向验证，目标是不引入警告。
-   - 更新 `TODO.md` 与 `PLAN.md`。
-   - 提交一次清晰的 Git commit。
-   - 停止，不继续下一个任务。
+## 已完成实现
 
-### 执行顺序
+1. 为 lowering 生成的临时局部增加唯一 synthetic local 分配逻辑，避免匿名局部在 LLVM codegen 阶段直接失败。
+2. 将 block / stmt lowering 改为支持一个 AST 语句展开成多个 HIR 语句，以承载局部 pattern destructuring 展开。
+3. 为局部 `val` pattern binding 增加 lowering：
+   - 先把 RHS 求值保存到临时 subject；
+   - 对 variant pattern 合成运行期检查；
+   - 为每个 binder 合成独立局部 `ValDecl`；
+   - tuple / struct binder 使用成员投影；
+   - variant binder 使用合成 `when` 提取。
+4. 在 typecheck 阶段把局部 pattern binder 的推断类型记录回 side table，供 HIR lowering 读取。
+5. 修复普通 `val` lowering 在无显式类型注解时过度退化成 `Any` 的问题，优先复用 initializer 的 typechecked type，避免 LLVM `value coercion` 失败。
+6. 新增 HIR 与 run-pass fixtures，覆盖 tuple / struct / variant 的局部 destructuring 与 mismatch 行为。
 
-1. 查看最新提交信息与变更摘要，确认是否显式提到待修复问题。
-2. 查看 `TODO.md` 与 `PLAN.md` 当前状态。
-3. 如有必要，先查看相关规范、源码与测试位置，建立最小实现上下文。
-4. 修改代码与测试。
-5. 验证、更新文档、提交。
+## 结果更新
 
-### 进度记录
+- `T4003T` 已完成实现并通过定向验证。
+- 本轮最终收口内容：
+  1. 局部 `val` pattern binding 现会在 HIR lowering 阶段展开成：
+     - 单次求值的 synthetic subject；
+     - 必要的 variant 运行期校验；
+     - 每个 binder 的独立命名 `ValDecl`；
+     - tuple / struct / variant 的统一投影 / 提取表达式。
+  2. `typecheck` 现会把局部 pattern binder 的推断类型写回 side table，供 lowering 读取。
+  3. `lower_val_decl` 现优先复用 initializer 的 typechecked type，避免局部 subject / 普通 `val`
+     因 HIR `VarRef.ty = Any` 退化到错误 codegen。
+  4. `collect_struct_layouts(...)` 与 `collect_generic_struct_instantiation_layouts(...)`
+     现会把 struct body 中真正拥有 backing field 的 property 一并写入布局；这修复了
+     `struct Point { val x: Int; val y: Int }` 一类 body-property struct 的字段投影失败。
+  5. tuple literal lowering 现优先使用 `typechecked_expr_ty(span)`，避免
+     `(noneValue, 7)` 这类字面量在 build/test 路径下把元素静态类型退化成 `Any/Ref`。
 
-- [x] 已写入本计划文件。
-- [x] 检查最新提交是否包含待修复问题。
-- [x] 识别 `TODO.md` 中第一个未完成任务。
-- [x] 判断是否需要任务拆分或前置依赖重排。
-- [ ] 实现本轮任务。
-- [ ] 测试与 lint。
-- [x] 更新 `TODO.md` / `PLAN.md`。
-- [ ] 提交变更并停止。
+## 验证结果
 
-### 变更记录
+- 已通过：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 额外观察：
+  - 尝试执行全量 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 时，
+    现有仓库里的 `gc_continuation_cross_thread_resume_with_objects.scoop` 仍以
+    `scoop::llvm::unsupported_main_body: value coercion` 失败；
+  - 该失败与本轮新增的局部 destructuring 回归无关，本轮未继续展开该独立问题。
 
-- 初始计划已建立，待开始仓库检查。
-- 已检查 `HEAD` 提交 `5d1b90063b181a5919cd3982a2b07957b7faeb86`：提交主题为“`[T4003SR] 修复顶层 val 递归初始化读取`”，未见新的“已知但未修”的提交说明，本轮无需先补一个额外提交遗留项。
-- 已读取 `TODO.md` / `PLAN.md`：首个未完成任务为 `T4004`，目标是打通顶层 `val` / `var` 的 pattern binding；其前置依赖 `T4003SR` 已完成。
-- 进一步检查后确认当前不能直接执行原 `T4004`：
-  - 规范约束：`SCOOP_FULL_SPEC.md` §4.2 / Appendix B.11 明确 destructuring 仅适用于 `val`，`var` 不支持 destructuring patterns；因此原任务标题中的“`val` / `var`”本身与规范不一致，必须先收窄为“顶层 `val` pattern binding”。
-  - 实现缺口：最小 probe `fun main(): Int { val pair: (Int, Int) = (1, 2); val (a, b) = pair; return a + b }` 当前 `cargo run -p scoop -- build /tmp/t4004_local_destructuring_probe.scoop -o /tmp/t4004_local_destructuring_probe.out` 直接报 `scoop::llvm::unsupported_main_body: anonymous val binding`。这说明局部 `val` pattern binding 仍只有 parser/typecheck，没有可执行 lowering/codegen 主线；若直接实现顶层版本，只能新增顶层专用旁路，违反“顶层与局部复用同一套语义”的要求。
-- 已据此更新任务规划：
-  - 在 `T4003SR` 与 `T4004` 之间插入新的 blocker：`T4003T`（局部 `val` pattern binding lowering/codegen）与 `T4003TR`（review）。
-  - 将原 `T4004` 拆分为 `T4004a -> T4004b -> T4004R`，分别处理顶层 binder 的符号/类型收集、once-init lowering/codegen 与复审。
-  - `TODO.md` / `PLAN.md` 已同步更新；本轮按流程应提交这些任务重排变更后停止，不进入实现阶段。
+## 本轮执行计划
+
+1. 检查当前工作树与相关代码位置，确认未提交修改和最新失败点。
+2. 重新运行 struct/tuple/variant destructuring 的真实用例，确认 body-property struct layout 修复是否已打通执行路径。
+3. 若仍有失败，继续沿 lowering / LLVM codegen 路径定位剩余问题。
+4. 运行真实验证：
+   - 单文件 `scoop run` 覆盖 tuple / struct / variant destructuring；
+   - HIR fixture 校验；
+   - 相关 fixture 子集；
+   - `cargo test --all`；
+   - `cargo clippy --all-targets -- -D warnings`。
+5. 更新 `TODO.md`、`PLAN.md`、本文件，并提交 `[T4003T] ...` 风格 commit。
+6. 停止，等待下一次调用。
+
+## 执行原则
+
+- 不接受 workaround，不通过修改 fixture 规避真实实现缺口。
+- 只在本轮完成 `T4003T`，不推进下一个任务。
+- 所有手工文件编辑使用 `apply_patch`。

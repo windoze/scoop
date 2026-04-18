@@ -1,0 +1,24 @@
+package fixtures.hir
+
+import scoop.core.*
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+enum MaybeInt {
+    Some(val value: Int),
+    None,
+}
+
+fun use(maybe: MaybeInt) {
+    val pair: (Int, Int) = (1, 2)
+    val (a, b) = pair
+
+    val point: Point = Point { x: a, y: b }
+    val Point { x, y } = point
+
+    val Some(v) = maybe
+    a
+}

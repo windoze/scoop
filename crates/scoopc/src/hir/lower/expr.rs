@@ -423,11 +423,12 @@ impl<'a> HirLowering<'a> {
                     .iter()
                     .map(|e| self.lower_expr(pkg_prefix, e))
                     .collect();
-                let ty = if elements.is_empty() {
+                let inferred_ty = if elements.is_empty() {
                     self.builtins.unit
                 } else {
                     self.types.ty_tuple(elements.iter().map(|e| e.ty).collect())
                 };
+                let ty = self.typechecked_expr_ty(e.span).unwrap_or(inferred_ty);
                 (ExprKind::TupleLit { elements }, ty)
             }
             ast::ExprKind::Lambda(lam) => self.lower_lambda_expr(pkg_prefix, e.span, lam),
@@ -1016,13 +1017,13 @@ impl<'a> HirLowering<'a> {
         Some(self.lower_type_ref(ty))
     }
 
-    fn typechecked_expr_ty(&mut self, span: Span) -> Option<TypeId> {
+    pub(super) fn typechecked_expr_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_expr_ty(span)?;
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
-    fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
+    pub(super) fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_binding_ty(span)?;
         Some(self.types.re_intern_from(typecheck_types, ty))
@@ -2941,7 +2942,7 @@ impl<'a> HirLowering<'a> {
     // ── Synthesized HIR helpers for nullable desugar ───────────────────────
 
     /// Synthesize `Raise.raise(RuntimeError.NullAssertionFailed)` as a `Perform` node.
-    fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {
+    pub(super) fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {
         let error_expr = Expr {
             span,
             ty: self.builtins.any,
