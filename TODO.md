@@ -2434,12 +2434,17 @@
   - `T3017` expectation cleanup 已先行清空 run-pass 中残留的 `T3006` 临时标记，但全量 runner 随后暴露出新的更前置回归 `effect_handle_suspend_call_inactive_helper_basic.scoop`；当前 effect 主线下一项改为 `T3016i`。
 - 依赖：T3016h
 
-### T3016i [TODO] 修复 unified `SuspendCall` inactive helper 路径再次生成非法 LLVM IR 的回归
+### T3016i [DONE] 修复 unified `SuspendCall` inactive helper 路径再次生成非法 LLVM IR 的回归
 - 描述：执行 `T3017` 的全量 `cargo run -p scoop --features llvm -- test` 验收时，suite 不再停在 stale xfail，而是前进到本来就应 passing 的 `tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`。该 fixture 当前直接在 LLVM verifier 阶段失败：`scoop::llvm::module_verification_failed` / `Terminator found in the middle of a basic block! label %resume_site0`。这说明此前由 `T3009b0a1c` / `T3009b0a1cR` 收口的 unified `SuspendCall` inactive-continue / active-dispatch 合同又发生了生产回退：在 `helper(false)` 这类 callee inactive 返回路径上，step function 生成的 `resume_site*` block 结构不再合法，caller-tail 无法继续。由于 `T3017` 的目标是恢复 effect run-pass passing baseline，而当前 baseline 已被这个 pass fixture 先行阻塞，必须先新增并修复这条更前置的生产回归。
 - 进展：
   - 已在当前 worktree 中回收 66 个 stale `EXPECT: fail` 并清空 run-pass 下全部 `T3006` 临时注释；因此本次全量 runner 暴露出的 `effect_handle_suspend_call_inactive_helper_basic.scoop` 是新的首个真实 blocker，而不再是 expectation 形态问题。
   - 已用 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop` 复现真实失败，当前诊断稳定为 `scoop::llvm::module_verification_failed`：`Terminator found in the middle of a basic block! label %resume_site0`。
   - 已复查 `T3009b0a1c` / `T3009b0a1cR` 的既有计划记录：该 fixture 正是当时新增来锁定 `SuspendCall` inactive-path caller-tail / active-dispatch 合同的回归用例，说明这是 shared production contract 的回退，而不是新的 fixture-only 用例。
+  - 已定位根因为 ordinary callee 的 resumed tail 重建：`build_resume_tail_block_from_stmt_slice()` 在首个重建语句已经保证退出控制流时，仍继续拼接同层 sibling statements，导致 `helper(false)` / `helper(true)` 共享的 `%resume_site0` 在 `br label %return` 之后继续生成 `helper_direct` / `helper_after` / `return 7`，从而触发 LLVM verifier。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 中把 ordinary callee resumed tail 收口为 path-specific tail：当首个重建语句已保证 `return` / `break` / `continue` 退出时，不再附加原 enclosing block 的 unreachable suffix。
+  - 已同步修复 `crates/scoopc/src/llvm/codegen/control_flow.rs`：`codegen_block_value_in_expected_context()` 在 early-return / break / continue 的 dead path 上改为返回与 expected-context 一致的 typed dummy value，避免 path-specific resume tail 在 verifier 修复后再次误报 `unsupported_main_body: value coercion`。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 新增 IR 回归 `ordinary_callee_resume_site_drops_unreachable_suffix_after_nested_return`，直接锁定 `%resume_site0` 在 `br label %return` 后不再继续长出任何 unreachable 指令。
+  - 已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`、`cargo test -p scoopc ordinary_callee_resume_site_drops_unreachable_suffix_after_nested_return -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - `effect_handle_suspend_call_inactive_helper_basic.scoop` 恢复为正常 run-pass，不再触发 LLVM module verification failure。
   - `SuspendCall` 的 inactive helper 路径重新生成结构合法的 `resume_state` / `resume_site` 控制流，callee inactive 返回后继续 caller-tail；同一 fixture 内的 active dispatch 语义保持不退化。

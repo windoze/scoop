@@ -3781,13 +3781,7 @@ fn build_resume_tail_block_from_stmt_slice(
     allocate_synthetic_symbol_id: &mut dyn FnMut() -> hir::SymbolId,
 ) -> Option<hir::Block> {
     let first_stmt = block.stmts.get(start_idx)?;
-    let mut tail_stmts = block
-        .stmts
-        .iter()
-        .skip(start_idx)
-        .cloned()
-        .collect::<Vec<_>>();
-    tail_stmts[0] = build_resume_tail_stmt(
+    let rebuilt_first = build_resume_tail_stmt(
         first_stmt,
         frames,
         source_expr,
@@ -3795,6 +3789,17 @@ fn build_resume_tail_block_from_stmt_slice(
         resume_slot,
         allocate_synthetic_symbol_id,
     )?;
+    let mut tail_stmts = vec![rebuilt_first];
+
+    // Resume-tail rebuilding is path-specific. When the rebuilt leading stmt
+    // already exits control flow (for example nested `return perform(...)`
+    // rewritten to `return __resume_siteN`), sibling stmts from the original
+    // enclosing block are unreachable on the resumed path and must not be
+    // appended, otherwise ordinary callee resume blocks emit instructions
+    // after a terminator.
+    if !stmt_guarantees_control_flow_exit(&tail_stmts[0]) {
+        tail_stmts.extend(block.stmts.iter().skip(start_idx + 1).cloned());
+    }
 
     let tail_span = tail_stmts
         .first()
@@ -3805,6 +3810,39 @@ fn build_resume_tail_block_from_stmt_slice(
         ty: block.ty,
         stmts: tail_stmts,
     })
+}
+
+fn stmt_guarantees_control_flow_exit(stmt: &hir::Stmt) -> bool {
+    match &stmt.kind {
+        hir::StmtKind::Expr(expr) => expr_guarantees_control_flow_exit(expr),
+        hir::StmtKind::Return { .. }
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. } => true,
+        hir::StmtKind::Empty
+        | hir::StmtKind::Val(_)
+        | hir::StmtKind::Assign { .. }
+        | hir::StmtKind::While { .. }
+        | hir::StmtKind::Todo(_) => false,
+    }
+}
+
+fn block_guarantees_control_flow_exit(block: &hir::Block) -> bool {
+    block.stmts.iter().any(stmt_guarantees_control_flow_exit)
+}
+
+fn expr_guarantees_control_flow_exit(expr: &hir::Expr) -> bool {
+    match &expr.kind {
+        hir::ExprKind::Block(block) => block_guarantees_control_flow_exit(block),
+        hir::ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => else_branch.as_deref().is_some_and(|else_branch| {
+            expr_guarantees_control_flow_exit(then_branch)
+                && expr_guarantees_control_flow_exit(else_branch)
+        }),
+        _ => false,
+    }
 }
 
 fn build_resume_tail_stmt(

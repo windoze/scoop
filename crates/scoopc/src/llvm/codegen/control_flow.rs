@@ -2105,7 +2105,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if self.return_context.is_some() {
                         self.codegen_early_return(stmt.span, value.as_ref())?;
                         self.env.pop_scope();
-                        return Ok(CgValue::unit());
+                        let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
+                        return self.default_value(stmt.span, dead_path_ty);
                     }
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "`return` inside block expression",
@@ -2122,7 +2123,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.env.pop_scope();
-                    return Ok(CgValue::unit());
+                    let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
+                    return self.default_value(*break_span, dead_path_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
                     let loop_ctx = self.loop_context_stack.last().ok_or(
@@ -2134,7 +2136,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
                     self.env.pop_scope();
-                    return Ok(CgValue::unit());
+                    let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
+                    return self.default_value(*continue_span, dead_path_ty);
                 }
                 hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {

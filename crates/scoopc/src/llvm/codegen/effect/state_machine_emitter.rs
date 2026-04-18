@@ -4167,6 +4167,64 @@ fun main(): Int {
     }
 
     #[test]
+    fn ordinary_callee_resume_site_drops_unreachable_suffix_after_nested_return() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+fun helper(flag: Bool): Int / (Ask) {
+    println("helper_before")
+    if (flag) {
+        println("helper_suspend")
+        return Ask.ask()
+    }
+
+    println("helper_direct")
+    println("helper_after")
+    return 7
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        val value: Int = helper(true) + 1
+        value
+    } with {
+        Ask.ask() -> resume {
+            resume(2)
+        }
+    }
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let resume_site_ir = find_block_ir(&ir, "resume_site0");
+        let (_, after_return) = resume_site_ir
+            .split_once("br label %return")
+            .expect("resume site should branch to return");
+
+        assert!(
+            after_return.trim().is_empty(),
+            "ordinary callee resume-site block must end at the first return branch instead of appending unreachable suffix:\n{resume_site_ir}"
+        );
+    }
+
+    #[test]
     fn runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch() {
         let source = SourceFile::new_virtual(
             "<mem>",
@@ -4757,6 +4815,40 @@ fun raiseSub(): Int / Raise<Sub> {
         let rest = &ir[start..];
         let end = rest.find("\ndefine ").unwrap_or(rest.len());
         &rest[..end]
+    }
+
+    fn find_block_ir<'a>(function_ir: &'a str, label: &str) -> &'a str {
+        let needle = format!("{label}:");
+        let start = function_ir.find(&needle).expect("expected block label");
+        let rest = &function_ir[start..];
+        let mut offset = 0usize;
+        let mut end = rest.len();
+        for (index, line) in rest.split_inclusive('\n').enumerate() {
+            if index > 0 && (is_ir_block_label(line) || is_ir_block_boundary(line)) {
+                end = offset;
+                break;
+            }
+            offset += line.len();
+        }
+        &rest[..end]
+    }
+
+    fn is_ir_block_label(line: &str) -> bool {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with(' ') || line.starts_with('\t') {
+            return false;
+        }
+        let Some(colon_idx) = line.find(':') else {
+            return false;
+        };
+        line[..colon_idx]
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '.')
+    }
+
+    fn is_ir_block_boundary(line: &str) -> bool {
+        let line = line.trim();
+        line == "}" || line.starts_with("define ") || line.starts_with("declare ")
     }
 
     fn first_perform_in_expr(expr: &hir::Expr) -> Option<&hir::Expr> {
