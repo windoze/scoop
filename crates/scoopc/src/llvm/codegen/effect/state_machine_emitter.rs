@@ -731,6 +731,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let dispatch_check_bb = self
                 .context
                 .append_basic_block(dispatch_loop_fn, "dispatch_check");
+            let dispatch_active_check_bb = self
+                .context
+                .append_basic_block(dispatch_loop_fn, "dispatch_active_check");
             let dispatch_arm_bb = self
                 .context
                 .append_basic_block(dispatch_loop_fn, "dispatch_arm");
@@ -771,6 +774,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_unconditional_branch(dispatch_check_bb)?;
 
             self.builder.position_at_end(dispatch_check_bb);
+            // Terminal completion wins over any stale TLS active bit: once the
+            // frame has reached a final state, the dispatch loop must continue
+            // to the done/cleanup path instead of misclassifying it as an
+            // outward-propagating perform.
+            let dispatch_state_tag =
+                self.read_state_tag(frame_ptr, frame_layout, "dispatch_state_tag")?;
+            let dispatch_terminal = self.state_tag_matches_any(
+                dispatch_state_tag,
+                &[STATE_TAG_HANDLE_RETURNED, STATE_TAG_FUNCTION_RETURNED],
+                "dispatch_terminal_state",
+            )?;
+            self.builder.build_conditional_branch(
+                dispatch_terminal,
+                arm_done_target_bb,
+                dispatch_active_check_bb,
+            )?;
+
+            self.builder.position_at_end(dispatch_active_check_bb);
             let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
             self.builder.build_conditional_branch(
                 is_active,
@@ -1826,7 +1847,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match terminator {
             UnifiedStateTerminator::Goto { next_state } => {
-                if self.state_is_handle_result_exit(contract, *next_state)
+                if self.state_preserves_handle_result_on_entry(contract, *next_state)
                     && let Some(val) = last_value
                 {
                     self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
@@ -2021,16 +2042,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
             }
 
-            UnifiedStateTerminator::CleanupEnter { next_state, .. } => {
+            UnifiedStateTerminator::CleanupEnter {
+                scope_id,
+                next_state,
+            } => {
                 if let Some(val) = last_value {
                     self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
                 }
-                // Branch unconditionally to the cleanup scope's entry state.
-                // The cleanup states (finally block) are part of the same step
-                // function's state table and will execute their ops normally,
-                // eventually flowing back through Goto → ReturnHandle.
-                let target_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
-                self.builder.build_unconditional_branch(target_bb)?;
+                // Cleanup may already have run when an escaped continuation
+                // left the original handle boundary. In that case resumed-body
+                // completion must skip the cleanup entry and jump straight to
+                // the cleanup exit path, preserving the terminal result already
+                // stored in the frame.
+                let cleanup_scope = contract.machine().get_cleanup_scope(*scope_id).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "cleanup enter scope metadata",
+                        at: span.into(),
+                    },
+                )?;
+                let cleanup_entry_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
+                let cleanup_exit_bb =
+                    self.lookup_state_bb(cleanup_scope.exit_state(), state_bb_map, span)?;
+                let cleanup_already_ran =
+                    self.read_cleanup_flag_i1(state_ptr, frame_layout, "cleanup_enter_already_ran")?;
+                self.builder.build_conditional_branch(
+                    cleanup_already_ran,
+                    cleanup_exit_bb,
+                    cleanup_entry_bb,
+                )?;
             }
 
             UnifiedStateTerminator::ArmReturnHandle => {
@@ -2101,7 +2140,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn state_is_handle_result_exit(
+    fn state_preserves_handle_result_on_entry(
         &self,
         contract: &UnifiedHandleLoweringContract,
         state_id: u32,
@@ -2109,11 +2148,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(state) = contract.machine().get_state(state_id) else {
             return false;
         };
-        matches!(state.terminator(), UnifiedStateTerminator::ReturnHandle)
-            && state
+        match state.terminator() {
+            UnifiedStateTerminator::ReturnHandle => state
                 .ops()
                 .iter()
-                .all(|op| matches!(op, HandleStateOp::ReturnToEnclosingExpression))
+                .all(|op| matches!(op, HandleStateOp::ReturnToEnclosingExpression)),
+            UnifiedStateTerminator::CleanupEnter { .. } => {
+                Self::state_ops_preserve_carried_handle_result(state.ops())
+            }
+            _ => false,
+        }
+    }
+
+    fn state_ops_preserve_carried_handle_result(ops: &[HandleStateOp]) -> bool {
+        ops.iter().all(|op| {
+            matches!(
+                op,
+                HandleStateOp::StmtEmpty { .. }
+                    | HandleStateOp::CleanupEdgeComplete
+                    | HandleStateOp::ReturnToEnclosingExpression
+            )
+        })
     }
 
     /// Evaluate a branch condition and return the i1 boolean result.
@@ -2741,9 +2796,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.builder.build_unconditional_branch(handle_exit_bb)?;
 
-        // --- handle_done: reusable dispatch loop already cleared effect TLS;
-        // pop handler frames, restore outer vars, and read the final result. ---
+        // --- handle_done: the reusable dispatch loop should already have
+        // cleared effect TLS, but clear again at the outer handle boundary so
+        // nested-handle callers never observe a stale active bit while
+        // deciding whether the call site suspended. ---
         self.builder.position_at_end(handle_done_bb);
+        let clear_fn = self.declare_runtime_effect_clear();
+        self.builder.build_call(clear_fn, &[], "")?;
 
         if has_dispatch {
             self.pop_registered_handler_frames(&handler_frames)?;
@@ -3921,6 +3980,88 @@ fun main(): Int {
         assert!(
             ir.contains("arm_1_effect_instance_match_0"),
             "same-op dispatch should generate an effect-instance compare for later sibling arms"
+        );
+    }
+
+    #[test]
+    fn cleanup_enter_ir_checks_cleanup_flag_before_reentering_finally() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        42
+    } with {
+        Yield.next() -> 0
+    } finally {
+        println("cleanup")
+    }
+
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        assert!(
+            ir.contains("cleanup_enter_already_ran"),
+            "CleanupEnter lowering should branch on the persisted cleanup flag before reentering the cleanup scope"
+        );
+    }
+
+    #[test]
+    fn dispatch_loop_ir_checks_terminal_state_before_tls_active() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        42
+    } with {
+        Yield.next() -> 0
+    } finally {
+        println("cleanup")
+    }
+
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        let terminal_check_pos = ir
+            .find("dispatch_terminal_state_0_eq")
+            .expect("dispatch loop should compare state_tag against terminal sentinels");
+        let active_check_pos = ir
+            .find("handle_dispatch_is_active")
+            .expect("dispatch loop should still read TLS active after terminal-state check");
+        assert!(
+            terminal_check_pos < active_check_pos,
+            "dispatch loop must prefer terminal state_tag over TLS active when deciding done vs dispatch"
+        );
+        assert!(
+            ir.contains("dispatch_active_check"),
+            "dispatch loop should keep a dedicated active-check block after the terminal-state guard"
         );
     }
 

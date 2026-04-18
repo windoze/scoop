@@ -1,40 +1,53 @@
-# 执行计划记录
+## 当前分析摘要
 
-说明：用户要求记录“完整思考过程”。我不会写出逐字内部推理，但会记录可审计的行动计划、关键判断依据、执行进展与变更原因，便于随时检查当前状态。
+- 本次目标：按 `TODO.md` 顺序只完成第一个未完成任务，然后停止。
+- 最新提交 `9055245e3e472477a53eec9b729d21202db19ac2` 的提交说明是“`[T3017] Reorder xfail cleanup behind new blockers`”；提交信息本身没有单独新增“必须先修”的未跟踪遗留问题，当前应按已重排后的 `TODO.md` 顺序处理。
+- 已确认 `TODO.md` 的首个未完成任务是 `T3016a`：修正 escaped continuation 完成态的 cleanup/finally replay 与 no-suspend handle result 回归。
+- 约束：如果当前任务过大，需要拆分，并同步更新 `PLAN.md` 与 `TODO.md`。
+- 约束：实现后必须补测试、更新文档状态、提交 git commit，然后停止，不继续做下一个任务。
+- 约束：如果遇到规范缺口、实现边界或任何不能按规范完成的问题，不能绕过，必须先把阻塞问题写入 `TODO.md`/`PLAN.md`，提交后停止。
 
-## 初始计划
+## 初始执行计划
 
-1. 检查最新一次 Git 提交的信息，确认是否提到需要先修复的既有问题。
+1. 检查最新一次 git 提交信息，确认是否提到需要先修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如该任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实施当前要处理的首个任务。
-5. 运行相关测试，并补齐必要测试直到任务验证通过。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-7. 提交本次变更，随后停止，不继续处理下一个任务。
+3. 评估 `T3016a` 的复杂度：
+   - 若可直接完成，则进入实现。
+   - 若过大，则先拆分任务，并更新 `PLAN.md` / `TODO.md`。
+4. 阅读 `T3016a` 相关代码、失败 fixture、现有 cleanup/completion 路径与已有 `completion_tag` 设计，建立实现上下文。
+5. 复现 `T3016a` 提到的回归，确认是 cleanup/finally replay、terminal completion 恢复还是 handle result 槽位被冲掉。
+6. 在统一 state-machine / dispatch / cleanup 生产路径中完成修复，避免引入按源码形状分流。
+7. 运行定向 fixture、相关单测、全量测试与 lint；若失败则继续修复再重测。
+8. 更新 `TODO.md` 和 `PLAN.md`，记录 `T3016a` 的完成状态与验证结果；若发现阻塞则按依赖顺序重排。
+9. 提交本次修改，提交信息对应 `T3016a`。
+10. 停止，不继续处理后续任务。
 
-## 进展日志
+## 进度记录
 
-- 已创建计划文件，下一步将检查最新提交并读取任务列表。
-- 已检查最新提交 `3ac3bdd468f23fd3c7d9119ab77596a1bc242c70`，提交信息本身未声明新的待先修复问题；提交中记录的既有遗留点是 `T3017`：`run-pass` 里仍残留一批 stale `EXPECT: fail`。
-- 已定位 `TODO.md` 中首个未完成任务为 `T3017`「回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线」；其后续 review 任务为 `T3017R`，当前轮不处理。
-- 已盘点 `tests/fixtures/run-pass/**` 中残留的大批 `T3006` 临时 `EXPECT: fail` 标记。下一步将批量验证这些 fixture 当前是否已经实际通过：
-  1. 先确认 `scoop test` 的单 fixture / 批量运行方式。
-  2. 对残留 `T3006` xfail 批量执行，区分“已实际通过的 stale expectation”和“仍有真实失败的 fixture”。
-  3. 若全部只是 stale expectation，则直接回收标记并跑全量验证。
-  4. 若发现真实失败，则按用户要求把对应实现缺口前置成新任务，更新 `TODO.md` / `PLAN.md` / 本文件后提交并停止。
-- 已确认单 fixture 验证方法可行：将目标 fixture 临时复制到隔离目录下的 `run-pass/`，把头部 `EXPECT: fail` 改为 `EXPECT: pass` 后，直接用正式 runner `./target/debug/scoop test --fixtures <tmp-root>` 校验。
-- 批量扫描途中已得到关键结论：
-  - 不是所有 `T3006` xfail 都只是 stale expectation。
-  - 当前至少已有 13 条 fixture 在去掉 xfail 后出现真实偏差，其中大多数是 `stdout` 与 golden 不一致，少数直接以非零退出码失败。
-  - 另有 `gc_continuation_escape_deep_object_graph.scoop` 在批量扫描中长时间运行，说明还存在至少一个高成本或疑似卡住的真实问题。
-- 已中止无总超时的批量扫描。下一步将针对已暴露的失败样本做最小复现，判断这些问题是“只需更新 golden 的语义漂移”，还是“仍有生产代码缺口，需要把新修复任务前置到 `T3017` 之前”。
-- 已完成最小复现并确认这不是单纯 golden 漂移：
-  - `effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop` 都在 resumed completion 后多跑了一次 `finally/cleanup`。
-  - `effect_nosuspend_finally_nested_handle.scoop` 输出 `0/0`，说明 no-suspend nested handle 的结果槽恢复也有缺口。
-  - `effect_escape_continuation_perform_in_when_arm.scoop` 与 `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 证明 resumed-body tail replay 在 `when` / block mixed suspend-site 中会重复 prefix 或跳过应有语句。
-  - `effect_escape_continuation_finally_normal.scoop` 报 `unsupported_main_body: call callee`；`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 则直接空输出退出，表明 outer-body `Continuation.resume(...)` 仍有未接回的主路径 lowering。
-  - `effect_escape_continuation_gc_stress_multi_string.scoop` 在 `SCOOP_GC_STRESS=1` 下打印 `missing1/missing2/missing3`，`gc_continuation_escape_deep_object_graph.scoop` 在同环境下超时，说明 GC stress continuation/object-graph 可达性合同仍未闭环。
-- 已按阻塞规则更新 `TODO.md` 与 `PLAN.md`：
-  1. 新增 `T3016a`→`T3016dR` 四组前置修复/复审任务。
-  2. 将 `T3017` 顺延到这些前置任务之后，并让其显式依赖 `T3016dR`。
-  3. 当前新的首个未完成任务已变为 `T3016a`，本轮将按要求只提交“阻塞重排”而不继续实现后续任务。
+- 已完成：创建计划文件并记录初始执行计划。
+- 已完成：检查最新提交，未发现独立于 `TODO.md` 的新增遗留修复项。
+- 已完成：定位首个未完成任务为 `T3016a`。
+- 已完成：阅读 `T3016a` 相关代码并复现两类回归。
+- 当前发现：
+  - `effect_escape_continuation_finally_multi_perform.scoop` 现状会在最终 resume 完成后再次打印一次 `finally`，说明 resumed completion 仍会命中 `CleanupEnter -> cleanup entry`，没有识别“cleanup 其实已在 escaped-handle 退出时执行过”。
+  - `effect_nosuspend_finally_nested_handle.scoop` 现状输出 `0/0`，怀疑 outer handle 的 dispatch/done 路径在 terminal completion 已成立时仍可能受 TLS active 影响，误走 outward-propagate 或错误完成分支。
+  - 两个症状都集中在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 cleanup/done 协议，而不是 fixture 自身。
+- 下一步实现：
+  1. 在 `CleanupEnter` lowering 中引入“cleanup 已执行则直接跳到 cleanup exit”的分支，避免 escaped continuation 恢复完成时重跑 finally/cleanup。
+  2. 在 dispatch loop 的 `dispatch_check` 中优先识别 terminal `state_tag`（`HANDLE_RETURNED` / `FUNCTION_RETURNED`），避免完成态被 TLS active 误判成 outward propagation。
+  3. 补 emitter/IR 级回归测试，并跑 `T3016a` 指定的定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+- 已完成：修改 `state_machine_emitter.rs` 的 cleanup/done 协议并补 2 条 emitter/IR 级回归测试。
+- 已验证：
+  - `effect_escape_continuation_finally_multi_perform.scoop` 通过，重复 `finally` 已消失。
+  - `effect_resume_mixed_escape_direct_finally.scoop` 通过。
+  - `effect_resume_mixed_source_path_matrix.scoop` 通过。
+  - `effect_nosuspend_finally_nested_handle.scoop` 通过，输出恢复为 `16/26`。
+  - `cargo test --all` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 新发现的更基础 blocker：
+  - 新增最小复现 `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 后确认，`handle { if (flag) { 13 } else { 15 } }` 当前仍输出 `0/0`。
+  - 这说明统一 state-machine 对 no-suspend handle 的 tail control-flow merge result transport 仍未闭环；该问题不应被 finally-specific 修复掩盖。
+  - 已按规则把该缺口前插为新任务 `T3016a0` → `T3016a0R`，并把 `T3016a` 顺延到其后。
+- 当前结论：
+  - 本轮不再将 `T3016a` 标记为完成。
+  - 本轮输出应以“新增 blocker 任务、更新 `TODO.md` / `PLAN.md`、提交并停止”为结束点。

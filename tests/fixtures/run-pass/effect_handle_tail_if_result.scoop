@@ -1,0 +1,35 @@
+// EXPECT: fail
+// RUN-STDOUT: effect_handle_tail_if_result.stdout
+// T3016a0: 暂时标记为 fail——当前统一 state-machine codegen 仍会把
+// no-suspend handle 的 tail if/else merge 结果打成默认 0。
+//
+// 目标覆盖：
+// - handle body 本身不发生 suspend；
+// - handle 的最终结果直接来自 tail if/else merge；
+// - 完成路径必须把真实分支值写回 handle result，而不是默认 0。
+
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        if (flag) {
+            13
+        } else {
+            15
+        }
+    } with {
+        Yield.next() -> 99
+    }
+    result
+}
+
+fun main(): Unit {
+    println(demo(true))
+    println(demo(false))
+}

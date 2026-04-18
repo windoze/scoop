@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞补充更新：执行 `T3016a` 时，我先在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 补了两条已经验证有效的完成态 hardening：其一，`CleanupEnter` 现在会在 `cleanup_flag` 已经置位时直接跳过 cleanup entry，因此 `effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop` 与 `effect_resume_mixed_source_path_matrix.scoop` 这类 escaped-continuation resumed completion 不再重复 replay `finally/cleanup`；其二，dispatch loop 的 `dispatch_check` 现在会在读取 TLS active 前优先尊重 terminal `state_tag`，避免完成态被误判成 outward propagation。定向验证表明，这两条修复已经让 `effect_nosuspend_finally_nested_handle.scoop` 在当前分支重新回到 `16/26`。但继续最小化复现时，发现一个更基础、此前未单独建账的 no-suspend result transport 缺口：新的最小 fixture `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 中，`handle { if (flag) { 13 } else { 15 } }` 当前仍会打印 `0/0`。这说明当前统一 state-machine 仍只会把“直接尾值”写回 handle result slot，跨 no-op merge state 的 tail result transport 尚未闭环。由于 `T3016a` 的 no-suspend handle result 修复与 finally completion 恢复都共享同一套 completion/result 合同，现已在 `T3016a` 之前新增前置任务 `T3016a0`→`T3016a0R` 先收口这个更基础的缺口；本轮到此停止，不再继续声称 `T3016a` 已完成。
+>
 > 2026-04-18 当前轮阻塞重排更新：开始执行 `T3017` 的 expectation cleanup 时，我把 83 条残留 `T3006` run-pass xfail 临时改回 `EXPECT: pass` 并用正式 runner 扫描，结果确认 `T3017` 不能直接继续。扫描暴露出四类更前置的真实生产缺口：其一，escaped continuation 完成后会重复执行 `finally/cleanup`，而 no-suspend nested handle + finally 会把结果打成 `0`（`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop`），对应新增 `T3016a`→`T3016aR`；其二，resumed-body 在 `when` / block / `if` / `while` mixed suspend-site 中会重复 prefix 或跳过 direct→indirect 之间的 tail（`effect_escape_continuation_perform_in_when_arm.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 等），对应新增 `T3016b`→`T3016bR`；其三，outer-body `Continuation.resume(...)` 仍有调用点落回 `unsupported_main_body: call callee` 或直接静默退出（`effect_escape_continuation_finally_normal.scoop`、`effect_escape_continuation_nested_outer_resume_inner_multi.scoop`），对应新增 `T3016c`→`T3016cR`；其四，GC stress 下 escaped continuation / deep object graph 的存活与恢复仍未闭环（`effect_escape_continuation_gc_stress_multi_string.scoop`、`gc_continuation_escape_deep_object_graph.scoop`、`gc_continuation_escape_alloc_heavy_resume.scoop`），对应新增 `T3016d`→`T3016dR`。因此 `T3017` 已顺延到这四组前置修复之后，当前 effect 主线下一项改为 `T3016a`。
 >
 > 2026-04-18 当前轮复审更新：`T3016R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的 function-return 路径后确认，`STATE_TAG_FUNCTION_RETURNED` 的消费没有另起 effect-only 返回出口：普通用户函数继续复用 `return_context` / `finish_function_return_path()`，step/dispatch runtime function 内的 nested handle 则通过 `effect_function_return_context` 先回到本地 return block，再把 payload 写回外层 handle frame 并继续走外层 cleanup/done 合同。复审过程中发现一个真实缺口：`HandleStateOp::Return` 重新求值 `return expr` 时没有带 enclosing function 的 expected return type，导致 `handle` 内 `return 1` 返回到 `Any` 时漏掉 `Int -> Any` boxing。现已改为通过 `enclosing_function_return_ty()` 把 early-return payload 按普通 `return` 合同做 expected-context/coercion 后再写入 effect transport slots，并新增 dedicated run-pass fixture `effect_handle_return_from_function_any_boxing.scoop` 锁定 GC 后 boxed object 仍存活。已验证新 fixture、既有 `effect_handle_return_from_function_basic/finally/nested_handle`、cleanup baseline `effect_handle_yield_and_step_finally.scoop`、`cargo test -p scoopc plan_and_segments_support_return_inside_handle_body_block_expression -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`，对应已跟踪的 `T3017`，未引入新的更早回归。当前 effect 主线下一项推进到 `T3017`。
@@ -603,19 +605,21 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016a`
-2. `T3016aR`
-3. `T3016b`
-4. `T3016bR`
-5. `T3016c`
-6. `T3016cR`
-7. `T3016d`
-8. `T3016dR`
-9. `T3017`
-10. `T3017R`
-11. `T3103`
-12. `T3104`
-13. `T3201`
+1. `T3016a0`
+2. `T3016a0R`
+3. `T3016a`
+4. `T3016aR`
+5. `T3016b`
+6. `T3016bR`
+7. `T3016c`
+8. `T3016cR`
+9. `T3016d`
+10. `T3016dR`
+11. `T3017`
+12. `T3017R`
+13. `T3103`
+14. `T3104`
+15. `T3201`
 14. `T3202`
 15. `T3203`
 16. `T3204`
