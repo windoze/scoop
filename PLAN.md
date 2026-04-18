@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3104` 已完成。`SCOOP_FULL_SPEC.md` 现已在 §7.6、§12、§15.9.2 与附录 B.5.4 明确同一套最终规则：普通局部 block 只能写 `do { ... }`，bare `{ ... }` 始终属于 closure / trailing lambda，multiple trailing lambdas 与 `do` block 的边界以“只有 bare brace closure 参与 trailing-lambda postfix、`do { ... }` 只能作为独立表达式或括号内普通实参”为准；`@Unsafe do { ... }` 是唯一局部 unsafe block 形式，`@Safe { ... }` 保留 annotated closure 语义。已同步更新 `SCOOP_RUNTIME.md` 的 unsafe-context 说明与根 `README.md` 的语法速览，并在规范代码块更新后完成 `cargo run -p scoop_tools -- spec-fixtures sync`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all`、`cargo run -p scoop -- test` 与 `cargo clippy --all-targets -- -D warnings`。当前前端主线下一项推进到 `T3201`。
+>
 > 2026-04-18 当前轮完成更新：`T3103a` 已完成。parser 现已只接受 `@Unsafe do { ... }` 作为局部 unsafe block，裸 `@Unsafe { ... }` 会报稳定的 `scoop::parse::unsafe_block_requires_do`；`@Safe do { ... }` 继续是局部 safe block，而 `@Safe { ... }` 现已回到 annotated closure 语义。AST `LambdaExpr` 与 HIR `ClosureExpr` 新增 `at_safe_span`，并通过 `with_safe_lambda_context` 把 safe closure 的 unsafe-context 抑制接回 lambda expected-type 推导、statement-position lambda body 检查与 delegated-property callback body 推导。已迁移 `sysroot/string.scoop` 与相关 fixtures 的 bare annotated block 旧写法，并新增 parse/HIR/unsafe_nogc 回归（safe-do vs safe-closure AST、bare unsafe requires-do、safe closure HIR、safe closure unsafe gate / nested unsafe do）。已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (33)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (117)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (15)`）、`cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (1005)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前前端主线下一项推进到 `T3104`。
 >
 > 2026-04-18 当前轮完成更新：`T3103a0` 已完成。已将 `crates/scoopc/src/typecheck/expr/stmt.rs` 的 statement-position `Call` 门禁收口为共享 value-position 调用 gate：direct top-level、import/sysroot、member/extension、function-value 与 funptr 调用现在都会在 statement 位置触发 `@Unsafe` / `@Extern` / `@NoGC` / `const` 检查；同时为了避免把未单独跟踪的“普通 callee effect row 在 statement 位置传播”语义变更混入本轮，普通调用改为“统一 infer + 暂停普通 effects 收集”，只有 effect op / `Continuation.resume(...)` 继续记录立即 effects。为防止 lambda non-local return 预检误把 implicit `it` / 未完整推断的 binder 当成完整调用 typecheck，本轮把 `check_expr_stmt` 内部递归拆成 `WithUnifiedGate` / `StructuralOnly` 两种模式，并复验 `kotlin_ranges_progressions_basic.scoop` 这类 statement-call-heavy run-pass 样例恢复通过。同步修复 `crates/scoop/src/fixtures/mod.rs` 的 phase-root 判定：`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`、`.../mir` 等根目录直接指向单 phase 子目录时，不再把文件误按 parse phase 执行。已新增 4 条回归 fixture（unsafe extension、NoGC top-level statement call、NoGC function-value statement call、const fun statement call），并验证 `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (31)`）、`cargo run -p scoop -- test`（`fixtures: ok (1000)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前前端主线下一项推进到 `T3103a`。
@@ -626,9 +628,10 @@
 - typecheck 侧新增 `with_safe_lambda_context`，safe closure body 现在会在 lambda expected-type 推导、statement-position lambda body 检查与 delegated-property callback body 推导时暂停外层 unsafe context，同时保留嵌套 `@Unsafe do { ... }` 的局部重启能力。
 - 仓库中仍把 bare annotated block 当局部 block 使用的 parser 单测、sysroot 与 fixtures 已迁移到 `do` 形式；新增 parse/HIR/unsafe_nogc 回归全部通过。
 
-#### T3104：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则
-- 在 `T3103a` 完成后，更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、doctest / fixture 示例，以及当前 `TODO.md` / `PLAN.md` 等相关文档叙述，使其与最终实现一致。
-- 若规范代码块变更，配套完成 `spec-fixtures sync/check`。
+#### T3104 ✅：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则
+- `SCOOP_FULL_SPEC.md` 已在 §7.6、§12、§15.9.2 与附录 B.5.4 明确：普通局部 block 只能写 `do { ... }`，bare `{ ... }` 始终按 closure / trailing lambda 处理，multiple trailing lambdas 与 `do` block 的边界稳定为“只有 bare brace closure 才参与 trailing-lambda postfix，`do { ... }` 只能作为独立表达式或括号内普通实参”。
+- 规范现已显式声明 `@Unsafe do { ... }` 是唯一局部 unsafe block 形式；`@Unsafe { ... }` 必须报错；`@Safe { ... }` 保留 annotated closure 语义。
+- `SCOOP_RUNTIME.md` 与根 `README.md` 已同步更新；规范代码块改动后已完成 `spec-fixtures sync/check`。
 
 ### 阶段 H：Structured Concurrency / `Task<T>`
 
@@ -717,19 +720,18 @@
 
 ## 4. 当前执行顺序
 
-1. `T3104`
-2. `T3201`
-3. `T3202`
-4. `T3203`
-5. `T3204`
-6. `T3205`
-7. `T3301`
-8. `T3302`
-9. `T3303`
-10. `T3304`
-11. `T3401`
-12. `T3401a`
-13. `T3401b`
+1. `T3201`
+2. `T3202`
+3. `T3203`
+4. `T3204`
+5. `T3205`
+6. `T3301`
+7. `T3302`
+8. `T3303`
+9. `T3304`
+10. `T3401`
+11. `T3401a`
+12. `T3401b`
 14. `T3401c`
 15. `T3402`
 16. `T3403`

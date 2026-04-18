@@ -1491,12 +1491,16 @@ val n = do {
 }
 
 users.filter { it.age >= 18 }     // trailing lambda
+combine(1) { it + 1 } { it + 2 }  // multiple trailing lambdas
 consume(do { computeValue() })    // ordinary argument value, not a closure
+combine(do { 3 }) { it + 1 } { it + 2 } // block arg + trailing lambdas
 ```
 
 A `do { ... }` block may appear in statement position or wherever an expression is permitted. Its value is the final expression that is not terminated by `;`; if the block has no such tail expression, its value is `Unit`.
 
 Closure bodies use the same tail-expression rule as `do` blocks. Therefore `{ 1 }` is a closure returning `1`, while `do { 1 }` is a block expression whose value is `1`.
+
+Calls may consume one or more trailing lambdas. Only bare brace-delimited closure literals participate in this postfix syntax; an explicit `do { ... }` never becomes a trailing lambda. To pass the evaluated result of a local block to a call that also uses trailing lambdas, parenthesize the block as an ordinary argument (`combine(do { 3 }) { ... } { ... }`).
 
 ## 8. String Literals
 
@@ -1785,9 +1789,11 @@ val u = do { println("hello") } // local block, result is Unit
 
 list.map { it * 2 }             // trailing lambda (closure)
 list.map { x: Int -> x * 2 }    // trailing lambda with typed parameter
+combine(1) { it + 1 } { it + 2 } // multiple trailing lambdas
 ```
 
 Because plain local blocks require `do`, `val a = { println("hello") }` is always interpreted as assigning a closure. To assign the evaluated block result, write `val a = do { println("hello") }`.
+Likewise, `combine(1) { ... } { ... }` is still one call with multiple trailing lambdas; a following `do { ... }` starts the next expression/statement unless it is parenthesized as an ordinary argument.
 
 ## 13. Package System (Cone)
 
@@ -2643,7 +2649,7 @@ fun doIO(): Unit / Async {
 }
 ```
 
-An unsafe block has the form `@Unsafe do { ... }`. Because bare `{ ... }` is reserved for closure literals (§7.6), the `do` introducer is required for a localized unsafe block. The annotation scopes to the immediately following `do { ... }` block.
+An unsafe block has the form `@Unsafe do { ... }`. Because bare `{ ... }` is reserved for closure literals (§7.6), the `do` introducer is required for a localized unsafe block. The annotation scopes to the immediately following `do { ... }` block. `@Unsafe { ... }` is not a localized block form and must be rejected; write `@Unsafe do { ... }` instead.
 
 #### 15.9.3 Relationship to `@NoGC`
 
@@ -3138,15 +3144,16 @@ The following Kotlin-like rules apply.
 - Arguments may be passed by name: `f(x = 1, y = 2)`.
 - Named arguments may be mixed with positional arguments, but positional arguments must come first.
 
-#### B.5.4 Trailing lambda
+#### B.5.4 Trailing lambda(s)
 
-When the last parameter of a call is a function type, the trailing lambda may be written outside parentheses, Kotlin-style:
+When the final one or more parameters of a call are function types, the corresponding trailing lambdas may be written outside parentheses, Kotlin-style:
 
 ```kotlin
 users.filter { it.age >= 18 }
+combine(1) { it + 1 } { it + 2 }
 ```
 
-Since bare `{ ... }` is always a closure literal (§7.6), `foo { ... }` is always a call with a trailing lambda, not a plain local block. Use `foo(do { ... })` when the intent is to pass the evaluated result of a local block instead of a closure.
+Since bare `{ ... }` is always a closure literal (§7.6), `foo { ... }` and `foo { ... } { ... }` are always calls with trailing lambda(s), not plain local blocks. Use `foo(do { ... })` when the intent is to pass the evaluated result of a local block instead of a closure; a following `do { ... }` starts the next expression/statement unless it appears inside the call parentheses.
 
 #### B.5.5 Varargs
 

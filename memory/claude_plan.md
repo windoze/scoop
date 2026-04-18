@@ -1,68 +1,74 @@
-# 本轮执行计划
+# 执行计划与进度记录
 
-## 目标
+## 说明
+按要求，本文件在任何代码/命令执行前创建，并持续记录本轮的执行计划、关键决策、完成情况与必要调整。
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+## 初始执行计划
+1. 检查最新一次提交，确认提交信息中是否提到需要先处理的遗留问题；若有，则先定位并修复这些问题。
+2. 阅读 `TODO.md`，识别第一个未完成任务。
+3. 评估该任务是否足够小且可在本轮完整实现。
+   - 若可直接完成：进入实现。
+   - 若过大或存在明确前置依赖：拆分任务，更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
+4. 在开始修改代码前，补充本文件中的实施方案与影响范围。
+5. 实现目标任务，确保实现符合规范，不引入临时规避方案。
+6. 运行相关验证：
+   - 至少运行与改动直接相关的测试。
+   - 若任务影响公共路径，补充运行更广泛的测试。
+   - 在适用时运行 `cargo fmt` 与 `cargo clippy --all-targets -- -D warnings`。
+7. 更新文档与计划：
+   - 在 `TODO.md` 中将本轮完成的任务标记为完成。
+   - 在 `PLAN.md` 中更新当前状态、后续安排，以及必要的任务依赖调整。
+   - 持续更新本文件，记录关键步骤和计划变化。
+8. 检查工作区改动，确认只包含本轮必要修改，并以清晰的提交信息创建提交。
+9. 停止，不继续处理下一个任务。
 
-## 执行边界
+## 当前状态
+- 已检查最新提交：`c7d8a39377b9d59d5d84525171aeca2f0a1c4a79`，提交信息仅为 `[T3103a] Normalize @Safe/@Unsafe do-vs-closure binding`，提交正文没有额外列出待先修问题。
+- 已读取 `TODO.md` 与 `PLAN.md`。
+- `T3104` 的文档同步、验证与状态回写已完成，当前处于提交前复核阶段。
 
-- 先检查最新一次提交是否提到了需要优先修复的既有问题；如有，先处理这些问题。
-- 再读取 `TODO.md`，确定第一个未完成任务。
-- 如果该任务过大或被前置缺陷阻塞，则先在 `PLAN.md` / `TODO.md` 中拆解或重排依赖，并以新的第一个子任务作为本轮目标。
-- 不接受规避实现、临时垫片或仅为夹具服务的 hack；如果发现与规范不符的缺口，必须先把缺口转成更靠前的任务。
-- 本轮结束前需要完成实现、验证、文档更新和一次 git 提交；然后停止，不进入下一项任务。
+## 本轮目标
+- 完成 `T3104`，不推进后续任务。
 
-## 计划步骤
+## 当前实施方案
+1. 审阅 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`README.md`、`TODO.md`、`PLAN.md` 以及仓库内相关说明，定位仍使用旧规则的文字、示例与 doctest。
+2. 将文档统一到以下规则：
+   - 普通局部 block 必须写作 `do { ... }`。
+   - bare `{ ... }` 在普通表达式位置属于 closure，并保持 trailing lambda / multiple trailing lambdas 优先级。
+   - 局部 annotated block 只接受 `@Safe do { ... }` / `@Unsafe do { ... }`。
+   - `@Safe { ... }` 只保留 annotated closure 语义；裸 `@Unsafe { ... }` 应视为无效旧写法。
+3. 若 `SCOOP_FULL_SPEC.md` 中代码块变化影响 spec fixtures，则运行 `cargo run -p scoop_tools -- spec-fixtures sync` 与 `cargo run -p scoop_tools -- spec-fixtures check` 并纳入改动。
+4. 运行文档任务相关验证，优先覆盖 `spec-fixtures`、`cargo test --all`、`cargo run -p scoop -- test`，并在需要时补 `cargo clippy --all-targets -- -D warnings`。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，标记 `T3104` 完成后提交。
 
-1. 检查最新提交信息，确认是否存在提交信息中提到但尚未修复的问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别当前优先级最高的未完成事项。
-3. 结合代码现状评估该事项是否可以在本轮完整落地；若不能，则拆解任务并更新计划文件。
-4. 实施代码修改，确保实现符合规范而不是依赖变通方案。
-5. 运行必要的格式化、测试和 `cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录结果、依赖和剩余风险。
-7. 提交本轮变更，提交信息引用对应任务编号，然后停止。
+## 风险与检查点
+- 规范代码块更新后可能引起生成 fixture 漂移；如出现，必须同步生成并校验，不能只改正文。
+- 若扫描过程中发现实现与规范仍不一致的未跟踪问题，需要按规则先回写 `TODO.md`/`PLAN.md`，再停止当前轮。
 
-## 记录约定
+## 当前进度
+- 已确认最新提交未在正文中声明额外遗留问题，无需先插入 pre-fix。
+- 已定位本轮任务为 `T3104`，且判断为可在一轮内完成的文档/规范同步任务。
+- 已完成首轮文档修改，涉及文件：
+  - `SCOOP_FULL_SPEC.md`
+  - `SCOOP_RUNTIME.md`
+  - `README.md`
+  - `TODO.md`
+  - `PLAN.md`
+- 规范更新内容包括：
+  - 明确普通局部 block 只能写 `do { ... }`。
+  - 明确 bare `{ ... }` 始终属于 closure / trailing lambda，并补充 multiple trailing lambdas 与 `do` block 的边界。
+  - 明确 `@Unsafe do { ... }` 是唯一局部 unsafe block 形式，`@Unsafe { ... }` 必须报错。
+  - 保留并强调 `@Safe { ... }` 的 annotated closure 语义。
+- 验证阶段已完成，接下来只剩检查 diff、创建提交并停止。
 
-- 每完成一个关键步骤，追加或修改本文件中的进展记录。
-- 如果发现阻塞项，会在这里记录阻塞原因、受影响任务和 `TODO.md` 中的新排序。
+## 验证结果
+- `cargo run -p scoop_tools -- spec-fixtures sync`：通过，`spec fixtures: ok (1)`。
+- `cargo run -p scoop_tools -- spec-fixtures check`：通过，`spec fixtures: ok (1)`。
+- `cargo test --all`：通过。
+- `cargo run -p scoop -- test`：通过，`fixtures: ok (1005)`。
+- `cargo clippy --all-targets -- -D warnings`：通过。
 
-## 当前进展
-
-- 已检查最新提交 `56d73c47e75fe7904b87af8848e527831fafccad`（`[T3103a0] Restore statement-position call gates`）。提交信息未声明需要在本轮开始前额外修复的遗留 issue，因此无需插入新的“先修已知问题”步骤。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前首个未完成任务为 `T3103a`：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则。
-- 已确认本任务在当前上下文下可以直接执行，不需要先拆分成新的子任务；其依赖 `T3103a0` 已完成。
-- `T3103a` 的实现已完成：
-  - parser 现已只接受 `@Unsafe do { ... }` 作为局部 unsafe block，裸 `@Unsafe { ... }` 会报稳定的 `scoop::parse::unsafe_block_requires_do`。
-  - `@Safe { ... }` 已改为 annotated closure；AST `LambdaExpr` 与 HIR `ClosureExpr` 新增 `at_safe_span`。
-  - typecheck 已通过 `with_safe_lambda_context` 将 safe closure 的 unsafe-context 抑制接回 lambda 推导、statement-position lambda 检查和 delegated-property callback 检查。
-  - `sysroot/string.scoop` 与相关 fixtures 中仍把 bare annotated block 当局部 block 使用的代码已迁移到 `do` 形式。
-- 新增回归已落地：
-  - parse：`safe_do_block_vs_safe_closure.*`、`unsafe_block_requires_do_fail.scoop`
-  - HIR：`safe_closure_basic.*`
-  - unsafe/nogc：`safe_closure_inside_unsafe_fun_requires_unsafe_is_error.scoop`、`safe_closure_nested_unsafe_do_allows_extern_ok.scoop`
-- 已完成验证：
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (33)`）
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (117)`）
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (15)`）
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`（`fixtures: ok (1005)`）
-  - `cargo clippy --all-targets -- -D warnings`
-- 下一项未完成任务已推进为 `T3104`。
-
-## 本轮实现计划（细化）
-
-1. 调整 parser 与 AST：
-   - `@Unsafe do { ... }` 继续解析为局部 unsafe block。
-   - `@Unsafe { ... }` 改为稳定语法错误，并明确要求使用 `@Unsafe do { ... }`。
-   - `@Safe do { ... }` 继续解析为局部 safe block。
-   - `@Safe { ... }` 改为 annotated closure，而不是 `SafeBlock`。
-2. 调整 HIR / typecheck：
-   - 在 AST/HIR 中显式保留 safe closure 标记，避免再次把它吞成普通 block。
-   - 在 lambda body typecheck / expected-type 推导处正确暂停外层 unsafe context，使 `@Safe { ... }` 的 body 按 safe 语义检查。
-3. 迁移仓库中的旧写法：
-   - 把 sysroot 与 fixtures 中仍把 `@Safe { ... }` / `@Unsafe { ... }` 当局部 block 使用的代码迁移到 `@Safe do { ... }` / `@Unsafe do { ... }`。
-   - 同步更新 parser 单测、源码注释与新增回归。
-4. 验证并收尾：
-   - 运行相关 parser/typecheck/fixture 测试与 `cargo clippy --all-targets -- -D warnings`。
-   - 更新 `TODO.md` / `PLAN.md` / 本文件并提交本轮变更。
+## 收尾检查
+- `TODO.md` 已将 `T3104` 标记为 `[DONE]` 并补充进展/验证记录。
+- `PLAN.md` 已记录 `T3104` 完成情况，并将当前执行顺序推进到 `T3201`。
+- 当前工作区仅包含本轮相关文档与计划文件改动，未出现额外代码/生成文件漂移。

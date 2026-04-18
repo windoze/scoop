@@ -2737,8 +2737,13 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3103, T3103a0
 
-### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
+### T3104 [DONE] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
 - 描述：`T3103a` 收口实现后，还需要把规范与仓库文档的最终说法统一到同一套规则：普通局部 block 使用 `do { ... }`，bare `{ ... }` 的优先级属于 closure / trailing lambda，局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，而 `@Safe { ... }` 只保留 closure 语义。若只改实现不回写这些说明，后续 doctest、fixture 注释与文档示例仍会继续漂移。
+- 进展：
+  - 已更新 `SCOOP_FULL_SPEC.md` 的 §7.6、§12、§15.9.2、附录 B.5.4：明确普通局部 block 只能写 `do { ... }`，bare `{ ... }` 始终属于 closure / trailing lambda，multiple trailing lambdas 与 `do` block 的边界为“只有 bare brace closure 才参与 trailing-lambda postfix，`do { ... }` 仅能作为独立表达式或括号内普通实参”。
+  - 已在规范中补充 `@Unsafe do { ... }` 是唯一合法的局部 unsafe block 形式，并明确 `@Unsafe { ... }` 必须报错；同时保留并强调 `@Safe { ... }` 的 annotated closure 语义。
+  - 已同步更新 `SCOOP_RUNTIME.md` 的 unsafe-context 描述与根 `README.md` 的语法速览示例，确保仓库入口文档与当前实现一致。
+  - 若规范代码块发生漂移，已配套运行 `cargo run -p scoop_tools -- spec-fixtures sync` / `check` 保持 doctest fixture 同步。
 - 目标：
   - 更新 `SCOOP_FULL_SPEC.md` 的 statements / local block / closure / trailing lambda / `@Safe` / `@Unsafe` 相关章节，确保正文、附录与示例都与实现后的最终语义一致。
   - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少当前 `TODO.md` / `PLAN.md`、`SCOOP_RUNTIME.md`；若有其它命中文档也一并更新）。
@@ -2747,6 +2752,12 @@
   - `SCOOP_FULL_SPEC.md` 与相关文档更新完成；必要时运行 `cargo run -p scoop_tools -- spec-fixtures sync` 后再 `cargo run -p scoop_tools -- spec-fixtures check`。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
+- 已验证：
+  - `cargo run -p scoop_tools -- spec-fixtures sync`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3103a
 
 ## T32：Structured Concurrency / `Task<T>`

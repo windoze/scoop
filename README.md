@@ -13,6 +13,34 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
 effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。
 
+## 语法速览
+
+当前前端关于局部 block、closure 和 annotated block 的规则已经固定为：
+
+- 普通局部 block 必须写作 `do { ... }`。
+- bare `{ ... }` 始终是 closure；放在调用后缀位置时就是 trailing lambda，也支持多个 trailing lambdas。
+- 局部 unsafe block 必须写作 `@Unsafe do { ... }`。
+- `@Safe do { ... }` 是局部 safe block；`@Safe { ... }` 是 annotated closure。
+
+```kotlin
+val blockValue = do {
+  val base = 40
+  base + 2
+}
+
+val closureValue = { x: Int -> x + 1 }
+
+combine(do { 3 }) { it + 1 } { it + 2 } // 普通实参 + multiple trailing lambdas
+
+@Unsafe do {
+  submitToKernel(buffer)
+}
+
+val safeCallback = @Safe { text: String ->
+  text.length
+}
+```
+
 ## 快速开始
 
 前提：

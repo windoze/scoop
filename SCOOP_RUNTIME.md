@@ -110,7 +110,7 @@ For **long-lived** references that must survive safepoints (e.g. storing a refer
 
 ## 5. Pointer ↔ integer casts
 
-Casting between pointers and integers is inherently unsafe and must only be permitted in an unsafe context (`@Unsafe` function body or `@Unsafe { ... }` block).
+Casting between pointers and integers is inherently unsafe and must only be permitted in an unsafe context (`@Unsafe` function body or `@Unsafe do { ... }` block).
 
 The recommended integer type for “address as integer” is `UIntPtr` (alias of `UInt`).
 
