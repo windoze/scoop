@@ -1962,8 +1962,13 @@
   - `HandleStateOp::Return` 现已按 enclosing function return type 求值并完成 coercion，因此 `handle` 内 `return` 与普通 `return` 在值语义上共用同一套返回合同，包括 `Int -> Any` boxing 这类返回值变换。
 - 依赖：T3016
 
-### T3016a0 [TODO] 修正 no-suspend handle 尾部 control-flow merge 的 result transport 回归
+### T3016a0 [DONE] 修正 no-suspend handle 尾部 control-flow merge 的 result transport 回归
 - 描述：在执行 `T3016a` 的定向修复时，继续最小化复现发现一个更基础、此前未单独建账的生产缺口：当前统一 state-machine 对 no-suspend handle 的“尾部 control-flow merge 结果”还没有通用 transport 合同。最小复现 `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 中，`handle { if (flag) { 13 } else { 15 } }` 当前会打印 `0/0`，说明 then/else 分支值在跨 no-op merge state 回到 `ReturnHandle` 前被丢失，最终退回默认结果槽。这个缺口同样会投射到更复杂的 nested-handle / finally 收尾路径，因此必须先修，不能继续把 `T3016a` 当成已闭环。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现已把 `state_preserves_handle_result_on_entry()` 扩成递归透明 relay 判断：只要 `Goto` 链中的状态只包含 `StmtEmpty` / `CleanupEdgeComplete` / `ReturnToEnclosingExpression` 等 marker/no-op，并最终汇入 `ReturnHandle` / `ReturnFromFunction` / `ArmReturnHandle` / `ArmMaterializeContinuation` / `CleanupEnter` 完成入口，emitter 就会在进入这条链前先把已求值的 tail value 写回统一 result slot。
+  - 新增 unified transform 结构测试 `tail_if_else_result_flows_through_transparent_merge_state`，锁定最小复现的 canonical machine 形状确实是 `then/else -> if.merge(transparent) -> ReturnHandle`，避免后续再次只修“直接尾值”路径。
+  - dedicated fixture `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 已改回 `EXPECT: pass`，单独运行输出恢复为 `13/15`。
+  - 已验证：`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_tail_if_result.scoop`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - no-suspend handle 的 tail `if/else` merge 能把真实分支值带到统一 result slot，不再回退到默认 `0`。
   - 修复继续停留在 state-machine completion/result contract，不重新引入按源码形状分流的旧 path。
@@ -1988,8 +1993,8 @@
 ### T3016a [TODO] 修正 escaped continuation 完成态的 cleanup/finally replay 与 no-suspend handle result 回归
 - 描述：开始回收 `T3006` xfail 时，把残留 fixture 临时改回 `EXPECT: pass` 后发现，escaped continuation 完成态与 no-suspend handle 的完成合同还没真正闭环。`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop` 在 resumed completion 后会额外再执行一次 `finally` / `cleanup`；`effect_nosuspend_finally_nested_handle.scoop` 则把本应为 `16/26` 的 handle 结果打成 `0`。这说明当前统一 state-machine 在 cleanup 退出后恢复 terminal completion mode / handle result slot 时仍有生产缺口，不能继续直接做 `T3017` expectation cleanup。
 - 进展：
-  - 当前分支已验证两条 finally/completion 定向 hardening 有效：`CleanupEnter` 会在 `cleanup_flag` 已置位时直接跳过 cleanup entry，`dispatch_check` 会在读取 TLS active 前优先尊重 terminal `state_tag`。这两处修复已让 `effect_escape_continuation_finally_multi_perform.scoop` 不再重复打印 `finally`，并让 `effect_nosuspend_finally_nested_handle.scoop` 在当前分支重新回到 `16/26`。
-  - 但继续最小化复现时发现，更基础的 `T3016a0` no-suspend tail merge result transport 缺口尚未闭环；若不先收口该缺口，`T3016a` 的 no-suspend result 修复只会覆盖 finally-specific 变体，而不能保证统一完成态合同真正闭环。
+  - 当前分支已落地两条 finally/completion 定向 hardening：`CleanupEnter` 会在 `cleanup_flag` 已置位时直接跳过 cleanup entry，`dispatch_check` 会在读取 TLS active 前优先尊重 terminal `state_tag`。这些改动仍是 `T3016a` 的后续修复基础，但本身不代表 `T3016a` 已闭环。
+  - `T3016a0` 完成后重新直跑 `tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`，当前仍输出 `0/0`；说明 nested-handle + finally 的 completion/result contract 仍需在 `T3016a` 中继续收口，而不是 `T3016a0` 的同一最小缺口。
 - 目标：
   - escaped continuation resumed completion 只执行一次 `finally` / `cleanup`，不再在 body 真正完成后重复 replay。
   - no-suspend nested handle + finally 路径继续返回真实 handle result，不再回退到默认 `0` / 空结果。

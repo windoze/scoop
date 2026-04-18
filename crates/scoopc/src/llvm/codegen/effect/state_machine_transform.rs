@@ -4038,6 +4038,98 @@ fun demo(): Int {
         );
     }
 
+    #[test]
+    fn tail_if_else_result_flows_through_transparent_merge_state() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(flag: Bool): Int {
+    val result: Int = handle {
+        if (flag) {
+            13
+        } else {
+            15
+        }
+    } with {
+        Yield.next() -> 99
+    }
+    result
+}
+"#,
+        );
+        let machine = build_source_plan_from_lowered(&lowered)
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let merge_state = machine
+            .states()
+            .iter()
+            .find(|state| state.label() == "if.merge")
+            .expect("tail if/else should materialize a dedicated merge state");
+        assert!(
+            merge_state.ops().is_empty(),
+            "tail if/else merge should stay transparent so emitter must carry the prior branch value across it"
+        );
+
+        let exit_state = match merge_state.terminator() {
+            UnifiedStateTerminator::Goto { next_state } => machine
+                .get_state(*next_state)
+                .expect("if.merge target should exist"),
+            other => panic!("if.merge should end in a transparent goto, got {other:?}"),
+        };
+        assert!(
+            matches!(exit_state.terminator(), UnifiedStateTerminator::ReturnHandle),
+            "transparent merge should feed the canonical handle return state"
+        );
+        assert!(
+            exit_state
+                .ops()
+                .iter()
+                .all(|op| matches!(op, HandleStateOp::ReturnToEnclosingExpression)),
+            "handle exit should stay a marker-only return state so carried result can flow through unchanged"
+        );
+
+        let branch_state = machine
+            .states()
+            .iter()
+            .find(|state| {
+                matches!(
+                    state.terminator(),
+                    UnifiedStateTerminator::Branch { merge_state: state_merge, .. }
+                        if *state_merge == merge_state.id()
+                )
+            })
+            .expect("expected branch terminator feeding the transparent merge state");
+        let (then_state, else_state) = match branch_state.terminator() {
+            UnifiedStateTerminator::Branch {
+                then_state,
+                else_state,
+                ..
+            } => (*then_state, *else_state),
+            other => panic!("expected branch terminator, got {other:?}"),
+        };
+        for branch_end in [then_state, else_state] {
+            let state = machine
+                .get_state(branch_end)
+                .expect("branch target should exist in unified machine");
+            assert!(
+                matches!(
+                    state.terminator(),
+                    UnifiedStateTerminator::Goto { next_state } if *next_state == merge_state.id()
+                ),
+                "tail branch result should flow through the shared transparent merge state"
+            );
+        }
+    }
+
     fn build_source_plan_from_lowered(lowered: &hir::LoweredHir) -> HandleStateMachinePlan {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(lowered, fun);

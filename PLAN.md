@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3016a0` 已完成。`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现已把 `state_preserves_handle_result_on_entry()` 扩成递归透明 relay 判断：只要 `Goto` 链中的状态只包含 `StmtEmpty` / `CleanupEdgeComplete` / `ReturnToEnclosingExpression` 等 marker/no-op，并最终汇入 `ReturnHandle` / `ReturnFromFunction` / `ArmReturnHandle` / `ArmMaterializeContinuation` / `CleanupEnter` 完成入口，emitter 就会在进入这条链前先把已求值的 tail value 写回统一 result slot，从而覆盖 `then/else -> if.merge -> ReturnHandle` 这类 no-suspend tail merge transport。已新增 unified transform 结构测试 `tail_if_else_result_flows_through_transparent_merge_state`，并将 dedicated fixture `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 改回 `EXPECT: pass`；已验证该 fixture 单独运行输出恢复为 `13/15`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。顺带重新直跑 `tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop` 后确认当前仍输出 `0/0`，因此 `T3016a` 仍保持为下一项待修，不再沿用此前“当前分支已回到 16/26”的判断。
+>
 > 2026-04-18 当前轮阻塞补充更新：执行 `T3016a` 时，我先在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 补了两条已经验证有效的完成态 hardening：其一，`CleanupEnter` 现在会在 `cleanup_flag` 已经置位时直接跳过 cleanup entry，因此 `effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop` 与 `effect_resume_mixed_source_path_matrix.scoop` 这类 escaped-continuation resumed completion 不再重复 replay `finally/cleanup`；其二，dispatch loop 的 `dispatch_check` 现在会在读取 TLS active 前优先尊重 terminal `state_tag`，避免完成态被误判成 outward propagation。定向验证表明，这两条修复已经让 `effect_nosuspend_finally_nested_handle.scoop` 在当前分支重新回到 `16/26`。但继续最小化复现时，发现一个更基础、此前未单独建账的 no-suspend result transport 缺口：新的最小 fixture `tests/fixtures/run-pass/effect_handle_tail_if_result.scoop` 中，`handle { if (flag) { 13 } else { 15 } }` 当前仍会打印 `0/0`。这说明当前统一 state-machine 仍只会把“直接尾值”写回 handle result slot，跨 no-op merge state 的 tail result transport 尚未闭环。由于 `T3016a` 的 no-suspend handle result 修复与 finally completion 恢复都共享同一套 completion/result 合同，现已在 `T3016a` 之前新增前置任务 `T3016a0`→`T3016a0R` 先收口这个更基础的缺口；本轮到此停止，不再继续声称 `T3016a` 已完成。
 >
 > 2026-04-18 当前轮阻塞重排更新：开始执行 `T3017` 的 expectation cleanup 时，我把 83 条残留 `T3006` run-pass xfail 临时改回 `EXPECT: pass` 并用正式 runner 扫描，结果确认 `T3017` 不能直接继续。扫描暴露出四类更前置的真实生产缺口：其一，escaped continuation 完成后会重复执行 `finally/cleanup`，而 no-suspend nested handle + finally 会把结果打成 `0`（`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop`），对应新增 `T3016a`→`T3016aR`；其二，resumed-body 在 `when` / block / `if` / `while` mixed suspend-site 中会重复 prefix 或跳过 direct→indirect 之间的 tail（`effect_escape_continuation_perform_in_when_arm.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 等），对应新增 `T3016b`→`T3016bR`；其三，outer-body `Continuation.resume(...)` 仍有调用点落回 `unsupported_main_body: call callee` 或直接静默退出（`effect_escape_continuation_finally_normal.scoop`、`effect_escape_continuation_nested_outer_resume_inner_multi.scoop`），对应新增 `T3016c`→`T3016cR`；其四，GC stress 下 escaped continuation / deep object graph 的存活与恢复仍未闭环（`effect_escape_continuation_gc_stress_multi_string.scoop`、`gc_continuation_escape_deep_object_graph.scoop`、`gc_continuation_escape_alloc_heavy_resume.scoop`），对应新增 `T3016d`→`T3016dR`。因此 `T3017` 已顺延到这四组前置修复之后，当前 effect 主线下一项改为 `T3016a`。
@@ -605,33 +607,32 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016a0`
-2. `T3016a0R`
-3. `T3016a`
-4. `T3016aR`
-5. `T3016b`
-6. `T3016bR`
-7. `T3016c`
-8. `T3016cR`
-9. `T3016d`
-10. `T3016dR`
-11. `T3017`
-12. `T3017R`
-13. `T3103`
-14. `T3104`
-15. `T3201`
-14. `T3202`
-15. `T3203`
-16. `T3204`
-17. `T3205`
-18. `T3301`
-19. `T3302`
-20. `T3303`
-21. `T3401`
-22. `T3401a`
-23. `T3401b`
-24. `T3401c`
-25. `T3402`
-26. `T3403`
-27. `T3404`
-28. `T3405`
+1. `T3016a0R`
+2. `T3016a`
+3. `T3016aR`
+4. `T3016b`
+5. `T3016bR`
+6. `T3016c`
+7. `T3016cR`
+8. `T3016d`
+9. `T3016dR`
+10. `T3017`
+11. `T3017R`
+12. `T3103`
+13. `T3104`
+14. `T3201`
+15. `T3202`
+16. `T3203`
+17. `T3204`
+18. `T3205`
+19. `T3301`
+20. `T3302`
+21. `T3303`
+22. `T3401`
+23. `T3401a`
+24. `T3401b`
+25. `T3401c`
+26. `T3402`
+27. `T3403`
+28. `T3404`
+29. `T3405`

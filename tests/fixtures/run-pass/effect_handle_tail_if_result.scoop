@@ -1,12 +1,11 @@
-// EXPECT: fail
+// EXPECT: pass
 // RUN-STDOUT: effect_handle_tail_if_result.stdout
-// T3016a0: 暂时标记为 fail——当前统一 state-machine codegen 仍会把
-// no-suspend handle 的 tail if/else merge 结果打成默认 0。
+// T3016a0: 锁定 no-suspend handle 的 tail if/else merge 结果 transport。
 //
 // 目标覆盖：
 // - handle body 本身不发生 suspend；
 // - handle 的最终结果直接来自 tail if/else merge；
-// - 完成路径必须把真实分支值写回 handle result，而不是默认 0。
+// - 完成路径必须把真实分支值带过透明 merge state 写回 handle result。
 
 package a
 

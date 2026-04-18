@@ -13,7 +13,7 @@
 //!
 //! All emission decisions are driven by the state machine contract.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::unified_state_machine_skeleton::FrameSlot;
 use super::*;
@@ -2063,8 +2063,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let cleanup_entry_bb = self.lookup_state_bb(*next_state, state_bb_map, span)?;
                 let cleanup_exit_bb =
                     self.lookup_state_bb(cleanup_scope.exit_state(), state_bb_map, span)?;
-                let cleanup_already_ran =
-                    self.read_cleanup_flag_i1(state_ptr, frame_layout, "cleanup_enter_already_ran")?;
+                let cleanup_already_ran = self.read_cleanup_flag_i1(
+                    state_ptr,
+                    frame_layout,
+                    "cleanup_enter_already_ran",
+                )?;
                 self.builder.build_conditional_branch(
                     cleanup_already_ran,
                     cleanup_exit_bb,
@@ -2145,18 +2148,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         contract: &UnifiedHandleLoweringContract,
         state_id: u32,
     ) -> bool {
+        let mut visited = HashSet::new();
+        self.state_preserves_handle_result_on_entry_inner(contract, state_id, &mut visited)
+    }
+
+    fn state_preserves_handle_result_on_entry_inner(
+        &self,
+        contract: &UnifiedHandleLoweringContract,
+        state_id: u32,
+        visited: &mut HashSet<u32>,
+    ) -> bool {
+        // Transparent completion relays may chain through one or more empty
+        // merge states before reaching the terminal ReturnHandle /
+        // ReturnFromFunction block. Carry the already-computed tail value
+        // across that whole no-op chain, but never through cycles or states
+        // that execute real work.
+        if !visited.insert(state_id) {
+            return false;
+        }
         let Some(state) = contract.machine().get_state(state_id) else {
             return false;
         };
+        if !Self::state_ops_preserve_carried_handle_result(state.ops()) {
+            return false;
+        }
         match state.terminator() {
-            UnifiedStateTerminator::ReturnHandle => state
-                .ops()
-                .iter()
-                .all(|op| matches!(op, HandleStateOp::ReturnToEnclosingExpression)),
-            UnifiedStateTerminator::CleanupEnter { .. } => {
-                Self::state_ops_preserve_carried_handle_result(state.ops())
+            UnifiedStateTerminator::Goto { next_state } => {
+                self.state_preserves_handle_result_on_entry_inner(contract, *next_state, visited)
             }
-            _ => false,
+            UnifiedStateTerminator::CleanupEnter { .. }
+            | UnifiedStateTerminator::ReturnHandle
+            | UnifiedStateTerminator::ReturnFromFunction
+            | UnifiedStateTerminator::ArmReturnHandle
+            | UnifiedStateTerminator::ArmMaterializeContinuation => true,
+            UnifiedStateTerminator::Branch { .. }
+            | UnifiedStateTerminator::Suspend { .. }
+            | UnifiedStateTerminator::ArmResumeMatchedSite => false,
         }
     }
 
