@@ -1225,45 +1225,52 @@ pub(super) fn check_expr_stmt(
             // required effects（T0604）：
             // call 作为“表达式语句”时，typecheck 默认不会对其做完整调用检查；
             // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
-            if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
-                let _ = infer_effect_op_call_expr_type(
-                    expr_infer_inputs_with_flow(shared, state.locals, flow),
-                    expr,
-                    member,
-                    args,
-                    None,
-                    lower,
-                )?;
-            } else if let ast::ExprKind::TypeApply {
-                callee: inner,
-                args: type_args,
-            } = &callee.kind
-                && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind
-            {
-                let lowered = type_args
-                    .iter()
-                    .map(|a| lower.lower_type_ref(a))
-                    .collect::<Result<Vec<_>, _>>()?;
+            let effect_op_taken_over =
+                if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
+                    infer_effect_op_call_expr_type(
+                        expr_infer_inputs_with_flow(shared, state.locals, flow),
+                        expr,
+                        member,
+                        args,
+                        None,
+                        lower,
+                    )?
+                    .is_some()
+                } else if let ast::ExprKind::TypeApply {
+                    callee: inner,
+                    args: type_args,
+                } = &callee.kind
+                    && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind
+                {
+                    let lowered = type_args
+                        .iter()
+                        .map(|a| lower.lower_type_ref(a))
+                        .collect::<Result<Vec<_>, _>>()?;
 
-                let _ = infer_effect_op_call_expr_type(
+                    infer_effect_op_call_expr_type(
+                        expr_infer_inputs_with_flow(shared, state.locals, flow),
+                        expr,
+                        member,
+                        args,
+                        Some(lowered.as_slice()),
+                        lower,
+                    )?
+                    .is_some()
+                } else {
+                    false
+                };
+
+            // `Continuation.resume(...)` 只在当前 call 没有先被 effect-op 路径接管时才参与；
+            // 否则像 `Echo.resume(...)` 这类 effect op 名称碰撞会误入 builtin resume helper。
+            if !effect_op_taken_over {
+                let _ = infer_continuation_resume_call_expr_type(
                     expr_infer_inputs_with_flow(shared, state.locals, flow),
                     expr,
-                    member,
+                    callee.as_ref(),
                     args,
-                    Some(lowered.as_slice()),
                     lower,
                 )?;
             }
-
-            // `Continuation.resume(...)` 与表达式位置共用同一 builtin 规则：
-            // 这里必须补回 side table 与 required-effects 记录，避免语句位置静默绕过。
-            let _ = infer_continuation_resume_call_expr_type(
-                expr_infer_inputs_with_flow(shared, state.locals, flow),
-                expr,
-                callee.as_ref(),
-                args,
-                lower,
-            )?;
 
             Ok(())
         }

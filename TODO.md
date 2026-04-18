@@ -2150,8 +2150,13 @@
   - 相关 `Continuation.resume` typecheck fixtures 与 outer-body statement-position 回归覆盖通过。
 - 依赖：T3016bR
 
-### T3016c0R [TODO] Review：确认 statement-position `Continuation.resume(...)` 不再绕过 builtin typecheck 合同
+### T3016c0R [DONE] Review：确认 statement-position `Continuation.resume(...)` 不再绕过 builtin typecheck 合同
 - 描述：在 `T3016c0` 之后只审查前端/typecheck 与 side table 生产路径，确认 statement-position resume 的修复不是靠成员名特判或 fixture 兜底；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 复审 `crates/scoopc/src/typecheck/expr/stmt.rs` 时确认，`T3016c0` 还残留一个真实生产缺口：statement-position call 分支即使已经由 `infer_effect_op_call_expr_type(...)` 识别为 effect op，也会继续无条件调用 `infer_continuation_resume_call_expr_type(...)`；当 effect op 恰好也叫 `resume` 时，会把 effect type 限定符误送入 builtin `Continuation.resume` helper。
+  - 现已把 `check_expr_stmt()` 收口为“仅当当前 call 没有先被 effect-op helper 接管时，才执行 builtin resume helper”，避免成员名碰撞把普通 effect-op `resume` 污染进 `continuation_resume_call_sites`。
+  - 新增 HIR lowering 单测 `lower_typed_single_source_file_does_not_record_effect_op_named_resume_as_builtin_call_site`，锁定 effect op `resume` 会继续按 `Perform` lowering，且不会写入 `continuation_resume_call_sites`。
+  - 已复验两条 HIR lowering 定向单测、4 条相关 fixtures 的最小根目录定向 `scoop test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 `continuation_resume_call_sites` 仍只承载 typecheck 已证实的 builtin call site，不引入按源码形状或成员名猜测的旁路。
   - 确认 `Raise<RuntimeError>` required-effect 记录在 statement / expression 两条路径上一致。
@@ -2159,6 +2164,10 @@
 - 验收：
   - 若审查发现问题，相关前端/side-table 代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“statement-position `Continuation.resume(...)` 已回到统一 builtin typecheck 合同”。
+- 审查结论：
+  - statement-position `Continuation.resume(...)` 已回到统一 builtin typecheck 合同；`continuation_resume_call_sites` 只记录 typecheck 已证实的 builtin call site。
+  - effect op 名称碰撞（如 `Echo.resume(...)`）不会再误入 builtin resume helper，也不会污染 side table。
+  - 重新分类后的 `effect_escape_continuation_finally_normal.scoop` 与现有 Pure / required-effects 基线一致。
 - 依赖：T3016c0
 
 ### T3016c [TODO] 接回已被 typecheck 确认为 builtin 的 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering

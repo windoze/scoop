@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016c0R` 已完成。复审 `crates/scoopc/src/typecheck/expr/stmt.rs` 与 `typecheck/expr/call.rs` 时确认，`T3016c0` 的初版修复还残留一个真实生产缺口：statement-position call 分支即使已经先由 `infer_effect_op_call_expr_type(...)` 接管，仍会无条件调用 `infer_continuation_resume_call_expr_type(...)`；当 effect op 恰好也叫 `resume` 时，会把 effect type 限定符误送入 builtin `Continuation.resume` helper，违反“side table 只记录 typecheck 已证实 builtin call site”的目标。现已把语句路径收口为“仅当当前 call 未被 effect-op helper 接管时才运行 builtin resume helper”，并新增 HIR lowering 单测 `lower_typed_single_source_file_does_not_record_effect_op_named_resume_as_builtin_call_site`，锁定 effect op `resume` 会继续 lower 为 `Perform` 且不会污染 `continuation_resume_call_sites`。已复验两条 HIR lowering 定向单测、4 条相关 fixtures 的最小根目录定向 `scoop test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016c`。
+>
 > 2026-04-18 当前轮完成更新：`T3016c0` 已完成。`crates/scoopc/src/typecheck/expr/stmt.rs` 现在会在 expression-statement 的 call 分支复用 `Continuation.resume(...)` builtin helper，statement-position `k.resume(...)` 已与 expression-position 共用同一套 typecheck/side-table 合同：既会写入 `continuation_resume_call_sites`，也会按 `Continuation<T, eff E>` 记录 `E + Raise<RuntimeError>` required effects。为锁定这条合同，本轮新增 HIR lowering 单测 `lower_typed_single_source_file_records_statement_position_continuation_resume_call_site`，以及 typecheck fixture `continuation_resume_in_pure_main_after_handle_is_error.scoop`；同时把 `effect_escape_continuation_finally_normal.scoop` 改写为 spec-correct 的 `try/catch` 版本，并确认其已恢复为 `EXPECT: pass`。已验证 4 条相关 fixtures 的最小根目录定向 `scoop test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。由于 simple outer-body finally case 已恢复，下一项 `T3016c` 的真实生产 blocker 进一步收缩到 `effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 代表的 nested-handle outer-body resume / frame seeding 缺口；当前 effect 主线下一项推进到 `T3016c0R`。
 >
 > 2026-04-18 当前轮阻塞重排更新：开始执行原 `T3016c` 后，先确认 `effect_escape_continuation_finally_normal.scoop` 的 plain outer-body `k1.resume(42)` 并不是单纯的 production lowering 缺口，而是更前置的 typecheck/spec mismatch。`crates/scoopc/src/typecheck/expr/stmt.rs` 的 `check_expr_stmt()` 当前不会对 statement-position `Continuation.resume(...)` 运行 builtin 规则，因此这类 call site 既不会写入 `continuation_resume_call_sites`，也不会记录 `Continuation<T, eff E>` 所要求的 `E + Raise<RuntimeError>` required effects；这与现有 typecheck fixtures `continuation_resume_requires_raise_runtime_error_missing_is_error.scoop` / `continuation_type_and_resume_pure_ok.scoop`，以及 run-pass fixture `effect_escape_continuation_perform_not_first_statement.scoop` 注释中“需要 try/catch 维持 `main` 的 Pure 约束”的既有合同不一致。与此同时，`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 仍独立暴露真实 codegen blocker `effect frame seed outer-scope local`。因此原 `T3016c` 实际混合了一个 typecheck 前置缺口和一个生产 lowering 缺口，现已把顺序改为 `T3016c0` → `T3016c0R`（先收口 statement-position `Continuation.resume(...)` 的 side-table / required-effects 合同，并重新分类 `effect_escape_continuation_finally_normal.scoop`），再进入收窄后的 `T3016c` → `T3016cR`（继续处理 spec-correct outer-body lowering 与 nested-handle frame seeding）。当前 effect 主线首个待执行任务改为 `T3016c0`。
@@ -627,13 +629,13 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016c0R`
-2. `T3016c`
-3. `T3016cR`
-4. `T3016d`
-5. `T3016dR`
-6. `T3017`
-7. `T3017R`
+1. `T3016c`
+2. `T3016cR`
+3. `T3016d`
+4. `T3016dR`
+5. `T3017`
+6. `T3017R`
+6. `T3017R`
 8. `T3103`
 9. `T3104`
 10. `T3201`

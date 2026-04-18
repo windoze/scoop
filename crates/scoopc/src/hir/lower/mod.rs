@@ -2875,6 +2875,57 @@ fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
     }
 
     #[test]
+    fn lower_typed_single_source_file_does_not_record_effect_op_named_resume_as_builtin_call_site()
+    {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t3016c0r_effect_op_resume>",
+            r#"
+package fixtures.t3016c0r
+
+import scoop.core.*
+
+effect Echo {
+    fun resume(value: Int): Unit
+}
+
+fun run(): Unit / Echo {
+    Echo.resume(1)
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let run_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t3016c0r.run" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t3016c0r.run");
+        let body = run_fun.body.as_ref().expect("run 应有 body");
+        match body.stmts.as_slice() {
+            [
+                Stmt {
+                    kind: StmtKind::Expr(expr),
+                    ..
+                },
+            ] => match &expr.kind {
+                ExprKind::Perform { .. } => {}
+                other => panic!("effect op `resume` 应 lower 为 Perform，实际为 {:?}", other),
+            },
+            stmts => panic!("run body 语句数不符合预期: {:?}", stmts),
+        }
+
+        assert!(
+            lowered.continuation_resume_call_sites.is_empty(),
+            "effect op `resume` 不应污染 continuation_resume_call_sites"
+        );
+    }
+
+    #[test]
     fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_cross_file_observable_delegate_callback()
      {
         let sess = Session::new().unwrap();
