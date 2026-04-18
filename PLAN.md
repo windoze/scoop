@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：重新执行 `T3017` 的全量 runner 验收后，`cargo run -p scoop --features llvm -- test` 已越过此前的 stale xfail 与最近一轮 effect blocker，但新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`；进一步排查确认 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，注释中也明确写着 “variant name is not yet part of the runtime payload protocol”。说明 synthesized `Raise.raise(RuntimeError.*)` 的共享生产合同仍会把具体 runtime-error 变体塌缩成 `RuntimeError.NullAssertionFailed`，这是真实生产回归而不是 golden 漂移。按阻塞规则，现已在 `T3017` 前新增 `T3016l` → `T3016lR`，先恢复 RuntimeError variant payload 合同，再继续 effect run-pass baseline cleanup。当前 effect 主线下一项改为 `T3016l`。
+>
 > 2026-04-18 当前轮复审更新：`T3016kR` 已完成。复审 `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`、`runtime_abi.rs`、`effect/mod.rs` 与 `effect/state_machine_emitter.rs` 后确认，`T3016k` 的 trace hook 修复仍严格停留在统一 activation/span 合同内：ordinary `perform` 与 runtime-error `Raise.raise` 共享 `emit_effect_set_active_with_trace()` → runtime ABI 的同一条生产链路；`UnifiedStateTerminator::Suspend` 只按 `SuspendSiteKind` 合同在 direct `Perform` site 补发 traceful activation，call-boundary / runtime-raise / nested-boundary 路径继续保留 inner producer 已写入的原始 trace，不会被 outer suspend 的无 trace activation 覆盖。继续核对剩余 plain `scoop_effect_set_active()` 调用点后，也确认它现在只保留在 `scoop.core.__scoop_effect_set_active` sysroot intrinsic lowering 中，用于 runtime/TLS ABI 测试，不再属于 non-resuming effect 生产路径。已复验 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`（输出 `16` / `5`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
 >
 > 2026-04-18 当前轮完成更新：`T3016k` 已完成。已恢复 `runtime_symbols.rs` / `runtime_abi.rs` 对 `scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col)` 的生产接线，并在 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 中新增统一的 span → `(line, col)` 映射 helper，让 ordinary `codegen_perform_expr()` 与 `emit_raise_runtime_error_variant()` 共用同一套 trace activation 路径。同步修正 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `UnifiedStateTerminator::Suspend`：仅 direct `Perform` site 在 suspend 出口发布 traceful activation；`CallMaySuspend` / `CallStateMachineCallee` / `RuntimeRaise` / `NestedHandleBoundary` 等 call-boundary active path 不再重复 `set_active` 覆盖内层 producer 已写好的 perform-site trace。已新增两条 emitter IR 回归锁定 direct perform trace hook 与 outer suspend 不重置 callee trace，且 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop` 已恢复输出 `16` / `5`；`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016kR`。
@@ -683,26 +685,27 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016kR`
-2. `T3017`
-3. `T3017R`
-4. `T3103`
-5. `T3104`
-6. `T3201`
-7. `T3202`
-8. `T3203`
-9. `T3204`
-10. `T3205`
-11. `T3301`
-12. `T3302`
-13. `T3303`
-14. `T3304`
-15. `T3401`
-16. `T3401a`
-17. `T3401b`
-18. `T3401c`
-19. `T3402`
-20. `T3403`
-21. `T3404`
-22. `T3405`
-23. `T3406`
+1. `T3016l`
+2. `T3016lR`
+3. `T3017`
+4. `T3017R`
+5. `T3103`
+6. `T3104`
+7. `T3201`
+8. `T3202`
+9. `T3203`
+10. `T3204`
+11. `T3205`
+12. `T3301`
+13. `T3302`
+14. `T3303`
+15. `T3304`
+16. `T3401`
+17. `T3401a`
+18. `T3401b`
+19. `T3401c`
+20. `T3402`
+21. `T3403`
+22. `T3404`
+23. `T3405`
+24. `T3406`

@@ -2552,6 +2552,29 @@
   - trace line/col 的来源统一为 `effect_trace_line_col()` 基于当前 source + HIR span 的通用映射；生产代码中不存在按 fixture、`try/catch` 形状、特定 helper 名称或源码字符串硬编码 line/col 的分支。
 - 依赖：T3016k
 
+### T3016l [TODO] 恢复 synthesized `Raise.raise(RuntimeError.*)` 的具体 variant payload 合同
+- 描述：重新执行 `T3017` 的全量 runner 验收后，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`，说明 `x as Other` 失败时当前抛出的不再是 `RuntimeError.ClassCastFailed`，而是被错误塌缩成了 `RuntimeError.NullAssertionFailed`。进一步检查确认 `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `crates/scoopc/src/llvm/codegen/effect/mod.rs` 的 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，注释中也明确写着“variant name is not yet part of the runtime payload protocol”。这说明 synthesized runtime-error raise 的具体 variant 仍未接回统一 effect transport / catch 匹配合同；在此缺口修复前，`T3017` 不能继续把 pass fixture baseline 视为稳定。
+- 目标：
+  - 让 synthesized `Raise.raise(RuntimeError.*)` 在 codegen/runtime payload 里保留具体的 `RuntimeError` unit variant，而不是统一写成固定零 payload。
+  - `x as T` 失败、`try/catch (e: RuntimeError)` 分派，以及统一 state-machine / ordinary effect path 中的 runtime-error transport 必须共享同一套 variant payload 合同，不能只对 cast fixture 特判。
+  - `type_check_cast_is_as_asq_basic.scoop` 恢复为 `caught: cast` / `2`，且与 `RuntimeError` 其它 unit variant 的语义区分保持一致。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016kR
+
+### T3016lR [TODO] Review：确认 RuntimeError variant payload 恢复已回到统一 raise/transport 合同
+- 描述：在 `T3016l` 之后只审查生产代码，确认具体 `RuntimeError` 变体的传输仍由统一 runtime payload / catch-matching 合同驱动，没有为 `x as T`、`try/catch`、某个 fixture 或特定 variant 恢复 fixture-only hardcode、tag 特判或字符串分流；若发现此类残留，本任务需要直接修复并复审。
+- 目标：
+  - 确认 synthesized runtime-error raise 与普通 `Raise.raise(RuntimeError.X)` 在统一 effect transport 中保留一致的具体 variant 语义。
+  - 确认生产代码不再把 `RuntimeError` payload 塌缩成零值，也不依赖 cast-only / fixture-only 分支修复 `ClassCastFailed`。
+  - 在完成本任务后，`T3017` 的 baseline cleanup 才可继续作为单纯 expectation 收口任务推进。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“RuntimeError variant payload 已统一收口到共享 raise/transport 合同，无 cast-only workaround 残留”。
+- 依赖：T3016l
+
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
@@ -2564,6 +2587,7 @@
   - 继续执行本任务的最终验收时，`cargo run -p scoop --features llvm -- test` 不再停在 stale xfail，而是前进到新的更前置 pass-fixture 回归 `effect_handle_suspend_call_inactive_helper_basic.scoop`；当前其真实失败为 `scoop::llvm::module_verification_failed` / `Terminator found in the middle of a basic block! label %resume_site0`，已新增 `T3016i` / `T3016iR` 承接。因此本任务顺延到 `T3016iR` 之后继续。
   - `T3016iR` 完成后继续复跑全量 runner，suite 再次前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前报 `scoop::llvm::unsupported_main_body: return value`，而对照的 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍已通过，说明 blocker 已收窄为 ordinary closure/function-value callee 的 non-resuming outward propagation / return contract 缺口，而不是 stale expectation 形态问题。该共享生产回归现由新增的 `T3016j` / `T3016jR` 承接，因此本任务继续顺延到 `T3016jR` 之后再收口。
   - `T3016jR` 完成后继续复跑全量 runner，suite 又前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`。该 fixture 单独运行当前输出 `0` / `0`，而 golden 期望 `16` / `5`；进一步检查确认 runtime 侧 `scoop_effect_set_active_with_trace(...)` 仍然存在，但 unified effect codegen 当前已只调用无 trace 的 `scoop_effect_set_active()`，导致 non-resuming effect trace hook 的 line/col 合同失效。该共享生产回归现由新增的 `T3016k` / `T3016kR` 承接，因此本任务继续顺延到 `T3016kR` 之后再收口。
+  - `T3016kR` 完成后继续复跑全量 runner，suite 又前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`；进一步检查确认 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，导致 synthesized runtime-error raise 的具体 variant 被塌缩成 `RuntimeError.NullAssertionFailed`。该共享生产回归现由新增的 `T3016l` / `T3016lR` 承接，因此本任务继续顺延到 `T3016lR` 之后再收口。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -2573,7 +2597,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016kR
+- 依赖：T3016lR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
