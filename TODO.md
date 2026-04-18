@@ -2640,7 +2640,7 @@
   - 已在 `Keyword` 枚举中新增 `Do` 关键字，lexer 识别 `”do”` 为关键字。
   - 已在 `ExprKind` 枚举中新增 `DoBlock { do_span, body }` 变体，与控制流内部使用的 `Block` 和 `Lambda` 区分。
   - `try_parse_expr_atom` 中 `do` 关键字优先于 `{` 匹配，确保 `do { ... }` 解析为 `DoBlock`，而裸 `{ ... }` 继续按 lambda 解析。
-  - `@Safe` / `@Unsafe` 后支持可选 `do` 关键字：`@Safe do { ... }` 和 `@Unsafe do { ... }` 均可正确解析。`@Safe { ... }` 保持向后兼容。
+  - `@Safe do { ... }` / `@Unsafe do { ... }` 已可正确解析；实现阶段暂时保留的 bare annotated-block 兼容（`@Safe { ... }` / `@Unsafe { ... }`）现已确认与现行规范冲突，后续由 `T3103a` 收口并迁移仓库调用点。
   - 已更新所有 AST 消费者：`resolve/scopes.rs`、`typecheck/expr/infer.rs`、`typecheck/expr/stmt.rs`、`typecheck/expr/ops.rs`、`typecheck/expr/util.rs`、`typecheck/properties.rs`、`hir/lower/expr.rs`、`comptime/eval.rs`、`parser/cursor.rs`。`DoBlock` 在语义层面与 `Block` 等价。
   - 新增 4 个 parser 单元测试：`do_block_basic`、`bare_brace_is_lambda_not_do_block`、`safe_do_block`、`unsafe_do_block`。
   - 新增 2 个 parse fixtures：`do_block_basic.scoop`（验证 `do { ... }` 被解析为 `DoBlock`）、`do_block_vs_closure.scoop`（验证 `{ 1 }` 为 Lambda、`do { 1 }` 为 DoBlock）。
@@ -2689,17 +2689,29 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3102, T3006R
 
-### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
-- 描述：当前 `SCOOP_FULL_SPEC.md` 对 trailing lambda 仍保留“裸 `{ ... }` 可能同时像 block / lambda”的旧叙述；若只改实现不改规范，后续 fixtures 与文档示例会继续漂移。
+### T3103a [TODO] 语法 / 实现：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
+- 描述：当前 `SCOOP_FULL_SPEC.md` 已把局部 annotated block 收口为 `@Safe do { ... }` / `@Unsafe do { ... }`，并明确 bare `{ ... }` 在普通表达式位置属于 closure；同时规范还保留 `@Safe { ... }` 作为 annotated closure 的语义边界。但当前实现仍把 `@Safe { ... }` / `@Unsafe { ... }` 一律解析成 `SafeBlock` / `UnsafeBlock`，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 也仍在使用 bare annotated block 旧写法。若不先收口这条语法 / 实现边界，`T3104` 无法把规范 / 文档宣布为与实现一致。
 - 目标：
-  - 更新 `SCOOP_FULL_SPEC.md` 的 statements / local block / closure / trailing lambda / `@Safe` / `@Unsafe` 相关章节，明确普通 block 必须写 `do { ... }`、裸 `{ ... }` 一律视为 closure，以及 `@Safe do { ... }` / `@Unsafe do { ... }` 才是局部 annotated block 形式。
-  - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少当前 `TODO.md` / `PLAN.md` 中相关描述；若有其它命中文档也一并更新）。
+  - 局部 annotated block 只接受 `@Safe do { ... }` / `@Unsafe do { ... }`；`@Unsafe { ... }` 不再作为 local block 兼容接受，应给出稳定诊断并指向 `do` 形式。
+  - `@Safe { ... }` 在 closure / trailing-lambda 语境中按 annotated closure 处理，不再被错误吞成 `SafeBlock`。
+  - 迁移仓库中仍把 bare annotated block 当作局部 block 使用的 parser 单测、sysroot、fixtures 与相关注释 / 示例到 `do` 形式，避免继续依赖与规范不一致的旧语法。
+- 验收：
+  - 新增或更新 parser / typecheck / fixture 回归，锁定 `@Safe do { ... }` / `@Unsafe do { ... }` 继续工作，`@Unsafe { ... }` 不再是 local block，而 `@Safe { ... }` 的 closure 语义边界清晰可判。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T3103
+
+### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
+- 描述：`T3103a` 收口实现后，还需要把规范与仓库文档的最终说法统一到同一套规则：普通局部 block 使用 `do { ... }`，bare `{ ... }` 的优先级属于 closure / trailing lambda，局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，而 `@Safe { ... }` 只保留 closure 语义。若只改实现不回写这些说明，后续 doctest、fixture 注释与文档示例仍会继续漂移。
+- 目标：
+  - 更新 `SCOOP_FULL_SPEC.md` 的 statements / local block / closure / trailing lambda / `@Safe` / `@Unsafe` 相关章节，确保正文、附录与示例都与实现后的最终语义一致。
+  - 同步改写规范内 doctest / fixture 示例，以及仓库内仍使用旧叙述的说明文档（至少当前 `TODO.md` / `PLAN.md`、`SCOOP_RUNTIME.md`；若有其它命中文档也一并更新）。
   - 若规范代码块发生变更，补 `spec-fixtures sync/check` 所需的生成文件与说明，保证规范与回归继续一致。
 - 验收：
   - `SCOOP_FULL_SPEC.md` 与相关文档更新完成；必要时运行 `cargo run -p scoop_tools -- spec-fixtures sync` 后再 `cargo run -p scoop_tools -- spec-fixtures check`。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T3103
+- 依赖：T3103a
 
 ## T32：Structured Concurrency / `Task<T>`
 

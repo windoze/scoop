@@ -1,100 +1,63 @@
-# 执行计划记录
+# 执行计划
 
 ## 说明
 
-- 本文件用于记录本次执行的可操作计划、检查点、关键决策与进度更新。
-- 出于安全与协作边界考虑，这里不记录逐字的私有思维链，而是记录足以审计和复现执行过程的计划与决策摘要。
-- 在后续执行过程中，如果计划调整、发现阻塞、完成关键步骤、或修改任务拆分，我会持续更新本文件。
+按要求先记录执行计划与可审阅的推理摘要。这里不会写入逐字的内部思维链，而是提供足够详细的步骤、判断依据、风险点和后续更新记录，便于在执行过程中检查进展。
 
-## 初始目标
+## 当前目标
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
+本次只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-## 初始执行步骤
+## 初始步骤
 
-1. 检查最近一次 Git 提交信息，确认是否明确提到现存问题、已知缺陷或需要先处理的遗留事项。
-2. 阅读 `TODO.md`、`PLAN.md`，识别第一个未完成任务，并核对现有计划是否与任务顺序一致。
-3. 判断该任务是否过大或依赖缺失：
-   - 若可直接完成，则进入实现。
-   - 若过大或存在前置缺口，则把任务拆分为更小子任务，更新 `PLAN.md` 与 `TODO.md`，并以第一个子任务作为本轮目标。
-4. 实施任务修改，遵循项目约定，不采用规避性实现，不偏离规范。
-5. 运行与该任务相关的验证：
-   - 最小相关测试
-   - 必要时运行更广泛测试
-   - `cargo fmt`
+1. 检查最新一次 Git 提交的提交信息与改动，确认是否明确提到任何已知遗留问题。
+2. 如果最新提交提到了遗留问题，先定位并修复这些问题，再继续处理 `TODO.md`。
+3. 读取 `TODO.md`，确定第一个未完成任务。
+4. 读取 `PLAN.md`，确认当前计划与任务顺序是否一致。
+5. 如首个未完成任务过大，则将其拆解为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆解后的第一个子任务。
+
+## 执行策略
+
+1. 先理解相关代码、测试和规范，不做无依据假设。
+2. 直接实现当前任务所需的最小且完整改动，避免顺手推进后续任务。
+3. 若实现中发现规范不匹配、缺失特性、已有 workaround、隐藏 bug 或基础能力缺口：
+   - 将其作为真实问题处理；
+   - 在 `TODO.md` 中新增或重排前置任务；
+   - 在 `PLAN.md` 中记录阻塞原因和依赖关系；
+   - 如因此阻塞当前任务，则提交这些计划调整后停止。
+4. 完成实现后运行相关测试；若任务影响面较大，还需要运行更广的验证，包括：
+   - `cargo test --all`
    - `cargo clippy --all-targets -- -D warnings`
-6. 若测试或验证暴露规范不匹配、缺失特性或已有缺陷：
-   - 先修复最近提交中明确提到的遗留问题（若存在且在范围内）
-   - 或按要求把缺陷前置为 `TODO.md` 中的新任务 / 依赖，并更新 `PLAN.md`
-7. 完成后更新文档：
-   - 在 `TODO.md` 标记完成或调整顺序
-   - 在 `PLAN.md` 记录当前状态
-   - 在本文件记录已完成步骤与结论
-8. 使用清晰的 Git 提交信息提交本轮改动。
-9. 停止，不继续处理下一个任务。
+   - 以及任务相关的更聚焦测试命令
+5. 更新文档与计划：
+   - 在 `TODO.md` 标记当前任务完成；
+   - 在 `PLAN.md` 反映最新状态；
+   - 若涉及说明性文档，也同步补充。
+6. 提交 Git，提交信息应清晰描述本轮完成的任务，然后停止。
 
-## 当前已知约束
+## 风险与检查点
 
-- 必须优先处理最近一次提交中提到的现存问题（若有）。
-- 只做一个任务。
-- 不接受 workaround、fixture-only hack、或与规范不符的临时实现。
-- 如果遇到缺失能力或阻塞，必须先把问题显式写入 `TODO.md` / `PLAN.md` 并提交，然后停止。
+1. 工作区可能不是干净的，不能回退非本人改动。
+2. 若任务涉及编译器、运行时或规范一致性，需要优先验证是否与 `SCOOP_FULL_SPEC.md`、fixture 或现有测试语义一致。
+3. 若需要新增测试，应尽量放在最小且语义正确的位置，避免夹带与当前任务无关的修复。
 
-## 待确认信息
+## 进度记录
 
-- 最近一次提交是否提到需要先修复的问题。
-- `TODO.md` 的第一个未完成任务具体内容。
-- 是否已有未提交工作树改动需要避让。
-
-## 进度更新
-
-- 已创建本文件并写入初始执行计划，下一步将读取最近一次提交与任务清单。
-- 已检查最近一次提交 `6215ee6236d130653b3e9945e9c2dc700fd83fdf`（`[T3017R] Review effect passing baseline`）：
-  - 提交信息与变更内容未额外声明“必须先修复的遗留 bug / issue”；
-  - 当前可直接进入 `TODO.md` 的首个未完成任务。
-- 已定位 `TODO.md` 首个未完成任务为 `T3103`：effect nested-block fixtures 切到 plain `do` block。
-- 已初步确认本任务暂不需要再拆分到 `TODO.md` / `PLAN.md`：
-  - 代码层 `do { ... }` 与 tail-value 语义已在 `T3101` / `T3102` 接通；
-  - 当前工作重心主要是回归迁移与补充边界测试。
-- 已盘点当前 effect 相关的 `@Safe { ... }` workaround fixture，待迁移样本共 7 个：
-  - `tests/fixtures/run-pass/effect_resume_nested_block_single_perform.scoop`
-  - `tests/fixtures/run-pass/effect_resume_while_nested_block_perform.scoop`
-  - `tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`
-  - `tests/fixtures/run-pass/effect_multi_escape_direct_source_path_matrix.scoop`
-  - `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_block_multi.scoop`
-  - `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
-  - `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_indirect_block_single_site.scoop`
-- 已确认本任务还需要额外补一组回归，覆盖：
-  - multiple trailing lambdas 后的下一条 `do { ... }` 作为独立 statement / block；
-  - `do { ... }` 作为普通调用实参时，不与 trailing lambda 竞争；
-  - parser / typecheck / HIR / run-pass 四个层面的稳定行为。
-- 已完成主要修改：
-  - 7 个 effect nested-block run-pass fixtures 已从 `@Safe { ... }` 迁移为 plain `do { ... }`；
-  - 已新增 parser / typecheck / HIR / run-pass 边界回归文件：
-    - `tests/fixtures/parse/do_block_multiple_trailing_lambda_boundary.scoop`
-    - `tests/fixtures/typecheck/do_block_multiple_trailing_lambda_boundary_ok.scoop`
-    - `tests/fixtures/hir/do_block_multiple_trailing_lambda_boundary.scoop`
-    - `tests/fixtures/run-pass/do_block_multiple_trailing_lambda_boundary.scoop`
-  - 已生成对应 golden：
-    - `tests/fixtures/parse/do_block_multiple_trailing_lambda_boundary.ast`
-    - `tests/fixtures/hir/do_block_multiple_trailing_lambda_boundary.hir`
-- 已完成定向验证：
-  - `diff -u tests/fixtures/parse/do_block_multiple_trailing_lambda_boundary.ast <(cargo run -p scoop -- dump-ast tests/fixtures/parse/do_block_multiple_trailing_lambda_boundary.scoop)` 通过；
-  - `diff -u tests/fixtures/hir/do_block_multiple_trailing_lambda_boundary.hir <(cargo run -p scoop -- dump-hir tests/fixtures/hir/do_block_multiple_trailing_lambda_boundary.scoop)` 通过；
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/do_block_multiple_trailing_lambda_boundary.scoop` 通过；
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_nested_block_single_perform.scoop` 通过；
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop` 通过。
-- 下一步：执行全量质量门槛验证（`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test`、`cargo clippy --all-targets -- -D warnings`），若全通过则更新 `TODO.md` / `PLAN.md` 并提交。
-- 已完成全量质量门槛验证：
-  - `cargo test --all` 通过；
-  - `cargo run -p scoop -- test` 通过（`fixtures: ok (996)`）；
-  - `cargo run -p scoop --features llvm -- test` 通过（`fixtures: ok (996)`）；
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 已完成文档状态回写：
-  - `TODO.md` 中 `T3103` 已标记为 `[DONE]`，并补充本轮迁移范围、边界回归与验证结果；
-  - `PLAN.md` 已记录本轮完成更新，并把当前执行顺序推进到 `T3104`。
-- 已完成最终收尾：
-  1. 已检查工作树差异，仅包含本轮预期文件；
-  2. 已提交本轮任务：`dad0988 [T3103] Migrate nested block fixtures to do`；
-  3. 当前工作树已清空；
-  4. 本轮到此结束，不继续处理 `T3104`。
+- 2026-04-18：已创建本计划文件，下一步检查最新提交与 `TODO.md`。
+- 2026-04-18：已检查最新提交 `cc598de [T3103] Record final execution status`，提交内容只回写了 `memory/claude_plan.md` 的收尾状态，没有额外声明待修遗留问题。
+- 2026-04-18：已读取 `TODO.md` / `PLAN.md`，首个未完成任务是 `T3104`（规范 / 文档同步 `do` block、closure 优先级与 trailing-lambda 规则）。
+- 2026-04-18：在执行 `T3104` 前发现真实规范偏差：
+  - `SCOOP_FULL_SPEC.md` 已要求局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，并把 bare `{ ... }` 保留给 closure；
+  - 但 `crates/scoopc/src/parser/expr.rs` 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作局部 block 向后兼容接受；
+  - `crates/scoopc/src/ast/mod.rs` / `hir` / `typecheck` 目前只有 `SafeBlock` / `UnsafeBlock` 形状，尚不能表达规范里提到的 `@Safe { ... }` annotated closure；
+  - `parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 仍在使用 bare annotated block 旧写法。
+- 2026-04-18：结论：`T3104` 不能直接继续，否则会把“实现与规范尚未一致”的状态误写成纯文档收口。按阻塞规则，本轮将先在 `TODO.md` / `PLAN.md` 中新增前置任务，把 `@Safe/@Unsafe` 与 `do` / closure 的绑定规则收口到规范，再把 `T3104` 后移依赖到该前置任务，随后提交并停止。
+- 2026-04-18：已完成阻塞重排：
+  - `TODO.md` 已在 `T3104` 前新增 `T3103a`，并把 `T3104` 的依赖改为 `T3103a`；
+  - `PLAN.md` 已记录本轮阻塞原因，并把前端主线下一项改为 `T3103a`；
+  - `T3101` 的历史记录已补充说明：bare annotated-block 兼容只是阶段性实现状态，后续由 `T3103a` 收口；
+  - `PLAN.md` 的“当前执行顺序”也已同步改成 `T3103a -> T3104 -> T3201 ...`，避免文件内出现两个不同的“下一项任务”。
+- 2026-04-18：剩余收尾步骤：
+  1. 检查当前 diff 与工作树状态是否只包含本轮计划重排文件；
+  2. 以“阻塞重排 / 新增前置任务”为主题提交；
+  3. 停止，不继续执行 `T3103a` 或 `T3104`。

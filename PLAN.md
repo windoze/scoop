@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：开始执行 `T3104` 后，确认这不是单纯的文档同步问题。现行 `SCOOP_FULL_SPEC.md` 已要求局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，并把 bare `{ ... }` 保留给 closure；但 `crates/scoopc/src/parser/expr.rs` 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作 local block 向后兼容接受，`crates/scoopc/src/ast/mod.rs` / `hir` / `typecheck` 也还没有承载规范所述 `@Safe { ... }` annotated closure 的输入形状。与此同时，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 仍在使用 bare annotated block 旧写法。这是未跟踪的真实规范偏差，而不是措辞问题。按阻塞规则，现已在 `T3104` 前新增 `T3103a`，先收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则并迁移仓库调用点，再继续同步规范 / 文档。当前前端主线下一项改为 `T3103a`。
+>
 > 2026-04-18 当前轮完成更新：`T3103` 已完成。已把 7 个仅为 statement-position nested block 消歧而保留的 effect fixtures 从 `@Safe { ... }` 迁移为 plain `do { ... }`，覆盖 immediate-resume、while nested block、mixed source-path 与 multi-escape representative samples，行为保持不变。同步新增 parser / typecheck / HIR / run-pass 四层边界回归 `do_block_multiple_trailing_lambda_boundary*`，锁定 multiple trailing lambdas 后的独立 `do { ... }` 仍作为下一条 statement / block，且 `combine(do { 3 }) { ... } { ... }` 中的 `do { ... }` 继续作为普通 positional arg，不与 trailing lambda 竞争。已验证 `cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (996)`）、`cargo run -p scoop --features llvm -- test`（`fixtures: ok (996)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前前端主线下一项推进到 `T3104`。
 >
 > 2026-04-18 当前轮复审更新：`T3017R` 已完成。已复核 `tests/fixtures/run-pass` 的基线形态，确认 `rg -n "T3006: 暂时标记为 fail" tests/fixtures/run-pass` 仍无命中，`EXPECT: fail` 仅剩 6 条真实失败语义 fixture：4 条本来就应失败的诊断/负向用例（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）以及已分别转记到 `T3304` / `T3406` 的 2 条非 effect blocker（`gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`not_null_assert_basic.scoop`）。已定向审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `emit_effect_unwind_if_active`、`raise_target_stack`、callee-shape suspendable 入口等旧 shape/flag 路径没有回流，生产代码中也不存在为 fixture 维持绿色而新增的 test-only fallback。`cargo run -p scoop --features llvm -- test`（`fixtures: ok (992)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过，因此 `T30` 已可阶段性声明完成，下一项转入 `T31` 的 `T3103`。
@@ -590,7 +592,7 @@
 #### T3101：Parser / AST 引入显式 `do { ... }` block，并将裸 `{}` 固定为 closure（已完成）
 - 已在 `Keyword` 中新增 `Do`，在 `ExprKind` 中新增 `DoBlock { do_span, body }` 变体。
 - `try_parse_expr_atom` 中 `do` 关键字优先于 `{` 匹配：`do { ... }` → `DoBlock`，裸 `{ ... }` → `Lambda`。
-- `@Safe`/`@Unsafe` 后支持可选 `do`：`@Safe do { ... }` / `@Unsafe do { ... }`。`@Safe { ... }` 保持向后兼容。
+- `@Safe do { ... }` / `@Unsafe do { ... }` 已接入；实现阶段暂留的 bare annotated-block 兼容（`@Safe { ... }` / `@Unsafe { ... }`）现已确认与现行规范冲突，后续由 `T3103a` 收口并迁移仓库调用点。
 - 所有 AST 消费者（resolve、typecheck、HIR lower、comptime）已同步处理 `DoBlock`，语义与 `Block` 等价。
 - 新增 4 个 parser 单元测试 + 2 个 parse fixtures，验证 do-block vs closure 消歧。
 - 复验通过：`cargo check -p scoopc`（零 warning）、`cargo clippy --all-targets -- -D warnings`、`cargo test --all`（217 passed）、`cargo run -p scoop -- test`（965 fixtures）。
@@ -605,8 +607,12 @@
 - 真正依赖 safe-region 语义的其它测试继续保留 `@Safe` / `@Unsafe`，没有混入本任务。
 - 已新增 parser / typecheck / HIR / run-pass 四层边界回归 `do_block_multiple_trailing_lambda_boundary*`，锁定 multiple trailing lambdas 与后续 `do` block 的解析 / lowering / 运行时边界。
 
+#### T3103a：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
+- 现状：parser 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作 bare annotated block 兼容接受；AST/HIR 仍只有 `SafeBlock` / `UnsafeBlock` 形状，尚未承载规范里的 `@Safe { ... }` annotated closure；sysroot、fixtures 与说明文档中也仍有大量旧写法。
+- 目标：局部 annotated block 只保留 `@Safe do { ... }` / `@Unsafe do { ... }`；`@Unsafe { ... }` 不再作为 local block 兼容语法；`@Safe { ... }` 在 closure / trailing-lambda 语境中回到 annotated closure 语义；并同步迁移仓库调用点。
+
 #### T3104：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则
-- 更新 `SCOOP_FULL_SPEC.md`、doctest / fixture 示例，以及当前 `TODO.md` / `PLAN.md` 等相关文档叙述。
+- 在 `T3103a` 完成后，更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、doctest / fixture 示例，以及当前 `TODO.md` / `PLAN.md` 等相关文档叙述，使其与最终实现一致。
 - 若规范代码块变更，配套完成 `spec-fixtures sync/check`。
 
 ### 阶段 H：Structured Concurrency / `Task<T>`
@@ -696,14 +702,15 @@
 
 ## 4. 当前执行顺序
 
-1. `T3104`
-2. `T3201`
-3. `T3202`
-4. `T3203`
-5. `T3204`
-6. `T3205`
-7. `T3301`
-8. `T3302`
+1. `T3103a`
+2. `T3104`
+3. `T3201`
+4. `T3202`
+5. `T3203`
+6. `T3204`
+7. `T3205`
+8. `T3301`
+9. `T3302`
 9. `T3303`
 10. `T3304`
 11. `T3401`
