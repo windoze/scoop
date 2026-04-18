@@ -1,48 +1,69 @@
-# 执行计划与决策摘要
+# 执行计划与进度记录
 
-## 约束说明
+## 说明
 
-- 按用户要求，本文件在任何命令执行前创建，并持续记录计划、关键进展与调整。
-- 这里记录的是可审计的决策摘要与执行步骤，不包含逐字的内部推理草稿。
-- 本轮目标是：先处理最新提交中提到的既有问题；再完成 `TODO.md` 中第一个未完成任务；完成后测试、更新文档、提交并停止。
+本文件记录本轮任务的可审阅执行计划、关键判断依据摘要、实施进度与结果。
+不写入原始逐字思维链，但会持续更新足够详细的步骤、结论、阻塞点与变更原因。
 
-## 初始执行步骤
+## 当前目标
 
-1. 查看最新一次 Git 提交信息，确认是否提到了待修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如任务过大，拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 阅读相关代码、规格与测试，确认实现边界和依赖。
-5. 实现当前目标任务，不引入规避性 workaround。
-6. 运行相关测试；如有必要，补充或修复测试。
-7. 运行格式化、`cargo clippy --all-targets -- -D warnings` 以及必要的完整测试。
-8. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成状态或阻塞原因。
-9. 提交 Git commit，并在完成一个任务后停止。
+按 `TODO.md` 的顺序处理第一个未完成任务；如果在开始前发现最新提交提到的遗留问题，则先修复这些问题，再继续任务流。
 
-## 当前状态
+## 初始执行计划
 
-- 已查看最新提交：`[T3016e] Track nested handler arm propagation regression`。该提交本身只更新了计划文件，没有附带生产代码修复；提交中提到的共享回归属于本轮需要优先修复的既有问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认第一个未完成任务是 `T3016e`，目标是修复 nested handler arm / `try-catch` 在 inner arm/catch 中再次 perform 或 rethrow non-resuming effect 后，错误继续当前 body 的回归。
-- 已复现 3 条目标 fixture，现象一致：
-  - inner arm/catch 内第二次 `Raise.raise(...)` / `Boom.boom(...)` 后，没有命中外层最近 handler/catch；
-  - 程序继续执行 `unreachable_after_inner` / `unreachable_after_middle`，说明不是 self-capture，而是错误地把 outward propagation 当成当前 arm 正常完成。
-- 已导出 failing case 的 LLVM IR 并定位根因：
-  - dispatch loop / arm 执行 IR 本身没有把 active/inactive 分支写错；
-  - 真正问题在 plan builder：arm body 仍作为 opaque expr lowering，inner handle 的 `HandleStateMachinePlan::may_suspend_outward()` 只检查 `suspend_sites` / nested handles，未把 arm body 内再次 outward suspend 计入；
-  - 结果是外层 machine 把这类 inner handle 误判成普通 `NestedHandle`，没有生成 `NestedHandleBoundary` + `Suspend` terminator，所以在 `codegen_handle_expr_via_state_machine` 的 `handle_propagate` 分支里只是写默认值并继续当前 state。
-- 已完成实现：
-  1. 在 `state_machine_plan.rs` 为 arm body 增加了精确的 outward-suspend 判定，并让 `HandleStateMachinePlan::may_suspend_outward()` 消费它。
-  2. 新增 unified transform 结构测试 `nested_handle_with_non_resuming_arm_rethrow_materializes_outer_boundary`；同时保留并通过了既有的 self-contained immediate-resume nested handle 测试，确认没有把自洽 nested handle 误升级成 boundary。
-  3. 已将 `tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 从旧 `EXPECT: fail` 改回 `EXPECT: pass`。
-- 已验证通过：
+1. 查看最新一次 Git 提交的提交信息与差异，确认是否明确提到遗留问题、待修复项或已知缺陷。
+2. 打开 `TODO.md`，定位第一个未完成任务。
+3. 打开 `PLAN.md`，核对该任务是否已有既定方案、依赖或拆分说明。
+4. 如首个未完成任务过大或依赖缺失：
+   - 将任务拆分为更小的可执行子任务；
+   - 更新 `PLAN.md`；
+   - 调整 `TODO.md` 顺序与依赖，让新的第一个未完成子任务成为本轮目标；
+   - 若因此无法直接实施原任务，则提交这些计划性变更并停止。
+5. 如任务可直接实施：
+   - 阅读相关代码与测试；
+   - 实施改动；
+   - 补充或调整测试；
+   - 运行相关验证，再运行更全面的校验；
+   - 修复验证中发现的问题直到通过或确认存在更底层阻塞。
+6. 更新文档状态：
+   - 在 `TODO.md` 中将本轮完成的任务标记为已完成；
+   - 在 `PLAN.md` 中记录当前状态、后续影响与必要调整；
+   - 持续更新本文件。
+7. 使用清晰的 Git 提交信息提交本轮改动。
+8. 停止，不继续处理下一个任务。
+
+## 进度日志
+
+- 已创建本文件并写入初始计划。
+- 已检查最新提交、`TODO.md` 与 `PLAN.md`。
+- 最新提交 `ff6c7f96ef380b0c9316d7ccf8c7eed1797f04fe` 为 `[T3016e] Fix nested handler arm outward propagation`，提交信息本身未声明新的未修复遗留问题。
+- 已确认当前排在最前的未完成任务是 `T3016eR`，属于复审任务，可直接执行，无需进一步拆分。
+- 当前复审范围：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs`
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs`
+  - 相关定向测试与 fixtures
+- 当前执行策略：
+  1. 阅读上一提交的实际 diff 与相关代码上下文。
+  2. 审查新增 outward-suspend 判定是否只依赖统一 state-machine 合同，而非源码形状特判。
+  3. 复现并运行与 `T3016e` 直接相关的定向测试。
+  4. 若发现真实缺口，立即修复并补测；否则更新 `TODO.md` / `PLAN.md` / 本文件并提交 `T3016eR`。
+- 已完成代码复审：
+  - 审查了 `state_machine_plan.rs` 中 `HandleStateMachinePlan::may_suspend_outward()`、`arm_body_may_suspend_outward()` 与 immediate-resume arm tail 分析辅助函数。
+  - 审查了 `state_machine_segments.rs` 中 `body_may_suspend_outward` 的 round-trip 投影，确认它只是元数据保留，不构成新的生产 fallback。
+  - 审查了 `state_machine_transform.rs` 中新增结构测试，确认 outer boundary 的有无由统一状态机合同锁定。
+- 已完成验证：
   - `cargo test -p scoopc nested_handle_ -- --nocapture`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 已同步文档：
-  - `TODO.md` 已将 `T3016e` 标记为 `[DONE]`，并记录 root cause、修复方式与验证命令。
-  - `PLAN.md` 已新增当前轮完成更新，并把 effect 主线下一项推进到 `T3016eR`。
-- 下一步：
-  1. 检查最终 diff 与工作树状态。
-  2. 提交本轮变更并停止，不继续处理 `T3016eR`。
+  - `cargo run -p scoop --features llvm -- test`
+- 关键结论：
+  - 未发现新的生产缺口；`T3016e` 的修复没有回流为 fixture-only workaround，也没有把旧的 shape-based emitter 路由带回主线。
+  - immediate-resume arm 的特例仍然只是既有 dedicated tail-resume 语义的一部分，用于排除“被当前 arm 自己消费的 resume 尾部”对 outward-suspend 判定的干扰。
+  - 全量 LLVM fixture 总入口未暴露新的更早失败点；当前首个停止点仍是已在 `T3017` 中跟踪的 stale expectation `effect_escape_continuation_async_executor_fifo.scoop`（期望失败，但执行成功）。
+- 当前状态：
+  - 已更新 `TODO.md` / `PLAN.md` 将 `T3016eR` 标记为完成。
+  - 下一步：整理工作区差异并提交本轮变更，然后停止。

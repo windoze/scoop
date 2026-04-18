@@ -2301,8 +2301,14 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016dR
 
-### T3016eR [TODO] Review：确认 nested handler arm outward propagation / arm-outside-scope 合同已重新闭环
+### T3016eR [DONE] Review：确认 nested handler arm outward propagation / arm-outside-scope 合同已重新闭环
 - 描述：在 `T3016e` 之后只审查生产代码，确认 nested handler arm / `try-catch` rethrow 的修复已真正回到统一 dispatch/propagation 合同，而不是靠 fixture 特判、shape-based 分流或临时 fallback 维持通过；若发现问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs` 与 `state_machine_transform.rs`，确认 `T3016e` 的修复停留在统一 plan/segment/machine 合同内：`HandleStateMachinePlan::may_suspend_outward()` 现在把 arm body 的 outward-suspend 性质纳入统一判定，outer machine 是否物化 `NestedHandleBoundary` 仍只由 state-machine 语义决定，不存在显式 `handle` 与 `try/catch` lowering 各走一套的分流。
+  - 已确认 immediate-resume arm 的特例仅用于剥除“由当前 arm 自己消费的尾部 `resume(...)`”这一既有 dedicated lowering 语义；其判定范围与 emitter 中 `rewrite_immediate_resume_tail_expr()` 支持的 block / if / when tail 合同一致，未把旧的 callee/source shape 分类重新带回 LLVM emitter 主线。
+  - 已确认 `state_machine_segments.rs` 的 `body_may_suspend_outward` 只是 plan → segment 的元数据 round-trip，不参与新的临时 fallback；`state_machine_transform.rs` 新增的 `nested_handle_with_non_resuming_arm_rethrow_materializes_outer_boundary` 结构测试锁定了“自洽 immediate-resume nested handle 不生成 outer boundary，而 non-resuming arm rethrow 必须生成 outer boundary”的统一合同。
+  - 已复验 3 条目标 fixture 直跑、`cargo test -p scoopc nested_handle_ -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 均通过。
+  - 已额外复跑 `cargo run -p scoop --features llvm -- test`；suite 未暴露新的更早回归，当前首个停止点仍是已跟踪到 `T3017` 的 stale expectation `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop`（期望失败但执行成功）。
 - 目标：
   - 确认 inner arm/catch 内再次 perform / rethrow non-resuming effect 时，生产代码会统一沿 outward propagation 路径命中外层最近 handler/catch。
   - 确认显式 `handle` 与 `try/catch` lowering 没有各自引入单独的特判逻辑。
@@ -2310,6 +2316,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“nested handler arm outward propagation / arm-outside-scope 合同已闭环，无 fixture-only workaround 残留”。
+- 审查结论：
+  - nested handler arm outward propagation / arm-outside-scope 合同已闭环，无 fixture-only workaround 残留。
+  - outward propagation 的恢复来自统一 state-machine plan 对 arm body suspend 子树的建模，而不是 runtime handler stack 特判、fixture-only 补丁或 `handle` / `try-catch` 双轨实现。
+  - 当前 effect 主线的下一项真实工作仍是 `T3017`：回收剩余 stale `EXPECT: fail`，全量 fixture suite 的首个停止点与该任务记录一致。
 - 依赖：T3016e
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
