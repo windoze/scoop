@@ -279,6 +279,15 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// T0141: Function-level return context for early return support.
     /// When set, `return` statements branch to `return_bb` after storing the value in `return_alloca`.
     return_context: Option<ReturnContext<'ctx>>,
+    /// 统一 state-machine 运行时函数内的“向外层函数返回”上下文。
+    ///
+    /// 说明：
+    /// - `handle` 的 step/dispatch runtime function 不是用户函数本身，不能直接 branch 到外层
+    ///   函数的 `return_bb`；
+    /// - 但 runtime function 内仍可能递归生成 nested handle，其 `return` 需要继续向真实外层函数传播；
+    /// - 因此这里单独保存一个“先写回当前 handle frame，再跳到 runtime-function 本地 return block”
+    ///   的桥接上下文，只供 state-machine emitter 消费。
+    effect_function_return_context: Option<EffectFunctionReturnContext<'ctx>>,
     /// 当前函数若采用 hidden sret ABI，则这里保存返回槽指针。
     ///
     /// 目前仅 higher-order 间接调用生成的 lambda 函数会设置该字段；
@@ -311,6 +320,18 @@ struct ReturnContext<'ctx> {
     return_bb: inkwell::basic_block::BasicBlock<'ctx>,
     /// Alloca for storing the return value (None for Unit return type).
     return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
+}
+
+/// 统一 state-machine runtime function 内部的 early-return 桥接上下文。
+///
+/// 当 nested handle 在 step/dispatch function 内观察到 `STATE_TAG_FUNCTION_RETURNED` 时，
+/// 不能直接跳回真实外层函数；它必须先把返回值暂存到当前 runtime function 的本地槽位，再跳到
+/// 本地 return block，由该 block 负责把结果写回外层 handle frame 并接入现有 cleanup/done 合同。
+#[derive(Debug, Clone, Copy)]
+struct EffectFunctionReturnContext<'ctx> {
+    return_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
+    return_ty: CgTy,
 }
 
 /// 稳定 effect op-tag 分配器：为每个 effect op FQN 分配唯一 u32 tag，
@@ -474,6 +495,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
+            effect_function_return_context: None,
             current_sret_return_ptr: None,
             current_callee_suspend_plan: None,
             top_level_const_eval_stack: Vec::new(),

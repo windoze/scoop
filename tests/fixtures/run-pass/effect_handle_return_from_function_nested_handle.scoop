@@ -1,0 +1,41 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handle_return_from_function_nested_handle.stdout
+//
+// T3016: nested handle 命中的 `return` 需要穿过外层 unified state machine，
+// 直接结束 enclosing function，而不是把 inner handle 当作普通值继续执行。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun returnFromNestedHandle(): Int {
+    println("outer_enter")
+    val _: Int = handle {
+        println("outer_handle_body")
+        val inner: Int = handle {
+            println("inner_handle_body")
+            return 13
+        } with {
+            Yield.next() -> resume {
+                resume(0)
+            }
+        }
+
+        println("after_inner_handle")
+        inner
+    } with {
+        Yield.next() -> resume {
+            resume(0)
+        }
+    }
+
+    println("after_outer_handle")
+    return 0
+}
+
+fun main(): Int {
+    println(returnFromNestedHandle())
+    return 0
+}

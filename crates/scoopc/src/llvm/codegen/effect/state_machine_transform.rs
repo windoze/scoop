@@ -189,6 +189,7 @@ pub(crate) enum UnifiedFrameSystemField {
     ResumeGcRef,
     CleanupFlag,
     OneShotFlag,
+    CompletionTag,
 }
 
 #[derive(Debug, Clone)]
@@ -1811,13 +1812,14 @@ impl UnifiedStateMachineStorage {
 }
 
 impl UnifiedFrameSystemField {
-    fn ordered() -> [Self; 5] {
+    fn ordered() -> [Self; 6] {
         [
             Self::StateTag,
             Self::ResumeWord,
             Self::ResumeGcRef,
             Self::CleanupFlag,
             Self::OneShotFlag,
+            Self::CompletionTag,
         ]
     }
 
@@ -1828,6 +1830,7 @@ impl UnifiedFrameSystemField {
             Self::ResumeGcRef => "resume-gc-ref",
             Self::CleanupFlag => "cleanup-flag",
             Self::OneShotFlag => "one-shot-flag",
+            Self::CompletionTag => "completion-tag",
         }
     }
 }
@@ -2025,7 +2028,7 @@ fun demo(): Int {
             .frame
             .fields
             .iter()
-            .take(5)
+            .take(6)
             .map(|field| match field {
                 UnifiedFrameField::System(kind) => kind.label(),
                 UnifiedFrameField::Slot { .. } => "slot",
@@ -2038,7 +2041,8 @@ fun demo(): Int {
                 "resume-word",
                 "resume-gc-ref",
                 "cleanup-flag",
-                "one-shot-flag"
+                "one-shot-flag",
+                "completion-tag"
             ]
         );
 
@@ -3633,7 +3637,7 @@ fun demo(): Int {
 
         // -- Frame schema --
         let frame = contract.frame();
-        assert!(frame.fields().len() >= 5, "must have at least 5 system fields");
+        assert!(frame.fields().len() >= 6, "must have at least 6 system fields");
         assert!(!frame.slots().is_empty());
         for slot in frame.slots() {
             assert_eq!(slot.field_index(), frame.get_slot_field_index(slot.slot().id()).unwrap());

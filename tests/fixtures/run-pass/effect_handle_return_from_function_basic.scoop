@@ -1,0 +1,31 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handle_return_from_function_basic.stdout
+//
+// T3016: handle body 内的显式 `return` 必须真正向 enclosing function 传播，
+// 不能把返回值误当作普通 handle result 后继续执行 `after_handle`。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun earlyReturn(): Int {
+    println("fun_enter")
+    val _: Int = handle {
+        println("handle_body")
+        return 41
+    } with {
+        Yield.next() -> resume {
+            resume(0)
+        }
+    }
+
+    println("after_handle")
+    return 0
+}
+
+fun main(): Int {
+    println(earlyReturn())
+    return 0
+}

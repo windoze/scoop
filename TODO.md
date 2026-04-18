@@ -1923,8 +1923,14 @@
   - continuation 的 handler context 生命周期现在由 continuation-owning snapshot + `resume_common` 的安装/恢复/释放对称路径负责；跨线程 resume 观察到的是快照指针而非原始栈帧地址。
 - 依赖：T3015
 
-### T3016 [TODO] 接通 handle 内 `return` 的 function-return propagation
+### T3016 [DONE] 接通 handle 内 `return` 的 function-return propagation
 - 描述：当前 `ReturnFromFunction` terminator 会把 `STATE_TAG_FUNCTION_RETURNED` 写进 frame，但 handle 入口读取 `post_state_tag` 后仍把它直接丢掉；这意味着 handle 内显式 `return` 还没有真正向 enclosing function 传播。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现已在 `codegen_handle_expr_via_state_machine()` 的 `handle_done` 路径显式消费 `STATE_TAG_FUNCTION_RETURNED`：顶层/普通函数路径继续复用既有 `finish_function_return_path()` / `return_context`，而 step function / dispatch loop 内递归生成的 nested handle 则通过新增的 `effect_function_return_context` synthetic return bridge 把 early-return payload 上传到外层 handle frame，而不是把它误当普通 handle result。
+  - 为了让 `finally` cleanup replay 之后仍保留“这次完成其实是 function return”的语义，统一 frame 新增了持久化 `completion_tag` system field；dispatch loop 在进入 cleanup 前会捕获 `HANDLE_RETURNED` / `FUNCTION_RETURNED` terminal tag，cleanup 完成后恢复 `state_tag`，避免 `finally` 末尾的 `ReturnHandle` 覆盖原始 function-return sentinel。
+  - 新增 dedicated run-pass fixtures：`effect_handle_return_from_function_basic.scoop`、`effect_handle_return_from_function_finally.scoop`、`effect_handle_return_from_function_nested_handle.scoop`，分别锁定普通 handle、`finally`、nested handle 三类代表性 function-return propagation 语义。
+  - 已验证：3 条 dedicated fixture 单独运行通过；既有 cleanup baseline `effect_handle_yield_and_step_finally.scoop` 继续通过；`cargo test -p scoopc plan_and_segments_support_return_inside_handle_body_block_expression -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
+  - 复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在已跟踪的 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` stale `EXPECT: fail`；该 expectation cleanup 由 `T3017` 跟踪，不属于 `T3016` 新增 blocker。
 - 目标：
   - `codegen_handle_expr_via_state_machine` 在读到 `STATE_TAG_FUNCTION_RETURNED` 时，必须接通 enclosing function 的 return 传播，而不是继续走普通 handle result 读回路径。
   - `return` 与 cleanup/finally/nested handle 的交互语义要与普通 codegen 一致，不允许“finally 跑完了，但函数没真正返回”。

@@ -31,7 +31,7 @@ use super::unified_state_machine_skeleton::{
 ///   field 1: state_tag   (i32)   — current state / PC
 ///   field 2: resume_word (i64)   — scalar resume payload / handle result word
 ///   field 3: resume_gc_ref (ptr addrspace(1)) — GC ref resume payload / handle result ref
-///   field 4+: optional system fields (cleanup_flag, one_shot_flag)
+///   field 4+: optional system fields (cleanup_flag, one_shot_flag, completion_tag)
 ///   then: user slots
 ///   then: raw native pointers to authoritative outer-scope mutable storage
 ///         for metadata-driven writeback across handle exits / resumes
@@ -186,6 +186,7 @@ fn extract_immediate_resume_payload_expr(
 pub(super) struct FrameLayout<'ctx> {
     pub(super) frame_type: inkwell::types::StructType<'ctx>,
     cleanup_flag_index: Option<u32>,
+    completion_tag_index: Option<u32>,
     continuation_index: u32,
     outer_scope_storage_indices: HashMap<hir::SymbolId, u32>,
 }
@@ -209,6 +210,10 @@ impl<'ctx> FrameLayout<'ctx> {
 
     pub(super) fn cleanup_flag_index(&self) -> Option<u32> {
         self.cleanup_flag_index
+    }
+
+    pub(super) fn completion_tag_index(&self) -> Option<u32> {
+        self.completion_tag_index
     }
 
     pub(super) fn outer_scope_storage_index(&self, slot_id: hir::SymbolId) -> Option<u32> {
@@ -237,7 +242,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// `{ ScoopGcObjectHeader, UnifiedFrameSchema, suspended_continuation }`:
     /// - Object header: written by `scoop_alloc_typed`.
     /// - System fields: state_tag (i32), resume_word (i64), resume_gc_ref (ptr),
-    ///   and optionally cleanup_flag (i32), one_shot_flag (i32).
+    ///   and optionally cleanup_flag (i32), one_shot_flag (i32), completion_tag (i32).
     /// - User slots: one field per `UnifiedFrameSlot`, typed according to the
     ///   slot's `TypeId`.
     /// - Outer-scope storage pointers: one native `i8*` per seeded mutable
@@ -268,6 +273,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gc_ptr_ty.into(), // resume_gc_ref
         ];
         let mut cleanup_flag_index = None;
+        let mut completion_tag_index = None;
 
         // Optional system fields from the schema.
         for field in system_fields {
@@ -282,6 +288,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     field_types.push(i32_ty.into());
                 }
                 UnifiedFrameField::System(UnifiedFrameSystemField::OneShotFlag) => {
+                    field_types.push(i32_ty.into());
+                }
+                UnifiedFrameField::System(UnifiedFrameSystemField::CompletionTag) => {
+                    completion_tag_index = Some(field_types.len() as u32);
                     field_types.push(i32_ty.into());
                 }
                 UnifiedFrameField::Slot { .. } => {
@@ -342,6 +352,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(FrameLayout {
             frame_type,
             cleanup_flag_index,
+            completion_tag_index,
             continuation_index,
             outer_scope_storage_indices,
         })
@@ -422,10 +433,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_return_ty = self.current_fun_return_ty.take();
         let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
         let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
+        let enclosing_return_ty = self
+            .effect_function_return_context
+            .map(|ctx| ctx.return_ty)
+            .or(saved_return_ty);
 
         // --- Generate step function body ---
-        let step_result =
-            self.emit_step_function_body(span, contract, frame_layout, step_fn, dispatch_loop_fn);
+        let step_result = self.emit_step_function_body(
+            span,
+            contract,
+            frame_layout,
+            step_fn,
+            dispatch_loop_fn,
+            enclosing_return_ty,
+        );
 
         // Restore caller's codegen context.
         self.loop_context_stack = saved_loop_stack;
@@ -438,7 +459,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         step_result?;
-        self.emit_dispatch_loop_body(span, contract, frame_layout, step_fn, dispatch_loop_fn)?;
+        self.emit_dispatch_loop_body(
+            span,
+            contract,
+            frame_layout,
+            step_fn,
+            dispatch_loop_fn,
+            enclosing_return_ty,
+        )?;
 
         if let Some(saved) = saved_block {
             self.builder.position_at_end(saved);
@@ -456,127 +484,172 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
         step_fn: inkwell::values::FunctionValue<'ctx>,
         dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
+        enclosing_return_ty: Option<CgTy>,
     ) -> Result<(), LlvmEmitError> {
-        let entry_bb = self.context.append_basic_block(step_fn, "entry");
-        self.builder.position_at_end(entry_bb);
+        let saved_effect_return_ctx = self.effect_function_return_context;
+        let result = (|| -> Result<(), LlvmEmitError> {
+            let entry_bb = self.context.append_basic_block(step_fn, "entry");
+            self.builder.position_at_end(entry_bb);
 
-        // Extract parameters.
-        let state_ptr = step_fn
-            .get_nth_param(0)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "step fn state param",
-                at: span.into(),
-            })?
-            .into_pointer_value();
-        let resume_word_param = step_fn
-            .get_nth_param(1)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "step fn resume_word param",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let resume_gc_ref_param = step_fn
-            .get_nth_param(2)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "step fn resume_gc_ref param",
-                at: span.into(),
-            })?
-            .into_pointer_value();
+            // Extract parameters.
+            let state_ptr = step_fn
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step fn state param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let resume_word_param = step_fn
+                .get_nth_param(1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step fn resume_word param",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let resume_gc_ref_param = step_fn
+                .get_nth_param(2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step fn resume_gc_ref param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
 
-        // Store resume values into frame.
-        let resume_word_gep = self.builder.build_struct_gep(
-            frame_layout.frame_type,
-            state_ptr,
-            frame_layout.resume_word_index(),
-            "resume_word_ptr",
-        )?;
-        self.builder
-            .build_store(resume_word_gep, resume_word_param)?;
+            let step_function_return_ctx = if let Some(return_ty) = enclosing_return_ty {
+                let return_bb = self.context.append_basic_block(step_fn, "function_return");
+                let return_alloca = match return_ty {
+                    CgTy::Unit | CgTy::Never => None,
+                    _ => Some(self.builder.build_alloca(
+                        self.llvm_basic_type_of(span, return_ty)?,
+                        "step_function_return_val",
+                    )?),
+                };
+                Some(EffectFunctionReturnContext {
+                    return_bb,
+                    return_alloca,
+                    return_ty,
+                })
+            } else {
+                None
+            };
+            self.effect_function_return_context = step_function_return_ctx;
 
-        let resume_gc_ref_gep = self.builder.build_struct_gep(
-            frame_layout.frame_type,
-            state_ptr,
-            frame_layout.resume_gc_ref_index(),
-            "resume_gc_ref_ptr",
-        )?;
-        self.builder
-            .build_store(resume_gc_ref_gep, resume_gc_ref_param)?;
+            // Store resume values into frame.
+            let resume_word_gep = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                frame_layout.resume_word_index(),
+                "resume_word_ptr",
+            )?;
+            self.builder
+                .build_store(resume_word_gep, resume_word_param)?;
 
-        // Load state_tag for dispatch.
-        let state_tag_gep = self.builder.build_struct_gep(
-            frame_layout.frame_type,
-            state_ptr,
-            frame_layout.state_tag_index(),
-            "state_tag_ptr",
-        )?;
-        let state_tag = self
-            .builder
-            .build_load(self.context.i32_type(), state_tag_gep, "state_tag")?
-            .into_int_value();
+            let resume_gc_ref_gep = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                frame_layout.resume_gc_ref_index(),
+                "resume_gc_ref_ptr",
+            )?;
+            self.builder
+                .build_store(resume_gc_ref_gep, resume_gc_ref_param)?;
 
-        // Create basic blocks for each state.
-        let states = contract.states();
-        let unreachable_bb = self.context.append_basic_block(step_fn, "unreachable");
+            // Load state_tag for dispatch.
+            let state_tag_gep = self.builder.build_struct_gep(
+                frame_layout.frame_type,
+                state_ptr,
+                frame_layout.state_tag_index(),
+                "state_tag_ptr",
+            )?;
+            let state_tag = self
+                .builder
+                .build_load(self.context.i32_type(), state_tag_gep, "state_tag")?
+                .into_int_value();
 
-        let mut state_bb_map: HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>> = HashMap::new();
-        for state in states {
-            let label = format!("state_{}", state.id());
-            let bb = self.context.append_basic_block(step_fn, &label);
-            state_bb_map.insert(state.id(), bb);
-        }
+            // Create basic blocks for each state.
+            let states = contract.states();
+            let unreachable_bb = self.context.append_basic_block(step_fn, "unreachable");
 
-        // Build the switch dispatch.
-        let i32_ty = self.context.i32_type();
-        let cases: Vec<_> = states
-            .iter()
-            .map(|state| {
-                let tag = i32_ty.const_int(state.id() as u64, false);
-                let bb = state_bb_map[&state.id()];
-                (tag, bb)
-            })
-            .collect();
-        self.builder
-            .build_switch(state_tag, unreachable_bb, &cases)?;
-
-        // Emit unreachable block.
-        self.builder.position_at_end(unreachable_bb);
-        self.builder.build_unreachable()?;
-
-        // Emit ops and terminators for each state block.
-        for state in states {
-            let bb = state_bb_map[&state.id()];
-            self.builder.position_at_end(bb);
-
-            // Fresh env scope for this state's locals.
-            self.env.push_scope();
-
-            if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
-                self.write_cleanup_flag(state_ptr, frame_layout, true, "cleanup_entered")?;
+            let mut state_bb_map: HashMap<u32, inkwell::basic_block::BasicBlock<'ctx>> =
+                HashMap::new();
+            for state in states {
+                let label = format!("state_{}", state.id());
+                let bb = self.context.append_basic_block(step_fn, &label);
+                state_bb_map.insert(state.id(), bb);
             }
 
-            // Pre-populate frame slot locals so cross-state references work.
-            // Each state gets its own GEP instructions (required for LLVM
-            // SSA dominance: GEPs from sibling state BBs are not usable).
-            self.populate_frame_slots_in_env(span, state_ptr, frame_layout, contract)?;
+            // Build the switch dispatch.
+            let i32_ty = self.context.i32_type();
+            let cases: Vec<_> = states
+                .iter()
+                .map(|state| {
+                    let tag = i32_ty.const_int(state.id() as u64, false);
+                    let bb = state_bb_map[&state.id()];
+                    (tag, bb)
+                })
+                .collect();
+            self.builder
+                .build_switch(state_tag, unreachable_bb, &cases)?;
 
-            let last_value = self.emit_state_ops(span, state, state_ptr, frame_layout, contract)?;
+            // Emit unreachable block.
+            self.builder.position_at_end(unreachable_bb);
+            self.builder.build_unreachable()?;
 
-            self.emit_state_terminator(
-                span,
-                state.terminator(),
-                last_value,
-                state_ptr,
-                frame_layout,
-                contract,
-                &state_bb_map,
-                step_fn,
-                dispatch_loop_fn,
-            )?;
+            // Emit ops and terminators for each state block.
+            for state in states {
+                let bb = state_bb_map[&state.id()];
+                self.builder.position_at_end(bb);
 
-            self.env.pop_scope();
-        }
+                // Fresh env scope for this state's locals.
+                self.env.push_scope();
 
-        Ok(())
+                if matches!(state.context(), UnifiedStateContext::Cleanup { .. }) {
+                    self.write_cleanup_flag(state_ptr, frame_layout, true, "cleanup_entered")?;
+                }
+
+                // Pre-populate frame slot locals so cross-state references work.
+                // Each state gets its own GEP instructions (required for LLVM
+                // SSA dominance: GEPs from sibling state BBs are not usable).
+                self.populate_frame_slots_in_env(span, state_ptr, frame_layout, contract)?;
+
+                let last_value =
+                    self.emit_state_ops(span, state, state_ptr, frame_layout, contract)?;
+
+                self.emit_state_terminator(
+                    span,
+                    state.terminator(),
+                    last_value,
+                    state_ptr,
+                    frame_layout,
+                    contract,
+                    &state_bb_map,
+                    step_fn,
+                    dispatch_loop_fn,
+                )?;
+
+                self.env.pop_scope();
+            }
+
+            if let Some(effect_ctx) = step_function_return_ctx {
+                self.builder.position_at_end(effect_ctx.return_bb);
+                let return_value = self.load_effect_function_return_value(
+                    span,
+                    effect_ctx,
+                    "step_function_return",
+                )?;
+                self.store_result_to_frame(span, return_value, state_ptr, frame_layout)?;
+                self.write_state_tag(
+                    state_ptr,
+                    frame_layout,
+                    STATE_TAG_FUNCTION_RETURNED,
+                    "state_tag_step_function_return",
+                )?;
+                self.write_back_outer_scope_frame_slots(span, state_ptr, frame_layout, contract)?;
+                self.builder.build_return(None)?;
+            }
+
+            Ok(())
+        })();
+        self.effect_function_return_context = saved_effect_return_ctx;
+        result
     }
 
     /// Emit the reusable handler dispatch loop around `step_fn`.
@@ -592,304 +665,374 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         frame_layout: &FrameLayout<'ctx>,
         step_fn: inkwell::values::FunctionValue<'ctx>,
         dispatch_loop_fn: inkwell::values::FunctionValue<'ctx>,
+        enclosing_return_ty: Option<CgTy>,
     ) -> Result<(), LlvmEmitError> {
-        let entry_bb = self.context.append_basic_block(dispatch_loop_fn, "entry");
-        self.builder.position_at_end(entry_bb);
+        let saved_effect_return_ctx = self.effect_function_return_context;
+        let result = (|| -> Result<(), LlvmEmitError> {
+            let entry_bb = self.context.append_basic_block(dispatch_loop_fn, "entry");
+            self.builder.position_at_end(entry_bb);
 
-        let frame_ptr = dispatch_loop_fn
-            .get_nth_param(0)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "dispatch loop state param",
-                at: span.into(),
-            })?
-            .into_pointer_value();
-        let resume_word_param = dispatch_loop_fn
-            .get_nth_param(1)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "dispatch loop resume_word param",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let resume_gc_ref_param = dispatch_loop_fn
-            .get_nth_param(2)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "dispatch loop resume_gc_ref param",
-                at: span.into(),
-            })?
-            .into_pointer_value();
+            let frame_ptr = dispatch_loop_fn
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch loop state param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let resume_word_param = dispatch_loop_fn
+                .get_nth_param(1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch loop resume_word param",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let resume_gc_ref_param = dispatch_loop_fn
+                .get_nth_param(2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch loop resume_gc_ref param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
 
-        let i64_zero = self.context.i64_type().const_int(0, false);
-        let gc_null = self.llvm_gc_i8_ptr_type().const_null();
+            let dispatch_function_return_ctx = if let Some(return_ty) = enclosing_return_ty {
+                let return_bb = self
+                    .context
+                    .append_basic_block(dispatch_loop_fn, "function_return");
+                let return_alloca = match return_ty {
+                    CgTy::Unit | CgTy::Never => None,
+                    _ => Some(self.builder.build_alloca(
+                        self.llvm_basic_type_of(span, return_ty)?,
+                        "dispatch_function_return_val",
+                    )?),
+                };
+                Some(EffectFunctionReturnContext {
+                    return_bb,
+                    return_alloca,
+                    return_ty,
+                })
+            } else {
+                None
+            };
+            self.effect_function_return_context = dispatch_function_return_ctx;
 
-        self.builder.build_call(
-            step_fn,
-            &[
-                frame_ptr.into(),
-                resume_word_param.into(),
-                resume_gc_ref_param.into(),
-            ],
-            "",
-        )?;
+            let i64_zero = self.context.i64_type().const_int(0, false);
+            let gc_null = self.llvm_gc_i8_ptr_type().const_null();
 
-        let dispatch_check_bb = self
-            .context
-            .append_basic_block(dispatch_loop_fn, "dispatch_check");
-        let dispatch_arm_bb = self
-            .context
-            .append_basic_block(dispatch_loop_fn, "dispatch_arm");
-        let cleanup_entry_state = contract
-            .cleanup_scopes()
-            .first()
-            .map(|scope| scope.entry_state());
-        let handle_cleanup_propagate_check_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_check")
-        });
-        let handle_cleanup_propagate_run_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_run")
-        });
-        let handle_cleanup_done_check_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_check")
-        });
-        let handle_cleanup_done_run_bb = cleanup_entry_state.map(|_| {
-            self.context
-                .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_run")
-        });
-        let handle_propagate_bb = self
-            .context
-            .append_basic_block(dispatch_loop_fn, "handle_propagate");
-        let handle_done_bb = self
-            .context
-            .append_basic_block(dispatch_loop_fn, "handle_done");
-        let outward_target_bb = handle_cleanup_propagate_check_bb.unwrap_or(handle_propagate_bb);
-        let arm_done_target_bb = handle_cleanup_done_check_bb.unwrap_or(handle_done_bb);
+            self.builder.build_call(
+                step_fn,
+                &[
+                    frame_ptr.into(),
+                    resume_word_param.into(),
+                    resume_gc_ref_param.into(),
+                ],
+                "",
+            )?;
 
-        self.builder.build_unconditional_branch(dispatch_check_bb)?;
-
-        self.builder.position_at_end(dispatch_check_bb);
-        let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
-        self.builder
-            .build_conditional_branch(is_active, dispatch_arm_bb, handle_done_bb)?;
-
-        self.builder.position_at_end(dispatch_arm_bb);
-        let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
-        let op_tag_raw = self
-            .builder
-            .build_call(read_op_tag_fn, &[], "performed_op_tag")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_op_tag return",
-                at: span.into(),
-            })?
-            .into_int_value();
-        let read_effect_instance_key_fn =
-            self.declare_runtime_effect_perform_slot_read_effect_instance_key();
-        let effect_instance_key_raw = self
-            .builder
-            .build_call(
-                read_effect_instance_key_fn,
-                &[],
-                "performed_effect_instance_key",
-            )?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_effect_instance_key return",
-                at: span.into(),
-            })?
-            .into_int_value();
-
-        if contract.dispatch_entries().is_empty() {
-            self.builder.build_unconditional_branch(outward_target_bb)?;
-        } else {
-            let unmatched_bb = self
+            let dispatch_check_bb = self
                 .context
-                .append_basic_block(dispatch_loop_fn, "dispatch_unmatched");
-            let arm_by_id = contract
-                .arms()
-                .iter()
-                .map(|arm| (arm.arm_id(), arm))
-                .collect::<HashMap<_, _>>();
+                .append_basic_block(dispatch_loop_fn, "dispatch_check");
+            let dispatch_arm_bb = self
+                .context
+                .append_basic_block(dispatch_loop_fn, "dispatch_arm");
+            let cleanup_entry_state = contract
+                .cleanup_scopes()
+                .first()
+                .map(|scope| scope.entry_state());
+            let handle_cleanup_propagate_check_bb = cleanup_entry_state.map(|_| {
+                self.context
+                    .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_check")
+            });
+            let handle_cleanup_propagate_run_bb = cleanup_entry_state.map(|_| {
+                self.context
+                    .append_basic_block(dispatch_loop_fn, "handle_cleanup_propagate_run")
+            });
+            let handle_cleanup_done_check_bb = cleanup_entry_state.map(|_| {
+                self.context
+                    .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_check")
+            });
+            let handle_cleanup_done_run_bb = cleanup_entry_state.map(|_| {
+                self.context
+                    .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_run")
+            });
+            let handle_cleanup_done_complete_bb = cleanup_entry_state.map(|_| {
+                self.context
+                    .append_basic_block(dispatch_loop_fn, "handle_cleanup_done_complete")
+            });
+            let handle_propagate_bb = self
+                .context
+                .append_basic_block(dispatch_loop_fn, "handle_propagate");
+            let handle_done_bb = self
+                .context
+                .append_basic_block(dispatch_loop_fn, "handle_done");
+            let outward_target_bb =
+                handle_cleanup_propagate_check_bb.unwrap_or(handle_propagate_bb);
+            let arm_done_target_bb = handle_cleanup_done_check_bb.unwrap_or(handle_done_bb);
 
-            let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
-                Vec::new();
+            self.builder.build_unconditional_branch(dispatch_check_bb)?;
 
-            for dispatch_entry in contract.dispatch_entries() {
-                let op_fqn = dispatch_entry.op_fqn();
-                let tag = self.effect_op_tag(op_fqn);
-                let tag_val = self.context.i32_type().const_int(tag as u64, false);
-                let dispatch_arms = dispatch_entry.arms();
-                if dispatch_arms.is_empty() {
-                    continue;
-                }
-
-                let check_blocks = dispatch_arms
-                    .iter()
-                    .map(|dispatch_arm| {
-                        self.context.append_basic_block(
-                            dispatch_loop_fn,
-                            &format!("dispatch_arm_{}_check", dispatch_arm.arm_id()),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                cases.push((tag_val, check_blocks[0]));
-
-                for (index, dispatch_arm) in dispatch_arms.iter().enumerate() {
-                    let unified_arm = arm_by_id.get(&dispatch_arm.arm_id()).copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "dispatch arm metadata not found",
-                            at: span.into(),
-                        },
-                    )?;
-                    let next_bb = check_blocks.get(index + 1).copied().unwrap_or(unmatched_bb);
-                    let matching_keys = self.matching_effect_instance_keys_for_handled_effect(
-                        unified_arm.effect_ty(),
-                        op_fqn,
-                    );
-                    let arm_bb = self.emit_dispatch_arm_execution(
-                        dispatch_loop_fn,
-                        frame_ptr,
-                        frame_layout,
-                        step_fn,
-                        i64_zero,
-                        gc_null,
-                        unified_arm,
-                        outward_target_bb,
-                        arm_done_target_bb,
-                        dispatch_check_bb,
-                        span,
-                    )?;
-
-                    self.builder.position_at_end(check_blocks[index]);
-                    if matching_keys.is_empty() {
-                        self.builder.build_unconditional_branch(next_bb)?;
-                    } else {
-                        let arm_matches = self.int_matches_any_u32(
-                            effect_instance_key_raw,
-                            &matching_keys,
-                            &format!("arm_{}_effect_instance_match", dispatch_arm.arm_id()),
-                        )?;
-                        self.builder
-                            .build_conditional_branch(arm_matches, arm_bb, next_bb)?;
-                    }
-                }
-            }
+            self.builder.position_at_end(dispatch_check_bb);
+            let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_is_active")?;
+            self.builder.build_conditional_branch(
+                is_active,
+                dispatch_arm_bb,
+                arm_done_target_bb,
+            )?;
 
             self.builder.position_at_end(dispatch_arm_bb);
-            if dispatch_arm_bb.get_terminator().is_none() {
-                if cases.is_empty() {
-                    self.builder.build_unconditional_branch(unmatched_bb)?;
-                } else {
-                    self.builder
-                        .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+            let read_op_tag_fn = self.declare_runtime_effect_perform_slot_read_op_tag();
+            let op_tag_raw = self
+                .builder
+                .build_call(read_op_tag_fn, &[], "performed_op_tag")?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform_slot_read_op_tag return",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let read_effect_instance_key_fn =
+                self.declare_runtime_effect_perform_slot_read_effect_instance_key();
+            let effect_instance_key_raw = self
+                .builder
+                .build_call(
+                    read_effect_instance_key_fn,
+                    &[],
+                    "performed_effect_instance_key",
+                )?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform_slot_read_effect_instance_key return",
+                    at: span.into(),
+                })?
+                .into_int_value();
+
+            if contract.dispatch_entries().is_empty() {
+                self.builder.build_unconditional_branch(outward_target_bb)?;
+            } else {
+                let unmatched_bb = self
+                    .context
+                    .append_basic_block(dispatch_loop_fn, "dispatch_unmatched");
+                let arm_by_id = contract
+                    .arms()
+                    .iter()
+                    .map(|arm| (arm.arm_id(), arm))
+                    .collect::<HashMap<_, _>>();
+
+                let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+                    Vec::new();
+
+                for dispatch_entry in contract.dispatch_entries() {
+                    let op_fqn = dispatch_entry.op_fqn();
+                    let tag = self.effect_op_tag(op_fqn);
+                    let tag_val = self.context.i32_type().const_int(tag as u64, false);
+                    let dispatch_arms = dispatch_entry.arms();
+                    if dispatch_arms.is_empty() {
+                        continue;
+                    }
+
+                    let check_blocks = dispatch_arms
+                        .iter()
+                        .map(|dispatch_arm| {
+                            self.context.append_basic_block(
+                                dispatch_loop_fn,
+                                &format!("dispatch_arm_{}_check", dispatch_arm.arm_id()),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    cases.push((tag_val, check_blocks[0]));
+
+                    for (index, dispatch_arm) in dispatch_arms.iter().enumerate() {
+                        let unified_arm = arm_by_id.get(&dispatch_arm.arm_id()).copied().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "dispatch arm metadata not found",
+                                at: span.into(),
+                            },
+                        )?;
+                        let next_bb = check_blocks.get(index + 1).copied().unwrap_or(unmatched_bb);
+                        let matching_keys = self.matching_effect_instance_keys_for_handled_effect(
+                            unified_arm.effect_ty(),
+                            op_fqn,
+                        );
+                        let arm_bb = self.emit_dispatch_arm_execution(
+                            dispatch_loop_fn,
+                            frame_ptr,
+                            frame_layout,
+                            step_fn,
+                            i64_zero,
+                            gc_null,
+                            unified_arm,
+                            outward_target_bb,
+                            arm_done_target_bb,
+                            dispatch_check_bb,
+                            span,
+                        )?;
+
+                        self.builder.position_at_end(check_blocks[index]);
+                        if matching_keys.is_empty() {
+                            self.builder.build_unconditional_branch(next_bb)?;
+                        } else {
+                            let arm_matches = self.int_matches_any_u32(
+                                effect_instance_key_raw,
+                                &matching_keys,
+                                &format!("arm_{}_effect_instance_match", dispatch_arm.arm_id()),
+                            )?;
+                            self.builder
+                                .build_conditional_branch(arm_matches, arm_bb, next_bb)?;
+                        }
+                    }
                 }
+
+                self.builder.position_at_end(dispatch_arm_bb);
+                if dispatch_arm_bb.get_terminator().is_none() {
+                    if cases.is_empty() {
+                        self.builder.build_unconditional_branch(unmatched_bb)?;
+                    } else {
+                        self.builder
+                            .build_switch(op_tag_raw, unmatched_bb, &cases)?;
+                    }
+                }
+
+                self.builder.position_at_end(unmatched_bb);
+                self.builder.build_unconditional_branch(outward_target_bb)?;
             }
 
-            self.builder.position_at_end(unmatched_bb);
-            self.builder.build_unconditional_branch(outward_target_bb)?;
-        }
-
-        if let (
-            Some(cleanup_entry_state),
-            Some(cleanup_propagate_check_bb),
-            Some(cleanup_propagate_run_bb),
-            Some(cleanup_done_check_bb),
-            Some(cleanup_done_run_bb),
-        ) = (
-            cleanup_entry_state,
-            handle_cleanup_propagate_check_bb,
-            handle_cleanup_propagate_run_bb,
-            handle_cleanup_done_check_bb,
-            handle_cleanup_done_run_bb,
-        ) {
-            self.builder.position_at_end(cleanup_propagate_check_bb);
-            let cleanup_already_ran = self.read_cleanup_flag_i1(
-                frame_ptr,
-                frame_layout,
-                "cleanup_propagate_already_ran",
-            )?;
-            self.builder.build_conditional_branch(
-                cleanup_already_ran,
-                handle_propagate_bb,
-                cleanup_propagate_run_bb,
-            )?;
-
-            self.builder.position_at_end(cleanup_propagate_run_bb);
-            self.write_state_tag(
-                frame_ptr,
-                frame_layout,
+            if let (
+                Some(cleanup_entry_state),
+                Some(cleanup_propagate_check_bb),
+                Some(cleanup_propagate_run_bb),
+                Some(cleanup_done_check_bb),
+                Some(cleanup_done_run_bb),
+                Some(cleanup_done_complete_bb),
+            ) = (
                 cleanup_entry_state,
-                "set_cleanup_propagate_state",
-            )?;
-            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
-                frame_ptr,
-                frame_layout,
-                "cleanup_propagate_resume_word",
-                "cleanup_propagate_resume_gc_ref",
-            )?;
-            self.builder.build_call(
-                step_fn,
-                &[
-                    frame_ptr.into(),
-                    cleanup_resume_word.into(),
-                    cleanup_resume_gc_ref.into(),
-                ],
-                "",
-            )?;
-            self.builder
-                .build_unconditional_branch(handle_propagate_bb)?;
+                handle_cleanup_propagate_check_bb,
+                handle_cleanup_propagate_run_bb,
+                handle_cleanup_done_check_bb,
+                handle_cleanup_done_run_bb,
+                handle_cleanup_done_complete_bb,
+            ) {
+                self.builder.position_at_end(cleanup_propagate_check_bb);
+                let cleanup_already_ran = self.read_cleanup_flag_i1(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_propagate_already_ran",
+                )?;
+                self.builder.build_conditional_branch(
+                    cleanup_already_ran,
+                    handle_propagate_bb,
+                    cleanup_propagate_run_bb,
+                )?;
 
-            self.builder.position_at_end(cleanup_done_check_bb);
-            let cleanup_already_ran =
-                self.read_cleanup_flag_i1(frame_ptr, frame_layout, "cleanup_done_already_ran")?;
-            self.builder.build_conditional_branch(
-                cleanup_already_ran,
-                handle_done_bb,
-                cleanup_done_run_bb,
-            )?;
+                self.builder.position_at_end(cleanup_propagate_run_bb);
+                self.write_state_tag(
+                    frame_ptr,
+                    frame_layout,
+                    cleanup_entry_state,
+                    "set_cleanup_propagate_state",
+                )?;
+                let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_propagate_resume_word",
+                    "cleanup_propagate_resume_gc_ref",
+                )?;
+                self.builder.build_call(
+                    step_fn,
+                    &[
+                        frame_ptr.into(),
+                        cleanup_resume_word.into(),
+                        cleanup_resume_gc_ref.into(),
+                    ],
+                    "",
+                )?;
+                self.builder
+                    .build_unconditional_branch(handle_propagate_bb)?;
 
-            self.builder.position_at_end(cleanup_done_run_bb);
-            self.write_state_tag(
-                frame_ptr,
-                frame_layout,
-                cleanup_entry_state,
-                "set_cleanup_done_state",
-            )?;
-            let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
-                frame_ptr,
-                frame_layout,
-                "cleanup_done_resume_word",
-                "cleanup_done_resume_gc_ref",
-            )?;
-            self.builder.build_call(
-                step_fn,
-                &[
-                    frame_ptr.into(),
-                    cleanup_resume_word.into(),
-                    cleanup_resume_gc_ref.into(),
-                ],
-                "",
-            )?;
-            let cleanup_active = self.emit_effect_is_active_i1(span, "cleanup_done_is_active")?;
-            self.builder.build_conditional_branch(
-                cleanup_active,
-                handle_propagate_bb,
-                handle_done_bb,
-            )?;
-        }
+                self.builder.position_at_end(cleanup_done_check_bb);
+                let cleanup_already_ran =
+                    self.read_cleanup_flag_i1(frame_ptr, frame_layout, "cleanup_done_already_ran")?;
+                self.builder.build_conditional_branch(
+                    cleanup_already_ran,
+                    cleanup_done_complete_bb,
+                    cleanup_done_run_bb,
+                )?;
 
-        self.builder.position_at_end(handle_propagate_bb);
-        self.builder.build_return(None)?;
+                self.builder.position_at_end(cleanup_done_run_bb);
+                self.capture_terminal_state_tag_for_cleanup(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_done_pre_state_tag",
+                    "cleanup_done_completion_tag",
+                )?;
+                self.write_state_tag(
+                    frame_ptr,
+                    frame_layout,
+                    cleanup_entry_state,
+                    "set_cleanup_done_state",
+                )?;
+                let (cleanup_resume_word, cleanup_resume_gc_ref) = self.read_frame_resume_payload(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_done_resume_word",
+                    "cleanup_done_resume_gc_ref",
+                )?;
+                self.builder.build_call(
+                    step_fn,
+                    &[
+                        frame_ptr.into(),
+                        cleanup_resume_word.into(),
+                        cleanup_resume_gc_ref.into(),
+                    ],
+                    "",
+                )?;
+                let cleanup_active =
+                    self.emit_effect_is_active_i1(span, "cleanup_done_is_active")?;
+                self.builder.build_conditional_branch(
+                    cleanup_active,
+                    handle_propagate_bb,
+                    cleanup_done_check_bb,
+                )?;
 
-        self.builder.position_at_end(handle_done_bb);
-        let clear_fn = self.declare_runtime_effect_clear();
-        self.builder.build_call(clear_fn, &[], "")?;
-        self.builder.build_return(None)?;
+                self.builder.position_at_end(cleanup_done_complete_bb);
+                self.restore_terminal_state_tag_after_cleanup(
+                    frame_ptr,
+                    frame_layout,
+                    "cleanup_done_restore_terminal_state",
+                )?;
+                self.builder.build_unconditional_branch(handle_done_bb)?;
+            }
 
-        Ok(())
+            self.builder.position_at_end(handle_propagate_bb);
+            self.builder.build_return(None)?;
+
+            self.builder.position_at_end(handle_done_bb);
+            let clear_fn = self.declare_runtime_effect_clear();
+            self.builder.build_call(clear_fn, &[], "")?;
+            self.builder.build_return(None)?;
+
+            if let Some(effect_ctx) = dispatch_function_return_ctx {
+                self.builder.position_at_end(effect_ctx.return_bb);
+                let return_value = self.load_effect_function_return_value(
+                    span,
+                    effect_ctx,
+                    "dispatch_function_return",
+                )?;
+                self.store_result_to_frame(span, return_value, frame_ptr, frame_layout)?;
+                self.write_state_tag(
+                    frame_ptr,
+                    frame_layout,
+                    STATE_TAG_FUNCTION_RETURNED,
+                    "state_tag_dispatch_function_return",
+                )?;
+                self.builder
+                    .build_unconditional_branch(arm_done_target_bb)?;
+            }
+
+            Ok(())
+        })();
+        self.effect_function_return_context = saved_effect_return_ctx;
+        result
     }
 
     /// Pre-populate the env with GEP pointers for all frame user slots.
@@ -2117,6 +2260,136 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?)
     }
 
+    fn write_completion_tag(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        value: IntValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(completion_tag_index) = frame_layout.completion_tag_index() else {
+            return Ok(());
+        };
+        let gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            completion_tag_index,
+            &format!("{name}_ptr"),
+        )?;
+        self.builder.build_store(gep, value)?;
+        Ok(())
+    }
+
+    fn read_completion_tag(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let Some(completion_tag_index) = frame_layout.completion_tag_index() else {
+            return Ok(self.context.i32_type().const_zero());
+        };
+        let gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            completion_tag_index,
+            &format!("{name}_ptr"),
+        )?;
+        Ok(self
+            .builder
+            .build_load(self.context.i32_type(), gep, name)?
+            .into_int_value())
+    }
+
+    fn capture_terminal_state_tag_for_cleanup(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        state_tag_name: &str,
+        completion_name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(_completion_tag_index) = frame_layout.completion_tag_index() else {
+            return Ok(());
+        };
+        let state_tag = self.read_state_tag(state_ptr, frame_layout, state_tag_name)?;
+        let handle_returned = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            state_tag,
+            self.context
+                .i32_type()
+                .const_int(STATE_TAG_HANDLE_RETURNED as u64, false),
+            &format!("{completion_name}_handle_returned"),
+        )?;
+        let function_returned = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            state_tag,
+            self.context
+                .i32_type()
+                .const_int(STATE_TAG_FUNCTION_RETURNED as u64, false),
+            &format!("{completion_name}_function_returned"),
+        )?;
+        let is_terminal = self.builder.build_or(
+            handle_returned,
+            function_returned,
+            &format!("{completion_name}_is_terminal"),
+        )?;
+        let stored_tag = self
+            .builder
+            .build_select(
+                is_terminal,
+                state_tag,
+                self.context.i32_type().const_zero(),
+                &format!("{completion_name}_value"),
+            )?
+            .into_int_value();
+        self.write_completion_tag(state_ptr, frame_layout, stored_tag, completion_name)
+    }
+
+    fn restore_terminal_state_tag_after_cleanup(
+        &mut self,
+        state_ptr: PointerValue<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(_completion_tag_index) = frame_layout.completion_tag_index() else {
+            return Ok(());
+        };
+        let completion_tag =
+            self.read_completion_tag(state_ptr, frame_layout, &format!("{name}_completion"))?;
+        let current_state_tag =
+            self.read_state_tag(state_ptr, frame_layout, &format!("{name}_current_state"))?;
+        let has_completion = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            completion_tag,
+            self.context.i32_type().const_zero(),
+            &format!("{name}_has_completion"),
+        )?;
+        let restored_state_tag = self
+            .builder
+            .build_select(
+                has_completion,
+                completion_tag,
+                current_state_tag,
+                &format!("{name}_restored_state_tag"),
+            )?
+            .into_int_value();
+        let state_tag_gep = self.builder.build_struct_gep(
+            frame_layout.frame_type,
+            state_ptr,
+            frame_layout.state_tag_index(),
+            &format!("{name}_state_tag_ptr"),
+        )?;
+        self.builder
+            .build_store(state_tag_gep, restored_state_tag)?;
+        self.write_completion_tag(
+            state_ptr,
+            frame_layout,
+            self.context.i32_type().const_zero(),
+            &format!("{name}_clear_completion"),
+        )?;
+        Ok(())
+    }
+
     /// Read the TLS effect active flag and coerce it to an LLVM `i1`.
     fn emit_effect_is_active_i1(
         &mut self,
@@ -2224,6 +2497,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "read_result_gc_ref",
         )?;
         self.decode_effect_transport_value(span, word, gc_ref, result_cg_ty)
+    }
+
+    fn enclosing_function_return_ty(&self) -> Option<CgTy> {
+        self.effect_function_return_context
+            .map(|ctx| ctx.return_ty)
+            .or(self.current_fun_return_ty)
+    }
+
+    fn finish_enclosing_function_return_path(
+        &mut self,
+        at: crate::span::Span,
+        declared_return_cg: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        if self
+            .builder
+            .get_insert_block()
+            .is_some_and(|bb| bb.get_terminator().is_some())
+        {
+            return Ok(());
+        }
+
+        if let Some(effect_ctx) = self.effect_function_return_context {
+            if let Some(alloca) = effect_ctx.return_alloca
+                && let Some(raw) = value.value
+            {
+                self.builder.build_store(alloca, raw)?;
+            }
+            self.builder
+                .build_unconditional_branch(effect_ctx.return_bb)?;
+            return Ok(());
+        }
+
+        self.finish_function_return_path(at, declared_return_cg, value)
+    }
+
+    fn load_effect_function_return_value(
+        &mut self,
+        at: crate::span::Span,
+        effect_ctx: EffectFunctionReturnContext<'ctx>,
+        load_name: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match effect_ctx.return_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                let return_alloca =
+                    effect_ctx
+                        .return_alloca
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "effect function return slot",
+                            at: at.into(),
+                        })?;
+                let llvm_ty = self.llvm_basic_type_of(at, effect_ctx.return_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, return_alloca, load_name)?;
+                self.cg_value_from_loaded(at, effect_ctx.return_ty, loaded)
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -2373,6 +2704,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .context
             .append_basic_block(current_fn, "handle_propagate");
         let handle_done_bb = self.context.append_basic_block(current_fn, "handle_done");
+        let handle_function_return_bb = self
+            .context
+            .append_basic_block(current_fn, "handle_function_return");
+        let handle_complete_bb = self
+            .context
+            .append_basic_block(current_fn, "handle_complete");
         let handle_exit_bb = self.context.append_basic_block(current_fn, "handle_exit");
         let is_active = self.emit_effect_is_active_i1(span, "handle_dispatch_result_is_active")?;
         self.builder
@@ -2408,9 +2745,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.write_back_outer_scope_frame_slots(span, frame_ptr, &frame_layout, &contract)?;
 
-        // TODO: if state_tag == FUNCTION_RETURNED, propagate early return to
-        // the enclosing function instead of treating it as normal completion.
-        let _ = self.read_state_tag(frame_ptr, &frame_layout, "post_state_tag")?;
+        let post_state_tag = self.read_state_tag(frame_ptr, &frame_layout, "post_state_tag")?;
+        let function_returned = self.builder.build_int_compare(
+            inkwell::IntPredicate::EQ,
+            post_state_tag,
+            self.context
+                .i32_type()
+                .const_int(STATE_TAG_FUNCTION_RETURNED as u64, false),
+            "post_state_tag_function_returned",
+        )?;
+        self.builder.build_conditional_branch(
+            function_returned,
+            handle_function_return_bb,
+            handle_complete_bb,
+        )?;
+
+        self.builder.position_at_end(handle_function_return_bb);
+        let declared_return_cg =
+            self.enclosing_function_return_ty()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle function return type",
+                    at: span.into(),
+                })?;
+        let return_value =
+            self.read_result_from_frame(span, declared_return_cg, frame_ptr, &frame_layout)?;
+        self.finish_enclosing_function_return_path(span, declared_return_cg, return_value)?;
+
+        self.builder.position_at_end(handle_complete_bb);
 
         if let Some(result_slot) = result_slot {
             let result =
