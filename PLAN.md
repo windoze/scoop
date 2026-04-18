@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：开始执行原 `T3016c` 后，先确认 `effect_escape_continuation_finally_normal.scoop` 的 plain outer-body `k1.resume(42)` 并不是单纯的 production lowering 缺口，而是更前置的 typecheck/spec mismatch。`crates/scoopc/src/typecheck/expr/stmt.rs` 的 `check_expr_stmt()` 当前不会对 statement-position `Continuation.resume(...)` 运行 builtin 规则，因此这类 call site 既不会写入 `continuation_resume_call_sites`，也不会记录 `Continuation<T, eff E>` 所要求的 `E + Raise<RuntimeError>` required effects；这与现有 typecheck fixtures `continuation_resume_requires_raise_runtime_error_missing_is_error.scoop` / `continuation_type_and_resume_pure_ok.scoop`，以及 run-pass fixture `effect_escape_continuation_perform_not_first_statement.scoop` 注释中“需要 try/catch 维持 `main` 的 Pure 约束”的既有合同不一致。与此同时，`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 仍独立暴露真实 codegen blocker `effect frame seed outer-scope local`。因此原 `T3016c` 实际混合了一个 typecheck 前置缺口和一个生产 lowering 缺口，现已把顺序改为 `T3016c0` → `T3016c0R`（先收口 statement-position `Continuation.resume(...)` 的 side-table / required-effects 合同，并重新分类 `effect_escape_continuation_finally_normal.scoop`），再进入收窄后的 `T3016c` → `T3016cR`（继续处理 spec-correct outer-body lowering 与 nested-handle frame seeding）。当前 effect 主线首个待执行任务改为 `T3016c0`。
+>
 > 2026-04-18 当前轮复审更新：`T3016bR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs` 后确认，mixed direct+indirect resumed-body replay 的修复仍完全停留在统一 state-machine 合同内：`attach_escape_resume_targets()` 只对“以 `ResumeAfterSite` 开头、且再次 suspend 的 resumed-body state”派生 synthetic replay state，不按 block/if/while 容器形状分流；`escape_resume_target` 只作为 suspend-site 元数据沿 plan → segments → unified machine 贯通；emitter 侧也只是在 `EscapeContinuation` arm 绑定 continuation 时按 continuation 自带的 `resume_state_tag` 重写到 replay state，并在 replay `SuspendCall` 前把当前 frame 的 resume payload 注回 captured callee suspend state，不存在 fixture-only 或 direct-vs-indirect 形状硬编码。已复验 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`、4 条 mixed replay fixture、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016c`。
 >
 > 2026-04-18 当前轮完成更新：`T3016b` 已完成。为收口 block/if/while mixed direct+indirect resumed-body tail replay，`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现在会在 `materialize_resume_fragments()` 之后为“以 `ResumeAfterSite` 开头、且再次 suspend 的 resumed-body state”生成 synthetic `escape_resume_target`，该 replay state 复用当前 resumed segment 的后缀，但剔除头部旧 site 的 `ResumeAfterSite`，从而 replay direct 之后、indirect 之前的 prefix 时不会误消费新的 resume payload。为让这条 replay state 真正恢复 ordinary indirect callee，suspend-site 元数据已贯穿 plan → segments → unified machine 合同，并在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 `EscapeContinuation` arm 绑定 continuation 时按当前 `resume_state_tag` 重写到 `escape_resume_target`；同时 `SuspendCall` 在检测到 captured callee suspend state 时会先把当前 resume payload 注入该 callee state，再重放 call boundary。新增结构测试 `source_plan_assigns_escape_replay_target_for_mixed_direct_indirect_call_site`，并将 4 条恢复的 fixture `effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`、`..._if_multi.scoop`、`..._while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 改回 `EXPECT: pass`。已验证 4 条 fixture 定向运行、新增结构单测、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016bR`。
@@ -623,27 +625,29 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016c`
-2. `T3016cR`
-3. `T3016d`
-4. `T3016dR`
-5. `T3017`
-6. `T3017R`
-7. `T3103`
-8. `T3104`
-9. `T3201`
-10. `T3202`
-11. `T3203`
-12. `T3204`
-13. `T3205`
-14. `T3301`
-15. `T3302`
-16. `T3303`
-18. `T3401`
-19. `T3401a`
-20. `T3401b`
-21. `T3401c`
-22. `T3402`
-23. `T3403`
-24. `T3404`
-25. `T3405`
+1. `T3016c0`
+2. `T3016c0R`
+3. `T3016c`
+4. `T3016cR`
+5. `T3016d`
+6. `T3016dR`
+7. `T3017`
+8. `T3017R`
+9. `T3103`
+10. `T3104`
+11. `T3201`
+12. `T3202`
+13. `T3203`
+14. `T3204`
+15. `T3205`
+16. `T3301`
+17. `T3302`
+18. `T3303`
+19. `T3401`
+20. `T3401a`
+21. `T3401b`
+22. `T3401c`
+23. `T3402`
+24. `T3403`
+25. `T3404`
+26. `T3405`

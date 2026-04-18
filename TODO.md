@@ -2132,29 +2132,51 @@
   - block/if/while mixed direct+indirect replay 的新增生产逻辑只消费状态机元数据与 continuation/runtime ABI，不存在 test-only 旁路。
 - 依赖：T3016b
 
-### T3016c [TODO] 接回 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
-- 描述：继续扫描时发现，还有一组 fixture 根本没有进入正确的 resume 主路径：`effect_escape_continuation_finally_normal.scoop` 在 outer body 的 `when (cell.k)` 中执行 `k1.resume(42)` 时直接报 `unsupported_main_body: call callee`；`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 则在 outer body 连续 resume inner continuation 时直接以空输出退出。说明 post-handle / outer-handler-body 中的 `Continuation.resume(...)` 仍有调用点没有命中 dedicated lowering 或正确的 dispatch/resume 合同，`T3017` 不能在这个缺口未修前继续推进。
+### T3016c0 [TODO] 收口 statement-position `Continuation.resume(...)` 的 typecheck side-table / required-effects 合同
+- 描述：执行原 `T3016c` 时先确认到，`effect_escape_continuation_finally_normal.scoop` 里 outer body 的 plain `k1.resume(42)` 并不是单纯的 production lowering 缺口。`typecheck/expr/stmt.rs` 的 `check_expr_stmt()` 当前只会对表达式语句位置的 call 做结构递归与 effect-op perform 收集，完全绕过 `Continuation.resume` builtin 规则；结果是 statement-position `k.resume(...)` 既不会写入 `continuation_resume_call_sites`，也不会记录 `Continuation<T, eff E>` 所要求的 `E + Raise<RuntimeError>` required effects。这与现有 typecheck fixtures `continuation_resume_requires_raise_runtime_error_missing_is_error.scoop` / `continuation_type_and_resume_pure_ok.scoop` 以及 run-pass fixture `effect_escape_continuation_perform_not_first_statement.scoop` 的既有约束不一致，因此必须先修正这层语义，再继续 outer-body lowering。
 - 目标：
-  - outer body、`when` arm、nested handle 外层 body 中的 `Continuation.resume(...)` 都进入统一 dedicated lowering，不再回落到 generic `call callee`。
-  - outer body resume inner continuation 后，控制流、stdout 与 result 都按既定 fixture 语义继续推进，不出现静默退出。
+  - statement-position `Continuation.resume(...)` 与 expression-position 走同一 builtin typecheck 合同：写入 `continuation_resume_call_sites`，并按 `Continuation<T, eff E>` 记录 `E + Raise<RuntimeError>` required effects。
+  - 纯函数 / 纯 `main` 中未被 `try/catch` / `handle` 捕获的 statement-position `k.resume(...)` 不再静默漏过到 codegen，而是按既有 typecheck 规则报 `required_effect_not_declared`。
+  - 重新分类 `effect_escape_continuation_finally_normal.scoop`：若保持 plain resume in pure main，则应迁入 typecheck / negative coverage；若要保留 outer-body finally 的 run-pass 语义，则需要先改写成 spec-correct 的 `try/catch` 或显式 effect-row 版本，并把 production lowering 验收留给后续 `T3016c`。
+- 验收：
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 相关 `Continuation.resume` typecheck fixtures 与 outer-body statement-position 回归覆盖通过。
+- 依赖：T3016bR
+
+### T3016c0R [TODO] Review：确认 statement-position `Continuation.resume(...)` 不再绕过 builtin typecheck 合同
+- 描述：在 `T3016c0` 之后只审查前端/typecheck 与 side table 生产路径，确认 statement-position resume 的修复不是靠成员名特判或 fixture 兜底；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `continuation_resume_call_sites` 仍只承载 typecheck 已证实的 builtin call site，不引入按源码形状或成员名猜测的旁路。
+  - 确认 `Raise<RuntimeError>` required-effect 记录在 statement / expression 两条路径上一致。
+  - 确认被重新分类的 `effect_escape_continuation_finally_normal.scoop` 已与现有 spec/typecheck 基线一致。
+- 验收：
+  - 若审查发现问题，相关前端/side-table 代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“statement-position `Continuation.resume(...)` 已回到统一 builtin typecheck 合同”。
+- 依赖：T3016c0
+
+### T3016c [TODO] 接回已被 typecheck 确认为 builtin 的 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
+- 描述：在 `T3016c0R` 之后，outer-body `Continuation.resume(...)` 剩下的才是纯 production gap。当前有效 blocker 是：spec-correct 的 outer-body resume call site 仍可能回落到 generic call，而 `effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 在 outer body 连续 resume inner continuation 时已进一步暴露真实 codegen 缺口 `effect frame seed outer-scope local`。说明 post-handle / outer-handler-body 中“已经被 typecheck 标成 builtin”的 `Continuation.resume(...)` 还没有全部命中 dedicated lowering 或正确的 nested-frame seeding / dispatch-resume 合同，`T3017` 不能在这个缺口未修前继续推进。
+- 目标：
+  - spec-correct 的 outer body、`when` arm、nested handle 外层 body 中 `Continuation.resume(...)` 都进入统一 dedicated lowering，不再回落到 generic `call callee`。
+  - nested handle 外层 body resume inner continuation 后，控制流、stdout 与 result 都按既定 fixture 语义继续推进，不出现静默退出，也不再卡在 `effect frame seed outer-scope local`。
   - 修复继续复用 `continuation_resume_call_sites` 与统一 dispatch/runtime 合同，不新增按成员名或局部形状匹配的旁路。
 - 验收：
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_normal.scoop`
   - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_outer_resume_inner_multi.scoop`
   - `cargo test -p scoop_runtime continuation_resume_ -- --nocapture`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 依赖：T3016bR
+- 依赖：T3016c0R
 
-### T3016cR [TODO] Review：确认 outer-body `Continuation.resume(...)` 不再回落到 generic call 或静默退出
+### T3016cR [TODO] Review：确认 outer-body `Continuation.resume(...)` 的生产 lowering 不再回落到 generic call 或 nested-frame seeding 缺口
 - 描述：在 `T3016c` 之后只审查生产代码，确认 outer-body / nested-handle resume 已统一接回 dedicated lowering 与 runtime dispatch 合同，而不是靠 fixture 特判；若发现问题，本任务需要直接修复并复审。
 - 目标：
-  - 确认 `Continuation.resume(...)` 调用点仍只依赖 typecheck side table，不按成员名/源码形状分流。
-  - 确认 outer body / nested handle resume 与现有 escaped continuation runtime 合同一致。
-  - 确认 silent exit / `unsupported_main_body: call callee` 都已消失。
+  - 确认 `Continuation.resume(...)` 的 codegen 调用点仍只依赖 typecheck side table，不按成员名/源码形状分流。
+  - 确认 outer body / nested handle resume 与现有 escaped continuation runtime 合同一致，且 nested inner-frame seeding 已闭环。
+  - 确认 generic `call callee` / `effect frame seed outer-scope local` / silent exit 都已消失。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
-  - 审查结论明确记录“outer-body `Continuation.resume(...)` 已统一接回，无 generic call fallback 或 silent exit 残留”。
+  - 审查结论明确记录“outer-body `Continuation.resume(...)` 已统一接回，无 generic call fallback、nested-frame seeding 缺口或 silent exit 残留”。
 - 依赖：T3016c
 
 ### T3016d [TODO] 修正 GC stress 下 escaped continuation 与深对象图捕获的存活 / 恢复缺口
