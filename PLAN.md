@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮复审更新：`T3016hR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_emitter.rs` 后确认，`T3016h` 的修复仍严格停留在统一 frame metadata / slot seeding 合同内：`collect_outer_scope_slots()` 继续只根据 declared-local 与 used-local 差集生成 `seed_from_outer_scope` 槽位，`collect_declared_local_ids_in_closure()` 现统一把显式 closure 形参与 resolver 注入的隐式 `it` binder 视作 closure 内声明局部；emitter 侧 `seed_outer_scope_frame_slots()` / `write_back_outer_scope_frame_slots()` 也仍只消费通用 frame slot metadata，没有读取 stdlib helper 名称、Task adapter 名称、fixture 名称或源码形状做额外分流。已复验 `cargo test -p scoopc handle_outer_scope_seeding -- --nocapture`、两条目标 fixture、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
+>
 > 2026-04-18 当前轮完成更新：`T3016h` 已完成。重新复现 `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 后确认，共享生产 blocker 不在具体 stdlib helper，而在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 closure declared-local 收集：`collect_declared_local_ids_in_expr()` 递归进入 closure body 时，没有把 lambda 显式形参与 resolver 为隐式单参 lambda 注入的 synthetic `it` binder 视为“closure 内声明局部”，导致外层 handle / try-catch 把 `v` / `acc` / `x` / `it` 误收为 `seed_from_outer_scope` frame slots，随后 emitter 在 `seed_outer_scope_frame_slots()` 中从当前外层 `env` 取不到对应 local storage 而报 `effect frame seed outer-scope local`。现已补齐这条 declared-local 合同，并新增两条 unified state-machine 结构测试，分别锁定显式 closure 参数与隐式 `it` 都不会再被误判成 outer-scope seed slot；真正的外层捕获则继续保留。同步把 `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 从 stale `EXPECT: fail` 恢复为 `EXPECT: pass`。已验证两条目标 fixture 直跑、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016hR`。
 >
 > 2026-04-18 当前轮复审更新：`T3016gR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 dispatch loop、`handle_cleanup_propagate_*` / `handle_cleanup_done_*` 路径以及 `ArmResumeMatchedSite` 相关出口后确认，`T3016g` 的修复仍严格停留在统一 cleanup/propagation 合同内：shared `finally` cleanup 在 outward propagation 前只会暂存进入 cleanup 前的 propagating `state_tag`，并仅当 shared cleanup 普通出口把状态泄露成 `STATE_TAG_HANDLE_RETURNED` / `STATE_TAG_FUNCTION_RETURNED` 时恢复该非终止状态；普通完成路径依旧复用既有 completion-tag 捕获/恢复逻辑，没有为 immediate-resume arm、`resume(...)` 形状或特定 fixture/helper 接入独立 completion/finally shortcut。已定向复验 emitter IR 单测 `cleanup_propagate_ir_restores_propagating_state_after_shared_finally_exit`、3 条目标 fixture、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均通过。当前 effect 主线下一项推进到 `T3016h`。
@@ -663,28 +665,25 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016gR`
-2. `T3016h`
-3. `T3016hR`
-4. `T3017`
-5. `T3017R`
-6. `T3103`
-7. `T3104`
-8. `T3201`
-9. `T3202`
-10. `T3203`
-11. `T3204`
-12. `T3205`
-13. `T3301`
-14. `T3302`
-15. `T3303`
-16. `T3304`
-17. `T3401`
-18. `T3401a`
-19. `T3401b`
-20. `T3401c`
-21. `T3402`
-22. `T3403`
-23. `T3404`
-24. `T3405`
-25. `T3406`
+1. `T3017`
+2. `T3017R`
+3. `T3103`
+4. `T3104`
+5. `T3201`
+6. `T3202`
+7. `T3203`
+8. `T3204`
+9. `T3205`
+10. `T3301`
+11. `T3302`
+12. `T3303`
+13. `T3304`
+14. `T3401`
+15. `T3401a`
+16. `T3401b`
+17. `T3401c`
+18. `T3402`
+19. `T3403`
+20. `T3404`
+21. `T3405`
+22. `T3406`

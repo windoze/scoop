@@ -2416,14 +2416,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016gR
 
-### T3016hR [TODO] Review：确认 stdlib/task adapter outer-local seeding 已回到统一 frame metadata 合同
+### T3016hR [DONE] Review：确认 stdlib/task adapter outer-local seeding 已回到统一 frame metadata 合同
 - 描述：在 `T3016h` 之后只审查生产代码，确认 stdlib/task adapter 路径的 outer-local seeding 修复仍由统一 frame metadata / slot seeding 驱动，而不是为 `Executor.await`、`assertTrue` / `require` 等 helper 写死特殊入口；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 与 `state_machine_emitter.rs`：outer-local slot 仍统一由 `collect_outer_scope_slots()` 生成 `seed_from_outer_scope` 元数据，再由 `seed_outer_scope_frame_slots()` / `write_back_outer_scope_frame_slots()` 消费；生产路径没有 helper 名称、fixture 名称或源码形状分支。
+  - 已确认 `collect_declared_local_ids_in_closure()` 会把显式 closure 形参与 resolver 注入的隐式 `it` binder 一并视为 closure 内声明局部，因此 nested handle / try-catch / closure 间接使用 outer locals 的 seeding 仍是“declared vs. used”差集合同，而非针对 stdlib/task helper 的特判。
+  - 已复验 `cargo test -p scoopc handle_outer_scope_seeding -- --nocapture`、两条目标 fixture、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均通过。
 - 目标：
   - 确认 nested handle / try-catch / closure 间接使用 outer locals 的 seeding 行为已统一收口。
   - 确认 production code 中没有为具体 stdlib helper、Task adapter 或 fixture-only 场景添加新的 effect-only fallback。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“stdlib/task adapter outer-local seeding 已按统一 frame metadata 合同收口，无 helper-specific workaround 残留”。
+- 审查结论：
+  - stdlib/task adapter outer-local seeding 已按统一 frame metadata 合同收口，无 helper-specific workaround 残留。
+  - 修复面仍只落在 closure declared-local 收集与统一 slot seeding metadata；`Executor.await`、`assertTrue`、`require` 等 helper 名称没有进入 effect 生产 lowering 决策面。
+  - 当前 effect 主线下一项推进到 `T3017`：回收剩余 stale `EXPECT: fail`，恢复 effect run-pass 基线。
 - 依赖：T3016h
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
