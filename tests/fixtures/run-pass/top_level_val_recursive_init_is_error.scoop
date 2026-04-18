@@ -1,0 +1,20 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_val_recursive_init_is_error.stdout
+// EXPECT-EXIT: 1
+//
+// 目标：
+// - 普通顶层 `val` 的 once-init 不能把“同线程递归初始化重入”静默伪装成已初始化读取；
+// - 回归使用 helper 函数间接回读，避免只修补最表层的 `val x = x + 1` AST 形状。
+
+import scoop.core.*
+
+fun readX(): Int {
+    return x
+}
+
+val x: Int = readX() + 1
+
+fun main(): Int {
+    println(x)
+    return 0
+}

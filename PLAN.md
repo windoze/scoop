@@ -24,6 +24,8 @@
 > 2026-04-19 当前轮计划调整：在正式实现 `T4004` 前，先用最小 probe `val x: Int = 41; fun main(): Int { return x + 1 }` 验证顶层 immutable value 主线，结果 `cargo run -p scoop -- build /tmp/t4004_plain_top_level_val_probe.scoop -o /tmp/t4004_plain_top_level_val_probe.out` 直接在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: top-level value ref`。这说明“普通顶层 `val` 的可执行读取语义”本身仍未完成，当前后端只真正支持 `const val` 与显式静态存储的顶层 `var`；而顶层 pattern binding 会把多个 binder 暴露成普通顶层 immutable value，如果继续实现 `T4004`，就只能错误地把它绑到 `const` / 静态存储旁路上。基于这一新发现，现已在 `T4003R` 与 `T4004` 之间插入新的前置任务 `T4003S -> T4003SR`：先收口普通顶层 `val` 的 HIR / LLVM 表示与读取主线，再继续做顶层 pattern binding。当前本轮到此停止，等待下一次调用从 `T4003S` 开始。
 >
 > 2026-04-19 当前轮完成更新：`T4003S` 已完成。HIR lowering 现会为命名的非 `const` 顶层 `val` 收集独立的 `top_level_immutable_values` side table，避免继续把普通顶层 immutable value 混进 `const val` 或静态 `var` 旁路；LLVM codegen 现为这类绑定统一生成 module-local backing global、once guard 与按需定义的 init function，读取时先确保初始化再加载结果，因此 `val x: Int = 41; fun main(): Int { return x + 1 }` 已可稳定 build/run。与此同时，reachable function collector 现在会递归扫描顶层 immutable value initializer；effect state-machine 也已把顶层 `val` 读取识别为隐藏的一次性初始化边界，避免后端只在普通路径下偶然成立。已新增 `top_level_val_read_minimal_ok` build fixture 与 `top_level_val_runtime_read_basic` run-pass 回归，覆盖 `main` 读取、顶层 initializer 之间的依赖读取，以及 Int/String 顶层 immutable value 的 once-init 语义。已验证最小 probe build+run、`cargo run -p scoop -- test --fixtures /tmp/t4003s-run-pass`（`fixtures: ok (1)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003SR`。
+>
+> 2026-04-19 当前轮完成更新：`T4003SR` 已完成。复审普通顶层 `val` 的新主线后，确认命名的非 `const` 顶层 `val` 现统一走 `top_level_immutable_values` side table + module-local backing global + once guard + init function 表示，不再借用 `const val` 或静态 `var` 旁路；reachable function collector 与 effect state-machine 也继续复用同一入口，因此 `T4004` 无需再开第四套 binder 表示。复审同时发现一个既有语义裂缝：`scoop_once_begin` 为避免死锁会在同线程重入时返回 `0`，而旧的访问路径会把“init 已返回”直接当成“值可读”，导致 `val x: Int = x + 1` 或“helper 间接回读顶层 `val`”这类程序错误地读取到零初始化 backing global。当前已在 `codegen_top_level_immutable_value_access` 中新增 guard-state 后置检查：init function 返回后若 guard 仍未进入 `initialized`，则立即以退出码 `1` 终止，阻止递归初始化把未初始化值伪装成合法结果。已新增 `top_level_val_recursive_init_is_error` run-pass 回归，并与既有 `top_level_val_runtime_read_basic` 一起在 `/tmp/t4003sr-run-pass` 子集验证通过（`fixtures: ok (2)`）；同时复验了 `top_level_val_read_minimal_ok` build probe（退出码 `42`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004`。
 
 ## 0. 工作原则
 
@@ -65,7 +67,7 @@
 
 - 先收口普通顶层 `val` 的可执行读取语义，再推进顶层 pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
-- 当前状态：`T4003S` 已完成；普通顶层 `val` 现已具备 once-init + 稳定读取的 HIR / LLVM 主线。P3 当前下一项为 `T4003SR`，复审通过后再继续 `T4004`。
+- 当前状态：`T4003S` / `T4003SR` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，并在递归初始化重入时走明确失败路径。P3 当前下一项为 `T4004`。
 
 ### P4. compilation-unit 与 runtime type info 收口
 

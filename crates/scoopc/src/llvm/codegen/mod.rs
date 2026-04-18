@@ -1336,6 +1336,63 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv
     }
 
+    fn emit_top_level_immutable_value_initialized_check(
+        &mut self,
+        at: crate::span::Span,
+        value_fqn: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        let ready_bb = self.context.append_basic_block(func, "top_level_val_ready");
+        let recursive_bb = self
+            .context
+            .append_basic_block(func, "top_level_val_recursive");
+
+        let guard = self.declare_top_level_immutable_value_guard(value_fqn);
+        let guard_word = self
+            .builder
+            .build_load(
+                self.context.i64_type(),
+                guard.as_pointer_value(),
+                "top_level_val_guard_word",
+            )?
+            .into_int_value();
+        let state_mask = self.context.i64_type().const_int(0x3, false);
+        let guard_state =
+            self.builder
+                .build_and(guard_word, state_mask, "top_level_val_guard_state")?;
+        let initialized_state = self.context.i64_type().const_int(2, false);
+        let is_initialized = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            guard_state,
+            initialized_state,
+            "top_level_val_guard_is_initialized",
+        )?;
+        self.builder
+            .build_conditional_branch(is_initialized, ready_bb, recursive_bb)?;
+
+        self.builder.position_at_end(recursive_bb);
+        // `scoop_once_begin` 在同线程重入时会直接返回 0 以避免死锁；若此时继续读取 backing global，
+        // 就会把“尚未完成初始化”的零值伪装成合法结果。这里要求 guard 已真正进入 initialized，
+        // 否则立即终止，阻止递归初始化落成静默错误值。
+        self.emit_exit_with_code(at, 1)?;
+
+        self.builder.position_at_end(ready_bb);
+        Ok(())
+    }
+
     fn declare_top_level_immutable_value_global(
         &mut self,
         at: crate::span::Span,
@@ -1520,6 +1577,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(init_fn, &[], "top_level_val_init")?;
         self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
+        self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         let value_cg = self
             .cg_ty_of(value.ty)

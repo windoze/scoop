@@ -203,17 +203,28 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003R
 
-### T4003SR [TODO] Review：确认普通顶层 `val` 不再依赖 `const` / 静态 `var` 旁路
+### T4003SR [DONE] Review：确认普通顶层 `val` 不再依赖 `const` / 静态 `var` 旁路
 - 重点：
   - 不允许只让 `const val` 或 `@ThreadLocal/@Global var` 可执行，而普通顶层 `val` 仍报 `top-level value ref`。
   - 顶层 immutable value 的初始化次数与读取语义要有统一结论，不能为 `T4004` 额外再开第四套表示。
+- 完成：
+  - 已复审 HIR lowering / LLVM codegen / reachability / effect state-machine 主线：命名的非 `const` 顶层 `val` 统一经由 `top_level_immutable_values` side table、module-local backing global、once guard 与 init function 执行，不再借用 `const val` 或静态 `var` 表示，`T4004` 可直接复用这套 immutable binder 主线。
+  - 复审中发现并修复一个既有语义裂缝：同线程递归初始化重入时，`scoop_once_begin` 会返回 `0` 以避免死锁，但原访问路径会继续读取尚未完成初始化的 backing global，导致 `val x: Int = x + 1` 一类程序错误地把零值读成合法结果。
+  - LLVM 顶层 immutable value 访问现会在 init function 返回后再次检查 guard 状态；若 guard 仍未进入 `initialized`，则立即以退出码 `1` 终止，阻止递归初始化把未初始化值伪装成合法结果。
+  - 已新增 `tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop` 回归，覆盖“通过 helper 函数间接回读顶层 `val`”的递归初始化场景，避免只靠 AST 形状特判过关。
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003sr-run-pass`（`fixtures: ok (2)`，覆盖正常读取与递归初始化失败）
+  - `cargo run -p scoop -- build tests/fixtures/build/top_level_val_read_minimal_ok.scoop -o /tmp/top_level_val_read_minimal_ok.out`
+  - `/tmp/top_level_val_read_minimal_ok.out`（退出码 `42`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003S
 
 ## T4004：顶层 pattern binding
 
 ### T4004 [TODO] 打通顶层 `val` / `var` 的 pattern binding
-- 阻塞说明：
-  - 2026-04-19 发现普通顶层 `val` 的可执行读取语义尚未打通；顶层 pattern binder 本质上也需要成为普通顶层 immutable value，因此本任务顺延到 `T4003SR` 之后。
+- 前置说明：
+  - `T4003S` / `T4003SR` 已收口普通顶层 `val` 的独立 once-init 读取语义与递归初始化失败路径；顶层 pattern binder 现可直接复用 `top_level_immutable_values` 主线，而不必回退到 `const val` / 静态 `var` 旁路。
 - 范围：
   - 顶层声明头接受 pattern binding。
   - 与局部解构绑定保持一致的 lowering / binding 规则。
