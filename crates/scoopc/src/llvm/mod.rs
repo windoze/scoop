@@ -643,6 +643,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         enum_layouts: &lowered.enum_layouts,
         top_level_vars: &lowered.top_level_vars,
         top_level_consts: &lowered.top_level_consts,
+        top_level_immutable_values: &lowered.top_level_immutable_values,
         object_inits: &lowered.object_inits,
         class_inits: &lowered.class_inits,
         class_vtables: &lowered.class_vtables,
@@ -662,11 +663,14 @@ fn build_main_module_from_lowered_hir<'ctx>(
     let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
         hir_main,
         &fun_index,
-        &lowered.class_inits,
-        &lowered.class_vtables,
-        &lowered.class_itables,
-        &lowered.ctor_call_sites,
-        &lowered.top_level_consts,
+        ReachabilityInputs {
+            class_inits: &lowered.class_inits,
+            class_vtables: &lowered.class_vtables,
+            class_itables: &lowered.class_itables,
+            ctor_call_sites: &lowered.ctor_call_sites,
+            top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+        },
     );
 
     // T0111: Eagerly include struct member methods (operator overloads like `plus`, `compareTo`
@@ -767,6 +771,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
             enum_layouts: &lowered.enum_layouts,
             top_level_vars: &lowered.top_level_vars,
             top_level_consts: &lowered.top_level_consts,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
             object_inits: &lowered.object_inits,
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
@@ -851,6 +856,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         enum_layouts: &lowered.enum_layouts,
         top_level_vars: &lowered.top_level_vars,
         top_level_consts: &lowered.top_level_consts,
+        top_level_immutable_values: &lowered.top_level_immutable_values,
         object_inits: &lowered.object_inits,
         class_inits: &lowered.class_inits,
         class_vtables: &lowered.class_vtables,
@@ -1104,15 +1110,28 @@ fun main() {
     }
 }
 
-fn collect_reachable_top_level_funs<'a>(
-    entry: &'a hir::FunDecl,
-    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+struct ReachabilityInputs<'a> {
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
+    top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+}
+
+fn collect_reachable_top_level_funs<'a>(
+    entry: &'a hir::FunDecl,
+    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    inputs: ReachabilityInputs<'a>,
 ) -> Vec<&'a hir::FunDecl> {
+    let ReachabilityInputs {
+        class_inits,
+        class_vtables,
+        class_itables,
+        ctor_call_sites,
+        top_level_consts,
+        top_level_immutable_values,
+    } = inputs;
     let mut collector = ReachabilityCollector {
         fun_index,
         class_inits,
@@ -1120,6 +1139,7 @@ fn collect_reachable_top_level_funs<'a>(
         class_itables,
         ctor_call_sites,
         top_level_consts,
+        top_level_immutable_values,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
         reachable_funs: HashSet::new(),
@@ -1127,6 +1147,7 @@ fn collect_reachable_top_level_funs<'a>(
         ctor_queue: VecDeque::new(),
         scanned_class_init_steps: HashSet::new(),
         scanned_top_level_consts: HashSet::new(),
+        scanned_top_level_immutable_values: HashSet::new(),
     };
 
     // 入口：扫描 `main` 的函数体，但不把 `main` 本身加入 reachable 集合（它由 `codegen_main_exit_code` 生成）。
@@ -1175,6 +1196,7 @@ struct ReachabilityCollector<'a> {
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
+    top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
 
     seen_calls: HashSet<String>,
     fun_queue: VecDeque<String>,
@@ -1185,6 +1207,7 @@ struct ReachabilityCollector<'a> {
 
     scanned_class_init_steps: HashSet<String>,
     scanned_top_level_consts: HashSet<String>,
+    scanned_top_level_immutable_values: HashSet<String>,
 }
 
 impl<'a> ReachabilityCollector<'a> {
@@ -1202,6 +1225,21 @@ impl<'a> ReachabilityCollector<'a> {
             return;
         };
         if let Some(init) = top_level_const.init.as_ref() {
+            self.scan_expr(init);
+        }
+    }
+
+    fn scan_top_level_immutable_value(&mut self, fqn: &str) {
+        if !self
+            .scanned_top_level_immutable_values
+            .insert(fqn.to_string())
+        {
+            return;
+        }
+        let Some(value) = self.top_level_immutable_values.get(fqn) else {
+            return;
+        };
+        if let Some(init) = value.init.as_ref() {
             self.scan_expr(init);
         }
     }
@@ -1322,6 +1360,7 @@ impl<'a> ReachabilityCollector<'a> {
             hir::ExprKind::Literal(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 self.scan_top_level_const(fqn);
+                self.scan_top_level_immutable_value(fqn);
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => {}
             hir::ExprKind::StructLit { fields, .. } => {
@@ -1353,7 +1392,11 @@ impl<'a> ReachabilityCollector<'a> {
             hir::ExprKind::Call { callee, args } => {
                 // 顶层函数调用：收集 callee fqn。
                 if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-                    self.enqueue_fun(fqn.clone());
+                    if self.fun_index.contains_key(fqn) {
+                        self.enqueue_fun(fqn.clone());
+                    } else {
+                        self.scan_expr(callee);
+                    }
                 } else {
                     // callee 也可能是 `helper().member` / `foo()()` 这类复合表达式；
                     // 需要继续扫描 callee，避免漏掉其中嵌套的顶层函数或顶层 const 引用。

@@ -1,0 +1,12 @@
+// EXPECT: pass
+//
+// 目标：普通顶层 `val` 的最小可执行读取路径可以稳定 build，不再在 LLVM codegen 阶段报
+// `top-level value ref`。
+
+import scoop.core.*
+
+val x: Int = 41
+
+fun main(): Int {
+    return x + 1
+}

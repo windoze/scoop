@@ -71,6 +71,8 @@ struct HirLowering<'a> {
     top_level_vars: super::TopLevelVarIndex,
     /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
     top_level_consts: super::TopLevelConstIndex,
+    /// 普通顶层 immutable value 索引：供后端生成 once-init + 稳定读取主线。
+    top_level_immutable_values: super::TopLevelImmutableValueIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -150,6 +152,7 @@ impl<'a> HirLowering<'a> {
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
+            top_level_immutable_values: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -1008,6 +1011,17 @@ impl<'a> HirLowering<'a> {
                         init: init.clone(),
                     },
                 );
+            } else if v.kind == ast::ValKind::Val {
+                self.top_level_immutable_values.insert(
+                    fqn.clone(),
+                    super::TopLevelImmutableValue {
+                        fqn: fqn.clone(),
+                        source_path: self.source.path().to_path_buf(),
+                        span: v.span,
+                        ty,
+                        init: init.clone(),
+                    },
+                );
             }
 
             // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
@@ -1305,7 +1319,14 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
-    let (file, member_funs, mut ctor_call_sites, top_level_vars, top_level_consts) = {
+    let (
+        file,
+        member_funs,
+        mut ctor_call_sites,
+        top_level_vars,
+        top_level_consts,
+        top_level_immutable_values,
+    ) = {
         let mut ctx = HirLowering::new(
             source,
             &ast,
@@ -1323,12 +1344,14 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
+        let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         (
             file,
             member_funs,
             ctor_call_sites,
             top_level_vars,
             top_level_consts,
+            top_level_immutable_values,
         )
     };
 
@@ -1394,6 +1417,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         extern_libs,
         top_level_vars,
         top_level_consts,
+        top_level_immutable_values,
         object_inits,
         class_inits,
         class_vtables,
@@ -1441,7 +1465,14 @@ pub fn lower_for_compilation_unit(
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let (file_hir, member_funs, mut ctor_call_sites, top_level_vars, top_level_consts) = {
+    let (
+        file_hir,
+        member_funs,
+        mut ctor_call_sites,
+        top_level_vars,
+        top_level_consts,
+        top_level_immutable_values,
+    ) = {
         let mut ctx = HirLowering::new(
             source,
             file,
@@ -1459,12 +1490,14 @@ pub fn lower_for_compilation_unit(
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
+        let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         (
             file_hir,
             member_funs,
             ctor_call_sites,
             top_level_vars,
             top_level_consts,
+            top_level_immutable_values,
         )
     };
 
@@ -1508,6 +1541,7 @@ pub fn lower_for_compilation_unit(
         extern_libs,
         top_level_vars,
         top_level_consts,
+        top_level_immutable_values,
         object_inits,
         class_inits,
         class_vtables,
@@ -1557,6 +1591,7 @@ pub fn lower_for_compilation_unit_multi_files(
         ContinuationResumeCallSiteIndex::new();
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
     let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
+    let mut top_level_immutable_values: super::TopLevelImmutableValueIndex = HashMap::new();
 
     for (source, file) in files_to_lower {
         let (
@@ -1565,6 +1600,7 @@ pub fn lower_for_compilation_unit_multi_files(
             file_ctor_call_sites,
             file_top_level_vars,
             file_top_level_consts,
+            file_top_level_immutable_values,
         ) = {
             let mut ctx = HirLowering::new(
                 source,
@@ -1585,12 +1621,15 @@ pub fn lower_for_compilation_unit_multi_files(
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
+            let file_top_level_immutable_values =
+                std::mem::take(&mut ctx.top_level_immutable_values);
             (
                 file_hir,
                 file_member_funs,
                 ctor_call_sites,
                 file_top_level_vars,
                 file_top_level_consts,
+                file_top_level_immutable_values,
             )
         };
 
@@ -1603,6 +1642,7 @@ pub fn lower_for_compilation_unit_multi_files(
 
         top_level_vars.extend(file_top_level_vars);
         top_level_consts.extend(file_top_level_consts);
+        top_level_immutable_values.extend(file_top_level_immutable_values);
         member_funs.extend(file_member_funs);
         items.extend(file_hir.items);
     }
@@ -1705,6 +1745,7 @@ pub fn lower_for_compilation_unit_multi_files(
         extern_libs,
         top_level_vars,
         top_level_consts,
+        top_level_immutable_values,
         object_inits,
         class_inits,
         class_vtables,

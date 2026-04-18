@@ -21,6 +21,7 @@ struct HandlePlanContext {
     continuation_resume_call_sites: HashSet<Span>,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
+    top_level_immutable_value_fqns: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1108,6 +1109,7 @@ pub(crate) enum SuspendSiteKind {
     CallStateMachineCallee { callee: String },
     RuntimeRaise { reason: String },
     ObjectInitAccess { target: String },
+    TopLevelValueInitAccess { target: String },
     ClassCtorInit { class_name: String },
     NestedHandleBoundary { detail: String },
 }
@@ -1121,6 +1123,7 @@ impl SuspendSiteKind {
             SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
             SuspendSiteKind::RuntimeRaise { .. } => "runtime-raise",
             SuspendSiteKind::ObjectInitAccess { .. } => "object-init-access",
+            SuspendSiteKind::TopLevelValueInitAccess { .. } => "top-level-val-init-access",
             SuspendSiteKind::ClassCtorInit { .. } => "class-ctor-init",
             SuspendSiteKind::NestedHandleBoundary { .. } => "nested-handle-boundary",
         }
@@ -1134,6 +1137,7 @@ impl SuspendSiteKind {
             | SuspendSiteKind::CallStateMachineCallee { callee: op_fqn }
             | SuspendSiteKind::RuntimeRaise { reason: op_fqn }
             | SuspendSiteKind::ObjectInitAccess { target: op_fqn }
+            | SuspendSiteKind::TopLevelValueInitAccess { target: op_fqn }
             | SuspendSiteKind::ClassCtorInit { class_name: op_fqn }
             | SuspendSiteKind::NestedHandleBoundary { detail: op_fqn } => {
                 Some(op_fqn.clone())
@@ -1148,6 +1152,7 @@ impl SuspendSiteKind {
             SuspendSiteKind::CallStateMachineCallee { callee } => 0x33 ^ callee.len(),
             SuspendSiteKind::RuntimeRaise { reason } => 0x44 ^ reason.len(),
             SuspendSiteKind::ObjectInitAccess { target } => 0x55 ^ target.len(),
+            SuspendSiteKind::TopLevelValueInitAccess { target } => 0x58 ^ target.len(),
             SuspendSiteKind::ClassCtorInit { class_name } => 0x66 ^ class_name.len(),
             SuspendSiteKind::NestedHandleBoundary { detail } => 0x77 ^ detail.len(),
         }
@@ -1159,6 +1164,7 @@ impl SuspendSiteKind {
             SuspendSiteKind::CallMaySuspend { .. }
                 | SuspendSiteKind::CallStateMachineCallee { .. }
                 | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::TopLevelValueInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
                 | SuspendSiteKind::NestedHandleBoundary { .. }
         )
@@ -1337,6 +1343,7 @@ impl SuspendSitePlan {
             SuspendSiteKind::CallMaySuspend { .. }
             | SuspendSiteKind::CallStateMachineCallee { .. }
             | SuspendSiteKind::ObjectInitAccess { .. }
+            | SuspendSiteKind::TopLevelValueInitAccess { .. }
             | SuspendSiteKind::ClassCtorInit { .. }
             | SuspendSiteKind::NestedHandleBoundary { .. } => true,
         }
@@ -1568,6 +1575,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
             object_value_fqns: &self.context.object_value_fqns,
             object_property_fqns: &self.context.object_property_fqns,
+            top_level_immutable_value_fqns: &self.context.top_level_immutable_value_fqns,
         }
         .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
     }
@@ -2582,12 +2590,17 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
             return None;
         };
-        self.context
-            .object_value_fqns
-            .contains(fqn)
-            .then(|| SuspendSiteKind::ObjectInitAccess {
+        if self.context.object_value_fqns.contains(fqn) {
+            Some(SuspendSiteKind::ObjectInitAccess {
                 target: fqn.clone(),
             })
+        } else if self.context.top_level_immutable_value_fqns.contains(fqn) {
+            Some(SuspendSiteKind::TopLevelValueInitAccess {
+                target: fqn.clone(),
+            })
+        } else {
+            None
+        }
     }
 
     fn classify_hidden_suspend_member_access(
@@ -5743,6 +5756,7 @@ fn matching_arms(arms: &[ArmPlan], kind: &SuspendSiteKind) -> Vec<ArmPlanId> {
         SuspendSiteKind::CallMaySuspend { .. }
         | SuspendSiteKind::CallStateMachineCallee { .. }
         | SuspendSiteKind::ObjectInitAccess { .. }
+        | SuspendSiteKind::TopLevelValueInitAccess { .. }
         | SuspendSiteKind::ClassCtorInit { .. }
         | SuspendSiteKind::NestedHandleBoundary { .. } => Vec::new(),
     }
@@ -6060,6 +6074,7 @@ struct SuspendCallAnalysis<'a> {
     continuation_resume_call_sites: &'a HashSet<Span>,
     object_value_fqns: &'a HashSet<String>,
     object_property_fqns: &'a HashSet<String>,
+    top_level_immutable_value_fqns: &'a HashSet<String>,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
@@ -6300,6 +6315,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 self.object_value_fqns.contains(fqn)
+                    || self.top_level_immutable_value_fqns.contains(fqn)
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => false,
             hir::ExprKind::StructLit { fields, .. } => fields
@@ -6445,6 +6461,7 @@ fn collect_known_fun_call_suspendability(
     continuation_resume_call_sites: &HashSet<Span>,
     object_value_fqns: &HashSet<String>,
     object_property_fqns: &HashSet<String>,
+    top_level_immutable_value_fqns: &HashSet<String>,
 ) -> HashMap<String, bool> {
     let mut known_fun_effects = fun_index
         .iter()
@@ -6460,6 +6477,7 @@ fn collect_known_fun_call_suspendability(
             continuation_resume_call_sites,
             object_value_fqns,
             object_property_fqns,
+            top_level_immutable_value_fqns,
         };
         let mut newly_effectful = Vec::new();
         let mut changed = false;
@@ -6496,25 +6514,12 @@ fn collect_known_fun_call_suspendability(
 #[cfg(test)]
 fn collect_known_local_fun_call_suspendability_in_fun(
     fun: &hir::FunDecl,
-    types: &TypeStore,
-    known_fun_effects: &HashMap<String, bool>,
-    ctor_call_targets: &HashMap<Span, hir::CtorCallInfo>,
-    continuation_resume_call_sites: &HashSet<Span>,
-    object_value_fqns: &HashSet<String>,
-    object_property_fqns: &HashSet<String>,
+    analysis: &SuspendCallAnalysis<'_>,
 ) -> HashMap<hir::SymbolId, bool> {
-    let analysis = SuspendCallAnalysis {
-        types,
-        known_fun_effects,
-        ctor_call_targets,
-        continuation_resume_call_sites,
-        object_value_fqns,
-        object_property_fqns,
-    };
     let seed_locals = fun
         .params
         .iter()
-        .map(|param| (param.id, function_ty_may_suspend(types, param.ty)))
+        .map(|param| (param.id, function_ty_may_suspend(analysis.types, param.ty)))
         .collect::<HashMap<_, _>>();
     fun.body
         .as_ref()
@@ -7121,6 +7126,8 @@ impl HandlePlanContext {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let top_level_immutable_value_fqns =
+            cg.top_level_immutable_values.keys().cloned().collect();
         let known_fun_effects = cg.known_fun_call_suspendability_map().clone();
 
         let mut known_local_fun_effects = HashMap::new();
@@ -7159,6 +7166,7 @@ impl HandlePlanContext {
             continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
+            top_level_immutable_value_fqns,
         }
     }
 
@@ -7284,6 +7292,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .collect::<Vec<_>>()
             })
             .collect::<HashSet<_>>();
+        let top_level_immutable_value_fqns = self
+            .top_level_immutable_values
+            .keys()
+            .cloned()
+            .collect::<HashSet<_>>();
         let known_fun_effects = collect_known_fun_call_suspendability(
             self.types,
             self.fun_index,
@@ -7291,6 +7304,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.continuation_resume_call_sites,
             &object_value_fqns,
             &object_property_fqns,
+            &top_level_immutable_value_fqns,
         );
         *self.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
     }
@@ -7340,6 +7354,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .collect::<Vec<_>>()
             })
             .collect::<HashSet<_>>();
+        let top_level_immutable_value_fqns = self
+            .top_level_immutable_values
+            .keys()
+            .cloned()
+            .collect::<HashSet<_>>();
 
         SuspendCallAnalysis {
             types: self.types,
@@ -7348,6 +7367,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             continuation_resume_call_sites: self.continuation_resume_call_sites,
             object_value_fqns: &object_value_fqns,
             object_property_fqns: &object_property_fqns,
+            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
         }
         .function_value_may_suspend_when_called(expr, &known_locals)
     }

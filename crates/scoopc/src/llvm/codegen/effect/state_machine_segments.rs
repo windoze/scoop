@@ -906,6 +906,7 @@ impl HandleSegmentList {
                 SuspendSiteKind::CallMaySuspend { .. }
                 | SuspendSiteKind::CallStateMachineCallee { .. }
                 | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::TopLevelValueInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
                 | SuspendSiteKind::NestedHandleBoundary { .. } => {
                     if !site.matching_arms.is_empty() {
@@ -939,6 +940,7 @@ impl HandleSegmentList {
                     if matches!(
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
+                            | SuspendSiteKind::TopLevelValueInitAccess { .. }
                     ) && site.resume_path.is_some()
                     {
                         return Err(format!(
@@ -950,6 +952,7 @@ impl HandleSegmentList {
                     if matches!(
                         &site.kind,
                         SuspendSiteKind::ObjectInitAccess { .. }
+                            | SuspendSiteKind::TopLevelValueInitAccess { .. }
                             | SuspendSiteKind::NestedHandleBoundary { .. }
                     ) && site.source_path.is_some()
                     {
@@ -1952,6 +1955,7 @@ fn describe_suspend_site_kind(kind: &SuspendSiteKind) -> &'static str {
         SuspendSiteKind::CallStateMachineCallee { .. } => "call-state-machine-callee",
         SuspendSiteKind::RuntimeRaise { .. } => "runtime-raise",
         SuspendSiteKind::ObjectInitAccess { .. } => "object-init-access",
+        SuspendSiteKind::TopLevelValueInitAccess { .. } => "top-level-val-init-access",
         SuspendSiteKind::ClassCtorInit { .. } => "class-ctor-init",
         SuspendSiteKind::NestedHandleBoundary { .. } => "nested-handle-boundary",
     }
@@ -4435,6 +4439,11 @@ fun demo(limit: Int): Int {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let top_level_immutable_value_fqns: HashSet<String> = lowered
+            .top_level_immutable_values
+            .keys()
+            .cloned()
+            .collect();
         let known_fun_effects = collect_known_fun_call_suspendability(
             &lowered.types,
             &fun_index,
@@ -4442,19 +4451,22 @@ fun demo(limit: Int): Int {
             &lowered.continuation_resume_call_sites,
             &object_value_fqns,
             &object_property_fqns,
+            &top_level_immutable_value_fqns,
         );
 
         let mut known_local_metadata = HashMap::new();
         collect_known_local_metadata_in_fun(owner_fun, &mut known_local_metadata);
-        let known_local_fun_effects = collect_known_local_fun_call_suspendability_in_fun(
-            owner_fun,
-            &lowered.types,
-            &known_fun_effects,
-            &ctor_call_targets,
-            &lowered.continuation_resume_call_sites,
-            &object_value_fqns,
-            &object_property_fqns,
-        );
+        let analysis = SuspendCallAnalysis {
+            types: &lowered.types,
+            known_fun_effects: &known_fun_effects,
+            ctor_call_targets: &ctor_call_targets,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            object_value_fqns: &object_value_fqns,
+            object_property_fqns: &object_property_fqns,
+            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+        };
+        let known_local_fun_effects =
+            collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
         let next_synthetic_symbol_raw = known_local_metadata
             .keys()
             .copied()
@@ -4472,6 +4484,7 @@ fun demo(limit: Int): Int {
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,
             object_property_fqns,
+            top_level_immutable_value_fqns,
         }
     }
 }

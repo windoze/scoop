@@ -767,6 +767,25 @@ pub struct TopLevelConst {
 /// `const val FQN -> TopLevelConst` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type TopLevelConstIndex = HashMap<String, TopLevelConst>;
 
+/// 普通顶层 immutable value（非 `const` 的 `val`）的最小后端视图。
+///
+/// 说明：
+/// - 与 `TopLevelConst` 不同，这类绑定需要运行期“一次初始化 + 后续稳定读取”语义；
+/// - 保持独立 side table，避免把 once-init / backing global 等后端细节塞回通用 `ValDecl`；
+/// - 后续顶层 pattern binding 可复用同一表示，为每个 binder 建立一条记录。
+#[derive(Debug, Clone)]
+pub struct TopLevelImmutableValue {
+    pub fqn: String,
+    /// 声明所在源文件路径；供 init function codegen 时切换源码上下文。
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub ty: TypeId,
+    pub init: Option<Expr>,
+}
+
+/// `top-level val FQN -> TopLevelImmutableValue` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type TopLevelImmutableValueIndex = HashMap<String, TopLevelImmutableValue>;
+
 /// 一个 object（含 companion object）的初始化顺序与成员信息。
 #[derive(Debug, Clone)]
 pub struct ObjectInit {

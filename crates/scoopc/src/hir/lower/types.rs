@@ -19,7 +19,8 @@ use crate::ty::{BuiltinTypes, TypeStore};
 use super::super::{
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
     EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
-    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelVarIndex,
+    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelImmutableValueIndex,
+    TopLevelVarIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -196,6 +197,8 @@ pub struct LoweredHir {
     pub top_level_vars: TopLevelVarIndex,
     /// 顶层 `const val` 信息；供后端在表达式位置内联 initializer。
     pub top_level_consts: TopLevelConstIndex,
+    /// 普通顶层 immutable value 信息；供后端生成 once-init + 稳定读取主线。
+    pub top_level_immutable_values: TopLevelImmutableValueIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。

@@ -1,89 +1,105 @@
-# 执行计划
+# 执行计划与推理摘要
 
-## 说明
+## 约束说明
 
-用户要求先把“思考过程和执行计划”写入文件。我不会记录逐字的内部推理，但会持续维护一份足够详细的外显计划、判断依据、关键发现和执行进度，方便随时检查当前状态。
+- 本文件记录可审阅的执行计划、关键判断依据、进展更新与后续调整。
+- 出于安全与协作边界考虑，这里不会逐字记录私有思维链，但会提供完整、可检查的推理摘要与操作步骤。
+- 本次调用目标：只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-## 初始目标
+## 初始步骤
 
-本次调用只完成一件事：
+1. 检查最新一次 git 提交，确认是否提到任何已知问题、回归或待修复事项。
+2. 如果最新提交中明确提到已有问题，则优先修复这些问题，并完成必要测试。
+3. 读取 `TODO.md`，定位第一个未完成任务。
+4. 读取 `PLAN.md`，核对当前计划、依赖顺序和任务背景。
+5. 判断该任务是否足够小且可以在本轮完整完成。
+6. 如果任务过大或存在未满足前置条件，则先更新 `PLAN.md` 与 `TODO.md`，把任务拆分或重排，并执行拆分后的第一个子任务。
 
-1. 先检查最新提交是否提到已知问题或遗留修复项；如果有，需要优先修复。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 如果该任务过大，就把它拆成更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 只执行当前排序中的第一个未完成任务。
-5. 完成实现、测试、文档更新、提交，然后停止。
+## 执行策略
 
-## 约束与执行原则
+1. 先尽量以最小读取范围获取上下文：最新提交信息、`TODO.md`、`PLAN.md`、相关模块与测试。
+2. 若发现规范不匹配、实现缺口、测试依赖缺失或现有 workaround，按要求将其转化为显式任务，而不是绕过。
+3. 对要修改的代码进行精确实现，同时补充或调整测试。
+4. 运行与改动直接相关的测试，再运行更广泛的检查，至少覆盖：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 如任务涉及格式或特定工具，再补充对应命令
+5. 更新文档：
+   - `TODO.md` 标记当前任务完成，或在阻塞场景下重排任务
+   - `PLAN.md` 反映状态变化、依赖调整与结论
+   - 必要时补充 `README.md` 或内联注释
+6. 提交 git commit，提交信息应清晰描述本次完成的任务。
+7. 停止，不继续处理下一个任务。
 
-1. 不允许用变通方案掩盖规范偏差。
-2. 一旦发现规范缺口、实现边界或前置依赖缺失，必须把它们显式加入 `TODO.md`，调整依赖顺序，并更新 `PLAN.md`。
-3. 本次最多完成一个任务或一个新拆分出的首个子任务。
-4. 变更前后都要维护 `memory/claude_plan.md`，记录关键结论和计划调整。
-5. 在不破坏用户现有修改的前提下工作，不回退不属于我的改动。
+## 当前状态
 
-## 详细步骤
+- 已创建计划文件。
+- 已检查最新提交：`[T4003S] 插入顶层 val 读取前置任务`，提交本身未包含额外代码修复，仅把“普通顶层 val 可执行读取”显式前置。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前首个未完成任务为 `T4003S`：收口普通顶层 `val` 的可执行读取语义。
 
-### 阶段 1：建立上下文
+## 已确认的问题画像
 
-1. 查看最新提交信息，确认是否明确提到待修复问题。
-2. 查看当前 Git 状态，识别是否存在未提交改动，避免覆盖用户工作。
-3. 读取 `TODO.md`、`PLAN.md`、必要时读取 `README.md` 和相关任务上下文。
+- 当前 HIR lowering 只为两类顶层绑定建立后端 side table：
+  - `const val` -> `top_level_consts`
+  - `@ThreadLocal/@Global var` -> `top_level_vars`
+- 普通顶层 `val` 仍只保留在通用 `hir::Item::Val` 中，没有进入后端专用索引。
+- LLVM `codegen_var_ref` 遇到 `ValueRef::TopLevel` 时，只会依次识别：
+  1. object 单例值
+  2. `const val`
+  3. 顶层静态 `var`
+  4. 否则报错 `top-level value ref`
+- 因此，普通顶层 `val` 在运行期表达式位置不可读取，这正是当前 blocker。
 
-### 阶段 2：确定当前任务
+## 进一步影响面
 
-1. 找出 `TODO.md` 中第一个未完成任务。
-2. 判断该任务是否可以在一次调用内完整落地：
-   - 如果可以，直接进入实现。
-   - 如果不可以，先拆分任务，并更新 `TODO.md` / `PLAN.md`，然后只执行拆分后的第一个子任务。
-3. 如果最新提交指出了遗留问题，则先确认该问题是否仍存在、其影响范围和修复路径。
+- 若仅在 `codegen_var_ref` 增加一个 ad-hoc 分支而不补 side table，会继续缺少：
+  - 初始化函数/一次性求值语义
+  - 顶层 `val` initializer 中调用函数的可达性收集
+  - effect 状态机对“读取顶层 `val` 可能触发隐藏初始化调用”的识别
+- 因此该任务需要同时修改：
+  - HIR lowering / `LoweredHir` side table
+  - LLVM codegen 的顶层 immutable value 初始化与读取路径
+  - reachable function collector
+  - effect state machine 的隐藏 suspend 分类与 suspendability 分析
 
-### 阶段 3：实现与验证
+## 细化执行计划
 
-1. 阅读与当前任务直接相关的代码、测试、规范或夹具。
-2. 实施最小但完整的修复/特性实现。
-3. 补充或调整测试，确保行为与规范一致。
-4. 运行相关测试；若涉及较广影响，再运行更大范围的测试与 `clippy` / `fmt` 检查。
-5. 发现额外的规范缺口时，停止“绕过去”的实现，转而把缺口加入 `TODO.md` 并调整计划。
+1. 新增“普通顶层 immutable value”的 HIR side table，并在 lowering 时收集命名的非 `const` 顶层 `val`。
+2. 让 `LoweredHir`、LLVM codegen 输入和相关辅助逻辑都携带这张 side table。
+3. 为普通顶层 `val` 实现统一的运行期表示：
+   - module-local backing global
+   - once guard
+   - 按需生成的 init function
+   - 表达式位置读取时先确保初始化，再加载结果
+4. 扩展 reachable function collector，使顶层 `val` initializer 中引用的函数/构造器也会被纳入 codegen。
+5. 扩展 effect 状态机分析，使读取顶层 `val` 与 object init 一样被视为可能触发隐藏初始化调用。
+6. 新增/更新回归：
+   - 普通顶层 `val` 被 `main` 读取
+   - 一个普通顶层 `val` 读取另一个普通顶层 `val`
+7. 运行定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+8. 更新 `TODO.md` / `PLAN.md`，提交本轮完成结果并停止。
 
-### 阶段 4：收尾
+## 执行结果
 
-1. 更新 `TODO.md`：将本次完成的唯一任务标记完成；如果任务被拆分或重排，也要反映出来。
-2. 更新 `PLAN.md`：记录当前状态、剩余工作、依赖关系变化。
-3. 更新本文件：记录已完成步骤、关键发现、测试结果、是否调整计划。
-4. 提交 Git，提交信息应清晰描述这次完成的任务。
-5. 停止，不继续处理下一个任务。
-
-## 风险预判
-
-1. `TODO.md` 中的首个任务可能依赖尚未实现的语言特性或运行时行为。
-2. 最新提交提到的问题可能与当前首个任务存在交叉，需要先修复再继续。
-3. 仓库可能已有未提交变更，需要谨慎避免冲突。
-
-## 当前进展（2026-04-19）
-
-1. 已检查最新提交：`4e19865d0e8cb6e10deb89c486f1cb56c73ce91d`，提交信息为 `[T4003R] 更新执行记录`。提交内容仅涉及 `memory/claude_plan.md`，没有提到需要优先修复的遗留 issue，因此当前无需在任务前插入额外修复。
-2. 已检查 Git 工作区状态：当前只有 `memory/claude_plan.md` 因本次执行而修改，未发现其他未提交改动。
-3. 已读取 `TODO.md` 与 `PLAN.md`：最初识别出的第一个未完成任务为 `T4004`，内容是“打通顶层 `val` / `var` 的 pattern binding”。
-4. 当前下一步：读取 `ISSUES.md` 与相关实现，确认顶层 pattern binding 现状、缺口位置，以及该任务是否需要先拆分。
-
-5. 已确认新的前置 blocker，导致本轮不能直接实现 `T4004`：
-   - 通过最小 probe `/tmp/t4004_plain_top_level_val_probe.scoop` 验证 `val x: Int = 41; fun main(): Int { return x + 1 }` 的 build 路径后，`cargo run -p scoop -- build ...` 在 LLVM codegen 阶段报错：`scoop::llvm::unsupported_main_body: top-level value ref`。
-   - 这说明普通顶层 `val` 的可执行读取语义本身尚未打通；而顶层 pattern binding 会把多个 binder 暴露成普通顶层 immutable value，因此 `T4004` 不能建立在“只有 const/static 特例可读”的现状上继续推进。
-   - 按用户规则，必须先把这一 blocker 插入 `TODO.md`，更新 `PLAN.md`，然后停止，等待下一轮先完成该前置任务。
-6. 已完成计划重排：
-   - `TODO.md` 已在 `T4003R` 与 `T4004` 之间插入新的前置任务 `T4003S -> T4003SR`，并把 `T4004` 的依赖改为 `T4003SR`。
-   - `PLAN.md` 已同步记录 blocker、最小复现命令与新的执行顺序。
-   - 当前排序中的第一个未完成任务已变为 `T4003S`；本轮按规则只提交计划调整并停止。
-
-## 待更新检查点
-
-- [x] 已检查最新提交
-- [x] 已检查 Git 工作区状态
-- [x] 已定位首个未完成任务
-- [x] 已判断是否需要拆分
-- [ ] 已完成实现
-- [x] 已完成测试
-- [x] 已更新 `TODO.md`
-- [x] 已更新 `PLAN.md`
-- [ ] 已完成 Git 提交
+- 已完成 HIR side table 扩展：
+  - `LoweredHir` 新增 `top_level_immutable_values`
+  - lowering 现收集命名的非 `const` 顶层 `val`
+- 已完成 LLVM 主线实现：
+  - 普通顶层 immutable value 现在使用 backing global + once guard + init function
+  - `codegen_var_ref` 读取普通顶层 `val` 时会先触发一次性初始化，再返回已存储值
+- 已补齐关联基础设施：
+  - reachable function collector 会递归扫描顶层 immutable value initializer
+  - effect state-machine 会把顶层 `val` 读取识别为隐藏的一次性初始化边界
+- 已新增回归：
+  - `tests/fixtures/build/top_level_val_read_minimal_ok.scoop`
+  - `tests/fixtures/run-pass/top_level_val_runtime_read_basic.scoop`
+- 已完成验证：
+  - `cargo run -p scoop -- build tests/fixtures/build/top_level_val_read_minimal_ok.scoop -o /tmp/top_level_val_read_minimal_ok.out`
+  - `/tmp/top_level_val_read_minimal_ok.out` 退出码为 `42`
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003s-run-pass`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 当前剩余步骤：
+  1. 更新任务状态与计划文档
+  2. 检查 git diff
+  3. 提交本轮变更并停止

@@ -177,7 +177,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003c
 
-### T4003S [TODO] 收口普通顶层 `val` 的可执行读取语义
+### T4003S [DONE] 收口普通顶层 `val` 的可执行读取语义
 - 说明：
   - 在推进 `T4004` 前，发现普通顶层 `val` 的 build/runtime 主线本身仍未打通：`val x: Int = 41; fun main(): Int { return x + 1 }` 当前会在 LLVM codegen 阶段报 `top-level value ref`。
   - 顶层 pattern binding 会把多个 binder 暴露为普通顶层 immutable value；如果继续在“只有 `const val` / 静态 `var` 可读”的现状上实现 `T4004`，就会把新特性错误地绑死在旁路表示上，违反“与现有顶层 `val` 统一语义”的要求。
@@ -188,6 +188,19 @@
 - 验收：
   - 上述最小 probe 可 build/run。
   - 为 `T4004` 提供可复用的顶层 immutable binder 表示。
+- 已完成：
+  - HIR lowering 现为命名的非 `const` 顶层 `val` 收集 `top_level_immutable_values` side table，和 `const val` / 静态 `var` 分离表示，为后续顶层 pattern binder 复用预留了统一入口。
+  - LLVM codegen 现为普通顶层 immutable value 生成 module-local backing global、once guard 与按需定义的 init function；`codegen_var_ref` 读取时会先确保初始化，再加载结果，不再落入 `top-level value ref` unsupported。
+  - 顶层 immutable value 的 reachability 扫描现会递归扫描其 initializer，effect state-machine 也已把这类读取收口为隐藏的一次性初始化边界，避免只在普通 codegen 主线上“偶然可用”。
+  - 已新增回归：
+    - `tests/fixtures/build/top_level_val_read_minimal_ok.scoop`
+    - `tests/fixtures/run-pass/top_level_val_runtime_read_basic.scoop`
+- 已验证：
+  - `cargo run -p scoop -- build tests/fixtures/build/top_level_val_read_minimal_ok.scoop -o /tmp/top_level_val_read_minimal_ok.out`
+  - `/tmp/top_level_val_read_minimal_ok.out`（退出码 `42`）
+  - `cargo run -p scoop -- test --fixtures /tmp/t4003s-run-pass`（`fixtures: ok (1)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003R
 
 ### T4003SR [TODO] Review：确认普通顶层 `val` 不再依赖 `const` / 静态 `var` 旁路

@@ -230,6 +230,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
+    top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
@@ -414,6 +415,7 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
+    pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -456,6 +458,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_consts,
+            top_level_immutable_values,
             object_inits,
             class_inits,
             class_vtables,
@@ -487,6 +490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_layouts,
             top_level_vars,
             top_level_consts,
+            top_level_immutable_values,
             extern_funs,
             object_inits,
             class_inits,
@@ -538,6 +542,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "source file lookup",
                 at: at.into(),
+            })
+    }
+
+    fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.top_level_vars
+            .get(fqn)
+            .map(|var| var.ty)
+            .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty))
+            .or_else(|| {
+                self.top_level_immutable_values
+                    .get(fqn)
+                    .map(|value| value.ty)
             })
     }
 
@@ -1306,6 +1322,225 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.top_level_const_eval_stack.pop();
         self.current_source_id = saved_source_id;
         result
+    }
+
+    fn declare_top_level_immutable_value_guard(&self, value_fqn: &str) -> GlobalValue<'ctx> {
+        let name = top_level_immutable_value_guard_global_name(value_fqn);
+        if let Some(existing) = self.module.get_global(&name) {
+            return existing;
+        }
+
+        let gv = self.module.add_global(self.context.i64_type(), None, &name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_initializer(&self.context.i64_type().const_int(0, false));
+        gv
+    }
+
+    fn declare_top_level_immutable_value_global(
+        &mut self,
+        at: crate::span::Span,
+        value: &hir::TopLevelImmutableValue,
+        value_cg: CgTy,
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        if value_cg == CgTy::Unit {
+            return Ok(None);
+        }
+
+        let name = top_level_immutable_value_global_name(&value.fqn);
+        if let Some(existing) = self.module.get_global(&name) {
+            return Ok(Some(existing));
+        }
+
+        let llvm_ty = self.llvm_basic_type_of(at, value_cg)?;
+        let gv = self.module.add_global(llvm_ty, None, &name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_initializer(&self.zero_initializer_for_basic_type(llvm_ty));
+
+        if let CgTy::Struct(struct_ty) = value_cg
+            && let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned)
+        {
+            gv.set_alignment(aligned);
+        }
+
+        Ok(Some(gv))
+    }
+
+    fn ensure_top_level_immutable_value_init_function_defined(
+        &mut self,
+        value_fqn: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let Some(value) = self.top_level_immutable_values.get(value_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value init (missing metadata)",
+                at: crate::span::Span::new(0, 0).into(),
+            });
+        };
+
+        let name = top_level_immutable_value_init_fn_name(value_fqn);
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        let llvm_fun = self
+            .module
+            .get_function(&name)
+            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+
+        if llvm_fun.get_first_basic_block().is_some() {
+            return Ok(llvm_fun);
+        }
+
+        let saved_block = self.builder.get_insert_block();
+
+        let mut init_codegen = MainCodegen::new(MainCodegenInputs {
+            context: self.context,
+            module: self.module,
+            builder: self.builder,
+            target_data: self.target_data,
+            host: self.host,
+            source_map: self.source_map,
+            entry_source_id: self.entry_source_id,
+            types: self.types,
+            struct_layouts: self.struct_layouts,
+            enum_layouts: self.enum_layouts,
+            top_level_vars: self.top_level_vars,
+            top_level_consts: self.top_level_consts,
+            top_level_immutable_values: self.top_level_immutable_values,
+            object_inits: self.object_inits,
+            class_inits: self.class_inits,
+            class_vtables: self.class_vtables,
+            interfaces: self.interfaces,
+            class_itables: self.class_itables,
+            ctor_call_sites: self.ctor_call_sites,
+            continuation_resume_call_sites: self.continuation_resume_call_sites,
+            nominal_kinds: self.nominal_kinds,
+            nominal_variances: self.nominal_variances,
+            direct_supertypes: self.direct_supertypes,
+            builtins: self.builtins,
+            extern_funs: self.extern_funs,
+            fun_index: self.fun_index,
+            effect_op_tags: Rc::clone(&self.effect_op_tags),
+        });
+        init_codegen.codegen_top_level_immutable_value_init_fun_body(value, llvm_fun)?;
+
+        if let Some(bb) = saved_block {
+            self.builder.position_at_end(bb);
+        }
+
+        Ok(llvm_fun)
+    }
+
+    fn codegen_top_level_immutable_value_init_fun_body(
+        &mut self,
+        value: &hir::TopLevelImmutableValue,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let err_span = value
+            .init
+            .as_ref()
+            .map(|init| init.span)
+            .unwrap_or(value.span);
+        self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
+
+        let entry = self.context.append_basic_block(llvm_fun, "entry");
+        let init_bb = self.context.append_basic_block(llvm_fun, "init");
+        let done_bb = self.context.append_basic_block(llvm_fun, "done");
+
+        self.builder.position_at_end(entry);
+        self.current_fun_return_ty = Some(CgTy::Unit);
+
+        let guard = self.declare_top_level_immutable_value_guard(&value.fqn);
+        let once_begin = self.declare_runtime_once_begin();
+        let call = self.builder.build_call(
+            once_begin,
+            &[guard.as_pointer_value().into()],
+            "once_begin",
+        )?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value once begin return value",
+                at: err_span.into(),
+            })?;
+        let BasicValueEnum::IntValue(should_init) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value once begin return type",
+                at: err_span.into(),
+            });
+        };
+        let i32_ty = self.context.i32_type();
+        let cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            should_init,
+            i32_ty.const_int(0, false),
+            "should_init",
+        )?;
+        self.builder
+            .build_conditional_branch(cond, init_bb, done_bb)?;
+
+        self.builder.position_at_end(init_bb);
+
+        let init = value
+            .init
+            .as_ref()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value without initializer",
+                at: value.span.into(),
+            })?;
+        let value_cg = self
+            .cg_ty_of(value.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value type",
+                at: value.span.into(),
+            })?;
+        let init_value = self.codegen_initializer_expr(init, value_cg, value.ty)?;
+        if let Some(global) =
+            self.declare_top_level_immutable_value_global(init.span, value, value_cg)?
+        {
+            let _stored =
+                self.store_local_value(init.span, global.as_pointer_value(), value_cg, init_value)?;
+        }
+
+        let once_end = self.declare_runtime_once_end();
+        let _ =
+            self.builder
+                .build_call(once_end, &[guard.as_pointer_value().into()], "once_end")?;
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        self.builder.position_at_end(done_bb);
+        self.builder.build_return(None)?;
+        Ok(())
+    }
+
+    fn codegen_top_level_immutable_value_access(
+        &mut self,
+        at: crate::span::Span,
+        value: &hir::TopLevelImmutableValue,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
+        let _ = self
+            .builder
+            .build_call(init_fn, &[], "top_level_val_init")?;
+        self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
+
+        let value_cg = self
+            .cg_ty_of(value.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level immutable value type",
+                at: value.span.into(),
+            })?;
+
+        if value_cg == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+
+        let Some(global) = self.declare_top_level_immutable_value_global(at, value, value_cg)?
+        else {
+            return Ok(CgValue::unit());
+        };
+        let llvm_ty = self.llvm_basic_type_of(at, value_cg)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, global.as_pointer_value(), "load_top_level_val")?;
+        self.cg_value_from_loaded(at, value_cg, loaded)
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
@@ -8455,11 +8690,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn infer_array_element_word_cg_ty(&self, receiver: &hir::Expr) -> Option<CgTy> {
         let receiver_ty = match &receiver.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self.env.get(*id)?.hir_ty?,
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => self
-                .top_level_vars
-                .get(fqn)
-                .map(|var| var.ty)
-                .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty))?,
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.top_level_value_ty(fqn)?
+            }
             _ => return None,
         };
 
@@ -9288,11 +9521,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &expr.kind {
-            return self
-                .top_level_vars
-                .get(fqn)
-                .map(|var| var.ty)
-                .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty));
+            return self.top_level_value_ty(fqn);
         }
 
         // T0130: 对于 Call 表达式，尝试通过 callee 推导返回类型。
@@ -10764,6 +10993,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 enum_layouts: self.enum_layouts,
                 top_level_vars: self.top_level_vars,
                 top_level_consts: self.top_level_consts,
+                top_level_immutable_values: self.top_level_immutable_values,
                 object_inits: self.object_inits,
                 class_inits: self.class_inits,
                 class_vtables: self.class_vtables,
@@ -12816,6 +13046,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_top_level_const_ref(span, &top_level_const);
                 }
 
+                if let Some(value) = self.top_level_immutable_values.get(fqn).cloned() {
+                    return self.codegen_top_level_immutable_value_access(span, &value);
+                }
+
                 // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
                 let Some(var) = self.top_level_vars.get(fqn) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -13459,6 +13693,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_layouts: self.enum_layouts,
             top_level_vars: self.top_level_vars,
             top_level_consts: self.top_level_consts,
+            top_level_immutable_values: self.top_level_immutable_values,
             object_inits: self.object_inits,
             class_inits: self.class_inits,
             class_vtables: self.class_vtables,
@@ -15859,6 +16094,18 @@ fn object_instance_global_name(object_fqn: &str) -> String {
 
 fn object_prop_global_name(prop_fqn: &str) -> String {
     format!("__scoop_object_prop__{prop_fqn}")
+}
+
+fn top_level_immutable_value_init_fn_name(value_fqn: &str) -> String {
+    format!("__scoop_top_level_val_init__{value_fqn}")
+}
+
+fn top_level_immutable_value_guard_global_name(value_fqn: &str) -> String {
+    format!("__scoop_top_level_val_guard__{value_fqn}")
+}
+
+fn top_level_immutable_value_global_name(value_fqn: &str) -> String {
+    format!("__scoop_top_level_val__{value_fqn}")
 }
 
 fn top_level_var_global_name(var_fqn: &str) -> String {
