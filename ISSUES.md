@@ -2,40 +2,47 @@
 
 ## 范围
 
-- 本清单记录当前阶段仍然存在的“语言特性 / 编译器 / 运行时实现”缺口。
-- 明确排除：纯粹“还没扩出来”的库 API 愿望单；但若某个已公开表面仍是占位实现，或被 compiler/runtime 的硬限制卡住，仍记入问题。
-- 已确认过时的历史说法不再计入问题；若审计过程中发现其它文档/注释也需要同步清理，会挂在相关条目的“关联文档待更新”里。
+- 本轮只记录“语言特性 / 规范兑现 / 编译链语义”上的缺口。
+- 本轮先不展开 executor framework / 调度策略 / wakeup API；除非它们直接阻塞 `Task` 形状或 effect codegen，否则统一留到下一阶段。
+- 明确不单列：纯 stdlib / sysroot API 占位、并发基础库 surface、MIR `Todo(...)`、以及通用 host-only GC / target capability 路线图；只有当它们直接阻塞某条语言规则时，才并入对应条目。
+- 以下结论已交叉验证：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`。
 
-## 1. effect / continuation 仍然只覆盖最小可执行子集
+## 已确认不再计为 issue 的历史说法
 
-- 现状：`handle` 虽然已经支持在同一个表达式里混用 non-resuming / immediate-resume / escape-continuation arms，但 arm head 仍只接受 effect operation；effect type param 推断仍只支持单一 type param；receiver effect op 仍被拒绝；escape continuation binder 目前注入的仍是默认 effect row 的 `Continuation<T>`；`Continuation.resume` 仍只接受一个实参，并且命名实参只接受 `value = ...`。
-- 影响：effect 语义已经不再是最早期的 shape-based 子集，但在 richer effect polymorphism、receiver op、以及更完整 continuation 类型语义上仍有明显缺口。
-- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:875-883`；`crates/scoopc/src/typecheck/expr/infer.rs:947-958`；`crates/scoopc/src/typecheck/expr/infer.rs:1403-1407`；`crates/scoopc/src/typecheck/expr/call.rs:3425-3436`；`crates/scoopc/src/typecheck/expr/call.rs:3646-3680`。
+- member call / interface dispatch 已经打通；`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop` 现在实际是 pass fixture，只剩历史文件名。证据：`crates/scoopc/src/typecheck/expr/call.rs:4384-4828`；`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop:1-18`；`tests/fixtures/run-pass/member_call_interface_dispatch_basic.scoop:1-23`。
+- class 实例字段 member access codegen 已支持；`tests/fixtures/run-pass/gc_trace_class_ref_field_basic.scoop` 里的“尚未支持 class 字段 member access codegen”注释已经过时。证据：`crates/scoopc/src/llvm/codegen/mod.rs:12801-12875`；`tests/fixtures/run-pass/gc_trace_class_ref_field_basic.scoop:4-7`。
+- `@CLayout(..., packed = n)` 已支持 `n <= 16` 且为 2 次幂；`sysroot/core.scoop` 里“v0 仅支持 packed = 1”的历史注释不再准确。证据：`crates/scoopc/src/typecheck/annotations.rs:1757-1767`；`crates/scoopc/src/llvm/codegen/ty.rs:396-407`；`sysroot/core.scoop:128-128`。
+- multi-file lowering 对“非入口文件 source-backed literals”的旧限制已解除，相关 stdlib 注释过时，不再算语言 feature 缺口。证据：`crates/scoopc/src/hir/lower/mod.rs:1509-1510`；`stdlib/array_iter.scoop:9-9`；`stdlib/mutable_array.scoop:15-15`；`stdlib/mutable_array_iter.scoop:8-8`；`stdlib/mutable_list.scoop:10-10`；`stdlib/task.scoop:10-10`。
 
-## 2. `spawn` / `join` / `Task` / executor 的可执行路径仍然硬编码在 `Int` / `u64`
+## 1. effect / continuation 主路径已足够支撑手动 step 的 `Task`，但仍未覆盖完整规范语义
 
-- 现状：`spawn { ... }` 仍要求 body 可赋给 `Int`；typecheck 把结果建模为 `Task<Int>`；HIR lowering 里的 `await` / `join` 仍直连 `__scoop_task_join_int`；runtime executor 仍是 cooperative、单队列、无取消，并且任务结果槽位是 `u64`。
-- 影响：结构化并发语法已经可用，但还不是完整的 `Task<T>` / `await` / executor 语义；泛型结果类型、取消和更完整的调度模型仍未贯通。
-- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:478-483`；`crates/scoopc/src/typecheck/expr/infer.rs:510-513`；`crates/scoopc/src/typecheck/expr/infer.rs:567-571`；`crates/scoopc/src/hir/lower/expr.rs:559-576`；`crates/scoopc/src/hir/lower/expr.rs:654-657`；`crates/scoopc/src/llvm/codegen/mod.rs:7991-8025`；`sysroot/task.scoop:44-93`；`runtime/c/scoop_task_executor.c:4-8`。
+- 现状：escape continuation 已经可以 capture、堆存、跨作用域 later-resume，并且 `resume` payload 已覆盖 `Unit`、GC 引用与带引用字段的复合值；现有 FIFO/LIFO scheduler fixtures 也已经证明 pure Scoop 代码可以把 `Continuation<T>` 存进普通 class 字段后手动推进计算。因此，从“Task 内部靠 continuation stepping”这个角度看，effect codegen 主路径已经可用。但 richer 语义仍未补齐：handler arm head 仍只接受 effect operation；effect type param 仍只支持单一 type param；receiver effect op 仍被拒绝；escape continuation binder 仍注入默认 effect row 的 `Continuation<T>`；`Continuation.resume` 仍只接受一个实参，并且命名实参只接受 `value = ...`。另外，在 async 组合子路径上，当前 LLVM 后端对 escape continuation 的组合能力仍偏弱，`Task<Int>.andThen` 这类“一个 setup 里串两个 await”仍需要拆成两段 `handle`。
+- 影响：effect / continuation 已经不再是 “Task redesign 无法开始” 的 blocker；它已经足以支撑“Task 是普通对象、内部保存并推进 continuation”的方向。真正尚未完成的是更完整的 effect polymorphism、receiver-op 支持，以及更自然的多 suspend / 多 await 组合写法。
+- 证据：`tests/fixtures/run-pass/effect_escape_continuation_scheduler_fifo_multi_task.scoop:18-163`；`tests/fixtures/run-pass/effect_escape_continuation_scheduler_lifo_multi_task.scoop:19-155`；`tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop:12-40`；`tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop:12-38`；`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop:19-58`；`crates/scoopc/src/typecheck/expr/infer.rs:1246-1261`；`crates/scoopc/src/typecheck/expr/infer.rs:1719-1729`；`crates/scoopc/src/typecheck/expr/call.rs:3419-3436`；`crates/scoopc/src/typecheck/expr/call.rs:3646-3735`；`stdlib/task.scoop:116-149`。
+
+## 2. `Task` 仍未定型为通用的 pollable object；当前实现还绑在 executor-centric 的 hard-coded ABI 上
+
+- 现状：下一阶段的 executor framework 还可以继续留白，但 `Task` 本体的方向其实已经足够明确：它应该是通用 API，语义上类似可手动 `poll` / `step` 的 lazy object；`Continuation` 则应视为较低层、one-shot 的 advanced API，由 `Task` 或库层封装使用。当前实现却仍停留在旧设计：`spawn { ... }` 仍要求 body 可赋给 `Int`；`Task<T>` 与 `scoop.task.Executor` 在后端仍直接映射成 word-sized handle；`taskCreate` 仍由编译器拆 closure object 取出 `{env_ptr, fn_ptr}` 后调用 `scoop_task_u64_create`；`Task.onComplete` 仍直接把 raw continuation pointer 传给 `scoop_task_u64_on_complete_resume_u64`；`join` lowering 仍直连 `__scoop_task_join_int`。这意味着当前 `Task` 还不是“普通对象 + 内部状态机 + 手动 poll contract”的形状。
+- 影响：当前真正待收敛的不是 executor 队列/调度策略，而是 `Task` 的对象模型与 lowering 合同。只要 `Task` 仍被绑定到 handle ABI，就没法把它定成通用 API，也没法把 continuation one-shot 细节安全地藏到 advanced API 背后。
+- 证据：`sysroot/core.scoop:447-472`；`crates/scoopc/src/typecheck/expr/infer.rs:478-603`；`crates/scoopc/src/hir/lower/expr.rs:560-680`；`crates/scoopc/src/llvm/codegen/ty.rs:28-44`；`crates/scoopc/src/llvm/codegen/mod.rs:7250-7359`；`crates/scoopc/src/llvm/codegen/mod.rs:7757-7870`；`crates/scoopc/src/llvm/codegen/mod.rs:8509-8644`；`crates/scoopc/src/llvm/codegen/runtime_abi.rs:735-882`；`runtime/c/scoop_task_executor.c:1-481`；`runtime/c/scoop_runtime.c:1308-1351`。
 
 ## 3. lambda 推断与 receiver lambda 仍不完整
 
-- 现状：没有 expected function type 时，未标注类型的 lambda 参数会直接报错；当前只支持 0/1/2 参数 lambda 的 expected-type 向下传播；receiver function type 虽可进入类型系统，但 lambda body 里还不会自动注入 `this`。
-- 影响：lambda 基本语法已经可用，但“先写 lambda 再让上下文推断”“更多参数形态”“receiver lambda 直接用 `this`”这些常见写法仍不完整。
-- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:305-321`；`crates/scoopc/src/typecheck/expr/infer.rs:2049-2056`；`crates/scoopc/src/typecheck/expr/infer.rs:2058-2065`。
+- 现状：没有 expected function type 时，未标注类型的 lambda 参数仍会直接报错；当前 expected-type 向下传播仍只覆盖 0/1/2 参数 lambda；receiver function type 虽可进入类型系统，但 lambda body 里仍不会自动注入 `this`。
+- 影响：lambda 的基本语法已经可用，但“先写 lambda 再让上下文推断”“更多参数形态”“receiver lambda 直接使用 `this`”这些常见写法仍不完整。
+- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:305-321`；`crates/scoopc/src/typecheck/expr/infer.rs:2049-2065`；`crates/scoopc/src/typecheck/expr/infer.rs:2368-2369`。
 
 ## 4. 调用语义仍有多处早期门禁
 
 - 现状：函数值调用仍不支持命名实参；函数指针调用同样不支持命名实参，并明确拒绝 receiver function type 作为签名；`callee<T>` 仍不能作为一等值传递；函数签名仍只支持“至多一个 vararg，且必须为最后一个形参”；`super(...)` / `this(...)` 构造器委托调用仍只允许位置参数。
-- 影响：Kotlin-like 调用规则并没有在所有 callee 形态上统一落地，调用系统仍带着较多“按 callee 形态分流”的早期特判。
+- 影响：Kotlin-like 调用规则尚未在所有 callee 形态上统一落地，调用系统仍带着较多“按 callee 形态分流”的早期特判。
 - 证据：`crates/scoopc/src/typecheck/expr/call.rs:789-800`；`crates/scoopc/src/typecheck/expr/call.rs:943-978`；`crates/scoopc/src/typecheck/expr/call.rs:1560-1564`；`crates/scoopc/src/typecheck/expr/mod.rs:147-160`；`crates/scoopc/src/typecheck/expr/entry.rs:910-911`。
-- 关联文档待更新：`sysroot/core.scoop`、`sysroot/collections.scoop` 里仍保留“普通成员函数调用尚未全面打通”的历史注释；member call / interface dispatch 现已有实现与回归（例如 `crates/scoopc/src/typecheck/expr/call.rs:4384-4828`、`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop:1-18`）。
 
-## 5. 泛型约束与“带实参的超类型”仍不完整
+## 5. 泛型约束、参数化超类型与 star projection 仍不完整
 
-- 现状：`where` 子句仍会直接拒绝带类型实参的 nominal bound；type env 记录 direct supertypes 时仍只保存 FQN、不保存 type args；赋值/上转规则也仍只在目标类型“未带实参”时做 nominal 上转，因此 `MyIter : Iterator<Int>` 这一类参数化 interface 上转语义仍不完整，仓库里才保留了 `IntIterable` 这条专用旁路。
-- 影响：泛型约束系统与子类型关系目前只能覆盖较浅的 nominal 场景，参数化接口/父类型的真实实例化语义还没贯通。
-- 证据：`crates/scoopc/src/typecheck/where_clause.rs:35-40`；`crates/scoopc/src/typecheck/where_clause.rs:209-215`；`crates/scoopc/src/typecheck/type_env.rs:603-607`；`crates/scoopc/src/typecheck/assignable.rs:180-186`；`sysroot/collections.scoop:26-45`。
+- 现状：`where` 子句仍会直接拒绝带类型实参的 nominal bound；type env 记录 direct supertypes 时仍只保存 FQN、不保存 type args；赋值/上转规则也仍只在目标类型“未带实参”时做 nominal 上转；另外，spec §3.3 的 star projection 目前只是被弱化成 `Any`，并没有落地成 `out Any?` 那样的真实读视图 / 装箱语义，而在 enum-pattern 专用 lowering 里 `*` 仍会被直接拒绝。
+- 影响：泛型约束系统与参数化子类型关系当前只能覆盖较浅的 nominal 场景；`List<*>` 这类规范上有明确语义的类型写法，也还没有真实语义实现。
+- 证据：`crates/scoopc/src/typecheck/where_clause.rs:35-40`；`crates/scoopc/src/typecheck/type_env.rs:603-607`；`crates/scoopc/src/typecheck/assignable.rs:180-186`；`crates/scoopc/src/typecheck/lower.rs:1058-1063`；`crates/scoopc/src/typecheck/expr/call.rs:3303-3306`；`SCOOP_FULL_SPEC.md:432-432`。
 
 ## 6. 顶层 pattern binding 仍不支持
 
@@ -55,58 +62,44 @@
 - 影响：模式匹配的表达能力仍被限制在“无绑定的 or-pattern”，不能把多个分支合并成共享绑定的写法。
 - 证据：`crates/scoopc/src/typecheck/when_pat.rs:90-98`。
 
-## 9. annotation class 仍只支持 data-only 子集
+## 9. annotation 系统仍只覆盖部分规范
 
-- 现状：annotation class 当前仍不支持继承 / 实现接口，也不支持类型体；实现上只接受“主构造参数承载数据”的最小子集。
-- 影响：注解系统已经有基本声明与使用能力，但 richer annotation model 仍未落地。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs:77-90`。
+- 现状：annotation class 仍不支持继承 / 实现接口，也不支持类型体；实现上只接受“主构造参数承载数据”的 data-only 子集。与此同时，编译器硬编码识别的 built-in annotation 仍只有 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`，spec 里写到的 `@Deprecated`、`@Inline`、`@AllowIntrinsic`、`@Suppress` 等编译器语义并未落地。
+- 影响：注解系统已经有基本声明、use-site target 与 `@Target/@Retention` 校验，但 richer annotation model 与多项 built-in annotation behavior 仍未兑现。
+- 证据：`crates/scoopc/src/typecheck/annotations.rs:77-90`；`crates/scoopc/src/typecheck/builtin_annotations.rs:12-18`；`crates/scoopc/src/typecheck/builtin_annotations.rs:53-66`；`crates/scoopc/src/resolve/mod.rs:311-340`；`SCOOP_FULL_SPEC.md:2285-2299`。
 
-## 10. FFI / ABI 仍停留在 C ABI + GC-free 最小子集
+## 10. `inline` / non-local return 语义与规范仍不一致
+
+- 现状：spec §7.2 明确写的是“`inline` 只是优化提示，没有语义效果，也不存在 non-local return”；但当前 typecheck 的 statement checker 会把 `inline` 当成控制流语义的一部分，允许 inline 函数的 lambda 实参里出现 non-local return。更进一步，这条规则本身仍是不完整的：部分调用路径（例如跨文件顶层函数、若干 member call 路径）仍默认按 `inline = false` 处理。
+- 影响：当前仓库对 `inline` 的语言模型本身就是分裂的：规范说“无语义”，实现却在静态门禁上赋予了语义，而且还没有统一传播到所有调用形态。
+- 证据：`SCOOP_FULL_SPEC.md:1341-1348`；`crates/scoopc/src/typecheck/expr/stmt.rs:196-224`；`crates/scoopc/src/typecheck/expr/stmt.rs:1365-1401`；`crates/scoopc/src/typecheck/expr/call.rs:1154-1155`；`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop:1-12`。
+
+## 11. FFI / ABI 仍停留在 C ABI + GC-free 最小子集
 
 - 现状：`@CallingConvention` 仍只接受 `"c"` / `"cdecl"`；`@Extern` 顶层变量与函数 ABI 签名仍要求 GC-free 值类型；`FunPtr<F>` 仍不支持 receiver function type；codegen 对函数指针调用也仍只按 C ABI 发 indirect call。
 - 影响：系统互操作虽然已经打开，但 ABI 维度的表达能力仍很窄，无法覆盖更复杂的宿主互操作场景。
 - 证据：`crates/scoopc/src/typecheck/annotations.rs:145-156`；`crates/scoopc/src/typecheck/annotations.rs:176-191`；`crates/scoopc/src/typecheck/lower.rs:146-150`；`crates/scoopc/src/typecheck/expr/call.rs:974-978`；`crates/scoopc/src/llvm/codegen/mod.rs:9659-9663`。
-- 关联文档待更新：`sysroot/core.scoop` 里 `@CLayout(..., packed = ...)` 仍写着“v0 仅支持 packed = 1”，但当前 typecheck/codegen 已支持 `packed` 为 `<= 16` 的 2 次幂（见 `crates/scoopc/src/typecheck/annotations.rs:1710-1714`、`crates/scoopc/src/typecheck/annotations.rs:1759-1767`、`crates/scoopc/src/llvm/codegen/ty.rs:396-407`）。
 
-## 11. const/comptime 仍然只覆盖很窄的纯计算子集
+## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 
 - 现状：声明头检查仍会直接拒绝 `const fun` 上的非 `Pure` effect row 与任何 `eff` 参数；常量 evaluator 仍只覆盖字面量与一元/二元运算，不支持函数外的控制流 / effects / 循环；`const fun` 解释器当前也仍只支持同文件、按“函数名 + 参数个数”的最小选择。
 - 影响：编译期执行链路已经不是空壳，但仍停留在最保守的纯函数 / 常量折叠模型，离更完整的 comptime 语义还有明显距离。
-- 证据：`crates/scoopc/src/typecheck/headers.rs:34-49`；`crates/scoopc/src/typecheck/headers.rs:94-116`；`crates/scoopc/src/comptime/eval.rs:3-6`；`crates/scoopc/src/comptime/interpreter.rs:8-10`；`crates/scoopc/src/comptime/interpreter.rs:48-56`。
+- 证据：`crates/scoopc/src/typecheck/headers.rs:34-49`；`crates/scoopc/src/typecheck/headers.rs:94-116`；`crates/scoopc/src/comptime/eval.rs:295-650`；`crates/scoopc/src/comptime/interpreter.rs:412-442`；`crates/scoopc/src/comptime/interpreter.rs:1169-1242`。
 
-## 12. 跨文件 / 跨包编译链路仍有明显边界
+## 13. Elvis `?:` 已有静态规则，但仍未进入可执行 lowering / codegen
+
+- 现状：parser 和 typecheck 已经接受 Elvis，且有独立的 nullable / rhs type 规则；但 HIR lowering 仍把它留在 `Any` fallback，LLVM codegen 仍直接报 `elvis operator` unsupported。
+- 影响：spec Appendix B.3.2 中已经公开的 `?:` 目前只存在于“语法 + 静态规则”层，无法成为稳定的可执行语言特性。
+- 证据：`crates/scoopc/src/typecheck/expr/infer.rs:270-270`；`crates/scoopc/src/typecheck/expr/member.rs:58-82`；`tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop:1-16`；`crates/scoopc/src/hir/lower/expr.rs:3112-3113`；`crates/scoopc/src/llvm/codegen/mod.rs:13813-13816`。
+
+## 14. 跨文件 / 跨包编译链路仍有明显边界
 
 - 现状：表达式 typecheck 里的顶层值类型表仍只收“当前文件”；单态化 lowering 仍只实例化“当前文件内”的顶层函数；扩展函数解析仍只在同包内查找。
 - 影响：多文件 / 多包工程虽然已经能走通主路径，但跨文件顶层值、跨文件泛型实例化、跨包扩展分发这些能力仍不完整，语言规则还没有在 compilation-unit 维度上完全统一。
 - 证据：`crates/scoopc/src/typecheck/expr/entry.rs:232-237`；`crates/scoopc/src/monomorph/lower.rs:242-245`；`crates/scoopc/src/resolve/mod.rs:432-436`。
-- 关联文档待更新：`stdlib/prelude.scoop`、`stdlib/array_iter.scoop`、`stdlib/mutable_array.scoop`、`stdlib/mutable_array_iter.scoop`、`stdlib/mutable_list.scoop`、`stdlib/task.scoop`、`stdlib/test.scoop` 里仍保留“非入口文件 source-backed literals 会被 multi-file lowering 拒绝”的历史注释；HIR multi-file lowering 现在已经明确标注这条旧限制已解除（见 `crates/scoopc/src/hir/lower/mod.rs:1518-1519`）。
 
-## 13. LLVM / runtime backend 仍然只覆盖较窄的 host-only / v0 GC 边界
-
-- 现状：LLVM target 仍只支持 host；stackmap 解析与运行时注册仍只按 v3 / 64-bit host 的最小子集实现；moving GC 仍只支持 spill-slot roots，不支持寄存器 roots；`gc-minimal` / `gc-hosted` 检测到多线程后仍把 `collect()` 退化为 no-op；共享 type-descriptor trace 也仍要求 word 对齐扫描。
-- 影响：后端与 GC 已经具备可执行主线，但目标平台、roots 形态和 backend 能力边界仍然很窄，离“泛平台 + 统一 GC 能力矩阵”还有明显差距。
-- 证据：`crates/scoopc/src/llvm/target.rs:3-7`；`crates/scoopc/src/stackmap.rs:10-12`；`runtime/c/scoop_stackmap.c:741-743`；`runtime/c/scoop_stackmap.c:1225-1226`；`crates/scoopc/src/llvm/mod.rs:47-56`；`runtime/c/scoop_gc_backend_minimal.c:460-463`；`runtime/c/scoop_gc_backend_hosted.c:470-474`；`runtime/c/scoop_gc_common.c:71-73`。
-
-## 14. 并发基础库仍是最小 host-only 子集
-
-- 现状：`Channel<T>` 在类型表面是泛型，但 runtime 队列节点当前只承载 `u64 word`，不能安全承载 GC 引用；通道语义当前只承诺“多线程 send + 单线程 recv”；线程与同步原语仍只覆盖 host 平台；`threadSpawn(block)` / `Once.run(block)` 当前仅保证非捕获 lambda。
-- 影响：并发基础能力已经可跑通基本回归，但值域、平台与 closure 形态都仍然受限，还不能视为完整的一般用途并发库。
-- 证据：`sysroot/channels.scoop:18-40`；`runtime/c/scoop_channels.c:8-18`；`sysroot/thread.scoop:15-24`；`runtime/c/scoop_sync.c:8-15`。
-
-## 15. 部分已公开 stdlib / sysroot API 仍是占位实现或仅有声明面
-
-- 现状：`IntIterable.toArray()` 当前仍直接返回空数组；`scoop.net` 目前能看到的是 sysroot 声明面与 typecheck fixture，审计时未发现对应的 runtime / LLVM 映射实现。
-- 影响：这些 API 在用户视角上已经“存在”，但语义要么明显不完整，要么仍停留在仅能通过解析 / 类型检查的阶段，容易造成“表面可用、运行期不可用”的错觉。
-- 证据：`stdlib/collections_iter.scoop:18-23`；`sysroot/net.scoop:1-68`；`tests/fixtures/typecheck/std_net_tcp_api_surface_ok.scoop:3-5`。
-
-## 16. RTTI 仍不支持泛型 / `eff` 参数化类型
+## 15. RTTI 仍不支持泛型 / `eff` 参数化类型
 
 - 现状：RTTI 生成对泛型或带 `eff` 参数的类型仍直接报 `unsupported_generic_type`。
 - 影响：运行时类型描述符当前只能覆盖未参数化的类型，generic / effect-parameterized type 的反射与运行时可观测性还没有贯通。
-- 证据：`crates/scoopc/src/rtti/mod.rs:122-124`。
-
-## 17. MIR lowering 仍大量依赖 `Todo` 占位
-
-- 现状：MIR 路径里，`assign lhs`、一元/二元表达式、`perform` / `handle` 的结果与 unwind、以及若干控制流出口仍直接降成 `Todo(...)`。
-- 影响：当前 MIR 更像“结构回归视图”而不是一条完整可执行的中间表示；如果下一步希望把 MIR 作为优化 / 验证 / 解释的稳定基础，这一块仍有明显缺口。
-- 证据：`crates/scoopc/src/mir/mod.rs:12`；`crates/scoopc/src/mir/mod.rs:269-387`；`crates/scoopc/src/mir/lower.rs:324-344`；`crates/scoopc/src/mir/lower.rs:482-544`；`crates/scoopc/src/mir/lower.rs:638-716`。
+- 证据：`crates/scoopc/src/rtti/mod.rs:122-124`；`crates/scoopc/src/rtti/mod.rs:438-441`。

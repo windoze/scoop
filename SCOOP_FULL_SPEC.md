@@ -655,7 +655,7 @@ fun fetchData(): String / Raise<IOError> {
 }
 ```
 
-> **Note on `async fun`**: `async fun foo(): T` does **not** desugar to `fun foo(): T / Async`. Instead, it desugars to `fun foo(): Task<T>` where the body is captured as a lazy computation. The `/ Async` effect only exists inside the Task's computation context. See §5.6 for details.
+> **Note on `async fun`**: `async fun foo(): T` does **not** desugar to `fun foo(): T / Async`. Instead, it desugars to `fun foo(): Task<T>` where the body is captured as a lazy computation. The `/ Async` effect only exists inside the Task's computation context. See §5.7 for details.
 
 ### 5.4 Handling Effects
 
@@ -704,7 +704,8 @@ handle {
 } with {
     Async.await(task), k -> {
         // k : Continuation<T, eff E>
-        scheduler.register(task, k)
+        // advanced API: store `k` in a GC-managed object and resume it later
+        ()
     }
 }
 ```
@@ -712,6 +713,8 @@ handle {
 `resume()` is unavailable; use `k.resume(value)` explicitly. The state machine is heap-allocated (GC-managed) so it can outlive the handler scope.
 
 `k.resume(value)` is **one-shot**: calling it twice performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (and therefore requires `Raise<RuntimeError>` unless handled).
+
+Directly capturing and resuming `Continuation` values is an **advanced control-flow API**. General-purpose async code should normally expose `Task<T>` rather than raw continuations.
 
 #### Summary
 
@@ -741,12 +744,14 @@ effect Yield {
 Operations:
 - `k.resume(value: T): Unit / (E + Raise<RuntimeError>)` — resume the suspended computation with `value`.
   - One-shot: if called twice, performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (no panic).
+  - If the resumed computation suspends again through an escape-continuation handler, that handler captures a **fresh** continuation. `k.resume(value)` itself still returns `Unit`; it does not return the next continuation.
 
 Resumption context:
 
 - `Continuation<T, eff E>` captures the dynamic effect context (the active handler stack; Appendix A) at the suspension point.
 - Calling `k.resume(value)` resumes the computation under that captured handler stack, even if `resume` is invoked from a different OS thread.
 - Implementations typically realize this by storing the captured handler stack pointer in the continuation object and installing it into the current thread’s TLS effect state for the duration of the resumed step, then restoring the previous TLS state on return.
+- `Continuation<T, eff E>` belongs to the language's **advanced API surface**. Typical async code should interact with `Task<T>`; runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
 
 ### 5.6 Compilation Strategy
 
@@ -758,13 +763,13 @@ Resumption context:
 
 Implementation details:
 
-Note: the runtime symbol names used in this section (e.g., `__scoop_effect_active`, `scoop_perform_*`, `__scoop_run_executor`) are illustrative only and do **not** constitute a stable ABI. The exact runtime entrypoints and symbol names are implementation-defined and may change.
+Note: the runtime symbol names used in this section (e.g., `__scoop_effect_active`, `scoop_perform_*`, `scoop_continuation_resume`) are illustrative only and do **not** constitute a stable ABI. The exact runtime entrypoints, task-poll hooks, and symbol names are implementation-defined and may change.
 
 - **Per-thread runtime state**: effect dispatch/unwinding state is maintained in thread-local storage (TLS), including the active handler stack pointer and the current "perform slot" used by flag-based unwinding.
-- **Cross-thread resume**: when a continuation is resumed, its captured handler stack is installed into the resuming thread’s TLS effect state. This makes the effect context conceptually fiber-local even when the scheduler migrates tasks across threads (e.g., work-stealing executors).
+- **Cross-thread resume**: when a continuation is resumed, its captured handler stack is installed into the resuming thread’s TLS effect state. This makes the effect context conceptually fiber-local whether the continuation is resumed manually or by some future executor/scheduler framework.
 - **Flag-based unwinding**: `__scoop_effect_active` is a thread-local flag. `scoop_perform_*` functions write the operation tag and arguments into the thread-local perform slot, set the flag, and return; callers check the flag and propagate. Before running any user code during propagation (handler arm bodies, `finally` blocks), the runtime/compiled code must capture the slot and clear the flag; if the effect is still unhandled at that boundary, it is re-raised after cleanup.
 - **Stack state machine**: Handle body split into segments at perform/call boundaries. `Var` locals lifted across segments. While-loop dispatches to handler arms on each suspend, re-enters at next state on resume.
-- **Heap state machine**: Same segmentation, but state + lifted locals live in a GC-allocated struct. A `step()` function advances one segment and returns `Pending` or `Done(value)`. The continuation holds a pointer to this struct.
+- **Heap state machine**: Same segmentation, but state + lifted locals live in a GC-allocated struct. A `step()`/`poll()` driver advances the computation until the next suspension or completion and reports `Pending` or `Ready(value)`. Escape continuations may keep a pointer to this struct.
 - **One-shot only**: Each suspension point resumes at most once. Multi-shot continuations are not supported.
 
 ### 5.7 Syntax Sugar for Common Effects
@@ -829,69 +834,72 @@ effect Async {
 }
 ```
 
-`async { }` blocks are sugar for `handle/with` using an escape-continuation handler backed by a cooperative executor (implementation-defined; it may be single-threaded or multi-threaded):
+Current-stage focus:
+
+- This stage standardizes effect codegen and the core shape of `Task<T>`.
+- Executor frameworks (queues, wakeups, work-stealing, spawn scheduling) are intentionally deferred.
+- A `Task<T>` must remain usable without an executor by manual polling/stepping.
+
+Conceptual async surface:
 
 ```kotlin
-async {
-    val data = await fetch("https://example.com")
-    println(data)
+enum Poll<T> {
+    Pending,
+    Ready(T),
 }
 
-// Desugars to:
-__scoop_run_executor {
-    handle {
-        val data = perform Async.await(fetch("https://example.com"))
-        println(data)
-    } with {
-        Async.await(task), k -> {
-            // Register the task with an I/O driver or scheduler. Completion may occur on
-            // a different OS thread (e.g., an io_uring poller thread). When completed,
-            // the continuation is enqueued onto the executor's work-stealing queue.
-            __scoop_io_register(task) { value ->
-                __scoop_executor_enqueue(k, value)
-            }
+class Task<T> {
+    fun poll(): Poll<T>
+}
+```
+
+A task is lazy and may be driven manually:
+
+```kotlin
+val t: Task<User> = async {
+    val resp = await httpGet("/user")
+    parse(resp.body)
+}
+
+while (true) {
+    when (t.poll()) {
+        Pending -> ()
+        Ready(user) -> {
+            println(user.name)
+            break
         }
     }
 }
 ```
 
-`async fun` wraps the body in a `Task<T>`:
-
-```kotlin
-async fun fetchUser(): User {
-    val resp = await httpGet("/user")
-    parse(resp.body)
-}
-
-// Desugars to:
-fun fetchUser(): Task<User> {
-    return Task {
-        val resp = perform Async.await(httpGet("/user"))
-        parse(resp.body)
-    }
-}
-```
-
 Key semantics:
+- `Task<T>` is the **general-purpose async API**. `Continuation<T, eff E>` remains the lower-level advanced API used to implement tasks and other control-flow libraries directly.
+- `async { body }` creates a lazy `Task<T>`.
 - `async fun foo(): T` desugars to `fun foo(): Task<T>` — the caller receives a `Task<T>`.
 - `await expr` inside an async body desugars to `perform Async.await(expr)`.
 - The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
-- `Task<T>` is lazy until awaited or explicitly started.
-- The executor uses escape continuations (`Continuation<T, eff E>`) to suspend and resume tasks cooperatively.
+- `Task<T>` stores private execution state. Before the first poll it holds an initial entry state; after suspension it may hold an internal continuation; after completion it holds the final result.
+- `Task.poll()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
+- If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
+- Direct access to those internal continuations is not part of the common task API.
+- The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.
 
 #### spawn (structured concurrency)
 
-```kotlin
-async {
-    val t1 = spawn { fetchData("url1") }
-    val t2 = spawn { fetchData("url2") }
-    val a = await t1
-    val b = await t2
-    println(a + b)
-}
-```
+`spawn` and the broader structured-concurrency / executor framework are intentionally deferred to a later stage.
 
-`spawn { body }` creates a `Task<T>` that can run concurrently within the executor. Desugars to `perform Async.spawn({ body })`.
+This stage fixes:
+
+- the `Async.await` effect operation,
+- the lazy, manually-pollable `Task<T>` core abstraction,
+- and the continuation semantics needed to implement it.
+
+It does **not** yet fix:
+
+- a standard executor interface,
+- wakeup registration,
+- queueing or work-stealing strategy,
+- or the final desugaring of `spawn`.
 
 #### Generator / yield (library-level, no dedicated syntax)
 
