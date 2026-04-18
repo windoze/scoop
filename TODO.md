@@ -1962,11 +1962,116 @@
   - `HandleStateOp::Return` 现已按 enclosing function return type 求值并完成 coercion，因此 `handle` 内 `return` 与普通 `return` 在值语义上共用同一套返回合同，包括 `Int -> Any` boxing 这类返回值变换。
 - 依赖：T3016
 
+### T3016a [TODO] 修正 escaped continuation 完成态的 cleanup/finally replay 与 no-suspend handle result 回归
+- 描述：开始回收 `T3006` xfail 时，把残留 fixture 临时改回 `EXPECT: pass` 后发现，escaped continuation 完成态与 no-suspend handle 的完成合同还没真正闭环。`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop` 在 resumed completion 后会额外再执行一次 `finally` / `cleanup`；`effect_nosuspend_finally_nested_handle.scoop` 则把本应为 `16/26` 的 handle 结果打成 `0`。这说明当前统一 state-machine 在 cleanup 退出后恢复 terminal completion mode / handle result slot 时仍有生产缺口，不能继续直接做 `T3017` expectation cleanup。
+- 目标：
+  - escaped continuation resumed completion 只执行一次 `finally` / `cleanup`，不再在 body 真正完成后重复 replay。
+  - no-suspend nested handle + finally 路径继续返回真实 handle result，不再回退到默认 `0` / 空结果。
+  - `completion_tag` / `state_tag` / result slot 的恢复合同与 `T3016` 的 function-return 修复兼容，不引入新的 effect-only 出口。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_multi_perform.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_escape_direct_finally.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_source_path_matrix.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_nosuspend_finally_nested_handle.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016R
+
+### T3016aR [TODO] Review：确认 cleanup/finally completion 恢复不再重复 replay 或冲掉 handle result
+- 描述：在 `T3016a` 之后只审查生产代码，确认 resumed completion 的 `finally` / `cleanup` 与 no-suspend handle result 都已收口到统一 completion/result 合同，而不是靠 fixture/golden 迁就；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `completion_tag`、`state_tag`、frame result slot 与 handle done 路径之间没有新的双写或覆盖。
+  - 确认 no-suspend handle、nested handle、escaped continuation completion 共用同一套完成态恢复逻辑。
+  - 确认生产代码未引入“只跳过第二次 finally”的 test-only patch。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“cleanup/finally completion 恢复已闭环，无重复 replay 或结果槽回退”。
+- 依赖：T3016a
+
+### T3016b [TODO] 修正 escaped continuation resumed-body tail replay 在 block/when/loop 混合控制流中的回归
+- 描述：`T3017` 扫描还暴露了另一类更前置的真实语义缺口：`effect_escape_continuation_perform_in_when_arm.scoop` 在 resume 后会重复执行 `before_ask` 并再次命中 `ask_arm`；`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 在 direct→indirect mixed block 中丢失 direct 之后、indirect 之前的 prefix；同族的 `effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`、`effect_multi_escape_direct_indirect_while.scoop` 也都在 expectation scan 中暴露了相同方向的 tail replay 偏差。说明当前 resumed-body rebuild 仍未在 block/when/loop 的 mixed suspend-site 组合上完整对齐统一 resume-path 合同。
+- 目标：
+  - resume 后只继续当前 suspend site 之后的剩余 tail，不重复 pre-suspend prefix，也不跳过 direct/indirect site 之间应保留的语句。
+  - `when` arm、nested block、`if`/`while` 与 mixed direct+indirect suspend-site 共享同一套 resumed-body rebuild 合同。
+  - 继续禁止 emitter 回扫 AST/源码形状；修复必须落在统一 state-machine plan / resume-path / emitter 合同内。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_perform_in_when_arm.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_while_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_direct_indirect_while.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016aR
+
+### T3016bR [TODO] Review：确认 resumed-body tail replay 已统一回到 state-machine resume-path 合同
+- 描述：在 `T3016b` 之后只审查生产代码，确认 block/when/loop mixed replay 的修复继续停留在 state-machine contract，而不是重新引入按源码容器/语句形状分流的补丁；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 resumed-body rebuild 仍以统一 `resume_path` / suspend-site 元数据为输入。
+  - 确认不存在按 `when arm` / `while body` / direct-vs-indirect 局部形状硬编码的 test-only 旁路。
+  - 确认 direct + indirect mixed path 在相同 contract 下都能重建正确 tail。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“resumed-body tail replay 已按统一 resume-path 合同收口，无形状分流回流”。
+- 依赖：T3016b
+
+### T3016c [TODO] 接回 outer-body `Continuation.resume(...)` 在 `when` / nested handle 场景中的生产 lowering
+- 描述：继续扫描时发现，还有一组 fixture 根本没有进入正确的 resume 主路径：`effect_escape_continuation_finally_normal.scoop` 在 outer body 的 `when (cell.k)` 中执行 `k1.resume(42)` 时直接报 `unsupported_main_body: call callee`；`effect_escape_continuation_nested_outer_resume_inner_multi.scoop` 则在 outer body 连续 resume inner continuation 时直接以空输出退出。说明 post-handle / outer-handler-body 中的 `Continuation.resume(...)` 仍有调用点没有命中 dedicated lowering 或正确的 dispatch/resume 合同，`T3017` 不能在这个缺口未修前继续推进。
+- 目标：
+  - outer body、`when` arm、nested handle 外层 body 中的 `Continuation.resume(...)` 都进入统一 dedicated lowering，不再回落到 generic `call callee`。
+  - outer body resume inner continuation 后，控制流、stdout 与 result 都按既定 fixture 语义继续推进，不出现静默退出。
+  - 修复继续复用 `continuation_resume_call_sites` 与统一 dispatch/runtime 合同，不新增按成员名或局部形状匹配的旁路。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_finally_normal.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_outer_resume_inner_multi.scoop`
+  - `cargo test -p scoop_runtime continuation_resume_ -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016bR
+
+### T3016cR [TODO] Review：确认 outer-body `Continuation.resume(...)` 不再回落到 generic call 或静默退出
+- 描述：在 `T3016c` 之后只审查生产代码，确认 outer-body / nested-handle resume 已统一接回 dedicated lowering 与 runtime dispatch 合同，而不是靠 fixture 特判；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `Continuation.resume(...)` 调用点仍只依赖 typecheck side table，不按成员名/源码形状分流。
+  - 确认 outer body / nested handle resume 与现有 escaped continuation runtime 合同一致。
+  - 确认 silent exit / `unsupported_main_body: call callee` 都已消失。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“outer-body `Continuation.resume(...)` 已统一接回，无 generic call fallback 或 silent exit 残留”。
+- 依赖：T3016c
+
+### T3016d [TODO] 修正 GC stress 下 escaped continuation 与深对象图捕获的存活 / 恢复缺口
+- 描述：`T3017` expectation scan 还证明，GC stress 路径不是单纯慢，而是存在真实语义问题。`effect_escape_continuation_gc_stress_multi_string.scoop` 在 `SCOOP_GC_STRESS=1` 下会直接打印 `missing1/missing2/missing3`，说明保存到堆对象字段里的 escaped continuation 没有稳定存活；`gc_continuation_escape_deep_object_graph.scoop` 在同一环境下长时间跑不完；`gc_continuation_escape_alloc_heavy_resume.scoop` 也已暴露 stdout mismatch。说明 continuation、本地 lifted refs 与深对象图在 forced GC 下的 trace / 恢复合同仍未闭环。
+- 目标：
+  - escaped continuation 保存到对象字段后，在 `SCOOP_GC_STRESS=1` 下仍可稳定读取并 resume。
+  - continuation 捕获的 ref locals / 深对象图在 forced GC 下继续保持可达且语义正确。
+  - 深对象图 / alloc-heavy fixture 在 GC stress 环境下能在其既有 timeout 内完成，不再出现长时间卡住。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_deep_object_graph.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_alloc_heavy_resume.scoop`
+  - `cargo test -p scoop_runtime continuation_ -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016cR
+
+### T3016dR [TODO] Review：确认 GC stress 下 continuation / captured object graph 的可达性合同已闭环
+- 描述：在 `T3016d` 之后只审查生产代码与 runtime tracing 合同，确认 GC stress 修复不是靠临时延后回收、放松超时或 fixture-only 保活；若发现问题，本任务需要直接修复并复审。
+- 目标：
+  - 确认 continuation、frame、resume payload、captured ref locals 与深对象图都走统一 trace / root 合同。
+  - 确认 GC stress 路径没有新增“仅测试环境保活”的 workaround。
+  - 确认相关 runtime/compiler 接口与现有 effect transport / continuation ABI 保持一致。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“GC stress 下 continuation 与 captured object graph 可达性合同已闭环，无 test-only 保活残留”。
+- 依赖：T3016d
+
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
   - `T3008a` 已先行回收 24 个只因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；剩余 `T3006` xfail 现在对应的是更深层的真实语义缺口，而不再是 frame/continuation ABI 失配。
   - 当前 `cargo run -p scoop --features llvm -- test` 的首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 fixture 单独运行已成功，等待本任务统一回收 expectation 并继续推进全量基线。
+  - 2026-04-18 本轮 expectation scan 把 83 条残留 `T3006` xfail 临时切回 `EXPECT: pass` 做了正式 runner 验证，确认 `T3017` 不能直接执行：至少存在四类更前置的真实生产缺口，分别由 `T3016a`（cleanup/finally completion 恢复）、`T3016b`（resumed-body tail replay）、`T3016c`（outer-body `Continuation.resume(...)` lowering）、`T3016d`（GC stress continuation/object-graph 存活）承接。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -1976,7 +2081,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016R
+- 依赖：T3016dR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。

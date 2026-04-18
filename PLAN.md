@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：开始执行 `T3017` 的 expectation cleanup 时，我把 83 条残留 `T3006` run-pass xfail 临时改回 `EXPECT: pass` 并用正式 runner 扫描，结果确认 `T3017` 不能直接继续。扫描暴露出四类更前置的真实生产缺口：其一，escaped continuation 完成后会重复执行 `finally/cleanup`，而 no-suspend nested handle + finally 会把结果打成 `0`（`effect_escape_continuation_finally_multi_perform.scoop`、`effect_resume_mixed_escape_direct_finally.scoop`、`effect_resume_mixed_source_path_matrix.scoop`、`effect_nosuspend_finally_nested_handle.scoop`），对应新增 `T3016a`→`T3016aR`；其二，resumed-body 在 `when` / block / `if` / `while` mixed suspend-site 中会重复 prefix 或跳过 direct→indirect 之间的 tail（`effect_escape_continuation_perform_in_when_arm.scoop`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi.scoop` 等），对应新增 `T3016b`→`T3016bR`；其三，outer-body `Continuation.resume(...)` 仍有调用点落回 `unsupported_main_body: call callee` 或直接静默退出（`effect_escape_continuation_finally_normal.scoop`、`effect_escape_continuation_nested_outer_resume_inner_multi.scoop`），对应新增 `T3016c`→`T3016cR`；其四，GC stress 下 escaped continuation / deep object graph 的存活与恢复仍未闭环（`effect_escape_continuation_gc_stress_multi_string.scoop`、`gc_continuation_escape_deep_object_graph.scoop`、`gc_continuation_escape_alloc_heavy_resume.scoop`），对应新增 `T3016d`→`T3016dR`。因此 `T3017` 已顺延到这四组前置修复之后，当前 effect 主线下一项改为 `T3016a`。
+>
 > 2026-04-18 当前轮复审更新：`T3016R` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs` 的 function-return 路径后确认，`STATE_TAG_FUNCTION_RETURNED` 的消费没有另起 effect-only 返回出口：普通用户函数继续复用 `return_context` / `finish_function_return_path()`，step/dispatch runtime function 内的 nested handle 则通过 `effect_function_return_context` 先回到本地 return block，再把 payload 写回外层 handle frame 并继续走外层 cleanup/done 合同。复审过程中发现一个真实缺口：`HandleStateOp::Return` 重新求值 `return expr` 时没有带 enclosing function 的 expected return type，导致 `handle` 内 `return 1` 返回到 `Any` 时漏掉 `Int -> Any` boxing。现已改为通过 `enclosing_function_return_ty()` 把 early-return payload 按普通 `return` 合同做 expected-context/coercion 后再写入 effect transport slots，并新增 dedicated run-pass fixture `effect_handle_return_from_function_any_boxing.scoop` 锁定 GC 后 boxed object 仍存活。已验证新 fixture、既有 `effect_handle_return_from_function_basic/finally/nested_handle`、cleanup baseline `effect_handle_yield_and_step_finally.scoop`、`cargo test -p scoopc plan_and_segments_support_return_inside_handle_body_block_expression -- --nocapture`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过；复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`，对应已跟踪的 `T3017`，未引入新的更早回归。当前 effect 主线下一项推进到 `T3017`。
 >
 > 2026-04-18 当前轮完成更新：`T3016` 已完成。`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现已在 `codegen_handle_expr_via_state_machine()` 的 `handle_done` 路径消费 `STATE_TAG_FUNCTION_RETURNED`：普通函数路径直接复用既有 `finish_function_return_path()` / `return_context`，step function / dispatch loop 内递归生成的 nested handle 则通过新增 `effect_function_return_context` synthetic return bridge 把 early-return payload 上传到外层 handle frame，而不是把它误当普通 handle result。为解决 `finally` cleanup replay 把 function-return sentinel 冲掉的问题，统一 frame 新增了持久化 `completion_tag` system field；dispatch loop 在进入 cleanup 前会捕获 `HANDLE_RETURNED` / `FUNCTION_RETURNED` terminal tag，cleanup 完成后恢复 `state_tag`，从而让 `finally` 跑完后仍保持“函数已经返回”的完成模式。已新增 3 条 dedicated run-pass fixture：`effect_handle_return_from_function_basic.scoop`、`effect_handle_return_from_function_finally.scoop`、`effect_handle_return_from_function_nested_handle.scoop`；并验证这 3 条 fixture、既有 cleanup baseline `effect_handle_yield_and_step_finally.scoop`、`cargo test -p scoopc plan_and_segments_support_return_inside_handle_body_block_expression -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`，属于已跟踪的 `T3017` expectation cleanup，而不是 `T3016` 的生产 blocker。当前 effect 主线下一项推进到 `T3016R`。
@@ -601,23 +603,31 @@
 
 ## 4. 当前执行顺序
 
-1. `T3017`
-2. `T3017R`
-3. `T3103`
-4. `T3104`
-5. `T3201`
-6. `T3202`
-7. `T3203`
-8. `T3204`
-9. `T3205`
-10. `T3301`
-11. `T3302`
-12. `T3303`
-13. `T3401`
-14. `T3401a`
-15. `T3401b`
-16. `T3401c`
-17. `T3402`
-18. `T3403`
-19. `T3404`
-20. `T3405`
+1. `T3016a`
+2. `T3016aR`
+3. `T3016b`
+4. `T3016bR`
+5. `T3016c`
+6. `T3016cR`
+7. `T3016d`
+8. `T3016dR`
+9. `T3017`
+10. `T3017R`
+11. `T3103`
+12. `T3104`
+13. `T3201`
+14. `T3202`
+15. `T3203`
+16. `T3204`
+17. `T3205`
+18. `T3301`
+19. `T3302`
+20. `T3303`
+21. `T3401`
+22. `T3401a`
+23. `T3401b`
+24. `T3401c`
+25. `T3402`
+26. `T3403`
+27. `T3404`
+28. `T3405`
