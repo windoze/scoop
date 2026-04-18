@@ -1885,12 +1885,14 @@
   - 当前全量 LLVM fixture suite 的首个停止点仍然是 `T3017` 已跟踪的 stale expectation，而不是 `Continuation.resume(...)` 或 generic member-access 生产回退。
 - 依赖：T3009b
 
-### T3015 [TODO] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
+### T3015 [DONE] 修正 arm 执行期 self-inactive 的 escaped-continuation 剩余缺口与 handler context lifetime
 - 描述：`T3010b2b1` 会先收口同步 arm body 内 non-resuming effect 的外传 / cleanup / self-inactive 直接阻塞；`T3015a` 再先拆走“第一次 resumed segment 后的下一次 perform 重新进入 captured handler dispatch loop”这个单线程 shared blocker。本任务保留 escaped continuation 在 `handle` 返回后的持久 handler context 生命周期、以及延迟 / 跨线程 resume 时 active/inactive 恢复语义的剩余缺口。当前统一主线仍让 continuation 捕获稍后会被 pop 的 stack-alloc handler frame，导致 escaped continuation 恢复到失效的动态上下文。
 - 进展：
   - `T3010a` 完成后的全量 LLVM fixture 首个失败点已推进到 `effect_escape_continuation_arm_performs_outer_effect.scoop`。直接运行显示当前输出会打印 binder `0`、继续落到 `unreachable_arm`，且没有命中外层 `EffectB` handler，符合本任务要修的 self-inactive / 外层 effect 传播缺口。
   - 同类 `effect_escape_continuation_nested_arm_indirect_performs_outer.scoop` 直接运行也会打印 `0` 并继续到 `unreachable_arm`，进一步确认这不是单个 fixture 偶发，而是 escape-continuation arm 执行期的统一语义缺口。
   - `T3013` 临时放开 `continuation_resume_ref_class.scoop` 后暴露出的“第一次 resumed segment 后的下一次 perform 不会重新进入 captured handler dispatch loop”现已前置拆成 `T3015a` / `T3015aR`；本任务继续保留更宽的 handler-context 生命周期问题：continuation 不应依赖稍后会被 pop 的 stack-alloc handler frame，延迟 / 跨线程 resume 也必须保持 active/inactive 恢复闭环。
+  - 2026-04-18 当前轮验收确认：`runtime/c/scoop_runtime.c` 中的 continuation-owned handler stack 快照与 `state_machine_emitter.rs` 中统一 dispatch-loop resume 入口已经把本任务的生产语义缺口一并收口；本轮复验 `effect_escape_continuation_arm_performs_outer_effect.scoop`、`effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`、`effect_escape_continuation_scheduler_round_robin.scoop`、`effect_escape_continuation_resume_cross_thread.scoop` 以及 `cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack -- --nocapture` 全部通过，说明 arm self-inactive、outer handler 路由、延迟/跨线程 resume 的 handler context lifetime 均已闭环。
+  - 继续复跑 `cargo run -p scoop --features llvm -- test` 后，suite 仍只停在 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 expectation cleanup 已由 `T3017` 跟踪，不构成 `T3015` 的新增生产 blocker。
 - 目标：
   - arm body 执行期间，触发当前 arm 的 handler instance 必须被临时置为 inactive；arm body 中再次 perform 同一 op 应命中外层 handler，而不是自捕获。
   - escaped continuation 不再捕获会在 `handle_done` 中被 pop/清空的 stack-alloc handler frame；需要改为可持久化、可恢复、与 continuation 生命周期一致的 handler context 表示。
