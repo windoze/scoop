@@ -416,6 +416,7 @@ pub(super) fn try_infer_fun_return_ty_from_block(
                     StmtExprFlow {
                         loop_depth,
                         expected_return_ty: Some(shared.builtins.unit),
+                        lambda_this_decl_span: None,
                     },
                 )?;
 
@@ -441,6 +442,7 @@ pub(super) fn try_infer_fun_return_ty_from_block(
                     StmtExprFlow {
                         loop_depth,
                         expected_return_ty: Some(shared.builtins.unit),
+                        lambda_this_decl_span: None,
                     },
                 )?;
             }
@@ -785,6 +787,7 @@ fn check_class_member_fun_body_exprs(
                         StmtExprFlow {
                             loop_depth: 0,
                             expected_return_ty: Some(expected_return_ty),
+                            lambda_this_decl_span: None,
                         },
                     )?
                 }
@@ -1288,6 +1291,7 @@ fn check_class_init_block_exprs(
         StmtExprFlow {
             loop_depth: 0,
             expected_return_ty: None,
+            lambda_this_decl_span: None,
         },
     )?;
 
@@ -1316,6 +1320,7 @@ fn check_object_init_block_exprs(
         StmtExprFlow {
             loop_depth: 0,
             expected_return_ty: None,
+            lambda_this_decl_span: None,
         },
     )?;
 
@@ -1424,6 +1429,7 @@ fn check_class_secondary_ctor_exprs(
         StmtExprFlow {
             loop_depth: 0,
             expected_return_ty: None,
+            lambda_this_decl_span: None,
         },
     )?;
 
@@ -1490,6 +1496,7 @@ fn check_top_level_val_initializer(
         source,
         builtins,
         locals: &empty_locals,
+        lambda_this_decl_span: None,
         top_level_types,
         top_level_funs,
         member_mutabilities: None,

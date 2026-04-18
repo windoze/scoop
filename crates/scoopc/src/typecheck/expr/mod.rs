@@ -202,6 +202,13 @@ struct ExprInferInputs<'a> {
     source: &'a SourceFile,
     builtins: BuiltinTypes,
     locals: &'a HashMap<Span, TypeId>,
+    /// 当前 lambda body 中“隐式 receiver this”的 decl span。
+    ///
+    /// 说明：
+    /// - 普通函数/普通 lambda 为 `None`；
+    /// - receiver lambda 会在按 expected function type 类型检查 body 时写入该字段；
+    /// - 嵌套普通 lambda 会继承外层 receiver lambda 的 `this`，嵌套 receiver lambda 则会覆盖它。
+    lambda_this_decl_span: Option<Span>,
     top_level_types: &'a HashMap<String, TypeId>,
     top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
     member_mutabilities: Option<&'a HashMap<String, bool>>,
@@ -219,6 +226,7 @@ impl<'a> ExprInferInputs<'a> {
             source: self.source,
             builtins: self.builtins,
             locals,
+            lambda_this_decl_span: self.lambda_this_decl_span,
             top_level_types: self.top_level_types,
             top_level_funs: self.top_level_funs,
             member_mutabilities: self.member_mutabilities,
@@ -226,6 +234,29 @@ impl<'a> ExprInferInputs<'a> {
             loop_depth: self.loop_depth,
             expected_return_ty: self.expected_return_ty,
         }
+    }
+
+    fn with_lambda_this_decl_span(
+        self,
+        lambda_this_decl_span: Option<Span>,
+    ) -> ExprInferInputs<'a> {
+        ExprInferInputs {
+            source: self.source,
+            builtins: self.builtins,
+            locals: self.locals,
+            lambda_this_decl_span,
+            top_level_types: self.top_level_types,
+            top_level_funs: self.top_level_funs,
+            member_mutabilities: self.member_mutabilities,
+            struct_field_types: self.struct_field_types,
+            loop_depth: self.loop_depth,
+            expected_return_ty: self.expected_return_ty,
+        }
+    }
+
+    fn is_current_lambda_this_expr(&self, expr: &ast::Expr) -> bool {
+        self.lambda_this_decl_span.is_some()
+            && matches!(&expr.kind, ast::ExprKind::Ident(id) if self.source.slice(id.span) == "this")
     }
 
     fn infer(

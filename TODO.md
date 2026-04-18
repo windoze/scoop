@@ -43,14 +43,24 @@
 
 ## T4002：lambda 推断与 receiver lambda
 
-### T4002 [TODO] 补齐 lambda expected-type 推断与 receiver lambda 基本语义
+### T4002 [DONE] 补齐 lambda expected-type 推断与 receiver lambda 基本语义
 - 范围：
   - 放宽“无 expected type 就直接报错”的当前门禁。
   - 扩展 expected-type 向下传播，不再只停在 0/1/2 参数。
   - receiver lambda body 中补齐 `this` 注入语义。
+- 已完成：
+  - lambda expected-type 推断已从写死 0/1/2 参数推广到统一按函数签名处理，并保留“无参数列表 + 恰好 1 个普通参数”时的隐式 `it` 规则。
+  - 无 expected type 的 lambda 现支持“显式参数类型”与零参数场景直接定型，不再一概拒绝。
+  - receiver lambda 的隐式 `this` 已在 resolver / typecheck / HIR / LLVM closure codegen 主线上贯通，member access / method call 会按 receiver 实际类型 late resolve，并正确遮蔽外层 `this`。
 - 验收：
   - 新增对应 typecheck / run-pass fixtures。
   - `ISSUES.md` 第 3 条收窄或关闭。
+- 已验证：
+  - `target/debug/scoop test --fixtures target/t4002-fixtures/infer`（`fixtures: ok (4)`）
+  - `target/debug/scoop test --fixtures target/t4002-fixtures/run-pass`（`fixtures: ok (4)`）
+  - `target/debug/scoop test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4001R
 
 ### T4002R [TODO] Review：确认 lambda 推断主线统一，不靠局部 call-shape 补丁

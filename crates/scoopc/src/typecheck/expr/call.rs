@@ -3374,6 +3374,35 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
     }
 }
 
+fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: TypeId,
+    member_name: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<String>, ExprTypeError> {
+    let Some((receiver_fqn, receiver_args)) = try_extract_nominal_fqn_and_args(receiver_ty, lower)
+    else {
+        return Ok(None);
+    };
+
+    let direct_fqn = format!("{receiver_fqn}.{member_name}");
+    let sigs = collect_member_method_signatures_from_index(
+        inputs.source,
+        receiver_ty,
+        &receiver_fqn,
+        &receiver_args,
+        &direct_fqn,
+        lower,
+        inputs.builtins,
+    )?;
+
+    if sigs.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(direct_fqn))
+    }
+}
+
 pub(super) fn infer_effect_op_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
@@ -4109,13 +4138,35 @@ fn infer_member_call_expr_type(
         }
     }
 
+    let current_lambda_this = inputs.is_current_lambda_this_expr(receiver);
+    let late_direct_member_fun_fqn = if current_lambda_this {
+        late_resolve_direct_member_fun_fqn_from_receiver_ty(
+            inputs,
+            actual_receiver_ty,
+            member_name,
+            lower,
+        )?
+    } else {
+        None
+    };
+    let resolved_member_fun_fqn = late_direct_member_fun_fqn.as_deref().or({
+        if current_lambda_this {
+            None
+        } else {
+            match member.resolved.as_ref() {
+                Some(ast::ResolvedMemberRef::Fun { fqn }) => Some(fqn.as_str()),
+                _ => None,
+            }
+        }
+    });
+
     // spec §15.10：GC pin/unpin（early stage）。
     //
     // 说明：
     // - 当前阶段尚未接入"普通成员函数调用"（class/object methods），这里只对 sysroot 的 `GC.pin/unpin`
     //   做最小落点：让前端可以通过 typecheck，并由后端 intrinsic lowering 映射到 runtime；
     // - 语义约束（TODO T1008）：仅允许 pin 引用类型/box 对象；值类型（含 type param）暂不支持。
-    if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+    if let Some(fqn) = resolved_member_fun_fqn {
         // spec §15.10.1：stable GC handles（early stage）。
         //
         // 说明：
@@ -4124,22 +4175,22 @@ fn infer_member_call_expr_type(
         if fqn == "scoop.core.GC.handleNew" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
             if lower.in_nogc_context() {
                 return Err(ExprTypeError::NoGcCallForbidden {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
 
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4148,7 +4199,7 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["obj".to_string()];
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 std::iter::once(param_names.as_slice()),
             )?;
@@ -4159,13 +4210,13 @@ fn infer_member_call_expr_type(
                 &param_has_defaults,
             ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             };
             let Some(arg_idx) = mapping.first().copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4191,16 +4242,16 @@ fn infer_member_call_expr_type(
         if fqn == "scoop.core.GC.handleGet" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
 
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4209,7 +4260,7 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["h".to_string()];
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 std::iter::once(param_names.as_slice()),
             )?;
@@ -4220,13 +4271,13 @@ fn infer_member_call_expr_type(
                 &param_has_defaults,
             ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             };
             let Some(arg_idx) = mapping.first().copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4254,16 +4305,16 @@ fn infer_member_call_expr_type(
         if fqn == "scoop.core.GC.handleDrop" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
 
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4272,7 +4323,7 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["h".to_string()];
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 std::iter::once(param_names.as_slice()),
             )?;
@@ -4283,13 +4334,13 @@ fn infer_member_call_expr_type(
                 &param_has_defaults,
             ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             };
             let Some(arg_idx) = mapping.first().copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4317,16 +4368,16 @@ fn infer_member_call_expr_type(
         if fqn == "scoop.core.GC.pin" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
 
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4335,7 +4386,7 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["obj".to_string()];
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 std::iter::once(param_names.as_slice()),
             )?;
@@ -4346,13 +4397,13 @@ fn infer_member_call_expr_type(
                 &param_has_defaults,
             ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             };
             let Some(arg_idx) = mapping.first().copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4378,16 +4429,16 @@ fn infer_member_call_expr_type(
         if fqn == "scoop.core.GC.unpin" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             }
 
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4396,7 +4447,7 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["pinned".to_string()];
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 std::iter::once(param_names.as_slice()),
             )?;
@@ -4407,13 +4458,13 @@ fn infer_member_call_expr_type(
                 &param_has_defaults,
             ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: call_expr.span.into(),
                 });
             };
             let Some(arg_idx) = mapping.first().copied().flatten() else {
                 return Err(ExprTypeError::CallArityMismatch {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     expected: 1,
                     found: call_args.len(),
                     span: call_expr.span.into(),
@@ -4447,7 +4498,7 @@ fn infer_member_call_expr_type(
     //   并把 `receiver` 作为隐式第 0 个参数参与类型检查；
     // - 当前入口统一覆盖 direct call / class vtable / interface itable 三类成员调用形态；
     //   具体走哪条后端路径由 receiver 类型与 slot 解析结果决定。
-    if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+    if let Some(fqn) = resolved_member_fun_fqn {
         // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
         if fqn != "scoop.core.GC.pin"
             && fqn != "scoop.core.GC.unpin"
@@ -4463,7 +4514,7 @@ fn infer_member_call_expr_type(
                 try_extract_nominal_fqn_and_args(actual_receiver_ty, lower)
             else {
                 return Err(ExprTypeError::CalleeNotCallable {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: member.span.into(),
                 });
             };
@@ -4479,7 +4530,7 @@ fn infer_member_call_expr_type(
             )?;
             if sigs.is_empty() {
                 return Err(ExprTypeError::CalleeNotCallable {
-                    callee: fqn.clone(),
+                    callee: fqn.to_string(),
                     span: member.span.into(),
                 });
             }
@@ -4487,9 +4538,9 @@ fn infer_member_call_expr_type(
             // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
             // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
             let call_args = collect_call_arg_infos(inputs, args, lower)?;
-            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_arg_named_rules(fqn, &call_args)?;
             check_call_named_args_exist_in_any_candidate(
-                fqn.as_str(),
+                fqn,
                 &call_args,
                 sigs.iter().filter_map(|s| s.param_names.get(1..)),
             )?;
@@ -4657,7 +4708,7 @@ fn infer_member_call_expr_type(
 
                 let mut instantiated =
                     match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                        fqn.as_str(),
+                        fqn,
                         call_expr.span,
                         cand,
                         explicit_type_args,
@@ -4671,7 +4722,7 @@ fn infer_member_call_expr_type(
 
                 // T0129：检查 where 约束；不满足则跳过该候选。
                 if check_fun_where_constraints_after_instantiation(
-                    fqn.as_str(),
+                    fqn,
                     call_expr.span,
                     cand,
                     &instantiated.type_args,
@@ -4803,7 +4854,7 @@ fn infer_member_call_expr_type(
             let chosen = match matched.len() {
                 0 => {
                     return Err(ExprTypeError::NoMatchingOverload {
-                        callee: fqn.clone(),
+                        callee: fqn.to_string(),
                         span: call_expr.span.into(),
                     });
                 }
@@ -4826,7 +4877,7 @@ fn infer_member_call_expr_type(
                                 .collect(),
                         );
                         return Err(ExprTypeError::AmbiguousOverload {
-                            callee: fqn.clone(),
+                            callee: fqn.to_string(),
                             candidates,
                             span: call_expr.span.into(),
                         });
@@ -4835,11 +4886,11 @@ fn infer_member_call_expr_type(
                 }
             };
 
-            check_unsafe_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
-            check_nogc_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
-            check_const_fun_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
+            check_unsafe_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
+            check_nogc_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
+            check_const_fun_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             check_var_param_lvalue_gate(
-                fqn.as_str(),
+                fqn,
                 chosen.sig,
                 &call_args_with_receiver,
                 &chosen.mapping,
@@ -4872,7 +4923,7 @@ fn infer_member_call_expr_type(
 
             // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
             lower.record_monomorph_call(
-                fqn.clone(),
+                fqn.to_string(),
                 chosen.sig.decl_span,
                 &chosen.instantiated.type_args,
             );
@@ -4918,7 +4969,11 @@ fn infer_member_call_expr_type(
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
     //   尝试在"当前包"内按同名顶层 fun 查找 receiver fun。
-    let callee_fqn = match member.resolved.as_ref() {
+    let callee_fqn = match if current_lambda_this {
+        None
+    } else {
+        member.resolved.as_ref()
+    } {
         Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
         Some(ast::ResolvedMemberRef::Fun { fqn })
         | Some(ast::ResolvedMemberRef::Value { fqn })
@@ -7106,6 +7161,7 @@ fn try_infer_where_bound_method_call(
         source,
         builtins,
         locals,
+        lambda_this_decl_span: None,
         top_level_types,
         top_level_funs,
         member_mutabilities: None,

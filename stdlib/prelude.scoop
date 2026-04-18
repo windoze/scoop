@@ -62,7 +62,7 @@ fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E {
     return block(this)
 }
 
-fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E {
+fun <eff E = Pure> Int.run(block: Int.() -> Int / E): Int / E {
     return block(this)
 }
 
@@ -71,7 +71,7 @@ fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E {
     return this
 }
 
-fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E {
+fun <eff E = Pure> Int.apply(block: Int.() -> Unit / E): Int / E {
     block(this)
     return this
 }

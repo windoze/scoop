@@ -1103,6 +1103,24 @@ impl LambdaExpr {
     }
 }
 
+/// lambda 隐式单参数 `it` 的合成声明 span。
+///
+/// 约定：
+/// - 使用 lambda 起始位置的零宽 span，避免与显式参数声明混淆；
+/// - resolver 与 typecheck 共享该约定，以便 `ResolvedValueRef::Local` 与局部类型表对齐。
+pub fn synthetic_lambda_implicit_it_decl_span(lambda_span: Span) -> Span {
+    Span::new(lambda_span.start, lambda_span.start)
+}
+
+/// receiver lambda 隐式 `this` 的合成声明 span。
+///
+/// 约定：
+/// - 使用 lambda 结束位置的零宽 span，与隐式 `it` 的起始零宽 span 区分；
+/// - 该 span 只作为局部绑定身份标识，不对应源码中的显式声明。
+pub fn synthetic_lambda_receiver_this_decl_span(lambda_span: Span) -> Span {
+    Span::new(lambda_span.end, lambda_span.end)
+}
+
 impl std::fmt::Debug for LambdaExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("LambdaExpr");

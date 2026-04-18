@@ -15,9 +15,9 @@ fun applyTo(base: String, delta: Int, block: String.(Int) -> Int): Int {
 }
 
 fun main(): Int {
-    val plusOne: String.(Int) -> Int = { n: Int -> n + 1 }
+    val plusOne: String.(Int) -> Int = { n: Int -> this.length() + n }
 
     println(plusOne("hello", 41))
-    println(applyTo("ignored", 2, { n: Int -> n * 3 }))
+    println(applyTo("go", 2, { n: Int -> this.length() + n }))
     0
 }

@@ -12,7 +12,9 @@ use super::call::{
 };
 use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
-use super::member::infer_not_null_assert_expr_type;
+use super::member::{
+    infer_not_null_assert_expr_type, resolve_member_value_target_from_receiver_ty,
+};
 use super::ops::{
     NominalReceiverRef, collect_unique_zero_arg_member_method_sig, literal_absorbs_to_expected,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
@@ -55,6 +57,7 @@ pub(super) struct StmtExprState<'a> {
 pub(super) struct StmtExprFlow {
     pub(super) loop_depth: usize,
     pub(super) expected_return_ty: Option<TypeId>,
+    pub(super) lambda_this_decl_span: Option<Span>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +92,7 @@ where
         source: shared.source,
         builtins: shared.builtins,
         locals,
+        lambda_this_decl_span: None,
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -110,6 +114,7 @@ where
         source: shared.source,
         builtins: shared.builtins,
         locals,
+        lambda_this_decl_span: flow.lambda_this_decl_span,
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -222,6 +227,7 @@ fn check_lambda_expr_stmt_body(
                     StmtExprFlow {
                         loop_depth: 0,
                         expected_return_ty: nested_expected_return_ty,
+                        lambda_this_decl_span: flow.lambda_this_decl_span,
                     },
                     ExprStmtCallMode::StructuralOnly,
                 )
@@ -659,6 +665,7 @@ pub(super) fn check_fun_body_exprs(
                         StmtExprFlow {
                             loop_depth: 0,
                             expected_return_ty: Some(expected_return_ty),
+                            lambda_this_decl_span: None,
                         },
                     )?
                 }
@@ -869,6 +876,7 @@ fn check_stmt_exprs_with_mode(
                 StmtExprFlow {
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
+                    lambda_this_decl_span: flow.lambda_this_decl_span,
                 },
                 call_mode,
             )?;
@@ -1028,6 +1036,7 @@ fn check_stmt_exprs_with_mode(
                 StmtExprFlow {
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
+                    lambda_this_decl_span: flow.lambda_this_decl_span,
                 },
                 call_mode,
             )?;
@@ -1084,6 +1093,7 @@ fn check_stmt_exprs_with_mode(
                 StmtExprFlow {
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
+                    lambda_this_decl_span: flow.lambda_this_decl_span,
                 },
                 call_mode,
             )?;
@@ -1532,18 +1542,27 @@ fn check_assign_expr_stmt(
             }
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
+            let receiver_inputs = expr_infer_inputs_with_flow(shared, state.locals, flow);
             // 先递归 typecheck receiver：保证 `a().b = rhs` 能覆盖 `a()`。
             //
             // 例外：`TypeName.member` 经 companion object 解析时，receiver 不是值表达式；
             // resolver 会保留 receiver ident 为未解析，此处跳过 receiver typecheck。
             let receiver_is_type_name =
                 matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
-            if !receiver_is_type_name {
-                let _ = expr_infer_inputs_with_flow(shared, state.locals, flow)
-                    .infer(lower, receiver)?;
-            }
+            let receiver_ty = if receiver_is_type_name {
+                None
+            } else {
+                Some(receiver_inputs.infer(lower, receiver)?)
+            };
+            let resolved = if receiver_inputs.is_current_lambda_this_expr(receiver) {
+                receiver_ty.and_then(|ty| {
+                    resolve_member_value_target_from_receiver_ty(receiver_inputs, ty, member, lower)
+                })
+            } else {
+                member.resolved.clone()
+            };
 
-            let Some(resolved) = member.resolved.as_ref() else {
+            let Some(resolved) = resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "assignment lhs（member 未 resolve）",
                     span: member.span.into(),

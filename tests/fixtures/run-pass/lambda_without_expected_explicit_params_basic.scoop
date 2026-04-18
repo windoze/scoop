@@ -1,0 +1,20 @@
+// EXPECT: pass
+// RUN-STDOUT: lambda_without_expected_explicit_params_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4002：
+// - 无 expected type 时，零参数 lambda 不应再被统一拒绝；
+// - 无 expected type 时，参数已显式标注类型的 lambda 也应能独立定型并被直接调用。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun main(): Int {
+    val zero = { 41 }
+    val sum3 = { a: Int, b: Int, c: Int -> a + b + c }
+
+    println(zero())
+    println(sum3(1, 2, 3))
+    0
+}

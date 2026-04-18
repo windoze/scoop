@@ -24,14 +24,14 @@ fun main(): Int {
 
     x.run {
         println("run block")
-        println(it)
+        println(this)
         0
     }
 
     val y: Int = 7
     val d: Int = y.apply {
         println("apply block")
-        println(it)
+        println(this)
     }
     println(d)
 

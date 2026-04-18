@@ -35,10 +35,13 @@ pub(super) fn infer_safe_member_access_expr_type(
 
     // T0152：safe member access 与普通 member access 共享同一套成员解析结果；
     // `?.` 只负责 unwrap `Option<T>` 并在最外层再包回 `Option<_>`。
-    let resolved = member
-        .resolved
-        .clone()
-        .or_else(|| resolve_safe_member_access_target(inputs, inner_ty, member, lower));
+    let resolved = if inputs.is_current_lambda_this_expr(receiver) {
+        resolve_member_value_target_from_receiver_ty(inputs, inner_ty, member, lower)
+    } else {
+        member.resolved.clone().or_else(|| {
+            resolve_member_value_target_from_receiver_ty(inputs, inner_ty, member, lower)
+        })
+    };
     let inferred = infer_member_access_with_receiver_ty(
         inputs,
         Some(inner_ty),
@@ -229,15 +232,23 @@ pub(super) fn infer_member_access_expr_type(
     } else {
         Some(inputs.infer(lower, receiver)?)
     };
+    let resolved = if inputs.is_current_lambda_this_expr(receiver) {
+        receiver_ty
+            .and_then(|ty| resolve_member_value_target_from_receiver_ty(inputs, ty, member, lower))
+    } else {
+        member.resolved.clone()
+    };
 
-    Ok(infer_member_access_with_receiver_ty(
-        inputs,
-        receiver_ty,
-        member,
-        member.resolved.as_ref(),
-        lower,
-    )?
-    .ty)
+    Ok(
+        infer_member_access_with_receiver_ty(
+            inputs,
+            receiver_ty,
+            member,
+            resolved.as_ref(),
+            lower,
+        )?
+        .ty,
+    )
 }
 
 fn infer_member_access_with_receiver_ty(
@@ -407,7 +418,7 @@ fn infer_member_access_with_receiver_ty(
     }
 }
 
-fn resolve_safe_member_access_target(
+pub(super) fn resolve_member_value_target_from_receiver_ty(
     inputs: ExprInferInputs<'_>,
     receiver_ty: TypeId,
     member: &ast::MemberIdent,

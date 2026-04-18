@@ -79,8 +79,15 @@ use types::{
     CgEnumLayout, CgEnumPayload, CgEnumRepr, CgEnumVariant, CgTy, CgValue, GC_ADDRSPACE, IntTy,
 };
 
-/// Closure parameter bindings: explicit/implicit params paired with their types, plus remaining captures.
-type ClosureParamBindings = (Vec<(hir::SymbolId, String, TypeId)>, Vec<hir::Capture>);
+/// Closure lowering 后，codegen 需要分别知道：
+/// - receiver lambda 的隐式 `this` 绑定（来自 LLVM receiver 参数，而非 capture env）；
+/// - 普通显式参数 / 隐式 `it` 绑定；
+/// - 剩余真正需要进 env 的 captures。
+struct ClosureParamBindings {
+    receiver: Option<(hir::SymbolId, String, TypeId)>,
+    params: Vec<(hir::SymbolId, String, TypeId)>,
+    captures: Vec<hir::Capture>,
+}
 
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
@@ -10467,7 +10474,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
-        let (param_bindings, captures) = self.closure_param_bindings(span, closure, fun_ty)?;
+        let ClosureParamBindings {
+            receiver: receiver_binding,
+            params: param_bindings,
+            captures,
+        } = self.closure_param_bindings(span, closure, fun_ty)?;
         if captures.iter().any(|c| c.mutable) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "mutable capture (not supported yet)",
@@ -10592,6 +10603,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             cg.codegen_closure_fun_body(
                 closure,
                 fun_ty,
+                receiver_binding.as_ref(),
                 &param_bindings,
                 &capture_bindings,
                 llvm_fun,
@@ -10802,6 +10814,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<ClosureParamBindings, LlvmEmitError> {
+        let mut captures = closure.captures.clone();
+        let receiver = if let Some(receiver_ty) = fun_ty.receiver {
+            let Some(receiver_idx) = captures.iter().position(|c| c.name == "this") else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "receiver lambda missing this binder",
+                    at: at.into(),
+                });
+            };
+            let receiver_capture = captures.remove(receiver_idx);
+            Some((receiver_capture.id, "this".to_string(), receiver_ty))
+        } else {
+            None
+        };
+
         // 显式 params：`{ x -> ... }`
         //
         // 说明：
@@ -10814,26 +10840,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .zip(fun_ty.params.iter())
                 .map(|(p, ty)| (p.id, p.name.clone(), *ty))
                 .collect::<Vec<_>>();
-            return Ok((params, closure.captures.clone()));
+            return Ok(ClosureParamBindings {
+                receiver,
+                params,
+                captures,
+            });
         }
 
         // 隐式 `it`：`{ body }` + expected `(T) -> R`
         if closure.params.is_empty() && fun_ty.params.len() == 1 {
-            let Some(it_cap) = closure.captures.iter().find(|c| c.name == "it") else {
+            let Some(it_idx) = captures.iter().position(|c| c.name == "it") else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "implicit it lambda missing it binder",
                     at: at.into(),
                 });
             };
+            let it_cap = captures.remove(it_idx);
 
             let params = vec![(it_cap.id, "it".to_string(), fun_ty.params[0])];
-            let captures = closure
-                .captures
-                .iter()
-                .filter(|c| c.id != it_cap.id)
-                .cloned()
-                .collect::<Vec<_>>();
-            return Ok((params, captures));
+            return Ok(ClosureParamBindings {
+                receiver,
+                params,
+                captures,
+            });
         }
 
         Err(LlvmEmitError::UnsupportedMainBody {
@@ -10846,6 +10875,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
+        receiver_binding: Option<&(hir::SymbolId, String, TypeId)>,
         param_bindings: &[(hir::SymbolId, String, TypeId)],
         capture_bindings: &[(hir::SymbolId, String, TypeId)],
         llvm_fun: FunctionValue<'ctx>,
@@ -10952,6 +10982,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 );
             }
+        }
+
+        if let Some((id, name, ty_id)) = receiver_binding {
+            let target_ty = self
+                .cg_ty_of(*ty_id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "lambda receiver type",
+                    at: closure.span.into(),
+                })?;
+
+            let ptr = self.create_entry_alloca(closure.span, name, target_ty)?;
+
+            let init = match target_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
+                CgTy::Bool => {
+                    let raw = llvm_fun
+                        .get_nth_param(env_param_index + 1)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda receiver",
+                            at: closure.span.into(),
+                        })?
+                        .into_int_value();
+                    CgValue::bool(raw)
+                }
+                CgTy::Float64 | CgTy::Float32 => {
+                    let raw = llvm_fun
+                        .get_nth_param(env_param_index + 1)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda receiver",
+                            at: closure.span.into(),
+                        })?
+                        .into_float_value();
+                    CgValue::float(raw, target_ty)
+                }
+                CgTy::Int(int_ty) => {
+                    let raw = llvm_fun
+                        .get_nth_param(env_param_index + 1)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda receiver",
+                            at: closure.span.into(),
+                        })?
+                        .into_int_value();
+                    CgValue::int(raw, int_ty)
+                }
+                CgTy::String => {
+                    let raw = llvm_fun
+                        .get_nth_param(env_param_index + 1)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda receiver",
+                            at: closure.span.into(),
+                        })?
+                        .into_pointer_value();
+                    CgValue {
+                        ty: CgTy::String,
+                        value: Some(raw.into()),
+                    }
+                }
+                CgTy::Ref => {
+                    let raw = llvm_fun
+                        .get_nth_param(env_param_index + 1)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm lambda receiver",
+                            at: closure.span.into(),
+                        })?
+                        .into_pointer_value();
+                    CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(raw.into()),
+                    }
+                }
+                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "lambda receiver type",
+                        at: closure.span.into(),
+                    });
+                }
+            };
+
+            let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
+            self.env.insert(
+                *id,
+                CgLocal {
+                    hir_ty: Some(*ty_id),
+                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
+                    ty: target_ty,
+                    ptr,
+                    mutable: false,
+                },
+            );
         }
 
         // params：env 固定占用第 0 个 LLVM param；若函数类型带 receiver，则第 1 个 LLVM param

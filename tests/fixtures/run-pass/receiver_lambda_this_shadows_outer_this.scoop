@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: receiver_lambda_this_shadows_outer_this.stdout
+// EXPECT-EXIT: 0
+//
+// T4002：receiver lambda 的隐式 `this` 必须遮蔽外层 member body 的 `this`，不能错误地继续绑定到外层对象。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+class Box() {
+    fun length(): Int {
+        return 99
+    }
+
+    fun applyTo(text: String, block: String.() -> Int): Int {
+        return block(text)
+    }
+
+    fun eval(): Int {
+        return this.applyTo("wow", { this.length() })
+    }
+}
+
+fun main(): Int {
+    val box: Box = Box()
+    println(box.eval())
+    0
+}

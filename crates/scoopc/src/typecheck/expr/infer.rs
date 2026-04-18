@@ -14,6 +14,7 @@ use super::call::{
 use super::member::{
     infer_elvis_expr_type, infer_member_access_expr_type, infer_not_null_assert_expr_type,
     infer_safe_member_access_expr_type, infer_splice_field_expr_type,
+    resolve_member_value_target_from_receiver_ty,
 };
 use super::ops::{
     infer_builtin_scalar_binary_expr_type, infer_operator_overload_binary_expr_type,
@@ -105,6 +106,7 @@ pub(super) fn infer_expr_type(
             lower,
             builtins,
             inputs.locals,
+            inputs.lambda_this_decl_span,
             inputs.top_level_types,
         ),
         ast::ExprKind::MemberAccess { receiver, member } => {
@@ -302,23 +304,7 @@ pub(super) fn infer_expr_type(
                 });
             }
 
-            // T0510：lambda 参数推断失败诊断（最小可读解释）。
-            //
-            // 说明：
-            // - 当前实现只支持“期望函数类型向下传播”的 lambda 推断（T0504）；
-            // - 当 lambda 出现在缺少 expected type 的位置（例如 `val f = { x -> x }`）时，
-            //   我们给出更明确的错误，而不是笼统的 `unsupported_expr`。
-            let Some(param) = lam.params.iter().find(|p| p.ty.is_none()) else {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "lambda（当前仅支持在期望函数类型语境下推导）",
-                    span: expr.span.into(),
-                });
-            };
-
-            Err(ExprTypeError::LambdaParamTypeNotInferred {
-                param: source.slice(param.name.span).to_string(),
-                span: param.name.span.into(),
-            })
+            infer_lambda_expr_type_without_expected(inputs, expr, lam, lower)
         }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
@@ -654,6 +640,7 @@ fn infer_block_value_type_with_expected(
     let flow = StmtExprFlow {
         loop_depth: inputs.loop_depth,
         expected_return_ty: inputs.expected_return_ty,
+        lambda_this_decl_span: inputs.lambda_this_decl_span,
     };
 
     let mut tail_expr_ty: Option<TypeId> = None;
@@ -807,11 +794,20 @@ fn infer_assign_expr_type(
             // resolver 会保留 receiver ident 为未解析，此处跳过 receiver typecheck。
             let receiver_is_type_name =
                 matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
-            if !receiver_is_type_name {
-                let _ = inputs.infer(lower, receiver)?;
-            }
+            let receiver_ty = if receiver_is_type_name {
+                None
+            } else {
+                Some(inputs.infer(lower, receiver)?)
+            };
+            let resolved = if inputs.is_current_lambda_this_expr(receiver) {
+                receiver_ty.and_then(|ty| {
+                    resolve_member_value_target_from_receiver_ty(inputs, ty, member, lower)
+                })
+            } else {
+                member.resolved.clone()
+            };
 
-            let Some(resolved) = member.resolved.as_ref() else {
+            let Some(resolved) = resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "assignment lhs（member 未 resolve）",
                     span: member.span.into(),
@@ -2352,89 +2348,67 @@ fn infer_when_expr_type_in_expected_context(
     }
 }
 
-fn try_infer_lambda_expr_type_by_expected(
+fn infer_lambda_expr_type_without_expected(
     inputs: ExprInferInputs<'_>,
     lam_expr: &ast::Expr,
     lam: &ast::LambdaExpr,
-    expected_ty: TypeId,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<TypeId>, ExprTypeError> {
-    let TypeKind::Ref(RefTypeKind::Function(expected_fun)) = lower.type_kind(expected_ty) else {
-        return Ok(None);
-    };
-
-    // 当前阶段目标（T0504/T0509）：
-    // - 支持 0/1/2 参数 lambda（`() -> T` / `(A) -> T` / `(A, B) -> T`）
-    // - 支持 receiver function type（`T.() -> R`）：把 receiver 写入 lambda 的函数类型；
-    //   注意：当前阶段 resolver 尚未为 lambda body 引入 `this` 绑定，因此这里不额外注入局部 `this`。
+) -> Result<TypeId, ExprTypeError> {
+    // T4002：若 lambda 的参数都已显式标注类型（或根本没有参数），
+    // 即使没有 expected function type，也可以直接定型并继续向下游传播。
+    if let Some(param) = lam.params.iter().find(|p| p.ty.is_none()) {
+        return Err(ExprTypeError::LambdaParamTypeNotInferred {
+            param: inputs.source.slice(param.name.span).to_string(),
+            span: param.name.span.into(),
+        });
+    }
 
     let mut lambda_locals = inputs.locals.clone();
-    let mut param_tys: Vec<TypeId> = Vec::new();
-    let kind_param_count_limit = "lambda（当前仅支持 0/1/2 参数，且参数类型需来自期望函数类型）";
-
-    match expected_fun.params.len() {
-        0 => {
-            if !lam.params.is_empty() {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: kind_param_count_limit,
-                    span: lam_expr.span.into(),
-                });
-            }
-        }
-        1 => {
-            let expected_param_ty = expected_fun.params[0];
-
-            // Kotlin-like：`{ body }` 形式的 lambda 在期望函数类型为 `(T) -> R` 时，
-            // 允许省略形参列表，并隐式引入单参数 `it: T`（T1307a）。
-            if lam.params.is_empty() && lam.arrow_span.is_none() {
-                let implicit_it_decl_span = Span::new(lam_expr.span.start, lam_expr.span.start);
-                lambda_locals.insert(implicit_it_decl_span, expected_param_ty);
-                param_tys.push(expected_param_ty);
-            } else {
-                if lam.params.len() != 1 {
-                    return Err(ExprTypeError::UnsupportedExpr {
-                        kind: kind_param_count_limit,
-                        span: lam_expr.span.into(),
-                    });
-                }
-
-                let param = &lam.params[0];
-                let param_ty = match &param.ty {
-                    Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
-                    None => expected_param_ty,
-                };
-                lambda_locals.insert(param.name.span, param_ty);
-                param_tys.push(param_ty);
-            }
-        }
-        2 => {
-            if lam.params.len() != 2 {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: kind_param_count_limit,
-                    span: lam_expr.span.into(),
-                });
-            }
-
-            for (idx, param) in lam.params.iter().enumerate() {
-                let expected_param_ty = expected_fun
-                    .params
-                    .get(idx)
-                    .copied()
-                    .expect("expected_fun.params.len() == 2");
-                let param_ty = match &param.ty {
-                    Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
-                    None => expected_param_ty,
-                };
-                lambda_locals.insert(param.name.span, param_ty);
-                param_tys.push(param_ty);
-            }
-        }
-        _ => return Ok(None),
+    let mut param_tys: Vec<TypeId> = Vec::with_capacity(lam.params.len());
+    for param in &lam.params {
+        let ty_ref = param
+            .ty
+            .as_ref()
+            .expect("guarded above: lambda params without expected type must be explicitly typed");
+        let param_ty = lower.lower_type_ref(ty_ref)?;
+        lambda_locals.insert(param.name.span, param_ty);
+        param_tys.push(param_ty);
     }
+
+    infer_lambda_expr_type_from_signature(
+        inputs,
+        lam_expr,
+        lam,
+        None,
+        lambda_locals,
+        param_tys,
+        lower,
+    )
+}
+
+fn infer_lambda_expr_type_from_signature(
+    inputs: ExprInferInputs<'_>,
+    lam_expr: &ast::Expr,
+    lam: &ast::LambdaExpr,
+    receiver_ty: Option<TypeId>,
+    mut lambda_locals: HashMap<Span, TypeId>,
+    param_tys: Vec<TypeId>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    let lambda_this_decl_span = match receiver_ty {
+        Some(receiver_ty) => {
+            let decl_span = ast::synthetic_lambda_receiver_this_decl_span(lam_expr.span);
+            lambda_locals.insert(decl_span, receiver_ty);
+            Some(decl_span)
+        }
+        None => inputs.lambda_this_decl_span,
+    };
 
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
-    let lambda_inputs = inputs.with_locals(&lambda_locals);
+    let lambda_inputs = inputs
+        .with_locals(&lambda_locals)
+        .with_lambda_this_decl_span(lambda_this_decl_span);
     let (body_ty, performed_effects) = lower.with_safe_lambda_context(lam, |lower| {
         lower.with_nested_effect_collection(|lower| lambda_inputs.infer(lower, lam.body.as_ref()))
     })?;
@@ -2447,7 +2421,70 @@ fn try_infer_lambda_expr_type_by_expected(
     );
     // lambda 本身没有 `/ R!` 的语法标注，因此这里默认视为 open row（`closed=false`）；
     // 若用户需要把 lambda 擦除到 `Any`，必须通过显式类型注解得到 `(...)->R / Pure!`（见 T0632）。
-    let lam_ty = lower.ty_function(expected_fun.receiver, param_tys, body_ty, effects, false);
+    Ok(lower.ty_function(receiver_ty, param_tys, body_ty, effects, false))
+}
+
+fn try_infer_lambda_expr_type_by_expected(
+    inputs: ExprInferInputs<'_>,
+    lam_expr: &ast::Expr,
+    lam: &ast::LambdaExpr,
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let TypeKind::Ref(RefTypeKind::Function(expected_fun)) = lower.type_kind(expected_ty) else {
+        return Ok(None);
+    };
+
+    let mut lambda_locals = inputs.locals.clone();
+    let mut param_tys: Vec<TypeId> = Vec::with_capacity(expected_fun.params.len());
+    let arity_mismatch = "lambda（参数数量与期望函数类型不匹配）";
+
+    if lam.params.is_empty() && lam.arrow_span.is_none() {
+        match expected_fun.params.as_slice() {
+            [] => {}
+            [expected_param_ty] => {
+                // Kotlin-like：`{ body }` 形式的 lambda 在期望函数类型为 `(T) -> R` 时，
+                // 允许省略形参列表，并隐式引入单参数 `it: T`（T1307a）。
+                let implicit_it_decl_span =
+                    ast::synthetic_lambda_implicit_it_decl_span(lam_expr.span);
+                lambda_locals.insert(implicit_it_decl_span, *expected_param_ty);
+                param_tys.push(*expected_param_ty);
+            }
+            _ => {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: arity_mismatch,
+                    span: lam_expr.span.into(),
+                });
+            }
+        }
+    } else {
+        if lam.params.len() != expected_fun.params.len() {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: arity_mismatch,
+                span: lam_expr.span.into(),
+            });
+        }
+
+        for (param, expected_param_ty) in lam.params.iter().zip(expected_fun.params.iter().copied())
+        {
+            let param_ty = match &param.ty {
+                Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
+                None => expected_param_ty,
+            };
+            lambda_locals.insert(param.name.span, param_ty);
+            param_tys.push(param_ty);
+        }
+    }
+
+    let lam_ty = infer_lambda_expr_type_from_signature(
+        inputs,
+        lam_expr,
+        lam,
+        expected_fun.receiver,
+        lambda_locals,
+        param_tys,
+        lower,
+    )?;
     Ok(Some(lam_ty))
 }
 
@@ -3079,12 +3116,20 @@ fn infer_value_ident_type(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
+    lambda_this_decl_span: Option<Span>,
     top_level_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // `true/false` 当前阶段仍以 ident token 形式存在，但语义上属于字面量。
     let name = source.slice(id.span);
     if name == "true" || name == "false" {
         return Ok(builtins.bool_);
+    }
+
+    if name == "this"
+        && let Some(decl_span) = lambda_this_decl_span
+        && let Some(ty) = locals.get(&decl_span).copied()
+    {
+        return Ok(ty);
     }
 
     let Some(resolved) = id.resolved.as_ref() else {

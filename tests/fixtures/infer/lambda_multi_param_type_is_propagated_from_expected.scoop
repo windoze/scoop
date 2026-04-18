@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T4002 lambda 参数类型下推不再只停在 0/1/2 参数；当调用点已知 `(Int, Int, Int) -> Int` 时，三参数 lambda 也应能从 expected type 推断通过。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun takes(f: (Int, Int, Int) -> Int) { }
+
+fun f() {
+    val u = takes { a, b, c -> a + b + c }
+}

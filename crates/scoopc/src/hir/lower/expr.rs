@@ -8,7 +8,7 @@ use crate::ast;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
-use crate::ty::{TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
 use super::types::*;
@@ -1710,15 +1710,27 @@ impl<'a> HirLowering<'a> {
         lam: &ast::LambdaExpr,
     ) -> (ExprKind, TypeId) {
         let id = self.alloc_closure_id();
+        let typechecked_fun_ty = self.typechecked_expr_ty(span).and_then(|ty| {
+            let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(ty) else {
+                return None;
+            };
+            Some((ty, fun_ty.clone()))
+        });
 
         let params: Vec<Param> = lam
             .params
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(idx, p)| {
                 let name = p.name.text(self.source).to_string();
                 let ty =
                     p.ty.as_ref()
                         .map(|t| self.lower_type_ref(t))
+                        .or_else(|| {
+                            typechecked_fun_ty
+                                .as_ref()
+                                .and_then(|(_, fun_ty)| fun_ty.params.get(idx).copied())
+                        })
                         .unwrap_or(self.builtins.any);
                 Param {
                     span: p.name.span,
@@ -1740,7 +1752,9 @@ impl<'a> HirLowering<'a> {
                 params,
                 body,
             }),
-            self.builtins.any,
+            typechecked_fun_ty
+                .map(|(ty, _)| ty)
+                .unwrap_or(self.builtins.any),
         )
     }
 

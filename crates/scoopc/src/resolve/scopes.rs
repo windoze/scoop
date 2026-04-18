@@ -68,6 +68,9 @@ struct ThisContext {
     decl_span: Span,
     /// `this` 的类型 FQN（用于 `this.member` 的成员解析）；若无法静态确定则为 None。
     ty_fqn: Option<String>,
+    /// 若为 `true`，表示该 `this` 只是 lambda receiver 的“潜在绑定”，
+    /// 成员解析需要延后到 typecheck 根据 expected receiver type 决定。
+    late_bound_from_lambda: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -188,6 +191,7 @@ impl<'a> BlockScopeChecker<'a> {
         let this_ctx = ThisContext {
             decl_span: ty.name.span,
             ty_fqn: Some(type_fqn.clone()),
+            late_bound_from_lambda: false,
         };
 
         // class header 的 super ctor args：可见主构造参数，但不引入 `this`（Kotlin-like）。
@@ -292,6 +296,7 @@ impl<'a> BlockScopeChecker<'a> {
         let this_ctx = ThisContext {
             decl_span: obj.name.as_ref().map(|n| n.span).unwrap_or(obj.span),
             ty_fqn: obj_fqn.clone(),
+            late_bound_from_lambda: false,
         };
 
         // object 没有主构造参数；成员解析时 ctor params 为空即可。
@@ -328,6 +333,7 @@ impl<'a> BlockScopeChecker<'a> {
             let ctx = ThisContext {
                 decl_span: receiver.span(),
                 ty_fqn: self.type_ref_to_fqn(receiver),
+                late_bound_from_lambda: false,
             };
             return self.with_this_context(ctx, |this| this.check_fun_body(fun));
         }
@@ -343,6 +349,7 @@ impl<'a> BlockScopeChecker<'a> {
         let this_ctx = ThisContext {
             decl_span: p.receiver.span(),
             ty_fqn: self.type_ref_to_fqn(&p.receiver),
+            late_bound_from_lambda: false,
         };
 
         // extension property 没有主构造参数。
@@ -734,28 +741,42 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::SafeBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::Lambda(lam) => {
                 // lambda 的参数在其 body 内可见；暂不记录 capture 信息（非目标）。
-                self.push_scope();
-                // Kotlin-like：`{ body }` 形式的 lambda 可能在期望类型为 `(T) -> R` 时拥有隐式单参数 `it`（T1307a）。
-                //
-                // 说明：
-                // - resolve 阶段无法得知期望函数类型，因此这里先把 `it` 当作一个"潜在的局部绑定"引入作用域；
-                // - typecheck 会在存在期望函数类型语境时决定它是否成立，并写入具体类型；若期望为 `() -> R` 则使用 `it`
-                //   会在 typecheck 阶段报错（缺少局部类型信息）。
-                if lam.params.is_empty() && lam.arrow_span.is_none() {
-                    let implicit_it_span = Span::new(expr.span.start, expr.span.start);
-                    let implicit_it = ast::Ident::synthetic(implicit_it_span, "it");
-                    self.declare_ident(&implicit_it)?;
-                }
-                for p in &mut lam.params {
-                    // 若 lambda 参数带有类型注解，把该信息写入 local binding，
-                    // 以便后续成员访问解析能获知 receiver 的名义类型（例如 `step.acc`）。
-                    self.declare_ident_typed(&p.name, p.ty.clone())?;
-                    if let Some(default) = &mut p.default_value {
-                        self.check_expr(default)?;
+                let potential_lambda_this = self.this_context.is_empty().then_some(ThisContext {
+                    decl_span: ast::synthetic_lambda_receiver_this_decl_span(expr.span),
+                    ty_fqn: None,
+                    late_bound_from_lambda: true,
+                });
+                let mut check_lambda_body = |this: &mut Self| -> Result<(), ResolveError> {
+                    this.push_scope();
+                    // Kotlin-like：`{ body }` 形式的 lambda 可能在期望类型为 `(T) -> R` 时拥有隐式单参数 `it`（T1307a）。
+                    //
+                    // 说明：
+                    // - resolve 阶段无法得知期望函数类型，因此这里先把 `it` 当作一个"潜在的局部绑定"引入作用域；
+                    // - 若该 lambda 最终是 receiver lambda，typecheck 还会额外为其注入隐式 `this`；
+                    // - typecheck 会在存在期望函数类型语境时决定这些潜在绑定是否成立，并写入具体类型。
+                    if lam.params.is_empty() && lam.arrow_span.is_none() {
+                        let implicit_it_span =
+                            ast::synthetic_lambda_implicit_it_decl_span(expr.span);
+                        let implicit_it = ast::Ident::synthetic(implicit_it_span, "it");
+                        this.declare_ident(&implicit_it)?;
                     }
+                    for p in &mut lam.params {
+                        // 若 lambda 参数带有类型注解，把该信息写入 local binding，
+                        // 以便后续成员访问解析能获知 receiver 的名义类型（例如 `step.acc`）。
+                        this.declare_ident_typed(&p.name, p.ty.clone())?;
+                        if let Some(default) = &mut p.default_value {
+                            this.check_expr(default)?;
+                        }
+                    }
+                    this.check_expr(lam.body.as_mut())?;
+                    this.pop_scope();
+                    Ok(())
+                };
+                if let Some(ctx) = potential_lambda_this {
+                    self.with_this_context(ctx, check_lambda_body)?;
+                } else {
+                    check_lambda_body(self)?;
                 }
-                self.check_expr(lam.body.as_mut())?;
-                self.pop_scope();
             }
             ast::ExprKind::StructLit { fields, .. } => {
                 for f in fields {
@@ -1639,6 +1660,14 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         let Some(receiver_kind) = self.infer_member_receiver_kind(receiver) else {
+            if self.is_receiver_this(receiver)
+                && self
+                    .this_context
+                    .last()
+                    .is_some_and(|ctx| ctx.late_bound_from_lambda)
+            {
+                return Ok(());
+            }
             // T0130：尝试通过 where bound 解析 type param receiver 的成员访问。
             //
             // 当 receiver 类型为 type param（如 `x: T`）时，`infer_member_receiver_kind` 返回 None
