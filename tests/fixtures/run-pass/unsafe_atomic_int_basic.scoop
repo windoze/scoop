@@ -7,7 +7,7 @@ import scoop.core.*
 import scoop.unsafe.*
 
 fun main() {
-    @Unsafe {
+    @Unsafe do {
         var x: __AtomicInt = 0
 
         println(__atomicIntLoad(x))

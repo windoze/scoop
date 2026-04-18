@@ -23,12 +23,12 @@ fun main() {
     //
     // 为了让该回归更稳定地聚焦“heap fields fixup”，这里通过 stable handle 重新获取 `Pair`，
     // 避免对 caller-frame spill slots 的具体 location 形态做过强假设。
-    val hp: GcHandle = @Unsafe { GC.handleNew(p) }
+    val hp: GcHandle = @Unsafe do { GC.handleNew(p) }
 
     // 强制触发 moving GC：`p/hello/bye` 都是 live 对象，GC 需搬迁并修复所有引用。
     __scoop_gc_collect()
 
-    val gotAny: Any = @Unsafe { GC.handleGet(hp) }
+    val gotAny: Any = @Unsafe do { GC.handleGet(hp) }
     val pOpt: Pair? = gotAny as? Pair
     val p2: Pair = when (pOpt) {
         Some(v) -> v
@@ -48,5 +48,5 @@ fun main() {
 
     println(f"{s1} / {s2}")
 
-    @Unsafe { GC.handleDrop(hp) }
+    @Unsafe do { GC.handleDrop(hp) }
 }

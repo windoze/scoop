@@ -2435,8 +2435,9 @@ fn try_infer_lambda_expr_type_by_expected(
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
     let lambda_inputs = inputs.with_locals(&lambda_locals);
-    let (body_ty, performed_effects) = lower
-        .with_nested_effect_collection(|lower| lambda_inputs.infer(lower, lam.body.as_ref()))?;
+    let (body_ty, performed_effects) = lower.with_safe_lambda_context(lam, |lower| {
+        lower.with_nested_effect_collection(|lower| lambda_inputs.infer(lower, lam.body.as_ref()))
+    })?;
 
     let effects = EffectRow::new(
         performed_effects

@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::extern_call_requires_unsafe
-// EXPECT-ERROR-AT: 13:5
+// EXPECT-ERROR-AT: 13:34
 // EXPECT-ERROR: 需要 unsafe context
 
 package fixtures.unsafe_nogc
@@ -8,7 +8,7 @@ package fixtures.unsafe_nogc
 @Extern("puts")
 fun puts(value: Int): Unit
 
-fun safe() {
-    @Unsafe do { puts(1) }
-    puts(1)
+@Unsafe
+fun f() {
+    val cb: () -> Unit = @Safe { puts(1) }
 }

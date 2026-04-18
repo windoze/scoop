@@ -9,7 +9,7 @@ import scoop.core.*
 fun cone_add_int(a: Int, b: Int): Int
 
 public fun main() / Pure! {
-    @Unsafe {
+    @Unsafe do {
         println(cone_add_int(40, 2))
     }
 }

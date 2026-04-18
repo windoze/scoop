@@ -10,7 +10,7 @@ import scoop.unsafe.*
 fun get_add_int_funptr(): FunPtr<(Int, Int) -> Int>
 
 fun main() {
-    @Unsafe {
+    @Unsafe do {
         val fp: FunPtr<(Int, Int) -> Int> = get_add_int_funptr()
         println(fp(1, 2))
         println(fp.invoke(1, 2))

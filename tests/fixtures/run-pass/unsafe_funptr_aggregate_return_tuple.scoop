@@ -13,7 +13,7 @@ import scoop.unsafe.*
 fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
 
 fun main(): Int {
-    @Unsafe {
+    @Unsafe do {
         val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
 
         val a: (Int, Int) = fp(7)

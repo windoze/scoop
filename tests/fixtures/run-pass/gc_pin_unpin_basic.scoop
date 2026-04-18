@@ -15,7 +15,7 @@ fun main(): Unit {
     // 1) 创建一个 heap 对象（Int -> Any boxing 会调用 `scoop_alloc`）。
     // 2) 在 unsafe context 内 pin，并返回 `Pinned` 值类型 handle。
     // 3) 让 keep 离开作用域：此时对象是否保活完全取决于 runtime pin（而不是栈 roots）。
-    val pinned: Pinned = @Unsafe {
+    val pinned: Pinned = @Unsafe do {
         val keep: Any = 1
         val pinned_inner: Pinned = GC.pin(keep)
         pinned_inner
@@ -29,7 +29,7 @@ fun main(): Unit {
     // unpin 前先把引用放入一个 ref local（stackmap roots），保证 unpin 后仍可访问。
     val keep_again: Any = pinned.value
 
-    @Unsafe { GC.unpin(pinned) }
+    @Unsafe do { GC.unpin(pinned) }
     __scoop_gc_collect()
     println(__scoop_gc_debug_heap_object_count())
 

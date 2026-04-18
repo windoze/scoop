@@ -7,7 +7,7 @@ package fixtures.unsafe_nogc
 import scoop.unsafe.*
 fun demo() {
     var x: Int = 1
-    @Unsafe {
+    @Unsafe do {
         val p: Ptr<Int> = addressOf(x)
         val _q = p.cast<String>()
     }

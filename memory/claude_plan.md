@@ -1,56 +1,68 @@
-# 执行计划
+# 本轮执行计划
 
-## 约束与目标
+## 目标
 
-- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后停止。
-- 在开始实际实现前，先检查最新提交是否提到遗留问题；若有，优先修复。
-- 若当前任务过大，需要先拆分任务，并同步更新 `TODO.md` 与 `PLAN.md`。
-- 任何发现的规范不匹配、缺失特性或阻塞项，都必须先记录为新的前置任务，不能用变通方案绕过。
-- 需要在过程中持续更新本文件，记录计划调整、关键结论、执行进度与验证结果。
+本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
 
-## 初始执行步骤
+## 执行边界
 
-1. 查看最新一次 Git 提交，确认是否提到已知问题、遗留缺陷或需要优先处理的事项。
-2. 读取 `TODO.md`，识别第一个未完成任务。
-3. 读取 `PLAN.md`，核对该任务的上下文、依赖关系与已有规划。
-4. 根据任务复杂度判断是否需要拆分；如需要，先更新 `TODO.md` 与 `PLAN.md`，然后只执行拆分后的第一个子任务。
-5. 阅读相关代码、测试、规范或夹具，确认正确实现边界。
-6. 实现任务，并补充或调整测试。
-7. 运行与该改动相关的验证命令；若任务影响面较大，再运行更完整的检查，例如格式化、测试与 `clippy`。
-8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况与任何依赖调整。
-9. 提交本轮修改，提交信息对应当前任务。
+- 先检查最新一次提交是否提到了需要优先修复的既有问题；如有，先处理这些问题。
+- 再读取 `TODO.md`，确定第一个未完成任务。
+- 如果该任务过大或被前置缺陷阻塞，则先在 `PLAN.md` / `TODO.md` 中拆解或重排依赖，并以新的第一个子任务作为本轮目标。
+- 不接受规避实现、临时垫片或仅为夹具服务的 hack；如果发现与规范不符的缺口，必须先把缺口转成更靠前的任务。
+- 本轮结束前需要完成实现、验证、文档更新和一次 git 提交；然后停止，不进入下一项任务。
 
-## 推理摘要
+## 计划步骤
 
-- 当前尚未读取仓库状态，因此具体任务和受影响模块仍待确认。
-- 为满足流程要求，本文件先记录可审阅的执行计划与约束，而不是未整理的原始思维草稿。
-- 后续如果发现最新提交中已经显式指出某个未修复问题，该问题将先于 `TODO.md` 中的普通任务处理。
+1. 检查最新提交信息，确认是否存在提交信息中提到但尚未修复的问题。
+2. 读取 `TODO.md` 与 `PLAN.md`，识别当前优先级最高的未完成事项。
+3. 结合代码现状评估该事项是否可以在本轮完整落地；若不能，则拆解任务并更新计划文件。
+4. 实施代码修改，确保实现符合规范而不是依赖变通方案。
+5. 运行必要的格式化、测试和 `cargo clippy --all-targets -- -D warnings`。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录结果、依赖和剩余风险。
+7. 提交本轮变更，提交信息引用对应任务编号，然后停止。
 
-## 进度记录
+## 记录约定
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交 `062983e`（`[T3103a0] Track statement-call gate blocker`）：提交本身是在记录既有阻塞，没有额外需要先修复但尚未入列的实现问题。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T3103a0`：恢复 statement-position 普通调用的 `@Unsafe` / `@Extern` / `@NoGC` / `const` 门禁。
-- 已初步检查 `crates/scoopc/src/typecheck/expr/stmt.rs`：
-  - `check_expr_stmt` 对 `ExprKind::Call` 目前只在 `@NoGC` 上下文里做完整 `infer`；
-  - 其它 statement-position 普通调用仅递归检查 callee/args、effect-op、`Continuation.resume(...)` 和 lambda non-local return，导致 value-position 已有的统一调用门禁没有闭环复用。
-- 当前判断：`T3103a0` 可以直接实现，不需要再拆分子任务。实现方向是让 statement-position 普通调用走与 value-position 相同的调用 typecheck，同时保留现有 lambda non-local return 的特判逻辑，避免回归。
-- 已完成生产代码修改：
-  - `crates/scoopc/src/typecheck/expr/stmt.rs` 的 statement-position `Call` 现在会复用共享调用 gate，覆盖 `@Unsafe` / `@Extern` / `@NoGC` / `const`。
-  - 为避免把未单独跟踪的“普通 callee effect row 在 statement 位置传播”语义变更混入本轮，普通调用检查改为“统一 infer + 暂停普通 effects 收集”，而 effect op / `Continuation.resume(...)` 继续按原语义记录立即 effects。
-  - 为避免 lambda non-local return 预检误把 implicit `it` / 未完整推断的 binder 当成完整调用 typecheck，已将语句层递归拆成 `WithUnifiedGate` / `StructuralOnly` 两种模式。
-- 在验证过程中发现并修复了一个与当前任务直接相关的测试工具问题：
-  - `crates/scoop/src/fixtures/mod.rs` 之前会把 `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc` 这类“根目录直接指向单 phase 子目录”的调用误判成 parse phase；
-  - 现已修复 phase-root 判定，并补了单测，确保 `unsafe_nogc` / `mir` 等子目录可直接作为 fixtures 根目录运行。
-- 已新增回归 fixtures：
-  - `tests/fixtures/unsafe_nogc/unsafe_extension_statement_call_requires_unsafe_is_error.scoop`
-  - `tests/fixtures/unsafe_nogc/nogc_statement_call_non_nogc_function_is_error.scoop`
-  - `tests/fixtures/unsafe_nogc/nogc_function_value_statement_call_is_error.scoop`
-  - `tests/fixtures/typecheck/const_fun_statement_call_non_const_fun_is_error.scoop`
+- 每完成一个关键步骤，追加或修改本文件中的进展记录。
+- 如果发现阻塞项，会在这里记录阻塞原因、受影响任务和 `TODO.md` 中的新排序。
+
+## 当前进展
+
+- 已检查最新提交 `56d73c47e75fe7904b87af8848e527831fafccad`（`[T3103a0] Restore statement-position call gates`）。提交信息未声明需要在本轮开始前额外修复的遗留 issue，因此无需插入新的“先修已知问题”步骤。
+- 已读取 `TODO.md` / `PLAN.md`，确认当前首个未完成任务为 `T3103a`：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则。
+- 已确认本任务在当前上下文下可以直接执行，不需要先拆分成新的子任务；其依赖 `T3103a0` 已完成。
+- `T3103a` 的实现已完成：
+  - parser 现已只接受 `@Unsafe do { ... }` 作为局部 unsafe block，裸 `@Unsafe { ... }` 会报稳定的 `scoop::parse::unsafe_block_requires_do`。
+  - `@Safe { ... }` 已改为 annotated closure；AST `LambdaExpr` 与 HIR `ClosureExpr` 新增 `at_safe_span`。
+  - typecheck 已通过 `with_safe_lambda_context` 将 safe closure 的 unsafe-context 抑制接回 lambda 推导、statement-position lambda 检查和 delegated-property callback 检查。
+  - `sysroot/string.scoop` 与相关 fixtures 中仍把 bare annotated block 当局部 block 使用的代码已迁移到 `do` 形式。
+- 新增回归已落地：
+  - parse：`safe_do_block_vs_safe_closure.*`、`unsafe_block_requires_do_fail.scoop`
+  - HIR：`safe_closure_basic.*`
+  - unsafe/nogc：`safe_closure_inside_unsafe_fun_requires_unsafe_is_error.scoop`、`safe_closure_nested_unsafe_do_allows_extern_ok.scoop`
 - 已完成验证：
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc` → `fixtures: ok (31)`
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop` → 输出恢复为预期
-  - `cargo run -p scoop -- test` → `fixtures: ok (1000)`
-  - `cargo test --all` → 通过
-  - `cargo clippy --all-targets -- -D warnings` → 通过
-- 待完成事项：更新 `TODO.md` / `PLAN.md` 状态并提交本轮修改。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (33)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (117)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (15)`）
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1005)`）
+  - `cargo clippy --all-targets -- -D warnings`
+- 下一项未完成任务已推进为 `T3104`。
+
+## 本轮实现计划（细化）
+
+1. 调整 parser 与 AST：
+   - `@Unsafe do { ... }` 继续解析为局部 unsafe block。
+   - `@Unsafe { ... }` 改为稳定语法错误，并明确要求使用 `@Unsafe do { ... }`。
+   - `@Safe do { ... }` 继续解析为局部 safe block。
+   - `@Safe { ... }` 改为 annotated closure，而不是 `SafeBlock`。
+2. 调整 HIR / typecheck：
+   - 在 AST/HIR 中显式保留 safe closure 标记，避免再次把它吞成普通 block。
+   - 在 lambda body typecheck / expected-type 推导处正确暂停外层 unsafe context，使 `@Safe { ... }` 的 body 按 safe 语义检查。
+3. 迁移仓库中的旧写法：
+   - 把 sysroot 与 fixtures 中仍把 `@Safe { ... }` / `@Unsafe { ... }` 当局部 block 使用的代码迁移到 `@Safe do { ... }` / `@Unsafe do { ... }`。
+   - 同步更新 parser 单测、源码注释与新增回归。
+4. 验证并收尾：
+   - 运行相关 parser/typecheck/fixture 测试与 `cargo clippy --all-targets -- -D warnings`。
+   - 更新 `TODO.md` / `PLAN.md` / 本文件并提交本轮变更。

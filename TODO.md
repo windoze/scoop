@@ -2712,8 +2712,14 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3103
 
-### T3103a [TODO] 语法 / 实现：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
-- 描述：当前 `SCOOP_FULL_SPEC.md` 已把局部 annotated block 收口为 `@Safe do { ... }` / `@Unsafe do { ... }`，并明确 bare `{ ... }` 在普通表达式位置属于 closure；同时规范还保留 `@Safe { ... }` 作为 annotated closure 的语义边界。但当前实现仍把 `@Safe { ... }` / `@Unsafe { ... }` 一律解析成 `SafeBlock` / `UnsafeBlock`，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 也仍在使用 bare annotated block 旧写法。进一步排查还确认：一旦把这些调用点切到 `do` 形式，就会暴露 `T3103a0` 的 statement-position call gate 缺口。因此本任务现在显式等待 `T3103a0` 先修复底层门禁，再继续完成语法/实现收口。
+### T3103a [DONE] 语法 / 实现：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
+- 描述：当前 `SCOOP_FULL_SPEC.md` 已把局部 annotated block 收口为 `@Safe do { ... }` / `@Unsafe do { ... }`，并明确 bare `{ ... }` 在普通表达式位置属于 closure；同时规范还保留 `@Safe { ... }` 作为 annotated closure 的语义边界。本任务在 `T3103a0` 修复 statement-position call gate 之后，继续完成 parser / AST / HIR / typecheck 的绑定规则收口与仓库迁移。
+- 进展：
+  - `crates/scoopc/src/parser/expr.rs` 现在只把 `@Unsafe do { ... }` 解析为局部 unsafe block；裸 `@Unsafe { ... }` 会报稳定的 `scoop::parse::unsafe_block_requires_do` 诊断，并明确要求改写成 `@Unsafe do { ... }`。
+  - `@Safe do { ... }` 继续解析为 `SafeBlock`；`@Safe { ... }` 现在改为 annotated closure。AST `LambdaExpr` 与 HIR `ClosureExpr` 均新增 `at_safe_span`，使 safe closure 的输入形状在前后端边界上可见且可回归。
+  - typecheck 新增共享的 `with_safe_lambda_context`，使 lambda expected-type 推导、statement-position lambda body 检查以及 delegated-property callback body 推导都会在 `@Safe { ... }` 中暂停外层 unsafe context，同时仍允许嵌套 `@Unsafe do { ... }` 局部重新开启 unsafe。
+  - 已迁移 `sysroot/string.scoop` 与仓库中仍把 bare annotated block 当局部 block 使用的 fixtures 到 `@Safe do { ... }` / `@Unsafe do { ... }` 形式。
+  - 已新增 parser / parse-fixture / HIR / `unsafe_nogc` 回归：`safe_do_block_vs_safe_closure.*`、`unsafe_block_requires_do_fail.scoop`、`safe_closure_basic.*`、`safe_closure_inside_unsafe_fun_requires_unsafe_is_error.scoop`、`safe_closure_nested_unsafe_do_allows_extern_ok.scoop`。
 - 目标：
   - 局部 annotated block 只接受 `@Safe do { ... }` / `@Unsafe do { ... }`；`@Unsafe { ... }` 不再作为 local block 兼容接受，应给出稳定诊断并指向 `do` 形式。
   - `@Safe { ... }` 在 closure / trailing-lambda 语境中按 annotated closure 处理，不再被错误吞成 `SafeBlock`。
@@ -2722,6 +2728,13 @@
   - 新增或更新 parser / typecheck / fixture 回归，锁定 `@Safe do { ... }` / `@Unsafe do { ... }` 继续工作，`@Unsafe { ... }` 不再是 local block，而 `@Safe { ... }` 的 closure 语义边界清晰可判。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (33)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/parse`（`fixtures: ok (117)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (15)`）
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1005)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3103, T3103a0
 
 ### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则

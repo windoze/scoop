@@ -8,7 +8,7 @@
 import scoop.core.*
 
 open class A() {
-    val a: Int = @Safe {
+    val a: Int = @Safe do {
         println("A.a")
         1
     }
@@ -19,7 +19,7 @@ open class A() {
 }
 
 open class B() : A() {
-    val b: Int = @Safe {
+    val b: Int = @Safe do {
         println("B.b")
         2
     }
@@ -30,7 +30,7 @@ open class B() : A() {
 }
 
 class C() : B() {
-    val c: Int = @Safe {
+    val c: Int = @Safe do {
         println("C.c")
         3
     }

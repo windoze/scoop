@@ -22,7 +22,7 @@ var ready: __AtomicInt = 0
 var proceed: __AtomicInt = 0
 
 fun waitWorkerReady(): Unit {
-    while (@Unsafe { __atomicIntLoad(ready) } == 0) {
+    while (@Unsafe do { __atomicIntLoad(ready) } == 0) {
         yield()
     }
 }
@@ -30,12 +30,12 @@ fun waitWorkerReady(): Unit {
 fun worker(): Unit {
     val x: String = f"hello {7}"
 
-    @Unsafe { __atomicIntStore(ready, 1) }
+    @Unsafe do { __atomicIntStore(ready, 1) }
 
     // 说明：这里通过持续分配（`Int -> Any` 装箱）触发 safepoint poll，
     // 以便 main 线程发起 STW 时该线程能及时 park。
     var i: Int = 0
-    while (@Unsafe { __atomicIntLoad(proceed) } == 0) {
+    while (@Unsafe do { __atomicIntLoad(proceed) } == 0) {
         val _garbage: Any = i
         i = i + 1
     }
@@ -51,7 +51,7 @@ fun main() {
     // 关键点：main 线程触发 GC，必须能扫描到 worker 的 roots（`x`），否则会误回收/悬挂。
     __scoop_gc_collect()
 
-    @Unsafe { __atomicIntStore(proceed, 1) }
+    @Unsafe do { __atomicIntStore(proceed, 1) }
 
     t.join()
     println("ok")

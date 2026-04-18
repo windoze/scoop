@@ -24,7 +24,7 @@ fun callArg(): Int {
 }
 
 open class A(val a: Int) {
-    val x: Int = @Safe {
+    val x: Int = @Safe do {
         println("A.prop")
         a
     }
@@ -35,7 +35,7 @@ open class A(val a: Int) {
 }
 
 open class B(val b: Int) : A(bSuper(b)) {
-    val y: Int = @Safe {
+    val y: Int = @Safe do {
         println("B.prop")
         b
     }
@@ -46,7 +46,7 @@ open class B(val b: Int) : A(bSuper(b)) {
 }
 
 class C(val c: Int) : B(cSuper(c)) {
-    val z: Int = @Safe {
+    val z: Int = @Safe do {
         println("C.prop")
         c
     }

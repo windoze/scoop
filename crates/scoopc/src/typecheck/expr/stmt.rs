@@ -208,22 +208,24 @@ fn check_lambda_expr_stmt_body(
     lower.with_effect_collection_suspended(|lower| {
         // `@NoGC`：lambda body 并不在外层函数执行时立即运行，不能把 `@NoGC` 的限制“向内传播”。
         lower.with_nogc_context_suspended(|lower| {
-            let mut lambda_state = StmtExprState {
-                locals: &mut lambda_locals,
-                stable_bindings: &mut lambda_stable,
-                mutable_bindings: &mut lambda_mutable,
-            };
-            check_expr_stmt_with_mode(
-                shared,
-                lam.body.as_ref(),
-                lower,
-                &mut lambda_state,
-                StmtExprFlow {
-                    loop_depth: 0,
-                    expected_return_ty: nested_expected_return_ty,
-                },
-                ExprStmtCallMode::StructuralOnly,
-            )
+            lower.with_safe_lambda_context(lam, |lower| {
+                let mut lambda_state = StmtExprState {
+                    locals: &mut lambda_locals,
+                    stable_bindings: &mut lambda_stable,
+                    mutable_bindings: &mut lambda_mutable,
+                };
+                check_expr_stmt_with_mode(
+                    shared,
+                    lam.body.as_ref(),
+                    lower,
+                    &mut lambda_state,
+                    StmtExprFlow {
+                        loop_depth: 0,
+                        expected_return_ty: nested_expected_return_ty,
+                    },
+                    ExprStmtCallMode::StructuralOnly,
+                )
+            })
         })
     })
 }

@@ -176,7 +176,7 @@ fn parse_target_annotation_with_enum_values() {
 
 #[test]
 fn parse_unsafe_block_expr() {
-    let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { @Unsafe { 1 } }\n");
+    let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { @Unsafe do { 1 } }\n");
     let file = parse_file(&src).unwrap();
 
     let ast::Item::Fun(f) = &file.items[0] else {
@@ -205,29 +205,30 @@ fn parse_unsafe_block_expr() {
 }
 
 #[test]
-fn parse_safe_block_expr() {
-    let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { @Safe { 1 } }\n");
+fn parse_safe_annotated_closure_expr() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nval f: () -> Int = @Safe { 1 }\n");
     let file = parse_file(&src).unwrap();
 
-    let ast::Item::Fun(f) = &file.items[0] else {
-        panic!("期望顶层第一个 item 为函数声明");
+    let ast::Item::Val(v) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为 val");
+    };
+    let init = v.init.as_ref().expect("val 应有 initializer");
+
+    let ast::ExprKind::Lambda(lam) = &init.kind else {
+        panic!("期望 initializer 为 annotated lambda");
     };
 
-    let ast::FunBody::Block(b) = &f.body else {
-        panic!("期望函数体为 block");
-    };
+    let at_safe_span = lam.at_safe_span.expect("@Safe closure 应记录注解 span");
+    assert_eq!(src.slice(at_safe_span), "@Safe");
+    assert!(lam.params.is_empty());
+    assert!(matches!(lam.body.kind, ast::ExprKind::IntLit));
+}
 
-    let ast::StmtKind::Expr(e) = &b.stmts[0].kind else {
-        panic!("期望第一条语句为表达式语句");
-    };
-
-    let ast::ExprKind::SafeBlock { at_safe_span, body } = &e.kind else {
-        panic!("期望表达式为 safe block");
-    };
-
-    assert_eq!(src.slice(*at_safe_span), "@Safe");
-    assert_eq!(body.stmts.len(), 1);
-    assert!(matches!(body.stmts[0].kind, ast::StmtKind::Expr(_)));
+#[test]
+fn parse_unsafe_block_requires_do() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { @Unsafe { 1 } }\n");
+    let err = parse_file(&src).expect_err("裸 `@Unsafe { ... }` 应报错");
+    assert!(matches!(err, ParseError::UnsafeBlockRequiresDo { .. }));
 }
 
 #[test]

@@ -1,0 +1,105 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 22..83,
+                fqn: "fixtures.hir.main",
+                name: "main",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 41..83,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 45..75,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 45..75,
+                                        id: Some(
+                                            S0,
+                                        ),
+                                        name: Some(
+                                            "f",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            11,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 64..75,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Closure(
+                                                    ClosureExpr {
+                                                        span: 64..75,
+                                                        id: C0,
+                                                        at_safe_span: 64..69,
+                                                        captures: [],
+                                                        params: [],
+                                                        body: Expr {
+                                                            span: 72..73,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 78..81,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 78..81,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 78..79,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S0,
+                                                        name: "f",
+                                                        decl_span: 49..50,
+                                                    },
+                                                ),
+                                            },
+                                            args: [],
+                                        },
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -19,7 +19,8 @@
 //! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
 //! - `when` 表达式（T0215）：`when (expr) { ... }`（最小分支子集）
 //! - 赋值表达式（T0227）：`lhs = rhs`（lhs 先限 ident/member）
-//! - unsafe block（T1004）：`@Unsafe { ... }`
+//! - 局部 annotated block / closure（T1004/T3103a）：
+//!   `@Unsafe do { ... }` / `@Safe do { ... }` / `@Safe { ... }`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -217,20 +218,20 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        // spec §15.9.2：`@Unsafe { ... }`（unsafe block）。
-        // spec §15.9.5：`@Safe { ... }`（safe block：在 unsafe context 内收窄为 safe）。
+        // spec §15.9.2：`@Unsafe do { ... }`（unsafe block）。
+        // spec §15.9.5：`@Safe do { ... }`（safe block）/ `@Safe { ... }`（safe closure）。
         //
         // 说明：
         // - 该语法位于表达式/语句层：作为一个“局部 unsafe context”区域；
         // - 当前阶段仅支持内建 `Unsafe/Safe`，不支持任意注解作为 block 前缀；
-        // - 必须紧跟一个 block：`@Unsafe { ... }` / `@Safe { ... }`。
+        // - `@Unsafe` 只接受 `do { ... }` 形式；裸 `{ ... }` 保留给 closure。
         if self.peek_symbol(Symbol::At) && self.peek_n(1).kind == TokenKind::Ident {
             match self
                 .source_text
                 .get(self.peek_n(1).span.start..self.peek_n(1).span.end)
             {
                 Some("Unsafe") => return Ok(Some(self.parse_unsafe_block_expr()?)),
-                Some("Safe") => return Ok(Some(self.parse_safe_block_expr()?)),
+                Some("Safe") => return Ok(Some(self.parse_safe_annotated_expr()?)),
                 _ => {}
             }
         }
@@ -341,8 +342,19 @@ impl<'a> Parser<'a> {
         );
         let at_unsafe_span = Span::new(start, unsafe_kw.span.end);
 
-        // 支持 `@Unsafe do { ... }`（spec §15.9.2 + §7.6）和 `@Unsafe { ... }`（向后兼容）。
-        self.eat_keyword(Keyword::Do);
+        if !self.eat_keyword(Keyword::Do) {
+            let tok = *self.peek();
+            return match tok.kind {
+                TokenKind::Symbol(Symbol::LBrace) => Err(ParseError::UnsafeBlockRequiresDo {
+                    span: tok.span.into(),
+                }),
+                _ => Err(ParseError::Expected {
+                    expected: "`do`（写作 `@Unsafe do { ... }`）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                }),
+            };
+        }
         let body = self.parse_block()?;
         Ok(ast::Expr {
             span: Span::new(start, body.span.end),
@@ -353,7 +365,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_safe_block_expr(&mut self) -> Result<ast::Expr, ParseError> {
+    fn parse_safe_annotated_expr(&mut self) -> Result<ast::Expr, ParseError> {
         let at = self.expect_symbol(Symbol::At)?;
         let start = at.span.start;
 
@@ -364,12 +376,32 @@ impl<'a> Parser<'a> {
         );
         let at_safe_span = Span::new(start, safe_kw.span.end);
 
-        // 支持 `@Safe do { ... }`（spec §15.9.5 + §7.6）和 `@Safe { ... }`（向后兼容）。
-        self.eat_keyword(Keyword::Do);
-        let body = self.parse_block()?;
-        Ok(ast::Expr {
-            span: Span::new(start, body.span.end),
-            kind: ast::ExprKind::SafeBlock { at_safe_span, body },
+        if self.eat_keyword(Keyword::Do) {
+            let body = self.parse_block()?;
+            return Ok(ast::Expr {
+                span: Span::new(start, body.span.end),
+                kind: ast::ExprKind::SafeBlock { at_safe_span, body },
+            });
+        }
+
+        if self.peek_symbol(Symbol::LBrace) {
+            let lambda = self.parse_lambda_expr()?;
+            let end = lambda.span.end;
+            let ast::ExprKind::Lambda(mut lam) = lambda.kind else {
+                unreachable!("parse_lambda_expr 必须返回 Lambda");
+            };
+            lam.at_safe_span = Some(at_safe_span);
+            return Ok(ast::Expr {
+                span: Span::new(start, end),
+                kind: ast::ExprKind::Lambda(lam),
+            });
+        }
+
+        let tok = *self.peek();
+        Err(ParseError::Expected {
+            expected: "`do { ... }` 或 closure `{ ... }`",
+            found: tok.kind,
+            span: tok.span.into(),
         })
     }
 
@@ -1613,6 +1645,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Expr {
             span: Span::new(start, end),
             kind: ast::ExprKind::Lambda(ast::LambdaExpr {
+                at_safe_span: None,
                 params,
                 arrow_span,
                 body: Box::new(body),

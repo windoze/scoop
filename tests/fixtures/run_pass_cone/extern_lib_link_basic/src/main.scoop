@@ -14,7 +14,7 @@ import scoop.core.*
 fun c_abs(x: Int): Int
 
 public fun main() / Pure! {
-    @Unsafe {
+    @Unsafe do {
         println(c_abs(0 - 42))
         println(c_abs(7))
         println(c_abs(0))

@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::unsafe_block_requires_do
+// EXPECT-ERROR: `@Unsafe do { ... }`
+// EXPECT-ERROR-AT: 9:13
+
+package fixtures.parse
+
+fun f() {
+    @Unsafe { 1 }
+}

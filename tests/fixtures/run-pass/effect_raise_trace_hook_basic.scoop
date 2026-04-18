@@ -22,7 +22,7 @@ fun main(): Int {
         val _y: Int = boom()
         _y
     } catch (e: RuntimeError) {
-        @Unsafe {
+        @Unsafe do {
             println(effect_trace_src_line())
             println(effect_trace_src_col())
         }

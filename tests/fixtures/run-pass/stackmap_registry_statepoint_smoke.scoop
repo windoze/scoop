@@ -11,7 +11,7 @@ import scoop.core.*
 fun rt_stackmap_statepoint_smoke(): Int
 
 fun main() {
-    @Unsafe {
+    @Unsafe do {
         // 返回 1 表示 smoke 通过（registry 非空且 lookup caller return address 成功）。
         println(rt_stackmap_statepoint_smoke())
     }

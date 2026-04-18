@@ -469,7 +469,7 @@ pub(crate) struct TypeLowering<'a> {
     /// 说明：
     /// - 在 `@Unsafe` 函数体内，调用 `@Extern/@Unsafe` 函数是允许的；
     /// - 在非 unsafe context 中，这类调用会在表达式 typecheck 阶段报错（T1003）；
-    /// - 未来 `@Unsafe { ... }` block（T1004）会复用同一机制做局部 push/pop。
+    /// - 未来 `@Unsafe do { ... }` block（T1004）会复用同一机制做局部 push/pop。
     unsafe_context_depth: usize,
 
     /// `@NoGC` 上下文深度（TODO T1005）。
@@ -600,14 +600,27 @@ impl<'a> TypeLowering<'a> {
     /// 在一个临时区域中“抑制 unsafe 上下文”（spec §15.9.5）。
     ///
     /// 用途：
-    /// - `@Safe { ... }`：即使处于外层 unsafe context，也要在该区域内禁止 unsafe primitives / `@Extern` / `@Unsafe` 调用；
-    /// - `@Safe` 内仍允许嵌套 `@Unsafe { ... }` 重新开启 unsafe（局部化）。
+    /// - `@Safe do { ... }`：即使处于外层 unsafe context，也要在该区域内禁止 unsafe primitives / `@Extern` / `@Unsafe` 调用；
+    /// - `@Safe { ... }` closure：其 body 也要按 safe 语义检查；
+    /// - `@Safe` 内仍允许嵌套 `@Unsafe do { ... }` 重新开启 unsafe（局部化）。
     pub(super) fn with_unsafe_context_suspended<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
         let saved = self.unsafe_context_depth;
         self.unsafe_context_depth = 0;
         let out = f(self);
         self.unsafe_context_depth = saved;
         out
+    }
+
+    pub(super) fn with_safe_lambda_context<R>(
+        &mut self,
+        lam: &ast::LambdaExpr,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        if lam.is_safe() {
+            self.with_unsafe_context_suspended(f)
+        } else {
+            f(self)
+        }
     }
 
     pub(super) fn push_nogc_context(&mut self) {

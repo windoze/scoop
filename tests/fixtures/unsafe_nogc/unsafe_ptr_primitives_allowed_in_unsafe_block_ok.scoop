@@ -6,7 +6,7 @@ import scoop.unsafe.*
 
 fun demo() {
     var x: Int = 1
-    @Unsafe {
+    @Unsafe do {
         val p: Ptr<Int> = addressOf(x)
         val y: Int = p.load()
         p.store(y + 1)

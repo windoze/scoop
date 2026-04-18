@@ -364,14 +364,30 @@ pub struct Capture {
 }
 
 /// closure（lambda）的 HIR 表示（TODO T0710）。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ClosureExpr {
     pub span: Span,
     pub id: ClosureId,
+    pub at_safe_span: Option<Span>,
     /// 捕获的外部局部变量集合（按 decl span 排序，便于稳定 dump/fixtures）。
     pub captures: Vec<Capture>,
     pub params: Vec<Param>,
     pub body: Box<Expr>,
+}
+
+impl fmt::Debug for ClosureExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_struct("ClosureExpr");
+        s.field("span", &self.span);
+        s.field("id", &self.id);
+        if let Some(at_safe_span) = self.at_safe_span {
+            s.field("at_safe_span", &at_safe_span);
+        }
+        s.field("captures", &self.captures);
+        s.field("params", &self.params);
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// 一个 effect operation 的“引用”（以 FQN 表示）。

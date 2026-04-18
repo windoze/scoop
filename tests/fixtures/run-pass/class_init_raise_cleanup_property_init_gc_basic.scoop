@@ -8,7 +8,7 @@
 import scoop.core.*
 
 class Boom() {
-    val x: Int = @Safe {
+    val x: Int = @Safe do {
         Raise.raise(RuntimeError.NullAssertionFailed)
         0
     }

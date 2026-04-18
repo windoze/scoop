@@ -3,7 +3,7 @@
 //
 // 目标：T1006 `@Extern("symbol")` 的符号名映射 + C ABI。
 // - 通过 `@Extern("scoop_test_add_int")` 直接调用 runtime 的测试符号（C ABI）。
-// - 调用点必须处于 `@Unsafe { ... }`（`@Extern` 调用门禁）。
+// - 调用点必须处于 `@Unsafe do { ... }`（`@Extern` 调用门禁）。
 
 import scoop.core.*
 
@@ -11,7 +11,7 @@ import scoop.core.*
 fun rt_add_int(a: Int, b: Int): Int
 
 fun main() {
-    @Unsafe {
+    @Unsafe do {
         println(rt_add_int(1, 2))
     }
 }

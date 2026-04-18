@@ -29,7 +29,7 @@ fun String.substring(start: Int, end: Int): String {
     if (e > len) { e = len }
 
     val sliceLen: Int = e - s
-    return @Unsafe { this.unsafeSliceBytes(s, sliceLen) }
+    return @Unsafe do { this.unsafeSliceBytes(s, sliceLen) }
 }
 
 fun String.indexOf(substr: String): Int {
@@ -111,7 +111,7 @@ fun String.split(delimiter: String): Array<String> {
     val b: Any = __scoop_array_builder_new()
 
     if (slen <= 0) {
-        val empty: String = @Unsafe { this.unsafeSliceBytes(0, 0) }
+        val empty: String = @Unsafe do { this.unsafeSliceBytes(0, 0) }
         __scoop_array_builder_push_string(b, empty)
     } else if (dlen <= 0) {
         __scoop_array_builder_push_string(b, this)
@@ -133,7 +133,7 @@ fun String.split(delimiter: String): Array<String> {
 
             if (matched) {
                 val segLen: Int = i - start
-                val seg: String = @Unsafe { this.unsafeSliceBytes(start, segLen) }
+                val seg: String = @Unsafe do { this.unsafeSliceBytes(start, segLen) }
                 __scoop_array_builder_push_string(b, seg)
                 start = i + dlen
                 i = start
@@ -143,7 +143,7 @@ fun String.split(delimiter: String): Array<String> {
         }
 
         val tailLen: Int = slen - start
-        val tail: String = @Unsafe { this.unsafeSliceBytes(start, tailLen) }
+        val tail: String = @Unsafe do { this.unsafeSliceBytes(start, tailLen) }
         __scoop_array_builder_push_string(b, tail)
     }
 
@@ -169,7 +169,7 @@ fun String.trimStart(): String {
     }
 
     val sliceLen: Int = len - start
-    return @Unsafe { this.unsafeSliceBytes(start, sliceLen) }
+    return @Unsafe do { this.unsafeSliceBytes(start, sliceLen) }
 }
 
 fun String.trimEnd(): String {
@@ -190,7 +190,7 @@ fun String.trimEnd(): String {
         }
     }
 
-    return @Unsafe { this.unsafeSliceBytes(0, end) }
+    return @Unsafe do { this.unsafeSliceBytes(0, end) }
 }
 
 fun String.trim(): String {

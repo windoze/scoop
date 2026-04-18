@@ -5,6 +5,7 @@ package fixtures.unsafe_nogc
 @Extern("puts")
 fun puts(value: Int): Unit
 
-fun safe() {
-    @Unsafe do { puts(1) }
+@Unsafe
+fun f() {
+    val cb: () -> Unit = @Safe { @Unsafe do { puts(1) } }
 }

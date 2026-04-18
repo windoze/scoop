@@ -137,14 +137,14 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::UnsafeBlock { body, .. } => {
-                // `@Unsafe { ... }` 仅影响 typecheck 的 unsafe context，
+                // `@Unsafe do { ... }` 仅影响 typecheck 的 unsafe context，
                 // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1004）。
                 let b = self.lower_block_with_expected(pkg_prefix, body, expected);
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::SafeBlock { body, .. } => {
-                // `@Safe { ... }` 同样仅影响 typecheck 的 unsafe context，
+                // `@Safe do { ... }` 同样仅影响 typecheck 的 unsafe context，
                 // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1021）。
                 let b = self.lower_block_with_expected(pkg_prefix, body, expected);
                 let ty = b.ty;
@@ -1735,6 +1735,7 @@ impl<'a> HirLowering<'a> {
             ExprKind::Closure(ClosureExpr {
                 span,
                 id,
+                at_safe_span: lam.at_safe_span,
                 captures,
                 params,
                 body,

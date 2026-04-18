@@ -997,14 +997,17 @@ fn check_standard_delegated_property_inline_exprs(
                 return Ok(());
             }
 
-            let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
-                lower,
-                lambda.body.as_ref(),
-                property_ty,
-                ExpectedTypeFrom::new(format!(
-                    "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
-                )),
-            )?;
+            lower.with_safe_lambda_context(lambda, |lower| {
+                let _ = expr_infer_inputs(shared, outer_locals).infer_in_expected(
+                    lower,
+                    lambda.body.as_ref(),
+                    property_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "lazy 委托属性 `{property_name}` 的 initializer 返回类型"
+                    )),
+                )?;
+                Ok::<(), ExprTypeError>(())
+            })?;
         }
         "scoop.delegates.observable" | "scoop.delegates.vetoable" => {
             let Some(initial) = args.first() else {
@@ -1040,14 +1043,17 @@ fn check_standard_delegated_property_inline_exprs(
             } else {
                 "vetoable"
             };
-            let _ = expr_infer_inputs(shared, &callback_locals).infer_in_expected(
-                lower,
-                lambda.body.as_ref(),
-                callback_return_ty,
-                ExpectedTypeFrom::new(format!(
-                    "{callback_kind} 委托属性 `{property_name}` 的回调返回类型"
-                )),
-            )?;
+            lower.with_safe_lambda_context(lambda, |lower| {
+                let _ = expr_infer_inputs(shared, &callback_locals).infer_in_expected(
+                    lower,
+                    lambda.body.as_ref(),
+                    callback_return_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "{callback_kind} 委托属性 `{property_name}` 的回调返回类型"
+                    )),
+                )?;
+                Ok::<(), ExprTypeError>(())
+            })?;
         }
         _ => {}
     }

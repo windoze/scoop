@@ -1085,14 +1085,35 @@ pub enum InterpolatedStringPart {
 /// 说明：
 /// - 参数类型注解可省略，通常由期望函数类型向下传播推断（spec §14.4）。
 /// - `{ body }` 形式不含 `->`，因此 `arrow_span` 为 `None` 且 `params` 为空；隐式 `it` 等语义由后续 typecheck 决定。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LambdaExpr {
+    /// `@Safe` 的 span；普通 closure 为 `None`。
+    pub at_safe_span: Option<Span>,
     /// 参数列表（参数类型可省略）。
     pub params: Vec<Param>,
     /// `->` 的 span；`{ body }` 形式为 `None`。
     pub arrow_span: Option<Span>,
     /// Lambda 主体表达式。若解析为 block body，可使用 `ExprKind::Block` 表示。
     pub body: Box<Expr>,
+}
+
+impl LambdaExpr {
+    pub fn is_safe(&self) -> bool {
+        self.at_safe_span.is_some()
+    }
+}
+
+impl std::fmt::Debug for LambdaExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("LambdaExpr");
+        if let Some(at_safe_span) = self.at_safe_span {
+            s.field("at_safe_span", &at_safe_span);
+        }
+        s.field("params", &self.params);
+        s.field("arrow_span", &self.arrow_span);
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// 值上下文中的标识符引用（expression ident）。
@@ -1298,7 +1319,7 @@ pub enum ExprKind {
         do_span: Span,
         body: Block,
     },
-    /// `@Unsafe { ... }`（spec §15.9.2）：局部 unsafe context 块。
+    /// `@Unsafe do { ... }`（spec §15.9.2）：局部 unsafe context 块。
     ///
     /// 说明：
     /// - 该节点只负责表达“在该 block 内允许执行需要 unsafe context 的操作”；
@@ -1309,18 +1330,18 @@ pub enum ExprKind {
         at_unsafe_span: Span,
         body: Block,
     },
-    /// `@Safe { ... }`（spec §15.9.5）：在 unsafe context 内显式“收窄”为 safe 的区域。
+    /// `@Safe do { ... }`（spec §15.9.5）：在 unsafe context 内显式“收窄”为 safe 的区域。
     ///
     /// 说明：
     /// - 该节点只表达“在该 block 内禁止需要 unsafe context 的操作”；
     /// - typecheck 会在进入该 block 时暂时抑制外层 unsafe context；
-    /// - `@Safe` 内仍允许嵌套 `@Unsafe { ... }` 局部重新开启 unsafe（TODO T1021）。
+    /// - `@Safe` 内仍允许嵌套 `@Unsafe do { ... }` 局部重新开启 unsafe（TODO T1021）。
     SafeBlock {
         /// `@Safe` 的 span（不包含 `{ ... }`）。
         at_safe_span: Span,
         body: Block,
     },
-    /// Lambda 表达式：`{ params -> body }` / `{ body }`（spec §12）。
+    /// Lambda 表达式：`{ params -> body }` / `{ body }` / `@Safe { ... }`（spec §12 / §15.9.5）。
     ///
     /// 当前任务（T0221）仅引入 AST 节点建模；解析与 `{}` 歧义消解见后续任务（T0222/T0225）。
     Lambda(LambdaExpr),
@@ -2188,6 +2209,7 @@ mod tests {
         let lambda = Expr {
             span: Span::new(0, 6),
             kind: ExprKind::Lambda(LambdaExpr {
+                at_safe_span: None,
                 params: vec![Param {
                     annotations: Vec::new(),
                     kind: None,

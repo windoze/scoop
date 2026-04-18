@@ -70,6 +70,18 @@ pub enum ParseError {
         #[label("这里需要类型名")]
         span: miette::SourceSpan,
     },
+
+    #[error("语法错误：局部 `@Unsafe` block 必须写成 `@Unsafe do {{ ... }}`")]
+    #[diagnostic(
+        code(scoop::parse::unsafe_block_requires_do),
+        help(
+            "将 `@Unsafe {{ ... }}` 改写为 `@Unsafe do {{ ... }}`；裸 `{{ ... }}` 保留给 closure"
+        )
+    )]
+    UnsafeBlockRequiresDo {
+        #[label("这里的裸 `{{ ... }}` 不再作为局部 unsafe block 解析")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
@@ -140,6 +152,7 @@ impl ParseError {
             ParseError::UnterminatedGroup { span, .. } => Some(*span),
             ParseError::FStringUnescapedRBrace { span } => Some(*span),
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
+            ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
         }
     }
 }

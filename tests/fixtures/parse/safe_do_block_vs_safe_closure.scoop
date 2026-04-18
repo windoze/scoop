@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: safe_do_block_vs_safe_closure.ast
+// 目标：T3103a — 区分 `@Safe do { ... }` 局部 block 与 `@Safe { ... }` annotated closure。
+
+package fixtures.parse
+
+val block: Int = @Safe do { 1 }
+val closure: () -> Int = @Safe { 2 }
+
+fun main() {}

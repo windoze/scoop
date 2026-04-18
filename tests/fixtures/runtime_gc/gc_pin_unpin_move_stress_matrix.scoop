@@ -44,23 +44,23 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         val pinnedObj: Any = f"pinned {i}"
         val movableObj: Any = f"movable {i}"
 
-        val pinnedHandle: GcHandle = @Unsafe { GC.handleNew(pinnedObj) }
-        val movableHandle: GcHandle = @Unsafe { GC.handleNew(movableObj) }
+        val pinnedHandle: GcHandle = @Unsafe do { GC.handleNew(pinnedObj) }
+        val movableHandle: GcHandle = @Unsafe do { GC.handleNew(movableObj) }
 
         // pin 两次：验证 pin count 语义（unpin 一次后仍应保持 pinned）。
-        val p1: Pinned = @Unsafe { GC.pin(pinnedObj) }
-        val p2: Pinned = @Unsafe { GC.pin(pinnedObj) }
+        val p1: Pinned = @Unsafe do { GC.pin(pinnedObj) }
+        val p2: Pinned = @Unsafe do { GC.pin(pinnedObj) }
 
         // 采样地址：注意这里不做额外分配，避免在 `--gc-stress` 下触发额外 GC 周期导致地址“绕回”。
-        val pinnedAddr0: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
-        val movableAddr0: Int = @Unsafe { handleGetObjectAddr(movableHandle.raw) }
+        val pinnedAddr0: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
+        val movableAddr0: Int = @Unsafe do { handleGetObjectAddr(movableHandle.raw) }
         assertTrueCode(pinnedAddr0 != 0, 1)
         assertTrueCode(movableAddr0 != 0, 2)
 
         __scoop_gc_collect()
 
-        val pinnedAddr1: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
-        val movableAddr1: Int = @Unsafe { handleGetObjectAddr(movableHandle.raw) }
+        val pinnedAddr1: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
+        val movableAddr1: Int = @Unsafe do { handleGetObjectAddr(movableHandle.raw) }
 
         if (movingEnabled) {
             assertTrueCode(pinnedAddr1 == pinnedAddr0, 11)
@@ -69,11 +69,11 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         }
 
         // unpin 一次：对象仍应保持 pinned。
-        @Unsafe { GC.unpin(p1) }
+        @Unsafe do { GC.unpin(p1) }
 
-        val pinnedAddr2Before: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
+        val pinnedAddr2Before: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
         __scoop_gc_collect()
-        val pinnedAddr2After: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
+        val pinnedAddr2After: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
 
         if (movingEnabled) {
             assertTrueCode(pinnedAddr2Before == pinnedAddr0, 21)
@@ -82,11 +82,11 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         }
 
         // unpin 第二次：对象应恢复为可移动（handle 地址应发生变化）。
-        @Unsafe { GC.unpin(p2) }
+        @Unsafe do { GC.unpin(p2) }
 
-        val pinnedAddr3Before: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
+        val pinnedAddr3Before: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
         __scoop_gc_collect()
-        val pinnedAddr3After: Int = @Unsafe { handleGetObjectAddr(pinnedHandle.raw) }
+        val pinnedAddr3After: Int = @Unsafe do { handleGetObjectAddr(pinnedHandle.raw) }
 
         if (movingEnabled) {
             assertTrueCode(pinnedAddr3Before == pinnedAddr0, 31)
@@ -95,8 +95,8 @@ fun runRounds(rounds: Int, movingEnabled: Bool): Unit {
         }
 
         // 清理 stable handles（避免跨轮泄漏）。
-        @Unsafe { GC.handleDrop(pinnedHandle) }
-        @Unsafe { GC.handleDrop(movableHandle) }
+        @Unsafe do { GC.handleDrop(pinnedHandle) }
+        @Unsafe do { GC.handleDrop(movableHandle) }
 
         i = i + 1
     }

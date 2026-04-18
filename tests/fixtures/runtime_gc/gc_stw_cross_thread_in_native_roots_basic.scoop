@@ -28,7 +28,7 @@ fun sleepInNativeMillis(ms: Int): Unit
 
 fun waitWorkerInNative(): Unit {
     // 等待 worker 已进入 native（由 runtime test-only 符号在 native 内部设置 flag）。
-    while (@Unsafe { nativeSleepEntered() } == 0) {
+    while (@Unsafe do { nativeSleepEntered() } == 0) {
         yield()
     }
 }
@@ -38,13 +38,13 @@ fun worker(): Unit {
 
     // 进入 native 并阻塞：该调用点会被编译器插入 enter_native/leave_native，
     // 从而让当前线程处于 InNative 状态并暴露 native_roots 供 GC 扫描。
-    @Unsafe { sleepInNativeMillis(200) }
+    @Unsafe do { sleepInNativeMillis(200) }
 
     println(x)
 }
 
 fun main() {
-    @Unsafe { nativeSleepReset() }
+    @Unsafe do { nativeSleepReset() }
 
     val t: Thread = threadSpawn { worker() }
 

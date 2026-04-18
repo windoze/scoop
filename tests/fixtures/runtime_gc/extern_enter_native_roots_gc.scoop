@@ -18,16 +18,16 @@ fun main() {
     // 当前线程处于 InNative，GC 会只扫描 native_roots；漏 roots 会导致对象被误回收。
     val x: Any = f"hello {7}"
 
-    @Unsafe { gcCollectInNative() }
+    @Unsafe do { gcCollectInNative() }
 
     // 返回后验证对象仍在 heap 内：成功创建 handle 并 roundtrip 回到 String。
-    val h: GcHandle = @Unsafe { GC.handleNew(x) }
-    val gotAny: Any = @Unsafe { GC.handleGet(h) }
+    val h: GcHandle = @Unsafe do { GC.handleNew(x) }
+    val gotAny: Any = @Unsafe do { GC.handleGet(h) }
     val gotOpt: String? = gotAny as? String
     val got: String = when (gotOpt) {
         Some(v) -> v
         None -> "bad"
     }
     println(got)
-    @Unsafe { GC.handleDrop(h) }
+    @Unsafe do { GC.handleDrop(h) }
 }

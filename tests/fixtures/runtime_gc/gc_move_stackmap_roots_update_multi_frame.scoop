@@ -26,7 +26,7 @@ fun unwindDumpFramesAndStackmapHits(): Int
 
 fun leaf(): Unit {
     // debug：设置 `SCOOP_UNWIND_DUMP_FRAMES=1` 时会向 stderr 打印每帧 stackmap hit/miss。
-    @Unsafe { unwindDumpFramesAndStackmapHits() }
+    @Unsafe do { unwindDumpFramesAndStackmapHits() }
     __scoop_gc_collect()
 }
 
@@ -37,7 +37,7 @@ fun mid(): Unit {
 fun main() {
     // 1) 创建一个 heap 对象，并通过 stable handle 额外保活（避免“caller frame roots 未被枚举”时对象直接被回收）。
     val x: Any = f"hello {7}"
-    val hx: GcHandle = @Unsafe { GC.handleNew(x) }
+    val hx: GcHandle = @Unsafe do { GC.handleNew(x) }
 
     // 2) 在更深层调用触发一次 moving GC：需要能 walk 到 main frame 并更新其 roots slot。
     mid()
@@ -45,7 +45,7 @@ fun main() {
     // 3) 用 caller frame 的 `x` 再创建一个 handle：
     // - 若 spill slot 未被更新，`GC.handleNew(x)` 会因为 heap membership 校验失败而返回 0；
     // - 若正确更新，则应成功返回 non-zero handle。
-    val hx2: GcHandle = @Unsafe { GC.handleNew(x) }
+    val hx2: GcHandle = @Unsafe do { GC.handleNew(x) }
 
     println("ok")
 }

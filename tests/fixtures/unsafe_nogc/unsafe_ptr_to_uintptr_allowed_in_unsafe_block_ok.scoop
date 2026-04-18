@@ -6,6 +6,6 @@ import scoop.core.*
 import scoop.unsafe.*
 
 fun safe(p: Ptr<Int>) {
-    @Unsafe { ptrToUIntPtr(p) }
+    @Unsafe do { ptrToUIntPtr(p) }
 }
 

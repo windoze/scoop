@@ -9,7 +9,7 @@
 import scoop.core.*
 
 class Primary(val x: Int) {
-    val a: Int = @Safe {
+    val a: Int = @Safe do {
         println("Primary.a")
         println(this.x)
         1
@@ -20,7 +20,7 @@ class Primary(val x: Int) {
         println(this.x)
     }
 
-    val b: Int = @Safe {
+    val b: Int = @Safe do {
         println("Primary.b")
         2
     }
@@ -31,7 +31,7 @@ class Primary(val x: Int) {
 }
 
 class Secondary {
-    val a: Int = @Safe {
+    val a: Int = @Safe do {
         println("Secondary.a")
         10
     }
@@ -40,7 +40,7 @@ class Secondary {
         println("Secondary.init1")
     }
 
-    val b: Int = @Safe {
+    val b: Int = @Safe do {
         println("Secondary.b")
         20
     }
