@@ -20,13 +20,15 @@
 > 2026-04-19 当前轮完成更新：`T4003c` 已完成。函数值 direct call、direct `FunPtr` call 与 class ctor / ctor delegation 现在共用一套命名实参与默认参数绑定主线：typecheck 侧对函数值 / funptr 使用统一的合成形参名 `receiver` / `a0` / `a1` / ... 做 named-arg 映射，ctor 侧则把“已选中的 ctor 目标 + `arg_mapping`”写入新的 side table，供 HIR lowering 与 LLVM codegen 直接消费，不再按 arity 猜目标或在后端重做一遍绑定。ctor 参数默认值也已进入 HIR / LLVM 主线，显式实参按源码顺序求值，缺失形参再按绑定后的形参顺序补默认值；`class header : Base(...)`、secondary ctor `: this(...) / : super(...)`、以及普通 direct class ctor call 现已全部走同一套绑定数据。收口过程中还顺手把 effect state-machine 消费 ctor call target 的旧接口切到 `CtorCallInfo`，并给无完整 typecheck 的 IR 测试入口补了 resolver 级 ctor fallback，避免 `emit_minimal_main_ir` 在 direct class ctor call 上退化到 enum variant ctor 分支。已新增 `function_value_named_args_basic`、`unsafe_funptr_direct_named_call_basic`、`class_ctor_named_default_and_delegation_basic` 三个 run-pass 回归，并验证定向 build+run、`/tmp/t4003c-fixtures` run-pass 子集（`fixtures: ok (6)`）、`/tmp/t4003c-typecheck` 子集（`fixtures: ok (10)`）、全量 `tests/fixtures/typecheck`（`fixtures: ok (327)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003R`。
 >
 > 2026-04-19 当前轮完成更新：`T4003R` 已完成。复审确认调用系统先前仍有一条后端裂缝：function value / funptr 的命名实参已经在 LLVM 侧走统一 callable-value binder，但顶层 direct call、vtable member call 与 itable member call 仍各自要求纯位置实参，导致 `f(b = ..., a = ...)` / `obj.mix(b = ..., a = ...)` 在 build 阶段掉进 `named call arg` / `named vtable call arg` / `named itable call arg`；此外，顶层泛型 direct call 的 monomorph FQN 解析也仍按位置索引读取实参，无法和命名实参共享同一套 concrete type 绑定。当前已将 LLVM 侧参数绑定收口为共享的 `map_call_args_to_params_by_name` + `codegen_bound_call_args` 主线，供 direct call、vtable、itable、function-value 与 funptr 共用；`scoop.unsafe.invoke` 也改为直接复用 funptr binder，不再单独重排命名实参。与此同时，泛型顶层 direct call 的 monomorph 重写已切到同一套命名映射，确保 `pick(b = ..., a = ...)` 这类调用仍能命中正确实例。已新增 `top_level_generic_named_args_basic`、`member_call_virtual_named_args_basic`、`member_call_interface_named_args_basic` 三个 run-pass 回归，并与既有 `function_value_named_args_basic` / `unsafe_funptr_*` 回归一起在 `/tmp/t4003r-run-pass` 子集验证通过（`fixtures: ok (6)`）；同时复验了 `tests/fixtures/typecheck`（`fixtures: ok (327)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004`。
+>
+> 2026-04-19 当前轮计划调整：在正式实现 `T4004` 前，先用最小 probe `val x: Int = 41; fun main(): Int { return x + 1 }` 验证顶层 immutable value 主线，结果 `cargo run -p scoop -- build /tmp/t4004_plain_top_level_val_probe.scoop -o /tmp/t4004_plain_top_level_val_probe.out` 直接在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: top-level value ref`。这说明“普通顶层 `val` 的可执行读取语义”本身仍未完成，当前后端只真正支持 `const val` 与显式静态存储的顶层 `var`；而顶层 pattern binding 会把多个 binder 暴露成普通顶层 immutable value，如果继续实现 `T4004`，就只能错误地把它绑到 `const` / 静态存储旁路上。基于这一新发现，现已在 `T4003R` 与 `T4004` 之间插入新的前置任务 `T4003S -> T4003SR`：先收口普通顶层 `val` 的 HIR / LLVM 表示与读取主线，再继续做顶层 pattern binding。当前本轮到此停止，等待下一次调用从 `T4003S` 开始。
 
 ## 0. 工作原则
 
 - 本轮严格按 `ISSUES.md` 指定顺序推进，不提前展开后续条目。
 - 每个 issue 至少要完成四件事：实现、回归用例、必要的规范/文档同步、复审。
 - 未完成前一条 issue 前，不开始后一条 issue 的实现任务；允许在同一条 issue 内拆子任务，但不得跨条目并行推进。
-- 本轮的目标是“核心语言 / lowering / codegen 收口优先”。只有前七项完成后，才进入 effect / `Task` 两项。
+- 本轮的目标是“核心语言 / lowering / codegen 收口优先”。只有 effect / `Task` 之前的所有条目完成后，才进入这两项。
 - `Continuation<T, eff E>` 视为 advanced API；`Task<T>` 视为 general API。
 - executor、wakeup、queueing、work-stealing、spawn scheduling 统一留到下一阶段；本轮不把它们纳入完成标准。
 
@@ -35,12 +37,13 @@
 1. `ISSUES.md` 第 5 条：泛型约束、参数化超类型与 star projection
 2. `ISSUES.md` 第 3 条：lambda 推断与 receiver lambda
 3. `ISSUES.md` 第 4 条：调用语义早期门禁
-4. `ISSUES.md` 第 6 条：顶层 pattern binding
-5. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
-6. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
-7. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-8. `ISSUES.md` 第 1 条：effect / continuation 完整性
-9. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+4. 新增 blocker：普通顶层 `val` 的可执行读取语义
+5. `ISSUES.md` 第 6 条：顶层 pattern binding
+6. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
+7. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
+8. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+9. `ISSUES.md` 第 1 条：effect / continuation 完整性
+10. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -54,12 +57,13 @@
 
 - 依次补齐 lambda 推断、receiver lambda、函数值 / funptr / constructor delegation 的调用语义缺口。
 - 目标是把前端最常用的表达式与调用规则统一到同一条类型检查主线上。
-- 当前状态：`T4002` / `T4002R` / `T4003a` / `T4003b` / `T4003c` / `T4003R` 已完成；P2 阶段收口完毕，下一项进入 P3 的 `T4004`。
+- 当前状态：`T4002` / `T4002R` / `T4003a` / `T4003b` / `T4003c` / `T4003R` 已完成；P2 阶段收口完毕，下一项进入 P3 的 `T4003S`。
 
 ### P3. 语法到 lowering 的缺口收口
 
-- 顶层 pattern binding 与 Elvis `?:` 进入可执行 lowering / codegen。
+- 先收口普通顶层 `val` 的可执行读取语义，再推进顶层 pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
+- 当前状态：`T4004` 开始前确认到一个新的前置 blocker：普通顶层 `val` 读取仍会在 LLVM codegen 阶段报 `top-level value ref`。因此 P3 现在先执行 `T4003S` / `T4003SR`，完成后再继续 `T4004`。
 
 ### P4. compilation-unit 与 runtime type info 收口
 
@@ -78,7 +82,7 @@
 
 ## 3. 各阶段完成标准
 
-### C1. 前七项核心语言 / codegen 条目
+### C1. effect / `Task` 之前的核心语言 / codegen 条目
 
 - 对应 `ISSUES.md` 条目已被关闭，或至少收缩为新的、更窄的剩余 blocker。
 - 新增或更新的 fixtures 覆盖 typecheck、HIR / MIR / LLVM lowering、run-pass 或相关 regression。

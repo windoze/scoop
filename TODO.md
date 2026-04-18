@@ -2,12 +2,12 @@
 
 > 生成时间：2026-04-18  
 > 历史归档：`TODO-4.md` / `PLAN-4.md`  
-> 顺序约束：严格按 `T4001 -> T4001R -> T4002 -> ... -> T4009R` 推进；不得跨条目并行实现。  
-> 本轮只覆盖 `ISSUES.md` 中以下九项，并保持用户指定顺序。
+> 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
+> 本轮以 `ISSUES.md` 中既有九项为主线；若执行中发现新的前置 blocker，需先插入到依赖它的任务之前。
 
 ## 全局约束
 
-- 前七项属于核心语言 / codegen 主线；完成前不得启动 effect / `Task` 两项。
+- 在 effect / `Task` 之前的所有条目都属于核心语言 / codegen 主线；完成前不得启动 effect / `Task` 两项。
 - 每个实现任务后必须立即做 review 任务；review 只审查生产代码与规范一致性，不以测试命名代替结论。
 - 若某项实现改变公开语义，必须同步 `SCOOP_FULL_SPEC.md`；若涉及运行时合同，还要同步 `SCOOP_RUNTIME.md` 或相关 sysroot 文档。
 - 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、spawn scheduling 相关内容一律留待后续。
@@ -177,16 +177,37 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003c
 
+### T4003S [TODO] 收口普通顶层 `val` 的可执行读取语义
+- 说明：
+  - 在推进 `T4004` 前，发现普通顶层 `val` 的 build/runtime 主线本身仍未打通：`val x: Int = 41; fun main(): Int { return x + 1 }` 当前会在 LLVM codegen 阶段报 `top-level value ref`。
+  - 顶层 pattern binding 会把多个 binder 暴露为普通顶层 immutable value；如果继续在“只有 `const val` / 静态 `var` 可读”的现状上实现 `T4004`，就会把新特性错误地绑死在旁路表示上，违反“与现有顶层 `val` 统一语义”的要求。
+- 范围：
+  - 非 `const` 顶层 `val` 需要具备稳定的 HIR / LLVM 表示与读取路径，不再落入 `top-level value ref` unsupported。
+  - 顶层 immutable value 的初始化/引用语义需要统一，不能通过“把普通 `val` 偷偷当成 `const val` 重复内联”的方式过关。
+  - 新增 lowering / run-pass 回归，覆盖普通顶层 `val` 被 `main` 和其它顶层 initializer 读取。
+- 验收：
+  - 上述最小 probe 可 build/run。
+  - 为 `T4004` 提供可复用的顶层 immutable binder 表示。
+- 依赖：T4003R
+
+### T4003SR [TODO] Review：确认普通顶层 `val` 不再依赖 `const` / 静态 `var` 旁路
+- 重点：
+  - 不允许只让 `const val` 或 `@ThreadLocal/@Global var` 可执行，而普通顶层 `val` 仍报 `top-level value ref`。
+  - 顶层 immutable value 的初始化次数与读取语义要有统一结论，不能为 `T4004` 额外再开第四套表示。
+- 依赖：T4003S
+
 ## T4004：顶层 pattern binding
 
 ### T4004 [TODO] 打通顶层 `val` / `var` 的 pattern binding
+- 阻塞说明：
+  - 2026-04-19 发现普通顶层 `val` 的可执行读取语义尚未打通；顶层 pattern binder 本质上也需要成为普通顶层 immutable value，因此本任务顺延到 `T4003SR` 之后。
 - 范围：
   - 顶层声明头接受 pattern binding。
   - 与局部解构绑定保持一致的 lowering / binding 规则。
 - 验收：
   - 新增 typecheck / lowering / run-pass fixtures。
   - `ISSUES.md` 第 6 条收窄或关闭。
-- 依赖：T4003R
+- 依赖：T4003SR
 
 ### T4004R [TODO] Review：确认顶层与局部 pattern binding 复用同一套语义
 - 重点：
