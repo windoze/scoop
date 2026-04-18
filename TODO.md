@@ -2689,8 +2689,14 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3102, T3006R
 
-### T3103a0 [TODO] Typecheck：恢复 statement-position 普通调用的 unsafe / extern / `@NoGC` 门禁
+### T3103a0 [DONE] Typecheck：恢复 statement-position 普通调用的 unsafe / extern / `@NoGC` 门禁
 - 描述：在尝试执行 `T3103a` 并把 bare annotated block 迁移到 `@Unsafe do { ... }` / `@Safe do { ... }` 时，暴露出一个更底层的既有前端缺口：`crates/scoopc/src/typecheck/expr/stmt.rs` 的 `check_expr_stmt` 仍未对 statement-position 普通 `Call` 闭环统一调用 typecheck，因此 `dangerous()`、`puts(1)`、`addressOf(x)` 这类“仅为副作用的调用”会绕过 value-position 已有的 `@Unsafe` / `@Extern` / `@NoGC` / `const` 门禁。直接结果是 `tests/fixtures/unsafe_nogc/unsafe_call_requires_unsafe_is_error.scoop`、`extern_call_requires_unsafe_is_error.scoop`、`extern_call_after_unsafe_block_still_requires_unsafe_is_error.scoop` 这类本应失败的样例会错误通过。只要这条缺口还在，`T3103a` 就不能安全地把仓库里的 bare annotated block 全部切到 `do` 形式。
+- 进展：
+  - `crates/scoopc/src/typecheck/expr/stmt.rs` 的 statement-position `Call` 现在会复用 value-position 的统一调用门禁检查；direct top-level、import/sysroot、member/extension、function-value 与 funptr 调用在 statement 位置都会正确触发 `@Unsafe` / `@Extern` / `@NoGC` / `const` 约束。
+  - 为避免把未单独跟踪的“普通 callee effect row 在 statement 位置传播”语义变更混入本轮，本任务将 statement-call 检查改为“统一 infer + 暂停普通 effects 收集”，同时继续保留 effect op / `Continuation.resume(...)` 的立即 effects 记录。
+  - 为避免 lambda non-local return 预检误把 implicit `it` / 未完整推断的 binder 当成完整调用 typecheck，`check_expr_stmt` 的内部递归已拆分为 `WithUnifiedGate` / `StructuralOnly` 两种模式；`kotlin_ranges_progressions_basic.scoop` 这类 statement-call-heavy run-pass 样例已复验恢复。
+  - 新增 4 条回归 fixture：`unsafe_extension_statement_call_requires_unsafe_is_error.scoop`、`nogc_statement_call_non_nogc_function_is_error.scoop`、`nogc_function_value_statement_call_is_error.scoop`、`const_fun_statement_call_non_const_fun_is_error.scoop`。
+  - 同步修复 `crates/scoop/src/fixtures/mod.rs` 的 phase-root 判定：`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc` / `.../mir` 等命令现在会保留根目录 phase，不再把子目录内文件误按 parse phase 执行。
 - 目标：
   - statement-position 普通调用与 value-position 调用共用同一套门禁：至少覆盖 direct top-level call、import/sysroot call、member/extension call、function-value/funptr call 的 `@Unsafe` / `@Extern` / `@NoGC` / `const` 约束。
   - `@Unsafe do { ... }` 离开后必须恢复外层 safe context；`@Safe` region（后续含 safe closure）内的 statement-position 调用必须重新被 unsafe gate 拦住，除非显式嵌套 `@Unsafe do { ... }`。
@@ -2698,6 +2704,12 @@
 - 验收：
   - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`
   - `cargo test --all`
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (31)`）
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1000)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3103
 
 ### T3103a [TODO] 语法 / 实现：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则

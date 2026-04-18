@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::const_fun_call_forbidden
+// EXPECT-ERROR: const fun 只能调用 const fun/编译器 intrinsic
+// EXPECT-ERROR-AT: 12:5
+// 目标：T3103a0：statement-position 调用在 `const fun` 中也必须走统一调用门禁。
+
+package fixtures.typecheck
+
+fun log(): Unit {}
+
+const fun bad(): Int {
+    log()
+    return 0
+}

@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3103a0` 已完成。已将 `crates/scoopc/src/typecheck/expr/stmt.rs` 的 statement-position `Call` 门禁收口为共享 value-position 调用 gate：direct top-level、import/sysroot、member/extension、function-value 与 funptr 调用现在都会在 statement 位置触发 `@Unsafe` / `@Extern` / `@NoGC` / `const` 检查；同时为了避免把未单独跟踪的“普通 callee effect row 在 statement 位置传播”语义变更混入本轮，普通调用改为“统一 infer + 暂停普通 effects 收集”，只有 effect op / `Continuation.resume(...)` 继续记录立即 effects。为防止 lambda non-local return 预检误把 implicit `it` / 未完整推断的 binder 当成完整调用 typecheck，本轮把 `check_expr_stmt` 内部递归拆成 `WithUnifiedGate` / `StructuralOnly` 两种模式，并复验 `kotlin_ranges_progressions_basic.scoop` 这类 statement-call-heavy run-pass 样例恢复通过。同步修复 `crates/scoop/src/fixtures/mod.rs` 的 phase-root 判定：`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`、`.../mir` 等根目录直接指向单 phase 子目录时，不再把文件误按 parse phase 执行。已新增 4 条回归 fixture（unsafe extension、NoGC top-level statement call、NoGC function-value statement call、const fun statement call），并验证 `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`（`fixtures: ok (31)`）、`cargo run -p scoop -- test`（`fixtures: ok (1000)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前前端主线下一项推进到 `T3103a`。
+>
 > 2026-04-18 当前轮阻塞重排更新：继续推进 `T3103a` 时，尝试把 `tests/fixtures/unsafe_nogc/extern_call_after_unsafe_block_still_requires_unsafe_is_error.scoop` 等样例从 bare annotated block 旧写法切到 `@Unsafe do { ... }` 后，立即暴露出一个更前置的既有类型检查缺口：`crates/scoopc/src/typecheck/expr/stmt.rs` 的 `check_expr_stmt` 对 statement-position 普通 `Call` 仍未闭环统一调用门禁，导致 `dangerous()`、`puts(1)`、`addressOf(x)` 这类“仅为副作用的调用”会绕过 value-position 已有的 `@Unsafe` / `@Extern` / `@NoGC` 约束。换言之，`T3103a` 还没真正进入 `@Safe` / `@Unsafe` 绑定规则本身，就先被一个更底层的 pre-existing gate gap 卡住了。按阻塞规则，现已在 `T3103a` 前新增 `T3103a0`，先恢复 statement-position 普通调用的 unsafe/extern/`@NoGC` 门禁，再继续 `T3103a` 的 parser / AST / closure 语义收口。当前前端主线下一项改为 `T3103a0`。
 >
 > 2026-04-18 当前轮阻塞重排更新：开始执行 `T3104` 后，确认这不是单纯的文档同步问题。现行 `SCOOP_FULL_SPEC.md` 已要求局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，并把 bare `{ ... }` 保留给 closure；但 `crates/scoopc/src/parser/expr.rs` 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作 local block 向后兼容接受，`crates/scoopc/src/ast/mod.rs` / `hir` / `typecheck` 也还没有承载规范所述 `@Safe { ... }` annotated closure 的输入形状。与此同时，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 仍在使用 bare annotated block 旧写法。这是未跟踪的真实规范偏差，而不是措辞问题。按阻塞规则，现已在 `T3104` 前新增 `T3103a`，先收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则并迁移仓库调用点，再继续同步规范 / 文档。当前前端主线下一项改为 `T3103a`。
@@ -609,8 +611,15 @@
 - 真正依赖 safe-region 语义的其它测试继续保留 `@Safe` / `@Unsafe`，没有混入本任务。
 - 已新增 parser / typecheck / HIR / run-pass 四层边界回归 `do_block_multiple_trailing_lambda_boundary*`，锁定 multiple trailing lambdas 与后续 `do` block 的解析 / lowering / 运行时边界。
 
+#### T3103a0 ✅：恢复 statement-position 普通调用门禁
+- `check_expr_stmt` 的 statement-position `Call` 已接回共享调用门禁：top-level/import/member/extension/function-value/funptr 调用现在都会在 statement 位置正确触发 `@Unsafe` / `@Extern` / `@NoGC` / `const` 检查。
+- 普通 callee effect row 仍保持原有“不因 statement-position 调用而外泄”的行为；effect op 与 `Continuation.resume(...)` 则继续作为立即执行调用记录 required effects。
+- 为避免 lambda non-local return 预检误报，语句层递归拆成 `WithUnifiedGate` / `StructuralOnly` 两种模式；implicit `it` 与未完整推断的 lambda binder 不再在 return-gate 预检里误触完整调用 typecheck。
+- 已新增 4 条回归 fixture：unsafe extension statement call、NoGC top-level statement call、NoGC function-value statement call、const fun statement call。
+- `scoop test --fixtures <phase-dir>` 的 phase-root 判定已修复；`unsafe_nogc`、`mir` 等单 phase 子目录可直接作为 fixtures 根目录运行。
+
 #### T3103a：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
-- 现状：parser 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作 bare annotated block 兼容接受；AST/HIR 仍只有 `SafeBlock` / `UnsafeBlock` 形状，尚未承载规范里的 `@Safe { ... }` annotated closure；sysroot、fixtures 与说明文档中也仍有大量旧写法。
+- 现状：`T3103a0` 已完成，statement-position call gate blocker 已移除；parser 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作 bare annotated block 兼容接受；AST/HIR 仍只有 `SafeBlock` / `UnsafeBlock` 形状，尚未承载规范里的 `@Safe { ... }` annotated closure；sysroot、fixtures 与说明文档中也仍有大量旧写法。
 - 目标：局部 annotated block 只保留 `@Safe do { ... }` / `@Unsafe do { ... }`；`@Unsafe { ... }` 不再作为 local block 兼容语法；`@Safe { ... }` 在 closure / trailing-lambda 语境中回到 annotated closure 语义；并同步迁移仓库调用点。
 
 #### T3104：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则

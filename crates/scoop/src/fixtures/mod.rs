@@ -406,7 +406,7 @@ fn run_one(
     // 当前阶段只有部分 phase 会消费它们（例如 build phase 会消费 emit 相关 ARGS，run-pass 会消费 env/stdout/stderr 等）。
 
     let rel = path.strip_prefix(fixtures_root).unwrap_or(path);
-    let phase = match phase_dir(rel) {
+    let phase = match phase_name(fixtures_root, rel) {
         None => FixturePhase::Parse,
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
         Some(name) if name == "build" => FixturePhase::Build,
@@ -2655,5 +2655,78 @@ fn phase_dir(rel: &Path) -> Option<&std::ffi::OsStr> {
     match (first, second) {
         (Some(Component::Normal(name)), Some(_)) => Some(name),
         _ => None,
+    }
+}
+
+fn phase_name<'a>(fixtures_root: &'a Path, rel: &'a Path) -> Option<&'a std::ffi::OsStr> {
+    phase_dir(rel).or_else(|| {
+        let mut comps = rel.components();
+        match (comps.next(), comps.next()) {
+            (Some(Component::Normal(_)), None) => {
+                let root_name = fixtures_root.file_name()?;
+                is_phase_dir_name(root_name).then_some(root_name)
+            }
+            _ => None,
+        }
+    })
+}
+
+fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
+    matches!(
+        name.to_str(),
+        Some(
+            "parse"
+                | "spec_doctest"
+                | "build"
+                | "resolve"
+                | "typecheck"
+                | "unsafe_nogc"
+                | "infer"
+                | "comptime"
+                | "codegen"
+                | "run-pass"
+                | "runtime_gc"
+                | "hir"
+                | "mir"
+                | "scoopir"
+        )
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsStr;
+    use std::path::Path;
+
+    use super::phase_name;
+
+    #[test]
+    fn phase_name_uses_relative_phase_dir_when_present() {
+        let fixtures_root = Path::new("tests/fixtures");
+        let rel = Path::new("unsafe_nogc/extern_call_requires_unsafe_is_error.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("unsafe_nogc"))
+        );
+    }
+
+    #[test]
+    fn phase_name_falls_back_to_root_phase_dir_for_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/unsafe_nogc");
+        let rel = Path::new("extern_call_requires_unsafe_is_error.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("unsafe_nogc"))
+        );
+    }
+
+    #[test]
+    fn phase_name_keeps_root_level_files_parse_by_default() {
+        let fixtures_root = Path::new("tests/fixtures");
+        let rel = Path::new("hello.scoop");
+
+        assert_eq!(phase_name(fixtures_root, rel), None);
     }
 }

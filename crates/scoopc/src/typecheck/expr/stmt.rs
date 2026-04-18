@@ -57,6 +57,18 @@ pub(super) struct StmtExprFlow {
     pub(super) expected_return_ty: Option<TypeId>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExprStmtCallMode {
+    StructuralOnly,
+    WithUnifiedGate,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StmtExprContext {
+    flow: StmtExprFlow,
+    call_mode: ExprStmtCallMode,
+}
+
 pub(super) struct FunBodyCheckInputs<'a> {
     pub(super) source: &'a SourceFile,
     pub(super) builtins: BuiltinTypes,
@@ -201,7 +213,7 @@ fn check_lambda_expr_stmt_body(
                 stable_bindings: &mut lambda_stable,
                 mutable_bindings: &mut lambda_mutable,
             };
-            check_expr_stmt(
+            check_expr_stmt_with_mode(
                 shared,
                 lam.body.as_ref(),
                 lower,
@@ -210,9 +222,110 @@ fn check_lambda_expr_stmt_body(
                     loop_depth: 0,
                     expected_return_ty: nested_expected_return_ty,
                 },
+                ExprStmtCallMode::StructuralOnly,
             )
         })
     })
+}
+
+fn check_call_expr_stmt_lambda_args(
+    shared: StmtExprShared<'_>,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    state: &StmtExprState<'_>,
+    flow: StmtExprFlow,
+) -> Result<(), ExprTypeError> {
+    let target =
+        resolve_call_target_for_expr_stmt(shared.source, callee, lower, shared.top_level_funs);
+
+    for (idx, arg) in args.iter().enumerate() {
+        let ast::ExprKind::Lambda(lam) = &arg.kind else {
+            continue;
+        };
+
+        let allow_non_local_return = match target {
+            Some(t) if t.sig.is_inline => {
+                let param_idx = idx + t.arg_param_offset;
+                match t.sig.params.get(param_idx).copied() {
+                    Some(ty) => is_function_type(ty, lower),
+                    None => false,
+                }
+            }
+            _ => false,
+        };
+
+        check_lambda_expr_stmt_body(shared, lam, allow_non_local_return, lower, state, flow)?;
+    }
+
+    Ok(())
+}
+
+fn check_call_expr_stmt_fallback(
+    shared: StmtExprShared<'_>,
+    expr: &ast::Expr,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    state: &mut StmtExprState<'_>,
+    ctx: StmtExprContext,
+) -> Result<(), ExprTypeError> {
+    check_expr_stmt_with_mode(shared, callee, lower, state, ctx.flow, ctx.call_mode)?;
+
+    for arg in args {
+        if matches!(arg.kind, ast::ExprKind::Lambda(_)) {
+            continue;
+        }
+        check_expr_stmt_with_mode(shared, arg, lower, state, ctx.flow, ctx.call_mode)?;
+    }
+
+    let effect_op_taken_over = if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
+        infer_effect_op_call_expr_type(
+            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr,
+            member,
+            args,
+            None,
+            lower,
+        )?
+        .is_some()
+    } else if let ast::ExprKind::TypeApply {
+        callee: inner,
+        args: type_args,
+    } = &callee.kind
+        && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind
+    {
+        let lowered = type_args
+            .iter()
+            .map(|a| lower.lower_type_ref(a))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        infer_effect_op_call_expr_type(
+            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr,
+            member,
+            args,
+            Some(lowered.as_slice()),
+            lower,
+        )?
+        .is_some()
+    } else {
+        false
+    };
+
+    // `Continuation.resume(...)` 只在当前 call 没有先被 effect-op 路径接管时才参与；
+    // 否则像 `Echo.resume(...)` 这类 effect op 名称碰撞会误入 builtin resume helper。
+    if !effect_op_taken_over {
+        let _ = infer_continuation_resume_call_expr_type(
+            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow),
+            expr,
+            callee,
+            args,
+            lower,
+        )?;
+    }
+
+    Ok(())
 }
 
 pub(super) fn check_required_effects_for_fun_decl(
@@ -619,6 +732,24 @@ pub(super) fn check_block_exprs(
     state: &mut StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
+    check_block_exprs_with_mode(
+        shared,
+        block,
+        lower,
+        state,
+        flow,
+        ExprStmtCallMode::WithUnifiedGate,
+    )
+}
+
+fn check_block_exprs_with_mode(
+    shared: StmtExprShared<'_>,
+    block: &ast::Block,
+    lower: &mut TypeLowering<'_>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
+    call_mode: ExprStmtCallMode,
+) -> Result<(), ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
     // 这里用“进入时快照 + 退出时回滚”的方式实现最小作用域，不引入额外的数据结构。
     let saved_locals = state.locals.clone();
@@ -626,7 +757,7 @@ pub(super) fn check_block_exprs(
     let saved_mutable = state.mutable_bindings.clone();
 
     for stmt in &block.stmts {
-        check_stmt_exprs(shared, stmt, lower, state, flow)?;
+        check_stmt_exprs_with_mode(shared, stmt, lower, state, flow, call_mode)?;
     }
 
     *state.locals = saved_locals;
@@ -643,9 +774,29 @@ pub(super) fn check_stmt_exprs(
     state: &mut StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
+    check_stmt_exprs_with_mode(
+        shared,
+        stmt,
+        lower,
+        state,
+        flow,
+        ExprStmtCallMode::WithUnifiedGate,
+    )
+}
+
+fn check_stmt_exprs_with_mode(
+    shared: StmtExprShared<'_>,
+    stmt: &ast::Stmt,
+    lower: &mut TypeLowering<'_>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
+    call_mode: ExprStmtCallMode,
+) -> Result<(), ExprTypeError> {
     match &stmt.kind {
         ast::StmtKind::Val(v) => check_local_val_decl_exprs(shared, v, lower, state, flow)?,
-        ast::StmtKind::Expr(e) => check_expr_stmt(shared, e, lower, state, flow)?,
+        ast::StmtKind::Expr(e) => {
+            check_expr_stmt_with_mode(shared, e, lower, state, flow, call_mode)?
+        }
         ast::StmtKind::Return { return_span, value } => {
             let Some(expected) = flow.expected_return_ty else {
                 return Err(ExprTypeError::ReturnNotInFunctionBody {
@@ -708,7 +859,7 @@ pub(super) fn check_stmt_exprs(
                 });
             }
 
-            check_block_exprs(
+            check_block_exprs_with_mode(
                 shared,
                 body,
                 lower,
@@ -717,6 +868,7 @@ pub(super) fn check_stmt_exprs(
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
                 },
+                call_mode,
             )?;
         }
         ast::StmtKind::Break { break_span } => {
@@ -866,7 +1018,7 @@ pub(super) fn check_stmt_exprs(
             state.locals.insert(f.binder.span, elem_ty);
             state.stable_bindings.insert(f.binder.span);
 
-            check_block_exprs(
+            check_block_exprs_with_mode(
                 shared,
                 &f.body,
                 lower,
@@ -875,6 +1027,7 @@ pub(super) fn check_stmt_exprs(
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
                 },
+                call_mode,
             )?;
 
             *state.locals = saved_locals;
@@ -882,24 +1035,33 @@ pub(super) fn check_stmt_exprs(
             *state.mutable_bindings = saved_mutable;
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
-            check_block_exprs(shared, body, lower, state, flow)?;
+            check_block_exprs_with_mode(shared, body, lower, state, flow, call_mode)?;
         }
         ast::StmtKind::ComptimeIf(ci) => {
-            check_block_exprs(shared, &ci.then_branch, lower, state, flow)?;
+            check_block_exprs_with_mode(shared, &ci.then_branch, lower, state, flow, call_mode)?;
             if let Some(else_branch) = &ci.else_branch {
                 match &**else_branch {
                     ast::ComptimeIfElse::Block(b) => {
-                        check_block_exprs(shared, b, lower, state, flow)?
+                        check_block_exprs_with_mode(shared, b, lower, state, flow, call_mode)?
                     }
                     ast::ComptimeIfElse::If(next) => {
                         // 递归跟进 else-if 链。
                         let mut cur: &ast::ComptimeIf = next;
                         loop {
-                            check_block_exprs(shared, &cur.then_branch, lower, state, flow)?;
+                            check_block_exprs_with_mode(
+                                shared,
+                                &cur.then_branch,
+                                lower,
+                                state,
+                                flow,
+                                call_mode,
+                            )?;
                             match &cur.else_branch {
                                 Some(e) => match &**e {
                                     ast::ComptimeIfElse::Block(b) => {
-                                        check_block_exprs(shared, b, lower, state, flow)?;
+                                        check_block_exprs_with_mode(
+                                            shared, b, lower, state, flow, call_mode,
+                                        )?;
                                         break;
                                     }
                                     ast::ComptimeIfElse::If(next) => cur = next,
@@ -912,7 +1074,7 @@ pub(super) fn check_stmt_exprs(
             }
         }
         ast::StmtKind::ComptimeFor(cf) => {
-            check_block_exprs(
+            check_block_exprs_with_mode(
                 shared,
                 &cf.body,
                 lower,
@@ -921,6 +1083,7 @@ pub(super) fn check_stmt_exprs(
                     loop_depth: flow.loop_depth + 1,
                     expected_return_ty: flow.expected_return_ty,
                 },
+                call_mode,
             )?;
         }
         ast::StmtKind::Empty | ast::StmtKind::Missing => {}
@@ -1042,6 +1205,24 @@ pub(super) fn check_expr_stmt(
     state: &mut StmtExprState<'_>,
     flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
+    check_expr_stmt_with_mode(
+        shared,
+        expr,
+        lower,
+        state,
+        flow,
+        ExprStmtCallMode::WithUnifiedGate,
+    )
+}
+
+fn check_expr_stmt_with_mode(
+    shared: StmtExprShared<'_>,
+    expr: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
+    call_mode: ExprStmtCallMode,
+) -> Result<(), ExprTypeError> {
     // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
     // - `if (...) { val ... } else { ... }`
     // - `call { ... }`：递归进入 lambda body 捕获非法 `return`（T0444）
@@ -1050,16 +1231,16 @@ pub(super) fn check_expr_stmt(
     // 的阶段引入大量不相关的回归失败。
     match &expr.kind {
         ast::ExprKind::Block(b) | ast::ExprKind::DoBlock { body: b, .. } => {
-            check_block_exprs(shared, b, lower, state, flow)
+            check_block_exprs_with_mode(shared, b, lower, state, flow, call_mode)
         }
         ast::ExprKind::UnsafeBlock { body, .. } => {
             lower.push_unsafe_context();
-            let result = check_block_exprs(shared, body, lower, state, flow);
+            let result = check_block_exprs_with_mode(shared, body, lower, state, flow, call_mode);
             lower.pop_unsafe_context();
             result
         }
         ast::ExprKind::SafeBlock { body, .. } => lower.with_unsafe_context_suspended(|lower| {
-            check_block_exprs(shared, body, lower, state, flow)
+            check_block_exprs_with_mode(shared, body, lower, state, flow, call_mode)
         }),
         ast::ExprKind::If {
             cond,
@@ -1072,13 +1253,13 @@ pub(super) fn check_expr_stmt(
             else_branch.as_deref(),
             lower,
             state,
-            flow,
+            StmtExprContext { flow, call_mode },
         ),
         ast::ExprKind::When { subject, arms } => {
             // `when` 表达式作为语句时：
             // - 递归进入分支 body，以覆盖其中的局部绑定/控制流；
             // - T0427：为每个 arm 建立独立的“局部类型表”快照，并注入 pattern binder 的类型。
-            check_expr_stmt(shared, subject.as_ref(), lower, state, flow)?;
+            check_expr_stmt_with_mode(shared, subject.as_ref(), lower, state, flow, call_mode)?;
 
             let subject_ty = expr_infer_inputs_with_flow(shared, state.locals, flow)
                 .infer(lower, subject.as_ref())
@@ -1118,7 +1299,14 @@ pub(super) fn check_expr_stmt(
                     stable_bindings: &mut arm_stable,
                     mutable_bindings: &mut arm_mutable,
                 };
-                check_expr_stmt(shared, &arm.body, lower, &mut arm_state, flow)?;
+                check_expr_stmt_with_mode(
+                    shared,
+                    &arm.body,
+                    lower,
+                    &mut arm_state,
+                    flow,
+                    call_mode,
+                )?;
             }
             Ok(())
         }
@@ -1172,107 +1360,37 @@ pub(super) fn check_expr_stmt(
             }
         }
         ast::ExprKind::Call { callee, args } => {
-            // `@NoGC`：在表达式语句位置也必须强制检查调用点，
-            // 否则会被 `call();` 这类“仅为副作用的调用”绕过门禁。
-            if lower.in_nogc_context() {
-                let _ =
-                    expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)?;
-            }
-
             // T0444：`inline` 与 non-local return 的最小语义门禁：
             // - 默认：lambda body 内出现 `return` 一律报错
             // - 例外：当该 lambda 是 inline 函数的“lambda 参数实参”时，允许 non-local return
             //
-            // 注意：当前阶段不做完整的调用类型检查（包括 lambda 类型推导），这里只做结构化递归与门禁，
-            // 以便在不引入更多 type inference 复杂度的前提下先把语义边界钉死。
-            let target = resolve_call_target_for_expr_stmt(
-                shared.source,
-                callee.as_ref(),
+            // 先单独检查 lambda 实参，继续保留 statement 语境下的 non-local return 规则。
+            check_call_expr_stmt_lambda_args(shared, callee, args, lower, state, flow)?;
+
+            // 然后复用 value-position 的统一调用 typecheck，但暂停普通调用的 required-effects 收集。
+            // 本任务只收口 statement-position 的调用门禁；若把普通 callee effect row 也一并接通，
+            // 会把未单独跟踪的 effect 传播语义变更混入本轮。
+            if matches!(call_mode, ExprStmtCallMode::WithUnifiedGate) {
+                match lower.with_effect_collection_suspended(|lower| {
+                    expr_infer_inputs_with_flow(shared, state.locals, flow).infer(lower, expr)
+                }) {
+                    Ok(_) | Err(ExprTypeError::UnsupportedExpr { .. }) => {}
+                    Err(e) => return Err(e),
+                }
+            }
+
+            // 继续保留现有的子表达式递归与“立即执行调用”required-effects 记录：
+            // - callee / args 中的 cast / `!!` / nested call 仍需覆盖；
+            // - effect op 与 `Continuation.resume(...)` 仍属于 statement 位置必须记录的立即效果。
+            check_call_expr_stmt_fallback(
+                shared,
+                expr,
+                callee,
+                args,
                 lower,
-                shared.top_level_funs,
-            );
-
-            // 递归进入 callee 与 args：保证 `f({ return ... })` 这类结构也能被覆盖。
-            check_expr_stmt(shared, callee.as_ref(), lower, state, flow)?;
-
-            for (idx, arg) in args.iter().enumerate() {
-                let ast::ExprKind::Lambda(lam) = &arg.kind else {
-                    check_expr_stmt(shared, arg, lower, state, flow)?;
-                    continue;
-                };
-
-                let allow_non_local_return = match target {
-                    Some(t) if t.sig.is_inline => {
-                        let param_idx = idx + t.arg_param_offset;
-                        match t.sig.params.get(param_idx).copied() {
-                            Some(ty) => is_function_type(ty, lower),
-                            None => false,
-                        }
-                    }
-                    _ => false,
-                };
-
-                check_lambda_expr_stmt_body(
-                    shared,
-                    lam,
-                    allow_non_local_return,
-                    lower,
-                    state,
-                    flow,
-                )?;
-            }
-
-            // required effects（T0604）：
-            // call 作为“表达式语句”时，typecheck 默认不会对其做完整调用检查；
-            // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
-            let effect_op_taken_over =
-                if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
-                    infer_effect_op_call_expr_type(
-                        expr_infer_inputs_with_flow(shared, state.locals, flow),
-                        expr,
-                        member,
-                        args,
-                        None,
-                        lower,
-                    )?
-                    .is_some()
-                } else if let ast::ExprKind::TypeApply {
-                    callee: inner,
-                    args: type_args,
-                } = &callee.kind
-                    && let ast::ExprKind::MemberAccess { member, .. } = &inner.kind
-                {
-                    let lowered = type_args
-                        .iter()
-                        .map(|a| lower.lower_type_ref(a))
-                        .collect::<Result<Vec<_>, _>>()?;
-
-                    infer_effect_op_call_expr_type(
-                        expr_infer_inputs_with_flow(shared, state.locals, flow),
-                        expr,
-                        member,
-                        args,
-                        Some(lowered.as_slice()),
-                        lower,
-                    )?
-                    .is_some()
-                } else {
-                    false
-                };
-
-            // `Continuation.resume(...)` 只在当前 call 没有先被 effect-op 路径接管时才参与；
-            // 否则像 `Echo.resume(...)` 这类 effect op 名称碰撞会误入 builtin resume helper。
-            if !effect_op_taken_over {
-                let _ = infer_continuation_resume_call_expr_type(
-                    expr_infer_inputs_with_flow(shared, state.locals, flow),
-                    expr,
-                    callee.as_ref(),
-                    args,
-                    lower,
-                )?;
-            }
-
-            Ok(())
+                state,
+                StmtExprContext { flow, call_mode },
+            )
         }
         ast::ExprKind::Lambda(lam) => {
             // spec §7.3：默认不允许 lambda non-local return。
@@ -1294,7 +1412,7 @@ fn check_if_expr_stmt(
     else_branch: Option<&ast::Expr>,
     lower: &mut TypeLowering<'_>,
     state: &StmtExprState<'_>,
-    flow: StmtExprFlow,
+    ctx: StmtExprContext,
 ) -> Result<(), ExprTypeError> {
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
     // 并且只对“稳定绑定”（参数 + `val`）在对应分支内做类型收窄。
@@ -1315,7 +1433,14 @@ fn check_if_expr_stmt(
         stable_bindings: &mut then_stable,
         mutable_bindings: &mut then_mutable,
     };
-    check_expr_stmt(shared, then_branch, lower, &mut then_state, flow)?;
+    check_expr_stmt_with_mode(
+        shared,
+        then_branch,
+        lower,
+        &mut then_state,
+        ctx.flow,
+        ctx.call_mode,
+    )?;
 
     // else 分支：在 `x !is T` 且存在 else 时收窄；否则保持原类型。
     if let Some(else_branch) = else_branch {
@@ -1333,7 +1458,14 @@ fn check_if_expr_stmt(
             stable_bindings: &mut else_stable,
             mutable_bindings: &mut else_mutable,
         };
-        check_expr_stmt(shared, else_branch, lower, &mut else_state, flow)?;
+        check_expr_stmt_with_mode(
+            shared,
+            else_branch,
+            lower,
+            &mut else_state,
+            ctx.flow,
+            ctx.call_mode,
+        )?;
     }
 
     Ok(())

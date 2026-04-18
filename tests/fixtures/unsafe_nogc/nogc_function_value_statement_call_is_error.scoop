@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_call_forbidden
+// EXPECT-ERROR-AT: 11:5
+// EXPECT-ERROR: @NoGC
+
+package fixtures.unsafe_nogc
+
+@NoGC
+fun bad(): Unit {
+    val f: () -> Unit = { 1; }
+    f()
+}
