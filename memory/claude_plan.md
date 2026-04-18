@@ -62,4 +62,6 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 - 已同步更新 `TODO.md` / `PLAN.md`，本轮目标任务 `T3016b` 已标记完成；下一项为 `T3016bR`。
-- 待完成的最后一步：整理变更后提交 git commit，然后停止。
+- 已完成提交：`[T3016b] Replay mixed direct-indirect continuation prefix`（`d280808`）。
+- 当前工作区已清理完毕，`git status --short` 为空。
+- 本轮按要求到此停止，不继续执行 `T3016bR`。
