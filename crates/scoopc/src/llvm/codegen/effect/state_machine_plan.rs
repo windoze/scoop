@@ -6581,7 +6581,9 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
                 }
             }
         }
-        hir::ExprKind::Closure(closure) => collect_declared_local_ids_in_expr(&closure.body, out),
+        hir::ExprKind::Closure(closure) => {
+            collect_declared_local_ids_in_closure(closure, out);
+        }
         hir::ExprKind::Handle(handle) => {
             for stmt in &handle.body.stmts {
                 collect_declared_local_ids_in_stmt(stmt, out);
@@ -6623,6 +6625,31 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
         | hir::ExprKind::UnresolvedIdent { .. }
         | hir::ExprKind::Todo(_) => {}
     }
+}
+
+fn collect_declared_local_ids_in_closure(
+    closure: &hir::ClosureExpr,
+    out: &mut HashSet<hir::SymbolId>,
+) {
+    for param in &closure.params {
+        out.insert(param.id);
+    }
+
+    // Resolver always introduces the implicit single-argument lambda binder
+    // `it` at a synthetic zero-width span anchored to the lambda start.
+    // When outer-scope slot collection walks into the closure body, treat that
+    // synthetic binder like any other declared local so enclosing handle/try
+    // frames do not attempt to seed it from the outer env.
+    if closure.params.is_empty() {
+        let implicit_it_decl_span = crate::span::Span::new(closure.span.start, closure.span.start);
+        for capture in &closure.captures {
+            if capture.name == "it" && capture.decl_span == implicit_it_decl_span {
+                out.insert(capture.id);
+            }
+        }
+    }
+
+    collect_declared_local_ids_in_expr(&closure.body, out);
 }
 
 fn collect_declared_local_ids_in_when_pat(pat: &hir::WhenPat, out: &mut HashSet<hir::SymbolId>) {

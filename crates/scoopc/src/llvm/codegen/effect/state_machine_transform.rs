@@ -3838,6 +3838,118 @@ fun demo(): Int {
     }
 
     #[test]
+    fn handle_outer_scope_seeding_excludes_explicit_closure_params() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(seed: Int): Int {
+    val result: Int = handle {
+        val input: Int = Yield.next()
+        val mapper: (Int) -> Int = { x -> x + seed }
+        mapper(input)
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let seeded_slot_names = machine
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().seed_from_outer_scope())
+            .map(|slot| slot.slot().name().to_string())
+            .collect::<Vec<_>>();
+        assert!(
+            seeded_slot_names.iter().any(|name| name == "seed"),
+            "outer local captured by a post-suspend closure should still be seeded into the handle frame"
+        );
+        assert!(
+            !seeded_slot_names.iter().any(|name| name == "x"),
+            "explicit closure parameter must not be treated as an outer-scope seed slot"
+        );
+    }
+
+    #[test]
+    fn handle_outer_scope_seeding_excludes_implicit_it_lambda_binder() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(limit: Int): Int {
+    val result: Int = handle {
+        val input: Int = Yield.next()
+        val keep: (Int) -> Bool = { it > limit }
+        if (keep(input)) {
+            input
+        } else {
+            limit
+        }
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+        let (fun, handle) =
+            first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+
+        let source_plan =
+            HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let seeded_slot_names = machine
+            .frame()
+            .slots()
+            .iter()
+            .filter(|slot| slot.slot().seed_from_outer_scope())
+            .map(|slot| slot.slot().name().to_string())
+            .collect::<Vec<_>>();
+        assert!(
+            seeded_slot_names.iter().any(|name| name == "limit"),
+            "outer local captured by an implicit-it lambda after suspension should still be seeded"
+        );
+        assert!(
+            !seeded_slot_names.iter().any(|name| name == "it"),
+            "implicit lambda binder `it` must not be treated as an outer-scope seed slot"
+        );
+    }
+
+    #[test]
     fn declared_handle_local_overwrites_placeholder_slot_metadata() {
         let lowered = lower_typed_single_source(
             r#"

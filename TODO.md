@@ -2398,8 +2398,13 @@
   - 当前 effect 主线下一项推进到 `T3016h`：修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口。
 - 依赖：T3016g
 
-### T3016h [TODO] 修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口
+### T3016h [DONE] 修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口
 - 描述：`T3017` 本轮逐条扫描还确认了两条仍未显式跟踪的真实 production blocker：`std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 都会在 LLVM codegen 阶段报 `unsupported_main_body: effect frame seed outer-scope local`。这说明当前 unified handle / try-catch frame seeding 仍无法覆盖某些“只在 stdlib/task helper 的 nested handle / closure / try-catch 路径里被读取或写回的 outer local”，而这一缺口此前只在 `Continuation.resume(...)` outer-body 变体里被 `T3016c` 局部收口，并没有形成更广义的 seeding 合同。
+- 进展：
+  - 已修正 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 closure declared-local 收集：显式 lambda 形参，以及 resolver 为隐式单参 lambda 注入的 synthetic `it` binder，现都会被视为 closure 内声明局部，不再被外层 handle / try-catch 误收成 `seed_from_outer_scope` frame slots。
+  - 已新增两条 unified state-machine 结构回归测试，分别锁定“显式 closure 参数”和“隐式 `it`”都不会再被误判为 outer-scope seed slot，同时真正的外层捕获仍会保留。
+  - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` 与 `tests/fixtures/run-pass/stdlib_smoke_test_and_preconditions.scoop` 已从 stale `EXPECT: fail` 恢复为 `EXPECT: pass`。
+  - 已验证两条目标 `run-pass` fixture，以及 `cargo fmt --check`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 恢复为正常 run-pass，不再报 `effect frame seed outer-scope local`。
   - unified frame seeding 能覆盖 stdlib/test/task helper 经过 nested handle / try-catch / closure 间接读取的 outer locals，而不是只覆盖此前已修的 outer-body `Continuation.resume(...)` 子集。
