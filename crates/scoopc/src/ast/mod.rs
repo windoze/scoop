@@ -74,6 +74,13 @@ pub struct File {
     /// - 该表只承载“已被 typecheck 证实”的 builtin 语义点，不承载任何基于语法形状的推断；
     /// - effect segmentation 读取它来识别隐藏 suspend site，避免再按 member 名称或 receiver 形状猜测。
     pub(crate) continuation_resume_call_sites: RefCell<HashSet<Span>>,
+    /// typecheck 选中的“顶层函数值”目标（按表达式 span 索引）。
+    ///
+    /// 说明：
+    /// - 用于承载 `foo` / `foo<T>` 在值位置被当作函数值时的精确目标；
+    /// - HIR lowering 读取它，把该表达式合成为零捕获 closure，而不是误当成普通顶层值读取；
+    /// - `type_args` 保留 typecheck 阶段的具体实例化结果，供后续 monomorphized FQN 选择复用。
+    pub(crate) top_level_fun_value_refs: RefCell<HashMap<Span, TopLevelFunValueRef>>,
 }
 
 impl std::fmt::Debug for File {
@@ -157,6 +164,20 @@ impl File {
     pub fn continuation_resume_call_sites(&self) -> HashSet<Span> {
         self.continuation_resume_call_sites.borrow().clone()
     }
+
+    pub fn replace_top_level_fun_value_refs(&self, refs: HashMap<Span, TopLevelFunValueRef>) {
+        *self.top_level_fun_value_refs.borrow_mut() = refs;
+    }
+
+    pub fn top_level_fun_value_ref(&self, span: Span) -> Option<TopLevelFunValueRef> {
+        self.top_level_fun_value_refs.borrow().get(&span).cloned()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TopLevelFunValueRef {
+    pub fqn: String,
+    pub type_args: Vec<TypeId>,
 }
 
 #[derive(Debug, Clone)]

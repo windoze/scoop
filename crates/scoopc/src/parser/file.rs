@@ -162,6 +162,7 @@ impl<'a> Parser<'a> {
             continuation_resume_call_sites: std::cell::RefCell::new(
                 std::collections::HashSet::new(),
             ),
+            top_level_fun_value_refs: std::cell::RefCell::new(std::collections::HashMap::new()),
         })
     }
 

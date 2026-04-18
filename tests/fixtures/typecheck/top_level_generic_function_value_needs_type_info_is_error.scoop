@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_type_arg_not_inferred
+// 目标：T4003b 顶层泛型函数在无 expected function type 且无显式 type args 时，不能形成函数值。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun bad() {
+    val f = id
+}

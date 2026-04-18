@@ -109,13 +109,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4002R
 
-### T4003b [TODO] 支持顶层泛型函数值与 `callee<T>` 一等值传递
+### T4003b [DONE] 支持顶层泛型函数值与 `callee<T>` 一等值传递
 - 范围：
   - 顶层函数在值位置可形成函数值。
   - `callee<T>` 不再只允许作为 `Call` 的 callee 透明包装，而可作为一等值传递给 higher-order 调用。
   - 对应 HIR / monomorph / codegen 路径补齐。
 - 验收：
   - 新增 higher-order / run-pass 回归，覆盖 `callee<T>` 赋值、传参与后续调用。
+- 完成：
+  - 已为 bare 顶层函数值与 `callee<T>` 建立 typecheck side table，并贯通 AST / parser / typecheck / HIR lowering，使顶层函数在值位置可稳定形成函数值。
+  - typecheck 现支持根据 expected function type 反推泛型函数值 type args；higher-order 调用预收集实参时，会把 bare 顶层函数值候选先保留为占位 `Any`，避免在 expected-context 生效前过早报 `generic_type_arg_not_inferred`。
+  - HIR lowering 现将 typecheck 选中的顶层函数值统一合成为零捕获 closure 包装，直接复用现有 function-value call / monomorph / codegen 主线，没有新增第三套运行时表示。
+  - parser 已放宽 type-apply lookahead，`callee<T>` 现在既可继续直接调用，也可作为普通值表达式赋值、传参与返回。
+- 已验证：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/top_level_generic_function_value_basic.scoop -o /tmp/t4003b.out`
+  - `/tmp/t4003b.out` 输出依次为 `3`、`4`、`10`、`20`、`5`
+  - `cargo run -p scoop -- test --fixtures target/t4003b-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures target/t4003b-fixtures/typecheck`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (327)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003a
 
 ### T4003c [TODO] 为函数值 / funptr / ctor delegation 收口命名实参与默认参数绑定

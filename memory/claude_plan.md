@@ -1,95 +1,66 @@
-# 执行计划记录
+# 本轮执行计划（2026-04-19）
 
-## 说明
+## 任务目标
 
-按要求先落盘计划，再开始任何命令执行。这里记录的是可审计的执行计划、关键判断依据和后续进度更新；不包含内部推理细节。
+- 按 `TODO.md` 当前顺序完成第一个未完成任务。
+- 结合上轮已完成实现的交接信息，当前目标任务为 `T4003b`：支持顶层泛型函数值与 `callee<T>` 作为一等值传递。
+- 完成后立即停止，不继续处理下一个任务。
 
-## 初始计划
+## 已知上下文
 
-1. 检查最新一次提交信息与变更摘要，确认是否明确提到已有问题、遗留缺陷或必须先处理的事项。
-2. 读取 `TODO.md`、`PLAN.md`、必要时再看 `README.md`，识别第一个未完成任务及其上下文。
-3. 判断该任务是否可在一次迭代中完整交付：
-   - 若可完成，直接实施。
-   - 若过大或被前置缺陷阻塞，先在 `TODO.md` / `PLAN.md` 中拆分、重排并记录依赖，然后只执行新的第一个子任务。
-4. 实施过程中如果发现与规范不一致、已有 bug、缺失语言特性或依赖缺口：
-   - 不做绕过方案；
-   - 先把该问题转化为前置任务写回 `TODO.md`；
-   - 在 `PLAN.md` 与本文件中说明阻塞原因和调整后的顺序；
-   - 如当轮只能完成重排与记录，则提交后停止。
-5. 对当前目标任务做完整实现与验证，至少覆盖：
-   - 相关单元/集成/fixture 测试；
-   - `cargo fmt`；
-   - `cargo clippy --all-targets -- -D warnings`；
-   - 必要的目标化测试命令。
-6. 完成后更新文档状态：
-   - 在 `TODO.md` 标记该任务完成；
-   - 在 `PLAN.md` 反映当前状态；
-   - 在本文件补充实际执行结果与验证记录。
-7. 生成一次 git 提交，提交信息对应当前完成的任务，然后停止，不推进下一项。
+- 已检查最新提交 `cb6a2a9 [T4003a] 打通 FunPtr receiver 调用语义`，提交说明未暴露需要先修复的遗留问题。
+- 上轮实现已完成以下代码改动，但尚未完成本轮收尾：
+  - AST / parser / typecheck / HIR 已贯通“顶层函数值”表示与 lowering。
+  - parser 已允许 `callee<T>` 作为值表达式，而不强制后接调用。
+  - HIR lowering 采用“零捕获 closure 包装”复用现有 function-value 调用主线。
+  - 已新增对应 run-pass 与 typecheck fixtures。
+- 已完成的验证：
+  - `cargo check -p scoopc`
+  - 定向构建运行正例
+  - 定向 fixture 测试
+  - 全量 `tests/fixtures/typecheck`
+  - `cargo test --all`
+- 尚未完成：
+  - `cargo clippy --all-targets -- -D warnings`
+  - 根据最终结果更新 `TODO.md` / `PLAN.md`
+  - 记录本文件的完成状态
+  - 提交 git commit
 
-## 风险与执行原则
+## 执行步骤
 
-- 若工作区存在非本次任务相关改动，不回退用户已有修改。
-- 若最新提交只“提到”问题但未给出足够上下文，需要结合代码与测试确认该问题是否真实存在且未修复。
-- 若任务涉及规范符合性，优先以现有测试、规范文档和实现一致性为准，不接受临时兼容性补丁。
+1. [已完成] 检查工作树状态，确认上轮改动仍在且未混入不应提交的产物。
+2. [已完成] 复核 `TODO.md` 与 `PLAN.md` 当前内容，确认 `T4003b` 仍是首个未完成任务，且无需进一步拆分。
+3. [已完成] 运行 `cargo clippy --all-targets -- -D warnings`，结果通过，无新增 warning。
+4. [未触发] 如果 clippy 报错：
+   - 修复所有 warning/error。
+   - 重新运行相关测试，至少覆盖受影响模块与必要全量命令。
+   - 更新本文件记录修复点。
+5. [已完成] clippy 通过后已更新 `TODO.md`，将 `T4003b` 标记为完成，并补充实现摘要与验证命令。
+6. [已完成] 已更新 `PLAN.md`，记录 `T4003b` 完成并把下一步推进到 `T4003c`。
+7. [已完成] 已更新本文件，记录当前进度。
+8. [已完成] 已检查 `git status`，当前仅包含本轮源代码、fixture 与计划文件改动，未混入 `target/t4003b-fixtures/**` 或临时二进制。
+9. [待执行] 使用明确的提交信息完成提交，例如：
+   - `[T4003b] 支持顶层泛型函数值与 callee<T> 一等值传递`
+10. [待执行] 提交后停止。
 
-## 进度更新
+## 本轮已完成的关键结果
 
-### 2026-04-19 当前判断
+- `cargo clippy --all-targets -- -D warnings` 已通过。
+- `cargo fmt --all` 已执行，随后 `cargo fmt --all --check` 已通过。
+- `TODO.md` 已将 `T4003b` 标记为完成，记录了以下实现结论：
+  - bare 顶层函数值与 `callee<T>` 已建立 typecheck side table，并贯通到 AST / parser / typecheck / HIR。
+  - generic function value 现可从 expected function type 反推 type args。
+  - higher-order 调用预收集阶段会延迟 bare 顶层泛型函数值的报错时机，等待 expected-context 生效。
+  - HIR lowering 统一把顶层函数值转成零捕获 closure 包装，复用既有 function-value call / codegen 主线。
+- `PLAN.md` 已记录 `T4003b` 完成，并把下一项推进到 `T4003c`。
 
-1. 已检查最新提交：
-   - 最新提交为 `eaff1d7 [T4002R] 统一 receiver lambda 的 lowering 决议`。
-   - 提交说明未额外提到新的既有遗留问题；因此没有出现“必须先补该提交中注明的 pre-existing issue”这一分支。
-2. 已读取 `TODO.md` / `PLAN.md` / `ISSUES.md`：
-   - 当前第一个未完成任务是 `T4003`。
-   - `ISSUES.md` 第 4 条明确包含四个缺口：函数值命名实参、`FunPtr` 命名实参与 receiver function signature、`callee<T>` 一等值、constructor delegation 非位置参数。
-3. 已评估 `T4003` 复杂度：
-   - 该任务同时跨越 typecheck 公共调用绑定、顶层函数值表示/可执行 lowering、以及 class ctor side table/default-arg 语义，单轮完整交付风险过高。
-   - 按要求需要先在 `TODO.md` / `PLAN.md` 中拆分为可管理子任务，再执行新的第一个子任务。
+## 剩余收尾
 
-### 拟执行的拆分方向
+- 提交 commit 后停止，不继续处理 `T4003c`。
 
-计划将 `T4003` 拆为至少三个子任务：
+## 风险与约束
 
-1. `T4003a`：先打通 `FunPtr<F>` 的 receiver function type 调用语义。
-   - 目标：移除 `FunPtr<F>` 对 receiver signature 的早期门禁；
-   - 打通 direct call 与 `FunPtr.invoke(...)` 在 receiver 签名下的 typecheck / codegen；
-   - 用独立 run-pass 回归覆盖。
-2. `T4003b`：再处理顶层泛型函数值与 `callee<T>` 一等值传递。
-   - 该项需要单独评估 HIR / monomorph / LLVM 表示，不与 `T4003a` 混做。
-3. `T4003c`：最后收口函数值 / funptr / ctor delegation 的命名实参与默认参数映射。
-   - 该项依赖额外的签名元数据或 ctor side table 扩展，后置处理。
-
-### 当前轮具体执行计划
-
-1. 修改 `TODO.md` / `PLAN.md`，把 `T4003` 拆成子任务，并把 `T4003a` 放为新的当前任务。
-2. 实现 `T4003a`：
-   - 修改 `typecheck/lower.rs`，允许 `FunPtr<F>` 的 `F` 为 receiver function type；
-   - 修改 `typecheck/expr/call.rs`，让 funptr 直接调用按“receiver 作为第 0 个实参”检查；
-   - 修改 `llvm/codegen/mod.rs`，让 indirect funptr call 支持 receiver 参数；
-   - 必要时补充 `sysroot/unsafe.scoop` 的 `invoke` overload。
-3. 新增/更新回归 fixture。
-4. 运行格式化、定向 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-5. 更新 `TODO.md` / `PLAN.md` / 本文件，提交 `[T4003a] ...`，然后停止。
-
-### 2026-04-19 执行结果
-
-1. 已完成任务拆分：
-   - `TODO.md` / `PLAN.md` 已把原 `T4003` 拆为 `T4003a -> T4003b -> T4003c`。
-   - 本轮实际执行的首个子任务为 `T4003a`。
-2. 已完成实现：
-   - `crates/scoopc/src/typecheck/lower.rs`：移除 `FunPtr<F>` 对 receiver function type 的 early gate。
-   - `crates/scoopc/src/typecheck/expr/call.rs`：funptr direct call 改为与函数值调用一致，按“receiver 作为第 0 个显式实参”检查。
-   - `crates/scoopc/src/llvm/codegen/mod.rs`：indirect funptr call 支持 receiver 参数位；`scoop.unsafe.invoke(...)` intrinsic 入口会把 named args 依 `receiver` / `a0` / `a1` 约定重排为位置实参。
-   - `sysroot/unsafe.scoop`：新增 receiver 形态的 `FunPtr.invoke` overload。
-   - `tests/fixtures/run-pass/unsafe_funptr_receiver_call_basic.*`：新增回归，覆盖 direct call、`.invoke(...)` 与命名实参路径。
-   - `SCOOP_FULL_SPEC.md`：补充 `FunPtr<F>` 在 receiver function type 下“receiver 作为第 0 个显式实参”的说明。
-3. 已完成验证：
-   - `cargo fmt`
-   - `cargo run -p scoop -- test --fixtures target/t4003a-fixtures/run-pass` → `fixtures: ok (3)`
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck` → `fixtures: ok (326)`
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-4. 后续状态：
-   - `T4003a` 可标记为完成。
-   - 下一项应推进到 `T4003b`（顶层泛型函数值与 `callee<T>` 一等值传递）。
+- 不得以 workaround 方式绕过规格缺口；如果发现新的规格不匹配，必须先把缺口写入 `TODO.md` / `PLAN.md`，调整依赖顺序，然后提交并停止。
+- 不得回退用户已有改动。
+- 所有文件编辑继续使用 `apply_patch`。
+- 必须保证最终 `cargo clippy --all-targets -- -D warnings` 无告警。

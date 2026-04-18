@@ -9,7 +9,8 @@ use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTyp
 use super::call::{
     GenericArgConstraint, InstantiatedFunSig, check_fn_value_to_any_erasure_gate,
     collect_type_arg_candidates_for_single_type_param, infer_call_expr_type,
-    instantiate_fun_sig_for_call, substitute_single_type_param, type_param_name,
+    infer_top_level_fun_value_expr_type, instantiate_fun_sig_for_call,
+    substitute_single_type_param, type_param_name,
 };
 use super::member::{
     infer_elvis_expr_type, infer_member_access_expr_type, infer_not_null_assert_expr_type,
@@ -100,15 +101,21 @@ pub(super) fn infer_expr_type(
             else_branch.as_deref(),
             lower,
         ),
-        ast::ExprKind::Ident(id) => infer_value_ident_type(
-            source,
-            id,
-            lower,
-            builtins,
-            inputs.locals,
-            inputs.lambda_this_decl_span,
-            inputs.top_level_types,
-        ),
+        ast::ExprKind::Ident(id) => {
+            if let Some(ty) = infer_top_level_fun_value_expr_type(inputs, expr, None, None, lower)?
+            {
+                return Ok(ty);
+            }
+            infer_value_ident_type(
+                source,
+                id,
+                lower,
+                builtins,
+                inputs.locals,
+                inputs.lambda_this_decl_span,
+                inputs.top_level_types,
+            )
+        }
         ast::ExprKind::MemberAccess { receiver, member } => {
             infer_member_access_expr_type(inputs, receiver.as_ref(), member, lower)
         }
@@ -305,6 +312,16 @@ pub(super) fn infer_expr_type(
             }
 
             infer_lambda_expr_type_without_expected(inputs, expr, lam, lower)
+        }
+        ast::ExprKind::TypeApply { .. } => {
+            if let Some(ty) = infer_top_level_fun_value_expr_type(inputs, expr, None, None, lower)?
+            {
+                return Ok(ty);
+            }
+            Err(ExprTypeError::UnsupportedExpr {
+                kind: "type apply",
+                span: expr.span.into(),
+            })
         }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
@@ -1863,6 +1880,10 @@ impl ExpectedTypeFrom {
     pub(super) fn new(desc: impl Into<String>) -> Self {
         Self { desc: desc.into() }
     }
+
+    pub(super) fn desc(&self) -> &str {
+        &self.desc
+    }
 }
 
 fn expr_matches_expected_type(
@@ -2265,6 +2286,16 @@ pub(super) fn infer_expr_type_in_expected_context(
         if fqn_matches {
             return infer_generic_struct_lit_expr_type(inputs, expr, expected_ty, fields, lower);
         }
+    }
+
+    if let Some(ty) = infer_top_level_fun_value_expr_type(
+        inputs,
+        expr,
+        Some(expected_ty),
+        Some(&expected_from),
+        lower,
+    )? {
+        return Ok(ty);
     }
 
     inputs.infer(lower, expr)

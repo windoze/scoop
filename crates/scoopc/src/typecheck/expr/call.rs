@@ -87,6 +87,9 @@ fn collect_call_arg_infos<'a>(
                     // lambda 的类型通常依赖 expected type；在"预收集实参信息"阶段先用占位类型，
                     // 以便后续在"已选定签名"的语境下重新 typecheck（T0504）。
                     ast::ExprKind::Lambda(_) => inputs.builtins.any,
+                    _ if is_top_level_fun_value_candidate_expr(inputs, expr_for_ty, lower)? => {
+                        inputs.builtins.any
+                    }
                     _ => inputs.infer(lower, expr_for_ty)?,
                 };
                 out.push(CallArgInfo {
@@ -106,6 +109,9 @@ fn collect_call_arg_infos<'a>(
                 };
                 let ty = match expr_for_ty.kind {
                     ast::ExprKind::Lambda(_) => inputs.builtins.any,
+                    _ if is_top_level_fun_value_candidate_expr(inputs, expr_for_ty, lower)? => {
+                        inputs.builtins.any
+                    }
                     _ => inputs.infer(lower, expr_for_ty)?,
                 };
                 out.push(CallArgInfo {
@@ -1351,6 +1357,315 @@ fn collect_top_level_fun_signatures_from_index(
     Ok(out)
 }
 
+fn is_top_level_fun_value_candidate_expr(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+) -> Result<bool, ExprTypeError> {
+    let Some((callee_fqn, _)) = extract_top_level_fun_value_target(expr, lower)? else {
+        return Ok(false);
+    };
+
+    if inputs.top_level_types.contains_key(&callee_fqn) || lower.is_object_type(&callee_fqn) {
+        return Ok(false);
+    }
+
+    let sigs_from_index: Vec<FunSigOwned>;
+    let sigs: &[FunSigOwned] = match inputs.top_level_funs.get(&callee_fqn) {
+        Some(sigs) => sigs.as_slice(),
+        None => {
+            sigs_from_index =
+                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, inputs.builtins)?;
+            sigs_from_index.as_slice()
+        }
+    };
+
+    Ok(!sigs.is_empty())
+}
+
+fn default_eff_arg_for_fun_sig(sig: &FunSigOwned) -> EffectRow {
+    sig.eff_param
+        .as_ref()
+        .map(|p| p.default.clone())
+        .unwrap_or_else(EffectRow::pure)
+}
+
+fn function_type_shape_from_sig_params(
+    sig: &FunSigOwned,
+    params: &[TypeId],
+    return_ty: TypeId,
+    effects: EffectRow,
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<TypeId, ExprTypeError> {
+    let (receiver, positional_params): (Option<TypeId>, Vec<TypeId>) = if sig.is_extension {
+        let Some(receiver) = params.first().copied() else {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "top-level function value（extension receiver 缺失）",
+                span: use_span.into(),
+            });
+        };
+        (Some(receiver), params[1..].to_vec())
+    } else {
+        (None, params.to_vec())
+    };
+
+    Ok(lower.ty_function(
+        receiver,
+        positional_params,
+        return_ty,
+        effects,
+        sig.effects.as_ref().is_some_and(|row| row.closed),
+    ))
+}
+
+fn function_value_type_from_instantiated_sig(
+    sig: &FunSigOwned,
+    instantiated: &InstantiatedFunSig,
+    eff_arg: &EffectRow,
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<TypeId, ExprTypeError> {
+    let mut instantiated = instantiated.clone();
+    instantiate_eff_row_var_in_sig_types(sig, &mut instantiated, eff_arg, lower, use_span)?;
+
+    let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
+    let eff_bindings: Vec<(String, EffectRow)> = sig
+        .eff_param
+        .as_ref()
+        .map(|p| vec![(p.name.clone(), eff_arg.clone())])
+        .unwrap_or_default();
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+        &sig.decl_file,
+        type_param_bindings,
+        eff_bindings,
+        sig.effects.as_ref(),
+    )?;
+    let effects = substitute_type_args_in_effect_row(
+        lowered_effects,
+        &sig.type_params,
+        &instantiated.type_args,
+        lower,
+        use_span,
+    )?;
+
+    function_type_shape_from_sig_params(
+        sig,
+        &instantiated.params,
+        instantiated.return_ty,
+        effects,
+        lower,
+        use_span,
+    )
+}
+
+fn generic_constraints_from_expected_fun_value(
+    sig: &FunSigOwned,
+    expected_fun_ty: TypeId,
+    expected_from: &ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<Vec<GenericArgConstraint>, ExprTypeError> {
+    let placeholder = InstantiatedFunSig {
+        params: sig.params.clone(),
+        return_ty: sig.return_ty,
+        type_args: Vec::new(),
+    };
+    let placeholder_fun_ty = function_value_type_from_instantiated_sig(
+        sig,
+        &placeholder,
+        &default_eff_arg_for_fun_sig(sig),
+        lower,
+        use_span,
+    )?;
+
+    Ok(vec![GenericArgConstraint {
+        expected: placeholder_fun_ty,
+        found: expected_fun_ty,
+        found_is_placeholder: false,
+        from: format!("值位置的期望函数类型（约束来源：{}）", expected_from.desc()),
+        span: use_span,
+    }])
+}
+
+fn extract_top_level_fun_value_target(
+    expr: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<(String, Vec<TypeId>)>, ExprTypeError> {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            let Some(ast::ResolvedValueRef::TopLevel { fqn }) = id.resolved.as_ref() else {
+                return Ok(None);
+            };
+            Ok(Some((fqn.clone(), Vec::new())))
+        }
+        ast::ExprKind::TypeApply { callee, args } => {
+            let ast::ExprKind::Ident(id) = &callee.kind else {
+                return Ok(None);
+            };
+            let Some(ast::ResolvedValueRef::TopLevel { fqn }) = id.resolved.as_ref() else {
+                return Ok(None);
+            };
+            let lowered = args
+                .iter()
+                .map(|arg| lower.lower_type_ref(arg))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Some((fqn.clone(), lowered)))
+        }
+        _ => Ok(None),
+    }
+}
+
+pub(super) fn infer_top_level_fun_value_expr_type(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    expected_ty: Option<TypeId>,
+    expected_from: Option<&ExpectedTypeFrom>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some((callee_fqn, explicit_type_args)) = extract_top_level_fun_value_target(expr, lower)?
+    else {
+        return Ok(None);
+    };
+
+    let builtins = inputs.builtins;
+    let top_level_funs = inputs.top_level_funs;
+
+    let sigs_from_index: Vec<FunSigOwned>;
+    let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
+        Some(sigs) => sigs.as_slice(),
+        None => {
+            sigs_from_index =
+                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+            sigs_from_index.as_slice()
+        }
+    };
+    if sigs.is_empty() {
+        return Ok(None);
+    }
+
+    let expected_fun_ty = expected_ty.and_then(|ty| match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Function(_)) => Some(ty),
+        _ => None,
+    });
+    let callee_name = short_name_from_fqn(&callee_fqn).to_string();
+
+    #[derive(Clone)]
+    struct MatchCandidate {
+        sig: FunSigOwned,
+        instantiated: InstantiatedFunSig,
+        fun_ty: TypeId,
+    }
+
+    let mut matches: Vec<MatchCandidate> = Vec::new();
+    let mut first_error: Option<ExprTypeError> = None;
+
+    for sig in sigs {
+        let constraints = match (expected_fun_ty, expected_from) {
+            (Some(expected_fun_ty), Some(expected_from)) => {
+                generic_constraints_from_expected_fun_value(
+                    sig,
+                    expected_fun_ty,
+                    expected_from,
+                    lower,
+                    expr.span,
+                )?
+            }
+            _ => Vec::new(),
+        };
+
+        let instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+            &callee_name,
+            expr.span,
+            sig,
+            (!explicit_type_args.is_empty()).then_some(explicit_type_args.as_slice()),
+            constraints,
+            lower,
+            builtins,
+        ) {
+            Ok(instantiated) => instantiated,
+            Err(err) => {
+                if first_error.is_none() {
+                    first_error = Some(err);
+                }
+                continue;
+            }
+        };
+
+        let eff_arg = default_eff_arg_for_fun_sig(sig);
+        let fun_ty = function_value_type_from_instantiated_sig(
+            sig,
+            &instantiated,
+            &eff_arg,
+            lower,
+            expr.span,
+        )?;
+
+        if let Some(expected_fun_ty) = expected_fun_ty
+            && !is_type_assignable(fun_ty, expected_fun_ty, lower, builtins)
+        {
+            continue;
+        }
+
+        matches.push(MatchCandidate {
+            sig: sig.clone(),
+            instantiated,
+            fun_ty,
+        });
+    }
+
+    let selected = match matches.len() {
+        0 => {
+            if let Some(err) = first_error
+                && (sigs.len() == 1 || !explicit_type_args.is_empty())
+            {
+                return Err(err);
+            }
+
+            if expected_fun_ty.is_some() || !explicit_type_args.is_empty() {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_name,
+                    span: expr.span.into(),
+                });
+            }
+
+            return Ok(None);
+        }
+        1 => matches.pop().unwrap(),
+        _ => {
+            let candidates = matches
+                .iter()
+                .map(|cand| match lower.type_kind(cand.fun_ty) {
+                    TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                        fmt_overload_signature(&callee_name, fun.receiver, &fun.params, lower)
+                    }
+                    _ => callee_name.clone(),
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_name,
+                candidates: join_overload_signatures(candidates),
+                span: expr.span.into(),
+            });
+        }
+    };
+
+    if !selected.sig.type_params.is_empty() {
+        lower.record_monomorph_call(
+            callee_fqn.clone(),
+            selected.sig.decl_span,
+            &selected.instantiated.type_args,
+        );
+    }
+    lower.record_top_level_fun_value_ref(
+        expr.span,
+        callee_fqn,
+        selected.instantiated.type_args.clone(),
+    );
+
+    Ok(Some(selected.fun_ty))
+}
+
 pub(super) fn check_unsafe_call_gate(
     callee_fqn: &str,
     sig: &FunSigOwned,
@@ -1572,8 +1887,8 @@ pub(super) fn infer_call_expr_type(
     // 显式类型实参（T1204）：`callee<T>()` 在 AST 中表示为 `Call(TypeApply(callee, type_args), args)`。
     //
     // 说明：
-    // - `TypeApply` 本身不是一个可求值的表达式（暂不支持把 `callee<T>` 当作值来传递）；
-    // - 但当它作为 `Call` 的 callee 出现时，我们需要把显式 type args 传给泛型函数实例化逻辑。
+    // - 在“普通值表达式”位置，`callee<T>` 现由 `infer_top_level_fun_value_expr_type` 处理；
+    // - 但当它作为 `Call` 的 callee 出现时，我们仍需要把显式 type args 传给泛型函数实例化逻辑。
     let mut explicit_type_args: Option<Vec<TypeId>> = None;
     let callee_expr: &ast::Expr = match &callee.kind {
         ast::ExprKind::TypeApply {

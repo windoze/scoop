@@ -14,6 +14,8 @@
 > 2026-04-19 当前轮计划调整：原 `T4003` 同时覆盖 `FunPtr<F>` receiver signature、顶层泛型函数值 / `callee<T>` 一等值、以及 ctor delegation 的命名 / 默认参数绑定，横跨 typecheck 公共调用绑定、HIR/lowering 表示与 class ctor side table 三套基础设施，单轮完整收口风险过高。现已将其拆分为 `T4003a -> T4003b -> T4003c`：先打通 `FunPtr` receiver function type 调用主线，再处理顶层泛型函数值与 `callee<T>`，最后收口函数值 / funptr / ctor delegation 的命名实参和默认参数绑定。当前本轮执行目标切换为 `T4003a`。
 >
 > 2026-04-19 当前轮完成更新：`T4003a` 已完成。`FunPtr<F>` 不再把 receiver function type 当作 early error；typecheck 中的 funptr direct call 已改为与函数值调用一致，按“receiver 作为第 0 个显式实参”检查；LLVM indirect funptr call 也同步支持 receiver 参数位。与此同时，sysroot `scoop.unsafe.FunPtr` 现在补齐了 receiver 形态的 `invoke` overload，并在 intrinsic codegen 入口把 named args 按 `receiver` / `a0` / `a1` 约定重排为位置实参，因此 `fp(receiver, arg)`、`fp.invoke(receiver, arg)` 与 `fp.invoke(receiver = ..., a0 = ...)` 现已统一可执行。已新增 `unsafe_funptr_receiver_call_basic` run-pass 回归，并复验既有 funptr 运行用例。已验证 `cargo run -p scoop -- test --fixtures target/t4003a-fixtures/run-pass`（`fixtures: ok (3)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003b`。
+>
+> 2026-04-19 当前轮完成更新：`T4003b` 已完成。顶层函数在值位置现在可形成一等函数值，`callee<T>` 也不再限于“仅能作为直接调用 callee 的透明包装”，而是可以被赋值、传递给 higher-order 调用并在后续再次调用。实现上，AST / parser / typecheck 新增了顶层函数值的 side table 与 expected-context 反推路径：bare 顶层函数值与 `callee<T>` 会先进入统一的函数值推断，generic function value 可根据 expected function type 反推出 type args，而 higher-order 场景下 bare 顶层函数值候选会先以占位 `Any` 参与参数预收集，避免在 expected-type 生效前过早报 `generic_type_arg_not_inferred`。HIR lowering 则把最终选中的顶层函数值统一合成为零捕获 closure 包装，直接复用现有 function-value call / monomorph / codegen 主线，没有再引入第三套运行时表示。parser 同时放宽了 type-apply lookahead，因此 `callee<T>` 既能继续直接调用，也能作为普通值表达式存在。已新增 `top_level_generic_function_value_basic` run-pass 与 `top_level_generic_function_value_needs_type_info_is_error` typecheck 回归；已验证定向 build+run、定向 run-pass / typecheck fixtures、全量 `tests/fixtures/typecheck`（`fixtures: ok (327)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4003c`。
 
 ## 0. 工作原则
 
@@ -48,7 +50,7 @@
 
 - 依次补齐 lambda 推断、receiver lambda、函数值 / funptr / constructor delegation 的调用语义缺口。
 - 目标是把前端最常用的表达式与调用规则统一到同一条类型检查主线上。
-- 当前状态：`T4002` / `T4002R` 与 `T4003a` 已完成；`T4003` 仍按 `T4003b -> T4003c` 继续推进。当前下一个切片是顶层泛型函数值与 `callee<T>` 一等值传递，之后再处理函数值 / funptr / ctor delegation 的命名实参与默认参数绑定收口。
+- 当前状态：`T4002` / `T4002R` / `T4003a` / `T4003b` 已完成；`T4003` 还剩最后一个切片 `T4003c`，用于收口函数值 / funptr / ctor delegation 的命名实参与默认参数绑定。
 
 ### P3. 语法到 lowering 的缺口收口
 

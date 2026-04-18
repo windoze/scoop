@@ -124,7 +124,9 @@ impl<'a> HirLowering<'a> {
                     self.builtins.string,
                 )
             }
-            ast::ExprKind::Ident(id) => self.lower_ident_expr(id),
+            ast::ExprKind::Ident(id) => self
+                .try_lower_top_level_fun_value_expr(e.span)
+                .unwrap_or_else(|| self.lower_ident_expr(id)),
             ast::ExprKind::Block(b) => {
                 let b = self.lower_block_with_expected(pkg_prefix, b, expected);
                 let ty = b.ty;
@@ -150,12 +152,14 @@ impl<'a> HirLowering<'a> {
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
-            ast::ExprKind::TypeApply { callee, .. } => {
-                // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
-                // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
-                let inner = self.lower_expr(pkg_prefix, callee);
-                (inner.kind, inner.ty)
-            }
+            ast::ExprKind::TypeApply { callee, .. } => self
+                .try_lower_top_level_fun_value_expr(e.span)
+                .unwrap_or_else(|| {
+                    // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
+                    // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
+                    let inner = self.lower_expr(pkg_prefix, callee);
+                    (inner.kind, inner.ty)
+                }),
             ast::ExprKind::Call { callee, args } => {
                 // 调用表达式在 typecheck 后已经有稳定结果类型；这里即使后续把 member/extension/default-arg
                 // 调用降糖成其它 HIR 形态，也要优先保留该结果类型，避免局部 `val x = call(...)`
@@ -1047,6 +1051,129 @@ impl<'a> HirLowering<'a> {
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
+    fn typechecked_top_level_fun_value_ref(&mut self, span: Span) -> Option<(String, Vec<TypeId>)> {
+        let typecheck_types = self.typecheck_types?;
+        let fun_ref = self.file.top_level_fun_value_ref(span)?;
+        let type_args = fun_ref
+            .type_args
+            .iter()
+            .copied()
+            .map(|ty| self.types.re_intern_from(typecheck_types, ty))
+            .collect();
+        Some((fun_ref.fqn, type_args))
+    }
+
+    fn synthetic_top_level_fun_value_param_span(&self, base_span: Span, ordinal: usize) -> Span {
+        let offset = base_span.end.saturating_add(ordinal).saturating_add(1);
+        Span::new(offset, offset)
+    }
+
+    fn mangled_top_level_fun_value_fqn(&self, fqn: &str, type_args: &[TypeId]) -> String {
+        if type_args.is_empty()
+            || type_args
+                .iter()
+                .any(|ty| matches!(self.types.kind(*ty), TypeKind::Param(_)))
+        {
+            return fqn.to_string();
+        }
+
+        let args = type_args
+            .iter()
+            .map(|ty| self.types.display(*ty).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{fqn}::<{args}>")
+    }
+
+    fn try_lower_top_level_fun_value_expr(&mut self, span: Span) -> Option<(ExprKind, TypeId)> {
+        let (base_fqn, type_args) = self.typechecked_top_level_fun_value_ref(span)?;
+        let fun_ty_id = self.typechecked_expr_ty(span)?;
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun_ty_id).clone()
+        else {
+            return None;
+        };
+
+        let mut params: Vec<Param> =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
+        let mut call_args: Vec<CallArg> =
+            Vec::with_capacity(fun_ty.params.len() + usize::from(fun_ty.receiver.is_some()));
+        let mut ordinal = 0usize;
+
+        if let Some(receiver_ty) = fun_ty.receiver {
+            let decl_span = self.synthetic_top_level_fun_value_param_span(span, ordinal);
+            let id = self.intern_local_symbol(decl_span, false);
+            let name = "receiver".to_string();
+            params.push(Param {
+                span: decl_span,
+                id,
+                name: name.clone(),
+                ty: receiver_ty,
+            });
+            call_args.push(CallArg::Positional(Expr {
+                span: decl_span,
+                ty: receiver_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            }));
+            ordinal += 1;
+        }
+
+        for (idx, param_ty) in fun_ty.params.iter().copied().enumerate() {
+            let decl_span = self.synthetic_top_level_fun_value_param_span(span, ordinal);
+            let id = self.intern_local_symbol(decl_span, false);
+            let name = format!("a{idx}");
+            params.push(Param {
+                span: decl_span,
+                id,
+                name: name.clone(),
+                ty: param_ty,
+            });
+            call_args.push(CallArg::Positional(Expr {
+                span: decl_span,
+                ty: param_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id,
+                    name,
+                    decl_span,
+                }),
+            }));
+            ordinal += 1;
+        }
+
+        let callee_fqn = self.mangled_top_level_fun_value_fqn(&base_fqn, &type_args);
+        let callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(callee_fqn.clone()),
+                fqn: callee_fqn,
+            }),
+        };
+        let body = Expr {
+            span,
+            ty: fun_ty.return_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: call_args,
+            },
+        };
+
+        Some((
+            ExprKind::Closure(ClosureExpr {
+                span,
+                id: self.alloc_closure_id(),
+                at_safe_span: None,
+                captures: Vec::new(),
+                params,
+                body: Box::new(body),
+            }),
+            fun_ty_id,
+        ))
+    }
+
     fn array_lit_target_from_type_id(&self, ty: TypeId) -> Option<ArrayLitTarget> {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return None;
@@ -1167,7 +1294,8 @@ impl<'a> HirLowering<'a> {
 
     /// 尝试从 callee 表达式中提取“顶层函数 FQN”（用于向实参传播期望类型）。
     fn callee_top_level_fqn<'b>(&self, callee: &'b ast::Expr) -> Option<&'b str> {
-        // `callee<T>()`：HIR v0 把 `TypeApply` 视为 callee 的透明包装。
+        // `callee<T>()`：在“调用 callee”位置仍把 `TypeApply` 视为透明包装；
+        // 若其处于普通值表达式位置，则会提前经由 top-level function value side table 合成为 closure。
         let callee = match &callee.kind {
             ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
             _ => callee,

@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_generic_function_value_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4003b：顶层泛型函数值与 `callee<T>` 一等值传递：
+// - bare generic top-level function 在 expected function type 下可形成函数值；
+// - `callee<T>` 可直接赋值给局部绑定；
+// - 顶层函数值可继续作为 higher-order 实参传递，并在后续再次调用。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun applyTwice(base: Int, f: (Int) -> Int): Int {
+    return f(f(base))
+}
+
+fun main(): Int {
+    val inferred: (Int) -> Int = id
+    val explicit = id<Int>
+
+    println(inferred(3))
+    println(explicit(4))
+    println(applyTwice(10, id))
+    println(applyTwice(20, id<Int>))
+    println(explicit(5))
+    0
+}

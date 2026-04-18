@@ -448,6 +448,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - 作为 effect segmentation 的确定语义 side table；
     /// - 避免后续阶段再按 `resume` 这个名字或调用形状做 builtin 推断。
     continuation_resume_call_sites: HashSet<Span>,
+    /// typecheck 选中的“顶层函数值”目标。
+    ///
+    /// 用途：
+    /// - 记录 `foo` / `foo<T>` 在值位置被视作函数值时的精确目标；
+    /// - HIR lowering 读取后把它们合成为 closure object，而不是误走顶层值读取路径。
+    top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
     /// 单态化（monomorphization）请求收集器（T0712）。
     ///
     /// 说明：
@@ -562,6 +568,7 @@ impl<'a> TypeLowering<'a> {
             safe_member_access_resolutions: HashMap::new(),
             typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
+            top_level_fun_value_refs: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
@@ -1254,6 +1261,16 @@ impl<'a> TypeLowering<'a> {
         self.continuation_resume_call_sites.insert(call_span);
     }
 
+    pub(super) fn record_top_level_fun_value_ref(
+        &mut self,
+        expr_span: Span,
+        fqn: String,
+        type_args: Vec<TypeId>,
+    ) {
+        self.top_level_fun_value_refs
+            .insert(expr_span, ast::TopLevelFunValueRef { fqn, type_args });
+    }
+
     pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
         std::mem::take(&mut self.inferred_expr_tys)
     }
@@ -1284,6 +1301,12 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
         std::mem::take(&mut self.continuation_resume_call_sites)
+    }
+
+    pub(super) fn take_top_level_fun_value_refs(
+        &mut self,
+    ) -> HashMap<Span, ast::TopLevelFunValueRef> {
+        std::mem::take(&mut self.top_level_fun_value_refs)
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {
