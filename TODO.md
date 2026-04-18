@@ -2667,8 +2667,16 @@
   - `cargo run -p scoop -- test`
 - 依赖：T3101
 
-### T3103 [TODO] 回归迁移：effect nested-block fixtures 切到 plain `do` block
+### T3103 [DONE] 回归迁移：effect nested-block fixtures 切到 plain `do` block
 - 描述：当前若干 effect nested-block 回归仍借 `@Safe { ... }` 表达 statement-position nested block；这只是实现缺口下的语法绕路，并没有真正覆盖“普通局部 block 必须写 `do { ... }`”的新规则。引入显式 `do` 后，需要把这些“只为消歧而存在”的 workaround 切回 plain `do` block。
+- 进展：
+  - 已将 7 个仅为 nested-block 消歧而保留的 effect run-pass fixtures 从 `@Safe { ... }` 迁移到 plain `do { ... }`：`effect_resume_nested_block_single_perform`、`effect_resume_while_nested_block_perform`、`effect_resume_mixed_source_path_matrix`、`effect_multi_escape_direct_source_path_matrix`、`effect_multi_escape_custom_nonresuming_direct_block_multi`、`effect_multi_escape_custom_nonresuming_direct_indirect_block_multi`、`effect_multi_escape_custom_nonresuming_indirect_block_single_site`。
+  - 已保留真正依赖 safe-region 语义的其它 `@Safe` / `@Unsafe` fixtures，不把 unsafe 语义回归混入本任务。
+  - 已新增 parser / typecheck / HIR / run-pass 四层回归 `do_block_multiple_trailing_lambda_boundary*`，锁定：
+    - `combine(1) { ... } { ... }` 继续解析/降低为一个 call + 两个 trailing lambda；
+    - 后续独立 `do { ... }` 是下一条 statement / block，而不是附着到前一条调用；
+    - `combine(do { 3 }) { ... } { ... }` 中的 `do { ... }` 作为普通 positional arg，不与 trailing lambda 竞争。
+  - 已验证 `cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (996)`）、`cargo run -p scoop --features llvm -- test`（`fixtures: ok (996)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。runner 过程中出现的 `WARN` 仅为部分 fixture 触发的语义诊断日志，不属于 Rust 编译或 lint warning。
 - 目标：
   - 把仅用于制造 nested block 的 `@Safe` workaround 切回普通 `do { ... }`。
   - 真正依赖 safe-region 语义的测试继续保留 `@Safe` 相关写法，避免把 unsafe 语义回归误混进 parser / block 语义任务。

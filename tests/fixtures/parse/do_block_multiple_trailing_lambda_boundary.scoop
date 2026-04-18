@@ -1,0 +1,15 @@
+// EXPECT: pass
+// EXPECT-AST: do_block_multiple_trailing_lambda_boundary.ast
+// 目标：T3103 — 锁定 `multiple trailing lambdas` 与后续 `do { ... }` 的边界：
+// - `combine(1) { ... } { ... }` 继续解析为一个 call + 两个 trailing lambda；
+// - 后续独立的 `do { ... }` 解析为下一条 statement，而不是附着到上一条 call；
+// - `combine(do { 3 }) { ... } { ... }` 中的 `do { ... }` 是普通 positional arg。
+
+package fixtures.parse
+
+fun main() {
+    combine(1) { it + 1 } { it + 2 }
+    do {
+        combine(do { 3 }) { it + 4 } { it + 5 }
+    }
+}

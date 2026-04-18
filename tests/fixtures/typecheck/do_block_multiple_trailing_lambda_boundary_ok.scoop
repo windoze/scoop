@@ -1,0 +1,25 @@
+// EXPECT: pass
+// 目标：T3103 — `multiple trailing lambdas` 与后续 `do { ... }` 的 typecheck 边界：
+// - 第一条语句仍按两个 trailing lambda 调用 `combine`；
+// - 后续 `do { ... }` 是独立 block statement；
+// - `do { 3 }` 作为普通实参传给 `combine`，并继续向两个 lambda 传播 expected type。
+
+package fixtures.typecheck
+
+fun combine(x: Int, f: (Int) -> Int, g: (Int) -> Int): Int {
+    return g(f(x))
+}
+
+fun main() {
+    combine(1) { it + 1 } { it + 2 }
+
+    val result: Int = do {
+        combine(do { 3 }) { it + 4 } { it + 5 }
+    }
+
+    val followup: Int = do {
+        combine(result) { it + 6 } { it + 7 }
+    }
+
+    val check: Int = followup
+}

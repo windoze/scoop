@@ -1,0 +1,12 @@
+package fixtures.hir
+
+fun combine(x: Int, f: (Int) -> Int, g: (Int) -> Int): Int {
+    return g(f(x))
+}
+
+fun main() {
+    combine(1) { it + 1 } { it + 2 }
+    do {
+        combine(do { 3 }) { it + 4 } { it + 5 }
+    }
+}

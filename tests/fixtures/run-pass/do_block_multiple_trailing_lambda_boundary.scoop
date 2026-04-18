@@ -1,0 +1,20 @@
+// EXPECT: pass
+// RUN-STDOUT: do_block_multiple_trailing_lambda_boundary.stdout
+//
+// T3103: run-pass 锁定 `multiple trailing lambdas` 与后续 `do { ... }` 的执行边界。
+// - 第一条表达式语句结束在第二个 trailing lambda 之后；
+// - 下一条 `do { ... }` 作为独立 block statement 执行；
+// - `do { 3 }` 作为普通调用实参参与求值，不改变 trailing lambda 绑定。
+
+import scoop.core.*
+
+fun combine(x: Int, f: (Int) -> Int, g: (Int) -> Int): Int {
+    return g(f(x))
+}
+
+fun main() {
+    println(combine(1) { it + 1 } { it + 2 })
+    do {
+        println(combine(do { 3 }) { it + 4 } { it + 5 })
+    }
+}

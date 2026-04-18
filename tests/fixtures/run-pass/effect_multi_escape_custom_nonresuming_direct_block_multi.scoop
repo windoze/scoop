@@ -6,9 +6,8 @@
 // - 第一个 nested block direct site 在初次执行时创建 continuation；
 // - `resume(...)` 后先 replay 第一个 block 尾部，再继续命中第二个 nested block direct site；
 // - 第二次 `resume(...)` 后第二个 block 尾部命中 sibling custom non-resuming arm。
-// Current `@Safe { ... }` is only a temporary naked-block workaround until
-// T2203/T2204 lands; this fixture is locking nested-block escape replay,
-// not safe-region semantics.
+// 本回归现在使用 plain `do { ... }` 锁定 nested-block escape replay，
+// 不依赖 safe-region 语义。
 
 import scoop.core.*
 
@@ -29,7 +28,7 @@ fun main() {
     val result: Int = handle {
         println("body")
 
-        @Safe {
+        do {
             println("block1")
             val label1: String = "block1_label"
             val first: String = Ask.ask("first")
@@ -40,7 +39,7 @@ fun main() {
 
         println("after_block1")
 
-        @Safe {
+        do {
             println("block2")
             val label2: String = "block2_label"
             val second: String = Ask.ask("second")

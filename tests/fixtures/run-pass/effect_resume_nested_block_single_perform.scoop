@@ -8,8 +8,8 @@
 // - perform 不再要求位于 handle body 顶层；
 // - resume 后先回到内层 block，随后继续执行外层 block 与 handle body；
 // - block 内 perform 前声明的局部值在 resume 后仍可读取。
-// - 当前 `@Safe { ... }` 仅是“statement-position 裸 block 尚未支持”时的语法
-//   workaround；待 T2203 迁移后应改为普通 `do { ... }`，这里不依赖 safe region 语义。
+// - 当前样例使用 plain `do { ... }` 表达 statement-position nested block，
+//   不依赖 safe region 语义。
 
 import scoop.core.*
 
@@ -21,10 +21,10 @@ fun main() {
     val result: Int = handle {
         println("body_start")
         val seed: Int = 1
-        @Safe {
+        do {
             println("outer_block")
             val base: Int = 10
-            @Safe {
+            do {
                 println("inner_block")
                 val x: Int = Yield.next()
                 println("resumed_sum")

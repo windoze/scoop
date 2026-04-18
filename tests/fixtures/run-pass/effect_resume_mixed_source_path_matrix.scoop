@@ -6,9 +6,8 @@
 // - post-immediate escape sites 同时覆盖 direct if-branch 与 indirect callee-suspend；
 // - resume 后继续 replay source-path tail，并在 tail 中进入 nested handle；
 // - `finally` 继续只在原始 handle 返回前执行一次。
-//
-// Current `@Safe { ... }` is only the tracked naked-block workaround before
-// T2203/T2204 lands; this fixture is locking unified mixed source-path replay.
+// 本回归现在使用 plain `do { ... }` 锁定 unified mixed source-path replay，
+// 不依赖 safe-region 语义。
 
 import scoop.core.*
 
@@ -41,7 +40,7 @@ fun main() {
     val result: Int = handle {
         println("body")
         var base: Int = 0
-        @Safe {
+        do {
             val yielded: Int = Yield.next()
             println("after_yield")
             println(yielded)
@@ -53,7 +52,7 @@ fun main() {
             println("escape_loop")
             println(i)
             if (i == 0) {
-                @Safe {
+                do {
                     val direct: String = Ask.ask(base + i)
                     println("after_direct")
                     println(direct)

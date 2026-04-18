@@ -1,0 +1,234 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 451..473,
+            path: [
+                Ident {
+                    span: 459..467,
+                },
+                Ident {
+                    span: 468..473,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 475..589,
+                receiver: None,
+                name: Ident {
+                    span: 479..483,
+                },
+                type_params: [],
+                params_span: 483..485,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 486..589,
+                        stmts: [
+                            Stmt {
+                                span: 492..524,
+                                kind: Expr(
+                                    Expr {
+                                        span: 492..524,
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 492..499,
+                                                kind: Ident(
+                                                    Ident {
+                                                        span: 492..499,
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Expr {
+                                                    span: 500..501,
+                                                    kind: IntLit,
+                                                },
+                                                Expr {
+                                                    span: 503..513,
+                                                    kind: Lambda(
+                                                        LambdaExpr {
+                                                            params: [],
+                                                            arrow_span: None,
+                                                            body: Expr {
+                                                                span: 505..511,
+                                                                kind: Binary {
+                                                                    lhs: Expr {
+                                                                        span: 505..507,
+                                                                        kind: Ident(
+                                                                            Ident {
+                                                                                span: 505..507,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    op: Add,
+                                                                    op_span: 508..509,
+                                                                    rhs: Expr {
+                                                                        span: 510..511,
+                                                                        kind: IntLit,
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    ),
+                                                },
+                                                Expr {
+                                                    span: 514..524,
+                                                    kind: Lambda(
+                                                        LambdaExpr {
+                                                            params: [],
+                                                            arrow_span: None,
+                                                            body: Expr {
+                                                                span: 516..522,
+                                                                kind: Binary {
+                                                                    lhs: Expr {
+                                                                        span: 516..518,
+                                                                        kind: Ident(
+                                                                            Ident {
+                                                                                span: 516..518,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    op: Add,
+                                                                    op_span: 519..520,
+                                                                    rhs: Expr {
+                                                                        span: 521..522,
+                                                                        kind: IntLit,
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    ),
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ),
+                                has_trailing_semi: false,
+                            },
+                            Stmt {
+                                span: 529..587,
+                                kind: Expr(
+                                    Expr {
+                                        span: 529..587,
+                                        kind: DoBlock {
+                                            do_span: 529..531,
+                                            body: Block {
+                                                span: 532..587,
+                                                stmts: [
+                                                    Stmt {
+                                                        span: 542..581,
+                                                        kind: Expr(
+                                                            Expr {
+                                                                span: 542..581,
+                                                                kind: Call {
+                                                                    callee: Expr {
+                                                                        span: 542..549,
+                                                                        kind: Ident(
+                                                                            Ident {
+                                                                                span: 542..549,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    args: [
+                                                                        Expr {
+                                                                            span: 550..558,
+                                                                            kind: DoBlock {
+                                                                                do_span: 550..552,
+                                                                                body: Block {
+                                                                                    span: 553..558,
+                                                                                    stmts: [
+                                                                                        Stmt {
+                                                                                            span: 555..556,
+                                                                                            kind: Expr(
+                                                                                                Expr {
+                                                                                                    span: 555..556,
+                                                                                                    kind: IntLit,
+                                                                                                },
+                                                                                            ),
+                                                                                            has_trailing_semi: false,
+                                                                                        },
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        },
+                                                                        Expr {
+                                                                            span: 560..570,
+                                                                            kind: Lambda(
+                                                                                LambdaExpr {
+                                                                                    params: [],
+                                                                                    arrow_span: None,
+                                                                                    body: Expr {
+                                                                                        span: 562..568,
+                                                                                        kind: Binary {
+                                                                                            lhs: Expr {
+                                                                                                span: 562..564,
+                                                                                                kind: Ident(
+                                                                                                    Ident {
+                                                                                                        span: 562..564,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                            op: Add,
+                                                                                            op_span: 565..566,
+                                                                                            rhs: Expr {
+                                                                                                span: 567..568,
+                                                                                                kind: IntLit,
+                                                                                            },
+                                                                                        },
+                                                                                    },
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                        Expr {
+                                                                            span: 571..581,
+                                                                            kind: Lambda(
+                                                                                LambdaExpr {
+                                                                                    params: [],
+                                                                                    arrow_span: None,
+                                                                                    body: Expr {
+                                                                                        span: 573..579,
+                                                                                        kind: Binary {
+                                                                                            lhs: Expr {
+                                                                                                span: 573..575,
+                                                                                                kind: Ident(
+                                                                                                    Ident {
+                                                                                                        span: 573..575,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                            op: Add,
+                                                                                            op_span: 576..577,
+                                                                                            rhs: Expr {
+                                                                                                span: 578..579,
+                                                                                                kind: IntLit,
+                                                                                            },
+                                                                                        },
+                                                                                    },
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ],
+                                                                },
+                                                            },
+                                                        ),
+                                                        has_trailing_semi: false,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                ),
+                                has_trailing_semi: false,
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -5,8 +5,8 @@
 // - pure multi-escape leaf 直接消费 unified plan 的 while/if/block source-path；
 // - 第一次 resume 会 replay block/branch/loop tail，并在下一次迭代命中第二个 escape arm；
 // - sibling custom non-resuming 与 finally 继续复用同一套 heap continuation contract。
-// Current `@Safe { ... }` is only the tracked naked-block workaround before
-// T2203/T2204 lands; this fixture is locking unified source-path replay.
+// 本回归现在使用 plain `do { ... }` 锁定 unified source-path replay，
+// 不依赖 safe-region 语义。
 
 import scoop.core.*
 
@@ -35,7 +35,7 @@ fun main() {
             println("loop")
             println(i)
             if (i == 0) {
-                @Safe {
+                do {
                     println("enter_block")
                     val prefix: String = "prefix"
                     val first: String = Ask.ask("first")

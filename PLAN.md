@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3103` 已完成。已把 7 个仅为 statement-position nested block 消歧而保留的 effect fixtures 从 `@Safe { ... }` 迁移为 plain `do { ... }`，覆盖 immediate-resume、while nested block、mixed source-path 与 multi-escape representative samples，行为保持不变。同步新增 parser / typecheck / HIR / run-pass 四层边界回归 `do_block_multiple_trailing_lambda_boundary*`，锁定 multiple trailing lambdas 后的独立 `do { ... }` 仍作为下一条 statement / block，且 `combine(do { 3 }) { ... } { ... }` 中的 `do { ... }` 继续作为普通 positional arg，不与 trailing lambda 竞争。已验证 `cargo test --all`、`cargo run -p scoop -- test`（`fixtures: ok (996)`）、`cargo run -p scoop --features llvm -- test`（`fixtures: ok (996)`）与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前前端主线下一项推进到 `T3104`。
+>
 > 2026-04-18 当前轮复审更新：`T3017R` 已完成。已复核 `tests/fixtures/run-pass` 的基线形态，确认 `rg -n "T3006: 暂时标记为 fail" tests/fixtures/run-pass` 仍无命中，`EXPECT: fail` 仅剩 6 条真实失败语义 fixture：4 条本来就应失败的诊断/负向用例（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）以及已分别转记到 `T3304` / `T3406` 的 2 条非 effect blocker（`gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`not_null_assert_basic.scoop`）。已定向审查 `crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 与 `crates/scoopc/src/llvm/codegen/mod.rs`，确认 `emit_effect_unwind_if_active`、`raise_target_stack`、callee-shape suspendable 入口等旧 shape/flag 路径没有回流，生产代码中也不存在为 fixture 维持绿色而新增的 test-only fallback。`cargo run -p scoop --features llvm -- test`（`fixtures: ok (992)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过，因此 `T30` 已可阶段性声明完成，下一项转入 `T31` 的 `T3103`。
 >
 > 2026-04-18 当前轮完成更新：`T3017` 已完成。重新验收 `tests/fixtures/run-pass` 后，`rg -n "T3006: 暂时标记为 fail" tests/fixtures/run-pass` 已无命中，`EXPECT: fail` 仅剩 6 条真实失败语义 fixture：4 条本来就应失败的负向/诊断用例（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）以及已分别转记到 `T3304` / `T3406` 的 2 条非 effect blocker（`gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`not_null_assert_basic.scoop`）。`cargo run -p scoop --features llvm -- test` 已完整通过（`fixtures: ok (992)`），并已补验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前 effect 主线下一项推进到 `T3017R`。
@@ -598,9 +600,10 @@
 - `if` / `when` / `handle` / lambda body / `do` block 的值语义都要按同一规则收口。
 - 实现：AST `Stmt` 增加 `has_trailing_semi` 字段，parser/typecheck/HIR lowering 全链路联动；`block_tail_expr` 拒绝 semicolon-terminated 语句。
 
-#### T3103：effect nested-block fixtures 切到 plain `do` block
-- 在 `T3006R` 之后，把仅为 nested block 消歧而保留的 `@Safe { ... }` workaround 切回 `do { ... }`。
-- 真正依赖 safe-region 语义的测试继续保留 `@Safe`，并同步锁定 multiple trailing lambdas 与 `do` block 的边界规则。
+#### T3103 ✅：effect nested-block fixtures 切到 plain `do` block
+- 已把 7 个仅为 nested block 消歧而保留的 effect run-pass fixtures 从 `@Safe { ... }` 迁移到 plain `do { ... }`，覆盖 immediate-resume、while nested block、mixed source-path 与 multi-escape representative samples。
+- 真正依赖 safe-region 语义的其它测试继续保留 `@Safe` / `@Unsafe`，没有混入本任务。
+- 已新增 parser / typecheck / HIR / run-pass 四层边界回归 `do_block_multiple_trailing_lambda_boundary*`，锁定 multiple trailing lambdas 与后续 `do` block 的解析 / lowering / 运行时边界。
 
 #### T3104：同步规范 / 文档中的 `do` block、closure 优先级与 trailing-lambda 规则
 - 更新 `SCOOP_FULL_SPEC.md`、doctest / fixture 示例，以及当前 `TODO.md` / `PLAN.md` 等相关文档叙述。
@@ -693,21 +696,17 @@
 
 ## 4. 当前执行顺序
 
-1. `T3017R`
-2. `T3103`
-3. `T3104`
-4. `T3201`
-5. `T3202`
-6. `T3203`
-7. `T3202`
-8. `T3203`
-10. `T3204`
-11. `T3205`
-12. `T3301`
-13. `T3302`
-14. `T3303`
-15. `T3304`
-16. `T3401`
+1. `T3104`
+2. `T3201`
+3. `T3202`
+4. `T3203`
+5. `T3204`
+6. `T3205`
+7. `T3301`
+8. `T3302`
+9. `T3303`
+10. `T3304`
+11. `T3401`
 17. `T3401a`
 18. `T3401b`
 19. `T3401c`

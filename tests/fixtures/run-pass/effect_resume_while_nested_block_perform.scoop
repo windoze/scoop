@@ -7,9 +7,7 @@
 // - nested block 的 site 进入；
 // - resume 后 replay 当前迭代的 block tail；
 // - 下一次迭代再次命中同一路径时复用同一 perform binding slot。
-//
-// 当前 `@Safe { ... }` 仅是 statement-position 裸 block 尚未切到 `do { ... }`
-// 前的临时语法绕路；后续由 T2203 统一迁移。
+// 当前样例使用 plain `do { ... }` 表达 while body 内的 statement-position nested block。
 
 import scoop.core.*
 
@@ -22,7 +20,7 @@ fun run(): Int {
         var i: Int = 0
         var total: Int = 0
         while (i < 2) {
-            @Safe {
+            do {
                 val x: Int = Yield.next()
                 println("block")
                 println(x)

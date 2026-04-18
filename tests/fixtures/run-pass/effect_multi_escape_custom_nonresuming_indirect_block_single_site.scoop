@@ -7,9 +7,8 @@
 // - `resume(...)` 后会先 replay block tail，再离开 block 继续后续 top-level tail；
 // - nested block locals / outer locals 都能在 replay 后继续使用，且 sibling custom non-resuming
 //   仍由同一个 source-handle 接住。
-// Current `@Safe { ... }` is only a temporary naked-block workaround until
-// T2203/T2204 lands; this fixture is locking nested-block indirect replay,
-// not safe-region semantics.
+// 本回归现在使用 plain `do { ... }` 锁定 nested-block indirect replay，
+// 不依赖 safe-region 语义。
 
 import scoop.core.*
 
@@ -40,7 +39,7 @@ fun main() {
         println("body")
         val prefix: String = "outer"
 
-        @Safe {
+        do {
             println("block_enter")
             val label: String = "inner"
             val reply: String = fetch(20)
