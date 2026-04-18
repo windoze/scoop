@@ -2456,8 +2456,15 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016hR
 
-### T3016iR [TODO] Review：确认 unified `SuspendCall` inactive helper IR 修复仍停留在单一 state-machine 合同
+### T3016iR [DONE] Review：确认 unified `SuspendCall` inactive helper IR 修复仍停留在单一 state-machine 合同
 - 描述：在 `T3016i` 之后复审 `SuspendCall` inactive helper 回归，确认修复只通过统一 state-machine / `Suspend` terminator / resume-path 合同恢复合法 IR 与 caller-tail 继续执行，而不是为 `helper(false)`、局部 helper、特定 fixture 或 `CallMaySuspend` 某个子形状单独绕路；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/control_flow.rs` 与 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`，确认 `T3016i` 原始修复仍停留在统一 resumed-tail / state-machine 合同内，没有读取 helper 名称、fixture 名称或旧 `CallMaySuspend` 形状分类做分流。
+  - 复审过程中额外暴露出同一条共享合同的泛化缺口：当 ordinary callee 的 resumed tail 首条语句是“所有 arm 都 `return`/退出”的 `when` 表达式时，`codegen_when_expr()` 仍会给已终止 arm 追加 merge branch，而 block-level codegen 也会在 `CgTy::Never` 之后继续发射后续语句，导致 `when_arm_*` / `when_merge` 再次出现 terminator 后追加指令的 verifier 失败。
+  - 已在 `crates/scoopc/src/llvm/codegen/control_flow.rs` 收口这条缺口：`codegen_when_expr()` 不再给已终止 arm 追加 merge branch，且在所有 arm 都终止时直接返回 `CgTy::Never`；`codegen_block_as_return_value()` 与 `codegen_block_value_in_expected_context()` 也在遇到 `Never` 时立即停止发射后续语句。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 把 `when` 纳入 `expr_guarantees_control_flow_exit()`，确保 ordinary callee resumed tail 在“所有 arm 都退出”时不再拼接 enclosing block 的 unreachable suffix。
+  - 已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 新增 IR 回归 `ordinary_callee_resume_site_drops_unreachable_suffix_after_when_all_arms_return`，直接锁定 `resume_site0` 在 `when` 场景下也会收口为 path-specific tail。
+  - 已验证 `cargo fmt --check`、`cargo test -p scoopc ordinary_callee_resume_site_drops_unreachable_suffix_after_ -- --nocapture`、临时最小 `when` 复现程序、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_suspend_call_inactive_helper_basic.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_handle_hidden_suspend_local_closure_helper_basic.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 `effect_handle_suspend_call_inactive_helper_basic.scoop` 的修复仍只读取统一 suspend-site metadata 与 TLS active 结果。
   - 确认不会因修复 verifier failure 而把 inactive-path 回流成 helper-specific branch、旧 shape-based 判定或 effect-only fallback。
@@ -2465,6 +2472,9 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“unified `SuspendCall` inactive helper IR 修复已收口到单一 state-machine 合同，无 helper-specific workaround 残留”。
+- 审查结论：
+  - unified `SuspendCall` inactive helper IR 修复已收口到单一 state-machine 合同，无 helper-specific workaround 残留。
+  - 本轮补上的 `when` all-arm-return follow-up 也只依赖通用的 terminated-arm / `CgTy::Never` / `expr_guarantees_control_flow_exit` 合同，没有引入 helper 名称、fixture 名称、旧 shape-based 判定或 `CallMaySuspend` 子形状旁路。
 - 依赖：T3016i
 
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线

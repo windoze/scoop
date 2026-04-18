@@ -380,6 +380,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     None => self.codegen_expr(&arm.body)?,
                 };
 
+                let arm_terminated = self
+                    .builder
+                    .get_insert_block()
+                    .is_none_or(|bb| bb.get_terminator().is_some());
+                if arm_terminated {
+                    self.env.pop_scope();
+                    continue;
+                }
+
                 if expected_out_ty.is_none() {
                     match out_ty {
                         None => out_ty = Some(v.ty),
@@ -412,6 +421,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             self.builder.position_at_end(merge_bb);
+            if incoming.is_empty() {
+                self.builder.build_unreachable()?;
+                return Ok(CgValue::never());
+            }
 
             let out_ty = out_ty.unwrap_or(CgTy::Unit);
             return match out_ty {
@@ -779,6 +792,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None => self.codegen_expr(&arm.body)?,
             };
 
+            let arm_terminated = self
+                .builder
+                .get_insert_block()
+                .is_none_or(|bb| bb.get_terminator().is_some());
+            if arm_terminated {
+                self.env.pop_scope();
+                continue;
+            }
+
             if expected_out_ty.is_none() {
                 match out_ty {
                     None => out_ty = Some(v.ty),
@@ -810,6 +832,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         self.builder.position_at_end(merge_bb);
+        if incoming.is_empty() {
+            self.builder.build_unreachable()?;
+            return Ok(CgValue::never());
+        }
 
         let out_ty = out_ty.unwrap_or(CgTy::Unit);
         match out_ty {
@@ -1972,6 +1998,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(CgTy::Unit)
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
+                    if v.ty == CgTy::Never {
+                        self.env.pop_scope();
+                        return Ok(CgValue::never());
+                    }
                     tail_value = if is_last { Some(v) } else { None };
                 }
                 hir::StmtKind::Return { value } => {
@@ -2094,6 +2124,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(CgTy::Unit)
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
+                    if v.ty == CgTy::Never {
+                        self.env.pop_scope();
+                        return Ok(CgValue::never());
+                    }
                     value = if is_last { v } else { CgValue::unit() };
                 }
                 hir::StmtKind::While { cond, body } => {

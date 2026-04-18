@@ -4225,6 +4225,70 @@ fun main(): Int {
     }
 
     #[test]
+    fn ordinary_callee_resume_site_drops_unreachable_suffix_after_when_all_arms_return() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+fun helper(flag: Bool): Int / (Ask) {
+    println("helper_before")
+    when (flag) {
+        true -> {
+            println("helper_suspend")
+            return Ask.ask()
+        }
+        false -> {
+            println("helper_direct")
+            return 7
+        }
+    }
+
+    println("helper_after")
+    return 9
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        val value: Int = helper(true) + 1
+        value
+    } with {
+        Ask.ask() -> resume {
+            resume(2)
+        }
+    }
+    println(result)
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let helper_ir = find_function_ir(&ir, "define i64 @a.helper");
+        let resume_site_ir = find_block_ir(helper_ir, "resume_site0");
+        let (_, after_return) = resume_site_ir
+            .split_once("br label %return")
+            .expect("all-returning when on resumed path should jump directly to return");
+
+        assert!(
+            after_return.trim().is_empty(),
+            "ordinary callee when-arm resumed tail must stop at the first return branch instead of appending unreachable suffix:\n{resume_site_ir}"
+        );
+    }
+
+    #[test]
     fn runtime_raise_boundary_ir_branches_between_inactive_continue_and_active_dispatch() {
         let source = SourceFile::new_virtual(
             "<mem>",

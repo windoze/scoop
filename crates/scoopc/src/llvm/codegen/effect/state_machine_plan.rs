@@ -3830,6 +3830,10 @@ fn block_guarantees_control_flow_exit(block: &hir::Block) -> bool {
     block.stmts.iter().any(stmt_guarantees_control_flow_exit)
 }
 
+fn when_expr_guarantees_control_flow_exit(arms: &[hir::WhenArm]) -> bool {
+    !arms.is_empty() && arms.iter().all(|arm| expr_guarantees_control_flow_exit(&arm.body))
+}
+
 fn expr_guarantees_control_flow_exit(expr: &hir::Expr) -> bool {
     match &expr.kind {
         hir::ExprKind::Block(block) => block_guarantees_control_flow_exit(block),
@@ -3841,6 +3845,7 @@ fn expr_guarantees_control_flow_exit(expr: &hir::Expr) -> bool {
             expr_guarantees_control_flow_exit(then_branch)
                 && expr_guarantees_control_flow_exit(else_branch)
         }),
+        hir::ExprKind::When { arms, .. } => when_expr_guarantees_control_flow_exit(arms),
         _ => false,
     }
 }
