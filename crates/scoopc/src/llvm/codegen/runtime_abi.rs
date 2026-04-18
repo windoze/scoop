@@ -1274,6 +1274,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_effect_set_active_with_trace(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col)`
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i32_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_effect_clear(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_CLEAR;
         if let Some(existing) = self.module.get_function(NAME) {

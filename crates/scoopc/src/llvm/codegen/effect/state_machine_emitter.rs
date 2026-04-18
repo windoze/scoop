@@ -2097,10 +2097,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 self.builder.build_store(cont_gep, cont)?;
 
-                // Set the TLS active flag to signal that an effect was
-                // performed.
-                let set_active = self.declare_runtime_effect_set_active();
-                self.builder.build_call(set_active, &[], "")?;
+                // Direct `perform` sites only wrote the TLS payload; they
+                // still need to publish the active flag and source trace here.
+                // Call-boundary / nested-boundary sites already arrive with an
+                // active flag set by the inner producer, and re-setting it here
+                // would overwrite the original perform-site trace.
+                if matches!(site.kind(), SuspendSiteKind::Perform { .. }) {
+                    self.emit_effect_set_active_with_trace(
+                        site.span(),
+                        "effect_suspend_set_active_with_trace",
+                    )?;
+                }
 
                 // Return from the step function.  The dispatch loop in the
                 // handle entry will detect the active flag and dispatch.
@@ -3863,6 +3870,104 @@ fun main(): Int {
         assert!(
             ir.contains("captured_callee_suspend_state"),
             "IR should name the captured callee suspend state value flowing into the continuation"
+        );
+    }
+
+    #[test]
+    fn direct_perform_suspend_ir_uses_traceful_activation_hook() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+fun main(): Int {
+    return handle {
+        val value: Int = Suspend.pause()
+        value
+    } with {
+        Suspend.pause(), k -> {
+            0
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let marker = "val value: Int = Suspend.pause()";
+        let offset = source
+            .text()
+            .find(marker)
+            .and_then(|line_start| {
+                source.text()[line_start..]
+                    .find("Suspend.pause()")
+                    .map(|rel| line_start + rel)
+            })
+            .expect("perform marker");
+        let (line, col) = source.offset_to_line_col(offset).expect("perform line/col");
+        let expected =
+            format!("call void @scoop_effect_set_active_with_trace(i32 {line}, i32 {col})");
+        assert!(
+            ir.contains(&expected),
+            "direct perform suspend site should publish traceful activation hook: {expected}\n{ir}"
+        );
+    }
+
+    #[test]
+    fn outer_suspend_does_not_reset_callee_trace_hook() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+fun boom(): Int / Raise<RuntimeError> {
+    Raise.raise(RuntimeError.NullAssertionFailed)
+    return 0
+}
+
+fun main(): Int {
+    return try {
+        boom()
+    } catch (e: RuntimeError) {
+        0
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let marker = "Raise.raise(RuntimeError.NullAssertionFailed)";
+        let offset = source.text().find(marker).expect("raise marker");
+        let (line, col) = source.offset_to_line_col(offset).expect("raise line/col");
+        let expected =
+            format!("call void @scoop_effect_set_active_with_trace(i32 {line}, i32 {col})");
+        assert!(
+            ir.contains(&expected),
+            "callee perform path should preserve original raise trace hook: {expected}\n{ir}"
+        );
+        assert!(
+            !ir.contains("call void @scoop_effect_set_active("),
+            "outer suspend path should not reset active without trace and clobber the original raise-site metadata\n{ir}"
         );
     }
 

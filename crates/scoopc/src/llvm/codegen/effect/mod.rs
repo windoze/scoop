@@ -49,6 +49,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_fun_return_ty.is_some()
     }
 
+    fn effect_trace_line_col(&self, span: crate::span::Span) -> Result<(u32, u32), LlvmEmitError> {
+        let (line, col) = self
+            .current_source()?
+            .offset_to_line_col(span.start)
+            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                kind: "effect trace source location",
+                at: span.into(),
+            })?;
+        let line = u32::try_from(line).map_err(|_| LlvmEmitError::UnsupportedMainBody {
+            kind: "effect trace line overflow",
+            at: span.into(),
+        })?;
+        let col = u32::try_from(col).map_err(|_| LlvmEmitError::UnsupportedMainBody {
+            kind: "effect trace column overflow",
+            at: span.into(),
+        })?;
+        Ok((line, col))
+    }
+
+    fn emit_effect_set_active_with_trace(
+        &mut self,
+        span: crate::span::Span,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let (line, col) = self.effect_trace_line_col(span)?;
+        let i32_ty = self.context.i32_type();
+        let set_active = self.declare_runtime_effect_set_active_with_trace();
+        self.builder.build_call(
+            set_active,
+            &[
+                i32_ty.const_int(line as u64, false).into(),
+                i32_ty.const_int(col as u64, false).into(),
+            ],
+            name,
+        )?;
+        Ok(())
+    }
+
     fn current_codegen_function(
         &self,
         at: crate::span::Span,
@@ -704,7 +742,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// Emit code for a standalone `perform` expression (outside of a state
     /// machine step function).  Writes the op_tag + payload to the TLS
-    /// perform slot, sets the active flag, and returns a default value.
+    /// perform slot, records the source line/col in the activation hook, and
+    /// returns a default value.
     /// The caller's state machine (via SuspendCall + Suspend terminator) will
     /// detect the active flag and handle dispatch.
     pub(super) fn codegen_perform_expr(
@@ -754,9 +793,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "",
         )?;
 
-        // Set the TLS active flag to signal that an effect was performed.
-        let set_active = self.declare_runtime_effect_set_active();
-        self.builder.build_call(set_active, &[], "")?;
+        // Record the originating perform-site before propagation so outer
+        // call-boundary suspend sites can preserve the original trace.
+        self.emit_effect_set_active_with_trace(span, "effect_set_active_with_trace")?;
 
         if self.ordinary_effect_propagation_enabled() {
             if let Some(plan) = self.current_callee_suspend_plan.clone() {
@@ -794,12 +833,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// Emit code to raise a runtime error variant through the effect system.
-    /// Writes the `Raise.raise` op_tag to the TLS perform slot, sets the
-    /// active flag, and returns.  The caller is responsible for subsequent
-    /// control flow (dead block / unreachable).
+    /// Writes the `Raise.raise` op_tag to the TLS perform slot, records the
+    /// source line/col in the activation hook, and returns.  The caller is
+    /// responsible for subsequent control flow (dead block / unreachable).
     pub(super) fn emit_raise_runtime_error_variant(
         &mut self,
-        _span: crate::span::Span,
+        span: crate::span::Span,
         _variant: &str,
     ) -> Result<(), LlvmEmitError> {
         // Use the well-known Raise.raise FQN (op_tag = 1 by convention).
@@ -825,9 +864,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "",
         )?;
 
-        // Set the TLS active flag.
-        let set_active = self.declare_runtime_effect_set_active();
-        self.builder.build_call(set_active, &[], "")?;
+        self.emit_effect_set_active_with_trace(span, "raise_set_active_with_trace")?;
 
         Ok(())
     }

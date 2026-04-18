@@ -2514,8 +2514,14 @@
   - 当前 closure/function-value call path 的 active-check、默认返回值传播与最终 return emission 均复用普通 callee 的通用逻辑，没有恢复 shape-based、helper-specific 或 test-only 分支。
 - 依赖：T3016j
 
-### T3016k [TODO] 恢复 unified non-resuming effect 的 trace hook line/col 合同
+### T3016k [DONE] 恢复 unified non-resuming effect 的 trace hook line/col 合同
 - 描述：继续执行 `T3017` 的最终验收时，`cargo run -p scoop --features llvm -- test` 已越过 stale xfail、inactive-helper verifier 回归与 ordinary closure return-contract 回归，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`。该 fixture 单独运行当前输出 `0` / `0`，而 golden 期望 `16` / `5`，说明 `Raise.raise(...)` 的 call-site trace line/col 没有被写入 runtime TLS。进一步检查确认 runtime 侧 `scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col)` 仍然存在，但当前 unified effect codegen 已只声明/调用无 trace 的 `scoop_effect_set_active()`：`runtime_symbols.rs` 缺少 `*_WITH_TRACE` 符号、`runtime_abi.rs` 缺少对应 ABI、`effect/mod.rs` 的 `codegen_perform_expr()` / `emit_raise_runtime_error_variant()` 与 `state_machine_emitter.rs` 的 `UnifiedStateTerminator::Suspend` 都只会 set active 而不会携带 span。这是共享生产合同回归，会先于 `T3017` 的 baseline cleanup 暴露，因此必须前置修复。
+- 进展：
+  - 已恢复 `runtime_symbols.rs` / `runtime_abi.rs` 对 `scoop_effect_set_active_with_trace(...)` 的生产声明，并把 ordinary `perform`、runtime-error `Raise.raise` 与 unified emitter 统一收口到共享的 trace activation helper。
+  - `effect/mod.rs` 新增通用 span → `(src_line, src_col)` 映射；`codegen_perform_expr()` 与 `emit_raise_runtime_error_variant()` 现在都通过真实源码位置写入 trace，而不是再走无 trace 的 `scoop_effect_set_active()`。
+  - `state_machine_emitter.rs` 的 `UnifiedStateTerminator::Suspend` 已改为只在 direct `Perform` site 发布 traceful activation；对 `CallMaySuspend` / `CallStateMachineCallee` / `RuntimeRaise` / `NestedHandleBoundary` 等已由内层 producer 激活的边界，不再重复 set-active 覆盖原始 perform-site trace。
+  - 已新增 2 条 emitter IR 回归：一条锁定 direct perform suspend site 会发出 `scoop_effect_set_active_with_trace(line, col)`，另一条锁定 outer suspend 不会把 callee `Raise.raise(...)` 的 trace 重置成无 trace activation。
+  - 已验证 `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`（输出恢复为 `16` / `5`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 恢复 codegen 侧从 effect source span 到 `(src_line, src_col)` 的统一映射，并重新接回 runtime `scoop_effect_set_active_with_trace(...)` ABI。
   - ordinary `codegen_perform_expr()`、`emit_raise_runtime_error_variant()` 与 unified state-machine `Suspend` terminator 必须共享同一套 trace activation 合同，不能只给单个 fixture 或 `Raise.raise` 特判。

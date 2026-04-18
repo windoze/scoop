@@ -45,6 +45,7 @@ pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64: &str = "scoop_effect_perfo
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_WRITE_U64_2: &str =
     "scoop_effect_perform_slot_write_u64_2";
 pub(super) const SCOOP_EFFECT_SET_ACTIVE: &str = "scoop_effect_set_active";
+pub(super) const SCOOP_EFFECT_SET_ACTIVE_WITH_TRACE: &str = "scoop_effect_set_active_with_trace";
 pub(super) const SCOOP_ENTER_NATIVE: &str = "scoop_enter_native";
 pub(super) const SCOOP_ENV_GET: &str = "scoop_env_get";
 pub(super) const SCOOP_EXECUTOR_CREATE: &str = "scoop_executor_create";
