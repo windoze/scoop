@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：继续执行 `T3017` 的最终验收时，`cargo run -p scoop --features llvm -- test` 已越过 stale xfail 与 `T3016i` 的 inactive-helper verifier 回归，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前直接报 `scoop::llvm::unsupported_main_body: return value`；而对照的 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍然通过，说明 shared ordinary helper call chain 已闭环，当前 blocker 已收窄为 ordinary closure / function-value callee 在 non-resuming effect outward propagation 后的返回合同仍未与既有 ordinary-frame propagation 对齐，而不是 expectation 形态问题或全局 indirect non-resuming 回归。按阻塞规则，现已在 `T3017` 前新增 `T3016j` → `T3016jR`，先修复并复审 closure/function-value 变体，再继续 effect run-pass baseline cleanup。当前 effect 主线下一项改为 `T3016j`。
+>
 > 2026-04-18 当前轮复审更新：`T3016iR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/control_flow.rs` 与 `state_machine_emitter.rs` 后确认，`T3016i` 原始的 inactive-helper IR 修复仍严格停留在统一 resumed-tail / state-machine 合同内，没有读取 helper 名称、fixture 名称或旧 `CallMaySuspend` 形状分类做分流。复审过程中额外暴露出同一条共享合同的泛化缺口：当 ordinary callee resumed tail 的首条语句是“所有 arm 都退出”的 `when` 表达式时，`codegen_when_expr()` 仍会给已终止 arm 追加 merge branch，而 block-level codegen 也会在 `CgTy::Never` 之后继续发射后续语句，从而再次把 `when_arm_*` / `when_merge` 写成 terminator 后仍有指令的非法 IR。现已把这条缺口直接在本 review 内收口：`codegen_when_expr()` 对已终止 arm 不再追加 merge branch、所有 arm 都终止时直接返回 `CgTy::Never`；`codegen_block_as_return_value()` / `codegen_block_value_in_expected_context()` 在遇到 `Never` 时立即停止发射后续语句；`expr_guarantees_control_flow_exit()` 也已补齐 `when`，避免 ordinary callee resumed tail 再拼接 enclosing block 的 unreachable suffix。同步新增 emitter IR 回归 `ordinary_callee_resume_site_drops_unreachable_suffix_after_when_all_arms_return`，并复验两条原始 `T3016i` fixture、最小 `when` 复现、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
 >
 > 2026-04-18 当前轮完成更新：`T3016i` 已完成。重新复现 `effect_handle_suspend_call_inactive_helper_basic.scoop` 后确认，非法 IR 不在 `SuspendCall` active/inactive 分支判断本身，而在 ordinary callee resumed tail 的重建：`crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 `build_resume_tail_block_from_stmt_slice()` 会在首个重建语句已经保证退出控制流时，仍继续拼接同层 sibling statements，导致 `helper(false)` / `helper(true)` 共享的 `%resume_site0` 在 `br label %return` 之后继续长出 `helper_direct` / `helper_after` / `return 7`，从而触发 LLVM verifier。现已把 ordinary callee resumed tail 收口成真正的 path-specific tail：当首个重建语句已保证 `return` / `break` / `continue` 退出时，不再附加 enclosing block 的 unreachable suffix；同时在 `crates/scoopc/src/llvm/codegen/control_flow.rs` 中修复 `codegen_block_value_in_expected_context()`，让 early-return / break / continue 的 dead path 返回与 expected-context 一致的 typed dummy value，避免 verifier 修复后又在同一路径上误报 `unsupported_main_body: value coercion`。同步新增 emitter IR 回归 `ordinary_callee_resume_site_drops_unreachable_suffix_after_nested_return`，并复验两条目标 fixture、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016iR`。
@@ -671,8 +673,8 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016i`
-2. `T3016iR`
+1. `T3016j`
+2. `T3016jR`
 3. `T3017`
 4. `T3017R`
 5. `T3103`

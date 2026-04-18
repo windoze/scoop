@@ -2477,6 +2477,30 @@
   - 本轮补上的 `when` all-arm-return follow-up 也只依赖通用的 terminated-arm / `CgTy::Never` / `expr_guarantees_control_flow_exit` 合同，没有引入 helper 名称、fixture 名称、旧 shape-based 判定或 `CallMaySuspend` 子形状旁路。
 - 依赖：T3016i
 
+### T3016j [TODO] 修正 ordinary closure/function-value callee 中 non-resuming effect 外传后的返回合同
+- 描述：继续执行 `T3017` 的最终验收时，`cargo run -p scoop --features llvm -- test` 已越过 stale xfail 与 `T3016i` 的 inactive-helper verifier 回归，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前直接报 `scoop::llvm::unsupported_main_body: return value`；而同类的普通 helper 调用链 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍已通过，说明 blocker 已收窄为 ordinary closure / function-value callee 变体：当 closure body 内执行 non-resuming effect 并向外层 handle 传播时，当前 closure frame 的返回/退出合同仍未与既有 ordinary helper path 对齐，导致 LLVM codegen 仍会落到 value-return 路径。这条 pass-fixture 生产回归会先于 `T3017` 的 expectation cleanup 暴露，因此必须前置修复。
+- 目标：
+  - ordinary closure / function-value callee 在 non-resuming effect outward propagation 时，必须像 top-level/helper ordinary callee 一样立即结束当前 frame，不能再继续落到后续 statement、tail expression 或 value-return 发射路径。
+  - closure body 的 dead-path dummy、final return emission 与 function-value call path 必须共享统一 ordinary-frame propagation 合同，不能靠 `callIt { ... }`、closure 形状或 fixture 名称做特判。
+  - `effect_indirect_perform_nonresuming_closure.scoop` 恢复为 passing baseline，并补一个 focused regression 锁定 closure/function-value 变体。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_indirect_perform_nonresuming_call_chain.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016iR
+
+### T3016jR [TODO] Review：确认 closure/function-value non-resuming outward propagation 已回到统一 ordinary-frame 合同
+- 描述：在 `T3016j` 之后只审查生产代码，确认 ordinary closure / function-value callee 的 non-resuming outward propagation 修复仍严格停留在统一 ordinary-frame propagation / return contract 内，没有为 closure body、`callIt { ... }` 或特定 fixture/helper 恢复 shape-based、test-only 或 function-value-only 旁路；若发现此类残留，本任务需要直接修复并复审。
+- 目标：
+  - 确认 ordinary helper 与 closure/function-value callee 共享同一套 non-resuming outward propagation / return contract。
+  - 确认生产代码中没有按 closure 形状、fixture 名称或特定 helper 分流的补丁。
+  - 在完成本任务后，`T3017` 的 expectation cleanup 才可继续作为单纯 baseline 收口任务推进。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“closure/function-value non-resuming outward propagation 已统一收口，无 fixture-only workaround 残留”。
+- 依赖：T3016j
+
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
@@ -2487,6 +2511,7 @@
   - 2026-04-18 本轮进一步对 75 条仍带 `EXPECT: fail` 的 run-pass fixture 做了逐条单独验证：其中 62 条现在已是 stale expectation，可直接恢复 passing baseline；4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）属于本来就应继续保持失败语义的诊断/负向 fixture，只需在本任务中去掉 stale `T3006` 原因；其余 9 条真实失败里，effect 主线 blocker 现由新增的 `T3016f` / `T3016g` / `T3016h` 承接，非 effect 残留 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 与 `not_null_assert_basic.scoop` 则已分别转记到 `T3304` / `T3406`。
   - 2026-04-18 本轮已先行在 worktree 中落实上述 cleanup：72 个 `EXPECT: fail` 中已有 66 个通过官方 runner 复核后改回 `EXPECT: pass`，run-pass 下全部 `T3006` 临时注释已清空，仅剩 6 条真实 `EXPECT: fail`（4 条本来就应失败的负向/诊断 fixture，外加已转记到 `T3304` / `T3406` 的 2 条 blocker）。
   - 继续执行本任务的最终验收时，`cargo run -p scoop --features llvm -- test` 不再停在 stale xfail，而是前进到新的更前置 pass-fixture 回归 `effect_handle_suspend_call_inactive_helper_basic.scoop`；当前其真实失败为 `scoop::llvm::module_verification_failed` / `Terminator found in the middle of a basic block! label %resume_site0`，已新增 `T3016i` / `T3016iR` 承接。因此本任务顺延到 `T3016iR` 之后继续。
+  - `T3016iR` 完成后继续复跑全量 runner，suite 再次前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前报 `scoop::llvm::unsupported_main_body: return value`，而对照的 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍已通过，说明 blocker 已收窄为 ordinary closure/function-value callee 的 non-resuming outward propagation / return contract 缺口，而不是 stale expectation 形态问题。该共享生产回归现由新增的 `T3016j` / `T3016jR` 承接，因此本任务继续顺延到 `T3016jR` 之后再收口。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -2496,7 +2521,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016iR
+- 依赖：T3016jR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
