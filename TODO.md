@@ -2322,6 +2322,76 @@
   - 当前 effect 主线的下一项真实工作仍是 `T3017`：回收剩余 stale `EXPECT: fail`，全量 fixture suite 的首个停止点与该任务记录一致。
 - 依赖：T3016e
 
+### T3016f [TODO] 修正 multi-escape resumed-body 在 top-level 多 site direct/indirect 序列中的 prefix replay 回归
+- 描述：重新执行 `T3017` 的逐条 expectation cleanup 时，把 75 条仍带 `EXPECT: fail` 的 run-pass fixture 单独切回 `EXPECT: pass` 后发现，`effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`、`effect_multi_escape_custom_nonresuming_indirect_multi.scoop`、`effect_multi_escape_indirect_multi.scoop` 与 `effect_resume_mixed_multi_escape_direct_indirect.scoop` 仍存在一个未跟踪的共享生产回归：后续 `resume(...)` 返回后，stdout 会错误重放已经完成过的 tail prefix（例如再次打印 `after_a1` / `after_first`），然后才继续 `fetch_resume` / `countIndirect_resume`。这说明当前 unified replay contract 只覆盖了 `T3016b` 已锁定的 block/if/while mixed container，却还没有把 top-level multi-site direct/indirect 序列、以及 immediate+escape mixed leaf 的“当前 resumed segment 起点”正确带入下一次 replay。
+- 目标：
+  - top-level 多 site direct/indirect/mixed 序列在每次 `resume(...)` 后只从当前 site 的剩余 tail 继续，不再重放更早已完成的 prefix。
+  - escape-only、带 sibling custom non-resuming arm，以及 immediate+escape mixed leaf 三类路径共享同一套 resumed-body replay 合同。
+  - 修复停留在统一 state-machine / resume-path 合同内，不按源码形状、fixture 名称或 direct-vs-indirect 组合额外分流。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_indirect_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_multi_escape_indirect_multi.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_mixed_multi_escape_direct_indirect.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016eR
+
+### T3016fR [TODO] Review：确认 top-level multi-escape replay 已回到统一 resume-path 合同
+- 描述：在 `T3016f` 之后只审查生产代码，确认 top-level multi-site replay 的修复仍只依赖统一 state-machine / resume-path / continuation 元数据，而不是为 `fetch(...)` helper、mixed direct/indirect 顺序或特定 fixture 手工补 prefix；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 top-level multi-site replay 与既有 block/if/while / ordinary indirect callee replay 共享同一套 resume-path 合同。
+  - 确认 production code 中没有按 helper 名称、site 顺序或 mixed 分类引入新的 shape-based fallback。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“top-level multi-escape replay 已按统一 resume-path 合同收口，无 fixture-only / shape-based 补丁残留”。
+- 依赖：T3016f
+
+### T3016g [TODO] 修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归
+- 描述：`T3017` 当前扫描还暴露出另一条独立的 effect 生产缺口：`effect_resume_finally_body_raise_after_resume.scoop` 现会输出 `finally -> handle_unreachable -> result -> 0`，而不是在 `resume(41)` 后执行 `boom()` 触发 `Raise.raise(77)`、跑完 `finally` 后向外层 `catch` 传播。这说明 immediate-resume arm 恢复后的 body 在再次命中 non-resuming outward effect 时，当前 cleanup/completion 合同仍会把异常传播误当普通 handle 完成吞掉。
+- 目标：
+  - resumed body 在 `resume(...)` 之后再次触发 `Raise.raise(...)` / 等价 non-resuming outward effect 时，必须在 `finally` 恰好执行一次后继续向外传播。
+  - 不能继续执行 `handle_unreachable` 或把 handle result 静默打成 `0`。
+  - 该路径与既有 cleanup/finally / outward propagation 合同共享同一套生产逻辑，不另起 immediate-resume 特判。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_resume_finally_body_raise_after_resume.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016fR
+
+### T3016gR [TODO] Review：确认 resumed-body raise-after-resume 已闭环到统一 cleanup/propagation 合同
+- 描述：在 `T3016g` 之后只审查生产代码，确认 `resume(...)` 之后的再次 outward raise 不再走独立 completion/finally shortcut，而是统一复用现有 cleanup/propagation 合同；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 `finally` 的执行次数、handle completion tag 与 outward propagation 仍由统一 state-machine 出口协调。
+  - 确认没有为 `effect_resume_finally_body_raise_after_resume.scoop` 单独加 test-only 分支或 runtime 特判。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“resume 后 body 再次 outward raise 已按统一 cleanup/propagation 合同收口，无 fixture-only workaround 残留”。
+- 依赖：T3016g
+
+### T3016h [TODO] 修正 unified effect frame seeding 在 stdlib/task adapter 路径上遗漏 outer-scope local 的生产缺口
+- 描述：`T3017` 本轮逐条扫描还确认了两条仍未显式跟踪的真实 production blocker：`std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 都会在 LLVM codegen 阶段报 `unsupported_main_body: effect frame seed outer-scope local`。这说明当前 unified handle / try-catch frame seeding 仍无法覆盖某些“只在 stdlib/task helper 的 nested handle / closure / try-catch 路径里被读取或写回的 outer local”，而这一缺口此前只在 `Continuation.resume(...)` outer-body 变体里被 `T3016c` 局部收口，并没有形成更广义的 seeding 合同。
+- 目标：
+  - `std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 恢复为正常 run-pass，不再报 `effect frame seed outer-scope local`。
+  - unified frame seeding 能覆盖 stdlib/test/task helper 经过 nested handle / try-catch / closure 间接读取的 outer locals，而不是只覆盖此前已修的 outer-body `Continuation.resume(...)` 子集。
+  - 修复仍停留在共享 frame metadata / slot seeding 合同内，不为具体 stdlib API 或 fixture 名称单独打补丁。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/std_task_async_adapters_basic.scoop`
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/stdlib_smoke_test_and_preconditions.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T3016gR
+
+### T3016hR [TODO] Review：确认 stdlib/task adapter outer-local seeding 已回到统一 frame metadata 合同
+- 描述：在 `T3016h` 之后只审查生产代码，确认 stdlib/task adapter 路径的 outer-local seeding 修复仍由统一 frame metadata / slot seeding 驱动，而不是为 `Executor.await`、`assertTrue` / `require` 等 helper 写死特殊入口；若发现旁路，本任务需要直接修复并复审。
+- 目标：
+  - 确认 nested handle / try-catch / closure 间接使用 outer locals 的 seeding 行为已统一收口。
+  - 确认 production code 中没有为具体 stdlib helper、Task adapter 或 fixture-only 场景添加新的 effect-only fallback。
+- 验收：
+  - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
+  - 审查结论明确记录“stdlib/task adapter outer-local seeding 已按统一 frame metadata 合同收口，无 helper-specific workaround 残留”。
+- 依赖：T3016h
+
 ### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
@@ -2329,6 +2399,7 @@
   - 当前 `cargo run -p scoop --features llvm -- test` 的首个停止点已推进到 `tests/fixtures/run-pass/effect_escape_continuation_async_executor_fifo.scoop` 的 stale `EXPECT: fail`；该 fixture 单独运行已成功，等待本任务统一回收 expectation 并继续推进全量基线。
   - 2026-04-18 本轮 expectation scan 把 83 条残留 `T3006` xfail 临时切回 `EXPECT: pass` 做了正式 runner 验证，确认 `T3017` 不能直接执行：至少存在四类更前置的真实生产缺口，分别由 `T3016a`（cleanup/finally completion 恢复）、`T3016b`（resumed-body tail replay）、`T3016c`（outer-body `Continuation.resume(...)` lowering）、`T3016d`（GC stress continuation/object-graph 存活）承接。
   - 2026-04-18 本轮重新启动 expectation cleanup 时，再次用官方 runner 验证 61 条 effect / continuation 相关 `EXPECT: fail` 候选，发现 `T3017` 仍有新的前置 blocker：pass 基线中的 `effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop`，以及 xfail 中的 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 都会在 inner arm/catch 再次 perform 后继续执行 `unreachable_after_*`。该共享回归现由新增的 `T3016e` / `T3016eR` 承接。
+  - 2026-04-18 本轮进一步对 75 条仍带 `EXPECT: fail` 的 run-pass fixture 做了逐条单独验证：其中 62 条现在已是 stale expectation，可直接恢复 passing baseline；4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）属于本来就应继续保持失败语义的诊断/负向 fixture，只需在本任务中去掉 stale `T3006` 原因；其余 9 条真实失败里，effect 主线 blocker 现由新增的 `T3016f` / `T3016g` / `T3016h` 承接，非 effect 残留 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 与 `not_null_assert_basic.scoop` 则已分别转记到 `T3304` / `T3406`。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。
@@ -2338,7 +2409,7 @@
     对 effect 统一主线相关 fixture 不再残留当前这批临时标记。
   - `cargo run -p scoop --features llvm -- test`
   - 若涉及规范/文档或 golden 变更，所需配套文件已一并更新。
-- 依赖：T3016eR
+- 依赖：T3016hR
 
 ### T3017R [TODO] Review：确认回收 xfail 后统一 effect 主线成为新的稳定 passing baseline
 - 描述：在 `T3017` 之后做最终复审，只看生产代码与仓库测试基线形态，确认 effect run-pass 基线已经真正恢复，而不是靠保留隐性 xfail、跳过路径或局部 test-only workaround 维持绿色；若发现问题，本任务需要直接修复并复审。
@@ -2518,6 +2589,18 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3301
 
+### T3304 [TODO] 名称解析 / 类型：多 import 下同名 enum variant ctor 按 expected type 消歧
+- 描述：`T3017` 本轮扫描发现 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 当前并没有进入预期的 continuation/GC 语义验证，而是在 typecheck 阶段先报 `ambiguous_enum_variant_ctor`：`None` 同时匹配 `scoop.core.Option.None` 与经 `scoop.thread.*` 带入的 `scoop.delegates.LazyThreadSafetyMode.None`。在 `CellA(None())` / `Continuation<Int>?` 这类 expected type 已经明确的上下文里，相关 import 不应把显而易见的 `Option.None` 构造直接打成歧义。
+- 目标：
+  - 在存在明确 expected type / 参数类型的场景下，同名 enum variant ctor 能优先按类型上下文完成消歧，而不是无条件报歧义。
+  - 对确实无法消歧的场景保留稳定、清晰的诊断，并支持用户显式限定。
+  - 修复后 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 至少能前进到其真实的线程/GC/continuation 语义验证阶段。
+- 验收：
+  - 新增 typecheck / run-pass fixtures：`Option.None` 与其它 `None` 同名导入、expected-type 可消歧与不可消歧两类场景。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：无
+
 ## T34：泛型约束 / Pattern / 值类型能力补齐
 
 ### T3401 [TODO] 泛型：`where` nominal bound 支持类型实参与 instantiated supertype 满足性
@@ -2616,3 +2699,16 @@
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T3402
+
+### T3406 [TODO] 值语义 / codegen：`!!` 非空断言收口 `when arm type mismatch`
+- 描述：`T3017` 本轮扫描发现 `not_null_assert_basic.scoop` 当前仍会在 LLVM codegen 阶段报 `unsupported_main_body: when arm type mismatch`。这说明 `expr!!` 的 lowering / codegen 还没有把“成功解包得到值”和“失败抛 `RuntimeError`”两条分支统一收口到稳定的控制流/类型合同，导致最基本的 `Some("hello")!!` 也无法作为普通 run-pass 执行。
+- 目标：
+  - `Some("hello")!!` 能稳定解包并产出 `String`；`None!!` 仍按规范抛出 `RuntimeError`。
+  - `!!` 的 lowering / codegen 与既有 `when` / try-catch / runtime raise 合同一致，不再落到 `when arm type mismatch`。
+  - 相关路径在 expected type、boxing / ref transport 与诊断上行为稳定，不依赖 fixture 特判。
+- 验收：
+  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/not_null_assert_basic.scoop`
+  - 新增最小 typecheck / run-pass fixtures：成功解包、失败抛 `RuntimeError`、参与更大表达式时的 expected type。
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：无

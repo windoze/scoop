@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮阻塞重排更新：继续执行 `T3017` 的 expectation cleanup 时，我先对 75 条仍带 `EXPECT: fail` 的 run-pass fixture 做了逐条单独验证。结果表明 `T3017` 仍不能直接收尾：62 条已经是 stale expectation，可在后续任务中直接回收；4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）本来就应继续保持失败语义，只需去掉 stale `T3006` 原因；其余 9 条里又暴露出三类新的 effect 主线 blocker 与两类非 effect 真实问题。新的 effect blocker 分别是：其一，`effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`、`effect_multi_escape_custom_nonresuming_indirect_multi.scoop`、`effect_multi_escape_indirect_multi.scoop` 与 `effect_resume_mixed_multi_escape_direct_indirect.scoop` 在后续 `resume(...)` 后会错误重放已完成 prefix，说明 top-level multi-site direct/indirect replay 还没真正闭环，对应新增 `T3016f`→`T3016fR`；其二，`effect_resume_finally_body_raise_after_resume.scoop` 在 resumed body 再次 `Raise.raise(...)` 后会继续执行 `handle_unreachable` 并把结果打成 `0`，说明 cleanup/propagation 合同仍有缺口，对应新增 `T3016g`→`T3016gR`；其三，`std_task_async_adapters_basic.scoop` 与 `stdlib_smoke_test_and_preconditions.scoop` 仍会报 `effect frame seed outer-scope local`，说明 unified frame seeding 对 stdlib/task helper 路径仍不完整，对应新增 `T3016h`→`T3016hR`。另外，`gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 当前先被 `None` ctor 歧义卡在 typecheck，已转记到 `T3304`；`not_null_assert_basic.scoop` 仍报 `when arm type mismatch`，已转记到 `T3406`。因此 `T3017` 顺延到 `T3016hR` 之后，当前 effect 主线下一项改为 `T3016f`。
+>
 > 2026-04-18 当前轮复审更新：`T3016eR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs` 与 `state_machine_transform.rs` 后确认，`T3016e` 的修复仍严格停留在统一 state-machine 合同内：`HandleStateMachinePlan::may_suspend_outward()` 现通过 `arm.body_may_suspend_outward` 把 arm body 内再次 outward suspend 纳入统一判定，outer machine 是否物化 `NestedHandleBoundary` 继续只由 plan 语义决定；immediate-resume arm 的特例也仅限于剥除由当前 arm 自己消费的尾部 `resume(...)`，其支持范围与 emitter 的 dedicated tail rewrite 合同一致，没有把旧的 callee/source shape 路由带回主线。新增的 `body_may_suspend_outward` 只作为 plan → segments 的元数据 round-trip 存在，不构成新的 fallback；显式 `handle` 与 `try/catch` lowering 共享同一 outward-propagation 修复面。已复验 3 条目标 fixture 直跑、`cargo test -p scoopc nested_handle_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；额外复跑 `cargo run -p scoop --features llvm -- test` 后，suite 未出现新的更早回归，当前首个停止点仍是已由 `T3017` 跟踪的 stale expectation `effect_escape_continuation_async_executor_fifo.scoop`。因此 effect 主线下一项推进到 `T3017`。
 >
 > 2026-04-18 当前轮完成更新：`T3016e` 已完成。复现 `effect_handler_stack_nearest_and_arm_outside_scope.scoop`、`effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.scoop` 与 `effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 后确认，真正 blocker 不在 runtime handler stack 或 dispatch IR，而在 plan builder：arm body 仍是 opaque expr lowering，`HandleStateMachinePlan::may_suspend_outward()` 只检查 `suspend_sites` / nested handles，没把 arm body 内再次 outward suspend 计入，导致外层 machine 把这类 inner handle 误判成普通 `NestedHandle`，没有物化 `NestedHandleBoundary` + `Suspend` terminator。现已在 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 为 arm body 新增精确的 outward-suspend 判定，并沿 `state_machine_segments.rs` round-trip 投影补齐 `body_may_suspend_outward` 元数据；其中 immediate-resume arm 会剥除由当前 arm 自己消费的尾部 `resume(...)` 后再判断，避免把自洽 nested handle 误升级为 boundary。新增 unified transform 结构测试 `nested_handle_with_non_resuming_arm_rethrow_materializes_outer_boundary` 后，三条目标 fixture 均恢复为外层最近 handler/catch propagation，`effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 也已从旧 `EXPECT: fail` 改回 `EXPECT: pass`。已验证 3 条定向 `scoop run`、`cargo test -p scoopc nested_handle_ -- --nocapture`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016eR`。
@@ -600,6 +602,10 @@
 - 函数值调用、函数指针调用、`super(...)` / `this(...)` 构造器委托调用要共用同一套参数匹配规则。
 - 命名实参与 receiver function type 的处理不能再靠零散的早期门禁分流。
 
+#### T3304：多 import 下同名 enum variant ctor 按 expected type 消歧
+- 在 `CellA(None())` / `Continuation<Int>?` 这类 expected type 已明确的上下文里，同名 enum variant ctor 不能再因为额外 import（例如 `scoop.thread.*` 带来的 `LazyThreadSafetyMode.None`）直接报歧义。
+- 需要同时锁定“可按 expected type 消歧”和“确实无法消歧时给稳定诊断”两类场景。
+
 ### 阶段 J：泛型约束 / Pattern / 值类型能力补齐
 
 #### T3401：`where` nominal bound 支持类型实参与 instantiated supertype 满足性
@@ -634,6 +640,10 @@
 - 当各分支 binder 集、名称与类型兼容时，允许 or-pattern 引入共享 binder。
 - binder 数量、名称或类型不一致时，要给出具体而稳定的诊断。
 
+#### T3406：`!!` 非空断言 lowering / codegen 收口
+- `expr!!` 需要统一接到稳定的成功解包 / 失败抛 `RuntimeError` 控制流合同，不能再在 LLVM codegen 阶段落到 `when arm type mismatch`。
+- 该路径要与既有 `when` / try-catch / runtime raise 合同对齐，而不是依赖专门的 `!!` 旁路。
+
 ## 3. 验收策略
 
 - `T30` 的清理阶段允许临时破坏编译；目标是先删旧主线。
@@ -643,24 +653,31 @@
 
 ## 4. 当前执行顺序
 
-1. `T3017`
-2. `T3017R`
-3. `T3103`
-4. `T3104`
-5. `T3201`
-6. `T3202`
-7. `T3203`
-8. `T3204`
-9. `T3205`
-10. `T3205`
-11. `T3301`
-12. `T3302`
-13. `T3303`
-14. `T3401`
-15. `T3401a`
-16. `T3401b`
-17. `T3401c`
-18. `T3402`
-19. `T3403`
-20. `T3404`
-21. `T3405`
+1. `T3016f`
+2. `T3016fR`
+3. `T3016g`
+4. `T3016gR`
+5. `T3016h`
+6. `T3016hR`
+7. `T3017`
+8. `T3017R`
+9. `T3103`
+10. `T3104`
+11. `T3201`
+12. `T3202`
+13. `T3203`
+14. `T3204`
+15. `T3205`
+16. `T3301`
+17. `T3302`
+18. `T3303`
+19. `T3304`
+20. `T3401`
+21. `T3401a`
+22. `T3401b`
+23. `T3401c`
+24. `T3402`
+25. `T3403`
+26. `T3404`
+27. `T3405`
+28. `T3406`
