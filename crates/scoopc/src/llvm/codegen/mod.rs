@@ -1309,6 +1309,68 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_ordinary_callee_suspend_plan_from_unified_contract(block, return_ty)
     }
 
+    /// Create the shared function-level return context used by ordinary frames.
+    fn setup_function_return_context(
+        &mut self,
+        at: crate::span::Span,
+        llvm_fun: FunctionValue<'ctx>,
+        declared_return_cg: CgTy,
+    ) -> Result<
+        (
+            inkwell::basic_block::BasicBlock<'ctx>,
+            Option<inkwell::values::PointerValue<'ctx>>,
+        ),
+        LlvmEmitError,
+    > {
+        let return_bb = self.context.append_basic_block(llvm_fun, "return");
+        let return_alloca = match declared_return_cg {
+            CgTy::Unit | CgTy::Never => None,
+            _ => Some(self.builder.build_alloca(
+                self.llvm_basic_type_of(at, declared_return_cg)?,
+                "return_val",
+            )?),
+        };
+        self.return_context = Some(ReturnContext {
+            return_bb,
+            return_alloca,
+        });
+        Ok((return_bb, return_alloca))
+    }
+
+    /// Emit the shared return block terminator after body/resume paths branch into it.
+    fn emit_function_return_block(
+        &mut self,
+        at: crate::span::Span,
+        declared_return_cg: CgTy,
+        return_bb: inkwell::basic_block::BasicBlock<'ctx>,
+        return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
+    ) -> Result<(), LlvmEmitError> {
+        self.builder.position_at_end(return_bb);
+        match declared_return_cg {
+            CgTy::Unit => {
+                self.builder.build_return(None)?;
+            }
+            CgTy::Never => {
+                self.builder.build_unreachable()?;
+            }
+            _ => {
+                let alloca = return_alloca.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "return alloca",
+                    at: at.into(),
+                })?;
+                let loaded = self.builder.build_load(
+                    self.llvm_basic_type_of(at, declared_return_cg)?,
+                    alloca,
+                    "ret_load",
+                )?;
+                let ret_v = self.cg_value_from_loaded(at, declared_return_cg, loaded)?;
+                self.emit_return(at, declared_return_cg, ret_v)?;
+            }
+        }
+        self.return_context = None;
+        Ok(())
+    }
+
     fn finish_function_return_path(
         &mut self,
         at: crate::span::Span,
@@ -1413,19 +1475,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.current_fun_return_ty = Some(declared_return_cg);
 
         // T0141: Set up function-level return context for early return support.
-        // Alloca is placed here (still in the entry block before body codegen).
-        let return_bb = self.context.append_basic_block(llvm_fun, "return");
-        let return_alloca = match declared_return_cg {
-            CgTy::Unit | CgTy::Never => None,
-            _ => Some(self.builder.build_alloca(
-                self.llvm_basic_type_of(fun.span, declared_return_cg)?,
-                "return_val",
-            )?),
-        };
-        self.return_context = Some(ReturnContext {
-            return_bb,
-            return_alloca,
-        });
+        // The return slot lives in the entry block before body codegen.
+        let (return_bb, return_alloca) =
+            self.setup_function_return_context(fun.span, llvm_fun, declared_return_cg)?;
 
         let callee_suspend_plan = self.build_fun_callee_suspend_plan(fun);
         let base_env = self.env.clone();
@@ -1460,30 +1512,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.finish_function_return_path(fun.span, declared_return_cg, ret_v)?;
         }
 
-        // Emit the return block.
-        self.builder.position_at_end(return_bb);
-        match declared_return_cg {
-            CgTy::Unit => {
-                self.builder.build_return(None)?;
-            }
-            CgTy::Never => {
-                self.builder.build_unreachable()?;
-            }
-            _ => {
-                if let Some(alloca) = return_alloca {
-                    let loaded = self.builder.build_load(
-                        self.llvm_basic_type_of(fun.span, declared_return_cg)?,
-                        alloca,
-                        "ret_load",
-                    )?;
-                    self.builder.build_return(Some(&loaded))?;
-                } else {
-                    self.builder.build_return(None)?;
-                }
-            }
-        }
-
-        self.return_context = None;
+        self.emit_function_return_block(fun.span, declared_return_cg, return_bb, return_alloca)?;
         self.env.pop_scope();
         Ok(())
     }
@@ -10852,6 +10881,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
         let env_param_index = u32::from(uses_hidden_sret);
+        let (return_bb, return_alloca) =
+            self.setup_function_return_context(closure.span, llvm_fun, declared_return_cg)?;
 
         // captures：从 env（第 0 个 LLVM param）读取并绑定为 locals。
         if !capture_bindings.is_empty() {
@@ -11083,6 +11114,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.finish_function_return_path(closure.span, declared_return_cg, ret_v)?;
         }
 
+        self.emit_function_return_block(
+            closure.span,
+            declared_return_cg,
+            return_bb,
+            return_alloca,
+        )?;
         self.current_sret_return_ptr = None;
         self.current_callee_suspend_plan = saved_callee_suspend_plan;
         self.env.pop_scope();

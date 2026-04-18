@@ -509,7 +509,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///
     /// 这条路径只用于 ordinary frame 的 effect 传播：
     /// - 若存在 function-level return context，则写入默认返回值并 branch 到 return_bb；
-    /// - 否则直接发射函数 return（例如 closure/object init 等没有 return_bb 的内部函数）；
+    /// - 否则直接发射函数 return（例如 object init 这类没有 return_bb 的内部函数）；
     /// - 对 `Nothing` 返回类型，必须发射 `ret void`，让 caller 观察 TLS active，而不是走
     ///   普通 `return_bb` 的 `unreachable`。
     fn emit_effect_propagation_return(

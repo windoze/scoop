@@ -4,6 +4,8 @@
 > 历史归档：`PLAN-3.md` / `TODO-3.md`  
 > 范围：本计划先覆盖当前 effect 统一主线（`T30`）；为避免下一批任务继续停留在归档里，也顺延保留前端 / 并发 / 类型系统的后续队列（`T31`～`T34`）。当前执行顺序仍以 `T30` 全部收口为先。
 >
+> 2026-04-18 当前轮完成更新：`T3016j` 已完成。重新复现 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop` 后确认，真正缺口不在 function-value call site 自身的 active-check，而在 `crates/scoopc/src/llvm/codegen/mod.rs` 的 ordinary closure body 返回合同：`codegen_closure_fun_body()` 只有 `current_fun_return_ty`，没有像普通 top-level/helper callee 那样建立 `return_bb` / `return_alloca` / `return_context`，因此 closure body 内 outward non-resuming effect 之后仍会落回直接 `emit_return()`，最后在 `emit_return()` 处报 `unsupported_main_body: return value`。现已把普通函数 / closure 共享的 function-level return contract 抽成 `setup_function_return_context()` + `emit_function_return_block()`，并让 closure body 与 ordinary helper 统一走这套 return-context 主线；`emit_effect_propagation_return()` 的文档边界也已同步更新，closure 不再属于“没有 return_bb 的内部函数”特例。同步新增 focused regression `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_local.scoop`，锁定“closure 先物化为本地 function-value，再经普通 helper 调用”时的 non-resuming outward propagation / return contract。已复验 `effect_indirect_perform_nonresuming_closure.scoop`、`effect_indirect_perform_nonresuming_call_chain.scoop`、新增 focused regression、`cargo fmt --check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3016jR`。
+>
 > 2026-04-18 当前轮阻塞重排更新：继续执行 `T3017` 的最终验收时，`cargo run -p scoop --features llvm -- test` 已越过 stale xfail 与 `T3016i` 的 inactive-helper verifier 回归，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前直接报 `scoop::llvm::unsupported_main_body: return value`；而对照的 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍然通过，说明 shared ordinary helper call chain 已闭环，当前 blocker 已收窄为 ordinary closure / function-value callee 在 non-resuming effect outward propagation 后的返回合同仍未与既有 ordinary-frame propagation 对齐，而不是 expectation 形态问题或全局 indirect non-resuming 回归。按阻塞规则，现已在 `T3017` 前新增 `T3016j` → `T3016jR`，先修复并复审 closure/function-value 变体，再继续 effect run-pass baseline cleanup。当前 effect 主线下一项改为 `T3016j`。
 >
 > 2026-04-18 当前轮复审更新：`T3016iR` 已完成。复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`crates/scoopc/src/llvm/codegen/control_flow.rs` 与 `state_machine_emitter.rs` 后确认，`T3016i` 原始的 inactive-helper IR 修复仍严格停留在统一 resumed-tail / state-machine 合同内，没有读取 helper 名称、fixture 名称或旧 `CallMaySuspend` 形状分类做分流。复审过程中额外暴露出同一条共享合同的泛化缺口：当 ordinary callee resumed tail 的首条语句是“所有 arm 都退出”的 `when` 表达式时，`codegen_when_expr()` 仍会给已终止 arm 追加 merge branch，而 block-level codegen 也会在 `CgTy::Never` 之后继续发射后续语句，从而再次把 `when_arm_*` / `when_merge` 写成 terminator 后仍有指令的非法 IR。现已把这条缺口直接在本 review 内收口：`codegen_when_expr()` 对已终止 arm 不再追加 merge branch、所有 arm 都终止时直接返回 `CgTy::Never`；`codegen_block_as_return_value()` / `codegen_block_value_in_expected_context()` 在遇到 `Never` 时立即停止发射后续语句；`expr_guarantees_control_flow_exit()` 也已补齐 `when`，避免 ordinary callee resumed tail 再拼接 enclosing block 的 unreachable suffix。同步新增 emitter IR 回归 `ordinary_callee_resume_site_drops_unreachable_suffix_after_when_all_arms_return`，并复验两条原始 `T3016i` fixture、最小 `when` 复现、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。当前 effect 主线下一项推进到 `T3017`。
@@ -673,27 +675,26 @@
 
 ## 4. 当前执行顺序
 
-1. `T3016j`
-2. `T3016jR`
-3. `T3017`
-4. `T3017R`
-5. `T3103`
-6. `T3104`
-7. `T3201`
-8. `T3202`
-9. `T3203`
-10. `T3204`
-11. `T3205`
-12. `T3301`
-13. `T3302`
-14. `T3303`
-15. `T3304`
-16. `T3401`
-17. `T3401a`
-18. `T3401b`
-19. `T3401c`
-20. `T3402`
-21. `T3403`
-22. `T3404`
-23. `T3405`
-24. `T3406`
+1. `T3016jR`
+2. `T3017`
+3. `T3017R`
+4. `T3103`
+5. `T3104`
+6. `T3201`
+7. `T3202`
+8. `T3203`
+9. `T3204`
+10. `T3205`
+11. `T3301`
+12. `T3302`
+13. `T3303`
+14. `T3304`
+15. `T3401`
+16. `T3401a`
+17. `T3401b`
+18. `T3401c`
+19. `T3402`
+20. `T3403`
+21. `T3404`
+22. `T3405`
+23. `T3406`

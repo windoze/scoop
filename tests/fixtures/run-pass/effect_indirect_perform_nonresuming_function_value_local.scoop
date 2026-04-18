@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_function_value_local.stdout
+//
+// T3016j: Non-resuming effect through a local function-value closure.
+// - The closure is first materialized into a local `() -> Int / Boom`;
+// - A regular helper then invokes that function value;
+// - Verifies closure/function-value outward propagation uses the same
+//   ordinary-frame return contract as other ordinary callees.
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun invokeLater(f: () -> Int / Boom): Int / Boom {
+    println("invoke_before")
+    val value: Int = f()
+    println("invoke_unreachable")
+    return value
+}
+
+fun main(): Int {
+    val seed: Int = 9
+    val thunk: () -> Int / Boom = {
+        println("thunk_before")
+        println(seed * 3)
+        Boom.boom(seed * 3)
+        println("thunk_unreachable")
+        0
+    }
+
+    val result: Int = handle {
+        println("body")
+        invokeLater(thunk)
+    } with {
+        Boom.boom(e: Int) -> {
+            println("caught")
+            println(e)
+            e + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

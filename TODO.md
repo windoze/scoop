@@ -2477,8 +2477,14 @@
   - 本轮补上的 `when` all-arm-return follow-up 也只依赖通用的 terminated-arm / `CgTy::Never` / `expr_guarantees_control_flow_exit` 合同，没有引入 helper 名称、fixture 名称、旧 shape-based 判定或 `CallMaySuspend` 子形状旁路。
 - 依赖：T3016i
 
-### T3016j [TODO] 修正 ordinary closure/function-value callee 中 non-resuming effect 外传后的返回合同
+### T3016j [DONE] 修正 ordinary closure/function-value callee 中 non-resuming effect 外传后的返回合同
 - 描述：继续执行 `T3017` 的最终验收时，`cargo run -p scoop --features llvm -- test` 已越过 stale xfail 与 `T3016i` 的 inactive-helper verifier 回归，新的首个失败点推进到本来就应 passing 的 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前直接报 `scoop::llvm::unsupported_main_body: return value`；而同类的普通 helper 调用链 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍已通过，说明 blocker 已收窄为 ordinary closure / function-value callee 变体：当 closure body 内执行 non-resuming effect 并向外层 handle 传播时，当前 closure frame 的返回/退出合同仍未与既有 ordinary helper path 对齐，导致 LLVM codegen 仍会落到 value-return 路径。这条 pass-fixture 生产回归会先于 `T3017` 的 expectation cleanup 暴露，因此必须前置修复。
+- 进展：
+  - 已把普通函数 / closure 共享的 function-level return contract 抽成 `setup_function_return_context` + `emit_function_return_block`；`codegen_closure_fun_body()` 现与 top-level ordinary helper 一样建立 `return_bb` / `return_alloca` / `return_context`，不再在 closure body 尾部直接落回裸 `emit_return()`。
+  - 已更新 `emit_effect_propagation_return()` 的注释边界，确认 closure 不再属于“没有 return_bb 的内部函数”特例；当前仍保留 direct-return 的仅是 object init 等内部路径。
+  - 原始回归 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop` 已恢复 passing；对照 `effect_indirect_perform_nonresuming_call_chain.scoop` 继续通过。
+  - 已新增 focused regression `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_local.scoop`，锁定“closure 先物化为本地 function-value，再经普通 helper 调用”时的 non-resuming outward propagation / return contract。
+  - 已验证 `cargo fmt --check`、两条原始定向 fixture、新增 focused regression、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - ordinary closure / function-value callee 在 non-resuming effect outward propagation 时，必须像 top-level/helper ordinary callee 一样立即结束当前 frame，不能再继续落到后续 statement、tail expression 或 value-return 发射路径。
   - closure body 的 dead-path dummy、final return emission 与 function-value call path 必须共享统一 ordinary-frame propagation 合同，不能靠 `callIt { ... }`、closure 形状或 fixture 名称做特判。
