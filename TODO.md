@@ -1904,8 +1904,12 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3015aR、T3014R、T3010b2b1
 
-### T3015R [TODO] Review：确认 handler active/inactive 与 escaped continuation context 已真正闭环
+### T3015R [DONE] Review：确认 handler active/inactive 与 escaped continuation context 已真正闭环
 - 描述：在 `T3015` 之后只审查生产代码，确认 arm self-inactive 语义与 escaped continuation 的 handler context 生命周期已经形成可审计的闭环，而不是继续依赖 stack-alloc frame 指针恰好“暂时没炸”；若发现这类问题，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `runtime/c/scoop_runtime.c` 中 `scoop_effect_handler_stack_snapshot_clone`、`scoop_continuation_alloc`、`scoop_continuation_release` 与 `scoop_continuation_resume_common`：continuation 捕获的是独立的堆上 handler stack 快照，resume 时通过 `scoop_effect_handler_stack_swap_top` 临时安装，step 返回后恢复调用方 TLS，并在 resume 或 GC release 时释放快照，不再借用外层 `handle` 的 stack-alloc frame。
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 中 `emit_effect_runtime_functions`、`emit_dispatch_loop_body` 与 `emit_dispatch_arm_execution`：初始 `handle` 执行与 escaped continuation resume 都统一回到同一个 `scoop.effect.dispatch.*` 入口；arm 执行前会先清 TLS active flag，再由 `arm_context_active` + outward-propagate 分支保证“arm body 内再次 perform 时跳过当前 handler”，而不是依赖 handler frame 指针碰巧失效。
+  - 已验证 `cargo test -p scoop_runtime --test continuation_one_shot -- --nocapture`、`cargo test -p scoop_runtime --test continuation_cross_thread_handler_stack -- --nocapture`、`cargo test -p scoopc escaped_continuation_ir_uses_dispatch_loop_entry_for_resume -- --nocapture`、`cargo test -p scoopc indirect_if_branch_callee_keeps_handle_call_site_active_dispatch -- --nocapture`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_arm_performs_outer_effect.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_nested_arm_indirect_performs_outer.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_scheduler_round_robin.scoop`、`cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过。
 - 目标：
   - 确认 arm body 执行期当前 handler 的 active 状态变化有明确、对称、可恢复的生产路径。
   - 确认 continuation 捕获/恢复的 handler context 生命周期独立于外层 `handle` 的栈帧生命周期。
@@ -1913,6 +1917,10 @@
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“handler active/inactive 与 escaped continuation context 已闭环，无 stack-frame lifetime 漏洞残留”。
+- 审查结论：
+  - handler active/inactive 与 escaped continuation context 已闭环，无 stack-frame lifetime 漏洞残留。
+  - arm self-inactive 现在由统一 dispatch-loop 中“`clear_active` → 执行 arm body state → active 时按 `arm_context_active` 决定 outward propagation / redispatch”的生产路径落实，而不是依赖 runtime handler frame 被提前 pop 或意外失活。
+  - continuation 的 handler context 生命周期现在由 continuation-owning snapshot + `resume_common` 的安装/恢复/释放对称路径负责；跨线程 resume 观察到的是快照指针而非原始栈帧地址。
 - 依赖：T3015
 
 ### T3016 [TODO] 接通 handle 内 `return` 的 function-return propagation
