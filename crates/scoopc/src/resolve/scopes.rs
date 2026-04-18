@@ -695,7 +695,7 @@ impl<'a> BlockScopeChecker<'a> {
                 self.declare_ident_typed(id, v.ty.clone())?;
             }
             ast::ValBinding::Pattern(_) => {
-                for b in bound_idents(&v.binding) {
+                for b in v.binding.bound_idents() {
                     self.declare_ident(&b)?;
                 }
             }
@@ -2619,47 +2619,6 @@ fn is_ctor_visible_from(
         Visibility::Public => true,
         Visibility::Internal => ctor.decl_cone == use_cone,
         Visibility::Private => ctor.decl_file == source.path(),
-    }
-}
-
-fn bound_idents(binding: &ast::ValBinding) -> Vec<ast::Ident> {
-    match binding {
-        ast::ValBinding::Name(id) => vec![*id],
-        ast::ValBinding::Pattern(p) => bound_idents_in_pattern(p),
-    }
-}
-
-fn bound_idents_in_pattern(p: &ast::Pattern) -> Vec<ast::Ident> {
-    let mut out = Vec::new();
-    collect_bound_idents_in_pattern(p, &mut out);
-    out
-}
-
-fn collect_bound_idents_in_pattern(p: &ast::Pattern, out: &mut Vec<ast::Ident>) {
-    match &p.kind {
-        ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => {}
-        ast::PatternKind::Bind(id) => out.push(*id),
-        ast::PatternKind::Variant { args, .. } => {
-            for arg in args {
-                collect_bound_idents_in_pattern(arg, out);
-            }
-        }
-        ast::PatternKind::Tuple(parts) => {
-            for part in parts {
-                collect_bound_idents_in_pattern(part, out);
-            }
-        }
-        ast::PatternKind::Struct { fields, .. } => {
-            for f in fields {
-                match &f.value {
-                    Some(v) => collect_bound_idents_in_pattern(v, out),
-                    None => {
-                        // shorthand：`Point { x }` 会把 `x` 作为一个绑定引入作用域。
-                        out.push(f.name);
-                    }
-                }
-            }
-        }
     }
 }
 

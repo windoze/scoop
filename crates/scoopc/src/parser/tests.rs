@@ -1,4 +1,5 @@
 use super::*;
+use crate::syntax::token::Symbol;
 use crate::syntax::token::TokenKind;
 
 /// 一个极简、可复现的伪随机数生成器（避免引入 `rand` 依赖）。
@@ -515,6 +516,64 @@ fun main() {
             assert!(expected.contains("Float 字面量"));
         }
         other => panic!("期望单个 FloatLiteral parser 错误，实际为: {other:?}"),
+    }
+}
+
+#[test]
+fn parse_top_level_val_destructuring_with_type_annotation() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum MaybeInt {
+    Some(val value: Int),
+    None,
+}
+
+val (a, b): (Int, Int) = (1, 2)
+val Point { x, y }: Point = Point { x: 3, y: 4 }
+val Some(total): MaybeInt = Some(5)
+"#,
+    );
+
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(tuple_decl) = &file.items[2] else {
+        panic!("期望第三个 item 为 tuple destructuring 顶层 val");
+    };
+    assert!(matches!(tuple_decl.binding, ast::ValBinding::Pattern(_)));
+    assert!(tuple_decl.ty.is_some());
+
+    let ast::Item::Val(struct_decl) = &file.items[3] else {
+        panic!("期望第四个 item 为 struct destructuring 顶层 val");
+    };
+    assert!(matches!(struct_decl.binding, ast::ValBinding::Pattern(_)));
+    assert!(struct_decl.ty.is_some());
+
+    let ast::Item::Val(variant_decl) = &file.items[4] else {
+        panic!("期望第五个 item 为 variant destructuring 顶层 val");
+    };
+    assert!(matches!(variant_decl.binding, ast::ValBinding::Pattern(_)));
+    assert!(variant_decl.ty.is_some());
+}
+
+#[test]
+fn top_level_var_destructuring_is_rejected() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nvar (a, b): (Int, Int) = (1, 2)\n");
+    let err = parse_file(&src).expect_err("顶层 `var` destructuring 应报错");
+    match err {
+        ParseError::Expected {
+            expected,
+            found: TokenKind::Symbol(Symbol::LParen),
+            ..
+        } => {
+            assert!(expected.contains("变量名"));
+        }
+        other => panic!("期望顶层 `var` destructuring 产生变量名语法错误，实际为: {other:?}"),
     }
 }
 

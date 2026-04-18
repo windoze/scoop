@@ -2101,6 +2101,17 @@ pub enum ValBinding {
     Pattern(Pattern),
 }
 
+impl ValBinding {
+    pub fn bound_idents(&self) -> Vec<Ident> {
+        let mut out = Vec::new();
+        match self {
+            ValBinding::Name(name) => out.push(*name),
+            ValBinding::Pattern(pattern) => collect_pattern_bound_idents(pattern, &mut out),
+        }
+        out
+    }
+}
+
 impl ValDecl {
     pub fn name(&self) -> Option<Ident> {
         match self.binding {
@@ -2128,6 +2139,31 @@ impl std::fmt::Debug for ValDecl {
         s.field("ty", &self.ty);
         s.field("init", &self.init);
         s.finish()
+    }
+}
+
+fn collect_pattern_bound_idents(pattern: &Pattern, out: &mut Vec<Ident>) {
+    match &pattern.kind {
+        PatternKind::Bind(ident) => out.push(*ident),
+        PatternKind::Tuple(elements) => {
+            for element in elements {
+                collect_pattern_bound_idents(element, out);
+            }
+        }
+        PatternKind::Struct { fields, .. } => {
+            for field in fields {
+                match field.value.as_deref() {
+                    Some(nested) => collect_pattern_bound_idents(nested, out),
+                    None => out.push(field.name),
+                }
+            }
+        }
+        PatternKind::Variant { args, .. } => {
+            for arg in args {
+                collect_pattern_bound_idents(arg, out);
+            }
+        }
+        PatternKind::Wildcard | PatternKind::Rest | PatternKind::Missing => {}
     }
 }
 

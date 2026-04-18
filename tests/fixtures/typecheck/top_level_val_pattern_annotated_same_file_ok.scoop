@@ -1,0 +1,29 @@
+// EXPECT: pass
+// 目标：T4004a1 顶层 `val` pattern binding 在显式整体类型注解路径下：
+// - tuple / struct / enum variant binder 会进入同文件 top-level value namespace；
+// - 后续顶层 initializer 与函数体都能静态读取这些 binder。
+
+package fixtures.typecheck
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+enum MaybeInt {
+    Some(val value: Int),
+    None,
+}
+
+val (a, b): (Int, Int) = (1, 2)
+val tupleSum: Int = a + b
+
+val Point { x, y }: Point = Point { x: tupleSum, y: b + 10 }
+val pointSum: Int = x + y
+
+val Some(total): MaybeInt = Some(pointSum)
+val finalTotal: Int = total + tupleSum
+
+fun use(): Int {
+    return a + x + total + finalTotal
+}

@@ -12,16 +12,20 @@ use super::{EffParamSig, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TAS
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
 use super::super::lower::TypeLowering;
+use super::super::val_pat;
 
 /// 收集“当前文件内”的顶层 `val/var` 声明类型（FQN → TypeId）。
 ///
 /// 说明：
-/// - 顶层变量的类型注解由 `typecheck::check_file_headers` 强制要求，因此这里可以直接做 lowering；
+/// - 普通顶层名字绑定仍直接读取显式类型注解；
+/// - 顶层 `val` pattern binding 在 `T4004a1` 先走“显式整体类型注解 -> binder 类型分发”路径；
 /// - 该表用于处理表达式中的 `ResolvedValueRef::TopLevel`（变量引用）。
 pub(super) fn collect_top_level_value_types(
     source: &SourceFile,
     file: &ast::File,
     lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<HashMap<String, TypeId>, ExprTypeError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let mut map: HashMap<String, TypeId> = HashMap::new();
@@ -31,24 +35,51 @@ pub(super) fn collect_top_level_value_types(
             continue;
         };
 
-        let ast::ValBinding::Name(name) = &v.binding else {
-            // 顶层 pattern binding 会在 headers check 中报错；这里仅保持健壮性。
-            continue;
-        };
+        match &v.binding {
+            ast::ValBinding::Name(name) => {
+                let Some(ty_ref) = &v.ty else {
+                    continue;
+                };
 
-        let Some(ty_ref) = &v.ty else {
-            continue;
-        };
+                let local_name = source.slice(name.span);
+                let fqn = if pkg_prefix.is_empty() {
+                    local_name.to_string()
+                } else {
+                    format!("{pkg_prefix}.{local_name}")
+                };
 
-        let local_name = source.slice(name.span);
-        let fqn = if pkg_prefix.is_empty() {
-            local_name.to_string()
-        } else {
-            format!("{pkg_prefix}.{local_name}")
-        };
+                let ty = lower.lower_type_ref(ty_ref)?;
+                map.insert(fqn, ty);
+            }
+            ast::ValBinding::Pattern(pattern) => {
+                let Some(ty_ref) = &v.ty else {
+                    continue;
+                };
 
-        let ty = lower.lower_type_ref(ty_ref)?;
-        map.insert(fqn, ty);
+                let subject_ty = lower.lower_type_ref(ty_ref)?;
+                let bindings = val_pat::infer_val_pat_bindings(
+                    source,
+                    pattern,
+                    subject_ty,
+                    lower,
+                    builtins,
+                    struct_field_types,
+                )?;
+
+                for binder in v.binding.bound_idents() {
+                    let Some(ty) = bindings.get(&binder.span).copied() else {
+                        continue;
+                    };
+                    let local_name = binder.text(source);
+                    let fqn = if pkg_prefix.is_empty() {
+                        local_name.to_string()
+                    } else {
+                        format!("{pkg_prefix}.{local_name}")
+                    };
+                    map.insert(fqn, ty);
+                }
+            }
+        }
     }
 
     Ok(map)

@@ -23,14 +23,6 @@ pub enum TypeHeaderError {
         span: miette::SourceSpan,
     },
 
-    /// 当前阶段不支持对 `val (a, b) = ...` 这类 pattern 绑定做类型检查。
-    #[error("暂不支持的模式绑定（pattern binding）")]
-    #[diagnostic(code(scoop::typecheck::unsupported_pattern_binding))]
-    UnsupportedPatternBinding {
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     /// `const fun` 的语法限制：当前阶段要求其 effect row 只能为 Pure（或缺省）。
     ///
     /// 说明：
@@ -186,9 +178,13 @@ fn check_top_level_val_header(
             }
         }
         ast::ValBinding::Pattern(pat) => {
-            return Err(TypeHeaderError::UnsupportedPatternBinding {
-                span: pat.span.into(),
-            });
+            if v.ty.is_none() {
+                return Err(TypeHeaderError::MissingTypeAnnotation {
+                    kind: "顶层解构绑定",
+                    name: "<pattern>".to_string(),
+                    span: pat.span.into(),
+                });
+            }
         }
     }
 

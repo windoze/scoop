@@ -279,20 +279,58 @@
 ### T4004 [TODO] 打通顶层 `val` 的 pattern binding（拆分执行）
 - 说明：
   - 复查 spec §4.2 / Appendix B.11 后确认 destructuring 仅适用于 `val`；`var` 不支持 destructuring patterns，因此原“顶层 `val` / `var`”表述收窄为“顶层 `val`”。
-  - 顶层版本还同时跨越“binder 符号安装 / 类型收集”和“once-init lowering / codegen”两条主线；为避免单轮横跨前端与后端两套基础设施，现拆分为 `T4004a -> T4004b -> T4004R` 顺序推进。
+  - 顶层版本还同时跨越“binder 符号安装 / 类型收集”和“once-init lowering / codegen”两条主线；其中前者在落地时又拆出了“显式整体类型注解路径”和“initializer 驱动推断 + 跨文件可见性”两块。
+  - 为避免单轮同时横跨 parser / resolver / typecheck / 跨文件 value table / lowering，现细化为 `T4004a1 -> T4004a2 -> T4004b -> T4004R` 顺序推进。
 - 验收：
   - 子任务全部完成后，顶层 tuple / struct / enum destructuring 可跨文件引用并稳定执行。
   - `ISSUES.md` 第 6 条收窄或关闭。
 - 依赖：T4003TR
 
-### T4004a [TODO] 打通顶层 `val` pattern binder 的符号安装、类型收集与静态门禁
-- 范围：
-  - 顶层 pattern binder 安装到 value namespace / `top_level_types`，同文件与跨文件引用可见。
-  - 顶层 `val` pattern binding 的整体类型可来自显式注解或 initializer 推断，并把 binder 类型分发到各个名字。
-  - 顶层 `var` pattern binding 继续按 spec §4.2 拒绝，错误与局部规则对齐。
-- 验收：
-  - 新增 typecheck / 多文件回归：顶层 tuple / struct / enum binder 被其它顶层声明和其它文件引用。
+### T4004a [DONE] 将顶层 `val` pattern binder 的静态接入拆分为“显式注解路径”与“推断 / 跨文件路径”
+- 说明：
+  - 继续细化后发现，原 `T4004a` 同时要求：
+    - 顶层 parser / resolver 接入 pattern binder；
+    - 顶层整体类型注解向 binder 类型分发；
+    - 无整体类型注解时从 initializer 推断整体类型；
+    - 让 binder 类型进入跨文件可见的 top-level value type 表。
+  - 其中后两者已经直接碰到当前“顶层值类型表仍只覆盖当前文件”的通用缺口；因此先把“显式整体类型注解 + 同文件静态引用”独立成可交付切片，再在下一步补 initializer 推断与跨文件可见性。
+- 完成：
+  - 已将原 `T4004a` 细化为 `T4004a1 -> T4004a2`，后续 `T4004b` / `T4004R` 依赖顺延。
 - 依赖：T4003TR
+
+### T4004a1 [DONE] 打通顶层 `val` pattern binder 的 parser / resolver 索引与显式整体类型注解路径
+- 范围：
+  - 顶层 `val` 解析支持 tuple / struct / enum pattern，以及 `val <pattern>: Type = initializer` 形式的整体类型注解。
+  - 顶层 pattern binder 安装到 value namespace / `top_level_types`，先覆盖同文件静态引用。
+  - 顶层 `var` pattern binding 继续按 spec §4.2 拒绝，错误与局部规则对齐。
+  - 无整体类型注解的顶层 pattern binding 暂继续报错，等待 `T4004a2`。
+- 验收：
+  - 新增 parse / typecheck 回归：同文件顶层 tuple / struct / enum binder 被后续顶层声明或函数体引用。
+- 完成：
+  - 顶层 `val` parser 现已支持 tuple / struct / enum pattern，并接受 `val <pattern>: Type = initializer` 形式的整体类型注解；顶层 `var` destructuring 继续在 parser 阶段按与局部路径一致的规则拒绝。
+  - `ValBinding` 新增统一的 `bound_idents()` helper；resolver index 与 block scope 检查现都通过同一入口收集 binder，顶层 pattern binder 会被注入 value namespace，供同文件后续顶层声明与函数体解析。
+  - `check_top_level_val_header` 现允许“带整体类型注解的顶层 pattern binding”，并继续对“无整体类型注解的顶层 pattern binding”报 `missing_type_annotation`，把 initializer 驱动推断明确留给 `T4004a2`。
+  - `collect_top_level_value_types` 现会把顶层 pattern 的整体类型经 `val_pat::infer_val_pat_bindings` 分发到各 binder；顶层 initializer typecheck 也会把这些 binder 类型写回 side table，为后续 `T4004b` 复用。
+  - 已新增回归：
+    - parser 单测 `parse_top_level_val_destructuring_with_type_annotation`
+    - parser 单测 `top_level_var_destructuring_is_rejected`
+    - `tests/fixtures/typecheck/top_level_val_pattern_annotated_same_file_ok.scoop`
+    - `tests/fixtures/typecheck/top_level_val_pattern_missing_type_is_error.scoop`
+- 已验证：
+  - `cargo test -p scoopc top_level_`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4003TR
+
+### T4004a2 [TODO] 为顶层 `val` pattern binder 补齐 initializer 驱动推断与跨文件类型可见性
+- 范围：
+  - 顶层 `val` pattern binding 的整体类型可来自 initializer 推断，不再强制显式整体类型注解。
+  - 顶层 pattern binder 的类型进入跨文件可见的 top-level value type 表，供其它文件静态引用。
+  - 新增多文件 typecheck 回归：顶层 tuple / struct / enum binder 被其它文件引用。
+- 验收：
+  - 顶层 tuple / struct / enum binder 的无注解写法与多文件静态引用均可通过 typecheck。
+- 依赖：T4004a1
 
 ### T4004b [TODO] 打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering
 - 范围：
@@ -301,7 +339,7 @@
   - 新增 lowering / run-pass 回归，覆盖 tuple / struct / enum 顶层 binder 读取。
 - 验收：
   - 顶层 binder 在 `main`、其它顶层 initializer 与跨文件调用中可稳定 build/run。
-- 依赖：T4004a
+- 依赖：T4004a2
 
 ### T4004R [TODO] Review：确认顶层与局部 pattern binding 复用同一套语义
 - 重点：

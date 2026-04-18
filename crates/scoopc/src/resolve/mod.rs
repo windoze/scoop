@@ -864,9 +864,10 @@ impl Index {
                     self.add_object_decl(cone, source, &pkg, obj)?;
                 }
                 ast::Item::Val(v) => {
-                    // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
-                    if let Some(name) = v.name() {
-                        let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
+                    // 顶层 `val` pattern binding 会把每个 binder 注入 value namespace；
+                    // `var` destructuring 在 parser 阶段已被拒绝，因此这里无需额外区分。
+                    let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
+                    for name in v.binding.bound_idents() {
                         self.insert_symbol(
                             pkg_origin,
                             SymbolKind::Value,

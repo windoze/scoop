@@ -30,6 +30,7 @@ use super::super::TypeEnv;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::lower::{TypeInstantiationKey, TypeLowering, WhereBoundEntry};
+use super::super::val_pat;
 
 #[derive(Clone, Copy)]
 struct CheckFileExprsRequest<'a> {
@@ -242,9 +243,10 @@ fn check_file_exprs_impl(
     // 当前阶段约束：
     // - 只支持“当前文件内”的顶层变量（因为 typecheck phase 目前只解析单文件 AST）；
     // - 顶层变量必须有显式类型注解（由 `typecheck::check_file_headers` 保证）。
-    let top_level_types = collect_top_level_value_types(source, file, &mut lower)?;
     let mut top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
     let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
+    let top_level_types =
+        collect_top_level_value_types(source, file, &mut lower, builtins, &struct_field_types)?;
     let member_mutabilities = collect_member_mutabilities(source, file);
 
     for item in &file.items {
@@ -1438,19 +1440,31 @@ fn check_top_level_val_initializer(
     }
     .infer_in_expected(lower, init, expected, expected_from)?;
 
-    if is_type_assignable(found, expected, lower, builtins) {
-        return Ok(());
+    if !is_type_assignable(found, expected, lower, builtins)
+        && !literal_absorbs_to_expected(init, expected, source, lower, builtins)
+    {
+        return Err(ExprTypeError::InitializerTypeMismatch {
+            expected: lower.fmt_type(expected),
+            found: lower.fmt_type(found),
+            span: init.span.into(),
+        });
     }
 
-    if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
-        return Ok(());
+    if let ast::ValBinding::Pattern(pat) = &v.binding {
+        let bindings = val_pat::infer_val_pat_bindings(
+            source,
+            pat,
+            expected,
+            lower,
+            builtins,
+            struct_field_types,
+        )?;
+        for (decl_span, ty) in bindings {
+            lower.record_inferred_binding_ty(decl_span, ty);
+        }
     }
 
-    Err(ExprTypeError::InitializerTypeMismatch {
-        expected: lower.fmt_type(expected),
-        found: lower.fmt_type(found),
-        span: init.span.into(),
-    })
+    Ok(())
 }
 
 /// 从类型声明的 `where_clause` 和 `type_params` 构建 `WhereBoundEntry` 列表（T0130）。

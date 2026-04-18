@@ -32,6 +32,10 @@
 > 2026-04-19 当前轮计划调整：在正式执行 `T4004` 前，又补做了最小 probe `fun main(): Int { val pair: (Int, Int) = (1, 2); val (a, b) = pair; return a + b }`，结果 `cargo run -p scoop -- build /tmp/t4004_local_destructuring_probe.scoop -o /tmp/t4004_local_destructuring_probe.out` 在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: anonymous val binding`。这说明局部 `val` pattern binding 目前只完成了 parser/typecheck，尚未进入可执行 lowering/codegen 主线；若继续直接做顶层 pattern binding，只能额外开一条顶层专用 binder lowering，违反 `T4004R` 对“顶层/局部复用同一套语义”的要求。同时，复查 spec §4.2 / Appendix B.11 后确认 destructuring 仅适用于 `val`，`var` 仍应继续拒绝 pattern binding，因此原 `T4004` 的“`val` / `var`”表述本身也需要收窄。基于这两个发现，现已在 `T4003SR` 与 `T4004` 之间插入新的前置任务 `T4003T -> T4003TR`：先收口局部 `val` pattern binding 的 HIR / LLVM 主线，再推进顶层版本；并将原 `T4004` 拆分为 `T4004a -> T4004b -> T4004R`，只覆盖顶层 `val` pattern binding。当前本轮到此停止，等待下一次调用从 `T4003T` 开始。
 >
 > 2026-04-19 当前轮完成更新：`T4003TR` 已完成。复审 `stmt -> patterns -> llvm::codegen::stmt` 后确认局部 destructuring 已彻底脱离匿名 `val` 旁路：lowering 会先生成命名 synthetic subject，再展开为多个命名 binder `ValDecl`；而 LLVM `codegen_val_decl` 仍显式拒绝匿名绑定，因此当前可执行路径只能走统一的局部绑定主线。进一步复审 `synth_pattern_runtime_check_expr`、`synth_pattern_binding_init_expr` 与 `collect_pattern_binders` 后，确认 tuple / struct / enum variant 的投影与运行期校验已经抽象为接受任意 subject `Expr` 的通用 helper，顶层版本后续只需补“binder 符号安装 + `top_level_immutable_values` once-init 承载”，无需再开第二套投影或提取语义。额外用临时 probe `makePair()` 复验 initializer 仅求值一次（stdout 为 `7`、`42`），并与既有 HIR / run-pass / typecheck / `cargo test --all` / `cargo clippy --all-targets -- -D warnings` 一并通过。未发现新的前置 blocker，当前下一项推进到拆分后的 `T4004a`。
+>
+> 2026-04-19 当前轮计划调整：在真正开始 `T4004a` 时，先用最小 probe `val (a, b) = (1, 2)` 验证顶层 parser，结果 `cargo run -p scoop -- build /tmp/t4004a_probe_top_level_tuple.scoop -o /tmp/t4004a_probe_top_level_tuple.out` 直接报 `scoop::parse::expected`（期望变量名，遇到 `(`）；继续复查后又确认原 `T4004a` 还同时包含“无整体类型注解的 initializer 推断”和“跨文件 top-level value type 可见性”两块，而后者与 `T4006` 里现存的“顶层值类型表只覆盖当前文件”属于同一条通用能力缺口。为避免单轮把 parser / resolver / typecheck / 跨文件 value table 全部搅在一起，现把原 `T4004a` 进一步细化为 `T4004a1 -> T4004a2`：`T4004a1` 先收口顶层 pattern 的 parser / resolver 索引接入，以及“显式整体类型注解 -> binder 类型分发 -> 同文件静态引用”主线；`T4004a2` 再补 initializer 驱动推断与跨文件 binder 类型可见性。当前本轮执行目标切换为 `T4004a1`。
+>
+> 2026-04-19 当前轮完成更新：`T4004a1` 已完成。顶层 `val` parser 现已支持 tuple / struct / enum pattern，并接受 `val <pattern>: Type = initializer` 形式的整体类型注解；顶层 `var` destructuring 继续在 parser 阶段按与局部路径一致的规则拒绝。为避免 resolver/index 与 typecheck 对 binder 收集再次分叉，`ValBinding` 新增统一的 `bound_idents()` helper，顶层 pattern binder 现会注入 value namespace，供同文件后续顶层声明与函数体解析。类型侧，`check_top_level_val_header` 现允许“带整体类型注解的顶层 pattern binding”，并继续对“无整体类型注解的顶层 pattern binding”报 `missing_type_annotation`；`collect_top_level_value_types` 则会把整体类型经 `val_pat::infer_val_pat_bindings` 分发到各 binder，顶层 initializer typecheck 也会把 binder 类型写回 side table，为后续 `T4004b` 复用。已新增两条 parser 单测与两条 typecheck fixture，并验证 `cargo test -p scoopc top_level_`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004a2`。
 
 ## 0. 工作原则
 
@@ -74,7 +78,7 @@
 
 - 先收口普通顶层 `val` 的可执行读取语义，再收口局部 `val` pattern binding 的可执行 lowering/codegen，最后推进顶层 `val` pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
-- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。因此 P3 当前下一项进入拆分后的 `T4004a -> T4004b -> T4004R`。
+- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` / `T4004a1` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。顶层 pattern binding 的前端静态接入已先交付“显式整体类型注解 + 同文件静态引用”切片；P3 当前下一项进入 `T4004a2`，补 initializer 推断与跨文件 binder 类型可见性。
 
 ### P4. compilation-unit 与 runtime type info 收口
 
