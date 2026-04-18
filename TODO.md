@@ -2587,7 +2587,7 @@
   - 生产代码中已不存在依赖旧的双 word runtime-error 私有编码、`payload kind` 哨兵值或某个特定 fixture / cast 路径特判才能保持 catch 语义的旁路。
 - 依赖：T3016l
 
-### T3017 [TODO] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
+### T3017 [DONE] 回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线
 - 描述：在 `T3008+` 生产修复全部完成后，把当前 `tests/fixtures/run-pass/**` 中所有 `T3006: 暂时标记为 fail` 的临时注释与 `EXPECT: fail` 收回；若统一主线修复后需要微调少量 fixture 源码或 golden，必须在本任务中显式完成，而不是继续把实现缺口隐藏在 xfail 下。
 - 进展：
   - `T3008a` 已先行回收 24 个只因 `ptr` / `ptr addrspace(1)` verifier 失败而临时 `EXPECT: fail` 的 run-pass fixtures；剩余 `T3006` xfail 现在对应的是更深层的真实语义缺口，而不再是 frame/continuation ABI 失配。
@@ -2600,6 +2600,7 @@
   - `T3016iR` 完成后继续复跑全量 runner，suite 再次前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`。该 fixture 单独运行当前报 `scoop::llvm::unsupported_main_body: return value`，而对照的 `effect_indirect_perform_nonresuming_call_chain.scoop` 仍已通过，说明 blocker 已收窄为 ordinary closure/function-value callee 的 non-resuming outward propagation / return contract 缺口，而不是 stale expectation 形态问题。该共享生产回归现由新增的 `T3016j` / `T3016jR` 承接，因此本任务继续顺延到 `T3016jR` 之后再收口。
   - `T3016jR` 完成后继续复跑全量 runner，suite 又前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop`。该 fixture 单独运行当前输出 `0` / `0`，而 golden 期望 `16` / `5`；进一步检查确认 runtime 侧 `scoop_effect_set_active_with_trace(...)` 仍然存在，但 unified effect codegen 当前已只调用无 trace 的 `scoop_effect_set_active()`，导致 non-resuming effect trace hook 的 line/col 合同失效。该共享生产回归现由新增的 `T3016k` / `T3016kR` 承接，因此本任务继续顺延到 `T3016kR` 之后再收口。
   - `T3016kR` 完成后继续复跑全量 runner，suite 又前进到新的更前置 pass-fixture 回归 `tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`。该 fixture 单独运行当前输出 `caught: null` / `1`，而 golden 期望 `caught: cast` / `2`；进一步检查确认 `codegen_cast_as_expr()` 仍显式调用 `emit_raise_runtime_error_variant(span, "ClassCastFailed")`，但 `emit_raise_runtime_error_variant()` 当前把 Raise payload 固定写成 `0` 并忽略 `_variant`，导致 synthesized runtime-error raise 的具体 variant 被塌缩成 `RuntimeError.NullAssertionFailed`。该共享生产回归现由新增的 `T3016l` / `T3016lR` 承接，因此本任务继续顺延到 `T3016lR` 之后再收口。
+  - 2026-04-18 本轮最终验收已完成：`rg -n "T3006: 暂时标记为 fail" tests/fixtures/run-pass` 已无命中，`EXPECT: fail` 仅剩 6 条真实失败语义 fixture。其中 4 条（`effect_resume_double_resume_exit.scoop`、`exit_code_mismatch.scoop`、`stderr_mismatch_distinguishable.scoop`、`timeout_should_fail.scoop`）本来就应继续保持失败；另外 2 条（`gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`not_null_assert_basic.scoop`）已分别转记到 `T3304` / `T3406`。`cargo run -p scoop --features llvm -- test` 已完整通过（`fixtures: ok (992)`），并已补验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，说明 effect run-pass 基线已恢复为稳定 passing baseline。
 - 目标：
   - 收回当前所有 `T3006` 暂时 xfail 标记；只有经过验证仍需保留失败语义的 fixture 才能继续声明 `EXPECT: fail`，且原因必须更新为真实、当前的问题。
   - 对因统一主线正确语义收口而需要微调的 fixture / golden 做最小修改，保持测试意图不变。

@@ -1,44 +1,55 @@
-# 当前轮执行计划
+# 本轮执行计划
 
-## 约束说明
+## 说明
 
-- 按要求，本文件会在本轮开始时先建立，并在关键步骤完成或计划变更时持续更新。
-- 我不会记录不可公开的原始内部推理；这里记录的是可审计的执行计划、依据、发现的问题与处理决定。
-- 本轮目标是：先检查最新提交是否提到需要先修复的既有问题；再读取 `TODO.md` 找到第一个未完成任务；只完成这一个任务，然后测试、更新文档、提交并停止。
+无法提供或持久化逐字的内部思维过程，但会在此记录可审计的执行计划、决策依据、关键发现和进度更新，确保你可以随时检查当前状态。
 
-## 初始执行步骤
+## 初始计划
 
-1. 检查最新一次 Git 提交的提交信息与变更摘要，确认是否明确提到尚未修复的既有问题。
-2. 阅读 `TODO.md`，识别第一个未完成任务。
-3. 如任务过大，拆分为可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前应执行的首个任务或首个子任务。
-5. 运行相关测试，并补齐必要测试直到任务可验证完成。
-6. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成状态或阻塞原因。
-7. 提交本轮所有改动，随后停止，不进入下一个任务。
+1. 检查最新一次 Git 提交信息，确认是否提到任何已知遗留问题。
+2. 如果最新提交中提到需要先修复的遗留问题，先定位并修复这些问题，再继续后续流程。
+3. 读取 `TODO.md`，识别第一个未完成任务。
+4. 评估该任务是否过大：
+   - 如果可直接完成，则直接实施。
+   - 如果过大，则拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
+5. 实现当前要执行的任务，确保实现符合规范，不引入临时绕过方案。
+6. 运行相关验证：
+   - 最小必要测试；
+   - 受影响范围测试；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 如有必要，运行更完整的 `cargo test --all` 或针对性测试。
+7. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记本轮完成的任务；
+   - 在 `PLAN.md` 中更新当前状态、依赖关系与后续计划；
+   - 若执行过程中发现规范缺口或前置问题，按要求将其转化为更早的任务并调整顺序。
+8. 检查工作区变更，确认只提交与本轮任务相关且需要保留的内容。
+9. 使用清晰的 Git 提交信息提交本轮成果。
+10. 停止，不继续处理下一个任务。
 
-## 进度日志
+## 当前状态
 
-- 已创建本文件并写入初始计划。
-- 已检查最新提交、`TODO.md`、`PLAN.md`，当前首个未完成任务为 `T3016lR`（review）。
-- 已开始审查 `emit_raise_runtime_error_variant()`、共享 effect transport 编码，以及 handler dispatch / runtime 相关生产路径。
-- 审查中发现一处需要在本 review 任务内直接修复的真实生产问题：
-  - `runtime/c/scoop_runtime.c` 的 `scoop_continuation_resume_try()` 在报告 `RuntimeError.ContinuationAlreadyResumed` 时，仍调用 `scoop_effect_perform_slot_write_u64_2(...)` 写入旧的双 word payload。
-  - 当前 catch 语义之所以没有明显坏掉，只是因为 `payload_words[0] == 2` 恰好与 `ContinuationAlreadyResumed` 的 enum unit variant tag 一致；但 `payload_len_words == 2` 已经偏离统一的 `encode_effect_transport_value()` 合同，不应继续保留。
-- 修正方案：
-  1. 把 runtime 侧的 `ContinuationAlreadyResumed` raise 改为复用统一的单 word + `gc_ref = null` transport 语义。
-  2. 增加一条 runtime 回归测试，直接验证 double-resume 后 perform slot 的 `len_words == 1`、`word0 == ContinuationAlreadyResumed` tag、`gc_ref == null`。
-  3. 重新执行相关测试与 lint。
-  4. 若验证通过，则完成 `T3016lR` 的记录、更新 `TODO.md`/`PLAN.md` 并提交。
-- 已完成代码修复：
-  - `runtime/c/scoop_runtime.c` 新增 `scoop_effect_raise_runtime_error_variant()`，runtime-originated `Raise<RuntimeError>` 现统一走 single-word enum tag + null `gc_ref` transport。
-  - `scoop_continuation_resume_try()` 不再写旧的双 word payload；double-resume 现在与编译器生成的 `Raise.raise(RuntimeError.X)` 共享同一套 transport 合同。
-  - 已新增 runtime 回归测试 `continuation_double_resume_uses_shared_runtime_error_transport_contract`，直接锁定 `payload_len_words == 1`。
-- 已完成验证：
-  - `cargo test -p scoop_runtime continuation_double_resume_uses_shared_runtime_error_transport_contract -- --exact`
-  - `cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 当前状态：
-  - `T3016lR` 已完成，相关 review 发现已在本任务内修复并复审通过。
-  - 已更新 `TODO.md`、`PLAN.md` 和本文件。
-  - 下一步：提交本轮改动并停止。
+- 已创建本计划文件。
+- 已检查最新提交：`6da40d6fda7781d66e22b4570c3da673409ec250 [T3016lR] Review RuntimeError transport contract`。
+- 已读取 `TODO.md` / `PLAN.md`，本轮执行的首个未完成任务为 `T3017`：回收 `T3006` 暂时 xfail fixtures，恢复 effect run-pass 基线。
+- 已确认最新提交说明未引入新的、尚未记录但必须优先修复的遗留问题；提交中提到的 runtime double-resume transport 问题已经在该提交内修复。
+- 已扫描 `tests/fixtures/run-pass` 中残留的 `EXPECT: fail`，当前共 6 条：
+  - `effect_resume_double_resume_exit.scoop`
+  - `gc_continuation_multi_thread_concurrent_alloc_resume.scoop`
+  - `stderr_mismatch_distinguishable.scoop`
+  - `not_null_assert_basic.scoop`
+  - `exit_code_mismatch.scoop`
+  - `timeout_should_fail.scoop`
+- `cargo run -p scoop --features llvm -- test` 已完整通过，结果为 `fixtures: ok (992)`。
+- `cargo test --all` 已通过。
+- `cargo clippy --all-targets -- -D warnings` 已通过。
+- 已完成 `TODO.md` / `PLAN.md` 更新：`T3017` 已标记完成，新的首个未完成任务为 `T3017R`。
+- 已检查 diff，仅包含 `TODO.md`、`PLAN.md` 与本记忆文件的本轮状态更新。
+
+## 当前判断
+
+- 已确认 `T3017` 不需要再拆分；当前不存在比它更前置的新生产 blocker。
+- `run-pass` 下已无 `T3006` 临时 xfail 注释，`EXPECT: fail` 只剩 6 条真实归因 fixture。
+- 当前剩余工作：
+  1. 提交 Git commit。
+  2. 停止，等待下一轮执行从 `T3017R` 开始。
