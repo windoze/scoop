@@ -2343,14 +2343,23 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T3016eR
 
-### T3016fR [TODO] Review：确认 top-level multi-escape replay 已回到统一 resume-path 合同
+### T3016fR [DONE] Review：确认 top-level multi-escape replay 已回到统一 resume-path 合同
 - 描述：在 `T3016f` 之后只审查生产代码，确认 top-level multi-site replay 的修复仍只依赖统一 state-machine / resume-path / continuation 元数据，而不是为 `fetch(...)` helper、mixed direct/indirect 顺序或特定 fixture 手工补 prefix；若发现旁路，本任务需要直接修复并复审。
+- 进展：
+  - 已复审 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`、`state_machine_segments.rs`、`state_machine_transform.rs` 与 `state_machine_emitter.rs`，确认 `T3016f` 的修复仍停留在统一 plan/segment/machine/continuation 合同内：top-level replay 只是在 `attach_escape_resume_targets()` 里利用 suspend site 已有的 `source_path.top_level_stmt_idx` 把 synthetic replay state 收窄到“当前 top-level statement 内仍需 replay 的 action”，并未引入按 helper 名称、mixed 顺序或 fixture 分类选路的新入口。
+  - 已确认 `escape_resume_target`、`source_path` 与 `resume_path` 继续只作为统一元数据沿 plan → segments → unified machine round-trip；其中 emitter 侧公开访问面仍只有 `escape_resume_state()`，不会重新读取 `source_path` / `resume_path` 去按源码形状做额外决策，因此 top-level 多 site replay 与既有 block/if/while / ordinary indirect callee replay 仍共享同一 continuation retargeting 机制。
+  - 已定向检索生产代码，未发现 `fetch`、`countIndirect`、`effect_multi_escape_*` 等 fixture/helper 名称出现在 lowering 逻辑中；也未发现基于 direct/indirect mixed 顺序的专用分支。
+  - 已复验两条结构测试 `source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site`、`source_plan_trims_escape_replay_to_current_top_level_statement`，以及 `resume_path_is_preserved_from_plan_to_segments_to_unified_machine`；同时复验 4 条目标 fixture、1 条 `T3016b` 同 statement block regression、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`，均通过。
 - 目标：
   - 确认 top-level multi-site replay 与既有 block/if/while / ordinary indirect callee replay 共享同一套 resume-path 合同。
   - 确认 production code 中没有按 helper 名称、site 顺序或 mixed 分类引入新的 shape-based fallback。
 - 验收：
   - 若审查发现问题，相关生产代码已在本任务内修复，并已完成修复后的复审。
   - 审查结论明确记录“top-level multi-escape replay 已按统一 resume-path 合同收口，无 fixture-only / shape-based 补丁残留”。
+- 审查结论：
+  - top-level multi-escape replay 已按统一 resume-path 合同收口，无 fixture-only / shape-based 补丁残留。
+  - 当前修复只复用 suspend site 既有的 `source_path` / `resume_path` / `escape_resume_target` 元数据来裁剪 replay 边界并重定向 continuation，不存在为特定 helper、direct/indirect 顺序或 fixture 手工补 prefix 的旁路。
+  - 当前 effect 主线下一项推进到 `T3016g`：修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归。
 - 依赖：T3016f
 
 ### T3016g [TODO] 修正 immediate-resume + finally 下 resumed body 再次 raise 没有向外传播的回归

@@ -1,55 +1,42 @@
-# 执行记录
+## 当前执行计划
 
-## 说明
+说明：我不会写入逐字的内部推理细节，但会持续记录可公开的判断依据、执行步骤、进度和计划变更，便于检查当前状态。
 
-按要求先写入本文件，再开展仓库检查与实现工作。
+### 初始步骤
 
-出于安全与协作边界，我不会写入不可审计的私有推理细节；这里记录的是可公开的决策摘要、执行计划、进度与变更原因。
+1. 检查最新一次 Git 提交信息，确认是否提到尚未修复的既有问题；如果有，优先修复。
+2. 查看 `TODO.md`，找出第一个未完成任务。
+3. 查看 `PLAN.md`，确认当前计划和任务依赖是否一致。
+4. 评估第一个未完成任务的范围：
+   - 如果任务足够小，直接实现。
+   - 如果任务过大或存在前置依赖，先细分任务并更新 `TODO.md` / `PLAN.md`。
+5. 实现当前应执行的第一个任务。
+6. 运行相关测试，并补充必要测试，确保实现正确且无回归。
+7. 运行质量检查，至少包括与改动相关的测试，以及尽可能完整的格式化/编译/Clippy 检查。
+8. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞原因。
+9. 提交本次改动，完成后停止，不继续处理下一个任务。
 
-## 当前目标
+### 当前假设
 
-本轮只完成 `TODO.md` 中第一个未完成任务，完成后测试、更新计划与任务状态、提交 Git，然后停止。
+- 需要先读取仓库现状后，才能确定本轮真正要执行的具体任务。
+- 如果发现规范不匹配、缺失特性或已有回归，需要先把问题显式写入 `TODO.md` 并调整依赖，再决定是否继续实现原任务。
 
-## 初始执行计划
+### 进度
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到任何既有问题；若有，先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，核对现有计划与任务依赖。
-4. 判断该任务是否过大或是否存在前置缺口。
-5. 若任务过大或被前置缺口阻塞：
-   - 在 `PLAN.md` 中细化子任务或记录阻塞原因。
-   - 在 `TODO.md` 中调整排序、补充前置任务，并保证当前轮只处理新的首个可执行任务。
-6. 若任务可直接执行：
-   - 阅读相关代码与测试。
-   - 实现任务所需改动。
-   - 运行相关测试，并补充必要测试。
-   - 运行格式化、lint 与必要的全量或针对性检查，确保无警告。
-7. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-8. 使用清晰的提交信息创建一次 Git 提交，然后停止。
-
-## 进度
-
-- 已创建计划文件，准备开始仓库检查。
-- 已查看最新提交 `e746ad4068652eeff3836ccc0850ed0a25801e77`，其内容主要是把 expectation cleanup 暴露出的既有 blocker 重排进 `TODO.md` / `PLAN.md`，未包含代码修复。
-- 已定位当前首个未完成任务为 `T3016f`：修正 top-level 多个 direct/indirect suspend site 与 multi-escape 组合下，resumed-body 错误重放已完成 prefix 的回归。
-- 已完成问题复现：4 个目标 fixture 都会在第二次 `resume(...)` 时额外输出上一条 top-level statement 的已完成前缀（如 `after_first` / `after_a1`），与 `TODO.md` 记录一致。
-- 已确认根因：`attach_escape_resume_targets()` 先前直接复制“上一个 `ResumeAfterSite` 之后的整段 owner-state 后缀”，导致 later top-level statement 的 replay state 混入更早已完成的语句。
-- 已完成修复：replay actions 现按当前 suspend site 的 `source_path.top_level_stmt_idx` 裁剪到“当前 top-level statement 边界”，只保留仍应在下一次 replay 前执行的同 statement 前缀。
-- 已补结构测试：
-  - `source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site`
-  - `source_plan_trims_escape_replay_to_current_top_level_statement`
+- 已创建本计划文件。
+- 已检查最新提交：`1d312c6c99ddd9086af05acfddaea8508c90725c`，提交说明为 `[T3016f] Fix top-level multi-site escape replay`。提交信息本身未额外声明需要先行修复的独立既有问题；计划文件与任务清单均把后续动作指向 `T3016fR`。
+- 已检查 `TODO.md` / `PLAN.md`：当前第一个未完成任务是 `T3016fR Review：确认 top-level multi-escape replay 已回到统一 resume-path 合同`。
+- 已完成 `T3016fR` 的生产代码复审：`attach_escape_resume_targets()` 的修复只使用既有 suspend-site 元数据 `source_path.top_level_stmt_idx` 来裁剪 replay action；未发现按 helper 名称、fixture 名称、direct/indirect 顺序或其他源码形状新增的 fallback。
+- 已确认 `escape_resume_target`、`source_path`、`resume_path` 继续只作为统一元数据在 plan → segments → unified machine 间 round-trip；emitter 侧公开访问面仍只有 `escape_resume_state()`，没有重新按源码形状做 replay 决策。
 - 已完成验证：
-  - 4 条 `T3016f` 目标 fixture 输出与 `.stdout` 一致。
-  - 1 条 `T3016b` block regression 输出与 `.stdout` 一致。
-  - `cargo test --all` 通过。
-  - `cargo clippy --all-targets -- -D warnings` 通过。
-- 待完成的收尾步骤：更新 `TODO.md` / `PLAN.md` 状态并创建本轮 Git 提交。
-
-## 针对 T3016f 的执行计划
-
-1. 阅读 `TODO.md` / `PLAN.md` 中 `T3016f` 与相邻已完成任务（尤其 `T3016b`、`T3015a`、`T3009b2c`）的描述，明确该任务与已有 replay/resume-path 修复面的边界。
-2. 运行 `T3016f` 描述中的 4 个目标 fixture，记录实际输出与期望输出的差异，确认回归是否稳定复现。
-3. 检查 unified state-machine 的 plan/segments/transform/emitter 中与 resumed-body replay、resume-path、top-level multi-site 调度相关的生产代码与测试。
-4. 实施修复，并优先补充最小但足以锁定问题的单元/回归测试，避免仅靠 fixture 观察。
-5. 运行定向测试、相关 Rust 测试、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，标记 `T3016f` 完成，并准备提交一次 Git commit 后停止。
+  - 结构测试：`source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site`
+  - 结构测试：`source_plan_trims_escape_replay_to_current_top_level_statement`
+  - 结构测试：`resume_path_is_preserved_from_plan_to_segments_to_unified_machine`
+  - 运行时 fixture：`effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop`
+  - 运行时 fixture：`effect_multi_escape_custom_nonresuming_indirect_multi.scoop`
+  - 运行时 fixture：`effect_multi_escape_indirect_multi.scoop`
+  - 运行时 fixture：`effect_resume_mixed_multi_escape_direct_indirect.scoop`
+  - 回归 fixture：`effect_multi_escape_custom_nonresuming_direct_block_multi.scoop`
+  - 全量：`cargo test --all`
+  - 质量门槛：`cargo clippy --all-targets -- -D warnings`
+- 结果：未发现需要在 `T3016fR` 内直接补修的生产问题。下一步是更新 `TODO.md` / `PLAN.md` 标记完成并提交；完成后停止，本轮不进入 `T3016g`。
