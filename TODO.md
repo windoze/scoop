@@ -2220,8 +2220,20 @@
   - `generic call callee`、`effect frame seed outer-scope local` 与 silent exit 在当前 outer-body / nested-handle resume 路径上均已消失。
 - 依赖：T3016c
 
-### T3016d [TODO] 修正 GC stress 下 escaped continuation 与深对象图捕获的存活 / 恢复缺口
+### T3016d [DONE] 修正 GC stress 下 escaped continuation 与深对象图捕获的存活 / 恢复缺口
 - 描述：`T3017` expectation scan 还证明，GC stress 路径不是单纯慢，而是存在真实语义问题。`effect_escape_continuation_gc_stress_multi_string.scoop` 在 `SCOOP_GC_STRESS=1` 下会直接打印 `missing1/missing2/missing3`，说明保存到堆对象字段里的 escaped continuation 没有稳定存活；`gc_continuation_escape_deep_object_graph.scoop` 在同一环境下长时间跑不完；`gc_continuation_escape_alloc_heavy_resume.scoop` 也已暴露 stdout mismatch。说明 continuation、本地 lifted refs 与深对象图在 forced GC 下的 trace / 恢复合同仍未闭环。
+- 进展：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现在会为统一 effect runtime 生成的 `scoop.effect.step.*` 与 `scoop.effect.dispatch.*` 函数显式设置 `gc "statepoint-example"`；新增 IR 回归 `effect_runtime_functions_use_gc_statepoint_strategy`，锁定这两类函数在跑过 pass pipeline 后必须包含 statepoint rewrite，避免 GC stress 下看不到 continuation / captured refs。
+  - arm binder 在无 frame slot 时不再使用 state block 内的临时 `alloca`；`EscapeContinuation` arm 中 fallback continuation binder 的 `cont_local` 也已改为 entry-block spill slot（复用 `create_entry_alloca(...)`），从而与普通局部变量一样进入 GC root / relocation 合同，不再在 safepoint 后持有陈旧 continuation 指针。
+  - 三条目标 fixture 现已在 `SCOOP_GC_STRESS=1` 下恢复：`effect_escape_continuation_gc_stress_multi_string.scoop` 不再输出 `missing1/missing2/missing3`，`gc_continuation_escape_alloc_heavy_resume.scoop` 恢复预期 stdout，`gc_continuation_escape_deep_object_graph.scoop` 不再长时间卡住。
+  - 已验证：
+    - `cargo test -p scoopc effect_runtime_functions_use_gc_statepoint_strategy -- --nocapture`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/effect_escape_continuation_gc_stress_multi_string.scoop`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_deep_object_graph.scoop`
+    - `SCOOP_GC_STRESS=1 cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/gc_continuation_escape_alloc_heavy_resume.scoop`
+    - `cargo test -p scoop_runtime continuation_ -- --nocapture`
+    - `cargo test --all`
+    - `cargo clippy --all-targets -- -D warnings`
 - 目标：
   - escaped continuation 保存到对象字段后，在 `SCOOP_GC_STRESS=1` 下仍可稳定读取并 resume。
   - continuation 捕获的 ref locals / 深对象图在 forced GC 下继续保持可达且语义正确。

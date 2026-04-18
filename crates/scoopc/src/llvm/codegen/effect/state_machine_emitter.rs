@@ -421,10 +421,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.module
                 .add_function(&format!("scoop.effect.step.{suffix:x}"), fn_ty, None);
         step_fn.set_call_conventions(0);
+        step_fn.set_gc(crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         let dispatch_loop_fn =
             self.module
                 .add_function(&format!("scoop.effect.dispatch.{suffix:x}"), fn_ty, None);
         dispatch_loop_fn.set_call_conventions(0);
+        dispatch_loop_fn.set_gc(crate::llvm::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         // Save caller's codegen context.
         let saved_block = self.builder.get_insert_block();
@@ -3182,7 +3184,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
-        _span: crate::span::Span,
+        span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // Find the unified arm metadata.
         let unified_arm = contract
@@ -3227,11 +3229,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 );
             } else {
-                // No frame slot — allocate stack local.
-                let llvm_ty = self.llvm_basic_type_of(binder.span, binder_cg_ty)?;
-                let alloca = self
-                    .builder
-                    .build_alloca(llvm_ty, &format!("binder_{}", binder.name))?;
+                // No frame slot — still spill through an entry-block alloca so
+                // statepoint rewriting can treat it like an ordinary local root.
+                let alloca = self.create_entry_alloca(
+                    binder.span,
+                    &format!("binder_{}", binder.name),
+                    binder_cg_ty,
+                )?;
                 self.store_local_value(binder.span, alloca, binder_cg_ty, binder_val)?;
                 self.env.insert(
                     binder.id,
@@ -3287,9 +3291,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         },
                     );
                 } else {
-                    let alloca = self
-                        .builder
-                        .build_alloca(self.llvm_gc_i8_ptr_type(), "cont_local")?;
+                    let alloca =
+                        self.create_entry_alloca(span, "cont_local", CgTy::Ref)?;
                     self.builder.build_store(alloca, cont_ptr)?;
                     self.env.insert(
                         continuation,
@@ -3539,7 +3542,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 mod tests {
     use super::*;
 
-    use crate::llvm::{emit_minimal_main_ir, emit_minimal_main_ir_from_lowered_hir};
+    use crate::llvm::{
+        build_main_module_from_lowered_hir, emit_minimal_main_ir,
+        emit_minimal_main_ir_from_lowered_hir, run_pass_pipeline,
+    };
+    use crate::opt::OptLevel;
     use crate::parser::parse_file;
     use crate::resolve::Index;
     use crate::session::Session;
@@ -3855,6 +3862,79 @@ fun main(): Int {
         assert!(
             continuation_alloc_call.contains("@scoop.effect.dispatch."),
             "continuation allocation should capture the dispatch-loop entry instead of the raw step function"
+        );
+    }
+
+    #[test]
+    fn effect_runtime_functions_use_gc_statepoint_strategy() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun main(): Int {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        val _: Int = Suspend.pause()
+    } with {
+        Suspend.pause(), k -> {
+            println("arm")
+            cell.k = Some(k)
+        }
+    }
+
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let context = inkwell::context::Context::create();
+        let module = build_main_module_from_lowered_hir(
+            &source_map,
+            entry_source_id,
+            &context,
+            &lowered,
+            None,
+        )
+        .expect("llvm module");
+        let (target_machine, _target_info) =
+            crate::llvm::target::host_target_machine_with_opt_level(OptLevel::O0)
+                .expect("target machine");
+        run_pass_pipeline(&module, &target_machine, OptLevel::O0).expect("run pass pipeline");
+        let ir = module.print_to_string().to_string();
+
+        let step_ir = find_function_ir(&ir, "define void @scoop.effect.step.");
+        assert!(
+            step_ir.contains(r#"gc "statepoint-example""#),
+            "effect step function must opt into the GC statepoint strategy so escaped continuation locals stay relocatable across GC safepoints"
+        );
+        assert!(
+            step_ir.contains("@llvm.experimental.gc.statepoint"),
+            "effect step function should contain rewritten statepoints once the GC strategy is enabled"
+        );
+
+        let dispatch_ir = find_function_ir(&ir, "define void @scoop.effect.dispatch.");
+        assert!(
+            dispatch_ir.contains(r#"gc "statepoint-example""#),
+            "effect dispatch loop must opt into the GC statepoint strategy so resume/dispatch paths keep GC roots visible"
+        );
+        assert!(
+            dispatch_ir.contains("@llvm.experimental.gc.statepoint"),
+            "effect dispatch loop should also contain rewritten statepoints after the GC strategy is enabled"
         );
     }
 
@@ -4518,6 +4598,13 @@ fun raiseSub(): Int / Raise<Sub> {
             | hir::StmtKind::Continue { .. }
             | hir::StmtKind::Todo(_) => None,
         }
+    }
+
+    fn find_function_ir<'a>(ir: &'a str, prefix: &str) -> &'a str {
+        let start = ir.find(prefix).expect("expected function definition");
+        let rest = &ir[start..];
+        let end = rest.find("\ndefine ").unwrap_or(rest.len());
+        &rest[..end]
     }
 
     fn first_perform_in_expr(expr: &hir::Expr) -> Option<&hir::Expr> {
