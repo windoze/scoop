@@ -1,64 +1,64 @@
-# 执行计划
+# 本次执行计划
 
-## 说明
+## 目标
+- 按 `TODO.md` 的顺序只完成第一个未完成任务。
+- 在开始具体实现前，先检查最新提交是否提到已有问题；若有，先修复这些问题。
+- 全程同步更新本文件，记录当前计划、关键决策、阻塞项与完成状态。
 
-按要求先记录执行计划与可审阅的推理摘要。这里不会写入逐字的内部思维链，而是提供足够详细的步骤、判断依据、风险点和后续更新记录，便于在执行过程中检查进展。
+## 当前已知约束
+- 只能在本次调用中完成一个任务；完成后需要更新 `TODO.md`、`PLAN.md`，提交 Git commit，然后停止。
+- 如果首个未完成任务过大，需要先拆分为更小子任务，并把拆分结果写回 `TODO.md` / `PLAN.md`。
+- 如果发现规范缺口、实现缺口或已有 bug 阻塞当前任务，不能绕过，必须先把前置修复任务加入 `TODO.md` 并调整顺序。
+- 质量门槛包括相关测试通过，以及 `cargo clippy --all-targets -- -D warnings` 无警告。
 
-## 当前目标
-
-本次只完成 `TODO.md` 中第一个未完成任务，然后停止。
-
-## 初始步骤
-
-1. 检查最新一次 Git 提交的提交信息与改动，确认是否明确提到任何已知遗留问题。
-2. 如果最新提交提到了遗留问题，先定位并修复这些问题，再继续处理 `TODO.md`。
-3. 读取 `TODO.md`，确定第一个未完成任务。
-4. 读取 `PLAN.md`，确认当前计划与任务顺序是否一致。
-5. 如首个未完成任务过大，则将其拆解为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆解后的第一个子任务。
-
-## 执行策略
-
-1. 先理解相关代码、测试和规范，不做无依据假设。
-2. 直接实现当前任务所需的最小且完整改动，避免顺手推进后续任务。
-3. 若实现中发现规范不匹配、缺失特性、已有 workaround、隐藏 bug 或基础能力缺口：
-   - 将其作为真实问题处理；
-   - 在 `TODO.md` 中新增或重排前置任务；
-   - 在 `PLAN.md` 中记录阻塞原因和依赖关系；
-   - 如因此阻塞当前任务，则提交这些计划调整后停止。
-4. 完成实现后运行相关测试；若任务影响面较大，还需要运行更广的验证，包括：
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 以及任务相关的更聚焦测试命令
-5. 更新文档与计划：
-   - 在 `TODO.md` 标记当前任务完成；
-   - 在 `PLAN.md` 反映最新状态；
-   - 若涉及说明性文档，也同步补充。
-6. 提交 Git，提交信息应清晰描述本轮完成的任务，然后停止。
-
-## 风险与检查点
-
-1. 工作区可能不是干净的，不能回退非本人改动。
-2. 若任务涉及编译器、运行时或规范一致性，需要优先验证是否与 `SCOOP_FULL_SPEC.md`、fixture 或现有测试语义一致。
-3. 若需要新增测试，应尽量放在最小且语义正确的位置，避免夹带与当前任务无关的修复。
+## 执行步骤
+1. 检查最新一次 Git 提交，确认是否明确提到遗留问题、已知缺陷或后续必须先处理的问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 结合代码库现状评估该任务是否可在一次迭代中完整落地。
+4. 如果任务过大：
+   - 设计更小的可执行子任务。
+   - 更新 `PLAN.md` 与 `TODO.md`，让第一个子任务成为新的当前任务。
+   - 继续执行这个新的首项任务。
+5. 实现当前任务，必要时先修复其依赖的真实问题。
+6. 运行最小且充分的验证：
+   - 相关单测 / 集成测试 / fixture 测试；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - 如任务影响范围较大，再补充 `cargo test --all` 或等价验证。
+7. 更新文档状态：
+   - 在 `TODO.md` 标记当前任务完成，或在阻塞时调整任务顺序并补充前置任务；
+   - 更新 `PLAN.md`；
+   - 更新本文件的进度记录。
+8. 生成一次清晰的 Git 提交，然后停止。
 
 ## 进度记录
-
-- 2026-04-18：已创建本计划文件，下一步检查最新提交与 `TODO.md`。
-- 2026-04-18：已检查最新提交 `cc598de [T3103] Record final execution status`，提交内容只回写了 `memory/claude_plan.md` 的收尾状态，没有额外声明待修遗留问题。
-- 2026-04-18：已读取 `TODO.md` / `PLAN.md`，首个未完成任务是 `T3104`（规范 / 文档同步 `do` block、closure 优先级与 trailing-lambda 规则）。
-- 2026-04-18：在执行 `T3104` 前发现真实规范偏差：
-  - `SCOOP_FULL_SPEC.md` 已要求局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，并把 bare `{ ... }` 保留给 closure；
-  - 但 `crates/scoopc/src/parser/expr.rs` 仍把 `@Safe { ... }` / `@Unsafe { ... }` 当作局部 block 向后兼容接受；
-  - `crates/scoopc/src/ast/mod.rs` / `hir` / `typecheck` 目前只有 `SafeBlock` / `UnsafeBlock` 形状，尚不能表达规范里提到的 `@Safe { ... }` annotated closure；
-  - `parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 仍在使用 bare annotated block 旧写法。
-- 2026-04-18：结论：`T3104` 不能直接继续，否则会把“实现与规范尚未一致”的状态误写成纯文档收口。按阻塞规则，本轮将先在 `TODO.md` / `PLAN.md` 中新增前置任务，把 `@Safe/@Unsafe` 与 `do` / closure 的绑定规则收口到规范，再把 `T3104` 后移依赖到该前置任务，随后提交并停止。
-- 2026-04-18：已完成阻塞重排：
-  - `TODO.md` 已在 `T3104` 前新增 `T3103a`，并把 `T3104` 的依赖改为 `T3103a`；
-  - `PLAN.md` 已记录本轮阻塞原因，并把前端主线下一项改为 `T3103a`；
-  - `T3101` 的历史记录已补充说明：bare annotated-block 兼容只是阶段性实现状态，后续由 `T3103a` 收口；
-  - `PLAN.md` 的“当前执行顺序”也已同步改成 `T3103a -> T3104 -> T3201 ...`，避免文件内出现两个不同的“下一项任务”。
-- 2026-04-18：已完成最终收尾：
-  1. 已检查当前 diff 与工作树状态，确认本轮只修改 `TODO.md`、`PLAN.md` 与本文件；
-  2. 已提交阻塞重排：`6e9a4a5 [T3103a] Track annotated-block syntax prerequisite`；
-  3. 当前工作树在提交后已清空；
-  4. 本轮到此结束，不继续执行 `T3103a` 或 `T3104`。
+- 已创建本文件并写入初始计划。
+- 已检查最新提交：`2c99e26b3df865ec984a711a59e1dcc2571fd878` 的主题为 `[T3103a] Record final execution status`，未新增需要先修复的遗留问题说明。
+- 已读取 `TODO.md`，确认首个未完成任务为 `T3103a`：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则。
+- 已完成现状勘察：
+  - parser 仍在 `parse_unsafe_block_expr` / `parse_safe_block_expr` 中向后兼容接受 `@Unsafe { ... }` 与 `@Safe { ... }`；
+  - AST 只有 `UnsafeBlock` / `SafeBlock`，尚无“annotated closure”的显式承载；
+  - typecheck 会为 `UnsafeBlock` / `SafeBlock` 调整 unsafe context，但 lambda 本身没有 safe-region 标记；
+  - `sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与多组 fixtures 仍在使用 bare annotated block 旧写法。
+- 评估结论：`T3103a` 可以在本轮直接完成，不需要先拆分。计划如下：
+  1. 为 AST / HIR lambda 增加最小的 `@Safe` 注解承载，并保持现有 dump/debug 兼容。
+  2. 调整 parser：
+     - `@Safe do { ... }` → `SafeBlock`
+     - `@Unsafe do { ... }` → `UnsafeBlock`
+     - `@Safe { ... }` → safe lambda
+     - `@Unsafe { ... }` → 稳定 parser 诊断，明确提示改用 `@Unsafe do { ... }`
+  3. 调整 typecheck / lowering，使 safe lambda body 在 unsafe context 下按 safe region 校验。
+  4. 迁移仓库中仍把 bare annotated block 当作 local block 使用的 sysroot / fixtures / 注释示例到 `do` 形式。
+  5. 新增/更新 parser 与 fixture 回归，验证 safe closure、unsafe block 诊断与 `do` 语法迁移。
+  6. 运行格式化、测试与 clippy，最后回写 `TODO.md` / `PLAN.md` / 本文件并提交。
+- 执行中发现阻塞：
+  - 在把 `unsafe_nogc` 样例尝试迁移到 `@Unsafe do { ... }` 时，暴露出更前置的既有类型检查缺口：statement-position 普通调用没有稳定触发 `@Unsafe` / `@Extern` / `@NoGC` 门禁。
+  - 代表样例：`unsafe_call_requires_unsafe_is_error.scoop`、`extern_call_requires_unsafe_is_error.scoop`、`extern_call_after_unsafe_block_still_requires_unsafe_is_error.scoop`。
+  - 这不是 `T3103a` 自身的语法细节，而是其前置依赖；不先修复就无法安全完成 bare annotated block → `do` 的全面迁移。
+- 已按阻塞规则处理：
+  - 撤回本轮尚未完成且未能通过验证的代码/fixture 修改，恢复仓库基线；
+  - 在 `TODO.md` 前插入新的首项任务 `T3103a0`，专门修复 statement-position 普通调用的 unsafe/extern/`@NoGC` 门禁；
+  - 更新 `PLAN.md`，把当前前端主线下一项改为 `T3103a0`。
+- 当前收尾动作：
+  1. 复查 `TODO.md` / `PLAN.md` 的重排是否正确。
+  2. 提交本次“阻塞重排”变更。

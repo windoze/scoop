@@ -2689,8 +2689,19 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T3102, T3006R
 
+### T3103a0 [TODO] Typecheck：恢复 statement-position 普通调用的 unsafe / extern / `@NoGC` 门禁
+- 描述：在尝试执行 `T3103a` 并把 bare annotated block 迁移到 `@Unsafe do { ... }` / `@Safe do { ... }` 时，暴露出一个更底层的既有前端缺口：`crates/scoopc/src/typecheck/expr/stmt.rs` 的 `check_expr_stmt` 仍未对 statement-position 普通 `Call` 闭环统一调用 typecheck，因此 `dangerous()`、`puts(1)`、`addressOf(x)` 这类“仅为副作用的调用”会绕过 value-position 已有的 `@Unsafe` / `@Extern` / `@NoGC` / `const` 门禁。直接结果是 `tests/fixtures/unsafe_nogc/unsafe_call_requires_unsafe_is_error.scoop`、`extern_call_requires_unsafe_is_error.scoop`、`extern_call_after_unsafe_block_still_requires_unsafe_is_error.scoop` 这类本应失败的样例会错误通过。只要这条缺口还在，`T3103a` 就不能安全地把仓库里的 bare annotated block 全部切到 `do` 形式。
+- 目标：
+  - statement-position 普通调用与 value-position 调用共用同一套门禁：至少覆盖 direct top-level call、import/sysroot call、member/extension call、function-value/funptr call 的 `@Unsafe` / `@Extern` / `@NoGC` / `const` 约束。
+  - `@Unsafe do { ... }` 离开后必须恢复外层 safe context；`@Safe` region（后续含 safe closure）内的 statement-position 调用必须重新被 unsafe gate 拦住，除非显式嵌套 `@Unsafe do { ... }`。
+  - 收口现有 `unsafe_nogc` 回归，使“副作用调用放在单独 statement 上”不再绕过门禁。
+- 验收：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc`
+  - `cargo test --all`
+- 依赖：T3103
+
 ### T3103a [TODO] 语法 / 实现：收口 `@Safe` / `@Unsafe` 与 `do` / closure 的绑定规则
-- 描述：当前 `SCOOP_FULL_SPEC.md` 已把局部 annotated block 收口为 `@Safe do { ... }` / `@Unsafe do { ... }`，并明确 bare `{ ... }` 在普通表达式位置属于 closure；同时规范还保留 `@Safe { ... }` 作为 annotated closure 的语义边界。但当前实现仍把 `@Safe { ... }` / `@Unsafe { ... }` 一律解析成 `SafeBlock` / `UnsafeBlock`，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 也仍在使用 bare annotated block 旧写法。若不先收口这条语法 / 实现边界，`T3104` 无法把规范 / 文档宣布为与实现一致。
+- 描述：当前 `SCOOP_FULL_SPEC.md` 已把局部 annotated block 收口为 `@Safe do { ... }` / `@Unsafe do { ... }`，并明确 bare `{ ... }` 在普通表达式位置属于 closure；同时规范还保留 `@Safe { ... }` 作为 annotated closure 的语义边界。但当前实现仍把 `@Safe { ... }` / `@Unsafe { ... }` 一律解析成 `SafeBlock` / `UnsafeBlock`，`parser/tests.rs`、`sysroot/string.scoop`、`SCOOP_RUNTIME.md` 与大量 fixtures 也仍在使用 bare annotated block 旧写法。进一步排查还确认：一旦把这些调用点切到 `do` 形式，就会暴露 `T3103a0` 的 statement-position call gate 缺口。因此本任务现在显式等待 `T3103a0` 先修复底层门禁，再继续完成语法/实现收口。
 - 目标：
   - 局部 annotated block 只接受 `@Safe do { ... }` / `@Unsafe do { ... }`；`@Unsafe { ... }` 不再作为 local block 兼容接受，应给出稳定诊断并指向 `do` 形式。
   - `@Safe { ... }` 在 closure / trailing-lambda 语境中按 annotated closure 处理，不再被错误吞成 `SafeBlock`。
@@ -2699,7 +2710,7 @@
   - 新增或更新 parser / typecheck / fixture 回归，锁定 `@Safe do { ... }` / `@Unsafe do { ... }` 继续工作，`@Unsafe { ... }` 不再是 local block，而 `@Safe { ... }` 的 closure 语义边界清晰可判。
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-- 依赖：T3103
+- 依赖：T3103, T3103a0
 
 ### T3104 [TODO] 规范 / 文档：同步 `do` block、closure 优先级与 trailing-lambda 规则
 - 描述：`T3103a` 收口实现后，还需要把规范与仓库文档的最终说法统一到同一套规则：普通局部 block 使用 `do { ... }`，bare `{ ... }` 的优先级属于 closure / trailing lambda，局部 annotated block 使用 `@Safe do { ... }` / `@Unsafe do { ... }`，而 `@Safe { ... }` 只保留 closure 语义。若只改实现不回写这些说明，后续 doctest、fixture 注释与文档示例仍会继续漂移。
