@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.top_level_val_pattern_inferred_cross_file
+
+enum MaybeInt {
+    Present(val value: Int),
+    None,
+}
+
+val Present(total) = Present(7)
+val enumSum: Int = total + 1

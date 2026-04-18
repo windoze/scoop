@@ -307,6 +307,7 @@ pub struct TypeEnv {
     by_fqn: HashMap<String, TypeSymbol>,
     enums: HashMap<String, EnumDecl>,
     sources: HashMap<PathBuf, SourceFile>,
+    files: HashMap<PathBuf, ast::File>,
     supertypes: HashMap<String, Vec<String>>,
     supertype_defs: HashMap<String, Vec<DirectSupertypeInfo>>,
     file_ctx: HashMap<PathBuf, FileTypeContext>,
@@ -369,6 +370,16 @@ impl TypeEnv {
     /// 通过文件路径获取对应的 `SourceFile`（若该文件在构建 env 时被收集过）。
     pub fn source(&self, path: &Path) -> Option<&SourceFile> {
         self.sources.get(path)
+    }
+
+    /// 通过文件路径获取对应的 AST（若该文件在构建 env 时被收集过）。
+    pub fn file_ast(&self, path: &Path) -> Option<&ast::File> {
+        self.files.get(path)
+    }
+
+    /// 遍历当前 type env 中已登记的源文件与 AST。
+    pub fn files(&self) -> impl Iterator<Item = (&PathBuf, &ast::File)> {
+        self.files.iter()
     }
 
     /// 获取当前编译目标平台（用于 capability gating）。
@@ -477,6 +488,9 @@ impl TypeEnv {
         self.sources
             .entry(source.path().to_path_buf())
             .or_insert_with(|| source.clone());
+        self.files
+            .entry(source.path().to_path_buf())
+            .or_insert_with(|| file.clone());
 
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         self.file_ctx

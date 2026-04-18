@@ -1,0 +1,6 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.top_level_val_pattern_inferred_cross_file
+
+val (left, right) = (1, 2)
+val tupleSum: Int = left + right

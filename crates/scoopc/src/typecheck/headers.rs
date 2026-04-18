@@ -177,15 +177,9 @@ fn check_top_level_val_header(
                 });
             }
         }
-        ast::ValBinding::Pattern(pat) => {
-            if v.ty.is_none() {
-                return Err(TypeHeaderError::MissingTypeAnnotation {
-                    kind: "顶层解构绑定",
-                    name: "<pattern>".to_string(),
-                    span: pat.span.into(),
-                });
-            }
-        }
+        // T4004a2：顶层 `val` pattern binding 允许从 initializer 推断整体类型；
+        // 这里不再强制显式整体类型注解，具体推断与 pattern 校验交给表达式 typecheck。
+        ast::ValBinding::Pattern(_pat) => {}
     }
 
     Ok(())

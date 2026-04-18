@@ -1,36 +1,129 @@
 use std::collections::HashMap;
 
 use crate::ast;
+use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
-use crate::ty::{BuiltinTypes, EffectRow, TypeId};
+use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};
 use super::util::package_prefix;
 
-use super::{EffParamSig, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN};
+use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN};
 
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
 use super::super::lower::TypeLowering;
-use super::super::val_pat;
+use super::super::{TypeEnv, val_pat};
 
-/// 收集“当前文件内”的顶层 `val/var` 声明类型（FQN → TypeId）。
+struct TopLevelValueCollectionFile<'a> {
+    source: &'a SourceFile,
+    file: ast::File,
+    imports: ImportTable,
+    strict: bool,
+}
+
+/// 收集“当前编译单元内”的顶层 `val/var` 声明类型（FQN → TypeId）。
 ///
 /// 说明：
 /// - 普通顶层名字绑定仍直接读取显式类型注解；
-/// - 顶层 `val` pattern binding 在 `T4004a1` 先走“显式整体类型注解 -> binder 类型分发”路径；
+/// - 顶层 `val` pattern binding 既支持显式整体类型注解，也支持由 initializer 驱动推断；
+/// - 会尽量补齐其它文件中的顶层 pattern binder 类型，以支持跨文件静态引用；
 /// - 该表用于处理表达式中的 `ResolvedValueRef::TopLevel`（变量引用）。
 pub(super) fn collect_top_level_value_types(
     source: &SourceFile,
     file: &ast::File,
-    lower: &mut TypeLowering<'_>,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
     builtins: BuiltinTypes,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<HashMap<String, TypeId>, ExprTypeError> {
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
     let mut map: HashMap<String, TypeId> = HashMap::new();
+    let mut files: Vec<TopLevelValueCollectionFile<'_>> = Vec::new();
 
-    for item in &file.items {
+    files.push(TopLevelValueCollectionFile {
+        source,
+        file: file.clone(),
+        imports: imports.clone(),
+        strict: true,
+    });
+
+    for (path, stored_file) in env.files() {
+        if path.as_path() == source.path() {
+            continue;
+        }
+        let Some(stored_source) = env.source(path) else {
+            continue;
+        };
+        let mut cloned = stored_file.clone();
+        let headers = match crate::resolve::check_file_headers(stored_source, &cloned, index) {
+            Ok(headers) => headers,
+            Err(_) => continue,
+        };
+        if crate::resolve::check_file_bodies(stored_source, &mut cloned, index, &headers).is_err() {
+            continue;
+        }
+        files.push(TopLevelValueCollectionFile {
+            source: stored_source,
+            file: cloned,
+            imports: headers.imports,
+            strict: false,
+        });
+    }
+
+    for file_info in &files {
+        collect_explicit_top_level_value_types_in_file(
+            file_info,
+            index,
+            env,
+            types,
+            builtins,
+            &mut map,
+        )?;
+    }
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for file_info in &files {
+            if infer_top_level_pattern_value_types_in_file(
+                file_info,
+                index,
+                env,
+                types,
+                builtins,
+                &mut map,
+            )? {
+                changed = true;
+            }
+        }
+    }
+
+    Ok(map)
+}
+
+fn collect_explicit_top_level_value_types_in_file(
+    file_info: &TopLevelValueCollectionFile<'_>,
+    index: &Index,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let pkg_prefix = package_prefix(file_info.source, file_info.file.package.as_ref());
+    let mut lower = TypeLowering::new(
+        file_info.source,
+        &file_info.file,
+        index,
+        &file_info.imports,
+        env,
+        types,
+        builtins,
+    );
+    let struct_field_types =
+        collect_struct_field_types(file_info.source, &file_info.file, &mut lower)?;
+
+    for item in &file_info.file.items {
         let ast::Item::Val(v) = item else {
             continue;
         };
@@ -41,7 +134,7 @@ pub(super) fn collect_top_level_value_types(
                     continue;
                 };
 
-                let local_name = source.slice(name.span);
+                let local_name = file_info.source.slice(name.span);
                 let fqn = if pkg_prefix.is_empty() {
                     local_name.to_string()
                 } else {
@@ -49,7 +142,7 @@ pub(super) fn collect_top_level_value_types(
                 };
 
                 let ty = lower.lower_type_ref(ty_ref)?;
-                map.insert(fqn, ty);
+                out.insert(fqn, ty);
             }
             ast::ValBinding::Pattern(pattern) => {
                 let Some(ty_ref) = &v.ty else {
@@ -58,31 +151,145 @@ pub(super) fn collect_top_level_value_types(
 
                 let subject_ty = lower.lower_type_ref(ty_ref)?;
                 let bindings = val_pat::infer_val_pat_bindings(
-                    source,
+                    file_info.source,
                     pattern,
                     subject_ty,
-                    lower,
+                    &mut lower,
                     builtins,
-                    struct_field_types,
+                    &struct_field_types,
                 )?;
 
                 for binder in v.binding.bound_idents() {
                     let Some(ty) = bindings.get(&binder.span).copied() else {
                         continue;
                     };
-                    let local_name = binder.text(source);
+                    let local_name = binder.text(file_info.source);
                     let fqn = if pkg_prefix.is_empty() {
                         local_name.to_string()
                     } else {
                         format!("{pkg_prefix}.{local_name}")
                     };
-                    map.insert(fqn, ty);
+                    out.insert(fqn, ty);
                 }
             }
         }
     }
 
-    Ok(map)
+    Ok(())
+}
+
+fn infer_top_level_pattern_value_types_in_file(
+    file_info: &TopLevelValueCollectionFile<'_>,
+    index: &Index,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<bool, ExprTypeError> {
+    let pkg_prefix = package_prefix(file_info.source, file_info.file.package.as_ref());
+    let mut lower = TypeLowering::new(
+        file_info.source,
+        &file_info.file,
+        index,
+        &file_info.imports,
+        env,
+        types,
+        builtins,
+    );
+    let struct_field_types =
+        collect_struct_field_types(file_info.source, &file_info.file, &mut lower)?;
+    let top_level_funs =
+        collect_top_level_fun_signatures(file_info.source, &file_info.file, &mut lower, builtins)?;
+    let empty_locals = HashMap::new();
+    let mut changed = false;
+
+    for item in &file_info.file.items {
+        let ast::Item::Val(v) = item else {
+            continue;
+        };
+        let ast::ValBinding::Pattern(pattern) = &v.binding else {
+            continue;
+        };
+        if v.ty.is_some() {
+            continue;
+        }
+        let Some(init) = &v.init else {
+            continue;
+        };
+
+        let all_bound = v.binding.bound_idents().into_iter().all(|binder| {
+            let local_name = binder.text(file_info.source);
+            let fqn = if pkg_prefix.is_empty() {
+                local_name.to_string()
+            } else {
+                format!("{pkg_prefix}.{local_name}")
+            };
+            out.contains_key(&fqn)
+        });
+        if all_bound {
+            continue;
+        }
+
+        let init_ty = match (ExprInferInputs {
+            source: file_info.source,
+            builtins,
+            locals: &empty_locals,
+            lambda_this_decl_span: None,
+            top_level_types: out,
+            top_level_funs: &top_level_funs,
+            member_mutabilities: None,
+            struct_field_types: &struct_field_types,
+            loop_depth: 0,
+            expected_return_ty: None,
+        })
+        .infer(&mut lower, init)
+        {
+            Ok(ty) => ty,
+            Err(err) => {
+                if file_info.strict {
+                    match err {
+                        ExprTypeError::UnsupportedTopLevelValueType { .. } => continue,
+                        other => return Err(other),
+                    }
+                }
+                continue;
+            }
+        };
+
+        let bindings = match val_pat::infer_val_pat_bindings(
+            file_info.source,
+            pattern,
+            init_ty,
+            &mut lower,
+            builtins,
+            &struct_field_types,
+        ) {
+            Ok(bindings) => bindings,
+            Err(err) => {
+                if file_info.strict {
+                    return Err(err);
+                }
+                continue;
+            }
+        };
+
+        for binder in v.binding.bound_idents() {
+            let Some(ty) = bindings.get(&binder.span).copied() else {
+                continue;
+            };
+            let local_name = binder.text(file_info.source);
+            let fqn = if pkg_prefix.is_empty() {
+                local_name.to_string()
+            } else {
+                format!("{pkg_prefix}.{local_name}")
+            };
+            if out.insert(fqn, ty).is_none() {
+                changed = true;
+            }
+        }
+    }
+
+    Ok(changed)
 }
 
 /// 收集“当前文件内”的顶层 `fun` 声明签名（FQN → FunSig）。

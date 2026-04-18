@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.top_level_val_pattern_inferred_cross_file
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+val Point { x: px, y: py } = Point { x: 3, y: 4 }
+val pointSum: Int = px + py

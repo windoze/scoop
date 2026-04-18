@@ -1,0 +1,9 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.top_level_val_pattern_inferred_cross_file
+
+val allGood: Int = left + right + px + py + total + tupleSum + pointSum + enumSum
+
+fun useAll(): Int {
+    return left + py + total + allGood
+}

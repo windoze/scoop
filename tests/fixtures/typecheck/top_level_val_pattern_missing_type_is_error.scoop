@@ -1,9 +1,0 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::missing_type_annotation
-// EXPECT-ERROR: 缺少类型注解
-// 目标：T4004a1 仅接通“显式整体类型注解 -> binder 类型分发”路径；
-// 无整体类型注解的顶层 pattern binding 仍在 header check 报错，等待 T4004a2。
-
-package fixtures.typecheck
-
-val (a, b) = (1, 2)

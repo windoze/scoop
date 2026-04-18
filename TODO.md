@@ -315,7 +315,7 @@
     - parser 单测 `parse_top_level_val_destructuring_with_type_annotation`
     - parser 单测 `top_level_var_destructuring_is_rejected`
     - `tests/fixtures/typecheck/top_level_val_pattern_annotated_same_file_ok.scoop`
-    - `tests/fixtures/typecheck/top_level_val_pattern_missing_type_is_error.scoop`
+    - `tests/fixtures/typecheck/top_level_val_pattern_missing_type_is_error.scoop`（已在 `T4004a2` 中被推断通过回归替换）
 - 已验证：
   - `cargo test -p scoopc top_level_`
   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
@@ -323,13 +323,29 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4003TR
 
-### T4004a2 [TODO] 为顶层 `val` pattern binder 补齐 initializer 驱动推断与跨文件类型可见性
+### T4004a2 [DONE] 为顶层 `val` pattern binder 补齐 initializer 驱动推断与跨文件类型可见性
 - 范围：
   - 顶层 `val` pattern binding 的整体类型可来自 initializer 推断，不再强制显式整体类型注解。
   - 顶层 pattern binder 的类型进入跨文件可见的 top-level value type 表，供其它文件静态引用。
   - 新增多文件 typecheck 回归：顶层 tuple / struct / enum binder 被其它文件引用。
 - 验收：
   - 顶层 tuple / struct / enum binder 的无注解写法与多文件静态引用均可通过 typecheck。
+- 完成：
+  - `check_top_level_val_header` 现已放宽为“仅普通顶层命名 `val/var` 继续强制显式类型注解”；顶层 `val` pattern binding 会把整体类型推断留给 initializer typecheck，不再在 header phase 早退报 `missing_type_annotation`。
+  - `TypeEnv` 现保留编译单元文件 AST 视图；`collect_top_level_value_types` 也从“只扫当前文件显式注解”升级为“跨文件显式收集 + 无注解顶层 pattern binder 迭代推断”，从而把 tuple / struct / enum binder 类型写入跨文件可见的 top-level value type 表。
+  - 顶层 initializer typecheck 现与局部 `val` pattern binding 对齐：有整体类型注解时按 expected-type 校验，无整体注解时直接以 initializer 推断出的 subject 类型驱动 `val_pat::infer_val_pat_bindings`，并把 binder 类型写回 side table 供后续 lowering 复用。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/top_level_val_pattern_inferred_same_file_ok.scoop`
+    - `tests/fixtures/typecheck_multi/top_level_val_pattern_inferred_cross_file/defs_tuple.scoop`
+    - `tests/fixtures/typecheck_multi/top_level_val_pattern_inferred_cross_file/defs_struct.scoop`
+    - `tests/fixtures/typecheck_multi/top_level_val_pattern_inferred_cross_file/defs_enum.scoop`
+    - `tests/fixtures/typecheck_multi/top_level_val_pattern_inferred_cross_file/use.scoop`
+- 已验证：
+  - `cargo test -p scoopc top_level_`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo run -p scoop -- test --fixtures /tmp/t4004a2-typecheck-multi`（临时 fixtures root，仅包含 `top_level_val_pattern_inferred_cross_file` case，`fixtures: ok (4)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004a1
 
 ### T4004b [TODO] 打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering

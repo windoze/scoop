@@ -222,13 +222,6 @@ fn check_file_exprs_impl(
     file.replace_continuation_resume_call_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
     file.replace_typechecked_ctor_call_bindings(HashMap::new());
-    let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
-    if request.collect_monomorph {
-        lower.enable_monomorph_collection();
-    }
-    if request.collect_type_insts {
-        lower.enable_type_instantiation_collection();
-    }
 
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -238,15 +231,23 @@ fn check_file_exprs_impl(
     let file_cone = index.cone_of_source(source);
     let consumer_cone = index.consumer_cone();
 
-    // 顶层 `val/var` 的类型表：用于在表达式里引用顶层变量时查询其声明类型。
-    //
-    // 当前阶段约束：
-    // - 只支持“当前文件内”的顶层变量（因为 typecheck phase 目前只解析单文件 AST）；
-    // - 顶层变量必须有显式类型注解（由 `typecheck::check_file_headers` 保证）。
-    let mut top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
-    let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
+    // 顶层函数签名与顶层值类型表：
+    // - 函数签名保持“当前文件内声明 + 跨文件按 Index fallback”；
+    // - 顶层值类型表现在会补齐无整体注解的顶层 pattern binder 与跨文件静态引用。
+    let mut top_level_funs = {
+        let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+        collect_top_level_fun_signatures(source, file, &mut lower, builtins)?
+    };
     let top_level_types =
-        collect_top_level_value_types(source, file, &mut lower, builtins, &struct_field_types)?;
+        collect_top_level_value_types(source, file, index, imports, env, types, builtins)?;
+    let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    if request.collect_monomorph {
+        lower.enable_monomorph_collection();
+    }
+    if request.collect_type_insts {
+        lower.enable_type_instantiation_collection();
+    }
+    let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
     let member_mutabilities = collect_member_mutabilities(source, file);
 
     for item in &file.items {
@@ -1412,35 +1413,48 @@ fn check_top_level_val_initializer(
     let Some(init) = &v.init else {
         return Ok(());
     };
-    let Some(ty_ref) = &v.ty else {
-        // 顶层 val/var 缺少类型注解会在 `check_file_headers`（T0404）中报错；
-        // 这里保持健壮性，不重复报错。
-        return Ok(());
+    let empty_locals = HashMap::new();
+    let declared_ty = match &v.ty {
+        Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
+        None => None,
     };
-
-    let expected = lower.lower_type_ref(ty_ref)?;
     let expected_from = match &v.binding {
         ast::ValBinding::Name(name) => {
             ExpectedTypeFrom::new(format!("顶层绑定 `{}` 的类型注解", source.slice(name.span)))
         }
         ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("顶层解构绑定的类型注解"),
     };
-    let empty_locals = HashMap::new();
-    let found = ExprInferInputs {
-        source,
-        builtins,
-        locals: &empty_locals,
-        lambda_this_decl_span: None,
-        top_level_types,
-        top_level_funs,
-        member_mutabilities: None,
-        struct_field_types,
-        loop_depth: 0,
-        expected_return_ty: None,
-    }
-    .infer_in_expected(lower, init, expected, expected_from)?;
+    let found = match declared_ty {
+        Some(expected) => ExprInferInputs {
+            source,
+            builtins,
+            locals: &empty_locals,
+            lambda_this_decl_span: None,
+            top_level_types,
+            top_level_funs,
+            member_mutabilities: None,
+            struct_field_types,
+            loop_depth: 0,
+            expected_return_ty: None,
+        }
+        .infer_in_expected(lower, init, expected, expected_from)?,
+        None => ExprInferInputs {
+            source,
+            builtins,
+            locals: &empty_locals,
+            lambda_this_decl_span: None,
+            top_level_types,
+            top_level_funs,
+            member_mutabilities: None,
+            struct_field_types,
+            loop_depth: 0,
+            expected_return_ty: None,
+        }
+        .infer(lower, init)?,
+    };
 
-    if !is_type_assignable(found, expected, lower, builtins)
+    if let Some(expected) = declared_ty
+        && !is_type_assignable(found, expected, lower, builtins)
         && !literal_absorbs_to_expected(init, expected, source, lower, builtins)
     {
         return Err(ExprTypeError::InitializerTypeMismatch {
@@ -1454,7 +1468,7 @@ fn check_top_level_val_initializer(
         let bindings = val_pat::infer_val_pat_bindings(
             source,
             pat,
-            expected,
+            found,
             lower,
             builtins,
             struct_field_types,
