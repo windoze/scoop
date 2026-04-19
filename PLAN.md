@@ -86,6 +86,10 @@
 > 2026-04-19 当前轮完成更新：`T4007S` 已完成。重新审计 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 与 `runtime/c/scoop_gc_backend_immix.c` 的线程注册、`enter_native/leave_native`、STW begin / safepoint / park 协调主线后，当前基线已无法复现先前记录的 `waiting for park: epoch=2 parked=0 need=1` 挂起。`immix_compaction_does_not_move_pinned_objects`、`immix_compaction_updates_native_roots_slots_and_object_fields` 单独运行均稳定通过，整组 `cargo test -p scoop_runtime --test gc_immix_compaction -- --nocapture` 也为绿色；在此基础上，`cargo test --all` 已完整跑通，并对 `cargo test -q -p scoop_runtime --test gc_immix_compaction` 连续复验 20 轮未见重现。基于这一结果，`T4007S` 已作为陈旧验证 blocker 关闭，本轮没有引入新的 runtime 代码补丁；`cargo clippy --all-targets -- -D warnings` 亦通过。当前下一项切换为 `T4007R`。
 >
 > 2026-04-19 当前轮完成更新：`T4007R` 已完成。复审 `crates/scoopc/src/rtti/mod.rs`、`crates/scoopc/src/rtti/type_desc.rs`、`crates/scoopc/src/itable.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/gc.rs` 后，确认三条主线仍保持一致：旧 RTTI 查询继续通过 `TypeLowering::new_with_ctx(...)` 解析参数化 nominal，`dump-rtti` 的 class/itable metadata 继续以 canonical name + `stable_hash64` 暴露参数化 descriptor / interface target，而 LLVM `is/as/as?` 对 class target 仍沿具体实例化 descriptor parent 链判定、对 interface target 则扫描 `runtime_match_type_ids`，没有重新退回 base unparameterized descriptor / 仅按 base interface id 判真的旁路。额外用临时 probe 验证 `NamedReadable<String>` 面向 `NamedReadable<Any>` 的协变 target 时，运行期 `is` 结果与 `dump-rtti --type 'StringReadable'` 导出的 `runtime_match_type_names` / `runtime_match_type_ids` 仍保持同步。已复验 `cargo test -p scoopc rtti:: -- --nocapture`、定向 `dump-rtti` / run-pass probe、`cargo run -p scoop -- test`（`fixtures: ok (1055)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`；未发现需要新增到 `TODO.md` 的 RTTI 前置 blocker。当前下一项切换为 `T4008`。
+>
+> 2026-04-19 当前轮计划调整：原 `T4008` 同时覆盖 escape continuation 多 await 组合、continuation 类型语义 / `resume` builtin surface，以及 richer effect polymorphism / receiver effect op 三条主线。为避免单轮同时横跨 stdlib async adapter、typecheck builtin、effect-op lowering 与 codegen，现已将其拆分为 `T4008a -> T4008b -> T4008c -> T4008R`。其中 `T4008a` 先清理一个已确认过时的 workaround：临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 已证明单个 setup `handle` 内连续两次 `Async.await` 可以稳定 build/run（stdout `17`），因此真实生效的 `stdlib/task.scoop` 不应继续保留“双层 handle”实现。当前本轮执行目标切换为 `T4008a`。
+>
+> 2026-04-19 当前轮完成更新：`T4008a` 已完成。真实生效的 `stdlib/task.scoop` 现已把 `Task<Int>.andThen` 从“第一段等待 `this`、第二段再等待 `next`”的嵌套 `handle` workaround 收口为单个 setup `handle` 内连续两次 `Async.await`；outer handler 仍统一通过 `task.onComplete(executor, k)` 回挂 continuation，因此 stdlib async adapter 主线已与现有 escape continuation 多 perform 能力对齐。补丁同时移除了“单个 `handle` 只支持一个 perform 点”的过时注释。验证上，临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 继续输出 `17`，`tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` 也已重新通过，说明 `Task.andThen` 已不再依赖 shape-based workaround。当前下一项推进到 `T4008b`。
 
 ## 0. 工作原则
 
@@ -146,6 +150,7 @@
 
 - 在核心语言与 codegen feature 收口后，再回头补 effect / continuation 剩余缺口。
 - 目标不是扩 executor，而是把手动 stepping `Task` 所需的 effect 语义补完整，包括更自然的多 suspend 组合、continuation 类型语义与相关 lowering。
+- 当前状态：`T4008` 已拆分为 `T4008a -> T4008b -> T4008c -> T4008R`；其中 `T4008a` 已完成，真实 stdlib `Task.andThen` 已改为单个 setup `handle` 内连续两次 `Async.await`，不再保留双 `handle` workaround。下一项进入 `T4008b`，继续收口 `Continuation<T, eff E>` 与 `Continuation.resume` 主线。
 
 ### P6. `Task` 设计定型
 

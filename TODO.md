@@ -773,20 +773,58 @@
 
 ## T4008：effect / continuation 完整性
 
-### T4008 [TODO] 补齐 `Task` 手动 stepping 所需的 effect / continuation 语义缺口
-- 范围：
-  - richer effect polymorphism 与 continuation 类型语义。
-  - receiver effect op 与相关 lowering。
-  - escape continuation 组合能力，避免多 suspend / 多 await 仍要拆成多段 `handle` 的现状。
+### T4008 [DONE] 补齐 `Task` 手动 stepping 所需的 effect / continuation 语义缺口（拆分执行）
+- 说明：
+  - 原任务同时覆盖 escape continuation 多 await 组合、continuation 类型语义 / `resume` builtin surface，以及 richer effect polymorphism / receiver effect op 三条主线，单轮完整收口风险过高。
+  - 临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 已确认：单个 setup `handle` 内连续两次 `Async.await` 当前已可稳定 build/run（stdout `17`），因此 `stdlib/task.scoop` 中 `Task.andThen` 的“双层 handle”已经退化为过时 workaround，应优先清理。
+  - 为保证每轮只提交一个完整且可验证的切片，现拆分为 `T4008a -> T4008b -> T4008c -> T4008R` 顺序推进。
 - 验收：
-  - `ISSUES.md` 第 1 条收窄或关闭。
+  - 子任务全部完成后，`ISSUES.md` 第 1 条收窄或关闭。
   - 文档明确区分“已支撑 `Task` manual stepping 的能力”和“仍留待后续的 executor 语义”。
 - 依赖：T4007R
+
+### T4008a [DONE] 收口 escape continuation 的多 await 组合，并移除 `Task.andThen` 的双 handle workaround
+- 范围：
+  - 真实生效的 `stdlib/task.scoop` 不再保留“单个 `handle` 只支持一个 perform 点”的过时注释与嵌套 `handle` 结构。
+  - `Task<Int>.andThen` 在单个 setup `handle` 内连续两次 `Async.await`，并继续统一通过 `task.onComplete(executor, k)` 回挂 continuation。
+  - 复用或更新回归，覆盖单个 setup `handle` 内链式两次 `Async.await` 的可执行行为。
+- 验收：
+  - `std_task_async_adapters_basic` 继续通过，且实现不再依赖嵌套 `handle`。
+  - 至少一条定向验证直接覆盖“单 handle 两次 await”主线。
+- 完成：
+  - 真实生效的 `stdlib/task.scoop` 现已把 `Task<Int>.andThen` 收口为单个 setup `handle`：先等待 `this`，拿到 `next` 后立即在同一 `handle` 内继续等待 `next`，outer handler 仍统一通过 `task.onComplete(executor, k)` 回挂 continuation。
+  - 已删除真实 stdlib 中“单个 `handle` 只支持一个 perform 点”的过时注释与双 `handle` workaround；`tests/fixtures/typecheck_cone/std_task_async_await_impl_ok/stdlib/task.scoop` 的镜像实现本就已经是单 `handle`，本轮复审确认无需额外修补。
+  - 现有 `std_task_async_adapters_basic` run-pass 与临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 已共同覆盖“真实 stdlib `andThen` 行为”与“单 `handle` 连续两次 `Async.await`”两条执行路径。
+- 已验证：
+  - `cargo run -q -p scoop -- run /tmp/t4008a_single_handle_and_then_probe.scoop`（stdout `17`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/std_task_async_adapters_basic.scoop`（stdout 与 golden 一致）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (349)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4007R
+
+### T4008b [TODO] 收口 continuation 类型语义与 `Continuation.resume` builtin surface
+- 范围：
+  - escape continuation binder 不再一律退回默认 `Continuation<T>` / `eff Pure`。
+  - `Continuation.resume` 的 typecheck / lowering / codegen 与规范 `k.resume(value): Unit / (E + Raise<RuntimeError>)` 对齐，不再保留额外的 shape-based 调用限制。
+  - 补充 typecheck / run-pass 回归，覆盖 effect-row 传播与 `resume` 调用主线。
+- 验收：
+  - 对应回归能区分 `Continuation<..., eff E>` 的 `E`，并验证 `resume` required-effects 传播。
+- 依赖：T4008a
+
+### T4008c [TODO] 打通 richer effect polymorphism 与 receiver effect op lowering
+- 范围：
+  - effect op call / handle arm 不再硬编码拒绝多 effect type params。
+  - receiver effect op 与相关 perform / handler lowering / codegen 进入统一主线，不靠 ad-hoc 特判。
+  - 补充对应 parse / typecheck / run-pass 回归。
+- 验收：
+  - `ISSUES.md` 第 1 条中关于 richer effect polymorphism 与 receiver effect op 的剩余描述收窄或关闭。
+- 依赖：T4008b
 
 ### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
 - 重点：
   - continuation / effect codegen 不能回流到按源码形状补丁选路。
-- 依赖：T4008
+- 依赖：T4008c
 
 ## T4009：`Task` 设计定型
 
