@@ -93,6 +93,13 @@ struct HirLowering<'a> {
     /// - receiver lambda lowering body 时会覆盖为当前 lambda 的合成 `this` 绑定；
     /// - 嵌套普通 lambda 会继承外层 receiver lambda 的 `this`，嵌套 receiver lambda 会再次覆盖。
     lambda_this_decl_span: Option<Span>,
+    /// 当前是否处于 `async` task body lowering 语境内。
+    ///
+    /// 说明：
+    /// - 在该语境中，源码级 `await` 不再保留为 `Async.await` perform，而是直接改写为内部 `join`
+    ///   helper 调用，使 `async {}` / `async fun` 共享同一条 lazy task creation 主线；
+    /// - 之所以用计数而不是 bool，是为了正确支持嵌套 `async`。
+    async_task_body_depth: usize,
     /// 合成局部绑定计数器：用于给 lowering 生成的临时局部变量分配唯一 decl span / 名字。
     next_synthetic_local: usize,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
@@ -116,6 +123,7 @@ struct HirLoweringSetup<'a> {
 
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
+    const TASK_CREATE_FQN: &'static str = "scoop.task.taskCreate";
     const TASK_FROM_RESULT_FQN: &'static str = "scoop.core.__scoop_task_from_result";
     const TASK_JOIN_FQN: &'static str = "scoop.core.__scoop_task_join";
     const TASK_TYPE_FQN: &'static str = "scoop.core.Task";
@@ -169,6 +177,7 @@ impl<'a> HirLowering<'a> {
             local_mutability: HashMap::new(),
             next_closure: 0,
             lambda_this_decl_span: None,
+            async_task_body_depth: 0,
             next_synthetic_local: 0,
             types,
             builtins,
@@ -252,6 +261,17 @@ impl<'a> HirLowering<'a> {
         let result = f(self);
         self.lambda_this_decl_span = previous;
         result
+    }
+
+    fn with_async_task_body<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        self.async_task_body_depth = self.async_task_body_depth.saturating_add(1);
+        let result = f(self);
+        self.async_task_body_depth = self.async_task_body_depth.saturating_sub(1);
+        result
+    }
+
+    fn in_async_task_body(&self) -> bool {
+        self.async_task_body_depth > 0
     }
 
     fn lower_file(&mut self) -> File {
@@ -530,15 +550,15 @@ impl<'a> HirLowering<'a> {
         // - 真正的 `Task<T>` nominal type lowering 与 ABI 会在后续任务中补齐。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let _inner_return_ty = fun
+        let inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
-            self.builtins.uint
+            self.task_type_of(inner_return_ty)
         } else {
-            _inner_return_ty
+            inner_return_ty
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
@@ -553,11 +573,10 @@ impl<'a> HirLowering<'a> {
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
-                let lowered = self.lower_block(pkg_prefix, b);
                 if is_async_fun {
-                    Some(self.rewrite_async_fun_block(lowered, true))
+                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(lowered)
+                    Some(self.lower_block(pkg_prefix, b))
                 }
             }
             ast::FunBody::Missing => None,
@@ -722,15 +741,15 @@ impl<'a> HirLowering<'a> {
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let _inner_return_ty = fun
+        let inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
-            self.builtins.uint
+            self.task_type_of(inner_return_ty)
         } else {
-            _inner_return_ty
+            inner_return_ty
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
@@ -744,11 +763,10 @@ impl<'a> HirLowering<'a> {
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
-                let lowered = self.lower_block(pkg_prefix, b);
                 if is_async_fun {
-                    Some(self.rewrite_async_fun_block(lowered, true))
+                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(lowered)
+                    Some(self.lower_block(pkg_prefix, b))
                 }
             }
             ast::FunBody::Missing => None,
@@ -836,15 +854,15 @@ impl<'a> HirLowering<'a> {
         // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 task handle（`UInt`）。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let _inner_return_ty = fun
+        let inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
-            self.builtins.uint
+            self.task_type_of(inner_return_ty)
         } else {
-            _inner_return_ty
+            inner_return_ty
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
@@ -858,11 +876,10 @@ impl<'a> HirLowering<'a> {
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
-                let lowered = self.lower_block(pkg_prefix, b);
                 if is_async_fun {
-                    Some(self.rewrite_async_fun_block(lowered, true))
+                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(lowered)
+                    Some(self.lower_block(pkg_prefix, b))
                 }
             }
             ast::FunBody::Missing => None,
@@ -933,15 +950,15 @@ impl<'a> HirLowering<'a> {
 
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
-        let _inner_return_ty = fun
+        let inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
         let return_ty = if is_async_fun {
-            self.builtins.uint
+            self.task_type_of(inner_return_ty)
         } else {
-            _inner_return_ty
+            inner_return_ty
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
@@ -955,11 +972,10 @@ impl<'a> HirLowering<'a> {
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
-                let lowered = self.lower_block(pkg_prefix, b);
                 if is_async_fun {
-                    Some(self.rewrite_async_fun_block(lowered, true))
+                    Some(self.lower_async_fun_body_block(pkg_prefix, b, inner_return_ty))
                 } else {
-                    Some(lowered)
+                    Some(self.lower_block(pkg_prefix, b))
                 }
             }
             ast::FunBody::Missing => None,

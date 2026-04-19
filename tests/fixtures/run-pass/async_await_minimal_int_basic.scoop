@@ -6,13 +6,15 @@
 // 与 post-suspend tail 现已接通；当前最小 async/await happy path 可运行。
 //
 // 目标覆盖（当前阶段最小可回归语义）：
-// - `async { ... }` 捕获 `await` 产生的 `Async` required effects，使 `main` 仍满足 entry-point 纯度规则；
-// - T0622：`await` 的参数应为 `Task<T>`，并在 async handler 内同步 `join` 取回结果后恢复。
+// - `async { ... }` 现在对外返回 lazy `Task<Int>`，而不是直接产出 `Int`；
+// - 当前最小可执行路径仍通过 `Executor.tryStart/runUntilIdle/result` 驱动 task 完成；
+// - T0622：`await` 的参数应为 `Task<T>`，并在 task body 内走内部 `join` helper 取回结果。
 
 import scoop.core.*
+import scoop.task.*
 
 fun main(): Int {
-    val result: Int = async {
+    val resultTask: Task<Int> = async {
         println("before")
         val t: Task<Int> = spawn { 41 }
         val x: Int = await t
@@ -20,6 +22,12 @@ fun main(): Int {
         println(x)
         x + 1
     }
+
+    val ex: Executor = executorCreate()
+    val _started: Bool = resultTask.tryStart(ex)
+    val _steps: Int = ex.runUntilIdle(0)
+    val result: Int = resultTask.result()
+    ex.destroy()
 
     println("done")
     println(result)

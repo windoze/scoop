@@ -13,8 +13,8 @@ async fun fetch(): Int {
 
 fun main(): Int {
     val task: Task<Int> = fetch()
-    val value: Int = async { await task }
-    println(value)
+    val value: Task<Int> = async { await task }
+    val same: Task<Int> = value
+    val same2: Task<Int> = task
     return 0
 }
-

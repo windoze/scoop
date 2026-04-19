@@ -1107,7 +1107,7 @@
   - `spawn` / `join` / `onComplete` 的 regression 能覆盖“非 `Int` body”“非 handle 直通”与 object-model 相关路径。
 - 依赖：T4009
 
-### T4009a1 [TODO] 统一 `async {}` / `async fun` 为 `Task<T>` sugar
+### T4009a1 [DONE] 统一 `async {}` / `async fun` 为 `Task<T>` sugar
 - 范围：
   - `async { body }` 的 typecheck / HIR / lowering / 文档统一收口为 lazy `Task<T>` surface，不再保留“吞掉内部 `Async` effect 并直接返回 `T`”的旁路叙事。
   - `async fun foo(): T` 与 `async { ... }` 共享同一 `Task` desugar 主线；`Task<T>` 作为普通 class 成立，不引入 task-specific special codegen requirement。
@@ -1115,6 +1115,26 @@
 - 验收：
   - `async {}` / `async fun` 对调用者都稳定暴露 `Task<T>`，且叙事与 lowering 主线一致。
   - `SCOOP_FULL_SPEC.md` / `TODO.md` / 相关 sysroot 文档对 async surface 的表述不再分裂。
+- 完成：
+  - `crates/scoopc/src/typecheck/expr/infer.rs` 现将 `async { ... }` 的结果类型统一定为 `Task<T>`，并继续保留“`await` 仅能在 async 语境内等待 `Task<T>`”的静态规则。
+  - `crates/scoopc/src/hir/lower/mod.rs`、`crates/scoopc/src/hir/lower/block.rs` 与 `crates/scoopc/src/hir/lower/expr.rs` 已把 `async { ... }` 与 `async fun` 统一 lower 到同一条 lazy `taskCreate { ... }` 主线；task body 内部的 `await expr` 会改写为内部 `__scoop_task_join(expr)`，不再继续走旧的 hidden `Async.await` immediate-resume 路径。
+  - `runtime/c/scoop_task_executor.c` 现为最小 lazy task 链补齐执行合同：`scoop_task_join` 在遇到 `CREATED` 且带 body 的 task 时会同步直驱一次 body，再读取结果，从而让 `await fetch()` / `await async { ... }` 这类路径与 `async fun` 共享同一语义。
+  - `sysroot/core.scoop` 已同步注明当前 async surface 的最小合同；新增回归覆盖 typecheck、LLVM IR、runtime test 与 run-pass：
+    - `crates/scoop_runtime/tests/task_spawn_join.rs`
+    - `tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+    - `tests/fixtures/run-pass/async_fun_task_runtime_basic.stdout`
+    - 以及更新后的 `async_await_minimal_int_basic` / `spawn_join_*` / `async_fun_returns_task_ok` / `entry_point_main_spawn_join_async_ok` 等夹具。
+- 已验证：
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/spawn_join_int_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/spawn_join_string_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_join -- --nocapture`
+  - `cargo test -q -p scoop_runtime --test task_spawn_join task_join_runs_created_task_body_inline -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -q -p scoop -- test`
 - 依赖：T4009a
 
 ### T4009a2 [TODO] 从 core / runtime / sysroot / stdlib 移除当前 executor-centric `Task` surface

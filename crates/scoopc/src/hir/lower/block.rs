@@ -6,11 +6,13 @@
 
 use crate::ast;
 use crate::span::Span;
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind};
 
 use super::HirLowering;
 use super::types::ExpectedExpr;
+use super::util::compute_closure_captures;
 
-use super::super::{Block, CallArg, Expr, ExprKind, Stmt, StmtKind, ValueRef};
+use super::super::{Block, CallArg, ClosureExpr, Expr, ExprKind, Stmt, StmtKind, ValueRef};
 
 impl<'a> HirLowering<'a> {
     pub(super) fn lower_block(&mut self, pkg_prefix: &str, b: &ast::Block) -> Block {
@@ -71,73 +73,74 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(super) fn rewrite_async_fun_block(
+    pub(super) fn lower_async_task_expr_from_block(
         &mut self,
-        mut block: Block,
-        wrap_tail_expr: bool,
-    ) -> Block {
-        // T0623：把 `async fun` 的返回值包装成 task 对象：
-        // - `return expr` → `return __scoop_task_from_result(expr)`；
-        // - block tail expr（隐式返回）同样做一次包装。
-
-        for stmt in &mut block.stmts {
-            match &mut stmt.kind {
-                StmtKind::While { body, .. } => {
-                    // 这里用 `replace` 把 body move 出来，避免对 Block 增加 Default 约束。
-                    let placeholder = Block {
-                        span: body.span,
-                        ty: body.ty,
-                        stmts: Vec::new(),
-                    };
-                    let old = std::mem::replace(body, placeholder);
-                    *body = self.rewrite_async_fun_block(old, false);
-                }
-                StmtKind::Return { value } => {
-                    if let Some(v) = value.take() {
-                        *value = Some(self.wrap_task_from_result_call(stmt.span, v));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if wrap_tail_expr {
-            // 隐式返回：若 block 末尾是表达式语句，则将其值包装为 task handle。
-            if let Some(last) = block.stmts.last_mut()
-                && let StmtKind::Expr(expr) = &mut last.kind
-            {
-                // 用占位符把 expr move 出来，避免对 Expr 增加 Default 约束。
-                let expr_span = expr.span;
-                let expr_ty = expr.ty;
-                let old = std::mem::replace(
-                    expr,
-                    Expr {
-                        span: expr_span,
-                        ty: expr_ty,
-                        kind: ExprKind::Missing,
-                    },
-                );
-                *expr = self.wrap_task_from_result_call(expr_span, old);
-            }
-        }
-
-        // 重新计算 block 类型：保持与 `lower_block` 的规则一致。
-        block.ty = block
-            .stmts
-            .last()
-            .and_then(|s| match &s.kind {
-                StmtKind::Expr(e) => Some(e.ty),
-                _ => None,
-            })
-            .unwrap_or(self.builtins.unit);
-
-        block
+        pkg_prefix: &str,
+        span: Span,
+        body: &ast::Block,
+    ) -> Expr {
+        let lowered = self.with_async_task_body(|this| this.lower_block(pkg_prefix, body));
+        let inner_return_ty = self
+            .typechecked_expr_ty(span)
+            .and_then(|ty| self.task_inner_ty(ty))
+            .unwrap_or(lowered.ty);
+        let body_expr = Expr {
+            span: lowered.span,
+            ty: inner_return_ty,
+            kind: ExprKind::Block(lowered),
+        };
+        self.wrap_expr_in_task_create_call(span, body_expr, inner_return_ty)
     }
 
-    fn wrap_task_from_result_call(&mut self, at: Span, value: Expr) -> Expr {
-        // `__scoop_task_from_result(value)` → completed task object（spawn final desugar deferred）。
-        let result_ty = self.task_type_of(value.ty);
-        let fqn = Self::TASK_FROM_RESULT_FQN.to_string();
+    pub(super) fn lower_async_fun_body_block(
+        &mut self,
+        pkg_prefix: &str,
+        body: &ast::Block,
+        inner_return_ty: TypeId,
+    ) -> Block {
+        let lowered = self.with_async_task_body(|this| this.lower_block(pkg_prefix, body));
+        let body_expr = Expr {
+            span: lowered.span,
+            ty: inner_return_ty,
+            kind: ExprKind::Block(lowered),
+        };
+        let task_expr = self.wrap_expr_in_task_create_call(body.span, body_expr, inner_return_ty);
+        let task_ty = task_expr.ty;
+        Block {
+            span: body.span,
+            ty: task_ty,
+            stmts: vec![Stmt {
+                span: body.span,
+                ty: task_ty,
+                kind: StmtKind::Expr(task_expr),
+            }],
+        }
+    }
+
+    fn wrap_expr_in_task_create_call(
+        &mut self,
+        at: Span,
+        body: Expr,
+        inner_return_ty: TypeId,
+    ) -> Expr {
+        let result_ty = self.task_type_of(inner_return_ty);
+        let closure_ty =
+            self.types
+                .ty_function(None, Vec::new(), inner_return_ty, EffectRow::pure(), true);
+        let closure = Expr {
+            span: body.span,
+            ty: closure_ty,
+            kind: ExprKind::Closure(ClosureExpr {
+                span: body.span,
+                id: self.alloc_closure_id(),
+                at_safe_span: None,
+                captures: compute_closure_captures(&[], &body, &self.local_mutability),
+                params: Vec::new(),
+                body: Box::new(body),
+            }),
+        };
+
+        let fqn = Self::TASK_CREATE_FQN.to_string();
         let callee = Expr {
             span: at,
             ty: self.builtins.any,
@@ -152,8 +155,19 @@ impl<'a> HirLowering<'a> {
             ty: result_ty,
             kind: ExprKind::Call {
                 callee: Box::new(callee),
-                args: vec![CallArg::Positional(value)],
+                args: vec![CallArg::Positional(closure)],
             },
+        }
+    }
+
+    fn task_inner_ty(&self, ty: TypeId) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return None;
+        };
+        if nominal.fqn == Self::TASK_TYPE_FQN && nominal.args.len() == 1 {
+            nominal.args.first().copied()
+        } else {
+            None
         }
     }
 }

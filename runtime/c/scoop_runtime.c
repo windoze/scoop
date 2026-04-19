@@ -1454,14 +1454,13 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
 // 说明：
 // - `spawn { ... }` 当前的最小 lowering 会先在当前线程算出结果，再通过
 //   `scoop_task_from_result(word, gc_ref)` 包装成一个已完成的 `Task<T>` 对象；
-// - `join task` 则通过 `scoop_task_join(task, &out_gc_ref)` 读取已完成 task 的 transport 值；
+// - `join task` 的早期 helper 由 `runtime/c/scoop_task_executor.c` 提供：若 task 已完成则直接读取
+//   transport 值；若 task 仍处于 created 且带 body，则会同步直驱一次 body 后再读取结果；
 // - 真实的 `Task<T>` / `Executor` 状态机、`taskCreate` / `onComplete` / `complete`
 //   主体实现在 `runtime/c/scoop_task_executor.c`。
 
 void *scoop_task_create_manual(void);
 uint32_t scoop_task_complete(void *task_obj, uint64_t result_word, void *result_gc_ref);
-uint64_t scoop_task_result_word(void *task_obj);
-void *scoop_task_result_gc_ref(void *task_obj);
 
 void *scoop_task_from_result(uint64_t result_word, void *result_gc_ref) {
   if (!scoop_rt_initialized) {
@@ -1485,26 +1484,6 @@ void *scoop_task_from_result(uint64_t result_word, void *result_gc_ref) {
   }
 
   return task;
-}
-
-uint64_t scoop_task_join(void *task_obj, void **out_gc_ref) {
-  if (out_gc_ref != 0) {
-    *out_gc_ref = 0;
-  }
-  if (task_obj == 0) {
-    return 0;
-  }
-
-  if (!scoop_rt_initialized) {
-    scoop_runtime_init();
-  }
-
-  uint64_t result_word = scoop_task_result_word(task_obj);
-  void *result_gc_ref = scoop_task_result_gc_ref(task_obj);
-  if (out_gc_ref != 0) {
-    *out_gc_ref = result_gc_ref;
-  }
-  return result_word;
 }
 
 static int scoop_is_indent_ws(uint8_t c) {

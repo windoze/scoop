@@ -4,13 +4,15 @@
 // T0620: `spawn/join`（结构化并发最小模型）
 //
 // 目标覆盖（当前阶段最小可回归语义）：
-// - T0622：`spawn { ... }` 计算 body 并返回一个 `Task<Int>` 句柄；
-// - `join/await` 取回结果（当前为 one-shot）。
+// - 外层 `async { ... }` 现在返回 lazy `Task<Int>`；
+// - `spawn { ... }` 仍按当前阶段语义返回一个可被 `join/await` 读取的 `Task<Int>`；
+// - 外层 task 通过 `Executor.tryStart/runUntilIdle/result` 驱动完成。
 
 import scoop.core.*
+import scoop.task.*
 
 fun main(): Int {
-    val result: Int = async {
+    val resultTask: Task<Int> = async {
         println("before")
 
         val t1: Task<Int> = spawn {
@@ -30,6 +32,12 @@ fun main(): Int {
         println(a + b)
         a + b
     }
+
+    val ex: Executor = executorCreate()
+    val _started: Bool = resultTask.tryStart(ex)
+    val _steps: Int = ex.runUntilIdle(0)
+    val result: Int = resultTask.result()
+    ex.destroy()
 
     println("done")
     println(result)

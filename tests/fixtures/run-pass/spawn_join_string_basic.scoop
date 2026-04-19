@@ -4,19 +4,28 @@
 // T4009a：`spawn/join` 不再绑定到 `Int`-only handle ABI。
 //
 // 目标覆盖：
-// - `spawn { ... }` 可返回 `String`；
-// - `join task` 通过 `Task<T>` object transport 取回 GC 引用结果。
+// - `async { ... }` 现在对外返回 lazy `Task<String>`；
+// - 内部 `spawn { ... }` 可返回 `String`；
+// - 外层 task 通过 `Executor.tryStart/runUntilIdle/result` 驱动完成。
 
 import scoop.core.*
+import scoop.task.*
 
 fun main(): Int {
-    val value: String = async {
+    val valueTask: Task<String> = async {
         val task: Task<String> = spawn {
             println("body")
             "hello"
         }
         join task
     }
+
+    val ex: Executor = executorCreate()
+    val _started: Bool = valueTask.tryStart(ex)
+    val _steps: Int = ex.runUntilIdle(0)
+    val value: String = valueTask.result()
+    ex.destroy()
+
     println("joined")
     println(value)
     return 0

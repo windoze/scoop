@@ -425,9 +425,9 @@ static uint32_t scoop_task_read_completed_result(ScoopTask *task,
   return 1;
 }
 
-static void scoop_task_run_body_on_executor(ScoopTask *task) {
+static uint32_t scoop_task_run_body(ScoopTask *task) {
   if (task == 0 || !task->lock_initialized) {
-    return;
+    return 0;
   }
 
   ScoopTaskBodyFn body_fn = 0;
@@ -436,7 +436,17 @@ static void scoop_task_run_body_on_executor(ScoopTask *task) {
   scoop_platform_sync_mutex_lock(&task->lock);
   if (task->state == (uint32_t)SCOOP_TASK_STATE_COMPLETED) {
     scoop_platform_sync_mutex_unlock(&task->lock);
-    return;
+    return 1;
+  }
+
+  // 允许两条入口复用同一执行主线：
+  // - executor 队列消费时：state == SCHEDULED；
+  // - 内部 `join` 直驱时：state == CREATED。
+  if ((task->state != (uint32_t)SCOOP_TASK_STATE_CREATED &&
+       task->state != (uint32_t)SCOOP_TASK_STATE_SCHEDULED) ||
+      task->body_fn == 0) {
+    scoop_platform_sync_mutex_unlock(&task->lock);
+    return 0;
   }
 
   task->state = (uint32_t)SCOOP_TASK_STATE_RUNNING;
@@ -453,6 +463,7 @@ static void scoop_task_run_body_on_executor(ScoopTask *task) {
 
   scoop_unpin_nullable(body_closure_obj);
   (void)scoop_task_complete((void *)task, result_word, result_gc_ref);
+  return 1;
 }
 
 void *scoop_executor_create(void) {
@@ -543,7 +554,7 @@ uint64_t scoop_executor_run_next(void *executor_obj) {
 
   if (job->kind == SCOOP_EXECUTOR_JOB_RUN_TASK) {
     ScoopTask *task = job->as.run_task.task;
-    scoop_task_run_body_on_executor(task);
+    (void)scoop_task_run_body(task);
     scoop_executor_job_release(job);
     return 1;
   }
@@ -620,6 +631,36 @@ void *scoop_task_result_gc_ref(void *task_obj) {
   void *gc_ref = 0;
   (void)scoop_task_read_completed_result((ScoopTask *)task_obj, 0, &gc_ref);
   return gc_ref;
+}
+
+uint64_t scoop_task_join(void *task_obj, void **out_gc_ref) {
+  if (out_gc_ref != 0) {
+    *out_gc_ref = 0;
+  }
+  if (task_obj == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  ScoopTask *task = (ScoopTask *)task_obj;
+  if (!task->lock_initialized) {
+    return 0;
+  }
+
+  // 早期 Task core 仍未引入 `poll()`；为让 lazy `async {}` / `async fun` 生成的 created task
+  // 至少能被内部 `await`/`join` 消费，这里允许 `join` 直驱一次“尚未启动但有 body”的 task。
+  // 其它未完成状态（manual task / 已调度但未运行 / 正在运行）仍保留为 misuse，并由
+  // `scoop_task_read_completed_result` 的 one-shot 断言收口。
+  (void)scoop_task_run_body(task);
+
+  uint64_t word = 0;
+  void *gc_ref = 0;
+  (void)scoop_task_read_completed_result(task, &word, &gc_ref);
+  if (out_gc_ref != 0) {
+    *out_gc_ref = gc_ref;
+  }
+  return word;
 }
 
 uint32_t scoop_task_try_start(void *task_obj, void *executor_obj) {

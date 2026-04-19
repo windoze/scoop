@@ -9,7 +9,7 @@ package fixtures.typecheck
 import scoop.core.*
 
 fun main(): Int {
-    val x: Int = async {
+    val x: Task<Int> = async {
         val y: Int = await 1
         y
     }

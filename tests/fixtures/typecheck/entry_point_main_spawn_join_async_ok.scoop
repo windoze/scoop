@@ -7,7 +7,7 @@ package fixtures.typecheck
 import scoop.core.*
 
 fun main(): Int {
-    val x: Int = async {
+    val x: Task<Int> = async {
         val t1: Task<Int> = spawn { 1 }
         val t2: Task<Int> = spawn { 2 }
         val a: Int = join t1
@@ -15,7 +15,8 @@ fun main(): Int {
         a + b
     }
 
-    // 仅用于确保 `x` 在外层可作为普通 `Int` 使用。
-    println(x)
+    // 仅用于确保 async surface 对外稳定暴露 `Task<Int>`。
+    val y: Task<Int> = x
+    val z: Task<Int> = y
     return 0
 }

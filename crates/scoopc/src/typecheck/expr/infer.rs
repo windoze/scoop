@@ -481,7 +481,7 @@ fn infer_tuple_lit_expr_type_in_expected_context(
 /// 推导 `async { ... }` 的类型，并在 required-effects 收集上“捕获 Async”。
 ///
 /// 当前阶段（T0619）最小规则：
-/// - async body 的值类型等价于 block 的值类型；
+/// - async body 的值类型成为 `Task<T>` 的内部 `T`；
 /// - body 内发生的 `await` 会记录一次 `Async` performed effect；
 /// - `async { ... }` 作为语法糖会捕获该 `Async`，因此该 effect 不向外层传播。
 fn infer_async_expr_type(
@@ -507,7 +507,7 @@ fn infer_async_expr_type(
         lower.record_performed_effect(effect, span);
     }
 
-    Ok(body_ty)
+    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![body_ty], async_expr.span)?)
 }
 
 /// 推导 `spawn { ... }` 的类型，并把 `Async` 计入 required effects（T0620）。

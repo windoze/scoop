@@ -1,0 +1,37 @@
+// EXPECT: pass
+// RUN-STDOUT: async_fun_task_runtime_basic.stdout
+//
+// T4009a1：`async fun` 与 `async {}` 统一收口为 lazy `Task<T>` sugar。
+//
+// 目标覆盖：
+// - `async fun foo(): T` 对外返回 `Task<T>`；
+// - task 需要显式 `tryStart` 后才开始执行；
+// - task body 内 `await` 另一个 `async fun` 返回的 created task 时，会通过内部 `join` helper
+//   直驱其 body，而不是继续依赖“外层立即求值”旧语义。
+
+import scoop.core.*
+import scoop.task.*
+
+async fun fetchBase(): Int {
+    println("base")
+    return 40
+}
+
+async fun fetch(): Int {
+    val x: Int = await fetchBase()
+    println("fetch")
+    println(x)
+    return x + 2
+}
+
+fun main(): Int {
+    val ex: Executor = executorCreate()
+    val task: Task<Int> = fetch()
+    val _started: Bool = task.tryStart(ex)
+    val _steps: Int = ex.runUntilIdle(0)
+    val value: Int = task.result()
+    ex.destroy()
+    println("done")
+    println(value)
+    return 0
+}

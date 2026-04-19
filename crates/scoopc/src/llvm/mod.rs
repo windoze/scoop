@@ -2360,7 +2360,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn async_await_ir_preserves_continuation_slot_and_perform_payload() {
+    fn async_task_ir_uses_task_create_and_internal_join() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -2369,17 +2369,11 @@ package a
 import scoop.core.*
 
 fun main(): Int {
-    val result: Int = async {
-        println("before")
+    val task: Task<Int> = async {
         val t: Task<Int> = spawn { 41 }
         val x: Int = await t
-        println("after")
-        println(x)
         x + 1
     }
-
-    println("done")
-    println(result)
     return 0
 }
 "#,
@@ -2388,43 +2382,17 @@ fun main(): Int {
         let session = Session::new().unwrap();
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
-        let continuation_store = ir
-            .lines()
-            .find(|line| line.contains("frame_continuation_ptr = getelementptr"))
-            .expect("IR 应包含 continuation 存储槽位");
-        let continuation_load = ir
-            .lines()
-            .find(|line| line.contains("read_continuation_for_resume = getelementptr"))
-            .expect("IR 应包含 continuation 读取槽位");
-
-        let continuation_store_index = continuation_store
-            .rsplit("i32 ")
-            .next()
-            .expect("continuation store index")
-            .parse::<u32>()
-            .expect("continuation store index should be integer");
-        let continuation_load_index = continuation_load
-            .rsplit("i32 ")
-            .next()
-            .expect("continuation load index")
-            .parse::<u32>()
-            .expect("continuation load index should be integer");
-
-        assert_eq!(
-            continuation_store_index, continuation_load_index,
-            "Suspend 与 arm resume 应共享同一个 continuation 槽位"
-        );
-        assert_ne!(
-            continuation_store_index, 3,
-            "continuation 不应再复用 public resume_gc_ref 槽位"
+        assert!(
+            ir.contains("@scoop_task_create"),
+            "async sugar 应降到 taskCreate runtime ABI，而不是直接把 body 立即求值成普通值"
         );
         assert!(
-            ir.contains("cont_resume_state_tag"),
-            "Suspend 应把 body resume state 写入 continuation，而不是继续依赖可变的 frame.state_tag"
+            ir.contains("@scoop_task_join"),
+            "async task body 内的 await 当前应改写成内部 join helper 调用"
         );
         assert!(
-            !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32 2, i32 0, i64 0)"),
-            "state-machine perform 不应把 Async.await 的 payload 覆盖成默认 0"
+            !ir.contains("@scoop_continuation_resume"),
+            "async sugar 现不应再在 HIR 主线上生成旧的 hidden immediate-resume continuation 路径"
         );
     }
 
