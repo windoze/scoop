@@ -2912,6 +2912,51 @@ fun main(): Int { return id(1) }
     }
 
     #[test]
+    fn lower_typed_single_source_file_preserves_chained_member_access_resolution() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4006v>",
+            r#"
+package fixtures.t4006v
+
+import scoop.core.*
+
+struct Tag(val label: String, val score: Int)
+
+class Node(val name: String, val tag: Tag, val value: Int)
+
+class Holder(val node: Node)
+
+fun main(): Int {
+    val holder: Holder = Holder(Node("root", Tag { label: "alpha", score: 7 }, 42))
+    val label: String = holder.node.tag.label
+    println(label)
+    return holder.node.tag.score
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let mut unresolved_member_names = Vec::new();
+        for item in &lowered.file.items {
+            if let Item::Fun(fun) = item
+                && let Some(body) = fun.body.as_ref()
+            {
+                collect_unresolved_member_names_in_block(body, &mut unresolved_member_names);
+            }
+        }
+
+        assert!(
+            !unresolved_member_names.iter().any(|name| name == "label"),
+            "{unresolved_member_names:?}"
+        );
+        assert!(
+            !unresolved_member_names.iter().any(|name| name == "score"),
+            "{unresolved_member_names:?}"
+        );
+    }
+
+    #[test]
     fn lower_for_compilation_unit_multi_files_preserves_effect_ty_in_init_side_tables() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(

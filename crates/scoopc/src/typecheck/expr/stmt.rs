@@ -12,9 +12,7 @@ use super::call::{
 };
 use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
-use super::member::{
-    infer_not_null_assert_expr_type, resolve_member_value_target_from_receiver_ty,
-};
+use super::member::{infer_not_null_assert_expr_type, resolve_member_value_target_for_receiver};
 use super::ops::{
     NominalReceiverRef, collect_unique_zero_arg_member_method_sig, literal_absorbs_to_expected,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
@@ -1557,13 +1555,13 @@ fn check_assign_expr_stmt(
             } else {
                 Some(receiver_inputs.infer(lower, receiver)?)
             };
-            let resolved = if receiver_inputs.is_current_lambda_this_expr(receiver) {
-                receiver_ty.and_then(|ty| {
-                    resolve_member_value_target_from_receiver_ty(receiver_inputs, ty, member, lower)
-                })
-            } else {
-                member.resolved.clone()
-            };
+            let resolved = resolve_member_value_target_for_receiver(
+                receiver_inputs,
+                receiver,
+                receiver_ty,
+                member,
+                lower,
+            );
 
             let Some(resolved) = resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {

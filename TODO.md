@@ -609,13 +609,24 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006T
 
-### T4006V [TODO] 收口链式成员访问在非局部 receiver 上的解析 / codegen
+### T4006V [DONE] 收口链式成员访问在非局部 receiver 上的解析 / codegen
 - 说明：
   - 在为 `T4006T` 添加 focused regression 时，最小 probe `println(node.tag.label)` 暴露出一个独立既有缺口：HIR 中外层 `label` 访问仍会保留 `member.resolved = None`，LLVM `codegen_member_access` 随后报 `scoop::llvm::unsupported_main_body: member access target`。
   - 该问题与 ctor 实参求值污染不是同一根因；当前已把 focused regression 改成复用 `describeNode(node)` 路径，避免把两个问题混在一个任务里。
 - 范围：
   - 让 `obj.field.subfield` / `obj.structField.member` 这类链式成员访问在 typecheck / HIR / LLVM 主线上稳定解析并执行。
   - 补齐对应的最小 regression，覆盖“receiver 不是局部 struct slot，而是另一个 member access 结果值”的路径。
+- 完成：
+  - 已定位根因：resolver 只会为裸 ident / 少数特殊 receiver 写回成员绑定，`holder.node.tag.label` 这类普通值成员链在外层 `label` 上不会留下 `member.resolved`；而普通 `MemberAccess` / assignment lhs 的 typecheck 先前也不像 `?.` 那样按已推导 receiver 类型做 late resolve，导致显式类型上下文会前置报 `member access（未 resolve）`，直接 `println(...)` 则把 `resolved = None` 漏进 HIR，最终在 LLVM 报 `member access target`。
+  - 已在 `typecheck::expr::member` 收口共享 helper `resolve_member_value_target_for_receiver`，统一普通 member access、safe member access 与 assignment lhs 的“resolver 结果 + 基于 receiver 类型的晚解析”主线；receiver lambda 的隐式 `this` 仍优先使用晚解析结果，避免回退到旧 `this` 绑定。
+  - 已新增 HIR 单测 `lower_typed_single_source_file_preserves_chained_member_access_resolution`，确认 `holder.node.tag.label` / `holder.node.tag.score` 不再把外层成员保留为 unresolved；并新增 run-pass 回归 `tests/fixtures/run-pass/chained_member_access_non_local_receiver_basic.scoop`，覆盖显式类型上下文与 `println(holder.node.tag.label)` 直通 codegen 的执行路径。
+- 已验证：
+  - 最小 probe `println(node.tag.label)` 现可 `cargo run -p scoop -- build <tmp>.scoop -o /tmp/t4006v_probe.out` 并执行输出 `alpha`
+  - `cargo test -p scoopc preserves_chained_member_access_resolution`
+  - `cargo run -p scoop -- test --fixtures <临时 fixtures root（仅含 chained_member_access_non_local_receiver_basic）>`（`fixtures: ok (1)`）
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1052)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006U
 
 ### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一

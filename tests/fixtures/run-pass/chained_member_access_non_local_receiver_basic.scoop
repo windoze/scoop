@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: chained_member_access_non_local_receiver_basic.stdout
+//
+// T4006V: 链式成员访问不应要求最外层 receiver 必须是局部槽位。
+// 这里的 `holder.node.tag.label` / `holder.node.tag.score` 都要求 outer member
+// 在 typecheck 后基于 `holder.node.tag` 的静态类型继续完成 late resolve。
+
+import scoop.core.*
+
+struct Tag(val label: String, val score: Int)
+
+class Node(val name: String, val tag: Tag, val value: Int)
+
+class Holder(val node: Node)
+
+fun makeHolder(): Holder {
+    val node: Node = Node("root", Tag { label: "alpha", score: 7 }, 42)
+    return Holder(node)
+}
+
+fun main() {
+    val holder: Holder = makeHolder()
+    val label: String = holder.node.tag.label
+    println(label)
+    println(holder.node.tag.label)
+    println(holder.node.tag.score)
+}

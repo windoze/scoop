@@ -15,6 +15,31 @@ struct MemberAccessInference {
     resolved: Option<ast::ResolvedMemberRef>,
 }
 
+/// 统一普通 member access 的“静态 resolved + typecheck 晚解析”入口。
+///
+/// 规则：
+/// - 普通场景优先保留 resolver 已选中的成员目标；
+/// - 若 resolver 因 receiver 只是另一个 member access 结果等原因无法写回 resolved，
+///   则回退到“已推导出的 receiver 类型”做一次值成员晚解析；
+/// - receiver lambda 的隐式 `this` 需要反过来优先使用晚解析结果，避免沿用 resolver
+///   在外层 `this` 上留下的陈旧成员绑定。
+pub(super) fn resolve_member_value_target_for_receiver(
+    inputs: ExprInferInputs<'_>,
+    receiver: &ast::Expr,
+    receiver_ty: Option<TypeId>,
+    member: &ast::MemberIdent,
+    lower: &TypeLowering<'_>,
+) -> Option<ast::ResolvedMemberRef> {
+    let late_resolved = receiver_ty
+        .and_then(|ty| resolve_member_value_target_from_receiver_ty(inputs, ty, member, lower));
+
+    if inputs.is_current_lambda_this_expr(receiver) {
+        late_resolved
+    } else {
+        member.resolved.clone().or(late_resolved)
+    }
+}
+
 pub(super) fn infer_safe_member_access_expr_type(
     inputs: ExprInferInputs<'_>,
     receiver: &ast::Expr,
@@ -36,13 +61,8 @@ pub(super) fn infer_safe_member_access_expr_type(
 
     // T0152：safe member access 与普通 member access 共享同一套成员解析结果；
     // `?.` 只负责 unwrap `Option<T>` 并在最外层再包回 `Option<_>`。
-    let resolved = if inputs.is_current_lambda_this_expr(receiver) {
-        resolve_member_value_target_from_receiver_ty(inputs, inner_ty, member, lower)
-    } else {
-        member.resolved.clone().or_else(|| {
-            resolve_member_value_target_from_receiver_ty(inputs, inner_ty, member, lower)
-        })
-    };
+    let resolved =
+        resolve_member_value_target_for_receiver(inputs, receiver, Some(inner_ty), member, lower);
     let inferred = infer_member_access_with_receiver_ty(
         inputs,
         Some(inner_ty),
@@ -237,12 +257,8 @@ pub(super) fn infer_member_access_expr_type(
     } else {
         Some(inputs.infer(lower, receiver)?)
     };
-    let resolved = if inputs.is_current_lambda_this_expr(receiver) {
-        receiver_ty
-            .and_then(|ty| resolve_member_value_target_from_receiver_ty(inputs, ty, member, lower))
-    } else {
-        member.resolved.clone()
-    };
+    let resolved =
+        resolve_member_value_target_for_receiver(inputs, receiver, receiver_ty, member, lower);
 
     let inferred = infer_member_access_with_receiver_ty(
         inputs,

@@ -15,7 +15,7 @@ use super::call::{
 use super::member::{
     infer_elvis_expr_type, infer_member_access_expr_type, infer_not_null_assert_expr_type,
     infer_safe_member_access_expr_type, infer_splice_field_expr_type,
-    resolve_member_value_target_from_receiver_ty,
+    resolve_member_value_target_for_receiver,
 };
 use super::ops::{
     infer_builtin_scalar_binary_expr_type, infer_operator_overload_binary_expr_type,
@@ -851,13 +851,13 @@ fn infer_assign_expr_type(
             } else {
                 Some(inputs.infer(lower, receiver)?)
             };
-            let resolved = if inputs.is_current_lambda_this_expr(receiver) {
-                receiver_ty.and_then(|ty| {
-                    resolve_member_value_target_from_receiver_ty(inputs, ty, member, lower)
-                })
-            } else {
-                member.resolved.clone()
-            };
+            let resolved = resolve_member_value_target_for_receiver(
+                inputs,
+                receiver,
+                receiver_ty,
+                member,
+                lower,
+            );
 
             let Some(resolved) = resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
