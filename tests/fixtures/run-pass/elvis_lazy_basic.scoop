@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: elvis_lazy_basic.stdout
+//
+// T4005: Elvis `?:` 运行期 lowering / codegen
+// - `Some(v)` 分支直接返回解包值；
+// - `None` 分支才求值 rhs；
+// - rhs 保持惰性。
+
+import scoop.core.*
+
+fun fallback(label: String, value: Int): Int {
+    println(f"rhs={label}")
+    return value
+}
+
+fun main() {
+    val some: Int? = Some(41)
+    val none: Int? = None()
+
+    println((some ?: fallback("some", -1)).toString())
+    println((none ?: fallback("none", 7)).toString())
+}

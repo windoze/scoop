@@ -115,7 +115,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_member_access(expr.span, receiver, member)
             }
             hir::ExprKind::When { subject, arms } => {
-                self.codegen_when_expr(expr.span, subject, arms, None)
+                self.codegen_when_expr(expr.span, subject, arms, self.cg_ty_of(expr.ty))
             }
             hir::ExprKind::If {
                 cond,

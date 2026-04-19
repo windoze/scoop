@@ -1,0 +1,16 @@
+// EXPECT: pass
+//
+// T4005: Elvis 结果落入 `Any`，并嵌在 tuple element 中时，
+// 不应依赖额外 expected-context 才能完成 codegen。
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Any? = None()
+    val y: Any = x ?: 0
+    val pair: (Any, Int) = (x ?: "fallback", 1)
+
+    val _keep_y: Any = y
+    val _keep_pair: (Any, Int) = pair
+    return 0
+}

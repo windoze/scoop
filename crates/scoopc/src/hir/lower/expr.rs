@@ -741,6 +741,9 @@ impl<'a> HirLowering<'a> {
                 if *op == ast::BinaryOp::RangeInclusive {
                     return self.lower_range_inclusive_expr(pkg_prefix, e.span, *op_span, lhs, rhs);
                 }
+                if *op == ast::BinaryOp::Elvis {
+                    return self.lower_elvis_expr(pkg_prefix, e.span, lhs, *op_span, rhs);
+                }
                 let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                 let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
                 let ty = self
@@ -2650,11 +2653,12 @@ impl<'a> HirLowering<'a> {
     fn lower_not_null_assert_expr(
         &mut self,
         pkg_prefix: &str,
-        _span: Span,
+        span: Span,
         expr: &ast::Expr,
         op_span: Span,
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, expr));
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
 
         let some_arm = WhenArm {
@@ -2673,7 +2677,7 @@ impl<'a> HirLowering<'a> {
             arrow_span: op_span,
             body: Expr {
                 span: op_span,
-                ty: self.builtins.any,
+                ty: result_ty,
                 kind: ExprKind::VarRef(ValueRef::Local {
                     id: v_sym,
                     name: "__not_null_v".to_string(),
@@ -2700,20 +2704,88 @@ impl<'a> HirLowering<'a> {
                 subject,
                 arms: vec![some_arm, none_arm],
             },
-            self.builtins.any,
+            result_ty,
         )
+    }
+
+    /// `lhs ?: rhs` → `when (lhs) { Some(v) -> v; None -> rhs }`
+    ///
+    /// 语义要求：
+    /// - `lhs` 只求值一次；
+    /// - `rhs` 仅在 `lhs` 为 `None` 时求值；
+    /// - 结果类型与 typecheck 对 Elvis 的 inner type 推断保持一致。
+    fn lower_elvis_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lhs: &ast::Expr,
+        op_span: Span,
+        rhs: &ast::Expr,
+    ) -> Expr {
+        let subject = Box::new(self.lower_expr(pkg_prefix, lhs));
+        let rhs = self.lower_expr(pkg_prefix, rhs);
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(rhs.ty);
+        let v_sym = self.intern_local_symbol(op_span, false);
+
+        let some_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "Some".to_string(),
+                args: vec![WhenPat::Bind {
+                    span: op_span,
+                    id: v_sym,
+                    name: "__elvis_v".to_string(),
+                }],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: Expr {
+                span: op_span,
+                ty: result_ty,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id: v_sym,
+                    name: "__elvis_v".to_string(),
+                    decl_span: op_span,
+                }),
+            },
+        };
+
+        let none_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "None".to_string(),
+                args: vec![],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: rhs,
+        };
+
+        Expr {
+            span,
+            ty: result_ty,
+            kind: ExprKind::When {
+                subject,
+                arms: vec![some_arm, none_arm],
+            },
+        }
     }
 
     /// `receiver?.field` → `when (receiver) { Some(v) -> Some(v.field); None -> None }`
     fn lower_safe_member_access_expr(
         &mut self,
         pkg_prefix: &str,
-        _span: Span,
+        span: Span,
         receiver: &ast::Expr,
         op_span: Span,
         member: &ast::MemberIdent,
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
 
         let v_ref = Expr {
@@ -2771,7 +2843,7 @@ impl<'a> HirLowering<'a> {
                 subject,
                 arms: vec![some_arm, none_arm],
             },
-            self.builtins.any,
+            result_ty,
         )
     }
 
@@ -2786,6 +2858,7 @@ impl<'a> HirLowering<'a> {
         args: &[ast::Expr],
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
 
         let v_ref = Expr {
@@ -2838,7 +2911,7 @@ impl<'a> HirLowering<'a> {
                 subject,
                 arms: vec![some_arm, none_arm],
             },
-            self.builtins.any,
+            result_ty,
         )
     }
 

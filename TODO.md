@@ -396,14 +396,28 @@
 
 ## T4005：Elvis `?:` lowering / codegen
 
-### T4005 [TODO] 把 Elvis `?:` 从静态规则推进到可执行 lowering / codegen
+### T4005 [DONE] 把 Elvis `?:` 从静态规则推进到可执行 lowering / codegen
 - 范围：
   - HIR lowering 不再落回 `Any` fallback。
   - LLVM codegen 支持 Elvis 主路径。
   - nullable / rhs type 规则与执行语义保持一致。
+- 已完成：
+  - HIR lowering 现将 Elvis 统一 desugar 为 `when (lhs) { Some(v) -> v; None -> rhs }`，保证 lhs 只求值一次、rhs 仅在 `None` 分支求值，不再把 `?:` 留在通用 `Binary` 的 `Any` fallback 上。
+  - typed lowering 现为 `?.` / safe-call / `!!` / Elvis 这条 nullable desugar 主线统一写回精确结果类型；LLVM `When` codegen 也会使用表达式静态类型作为结果 expected-context，修复 `Any` 结果和 tuple element 上下文里 Elvis 落入 `when arm type mismatch` 的既有裂缝。
+  - 已新增回归：
+    - `tests/fixtures/hir/elvis_lowering.scoop`
+    - `tests/fixtures/run-pass/elvis_lazy_basic.scoop`
+    - `tests/fixtures/run-pass/elvis_any_tuple_context_basic.scoop`
 - 验收：
   - 对应 fixtures 从 typecheck 扩展到 run-pass。
   - `ISSUES.md` 第 13 条收窄或关闭。
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (17)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - 定向 Elvis fixtures root（`fixtures: ok (4)`，覆盖 HIR / run-pass / typecheck）
+  - safe member access 回归 root（`fixtures: ok (1)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004R
 
 ### T4005R [TODO] Review：确认 Elvis 不再停留在“语法通过但不可执行”
