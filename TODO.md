@@ -750,10 +750,25 @@
   - `cargo test --all`
 - 依赖：T4007c
 
-### T4007R [TODO] Review：确认 RTTI 不再只覆盖未参数化类型
+### T4007R [DONE] Review：确认 RTTI 不再只覆盖未参数化类型
 - 重点：
   - 不允许对 generic / `eff` target 继续静默退回 base unparameterized descriptor / interface id。
   - `dump-rtti` 与运行期 `is/as/as?` 观察到的 canonical name / type_id 必须保持一致。
+- 完成：
+  - 已复审 `crates/scoopc/src/rtti/mod.rs`、`crates/scoopc/src/rtti/type_desc.rs`、`crates/scoopc/src/itable.rs`、`crates/scoopc/src/llvm/codegen/mod.rs` 与 `crates/scoopc/src/llvm/codegen/gc.rs`：旧 RTTI 查询继续通过 `TypeLowering::new_with_ctx(...)` 解析参数化 nominal，`dump-rtti` 的 class / itable metadata 与 LLVM 运行期 type test 继续统一使用 canonical name + `stable_hash64`，未发现重新静默退回 base unparameterized descriptor / interface id 的旁路。
+  - 额外用临时 probe 复验了协变 interface 族的运行期匹配边界：当源码中实际出现 `NamedReadable<Any>` target 时，`dump-rtti --type 'StringReadable'` 的 `runtime_match_type_names` 会同步包含 `NamedReadable<Any>`，并与 `anyValue is NamedReadable<Any>` 的运行结果一致，说明 match set 仍按当前编译单元里的 concrete target 与 assignable 主线统一预计算，而非只保留 base interface id。
+  - 未发现新的 RTTI blocker，本轮无需新增生产代码补丁。
+- 已验证：
+  - `cargo test -p scoopc rtti:: -- --nocapture`
+  - `cargo run -q -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop --type 'Holder<Int>'`
+  - `cargo run -q -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'StringReadable'`
+  - `cargo run -q -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'PureManaged'`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`
+  - `cargo run -q -p scoop -- run /tmp/t4007r_named_readable_any_probe.scoop`
+  - `cargo run -q -p scoop -- dump-rtti /tmp/t4007r_named_readable_any_probe.scoop --type 'StringReadable'`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1055)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4007S
 
 ## T4008：effect / continuation 完整性
