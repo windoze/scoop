@@ -2239,6 +2239,127 @@ fun main(): Int {
     }
 
     #[test]
+    fn state_machine_multi_payload_perform_uses_tuple_transport() {
+        let source = SourceFile::new_virtual(
+            "main.scoop",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun main(): Int {
+    return handle {
+        println("before")
+        val x: Int = if (true) Edge.visit("left", 6) else 0
+        println("after")
+        x + 1
+    } with {
+        Edge.visit(from, to) -> resume {
+            println(from)
+            println(to)
+            resume(to + 1)
+        }
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let mut ast = parse_file(&source).unwrap();
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+        crate::typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+        let files_to_lower = vec![(&source, &ast)];
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &files_to_lower,
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+
+        let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+        let ir =
+            emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+            "state-machine perform should also write through the shared gc-ref transport entrypoint"
+        );
+        assert!(
+            ir.contains("rt_alloc_effect_value_box"),
+            "state-machine multi-payload perform should box the tuple transport instead of rejecting 2+ args"
+        );
+        assert!(
+            ir.contains("effect_value_box_payload"),
+            "state-machine handler binder lowering should unbox the transported tuple payload before reading multiple binders"
+        );
+        assert!(
+            ir.contains("@scoop_continuation_resume"),
+            "immediate-resume regression should still materialize continuation resume in the state-machine path"
+        );
+        assert!(
+            !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
+            "state-machine multi-payload perform should not fall back to the single-word slot write ABI"
+        );
+    }
+
+    #[test]
     fn async_await_ir_preserves_continuation_slot_and_perform_payload() {
         let source = SourceFile::new_virtual(
             "<mem>",

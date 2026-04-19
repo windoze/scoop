@@ -1,0 +1,90 @@
+// EXPECT: pass
+// EXPECT-EXIT: 177
+// RUN-STDOUT: effect_state_machine_multi_payload_basic.stdout
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+class Cell(var k: Continuation<Int>?, var total: Int)
+
+fun plain_branch(flag: Bool): Int {
+    return handle {
+        if (flag) {
+            Edge.visit("plain_true", 1)
+        } else {
+            Edge.visit("plain_false", 2)
+        }
+    } with {
+        Edge.visit(from, to) -> {
+            println(from)
+            println(to)
+            to + 10
+        }
+    }
+}
+
+fun immediate_resume_case(): Int {
+    return handle {
+        println("immediate_before")
+        val x: Int = if (true) Edge.visit("immediate", 20) else 0
+        println("immediate_after")
+        println(x)
+        x + 100
+    } with {
+        Edge.visit(from, to) -> resume {
+            println(from)
+            println(to)
+            resume(to + 1)
+        }
+    }
+}
+
+fun escape_case(cell: Cell) {
+    val _: Unit = handle {
+        println("escape_before")
+        val x: Int = if (true) Edge.visit("escape", 30) else 0
+        println("escape_after")
+        println(x)
+        cell.total = x + 2
+    } with {
+        Edge.visit(from, to), k -> {
+            println(from)
+            println(to)
+            cell.k = Some(k)
+        }
+    }
+}
+
+fun main(): Int {
+    val plain: Int = plain_branch(true) + plain_branch(false)
+    println("plain_sum")
+    println(plain)
+
+    val immediate: Int = immediate_resume_case()
+    println("immediate_result")
+    println(immediate)
+
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+    escape_case(cell)
+    println("after_escape_handle")
+
+    when (cell.k) {
+        Some(k) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k.resume(31)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume")
+            }
+        }
+        None -> println("missing_k")
+    }
+
+    println("escape_total")
+    println(cell.total)
+    return plain + immediate + cell.total
+}

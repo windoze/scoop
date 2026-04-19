@@ -3890,6 +3890,128 @@ fun demo(): Int {
     }
 
     #[test]
+    fn source_plan_clones_if_expr_merge_consumer_for_resume_path() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    val result: Int = handle {
+        val x: Int = if (true) Yield.next() else 0
+        x
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+    result
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+
+        let StateTerminator::Goto(cloned_merge_id) = resume_state.terminator else {
+            panic!("resume state should jump into a cloned merge consumer state");
+        };
+        let cloned_merge = source_plan
+            .states
+            .iter()
+            .find(|state| state.id == cloned_merge_id)
+            .expect("cloned merge state should exist");
+        assert!(
+            cloned_merge.label.contains("resume.site"),
+            "resume path should jump to a synthetic cloned state, got {}",
+            cloned_merge.label
+        );
+
+        let else_state = source_plan
+            .states
+            .iter()
+            .find(|state| state.label == "if.else")
+            .expect("expected original else state");
+        let StateTerminator::Goto(original_merge_id) = else_state.terminator else {
+            panic!("original else state should still jump to the shared merge state");
+        };
+        assert_ne!(
+            cloned_merge_id, original_merge_id,
+            "resume path must not reuse the original shared merge state"
+        );
+
+        let original_merge = source_plan
+            .states
+            .iter()
+            .find(|state| state.id == original_merge_id)
+            .expect("original merge state should exist");
+
+        let original_init = original_merge
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("x") => {
+                    decl.init.as_ref()
+                }
+                _ => None,
+            })
+            .expect("original merge state should still bind `x`");
+        match &original_init.kind {
+            hir::ExprKind::If { then_branch, .. } => {
+                assert!(
+                    matches!(then_branch.kind, hir::ExprKind::Perform { .. }),
+                    "shared merge state must keep the original if expr for the non-resume path"
+                );
+            }
+            other => panic!("expected original init to stay as an if expr, got {other:?}"),
+        }
+
+        let cloned_init = cloned_merge
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("x") => {
+                    decl.init.as_ref()
+                }
+                _ => None,
+            })
+            .expect("cloned merge state should still bind `x`");
+        match &cloned_init.kind {
+            hir::ExprKind::If { then_branch, .. } => match &then_branch.kind {
+                hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                    assert_eq!(name, &resume_slot_name);
+                }
+                other => panic!("expected cloned then-branch to read the synthetic resume slot, got {other:?}"),
+            },
+            other => panic!("expected cloned init to stay as an if expr, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn source_plan_preserves_same_statement_escape_replay_prefix_for_nested_block_call_site() {
         let source_plan = build_source_plan(
             r#"

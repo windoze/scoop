@@ -3249,18 +3249,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .i32_type()
             .const_int(effect_instance_key as u64, false);
 
-        let payload_expr = match &expr.kind {
-            hir::ExprKind::Perform { args, .. } => match args.as_slice() {
-                [] => None,
-                [hir::CallArg::Positional(payload)] => Some(payload),
-                [hir::CallArg::Named { value, .. }] => Some(value),
-                _ => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "state machine perform arity",
-                        at: expr.span.into(),
-                    });
-                }
-            },
+        let args = match &expr.kind {
+            hir::ExprKind::Perform { args, .. } => args.as_slice(),
             _ => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "state machine perform payload expr",
@@ -3269,15 +3259,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
-        // Evaluate only the payload expression. Re-emitting the entire
-        // `perform` expression would recurse into `codegen_perform_expr`,
-        // which overwrites the TLS perform slot with the default resume
-        // placeholder for generic callers.
-        let payload_val = if let Some(payload_expr) = payload_expr {
-            self.codegen_expr_in_expected_context(payload_expr, None)?
-        } else {
-            CgValue::unit()
-        };
+        // Reuse the ordinary perform transport helper so state-machine direct
+        // perform sites and indirect ordinary perform share the same tuple
+        // transport contract for 2+ payload args.
+        let payload_val = self.codegen_perform_payload_value(expr.span, args)?;
 
         let (word, gc_ref) = self.encode_effect_transport_value(span, payload_val)?;
         let write_fn = self.declare_runtime_effect_perform_slot_write_u64_with_gc_ref();

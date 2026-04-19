@@ -968,7 +968,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c1
 
-### T4008cS [TODO] 支持 effect state-machine 的多实参 perform payload lowering
+### T4008cS [DONE] 支持 effect state-machine 的多实参 perform payload lowering
 - 说明：
   - 在为 `T4008c1` 增加 run-pass 回归时发现，`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs::emit_perform_op` 当前只接受 0/1 个 payload arg，`effect Edge<A, B> { fun visit(from: A, to: B): Int }` 一类两形参 effect op 在 state-machine 路径会报 `state machine perform arity`。
   - 在实际 probe 中又确认，state-machine 之前还存在更前置的普通 `perform` lowering 缺口：多实参 indirect perform 会先在普通 callee 上丢掉额外 payload，因此本任务现顺延到 `T4008cP` 之后，只负责 handle state-machine 自身的 payload / binder 主线。
@@ -978,6 +978,22 @@
   - 补充对应 run-pass / LLVM regression，覆盖同一 effect op 的多 binder payload 进入 perform slot 与 arm binder 读取。
 - 验收：
   - 多形参 effect op 在普通 handle / immediate-resume / escape-continuation 路径都不再报 `state machine perform arity`。
+- 完成情况：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 的 direct perform lowering 现已复用普通 `perform` 的共享 tuple payload transport，不再把 state-machine 路径限制在 0/1 payload。
+  - 在继续复验时，一并修复了 `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 里更前置的 resume rewrite 缺口：当 direct `perform` 位于 `if` 表达式内部，且 outer consumer 落在后继 merge state / goto 链共享 state 中时，resume 路径现在会克隆并改写专用 consumer state，避免把 resume slot 污染到普通分支，也不再把恢复值错误回退成 `0`。
+  - 新增 run-pass `tests/fixtures/run-pass/effect_state_machine_multi_payload_basic.scoop`，覆盖多 payload direct perform 在 plain / immediate-resume / escape-continuation 三条 state-machine 路径下的 transport 与恢复值传递。
+  - 新增 source-plan 回归 `source_plan_clones_if_expr_merge_consumer_for_resume_path`，以及 LLVM 回归 `state_machine_multi_payload_perform_uses_tuple_transport`。
+- 已验证：
+  - 最小 probe `/tmp/t4008cs_probe3.scoop` 现打印 `7`，退出码为 `8`
+  - `cargo test -p scoopc source_plan_clones_if_expr_merge_consumer_for_resume_path -- --nocapture`
+  - `cargo test -p scoopc state_machine_multi_payload_perform_uses_tuple_transport -- --nocapture`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_state_machine_multi_payload_basic.scoop`（stdout 恢复为预期，退出码 `177`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_resume_if_then_branch_single_perform.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_resume_if_else_branch_single_perform.scoop`
+  - `cargo fmt --check`
+  - `cargo test --all`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1062)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008cP
 
 ### T4008c2 [TODO] 打通 receiver effect op 的 perform / handler lowering / codegen

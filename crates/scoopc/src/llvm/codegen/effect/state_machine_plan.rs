@@ -879,6 +879,30 @@ enum SuspendResumeExprFrame {
 }
 
 impl SuspendResumeExprFrame {
+    fn expr_span(&self) -> Span {
+        match self {
+            SuspendResumeExprFrame::CallCallee { call_span }
+            | SuspendResumeExprFrame::CallArg { call_span, .. }
+            | SuspendResumeExprFrame::NamedArgValue { call_span, .. } => *call_span,
+            SuspendResumeExprFrame::PerformArg { perform_span, .. } => *perform_span,
+            SuspendResumeExprFrame::MemberReceiver { access_span } => *access_span,
+            SuspendResumeExprFrame::BinaryLhs { binary_span }
+            | SuspendResumeExprFrame::BinaryRhs { binary_span } => *binary_span,
+            SuspendResumeExprFrame::StructField { struct_span, .. } => *struct_span,
+            SuspendResumeExprFrame::TupleElement { tuple_span, .. } => *tuple_span,
+            SuspendResumeExprFrame::InterpolatedExpr { string_span, .. } => *string_span,
+            SuspendResumeExprFrame::UnaryOperand { expr_span }
+            | SuspendResumeExprFrame::CastOperand { expr_span }
+            | SuspendResumeExprFrame::TypeCheckOperand { expr_span } => *expr_span,
+            SuspendResumeExprFrame::IfCond { if_span }
+            | SuspendResumeExprFrame::IfThenExpr { if_span }
+            | SuspendResumeExprFrame::IfElseExpr { if_span } => *if_span,
+            SuspendResumeExprFrame::WhenSubject { when_span }
+            | SuspendResumeExprFrame::WhenArmGuard { when_span, .. }
+            | SuspendResumeExprFrame::WhenArmBody { when_span, .. } => *when_span,
+        }
+    }
+
     #[cfg(test)]
     fn label(&self) -> String {
         match self {
@@ -3447,8 +3471,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             .filter_map(|site| site.source_path.clone().map(|path| (site.id, path)))
             .collect::<HashMap<_, _>>();
 
-        for state in &mut self.states {
-            let mut rewrites = state
+        let original_state_count = self.states.len();
+        for state_index in 0..original_state_count {
+            let state_id = self.states[state_index].id;
+            let mut rewrites = self.states[state_index]
                 .actions
                 .iter()
                 .enumerate()
@@ -3472,6 +3498,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                                 .clone();
                             (
                                 op_index,
+                                *site_id,
                                 source_expr,
                                 resume_path,
                                 source_paths.get(site_id).cloned(),
@@ -3484,23 +3511,33 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
             rewrites.sort_by(|lhs, rhs| rhs.0.cmp(&lhs.0));
 
-            for (op_index, source_expr, resume_path, source_path, resume_slot) in rewrites {
-                for op in state.actions.iter_mut().skip(op_index + 1) {
-                    rewrite_state_op_with_resume_slot(
-                        op,
+            for (op_index, site_id, source_expr, resume_path, source_path, resume_slot) in rewrites {
+                {
+                    let state = &mut self.states[state_index];
+                    for op in state.actions.iter_mut().skip(op_index + 1) {
+                        rewrite_state_op_with_resume_slot(
+                            op,
+                            &source_expr,
+                            &resume_path,
+                            &resume_slot,
+                        );
+                    }
+                    rewrite_state_terminator_with_resume_slot(
+                        &mut state.terminator,
                         &source_expr,
                         &resume_path,
                         &resume_slot,
                     );
                 }
-                rewrite_state_terminator_with_resume_slot(
-                    &mut state.terminator,
-                    &source_expr,
-                    &resume_path,
-                    &resume_slot,
-                );
 
                 let Some(source_path) = source_path.as_ref() else {
+                    self.clone_linear_resume_consumer_chain(
+                        state_id,
+                        site_id,
+                        &source_expr,
+                        &resume_path,
+                        &resume_slot,
+                    );
                     continue;
                 };
                 let mut allocate_synthetic_symbol_id = || self.context.allocate_synthetic_symbol_id();
@@ -3511,41 +3548,143 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                     resume_slot: &resume_slot,
                     allocate_synthetic_symbol_id: &mut allocate_synthetic_symbol_id,
                 };
-                let Some(when_rewrite) = prepare_materialized_when_resume_rewrite(
-                    &state.actions,
-                    op_index,
-                    &state.terminator,
-                    &mut when_rewrite_input,
-                ) else {
+                let when_rewrite = {
+                    let state = &self.states[state_index];
+                    prepare_materialized_when_resume_rewrite(
+                        &state.actions,
+                        op_index,
+                        &state.terminator,
+                        &mut when_rewrite_input,
+                    )
+                };
+                let Some(when_rewrite) = when_rewrite else {
+                    self.clone_linear_resume_consumer_chain(
+                        state_id,
+                        site_id,
+                        &source_expr,
+                        &resume_path,
+                        &resume_slot,
+                    );
                     continue;
                 };
 
-                if let Some(replacement_expr) = when_rewrite.replacement_expr.as_ref() {
-                    for consumer_index in &when_rewrite.consumer_action_indices {
-                        rewrite_state_op_replacing_expr_span(
-                            &mut state.actions[*consumer_index],
-                            when_rewrite.when_span,
-                            replacement_expr,
-                        );
+                {
+                    let state = &mut self.states[state_index];
+                    if let Some(replacement_expr) = when_rewrite.replacement_expr.as_ref() {
+                        for consumer_index in &when_rewrite.consumer_action_indices {
+                            rewrite_state_op_replacing_expr_span(
+                                &mut state.actions[*consumer_index],
+                                when_rewrite.when_span,
+                                replacement_expr,
+                            );
+                        }
+                        if when_rewrite.rewrite_terminator {
+                            rewrite_state_terminator_replacing_expr_span(
+                                &mut state.terminator,
+                                when_rewrite.when_span,
+                                replacement_expr,
+                            );
+                        }
                     }
-                    if when_rewrite.rewrite_terminator {
-                        rewrite_state_terminator_replacing_expr_span(
-                            &mut state.terminator,
-                            when_rewrite.when_span,
-                            replacement_expr,
-                        );
+
+                    let removal_start = if when_rewrite.replacement_expr.is_some() {
+                        op_index + 1
+                    } else {
+                        when_rewrite.when_index
+                    };
+                    for action_index in (removal_start..=when_rewrite.when_index).rev() {
+                        state.actions.remove(action_index);
                     }
                 }
 
-                let removal_start = if when_rewrite.replacement_expr.is_some() {
-                    op_index + 1
-                } else {
-                    when_rewrite.when_index
-                };
-                for action_index in (removal_start..=when_rewrite.when_index).rev() {
-                    state.actions.remove(action_index);
-                }
+                self.clone_linear_resume_consumer_chain(
+                    state_id,
+                    site_id,
+                    &source_expr,
+                    &resume_path,
+                    &resume_slot,
+                );
             }
+        }
+    }
+
+    fn clone_linear_resume_consumer_chain(
+        &mut self,
+        resume_state_id: PlanStateId,
+        site_id: SuspendSiteId,
+        source_expr: &hir::Expr,
+        resume_path: &SuspendResumePath,
+        resume_slot: &FrameSlot,
+    ) {
+        let StateTerminator::Goto(first_target) = &self.state(resume_state_id).terminator else {
+            return;
+        };
+        let first_target = *first_target;
+
+        let candidate_spans = resume_rewrite_candidate_spans(source_expr, resume_path);
+        let mut seen = HashSet::new();
+        let mut chain = Vec::new();
+        let mut current = first_target;
+
+        loop {
+            if !seen.insert(current) {
+                return;
+            }
+
+            let state = self.state(current);
+            chain.push(current);
+            if state_contains_any_expr_span(state, &candidate_spans) {
+                break;
+            }
+
+            let StateTerminator::Goto(next) = &state.terminator else {
+                return;
+            };
+            current = *next;
+        }
+
+        let mut cloned_ids = Vec::with_capacity(chain.len());
+        for _ in &chain {
+            let cloned_id = self.next_state_id;
+            self.next_state_id = self.next_state_id.saturating_add(1);
+            cloned_ids.push(cloned_id);
+        }
+
+        let consumer_index = chain.len() - 1;
+        let mut cloned_states = Vec::with_capacity(chain.len());
+        for (idx, original_state_id) in chain.iter().copied().enumerate() {
+            let mut cloned = self.state(original_state_id).clone();
+            cloned.id = cloned_ids[idx];
+            cloned.label = format!("{}.resume.site{site_id}.clone{idx}", cloned.label);
+
+            if idx == consumer_index {
+                for op in &mut cloned.actions {
+                    rewrite_state_op_with_resume_slot(
+                        op,
+                        source_expr,
+                        resume_path,
+                        resume_slot,
+                    );
+                }
+                rewrite_state_terminator_with_resume_slot(
+                    &mut cloned.terminator,
+                    source_expr,
+                    resume_path,
+                    resume_slot,
+                );
+            } else {
+                cloned.terminator = StateTerminator::Goto(cloned_ids[idx + 1]);
+            }
+
+            cloned_states.push(cloned);
+        }
+
+        self.states.extend(cloned_states);
+        let state = self.state_mut(resume_state_id);
+        if let StateTerminator::Goto(target) = &mut state.terminator
+            && *target == first_target
+        {
+            *target = cloned_ids[0];
         }
     }
 
@@ -3564,6 +3703,13 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
     fn push_action(&mut self, state_id: PlanStateId, action: HandleStateOp) {
         self.state_mut(state_id).actions.push(action);
+    }
+
+    fn state(&self, state_id: PlanStateId) -> &PlanState {
+        self.states
+            .iter()
+            .find(|state| state.id == state_id)
+            .expect("state should exist")
     }
 
     fn state_mut(&mut self, state_id: PlanStateId) -> &mut PlanState {
@@ -4859,6 +5005,30 @@ fn prepare_materialized_when_resume_rewrite(
         consumer_action_indices,
         rewrite_terminator,
         replacement_expr: Some(replacement_expr),
+    })
+}
+
+fn resume_rewrite_candidate_spans(
+    source_expr: &hir::Expr,
+    resume_path: &SuspendResumePath,
+) -> Vec<Span> {
+    let mut spans = vec![source_expr.span];
+    for frame in &resume_path.expr_frames {
+        let span = frame.expr_span();
+        if !spans.contains(&span) {
+            spans.push(span);
+        }
+    }
+    spans
+}
+
+fn state_contains_any_expr_span(state: &PlanState, candidate_spans: &[Span]) -> bool {
+    candidate_spans.iter().copied().any(|expr_span| {
+        state
+            .actions
+            .iter()
+            .any(|op| state_op_contains_expr_span(op, expr_span))
+            || state_terminator_contains_expr_span(&state.terminator, expr_span)
     })
 }
 
