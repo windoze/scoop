@@ -1161,7 +1161,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a1
 
-### T4009a3 [TODO] 移除 LLVM / runtime 对当前 executor / `scoop.task.*` 的 hard-coded special-case
+### T4009a3 [DONE] 移除 LLVM / runtime 对当前 executor / `scoop.task.*` 的 hard-coded special-case
 - 范围：
   - LLVM codegen、runtime ABI 与相关 lowering 中，凡是只为当前 executor-centric 方向存在的 `scoop.task.*` / `Executor` / task-runtime special-case 都要移除。
   - `Task<T>` core 语义应建立在普通对象 / class lowering 与既有 effect / continuation 主线上，而不是继续依赖专门的 executor ABI 分叉。
@@ -1169,6 +1169,18 @@
 - 验收：
   - `Task` core 不再依赖当前 executor 专用 ABI / symbol / codegen 分支才能成立。
   - 任何剩余的 future executor 钩子都被明确标记为 deferred，而不是当前合同的一部分。
+- 完成：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已删除对 `scoop.task.executorCreate`、`scoop.task.destroy`、`scoop.task.debugPendingCount`、`scoop.task.runNext`、`scoop.task.runUntilIdle`、`scoop.task.taskCreateManual`、`scoop.task.state`、`scoop.task.result`、`scoop.task.tryStart`、`scoop.task.complete`、`scoop.task.onComplete` 的 FQN 分发与对应 helper；当前 compiler 仅保留 async sugar 需要的内部 `scoop.core.__scoop_task_create`，以及 `__scoop_task_from_result` / `__scoop_task_join` intrinsic 路径。
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` 与 `crates/scoopc/src/llvm/codegen/runtime_abi.rs` 已同步删掉只服务旧 executor/task surface 的符号常量与声明入口；Task 相关 runtime ABI 现只剩 `scoop_task_create`、`scoop_task_from_result`、`scoop_task_join` 三个内部 helper，对齐 `T4009a2` 后已经收缩过的 runtime allowlist。
+  - `__scoop_task_create` 的 codegen 错误标签已同步改写为内部 helper 名称，避免继续把已删除的公开 `taskCreate` surface 当作当前合同的一部分。
+- 已验证：
+  - `cargo fmt --check`
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_join -- --nocapture`
+  - `cargo test -q -p scoop_runtime --test task_spawn_join`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (357)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a2
 
 ### T4009b [TODO] 定义 `Task.poll()` / `step()` / `Poll<T>` 合同，并隐藏 raw continuation

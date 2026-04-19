@@ -2428,46 +2428,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.channels.close" {
                 return self.codegen_sysroot_channels_close(span, callee.span, args);
             }
-            // T1319e：std v3 task/executor 最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
-            if fqn == "scoop.task.executorCreate" {
-                return self.codegen_sysroot_task_executor_create(span, callee.span, args);
-            }
-            if fqn == "scoop.task.destroy" {
-                return self.codegen_sysroot_task_executor_destroy(span, callee.span, args);
-            }
-            if fqn == "scoop.task.debugPendingCount" {
-                return self.codegen_sysroot_task_executor_debug_pending_count(
-                    span,
-                    callee.span,
-                    args,
-                );
-            }
-            if fqn == "scoop.task.runNext" {
-                return self.codegen_sysroot_task_executor_run_next(span, callee.span, args);
-            }
-            if fqn == "scoop.task.runUntilIdle" {
-                return self.codegen_sysroot_task_executor_run_until_idle(span, callee.span, args);
-            }
-            if fqn == "scoop.task.taskCreate" || fqn == "scoop.core.__scoop_task_create" {
+            // T4009a3：公开的 `scoop.task.*` / `Executor` surface 已移除；
+            // 当前仅保留 async sugar 需要的内部 `__scoop_task_*` helper。
+            if fqn == "scoop.core.__scoop_task_create" {
                 return self.codegen_sysroot_task_create(span, callee.span, args);
-            }
-            if fqn == "scoop.task.taskCreateManual" {
-                return self.codegen_sysroot_task_create_manual(span, callee.span, args);
-            }
-            if fqn == "scoop.task.state" {
-                return self.codegen_sysroot_task_state(span, callee.span, args);
-            }
-            if fqn == "scoop.task.result" {
-                return self.codegen_sysroot_task_result(span, callee.span, args);
-            }
-            if fqn == "scoop.task.tryStart" {
-                return self.codegen_sysroot_task_try_start(span, callee.span, args);
-            }
-            if fqn == "scoop.task.complete" {
-                return self.codegen_sysroot_task_complete(span, callee.span, args);
-            }
-            if fqn == "scoop.task.onComplete" {
-                return self.codegen_sysroot_task_on_complete(span, callee.span, args);
             }
             // T1027：internal atomics（FFI/runtime oriented）
             //
@@ -7577,311 +7541,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     // --- std v3：task/executor（T1319e） ---
 
-    fn codegen_sysroot_task_executor_create(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.executorCreate arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let rt = self.declare_runtime_executor_create();
-        let call = self.builder.build_call(rt, &[], "executor_create")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.executorCreate return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(executor_obj) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.executorCreate return type",
-                at: span.into(),
-            });
-        };
-
-        Ok(CgValue {
-            ty: CgTy::Ref,
-            value: Some(executor_obj.into()),
-        })
-    }
-
-    fn codegen_sysroot_task_executor_destroy(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.destroy arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(executor_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.destroy named arg (receiver)",
-                at: span.into(),
-            });
-        };
-
-        let executor_v = self.codegen_expr_in_expected_context(executor_expr, Some(CgTy::Ref))?;
-        let executor_v = self.coerce_value(executor_expr.span, executor_v, CgTy::Ref)?;
-        let Some(executor_raw) = executor_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.destroy receiver value",
-                at: executor_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(executor_ptr) = executor_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.destroy receiver type",
-                at: executor_expr.span.into(),
-            });
-        };
-
-        let rt = self.declare_runtime_executor_destroy();
-        let _ = self
-            .builder
-            .build_call(rt, &[executor_ptr.into()], "executor_destroy")?;
-        Ok(CgValue::unit())
-    }
-
-    fn codegen_sysroot_task_executor_debug_pending_count(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(executor_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount named arg (receiver)",
-                at: span.into(),
-            });
-        };
-
-        let value_word = IntTy {
-            bits: self.host.word_bit_width(),
-            signed: true,
-        };
-
-        let executor_v = self.codegen_expr_in_expected_context(executor_expr, Some(CgTy::Ref))?;
-        let executor_v = self.coerce_value(executor_expr.span, executor_v, CgTy::Ref)?;
-        let Some(executor_raw) = executor_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount receiver value",
-                at: executor_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(executor_ptr) = executor_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount receiver type",
-                at: executor_expr.span.into(),
-            });
-        };
-
-        let rt = self.declare_runtime_executor_debug_pending_count();
-        let call =
-            self.builder
-                .build_call(rt, &[executor_ptr.into()], "executor_debug_pending_count")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(n_u64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.debugPendingCount return type",
-                at: span.into(),
-            });
-        };
-
-        let n_word = self.cast_int(
-            n_u64,
-            IntTy {
-                bits: 64,
-                signed: false,
-            },
-            value_word,
-        )?;
-        Ok(CgValue::int(n_word, value_word))
-    }
-
-    fn codegen_sysroot_task_executor_run_next(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(executor_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext named arg (receiver)",
-                at: span.into(),
-            });
-        };
-
-        let executor_v = self.codegen_expr_in_expected_context(executor_expr, Some(CgTy::Ref))?;
-        let executor_v = self.coerce_value(executor_expr.span, executor_v, CgTy::Ref)?;
-        let Some(executor_raw) = executor_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext receiver value",
-                at: executor_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(executor_ptr) = executor_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext receiver type",
-                at: executor_expr.span.into(),
-            });
-        };
-
-        let rt = self.declare_runtime_executor_run_next();
-        let call = self
-            .builder
-            .build_call(rt, &[executor_ptr.into()], "executor_run_next")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_u64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runNext return type",
-                at: span.into(),
-            });
-        };
-
-        let ok_cond = self.builder.build_int_compare(
-            IntPredicate::NE,
-            ok_u64,
-            self.context.i64_type().const_zero(),
-            "executor_run_next_ok",
-        )?;
-        Ok(CgValue::bool(ok_cond))
-    }
-
-    fn codegen_sysroot_task_executor_run_until_idle(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(executor_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(max_steps_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle named arg (maxSteps)",
-                at: span.into(),
-            });
-        };
-
-        let value_word = IntTy {
-            bits: self.host.word_bit_width(),
-            signed: true,
-        };
-
-        let executor_v = self.codegen_expr_in_expected_context(executor_expr, Some(CgTy::Ref))?;
-        let executor_v = self.coerce_value(executor_expr.span, executor_v, CgTy::Ref)?;
-        let Some(executor_raw) = executor_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle receiver value",
-                at: executor_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(executor_ptr) = executor_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle receiver type",
-                at: executor_expr.span.into(),
-            });
-        };
-
-        let max_steps_v =
-            self.codegen_expr_in_expected_context(max_steps_expr, Some(CgTy::Int(value_word)))?;
-        let max_steps_v =
-            self.coerce_value(max_steps_expr.span, max_steps_v, CgTy::Int(value_word))?;
-        let (raw_max_steps, from) =
-            max_steps_v
-                .as_int()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task.Executor.runUntilIdle maxSteps value",
-                    at: max_steps_expr.span.into(),
-                })?;
-        let max_steps_u64 = self.cast_int(
-            raw_max_steps,
-            from,
-            IntTy {
-                bits: 64,
-                signed: false,
-            },
-        )?;
-
-        let rt = self.declare_runtime_executor_run_until_idle();
-        let call = self.builder.build_call(
-            rt,
-            &[executor_ptr.into(), max_steps_u64.into()],
-            "executor_run_until_idle",
-        )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ran_u64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Executor.runUntilIdle return type",
-                at: span.into(),
-            });
-        };
-
-        let ran_word = self.cast_int(
-            ran_u64,
-            IntTy {
-                bits: 64,
-                signed: false,
-            },
-            value_word,
-        )?;
-        Ok(CgValue::int(ran_word, value_word))
-    }
-
     fn codegen_task_ref_value(
         &mut self,
         expr: &hir::Expr,
@@ -8016,52 +7675,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(wrapper)
     }
 
-    fn codegen_task_result_transport(
-        &mut self,
-        span: crate::span::Span,
-        task_ptr: PointerValue<'ctx>,
-    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
-        let rt_word = self.declare_runtime_task_result_word();
-        let word_call = self
-            .builder
-            .build_call(rt_word, &[task_ptr.into()], "task_result_word")?;
-        let raw_word =
-            word_call
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task.Task.result word return value",
-                    at: span.into(),
-                })?;
-        let BasicValueEnum::IntValue(word) = raw_word else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result word return type",
-                at: span.into(),
-            });
-        };
-
-        let rt_gc_ref = self.declare_runtime_task_result_gc_ref();
-        let gc_ref_call =
-            self.builder
-                .build_call(rt_gc_ref, &[task_ptr.into()], "task_result_gc_ref")?;
-        let raw_gc_ref =
-            gc_ref_call
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task.Task.result gc_ref return value",
-                    at: span.into(),
-                })?;
-        let BasicValueEnum::PointerValue(gc_ref) = raw_gc_ref else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result gc_ref return type",
-                at: span.into(),
-            });
-        };
-
-        Ok((word, gc_ref))
-    }
-
     fn codegen_sysroot_task_create(
         &mut self,
         span: crate::span::Span,
@@ -8070,21 +7683,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate arity mismatch",
+                kind: "__scoop_task_create arity mismatch",
                 at: span.into(),
             });
         }
 
         let hir::CallArg::Positional(block_expr) = &args[0] else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate named arg (block)",
+                kind: "__scoop_task_create named arg (block)",
                 at: span.into(),
             });
         };
 
         let block_fun_ty = self.resolve_expr_concrete_type(block_expr).ok_or(
             LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate block fun type",
+                kind: "__scoop_task_create block fun type",
                 at: block_expr.span.into(),
             },
         )?;
@@ -8092,13 +7705,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let block_v = self.coerce_value(block_expr.span, block_v, CgTy::Ref)?;
         let Some(block_raw) = block_v.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate block value",
+                kind: "__scoop_task_create block value",
                 at: block_expr.span.into(),
             });
         };
         let BasicValueEnum::PointerValue(block_obj_i8) = block_raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate block type",
+                kind: "__scoop_task_create block type",
                 at: block_expr.span.into(),
             });
         };
@@ -8116,12 +7729,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate return value",
+                kind: "__scoop_task_create return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(task_obj) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreate return type",
+                kind: "__scoop_task_create return type",
                 at: span.into(),
             });
         };
@@ -8130,335 +7743,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy::Ref,
             value: Some(task_obj.into()),
         })
-    }
-
-    fn codegen_sysroot_task_create_manual(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreateManual arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let rt = self.declare_runtime_task_create_manual();
-        let call = self.builder.build_call(rt, &[], "task_create_manual")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreateManual return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(task_obj) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.taskCreateManual return type",
-                at: span.into(),
-            });
-        };
-
-        Ok(CgValue {
-            ty: CgTy::Ref,
-            value: Some(task_obj.into()),
-        })
-    }
-
-    fn codegen_sysroot_task_state(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.state arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(task_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.state named arg (receiver)",
-                at: span.into(),
-            });
-        };
-
-        let value_word = IntTy {
-            bits: self.host.word_bit_width(),
-            signed: true,
-        };
-
-        let task_ptr = self.codegen_task_ref_value(task_expr, "task.Task.state receiver value")?;
-
-        let rt = self.declare_runtime_task_state();
-        let call = self
-            .builder
-            .build_call(rt, &[task_ptr.into()], "task_state")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.state return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(state_u32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.state return type",
-                at: span.into(),
-            });
-        };
-
-        let state_word = self.cast_int(
-            state_u32,
-            IntTy {
-                bits: 32,
-                signed: false,
-            },
-            value_word,
-        )?;
-        Ok(CgValue::int(state_word, value_word))
-    }
-
-    fn codegen_sysroot_task_result(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(task_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result named arg (receiver)",
-                at: span.into(),
-            });
-        };
-
-        let task_ptr = self.codegen_task_ref_value(task_expr, "task.Task.result receiver value")?;
-        let inner_ty = self.task_inner_type_from_expr(task_expr).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result receiver type",
-                at: task_expr.span.into(),
-            },
-        )?;
-        let inner_cg = self
-            .cg_ty_of(inner_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.result inner cg type",
-                at: task_expr.span.into(),
-            })?;
-        let (word, gc_ref) = self.codegen_task_result_transport(task_expr.span, task_ptr)?;
-        self.decode_effect_transport_value(task_expr.span, word, gc_ref, inner_cg)
-    }
-
-    fn codegen_sysroot_task_try_start(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.tryStart arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(task_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.tryStart named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(executor_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.tryStart named arg (executor)",
-                at: span.into(),
-            });
-        };
-
-        let task_ptr =
-            self.codegen_task_ref_value(task_expr, "task.Task.tryStart receiver value")?;
-        let executor_ptr =
-            self.codegen_task_ref_value(executor_expr, "task.Task.tryStart executor value")?;
-
-        let rt = self.declare_runtime_task_try_start();
-        let call = self.builder.build_call(
-            rt,
-            &[task_ptr.into(), executor_ptr.into()],
-            "task_try_start",
-        )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.tryStart return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.tryStart return type",
-                at: span.into(),
-            });
-        };
-
-        let ok_cond = self.builder.build_int_compare(
-            IntPredicate::NE,
-            ok_i32,
-            self.context.i32_type().const_zero(),
-            "task_try_start_ok",
-        )?;
-        Ok(CgValue::bool(ok_cond))
-    }
-
-    fn codegen_sysroot_task_complete(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(task_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(value_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete named arg (value)",
-                at: span.into(),
-            });
-        };
-
-        let task_ptr =
-            self.codegen_task_ref_value(task_expr, "task.Task.complete receiver value")?;
-        let inner_ty = self.task_inner_type_from_expr(task_expr).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete receiver type",
-                at: task_expr.span.into(),
-            },
-        )?;
-        let inner_cg = self
-            .cg_ty_of(inner_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete inner cg type",
-                at: task_expr.span.into(),
-            })?;
-        let value_v = self.codegen_initializer_expr(value_expr, inner_cg, inner_ty)?;
-        let value_v = self.coerce_value(value_expr.span, value_v, inner_cg)?;
-        let (word, gc_ref) = self.encode_effect_transport_value(value_expr.span, value_v)?;
-
-        let rt = self.declare_runtime_task_complete();
-        let call = self.builder.build_call(
-            rt,
-            &[task_ptr.into(), word.into(), gc_ref.into()],
-            "task_complete",
-        )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.complete return type",
-                at: span.into(),
-            });
-        };
-
-        let ok_cond = self.builder.build_int_compare(
-            IntPredicate::NE,
-            ok_i32,
-            self.context.i32_type().const_zero(),
-            "task_complete_ok",
-        )?;
-        Ok(CgValue::bool(ok_cond))
-    }
-
-    fn codegen_sysroot_task_on_complete(
-        &mut self,
-        span: crate::span::Span,
-        _callee_span: crate::span::Span,
-        args: &[hir::CallArg],
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 3 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(task_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(executor_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete named arg (executor)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(k_expr) = &args[2] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete named arg (continuation)",
-                at: span.into(),
-            });
-        };
-
-        let task_ptr =
-            self.codegen_task_ref_value(task_expr, "task.Task.onComplete receiver value")?;
-        let executor_ptr =
-            self.codegen_task_ref_value(executor_expr, "task.Task.onComplete executor value")?;
-        let k_ptr =
-            self.codegen_task_ref_value(k_expr, "task.Task.onComplete continuation value")?;
-
-        let rt = self.declare_runtime_task_on_complete();
-        let call = self.builder.build_call(
-            rt,
-            &[task_ptr.into(), executor_ptr.into(), k_ptr.into()],
-            "task_on_complete",
-        )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task.Task.onComplete return type",
-                at: span.into(),
-            });
-        };
-
-        let ok_cond = self.builder.build_int_compare(
-            IntPredicate::NE,
-            ok_i32,
-            self.context.i32_type().const_zero(),
-            "task_on_complete_ok",
-        )?;
-        Ok(CgValue::bool(ok_cond))
     }
 
     fn codegen_sysroot_array_builder_intrinsics(
