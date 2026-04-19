@@ -1173,11 +1173,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
 
-        // itable entry：{ interface_id: u64, methods: i8* }
-        // methods 指向一个 `i8*[]`（函数指针数组），按 interface slot 顺序排列。
-        let entry_ty = self
-            .context
-            .struct_type(&[i64_ty.into(), i8_ptr_ty.into()], false);
+        // itable entry：
+        // { interface_id: u64, match_len: u32, _reserved: u32, match_ids: i8*, methods: i8* }
+        //
+        // 说明：
+        // - `methods` 指向一个 `i8*[]`（函数指针数组），按 interface slot 顺序排列；
+        // - `match_ids` 指向一个 `u64[]`，保存该具体 interface 实例在运行期可匹配的 target type ids。
+        let entry_ty = self.context.struct_type(
+            &[
+                i64_ty.into(),
+                i32_ty.into(),
+                i32_ty.into(),
+                i8_ptr_ty.into(),
+                i8_ptr_ty.into(),
+            ],
+            false,
+        );
 
         let mut entry_inits: Vec<inkwell::values::StructValue<'ctx>> =
             Vec::with_capacity(entries.len());
@@ -1185,9 +1196,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for entry in entries {
             // 1) 生成 method table：`i8*[]`。
             let methods_gv_name = format!(
-                "__scoop_itable_methods__{}__{:016x}",
+                "__scoop_itable_methods__{}__{:016x}__{:016x}",
                 sanitize_llvm_ident(class_fqn),
-                entry.interface_id
+                entry.interface_id,
+                entry.interface_type_id,
             );
 
             let methods_gv = if let Some(existing) = self.module.get_global(&methods_gv_name) {
@@ -1234,8 +1246,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let methods_ptr_i8 = methods_gv.as_pointer_value().const_cast(i8_ptr_ty).into();
 
+            let match_ids_ptr_i8 = if entry.runtime_match_type_ids.is_empty() {
+                i8_ptr_ty.const_null().into()
+            } else {
+                let match_gv_name = format!(
+                    "__scoop_itable_match_ids__{}__{:016x}__{:016x}",
+                    sanitize_llvm_ident(class_fqn),
+                    entry.interface_id,
+                    entry.interface_type_id,
+                );
+                let match_gv = if let Some(existing) = self.module.get_global(&match_gv_name) {
+                    existing
+                } else {
+                    let arr_ty = i64_ty.array_type(entry.runtime_match_type_ids.len() as u32);
+                    let gv = self.module.add_global(arr_ty, None, &match_gv_name);
+                    let inits = entry
+                        .runtime_match_type_ids
+                        .iter()
+                        .map(|id| i64_ty.const_int(*id, false))
+                        .collect::<Vec<_>>();
+                    gv.set_initializer(&i64_ty.const_array(&inits));
+                    gv.set_constant(true);
+                    gv.set_linkage(Linkage::Internal);
+                    gv
+                };
+                match_gv.as_pointer_value().const_cast(i8_ptr_ty).into()
+            };
+
             let init = entry_ty.const_named_struct(&[
                 i64_ty.const_int(entry.interface_id, false).into(),
+                i32_ty
+                    .const_int(entry.runtime_match_type_ids.len() as u64, false)
+                    .into(),
+                i32_ty.const_zero().into(),
+                match_ids_ptr_i8,
                 methods_ptr_i8,
             ]);
             entry_inits.push(init);

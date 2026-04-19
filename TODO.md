@@ -678,7 +678,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006R
 
-### T4007b [TODO] 为 parameterized interface 与 `eff` 参数 target 补齐运行期匹配
+### T4007b [DONE] 为 parameterized interface 与 `eff` 参数 target 补齐运行期匹配
 - 范围：
   - 带 type args / `eff` row 的 interface target 不再只按 base interface id 判真。
   - `Disposable<eff Raise<RuntimeError>>`、`Disposable<eff Pure>` 一类运行期判断结果与前端 assignable / effect-row 包含关系一致。
@@ -686,6 +686,21 @@
 - 验收：
   - 新增 run-pass / RTTI 定向回归，覆盖 `eff` 参数 target 的正反路径。
   - `ISSUES.md` 第 15 条至少收窄到“仅剩旧 RTTI 导出 API”或被完全关闭。
+- 完成：
+  - `crates/scoopc/src/itable.rs` 现为每个 concrete class 的 interface itable entry 同步保存 `interface_type_name` / `interface_type_id` 与 `runtime_match_type_names` / `runtime_match_type_ids`，运行期匹配集合复用 `TypeLowering::instantiated_direct_supertypes(...)` 与 `is_type_assignable(...)` 预计算。
+  - LLVM `is/as/as?` 针对 interface target 已改为扫描 `runtime_match_type_ids`，不再只按 base `interface_id` 判真；interface method dispatch 仍继续按 base `interface_id + slot` 工作。
+  - `dump-rtti` 现能导出 parameterized interface / `eff` target 的精确 `interface_type_name` 与 `runtime_match_type_names`，并补上对应单元回归。
+  - 已新增 run-pass 回归：
+    - `tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`
+    - `tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.stdout`
+- 已验证：
+  - `cargo check --all-targets`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`
+  - `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'StringReadable'`
+  - `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'PureManaged'`
+  - `cargo test -p scoopc rtti::type_desc::tests`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4007a
 
 ### T4007c [TODO] 收口旧 RTTI 导出 API 的参数化类型支持与文档同步

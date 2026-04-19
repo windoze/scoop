@@ -10506,9 +10506,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let ty = self.context.opaque_struct_type(TY_NAME);
+        let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
         let i8_ptr_ty = self.llvm_i8_ptr_type();
-        ty.set_body(&[i64_ty.into(), i8_ptr_ty.into()], false);
+        // { interface_id: u64, match_len: u32, _reserved: u32, match_ids: i8*, methods: i8* }
+        ty.set_body(
+            &[
+                i64_ty.into(),
+                i32_ty.into(),
+                i32_ty.into(),
+                i8_ptr_ty.into(),
+                i8_ptr_ty.into(),
+            ],
+            false,
+        );
         ty
     }
 
@@ -10679,7 +10690,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(hit_bb);
         let methods_ptr =
             self.builder
-                .build_struct_gep(entry_ty, entry_ptr, 1, "itable_entry_methods_gep")?;
+                .build_struct_gep(entry_ty, entry_ptr, 4, "itable_entry_methods_gep")?;
         let methods_i8 = self
             .builder
             .build_load(i8_ptr_ty, methods_ptr, "itable_entry_methods")?
@@ -14949,7 +14960,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - 若 `obj == NULL`：返回 false（避免解引用 NULL）；
     /// - `Any`：只要非 NULL 即为 true（不依赖 type_desc）；
     /// - class：沿 `type_desc.parent_type_desc` 向上查找；
-    /// - interface：扫描 itable entries 是否包含 `interface_id`。
+    /// - interface：扫描 itable entries 的 runtime target match 集。
     fn codegen_ref_is_instance_of(
         &mut self,
         at: crate::span::Span,
@@ -15026,9 +15037,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_type_desc_chain_contains_target(at, obj, target_i8)
             }
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                // interface：用 itable 判断是否实现。
-                if let Some(info) = self.interfaces.get(&nominal.fqn) {
-                    return self.codegen_itable_contains_interface_id(at, obj, info.interface_id);
+                // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
+                if self.interfaces.contains_key(&nominal.fqn) {
+                    let target_type_id = stable_hash64(&self.types.display(target_ty).to_string());
+                    return self.codegen_itable_contains_runtime_type_id(at, obj, target_type_id);
                 }
 
                 // class：沿 parent 链查找。
@@ -15174,12 +15186,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(phi.as_basic_value().into_int_value())
     }
 
-    /// `interface` 类型判断：扫描 `obj.type_desc.itable` 是否包含 `interface_id`。
-    fn codegen_itable_contains_interface_id(
+    /// `interface` 类型判断：扫描 `obj.type_desc.itable` 中各 entry 的 runtime match set，
+    /// 只要其中任意一个 target type id 与 `target_type_id` 相等，就判定为 true。
+    fn codegen_itable_contains_runtime_type_id(
         &mut self,
         at: crate::span::Span,
         obj: PointerValue<'ctx>,
-        interface_id: u64,
+        target_type_id: u64,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let i32_ty = self.context.i32_type();
         let i64_ty = self.context.i64_type();
@@ -15248,7 +15261,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(null_bb);
         self.builder.build_unconditional_branch(done_bb)?;
 
-        // lookup：扫描 entries[idx].interface_id
+        // lookup：扫描 entries[idx].runtime_match_type_ids
         self.builder.position_at_end(lookup_bb);
         let itable_ty = self.llvm_scoop_itable_type();
         let itable_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
@@ -15296,7 +15309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder
             .build_conditional_branch(cond, body_bb, done_bb)?;
 
-        // body：比较 interface_id
+        // body：线性扫描当前 entry 的 runtime_match_type_ids。
         self.builder.position_at_end(body_bb);
         let entry_ptr = unsafe {
             self.builder.build_in_bounds_gep(
@@ -15306,22 +15319,109 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "isa_iface_entry_ptr",
             )?
         };
-        let id_ptr = self
+        let match_len_ptr =
+            self.builder
+                .build_struct_gep(entry_ty, entry_ptr, 1, "isa_iface_match_len_gep")?;
+        let match_len_i32 = self
             .builder
-            .build_struct_gep(entry_ty, entry_ptr, 0, "isa_iface_id_gep")?;
-        let id_i64 = self
-            .builder
-            .build_load(i64_ty, id_ptr, "isa_iface_id")?
+            .build_load(i32_ty, match_len_ptr, "isa_iface_match_len")?
             .into_int_value();
+        let match_ids_ptr =
+            self.builder
+                .build_struct_gep(entry_ty, entry_ptr, 3, "isa_iface_match_ids_gep")?;
+        let match_ids_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, match_ids_ptr, "isa_iface_match_ids")?
+            .into_pointer_value();
 
-        let target_id = i64_ty.const_int(interface_id, false);
+        let entry_match_ids_null = self
+            .builder
+            .build_is_null(match_ids_i8, "isa_iface_match_ids_is_null")?;
+        let entry_match_len_zero = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            match_len_i32,
+            i32_ty.const_zero(),
+            "isa_iface_match_len_is_zero",
+        )?;
+        let entry_match_empty = self.builder.build_or(
+            entry_match_ids_null,
+            entry_match_len_zero,
+            "isa_iface_match_empty",
+        )?;
+        let entry_match_lookup_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_match_lookup");
+        self.builder
+            .build_conditional_branch(entry_match_empty, miss_bb, entry_match_lookup_bb)?;
+
+        self.builder.position_at_end(entry_match_lookup_bb);
+        let match_ids_ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        let match_ids_base = self.builder.build_pointer_cast(
+            match_ids_i8,
+            match_ids_ptr_ty,
+            "isa_iface_match_ids_base",
+        )?;
+        let match_loop_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_match_loop");
+        let match_body_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_match_body");
+        let match_done_miss_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_match_done_miss");
+        self.builder.build_unconditional_branch(match_loop_bb)?;
+
+        self.builder.position_at_end(match_loop_bb);
+        let match_idx_phi = self.builder.build_phi(i32_ty, "isa_iface_match_idx")?;
+        match_idx_phi.add_incoming(&[(&i32_ty.const_zero(), entry_match_lookup_bb)]);
+        let match_idx_i32 = match_idx_phi.as_basic_value().into_int_value();
+        let match_cond = self.builder.build_int_compare(
+            IntPredicate::ULT,
+            match_idx_i32,
+            match_len_i32,
+            "isa_iface_match_idx_lt_len",
+        )?;
+        self.builder
+            .build_conditional_branch(match_cond, match_body_bb, match_done_miss_bb)?;
+
+        self.builder.position_at_end(match_body_bb);
+        let match_slot_ptr = unsafe {
+            self.builder.build_in_bounds_gep(
+                i64_ty,
+                match_ids_base,
+                &[match_idx_i32],
+                "isa_iface_match_slot_ptr",
+            )?
+        };
+        let match_id_i64 = self
+            .builder
+            .build_load(i64_ty, match_slot_ptr, "isa_iface_match_id")?
+            .into_int_value();
+        let target_id = i64_ty.const_int(target_type_id, false);
         let ok = self.builder.build_int_compare(
             IntPredicate::EQ,
-            id_i64,
+            match_id_i64,
             target_id,
-            "isa_iface_id_eq",
+            "isa_iface_match_id_eq",
         )?;
-        self.builder.build_conditional_branch(ok, hit_bb, miss_bb)?;
+        let match_next_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_match_next");
+        self.builder
+            .build_conditional_branch(ok, hit_bb, match_next_bb)?;
+
+        self.builder.position_at_end(match_next_bb);
+        let match_next = self.builder.build_int_add(
+            match_idx_i32,
+            i32_ty.const_int(1, false),
+            "isa_iface_match_idx_next",
+        )?;
+        match_idx_phi.add_incoming(&[(&match_next, match_next_bb)]);
+        self.builder.build_unconditional_branch(match_loop_bb)?;
+
+        self.builder.position_at_end(match_done_miss_bb);
+        self.builder.build_unconditional_branch(miss_bb)?;
 
         // miss：idx++ 继续 loop
         self.builder.position_at_end(miss_bb);

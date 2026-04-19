@@ -263,7 +263,7 @@ pub enum ValueTypeKind {
 /// 当前阶段采用“push-only arena + 简单去重（hash-cons）”：
 /// - 对同构 `TypeKind` 复用同一个 `TypeId`，让早期 typecheck 可以直接用 `TypeId` 做相等比较；
 /// - 更复杂的跨 session/增量 interning 可在后续需要时再演进。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
     index: HashMap<TypeKind, TypeId>,

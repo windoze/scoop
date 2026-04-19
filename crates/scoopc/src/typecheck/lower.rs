@@ -598,14 +598,39 @@ impl<'a> TypeLowering<'a> {
             .unwrap_or(false)
     }
 
-    pub(super) fn env(&self) -> &TypeEnv {
+    pub(crate) fn env(&self) -> &TypeEnv {
         self.env
     }
 
-    pub(super) fn concrete_direct_supertypes(&self, ty: TypeId) -> Option<&[TypeId]> {
+    pub(crate) fn concrete_direct_supertypes(&self, ty: TypeId) -> Option<&[TypeId]> {
         self.concrete_direct_supertypes
             .get(&ty)
             .map(|v| v.as_slice())
+    }
+
+    /// 计算并返回给定具体 nominal 类型的 direct supertypes（已完成 type/effect 实参 substitution）。
+    ///
+    /// 用途：
+    /// - 供运行期 metadata（例如 parameterized interface itable）在编译期复用 typecheck 的
+    ///   “具体化 supertype 链”主线，而不是再维护一套独立的参数替换逻辑。
+    pub(crate) fn instantiated_direct_supertypes(
+        &mut self,
+        ty: TypeId,
+    ) -> Result<Vec<TypeId>, TypeLowerError> {
+        let (fqn, args) = match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (nominal.fqn.clone(), nominal.args.clone())
+            }
+            _ => return Ok(Vec::new()),
+        };
+
+        self.ensure_concrete_direct_supertypes(ty, &fqn, &args)?;
+        Ok(self
+            .concrete_direct_supertypes
+            .get(&ty)
+            .cloned()
+            .unwrap_or_default())
     }
 
     pub(super) fn push_unsafe_context(&mut self) {
@@ -1340,7 +1365,7 @@ impl<'a> TypeLowering<'a> {
         std::mem::take(&mut self.typechecked_ctor_call_bindings)
     }
 
-    pub(super) fn fmt_type(&self, id: TypeId) -> String {
+    pub(crate) fn fmt_type(&self, id: TypeId) -> String {
         self.types.display(id).to_string()
     }
 
@@ -1349,7 +1374,7 @@ impl<'a> TypeLowering<'a> {
     /// 说明：typecheck 的某些表达式语义（例如 `with` 更新）需要区分：
     /// - 是否为值类型/引用类型
     /// - 是否为名义值类型（struct/enum）
-    pub(super) fn type_kind(&self, id: TypeId) -> TypeKind {
+    pub(crate) fn type_kind(&self, id: TypeId) -> TypeKind {
         self.types.kind(id).clone()
     }
 

@@ -1,0 +1,11 @@
+readable is Readable<String>: true
+readable is Readable<Any>: true
+readable is Readable<Int>: false
+as?: Readable<Any> ok
+as?: Readable<Int> ok
+pure is Disposable<eff Raise<RuntimeError>>: true
+raise is Disposable<eff Pure>: false
+raise is Disposable<eff Raise<RuntimeError>>: true
+as?: Disposable<eff Raise<RuntimeError>> ok
+as?: Disposable<eff Pure> ok
+2

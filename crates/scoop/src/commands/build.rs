@@ -67,6 +67,8 @@ struct FrontendOutput {
     /// TypeId 重新 intern 到 HIR lowering 的 TypeStore 中。
     #[cfg(feature = "llvm")]
     typecheck_types: scoopc::ty::TypeStore,
+    #[cfg(feature = "llvm")]
+    type_env: scoopc::typecheck::TypeEnv,
 }
 
 impl FrontendOutput {
@@ -679,6 +681,8 @@ fn run_frontend(
         monomorph_keys: all_monomorph_keys,
         #[cfg(feature = "llvm")]
         typecheck_types: types,
+        #[cfg(feature = "llvm")]
+        type_env: env,
     })
 }
 
@@ -994,12 +998,12 @@ fn lower_main_hir_for_build(
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
 
-    scoopc::hir::lower_for_compilation_unit_multi_files(
-        front.main_source(),
+    scoopc::hir::lower_for_compilation_unit_multi_files_with_type_env(
         &front.index,
         &unit,
         &files_to_lower,
         &front.monomorph_keys,
+        Some(&front.type_env),
         &front.typecheck_types,
     )
     .map_err(miette::Report::from)

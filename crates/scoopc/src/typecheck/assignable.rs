@@ -12,7 +12,7 @@ use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 use super::TypeEnv;
 use super::lower::TypeLowering;
 
-pub(super) fn nominal_is_subtype_by_fqn(
+pub(crate) fn nominal_is_subtype_by_fqn(
     found_fqn: &str,
     expected_fqn: &str,
     env: &TypeEnv,
@@ -146,7 +146,7 @@ fn concrete_nominal_is_subtype(
 ///
 /// 其余更完整的子类型系统（接口、类继承、值类型装箱等）
 /// 会在后续任务中逐步补齐。
-pub(super) fn is_type_assignable(
+pub(crate) fn is_type_assignable(
     found: TypeId,
     expected: TypeId,
     lower: &TypeLowering<'_>,

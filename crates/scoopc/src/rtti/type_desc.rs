@@ -123,6 +123,12 @@ pub struct VtableSlot {
 pub struct ItableEntry {
     pub interface_id: u64,
     pub interface_name: String,
+    pub interface_type_id: u64,
+    pub interface_type_name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub runtime_match_type_ids: Vec<u64>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub runtime_match_type_names: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub method_slots: Vec<ItableMethodSlot>,
 }
@@ -186,6 +192,58 @@ pub enum TypeDescError {
     #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeEnv(#[from] crate::typecheck::TypeEnvError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Annotation(#[from] crate::typecheck::AnnotationError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Property(#[from] Box<crate::typecheck::PropertyDeclError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Inheritance(#[from] crate::typecheck::InheritanceError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Interface(#[from] crate::typecheck::InterfaceError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    OverrideEffect(#[from] Box<crate::typecheck::OverrideEffectError>),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    TypeLower(#[from] crate::typecheck::TypeLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    WhereClause(#[from] crate::typecheck::WhereClauseError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Overload(#[from] crate::typecheck::OverloadDeclError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Expr(#[from] crate::typecheck::ExprTypeError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Layout(#[from] crate::typecheck::LayoutError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    VtableLayout(#[from] crate::vtable::VtableLayoutError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ItableLayout(#[from] crate::itable::ItableLayoutError),
+
     #[error("class 继承链存在环：{fqn}")]
     #[diagnostic(code(scoop::rtti::type_desc_inheritance_cycle))]
     InheritanceCycle { fqn: String },
@@ -201,6 +259,7 @@ pub fn dump_file_type_desc(
 
     let (interfaces, class_vtables, class_itables) =
         collect_interface_descs_and_class_vtables(session, source)?;
+    let precise_class_itables = collect_precise_runtime_class_itables(session, source)?;
 
     let mut out: Vec<TypeDesc> = Vec::new();
     out.extend(builtin_type_descs(target));
@@ -212,7 +271,21 @@ pub fn dump_file_type_desc(
         if let Some(mut desc) = class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)?
         {
             desc.vtable_slots = class_vtables.get(&fqn).cloned().unwrap_or_default();
-            desc.itable_entries = class_itables.get(&fqn).cloned().unwrap_or_default();
+            let mut itable_entries = class_itables.get(&fqn).cloned().unwrap_or_default();
+            if let Some(precise_entries) = precise_class_itables.get(&fqn) {
+                for entry in &mut itable_entries {
+                    if let Some(precise) = precise_entries
+                        .iter()
+                        .find(|candidate| candidate.interface_fqn == entry.interface_name)
+                    {
+                        entry.interface_type_id = precise.interface_type_id;
+                        entry.interface_type_name = precise.interface_type_name.clone();
+                        entry.runtime_match_type_ids = precise.runtime_match_type_ids.clone();
+                        entry.runtime_match_type_names = precise.runtime_match_type_names.clone();
+                    }
+                }
+            }
+            desc.itable_entries = itable_entries;
             out.push(desc);
         }
     }
@@ -272,6 +345,106 @@ pub fn dump_file_type_desc(
         types: out,
         interfaces,
     })
+}
+
+fn collect_precise_runtime_class_itables(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<crate::itable::ClassItableIndex, TypeDescError> {
+    let mut ast = session.parse(source)?;
+    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
+
+    let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    pairs.push((source, &ast));
+
+    let index = Index::build(&pairs)?;
+    let headers = crate::resolve::check_file_headers(source, &ast, &index)?;
+    crate::resolve::check_file_bodies(source, &mut ast, &index, &headers)?;
+
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)?;
+    env.extend_from_file(source, &ast, &index)?;
+
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+
+    crate::typecheck::check_file_annotations(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_properties(source, &ast, &index, &env)?;
+    crate::typecheck::check_file_inheritance(source, &ast, &index)?;
+    crate::typecheck::check_file_interfaces(source, &ast, &index, &env)?;
+    crate::typecheck::check_file_override_effects(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_type_refs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_where_clauses(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_overload_conflicts(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_exprs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
+    crate::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)?;
+
+    let mut resolved_pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        resolved_pairs.push((&f.source, &f.ast));
+    }
+    resolved_pairs.push((source, &ast));
+
+    let class_vtables = crate::vtable::collect_class_vtables(&resolved_pairs, &index)?;
+    let (_interfaces, class_itables) =
+        crate::itable::collect_runtime_interfaces_and_class_itables_with_env(
+            &resolved_pairs,
+            &index,
+            &class_vtables,
+            &env,
+            &types,
+        )?;
+    Ok(class_itables)
 }
 
 fn collect_interface_descs_and_class_vtables(
@@ -651,7 +824,11 @@ fn build_class_itables(
 
             entries.push(ItableEntry {
                 interface_id,
-                interface_name: iface_name,
+                interface_name: iface_name.clone(),
+                interface_type_id: stable_hash64(&iface_name),
+                interface_type_name: iface_name.clone(),
+                runtime_match_type_ids: vec![stable_hash64(&iface_name)],
+                runtime_match_type_names: vec![iface_name],
                 method_slots: mapped,
             });
         }
@@ -1580,7 +1757,7 @@ package rtti
 
 import scoop.core.*
 
-class Base(val s: String)
+open class Base(val s: String)
 
 class Derived(val ok: Bool, val t: String) : Base("hi")
 "#,
@@ -1615,7 +1792,7 @@ package rtti
 
 import scoop.core.*
 
-open class Base {
+open class Base() {
   open fun ping() {}
   fun finalFun() {}
 }
@@ -1669,8 +1846,8 @@ interface IBar : IFoo {
   fun pong()
 }
 
-open class Base : IFoo {
-  override fun ping() {}
+open class Base() : IFoo {
+  open fun ping() {}
 }
 
 class Derived : Base() {
@@ -1678,8 +1855,8 @@ class Derived : Base() {
 }
 
 class BarImpl : IBar {
-  override fun ping() {}
-  override fun pong() {}
+  fun ping() {}
+  fun pong() {}
 }
 "#,
         );
@@ -1746,6 +1923,134 @@ class BarImpl : IBar {
         assert_eq!(bar_entry.method_slots[0].name, "pong");
         assert_eq!(bar_entry.method_slots[0].impl_in, "rtti.BarImpl");
         assert_eq!(bar_entry.method_slots[0].impl_member, "rtti.BarImpl.pong");
+    }
+
+    #[test]
+    fn dump_rtti_class_itable_entries_preserve_parameterized_runtime_match_metadata() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+import scoop.core.*
+
+interface Readable<out T> {
+  fun get(): T
+}
+
+interface NamedReadable<out T> : Readable<T> {
+  fun label(): String
+}
+
+class StringReadable : NamedReadable<String> {
+  fun get(): String { return "hello" }
+  fun label(): String { return "reader" }
+}
+
+interface Disposable<eff E = Pure> {
+  fun dispose(): Unit / E
+}
+
+class PureManaged : Disposable<eff Pure> {
+  fun dispose(): Unit { return }
+}
+
+class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
+  fun dispose(): Unit { return }
+}
+
+fun takesReadableAny(x: Readable<Any>) {}
+fun takesReadableInt(x: Readable<Int>) {}
+fun takesDisposablePure(x: Disposable<eff Pure>) {}
+fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
+"#,
+        );
+
+        let dump = dump_file_type_desc(&sess, &src).unwrap();
+
+        let mut by_name: BTreeMap<&str, &TypeDesc> = BTreeMap::new();
+        for ty in &dump.types {
+            by_name.insert(ty.name.as_str(), ty);
+        }
+
+        let string_readable = by_name.get("rtti.StringReadable").unwrap();
+        let readable_entry = string_readable
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.Readable")
+            .expect("StringReadable should expose a Readable itable entry");
+        assert_eq!(readable_entry.interface_type_name, "rtti.Readable<String>");
+        assert_eq!(
+            readable_entry.interface_type_id,
+            stable_hash64("rtti.Readable<String>")
+        );
+        assert!(
+            readable_entry
+                .runtime_match_type_names
+                .contains(&"rtti.Readable<String>".to_string())
+        );
+        assert!(
+            readable_entry
+                .runtime_match_type_names
+                .contains(&"rtti.Readable<Any>".to_string())
+        );
+        assert!(
+            !readable_entry
+                .runtime_match_type_names
+                .contains(&"rtti.Readable<Int>".to_string())
+        );
+        assert_eq!(
+            readable_entry.runtime_match_type_ids,
+            readable_entry
+                .runtime_match_type_names
+                .iter()
+                .map(|name| stable_hash64(name))
+                .collect::<Vec<_>>()
+        );
+
+        let pure_managed = by_name.get("rtti.PureManaged").unwrap();
+        let pure_entry = pure_managed
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.Disposable")
+            .expect("PureManaged should expose a Disposable itable entry");
+        assert_eq!(pure_entry.interface_type_name, "rtti.Disposable<eff Pure>");
+        assert!(
+            pure_entry
+                .runtime_match_type_names
+                .iter()
+                .any(|name| name.ends_with("Disposable<eff Pure>"))
+        );
+        assert!(
+            pure_entry
+                .runtime_match_type_names
+                .iter()
+                .any(|name| name.contains("Raise") && name.contains("RuntimeError"))
+        );
+
+        let raise_managed = by_name.get("rtti.RaiseManaged").unwrap();
+        let raise_entry = raise_managed
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.Disposable")
+            .expect("RaiseManaged should expose a Disposable itable entry");
+        assert!(
+            raise_entry.interface_type_name.contains("Raise")
+                && raise_entry.interface_type_name.contains("RuntimeError")
+        );
+        assert!(
+            raise_entry
+                .runtime_match_type_names
+                .iter()
+                .any(|name| name.contains("Raise") && name.contains("RuntimeError"))
+        );
+        assert!(
+            !raise_entry
+                .runtime_match_type_names
+                .iter()
+                .any(|name| name.ends_with("Disposable<eff Pure>"))
+        );
     }
 
     #[test]

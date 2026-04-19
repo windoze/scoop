@@ -1640,16 +1640,44 @@ pub fn lower_for_compilation_unit_multi_files(
     monomorph_keys: &[crate::monomorph::MonomorphKey],
     typecheck_types: &TypeStore,
 ) -> Result<LoweredHir, HirLowerError> {
+    lower_for_compilation_unit_multi_files_with_type_env(
+        index,
+        compilation_unit,
+        files_to_lower,
+        monomorph_keys,
+        None,
+        typecheck_types,
+    )
+}
+
+pub fn lower_for_compilation_unit_multi_files_with_type_env(
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    monomorph_keys: &[crate::monomorph::MonomorphKey],
+    type_env: Option<&crate::typecheck::TypeEnv>,
+    typecheck_types: &TypeStore,
+) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
-    let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
-        compilation_unit,
-        index,
-        &class_vtables,
-    )?;
+    let (interfaces, class_itables) = match type_env {
+        Some(env) => crate::itable::collect_runtime_interfaces_and_class_itables_with_env(
+            compilation_unit,
+            index,
+            &class_vtables,
+            env,
+            typecheck_types,
+        )?,
+        None => crate::itable::collect_runtime_interfaces_and_class_itables(
+            compilation_unit,
+            index,
+            &class_vtables,
+            typecheck_types,
+        )?,
+    };
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();

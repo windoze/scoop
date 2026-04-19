@@ -1,0 +1,106 @@
+// EXPECT: pass
+// RUN-STDOUT: type_check_cast_parameterized_interface_runtime_match_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4007b：parameterized interface 与 `eff` 参数 target 的 `is/as/as?`
+// 必须按具体 interface 实例与前端 assignable 规则做运行期匹配，
+// 不能继续只按 base interface id 判真。
+
+import scoop.core.*
+
+interface Readable<out T> {
+    fun get(): T
+}
+
+interface NamedReadable<out T> : Readable<T> {
+    fun label(): String
+}
+
+class StringReadable() : NamedReadable<String> {
+    fun get(): String {
+        return "hello"
+    }
+
+    fun label(): String {
+        return "reader"
+    }
+}
+
+interface Disposable<eff E = Pure> {
+    fun dispose(): Unit / E
+}
+
+class PureManaged() : Disposable<eff Pure> {
+    fun dispose(): Unit { return }
+}
+
+class RaiseManaged() : Disposable<eff Raise<RuntimeError>> {
+    fun dispose(): Unit { return }
+}
+
+fun printBool(label: String, b: Bool): Unit {
+    when (b) {
+        true -> println(f"{label}: true")
+        false -> println(f"{label}: false")
+    }
+}
+
+fun main(): Int {
+    val readableAny: Any = StringReadable()
+
+    printBool("readable is Readable<String>", readableAny is Readable<String>)
+    printBool("readable is Readable<Any>", readableAny is Readable<Any>)
+    printBool("readable is Readable<Int>", readableAny is Readable<Int>)
+
+    val readableAsAny: Readable<Any>? = readableAny as? Readable<Any>
+    when (readableAsAny) {
+        Some(_x) -> println("as?: Readable<Any> ok")
+        None -> println("as?: Readable<Any> bad")
+    }
+
+    val readableAsInt: Readable<Int>? = readableAny as? Readable<Int>
+    when (readableAsInt) {
+        Some(_x) -> println("as?: Readable<Int> bad")
+        None -> println("as?: Readable<Int> ok")
+    }
+
+    val pureAny: Any = PureManaged()
+    val raiseAny: Any = RaiseManaged()
+
+    printBool(
+        "pure is Disposable<eff Raise<RuntimeError>>",
+        pureAny is Disposable<eff Raise<RuntimeError>>,
+    )
+    printBool("raise is Disposable<eff Pure>", raiseAny is Disposable<eff Pure>)
+    printBool(
+        "raise is Disposable<eff Raise<RuntimeError>>",
+        raiseAny is Disposable<eff Raise<RuntimeError>>,
+    )
+
+    val pureAsRaise: Disposable<eff Raise<RuntimeError>>? =
+        pureAny as? Disposable<eff Raise<RuntimeError>>
+    when (pureAsRaise) {
+        Some(_x) -> println("as?: Disposable<eff Raise<RuntimeError>> ok")
+        None -> println("as?: Disposable<eff Raise<RuntimeError>> bad")
+    }
+
+    val raiseAsPure: Disposable<eff Pure>? = raiseAny as? Disposable<eff Pure>
+    when (raiseAsPure) {
+        Some(_x) -> println("as?: Disposable<eff Pure> bad")
+        None -> println("as?: Disposable<eff Pure> ok")
+    }
+
+    val caught: Int = try {
+        val _x: Disposable<eff Pure> = raiseAny as Disposable<eff Pure>
+        println("unreachable")
+        0
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> 1
+            ClassCastFailed -> 2
+            ContinuationAlreadyResumed -> 3
+        }
+    }
+    println(caught)
+    return 0
+}
