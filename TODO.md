@@ -938,16 +938,31 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c0
 
+### T4008cP [TODO] 收口普通 `perform` lowering 的多实参 payload transport
+- 说明：
+  - 在为 `T4008cS` 先做最小 probe 时发现，问题不只出在 state-machine：`crates/scoopc/src/llvm/codegen/effect/mod.rs::codegen_perform_expr` 当前同样只消费第 0 个实参。
+  - 最小探针 `fun go(): Int / Edge { return Edge.visit(3, 4) }` + 外层 `handle { go() } with { Edge.visit(from, to) -> ... }` 当前实际输出 `3 / 3` 并返回 `6`，说明第二个 payload 已在普通 callee 的 perform lowering 上被静默丢失。
+  - 如果只修 `T4008cS`，那么 handle body 内 direct perform 虽可通过，但“普通 effectful callee -> 外层 handle 捕获”这条主线仍会继续错误折叠多实参 payload；因此必须先把共享的 perform transport 合同收口，再继续 state-machine 专用路径。
+- 范围：
+  - 普通 `perform` lowering 支持 2+ 实参 effect op，不再只把第 0 个实参写入 perform slot。
+  - 与现有 handler binder 读取顺序对齐，保证多 binder payload 在 indirect perform / outer handle 捕获路径下按源码顺序可见。
+  - 补充对应 run-pass / LLVM regression，覆盖“普通 effectful callee perform 两个 payload，外层 handle 读取两个 binder”。
+- 验收：
+  - 上述最小 probe 不再输出 `3 / 3`，而是稳定得到 `3 / 4` 与返回值 `7`。
+  - 为后续 `T4008cS` / `T4008c2` 提供统一的多 payload transport 合同。
+- 依赖：T4008c1
+
 ### T4008cS [TODO] 支持 effect state-machine 的多实参 perform payload lowering
 - 说明：
   - 在为 `T4008c1` 增加 run-pass 回归时发现，`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs::emit_perform_op` 当前只接受 0/1 个 payload arg，`effect Edge<A, B> { fun visit(from: A, to: B): Int }` 一类两形参 effect op 在 state-machine 路径会报 `state machine perform arity`。
-  - 这是独立于 “多 effect type params” 的旧 codegen 缺口；如果不先收口，后续 receiver effect op 把 receiver 当作第 0 个 payload 后会继续撞上同一限制。
+  - 在实际 probe 中又确认，state-machine 之前还存在更前置的普通 `perform` lowering 缺口：多实参 indirect perform 会先在普通 callee 上丢掉额外 payload，因此本任务现顺延到 `T4008cP` 之后，只负责 handle state-machine 自身的 payload / binder 主线。
+  - 如果不先收口，后续 receiver effect op 把 receiver 当作第 0 个 payload 后会继续撞上同一限制。
 - 范围：
   - state-machine perform / handler dispatch 支持 2+ 形参 effect op，不再只接受单 payload expr。
   - 补充对应 run-pass / LLVM regression，覆盖同一 effect op 的多 binder payload 进入 perform slot 与 arm binder 读取。
 - 验收：
   - 多形参 effect op 在普通 handle / immediate-resume / escape-continuation 路径都不再报 `state machine perform arity`。
-- 依赖：T4008c1
+- 依赖：T4008cP
 
 ### T4008c2 [TODO] 打通 receiver effect op 的 perform / handler lowering / codegen
 - 范围：
