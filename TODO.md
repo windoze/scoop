@@ -492,9 +492,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005S
 
-### T4005SR [TODO] Review：确认 callable-value 主线已覆盖 pattern binder
+### T4005SR [DONE] Review：确认 callable-value 主线已覆盖 pattern binder
 - 重点：
   - 不允许只让普通局部 `val f = ...; f()` 与 `when` binder `Some(f) -> f()` 可调用，而顶层 pattern binder / 顶层 callable value 仍走另一套 typecheck 或 codegen 失败路径。
+- 完成：
+  - 复审 `T4005S/T4005T` 后确认，局部 destructuring、`when` binder、顶层命名 `val`、顶层 pattern binder 与顶层 `FunPtr` 现已统一走 callable-value 主线；`infer_call_expr_type` 不再把顶层 callable value 误判为不可调用，LLVM `codegen_call` 也不再把 `ValueRef::TopLevel` 一概当成普通顶层函数名。
+  - 复审中发现并修复一个剩余的 typecheck 裂缝：`infer_expr_type_in_expected_context` 先前没有为 tuple literal 向下传播 expected element type，导致顶层 pattern binder initializer `val (f, n): (String.(Int) -> Int, Int) = ({ ...this... }, 3)` 中的 receiver lambda 仍按“无 expected type”检查，报 `unknown_local_value_type: this`。现已新增 tuple expected-context 分支，让 tuple 元素逐个复用 `infer_in_expected(...)`，receiver function type 会正确下传给 lambda 元素。
+  - 已新增 `tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop` 回归，同时覆盖：
+    - 顶层命名 receiver function value；
+    - 顶层 pattern binder 中的 receiver function value；
+    - 局部 destructuring binder；
+    - `when` pattern binder；
+    - 顶层 `FunPtr` direct call；
+    - 上述调用统一使用 receiver + named args，确认主线没有重新按 callee 形态分叉。
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/callable_value_pattern_binder_receiver_named_args_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005T
 
 ## T4006：跨文件 / 跨包编译链路

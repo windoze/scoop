@@ -448,6 +448,39 @@ fn infer_array_lit_expr_type(
     )?)
 }
 
+fn infer_tuple_lit_expr_type_in_expected_context(
+    inputs: ExprInferInputs<'_>,
+    elements: &[ast::Expr],
+    expected_ty: TypeId,
+    expected_from: &ExpectedTypeFrom,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let TypeKind::Value(ValueTypeKind::Tuple(expected_elements)) = lower.type_kind(expected_ty)
+    else {
+        return Ok(None);
+    };
+
+    if expected_elements.len() != elements.len() {
+        return Ok(None);
+    }
+
+    let element_expected_from = ExpectedTypeFrom::new(format!(
+        "tuple 字面量的元素类型（约束来源：{}）",
+        expected_from.desc()
+    ));
+    let mut inferred_elements = Vec::with_capacity(elements.len());
+    for (element, expected_element_ty) in elements.iter().zip(expected_elements.iter().copied()) {
+        inferred_elements.push(inputs.infer_in_expected(
+            lower,
+            element,
+            expected_element_ty,
+            element_expected_from.clone(),
+        )?);
+    }
+
+    Ok(Some(lower.ty_tuple(inferred_elements)))
+}
+
 /// 推导 `async { ... }` 的类型，并在 required-effects 收集上“捕获 Async”。
 ///
 /// 当前阶段（T0619）最小规则：
@@ -2174,6 +2207,20 @@ pub(super) fn infer_expr_type_in_expected_context(
                 Some(&expected_from),
                 lower,
             );
+        }
+
+        return inputs.infer(lower, expr);
+    }
+
+    if let ast::ExprKind::TupleLit { elements } = &expr.kind {
+        if let Some(ty) = infer_tuple_lit_expr_type_in_expected_context(
+            inputs,
+            elements,
+            expected_ty,
+            &expected_from,
+            lower,
+        )? {
+            return Ok(ty);
         }
 
         return inputs.infer(lower, expr);
