@@ -1330,6 +1330,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn async_task_ready_local_uses_block_local_return_semantics(
+        &self,
+        decl: &hir::ValDecl,
+        init: &hir::Expr,
+    ) -> bool {
+        decl.name
+            .as_deref()
+            .is_some_and(|name| name.starts_with("__task_ready_value"))
+            && matches!(init.kind, hir::ExprKind::Block(_))
+    }
+
+    fn codegen_decl_initializer_expr(
+        &mut self,
+        decl: &hir::ValDecl,
+        target_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let init = decl
+            .init
+            .as_ref()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "val without initializer",
+                at: decl.span.into(),
+            })?;
+
+        if self.async_task_ready_local_uses_block_local_return_semantics(decl, init)
+            && let hir::ExprKind::Block(block) = &init.kind
+        {
+            return self.codegen_block_value_with_local_return_context(block, target_ty);
+        }
+
+        self.codegen_initializer_expr(init, target_ty, decl.ty)
+    }
+
     fn codegen_top_level_const_ref(
         &mut self,
         span: crate::span::Span,
@@ -2460,7 +2493,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_array_builder_intrinsics(span, callee.span, fqn, args);
             }
             // T0620/T4009a：spawn/join 内建 helper 走 `Task<T>` object-model runtime ABI。
-            if fqn == "scoop.core.__scoop_task_from_result" || fqn == "scoop.core.__scoop_task_join"
+            if fqn == "scoop.core.poll"
+                || fqn == "scoop.core.step"
+                || fqn == "scoop.core.__scoop_task_from_result"
+                || fqn == "scoop.core.__scoop_task_join"
+                || fqn == "scoop.core.__scoop_task_step_ready"
+                || fqn == "scoop.core.__scoop_task_step_pending"
             {
                 return self.codegen_sysroot_task_intrinsics(span, callee.span, fqn, args);
             }
@@ -7574,6 +7612,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         nominal.args.first().copied()
     }
 
+    fn poll_type_for_task_inner(&self, inner_ty: TypeId) -> Option<TypeId> {
+        self.types.iter_ids().find(|id| match self.types.kind(*id) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                nominal.fqn == "scoop.core.Poll"
+                    && nominal.args.len() == 1
+                    && nominal.args[0] == inner_ty
+            }
+            _ => false,
+        })
+    }
+
     fn task_body_wrapper_name(&self, span: crate::span::Span) -> String {
         format!(
             "__scoop_task_body_wrapper_{}_{}_{}",
@@ -7607,11 +7656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let out_gc_ref_slot_ty = self.context.ptr_type(AddressSpace::default());
-        let fn_ty = self
-            .context
-            .i64_type()
-            .fn_type(&[gc_i8_ptr_ty.into(), out_gc_ref_slot_ty.into()], false);
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[gc_i8_ptr_ty.into()], false);
         let wrapper = self.module.add_function(&name, fn_ty, None);
         wrapper.set_call_conventions(0);
         wrapper.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
@@ -7626,10 +7671,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let entry = self.context.append_basic_block(wrapper, "entry");
         self.builder.position_at_end(entry);
-        self.current_fun_return_ty = Some(CgTy::Int(IntTy {
-            bits: 64,
-            signed: false,
-        }));
+        self.current_fun_return_ty = Some(CgTy::Ref);
         self.return_context = None;
         self.effect_function_return_context = None;
         self.current_sret_return_ptr = None;
@@ -7643,13 +7685,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?
             .into_pointer_value();
-        let out_gc_ref_slot = wrapper
-            .get_nth_param(1)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task body wrapper out_gc_ref param",
-                at: span.into(),
-            })?
-            .into_pointer_value();
 
         let result = self.codegen_function_value_call_from_closure_obj(
             span,
@@ -7658,9 +7693,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fun_ty,
             &[],
         )?;
-        let (word, gc_ref) = self.encode_effect_transport_value(span, result)?;
-        let _ = self.builder.build_store(out_gc_ref_slot, gc_ref)?;
-        self.builder.build_return(Some(&word))?;
+        let result = self.coerce_value(span, result, CgTy::Ref)?;
+        let raw = result.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "task body wrapper return value",
+            at: span.into(),
+        })?;
+        let BasicValueEnum::PointerValue(step_result_obj) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "task body wrapper return type",
+                at: span.into(),
+            });
+        };
+        self.builder.build_return(Some(&step_result_obj))?;
 
         self.current_fun_return_ty = saved_return_ty;
         self.return_context = saved_return_context;
@@ -8387,6 +8431,179 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match fqn {
+            "scoop.core.poll" | "scoop.core.step" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(task_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step named arg (receiver)",
+                        at: span.into(),
+                    });
+                };
+
+                let task_ptr =
+                    self.codegen_task_ref_value(task_expr, "task poll/step receiver value")?;
+                let inner_ty = self.task_inner_type_from_expr(task_expr).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step receiver type",
+                        at: task_expr.span.into(),
+                    },
+                )?;
+                let poll_ty = self.poll_type_for_task_inner(inner_ty).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step return Poll<T> type",
+                        at: task_expr.span.into(),
+                    },
+                )?;
+                let inner_cg =
+                    self.cg_ty_of(inner_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task poll/step payload cg type",
+                            at: task_expr.span.into(),
+                        })?;
+
+                let out_word_slot = self.create_entry_alloca_raw(
+                    task_expr.span,
+                    "task_poll_out_word",
+                    self.context.i64_type().into(),
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(out_word_slot, self.context.i64_type().const_int(0, false))?;
+                let out_gc_ref_slot = self.create_entry_alloca_raw(
+                    task_expr.span,
+                    "task_poll_out_gc_ref",
+                    self.llvm_gc_i8_ptr_type().into(),
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(out_gc_ref_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+
+                let rt = self.declare_runtime_task_poll();
+                let ready_flag = self
+                    .builder
+                    .build_call(
+                        rt,
+                        &[
+                            task_ptr.into(),
+                            out_word_slot.into(),
+                            out_gc_ref_slot.into(),
+                        ],
+                        "task_poll",
+                    )?
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(ready_flag) = ready_flag else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step return type",
+                        at: span.into(),
+                    });
+                };
+
+                let current_fun = self
+                    .builder
+                    .get_insert_block()
+                    .and_then(|bb| bb.get_parent())
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll/step current function",
+                        at: span.into(),
+                    })?;
+                let pending_bb = self
+                    .context
+                    .append_basic_block(current_fun, "task_poll_pending");
+                let ready_bb = self
+                    .context
+                    .append_basic_block(current_fun, "task_poll_ready");
+                let cont_bb = self
+                    .context
+                    .append_basic_block(current_fun, "task_poll_cont");
+                let is_ready = self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    ready_flag,
+                    self.context.i32_type().const_zero(),
+                    "task_poll_is_ready",
+                )?;
+                self.builder
+                    .build_conditional_branch(is_ready, ready_bb, pending_bb)?;
+
+                self.builder.position_at_end(pending_bb);
+                let pending_value =
+                    self.build_enum_variant_value_from_field_values(span, poll_ty, "Pending", &[])?;
+                let pending_raw =
+                    pending_value
+                        .value
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task poll Pending value",
+                            at: span.into(),
+                        })?;
+                let pending_end =
+                    self.builder
+                        .get_insert_block()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task poll Pending block",
+                            at: span.into(),
+                        })?;
+                self.builder.build_unconditional_branch(cont_bb)?;
+
+                self.builder.position_at_end(ready_bb);
+                let loaded_word = self
+                    .builder
+                    .build_load(self.context.i64_type(), out_word_slot, "task_poll_word")?
+                    .into_int_value();
+                let loaded_gc_ref = self
+                    .builder
+                    .build_load(
+                        self.llvm_gc_i8_ptr_type(),
+                        out_gc_ref_slot,
+                        "task_poll_gc_ref",
+                    )?
+                    .into_pointer_value();
+                let ready_payload = self.decode_effect_transport_value(
+                    task_expr.span,
+                    loaded_word,
+                    loaded_gc_ref,
+                    inner_cg,
+                )?;
+                let ready_value = self.build_enum_variant_value_from_field_values(
+                    span,
+                    poll_ty,
+                    "Ready",
+                    &[(inner_cg, ready_payload)],
+                )?;
+                let ready_raw = ready_value
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task poll Ready value",
+                        at: span.into(),
+                    })?;
+                let ready_end =
+                    self.builder
+                        .get_insert_block()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task poll Ready block",
+                            at: span.into(),
+                        })?;
+                self.builder.build_unconditional_branch(cont_bb)?;
+
+                self.builder.position_at_end(cont_bb);
+                let poll_basic_ty = self.llvm_basic_type_of(span, CgTy::Enum(poll_ty))?;
+                let phi = self.builder.build_phi(poll_basic_ty, "task_poll_result")?;
+                phi.add_incoming(&[(&pending_raw, pending_end), (&ready_raw, ready_end)]);
+
+                Ok(CgValue {
+                    ty: CgTy::Enum(poll_ty),
+                    value: Some(phi.as_basic_value()),
+                })
+            }
             "scoop.core.__scoop_task_from_result" => {
                 if args.len() != 1 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -8435,6 +8652,108 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue {
                     ty: CgTy::Ref,
                     value: Some(task_obj.into()),
+                })
+            }
+            "scoop.core.__scoop_task_step_ready" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_ready arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_ready named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let value_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
+                let value_cg =
+                    self.cg_ty_of(value_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task step_ready arg cg type",
+                            at: expr.span.into(),
+                        })?;
+                let value = self.codegen_initializer_expr(expr, value_cg, value_ty)?;
+                let value = self.coerce_value(expr.span, value, value_cg)?;
+                let (word, gc_ref) = self.encode_effect_transport_value(expr.span, value)?;
+
+                let rt = self.declare_runtime_task_step_ready();
+                let call = self.builder.build_call(
+                    rt,
+                    &[word.into(), gc_ref.into()],
+                    "task_step_ready",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_ready return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(step_obj) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_ready return type",
+                        at: span.into(),
+                    });
+                };
+
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(step_obj.into()),
+                })
+            }
+            "scoop.core.__scoop_task_step_pending" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_pending arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(awaited_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_pending named arg (awaited)",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(continuation_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_pending named arg (continuation)",
+                        at: span.into(),
+                    });
+                };
+
+                let awaited_task =
+                    self.codegen_task_ref_value(awaited_expr, "task step_pending awaited value")?;
+                let continuation = self.codegen_task_ref_value(
+                    continuation_expr,
+                    "task step_pending continuation value",
+                )?;
+
+                let rt = self.declare_runtime_task_step_pending();
+                let call = self.builder.build_call(
+                    rt,
+                    &[awaited_task.into(), continuation.into()],
+                    "task_step_pending",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_pending return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(step_obj) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task step_pending return type",
+                        at: span.into(),
+                    });
+                };
+
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(step_obj.into()),
                 })
             }
             "scoop.core.__scoop_task_join" => {
@@ -11345,6 +11664,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // 提前在 debug 名称里体现 index，便于排查（不影响语义）。
             let _ = idx;
+        }
+
+        self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
+    }
+
+    fn build_enum_variant_value_from_field_values(
+        &mut self,
+        span: crate::span::Span,
+        enum_ty: TypeId,
+        variant_name: &str,
+        field_values: &[(CgTy, CgValue<'ctx>)],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let layout = self.cg_enum_layout(span, enum_ty)?;
+        let variant = layout
+            .variants
+            .iter()
+            .find(|v| v.name == variant_name)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown enum variant",
+                at: span.into(),
+            })?
+            .clone();
+
+        if variant.fields.len() != field_values.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum variant ctor arity mismatch",
+                at: span.into(),
+            });
         }
 
         // 1) boxed variant：把 payload fields 聚合成一个 payload struct，存到栈上并把指针写入 enum payload。

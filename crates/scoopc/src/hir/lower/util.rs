@@ -156,6 +156,15 @@ fn collect_declared_locals_in_expr(expr: &super::super::Expr, declared: &mut Has
                 for b in &arm.op.binders {
                     declared.insert(b.id);
                 }
+                match arm.kind {
+                    super::super::HandleArmKind::ImmediateResume { resume } => {
+                        declared.insert(resume);
+                    }
+                    super::super::HandleArmKind::EscapeContinuation { continuation } => {
+                        declared.insert(continuation);
+                    }
+                    super::super::HandleArmKind::NonResuming => {}
+                }
                 collect_declared_locals_in_expr(&arm.body, declared);
             }
             if let Some(finally) = &handle.finally {

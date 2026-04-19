@@ -1183,7 +1183,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a2
 
-### T4009b [TODO] 定义 `Task.poll()` / `step()` / `Poll<T>` 合同，并隐藏 raw continuation
+### T4009b [DONE] 定义 `Task.poll()` / `step()` / `Poll<T>` 合同，并隐藏 raw continuation
 - 范围：
   - 明确 `Task<T>` 是 general API，`Continuation<T, eff E>` 是 advanced API；Task 内部 suspended-state / continuation carrier 改为私有实现细节。
   - 定义 `Task.poll()` / `step()` 与 `Poll<T>` 的对象模型、返回合同与 manual stepping 语义，不依赖 executor framework 才能成立。
@@ -1191,6 +1191,23 @@
 - 验收：
   - `Task<T>` 可在 manual polling / stepping 下自洽成立，且 raw continuation 不再是默认 async API。
   - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 文档的 `Task` / `Continuation` 边界表述一致。
+- 已完成：
+  - `sysroot/core.scoop` 现已定义 `Poll<T>`、`Task.poll()`、`Task.step()` 与内部 `__TaskStepResult` / `__scoop_task_step_pending` / `__scoop_task_step_ready` helper；对调用者暴露的 async surface 现在统一以 `Task<T> -> Poll<T>` 的手动 stepping 合同表达 pending/ready 状态，不再要求直接操作 raw continuation。
+  - runtime `runtime/c/scoop_task.c` 已新增 `CREATED / RUNNING / PENDING / COMPLETED` 状态机与 `scoop_task_poll` 主线；`scoop_task_join` 现改为基于 poll 循环驱动，`scoop_task_step_pending` / `scoop_task_step_ready` 则统一承担 async body step 函数与 task 对象之间的私有结果传递。
+  - HIR lowering / LLVM codegen 已把 `async {}` / `async fun` 收口为 task-private step function：`Async.await(...)` 在 async body 内被改写为 handled 形式，正常完成走 `__scoop_task_step_ready(...)`，挂起走 `__scoop_task_step_pending(...)`，从而把 suspended-state carrier 保持在 `Task` 私有实现边界内。
+  - 收口过程中还修复了两个真实回归：一是 async body 中 synthetic `__task_ready_value` block 里的 `return` 现在会继续流向 `step_ready(...)`，不再错误终结为函数级返回；二是 unified state machine 对局部 initializer “是否消费前一个 `last_value`” 的判断现改由 planner 显式标记，修复了 `continuation_resume_continuation.scoop` 中 self-contained nested handle initializer 被吞掉的问题。
+  - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 与新的 run-pass / runtime 回归已同步更新，`Task` / `Poll` / `Continuation` 的边界表述现已对齐。
+- 已验证：
+  - `cargo test -q -p scoopc async_task_resume_ir_does_not_replay_original_await_site -- --nocapture`
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/task_poll_step_manual_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+  - `cargo fmt --check`
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1071)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a3
 
 ### T4009c [TODO] 将 `spawn` / `join` 从当前 `Task` core 语义中移出，并明确留待后续 structured concurrency

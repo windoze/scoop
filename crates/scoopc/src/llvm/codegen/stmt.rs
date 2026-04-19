@@ -19,7 +19,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init = match decl.init.as_ref() {
-            Some(expr) => self.codegen_initializer_expr(expr, target_ty, decl.ty)?,
+            Some(_) => self.codegen_decl_initializer_expr(decl, target_ty)?,
             None => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "val without initializer",

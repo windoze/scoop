@@ -326,3 +326,20 @@ This section records the current implementation contract for effect state machin
   - The legacy single-payload form `k.resume(value)` remains accepted for compatibility, including tuple payloads passed as one tuple value.
 - Escape continuations (`, k ->`) are still represented as GC-managed continuation objects whose payload travels through the runtime `(resume_word, resume_gc_ref)` transport ABI.
 - Immediate-resume arms (`-> resume`) currently reuse the same unified GC-managed full-machine lowering as the rest of effect codegen. A dedicated stack-local fast path is still a deferred optimization; it is not part of the current runtime ABI contract and no stable runtime symbol depends on it yet.
+
+## 11. Task Polling Runtime Contract
+
+This stage standardizes the internal runtime ABI that backs `Task.poll()` / `Task.step()`:
+
+- `scoop_task_create` creates a lazy task object from a closure wrapper that returns an internal `__TaskStepResult` object.
+- `scoop_task_step_ready(word, gc_ref)` constructs the private step-result carrier for “completed this step with a final `T`”.
+- `scoop_task_step_pending(awaited_task, continuation)` constructs the private step-result carrier for “suspended on `await awaited_task` and captured a fresh continuation”.
+- `scoop_task_poll(task, out_word, out_gc_ref)` is the runtime entry used by both `Task.poll()` and `Task.step()`. It starts or resumes the task until the next suspension or completion, returning:
+  - `0` for `Poll.Pending`
+  - `1` for `Poll.Ready(value)` and writing the transport payload to `out_word/out_gc_ref`
+- `scoop_task_join` is now defined in terms of repeated `scoop_task_poll`.
+
+Implementation note:
+
+- The private `__TaskStepResult` carrier is not part of the public language surface.
+- When a pending task resumes a captured continuation, the runtime reads the next `__TaskStepResult` from the standardized state-machine frame prefix (`state_tag`, `resume_word`, `resume_gc_ref`). This keeps raw continuation/frame details inside the runtime boundary while preserving the public `Poll<T>` contract.

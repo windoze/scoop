@@ -1160,6 +1160,7 @@ pub(super) fn check_local_val_decl_exprs(
                     span: name.span.into(),
                 });
             };
+            lower.record_inferred_binding_ty(name.span, ty);
             state.locals.insert(name.span, ty);
             match v.kind {
                 ast::ValKind::Val => {

@@ -8,7 +8,8 @@
 // 目标覆盖（当前阶段最小可回归语义）：
 // - `async { ... }` 现在对外返回 lazy `Task<Int>`，而不是直接产出 `Int`；
 // - 当前最小可执行路径可直接通过 `join` 驱动 lazy task 完成；
-// - T0622：`await` 的参数应为 `Task<T>`，并在 task body 内走内部 `join` helper 取回结果。
+// - T4009b：`await` 的参数应为 `Task<T>`，并在 task body 内经由内部 `step-ready/pending + poll`
+//   driver 产生 suspension/completion。
 
 import scoop.core.*
 

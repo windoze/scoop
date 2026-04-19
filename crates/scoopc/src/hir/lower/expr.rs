@@ -211,6 +211,7 @@ impl<'a> HirLowering<'a> {
                     let receiver_is_array_lit =
                         matches!(receiver.kind, ast::ExprKind::ArrayLit { .. });
                     let receiver_expected = ExpectedExpr {
+                        value_ty: None,
                         array_lit_target: match receiver_is_array_lit {
                             true => sig
                                 .as_ref()
@@ -524,42 +525,35 @@ impl<'a> HirLowering<'a> {
                 )
             }
             ast::ExprKind::Await { await_span, expr } => {
-                if self.in_async_task_body() {
-                    self.lower_task_join_call_expr(pkg_prefix, e.span, *await_span, expr)
-                } else {
-                    // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
-                    //
-                    // NOTE: 这里直接 lower 为 HIR `Perform`，不依赖 resolver 对 `Async.await`
-                    // 的成员解析写回；这样能避免“语法糖节点需要合成表达式 ident”的复杂度。
-                    let inner = self.lower_expr(pkg_prefix, expr);
-                    let op = EffectOpRef {
-                        span: *await_span,
-                        fqn: Self::ASYNC_AWAIT_FQN.to_string(),
-                    };
-                    let effect_ty =
-                        self.typechecked_performed_effect_ty(e.span)
-                            .unwrap_or_else(|| {
-                                let effect_path = ast::TypePath {
-                                    span: *await_span,
-                                    segments: vec![
-                                        ast::Ident::synthetic(*await_span, "scoop"),
-                                        ast::Ident::synthetic(*await_span, "core"),
-                                        ast::Ident::synthetic(*await_span, "Async"),
-                                    ],
-                                    args: Vec::new(),
-                                };
-                                self.lower_type_path(&effect_path)
-                            });
-                    (
-                        ExprKind::Perform {
-                            effect_ty,
-                            op,
-                            args: vec![CallArg::Positional(inner)],
-                        },
-                        self.typechecked_expr_ty(e.span)
-                            .unwrap_or(self.builtins.any),
-                    )
-                }
+                // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
+                //
+                // NOTE: 这里直接 lower 为 HIR `Perform`，不依赖 resolver 对 `Async.await`
+                // 的成员解析写回；这样能避免“语法糖节点需要合成表达式 ident”的复杂度。
+                let inner = self.lower_expr(pkg_prefix, expr);
+                let op = EffectOpRef {
+                    span: *await_span,
+                    fqn: Self::ASYNC_AWAIT_FQN.to_string(),
+                };
+                let effect_ty = self
+                    .typechecked_performed_effect_ty(e.span)
+                    .unwrap_or_else(|| self.async_effect_type());
+                let result_ty = self
+                    .typechecked_expr_ty(e.span)
+                    .or(expected.value_ty)
+                    .or_else(|| {
+                        self.typechecked_expr_ty(expr.span)
+                            .and_then(|ty| self.task_inner_ty(ty))
+                    })
+                    .or_else(|| self.task_inner_ty(inner.ty))
+                    .unwrap_or(self.builtins.any);
+                (
+                    ExprKind::Perform {
+                        effect_ty,
+                        op,
+                        args: vec![CallArg::Positional(inner)],
+                    },
+                    result_ty,
+                )
             }
             ast::ExprKind::Join { join_span, expr } => {
                 // T0620：`join expr`（结构化并发最小模型）。
@@ -1362,6 +1356,7 @@ impl<'a> HirLowering<'a> {
         };
         if !arg_is_array_lit {
             return ExpectedExpr {
+                value_ty: None,
                 array_lit_target: None,
                 array_lit_ty: None,
                 struct_lit_ty: None,
@@ -1383,6 +1378,7 @@ impl<'a> HirLowering<'a> {
         let array_lit_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
 
         ExpectedExpr {
+            value_ty: None,
             array_lit_target,
             array_lit_ty,
             struct_lit_ty: None,
@@ -1418,6 +1414,7 @@ impl<'a> HirLowering<'a> {
             .map(|(index, element)| {
                 let expected = element_expected_ty
                     .map(|ty| ExpectedExpr {
+                        value_ty: Some(ty),
                         array_lit_target: self.array_lit_target_from_type_id(ty),
                         array_lit_ty: Some(ty),
                         struct_lit_ty: Some(ty),
@@ -2480,13 +2477,17 @@ impl<'a> HirLowering<'a> {
         if text == "this"
             && let Some(decl_span) = self.lambda_this_decl_span
         {
+            let ty = self
+                .typechecked_binding_ty(decl_span)
+                .or_else(|| self.typechecked_expr_ty(id.span))
+                .unwrap_or(self.builtins.any);
             return (
                 ExprKind::VarRef(ValueRef::Local {
                     id: self.intern_local_symbol(decl_span, false),
                     name: "this".to_string(),
                     decl_span,
                 }),
-                self.builtins.any,
+                ty,
             );
         }
 
@@ -2513,7 +2514,17 @@ impl<'a> HirLowering<'a> {
             },
         };
 
-        (ExprKind::VarRef(resolved), self.builtins.any)
+        let ty = match &resolved {
+            ValueRef::Local { decl_span, .. } => self
+                .typechecked_binding_ty(*decl_span)
+                .or_else(|| self.typechecked_expr_ty(id.span))
+                .unwrap_or(self.builtins.any),
+            ValueRef::TopLevel { .. } => self
+                .typechecked_expr_ty(id.span)
+                .unwrap_or(self.builtins.any),
+        };
+
+        (ExprKind::VarRef(resolved), ty)
     }
 
     fn try_lower_effect_op_call_expr(
@@ -3307,6 +3318,7 @@ impl<'a> HirLowering<'a> {
                 .map(|t| self.lower_type_ref(t))
                 .unwrap_or(self.builtins.any);
             let expected = ExpectedExpr {
+                value_ty: Some(param_ty),
                 array_lit_target: param
                     .ty_ref
                     .as_ref()
@@ -3337,6 +3349,7 @@ impl<'a> HirLowering<'a> {
             }
             let default_value = param.default_value.as_ref()?;
             let expected = ExpectedExpr {
+                value_ty: param.ty_ref.as_ref().map(|t| self.lower_type_ref(t)),
                 array_lit_target: param
                     .ty_ref
                     .as_ref()

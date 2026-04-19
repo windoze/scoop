@@ -1147,15 +1147,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Frame slot write (BindLocal) ---
-                HandleStateOp::BindLocal { id, decl } => {
+                HandleStateOp::BindLocal {
+                    id,
+                    decl,
+                    init_from_last_value,
+                } => {
                     self.emit_bind_local_to_frame(
                         *id,
                         decl,
+                        (*init_from_last_value).then_some(last_value).flatten(),
                         state_ptr,
                         frame_layout,
                         contract,
-                        span,
                     )?;
+                    last_value = None;
                 }
 
                 // --- Frame slot read (ReadLocal) ---
@@ -1171,10 +1176,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // --- Anonymous val: evaluate for side effects, track value ---
-                HandleStateOp::DeclareAnonymousVal { decl } => {
+                HandleStateOp::DeclareAnonymousVal {
+                    decl,
+                    init_from_last_value,
+                } => {
                     if let Some(init) = &decl.init {
-                        let val = self.codegen_expr_in_expected_context(init, None)?;
+                        let val = if *init_from_last_value {
+                            if let Some(last_value) = last_value {
+                                last_value
+                            } else {
+                                self.codegen_expr_in_expected_context(init, None)?
+                            }
+                        } else {
+                            self.codegen_expr_in_expected_context(init, None)?
+                        };
                         last_value = Some(val);
+                    } else {
+                        last_value = None;
                     }
                 }
 
@@ -1388,10 +1406,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         id: hir::SymbolId,
         decl: &hir::ValDecl,
+        init_override: Option<CgValue<'ctx>>,
         state_ptr: PointerValue<'ctx>,
         frame_layout: &FrameLayout<'ctx>,
         contract: &UnifiedHandleLoweringContract,
-        span: crate::span::Span,
     ) -> Result<(), LlvmEmitError> {
         let target_ty = self
             .cg_ty_of(decl.ty)
@@ -1402,8 +1420,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // Evaluate initializer.
         let init_val = match decl.init.as_ref() {
-            Some(init_expr) => self.codegen_initializer_expr(init_expr, target_ty, decl.ty)?,
-            None => self.default_value(span, target_ty)?,
+            Some(_) => {
+                if let Some(init_override) = init_override {
+                    init_override
+                } else {
+                    self.codegen_decl_initializer_expr(decl, target_ty)?
+                }
+            }
+            None => self.default_value(decl.span, target_ty)?,
         };
 
         // Find the frame slot for this local.
@@ -4601,6 +4625,62 @@ fun main(): Int {
         assert!(
             ir.contains("handler_frame_1"),
             "IR should materialize a dedicated runtime handler frame for the second op"
+        );
+    }
+
+    #[test]
+    fn async_task_resume_ir_does_not_replay_original_await_site() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        println("before")
+        val x: Int = await __scoop_task_from_result(41)
+        println("after")
+        println(x)
+        x + 1
+    }
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+
+        let async_closure_ir = ir
+            .split("\ndefine ")
+            .skip(1)
+            .find_map(|chunk| {
+                let function = format!("define {chunk}");
+                let body_end = function.find("\n}")?;
+                let function = &function[..body_end + 2];
+                (function.contains("@scoop_task_step_pending")
+                    && function.contains("@scoop_task_step_ready"))
+                .then_some(function.to_string())
+            })
+            .expect("expected async task closure function in IR");
+
+        assert_eq!(
+            async_closure_ir
+                .matches("@scoop_effect_perform_slot_write_u64_with_gc_ref")
+                .count(),
+            1,
+            "resumed async task body must not replay the original await perform site:\n{async_closure_ir}"
+        );
+        assert_eq!(
+            async_closure_ir.matches("@scoop_task_step_pending").count(),
+            1,
+            "async task closure should materialize exactly one pending step helper for the single await site:\n{async_closure_ir}"
+        );
+        assert_eq!(
+            async_closure_ir.matches("@scoop_task_step_ready").count(),
+            1,
+            "async task closure should materialize exactly one ready step helper on normal completion:\n{async_closure_ir}"
         );
     }
 

@@ -1,96 +1,72 @@
-# 执行计划记录
-
-## 说明
-
-按用户要求，本文件在任何命令执行前创建，并持续记录本次工作的执行思路摘要、计划、关键进展和必要调整。
-
-出于安全与协作边界，这里记录的是可审计的推理摘要与执行计划，不写入模型的逐字内部思维。
-
 ## 当前目标
 
-完成 `TODO.md` 中第一个未完成任务；如果存在阻塞或前置缺陷，则先修复阻塞项或按要求重排任务并提交，然后停止。
+- 本轮只完成 `TODO.md` 中首个未完成任务 `T4009b`，完成后停止。
+- 先确认上一轮遗留的真实回归是否已经被当前工作树中的修复解决。
+- 若仍有 spec mismatch 或实现缺口，必须先把问题定位清楚；如果无法在本轮直接修完，则按要求更新 `TODO.md` / `PLAN.md` / 本文件并停止。
 
-## 初始约束与检查顺序
+## 已知上下文
 
-1. 查看最新提交，确认是否提到已知遗留问题；如有，先修复这些问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如该任务过大，拆分为可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前应执行的第一个任务或子任务。
-5. 运行相关测试、格式化、lint，确保无警告。
-6. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
-7. 提交本次变更，并停止，不继续下一个任务。
+- `T4009b` 的主体实现已经落在当前工作树中，包括 runtime task poll API、lowering、LLVM codegen、文档与 fixture。
+- 本轮开始时，上一轮遗留的 `async_fun_task_runtime_basic.scoop` 回归已经在现有代码里被修好；最小验证一开始即通过。
+- 随后在全量 fixture 中暴露出新的真实回归 `tests/fixtures/run-pass/continuation_resume_continuation.scoop`：
+  - 现象是 `ok.resume(ik)` 恢复外层 continuation 后，`innerK.resume(42)` 整段被吞掉，只打印 `got_inner_k` 和 `inner_resumed`，缺少 `inner_got / 42`。
+  - 根因不是 continuation transport 本身坏了，而是 unified state machine emitter 对 `BindLocal/DeclareAnonymousVal` 的 initializer override 判断过宽：它把所有 `Handle` 都当成“init 已由前置 state actions 求值”，从而错误消费了前一个 `println(...)` 留下的 `last_value = Unit`。
+  - planner 实际上只会为“真的向外 suspend 的 initializer”提前拆 state actions；对 self-contained nested handle（例如 `try { innerK.resume(42) } catch ...`）不会拆动作，仍应在 emitter 中正常 `codegen_decl_initializer_expr(...)`。
 
-## 预期执行步骤
+## 执行计划
 
-### 第 0 阶段：仓库状态与上下文
+1. 先读取并核对当前仓库状态：
+   - 查看 `memory/claude_plan.md` 是否已有内容并与当前计划对齐；
+   - 查看 `TODO.md` / `PLAN.md` / `git status` / 最新 commit，确认 `T4009b` 仍是首个未完成任务，且没有新引入的前置问题。
+2. 收集上一轮仍在运行或待确认的测试结果；若 session 已失效则重跑最小验证：
+   - `async_fun_task_runtime_basic.scoop`
+   - `task_poll_step_manual_basic.scoop`
+   - 两个 LLVM/IR 相关单测
+3. 若 `async_fun_task_runtime_basic.scoop` 仍失败，集中检查：
+   - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs`
+   - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+   - `crates/scoopc/src/llvm/codegen/control_flow.rs`
+   - `crates/scoopc/src/llvm/codegen/mod.rs`
+   - `crates/scoopc/src/llvm/codegen/stmt.rs`
+   - 重点确认 block-local return 在 async ready local 初始化中的 lowering / planning / emitting 是否正确转化为 continuation，而不是函数返回。
+4. 修复后执行分层验证：
+   - 最小回归测试
+   - `cargo test --all`
+   - `cargo run -q -p scoop -- test`
+   - `cargo run -q -p scoop_tools -- spec-fixtures check`
+   - `cargo clippy --all-targets -- -D warnings`
+5. 若全部通过，更新文档状态：
+   - `TODO.md` 将 `T4009b` 标记完成
+   - `PLAN.md` 记录完成情况
+   - `memory/claude_plan.md` 记录关键步骤完成情况
+6. 提交本轮变更并停止，不继续下一个任务。
 
-- 检查最新提交信息，确认是否显式提到遗留问题。
-- 读取 `TODO.md`、`PLAN.md`，必要时补充依赖关系。
-- 查看工作区状态，避免误覆盖已有改动。
+## 执行约束
 
-### 第 1 阶段：任务判定
+- 全程不依赖 workaround。
+- 所有文件修改只用 `apply_patch`。
+- 如果发现新的真实阻塞且本轮无法正确解决，必须调整 `TODO.md` / `PLAN.md` 并提交后停止。
 
-- 确认首个未完成任务的边界、涉及模块和预期行为。
-- 判断是否存在规格缺口、实现缺陷或缺失能力会阻塞任务。
-- 若阻塞：
-  - 在 `TODO.md` 前置插入修复任务；
-  - 调整原任务依赖与排序；
-  - 更新 `PLAN.md` 和本文件；
-  - 提交并停止。
+## 关键进展
 
-### 第 2 阶段：实现
-
-- 在相关模块中完成最小但完整的规范实现，不引入临时绕过方案。
-- 如涉及较大文件，优先进行模块化整理，避免继续堆积复杂度。
-- 为关键函数和模块补充简洁注释，说明职责与行为。
-
-### 第 3 阶段：验证
-
-- 运行与改动直接相关的测试。
-- 运行必要的全局检查，至少包括：
-  - `cargo fmt --check` 或等效格式化
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 若任务与夹具/规范同步有关，再运行对应 fixture/spec 检查命令。
-
-### 第 4 阶段：收尾
-
-- 将已完成任务在 `TODO.md` 中标记完成。
-- 更新 `PLAN.md` 的当前状态、后续顺序与依赖。
-- 回写本文件，记录关键实现与验证结果。
-- 生成单次提交，提交信息与任务编号对应。
-
-## 当前状态
-
-- 已完成：创建本计划文件。
-- 已完成：检查最新提交信息，未发现提交说明中显式要求优先修复的遗留问题。
-- 已完成：读取 `TODO.md` / `PLAN.md` / `ISSUES.md`，确认当前首个未完成任务为 `T4009a3`。
-- 已完成：审查 `Task` 相关残留实现，确认 runtime 主线当前只实际保留：
-  - `scoop_task_create`
-  - `scoop_task_from_result`
-  - `scoop_task_join`
-- 已确认的本轮核心工作：
-  - 删除 LLVM codegen 中对 `scoop.task.executorCreate`、`scoop.task.destroy`、`scoop.task.debugPendingCount`、`scoop.task.runNext`、`scoop.task.runUntilIdle`、`scoop.task.taskCreateManual`、`scoop.task.state`、`scoop.task.result`、`scoop.task.tryStart`、`scoop.task.complete`、`scoop.task.onComplete` 的遗留硬编码分支；
-  - 删除仅服务上述旧 surface 的 runtime symbol 常量与 ABI 声明；
-  - 保留当前 `Task` core 仍需要的内部 helper：`__scoop_task_create`、`__scoop_task_from_result`、`__scoop_task_join`。
-- 已完成：修改 compiler 端残留 special-case。
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 已删除所有公开 `scoop.task.*` / `Executor` FQN 分支与对应 helper。
-  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` / `runtime_abi.rs` 已收缩到仅保留 `scoop_task_create`、`scoop_task_from_result`、`scoop_task_join`。
-- 已完成：验证改动。
+- 已确认最新提交 `[T4009a3] Remove executor task codegen special-cases` 没有额外口头挂出的前置 issue；`TODO.md` 首个未完成项仍是 `T4009b`。
+- 已完成真实修复：
+  - `state_machine_plan.rs` 为 `HandleStateOp::BindLocal` / `DeclareAnonymousVal` 新增 `init_from_last_value` 元数据，由 planner 显式标记“initializer 是否确实由前置 state actions 求值”。
+  - `state_machine_emitter.rs` 已删除那套与 planner 不一致的 AST 猜测逻辑，改为只在 `init_from_last_value=true` 时消费 `last_value`。
+  - 这同时保住了 async task `__task_ready_value` local-return 修复，又恢复了 `continuation_resume_continuation` 里 self-contained nested handle initializer 的正常执行。
+- 已完成最小验证：
+  - `cargo test -q -p scoopc async_task_resume_ir_does_not_replay_original_await_site -- --nocapture`
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/task_poll_step_manual_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/async_fun_task_runtime_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/continuation_resume_continuation.scoop`
+- 已完成全量验证：
   - `cargo fmt --check`
-  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_join -- --nocapture`
-  - `cargo test -q -p scoop_runtime --test task_spawn_join`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass` -> `fixtures: ok (357)`
-  - `cargo run -q -p scoop -- test` -> `fixtures: ok (1070)`
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`
   - `cargo test --all`
+  - `cargo run -q -p scoop -- test` -> `fixtures: ok (1071)`
   - `cargo clippy --all-targets -- -D warnings`
-- 已完成：同步更新 `TODO.md`、`PLAN.md`、`ISSUES.md`，将当前下一项推进到 `T4009b`。
-- 已完成：`git diff --check` 与变更复核，当前修改集仅包含：
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`
-  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
-  - `TODO.md`
-  - `PLAN.md`
-  - `ISSUES.md`
-  - `memory/claude_plan.md`
-- 进行中：创建 `T4009a3` 提交，并在提交后停止。
+- 下一步只剩：
+  - 把 `TODO.md` / `PLAN.md` 标记为 `T4009b` 已完成
+  - 检查最终 diff 与 `git status`
+  - 提交 commit 并停止

@@ -2360,7 +2360,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn async_task_ir_uses_task_create_and_internal_join() {
+    fn async_task_ir_uses_task_create_and_internal_step_result_helpers() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -2387,12 +2387,16 @@ fun main(): Int {
             "async sugar 应降到 taskCreate runtime ABI，而不是直接把 body 立即求值成普通值"
         );
         assert!(
-            ir.contains("@scoop_task_join"),
-            "async task body 内的 await 当前应改写成内部 join helper 调用"
+            ir.contains("@scoop_task_step_pending"),
+            "async task body 内的 await 应改写成内部 pending step-result helper，而不是同步 join"
         );
         assert!(
-            !ir.contains("@scoop_continuation_resume"),
-            "async sugar 现不应再在 HIR 主线上生成旧的 hidden immediate-resume continuation 路径"
+            ir.contains("@scoop_task_step_ready"),
+            "async task body 正常完成时应构造 ready step-result，而不是直接返回普通值"
+        );
+        assert!(
+            !ir.contains("@scoop_task_join"),
+            "async task body 内的 await 不应再退回到内部 join helper"
         );
     }
 

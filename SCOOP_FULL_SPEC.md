@@ -856,6 +856,7 @@ enum Poll<T> {
 
 class Task<T> {
     fun poll(): Poll<T>
+    fun step(): Poll<T>
 }
 ```
 
@@ -888,6 +889,7 @@ Key semantics:
 - The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `poll()` contract is preserved.
 - This stage does **not** define a public `scoop.task` executor package or adapter API. Any helper used to create or drive tasks before `poll()` is finalized is implementation-internal.
 - `Task.poll()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
+- `Task.step()` is the same manual-driving contract exposed under a more explicit name. In the current stage, without a separate readiness/wakeup protocol, `step()` and `poll()` are semantically equivalent: both drive the task until its next suspension or completion.
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.
 - The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.

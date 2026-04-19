@@ -2088,6 +2088,87 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(out)
     }
 
+    pub(super) fn codegen_block_value_with_local_return_context(
+        &mut self,
+        block: &hir::Block,
+        declared_return_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: block.span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: block.span.into(),
+            })?;
+
+        let return_bb = self.context.append_basic_block(func, "block_return");
+        let return_alloca = match declared_return_ty {
+            CgTy::Unit | CgTy::Never => None,
+            _ => Some(self.create_entry_alloca(
+                block.span,
+                "block_return_val",
+                declared_return_ty,
+            )?),
+        };
+
+        let saved_return_ctx = self.return_context;
+        let saved_return_ty = self.current_fun_return_ty;
+        self.return_context = Some(ReturnContext {
+            return_bb,
+            return_alloca,
+        });
+        self.current_fun_return_ty = Some(declared_return_ty);
+
+        let result = (|| -> Result<CgValue<'ctx>, LlvmEmitError> {
+            let tail = self.codegen_block_as_return_value(block, declared_return_ty)?;
+
+            if self
+                .builder
+                .get_insert_block()
+                .is_some_and(|bb| bb.get_terminator().is_none())
+            {
+                let tail = if declared_return_ty == CgTy::Unit {
+                    CgValue::unit()
+                } else {
+                    self.coerce_value(block.span, tail, declared_return_ty)?
+                };
+                if let Some(alloca) = return_alloca
+                    && let Some(raw) = tail.value
+                {
+                    self.builder.build_store(alloca, raw)?;
+                }
+                self.builder.build_unconditional_branch(return_bb)?;
+            }
+
+            self.builder.position_at_end(return_bb);
+            match declared_return_ty {
+                CgTy::Unit => Ok(CgValue::unit()),
+                CgTy::Never => Ok(CgValue::never()),
+                _ => {
+                    let alloca = return_alloca.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "block return alloca",
+                        at: block.span.into(),
+                    })?;
+                    let llvm_ty = self.llvm_basic_type_of(block.span, declared_return_ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, alloca, "block_return_load")?;
+                    self.cg_value_from_loaded(block.span, declared_return_ty, loaded)
+                }
+            }
+        })();
+
+        self.current_fun_return_ty = saved_return_ty;
+        self.return_context = saved_return_ctx;
+        result
+    }
+
     pub(super) fn codegen_block_value(
         &mut self,
         block: &hir::Block,
