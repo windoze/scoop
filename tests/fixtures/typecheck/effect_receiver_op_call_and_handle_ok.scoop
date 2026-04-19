@@ -1,0 +1,32 @@
+// EXPECT: pass
+// 目标：T4008c2 receiver effect op 进入统一的调用 / handler binder 主线：
+// - `Echo.bump(receiver = ..., by = ...)` 按 receiver 作为第 0 个显式形参做绑定；
+// - `Echo.bump(text: String, delta: Int) -> { ... }` 按 receiver 作为第 0 个 binder 做校验。
+
+package fixtures.typecheck
+
+effect Echo {
+    fun String.bump(by: Int): Int
+}
+
+fun callReceiverEffect(): Int / Echo {
+    val first: Int = Echo.bump(receiver = "ha", by = 2)
+    val second: Int = Echo.bump(by = 3, receiver = "wow")
+    val second_copy: Int = second
+    val _sink: Int = second_copy
+    return first
+}
+
+fun handleReceiverEffect(): Int {
+    return handle {
+        Echo.bump(by = 2, receiver = "ha")
+    } with {
+        Echo.bump(text: String, delta: Int) -> {
+            val text_copy: String = text
+            val delta_copy: Int = delta
+            val _text_sink: String = text_copy
+            val _delta_sink: Int = delta_copy
+            text.length() + delta
+        }
+    }
+}

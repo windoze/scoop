@@ -1230,7 +1230,6 @@ fn find_immediate_resume_call_in_expr(expr: &ast::Expr, resume_decl_span: Span) 
 /// 当前阶段目标：
 /// - 支持同一个 `handle` 中混用 non-resuming / immediate-resume / escape-continuation arms；
 /// - handler arm head 只支持 effect operation（`Effect.op(...)`）；
-/// - effect type param 的推断只支持单一 type param（例如 sysroot 的 `Raise<E>`）；
 /// - `-> resume` arm 只负责恢复 handled computation，本身不直接决定 `handle` 表达式的结果类型；
 /// - non-resuming / escape-continuation arm 的返回类型需要与 `handle` 的可返回结果保持一致；
 /// - required effects：body 内 perform 的 effect 若被某个 arm 捕获，则不向外层传播。
@@ -1297,13 +1296,6 @@ pub(super) fn infer_handle_expr_type(
             });
         }
 
-        if op.sig.receiver.is_some() {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: "handle arm（effect op receiver not supported）",
-                span: arm.op.op.span.into(),
-            });
-        }
-
         // 4) 构造 effect op 的“可实例化签名”：其参数/返回类型允许引用：
         // - operation 自身的 type params（例如 `fun <T> await(task: Task<T>): T` 中的 `T`）
         // - effect type 的 type params（例如 `Raise<E>` 中的 `E`）
@@ -1330,8 +1322,21 @@ pub(super) fn infer_handle_expr_type(
             bindings.push((name.clone(), param_ty));
         }
 
-        let mut param_names: Vec<String> = Vec::with_capacity(op.sig.params.len());
-        let mut op_params: Vec<TypeId> = Vec::with_capacity(op.sig.params.len());
+        let mut param_names: Vec<String> =
+            Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
+        let mut op_params: Vec<TypeId> =
+            Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
+
+        if let Some(receiver_ref) = &op.sig.receiver {
+            param_names.push("receiver".to_string());
+            let receiver_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+                &op.symbol.decl_file,
+                bindings.clone(),
+                receiver_ref,
+            )?;
+            op_params.push(receiver_ty);
+        }
+
         for p in &op.sig.params {
             param_names.push(p.name.clone());
 

@@ -996,13 +996,30 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008cP
 
-### T4008c2 [TODO] 打通 receiver effect op 的 perform / handler lowering / codegen
+### T4008c2 [DONE] 打通 receiver effect op 的 perform / handler lowering / codegen
 - 范围：
   - receiver effect op 不再在 typecheck 早退报 unsupported。
   - receiver effect op 的调用与 handle arm binder 统一按“receiver 作为第 0 个形参 / 第 0 个 binder”进入 HIR / LLVM effect dispatch 主线。
   - 补充 parse / typecheck / run-pass 回归，避免把 receiver effect op 做成 ad-hoc 特判。
 - 验收：
   - `ISSUES.md` 第 1 条中关于 receiver effect op 的剩余描述收窄或关闭。
+- 已完成：
+  - `infer_effect_op_call_expr_type` 与 `lower_handle_arm_effect_op_sig` 不再对 `op.sig.receiver.is_some()` 早退报 unsupported；receiver effect op 现统一把 receiver 显式降为第 0 个形参，因此命名/位置实参与 effect-instance 推断继续复用既有 `arg_mapping` / instantiation 主线，而不是新开 receiver 专用分支。
+  - handler arm 的可实例化 effect-op 签名现同样把 receiver 降为第 0 个 binder；binder arity、类型注解校验、handled-effect 推断与 side table 写回都复用现有多 binder 主线，不再把 receiver effect op 当成另一套 arm 语义。
+  - HIR / LLVM 未新增 receiver 专用 lowering：receiver effect op 直接复用现有 `Perform.args`、`EffectOpCallInfo { arg_mapping, payload_tuple_ty }`、`handle_payload_tuple_tys` 与 ordinary/state-machine perform transport，因此“receiver + 普通参数”的 2-payload effect op 已能在 non-resuming / immediate-resume / escape-continuation handler 中稳定执行。
+  - 已新增回归：
+    - `tests/fixtures/parse/effect_op_receiver_decl_basic.scoop`
+    - `tests/fixtures/parse/effect_op_receiver_decl_basic.ast`
+    - `tests/fixtures/typecheck/effect_receiver_op_call_and_handle_ok.scoop`
+    - `tests/fixtures/run-pass/effect_receiver_op_basic.scoop`
+    - `tests/fixtures/run-pass/effect_receiver_op_basic.stdout`
+- 已验证：
+  - `cargo fmt --check`
+  - `cargo run -q -p scoop -- dump-ast tests/fixtures/parse/effect_op_receiver_decl_basic.scoop`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_receiver_op_basic.scoop`（stdout 符合预期，退出码 `30`）
+  - `cargo test --all`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1065)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008cS
 
 ### T4008c3 [TODO] 收口 handler arm head 的 effect-op 绑定主线

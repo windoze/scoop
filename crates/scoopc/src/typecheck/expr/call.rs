@@ -3967,13 +3967,6 @@ pub(super) fn infer_effect_op_call_expr_type(
         });
     };
 
-    if op.sig.receiver.is_some() {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "effect op call（receiver not supported）",
-            span: call_expr.span.into(),
-        });
-    }
-
     // effect op 的 type params 由两部分构成：
     // - operation 自身的 type params：`effect Async { fun <T> await(task: Task<T>): T }`
     // - effect type 的 type params：`effect Raise<in E> { fun raise(error: E): Nothing }`
@@ -3997,9 +3990,22 @@ pub(super) fn infer_effect_op_call_expr_type(
         bindings.push((name.clone(), param_ty));
     }
 
-    // Lower effect op 签名：参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
-    let mut param_names: Vec<String> = Vec::with_capacity(op.sig.params.len());
-    let mut params: Vec<TypeId> = Vec::with_capacity(op.sig.params.len());
+    // Lower effect op 签名：receiver effect op 也统一按“receiver 作为显式第 0 个参数”
+    // 进入调用绑定主线；参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
+    let mut param_names: Vec<String> =
+        Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
+    let mut params: Vec<TypeId> =
+        Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
+
+    if let Some(receiver_ref) = &op.sig.receiver {
+        param_names.push("receiver".to_string());
+        let receiver_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            &op.symbol.decl_file,
+            bindings.clone(),
+            receiver_ref,
+        )?;
+        params.push(receiver_ty);
+    }
 
     for p in &op.sig.params {
         param_names.push(p.name.clone());

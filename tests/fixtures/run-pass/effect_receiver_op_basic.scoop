@@ -1,0 +1,91 @@
+// EXPECT: pass
+// EXPECT-EXIT: 30
+// RUN-STDOUT: effect_receiver_op_basic.stdout
+//
+// 目标：T4008c2 receiver effect op 的 perform / handler lowering / codegen 走统一主线：
+// - 调用端把 receiver 作为第 0 个显式 payload；
+// - non-resuming / immediate-resume / escape-continuation arm 都按第 0 个 binder 接收 receiver；
+// - named args 重排后仍保持 receiver 在 transport tuple 中的第 0 个形参位置。
+
+import scoop.core.*
+
+effect Echo {
+    fun String.bump(by: Int): Int
+}
+
+class Cell(var k: Continuation<Int>?, var total: Int)
+
+fun direct_case(): Int {
+    return handle {
+        Echo.bump(by = 2, receiver = "go")
+    } with {
+        Echo.bump(text, by) -> {
+            println(text)
+            println(by)
+            text.length() + by
+        }
+    }
+}
+
+fun immediate_case(): Int {
+    return handle {
+        println("immediate_before")
+        val x: Int = Echo.bump("hey", 3)
+        println("immediate_after")
+        println(x)
+        x + 10
+    } with {
+        Echo.bump(text, by) -> resume {
+            println(text)
+            println(by)
+            resume(text.length() + by)
+        }
+    }
+}
+
+fun escape_case(cell: Cell) {
+    val _: Unit = handle {
+        println("escape_before")
+        val x: Int = Echo.bump(by = 4, receiver = "z")
+        println("escape_after")
+        println(x)
+        cell.total = x + 1
+    } with {
+        Echo.bump(text, by), k -> {
+            println(text)
+            println(by)
+            cell.k = Some(k)
+        }
+    }
+}
+
+fun main(): Int {
+    val direct: Int = direct_case()
+    println("direct_result")
+    println(direct)
+
+    val immediate: Int = immediate_case()
+    println("immediate_result")
+    println(immediate)
+
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+    escape_case(cell)
+    println("after_escape_handle")
+
+    when (cell.k) {
+        Some(k) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k.resume(9)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume")
+            }
+        }
+        None -> println("missing_k")
+    }
+
+    println("escape_total")
+    println(cell.total)
+    return direct + immediate + cell.total
+}

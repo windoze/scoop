@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: effect_op_receiver_decl_basic.ast
+//
+// 目标：effect operation 声明支持 extension-style receiver，并保留在 AST 中。
+
+package fixtures.parse
+
+effect Echo {
+    fun String.bump(by: Int): Int
+}
