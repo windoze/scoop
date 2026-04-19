@@ -652,9 +652,9 @@
 - 说明：
   - 原任务同时覆盖三条独立主线：generic class 的 `is/as/as?` 运行期 descriptor 选择、parameterized interface 与 `eff` 参数 target 的运行期匹配、以及 `crates/scoopc/src/rtti/mod.rs` 旧布局导出 API 的 `unsupported_generic_type` 门禁。
   - 临时 probe 复现表明这三条主线并非同一根因：一是 `Any` 上做 `is Holder<Int>` 会在 LLVM 侧退回 base generic class descriptor，触发 `TypeKind::Param(T)` / `class field type`；二是 `Disposable<eff Raise<RuntimeError>>` 的实例在运行期做 `is Disposable<eff Pure>` 仍错误返回 `true`，说明 itable 仍只按 base interface id 判真；三是旧 RTTI 导出 API 仍直接拒绝 args / `eff` 参数化 nominal。
-  - 为保证每轮只提交一个闭环切片，现拆分为 `T4007a -> T4007b -> T4007c -> T4007R` 顺序推进。
+  - 为保证每轮只提交一个闭环切片，现拆分为 `T4007a -> T4007b -> T4007c -> T4007S -> T4007R` 顺序推进。
 - 完成：
-  - 已完成任务拆分，当前先执行 `T4007a`，剩余 parameterized interface / `eff` 与旧 RTTI 导出 API 收口顺延到后续子任务。
+  - 已完成任务拆分，generic class target、parameterized interface / `eff` runtime match、旧 RTTI 导出 API，以及随后插入的全量 Rust 测试验证 blocker `T4007S` 均已按顺序收口。
 - 依赖：T4006R
 
 ### T4007a [DONE] 为 generic class 的 `is/as/as?` 使用具体实例化 descriptor
@@ -723,7 +723,7 @@
   - 已尝试 `cargo test --all`，但被既有 runtime 测试 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 中两条 compaction 用例挂起阻断；该问题已显式入列为 `T4007S`，不会静默略过。
 - 依赖：T4007b
 
-### T4007S [TODO] 排查并修复 `cargo test --all` 中 `gc_immix_compaction` 的既有挂起
+### T4007S [DONE] 排查并修复 `cargo test --all` 中 `gc_immix_compaction` 的既有挂起
 - 说明：
   - 在 `T4007c` 验证阶段，`cargo test --all` 会稳定卡在 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 的
     `immix_compaction_does_not_move_pinned_objects` 与
@@ -733,6 +733,17 @@
 - 范围：
   - 定位并修复上述两条 compaction 测试的 STW / park 协调挂起。
   - 恢复 `cargo test --all` 可完整跑通。
+- 完成：
+  - 复查 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 与 `runtime/c/scoop_gc_backend_immix.c` 的线程注册、`enter_native/leave_native`、STW begin / safepoint / park 协调主线后，当前基线已无法复现先前记录的 `waiting for park: epoch=2 parked=0 need=1` 挂起。
+  - `immix_compaction_does_not_move_pinned_objects` 与 `immix_compaction_updates_native_roots_slots_and_object_fields` 单独运行均可稳定通过；整组 `cargo test -p scoop_runtime --test gc_immix_compaction -- --nocapture` 也为绿色。
+  - 在此基础上，`cargo test --all` 当前已完整跑通；并对 `cargo test -q -p scoop_runtime --test gc_immix_compaction` 连续复验 20 轮，未再次出现挂起，因此将 `T4007S` 判定为已收口的陈旧验证 blocker，本轮不需要引入额外 runtime 代码补丁。
+- 已验证：
+  - `cargo test -p scoop_runtime immix_compaction_does_not_move_pinned_objects -- --nocapture`
+  - `cargo test -p scoop_runtime immix_compaction_updates_native_roots_slots_and_object_fields -- --nocapture`
+  - `cargo test -p scoop_runtime --test gc_immix_compaction -- --nocapture`
+  - `cargo test --all`
+  - `cargo test -q -p scoop_runtime --test gc_immix_compaction`（连续 20 轮）
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - `cargo test -p scoop_runtime immix_compaction_does_not_move_pinned_objects -- --nocapture`
   - `cargo test -p scoop_runtime immix_compaction_updates_native_roots_slots_and_object_fields -- --nocapture`
