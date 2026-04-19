@@ -40,4 +40,6 @@
 
 ## 剩余动作
 - [已完成] 检查最终 diff 与 whitespace。
-- [待执行] 提交一次 Git commit，提交后停止。
+- [已完成] 创建主实现提交 `[T4004b] 打通顶层 pattern binder 的 once-init lowering`。
+- [已完成] 发现并清理误纳入版本控制的 `tests/fixtures/run_pass_cone/top_level_val_pattern_multi_file_basic/build/` 生成产物，并补充 `tests/fixtures/run_pass_cone/*/build/` 忽略规则。
+- [待执行] 创建清理提交，然后停止。
