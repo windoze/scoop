@@ -76,12 +76,6 @@
   X(scoop_effect_trace_unwind_len) \
   X(scoop_enter_native) \
   X(scoop_env_get) \
-  X(scoop_executor_create) \
-  X(scoop_executor_debug_pending_count) \
-  X(scoop_executor_destroy) \
-  X(scoop_executor_enqueue_resume_u64) \
-  X(scoop_executor_run_next) \
-  X(scoop_executor_run_until_idle) \
   X(scoop_float32_to_int) \
   X(scoop_float32_to_string) \
   X(scoop_float64_to_int) \
@@ -168,16 +162,9 @@
   X(scoop_sync_once_create) \
   X(scoop_sync_once_is_done) \
   X(scoop_sync_once_run) \
-  X(scoop_task_complete) \
   X(scoop_task_create) \
-  X(scoop_task_create_manual) \
   X(scoop_task_from_result) \
   X(scoop_task_join) \
-  X(scoop_task_on_complete) \
-  X(scoop_task_result_gc_ref) \
-  X(scoop_task_result_word) \
-  X(scoop_task_state) \
-  X(scoop_task_try_start) \
   X(scoop_test_add_int) \
   X(scoop_test_callee_suspend_state_set) \
   X(scoop_test_continuation_resume_replay_state_create) \

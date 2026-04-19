@@ -1603,13 +1603,6 @@ fn trace_bitmap_for_payload_fields(
 
 fn is_gc_pointer_like(types: &TypeStore, ty: TypeId) -> bool {
     match types.kind(ty) {
-        // 绝大多数 ref type 在运行期是 GC-managed pointer；但少量“句柄型 ref”（Task/Executor）在 early stage
-        // 会降为 word-sized integer handle（不应计入 GC pointer slots）。
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            if nominal.fqn == "scoop.core.Task" || nominal.fqn == "scoop.task.Executor" =>
-        {
-            false
-        }
         TypeKind::Ref(_) => true,
         TypeKind::Value(ValueTypeKind::Option(inner)) => is_gc_pointer_like(types, *inner),
         _ => false,

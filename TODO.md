@@ -1137,7 +1137,7 @@
   - `cargo run -q -p scoop -- test`
 - 依赖：T4009a
 
-### T4009a2 [TODO] 从 core / runtime / sysroot / stdlib 移除当前 executor-centric `Task` surface
+### T4009a2 [DONE] 从 core / runtime / sysroot / stdlib 移除当前 executor-centric `Task` surface
 - 范围：
   - 当前 `Executor` 类型、executor-centric `Task` API、以及围绕它们组织的 stdlib / sysroot surface 不再作为当前 `Task` core 的公开合同。
   - 当前不完整的 runtime executor implementation（例如 `runtime/c/scoop_task_executor.c`）从代码库主线中移除；保留的仅是 GC、effect/continuation runtime、stable handle 等通用能力。
@@ -1145,6 +1145,20 @@
 - 验收：
   - 当前代码库不再把 executor surface 当作 `Task` 语义本体的一部分。
   - 相关文档、注释与 sysroot surface 中不再把当前 executor implementation 描述成推荐方向。
+- 完成：
+  - 已删除 `sysroot/task.scoop` / `stdlib/task.scoop` 以及围绕 `Executor`、`taskCreate*`、`tryStart`、`onComplete`、`map/andThen/await` 组织的公开 surface；`sysroot/core.scoop` 现仅保留 `Task<T>` / `Async` 与内部 `__scoop_task_create` / `__scoop_task_from_result` / `__scoop_task_join` helper。
+  - 已将 runtime 的 task 实现从 `runtime/c/scoop_task_executor.c` 拆成 executor-free 的 `runtime/c/scoop_task.c`，只保留 lazy create、completed-from-result 与 synchronous join 三条最小 `Task` core 路径，并同步收缩 `runtime/c/scoop_runtime_api.h` allowlist 与 `crates/scoop_runtime/build.rs` 编译清单。
+  - `async {}` / `async fun` lowering 现改用内部 FQN `scoop.core.__scoop_task_create`；受影响的 run-pass / typecheck / cone 夹具已统一改为通过 handled `Async.await(...) -> __scoop_task_join(...)` 驱动外层 lazy task，不再依赖公开 executor surface。
+  - 收口过程中发现并修复了一个既有 GC 裂缝：RTTI trace bitmap 仍把 `Task` 当作 early-stage handle，导致“`Task` 仅通过对象字段可达”时可能漏扫；现已恢复为普通 GC ref，并新增 `gc_trace_task_field_basic` 回归覆盖该路径。
+  - `SCOOP_FULL_SPEC.md` / `ISSUES.md` / `STDLIB_COMPLETENESS.md` / `sysroot/core.scoop` 已同步改写为“当前阶段无公开 `scoop.task` executor package”的叙事。
+- 已验证：
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (334)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (357)`）
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_join -- --nocapture`
+  - `cargo test -q -p scoop_runtime --test task_spawn_join`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a1
 
 ### T4009a3 [TODO] 移除 LLVM / runtime 对当前 executor / `scoop.task.*` 的 hard-coded special-case

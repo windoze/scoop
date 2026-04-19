@@ -6,10 +6,9 @@
 // 目标覆盖：
 // - `async { ... }` 现在对外返回 lazy `Task<String>`；
 // - 内部 `spawn { ... }` 可返回 `String`；
-// - 外层 task 通过 `Executor.tryStart/runUntilIdle/result` 驱动完成。
+// - 外层 task 可直接通过 `join` 驱动完成。
 
 import scoop.core.*
-import scoop.task.*
 
 fun main(): Int {
     val valueTask: Task<String> = async {
@@ -20,11 +19,11 @@ fun main(): Int {
         join task
     }
 
-    val ex: Executor = executorCreate()
-    val _started: Bool = valueTask.tryStart(ex)
-    val _steps: Int = ex.runUntilIdle(0)
-    val value: String = valueTask.result()
-    ex.destroy()
+    val value: String = handle {
+        Async.await(valueTask)
+    } with {
+        Async.await(taskArg: Task<String>) -> __scoop_task_join(taskArg)
+    }
 
     println("joined")
     println(value)

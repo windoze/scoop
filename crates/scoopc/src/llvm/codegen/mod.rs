@@ -2448,7 +2448,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.task.runUntilIdle" {
                 return self.codegen_sysroot_task_executor_run_until_idle(span, callee.span, args);
             }
-            if fqn == "scoop.task.taskCreate" {
+            if fqn == "scoop.task.taskCreate" || fqn == "scoop.core.__scoop_task_create" {
                 return self.codegen_sysroot_task_create(span, callee.span, args);
             }
             if fqn == "scoop.task.taskCreateManual" {

@@ -1,0 +1,37 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_task_field_basic.stdout
+//
+// 目标：T4009a2
+// - `Task<T>` 现在是普通 GC-managed ref object，而不是特殊句柄；
+// - 当 `Task<T>` 只通过对象字段可达时，GC trace bitmap 仍必须保活它；
+// - safepoint 之后再 `join` 该 task，应能继续同步直驱其 body。
+
+import scoop.core.*
+
+class Holder(val task: Task<String>)
+
+fun blackBoxHolder(value: Holder): Unit {}
+
+fun make(): Holder {
+    val task: Task<String> = async {
+        println("body")
+        "kept"
+    }
+    return Holder(task)
+}
+
+fun main(): Int {
+    val holder: Holder = make()
+
+    __scoop_gc_collect()
+
+    blackBoxHolder(holder)
+
+    val value: String = handle {
+        Async.await(holder.task)
+    } with {
+        Async.await(taskArg: Task<String>) -> __scoop_task_join(taskArg)
+    }
+    println(value)
+    return 0
+}

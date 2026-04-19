@@ -886,6 +886,7 @@ Key semantics:
 - The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
 - `Task<T>` stores private execution state. Before the first poll it holds an initial entry state; after suspension it may hold an internal continuation; after completion it holds the final result.
 - The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `poll()` contract is preserved.
+- This stage does **not** define a public `scoop.task` executor package or adapter API. Any helper used to create or drive tasks before `poll()` is finalized is implementation-internal.
 - `Task.poll()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.

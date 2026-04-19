@@ -6,10 +6,9 @@
 // 目标覆盖（当前阶段最小可回归语义）：
 // - 外层 `async { ... }` 现在返回 lazy `Task<Int>`；
 // - `spawn { ... }` 仍按当前阶段语义返回一个可被 `join/await` 读取的 `Task<Int>`；
-// - 外层 task 通过 `Executor.tryStart/runUntilIdle/result` 驱动完成。
+// - 外层 task 可直接通过 `join` 驱动完成。
 
 import scoop.core.*
-import scoop.task.*
 
 fun main(): Int {
     val resultTask: Task<Int> = async {
@@ -33,11 +32,11 @@ fun main(): Int {
         a + b
     }
 
-    val ex: Executor = executorCreate()
-    val _started: Bool = resultTask.tryStart(ex)
-    val _steps: Int = ex.runUntilIdle(0)
-    val result: Int = resultTask.result()
-    ex.destroy()
+    val result: Int = handle {
+        Async.await(resultTask)
+    } with {
+        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+    }
 
     println("done")
     println(result)

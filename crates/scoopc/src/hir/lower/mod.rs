@@ -123,7 +123,7 @@ struct HirLoweringSetup<'a> {
 
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
-    const TASK_CREATE_FQN: &'static str = "scoop.task.taskCreate";
+    const TASK_CREATE_FQN: &'static str = "scoop.core.__scoop_task_create";
     const TASK_FROM_RESULT_FQN: &'static str = "scoop.core.__scoop_task_from_result";
     const TASK_JOIN_FQN: &'static str = "scoop.core.__scoop_task_join";
     const TASK_TYPE_FQN: &'static str = "scoop.core.Task";
@@ -851,7 +851,7 @@ impl<'a> HirLowering<'a> {
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         //
-        // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 task handle（`UInt`）。
+        // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 `Task<T>`。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let inner_return_ty = fun

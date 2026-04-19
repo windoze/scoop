@@ -29,7 +29,7 @@
 | `Option<T>` (nullable `T?`) | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 run-pass | `Some`/`None` + pattern match |
 | `RuntimeError` + `Raise<E>` | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | `try_catch_raise_runtime_error_basic` 等 | 效果系统核心 |
 | `Continuation<T>` | P0 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 T17xx fixtures | 多 perform/GC/多线程已验证 |
-| `Task<T>` / `Async` effect | P1 | pure_scoop_ok | PARTIAL | `sysroot/core.scoop` + `sysroot/task.scoop` | `async_await_minimal_int_basic` 等 | 仅 `Int` 专用；真实 executor 在 stdlib |
+| `Task<T>` / `Async` effect | P1 | pure_scoop_ok | PARTIAL | `sysroot/core.scoop` + `runtime/c/scoop_task.c` | `async_await_minimal_int_basic` 等 | 公开 surface 仅保留 `Task<T>` / `Async`；`poll()` / `step()` 与 structured concurrency 待后续收口 |
 | `Platform` / `getPlatform()` | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | comptime fixtures | intrinsic |
 | Compile-time metadata (`TypeMeta` 等) | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | 多个 comptime fixtures | `fieldsOf`/`variantsOf` 等 intrinsic |
 | Annotations (`@TailRec` 等) | P2 | pure_scoop_ok | DONE | `sysroot/core.scoop` | typecheck fixtures | 内建注解集合 |
@@ -211,15 +211,13 @@
 
 ---
 
-## 15. Task / Executor (async)
+## 15. Task (async core)
 
 | 能力项 | 优先级 | 分类 | 状态 | 实现位置 | Fixtures | 备注/缺口 |
 |---|:---:|:---:|:---:|---|---|---|
-| `Executor` (create/destroy/runNext/runUntilIdle) | P1 | needs_runtime_lib | DONE | `sysroot/task.scoop` + `runtime/c` | `std_task_executor_basic` | |
-| `Task<Int>` (create/state/result/tryStart/complete/onComplete) | P1 | needs_runtime_lib | DONE | `sysroot/task.scoop` + `runtime/c` | `std_task_executor_basic` | 仅 Int |
-| `Executor.spawn` / `Executor.await` | P1 | pure_scoop_ok | DONE | `stdlib/task.scoop` | `std_task_async_adapters_basic` | 仅 Int |
-| `Task<Int>.map` / `Task<Int>.andThen` | P1 | pure_scoop_ok | DONE | `stdlib/task.scoop` | `std_task_async_adapters_basic` | 仅 Int |
-| 泛型 `Task<T>` | P2 | pure_scoop_ok | TODO | — | — | 依赖泛型 codegen 完善 |
+| Lazy `Task<T>` create/join core | P1 | needs_runtime_lib | DONE | `sysroot/core.scoop` + `runtime/c/scoop_task.c` | `async_fun_task_runtime_basic` / `spawn_join_*` | 仅保留内部 helper；无公开 executor surface |
+| `Task.poll()` / `step()` / `Poll<T>` | P1 | pure_scoop_ok | TODO | — | — | 依赖 `T4009b` |
+| Structured concurrency / `spawn` 最终语义 | P2 | pure_scoop_ok | TODO | — | — | 当前 `spawn/join` 仍是过渡期 helper，最终模型待 `T4009c` |
 
 ---
 

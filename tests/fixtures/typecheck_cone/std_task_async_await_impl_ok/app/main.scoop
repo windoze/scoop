@@ -1,33 +1,24 @@
 // EXPECT: pass
-//
-// T1320e：`std` v4：stdlib 内部改用 `Async.await(task)`（移除 `__TaskAwaitInt` workaround）
-//
-// 目标：
-// - 在 typecheck_cone 用例中模拟 sysroot（cone 0）+ stdlib（cone 2）+ app（cone 1）；
-// - 通过调用 `Executor.await/Task.map/Task.andThen` 触发对“has_body=true 实现”的选择，
-//   避免 sysroot 的 decl-only overload 与 stdlib 实现共同参与决议导致歧义；
-// - 同时确保 stdlib 的 `Async.await(task)` + handler arm head `Async.await(task), k ->` 能通过 typecheck。
+// 目标：T4009a2 移除 `scoop.task` 公开 surface 后，cone 内仍可仅通过 `scoop.core.Task` + handled `Async.await`
+// 完成最小 async typecheck 主线。
 
-package fixtures.typecheck
+package fixtures.typecheck_cone.std_task_async_await_impl_ok.app
 
 import scoop.core.*
-import scoop.task.*
 
-fun main(): Int {
-    val ex: Executor = executorCreate()
-    val exitCode: Int = try {
-        val t: Task<Int> = ex.spawn { 1 }
-        val t2: Task<Int> = t.map(ex) { v -> v + 1 }
-        val t3: Task<Int> = t2.andThen(ex) { v -> ex.spawn { v + 10 } }
-        val r: Int = ex.await(t3)
-        val _unused: Int = r
-        0
-    } catch (e: RuntimeError) {
-        val _unused: RuntimeError = e
-        1
-    }
-
-    ex.destroy()
-    return exitCode
+async fun fetch(): Int {
+    val inner: Task<Int> = spawn { 1 }
+    return await inner + 1
 }
 
+fun main(): Int {
+    val outer: Task<Int> = async {
+        await fetch() + 10
+    }
+    val value: Int = handle {
+        Async.await(outer)
+    } with {
+        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+    }
+    return value
+}
