@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_lazy_thread_safety_none_print_like_ok.stdout
+//
+// T4006S：lazy(None) getter 的读取结果需要保留真实值类型，
+// 以便 `print/println` 的 print-like lowering 统一识别。
+
+import scoop.core.*
+import scoop.delegates.*
+
+class C() {
+    val x: Int by lazy(LazyThreadSafetyMode.None) {
+        println("init")
+        7
+    }
+}
+
+fun main(): Int {
+    val c: C = C()
+    print(c.x)
+    print(",")
+    println(c.x)
+    return 0
+}

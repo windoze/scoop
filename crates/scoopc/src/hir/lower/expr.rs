@@ -2365,14 +2365,11 @@ impl<'a> HirLowering<'a> {
         {
             match info {
                 DelegatedPropertyInfo::Lazy(info) => {
-                    return (
-                        self.lower_lazy_delegated_property_get_from_receiver(
-                            pkg_prefix,
-                            member.span,
-                            receiver,
-                            &info,
-                        ),
-                        self.builtins.any,
+                    return self.lower_lazy_delegated_property_get_from_receiver(
+                        pkg_prefix,
+                        member.span,
+                        receiver,
+                        &info,
                     );
                 }
                 DelegatedPropertyInfo::Generic(info) => {

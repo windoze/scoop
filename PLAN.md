@@ -58,6 +58,10 @@
 > 2026-04-19 当前轮完成更新：`T4006` 已完成。经核查，issue 14 中原先记录的三条 compilation-unit 缺口实际已分别由前序主线收口，但仓库里缺少把这三条能力固定下来的正式 regression，且 `ISSUES.md` / 注释仍保留过时说法。当前已新增 `run_pass_cone/cross_file_generic_top_level_val_basic`，覆盖“跨文件顶层 `val` + 非入口文件顶层泛型函数实例化”；新增 `typecheck_cone/cross_cone_extension_imports`，覆盖跨 cone / 跨包 extension 的显式 import 与 star import typecheck 主线；并同步把 issue 14 收口为“已完成”。定向夹具、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均已通过。
 >
 > 2026-04-19 当前轮计划调整：在 `T4006` 收尾时补跑全量 `cargo run -p scoop -- test`，发现仓库里已有的 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop` 仍会在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: sysroot print/println arg type`。该问题与 `T4006` 无直接交叉，但它会阻断后续 review / 阶段验收，因此在 `T4006R` 前新增 blocker `T4006S`：先收口 delegated property lazy(None) 读取进入 `print/println` 的类型传递与 codegen 主线，再继续做 compilation-unit review。当前下一项切换为 `T4006S`。
+>
+> 2026-04-19 当前轮完成更新：`T4006S` 已完成。根因是 `lower_lazy_delegated_property_get_from_receiver` 在 `LazyThreadSafetyMode.None` 分支把 getter desugar 成 `when` 后，只返回 `ExprKind` 而没有把外层 HIR 类型保留为真实属性类型，导致 `println(c.x)` 一类读取在 LLVM `print/println` lowering 中被当成 `Any/Ref`，最终报 `sysroot print/println arg type`。当前已把 lazy getter lowering 改为返回 `(ExprKind, TypeId)`，并让 none 分支的 `when` / block / tail 统一携带真实属性 `TypeId`；新增 run-pass 回归 `delegated_property_lazy_thread_safety_none_print_like_ok` 后，`lazy(None)` 读取走 `print` 与 `println` 都已稳定 build/run。已验证相关 lazy fixtures 的 build+run、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`；重跑 `cargo run -p scoop -- test` 时，该既有红线已被清除，套件继续向后推进。
+>
+> 2026-04-19 当前轮计划调整：`T4006S` 清除原红线后，`cargo run -p scoop -- test` 继续暴露出新的既有 blocker：`tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` 当前在 build 阶段报 `scoop::llvm::unsupported_main_body: value coercion`。该夹具属于 effect / continuation + GC 对象图跨线程恢复路径，虽然与 compilation-unit 主题不直接相关，但它同样阻断了 `T4006R` 的全量 fixture review。因此在 `T4006R` 前再插入 blocker `T4006T`，先收口这条 `value coercion` codegen 缺口，再继续做 compilation-unit 复审。当前下一项切换为 `T4006T`。
 
 ## 0. 工作原则
 
@@ -81,9 +85,10 @@
 9. 新增 blocker：顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
 10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
 11. 新增 blocker：delegated property lazy(None) 读取进入 `print/println` 的 codegen 类型缺口
-12. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-13. `ISSUES.md` 第 1 条：effect / continuation 完整性
-14. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+12. 新增 blocker：`gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
+13. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+14. `ISSUES.md` 第 1 条：effect / continuation 完整性
+15. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -109,7 +114,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
-- 当前状态：`T4006` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化，以及跨 cone / 跨包 extension import 的 typecheck 主线。收尾时补跑全量 fixtures 暴露出 delegated property lazy(None) 读取进入 `print/println` 的既有 codegen 裂缝，因此在 `T4006R` 前插入 `T4006S`，当前下一项先处理该 blocker。
+- 当前状态：`T4006` 与 `T4006S` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import，以及 `lazy(None)` 读取同时进入 `print` / `println` 的 print-like lowering 主线。重跑全量 fixtures 时，编译链相关红线已清除，但又向后暴露出 `gc_continuation_cross_thread_resume_with_objects.scoop` 的既有 LLVM `value coercion` 缺口；因此在 `T4006R` 前继续插入 `T4006T`，当前下一项先处理该 blocker。
 
 ### P5. effect 完整性收口
 

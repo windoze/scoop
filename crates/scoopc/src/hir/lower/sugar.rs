@@ -149,10 +149,11 @@ impl<'a> HirLowering<'a> {
         span: Span,
         receiver: Expr,
         info: &LazyDelegatedPropertyInfo<'a>,
-    ) -> ExprKind {
+    ) -> (ExprKind, TypeId) {
         let decl = info.decl;
         let inited_name = format!("{}$lazy_inited", info.name);
         let value_name = format!("{}$lazy_value", info.name);
+        let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
 
         // `LazyThreadSafetyMode.None`：沿用早期阶段的“无锁 + bool 标记”实现；
         // 其它模式：通过 `scoop.sync.Mutex` 保障并发可见性（lock/unlock 作为 acquire/release）。
@@ -209,7 +210,7 @@ impl<'a> HirLowering<'a> {
 
             let tail = Stmt {
                 span,
-                ty: self.builtins.any,
+                ty: value_ty,
                 kind: StmtKind::Expr(self.member_access_to_class_field(
                     span,
                     receiver,
@@ -220,33 +221,36 @@ impl<'a> HirLowering<'a> {
 
             let false_body = Expr {
                 span,
-                ty: self.lower_delegated_property_ty(decl, info.ty.as_ref()),
+                ty: value_ty,
                 kind: ExprKind::Block(Block {
                     span,
-                    ty: self.builtins.any,
+                    ty: value_ty,
                     stmts: vec![assign_value, assign_inited, tail],
                 }),
             };
 
-            return ExprKind::When {
-                subject: Box::new(subject),
-                arms: vec![
-                    WhenArm {
-                        span,
-                        pat: WhenPat::BoolLit { span, value: true },
-                        guard: None,
-                        arrow_span: span,
-                        body: true_body,
-                    },
-                    WhenArm {
-                        span,
-                        pat: WhenPat::BoolLit { span, value: false },
-                        guard: None,
-                        arrow_span: span,
-                        body: false_body,
-                    },
-                ],
-            };
+            return (
+                ExprKind::When {
+                    subject: Box::new(subject),
+                    arms: vec![
+                        WhenArm {
+                            span,
+                            pat: WhenPat::BoolLit { span, value: true },
+                            guard: None,
+                            arrow_span: span,
+                            body: true_body,
+                        },
+                        WhenArm {
+                            span,
+                            pat: WhenPat::BoolLit { span, value: false },
+                            guard: None,
+                            arrow_span: span,
+                            body: false_body,
+                        },
+                    ],
+                },
+                value_ty,
+            );
         }
 
         let mutex_fqn = info.mutex_field_fqn.as_ref().cloned().unwrap_or_else(|| {
@@ -291,9 +295,6 @@ impl<'a> HirLowering<'a> {
             value_name.clone(),
             info.value_field_fqn.clone(),
         );
-
-        let value_ty = self.lower_delegated_property_ty(decl, info.ty.as_ref());
-
         // 说明：早期 LLVM codegen 的 `when` 结果合流（phi）对“arm body 内部再产生分支”的情况
         // 仍较脆弱（会触发 dominance/CFG 校验失败）。为保证 run-pass 可回归，
         // 这里把 lazy 的控制流拆成：
@@ -531,29 +532,32 @@ impl<'a> HirLowering<'a> {
             },
         };
 
-        ExprKind::Block(Block {
-            span,
-            ty: value_ty,
-            stmts: vec![
-                lock_stmt,
-                Stmt {
-                    span,
-                    ty: self.builtins.unit,
-                    kind: StmtKind::Expr(outer_when_unit),
-                },
-                Stmt {
-                    span: out_decl.span,
-                    ty: self.builtins.unit,
-                    kind: StmtKind::Val(out_decl),
-                },
-                unlock_stmt,
-                Stmt {
-                    span,
-                    ty: value_ty,
-                    kind: StmtKind::Expr(out_ref_expr),
-                },
-            ],
-        })
+        (
+            ExprKind::Block(Block {
+                span,
+                ty: value_ty,
+                stmts: vec![
+                    lock_stmt,
+                    Stmt {
+                        span,
+                        ty: self.builtins.unit,
+                        kind: StmtKind::Expr(outer_when_unit),
+                    },
+                    Stmt {
+                        span: out_decl.span,
+                        ty: self.builtins.unit,
+                        kind: StmtKind::Val(out_decl),
+                    },
+                    unlock_stmt,
+                    Stmt {
+                        span,
+                        ty: value_ty,
+                        kind: StmtKind::Expr(out_ref_expr),
+                    },
+                ],
+            }),
+            value_ty,
+        )
     }
 
     pub(super) fn lower_observable_vetoable_delegated_property_get_from_receiver(

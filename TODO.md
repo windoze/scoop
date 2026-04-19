@@ -536,7 +536,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005SR
 
-### T4006S [TODO] 修复 delegated property lazy(None) 读取进入 `print/println` 时的 codegen 类型缺口
+### T4006S [DONE] 修复 delegated property lazy(None) 读取进入 `print/println` 时的 codegen 类型缺口
 - 说明：
   - 在完成 `T4006` 的全量验证时，`cargo run -p scoop -- test` 当前会失败在 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop`，错误为 `scoop::llvm::unsupported_main_body: sysroot print/println arg type`。
   - 该失败与 `T4006` 的 compilation-unit 改动无直接交叉，但它说明 delegated property lazy getter 的 HIR / codegen 类型传递仍有既有裂缝；若不先收口，后续 review 与阶段验收会继续停在红基线上。
@@ -544,12 +544,41 @@
   - 修复 `val x: Int by lazy(LazyThreadSafetyMode.None) { ... }` 一类读取在 `println(x)` 等调用位置的结果类型丢失问题。
   - 为 delegated property lazy(None) 的读取 + 打印路径补充定向 regression。
   - 重新验证 `cargo run -p scoop -- test` 不再被该用例阻断。
+- 完成：
+  - `lower_lazy_delegated_property_get_from_receiver` 现已返回真实属性 `TypeId`；`LazyThreadSafetyMode.None` 生成的 getter `when` 不再把外层表达式类型写成 `Any`，从而避免 `print/println` 路径把 `Int`/`Bool` 等值错误装箱成通用引用。
+  - 已新增 run-pass 回归 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_print_like_ok.scoop`，覆盖 `lazy(None)` 读取先走 `print`、再走 `println` 的 print-like lowering 共用路径。
+  - 重新验证后，`cargo run -p scoop -- test` 已不再卡在 `delegated_property_lazy_thread_safety_none_single_thread_ok.scoop`；完整套件继续向后推进时又暴露出新的既有 blocker `gc_continuation_cross_thread_resume_with_objects.scoop`，已前插为 `T4006T`。
+- 已验证：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop -o /tmp/t4006s_lazy_none.out`
+  - `/tmp/t4006s_lazy_none.out`（stdout：`init / 7 / 7`）
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_print_like_ok.scoop -o /tmp/t4006s_lazy_print_like.out`
+  - `/tmp/t4006s_lazy_print_like.out`（stdout：`init / 7,7`）
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.scoop -o /tmp/t4006s_lazy_default.out`
+  - `/tmp/t4006s_lazy_default.out`（stdout：`before / init / 7 / 7`）
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop -o /tmp/t4006s_lazy_sync.out`
+  - `/tmp/t4006s_lazy_sync.out`（stdout：`7 / 7 / init_calls=1 / ok`）
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/delegated_property_lazy_thread_safety_publication_multi_init.scoop -o /tmp/t4006s_lazy_pub.out`
+  - `/tmp/t4006s_lazy_pub.out`（stdout：`7 / 7 / init_started=2 / ok`）
+  - `cargo run -p scoop -- test`（本用例已清除；套件后续在 `run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` 触发新的既有 `scoop::llvm::unsupported_main_body: value coercion`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006
+
+### T4006T [TODO] 修复 `gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
+- 说明：
+  - 在 `T4006S` 收口后重新跑 `cargo run -p scoop -- test`，套件继续向后推进到 `tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` 时失败。
+  - 该夹具当前不是运行期 crash，而是在 `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop -o /tmp/t4006s_gc_cont.out` 阶段报 `scoop::llvm::unsupported_main_body: value coercion`。
+  - 该 failure 属于 effect / continuation + GC 对象图跨线程恢复路径的既有 codegen 缺口；若不先修复，`T4006R` 的全量 fixture review 仍无法建立在绿基线上。
+- 范围：
+  - 精确定位该夹具里是哪一段 `handle/when/Option/object graph` 流程仍落入 LLVM `value coercion` unsupported。
+  - 修复对应 lowering / codegen 类型传递缺口，保证该夹具至少能稳定 build/run 到既定 golden。
+  - 重新验证 `cargo run -p scoop -- test` 不再被该夹具阻断。
+- 依赖：T4006S
 
 ### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一
 - 重点：
   - 不允许只靠“入口文件特权”维持通过。
-- 依赖：T4006S
+- 依赖：T4006T
 
 ## T4007：RTTI 参数化支持
 
