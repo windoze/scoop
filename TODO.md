@@ -648,19 +648,60 @@
 
 ## T4007：RTTI 参数化支持
 
-### T4007 [TODO] 为 RTTI 补齐泛型与 `eff` 参数化类型支持
+### T4007 [DONE] 将 RTTI 参数化支持拆分为“generic class target / parameterized interface+`eff` / 旧 RTTI 导出 API”三段执行
+- 说明：
+  - 原任务同时覆盖三条独立主线：generic class 的 `is/as/as?` 运行期 descriptor 选择、parameterized interface 与 `eff` 参数 target 的运行期匹配、以及 `crates/scoopc/src/rtti/mod.rs` 旧布局导出 API 的 `unsupported_generic_type` 门禁。
+  - 临时 probe 复现表明这三条主线并非同一根因：一是 `Any` 上做 `is Holder<Int>` 会在 LLVM 侧退回 base generic class descriptor，触发 `TypeKind::Param(T)` / `class field type`；二是 `Disposable<eff Raise<RuntimeError>>` 的实例在运行期做 `is Disposable<eff Pure>` 仍错误返回 `true`，说明 itable 仍只按 base interface id 判真；三是旧 RTTI 导出 API 仍直接拒绝 args / `eff` 参数化 nominal。
+  - 为保证每轮只提交一个闭环切片，现拆分为 `T4007a -> T4007b -> T4007c -> T4007R` 顺序推进。
+- 完成：
+  - 已完成任务拆分，当前先执行 `T4007a`，剩余 parameterized interface / `eff` 与旧 RTTI 导出 API 收口顺延到后续子任务。
+- 依赖：T4006R
+
+### T4007a [DONE] 为 generic class 的 `is/as/as?` 使用具体实例化 descriptor
 - 范围：
-  - generic type 与带 `eff` 参数的类型不再直接 `unsupported_generic_type`。
-  - 运行时类型描述符与前端类型表示保持一致。
+  - 参数化 class target 的运行期 type test / cast 不再退回 base generic class descriptor。
+  - `Holder<Int>` / `Holder<UInt>` 这类 instantiated class target 可稳定 build/run，并在 `is/as/as?` 正反路径上得到正确结果。
+  - parameterized interface / `eff` target 与旧 RTTI 导出 API 继续留给后续子任务。
+- 验收：
+  - 新增 run-pass 回归，覆盖 generic class `is/as/as?` 正反路径。
+  - `dump-rtti --type 'Holder<Int>'` 能导出具体实例化 descriptor。
+- 完成：
+  - LLVM `codegen_ref_is_instance_of_nonnull` 现对带 type args 的 class target 优先按 `nominal_layout_key` 查找实例化后的 `ClassInit` / type descriptor，不再先命中 base generic class。
+  - generic class 的 `is` / `as` / `as?` 现在统一复用具体实例化 descriptor 路径；`Holder<Int>` 的正向检查和 `Holder<UInt>` 的反向检查都已可执行。
+  - 已新增 run-pass 回归：
+    - `tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop`
+    - `tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.stdout`
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop`
+  - `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop --type 'Holder<Int>'`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4006R
+
+### T4007b [TODO] 为 parameterized interface 与 `eff` 参数 target 补齐运行期匹配
+- 范围：
+  - 带 type args / `eff` row 的 interface target 不再只按 base interface id 判真。
+  - `Disposable<eff Raise<RuntimeError>>`、`Disposable<eff Pure>` 一类运行期判断结果与前端 assignable / effect-row 包含关系一致。
+  - 若 generic / `eff` supertype 链会影响 runtime match，需要同步补齐对应 metadata。
+- 验收：
+  - 新增 run-pass / RTTI 定向回归，覆盖 `eff` 参数 target 的正反路径。
+  - `ISSUES.md` 第 15 条至少收窄到“仅剩旧 RTTI 导出 API”或被完全关闭。
+- 依赖：T4007a
+
+### T4007c [TODO] 收口旧 RTTI 导出 API 的参数化类型支持与文档同步
+- 范围：
+  - `crates/scoopc/src/rtti/mod.rs` 不再对 generic / `eff` 参数化 nominal 直接报 `unsupported_generic_type`。
+  - 旧 RTTI 导出 API 的 canonical name / type_id 口径与 `dump-rtti` 当前 type descriptor 输出保持一致。
+  - 如有必要，同步 `SCOOP_RUNTIME.md` / `SCOOP_FULL_SPEC.md` 的 RTTI 可观测性描述。
 - 验收：
   - 新增 RTTI 定向测试与必要的文档同步。
-  - `ISSUES.md` 第 15 条收窄或关闭。
-- 依赖：T4006R
+- 依赖：T4007b
 
 ### T4007R [TODO] Review：确认 RTTI 不再只覆盖未参数化类型
 - 重点：
-  - 不允许对泛型 / `eff` 类型继续静默跳过或降级成未参数化描述符。
-- 依赖：T4007
+  - 不允许对 generic / `eff` target 继续静默退回 base unparameterized descriptor / interface id。
+  - `dump-rtti` 与运行期 `is/as/as?` 观察到的 canonical name / type_id 必须保持一致。
+- 依赖：T4007c
 
 ## T4008：effect / continuation 完整性
 

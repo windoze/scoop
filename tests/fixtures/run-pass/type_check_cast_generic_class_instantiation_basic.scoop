@@ -1,0 +1,58 @@
+// EXPECT: pass
+// RUN-STDOUT: type_check_cast_generic_class_instantiation_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4007a：参数化 class 的 `is/as/as?` 必须按具体实例化 descriptor 做运行期检查，
+// 不能退回到 base generic class。
+
+import scoop.core.*
+
+class Holder<T>(val value: T)
+
+fun printBool(label: String, b: Bool): Unit {
+    when (b) {
+        true -> println(f"{label}: true")
+        false -> println(f"{label}: false")
+    }
+}
+
+fun main(): Int {
+    val holder: Holder<Int> = Holder(1)
+    val anyValue: Any = holder
+
+    printBool("is Holder<Int>", anyValue is Holder<Int>)
+    printBool("is Holder<UInt>", anyValue is Holder<UInt>)
+
+    val ok: Holder<Int>? = anyValue as? Holder<Int>
+    when (ok) {
+        Some(_v) -> println("as?: Holder<Int> ok")
+        None -> println("as?: Holder<Int> bad")
+    }
+
+    val bad: Holder<UInt>? = anyValue as? Holder<UInt>
+    when (bad) {
+        Some(_v) -> println("as?: Holder<UInt> bad")
+        None -> println("as?: Holder<UInt> ok")
+    }
+
+    val _cast_ok: Unit = try {
+        val _h: Holder<Int> = anyValue as Holder<Int>
+        println("as Holder<Int> ok")
+    } catch (e: RuntimeError) {
+        println("unreachable: cast Holder<Int>")
+    }
+
+    val caught: Int = try {
+        val _h: Holder<UInt> = anyValue as Holder<UInt>
+        println("unreachable")
+        0
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> 1
+            ClassCastFailed -> 2
+            ContinuationAlreadyResumed -> 3
+        }
+    }
+    println(caught)
+    return 0
+}
