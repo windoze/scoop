@@ -48,6 +48,8 @@
 > 2026-04-19 当前轮完成更新：`T4005R` 已完成。复审确认 Elvis 主线已真正进入可执行 lowering / codegen：前端不再把 `?:` 留到后端 `Binary(Elvis)` 分支，LLVM 侧也不再依赖单独 Elvis 专用路径才能运行。复审同时发现并修复两条残留裂缝：一是 Elvis rhs 仍按“无 expected type 的独立表达式”推断，导致 `val xs = noneArray ?: []` 错误报 `array_lit_type_annotation_required`；二是 Elvis 降成 `when` 后，`when` arm 的 expected-context codegen 仍漏接 `Closure`，导致 `val f = noneThunk ?: { 7 }` 在 LLVM 阶段落入 `expression kind` unsupported。当前已把 Elvis rhs 统一改为使用 lhs nullable inner type 做 expected-context typecheck，并让 `codegen_expr_in_expected_context` 直接接到 `codegen_closure_expr`。新增 `elvis_rhs_expected_context_basic` run-pass 回归后，`[]` 与 lambda rhs 都已能在“不依赖外层变量注解、仅靠 lhs inner type”场景下稳定执行。复验通过 `elvis_rhs_expected_context_basic`、既有 Elvis run-pass、`tests/fixtures/typecheck`（`fixtures: ok (329)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。复审扩展 probe 还额外暴露了一个独立的 callable-value 既有裂缝：pattern binder 承载函数值时，`Some(f) -> f()` 仍会在 LLVM 侧报 `call callee` unsupported；该问题已登记为新的顺序任务 `T4005S/T4005SR`，当前下一项改为推进 `T4005S`。
 >
 > 2026-04-19 当前轮完成更新：`T4005S` 已完成。根因有两层：一是 typecheck 先前只把 `when_pat::infer_when_pat_bindings` 的结果临时注入 arm 局部环境，没有像 `val` destructuring 一样写回 `inferred_binding_tys` side table；二是 LLVM `bind_when_pat` 在把 binder 写入本地环境时把 `hir_ty` 一律丢成 `None`，导致 `Some(f) -> f()` / `(g, n) -> g() + n` 中的 `f` / `g` 都退化成“普通 `Ref` local”，最终在 direct call 路径落入 `call callee` unsupported。当前已把这条 callable-value 主线完整补齐：typecheck 会记录 `when` binder 的推断类型；HIR lowering 新增 `when_pat_binding_tys` side table，并按“源文件路径 + binder span”收集 source / synthetic binder 的精确 `TypeId`；LLVM `bind_when_pat` 则会回查该 side table，恢复 binder local 的 `hir_ty` 与基于类型的 `call_may_suspend`。新增 `when_pattern_function_value_call_basic` run-pass 回归后，variant binder `Some(f) -> f()` 与 tuple binder `(g, n) -> g() + n` 都已稳定 build/run。已验证 `cargo run -p scoop -- run tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`、定向 run-pass fixtures root（`fixtures: ok (1)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4005SR`。
+>
+> 2026-04-19 当前轮计划调整：在执行 `T4005SR` 的扩展 probe 时，发现 `T4005S` 收口的其实是“局部 / when binder”的 callable-value 裂缝，而不是所有 pattern binder / callable top-level value 的完整主线。复验结果显示：局部 destructuring `val (f, n) = pair; f()` 可正常运行，`when` binder 上的 receiver function value `Some(f) -> f("hello", 9)` 也已通过；但顶层 `val topF: () -> Int = { 11 }; topF()` 与顶层 pattern binder `val (topF, topN): (() -> Int, Int) = ...; topF()` 仍在 typecheck 阶段报 `callee_not_callable`，而顶层 `FunPtr` direct call 虽能通过 typecheck，LLVM codegen 仍报 `call callee type`。根因定位为两层：typecheck `infer_call_expr_type` 仅对顶层 `FunPtr` 做了 direct-call 特判，普通顶层函数值在未命中 `top_level_funs` 时会直接落入 `CalleeNotCallable`；LLVM `codegen_call` 对 `ValueRef::TopLevel` 也仍一律按“普通顶层函数名”处理，没有读取顶层 immutable value / callable metadata。基于此，现已在 `T4005SR` 前插入新的前置任务 `T4005T`，用于先收口顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义；`T4005SR` 顺延为对整条 callable-value 主线的复审。本轮到此停止，等待下一次调用从 `T4005T` 开始。
 
 ## 0. 工作原则
 
@@ -68,10 +70,11 @@
 6. `ISSUES.md` 第 6 条：顶层 `val` pattern binding
 7. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
 8. 新增 blocker：pattern binder 中函数值的可调用 lowering / codegen
-9. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
-10. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-11. `ISSUES.md` 第 1 条：effect / continuation 完整性
-12. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+9. 新增 blocker：顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
+10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
+11. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+12. `ISSUES.md` 第 1 条：effect / continuation 完整性
+13. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -91,7 +94,7 @@
 
 - 先收口普通顶层 `val` 的可执行读取语义，再收口局部 `val` pattern binding 的可执行 lowering/codegen，最后推进顶层 `val` pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
-- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` / `T4004a1` / `T4004a2` / `T4004b` / `T4004R` / `T4005` / `T4005R` / `T4005S` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。顶层 pattern binding 现已同时覆盖“显式整体类型注解”“initializer 驱动推断 + 跨文件 binder 类型可见性”“HIR / LLVM once-init lowering”“state-machine hidden boundary active/inactive 处理”四条路径；Elvis `?:` 复审也已确认通过“lhs inner type 驱动 rhs expected-context + `when` arm closure codegen 直连闭包主线”的方式真正变成稳定可执行特性。最新补齐的 `T4005S` 则把 `when` pattern binder 上的 callable-value 元数据也收回主线：typecheck 现在会记录 binder 推断类型，HIR / LLVM 会沿“源文件 + span”恢复 binder 的精确 `hir_ty`，因此 `Some(f) -> f()` 与 `(g, n) -> g() + n` 不再落入 `call callee` unsupported。P3 阶段当前仅剩 `T4005SR` 复审任务，下一项切换为 `T4005SR`。
+- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` / `T4004a1` / `T4004a2` / `T4004b` / `T4004R` / `T4005` / `T4005R` / `T4005S` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。顶层 pattern binding 现已同时覆盖“显式整体类型注解”“initializer 驱动推断 + 跨文件 binder 类型可见性”“HIR / LLVM once-init lowering”“state-machine hidden boundary active/inactive 处理”四条路径；Elvis `?:` 复审也已确认通过“lhs inner type 驱动 rhs expected-context + `when` arm closure codegen 直连闭包主线”的方式真正变成稳定可执行特性。`T4005S` 已把局部 / `when` pattern binder 上的 callable-value 元数据收回主线，但 `T4005SR` 复审又暴露出一个更前置的顶层调用缺口：顶层命名 `val`、顶层 pattern binder 与顶层 `FunPtr` 仍没有统一进入 callable-value call 路径。P3 阶段因此新增 `T4005T` 作为前置 blocker，待其完成后再执行 `T4005SR` 复审；当前下一项切换为 `T4005T`。
 
 ### P4. compilation-unit 与 runtime type info 收口
 

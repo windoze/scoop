@@ -462,10 +462,25 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005R
 
+### T4005T [TODO] 收口顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
+- 说明：
+  - 在执行 `T4005SR` 的扩展 probe 时，确认局部 destructuring 与 `when` binder 的函数值调用已经走通，但顶层 callable value 主线仍有独立裂缝：
+    - `val topF: () -> Int = { 11 }; fun main() { topF() }` 当前在 typecheck 阶段报 `callee_not_callable`；
+    - `val (topF, topN): (() -> Int, Int) = ({ 11 }, 4); topF()` 同样报 `callee_not_callable`；
+    - 顶层 `FunPtr` direct call 可通过 typecheck，但 LLVM codegen 仍报 `call callee type`。
+  - 这说明 `T4005S` 只补齐了局部 / `when` pattern binder 的 callable-value 元数据；顶层 immutable value 仍没有接入统一 callable-value call 路径，导致顶层 pattern binder 只是碰巧暴露了一个更基础的顶层调用缺口。
+- 范围：
+  - 顶层命名 `val` 与顶层 pattern binder 产出的函数值，需要像局部函数值一样可直接调用。
+  - 顶层 `FunPtr` direct call 也需要进入同一套 callable-value lowering / codegen 主线，而不是继续只按“顶层函数名”处理。
+  - 新增最小 run-pass 回归，覆盖顶层命名函数值、顶层 pattern binder 函数值与顶层 `FunPtr` direct call。
+- 验收：
+  - 上述三类 probe 均可稳定 build/run，不再出现 `callee_not_callable` 或 `call callee type`。
+- 依赖：T4005S
+
 ### T4005SR [TODO] Review：确认 callable-value 主线已覆盖 pattern binder
 - 重点：
-  - 不允许只让普通 `val f = ...; f()` 可调用，而 pattern binder `Some(f) -> f()` 仍走另一套失败路径。
-- 依赖：T4005S
+  - 不允许只让普通局部 `val f = ...; f()` 与 `when` binder `Some(f) -> f()` 可调用，而顶层 pattern binder / 顶层 callable value 仍走另一套 typecheck 或 codegen 失败路径。
+- 依赖：T4005T
 
 ## T4006：跨文件 / 跨包编译链路
 

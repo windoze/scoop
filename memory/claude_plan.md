@@ -1,68 +1,32 @@
 # 执行计划记录
 
-说明：按要求记录执行计划、关键步骤进展与必要调整。这里记录的是可审阅的执行摘要，不包含逐字内部推理。
+说明：按要求记录本轮执行计划、关键步骤进展与必要调整。这里保留的是可审阅的执行摘要，不包含逐字内部推理。
 
-## 初始计划
+## 本轮初始计划（2026-04-19）
 
-1. 检查最新一次 Git 提交，确认提交说明或关联改动里是否暴露了需要先修复的既有问题。
+1. 检查最新一次 Git 提交，确认提交说明或提交内容里是否提到必须先修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，理解现有任务顺序、依赖与预期交付物。
-4. 评估该任务是否足够小且可在本轮完整交付。
-5. 如果任务过大或存在前置缺口：
-   - 拆分为更小子任务；
-   - 更新 `PLAN.md`；
-   - 调整 `TODO.md` 中的任务顺序与依赖；
-   - 本轮只执行新的第一个子任务。
-6. 实现当前目标任务，避免任何规避式方案；若发现规范缺口或实现边界，先把缺口转化为更前置的任务。
-7. 运行相关验证：
-   - 最小必要测试；
-   - 相关集成/回归测试；
-   - `cargo fmt`；
-   - `cargo clippy --all-targets -- -D warnings`（若与当前改动相关且成本可接受）；
-   - 其他该任务直接涉及的验证命令。
-8. 更新文档与任务状态：
-   - 在 `TODO.md` 标记当前任务完成，或在受阻时重排任务；
-   - 更新 `PLAN.md` 反映现状与后续依赖；
-   - 按需补充 `README.md` / 注释 / 测试。
-9. 检查工作区变更，确认未误改无关内容。
-10. 以清晰提交信息创建一次 Git 提交，然后停止，不继续处理下一个任务。
+3. 阅读 `PLAN.md`，确认该任务的上下文、依赖和预期交付物。
+4. 判断该任务是否能在本轮完整落地；如果过大或发现前置缺口，则先拆分任务并更新 `TODO.md` / `PLAN.md`。
+5. 实现当前第一个未完成任务，严格避免 workaround；若遇到规范缺口或真实 blocker，则转化为更前置的任务并重排。
+6. 运行与改动直接相关的验证，包括定向测试、必要的全量测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
+7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞调整。
+8. 检查工作区差异，提交一次清晰的 Git commit，然后停止，不继续后续任务。
 
-## 进展日志
+## 本轮进展
 
-- 已写入初始计划。
-- 已检查最新提交：`6dd5953966f15862c99080f2ddcb04f1dc389fe0`，提交说明为 `[T4005R] 收口 Elvis review 裂缝`。
-- 已阅读 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T4005S`：收口 `when` / pattern binder 中函数值的可调用 lowering / codegen。
-- 该任务同时也是最近一轮复审明确暴露出的既有问题，属于必须先处理的前置 blocker。
-- 已复现故障：
-  - `when (maybe) { Some(f) -> f(); None -> 0 }` 在 LLVM 阶段报 `call callee` unsupported；
-  - `when (pair) { (g, n) -> g() + n }` 同样失败；
-  - 对照验证表明，局部 `val (f, _) = pair; f()` 早已可执行，裂缝集中在 `when` binder 主线。
-- 已定位根因：
-  - LLVM `bind_when_pat` 把 binder local 的 `hir_ty` 一律丢成 `None`；
-  - 更早一层的 typecheck 也没有把 `when_pat::infer_when_pat_bindings` 的结果写回 `inferred_binding_tys` side table，导致 typed HIR lowering 无法恢复 binder 的精确类型。
-- 已完成修复：
-  - typecheck 现会把 `when` pattern binder 的推断类型写回 side table；
-  - HIR lowering 新增 `when_pat_binding_tys` side table，并在 source/synthetic binder 处填充；
-  - LLVM `bind_when_pat` 现按当前源文件 + binder span 恢复 `hir_ty`，并同步恢复 `call_may_suspend` 的类型层信息。
-- 已新增回归：
-  - `tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
-  - `tests/fixtures/run-pass/when_pattern_function_value_call_basic.stdout`
-- 已完成验证：
-  - `cargo run -p scoop -- run tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
-  - `cargo run -p scoop -- test --fixtures <临时 root，仅包含 when_pattern_function_value_call_basic>`（`fixtures: ok (1)`）
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-
-## 当前执行细化
-
-1. 复现 `Some(f) -> f()` 一类 pattern binder 函数值调用在 LLVM 阶段的失败。
-2. 阅读与 callable-value、pattern binder、`when` lowering、LLVM call callee 选择相关的实现，定位“函数值可调用元数据”在哪一步丢失。
-3. 在不新增旁路特判的前提下修复主线：
-   - 让 pattern binder 引入的函数值保留与普通局部函数值一致的可调用表示；
-   - 确保 `when` / pattern binder lowering 与现有 callable-value codegen 共享同一套元数据来源。
-4. 新增或更新最小回归：
-   - 至少覆盖 `when (x) { Some(f) -> f(); None -> ... }`；
-   - 如有必要，补一个非 `when` 的 pattern binder 调用用例，证明不是单一语法形态补丁。
-5. 运行定向验证，再运行全量要求的格式化 / 测试 / lint。
-6. 更新 `TODO.md`、`PLAN.md`、本计划记录并提交。
+- 已写入本轮执行计划。
+- 已检查最新提交、`TODO.md` 与 `PLAN.md`，确认本轮起始任务是复审项 `T4005SR`。
+- 已审阅 `T4005S` 的实现，确认它补齐了 `typecheck -> HIR lowering -> LLVM bind_when_pat` 三层上的 `when` binder 类型回写与恢复。
+- 已用扩展 probe 继续复审 callable-value 主线，结果如下：
+  - `/tmp/t4005sr_local_pattern_function_probe.scoop`：通过，输出 `12`；说明局部 destructuring 函数值调用正常。
+  - `/tmp/t4005sr_when_receiver_function_probe.scoop`：通过，输出 `14`；说明 `when` binder 上的 receiver function value 调用正常。
+  - `/tmp/t4005sr_top_level_named_function_value_probe.scoop`：失败，typecheck 报 `callee_not_callable`。
+  - `/tmp/t4005sr_top_level_pattern_function_probe.scoop`：失败，typecheck 报 `callee_not_callable`。
+  - `/tmp/t4005sr_top_level_funptr_probe.scoop`：失败，LLVM codegen 报 `call callee type`。
+- 已据此定位新的更前置 blocker：问题不再是局部 / `when` pattern binder，而是“顶层 callable value（含顶层 pattern binder / `FunPtr`）调用语义”尚未接入统一主线。
+- 已定位到两处直接根因：
+  - `crates/scoopc/src/typecheck/expr/call.rs` 的 `infer_call_expr_type` 只对顶层 `FunPtr` 做了 direct-call 特判，普通顶层函数值在未命中 `top_level_funs` 时会直接报 `CalleeNotCallable`。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_call` 对 `ValueRef::TopLevel` 仍一律按“普通顶层函数名”处理，没有读取顶层 immutable value 的 callable metadata，因此顶层 `FunPtr` call 落入 `call callee type`。
+- 结论：`T4005SR` 不能在本轮标记完成，必须先在它之前插入新的实现任务，收口顶层 callable value 主线，再回到复审。
+- 下一步：更新 `TODO.md` / `PLAN.md`，新增前置任务 `T4005T`，把 `T4005SR` 顺延到其后；随后提交并停止。
