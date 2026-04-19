@@ -313,3 +313,14 @@ Runtime type tests (`is/as/as?`) are expected to follow these rules once impleme
 - Interface test: check whether `itable` contains an entry for the interface id.
 - `as` failure path: raise `RuntimeError.ClassCastFailed`.
 - `as?` failure path: return `None` (NULL niche).
+
+## 10. Effect / Continuation Lowering Contract
+
+This section records the current implementation contract for effect state machines and continuation resume payload transport.
+
+- `Continuation.resume` shares the same payload-shape contract as effect payload transport:
+  - `Continuation<Unit>.resume()` is accepted.
+  - `Continuation<(A0, A1, ...)>.resume(v0, v1, ...)` is accepted, and named args use `a0`, `a1`, ...
+  - The legacy single-payload form `k.resume(value)` remains accepted for compatibility, including tuple payloads passed as one tuple value.
+- Escape continuations (`, k ->`) are still represented as GC-managed continuation objects whose payload travels through the runtime `(resume_word, resume_gc_ref)` transport ABI.
+- Immediate-resume arms (`-> resume`) currently reuse the same unified GC-managed full-machine lowering as the rest of effect codegen. A dedicated stack-local fast path is still a deferred optimization; it is not part of the current runtime ABI contract and no stable runtime symbol depends on it yet.

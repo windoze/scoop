@@ -1046,7 +1046,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c2
 
-### T4008c4 [TODO] 扩展 `Continuation.resume` 的调用 surface，并收口 `ImmediateResume` storage contract
+### T4008c4 [DONE] 扩展 `Continuation.resume` 的调用 surface，并收口 `ImmediateResume` storage contract
 - 说明：
   - `T4008b2` 已收口 continuation binder 的 effect-row 与 replay 主线，但最新 `ISSUES.md` 第 1 条仍保留两项未完成 surface：`Continuation.resume` 目前仍只接受一个实参、命名实参也只认 `value = ...`；同时 `-> resume` / `ImmediateResume` 对应的 stack-local fast path 仍未形成独立 storage 选择，heap-only full machine 只是当前保守实现。
   - 这两点都不适合继续隐含在 review 里带过，需要显式任务来决定“真正实现”还是“明确写成 deferred contract”。
@@ -1057,6 +1057,15 @@
 - 验收：
   - `ISSUES.md` 第 1 条中关于 `Continuation.resume` surface 的剩余描述收窄或关闭。
   - `ImmediateResume` 若仍未实现 stack-local storage，也必须留下明确的 deferred contract 与文档同步任务。
+- 完成：
+  - `Continuation.resume` 的 typecheck 现已从“硬编码单参数 + 仅 `value = ...`”扩展为共享 payload-shape surface：保留旧的单 payload `k.resume(value)` 兼容路径，同时新增 `Continuation<Unit>.resume()` 与 tuple payload 的扁平 `k.resume(v0, v1, ...)` / `k.resume(a0 = ..., a1 = ...)` 调用面；required-effects / `Raise<RuntimeError>` / call-site side table 仍复用原有 continuation resume 主线，没有新开第四套 effect 语义。
+  - LLVM codegen 现会在拿到 receiver 精确 `Continuation<T>` 类型时，按同一 payload-shape 规则组装 resume payload：`Unit` 走零参、tuple 走元素级重排并重新打包成 tuple value，再复用既有 `(resume_word, resume_gc_ref)` transport；当后端暂时拿不到 receiver 精确类型时，则保守回退到旧的单 payload lowering，避免把既有 generator / scheduler fixture 回归打断。
+  - 在收口过程中发现并修复了一个由新 surface 暴露出来的既有裂缝：escape continuation arm 在 state-machine emitter 里会把 continuation binder 重新写入 env，但原实现把精确 `hir_ty` 抹成了 `None`，导致 generator 这类旧路径无法恢复 `Continuation<T>` payload type。现已保留该 binder 的精确 `hir_ty` 与 `call_may_suspend`，`generator_yield_iter_int_basic` 再次恢复绿色。
+  - `ImmediateResume` / `-> resume` 本轮没有引入新的 runtime storage 表示；相反，已把“当前编译器仍统一使用 GC-managed full machine，stack-local fast path 只是 deferred optimization”同步写入 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `sysroot/core.scoop` 注释，移除先前的隐含承诺。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/continuation_resume_surface_ok.scoop`
+    - `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop`
+    - `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.stdout`
 - 依赖：T4008c3
 
 ### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering

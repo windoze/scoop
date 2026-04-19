@@ -3389,6 +3389,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 // Load the continuation pointer from the dedicated runtime
                 // continuation slot (where Suspend stored it).
+                let continuation_hir_ty = self.env.get(continuation).and_then(|local| local.hir_ty);
+                let continuation_call_may_suspend =
+                    self.local_call_may_suspend_from_hir_ty(continuation_hir_ty);
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
@@ -3414,8 +3417,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.env.insert(
                         continuation,
                         CgLocal {
-                            hir_ty: None,
-                            call_may_suspend: false,
+                            hir_ty: continuation_hir_ty,
+                            call_may_suspend: continuation_call_may_suspend,
                             ty: CgTy::Ref,
                             ptr: slot_ptr,
                             mutable: false,
@@ -3427,8 +3430,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.env.insert(
                         continuation,
                         CgLocal {
-                            hir_ty: None,
-                            call_may_suspend: false,
+                            hir_ty: continuation_hir_ty,
+                            call_may_suspend: continuation_call_may_suspend,
                             ty: CgTy::Ref,
                             ptr: alloca,
                             mutable: false,

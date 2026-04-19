@@ -1,0 +1,74 @@
+// RUN-STDOUT: continuation_resume_surface_named_tuple_and_unit_basic.stdout
+//
+// T4008c4: `Continuation.resume` 支持 Unit 零参 surface 与 tuple payload 的扁平 named args。
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Unit
+}
+
+effect Ask {
+    fun ask(): (Int, String)
+}
+
+fun main() {
+    println("unit_start")
+    var savedUnit: Continuation<Unit>? = None()
+
+    val handledUnit: Unit = handle {
+        println("before_pause")
+        val _pause: Unit = Suspend.pause()
+        println("after_pause")
+    } with {
+        Suspend.pause(), k -> {
+            savedUnit = Some(k)
+            println("saved_unit")
+        }
+    }
+
+    println("after_unit_handle")
+
+    when (savedUnit) {
+        Some(k) -> {
+            val resumedUnit: Unit = try {
+                k.resume()
+            } catch (e: RuntimeError) {
+                println("unexpected_unit_error")
+            }
+            println("after_unit_resume")
+        }
+        None -> println("missing_unit")
+    }
+
+    println("pair_start")
+    var savedPair: Continuation<(Int, String)>? = None()
+
+    val handledPair: Unit = handle {
+        val pair: (Int, String) = Ask.ask()
+        println("got_pair")
+        println(pair._0)
+        println(pair._1)
+    } with {
+        Ask.ask(), k -> {
+            savedPair = Some(k)
+            println("saved_pair")
+        }
+    }
+
+    println("after_pair_handle")
+
+    when (savedPair) {
+        Some(k) -> {
+            val resumedPair: Unit = try {
+                k.resume(a1 = "world", a0 = 7)
+            } catch (e: RuntimeError) {
+                println("unexpected_pair_error")
+            }
+            println("after_pair_resume")
+        }
+        None -> println("missing_pair")
+    }
+
+    println("done")
+}

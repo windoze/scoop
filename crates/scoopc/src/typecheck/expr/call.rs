@@ -4213,8 +4213,9 @@ fn try_infer_continuation_resume_call_expr_type(
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
     let builtins = inputs.builtins;
+    let callee_name = "scoop.core.Continuation.resume";
 
-    // spec §5.5：`k.resume(value: T)`。
+    // spec §5.5：`k.resume(...)`。
     //
     // 说明：
     // - 当前阶段 typecheck 尚未支持 class/interface 的实例方法调用；因此这里把 `resume` 视为一个
@@ -4233,76 +4234,198 @@ fn try_infer_continuation_resume_call_expr_type(
         _ => return Ok(None),
     };
 
-    let value_expr = match args {
-        [] => {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: "scoop.core.Continuation.resume".to_string(),
-                expected: 1,
-                found: 0,
-                span: call_expr.span.into(),
-            });
-        }
-        [only] => match &only.kind {
-            ast::ExprKind::NamedArg { name, value, .. } => {
-                if source.slice(name.span) != "value" {
-                    return Err(ExprTypeError::UnsupportedExpr {
-                        kind: "Continuation.resume 的命名实参（当前仅支持 `value = ...`）",
-                        span: name.span.into(),
-                    });
-                }
-                value.as_ref()
-            }
-            _ => only,
-        },
-        _ => {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: "scoop.core.Continuation.resume".to_string(),
-                expected: 1,
-                found: args.len(),
-                span: call_expr.span.into(),
-            });
-        }
+    let expanded_payload_param_names = match lower.type_kind(expected_value_ty) {
+        TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(
+            (0..elements.len())
+                .map(|idx| format!("a{idx}"))
+                .collect::<Vec<_>>(),
+        ),
+        _ => None,
     };
 
-    let found_value_ty = inputs.infer(lower, value_expr)?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    if call_args.iter().any(|arg| arg.is_spread) {
+        let span = call_args
+            .iter()
+            .find(|arg| arg.is_spread)
+            .map(|arg| arg.expr.span)
+            .unwrap_or(call_expr.span);
+        return Err(ExprTypeError::SpreadArgRequiresVararg {
+            callee: callee_name.to_string(),
+            span: span.into(),
+        });
+    }
+    check_call_arg_named_rules(callee_name, &call_args)?;
 
-    if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins)
-        && !literal_absorbs_to_expected(value_expr, expected_value_ty, source, lower, builtins)
+    let mut candidate_param_names: Vec<Vec<String>> = vec![vec!["value".to_string()]];
+    if let Some(names) = expanded_payload_param_names.as_ref()
+        && names != &candidate_param_names[0]
     {
-        return Err(ExprTypeError::CallArgTypeMismatch {
-            callee: "scoop.core.Continuation.resume".to_string(),
-            index: 1,
-            expected: lower.fmt_type(expected_value_ty),
-            found: lower.fmt_type(found_value_ty),
-            span: value_expr.span.into(),
+        candidate_param_names.push(names.clone());
+    }
+    check_call_named_args_exist_in_any_candidate(
+        callee_name,
+        &call_args,
+        candidate_param_names.iter().map(|names| names.as_slice()),
+    )?;
+
+    let legacy_value_expr = match call_args.as_slice() {
+        [only] => match &only.kind {
+            CallArgKind::Named { name, .. } if name == "value" => Some(only.expr),
+            CallArgKind::Named { .. } => None,
+            CallArgKind::Positional => Some(only.expr),
+        },
+        _ => None,
+    };
+    if let Some(value_expr) = legacy_value_expr {
+        let found_value_ty = inputs.infer_in_expected(
+            lower,
+            value_expr,
+            expected_value_ty,
+            ExpectedTypeFrom::new("Continuation.resume payload".to_string()),
+        )?;
+
+        if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins)
+            && !literal_absorbs_to_expected(value_expr, expected_value_ty, source, lower, builtins)
+        {
+            return Err(ExprTypeError::CallArgTypeMismatch {
+                callee: callee_name.to_string(),
+                index: 1,
+                expected: lower.fmt_type(expected_value_ty),
+                found: lower.fmt_type(found_value_ty),
+                span: value_expr.span.into(),
+            });
+        }
+
+        // required effects：`resume` 视为"立即执行 continuation 的下一步"，因此把 `E` 计入当前函数体的 required effects。
+        for effect in effects.terms.iter().copied() {
+            lower.record_performed_effect(effect, call_expr.span);
+        }
+        // spec §5.5：continuation 为 one-shot；重复 resume 为运行期错误（spec §5.7：通过 Raise 表达）。
+        // 因此 `k.resume(...)` 除了 `E` 之外，还必须要求 `Raise<RuntimeError>`（除非在 try/catch/handle 内被捕获）。
+        let runtime_error = lower.lower_type_fqn_with_args(
+            "scoop.core.RuntimeError".to_string(),
+            Vec::new(),
+            call_expr.span,
+        )?;
+        let raise_runtime_error = lower.lower_type_fqn_with_args(
+            "scoop.core.Raise".to_string(),
+            vec![runtime_error],
+            call_expr.span,
+        )?;
+        lower.record_performed_effect(raise_runtime_error, call_expr.span);
+        lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
+
+        let ret = if safe {
+            lower.ty_option(builtins.unit)
+        } else {
+            builtins.unit
+        };
+        return Ok(Some(ret));
+    }
+
+    if let Some(param_names) = expanded_payload_param_names.as_ref()
+        && call_args.len() == param_names.len()
+        && let Some(mapping) = map_call_args_to_params(&call_args, param_names)
+    {
+        let TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Tuple(_)) =
+            lower.type_kind(expected_value_ty)
+        else {
+            unreachable!("expanded Continuation.resume payload surface only applies to Unit/tuple");
+        };
+
+        let param_tys: Vec<TypeId> = match lower.type_kind(expected_value_ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => Vec::new(),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.clone(),
+            _ => unreachable!(
+                "expanded Continuation.resume payload surface only applies to Unit/tuple"
+            ),
+        };
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; call_args.len()];
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let slot = arg_to_param
+                .get_mut(arg_idx)
+                .expect("mapped resume payload arg should stay in range");
+            *slot = Some(param_idx);
+        }
+
+        for (arg_idx, arg) in call_args.iter().enumerate() {
+            let param_idx = arg_to_param
+                .get(arg_idx)
+                .copied()
+                .flatten()
+                .expect("mapped resume payload arg should have target param");
+            let expected_ty = param_tys[param_idx];
+            let found_ty = inputs.infer_in_expected(
+                lower,
+                arg.expr,
+                expected_ty,
+                ExpectedTypeFrom::new(format!(
+                    "Continuation.resume 的第 {} 个 payload",
+                    param_idx + 1
+                )),
+            )?;
+            if is_type_assignable(found_ty, expected_ty, lower, builtins)
+                || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
+            {
+                continue;
+            }
+
+            return Err(ExprTypeError::CallArgTypeMismatch {
+                callee: callee_name.to_string(),
+                index: param_idx + 1,
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg.expr.span.into(),
+            });
+        }
+
+        for effect in effects.terms.iter().copied() {
+            lower.record_performed_effect(effect, call_expr.span);
+        }
+        let runtime_error = lower.lower_type_fqn_with_args(
+            "scoop.core.RuntimeError".to_string(),
+            Vec::new(),
+            call_expr.span,
+        )?;
+        let raise_runtime_error = lower.lower_type_fqn_with_args(
+            "scoop.core.Raise".to_string(),
+            vec![runtime_error],
+            call_expr.span,
+        )?;
+        lower.record_performed_effect(raise_runtime_error, call_expr.span);
+        lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
+
+        let ret = if safe {
+            lower.ty_option(builtins.unit)
+        } else {
+            builtins.unit
+        };
+        return Ok(Some(ret));
+    }
+
+    let mut expected_arities = vec![1usize];
+    if let Some(param_names) = expanded_payload_param_names.as_ref()
+        && !expected_arities.contains(&param_names.len())
+    {
+        expected_arities.push(param_names.len());
+    }
+    expected_arities.sort_unstable();
+    if expected_arities.len() == 1 {
+        return Err(ExprTypeError::CallArityMismatch {
+            callee: callee_name.to_string(),
+            expected: expected_arities[0],
+            found: call_args.len(),
+            span: call_expr.span.into(),
         });
     }
 
-    // required effects：`resume` 视为"立即执行 continuation 的下一步"，因此把 `E` 计入当前函数体的 required effects。
-    for effect in effects.terms.iter().copied() {
-        lower.record_performed_effect(effect, call_expr.span);
-    }
-    // spec §5.5：continuation 为 one-shot；重复 resume 为运行期错误（spec §5.7：通过 Raise 表达）。
-    // 因此 `k.resume(value)` 除了 `E` 之外，还必须要求 `Raise<RuntimeError>`（除非在 try/catch/handle 内被捕获）。
-    let runtime_error = lower.lower_type_fqn_with_args(
-        "scoop.core.RuntimeError".to_string(),
-        Vec::new(),
-        call_expr.span,
-    )?;
-    let raise_runtime_error = lower.lower_type_fqn_with_args(
-        "scoop.core.Raise".to_string(),
-        vec![runtime_error],
-        call_expr.span,
-    )?;
-    lower.record_performed_effect(raise_runtime_error, call_expr.span);
-    lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
-
-    let ret = if safe {
-        lower.ty_option(builtins.unit)
-    } else {
-        builtins.unit
-    };
-    Ok(Some(ret))
+    Err(ExprTypeError::NoMatchingOverload {
+        callee: callee_name.to_string(),
+        span: call_expr.span.into(),
+    })
 }
 
 pub(super) fn infer_continuation_resume_call_expr_type(

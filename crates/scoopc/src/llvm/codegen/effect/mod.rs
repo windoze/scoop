@@ -152,6 +152,161 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn codegen_continuation_resume_legacy_payload_value(
+        &mut self,
+        payload_ty: Option<TypeId>,
+        args: &[hir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let [arg] = args else {
+            return Ok(None);
+        };
+
+        let payload_expr = match arg {
+            hir::CallArg::Positional(expr) => expr,
+            hir::CallArg::Named { name, value, .. } if name == "value" => value,
+            hir::CallArg::Named { .. } => return Ok(None),
+        };
+        let payload_expected = payload_ty
+            .and_then(|ty| self.cg_ty_of(ty))
+            .or_else(|| self.resolve_expr_cg_ty(payload_expr));
+        let payload = match &payload_expr.kind {
+            hir::ExprKind::Closure(closure) if payload_ty.is_some() => self.codegen_closure_expr(
+                payload_expr.span,
+                closure,
+                payload_ty.expect("checked is_some() above"),
+            )?,
+            _ => self.codegen_expr_in_expected_context(payload_expr, payload_expected)?,
+        };
+        let payload = if let Some(expected_cg) = payload_expected {
+            self.coerce_value(payload_expr.span, payload, expected_cg)?
+        } else {
+            payload
+        };
+        Ok(Some(payload))
+    }
+
+    fn codegen_continuation_resume_expanded_payload_value(
+        &mut self,
+        at: crate::span::Span,
+        payload_ty: TypeId,
+        args: &[hir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        match self.types.kind(payload_ty) {
+            TypeKind::Value(ValueTypeKind::Unit) => {
+                if !args.is_empty() {
+                    return Ok(None);
+                }
+                Ok(Some(CgValue::unit()))
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(element_tys)) => {
+                if args.len() != element_tys.len() {
+                    return Ok(None);
+                }
+
+                let param_names = (0..element_tys.len())
+                    .map(|idx| format!("a{idx}"))
+                    .collect::<Vec<_>>();
+                let Some(arg_to_param) = self.map_call_args_to_params_by_name(&param_names, args)
+                else {
+                    return Ok(None);
+                };
+
+                let mut evaluated_args: Vec<Option<CgValue<'ctx>>> = vec![None; args.len()];
+                for (arg_idx, arg) in args.iter().enumerate() {
+                    let param_idx = arg_to_param.get(arg_idx).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "Continuation.resume payload mapping",
+                            at: at.into(),
+                        },
+                    )?;
+                    let expected_ty = element_tys.get(param_idx).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "Continuation.resume payload element type",
+                            at: at.into(),
+                        },
+                    )?;
+                    let expected_cg =
+                        self.cg_ty_of(expected_ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Continuation.resume payload element cg type",
+                                at: at.into(),
+                            })?;
+                    let expr = Self::call_arg_expr(arg);
+                    let value = match &expr.kind {
+                        hir::ExprKind::Closure(closure) => {
+                            self.codegen_closure_expr(expr.span, closure, expected_ty)?
+                        }
+                        _ => self.codegen_expr_in_expected_context(expr, Some(expected_cg))?,
+                    };
+                    evaluated_args[arg_idx] =
+                        Some(self.coerce_value(expr.span, value, expected_cg)?);
+                }
+
+                let ordered = arg_to_param
+                    .iter()
+                    .enumerate()
+                    .map(|(arg_idx, param_idx)| {
+                        evaluated_args
+                            .get(arg_idx)
+                            .and_then(|value| *value)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Continuation.resume ordered payload arg",
+                                at: at.into(),
+                            })
+                            .map(|value| (*param_idx, value))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let mut elements: Vec<Option<CgValue<'ctx>>> = vec![None; element_tys.len()];
+                for (param_idx, value) in ordered {
+                    let slot =
+                        elements
+                            .get_mut(param_idx)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Continuation.resume ordered payload slot",
+                                at: at.into(),
+                            })?;
+                    *slot = Some(value);
+                }
+                let elements = elements
+                    .into_iter()
+                    .map(|value| {
+                        value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "Continuation.resume ordered payload",
+                            at: at.into(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(Some(self.build_tuple_cg_value_from_values(
+                    at, payload_ty, &elements,
+                )?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn codegen_continuation_resume_payload_value(
+        &mut self,
+        at: crate::span::Span,
+        payload_ty: TypeId,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(payload) =
+            self.codegen_continuation_resume_legacy_payload_value(Some(payload_ty), args)?
+        {
+            return Ok(payload);
+        }
+        if let Some(payload) =
+            self.codegen_continuation_resume_expanded_payload_value(at, payload_ty, args)?
+        {
+            return Ok(payload);
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "Continuation.resume payload surface",
+            at: at.into(),
+        })
+    }
+
     fn codegen_perform_payload_value(
         &mut self,
         span: crate::span::Span,
@@ -1041,7 +1196,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    /// Lower the builtin `Continuation.resume(value)` call.
+    /// Lower the builtin `Continuation.resume(...)` call.
     ///
     /// The authoritative semantic marker is `continuation_resume_call_sites`;
     /// codegen does not infer this builtin from member names or receiver
@@ -1083,17 +1238,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let [arg] = args else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume arity",
-                at: span.into(),
-            });
-        };
-        let payload_expr = match arg {
-            hir::CallArg::Positional(expr) => expr,
-            hir::CallArg::Named { value, .. } => value,
-        };
-
         let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
         let Some(raw_continuation) = continuation.value else {
@@ -1109,28 +1253,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        // `Continuation.resume(value)` 的 authoritative payload type 来自
-        // receiver 的 `Continuation<T>` 实参，而不是 arg expr 自身可能被
-        // HIR 降级成的 `Any/Ref` 类型。
+        // `Continuation.resume(...)` 的 authoritative payload type 来自
+        // receiver 的 `Continuation<T>` 实参。
         let receiver_ty = self
             .resolve_expr_concrete_type(receiver)
             .unwrap_or(receiver.ty);
-        let payload_expected = match self.types.kind(receiver_ty) {
+        let payload_ty = match self.types.kind(receiver_ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() == 1 =>
             {
-                self.cg_ty_of(nominal.args[0])
+                Some(nominal.args[0])
             }
-            // HIR VarRef 常被宽化成 `Any/Ref`；fallback 也需要先看 env 中
-            // 的精确局部类型，否则 `val payload: Result = ...; k.resume(payload)`
-            // 这类路径会把 enum payload 误判成 `Ref`。
-            _ => self.resolve_expr_cg_ty(payload_expr),
+            _ => None,
         };
-        let payload = self.codegen_expr_in_expected_context(payload_expr, payload_expected)?;
-        let payload = if let Some(expected_cg) = payload_expected {
-            self.coerce_value(payload_expr.span, payload, expected_cg)?
+        let payload = if let Some(payload_ty) = payload_ty {
+            self.codegen_continuation_resume_payload_value(span, payload_ty, args)?
         } else {
-            payload
+            self.codegen_continuation_resume_legacy_payload_value(None, args)?
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Continuation.resume payload type",
+                    at: receiver.span.into(),
+                })?
         };
         self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
 

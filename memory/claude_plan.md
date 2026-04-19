@@ -1,62 +1,37 @@
-# 本轮执行计划（T4008c3）
+# 本轮执行记录（补充）
 
 ## 目标
-
-- 只完成 `TODO.md` 中当前首个未完成任务：`T4008c3 [TODO] 收口 handler arm head 的 effect-op 绑定主线`。
-- 不进入后续任务；完成后更新文档、验证、提交并停止。
+- 按 `TODO.md` 当前状态，只完成并收尾第一个已实现但未提交的任务 `T4008c4`。
+- 不推进下一项任务 `T4008R`。
 
 ## 已知上下文
+- 上一轮实现已经完成 `T4008c4` 的代码、测试、文档与任务状态更新。
+- 当前缺少的关键步骤是：
+  1. 复核工作区，确认没有意外改动影响本轮提交。
+  2. 复核最新提交未遗留新的 pre-existing issue。
+  3. 提交本轮改动并停止。
 
-- 先前实现已经覆盖三条主线：
-  - parser 允许 handler arm head 使用显式 type args；
-  - typecheck 复用 effect-op 调用的共享签名 lowering / 实例化逻辑；
-  - HIR lowering 让 generic effect-op call 继续走 `Perform` 主线，而不是残留为普通 `Call(TypeApply(...))`。
-- 已补充 parse / typecheck / run-pass 夹具，并修复一个 parse recovery 回归。
-- 已有定向验证通过，但还缺少本轮最终收口所需的格式化、完整测试、文档更新和提交。
+## 执行计划
+1. 检查最新提交信息与工作区状态，确认是否存在需要一并处理的既有问题或意外文件改动。
+2. 如工作区状态符合预期，复核 `TODO.md` / `PLAN.md` / `ISSUES.md` / 关键代码与文档改动是否已经反映 `T4008c4` 完成状态。
+3. 视需要补充 `memory/claude_plan.md` 记录关键结果。
+4. 使用带任务号的提交信息创建 git commit。
+5. 提交后停止，不继续处理后续任务。
 
-## 执行步骤
+## 约束
+- 不回退非本轮改动。
+- 不引入 workaround；若发现新的 spec/实现不一致，必须先转成任务再决定是否能继续。
+- 只在本轮范围内完成一个任务并停止。
 
-1. 检查工作区状态，确认当前改动范围以及是否存在临时探针文件需要清理。
-2. 运行 `cargo fmt`，确保格式一致。
-3. 运行完整验证：
-   - `cargo fmt --check`
-   - `cargo run -q -p scoop -- test`
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-4. 如果验证暴露真实问题，先修复问题；若属于规范缺口或前置依赖，则按要求调整 `TODO.md` / `PLAN.md` 并停止。
-5. 在验证通过后更新文档：
-   - `memory/claude_plan.md` 记录完成情况与验证结果；
-   - `TODO.md` 将 `T4008c3` 标记为完成；
-   - `PLAN.md` 反映 `T4008c3` 已完成、下一个待办切换到后续任务；
-   - 如有必要，调整 `ISSUES.md` 中已过时的描述。
-6. 复查 `git diff` / `git status`，确保只包含本轮需要提交的变更。
-7. 使用清晰的提交信息提交，例如：`[T4008c3] Unify handler arm head effect-op binding`。
-8. 停止，不继续处理 `T4008c4`。
+## 复核结果
+- 最新提交 `0beedbd [T4008c3] Unify handler arm head effect-op binding` 仅包含上一轮正常任务提交，提交信息中未额外提及新的 pre-existing issue。
+- 当前工作区改动与 `T4008c4` 交接一致，涉及：
+  - 代码：`crates/scoopc/src/typecheck/expr/call.rs`、`crates/scoopc/src/llvm/codegen/effect/mod.rs`、`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs`
+  - 文档与计划：`TODO.md`、`PLAN.md`、`ISSUES.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`
+  - 回归：`tests/fixtures/typecheck/continuation_resume_surface_ok.scoop`、`tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.scoop` 及其 `.stdout`
+- `TODO.md` 已将 `T4008c4` 标记为 `[DONE]`，第一个未完成任务已推进到 `T4008R`。根据“一次 invocation 只完成一个任务”的约束，本轮不会继续处理 `T4008R`。
+- 交接中记录的验证结论保持有效：`cargo run -q -p scoop_tools -- spec-fixtures check`、`cargo run -q -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 均已通过；本轮未再修改生产代码，因此无需追加新的功能验证。
 
-## 风险点
-
-- parser recovery、generic effect-op lowering 和 handler arm binder 类型传播是本次最容易出现回归的区域。
-- 若全量 fixture 测试暴露此前未覆盖的 effect-op / handler 退化，需要先修复该真实问题，不能以局部通过替代。
-
-## 当前进展
-
-- 工作区已核对完毕，临时探针 `memory/t4008c3_probe.scoop` 已移除，不会进入最终提交。
-- `T4008c3` 的实现已完成：
-  - parser 现支持 handler arm head 的显式 effect type args / op type args；
-  - AST `HandleOp` 新增 `op_type_args`，handler arm 与 effect-op call 复用同一套签名 lowering / 实例化主线；
-  - HIR lowering 把 generic effect-op call 的 `TypeApply(callee)` 视为透明包装，继续进入 `Perform` 主线；
-  - 已新增 parse / typecheck / run-pass 回归夹具覆盖这些路径。
-
-## 验证结果
-
-- `cargo fmt`
-- `cargo fmt --check`
-- `cargo run -q -p scoop -- test`：`fixtures: ok (1068)`
-- `cargo test --all`
-- `cargo clippy --all-targets -- -D warnings`
-
-## 收口结论
-
-- `TODO.md` 中的 `T4008c3` 可以标记为完成。
-- `ISSUES.md` 第 1 条里 “handler arm head 仍只接受 effect operation” 这一缺口已收窄移除。
-- 本轮剩余动作只包括整理提交并创建 `T4008c3` 的 commit，随后停止，不进入 `T4008c4`。
+## 收尾动作
+1. 提交当前所有 `T4008c4` 相关改动，提交信息带任务号。
+2. 提交后停止。

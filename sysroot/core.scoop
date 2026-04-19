@@ -433,7 +433,11 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 // 说明：
 // - `Continuation<T, eff E>` 表示一个"等待被恢复"的计算片段；
 // - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
-// - 当前阶段仅用于静态类型检查与 required-effects 传播；运行期语义/one-shot 约束由后续任务补齐。
+// - builtin `Continuation.resume` 由编译器识别：
+//   - `Continuation<Unit>` 允许 `k.resume()`；
+//   - tuple payload 允许 `k.resume(a0, a1, ...)` / `k.resume(a0 = ..., a1 = ...)`；
+//   - 旧的单 payload `k.resume(value)` 继续保留兼容。
+// - 运行期语义 / one-shot 约束见 spec §5.5 与 `SCOOP_RUNTIME.md` 第 10 节。
 class Continuation<T, eff E = Pure>
 
 // Continuation / 线程（内部测试辅助）。
