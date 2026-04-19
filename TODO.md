@@ -564,7 +564,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006
 
-### T4006T [TODO] 修复 `gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
+### T4006T [DONE] 修复 `gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
 - 说明：
   - 在 `T4006S` 收口后重新跑 `cargo run -p scoop -- test`，套件继续向后推进到 `tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` 时失败。
   - 该夹具当前不是运行期 crash，而是在 `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop -o /tmp/t4006s_gc_cont.out` 阶段报 `scoop::llvm::unsupported_main_body: value coercion`。
@@ -573,12 +573,46 @@
   - 精确定位该夹具里是哪一段 `handle/when/Option/object graph` 流程仍落入 LLVM `value coercion` unsupported。
   - 修复对应 lowering / codegen 类型传递缺口，保证该夹具至少能稳定 build/run 到既定 golden。
   - 重新验证 `cargo run -p scoop -- test` 不再被该夹具阻断。
+- 已完成：
+  - 根因定位到 `codegen_class_ctor_eval_args`：`ClassInit` side table 由独立 lowering pass 生成，ctor 参数 `SymbolId` 与主 HIR 调用点 locals 不共享同一编号空间；旧实现会在“显式实参尚未全部求值完”时把 ctor 参数提前塞进 `env`，导致 `return Node(name, t, value)` 这类调用在求值后续实参时把调用者局部变量误读成 ctor 参数，最终落入 `String -> Int` 的 `value coercion` unsupported。
+  - 现已把 class ctor / super ctor / `this(...)` delegation 的实参求值改成两阶段：先在调用者环境中按源码顺序求值全部显式实参，再进入 ctor 参数作用域绑定这些显式值，并在该作用域里补齐默认值。这样默认值仍能读取已提供参数，但显式实参求值不再受 side-table `SymbolId` 污染。
+  - 已新增 focused run-pass 回归 `tests/fixtures/run-pass/class_ctor_arg_eval_scope_shadow_free_basic.scoop`，直接覆盖“helper 函数局部 + struct 临时值 + class ctor call”这条最小主线。
+  - `gc_continuation_escape_deep_object_graph.scoop` 与 `gc_continuation_cross_thread_resume_with_objects.scoop` 现已都能稳定 build/run；`cargo run -p scoop -- test` 也已越过原先的 `gc_continuation_cross_thread_resume_with_objects` 红线，并继续向后暴露出新的既有 blocker `top_level_val_recursive_init_is_error.scoop`，已前插为 `T4006U`。
+- 已验证：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_escape_deep_object_graph.scoop -o /tmp/t4006t_gc_deep.out`
+  - `/tmp/t4006t_gc_deep.out`（stdout 与 `gc_continuation_escape_deep_object_graph.stdout` 一致）
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop -o /tmp/t4006t_gc_cross.out`
+  - `/tmp/t4006t_gc_cross.out`（stdout 与 `gc_continuation_cross_thread_resume_with_objects.stdout` 一致）
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/class_ctor_arg_eval_scope_shadow_free_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures <临时 fixtures root（仅包含 class_ctor_arg_eval_scope_shadow_free_basic / gc_continuation_escape_deep_object_graph / gc_continuation_cross_thread_resume_with_objects）>`（`fixtures: ok (3)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006S
+
+### T4006U [TODO] 修复 full fixture suite 中 `top_level_val_recursive_init_is_error` 的顺序相关 stdout mismatch
+- 说明：
+  - `T4006T` 收口后重新跑 `cargo run -p scoop -- test`，套件已越过 `gc_continuation_cross_thread_resume_with_objects.scoop`，但会稳定失败在 `tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop`。
+  - 当前异常不是单 fixture 最小复现失败：单独把该 fixture 拷到临时 fixtures root 后，`cargo run -p scoop -- test --fixtures <临时 root>` 可通过；但全量 `cargo run -p scoop -- test` 会稳定报“stdout 与 golden 不一致”。
+  - 这说明现存问题更像是 full run-pass 顺序/夹具 harness/运行期副作用干扰，而不是该 fixture 本身的直接 build/run 红线；若不先查清，`T4006R` 的全量 fixture review 仍无法建立在绿基线上。
+- 范围：
+  - 精确定位 full suite 中该 fixture 的实际 stdout 来源与顺序相关污染点。
+  - 修复对应的 fixture runner、运行期状态清理或相关 codegen 行为，使全量 `cargo run -p scoop -- test` 在该 fixture 上与 standalone 结果一致。
+  - 重新验证 `cargo run -p scoop -- test` 不再被该 fixture 阻断。
+- 依赖：T4006T
+
+### T4006V [TODO] 收口链式成员访问在非局部 receiver 上的解析 / codegen
+- 说明：
+  - 在为 `T4006T` 添加 focused regression 时，最小 probe `println(node.tag.label)` 暴露出一个独立既有缺口：HIR 中外层 `label` 访问仍会保留 `member.resolved = None`，LLVM `codegen_member_access` 随后报 `scoop::llvm::unsupported_main_body: member access target`。
+  - 该问题与 ctor 实参求值污染不是同一根因；当前已把 focused regression 改成复用 `describeNode(node)` 路径，避免把两个问题混在一个任务里。
+- 范围：
+  - 让 `obj.field.subfield` / `obj.structField.member` 这类链式成员访问在 typecheck / HIR / LLVM 主线上稳定解析并执行。
+  - 补齐对应的最小 regression，覆盖“receiver 不是局部 struct slot，而是另一个 member access 结果值”的路径。
+- 依赖：T4006U
 
 ### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一
 - 重点：
   - 不允许只靠“入口文件特权”维持通过。
-- 依赖：T4006T
+- 依赖：T4006V
 
 ## T4007：RTTI 参数化支持
 

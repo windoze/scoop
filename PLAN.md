@@ -62,6 +62,10 @@
 > 2026-04-19 当前轮完成更新：`T4006S` 已完成。根因是 `lower_lazy_delegated_property_get_from_receiver` 在 `LazyThreadSafetyMode.None` 分支把 getter desugar 成 `when` 后，只返回 `ExprKind` 而没有把外层 HIR 类型保留为真实属性类型，导致 `println(c.x)` 一类读取在 LLVM `print/println` lowering 中被当成 `Any/Ref`，最终报 `sysroot print/println arg type`。当前已把 lazy getter lowering 改为返回 `(ExprKind, TypeId)`，并让 none 分支的 `when` / block / tail 统一携带真实属性 `TypeId`；新增 run-pass 回归 `delegated_property_lazy_thread_safety_none_print_like_ok` 后，`lazy(None)` 读取走 `print` 与 `println` 都已稳定 build/run。已验证相关 lazy fixtures 的 build+run、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`；重跑 `cargo run -p scoop -- test` 时，该既有红线已被清除，套件继续向后推进。
 >
 > 2026-04-19 当前轮计划调整：`T4006S` 清除原红线后，`cargo run -p scoop -- test` 继续暴露出新的既有 blocker：`tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` 当前在 build 阶段报 `scoop::llvm::unsupported_main_body: value coercion`。该夹具属于 effect / continuation + GC 对象图跨线程恢复路径，虽然与 compilation-unit 主题不直接相关，但它同样阻断了 `T4006R` 的全量 fixture review。因此在 `T4006R` 前再插入 blocker `T4006T`，先收口这条 `value coercion` codegen 缺口，再继续做 compilation-unit 复审。当前下一项切换为 `T4006T`。
+>
+> 2026-04-19 当前轮完成更新：`T4006T` 已完成。根因不在 effect/GC 专属路径，而在 class ctor 实参求值主线：`ClassInit` side table 使用独立 lowering context 生成 ctor 参数 `SymbolId`，旧的 `codegen_class_ctor_eval_args` 又会在“显式实参尚未全部求值完”时把这些 side-table 参数提前写入 `env`，从而污染调用者 locals。`return Node(name, t, value)` 一类 helper 在求值最后一个 `value` 实参时，会把调用者局部 `value:Int` 误读成已提前绑定的 ctor 参数 `name:String`，最终落入 `String -> Int` 的 `value coercion` unsupported。当前已把 ctor / super ctor / `this(...)` delegation 的实参求值改成两阶段：先在调用者环境中求值全部显式实参，再进入 ctor 参数作用域绑定显式值并补齐默认值。新增 focused regression `class_ctor_arg_eval_scope_shadow_free_basic` 后，`gc_continuation_escape_deep_object_graph` 与 `gc_continuation_cross_thread_resume_with_objects` 都已稳定 build/run，定向 fixtures root（3 条）也已通过；`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均为绿色。重新跑 `cargo run -p scoop -- test` 时，套件已越过原先的 `gc_continuation_cross_thread_resume_with_objects` 红线，并继续向后稳定失败在 `top_level_val_recursive_init_is_error.scoop` 的 full-suite stdout mismatch，因此在 `T4006R` 前新增 `T4006U`。
+>
+> 2026-04-19 当前轮计划调整：在为 `T4006T` 添加更小的 focused regression 时，最小 probe `println(node.tag.label)` 还暴露出一个独立既有缺口：链式成员访问在 receiver 不是“局部 struct slot”而是“另一个 member access 结果值”时，HIR 会把外层 `label` 保留为 `member.resolved = None`，LLVM `codegen_member_access` 继而报 `scoop::llvm::unsupported_main_body: member access target`。该问题与 ctor 实参求值污染不是同一根因，因此在 `T4006U` 之后、`T4006R` 之前再插入新的 blocker `T4006V`，单独收口链式成员访问主线。当前下一项切换为 `T4006U`。
 
 ## 0. 工作原则
 
@@ -86,9 +90,11 @@
 10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
 11. 新增 blocker：delegated property lazy(None) 读取进入 `print/println` 的 codegen 类型缺口
 12. 新增 blocker：`gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
-13. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-14. `ISSUES.md` 第 1 条：effect / continuation 完整性
-15. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+13. 新增 blocker：full fixture suite 中 `top_level_val_recursive_init_is_error` 的顺序相关 stdout mismatch
+14. 新增 blocker：链式成员访问在非局部 receiver 上的解析 / codegen
+15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+16. `ISSUES.md` 第 1 条：effect / continuation 完整性
+17. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -114,7 +120,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
-- 当前状态：`T4006` 与 `T4006S` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import，以及 `lazy(None)` 读取同时进入 `print` / `println` 的 print-like lowering 主线。重跑全量 fixtures 时，编译链相关红线已清除，但又向后暴露出 `gc_continuation_cross_thread_resume_with_objects.scoop` 的既有 LLVM `value coercion` 缺口；因此在 `T4006R` 前继续插入 `T4006T`，当前下一项先处理该 blocker。
+- 当前状态：`T4006` / `T4006S` / `T4006T` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering，以及 class ctor 实参求值不会污染调用者 locals 的 focused 主线。重跑全量 fixtures 时，`gc_continuation_cross_thread_resume_with_objects.scoop` 已被清除，但套件继续向后暴露出 `top_level_val_recursive_init_is_error.scoop` 的顺序相关 stdout mismatch；与此同时，在添加 focused regression 时又确认链式成员访问 `node.tag.label` 仍有独立解析 / codegen 缺口。因此在 `T4006R` 前继续插入 `T4006U -> T4006V`，当前下一项先处理 `T4006U`。
 
 ### P5. effect 完整性收口
 

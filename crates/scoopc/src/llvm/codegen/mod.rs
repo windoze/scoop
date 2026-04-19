@@ -2900,7 +2900,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
         };
-
         // 4) 分配对象（header 由 runtime 初始化）；payload 先清零，避免读取未初始化字段导致的非确定性。
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
@@ -3117,39 +3116,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let mut param_values: Vec<Option<CgValue<'ctx>>> = vec![None; ctor_params.len()];
+        let mut explicit_values: Vec<Option<(crate::span::Span, CgValue<'ctx>)>> =
+            vec![None; ctor_params.len()];
+
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param[arg_idx].ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: at.into(),
+            })?;
+            let param = &ctor_params[param_idx];
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param type",
+                    at: callee_span.into(),
+                })?;
+            let expr = match arg {
+                hir::CallArg::Positional(expr) => expr,
+                hir::CallArg::Named { value, .. } => value,
+            };
+            let v = match &expr.kind {
+                hir::ExprKind::Closure(closure) => {
+                    self.codegen_closure_expr(expr.span, closure, param.ty)?
+                }
+                _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
+            };
+            let v = self.coerce_value(expr.span, v, param_cg)?;
+            explicit_values[param_idx] = Some((expr.span, v));
+        }
+
         self.env.push_scope();
 
         let result = (|| {
-            for (arg_idx, arg) in args.iter().enumerate() {
-                let param_idx =
-                    arg_to_param[arg_idx].ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind,
-                        at: at.into(),
-                    })?;
-                let param = &ctor_params[param_idx];
-                let param_cg =
-                    self.cg_ty_of(param.ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor param type",
-                            at: callee_span.into(),
-                        })?;
-                let expr = match arg {
-                    hir::CallArg::Positional(expr) => expr,
-                    hir::CallArg::Named { value, .. } => value,
+            // 先在“ctor 参数作用域”里绑定所有显式实参，再计算默认值。
+            // 这样默认值表达式仍可读取已提供的参数，同时不会在显式实参求值阶段
+            // 用 side-table `ClassCtorParam` 的 `SymbolId` 污染调用者的局部环境。
+            for (param_idx, param) in ctor_params.iter().enumerate() {
+                let Some((expr_span, explicit)) = explicit_values[param_idx] else {
+                    continue;
                 };
-                let v = match &expr.kind {
-                    hir::ExprKind::Closure(closure) => {
-                        self.codegen_closure_expr(expr.span, closure, param.ty)?
-                    }
-                    _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
-                };
-                let v = self.coerce_value(expr.span, v, param_cg)?;
                 let stored = self.bind_class_ctor_call_param_value(
                     callee_span,
                     kind,
-                    &ctor_params[param_idx],
-                    expr.span,
-                    v,
+                    param,
+                    expr_span,
+                    explicit,
                 )?;
                 param_values[param_idx] = Some(stored);
             }
