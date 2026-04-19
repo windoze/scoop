@@ -179,6 +179,7 @@
   X(scoop_task_u64_try_start) \
   X(scoop_test_add_int) \
   X(scoop_test_callee_suspend_state_set) \
+  X(scoop_test_continuation_resume_replay_state_create) \
   X(scoop_test_gc_collect_in_native) \
   X(scoop_test_gc_native_sleep_entered) \
   X(scoop_test_gc_native_sleep_reset) \

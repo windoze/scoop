@@ -64,6 +64,9 @@ unsafe extern "C" {
 
     fn scoop_callee_suspend_state_get() -> *mut c_void;
     fn scoop_test_callee_suspend_state_set(state: *mut c_void);
+    fn scoop_test_continuation_resume_replay_state_create(
+        prev_callee_suspend_state: *mut c_void,
+    ) -> *mut c_void;
 
     fn scoop_effect_handler_stack_push(frame: *mut ScoopEffectHandlerFrame, op_tag: u32);
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
@@ -89,6 +92,17 @@ extern "C" fn observe_callee_suspend_state_step(
 ) {
     unsafe {
         OBSERVED_CALLEE_SUSPEND_STATE.store(scoop_callee_suspend_state_get(), Ordering::SeqCst);
+    }
+}
+
+extern "C" fn replace_callee_suspend_state_step(
+    state: *mut c_void,
+    _resume_word: u64,
+    _resume_gc_ref: *mut c_void,
+) {
+    unsafe {
+        OBSERVED_CALLEE_SUSPEND_STATE.store(scoop_callee_suspend_state_get(), Ordering::SeqCst);
+        scoop_test_callee_suspend_state_set(state);
     }
 }
 
@@ -342,6 +356,90 @@ fn continuation_resume_temporarily_restores_captured_callee_suspend_state() {
             scoop_callee_suspend_state_get(),
             saved_tls_state,
             "resume_common must restore the caller's prior TLS callee suspend state after step_fn"
+        );
+
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_resume_preserves_step_fn_replaced_callee_suspend_state() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        let saved_tls_state = scoop_sync_once_create();
+        let captured_state = scoop_sync_once_create();
+        let replacement_state = scoop_sync_once_create();
+        assert!(
+            !saved_tls_state.is_null(),
+            "saved TLS sentinel must be allocated"
+        );
+        assert!(
+            !captured_state.is_null(),
+            "captured callee suspend sentinel must be allocated"
+        );
+        assert!(
+            !replacement_state.is_null(),
+            "replacement callee suspend sentinel must be allocated"
+        );
+
+        scoop_test_callee_suspend_state_set(saved_tls_state);
+        OBSERVED_CALLEE_SUSPEND_STATE.store(ptr::null_mut(), Ordering::SeqCst);
+
+        let k =
+            scoop_continuation_alloc(replacement_state, Some(replace_callee_suspend_state_step));
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
+
+        let cont = &mut *(k as *mut ScoopContinuation);
+        cont.captured_callee_suspend_state = captured_state;
+
+        scoop_continuation_resume(k);
+
+        assert_eq!(
+            OBSERVED_CALLEE_SUSPEND_STATE.load(Ordering::SeqCst),
+            captured_state,
+            "step_fn must still start with the continuation-captured callee suspend state in TLS"
+        );
+        assert_eq!(
+            scoop_callee_suspend_state_get(),
+            replacement_state,
+            "resume_common must preserve the TLS value that step_fn replaced, instead of resurrecting the caller's stale saved state"
+        );
+
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn continuation_resume_does_not_resurrect_saved_replay_state_tls() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        let replay_state = scoop_test_continuation_resume_replay_state_create(ptr::null_mut());
+        assert!(
+            !replay_state.is_null(),
+            "replay-state sentinel must be allocated"
+        );
+
+        scoop_test_callee_suspend_state_set(replay_state);
+
+        let k = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
+
+        scoop_continuation_resume(k);
+
+        assert_eq!(
+            scoop_callee_suspend_state_get(),
+            ptr::null_mut(),
+            "resume_common must treat saved continuation-resume replay-state as one-shot bookkeeping instead of restoring it into TLS after the child continuation finishes"
         );
 
         scoop_thread_unregister();

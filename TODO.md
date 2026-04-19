@@ -898,16 +898,20 @@
   - 为避免单轮同时放大“effect instance 实例化”和“receiver 参与 perform payload / arm binder 布局”两套回归矩阵，现细化为 `T4008c1 -> T4008c2` 顺序推进。
 - 依赖：T4008b2
 
-### T4008c0 [TODO] 修复 statement-position if/else mixed replay 在 else 分支丢失第二次 continuation
+### T4008c0 [DONE] 修复 statement-position if/else mixed replay 在 else 分支丢失第二次 continuation
 - 说明：
   - 在当前工作树和 clean `HEAD`（`45a1144`）里，`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop` 都会错误输出 `fetch_resume / resume_else_1 / missing2`，而不是 golden 中的 `fetch_enter 40 / ask_arm 2 / 41 / resume_else_2`。
   - 这说明无 immediate-resume 的 multi-arm handle 在 statement-position if/else 中处理“direct perform 之后再命中同分支 indirect site”的 replay 时，else 分支仍会把 indirect site 错误重放成 direct site 的 resumed tail，导致 fresh continuation 丢失。
 - 范围：
   - 修复 else 分支在 direct + indirect same-stmt mixed 场景下的 source-path / escape replay 目标构造。
   - 补充对应 run-pass / state-machine regression，锁定第二次 continuation 的重放与 `after_resume1` / `after_resume2` 顺序。
+- 完成：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs` 现按 suspend 场景细分 `pending continuation` 的发布时机：call-like / unmatched outward perform 仍在 `Suspend` 处发布，`EscapeContinuation` arm 改为在 `ArmMaterializeContinuation` 处发布，避免 non-resuming / immediate-resume arm 污染 replay-state。
+  - `runtime/c/scoop_runtime.c` 保留了 callee suspend TLS/replay-state 不被错误 resurrect 的修正，并移除了临时调试日志；新增 emitter IR 回归与 runtime 集成测试，同时补齐 test-only runtime ABI allowlist。
 - 验收：
   - `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop` 重新与现有 golden 对齐。
   - `cargo run -p scoop -- test` 不再被该 fixture 阻塞。
+  - 已验证 `cargo test -q -p scoopc non_resuming_arm_ir_does_not_publish_pending_continuation -- --nocapture`、`cargo test -q -p scoop_runtime continuation_resume_preserves_step_fn_replaced_callee_suspend_state -- --nocapture`、`cargo test -q -p scoop_runtime continuation_resume_does_not_resurrect_saved_replay_state_tls -- --nocapture`、`cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`cargo run -q -p scoop -- test`（`fixtures: ok (1058)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
 - 依赖：T4008c
 
 ### T4008c1 [TODO] 收口多 effect type params 的 effect op call / handle arm 实例化

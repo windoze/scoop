@@ -21,7 +21,7 @@ use super::*;
 use super::unified_state_machine_skeleton::{
     HandleBranchCondition, HandleStateOp, ResumeAfterSiteReason, SuspendSiteKind, UnifiedArm,
     UnifiedFrameField, UnifiedFrameSystemField, UnifiedHandleLoweringContract, UnifiedState,
-    UnifiedStateContext, UnifiedStateTerminator,
+    UnifiedStateContext, UnifiedStateTerminator, UnifiedSuspendSite,
 };
 
 /// System field indices in the frame struct.
@@ -2103,17 +2103,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 self.builder.build_store(cont_gep, cont)?;
 
-                // 若当前 suspend 发生在 `Continuation.resume(...)` 的 resumed body 内，
-                // runtime 会把这次新分配出来的 inner continuation 暂存到 TLS。
-                // outer call-boundary replay 复用同一条 slot，把新的 resume payload
-                // 送回该 inner continuation 后继续执行原 call site 之后的状态。
-                let publish_pending =
-                    self.declare_runtime_continuation_resume_publish_pending_continuation();
-                self.builder.build_call(
-                    publish_pending,
-                    &[cont.into()],
-                    "publish_pending_continuation_resume_inner_continuation",
-                )?;
+                // `Continuation.resume(...)` resumed body 内的 suspend 只有在当前站点
+                // 会把 fresh continuation 继续暴露给更外层 future resume 时，才需要
+                // 留下 outer call-boundary replay 链。escape-continuation arm 的场景
+                // 由 `ArmMaterializeContinuation` terminator 精确发布；这里仅处理
+                // call-like boundary 与无本地 matching arm 的 outward perform。
+                if Self::suspend_site_publishes_pending_continuation_during_suspend(site) {
+                    self.emit_publish_pending_continuation(
+                        cont,
+                        "publish_pending_continuation_resume_inner_continuation",
+                    )?;
+                }
 
                 // Direct `perform` sites only wrote the TLS payload; they
                 // still need to publish the active flag and source trace here.
@@ -2215,8 +2215,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             UnifiedStateTerminator::ArmMaterializeContinuation => {
                 // EscapeContinuation arm: the continuation has already been
                 // bound as a local (in ExecuteArmBody).  The arm body calls
-                // k.resume() at its discretion.  Just store any result and
-                // mark handle as returned.
+                // k.resume() at its discretion.  If the current handle body is
+                // executing under `Continuation.resume(...)`, publishing the
+                // materialized continuation here preserves the outer replay
+                // chain without falsely treating non-resuming / immediate arms
+                // as replay sources.
+                let cont_gep = self.builder.build_struct_gep(
+                    frame_layout.frame_type,
+                    state_ptr,
+                    frame_layout.continuation_index(),
+                    "read_continuation_for_materialize",
+                )?;
+                let cont_ptr = self
+                    .builder
+                    .build_load(
+                        self.llvm_gc_i8_ptr_type(),
+                        cont_gep,
+                        "materialized_continuation",
+                    )?
+                    .into_pointer_value();
+                self.emit_publish_pending_continuation(
+                    cont_ptr,
+                    "publish_pending_continuation_escape_arm",
+                )?;
+
+                // The arm result becomes the handle result, and the handle
+                // exits with the freshly materialized continuation now owned by
+                // the caller/runtime.
                 if let Some(val) = last_value {
                     self.store_result_to_frame(span, val, state_ptr, frame_layout)?;
                 }
@@ -2656,6 +2681,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | SuspendSiteKind::ClassCtorInit { .. }
                 | SuspendSiteKind::NestedHandleBoundary { .. }
         )
+    }
+
+    fn suspend_site_publishes_pending_continuation_during_suspend(
+        site: &UnifiedSuspendSite,
+    ) -> bool {
+        match site.kind() {
+            SuspendSiteKind::Perform { .. } => site.matching_arms().is_empty(),
+            SuspendSiteKind::RuntimeRaise { .. } => false,
+            SuspendSiteKind::CallMaySuspend { .. }
+            | SuspendSiteKind::CallStateMachineCallee { .. }
+            | SuspendSiteKind::ObjectInitAccess { .. }
+            | SuspendSiteKind::TopLevelValueInitAccess { .. }
+            | SuspendSiteKind::ClassCtorInit { .. }
+            | SuspendSiteKind::NestedHandleBoundary { .. } => true,
+        }
+    }
+
+    fn emit_publish_pending_continuation(
+        &mut self,
+        continuation: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let publish_pending =
+            self.declare_runtime_continuation_resume_publish_pending_continuation();
+        self.builder
+            .build_call(publish_pending, &[continuation.into()], name)?;
+        Ok(())
     }
 
     /// Return `true` iff `state_tag` equals one of the provided state IDs.
@@ -4623,6 +4675,69 @@ fun main(): Int {
         assert!(
             ir.contains("call void @scoop_continuation_resume"),
             "outer when-arm try/catch should still lower Continuation.resume via the dedicated runtime entry"
+        );
+    }
+
+    #[test]
+    fn non_resuming_arm_ir_does_not_publish_pending_continuation() {
+        let (source, lowered) = lower_typed_single_source_with_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): Int
+}
+
+effect Abort {
+    fun stop(): Nothing
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun main(): Int {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    return handle {
+        val first: Int = Ask.ask()
+        if (first > 0) {
+            Abort.stop()
+        } else {
+            0
+        }
+    } with {
+        Ask.ask(), k -> {
+            cell.k = Some(k)
+            7
+        }
+        Abort.stop() -> {
+            9
+        }
+    }
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let mut source_map = SourceMap::default();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let entry_source_id = source_map.add_source_clone(&source);
+        let ir = emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered)
+            .expect("llvm ir");
+
+        let publish_calls = ir
+            .lines()
+            .filter(|line| {
+                line.contains("@scoop_continuation_resume_publish_pending_continuation")
+                    && line.contains("call")
+            })
+            .count();
+        assert_eq!(
+            publish_calls, 1,
+            "only escape-continuation materialization should publish outer replay pending continuation, got {publish_calls} publish sites:\n{ir}"
         );
     }
 

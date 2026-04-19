@@ -1241,6 +1241,24 @@ scoop_continuation_resume_replay_state_alloc(void *pending_continuation,
   return state;
 }
 
+// test-only helper：构造一个真实的 continuation-resume replay-state，
+// 便于验证该一次性 bookkeeping 不会在后续 resume 结束后被 resurrect 回 TLS。
+void *scoop_test_continuation_resume_replay_state_create(
+    void *prev_callee_suspend_state) {
+  ScoopContinuationResumeReplayState *state =
+      scoop_continuation_resume_replay_state_alloc(0, prev_callee_suspend_state);
+  return (void *)state;
+}
+
+static int scoop_is_continuation_resume_replay_state(void *state) {
+  if (state == 0) {
+    return 0;
+  }
+
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)state;
+  return hdr->type_desc == &SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC;
+}
+
 // Runtime-originated `Raise<RuntimeError>` 必须与编译器侧
 // `encode_effect_transport_value()` 保持同一套 perform-slot 合同：
 // unit enum variant 作为单 word tag 传输，`gc_ref` 置空。
@@ -1297,17 +1315,31 @@ static void scoop_continuation_resume_common(void *continuation) {
     k->step_fn(k->state, k->resume_word, k->resume_gc_ref);
   }
 
+  // resumed body 可能会显式消费/替换 continuation-captured 的 callee
+  // suspend state，例如：
+  // - ordinary callee resume 在入口 clear 自己消费掉的 state；
+  // - continuation-resume replay 会把 replay-state 解包并恢复它记录的 prev state。
+  // 若 step_fn 结束后 TLS 仍保持为最初注入的 captured state，说明它没有被消费，
+  // 这时才恢复 caller 原先保存的 TLS 值；否则应保留 step_fn 已经写回的新值，
+  // 不能把旧 replay-state resurrect 回来。
+  void *post_step_callee_suspend_state = __scoop_callee_suspend_state;
+  void *restored_callee_suspend_state = post_step_callee_suspend_state;
+  if (!scoop_is_continuation_resume_replay_state(saved_callee_suspend_state) &&
+      post_step_callee_suspend_state == captured_callee_suspend_state) {
+    restored_callee_suspend_state = saved_callee_suspend_state;
+  }
+
   void *pending_continuation = __scoop_continuation_resume_pending_continuation;
   __scoop_continuation_resume_pending_continuation = saved_pending_continuation;
   __scoop_continuation_resume_active = saved_resume_active;
   if (pending_continuation != 0) {
     ScoopContinuationResumeReplayState *replay_state =
         scoop_continuation_resume_replay_state_alloc(pending_continuation,
-                                                     saved_callee_suspend_state);
+                                                     restored_callee_suspend_state);
     __scoop_callee_suspend_state =
-        replay_state != 0 ? (void *)replay_state : saved_callee_suspend_state;
+        replay_state != 0 ? (void *)replay_state : restored_callee_suspend_state;
   } else {
-    __scoop_callee_suspend_state = saved_callee_suspend_state;
+    __scoop_callee_suspend_state = restored_callee_suspend_state;
   }
   if (captured_callee_suspend_state != 0) {
     scoop_unpin(captured_callee_suspend_state);
