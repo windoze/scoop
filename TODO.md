@@ -841,13 +841,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008a
 
-### T4008b1b [TODO] 为 resumed-step 补齐 arm body / `finally` / nested handle / hidden boundary 语义
+### T4008b1b [DONE] 为 resumed-step 补齐 arm body / `finally` / nested handle / hidden boundary 语义
 - 范围：
   - direct summary 不再把 non-resuming / immediate-resume arm body、`finally`、nested handle、顶层/对象 once-init 等隐藏边界遗漏在外。
   - current handle inactive/active 切换要与现有 state-machine 语义一致，不能把 arm body 中由外层处理的效果重新算成当前 handle 已处理。
   - 补充对应回归，覆盖 direct summary 之外的复杂边界语义。
 - 验收：
   - `T4008b1a` 提供的 API 对上述边界场景也给出与 state-machine 语义一致的 step effect row。
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 的 resumed-step summary 现已区分 current-handle active body 与 arm/finally/once-init 等 inactive 区域：active 边界产生的 effect 会重新走当前 handle 的 dispatch 语义，而 arm body / `finally` 中产生的 effect 不会被错误地回算成“仍由当前 handle 处理”。
+  - escape continuation direct-step API 现支持 arm body、`finally`、nested handle boundary 与 hidden once-init boundary 四类复杂路径；hidden boundary 新增 program side table 输入，可把顶层 immutable value 与 object init 的一次初始化步骤纳入同一份 summary。
+  - 已新增 5 条 Rust 单测，分别覆盖 immediate-resume arm body、下一次 escape arm body、`finally`、nested handle boundary 与 hidden top-level once-init effect row；原有 2 条 `T4008b1a` 单测继续保持通过。
+- 已验证：
+  - `cargo test -p scoopc direct_step_`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1055)`）
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008b1a
 
 ### T4008b2 [TODO] 基于 resumed-step summary 收口 continuation binder 类型与 `Continuation.resume`

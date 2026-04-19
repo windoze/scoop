@@ -7447,21 +7447,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-/// `T4008b1a`：为当前 `handle` 中的 escape continuation arm 计算 direct resumed-step effect row。
-///
-/// 说明：
-/// - 该分析只覆盖本轮拆分任务要求的“direct boundary”主线：
-///   - escape site 之后的 resumed tail 重建；
-///   - direct `perform`；
-///   - direct 带非 Pure effect row 的函数值/顶层函数调用。
-/// - `arm body` / `finally` / nested handle / hidden init boundary 的完整边界语义
-///   明确留给 `T4008b1b`，因此本入口不会尝试近似它们。
+/// `T4008b1`：为当前 `handle` 中的 escape continuation arm 计算 resumed-step effect row。
 pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle(
     types: &TypeStore,
     handle: &hir::HandleExpr,
 ) -> HashMap<hir::SymbolId, EffectRow> {
+    compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
+        types, handle, None,
+    )
+}
+
+fn compute_escape_continuation_direct_step_effect_rows_for_handle_with_program<'a>(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+    program: Option<DirectStepProgramInfo<'a>>,
+) -> HashMap<hir::SymbolId, EffectRow> {
     let mut by_binder: HashMap<hir::SymbolId, Vec<TypeId>> = HashMap::new();
-    for site_summary in compute_escape_continuation_direct_step_rows_by_site(types, handle) {
+    for site_summary in compute_escape_continuation_direct_step_rows_by_site(
+        types, handle, program,
+    ) {
         by_binder
             .entry(site_summary.continuation)
             .or_default()
@@ -7484,6 +7488,7 @@ struct EscapeSiteDirectStepRow {
 fn compute_escape_continuation_direct_step_rows_by_site(
     types: &TypeStore,
     handle: &hir::HandleExpr,
+    program: Option<DirectStepProgramInfo<'_>>,
 ) -> Vec<EscapeSiteDirectStepRow> {
     let mut context = direct_step_analysis_context_for_handle(handle);
     context.extend_known_local_metadata_from_handle(handle);
@@ -7586,6 +7591,7 @@ fn compute_escape_continuation_direct_step_rows_by_site(
             &resume_tail,
             handle,
             &context.known_local_metadata,
+            program,
         );
         rows.push(EscapeSiteDirectStepRow {
             site_id: site.id,
@@ -7649,31 +7655,112 @@ fn summarize_direct_step_effects_in_block(
     block: &hir::Block,
     handle: &hir::HandleExpr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    program: Option<DirectStepProgramInfo<'_>>,
 ) -> EffectRow {
-    let summary = summarize_direct_step_stmt_seq(types, &block.stmts, handle, known_local_metadata);
+    let analysis = DirectStepAnalysis::new(program);
+    let summary = summarize_direct_step_resume_tail_block(
+        types,
+        block,
+        handle,
+        known_local_metadata,
+        &analysis,
+    );
     EffectRow::new(summary.effects)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct DirectStepProgramInfo<'a> {
+    object_inits: &'a hir::ObjectInitIndex,
+    top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+}
+
+#[derive(Debug, Clone)]
+struct DirectStepAnalysis<'a> {
+    program: Option<DirectStepProgramInfo<'a>>,
+    hidden_boundary_stack: HashSet<String>,
+}
+
+impl<'a> DirectStepAnalysis<'a> {
+    fn new(program: Option<DirectStepProgramInfo<'a>>) -> Self {
+        Self {
+            program,
+            hidden_boundary_stack: HashSet::new(),
+        }
+    }
+
+    fn for_hidden_boundary(&self, key: &str) -> Option<Self> {
+        if self.hidden_boundary_stack.contains(key) {
+            return None;
+        }
+        let mut next = self.clone();
+        next.hidden_boundary_stack.insert(key.to_string());
+        Some(next)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DirectStepHandleRole {
+    ResumeStep,
+    HandleExpression,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ActiveDirectStepHandleContext<'a> {
+    handle: &'a hir::HandleExpr,
+    role: DirectStepHandleRole,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DirectStepMode<'a> {
+    OutsideHandle,
+    ActiveHandle(ActiveDirectStepHandleContext<'a>),
+}
+
+#[derive(Debug, Clone, Copy)]
+enum DirectStepTerminalKind {
+    HandleCompletion,
+    TerminalStop,
 }
 
 #[derive(Debug, Clone)]
 struct DirectStepSummary {
     effects: Vec<TypeId>,
     may_continue: bool,
+    may_stop: bool,
 }
 
 impl DirectStepSummary {
+    fn empty() -> Self {
+        Self {
+            effects: Vec::new(),
+            may_continue: false,
+            may_stop: false,
+        }
+    }
+
     fn continue_pure() -> Self {
         Self {
             effects: Vec::new(),
             may_continue: true,
+            may_stop: false,
         }
     }
 
-    fn stop_with(mut effects: Vec<TypeId>) -> Self {
+    fn stop_pure() -> Self {
+        Self {
+            effects: Vec::new(),
+            may_continue: false,
+            may_stop: true,
+        }
+    }
+
+    fn outward(mut effects: Vec<TypeId>) -> Self {
         effects.sort();
         effects.dedup();
         Self {
             effects,
             may_continue: false,
+            may_stop: false,
         }
     }
 
@@ -7682,21 +7769,116 @@ impl DirectStepSummary {
         self.effects.sort();
         self.effects.dedup();
     }
+
+    fn merge_paths(&mut self, other: Self) {
+        self.merge_effects(other.effects);
+        self.may_continue |= other.may_continue;
+        self.may_stop |= other.may_stop;
+    }
+
+    fn without_continue(&self) -> Self {
+        Self {
+            effects: self.effects.clone(),
+            may_continue: false,
+            may_stop: self.may_stop,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum DirectStepHiddenBoundary<'a> {
+    TopLevelImmutable {
+        fqn: String,
+        value: &'a hir::TopLevelImmutableValue,
+    },
+    ObjectInit {
+        fqn: String,
+        init: &'a hir::ObjectInit,
+    },
+}
+
+impl<'a> DirectStepHiddenBoundary<'a> {
+    fn key(&self) -> &str {
+        match self {
+            DirectStepHiddenBoundary::TopLevelImmutable { fqn, .. }
+            | DirectStepHiddenBoundary::ObjectInit { fqn, .. } => fqn,
+        }
+    }
+}
+
+fn summarize_direct_step_resume_tail_block(
+    types: &TypeStore,
+    block: &hir::Block,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let ctx = ActiveDirectStepHandleContext {
+        handle,
+        role: DirectStepHandleRole::ResumeStep,
+    };
+    let summary = summarize_direct_step_stmt_seq(
+        types,
+        &block.stmts,
+        DirectStepMode::ActiveHandle(ctx),
+        known_local_metadata,
+        analysis,
+    );
+    let mut out = summary.without_continue();
+    if summary.may_continue {
+        out.merge_paths(finalize_handle_terminal(
+            types,
+            ctx,
+            analysis,
+            DirectStepTerminalKind::HandleCompletion,
+        ));
+    }
+    out
+}
+
+fn summarize_direct_step_handle_execution(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+    role: DirectStepHandleRole,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let mut known_local_metadata = HashMap::new();
+    collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
+    let ctx = ActiveDirectStepHandleContext { handle, role };
+    let summary = summarize_direct_step_stmt_seq(
+        types,
+        &handle.body.stmts,
+        DirectStepMode::ActiveHandle(ctx),
+        &known_local_metadata,
+        analysis,
+    );
+    let mut out = summary.without_continue();
+    if summary.may_continue {
+        out.merge_paths(finalize_handle_terminal(
+            types,
+            ctx,
+            analysis,
+            DirectStepTerminalKind::HandleCompletion,
+        ));
+    }
+    out
 }
 
 fn summarize_direct_step_stmt_seq(
     types: &TypeStore,
     stmts: &[hir::Stmt],
-    handle: &hir::HandleExpr,
+    mode: DirectStepMode<'_>,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
 ) -> DirectStepSummary {
     let mut out = DirectStepSummary::continue_pure();
     for stmt in stmts {
         if !out.may_continue {
             break;
         }
-        let step = summarize_direct_step_stmt(types, stmt, handle, known_local_metadata);
+        let step = summarize_direct_step_stmt(types, stmt, mode, known_local_metadata, analysis);
         out.merge_effects(step.effects);
+        out.may_stop |= step.may_stop;
         out.may_continue = step.may_continue;
     }
     out
@@ -7705,110 +7887,173 @@ fn summarize_direct_step_stmt_seq(
 fn summarize_direct_step_stmt(
     types: &TypeStore,
     stmt: &hir::Stmt,
-    handle: &hir::HandleExpr,
+    mode: DirectStepMode<'_>,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
 ) -> DirectStepSummary {
     match &stmt.kind {
         hir::StmtKind::Empty => DirectStepSummary::continue_pure(),
         hir::StmtKind::Expr(expr) => {
-            summarize_direct_step_expr(types, expr, handle, known_local_metadata)
+            summarize_direct_step_expr(types, expr, mode, known_local_metadata, analysis)
         }
         hir::StmtKind::Val(decl) => decl
             .init
             .as_ref()
-            .map(|expr| summarize_direct_step_expr(types, expr, handle, known_local_metadata))
+            .map(|expr| {
+                summarize_direct_step_expr(types, expr, mode, known_local_metadata, analysis)
+            })
             .unwrap_or_else(DirectStepSummary::continue_pure),
         hir::StmtKind::Assign { lhs, rhs, .. } => {
-            let lhs_summary = summarize_direct_step_expr(types, lhs, handle, known_local_metadata);
-            if !lhs_summary.may_continue {
-                return lhs_summary;
+            let lhs_summary =
+                summarize_direct_step_expr(types, lhs, mode, known_local_metadata, analysis);
+            let mut out = lhs_summary.without_continue();
+            if lhs_summary.may_continue {
+                let rhs_summary =
+                    summarize_direct_step_expr(types, rhs, mode, known_local_metadata, analysis);
+                out.merge_paths(rhs_summary);
             }
-            let rhs_summary = summarize_direct_step_expr(types, rhs, handle, known_local_metadata);
-            let mut out = lhs_summary;
-            out.merge_effects(rhs_summary.effects);
-            out.may_continue = rhs_summary.may_continue;
             out
         }
-        hir::StmtKind::Return { value } => value
-            .as_ref()
-            .map(|expr| {
-                let mut summary =
-                    summarize_direct_step_expr(types, expr, handle, known_local_metadata);
-                summary.may_continue = false;
-                summary
-            })
-            .unwrap_or_else(|| DirectStepSummary::stop_with(Vec::new())),
+        hir::StmtKind::Return { value } => summarize_direct_step_return_stmt(
+            types,
+            value.as_ref(),
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
         hir::StmtKind::While { cond, body } => {
-            let cond_summary = summarize_direct_step_expr(types, cond, handle, known_local_metadata);
-            if !cond_summary.may_continue {
-                return cond_summary;
+            let cond_summary =
+                summarize_direct_step_expr(types, cond, mode, known_local_metadata, analysis);
+            let mut out = cond_summary.without_continue();
+            if cond_summary.may_continue {
+                let body_summary = summarize_direct_step_stmt_seq(
+                    types,
+                    &body.stmts,
+                    mode,
+                    known_local_metadata,
+                    analysis,
+                );
+                out.merge_effects(body_summary.effects);
+                out.may_stop |= body_summary.may_stop;
+                // 仍保留保守 loop union 近似；更细的 break/continue
+                // path-sensitive 语义不在 T4008b1b 范围。
+                out.may_continue = true;
             }
-            let body_summary =
-                summarize_direct_step_stmt_seq(types, &body.stmts, handle, known_local_metadata);
-            let mut out = cond_summary;
-            out.merge_effects(body_summary.effects);
-            // direct summary 仅收集 effect row；循环控制的完整 path-sensitive 语义留给 T4008b1b。
-            out.may_continue = true;
             out
         }
         hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } => {
-            DirectStepSummary::stop_with(Vec::new())
+            DirectStepSummary::stop_pure()
         }
         hir::StmtKind::Todo(_) => DirectStepSummary::continue_pure(),
     }
 }
 
+fn summarize_direct_step_return_stmt(
+    types: &TypeStore,
+    value: Option<&hir::Expr>,
+    mode: DirectStepMode<'_>,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let value_summary = value
+        .map(|expr| summarize_direct_step_expr(types, expr, mode, known_local_metadata, analysis))
+        .unwrap_or_else(DirectStepSummary::continue_pure);
+    let mut out = value_summary.without_continue();
+    if value_summary.may_continue {
+        match mode {
+            DirectStepMode::OutsideHandle => out.may_stop = true,
+            DirectStepMode::ActiveHandle(ctx) => out.merge_paths(finalize_handle_terminal(
+                types,
+                ctx,
+                analysis,
+                DirectStepTerminalKind::TerminalStop,
+            )),
+        }
+    }
+    out
+}
+
 fn summarize_direct_step_expr(
     types: &TypeStore,
     expr: &hir::Expr,
-    handle: &hir::HandleExpr,
+    mode: DirectStepMode<'_>,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
 ) -> DirectStepSummary {
     match &expr.kind {
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
-        | hir::ExprKind::VarRef(_)
         | hir::ExprKind::UnresolvedIdent { .. }
         | hir::ExprKind::Closure(_)
         | hir::ExprKind::Todo(_) => DirectStepSummary::continue_pure(),
+        hir::ExprKind::VarRef(value_ref) => {
+            if let Some(boundary) =
+                classify_direct_step_hidden_boundary_for_value_ref(analysis.program, value_ref)
+            {
+                summarize_hidden_boundary_access(types, boundary, mode, analysis)
+            } else {
+                DirectStepSummary::continue_pure()
+            }
+        }
         hir::ExprKind::Block(block) => {
-            summarize_direct_step_stmt_seq(types, &block.stmts, handle, known_local_metadata)
+            summarize_direct_step_stmt_seq(types, &block.stmts, mode, known_local_metadata, analysis)
         }
         hir::ExprKind::Unary { expr: inner, .. }
         | hir::ExprKind::Cast { expr: inner, .. }
-        | hir::ExprKind::TypeCheck { expr: inner, .. }
-        | hir::ExprKind::MemberAccess {
-            receiver: inner, ..
-        } => summarize_direct_step_expr(types, inner, handle, known_local_metadata),
-        hir::ExprKind::StructLit { fields, .. } => {
-            summarize_direct_step_exprs(
-                types,
-                fields.iter().map(|field| &field.value),
-                handle,
-                known_local_metadata,
-            )
+        | hir::ExprKind::TypeCheck { expr: inner, .. } => {
+            summarize_direct_step_expr(types, inner, mode, known_local_metadata, analysis)
         }
-        hir::ExprKind::TupleLit { elements } => {
-            summarize_direct_step_exprs(types, elements.iter(), handle, known_local_metadata)
+        hir::ExprKind::MemberAccess { receiver, member } => {
+            let receiver_summary =
+                summarize_direct_step_expr(types, receiver, mode, known_local_metadata, analysis);
+            let mut out = receiver_summary.without_continue();
+            if !receiver_summary.may_continue {
+                return out;
+            }
+            if let Some(boundary) =
+                classify_direct_step_hidden_boundary_for_member_access(analysis.program, member)
+            {
+                out.merge_paths(summarize_hidden_boundary_access(
+                    types, boundary, mode, analysis,
+                ));
+            } else {
+                out.may_continue = true;
+            }
+            out
         }
+        hir::ExprKind::StructLit { fields, .. } => summarize_direct_step_exprs(
+            types,
+            fields.iter().map(|field| &field.value),
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
+        hir::ExprKind::TupleLit { elements } => summarize_direct_step_exprs(
+            types,
+            elements.iter(),
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
         hir::ExprKind::InterpolatedString { parts, .. } => summarize_direct_step_exprs(
             types,
             parts.iter().filter_map(|part| match part {
                 hir::InterpolatedStringPart::Expr { expr } => Some(expr),
                 hir::InterpolatedStringPart::Text { .. } => None,
             }),
-            handle,
+            mode,
             known_local_metadata,
+            analysis,
         ),
         hir::ExprKind::Binary { lhs, rhs, .. } => {
-            let lhs_summary = summarize_direct_step_expr(types, lhs, handle, known_local_metadata);
-            if !lhs_summary.may_continue {
-                return lhs_summary;
+            let lhs_summary =
+                summarize_direct_step_expr(types, lhs, mode, known_local_metadata, analysis);
+            let mut out = lhs_summary.without_continue();
+            if lhs_summary.may_continue {
+                let rhs_summary =
+                    summarize_direct_step_expr(types, rhs, mode, known_local_metadata, analysis);
+                out.merge_paths(rhs_summary);
             }
-            let rhs_summary = summarize_direct_step_expr(types, rhs, handle, known_local_metadata);
-            let mut out = lhs_summary;
-            out.merge_effects(rhs_summary.effects);
-            out.may_continue = rhs_summary.may_continue;
             out
         }
         hir::ExprKind::If {
@@ -7817,104 +8062,507 @@ fn summarize_direct_step_expr(
             else_branch,
         } => {
             let cond_summary =
-                summarize_direct_step_expr(types, cond, handle, known_local_metadata);
-            if !cond_summary.may_continue {
-                return cond_summary;
+                summarize_direct_step_expr(types, cond, mode, known_local_metadata, analysis);
+            let mut out = cond_summary.without_continue();
+            if cond_summary.may_continue {
+                let then_summary = summarize_direct_step_expr(
+                    types,
+                    then_branch,
+                    mode,
+                    known_local_metadata,
+                    analysis,
+                );
+                let else_summary = else_branch
+                    .as_deref()
+                    .map(|expr| {
+                        summarize_direct_step_expr(
+                            types,
+                            expr,
+                            mode,
+                            known_local_metadata,
+                            analysis,
+                        )
+                    })
+                    .unwrap_or_else(DirectStepSummary::continue_pure);
+                out.merge_paths(then_summary);
+                out.merge_paths(else_summary);
             }
-            let then_summary =
-                summarize_direct_step_expr(types, then_branch, handle, known_local_metadata);
-            let else_summary = else_branch
-                .as_deref()
-                .map(|expr| {
-                    summarize_direct_step_expr(types, expr, handle, known_local_metadata)
-                })
-                .unwrap_or_else(DirectStepSummary::continue_pure);
-            let mut out = cond_summary;
-            out.merge_effects(then_summary.effects);
-            out.merge_effects(else_summary.effects);
-            out.may_continue = then_summary.may_continue || else_summary.may_continue;
             out
         }
         hir::ExprKind::When { subject, arms } => {
             let subject_summary =
-                summarize_direct_step_expr(types, subject, handle, known_local_metadata);
+                summarize_direct_step_expr(types, subject, mode, known_local_metadata, analysis);
+            let mut out = subject_summary.without_continue();
             if !subject_summary.may_continue {
-                return subject_summary;
-            }
-            let mut out = subject_summary;
-            let mut may_continue = false;
-            for arm in arms {
-                if let Some(guard) = arm.guard.as_ref() {
-                    let guard_summary =
-                        summarize_direct_step_expr(types, guard, handle, known_local_metadata);
-                    out.merge_effects(guard_summary.effects);
-                    if !guard_summary.may_continue {
-                        continue;
-                    }
-                }
-                let body_summary =
-                    summarize_direct_step_expr(types, &arm.body, handle, known_local_metadata);
-                out.merge_effects(body_summary.effects);
-                may_continue |= body_summary.may_continue;
-            }
-            out.may_continue = may_continue || arms.is_empty();
-            out
-        }
-        hir::ExprKind::Call { callee, args } => {
-            let callee_summary =
-                summarize_direct_step_expr(types, callee, handle, known_local_metadata);
-            if !callee_summary.may_continue {
-                return callee_summary;
-            }
-            let args_summary =
-                summarize_direct_step_call_args(types, args, handle, known_local_metadata);
-            let mut out = callee_summary;
-            out.merge_effects(args_summary.effects);
-            if !args_summary.may_continue {
-                out.may_continue = false;
                 return out;
             }
-            let direct_effects =
-                direct_effect_terms_from_callable_expr(types, callee, known_local_metadata);
-            out.merge_effects(direct_effects.clone());
-            out.may_continue = direct_effects.is_empty();
+            if arms.is_empty() {
+                out.may_continue = true;
+                return out;
+            }
+            let mut branch_union = DirectStepSummary::empty();
+            for arm in arms {
+                let guard_summary = arm
+                    .guard
+                    .as_ref()
+                    .map(|guard| {
+                        summarize_direct_step_expr(
+                            types,
+                            guard,
+                            mode,
+                            known_local_metadata,
+                            analysis,
+                        )
+                    })
+                    .unwrap_or_else(DirectStepSummary::continue_pure);
+                let mut branch = guard_summary.without_continue();
+                if guard_summary.may_continue {
+                    branch.merge_paths(summarize_direct_step_expr(
+                        types,
+                        &arm.body,
+                        mode,
+                        known_local_metadata,
+                        analysis,
+                    ));
+                }
+                branch_union.merge_paths(branch);
+            }
+            out.merge_paths(branch_union);
             out
         }
+        hir::ExprKind::Call { callee, args } => summarize_direct_step_call_expr(
+            types,
+            callee,
+            args,
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
         hir::ExprKind::Perform {
             effect_ty,
             op,
             args,
-        } => {
-            let args_summary =
-                summarize_direct_step_call_args(types, args, handle, known_local_metadata);
-            if !args_summary.may_continue {
-                return args_summary;
+        } => summarize_direct_step_perform_expr(
+            types,
+            *effect_ty,
+            &op.fqn,
+            args,
+            mode,
+            known_local_metadata,
+            analysis,
+        ),
+        hir::ExprKind::Handle(handle) => match mode {
+            DirectStepMode::OutsideHandle => summarize_direct_step_handle_execution(
+                types,
+                handle,
+                DirectStepHandleRole::HandleExpression,
+                analysis,
+            ),
+            DirectStepMode::ActiveHandle(ctx) => finalize_boundary_summary_in_mode(
+                types,
+                summarize_direct_step_handle_execution(
+                    types,
+                    handle,
+                    DirectStepHandleRole::HandleExpression,
+                    analysis,
+                ),
+                DirectStepMode::ActiveHandle(ctx),
+                analysis,
+            ),
+        },
+    }
+}
+
+fn summarize_direct_step_call_expr(
+    types: &TypeStore,
+    callee: &hir::Expr,
+    args: &[hir::CallArg],
+    mode: DirectStepMode<'_>,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let callee_summary =
+        summarize_direct_step_expr(types, callee, mode, known_local_metadata, analysis);
+    let mut out = callee_summary.without_continue();
+    if !callee_summary.may_continue {
+        return out;
+    }
+
+    let args_summary =
+        summarize_direct_step_call_args(types, args, mode, known_local_metadata, analysis);
+    out.merge_effects(args_summary.effects.clone());
+    out.may_stop |= args_summary.may_stop;
+    if !args_summary.may_continue {
+        return out;
+    }
+
+    let direct_effects = direct_effect_terms_from_callable_expr(types, callee, known_local_metadata);
+    match mode {
+        DirectStepMode::OutsideHandle => {
+            out.merge_effects(direct_effects.clone());
+            out.may_continue = direct_effects.is_empty();
+            out
+        }
+        DirectStepMode::ActiveHandle(_) => {
+            let mut boundary = DirectStepSummary::continue_pure();
+            boundary.merge_effects(direct_effects);
+            out.merge_paths(finalize_boundary_summary_in_mode(
+                types, boundary, mode, analysis,
+            ));
+            out
+        }
+    }
+}
+
+fn summarize_direct_step_perform_expr(
+    types: &TypeStore,
+    effect_ty: TypeId,
+    op_fqn: &str,
+    args: &[hir::CallArg],
+    mode: DirectStepMode<'_>,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let args_summary =
+        summarize_direct_step_call_args(types, args, mode, known_local_metadata, analysis);
+    let mut out = args_summary.without_continue();
+    if !args_summary.may_continue {
+        return out;
+    }
+
+    match mode {
+        DirectStepMode::OutsideHandle => {
+            out.merge_paths(DirectStepSummary::outward(vec![effect_ty]));
+            out
+        }
+        DirectStepMode::ActiveHandle(ctx) => {
+            if let Some(arm) = first_matching_arm_for_direct_perform(ctx.handle, op_fqn, effect_ty) {
+                out.merge_paths(summarize_direct_step_dispatch_arm(types, arm, ctx, analysis));
+            } else {
+                out.merge_paths(finalize_handle_outward(
+                    types,
+                    ctx,
+                    analysis,
+                    vec![effect_ty],
+                ));
             }
-            let Some(matched_arm) =
-                first_matching_arm_for_direct_perform(handle, &op.fqn, *effect_ty)
-            else {
-                let mut effects = args_summary.effects;
-                effects.push(*effect_ty);
-                return DirectStepSummary::stop_with(effects);
-            };
-            let mut out = args_summary;
-            out.may_continue = false;
-            match matched_arm.kind {
-                hir::HandleArmKind::EscapeContinuation { .. } => out,
-                // `arm body` / immediate-resume / non-resuming 的完整语义留给 T4008b1b。
-                hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => out,
+            out
+        }
+    }
+}
+
+fn summarize_hidden_boundary_access(
+    types: &TypeStore,
+    boundary: DirectStepHiddenBoundary<'_>,
+    mode: DirectStepMode<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let boundary_summary = summarize_hidden_boundary(types, boundary, analysis);
+    finalize_boundary_summary_in_mode(types, boundary_summary, mode, analysis)
+}
+
+fn summarize_hidden_boundary(
+    types: &TypeStore,
+    boundary: DirectStepHiddenBoundary<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let Some(next_analysis) = analysis.for_hidden_boundary(boundary.key()) else {
+        return DirectStepSummary::stop_pure();
+    };
+    match boundary {
+        DirectStepHiddenBoundary::TopLevelImmutable { value, .. } => value
+            .init
+            .as_ref()
+            .map(|init| {
+                let mut known_local_metadata = HashMap::new();
+                collect_known_local_metadata_in_expr(init, &mut known_local_metadata);
+                summarize_direct_step_expr(
+                    types,
+                    init,
+                    DirectStepMode::OutsideHandle,
+                    &known_local_metadata,
+                    &next_analysis,
+                )
+            })
+            .unwrap_or_else(DirectStepSummary::continue_pure),
+        DirectStepHiddenBoundary::ObjectInit { init, .. } => {
+            let mut known_local_metadata = HashMap::new();
+            for step in &init.steps {
+                match step {
+                    hir::ObjectInitStep::PropertyInit { init, .. } => {
+                        collect_known_local_metadata_in_expr(init, &mut known_local_metadata);
+                    }
+                    hir::ObjectInitStep::InitBlock { block } => {
+                        collect_known_local_metadata_in_block(block, &mut known_local_metadata);
+                    }
+                }
+            }
+
+            let mut out = DirectStepSummary::continue_pure();
+            for step in &init.steps {
+                if !out.may_continue {
+                    break;
+                }
+                let step_summary = match step {
+                    hir::ObjectInitStep::PropertyInit { init, .. } => summarize_direct_step_expr(
+                        types,
+                        init,
+                        DirectStepMode::OutsideHandle,
+                        &known_local_metadata,
+                        &next_analysis,
+                    ),
+                    hir::ObjectInitStep::InitBlock { block } => summarize_direct_step_stmt_seq(
+                        types,
+                        &block.stmts,
+                        DirectStepMode::OutsideHandle,
+                        &known_local_metadata,
+                        &next_analysis,
+                    ),
+                };
+                out.merge_effects(step_summary.effects);
+                out.may_stop |= step_summary.may_stop;
+                out.may_continue = step_summary.may_continue;
+            }
+            out
+        }
+    }
+}
+
+fn finalize_boundary_summary_in_mode(
+    types: &TypeStore,
+    boundary_summary: DirectStepSummary,
+    mode: DirectStepMode<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    match mode {
+        DirectStepMode::OutsideHandle => boundary_summary,
+        DirectStepMode::ActiveHandle(ctx) => {
+            let mut out = DirectStepSummary::empty();
+            if boundary_summary.may_continue {
+                out.may_continue = true;
+            }
+            if boundary_summary.may_stop {
+                out.merge_paths(finalize_handle_terminal(
+                    types,
+                    ctx,
+                    analysis,
+                    DirectStepTerminalKind::TerminalStop,
+                ));
+            }
+            if !boundary_summary.effects.is_empty() {
+                out.merge_paths(dispatch_boundary_effects_through_active_handle(
+                    types,
+                    &boundary_summary.effects,
+                    ctx,
+                    analysis,
+                ));
+            }
+            out
+        }
+    }
+}
+
+fn dispatch_boundary_effects_through_active_handle(
+    types: &TypeStore,
+    effects: &[TypeId],
+    ctx: ActiveDirectStepHandleContext<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let mut out = DirectStepSummary::empty();
+    for effect_ty in effects {
+        let matching_arms = ctx
+            .handle
+            .arms
+            .iter()
+            .filter(|arm| arm.op.effect_ty == *effect_ty)
+            .collect::<Vec<_>>();
+        if matching_arms.is_empty() {
+            out.merge_paths(finalize_handle_outward(
+                types,
+                ctx,
+                analysis,
+                vec![*effect_ty],
+            ));
+            continue;
+        }
+        for arm in matching_arms {
+            out.merge_paths(summarize_direct_step_dispatch_arm(
+                types,
+                arm,
+                ctx,
+                analysis,
+            ));
+        }
+    }
+    out
+}
+
+fn summarize_direct_step_dispatch_arm(
+    types: &TypeStore,
+    arm: &hir::HandleArm,
+    ctx: ActiveDirectStepHandleContext<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let known_local_metadata = collect_known_local_metadata_in_handle_arm(arm);
+    let arm_summary = summarize_direct_step_expr(
+        types,
+        &arm.body,
+        DirectStepMode::OutsideHandle,
+        &known_local_metadata,
+        analysis,
+    );
+
+    let mut out = DirectStepSummary::empty();
+    if !arm_summary.effects.is_empty() {
+        out.merge_paths(finalize_handle_outward(
+            types,
+            ctx,
+            analysis,
+            arm_summary.effects.clone(),
+        ));
+    }
+    if arm_summary.may_stop {
+        out.merge_paths(finalize_handle_terminal(
+            types,
+            ctx,
+            analysis,
+            DirectStepTerminalKind::TerminalStop,
+        ));
+    }
+    if arm_summary.may_continue {
+        match arm.kind {
+            hir::HandleArmKind::ImmediateResume { .. } => out.may_continue = true,
+            hir::HandleArmKind::NonResuming
+            | hir::HandleArmKind::EscapeContinuation { .. } => {
+                out.merge_paths(finalize_handle_terminal(
+                    types,
+                    ctx,
+                    analysis,
+                    DirectStepTerminalKind::HandleCompletion,
+                ));
             }
         }
-        // `T4008b1a` 只固定 direct summary；nested handle 的完整边界语义留给 `T4008b1b`。
-        hir::ExprKind::Handle(_) => DirectStepSummary::continue_pure(),
     }
+    out
+}
+
+fn finalize_handle_terminal(
+    types: &TypeStore,
+    ctx: ActiveDirectStepHandleContext<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+    kind: DirectStepTerminalKind,
+) -> DirectStepSummary {
+    let cleanup = summarize_direct_step_handle_finally(types, ctx.handle, analysis);
+    let mut out = cleanup.without_continue();
+    if cleanup.may_continue {
+        match kind {
+            DirectStepTerminalKind::HandleCompletion => match ctx.role {
+                DirectStepHandleRole::ResumeStep => out.may_stop = true,
+                DirectStepHandleRole::HandleExpression => out.may_continue = true,
+            },
+            DirectStepTerminalKind::TerminalStop => out.may_stop = true,
+        }
+    }
+    out
+}
+
+fn finalize_handle_outward(
+    types: &TypeStore,
+    ctx: ActiveDirectStepHandleContext<'_>,
+    analysis: &DirectStepAnalysis<'_>,
+    effects: Vec<TypeId>,
+) -> DirectStepSummary {
+    let cleanup = summarize_direct_step_handle_finally(types, ctx.handle, analysis);
+    let mut out = cleanup.without_continue();
+    if cleanup.may_continue {
+        out.merge_effects(effects);
+    }
+    out
+}
+
+fn summarize_direct_step_handle_finally(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+    analysis: &DirectStepAnalysis<'_>,
+) -> DirectStepSummary {
+    let Some(finally_block) = handle.finally.as_ref() else {
+        return DirectStepSummary::continue_pure();
+    };
+    let mut known_local_metadata = HashMap::new();
+    collect_known_local_metadata_in_block(finally_block, &mut known_local_metadata);
+    summarize_direct_step_stmt_seq(
+        types,
+        &finally_block.stmts,
+        DirectStepMode::OutsideHandle,
+        &known_local_metadata,
+        analysis,
+    )
+}
+
+fn collect_known_local_metadata_in_handle_arm(
+    arm: &hir::HandleArm,
+) -> HashMap<hir::SymbolId, KnownLocalMetadata> {
+    let mut out = HashMap::new();
+    for binder in &arm.op.binders {
+        out.insert(
+            binder.id,
+            KnownLocalMetadata {
+                ty: binder.ty,
+                mutable: false,
+            },
+        );
+    }
+    collect_known_local_metadata_in_expr(&arm.body, &mut out);
+    out
+}
+
+fn classify_direct_step_hidden_boundary_for_value_ref<'a>(
+    program: Option<DirectStepProgramInfo<'a>>,
+    value_ref: &hir::ValueRef,
+) -> Option<DirectStepHiddenBoundary<'a>> {
+    let program = program?;
+    let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
+        return None;
+    };
+    if let Some(init) = program.object_inits.get(fqn) {
+        return Some(DirectStepHiddenBoundary::ObjectInit {
+            fqn: fqn.clone(),
+            init,
+        });
+    }
+    program
+        .top_level_immutable_values
+        .get(fqn)
+        .map(|value| DirectStepHiddenBoundary::TopLevelImmutable {
+            fqn: fqn.clone(),
+            value,
+        })
+}
+
+fn classify_direct_step_hidden_boundary_for_member_access<'a>(
+    program: Option<DirectStepProgramInfo<'a>>,
+    member: &hir::MemberAccess,
+) -> Option<DirectStepHiddenBoundary<'a>> {
+    let program = program?;
+    let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref()? else {
+        return None;
+    };
+    let (owner_fqn, _) = fqn.rsplit_once('.')?;
+    program
+        .object_inits
+        .get(owner_fqn)
+        .map(|init| DirectStepHiddenBoundary::ObjectInit {
+            fqn: owner_fqn.to_string(),
+            init,
+        })
 }
 
 fn summarize_direct_step_call_args<'a>(
     types: &TypeStore,
     args: impl IntoIterator<Item = &'a hir::CallArg>,
-    handle: &hir::HandleExpr,
+    mode: DirectStepMode<'_>,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
 ) -> DirectStepSummary {
     let mut out = DirectStepSummary::continue_pure();
     for arg in args {
@@ -7923,13 +8571,14 @@ fn summarize_direct_step_call_args<'a>(
         }
         let summary = match arg {
             hir::CallArg::Positional(expr) => {
-                summarize_direct_step_expr(types, expr, handle, known_local_metadata)
+                summarize_direct_step_expr(types, expr, mode, known_local_metadata, analysis)
             }
             hir::CallArg::Named { value, .. } => {
-                summarize_direct_step_expr(types, value, handle, known_local_metadata)
+                summarize_direct_step_expr(types, value, mode, known_local_metadata, analysis)
             }
         };
         out.merge_effects(summary.effects);
+        out.may_stop |= summary.may_stop;
         out.may_continue = summary.may_continue;
     }
     out
@@ -7938,16 +8587,18 @@ fn summarize_direct_step_call_args<'a>(
 fn summarize_direct_step_exprs<'a>(
     types: &TypeStore,
     exprs: impl IntoIterator<Item = &'a hir::Expr>,
-    handle: &hir::HandleExpr,
+    mode: DirectStepMode<'_>,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+    analysis: &DirectStepAnalysis<'_>,
 ) -> DirectStepSummary {
     let mut out = DirectStepSummary::continue_pure();
     for expr in exprs {
         if !out.may_continue {
             break;
         }
-        let summary = summarize_direct_step_expr(types, expr, handle, known_local_metadata);
+        let summary = summarize_direct_step_expr(types, expr, mode, known_local_metadata, analysis);
         out.merge_effects(summary.effects);
+        out.may_stop |= summary.may_stop;
         out.may_continue = summary.may_continue;
     }
     out
@@ -8099,7 +8750,8 @@ fun demo(): Int / (Boom) {
             .expect("expected a handle");
         let continuation = only_escape_continuation_symbol(handle);
 
-        let mut rows = compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle);
+        let mut rows =
+            compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle, None);
         rows.sort_by_key(|row| row.site_id);
 
         assert_eq!(rows.len(), 2, "expected two handled Ask.current escape sites");
@@ -8113,11 +8765,253 @@ fun demo(): Int / (Boom) {
         assert_eq!(effect_row_terms(&lowered.types, &rows[1].effects), ["a.Boom"]);
     }
 
+    #[test]
+    fn direct_step_rows_include_immediate_resume_arm_body_effects() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val first: Int = Ask.current()
+        val second: Int = Yield.next()
+        first + second
+    } with {
+        Ask.current(), k -> 7
+        Yield.next() -> resume {
+            val _: Int = Boom.boom(41)
+            resume(3)
+        }
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let rows =
+            compute_escape_continuation_direct_step_effect_rows_for_handle(&lowered.types, handle);
+        let row = rows
+            .get(&continuation)
+            .expect("expected a direct-step effect row for escape continuation binder");
+
+        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
+    }
+
+    #[test]
+    fn direct_step_rows_include_escape_arm_body_effects_at_next_boundary() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val first: Int = Ask.current()
+        val second: Int = Ask.current()
+        first + second
+    } with {
+        Ask.current(), k -> {
+            val _: Int = Boom.boom(9)
+            7
+        }
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let mut rows =
+            compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle, None);
+        rows.sort_by_key(|row| row.site_id);
+
+        assert_eq!(rows.len(), 2, "expected two handled Ask.current escape sites");
+        assert_eq!(effect_row_terms(&lowered.types, &rows[0].effects), ["a.Boom"]);
+        assert!(
+            rows[1].effects.is_pure(),
+            "second site should not count its own arm body as resumed tail, found {:?}",
+            effect_row_terms(&lowered.types, &rows[1].effects)
+        );
+    }
+
+    #[test]
+    fn direct_step_rows_include_finally_effects_after_resumed_tail_completion() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val value: Int = Ask.current()
+        value + 1
+    } with {
+        Ask.current(), k -> 7
+    } finally {
+        val _: Int = Boom.boom(5)
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let rows =
+            compute_escape_continuation_direct_step_effect_rows_for_handle(&lowered.types, handle);
+        let row = rows
+            .get(&continuation)
+            .expect("expected a direct-step effect row for escape continuation binder");
+
+        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
+    }
+
+    #[test]
+    fn direct_step_rows_include_nested_handle_boundary_effects() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Yield {
+    fun next(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val seed: Int = Ask.current()
+        val nested: Int = handle {
+            Yield.next()
+        } with {
+            Raise.raise(err: RuntimeError) -> 0
+        }
+        seed + nested
+    } with {
+        Ask.current(), k -> 7
+        Yield.next() -> resume {
+            val _: Int = Boom.boom(11)
+            resume(5)
+        }
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let rows =
+            compute_escape_continuation_direct_step_effect_rows_for_handle(&lowered.types, handle);
+        let row = rows
+            .get(&continuation)
+            .expect("expected a direct-step effect row for escape continuation binder");
+
+        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
+    }
+
+    #[test]
+    fn direct_step_rows_include_hidden_top_level_once_init_effects() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+val hidden: Int = Boom.boom(13)
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val seed: Int = Ask.current()
+        seed + hidden
+    } with {
+        Ask.current(), k -> 7
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let rows = compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
+            &lowered.types,
+            handle,
+            Some(direct_step_program_info(&lowered)),
+        );
+        let row = rows
+            .get(&continuation)
+            .expect("expected a direct-step effect row for escape continuation binder");
+
+        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
+    }
+
     fn effect_row_terms(types: &TypeStore, row: &EffectRow) -> Vec<String> {
         row.terms
             .iter()
             .map(|ty| types.display(*ty).to_string())
             .collect()
+    }
+
+    fn direct_step_program_info(lowered: &hir::LoweredHir) -> DirectStepProgramInfo<'_> {
+        DirectStepProgramInfo {
+            object_inits: &lowered.object_inits,
+            top_level_immutable_values: &lowered.top_level_immutable_values,
+        }
     }
 
     fn only_escape_continuation_symbol(handle: &hir::HandleExpr) -> hir::SymbolId {
