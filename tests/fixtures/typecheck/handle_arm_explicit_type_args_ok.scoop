@@ -1,0 +1,64 @@
+// EXPECT: pass
+// 目标：T4008c3 handler arm head 与 effect-op 主线共享显式 type args 语义：
+// - `Pair<String, Int>.ping(payload)` 以显式 handled effect instance 进入 arm 匹配；
+// - `Query.ask<Int>(seed)` 以显式 op type args 决定 binder / continuation payload 类型；
+// - escape-continuation arm 的 `k.resume(...)` 也读取显式 `<Int>` 后的返回类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Pair<A, B> {
+    fun ping(payload: (A, B)): Int
+}
+
+effect Query {
+    fun <T> ask(seed: Int): T
+}
+
+fun usePair(): Int / Pair<String, Int> {
+    return Pair.ping(("left", 7))
+}
+
+fun handlePair(): Int {
+    return handle {
+        usePair()
+    } with {
+        Pair<String, Int>.ping(payload) -> {
+            val tuple_copy: (String, Int) = payload
+            val (_, n) = tuple_copy
+            n
+        }
+        Pair<Int, String>.ping(payload) -> {
+            val _wrong: (Int, String) = payload
+            0
+        }
+    }
+}
+
+fun handleImmediate(): Int {
+    return handle {
+        Query.ask<Int>(5)
+    } with {
+        Query.ask<Int>(seed) -> resume {
+            val seed_copy: Int = seed
+            resume(seed_copy + 1)
+        }
+    }
+}
+
+fun handleEscape(cell: Box<Continuation<Int>?>): Unit / Raise<RuntimeError> {
+    val _: Unit = handle {
+        val x: Int = Query.ask<Int>(6)
+        val _sink: Int = x
+    } with {
+        Query.ask<Int>(seed), k -> {
+            val seed_copy: Int = seed
+            val cont_copy: Continuation<Int> = k
+            cell.value = Some(cont_copy)
+            cont_copy.resume(seed_copy + 2)
+        }
+    }
+}
+
+class Box<T>(var value: T)

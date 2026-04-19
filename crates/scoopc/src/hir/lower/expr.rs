@@ -2619,6 +2619,13 @@ impl<'a> HirLowering<'a> {
         callee: &ast::Expr,
         args: &[ast::Expr],
     ) -> Option<(ExprKind, TypeId)> {
+        let callee = match &callee.kind {
+            // `Effect.op<T>(...)`：HIR lowering 也把 TypeApply 视为“只包住 callee 的透明外壳”，
+            // 以便 generic effect-op call 与普通 effect-op call 进入同一条 perform lowering 主线。
+            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
+            _ => callee,
+        };
+
         let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
             return None;
         };

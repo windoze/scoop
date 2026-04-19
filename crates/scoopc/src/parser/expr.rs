@@ -952,6 +952,7 @@ impl<'a> Parser<'a> {
                 effect,
                 dot_span,
                 op: ast::Ident::synthetic(synth_span, "raise"),
+                op_type_args: Vec::new(),
                 binders: vec![ast::HandleBinder {
                     span: Span::new(binder_tok.span.start, binder_ty.span().end),
                     name: binder_name,
@@ -1052,7 +1053,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_handle_op(&mut self) -> Result<ast::HandleOp, ParseError> {
-        // effect operation name：`Raise.raise` / `foo.bar.Async.await`（op 为最后一个 segment）
+        // effect operation head：
+        // - `Raise.raise(...)`
+        // - `foo.bar.Async.await(...)`
+        // - `Pair<String, Int>.ping(...)`
+        // - `Query.ask<Int>(...)`
         let first = self.expect_kind(TokenKind::Ident, "effect operation 名（标识符）")?;
         let start = first.span.start;
 
@@ -1066,31 +1071,54 @@ impl<'a> Parser<'a> {
             segments.push(ast::Ident::new(seg.span));
         }
 
-        // 至少要有一个 `.`：`Effect.op(...)`
-        if segments.len() < 2 {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "effect operation（例如 `Raise.raise(...)`）",
-                found: tok.kind,
-                span: tok.span.into(),
-            });
-        }
+        let (effect, dot_span, op) =
+            if self.peek_symbol(Symbol::Lt) && self.type_args_followed_by_dot_ident_at(self.i) {
+                let (args, gt_end) = self.parse_type_args()?;
 
-        let Some(dot_span) = dot_spans.last().copied() else {
-            unreachable!("segments.len()>=2 时应至少消费过一个 dot");
-        };
+                let dot = self.expect_symbol(Symbol::Dot)?;
+                let op_tok = self.expect_kind(TokenKind::Ident, "effect operation 名（标识符）")?;
+                (
+                    ast::TypePath {
+                        span: Span::new(start, gt_end),
+                        segments,
+                        args,
+                    },
+                    dot.span,
+                    ast::Ident::new(op_tok.span),
+                )
+            } else {
+                if segments.len() < 2 {
+                    let tok = *self.peek();
+                    return Err(ParseError::Expected {
+                        expected: "effect operation（例如 `Raise.raise(...)`）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+                }
 
-        let op = segments
-            .pop()
-            .expect("segments.len()>=2 已保证存在 op segment");
+                let dot_span = dot_spans
+                    .pop()
+                    .expect("segments.len()>=2 时应至少消费过一个 dot");
+                let op = segments
+                    .pop()
+                    .expect("segments.len()>=2 已保证存在 op segment");
+                let effect_end = segments.last().map(|x| x.span.end).unwrap_or(start);
+                (
+                    ast::TypePath {
+                        span: Span::new(start, effect_end),
+                        segments,
+                        args: Vec::new(),
+                    },
+                    dot_span,
+                    op,
+                )
+            };
 
-        let effect_start = segments.first().map(|x| x.span.start).unwrap_or(start);
-        let effect_end = segments.last().map(|x| x.span.end).unwrap_or(op.span.end);
-
-        let effect = ast::TypePath {
-            span: Span::new(effect_start, effect_end),
-            segments,
-            args: Vec::new(),
+        let op_type_args = if self.peek_symbol(Symbol::Lt) {
+            let (args, _end) = self.parse_type_args()?;
+            args
+        } else {
+            Vec::new()
         };
 
         let open = self.expect_symbol(Symbol::LParen)?;
@@ -1142,8 +1170,54 @@ impl<'a> Parser<'a> {
             effect,
             dot_span,
             op,
+            op_type_args,
             binders,
         })
+    }
+
+    fn type_args_followed_by_dot_ident_at(&self, idx: usize) -> bool {
+        let Some(after_type_args) = self.after_type_args_index(idx) else {
+            return false;
+        };
+        self.tokens
+            .get(after_type_args)
+            .is_some_and(|tok| tok.kind == TokenKind::Symbol(Symbol::Dot))
+            && self
+                .tokens
+                .get(after_type_args + 1)
+                .is_some_and(|tok| tok.kind == TokenKind::Ident)
+    }
+
+    fn after_type_args_index(&self, idx: usize) -> Option<usize> {
+        let tok = self.tokens.get(idx)?;
+        if tok.kind != TokenKind::Symbol(Symbol::Lt) {
+            return None;
+        }
+
+        let mut depth = 0usize;
+        let mut j = idx;
+        while let Some(tok) = self.tokens.get(j) {
+            match tok.kind {
+                TokenKind::Eof => return None,
+                TokenKind::Symbol(Symbol::Lt) => depth += 1,
+                TokenKind::Symbol(Symbol::Gt) => {
+                    depth = depth.checked_sub(1)?;
+                    if depth == 0 {
+                        return Some(j + 1);
+                    }
+                }
+                TokenKind::Symbol(Symbol::GtGt) => {
+                    depth = depth.checked_sub(2)?;
+                    if depth == 0 {
+                        return Some(j + 1);
+                    }
+                }
+                _ => {}
+            }
+            j = j.saturating_add(1);
+        }
+
+        None
     }
 
     fn recover_to_handle_arm_sync(&mut self) {
@@ -1201,45 +1275,47 @@ impl<'a> Parser<'a> {
             return false;
         }
 
-        // arm head 至少应满足 `Ident . Ident` 的前缀形态；这也避免把 `, k ->` 中的 `k` 误判为 arm 起始。
-        let Some(dot) = self.tokens.get(idx + 1) else {
-            return false;
-        };
-        let Some(second) = self.tokens.get(idx + 2) else {
-            return false;
-        };
-        if dot.kind != TokenKind::Symbol(Symbol::Dot) || second.kind != TokenKind::Ident {
-            return false;
-        }
-
         let mut depth_paren = 0usize;
         let mut depth_brace = 0usize;
         let mut depth_bracket = 0usize;
+        let mut depth_angle = 0usize;
         let mut saw_lparen = false;
+        let mut saw_dot_before_lparen = false;
 
         let mut j = idx;
         while let Some(tok) = self.tokens.get(j) {
             match tok.kind {
                 TokenKind::Eof => return false,
                 TokenKind::Symbol(Symbol::Arrow)
-                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                    if depth_paren == 0
+                        && depth_brace == 0
+                        && depth_bracket == 0
+                        && depth_angle == 0 =>
                 {
-                    return saw_lparen;
+                    return saw_lparen && saw_dot_before_lparen;
                 }
                 TokenKind::Symbol(Symbol::Semicolon)
-                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                    if depth_paren == 0
+                        && depth_brace == 0
+                        && depth_bracket == 0
+                        && depth_angle == 0 =>
                 {
                     return false;
                 }
                 TokenKind::Symbol(Symbol::RBrace)
-                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                    if depth_paren == 0
+                        && depth_brace == 0
+                        && depth_bracket == 0
+                        && depth_angle == 0 =>
                 {
                     // handler list 结束前都没遇到 `->`：不是 arm 起始。
                     return false;
                 }
                 TokenKind::Symbol(sym) => match sym {
-                    Symbol::LParen => {
-                        saw_lparen = true;
+                    Symbol::LParen if depth_angle == 0 => {
+                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                            saw_lparen = true;
+                        }
                         depth_paren += 1;
                     }
                     Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
@@ -1247,6 +1323,18 @@ impl<'a> Parser<'a> {
                     Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
                     Symbol::LBrace => depth_brace += 1,
                     Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::Dot
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                            && !saw_lparen =>
+                    {
+                        saw_dot_before_lparen = true;
+                    }
+                    Symbol::Lt => depth_angle += 1,
+                    Symbol::Gt => depth_angle = depth_angle.saturating_sub(1),
+                    Symbol::GtGt => depth_angle = depth_angle.saturating_sub(2),
                     _ => {}
                 },
                 _ => {}

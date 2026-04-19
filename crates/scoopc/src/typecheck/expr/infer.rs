@@ -9,7 +9,7 @@ use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTyp
 use super::call::{
     GenericArgConstraint, InstantiatedFunSig, check_fn_value_to_any_erasure_gate,
     collect_type_arg_candidates_for_single_type_param, infer_call_expr_type,
-    infer_top_level_fun_value_expr_type, instantiate_fun_sig_for_call,
+    infer_top_level_fun_value_expr_type, instantiate_fun_sig_for_call, lower_effect_op_signature,
     substitute_single_type_param, type_param_name,
 };
 use super::member::{
@@ -28,14 +28,11 @@ use super::stmt::{
 use super::util::expr_kind_name;
 
 use super::lower_type_ref_with_enum_subst;
-use super::{
-    ASYNC_EFFECT_FQN, EnumTypeSubstContext, ExprInferInputs, ExprTypeError, FunSigOwned, TASK_FQN,
-};
+use super::{ASYNC_EFFECT_FQN, EnumTypeSubstContext, ExprInferInputs, ExprTypeError, TASK_FQN};
 
 use super::super::TypeSymbolKind;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::branch_merge;
-use super::super::eff_row_subst::EffRowVarSubstPlan;
 use super::super::lower::TypeLowering;
 use super::super::type_env::EnumVariantInfo;
 use super::super::when_exhaustiveness;
@@ -1296,105 +1293,17 @@ pub(super) fn infer_handle_expr_type(
             });
         }
 
-        // 4) 构造 effect op 的“可实例化签名”：其参数/返回类型允许引用：
-        // - operation 自身的 type params（例如 `fun <T> await(task: Task<T>): T` 中的 `T`）
-        // - effect type 的 type params（例如 `Raise<E>` 中的 `E`）
-        //
-        // 说明：当前 handler arm 的 v0 规则里：
-        // - effect type args 仍需要被确定（用于 handled effect 实例与捕获匹配）；
-        // - op type args 默认允许保持为“未实例化的 type params”（便于表达多态 handler）；
-        //   但当 binder 提供了参数类型注解（`Effect.op(x: T, ...)`）时，允许用这些注解反推并实例化 op type args，
-        //   以支持编写“只处理某个具体实例”的 handler（例如在 stdlib 中只处理 `Task<Int>` 的 `Async.await`）。
-        let mut bindings: Vec<(String, TypeId)> = Vec::new();
-        let mut op_type_params: Vec<TypeId> = Vec::new();
-        for tp in &op.sig.type_params {
-            let param_ty =
-                lower.ty_param_named(tp.name.clone(), op.symbol.decl_file.clone(), tp.name_span);
-            bindings.push((tp.name.clone(), param_ty));
-            op_type_params.push(param_ty);
-        }
-
-        let mut type_params: Vec<TypeId> = Vec::new();
-        for name in &effect_sym.type_param_names {
-            let param_ty =
-                lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
-            type_params.push(param_ty);
-            bindings.push((name.clone(), param_ty));
-        }
-
-        let mut param_names: Vec<String> =
-            Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
-        let mut op_params: Vec<TypeId> =
-            Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
-
-        if let Some(receiver_ref) = &op.sig.receiver {
-            param_names.push("receiver".to_string());
-            let receiver_ty = lower.lower_type_ref_in_decl_file_with_bindings(
-                &op.symbol.decl_file,
-                bindings.clone(),
-                receiver_ref,
-            )?;
-            op_params.push(receiver_ty);
-        }
-
-        for p in &op.sig.params {
-            param_names.push(p.name.clone());
-
-            let Some(ty_ref) = p.ty.as_ref() else {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "handle arm（effect op param missing type）",
-                    span: p.name_span.into(),
-                });
-            };
-
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
-                &op.symbol.decl_file,
-                bindings.clone(),
-                ty_ref,
-            )?;
-            op_params.push(ty);
-        }
-
-        let op_return_ty = match &op.sig.return_ty {
-            Some(ret) => lower.lower_type_ref_in_decl_file_with_bindings(
-                &op.symbol.decl_file,
-                bindings.clone(),
-                ret,
-            )?,
-            None => builtins.unit,
-        };
-
-        let param_count = op_params.len();
-        let sig = FunSigOwned {
-            decl_span: op.symbol.span,
-            decl_file: op.symbol.decl_file.clone(),
-            is_extension: false,
-            is_inline: false,
-            is_const: false,
-            is_unsafe: false,
-            is_nogc: false,
-            is_extern: false,
-            is_intrinsic: false,
-            param_names,
-            param_has_defaults: vec![false; param_count],
-            param_is_vararg: vec![false; param_count],
-            type_params: type_params.clone(),
-            eff_param: None,
-            param_fn_effect_eff_base: vec![None; param_count],
-            param_nominal_eff_eff_base: vec![None; param_count],
-            param_eff_row_var_subst: vec![EffRowVarSubstPlan::None; param_count],
-            return_eff_row_var_subst: EffRowVarSubstPlan::None,
-            params: op_params,
-            return_ty: op_return_ty,
-            effects: None,
-            where_constraints: Vec::new(),
-        };
+        // 4) 复用 effect-op call 的共享签名 lowering：
+        // - receiver effect op 仍按“receiver 作为显式第 0 个参数”进入主线；
+        // - op type params / effect type params 的顺序也与普通 call binder 保持一致。
+        let lowered_sig = lower_effect_op_signature(&op, &effect_sym, lower, builtins)?;
+        let sig = lowered_sig.sig.clone();
 
         // 5) 决定 effect type args：
         // - 优先使用 handler head 上的显式 type args（`Effect<T>.op(...)`）；
         // - 否则从 binder 的类型注解推断；
         // - 再否则尝试从 handle body 内的 performed effects 反推（仅当唯一候选时）。
-        let explicit_args: Vec<TypeId> = arm
+        let explicit_effect_args: Vec<TypeId> = arm
             .op
             .effect
             .args
@@ -1402,9 +1311,12 @@ pub(super) fn infer_handle_expr_type(
             .map(|a| lower.lower_type_ref(a))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let type_args: Vec<TypeId> = if !explicit_args.is_empty() {
-            explicit_args
-        } else if type_params.is_empty() {
+        let mut effect_sig = sig.clone();
+        effect_sig.type_params = lowered_sig.effect_type_params.clone();
+
+        let effect_type_args: Vec<TypeId> = if !explicit_effect_args.is_empty() {
+            explicit_effect_args
+        } else if lowered_sig.effect_type_params.is_empty() {
             Vec::new()
         } else {
             // 先尝试从 binder 的类型注解推断（try/catch lowering 会写回类型注解）。
@@ -1415,7 +1327,11 @@ pub(super) fn infer_handle_expr_type(
                 };
                 let binder_ty = lower.lower_type_ref(ty_ref)?;
                 constraints.push(GenericArgConstraint {
-                    expected: sig.params.get(param_idx).copied().unwrap_or(builtins.unit),
+                    expected: effect_sig
+                        .params
+                        .get(param_idx)
+                        .copied()
+                        .unwrap_or(builtins.unit),
                     found: binder_ty,
                     found_is_placeholder: false,
                     from: format!("handler arm 第 {} 个 binder", param_idx + 1),
@@ -1427,7 +1343,7 @@ pub(super) fn infer_handle_expr_type(
                 instantiate_fun_sig_for_call(
                     &callee_fqn,
                     arm.span,
-                    &sig,
+                    &effect_sig,
                     constraints,
                     lower,
                     builtins,
@@ -1460,11 +1376,18 @@ pub(super) fn infer_handle_expr_type(
             }
         };
 
-        // 6) 基于 type args 实例化 op 参数类型，并计算 handled effect 的实例类型。
-        let mut instantiated = if !type_params.is_empty() && type_args.len() == type_params.len() {
+        // 6) 基于 effect type args 实例化签名，并计算 handled effect 的实例类型。
+        let mut instantiated = if !lowered_sig.effect_type_params.is_empty()
+            && effect_type_args.len() == lowered_sig.effect_type_params.len()
+        {
             let mut params = sig.params.clone();
             let mut return_ty = sig.return_ty;
-            for (param_ty, arg_ty) in type_params.iter().copied().zip(type_args.iter().copied()) {
+            for (param_ty, arg_ty) in lowered_sig
+                .effect_type_params
+                .iter()
+                .copied()
+                .zip(effect_type_args.iter().copied())
+            {
                 for p in &mut params {
                     *p = substitute_single_type_param(*p, param_ty, arg_ty, lower, arm.span)?;
                 }
@@ -1474,14 +1397,14 @@ pub(super) fn infer_handle_expr_type(
             InstantiatedFunSig {
                 params,
                 return_ty,
-                type_args,
+                type_args: effect_type_args.clone(),
             }
         } else {
             // 无 type params 或者推断失败：退回到未实例化的签名。
             InstantiatedFunSig {
                 params: sig.params.clone(),
                 return_ty: sig.return_ty,
-                type_args,
+                type_args: effect_type_args.clone(),
             }
         };
 
@@ -1491,9 +1414,10 @@ pub(super) fn infer_handle_expr_type(
         // 6b) 若 binder 提供了参数类型注解，尝试进一步实例化 **op 自身的** type params。
         //
         // 说明：
-        // - handler arm head 语法不支持 `op<T>(...)` 的显式类型实参；因此这里只能通过 binder 的类型注解反推；
+        // - handler arm head 现允许显式写 `op<T>(...)`；显式实参按与普通 call 相同的“前缀绑定”
+        //   规则先绑定到 op type params；
         // - 若无法从注解中推断出某个 op type param，则保留为未实例化的 type param（仍可表达多态 handler）。
-        if !op_type_params.is_empty() {
+        if !lowered_sig.op_type_params.is_empty() {
             #[derive(Debug, Clone)]
             struct InferredTypeArgSource {
                 from: String,
@@ -1501,6 +1425,37 @@ pub(super) fn infer_handle_expr_type(
             }
 
             let mut inferred: HashMap<TypeId, (TypeId, InferredTypeArgSource)> = HashMap::new();
+            let explicit_op_type_args = arm
+                .op
+                .op_type_args
+                .iter()
+                .map(|a| lower.lower_type_ref(a))
+                .collect::<Result<Vec<_>, _>>()?;
+
+            if explicit_op_type_args.len() > lowered_sig.op_type_params.len() {
+                return Err(ExprTypeError::GenericTypeArgArityMismatch {
+                    callee: callee_fqn.clone(),
+                    expected: lowered_sig.op_type_params.len(),
+                    found: explicit_op_type_args.len(),
+                    span: arm.op.op.span.into(),
+                });
+            }
+
+            for (idx, arg_ty) in explicit_op_type_args.iter().copied().enumerate() {
+                let Some(param_ty) = lowered_sig.op_type_params.get(idx).copied() else {
+                    continue;
+                };
+                inferred.insert(
+                    param_ty,
+                    (
+                        arg_ty,
+                        InferredTypeArgSource {
+                            from: "显式类型实参".to_string(),
+                            span: arm.op.op.span,
+                        },
+                    ),
+                );
+            }
 
             // 仅从 binder 的类型注解生成约束：未注解的 binder 仍视为多态。
             let mut constraints: Vec<GenericArgConstraint> = Vec::new();
@@ -1523,7 +1478,7 @@ pub(super) fn infer_handle_expr_type(
             }
 
             for c in constraints {
-                for param_ty in op_type_params.iter().copied() {
+                for param_ty in lowered_sig.op_type_params.iter().copied() {
                     let mut candidates: Vec<TypeId> = Vec::new();
                     collect_type_arg_candidates_for_single_type_param(
                         c.expected,
@@ -1568,7 +1523,7 @@ pub(super) fn infer_handle_expr_type(
                 }
             }
 
-            for param_ty in op_type_params.iter().copied() {
+            for param_ty in lowered_sig.op_type_params.iter().copied() {
                 let Some((arg_ty, _)) = inferred.get(&param_ty) else {
                     continue;
                 };

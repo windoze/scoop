@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::resolve::{ConeId, ConstructorOverload, Visibility};
+use crate::resolve::{ConeId, ConstructorOverload, FunOverload, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
@@ -23,6 +23,7 @@ use super::super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
 use super::super::lower::TypeLowering;
+use super::super::type_env::TypeSymbol;
 use super::super::{TypeLowerError, TypeSymbolKind};
 
 #[derive(Debug, Clone)]
@@ -3923,75 +3924,47 @@ fn late_resolve_direct_member_fun_fqn_from_receiver_ty(
     }
 }
 
-pub(super) fn infer_effect_op_call_expr_type(
-    inputs: ExprInferInputs<'_>,
-    call_expr: &ast::Expr,
-    member: &ast::MemberIdent,
-    args: &[ast::Expr],
-    explicit_type_args: Option<&[TypeId]>,
+#[derive(Debug, Clone)]
+pub(super) struct LoweredEffectOpSig {
+    pub(super) sig: FunSigOwned,
+    pub(super) op_type_params: Vec<TypeId>,
+    pub(super) effect_type_params: Vec<TypeId>,
+}
+
+pub(super) fn lower_effect_op_signature(
+    op: &FunOverload,
+    effect_sym: &TypeSymbol,
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<TypeId>, ExprTypeError> {
-    let builtins = inputs.builtins;
-
-    let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
-        return Ok(None);
-    };
-
-    let callee_fqn = fqn.clone();
-
-    // 仅当该 member 解析到一个 effect operation 时，本函数才接管类型检查逻辑；
-    // 否则返回 None 让外层继续走 extension/member call 的路径。
-    let op = lower.index().by_fqn.get(&callee_fqn).and_then(|syms| {
-        syms.fun
-            .iter()
-            .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
-            .cloned()
-    });
-    let Some(op) = op else {
-        return Ok(None);
-    };
-
-    // effect op 的 qualifier 必须是 effect type（例如 `Raise.raise`），因此这里从 `a.B.op`
-    // 反推 effect type FQN 为 `a.B`。
-    let Some((effect_ty_fqn, _op_name)) = callee_fqn.rsplit_once('.') else {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "effect op call（bad fqn）",
-            span: member.span.into(),
-        });
-    };
-
-    let Some(effect_sym) = lower.env().type_symbol(effect_ty_fqn).cloned() else {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "effect op call（missing effect type symbol）",
-            span: member.span.into(),
-        });
-    };
-
+    builtins: BuiltinTypes,
+) -> Result<LoweredEffectOpSig, ExprTypeError> {
     // effect op 的 type params 由两部分构成：
     // - operation 自身的 type params：`effect Async { fun <T> await(task: Task<T>): T }`
     // - effect type 的 type params：`effect Raise<in E> { fun raise(error: E): Nothing }`
     //
     // 约定：把 op type params 放在前面，使 `Async.await<Int>(...)` 这类显式 type args
-    // 按"函数泛型"的直觉绑定到 op，而不是 effect type。
+    // 按“函数泛型”直觉绑定到 op，而不是 effect type。
     let mut type_params: Vec<TypeId> = Vec::new();
     let mut bindings: Vec<(String, TypeId)> = Vec::new();
+    let mut op_type_params: Vec<TypeId> = Vec::new();
 
     for tp in &op.sig.type_params {
         let param_ty =
             lower.ty_param_named(tp.name.clone(), op.symbol.decl_file.clone(), tp.name_span);
         type_params.push(param_ty);
+        op_type_params.push(param_ty);
         bindings.push((tp.name.clone(), param_ty));
     }
 
+    let mut effect_type_params: Vec<TypeId> = Vec::new();
     for name in &effect_sym.type_param_names {
         let param_ty =
             lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
         type_params.push(param_ty);
+        effect_type_params.push(param_ty);
         bindings.push((name.clone(), param_ty));
     }
 
-    // Lower effect op 签名：receiver effect op 也统一按“receiver 作为显式第 0 个参数”
-    // 进入调用绑定主线；参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
+    // receiver effect op 也统一按“receiver 作为显式第 0 个参数”进入调用绑定主线。
     let mut param_names: Vec<String> =
         Vec::with_capacity(op.sig.params.len() + usize::from(op.sig.receiver.is_some()));
     let mut params: Vec<TypeId> =
@@ -4011,7 +3984,6 @@ pub(super) fn infer_effect_op_call_expr_type(
         param_names.push(p.name.clone());
 
         let Some(ty_ref) = p.ty.as_ref() else {
-            // headers check 已保证参数类型注解存在；这里保持健壮性。
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "effect op param missing type",
                 span: p.name_span.into(),
@@ -4060,6 +4032,60 @@ pub(super) fn infer_effect_op_call_expr_type(
         effects: None,
         where_constraints: Vec::new(),
     };
+
+    Ok(LoweredEffectOpSig {
+        sig,
+        op_type_params,
+        effect_type_params,
+    })
+}
+
+pub(super) fn infer_effect_op_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    explicit_type_args: Option<&[TypeId]>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let builtins = inputs.builtins;
+
+    let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
+        return Ok(None);
+    };
+
+    let callee_fqn = fqn.clone();
+
+    // 仅当该 member 解析到一个 effect operation 时，本函数才接管类型检查逻辑；
+    // 否则返回 None 让外层继续走 extension/member call 的路径。
+    let op = lower.index().by_fqn.get(&callee_fqn).and_then(|syms| {
+        syms.fun
+            .iter()
+            .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+            .cloned()
+    });
+    let Some(op) = op else {
+        return Ok(None);
+    };
+
+    // effect op 的 qualifier 必须是 effect type（例如 `Raise.raise`），因此这里从 `a.B.op`
+    // 反推 effect type FQN 为 `a.B`。
+    let Some((effect_ty_fqn, _op_name)) = callee_fqn.rsplit_once('.') else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（bad fqn）",
+            span: member.span.into(),
+        });
+    };
+
+    let Some(effect_sym) = lower.env().type_symbol(effect_ty_fqn).cloned() else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（missing effect type symbol）",
+            span: member.span.into(),
+        });
+    };
+
+    let lowered_sig = lower_effect_op_signature(&op, &effect_sym, lower, builtins)?;
+    let sig = lowered_sig.sig;
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
@@ -4152,7 +4178,7 @@ pub(super) fn infer_effect_op_call_expr_type(
     lower.record_typechecked_effect_op_call_binding(call_expr.span, mapping.clone());
 
     // required effects（T0604）：effect op call 视为"立即执行的 perform"，记录到当前函数体的 effects 集合中。
-    let effect_param_count = effect_sym.type_param_names.len();
+    let effect_param_count = lowered_sig.effect_type_params.len();
     let effect_type_args = if effect_param_count == 0 {
         Vec::new()
     } else if effect_param_count <= instantiated.type_args.len() {
@@ -7434,7 +7460,7 @@ pub(super) fn substitute_type_args_in_effect_row(
 /// 说明：
 /// - 该路径只做 substitution，不做类型实参推断；
 /// - 主要用于"无值实参可用于推断"的调用（例如反射 intrinsics：`nameOf<T>()`）。
-fn instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+pub(super) fn instantiate_fun_sig_for_call_with_optional_explicit_type_args(
     callee: &str,
     call_span: Span,
     sig: &FunSigOwned,

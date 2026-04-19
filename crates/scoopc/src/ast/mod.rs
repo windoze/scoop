@@ -48,8 +48,8 @@ pub struct File {
     /// typecheck 写回的“handle arm op span -> handled effect 实例 TypeId” side table。
     ///
     /// 说明：
-    /// - parser 当前不支持在 handle arm head 里显式写 `Effect<T>.op(...)`；
-    /// - HIR lowering 读取该表，才能把 dispatch 建立在真实 handled-effect 合同上。
+    /// - HIR lowering 读取该表，才能把 dispatch 建立在真实 handled-effect 合同上；
+    /// - 对于 `Effect<T>.op<U>(...)` 这类显式 type args 的 arm head，也必须以这里写回的实例类型为准。
     pub(crate) inferred_handle_arm_effect_tys: RefCell<HashMap<Span, TypeId>>,
     /// typecheck 补回的 safe member access 解析结果（按 member name 的源码 span 索引）。
     ///
@@ -1775,16 +1775,32 @@ impl std::fmt::Debug for HandleArm {
     }
 }
 
-/// handler arm head 中的 effect operation：`Effect.op(binders...)`。
+/// handler arm head 中的 effect operation：`Effect<T>.op<U>(binders...)`。
 ///
 /// 注意：这里的 `binders` 是 **参数绑定**（类似模式参数），不是普通调用表达式的实参表达式。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HandleOp {
     pub span: Span,
     pub effect: TypePath,
     pub dot_span: Span,
     pub op: Ident,
+    pub op_type_args: Vec<TypeRef>,
     pub binders: Vec<HandleBinder>,
+}
+
+impl std::fmt::Debug for HandleOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("HandleOp");
+        s.field("span", &self.span);
+        s.field("effect", &self.effect);
+        s.field("dot_span", &self.dot_span);
+        s.field("op", &self.op);
+        if !self.op_type_args.is_empty() {
+            s.field("op_type_args", &self.op_type_args);
+        }
+        s.field("binders", &self.binders);
+        s.finish()
+    }
 }
 
 /// handler arm 的一个参数绑定：`name` 或 `name: Type`。

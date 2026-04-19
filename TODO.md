@@ -1022,16 +1022,28 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008cS
 
-### T4008c3 [TODO] 收口 handler arm head 的 effect-op 绑定主线
-- 说明：
-  - 重新对照最新 `ISSUES.md` 后，除多 type-param / receiver effect op 之外，第 1 条还明确保留了另一条未落地的 surface 限制：handler arm head 仍只接受“早期就被识别成 effect operation 的 AST 形状”，没有与真实的 effect-op call / perform binder 共用同一套绑定语义。
-  - 若不单独补齐这一层，前面 `T4008c1` / `T4008c2` 即便打通了 effect instance 与 receiver payload，handle surface 仍会残留独立门禁，导致 effect 语义继续按源码形状分叉。
+### T4008c3 [DONE] 收口 handler arm head 的 effect-op 绑定主线
 - 范围：
   - handler arm head 与 effect op call / perform 共用同一套 callee 绑定与 effect-instance 实例化语义，不再只接受裸 effect-op 形状。
   - 多 effect type params、receiver effect op 与多 payload binder 在 arm head 上统一进入同一 side table / lowering 主线。
   - 补充对应 parse / typecheck / run-pass regression，覆盖 arm head 不再依赖早期 AST 形状才能匹配 handler。
 - 验收：
   - `ISSUES.md` 第 1 条中“handler arm head 仍只接受 effect operation”的部分收窄或关闭。
+- 已完成：
+  - `crates/scoopc/src/parser/expr.rs` 的 `parse_handle_op` 现同时支持 `Effect<T>.op(...)` 与 `Effect.op<U>(...)` 两种 handler arm head 形态；`looks_like_handle_arm_start_at` 也同步识别带 `<...>` 的 arm head，因此 generic arm head 不再因为 early shape gate 被当成普通表达式，parse recovery 也不会误吞后续 `->`。
+  - `crates/scoopc/src/ast/mod.rs` 的 `HandleOp` 新增 `op_type_args`，`crates/scoopc/src/typecheck/expr/call.rs` 则抽出 `lower_effect_op_signature` 供 effect-op call 与 handler arm 共享；`crates/scoopc/src/typecheck/expr/infer.rs` 不再单独拼接 arm 签名，而是直接复用共享 helper 来处理 effect type args、op type args、receiver 与多 payload binder，并把 handled-effect 实例继续写回同一 side table。
+  - `crates/scoopc/src/hir/lower/expr.rs` 现把 generic effect-op call 的 `TypeApply(callee)` 视为透明包装，因此 `Query.ask<Int>(...)` 这类显式 op type args 调用在 lowering 时仍会进入 `Perform` 主线，不再退回普通 `Call(TypeApply(...))` 分叉。
+  - 已新增回归：
+    - `tests/fixtures/parse/handle_arm_explicit_type_args_basic.scoop`
+    - `tests/fixtures/parse/handle_arm_explicit_type_args_basic.ast`
+    - `tests/fixtures/typecheck/handle_arm_explicit_type_args_ok.scoop`
+    - `tests/fixtures/run-pass/handle_arm_explicit_type_args_basic.scoop`
+    - `tests/fixtures/run-pass/handle_arm_explicit_type_args_basic.stdout`
+- 已验证：
+  - `cargo fmt --check`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1068)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c2
 
 ### T4008c4 [TODO] 扩展 `Continuation.resume` 的调用 surface，并收口 `ImmediateResume` storage contract

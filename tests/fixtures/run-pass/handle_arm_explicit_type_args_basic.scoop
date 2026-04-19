@@ -1,0 +1,101 @@
+// EXPECT: pass
+// EXPECT-EXIT: 23
+// RUN-STDOUT: handle_arm_explicit_type_args_basic.stdout
+//
+// 目标：T4008c3 handler arm head 的显式 type args 不再依赖早期裸 AST 形状：
+// - `Pair<String, Int>.ping(...)` 走 non-resuming arm dispatch；
+// - `Query.ask<Int>(...)` 在 immediate-resume / escape-continuation arm 中都能稳定绑定；
+// - escape arm 恢复后继续执行原 handle body，说明 continuation payload 也已按 `<Int>` 对齐。
+
+import scoop.core.*
+
+effect Pair<A, B> {
+    fun ping(payload: (A, B)): Int
+}
+
+effect Query {
+    fun <T> ask(seed: Int): T
+}
+
+class Cell(var k: Continuation<Int>?, var total: Int)
+
+fun pair_case(): Int {
+    return handle {
+        Pair.ping(("left", 7))
+    } with {
+        Pair<String, Int>.ping(payload) -> {
+            println("pair_payload")
+            val (_, n) = payload
+            println(n)
+            n
+        }
+        Pair<Int, String>.ping(payload) -> {
+            val _wrong = payload
+            println("wrong_pair_arm")
+            0
+        }
+    }
+}
+
+fun immediate_case(): Int {
+    return handle {
+        println("immediate_before")
+        val x: Int = Query.ask<Int>(5)
+        println("immediate_after")
+        println(x)
+        x + 1
+    } with {
+        Query.ask<Int>(seed) -> resume {
+            println("resume_seed")
+            println(seed)
+            resume(seed + 1)
+        }
+    }
+}
+
+fun escape_case(cell: Cell) {
+    val _: Unit = handle {
+        println("escape_before")
+        val x: Int = Query.ask<Int>(6)
+        println("escape_after")
+        println(x)
+        cell.total = x + 1
+    } with {
+        Query.ask<Int>(seed), k -> {
+            println("escape_seed")
+            println(seed)
+            cell.k = Some(k)
+        }
+    }
+}
+
+fun main(): Int {
+    println("pair_result")
+    val pair: Int = pair_case()
+    println(pair)
+
+    println("immediate_result")
+    val immediate: Int = immediate_case()
+    println(immediate)
+
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+    escape_case(cell)
+    println("after_escape_handle")
+
+    when (cell.k) {
+        Some(k) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k.resume(8)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume")
+            }
+        }
+        None -> println("missing_k")
+    }
+
+    println("escape_total")
+    println(cell.total)
+    return pair + immediate + cell.total
+}

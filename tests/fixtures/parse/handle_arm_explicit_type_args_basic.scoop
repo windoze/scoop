@@ -1,0 +1,44 @@
+// EXPECT: pass
+// EXPECT-AST: handle_arm_explicit_type_args_basic.ast
+//
+// 目标：T4008c3 handler arm head 支持显式 effect/op type args：
+// - `Pair<String, Int>.ping(...)` 把 `<String, Int>` 解析为 handled effect 的 type args；
+// - `Query.ask<Int>(...)` 把 `<Int>` 解析为 op 自身的 type args；
+// - 两者都仍保留 binder head，而不是退回普通 call expr。
+
+package fixtures.parse
+
+effect Pair<A, B> {
+    fun ping(payload: (A, B)): Int
+}
+
+effect Query {
+    fun <T> ask(seed: Int): T
+}
+
+fun demo() {
+    val _: Int = handle {
+        Pair.ping(("left", 7))
+    } with {
+        Pair<String, Int>.ping(payload) -> {
+            val (_, n) = payload
+            n
+        }
+    }
+
+    val _ignored: Int = handle {
+        Query.ask<Int>(5)
+    } with {
+        Query.ask<Int>(seed) -> resume {
+            resume(seed + 1)
+        }
+    }
+
+    val _escape: Unit = handle {
+        val _: Int = Query.ask<Int>(6)
+    } with {
+        Query.ask<Int>(seed), k -> {
+            ()
+        }
+    }
+}
