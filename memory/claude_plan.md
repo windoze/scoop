@@ -1,32 +1,85 @@
-# 执行计划记录
+# 执行计划与进度记录
 
-说明：按要求记录本轮执行计划、关键步骤进展与必要调整。这里保留的是可审阅的执行摘要，不包含逐字内部推理。
+## 说明
 
-## 本轮初始计划（2026-04-19）
+按要求先记录本次执行计划与后续进度更新。这里记录的是可审阅的任务分析、执行步骤、决策依据与状态变化，不包含内部推理原文。
 
-1. 检查最新一次 Git 提交，确认提交说明或提交内容里是否提到必须先修复的既有问题。
+## 初始目标
+
+本轮只处理 `TODO.md` 中第一个未完成任务，并在完成后停止。
+
+## 初始执行步骤
+
+1. 检查最新一次提交，确认提交信息或相关变更中是否提到已有问题；如果发现属于当前仓库的既有问题，先修复这些问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认该任务的上下文、依赖和预期交付物。
-4. 判断该任务是否能在本轮完整落地；如果过大或发现前置缺口，则先拆分任务并更新 `TODO.md` / `PLAN.md`。
-5. 实现当前第一个未完成任务，严格避免 workaround；若遇到规范缺口或真实 blocker，则转化为更前置的任务并重排。
-6. 运行与改动直接相关的验证，包括定向测试、必要的全量测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
-7. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或阻塞调整。
-8. 检查工作区差异，提交一次清晰的 Git commit，然后停止，不继续后续任务。
+3. 阅读 `PLAN.md`，理解现有计划与任务依赖。
+4. 查看当前工作区状态，避免覆盖用户已有改动。
+5. 判断第一个未完成任务是否足够小且可直接完成：
+   - 如果可直接完成：实现、补测试、运行相关验证。
+   - 如果过大或被前置缺陷阻塞：在 `PLAN.md`/`TODO.md` 中拆分或重排任务，并只处理新的第一个子任务或阻塞整理。
+6. 更新文档：
+   - 在 `TODO.md` 中标记完成或调整顺序。
+   - 在 `PLAN.md` 中记录当前状态、依赖和后续安排。
+   - 在本文件中同步记录关键进展与计划变更。
+7. 运行必要的格式化、测试与 `clippy`，确保无警告。
+8. 提交本轮改动，提交后停止，不继续下一个任务。
 
-## 本轮进展
+## 预期检查项
 
-- 已写入本轮执行计划。
-- 已检查最新提交、`TODO.md` 与 `PLAN.md`，确认本轮起始任务是复审项 `T4005SR`。
-- 已审阅 `T4005S` 的实现，确认它补齐了 `typecheck -> HIR lowering -> LLVM bind_when_pat` 三层上的 `when` binder 类型回写与恢复。
-- 已用扩展 probe 继续复审 callable-value 主线，结果如下：
-  - `/tmp/t4005sr_local_pattern_function_probe.scoop`：通过，输出 `12`；说明局部 destructuring 函数值调用正常。
-  - `/tmp/t4005sr_when_receiver_function_probe.scoop`：通过，输出 `14`；说明 `when` binder 上的 receiver function value 调用正常。
-  - `/tmp/t4005sr_top_level_named_function_value_probe.scoop`：失败，typecheck 报 `callee_not_callable`。
-  - `/tmp/t4005sr_top_level_pattern_function_probe.scoop`：失败，typecheck 报 `callee_not_callable`。
-  - `/tmp/t4005sr_top_level_funptr_probe.scoop`：失败，LLVM codegen 报 `call callee type`。
-- 已据此定位新的更前置 blocker：问题不再是局部 / `when` pattern binder，而是“顶层 callable value（含顶层 pattern binder / `FunPtr`）调用语义”尚未接入统一主线。
-- 已定位到两处直接根因：
-  - `crates/scoopc/src/typecheck/expr/call.rs` 的 `infer_call_expr_type` 只对顶层 `FunPtr` 做了 direct-call 特判，普通顶层函数值在未命中 `top_level_funs` 时会直接报 `CalleeNotCallable`。
-  - `crates/scoopc/src/llvm/codegen/mod.rs` 的 `codegen_call` 对 `ValueRef::TopLevel` 仍一律按“普通顶层函数名”处理，没有读取顶层 immutable value 的 callable metadata，因此顶层 `FunPtr` call 落入 `call callee type`。
-- 结论：`T4005SR` 不能在本轮标记完成，必须先在它之前插入新的实现任务，收口顶层 callable value 主线，再回到复审。
-- 下一步：更新 `TODO.md` / `PLAN.md`，新增前置任务 `T4005T`，把 `T4005SR` 顺延到其后；随后提交并停止。
+- 最新提交是否暴露已有问题
+- 当前第一个未完成任务的真实依赖
+- 是否存在与规范不一致、不能靠变通绕过的问题
+- 相关测试是否齐全并通过
+- `cargo clippy --all-targets -- -D warnings` 是否通过
+
+## 当前任务确认
+
+- 当前第一个未完成任务：`T4005T`，目标是收口顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义。
+- 最近一次提交没有实现代码，而是把该问题显式登记为新的前置 blocker，因此本轮应直接从 `T4005T` 开始。
+
+## 目前已知问题
+
+- 顶层命名函数值 `val topF: () -> Int = { 11 }; topF()` 在 typecheck 阶段报 `callee_not_callable`。
+- 顶层 pattern binder 产出的函数值 `val (topF, topN): (() -> Int, Int) = ...; topF()` 同样在 typecheck 阶段报 `callee_not_callable`。
+- 顶层 `FunPtr` direct call 可通过 typecheck，但 LLVM codegen 阶段报 `call callee type`。
+
+## 本轮细化计划
+
+1. 复现上述三类失败，保留最小 probe，确认问题边界。
+2. 阅读 typecheck 调用推断与 LLVM `codegen_call` 主线，确认顶层 callable value 的类型与 codegen 元数据在哪一步丢失。
+3. 在不新增顶层专用旁路语义的前提下补齐主线：
+   - 让顶层命名 `val` / 顶层 pattern binder 上的函数值像局部函数值一样通过调用检查；
+   - 让顶层 `FunPtr` direct call 与其它 callable top-level value 共享同一套 lowering / codegen 路径。
+4. 新增最小 run-pass 回归，至少覆盖：
+   - 顶层命名函数值调用；
+   - 顶层 pattern binder 函数值调用；
+   - 顶层 `FunPtr` direct call。
+5. 运行定向验证、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件，提交本轮改动后停止。
+
+## 进度记录
+
+- 已创建本计划文件。
+- 已检查最新提交、`TODO.md`、`PLAN.md` 和工作区状态。
+- 已确认本轮执行任务为 `T4005T`。
+- 已复现三类起始问题：
+  - `/tmp/t4005t_top_level_named_function_value.scoop`：`callee_not_callable`
+  - `/tmp/t4005t_top_level_pattern_function_value.scoop`：`callee_not_callable`
+  - `/tmp/t4005t_top_level_funptr_direct_call.scoop`：`call callee type`
+- 已完成实现：
+  - typecheck 现会在顶层调用未命中 `top_level_funs` 时回查 `top_level_types`，让顶层命名函数值与顶层 pattern binder 函数值复用既有函数值 direct-call 检查；
+  - LLVM `codegen_call` 现会把顶层 callable value 按精确类型分流到“函数值间接调用”或“FunPtr 间接调用”主线，并统一经由 `codegen_top_level_value_ref` 读取顶层值；
+  - 顺带修复了 tuple literal 元素缺少 expected-context 的既有裂缝，closure literal 作为 tuple 元素时不再落入 `expression kind` unsupported。
+- 已新增回归：
+  - `tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `tests/fixtures/run-pass/top_level_callable_value_call_basic.stdout`
+- 已完成定向验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures /tmp/t4005t-fixtures`（`fixtures: ok (1)`）
+- 已完成全量验证：
+  - `cargo fmt --all`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已更新 `TODO.md` 与 `PLAN.md`，将 `T4005T` 标记为完成，并把下一项切换为 `T4005SR`。
+- 当前待办：
+  - 提交本轮改动，然后停止。

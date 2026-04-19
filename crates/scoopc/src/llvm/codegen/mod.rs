@@ -1717,6 +1717,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(at, value_cg, loaded)
     }
 
+    fn codegen_top_level_value_ref(
+        &mut self,
+        span: crate::span::Span,
+        fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T1311：object/companion object 单例值在表达式位置可用：
+        // - 读取单例值应触发一次初始化（init block / 属性 init）；
+        // - 运行期用一个 module-local 的唯一地址作为"单例实例指针"（ref type）。
+        if self.object_inits.contains_key(fqn) {
+            return self.codegen_object_value_access(span, fqn);
+        }
+
+        if let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() {
+            return self.codegen_top_level_const_ref(span, &top_level_const);
+        }
+
+        if let Some(value) = self.top_level_immutable_values.get(fqn).cloned() {
+            return self.codegen_top_level_immutable_value_access(span, &value);
+        }
+
+        // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
+        let Some(var) = self.top_level_vars.get(fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level value ref",
+                at: span.into(),
+            });
+        };
+
+        let cg_ty = self
+            .cg_ty_of(var.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level var type",
+                at: var.span.into(),
+            })?;
+
+        if cg_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+
+        let gv = self.declare_top_level_var_global(var)?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, gv.as_pointer_value(), "load_top_level_var")?;
+
+        Ok(match cg_ty {
+            CgTy::Bool => CgValue::bool(loaded.into_int_value()),
+            CgTy::Float64 | CgTy::Float32 => CgValue::float(loaded.into_float_value(), cg_ty),
+            CgTy::Int(int_ty) => CgValue::int(loaded.into_int_value(), int_ty),
+            CgTy::String => CgValue {
+                ty: CgTy::String,
+                value: Some(loaded.into_pointer_value().into()),
+            },
+            CgTy::Ref => CgValue {
+                ty: CgTy::Ref,
+                value: Some(loaded.into_pointer_value().into()),
+            },
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => CgValue {
+                ty: cg_ty,
+                value: Some(loaded),
+            },
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Never => CgValue::never(),
+        })
+    }
+
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
         self.build_ordinary_callee_suspend_plan_from_unified_contract(
             fun.body.as_ref()?,
@@ -2404,6 +2470,66 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T0618：跨线程 resume（创建线程并 join，避免引入调度器）。
             if fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
                 return self.codegen_sysroot_thread_intrinsics(span, callee.span, fqn, args);
+            }
+
+            if let Some(callee_hir_ty) = self.top_level_value_ty(fqn) {
+                if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_hir_ty)
+                {
+                    let callee_value = self.codegen_top_level_value_ref(callee.span, fqn)?;
+                    let CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(BasicValueEnum::PointerValue(closure_obj_i8)),
+                    } = callee_value
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "function value top-level type",
+                            at: callee.span.into(),
+                        });
+                    };
+                    return self.codegen_function_value_call_from_closure_obj(
+                        span,
+                        callee.span,
+                        closure_obj_i8,
+                        fun_ty,
+                        args,
+                    );
+                }
+
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+                    self.types.kind(callee_hir_ty)
+                    && nominal.fqn == "scoop.unsafe.FunPtr"
+                {
+                    let sig_ty = nominal.args.first().copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr signature type",
+                            at: callee.span.into(),
+                        },
+                    )?;
+                    let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr signature kind",
+                            at: callee.span.into(),
+                        });
+                    };
+
+                    let callee_value = self.codegen_top_level_value_ref(callee.span, fqn)?;
+                    let (funptr_addr, funptr_int_ty) =
+                        callee_value
+                            .as_int()
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr top-level cg type",
+                                at: callee.span.into(),
+                            })?;
+                    return self.codegen_funptr_value_call(
+                        span,
+                        callee.span,
+                        funptr_addr,
+                        funptr_int_ty,
+                        fun_ty,
+                        args,
+                    );
+                }
             }
             return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
         }
@@ -10919,15 +11045,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
-        if args.len() != expected_arity {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function value call arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        // 1) 读取 closure object：`{ header, env_ptr, fn_ptr }`
         let CgTy::Ref = local.ty else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function value local type",
@@ -10941,6 +11058,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(llvm_local_ty, local.ptr, "load_closure_obj")?
             .into_pointer_value();
 
+        self.codegen_function_value_call_from_closure_obj(
+            span,
+            callee_span,
+            closure_obj_i8,
+            fun_ty,
+            args,
+        )
+    }
+
+    fn codegen_function_value_call_from_closure_obj(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        closure_obj_i8: PointerValue<'ctx>,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
+        if args.len() != expected_arity {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function value call arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        // 1) 读取 closure object：`{ header, env_ptr, fn_ptr }`
         let closure_ty = self.llvm_closure_object_type();
         let closure_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let closure_ptr =
@@ -13209,71 +13352,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         v: &hir::ValueRef,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match v {
-            hir::ValueRef::TopLevel { fqn, .. } => {
-                // T1311：object/companion object 单例值在表达式位置可用：
-                // - 读取单例值应触发一次初始化（init block / 属性 init）；
-                // - 运行期用一个 module-local 的唯一地址作为"单例实例指针"（ref type）。
-                if self.object_inits.contains_key(fqn) {
-                    return self.codegen_object_value_access(span, fqn);
-                }
-
-                if let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() {
-                    return self.codegen_top_level_const_ref(span, &top_level_const);
-                }
-
-                if let Some(value) = self.top_level_immutable_values.get(fqn).cloned() {
-                    return self.codegen_top_level_immutable_value_access(span, &value);
-                }
-
-                // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
-                let Some(var) = self.top_level_vars.get(fqn) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level value ref",
-                        at: span.into(),
-                    });
-                };
-
-                let cg_ty = self
-                    .cg_ty_of(var.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level var type",
-                        at: var.span.into(),
-                    })?;
-
-                if cg_ty == CgTy::Unit {
-                    return Ok(CgValue::unit());
-                }
-
-                let gv = self.declare_top_level_var_global(var)?;
-                let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
-                let loaded = self.builder.build_load(
-                    llvm_ty,
-                    gv.as_pointer_value(),
-                    "load_top_level_var",
-                )?;
-
-                Ok(match cg_ty {
-                    CgTy::Bool => CgValue::bool(loaded.into_int_value()),
-                    CgTy::Float64 | CgTy::Float32 => {
-                        CgValue::float(loaded.into_float_value(), cg_ty)
-                    }
-                    CgTy::Int(int_ty) => CgValue::int(loaded.into_int_value(), int_ty),
-                    CgTy::String => CgValue {
-                        ty: CgTy::String,
-                        value: Some(loaded.into_pointer_value().into()),
-                    },
-                    CgTy::Ref => CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(loaded.into_pointer_value().into()),
-                    },
-                    CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => CgValue {
-                        ty: cg_ty,
-                        value: Some(loaded),
-                    },
-                    CgTy::Unit => CgValue::unit(),
-                    CgTy::Never => CgValue::never(),
-                })
-            }
+            hir::ValueRef::TopLevel { fqn, .. } => self.codegen_top_level_value_ref(span, fqn),
             hir::ValueRef::Local { id, .. } => {
                 let local =
                     self.env
@@ -13503,7 +13582,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: elem_expr.span.into(),
                 })?;
 
-            let elem_v = self.codegen_expr(elem_expr)?;
+            // tuple 元素 initializer 也需要带 expected context：
+            // 否则 `({ 11 }, 4)` 这类包含 closure literal 的 tuple 会在元素 codegen 时
+            // 落回“无 expected function type”的通用 `expression kind` unsupported。
+            let elem_v = self.codegen_expr_in_expected_context(elem_expr, Some(elem_cg))?;
             let coerced = self.coerce_value(elem_expr.span, elem_v, elem_cg)?;
 
             let raw: BasicValueEnum<'ctx> = match elem_cg {

@@ -1,0 +1,33 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_callable_value_call_basic.stdout
+//
+// T4005T: 顶层 callable value 需要和局部 callable value 复用同一条调用主线：
+// - 顶层命名 `val` 上的函数值可直接调用；
+// - 顶层 pattern binder 产出的函数值可直接调用；
+// - 顶层 `FunPtr` direct call 不再只在局部 `val fp = ...` 形态下可用。
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_add_int_funptr")
+fun get_add_int_funptr(): FunPtr<(Int, Int) -> Int>
+
+val topNamedF: () -> Int = { 11 }
+val topNamedInit: Int = topNamedF()
+
+val (topPatternF, topPatternN): (() -> Int, Int) = ({ 7 }, 4)
+val topPatternInit: Int = topPatternF() + topPatternN
+
+val topFp: FunPtr<(Int, Int) -> Int> = @Unsafe do { get_add_int_funptr() }
+val topFpInit: Int = @Unsafe do { topFp(1, 2) }
+
+fun main() {
+    println(topNamedF().toString())
+    println(topNamedInit.toString())
+    println((topPatternF() + topPatternN).toString())
+    println(topPatternInit.toString())
+    @Unsafe do {
+        println(topFp(1, 2).toString())
+    }
+    println(topFpInit.toString())
+}

@@ -774,11 +774,11 @@ fn vararg_spread_missing_bridge_hint(
     "；提示：对集合做 spread 前请先显式转换为 `Array<...>`（当前 std v0 的桥接多为 `Int` 专用，例如 `toArray()`）".to_string()
 }
 
-fn infer_function_value_call_expr_type(
+fn infer_function_type_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee_name: &str,
-    callee_decl_span: Span,
+    callee_ty: TypeId,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
@@ -802,14 +802,6 @@ fn infer_function_value_call_expr_type(
             span: call_expr.span.into(),
         });
     }
-
-    let Some(callee_ty) = inputs.locals.get(&callee_decl_span).copied() else {
-        // 防御性：resolver 已把该引用绑定为 local，但 typecheck locals 未包含该 decl。
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "函数值调用（缺少局部绑定类型信息）",
-            span: call_expr.span.into(),
-        });
-    };
 
     let TypeKind::Ref(RefTypeKind::Function(fun)) = lower.type_kind(callee_ty) else {
         return Err(ExprTypeError::CalleeNotCallable {
@@ -940,6 +932,25 @@ fn infer_function_value_call_expr_type(
     }
 
     Ok(fun.return_ty)
+}
+
+fn infer_function_value_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    callee_name: &str,
+    callee_decl_span: Span,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    let Some(callee_ty) = inputs.locals.get(&callee_decl_span).copied() else {
+        // 防御性：resolver 已把该引用绑定为 local，但 typecheck locals 未包含该 decl。
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "函数值调用（缺少局部绑定类型信息）",
+            span: call_expr.span.into(),
+        });
+    };
+
+    infer_function_type_call_expr_type(inputs, call_expr, callee_name, callee_ty, args, lower)
 }
 
 fn infer_funptr_value_call_expr_type(
@@ -2039,6 +2050,7 @@ pub(super) fn infer_call_expr_type(
                     );
                 }
             };
+            let top_level_value_ty = top_level_types.get(&callee_fqn).copied();
 
             // 当前阶段：优先使用"当前文件内"的函数签名信息（支持 return type 推断等回写），
             // 并在缺失时回退到 `Index`（用于 sysroot / 跨文件顶层函数调用）。
@@ -2049,20 +2061,40 @@ pub(super) fn infer_call_expr_type(
                     sigs_from_index =
                         collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
                     if sigs_from_index.is_empty() {
-                        // 顶层值为函数指针：允许 `fp(args...)` 形态调用（必须在 unsafe context）。
-                        if top_level_types
-                            .get(&callee_fqn)
-                            .copied()
-                            .is_some_and(|ty| is_funptr_type(ty, lower))
+                        if explicit_type_args
+                            .as_ref()
+                            .is_some_and(|type_args| !type_args.is_empty())
+                            && top_level_value_ty.is_some()
                         {
+                            return Err(ExprTypeError::CalleeNotCallable {
+                                callee: callee_fqn,
+                                span: callee_span.into(),
+                            });
+                        }
+
+                        if let Some(callee_ty) = top_level_value_ty
+                            && matches!(
+                                lower.type_kind(callee_ty),
+                                TypeKind::Ref(RefTypeKind::Function(_))
+                            )
+                        {
+                            return infer_function_type_call_expr_type(
+                                inputs,
+                                call_expr,
+                                callee_name,
+                                callee_ty,
+                                args,
+                                lower,
+                            );
+                        }
+
+                        // 顶层值为函数指针：允许 `fp(args...)` 形态调用（必须在 unsafe context）。
+                        if top_level_value_ty.is_some_and(|ty| is_funptr_type(ty, lower)) {
                             return infer_funptr_type_call_expr_type(
                                 inputs,
                                 call_expr,
                                 callee_name,
-                                top_level_types
-                                    .get(&callee_fqn)
-                                    .copied()
-                                    .unwrap_or(builtins.any),
+                                top_level_value_ty.unwrap_or(builtins.any),
                                 args,
                                 lower,
                             );

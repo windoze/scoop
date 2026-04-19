@@ -462,7 +462,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005R
 
-### T4005T [TODO] 收口顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
+### T4005T [DONE] 收口顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
 - 说明：
   - 在执行 `T4005SR` 的扩展 probe 时，确认局部 destructuring 与 `when` binder 的函数值调用已经走通，但顶层 callable value 主线仍有独立裂缝：
     - `val topF: () -> Int = { 11 }; fun main() { topF() }` 当前在 typecheck 阶段报 `callee_not_callable`；
@@ -475,6 +475,21 @@
   - 新增最小 run-pass 回归，覆盖顶层命名函数值、顶层 pattern binder 函数值与顶层 `FunPtr` direct call。
 - 验收：
   - 上述三类 probe 均可稳定 build/run，不再出现 `callee_not_callable` 或 `call callee type`。
+- 已完成：
+  - typecheck `infer_call_expr_type` 现会在未命中 `top_level_funs` 时回查 `top_level_types`：顶层命名 `val` 与顶层 pattern binder 产出的函数值会直接复用现有的函数值调用检查，顶层 `FunPtr` 仍复用同一套 direct-call 校验，不再只对 `FunPtr` 留单独旁路。
+  - LLVM `codegen_call` 现会先识别顶层 callable value 的精确 `TypeId`，再把顶层值读取接回既有的函数值 / `FunPtr` 间接调用 helper；`ValueRef::TopLevel` 的读取路径也已收口到统一 `codegen_top_level_value_ref`，不再把 callable top-level value 一律误当成“普通顶层函数名”。
+  - 在补顶层 pattern binder callable 路径时，还顺带修复了一个同源的既有 lowering/codegen 裂缝：tuple literal 元素先前没有按元素类型进入 expected-context，导致 `({ 7 }, 4)` 这类含 closure literal 的 tuple 会在 LLVM 阶段落入 `expression kind` unsupported；当前 tuple literal 已改为和 struct literal 一样按元素类型驱动元素 codegen。
+  - 已新增 `tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`，同时覆盖：
+    - 顶层命名函数值 direct call；
+    - 顶层 pattern binder 函数值 direct call；
+    - 顶层 `FunPtr` direct call；
+    - 上述 callable value 在其它顶层 initializer 中的调用。
+- 已验证：
+  - `cargo fmt --all`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures /tmp/t4005t-fixtures`（`fixtures: ok (1)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005S
 
 ### T4005SR [TODO] Review：确认 callable-value 主线已覆盖 pattern binder
