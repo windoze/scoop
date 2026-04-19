@@ -108,6 +108,8 @@ For moving/compacting GCs, native code MUST NOT retain a raw address of a GC-man
 
 For **long-lived** references that must survive safepoints (e.g. storing a reference in native state, async/proactive I/O completion callbacks, global caches), the toolchain must provide **stable GC handles**: an opaque token that remains stable even if the object moves. The recommended language-level API shape is specified in `SCOOP_FULL_SPEC.md` §15.10.1.
 
+In particular, reactor registrations / completion callbacks / wake tokens should normally store a stable GC handle token rather than a pinned reference. The handle keeps the target object alive across safepoints; pinning is only needed for short-lived raw-address borrowing.
+
 ## 5. Pointer ↔ integer casts
 
 Casting between pointers and integers is inherently unsafe and must only be permitted in an unsafe context (`@Unsafe` function body or `@Unsafe do { ... }` block).

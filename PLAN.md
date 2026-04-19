@@ -1,9 +1,9 @@
-# Scoop：下一轮计划（核心语言 / codegen 优先，Task 次之）
+# Scoop：下一轮计划（核心语言 / codegen 优先，Task core 次之）
 
 > 生成时间：2026-04-18  
 > 历史归档：`PLAN-4.md` / `TODO-4.md`  
 > 依据：`ISSUES.md` 当前审计结果  
-> 本轮主题：在既有核心语言 / codegen 收口基础上，先完成 effect 完整性与 `Task` 设计，再继续推进 `ISSUES.md` 中剩余的规范 gap；executor framework 明确留到下一阶段。
+> 本轮主题：在既有核心语言 / codegen 收口基础上，先完成 effect 完整性与 `Task` core 设计，再继续推进 `ISSUES.md` 中剩余的规范 gap；executor framework 继续留到下一阶段，而当前代码库里 premature / incomplete 的 executor 实现也要从 core/runtime 叙事中移除。
 >
 > 2026-04-18 当前轮完成更新：`T4001` 与 `T4001R` 已完成。`where` 子句现已支持带类型实参的 nominal bound；`TypeEnv` / `TypeLowering` 会保留并具体化 direct supertypes；assignable / 上转规则已改为沿具体化后的 supertype 链做 DFS；`*` 现作为 typecheck 内部 star projection 保留，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图。复审确认上述语义走统一主线，没有新增 `Array` / `Collection` / 单个 interface 的旁路特判，也没有把 star projection 在前端主线上重新降回 `Any`。已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）与 T4001 定向 run-pass（`target/debug/scoop test --fixtures target/t4001r-fixtures/run-pass`，`fixtures: ok (2)`）。当前下一项推进到 `T4002`。
 >
@@ -122,6 +122,8 @@
 > 2026-04-20 当前轮完成更新：`T4008R` 已完成。复审 `typecheck::expr::call::lower_effect_op_signature` / `typecheck::expr::infer::lower_handle_arm_effect_op_sig` / `hir::lower::expr::maybe_lower_effect_op_call` 后确认：effect-op call、receiver effect op 与 handler arm head 继续共享同一套签名 lowering、`arg_mapping` 与 payload tuple metadata，LLVM `codegen_perform_payload_value` 与 state-machine arm binder 只消费 typecheck/HIR side table，没有回流到按 binder 数量、receiver 形态或源码写法补丁选路。复审 `try_infer_continuation_resume_call_expr_type` / `continuation_resume_call_sites` / `codegen_continuation_resume_builtin` / `classify_builtin_suspend_call` 后也确认：`Continuation.resume` 的 surface 仍复用普通 call binder helper，LLVM / state-machine 是否走 builtin 只看 typecheck 写回的 call-site side table，而不再按 member 名、receiver 形状或 payload 个数做语义推断。与此同时，`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / `sysroot/core.scoop` 对 `ImmediateResume` 的表述已继续保持一致：当前仍统一走 GC-managed full-machine lowering，stack-local fast path 仅是 deferred optimization，不属于现行 ABI 合同。已重新验证 `cargo run -q -p scoop_tools -- spec-fixtures check`、`cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前 effect/continuation 针对 `Task` 手动 stepping 的收口与 review 已完成，下一项切换到 `T4009a`。
 >
 > 2026-04-20 当前轮完成更新：`T4009a` 已完成。`spawn { ... }` 的 typecheck / HIR lowering 已不再把 body 绑定死到 `Int`；sysroot `__scoop_task_from_result` / `__scoop_task_join` 现统一承载最小 `spawn/join` 语义，`Task<T>` / `Executor` 在 LLVM 侧也不再映射成 word-sized handle，而是普通 GC-managed object reference。runtime C 已同步切换为 `ScoopTask` / `ScoopExecutor` 对象 ABI：task result transport 统一复用 effect `(word, gc_ref)` 合同，`taskCreate` / `taskCreateManual` / `state` / `result` / `tryStart` / `complete` / `onComplete` 全部改走对象入口，不再把旧 `*_u64_*`/`*_int` symbol 当成公开语义本体。runtime tests 与 run-pass 回归已补到非 `Int` payload（`String`）路径，覆盖 `spawn/join`、`taskCreate<String>`、`Task<String>.onComplete(...)` 与 `Task<String>.complete/result()`。文档复核后确认：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 当前对 `Task<T>` 的主叙事已是 general task object / manual polling 边界，无需为 `T4009a` 额外改写；`crates/scoopc/src/hir/lower/expr.rs` 中 `async { ... }` 最小 immediate-resume 路径仍保守写成 `Task<Int>`，该点属于 `Task.poll()` / `step()` / `Poll<T>` 合同与 async adapter 的后续泛化边界，明确顺延到 `T4009b`，不再把 handle ABI 旧绑定带回主线。已验证 `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo run -q -p scoop_tools -- spec-fixtures check`、`cargo run -q -p scoop -- test`（`fixtures: ok (1072)`）与 `cargo test --all`。当前下一项推进到 `T4009b`。
+>
+> 2026-04-20 当前轮计划调整：结合最新设计讨论，`Task<T>` 的目标已进一步收窄为“普通 Scoop class + lazy/manual polling + private suspended-state carrier”；`async {}` 与 `async fun` 只是 `Task` sugar，语言合同不要求 dedicated executor ABI 或 task-specific special codegen。现有 `runtime/c/scoop_task_executor.c`、`sysroot/task.scoop` / `stdlib/task.scoop` 中 executor-centric surface，以及 LLVM `scoop.task.*` special-case 所代表的方向，被确认是 premature / incomplete / wrong direction：本轮不再继续扩展，而是改为从 current core/runtime 里移除，并把 `spawn` 明确降回 deferred structured-concurrency 议题。与此同时，reactor / OS callback 与 future executor 的 wake token 统一建立在已存在的 stable opaque GC handle 上，而不是 pinned `Task` ref；pin 只用于短时裸地址借出。基于这次重排，P6 现改为 `T4009a1 -> T4009a2 -> T4009a3 -> T4009b -> T4009c -> T4009h -> T4009R`，P9 也从“pinned token model”改写为“stable handle / pin 职责分离”的 FFI 合同。
 
 ## 0. 工作原则
 
@@ -130,7 +132,7 @@
 - 未完成前一条 issue 前，不开始后一条 issue 的实现任务；允许在同一条 issue 内拆子任务，但不得跨条目并行推进。
 - 本轮的目标是“核心语言 / lowering / codegen 收口优先”。只有 effect / `Task` 之前的所有条目完成后，才进入这两项。
 - `Continuation<T, eff E>` 视为 advanced API；`Task<T>` 视为 general API。
-- executor、wakeup、queueing、work-stealing、spawn scheduling 统一留到下一阶段；本轮不把它们纳入完成标准。
+- executor、wakeup、queueing、work-stealing、spawn scheduling 统一留到下一阶段；本轮不把它们纳入完成标准，且当前代码库里 premature 的 executor implementation / special-case 也应视为清理对象，而不是后续设计的既定前提。
 
 ## 1. 顺序总览
 
@@ -150,12 +152,12 @@
 14. 新增 blocker：链式成员访问在非局部 receiver 上的解析 / codegen（已完成）
 15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（已完成：`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性（面向 `Task` 手动 stepping 的收口与 review 已完成：`T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`；剩余 richer async 组合缺口仅保留在 issue 说明中，不再阻塞下一阶段）
-17. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义（当前下一项：`T4009a -> T4009b -> T4009R`）
+17. `ISSUES.md` 第 2 条：`Task` core / async sugar / stable handle wake-token 语义（当前下一项：`T4009a1 -> T4009a2 -> T4009a3 -> T4009b -> T4009c -> T4009h -> T4009R`；`T4009a` 仅保留为历史 ABI 清理记录）
 18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（待开始：`T4010a -> T4010b -> T4010R`）
 19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（待开始：`T4011 -> T4011R`）
 20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
 21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
-22. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 pinned token 模型（待开始：`T4014a -> T4014b -> T4014R`）
+22. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（待开始：`T4014a -> T4014b -> T4014R`）
 23. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（待开始：`T4015a -> T4015b -> T4015c -> T4015R`）
 
 ## 2. 分阶段目标
@@ -188,13 +190,14 @@
 
 - 在核心语言与 codegen feature 收口后，再回头补 effect / continuation 剩余缺口。
 - 目标不是扩 executor，而是把手动 stepping `Task` 所需的 effect 语义补完整，包括更自然的多 suspend 组合、continuation 类型语义与相关 lowering。
-- 当前状态：`T4008` 现已按 `T4008a -> T4008b1a -> T4008b1b -> T4008b2 -> T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R` 全部完成。`T4008R` 复审已确认：effect-op call / receiver effect op / handler arm head 继续共享 `lower_effect_op_signature -> arg_mapping -> payload tuple metadata` 主线；`Continuation.resume` 继续由 typecheck side table 标记 builtin call-site，LLVM / state-machine 不再按 member 名或 receiver 形状猜语义；`ImmediateResume` 的 heap/full-machine 合同也已在 spec/runtime/sysroot 中被明确记为当前实现，stack-local fast path 只作为 deferred optimization 记录。`cargo run -q -p scoop_tools -- spec-fixtures check`、`cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 已重新验证为绿色。P5 阶段面向 `Task` 的 effect 完整性收口到此完成，下一项切换为 P6 的 `T4009a`。
+- 当前状态：`T4008` 现已按 `T4008a -> T4008b1a -> T4008b1b -> T4008b2 -> T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R` 全部完成。`T4008R` 复审已确认：effect-op call / receiver effect op / handler arm head 继续共享 `lower_effect_op_signature -> arg_mapping -> payload tuple metadata` 主线；`Continuation.resume` 继续由 typecheck side table 标记 builtin call-site，LLVM / state-machine 不再按 member 名或 receiver 形状猜语义；`ImmediateResume` 的 heap/full-machine 合同也已在 spec/runtime/sysroot 中被明确记为当前实现，stack-local fast path 只作为 deferred optimization 记录。`cargo run -q -p scoop_tools -- spec-fixtures check`、`cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 已重新验证为绿色。P5 阶段面向 `Task` 的 effect 完整性收口到此完成；P6 已按重排后的 `T4009a1` 继续后续工作。
 
 ### P6. `Task` 设计定型
 
-- 只聚焦 `Task<T>` 本体：pollable object、manual stepping、private continuation state、advanced `Continuation` 隐藏边界。
-- 不在本轮定义 executor interface、wakeup API 或 `spawn` 最终调度模型。
-- 当前状态：`ISSUES.md` 第 2 条仍按 `T4009a -> T4009b -> T4009R` 执行，其中 `T4009a` 已完成：`spawn { ... }` / `join` / `taskCreate` / `onComplete` / `Task<T>` / `Executor` 已脱离 word-sized handle ABI 与旧 `*_u64_*`/`*_int` runtime symbol 绑定，并切到 GC-managed object ABI + `(word, gc_ref)` 结果 transport。当前剩余收口点集中在 `T4009b`：定义 `Task.poll()` / `step()` / `Poll<T>` 合同、隐藏 raw continuation，并把 `async { ... }` 的最小 immediate-resume adapter 从现有 `Task<Int>` 保守路径推广到与 pollable task object 叙事一致的通用边界。下一次调用应从 `T4009b` 开始。
+- 只聚焦 `Task<T>` core：ordinary class、lazy/manual polling、private suspended-state carrier、advanced `Continuation` 隐藏边界。
+- `async {}` 与 `async fun` 都只是 `Task` sugar；语言合同不要求 dedicated executor ABI 或 task-specific special codegen。
+- 当前代码库里的 executor-centric surface / runtime implementation 被视为待移除项；`spawn` / executor / wakeup registration 继续 deferred。
+- 当前状态：`T4009a` 仅保留为历史 ABI 清理记录，不再被视为当前方向的 endorsement。P6 现按 `T4009a1 -> T4009a2 -> T4009a3 -> T4009b -> T4009c -> T4009h -> T4009R` 执行：先统一 `async {}` / `async fun` 为 `Task<T>` sugar，再从 sysroot / stdlib / runtime / LLVM 移除当前 executor-centric surface 与 special-case，实现只保留 `Task<T>` core；随后定义 `Poll<T>` / `Task.poll()` / private suspended-state carrier，并把 `spawn` 明确移出当前 core；最后补齐 stable handle 作为 reactor / wake token 的合同。下一次调用应从 `T4009a1` 开始。
 
 ### P7. 不可变 value semantics 与模式匹配子集
 
@@ -208,8 +211,8 @@
 
 ### P9. FFI / ABI 边界收口
 
-- 聚焦普通 `@Extern` 的 effect-impermeable 边界，以及 `Pinned` 作为 ABI 可见 opaque token 的模型收口。
-- 当前状态：`T4014a -> T4014b -> T4014R` 待开始；依赖 `T4013R`。
+- 聚焦普通 `@Extern` 的 effect-impermeable 边界，以及 stable handle / `Pinned` 的职责分离：stable handle 负责 long-lived identity / wake token，`Pinned` 只负责短时裸地址借出。
+- 当前状态：`T4014a -> T4014b -> T4014R` 待开始；依赖 `T4013R`。其中 task/reactor 侧对 stable handle 的直接需求会先在 `T4009h` 收口，`T4014b` 再统一补齐普通 FFI 的长期合同。
 
 ### P10. const / comptime 扩展
 
@@ -231,14 +234,16 @@
 
 ### C3. `Task` 条目
 
-- `Task<T>` 的通用 API 形状、`Poll<T>` 合同与 manual stepping 语义要固定下来。
+- `Task<T>` 的通用 API 形状、`Poll<T>` 合同与 manual stepping 语义要固定下来，且 `Task<T>` 应能作为普通 Scoop class 成立。
+- `async {}` / `async fun` 必须只是 `Task` sugar；语言合同不要求 task-specific special codegen 或 dedicated executor ABI。
 - raw `Continuation` 不应继续作为通用 async API 暴露；若仍需保留，只能作为 advanced API。
-- executor 仍可留白，但 `Task` 本体不再依赖 executor-centric 的叙事才能成立。
+- 当前代码库里的 executor-centric surface / runtime implementation 要从 core 叙事中移除；future executor 若再引入，应建立在普通 FFI + stable handle 合同之上，而不是当前半成品实现之上。
 
 ## 4. 非目标
 
 - 本轮不完成 executor framework。
 - 本轮不定义 work-stealing、event loop、I/O driver、waker、queueing 或 `spawn` 的最终调度语义。
+- 本轮也不保留或继续扩展当前 runtime executor implementation；这部分是待移除的错误方向，不是临时参考实现。
 - 本轮不扩展与 `ISSUES.md` 当前审计条目无直接关系的 stdlib surface。
 
 ## 5. 最终验收

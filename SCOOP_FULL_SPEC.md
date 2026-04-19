@@ -885,10 +885,12 @@ Key semantics:
 - `await expr` inside an async body desugars to `perform Async.await(expr)`.
 - The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
 - `Task<T>` stores private execution state. Before the first poll it holds an initial entry state; after suspension it may hold an internal continuation; after completion it holds the final result.
+- The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `poll()` contract is preserved.
 - `Task.poll()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.
 - The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.
+- When async/reactor integration eventually needs a long-lived wake token across safepoints, that token should be a stable GC handle (§15.10.1), not a pinned task reference. The task/object needs to stay alive, but it does not need to remain pinned while native code merely stores an opaque identity token.
 
 #### spawn (structured concurrency)
 
@@ -2859,6 +2861,7 @@ Semantics:
 - `GC.handleGet(handle)` returns the current object reference for this handle. The returned reference may point to a different address at different times (object movement is allowed).
 - `GC.handleDrop(handle)` releases the handle. Dropping/forgetting to call `handleDrop` is a resource leak.
 - A GC handle does **not** imply pinning: it does not guarantee a stable object address. If raw pointers into the object are required, the object must additionally be pinned for that duration (see §15.10).
+- Stable GC handles are the intended long-lived token for async I/O completion callbacks, reactor registrations, wakeup identities, and similar native bookkeeping. They keep the object alive but do not pin it; pinning remains a separate short-lived operation only for borrowing raw addresses.
 
 ### 15.11 Type Descriptor Release Callback (FFI-managed Resources)
 

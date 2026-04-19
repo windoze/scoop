@@ -11,7 +11,7 @@
 - 当前剩余实现顺序为：effect / continuation -> `Task` object model -> value semantics / or-pattern -> annotation / `inline` -> FFI / ABI -> const / comptime。
 - 每个实现任务后必须立即做 review 任务；review 只审查生产代码与规范一致性，不以测试命名代替结论。
 - 若某项实现改变公开语义，必须同步 `SCOOP_FULL_SPEC.md`；若涉及运行时合同，还要同步 `SCOOP_RUNTIME.md` 或相关 sysroot 文档。
-- 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、spawn scheduling 相关内容一律留待后续。
+- 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、spawn scheduling 相关内容一律留待后续。当前代码库里 premature / incomplete 的 executor implementation 也应作为待移除项对待，不能继续把它当作 `Task` core 的前提。
 
 ## T4001：泛型约束、参数化超类型与 star projection
 
@@ -1086,10 +1086,11 @@
 
 ## T4009：`Task` 设计定型
 
-### T4009 [TODO] 将 `Task<T>` 从 executor-centric handle ABI 收口为普通 pollable object（拆分执行）
+### T4009 [TODO] 收口 `Task<T>` core，并移除当前代码库中 executor-centric 实现（拆分执行）
 - 说明：
-  - 最新 `ISSUES.md` 第 2 条已把缺口收窄到 object model / lowering contract：`spawn { ... }` 仍要求 body 可赋给 `Int`，`Task<T>` 与 `scoop.task.Executor` 仍直接映射成 word-sized handle，`taskCreate` / `onComplete` / `join` 也仍直连旧 runtime ABI。
-  - 为避免单轮同时改 runtime ABI、sysroot surface 与 async 叙事，现拆分为 `T4009a -> T4009b -> T4009R`：先拆掉 handle ABI 绑定，再定 poll / step / `Poll<T>` 合同与 raw continuation 的隐藏边界。
+  - 最新设计讨论已明确：`Task<T>` 应是普通 Scoop class，`async {}` 与 `async fun` 只是 `Task` sugar；语言合同不要求 task-specific special codegen。
+  - 当前 runtime / sysroot / stdlib / LLVM 中的 executor-centric implementation 与 special-case 已被确认是 premature / incomplete / wrong direction。`T4009a [DONE]` 只保留“脱离旧 handle ABI”的历史清理记录，不再代表 `Executor` / `spawn` / runtime executor 方向应继续扩展。
+  - 因此本组任务重排为 `T4009a1 -> T4009a2 -> T4009a3 -> T4009b -> T4009c -> T4009h -> T4009R`：先统一 async surface，再移除 executor-centric surface 与 special-case，再固定 `Poll<T>` / `Task.poll()` / private suspended-state carrier，把 `spawn` 明确移出当前 core，并补齐 stable handle 作为 wake token 的合同。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 2 条收窄或关闭。
   - `SCOOP_FULL_SPEC.md` 对 `Task` / `Continuation` / async surface 的边界表述一致。
@@ -1106,22 +1107,75 @@
   - `spawn` / `join` / `onComplete` 的 regression 能覆盖“非 `Int` body”“非 handle 直通”与 object-model 相关路径。
 - 依赖：T4009
 
+### T4009a1 [TODO] 统一 `async {}` / `async fun` 为 `Task<T>` sugar
+- 范围：
+  - `async { body }` 的 typecheck / HIR / lowering / 文档统一收口为 lazy `Task<T>` surface，不再保留“吞掉内部 `Async` effect 并直接返回 `T`”的旁路叙事。
+  - `async fun foo(): T` 与 `async { ... }` 共享同一 `Task` desugar 主线；`Task<T>` 作为普通 class 成立，不引入 task-specific special codegen requirement。
+  - 如 `Task` 内部需要 suspended-state / continuation carrier，应保持为私有实现细节，不继续把 raw `Continuation` 暴露成默认 async API。
+- 验收：
+  - `async {}` / `async fun` 对调用者都稳定暴露 `Task<T>`，且叙事与 lowering 主线一致。
+  - `SCOOP_FULL_SPEC.md` / `TODO.md` / 相关 sysroot 文档对 async surface 的表述不再分裂。
+- 依赖：T4009a
+
+### T4009a2 [TODO] 从 core / runtime / sysroot / stdlib 移除当前 executor-centric `Task` surface
+- 范围：
+  - 当前 `Executor` 类型、executor-centric `Task` API、以及围绕它们组织的 stdlib / sysroot surface 不再作为当前 `Task` core 的公开合同。
+  - 当前不完整的 runtime executor implementation（例如 `runtime/c/scoop_task_executor.c`）从代码库主线中移除；保留的仅是 GC、effect/continuation runtime、stable handle 等通用能力。
+  - 如需保留 future executor 的方向，只能以 deferred notes 记录，不能继续以现有 surface / symbol 形式留在 core 叙事里。
+- 验收：
+  - 当前代码库不再把 executor surface 当作 `Task` 语义本体的一部分。
+  - 相关文档、注释与 sysroot surface 中不再把当前 executor implementation 描述成推荐方向。
+- 依赖：T4009a1
+
+### T4009a3 [TODO] 移除 LLVM / runtime 对当前 executor / `scoop.task.*` 的 hard-coded special-case
+- 范围：
+  - LLVM codegen、runtime ABI 与相关 lowering 中，凡是只为当前 executor-centric 方向存在的 `scoop.task.*` / `Executor` / task-runtime special-case 都要移除。
+  - `Task<T>` core 语义应建立在普通对象 / class lowering 与既有 effect / continuation 主线上，而不是继续依赖专门的 executor ABI 分叉。
+  - 保留的 runtime 支撑只限于通用 continuation、GC、stable handle、必要的 effect transport 等基础能力。
+- 验收：
+  - `Task` core 不再依赖当前 executor 专用 ABI / symbol / codegen 分支才能成立。
+  - 任何剩余的 future executor 钩子都被明确标记为 deferred，而不是当前合同的一部分。
+- 依赖：T4009a2
+
 ### T4009b [TODO] 定义 `Task.poll()` / `step()` / `Poll<T>` 合同，并隐藏 raw continuation
 - 范围：
-  - 明确 `Task<T>` 是 general API，`Continuation<T, eff E>` 是 advanced API；Task 内部 continuation state 改为私有实现细节。
+  - 明确 `Task<T>` 是 general API，`Continuation<T, eff E>` 是 advanced API；Task 内部 suspended-state / continuation carrier 改为私有实现细节。
   - 定义 `Task.poll()` / `step()` 与 `Poll<T>` 的对象模型、返回合同与 manual stepping 语义，不依赖 executor framework 才能成立。
-  - 清理 executor-centric、handle-based `Task` 叙事与对应文档；若 stdlib / sysroot surface 需要调整，也在本任务内显式列出同步项。
+  - `Task<T>` 作为普通 class 的内部状态要形成统一叙事：初始 lazy state、pending suspended-state carrier、completed result 三者的可见边界明确；如内部借助 continuation wrapper，也不能把它泄漏成默认 API。
 - 验收：
   - `Task<T>` 可在 manual polling / stepping 下自洽成立，且 raw continuation 不再是默认 async API。
   - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 文档的 `Task` / `Continuation` 边界表述一致。
-- 依赖：T4009a
+- 依赖：T4009a3
+
+### T4009c [TODO] 将 `spawn` / `join` 从当前 `Task` core 语义中移出，并明确留待后续 structured concurrency
+- 范围：
+  - `spawn`、`join`、调度、queueing、wakeup registration 不再作为当前 `Task` core 的定义性语义，也不再驱动 `Task<T>` 的对象模型设计。
+  - 当前代码库中若存在“先执行 body 再包装 completed task”之类的临时 `spawn` 语义，应明确移除、降级或改写为 deferred note，避免继续误导 `Task` 设计。
+  - `SCOOP_FULL_SPEC.md` / `TODO.md` / 相关注释对 structured concurrency 的表述需要同步，不再把当前半实现 surface 说成正在定型中的 core。
+- 验收：
+  - `Task<T>` core 与 `spawn` / `join` / executor scheduling 叙事彻底解耦。
+  - 文档中剩余的 `spawn` 内容只以明确 deferred item 形式出现。
+- 依赖：T4009b
+
+### T4009h [TODO] 收口 stable handle 作为 wake token / reactor identity 的合同
+- 范围：
+  - 复用现有 stable opaque GC handle（`GcHandle.raw: UIntPtr`）作为 reactor / OS callback / future executor 的 wake token，不再以 pinned `Task` ref 作为长期注册形态。
+  - 明确 handle 的 ownership、保活、drop、跨 FFI 传递与回调 round-trip 合同；task/object 在 OS event polling 期间只需要被 handle 保活，不需要保持 pinned。
+  - 收口 stale token / cancelled registration / lookup failure 的语义缺口；若现有语言级 `handleGet` 与 runtime contract 尚不一致，需要把修补或 deferred follow-up 明确写入任务产出。
+  - 明确 `Pinned` 只用于短时裸地址借出，不承担 long-lived identity / wake token 语义。
+- 验收：
+  - reactor / callback / future executor 可统一以 stable handle 识别并唤醒对象，而不是依赖 pin。
+  - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 文档对 handle / pin 的职责划分一致。
+- 依赖：T4009c
 
 ### T4009R [TODO] Review：确认 `Task` 本体已脱离 executor 前提
 - 重点：
-  - `Task` 必须能在 manual polling 下成立。
+  - `Task` 必须能在 manual polling 下成立，且作为普通 Scoop class 自洽。
+  - `async {}` / `async fun` 只能体现为 `Task` sugar，不再依赖 task-specific special codegen 或 executor ABI。
   - raw continuation 不应继续成为易误用的默认 API。
-  - executor 相关内容若仍未设计，只能作为明确的 deferred item 留下。
-- 依赖：T4009b
+  - 当前 executor implementation 已从 core/runtime 叙事中移除；executor 相关内容若仍未设计，只能作为明确的 deferred item 留下。
+  - stable handle / pin 的职责分离要与 `Task` / reactor 叙事一致。
+- 依赖：T4009h
 
 ## T4010：值类型不可变语义与 `with`
 
@@ -1228,11 +1282,12 @@
   - 若未来还要重新引入相关能力，也只能作为显式 deferred design item 留下。
 - 依赖：T4013
 
-## T4014：FFI / ABI 边界与 pinned token
+## T4014：FFI / ABI 边界与 stable handle / pin 职责分离
 
-### T4014 [TODO] 收口普通 `@Extern` 的 effect-impermeable 边界与 `Pinned` ABI model（拆分执行）
+### T4014 [TODO] 收口普通 `@Extern` 的 effect-impermeable 边界与 stable handle / pin 合同（拆分执行）
 - 说明：
-  - 最新 `ISSUES.md` 第 11 条把当前缺口明确拆成两条：普通 FFI 边界仍缺少 “effect / continuation / non-local control 不可穿透” 的明确契约；`Pinned` 也仍不是可直接出现在 ABI 上的 word-sized opaque token。
+  - 最新 `ISSUES.md` 第 11 条当前可收口为两条：普通 FFI 边界仍缺少“effect / continuation / non-local control 不可穿透”的明确契约；long-lived GC object identity 也仍需要以 stable opaque handle 而不是 pin 来跨越 ABI / reactor 边界。
+  - `Pinned` 在本阶段的定位应收窄为“短时裸地址借出”；它不再承担 wake token、long-lived identity 或长期注册语义。
   - 这两条既共享 FFI 边界主题，又会分别影响 typecheck contract 与 sysroot / ABI surface，因此拆分为 `T4014a -> T4014b -> T4014R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 11 条收窄或关闭。
@@ -1241,25 +1296,27 @@
 ### T4014a [TODO] 明确普通 `@Extern` 不能穿透 effect / continuation / non-local control
 - 范围：
   - 普通 `@Extern` ABI 的 typecheck / lowering / runtime contract 明确禁止 effect、continuation 与 non-local control 穿越边界。
-  - `@NoGC`、`Ptr<T>` / `UIntPtr` / handle 桥接与普通 FFI 约束之间的关系要形成统一叙事，而不是继续依赖隐含约定。
+  - `@NoGC`、`Ptr<T>` / `UIntPtr` / stable handle 桥接与普通 FFI 约束之间的关系要形成统一叙事，而不是继续依赖隐含约定。
   - 补充 typecheck / docs / regression，覆盖违规签名、违规调用与允许的显式桥接路径。
 - 验收：
   - 普通 FFI 接口不再暴露隐藏的 GC / effect 语义；边界契约在诊断与文档上都可见。
 - 依赖：T4014
 
-### T4014b [TODO] 将 `Pinned` 收口为可上 ABI 的 opaque token
+### T4014b [TODO] 完善 stable handle 的 FFI / reactor 合同，并把 `Pinned` 收口为短时裸地址借出
 - 范围：
-  - `Pinned` 不再只停留在 `struct Pinned(val value: Any)` 这一库层包装；需要形成像 `FunPtr<F>` 一样可直接出现在 ABI 上的明确 token 模型，或等价的统一 opaque surface。
-  - sysroot / `unsafe.scoop` / runtime ABI 文档中的 pinned bridge 约定要与类型系统可见的 token 形状一致，不再完全依赖 `UIntPtr` / `Ptr<T>` 的手工协议。
-  - 补充 extern signature / round-trip regression，覆盖 pin、传递、回传与 unpin/释放边界。
+  - stable handle（`GcHandle` / `raw: UIntPtr`）要形成统一的 FFI / reactor / callback round-trip 合同，作为 long-lived object identity / wake token 的标准 opaque surface。
+  - handle 的创建、保活、drop、stale token / cancelled registration / lookup failure 边界要在语言文档、runtime 文档与 ABI 叙事中一致；不能再让 pin 与 handle 的职责混杂。
+  - `Pinned` 继续保留为“短时把 GC 对象借成稳定裸地址”的 unsafe bridge；sysroot / runtime 文档中不得再把它描述为长期 token。
+  - 补充 extern signature / round-trip regression，覆盖 handle 传递、回传、drop，以及 pin/unpin 的短时地址借出边界。
 - 验收：
-  - `ISSUES.md` 第 11 条中关于 `Pinned` token model 的剩余描述收窄或关闭。
+  - `ISSUES.md` 第 11 条中关于 stable handle / pin 职责分离的剩余描述收窄或关闭。
 - 依赖：T4014a
 
 ### T4014R [TODO] Review：确认普通 FFI 边界不再隐含 GC / effect 语义
 - 重点：
   - 不允许普通 `@Extern` ABI 继续默许 effect / continuation 穿越。
-  - `Pinned` 不能只是文档口头概念；必须有与 ABI surface 对齐的类型系统表示。
+  - stable handle 必须成为 long-lived identity / wake token 的统一合同；`Pinned` 只能停留在短时裸地址借出语义。
+  - handle / pin 的边界不能只是文档口头概念；必须与 ABI surface 和类型系统叙事对齐。
 - 依赖：T4014b
 
 ## T4015：const / comptime 扩展
