@@ -420,10 +420,41 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004R
 
-### T4005R [TODO] Review：确认 Elvis 不再停留在“语法通过但不可执行”
+### T4005R [DONE] Review：确认 Elvis 不再停留在“语法通过但不可执行”
 - 重点：
   - 不允许保留 parser/typecheck 接受、lowering/codegen 拒绝的裂缝。
+- 完成：
+  - 复审 parser / typecheck / HIR / LLVM 后确认，Elvis 主线已统一收口为 nullable desugar：前端不再把 `?:` 保留到可执行后端的 `Binary(Elvis)` 形态，LLVM 侧也不再依赖单独的 Elvis 二元运算分支才能执行。
+  - 复审同时发现并修复两条残留裂缝：
+    - typecheck 先前仍把 rhs 当成“无 expected type 的独立表达式”推断，导致 `val xs = noneArray ?: []` 错误报 `array_lit_type_annotation_required`；
+    - Elvis 降成 `when` 后，`when` arm 的 expected-context codegen 仍漏接 `Closure`，导致 `val f = noneThunk ?: { 7 }` 在 LLVM 阶段落入 `expression kind` unsupported。
+  - 现已把 Elvis rhs 统一改为使用 lhs nullable inner type 做 expected-context typecheck，并让 `codegen_expr_in_expected_context` 直接接到 `codegen_closure_expr`，使空数组字面量与 lambda rhs 都能沿统一主线可执行。
+  - 已新增 `tests/fixtures/run-pass/elvis_rhs_expected_context_basic.scoop` 回归，覆盖“不依赖外层变量注解、仅靠 lhs inner type 驱动 `[]` 与 `{ 7 }` 定型”的两条路径。
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/elvis_rhs_expected_context_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/elvis_lazy_basic.scoop`
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/elvis_any_tuple_context_basic.scoop`
+  - 临时 probe：`safe-call + Elvis` 组合执行仍保持 lhs 单次求值与 rhs 惰性
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005
+
+### T4005S [TODO] 收口 `when` / pattern binder 中函数值的可调用 lowering / codegen
+- 说明：
+  - 在执行 `T4005R` 的扩展 probe 时，发现一个独立于 Elvis 本身的既有裂缝：`when (some) { Some(g) -> g(); None -> ... }` 这类“pattern binder 承载函数值并立即调用”的场景，当前会在 LLVM 阶段报 `call callee` unsupported。
+  - 该问题说明 callable-value 主线虽然已覆盖普通局部、顶层函数值与 funptr，但对 pattern binder 引入的函数值仍有 lowering / codegen 元数据缺口；若不显式入表，后续继续推进 compilation-unit / RTTI / effect 任务时会把这个核心调用语义裂缝继续带下去。
+- 范围：
+  - `when` / 其它 pattern binder 引入的函数值，需要在 HIR / LLVM 主线上保持可调用元数据，不再退化成不可调用的普通 local ref。
+  - 新增最小 run-pass 回归，覆盖 `Some(f) -> f()` 一类 pattern binder callable 场景。
+- 验收：
+  - pattern binder 引入的函数值与普通局部函数值保持一致，可稳定 build/run。
+- 依赖：T4005R
+
+### T4005SR [TODO] Review：确认 callable-value 主线已覆盖 pattern binder
+- 重点：
+  - 不允许只让普通 `val f = ...; f()` 可调用，而 pattern binder `Some(f) -> f()` 仍走另一套失败路径。
+- 依赖：T4005S
 
 ## T4006：跨文件 / 跨包编译链路
 
@@ -435,7 +466,7 @@
 - 验收：
   - 新增多文件 / 多包 regression。
   - `ISSUES.md` 第 14 条收窄或关闭。
-- 依赖：T4005R
+- 依赖：T4005SR
 
 ### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一
 - 重点：

@@ -12,6 +12,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::UnresolvedIdent { name } => {
                 self.codegen_unresolved_ident(expr.span, name, expected)
             }
+            hir::ExprKind::Closure(closure) => {
+                self.codegen_closure_expr(expr.span, closure, expr.ty)
+            }
             hir::ExprKind::Call { callee, args } => {
                 self.codegen_call(expr.span, callee, args, expected, Some(expr.ty))
             }

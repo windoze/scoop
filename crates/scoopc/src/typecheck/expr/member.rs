@@ -4,6 +4,7 @@ use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
+use super::infer::ExpectedTypeFrom;
 use super::{ExprInferInputs, ExprTypeError};
 
 use super::super::assignable::is_type_assignable;
@@ -75,7 +76,12 @@ pub(super) fn infer_elvis_expr_type(
         }
     };
 
-    let rhs_ty = inputs.infer(lower, rhs)?;
+    let rhs_ty = inputs.infer_in_expected(
+        lower,
+        rhs,
+        inner_ty,
+        ExpectedTypeFrom::new("Elvis `?:` 右操作数（由左侧 nullable 内层类型约束）"),
+    )?;
 
     if !is_type_assignable(rhs_ty, inner_ty, lower, inputs.builtins) {
         return Err(ExprTypeError::ElvisRhsTypeMismatch {

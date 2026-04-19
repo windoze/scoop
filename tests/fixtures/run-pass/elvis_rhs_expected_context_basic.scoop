@@ -1,0 +1,19 @@
+// EXPECT: pass
+// RUN-STDOUT: elvis_rhs_expected_context_basic.stdout
+//
+// T4005R: Elvis rhs 应复用 lhs nullable inner type 作为 expected context，
+// 不能把 rhs 当成“无 expected type 的独立表达式”。
+// - `noneArray ?: []` 需要用 lhs 的 `Array<Int>` 驱动空数组字面量定型；
+// - `noneThunk ?: { 7 }` 需要用 lhs 的 `() -> Int` 驱动 lambda 定型与 codegen。
+
+import scoop.core.*
+
+fun main() {
+    val noneArray: Array<Int>? = None()
+    val fillArray = noneArray ?: []
+    println(fillArray.size().toString())
+
+    val noneThunk: (() -> Int)? = None()
+    val fillThunk = noneThunk ?: { 7 }
+    println(fillThunk().toString())
+}
