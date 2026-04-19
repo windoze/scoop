@@ -79,6 +79,230 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((line, col))
     }
 
+    fn effect_op_call_info_for_span(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Option<&hir::EffectOpCallInfo>, LlvmEmitError> {
+        let site = self.current_call_site(span)?;
+        Ok(self.effect_op_call_sites.get(&site))
+    }
+
+    pub(super) fn handle_payload_tuple_ty_for_span(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Option<TypeId>, LlvmEmitError> {
+        let site = self.current_call_site(span)?;
+        Ok(self.handle_payload_tuple_tys.get(&site).copied())
+    }
+
+    fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
+        match arg {
+            hir::CallArg::Positional(expr) => expr,
+            hir::CallArg::Named { value, .. } => value,
+        }
+    }
+
+    fn build_tuple_cg_value_from_values(
+        &mut self,
+        at: crate::span::Span,
+        tuple_ty: TypeId,
+        elements: &[CgValue<'ctx>],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform payload tuple type",
+                at: at.into(),
+            });
+        };
+        if element_tys.len() != elements.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform payload tuple arity mismatch",
+                at: at.into(),
+            });
+        }
+
+        let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
+        for (idx, (elem_ty, value)) in element_tys.iter().zip(elements.iter()).enumerate() {
+            let elem_cg = self
+                .cg_ty_of(*elem_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform payload tuple element type",
+                    at: at.into(),
+                })?;
+            let coerced = self.coerce_value(at, *value, elem_cg)?;
+            let raw: BasicValueEnum<'ctx> = match elem_cg {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform payload tuple element value",
+                    at: at.into(),
+                })?,
+            };
+            agg = self.builder.build_insert_value(
+                agg,
+                raw,
+                idx as u32,
+                &format!("perform_payload_elem_{idx}"),
+            )?;
+        }
+
+        Ok(CgValue {
+            ty: CgTy::Tuple(tuple_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn codegen_perform_payload_value(
+        &mut self,
+        span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.is_empty() {
+            return Ok(CgValue::unit());
+        }
+
+        let call_info = self.effect_op_call_info_for_span(span)?.cloned();
+        if let Some(tuple_ty) = call_info.as_ref().and_then(|info| info.payload_tuple_ty) {
+            let info = call_info.ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform payload call info",
+                at: span.into(),
+            })?;
+            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty)
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform payload tuple type",
+                    at: span.into(),
+                });
+            };
+            if element_tys.len() != info.arg_mapping.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "perform payload tuple mapping",
+                    at: span.into(),
+                });
+            }
+
+            let mut arg_param_mapping: Vec<Option<usize>> = vec![None; args.len()];
+            for (param_idx, arg_idx) in info.arg_mapping.iter().copied().enumerate() {
+                let Some(slot) = arg_param_mapping.get_mut(arg_idx) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "perform payload arg mapping index",
+                        at: span.into(),
+                    });
+                };
+                *slot = Some(param_idx);
+            }
+
+            let mut evaluated_args: Vec<Option<CgValue<'ctx>>> = vec![None; args.len()];
+            for (arg_idx, arg) in args.iter().enumerate() {
+                let param_idx = arg_param_mapping
+                    .get(arg_idx)
+                    .and_then(|slot| *slot)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "perform payload arg mapping",
+                        at: span.into(),
+                    })?;
+                let expected_ty = self.cg_ty_of(element_tys[param_idx]).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "perform payload expected type",
+                        at: span.into(),
+                    },
+                )?;
+                let expr = Self::call_arg_expr(arg);
+                let value = self.codegen_expr_in_expected_context(expr, Some(expected_ty))?;
+                evaluated_args[arg_idx] = Some(self.coerce_value(expr.span, value, expected_ty)?);
+            }
+
+            let ordered = info
+                .arg_mapping
+                .iter()
+                .copied()
+                .map(|arg_idx| {
+                    evaluated_args.get(arg_idx).and_then(|value| *value).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "perform payload ordered arg",
+                            at: span.into(),
+                        },
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            return self.build_tuple_cg_value_from_values(span, tuple_ty, &ordered);
+        }
+
+        if args.len() > 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform payload tuple side table",
+                at: span.into(),
+            });
+        }
+
+        let expr = Self::call_arg_expr(&args[0]);
+        self.codegen_expr_in_expected_context(expr, None)
+    }
+
+    pub(super) fn read_encoded_perform_slot(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let read_word_fn = self.declare_runtime_effect_perform_slot_read_u64();
+        let word = self
+            .builder
+            .build_call(read_word_fn, &[], "binder_word")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_u64 return",
+                at: at.into(),
+            })?
+            .into_int_value();
+        let read_gc_ref_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
+        let gc_ref = self
+            .builder
+            .build_call(read_gc_ref_fn, &[], "binder_gc_ref")?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform_slot_read_gc_ref return",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+        Ok((word, gc_ref))
+    }
+
+    pub(super) fn read_perform_slot_payload(
+        &mut self,
+        at: crate::span::Span,
+        target: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (word, gc_ref) = self.read_encoded_perform_slot(at)?;
+        self.decode_effect_transport_value(at, word, gc_ref, target)
+    }
+
+    pub(super) fn extract_tuple_payload_element(
+        &mut self,
+        at: crate::span::Span,
+        tuple_payload: CgValue<'ctx>,
+        tuple_ty: TypeId,
+        elem_idx: u32,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, at)?;
+        if elem_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+        let raw = tuple_payload
+            .value
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "perform payload tuple value",
+                at: at.into(),
+            })?;
+        let tuple_v = raw.into_struct_value();
+        let extracted = self.builder.build_extract_value(
+            tuple_v,
+            elem_idx,
+            &format!("perform_payload_tuple_elem_{elem_idx}"),
+        )?;
+        self.cg_value_from_loaded(at, elem_ty, extracted)
+    }
+
     fn emit_effect_set_active_with_trace(
         &mut self,
         span: crate::span::Span,
@@ -945,16 +1169,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .i32_type()
             .const_int(effect_instance_key as u64, false);
 
-        // Evaluate the payload from the first positional/named arg (if any).
-        let payload_val = if args.is_empty() {
-            CgValue::unit()
-        } else {
-            let arg_expr = match &args[0] {
-                hir::CallArg::Positional(expr) => expr,
-                hir::CallArg::Named { value, .. } => value,
-            };
-            self.codegen_expr_in_expected_context(arg_expr, None)?
-        };
+        let payload_val = self.codegen_perform_payload_value(span, args)?;
 
         // Shared effect transport: word / direct GC ref / boxed composite all
         // collapse to the runtime's `(word0, gc_ref)` perform-slot ABI.

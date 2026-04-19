@@ -4143,6 +4143,8 @@ pub(super) fn infer_effect_op_call_expr_type(
         });
     }
 
+    lower.record_typechecked_effect_op_call_binding(call_expr.span, mapping.clone());
+
     // required effects（T0604）：effect op call 视为"立即执行的 perform"，记录到当前函数体的 effects 集合中。
     let effect_param_count = effect_sym.type_param_names.len();
     let effect_type_args = if effect_param_count == 0 {

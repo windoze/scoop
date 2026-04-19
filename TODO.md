@@ -938,7 +938,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c0
 
-### T4008cP [TODO] 收口普通 `perform` lowering 的多实参 payload transport
+### T4008cP [DONE] 收口普通 `perform` lowering 的多实参 payload transport
 - 说明：
   - 在为 `T4008cS` 先做最小 probe 时发现，问题不只出在 state-machine：`crates/scoopc/src/llvm/codegen/effect/mod.rs::codegen_perform_expr` 当前同样只消费第 0 个实参。
   - 最小探针 `fun go(): Int / Edge { return Edge.visit(3, 4) }` + 外层 `handle { go() } with { Edge.visit(from, to) -> ... }` 当前实际输出 `3 / 3` 并返回 `6`，说明第二个 payload 已在普通 callee 的 perform lowering 上被静默丢失。
@@ -950,6 +950,22 @@
 - 验收：
   - 上述最小 probe 不再输出 `3 / 3`，而是稳定得到 `3 / 4` 与返回值 `7`。
   - 为后续 `T4008cS` / `T4008c2` 提供统一的多 payload transport 合同。
+- 已完成：
+  - typecheck 现会为 effect-op 调用记录 `arg_mapping` side table；HIR lowering 继续把它收口为 `EffectOpCallInfo { arg_mapping, payload_tuple_ty }`，并为多 binder handler arm 额外记录 `handle_payload_tuple_tys`，避免 LLVM 再按源码形状猜测 payload 布局。
+  - 普通 `perform` lowering 现对 2+ 实参 effect op 统一走“按源码顺序求值显式实参，再按形参顺序打包成 tuple transport value”的主线；多 payload 会通过既有 `EffectValueBox` 共享 transport ABI 写入 perform slot，不再静默丢掉第 1 个之后的实参。
+  - handler arm 多 binder 读取现会按 `handle_payload_tuple_tys` 一次性解码整组 transported tuple，再按 binder 顺序投影各元素；因此 ordinary callee `perform` 被外层 `handle` 捕获时，多 binder 可稳定看到完整 payload。
+  - 已新增回归：
+    - `tests/fixtures/run-pass/effect_indirect_multi_payload_transport_basic.scoop`
+    - `tests/fixtures/run-pass/effect_indirect_multi_payload_transport_basic.stdout`
+    - `crates/scoopc/src/llvm/mod.rs` 中的 `indirect_multi_payload_perform_boxes_and_unboxes_tuple_transport`
+- 已验证：
+  - 最小 probe `fun go(): Int / Edge { return Edge.visit(3, 4) }` + 外层 `handle { go() } ...` 实际输出 `3`、`4`，进程退出码为 `7`
+  - `cargo test -p scoopc indirect_multi_payload_perform_boxes_and_unboxes_tuple_transport`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_indirect_multi_payload_transport_basic.scoop`（stdout `left / 6`，退出码 `10`）
+  - `cargo fmt --check`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1061)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c1
 
 ### T4008cS [TODO] 支持 effect state-machine 的多实参 perform payload lowering

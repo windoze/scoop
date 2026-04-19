@@ -1,0 +1,27 @@
+// EXPECT: pass
+// EXPECT-EXIT: 10
+// RUN-STDOUT: effect_indirect_multi_payload_transport_basic.stdout
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun go(): Int / Edge {
+    return Edge.visit("left", 6)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Edge.visit(from, to) -> {
+            println(from)
+            println(to)
+            to + 4
+        }
+    }
+}

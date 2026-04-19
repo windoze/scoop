@@ -696,6 +696,25 @@ impl CallSite {
 ///   绑定信息在后端丢失；并且会携带 `source_path`，避免多文件 lowering 时的 span 冲突。
 pub type CtorCallSiteIndex = HashMap<CallSite, CtorCallInfo>;
 
+/// effect-op 调用点绑定信息：统一承载命名/位置实参与多 payload transport 的后端事实。
+///
+/// 说明：
+/// - `arg_mapping[param_idx] = arg_idx` 表示第 `param_idx` 个 effect-op 形参由源码中的
+///   第 `arg_idx` 个显式实参提供；
+/// - `payload_tuple_ty` 仅在 2+ payload 时存在，表示后端 transport 采用的“按形参顺序打包”的 tuple 类型；
+/// - 该 side table 不影响 `dump-hir` 输出稳定性。
+#[derive(Debug, Clone)]
+pub struct EffectOpCallInfo {
+    pub arg_mapping: Vec<usize>,
+    pub payload_tuple_ty: Option<TypeId>,
+}
+
+/// effect-op 调用点索引：`source_path + call span` → 已确认的参数绑定与 transport tuple。
+pub type EffectOpCallSiteIndex = HashMap<CallSite, EffectOpCallInfo>;
+
+/// handler arm 多 binder payload tuple 索引：`source_path + op head span` → tuple `TypeId`。
+pub type HandlePayloadTupleSiteIndex = HashMap<CallSite, TypeId>;
+
 /// `nominal FQN -> ast::TypeKind` 的索引（由 HIR lowering 构建，供后端识别 effect/class/interface/...）。
 pub type NominalKindIndex = HashMap<String, ast::TypeKind>;
 

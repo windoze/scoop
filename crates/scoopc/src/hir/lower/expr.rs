@@ -1053,6 +1053,13 @@ impl<'a> HirLowering<'a> {
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
+    fn typechecked_effect_op_call_binding(
+        &self,
+        span: Span,
+    ) -> Option<crate::ast::EffectOpCallBinding> {
+        self.file.typechecked_effect_op_call_binding(span)
+    }
+
     fn typechecked_top_level_fun_value_ref(&mut self, span: Span) -> Option<(String, Vec<TypeId>)> {
         let typecheck_types = self.typecheck_types?;
         let fun_ref = self.file.top_level_fun_value_ref(span)?;
@@ -2630,10 +2637,31 @@ impl<'a> HirLowering<'a> {
         let effect_ty = self
             .typechecked_performed_effect_ty(call_span)
             .unwrap_or(self.builtins.any);
-        let args = args
+        let args: Vec<CallArg> = args
             .iter()
             .map(|arg| self.lower_call_arg(pkg_prefix, arg))
             .collect();
+        let arg_mapping = self
+            .typechecked_effect_op_call_binding(call_span)
+            .map(|binding| binding.arg_mapping)
+            .unwrap_or_else(|| (0..args.len()).collect());
+        let payload_tuple_ty = if args.len() > 1 {
+            let mut elements = Vec::with_capacity(arg_mapping.len());
+            for &arg_idx in &arg_mapping {
+                let arg = args.get(arg_idx)?;
+                elements.push(Self::call_arg_value_ty(arg));
+            }
+            Some(self.types.ty_tuple(elements))
+        } else {
+            None
+        };
+        self.effect_op_call_sites.insert(
+            self.call_site(call_span),
+            super::super::EffectOpCallInfo {
+                arg_mapping,
+                payload_tuple_ty,
+            },
+        );
         Some((
             ExprKind::Perform {
                 effect_ty,
@@ -3183,7 +3211,14 @@ impl<'a> HirLowering<'a> {
             .binders
             .iter()
             .map(|b| self.lower_handle_binder(b))
-            .collect();
+            .collect::<Vec<_>>();
+        if binders.len() > 1 {
+            let tuple_ty = self
+                .types
+                .ty_tuple(binders.iter().map(|binder| binder.ty).collect());
+            self.handle_payload_tuple_tys
+                .insert(self.call_site(op.span), tuple_ty);
+        }
 
         HandleOp {
             span: op.span,
@@ -3218,6 +3253,13 @@ impl<'a> HirLowering<'a> {
                 value: self.lower_expr(pkg_prefix, value),
             },
             _ => CallArg::Positional(self.lower_expr(pkg_prefix, arg)),
+        }
+    }
+
+    fn call_arg_value_ty(arg: &CallArg) -> TypeId {
+        match arg {
+            CallArg::Positional(expr) => expr.ty,
+            CallArg::Named { value, .. } => value.ty,
         }
     }
 

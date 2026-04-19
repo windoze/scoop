@@ -469,6 +469,12 @@ pub(crate) struct TypeLowering<'a> {
     /// - 记录 `foo` / `foo<T>` 在值位置被视作函数值时的精确目标；
     /// - HIR lowering 读取后把它们合成为 closure object，而不是误走顶层值读取路径。
     top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
+    /// typecheck 选中的 effect-op 调用绑定信息。
+    ///
+    /// 用途：
+    /// - 记录 effect-op 调用点按形参顺序归一化后的实参映射；
+    /// - HIR lowering / codegen 读取后统一处理命名实参与多 payload transport。
+    typechecked_effect_op_call_bindings: HashMap<Span, ast::EffectOpCallBinding>,
     /// typecheck 选中的 ctor 调用绑定信息。
     ///
     /// 用途：
@@ -593,6 +599,7 @@ impl<'a> TypeLowering<'a> {
             non_pure_continuation_resume_call_sites: HashSet::new(),
             escape_continuation_effect_rows: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
+            typechecked_effect_op_call_bindings: HashMap::new(),
             typechecked_ctor_call_bindings: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
@@ -1342,6 +1349,15 @@ impl<'a> TypeLowering<'a> {
             .insert(expr_span, ast::TopLevelFunValueRef { fqn, type_args });
     }
 
+    pub(super) fn record_typechecked_effect_op_call_binding(
+        &mut self,
+        call_span: Span,
+        arg_mapping: Vec<usize>,
+    ) {
+        self.typechecked_effect_op_call_bindings
+            .insert(call_span, ast::EffectOpCallBinding { arg_mapping });
+    }
+
     pub(super) fn record_typechecked_ctor_call_binding(
         &mut self,
         call_span: Span,
@@ -1399,6 +1415,12 @@ impl<'a> TypeLowering<'a> {
         &mut self,
     ) -> HashMap<Span, ast::TopLevelFunValueRef> {
         std::mem::take(&mut self.top_level_fun_value_refs)
+    }
+
+    pub(super) fn take_typechecked_effect_op_call_bindings(
+        &mut self,
+    ) -> HashMap<Span, ast::EffectOpCallBinding> {
+        std::mem::take(&mut self.typechecked_effect_op_call_bindings)
     }
 
     pub(super) fn take_typechecked_ctor_call_bindings(

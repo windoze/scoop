@@ -88,6 +88,15 @@ pub struct File {
     /// - HIR lowering 读取它，把该表达式合成为零捕获 closure，而不是误当成普通顶层值读取；
     /// - `type_args` 保留 typecheck 阶段的具体实例化结果，供后续 monomorphized FQN 选择复用。
     pub(crate) top_level_fun_value_refs: RefCell<HashMap<Span, TopLevelFunValueRef>>,
+    /// typecheck 选中的 effect-op 调用绑定信息（按调用 span 索引）。
+    ///
+    /// 说明：
+    /// - `arg_mapping[param_idx] = arg_idx` 表示 effect op 的第 `param_idx` 个形参由源码中的
+    ///   第 `arg_idx` 个显式实参提供；
+    /// - HIR lowering / LLVM codegen 读取它，把多 payload transport 收口到“按形参顺序组织 payload，
+    ///   但按源码顺序求值显式实参”的统一主线；
+    /// - 避免 perform lowering 再按命名 / 位置实参形状重新猜测 payload 布局。
+    pub(crate) typechecked_effect_op_call_bindings: RefCell<HashMap<Span, EffectOpCallBinding>>,
     /// typecheck 选中的 ctor 调用绑定信息（按调用 span 索引）。
     ///
     /// 说明：
@@ -200,6 +209,20 @@ impl File {
         self.top_level_fun_value_refs.borrow().get(&span).cloned()
     }
 
+    pub fn replace_typechecked_effect_op_call_bindings(
+        &self,
+        bindings: HashMap<Span, EffectOpCallBinding>,
+    ) {
+        *self.typechecked_effect_op_call_bindings.borrow_mut() = bindings;
+    }
+
+    pub fn typechecked_effect_op_call_binding(&self, span: Span) -> Option<EffectOpCallBinding> {
+        self.typechecked_effect_op_call_bindings
+            .borrow()
+            .get(&span)
+            .cloned()
+    }
+
     pub fn replace_typechecked_ctor_call_bindings(&self, bindings: HashMap<Span, CtorCallBinding>) {
         *self.typechecked_ctor_call_bindings.borrow_mut() = bindings;
     }
@@ -216,6 +239,11 @@ impl File {
 pub struct TopLevelFunValueRef {
     pub fqn: String,
     pub type_args: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EffectOpCallBinding {
+    pub arg_mapping: Vec<usize>,
 }
 
 #[derive(Debug, Clone)]

@@ -653,6 +653,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         interfaces: &lowered.interfaces,
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
+        effect_op_call_sites: &lowered.effect_op_call_sites,
+        handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
         non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
         when_pat_binding_tys: &lowered.when_pat_binding_tys,
@@ -783,6 +785,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
             interfaces: &lowered.interfaces,
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
+            effect_op_call_sites: &lowered.effect_op_call_sites,
+            handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
             non_pure_continuation_resume_call_sites: &lowered
                 .non_pure_continuation_resume_call_sites,
@@ -871,6 +875,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         interfaces: &lowered.interfaces,
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
+        effect_op_call_sites: &lowered.effect_op_call_sites,
+        handle_payload_tuple_tys: &lowered.handle_payload_tuple_tys,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
         non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
         when_pat_binding_tys: &lowered.when_pat_binding_tys,
@@ -2114,6 +2120,121 @@ fun main(): Int {
         assert!(
             ir.contains("@scoop_effect_perform_slot_read_u64_at"),
             "IR 应包含对 scoop_effect_perform_slot_read_u64_at 的引用"
+        );
+    }
+
+    #[test]
+    fn indirect_multi_payload_perform_boxes_and_unboxes_tuple_transport() {
+        let source = SourceFile::new_virtual(
+            "main.scoop",
+            r#"
+package a
+
+import scoop.core.*
+
+effect Edge {
+    fun visit(from: String, to: Int): Int
+}
+
+fun go(): Int / Edge {
+    return Edge.visit("left", 6)
+}
+
+fun main(): Int {
+    return handle {
+        go()
+    } with {
+        Edge.visit(from, to) -> to + 4
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let mut ast = parse_file(&source).unwrap();
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers = crate::resolve::check_file_headers(&source, &ast, &index).unwrap();
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers).unwrap();
+
+        let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        crate::typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+        crate::typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+        let files_to_lower = vec![(&source, &ast)];
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &files_to_lower,
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+
+        let (source_map, entry_source_id) = build_single_file_source_map(&session, &source);
+        let ir =
+            emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+            "ordinary callee perform should still write through the shared gc-ref transport entrypoint"
+        );
+        assert!(
+            ir.contains("rt_alloc_effect_value_box"),
+            "multi-payload perform should box the whole tuple payload instead of dropping extra args"
+        );
+        assert!(
+            ir.contains("effect_value_box_payload"),
+            "handler binder lowering should unbox the transported tuple payload before reading multiple binders"
+        );
+        assert!(
+            !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
+            "multi-payload perform should not fall back to the single-word slot write ABI"
         );
     }
 

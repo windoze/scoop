@@ -3319,8 +3319,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: arm.span.into(),
             })?;
 
+        let multi_binder_payload = if arm.op.binders.len() > 1 {
+            let tuple_ty = self.handle_payload_tuple_ty_for_span(arm.op.span)?.ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle multi-binder payload tuple",
+                    at: arm.op.span.into(),
+                },
+            )?;
+            Some((
+                tuple_ty,
+                self.read_perform_slot_payload(arm.op.span, CgTy::Tuple(tuple_ty))?,
+            ))
+        } else {
+            None
+        };
+
         // Set up binder locals: read from perform slot and store to frame slots.
-        for binder in &arm.op.binders {
+        for (binder_idx, binder) in arm.op.binders.iter().enumerate() {
             let binder_cg_ty =
                 self.cg_ty_of(binder.ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -3328,8 +3343,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: binder.span.into(),
                     })?;
 
-            // Read the binder value from the TLS perform slot.
-            let binder_val = self.read_binder_from_perform_slot(binder.span, binder_cg_ty)?;
+            let binder_val = if let Some((tuple_ty, payload)) = multi_binder_payload {
+                self.extract_tuple_payload_element(
+                    binder.span,
+                    payload,
+                    tuple_ty,
+                    binder_idx as u32,
+                )?
+            } else {
+                self.read_binder_from_perform_slot(binder.span, binder_cg_ty)?
+            };
 
             // If there's a frame slot for this binder, store to frame.
             if let Some(field_index) = contract.frame().get_slot_field_index(binder.id) {
@@ -3573,29 +3596,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         cg_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let read_word_fn = self.declare_runtime_effect_perform_slot_read_u64();
-        let word = self
-            .builder
-            .build_call(read_word_fn, &[], "binder_word")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_u64 return",
-                at: at.into(),
-            })?
-            .into_int_value();
-        let read_gc_ref_fn = self.declare_runtime_effect_perform_slot_read_gc_ref();
-        let gc_ref = self
-            .builder
-            .build_call(read_gc_ref_fn, &[], "binder_gc_ref")?
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "perform_slot_read_gc_ref return",
-                at: at.into(),
-            })?
-            .into_pointer_value();
-        self.decode_effect_transport_value(at, word, gc_ref, cg_ty)
+        self.read_perform_slot_payload(at, cg_ty)
     }
 
     fn allocate_registered_handler_frames(

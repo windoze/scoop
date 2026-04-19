@@ -67,6 +67,10 @@ struct HirLowering<'a> {
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
     /// 把 resolver 的 call candidates 保留下来，供 LLVM codegen 决定“这是 ctor call”。
     ctor_call_sites: CtorCallSiteIndex,
+    /// effect-op 调用点绑定信息：`source_path + call span` → arg_mapping / payload tuple。
+    effect_op_call_sites: super::EffectOpCallSiteIndex,
+    /// handler arm 多 binder payload tuple 索引：`source_path + op head span` → tuple `TypeId`。
+    handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex,
     /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
     top_level_vars: super::TopLevelVarIndex,
     /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
@@ -154,6 +158,8 @@ impl<'a> HirLowering<'a> {
             delegated_properties,
             default_arg_funs: HashMap::new(),
             ctor_call_sites: HashMap::new(),
+            effect_op_call_sites: HashMap::new(),
+            handle_payload_tuple_tys: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -1386,6 +1392,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         file,
         member_funs,
         mut ctor_call_sites,
+        effect_op_call_sites,
+        handle_payload_tuple_tys,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -1406,6 +1414,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let file = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
+        let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -1414,6 +1424,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             file,
             member_funs,
             ctor_call_sites,
+            effect_op_call_sites,
+            handle_payload_tuple_tys,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -1490,6 +1502,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         interfaces,
         class_itables,
         ctor_call_sites,
+        effect_op_call_sites,
+        handle_payload_tuple_tys,
         continuation_resume_call_sites,
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
@@ -1546,6 +1560,8 @@ pub fn lower_for_compilation_unit(
         file_hir,
         member_funs,
         mut ctor_call_sites,
+        effect_op_call_sites,
+        handle_payload_tuple_tys,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -1566,6 +1582,8 @@ pub fn lower_for_compilation_unit(
         let file_hir = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
+        let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
@@ -1574,6 +1592,8 @@ pub fn lower_for_compilation_unit(
             file_hir,
             member_funs,
             ctor_call_sites,
+            effect_op_call_sites,
+            handle_payload_tuple_tys,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -1628,6 +1648,8 @@ pub fn lower_for_compilation_unit(
         interfaces,
         class_itables,
         ctor_call_sites,
+        effect_op_call_sites,
+        handle_payload_tuple_tys,
         continuation_resume_call_sites,
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
@@ -1697,6 +1719,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     let mut items: Vec<Item> = Vec::new();
     let mut member_funs: Vec<FunDecl> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
+    let mut effect_op_call_sites: super::EffectOpCallSiteIndex = HashMap::new();
+    let mut handle_payload_tuple_tys: super::HandlePayloadTupleSiteIndex = HashMap::new();
     let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
         ContinuationResumeCallSiteIndex::new();
     let mut non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex =
@@ -1711,6 +1735,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
             file_hir,
             file_member_funs,
             file_ctor_call_sites,
+            file_effect_op_call_sites,
+            file_handle_payload_tuple_tys,
             file_top_level_vars,
             file_top_level_consts,
             file_top_level_immutable_values,
@@ -1733,6 +1759,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
             let pkg_prefix = package_prefix(source, file.package.as_ref());
             let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+            let effect_op_call_sites = std::mem::take(&mut ctx.effect_op_call_sites);
+            let handle_payload_tuple_tys = std::mem::take(&mut ctx.handle_payload_tuple_tys);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
@@ -1742,6 +1770,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
                 file_hir,
                 file_member_funs,
                 ctor_call_sites,
+                effect_op_call_sites,
+                handle_payload_tuple_tys,
                 file_top_level_vars,
                 file_top_level_consts,
                 file_top_level_immutable_values,
@@ -1750,6 +1780,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         };
 
         ctor_call_sites.extend(file_ctor_call_sites);
+        effect_op_call_sites.extend(file_effect_op_call_sites);
+        handle_payload_tuple_tys.extend(file_handle_payload_tuple_tys);
         continuation_resume_call_sites.extend(
             file.continuation_resume_call_sites()
                 .into_iter()
@@ -1870,6 +1902,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         interfaces,
         class_itables,
         ctor_call_sites,
+        effect_op_call_sites,
+        handle_payload_tuple_tys,
         continuation_resume_call_sites,
         non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
