@@ -2388,10 +2388,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         match &expr.kind {
             hir::ExprKind::Missing
             | hir::ExprKind::Literal(_)
-            | hir::ExprKind::VarRef(_)
             | hir::ExprKind::UnresolvedIdent { .. }
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
+            hir::ExprKind::VarRef(value_ref) => self.classify_hidden_suspend_var_ref(value_ref).is_some(),
             hir::ExprKind::StructLit { fields, .. } => fields
                 .iter()
                 .any(|field| self.expr_contains_suspend_subtree(&field.value)),

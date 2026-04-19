@@ -2634,6 +2634,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | SuspendSiteKind::CallStateMachineCallee { .. }
                 | SuspendSiteKind::RuntimeRaise { .. }
                 | SuspendSiteKind::ObjectInitAccess { .. }
+                | SuspendSiteKind::TopLevelValueInitAccess { .. }
                 | SuspendSiteKind::ClassCtorInit { .. }
                 | SuspendSiteKind::NestedHandleBoundary { .. }
         )

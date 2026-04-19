@@ -276,7 +276,7 @@
 
 ## T4004：顶层 `val` pattern binding
 
-### T4004 [TODO] 打通顶层 `val` 的 pattern binding（拆分执行）
+### T4004 [DONE] 打通顶层 `val` 的 pattern binding（拆分执行）
 - 说明：
   - 复查 spec §4.2 / Appendix B.11 后确认 destructuring 仅适用于 `val`；`var` 不支持 destructuring patterns，因此原“顶层 `val` / `var`”表述收窄为“顶层 `val`”。
   - 顶层版本还同时跨越“binder 符号安装 / 类型收集”和“once-init lowering / codegen”两条主线；其中前者在落地时又拆出了“显式整体类型注解路径”和“initializer 驱动推断 + 跨文件可见性”两块。
@@ -284,6 +284,9 @@
 - 验收：
   - 子任务全部完成后，顶层 tuple / struct / enum destructuring 可跨文件引用并稳定执行。
   - `ISSUES.md` 第 6 条收窄或关闭。
+- 完成：
+  - `T4004a1` / `T4004a2` / `T4004b` / `T4004R` 已全部完成；顶层 tuple / struct / enum pattern `val` 现已同时打通 parser / resolver / typecheck / 跨文件值类型可见性 / HIR / LLVM once-init / state-machine hidden boundary 主线。
+  - 复审阶段额外发现并修复了一个既有裂缝：当顶层 pattern binder 在 `handle` / `try` 的 state-machine 路径里触发隐藏 check `Raise.raise(RuntimeError.*)` 时，旧实现会因漏接 `TopLevelValueInitAccess` 的 hidden suspend 处理而把 guard 的 `initializing` 状态误判为递归初始化，直接 `exit(1)`；现已统一改为沿 active/inactive boundary 进入 handler dispatch。
 - 依赖：T4003TR
 
 ### T4004a [DONE] 将顶层 `val` pattern binder 的静态接入拆分为“显式注解路径”与“推断 / 跨文件路径”
@@ -371,9 +374,24 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004a2
 
-### T4004R [TODO] Review：确认顶层与局部 pattern binding 复用同一套语义
+### T4004R [DONE] Review：确认顶层与局部 pattern binding 复用同一套语义
 - 重点：
   - 不接受“顶层单独走一套 ad-hoc lowering”。
+- 完成：
+  - 已复审 `lower_top_level_pattern_val_items -> synth_pattern_runtime_check_expr / synth_pattern_binding_init_expr` 与 `lower_local_pattern_val_stmt` 主线：顶层 pattern binder 的运行期校验、tuple/struct/variant 投影与 payload 提取直接复用局部 destructuring helper，没有新增顶层专用的 pattern 投影或匿名值读取旁路。
+  - 复审中发现并修复一个既有的 state-machine 裂缝：`expr_contains_suspend_subtree` 先前把所有 `VarRef` 一概视为“不会隐藏 suspend”，导致 `boomY + 1` 这类“顶层 pattern binder 嵌在更大表达式中”的场景不会生成 `TopLevelValueInitAccess` site；同时，state-machine emitter 也漏把 `TopLevelValueInitAccess` 纳入与 `ObjectInitAccess` 对齐的 inactive/active 分支。现已让 hidden suspend var ref 进入统一 plan，并让 state-machine 环境下的 `codegen_top_level_immutable_value_access` 在 init call 后若 effect 已 active，则跳过 guard/load，交由外层 boundary 统一 dispatch。
+  - 已新增 `tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop` 回归，覆盖：
+    - 顶层 pattern binder 在 handle 中匹配成功时，once-init boundary 走 inactive path，后续 `+ 1` 与 caller tail 继续执行；
+    - 顶层 pattern binder 在 handle 中 mismatch 时，隐藏 check 触发的 `Raise.raise(RuntimeError.NullAssertionFailed)` 会命中 handler，而不会继续执行 tail 或 `exit(1)`。
+- 已验证：
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_top_level_val_pattern_access_basic.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/local_val_destructuring_nested_variant_mismatch_is_error.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/object_init_raise_try_catch_basic.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/effect_handle_object_init_access_inactive_basic.scoop`
+  - `target/debug/scoop run tests/fixtures/run-pass/class_init_hidden_raise_helper_try_catch_basic.scoop`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004b
 
 ## T4005：Elvis `?:` lowering / codegen

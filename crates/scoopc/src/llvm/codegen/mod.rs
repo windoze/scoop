@@ -1572,19 +1572,116 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
-        let _ = self
-            .builder
-            .build_call(init_fn, &[], "top_level_val_init")?;
-        self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
-        self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
-
         let value_cg = self
             .cg_ty_of(value.ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "top-level immutable value type",
                 at: value.span.into(),
             })?;
+        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
+        let _ = self
+            .builder
+            .build_call(init_fn, &[], "top_level_val_init")?;
+        if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
+        } else {
+            let insert_block =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: at.into(),
+                    })?;
+            let func = insert_block
+                .get_parent()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no parent function",
+                    at: at.into(),
+                })?;
+            let active_bb = self
+                .context
+                .append_basic_block(func, "top_level_val_init_active");
+            let inactive_bb = self
+                .context
+                .append_basic_block(func, "top_level_val_init_inactive");
+            let merge_bb = self
+                .context
+                .append_basic_block(func, "top_level_val_init_merge");
+
+            let is_active_fn = self.declare_runtime_effect_is_active();
+            let active_raw = self
+                .builder
+                .build_call(is_active_fn, &[], "top_level_val_init_effect_is_active")?
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect is_active return",
+                    at: at.into(),
+                })?
+                .into_int_value();
+            let is_active = self.builder.build_int_compare(
+                inkwell::IntPredicate::NE,
+                active_raw,
+                self.context.i32_type().const_int(0, false),
+                "top_level_val_init_effect_active",
+            )?;
+            self.builder
+                .build_conditional_branch(is_active, active_bb, inactive_bb)?;
+
+            self.builder.position_at_end(active_bb);
+            let active_default = self.default_value(at, value_cg)?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+            let active_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: at.into(),
+                    })?;
+
+            self.builder.position_at_end(inactive_bb);
+            self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
+
+            if value_cg == CgTy::Unit {
+                self.builder.build_unconditional_branch(merge_bb)?;
+                self.builder.position_at_end(merge_bb);
+                return Ok(CgValue::unit());
+            }
+
+            let Some(global) =
+                self.declare_top_level_immutable_value_global(at, value, value_cg)?
+            else {
+                self.builder.build_unconditional_branch(merge_bb)?;
+                self.builder.position_at_end(merge_bb);
+                return self.default_value(at, value_cg);
+            };
+            let llvm_ty = self.llvm_basic_type_of(at, value_cg)?;
+            let loaded = self.builder.build_load(
+                llvm_ty,
+                global.as_pointer_value(),
+                "load_top_level_val",
+            )?;
+            self.builder.build_unconditional_branch(merge_bb)?;
+            let inactive_end =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "builder has no insert block",
+                        at: at.into(),
+                    })?;
+
+            self.builder.position_at_end(merge_bb);
+            let phi = self.builder.build_phi(llvm_ty, "top_level_val_access")?;
+            let active_raw = active_default
+                .value
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "top-level value active default",
+                    at: at.into(),
+                })?;
+            phi.add_incoming(&[(&active_raw, active_end), (&loaded, inactive_end)]);
+            return self.cg_value_from_loaded(at, value_cg, phi.as_basic_value());
+        }
+        self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {
             return Ok(CgValue::unit());

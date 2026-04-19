@@ -8,7 +8,9 @@ use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
 use super::call::{type_ref_fn_effect_eff_base, type_ref_nominal_eff_eff_base};
 use super::util::package_prefix;
 
-use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN};
+use super::{
+    EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned, FunWhereConstraintInfo, TASK_FQN,
+};
 
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
@@ -73,12 +75,7 @@ pub(super) fn collect_top_level_value_types(
 
     for file_info in &files {
         collect_explicit_top_level_value_types_in_file(
-            file_info,
-            index,
-            env,
-            types,
-            builtins,
-            &mut map,
+            file_info, index, env, types, builtins, &mut map,
         )?;
     }
 
@@ -87,12 +84,7 @@ pub(super) fn collect_top_level_value_types(
         changed = false;
         for file_info in &files {
             if infer_top_level_pattern_value_types_in_file(
-                file_info,
-                index,
-                env,
-                types,
-                builtins,
-                &mut map,
+                file_info, index, env, types, builtins, &mut map,
             )? {
                 changed = true;
             }
