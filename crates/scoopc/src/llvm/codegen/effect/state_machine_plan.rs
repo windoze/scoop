@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use crate::hir;
 use crate::span::Span;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 type PlanStateId = u32;
 type SuspendSiteId = u32;
@@ -7447,6 +7447,554 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
+/// `T4008b1a`：为当前 `handle` 中的 escape continuation arm 计算 direct resumed-step effect row。
+///
+/// 说明：
+/// - 该分析只覆盖本轮拆分任务要求的“direct boundary”主线：
+///   - escape site 之后的 resumed tail 重建；
+///   - direct `perform`；
+///   - direct 带非 Pure effect row 的函数值/顶层函数调用。
+/// - `arm body` / `finally` / nested handle / hidden init boundary 的完整边界语义
+///   明确留给 `T4008b1b`，因此本入口不会尝试近似它们。
+pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+) -> HashMap<hir::SymbolId, EffectRow> {
+    let mut by_binder: HashMap<hir::SymbolId, Vec<TypeId>> = HashMap::new();
+    for site_summary in compute_escape_continuation_direct_step_rows_by_site(types, handle) {
+        by_binder
+            .entry(site_summary.continuation)
+            .or_default()
+            .extend(site_summary.effects.terms);
+    }
+
+    by_binder
+        .into_iter()
+        .map(|(continuation, effects)| (continuation, EffectRow::new(effects)))
+        .collect()
+}
+
+#[derive(Debug, Clone)]
+struct EscapeSiteDirectStepRow {
+    site_id: SuspendSiteId,
+    continuation: hir::SymbolId,
+    effects: EffectRow,
+}
+
+fn compute_escape_continuation_direct_step_rows_by_site(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+) -> Vec<EscapeSiteDirectStepRow> {
+    let mut context = direct_step_analysis_context_for_handle(handle);
+    context.extend_known_local_metadata_from_handle(handle);
+
+    let mut builder = HandlePlanBuilder::new(types, handle, &context);
+    let outer_slots = collect_outer_scope_slots(handle, &context.known_local_metadata);
+    let mut env = ScopeEnv::with_outer(outer_slots.clone());
+    for slot in &outer_slots {
+        builder.frame_slots.insert(slot.id, slot.clone());
+    }
+
+    let entry_state = builder.new_state("body.entry");
+    let exit_state = builder.new_state("body.exit");
+    let body_end_state = builder.build_block(&handle.body, entry_state, &mut env);
+
+    if let Some(finally_block) = &handle.finally {
+        let cleanup_entry = builder.new_state("cleanup.finally.entry");
+        let cleanup_exit = builder.new_state("cleanup.finally.exit");
+        let cleanup_scope_id = builder.next_cleanup_id;
+        builder.next_cleanup_id = builder.next_cleanup_id.saturating_add(1);
+        builder.cleanup_scopes.push(CleanupScopePlan {
+            id: cleanup_scope_id,
+            kind: CleanupScopeKind::Finally,
+            entry_state: cleanup_entry,
+            exit_state: cleanup_exit,
+            note: "normal/raise edges converge through a shared finally scope".to_string(),
+        });
+        builder.set_terminator(
+            body_end_state,
+            StateTerminator::CleanupEnter {
+                scope_id: cleanup_scope_id,
+                next_state: cleanup_entry,
+            },
+        );
+        let mut cleanup_env = ScopeEnv::with_outer(outer_slots);
+        let cleanup_end = builder.build_block(finally_block, cleanup_entry, &mut cleanup_env);
+        builder
+            .state_mut(cleanup_end)
+            .actions
+            .push(HandleStateOp::CleanupEdgeComplete);
+        builder.set_terminator(cleanup_end, StateTerminator::Goto(cleanup_exit));
+        builder.set_terminator(cleanup_exit, StateTerminator::Goto(exit_state));
+    } else {
+        builder.set_terminator(body_end_state, StateTerminator::Goto(exit_state));
+    }
+
+    builder
+        .state_mut(exit_state)
+        .actions
+        .push(HandleStateOp::ReturnToEnclosingExpression);
+    builder.set_terminator(exit_state, StateTerminator::ReturnHandle);
+
+    let _dispatch_plan = builder.build_dispatch_plan();
+    builder.build_arm_states();
+    builder.compute_capture_sets();
+    builder.attach_suspend_source_paths();
+    builder.attach_suspend_resume_paths();
+    builder.materialize_resume_fragments();
+    builder.attach_escape_resume_targets();
+    builder.compute_capture_sets();
+
+    let mut rows = Vec::new();
+    for site in &builder.suspend_sites {
+        let SuspendSiteKind::Perform { op_fqn } = &site.kind else {
+            continue;
+        };
+        let Some(source_expr) = builder.resume_source_exprs.get(&site.id) else {
+            continue;
+        };
+        let hir::ExprKind::Perform { effect_ty, .. } = &source_expr.kind else {
+            continue;
+        };
+        let Some(continuation) =
+            select_escape_continuation_for_direct_site(handle, op_fqn, *effect_ty)
+        else {
+            continue;
+        };
+        let Some(source_path) = site.source_path.as_ref() else {
+            continue;
+        };
+        let Some(resume_path) = site.resume_path.as_ref() else {
+            continue;
+        };
+        let Some(resume_slot) = builder.resume_slot_for_site(site.id) else {
+            continue;
+        };
+        let mut allocate_synthetic_symbol_id = || context.allocate_synthetic_symbol_id();
+        let Some(resume_tail) = build_ordinary_callee_resume_tail_block(
+            &handle.body,
+            source_path,
+            source_expr,
+            resume_path,
+            &resume_slot,
+            &mut allocate_synthetic_symbol_id,
+        ) else {
+            continue;
+        };
+        let effects = summarize_direct_step_effects_in_block(
+            types,
+            &resume_tail,
+            handle,
+            &context.known_local_metadata,
+        );
+        rows.push(EscapeSiteDirectStepRow {
+            site_id: site.id,
+            continuation,
+            effects,
+        });
+    }
+
+    rows
+}
+
+fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePlanContext {
+    let mut known_local_metadata = HashMap::new();
+    collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
+    let next_synthetic_symbol_raw = next_synthetic_symbol_seed(handle, &known_local_metadata);
+    HandlePlanContext {
+        known_fun_effects: HashMap::new(),
+        known_local_fun_effects: HashMap::new(),
+        known_local_metadata,
+        next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
+        current_source_path: PathBuf::from("<t4008b1a>"),
+        ctor_call_targets: HashMap::new(),
+        continuation_resume_call_sites: HashSet::new(),
+        object_value_fqns: HashSet::new(),
+        object_property_fqns: HashSet::new(),
+        top_level_immutable_value_fqns: HashSet::new(),
+    }
+}
+
+fn select_escape_continuation_for_direct_site(
+    handle: &hir::HandleExpr,
+    op_fqn: &str,
+    effect_ty: TypeId,
+) -> Option<hir::SymbolId> {
+    let mut same_op_fallback = None;
+    for arm in &handle.arms {
+        if arm.op.op.fqn != op_fqn {
+            continue;
+        }
+        if same_op_fallback.is_none()
+            && let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind
+        {
+            same_op_fallback = Some(continuation);
+        }
+
+        if arm.op.effect_ty != effect_ty {
+            continue;
+        }
+        match arm.kind {
+            hir::HandleArmKind::EscapeContinuation { continuation } => return Some(continuation),
+            hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => {
+                return None;
+            }
+        }
+    }
+    same_op_fallback
+}
+
+fn summarize_direct_step_effects_in_block(
+    types: &TypeStore,
+    block: &hir::Block,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> EffectRow {
+    let summary = summarize_direct_step_stmt_seq(types, &block.stmts, handle, known_local_metadata);
+    EffectRow::new(summary.effects)
+}
+
+#[derive(Debug, Clone)]
+struct DirectStepSummary {
+    effects: Vec<TypeId>,
+    may_continue: bool,
+}
+
+impl DirectStepSummary {
+    fn continue_pure() -> Self {
+        Self {
+            effects: Vec::new(),
+            may_continue: true,
+        }
+    }
+
+    fn stop_with(mut effects: Vec<TypeId>) -> Self {
+        effects.sort();
+        effects.dedup();
+        Self {
+            effects,
+            may_continue: false,
+        }
+    }
+
+    fn merge_effects(&mut self, mut more: Vec<TypeId>) {
+        self.effects.append(&mut more);
+        self.effects.sort();
+        self.effects.dedup();
+    }
+}
+
+fn summarize_direct_step_stmt_seq(
+    types: &TypeStore,
+    stmts: &[hir::Stmt],
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> DirectStepSummary {
+    let mut out = DirectStepSummary::continue_pure();
+    for stmt in stmts {
+        if !out.may_continue {
+            break;
+        }
+        let step = summarize_direct_step_stmt(types, stmt, handle, known_local_metadata);
+        out.merge_effects(step.effects);
+        out.may_continue = step.may_continue;
+    }
+    out
+}
+
+fn summarize_direct_step_stmt(
+    types: &TypeStore,
+    stmt: &hir::Stmt,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> DirectStepSummary {
+    match &stmt.kind {
+        hir::StmtKind::Empty => DirectStepSummary::continue_pure(),
+        hir::StmtKind::Expr(expr) => {
+            summarize_direct_step_expr(types, expr, handle, known_local_metadata)
+        }
+        hir::StmtKind::Val(decl) => decl
+            .init
+            .as_ref()
+            .map(|expr| summarize_direct_step_expr(types, expr, handle, known_local_metadata))
+            .unwrap_or_else(DirectStepSummary::continue_pure),
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            let lhs_summary = summarize_direct_step_expr(types, lhs, handle, known_local_metadata);
+            if !lhs_summary.may_continue {
+                return lhs_summary;
+            }
+            let rhs_summary = summarize_direct_step_expr(types, rhs, handle, known_local_metadata);
+            let mut out = lhs_summary;
+            out.merge_effects(rhs_summary.effects);
+            out.may_continue = rhs_summary.may_continue;
+            out
+        }
+        hir::StmtKind::Return { value } => value
+            .as_ref()
+            .map(|expr| {
+                let mut summary =
+                    summarize_direct_step_expr(types, expr, handle, known_local_metadata);
+                summary.may_continue = false;
+                summary
+            })
+            .unwrap_or_else(|| DirectStepSummary::stop_with(Vec::new())),
+        hir::StmtKind::While { cond, body } => {
+            let cond_summary = summarize_direct_step_expr(types, cond, handle, known_local_metadata);
+            if !cond_summary.may_continue {
+                return cond_summary;
+            }
+            let body_summary =
+                summarize_direct_step_stmt_seq(types, &body.stmts, handle, known_local_metadata);
+            let mut out = cond_summary;
+            out.merge_effects(body_summary.effects);
+            // direct summary 仅收集 effect row；循环控制的完整 path-sensitive 语义留给 T4008b1b。
+            out.may_continue = true;
+            out
+        }
+        hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } => {
+            DirectStepSummary::stop_with(Vec::new())
+        }
+        hir::StmtKind::Todo(_) => DirectStepSummary::continue_pure(),
+    }
+}
+
+fn summarize_direct_step_expr(
+    types: &TypeStore,
+    expr: &hir::Expr,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> DirectStepSummary {
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Closure(_)
+        | hir::ExprKind::Todo(_) => DirectStepSummary::continue_pure(),
+        hir::ExprKind::Block(block) => {
+            summarize_direct_step_stmt_seq(types, &block.stmts, handle, known_local_metadata)
+        }
+        hir::ExprKind::Unary { expr: inner, .. }
+        | hir::ExprKind::Cast { expr: inner, .. }
+        | hir::ExprKind::TypeCheck { expr: inner, .. }
+        | hir::ExprKind::MemberAccess {
+            receiver: inner, ..
+        } => summarize_direct_step_expr(types, inner, handle, known_local_metadata),
+        hir::ExprKind::StructLit { fields, .. } => {
+            summarize_direct_step_exprs(
+                types,
+                fields.iter().map(|field| &field.value),
+                handle,
+                known_local_metadata,
+            )
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            summarize_direct_step_exprs(types, elements.iter(), handle, known_local_metadata)
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => summarize_direct_step_exprs(
+            types,
+            parts.iter().filter_map(|part| match part {
+                hir::InterpolatedStringPart::Expr { expr } => Some(expr),
+                hir::InterpolatedStringPart::Text { .. } => None,
+            }),
+            handle,
+            known_local_metadata,
+        ),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            let lhs_summary = summarize_direct_step_expr(types, lhs, handle, known_local_metadata);
+            if !lhs_summary.may_continue {
+                return lhs_summary;
+            }
+            let rhs_summary = summarize_direct_step_expr(types, rhs, handle, known_local_metadata);
+            let mut out = lhs_summary;
+            out.merge_effects(rhs_summary.effects);
+            out.may_continue = rhs_summary.may_continue;
+            out
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            let cond_summary =
+                summarize_direct_step_expr(types, cond, handle, known_local_metadata);
+            if !cond_summary.may_continue {
+                return cond_summary;
+            }
+            let then_summary =
+                summarize_direct_step_expr(types, then_branch, handle, known_local_metadata);
+            let else_summary = else_branch
+                .as_deref()
+                .map(|expr| {
+                    summarize_direct_step_expr(types, expr, handle, known_local_metadata)
+                })
+                .unwrap_or_else(DirectStepSummary::continue_pure);
+            let mut out = cond_summary;
+            out.merge_effects(then_summary.effects);
+            out.merge_effects(else_summary.effects);
+            out.may_continue = then_summary.may_continue || else_summary.may_continue;
+            out
+        }
+        hir::ExprKind::When { subject, arms } => {
+            let subject_summary =
+                summarize_direct_step_expr(types, subject, handle, known_local_metadata);
+            if !subject_summary.may_continue {
+                return subject_summary;
+            }
+            let mut out = subject_summary;
+            let mut may_continue = false;
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    let guard_summary =
+                        summarize_direct_step_expr(types, guard, handle, known_local_metadata);
+                    out.merge_effects(guard_summary.effects);
+                    if !guard_summary.may_continue {
+                        continue;
+                    }
+                }
+                let body_summary =
+                    summarize_direct_step_expr(types, &arm.body, handle, known_local_metadata);
+                out.merge_effects(body_summary.effects);
+                may_continue |= body_summary.may_continue;
+            }
+            out.may_continue = may_continue || arms.is_empty();
+            out
+        }
+        hir::ExprKind::Call { callee, args } => {
+            let callee_summary =
+                summarize_direct_step_expr(types, callee, handle, known_local_metadata);
+            if !callee_summary.may_continue {
+                return callee_summary;
+            }
+            let args_summary =
+                summarize_direct_step_call_args(types, args, handle, known_local_metadata);
+            let mut out = callee_summary;
+            out.merge_effects(args_summary.effects);
+            if !args_summary.may_continue {
+                out.may_continue = false;
+                return out;
+            }
+            let direct_effects =
+                direct_effect_terms_from_callable_expr(types, callee, known_local_metadata);
+            out.merge_effects(direct_effects.clone());
+            out.may_continue = direct_effects.is_empty();
+            out
+        }
+        hir::ExprKind::Perform {
+            effect_ty,
+            op,
+            args,
+        } => {
+            let args_summary =
+                summarize_direct_step_call_args(types, args, handle, known_local_metadata);
+            if !args_summary.may_continue {
+                return args_summary;
+            }
+            let Some(matched_arm) =
+                first_matching_arm_for_direct_perform(handle, &op.fqn, *effect_ty)
+            else {
+                let mut effects = args_summary.effects;
+                effects.push(*effect_ty);
+                return DirectStepSummary::stop_with(effects);
+            };
+            let mut out = args_summary;
+            out.may_continue = false;
+            match matched_arm.kind {
+                hir::HandleArmKind::EscapeContinuation { .. } => out,
+                // `arm body` / immediate-resume / non-resuming 的完整语义留给 T4008b1b。
+                hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => out,
+            }
+        }
+        // `T4008b1a` 只固定 direct summary；nested handle 的完整边界语义留给 `T4008b1b`。
+        hir::ExprKind::Handle(_) => DirectStepSummary::continue_pure(),
+    }
+}
+
+fn summarize_direct_step_call_args<'a>(
+    types: &TypeStore,
+    args: impl IntoIterator<Item = &'a hir::CallArg>,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> DirectStepSummary {
+    let mut out = DirectStepSummary::continue_pure();
+    for arg in args {
+        if !out.may_continue {
+            break;
+        }
+        let summary = match arg {
+            hir::CallArg::Positional(expr) => {
+                summarize_direct_step_expr(types, expr, handle, known_local_metadata)
+            }
+            hir::CallArg::Named { value, .. } => {
+                summarize_direct_step_expr(types, value, handle, known_local_metadata)
+            }
+        };
+        out.merge_effects(summary.effects);
+        out.may_continue = summary.may_continue;
+    }
+    out
+}
+
+fn summarize_direct_step_exprs<'a>(
+    types: &TypeStore,
+    exprs: impl IntoIterator<Item = &'a hir::Expr>,
+    handle: &hir::HandleExpr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> DirectStepSummary {
+    let mut out = DirectStepSummary::continue_pure();
+    for expr in exprs {
+        if !out.may_continue {
+            break;
+        }
+        let summary = summarize_direct_step_expr(types, expr, handle, known_local_metadata);
+        out.merge_effects(summary.effects);
+        out.may_continue = summary.may_continue;
+    }
+    out
+}
+
+fn direct_effect_terms_from_callable_expr(
+    types: &TypeStore,
+    callee: &hir::Expr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Vec<TypeId> {
+    let callee_ty = match types.kind(callee.ty) {
+        TypeKind::Ref(RefTypeKind::Function(_)) => callee.ty,
+        _ => match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                known_local_metadata.get(id).map(|metadata| metadata.ty)
+            }
+            _ => None,
+        }
+        .unwrap_or(callee.ty),
+    };
+
+    match types.kind(callee_ty) {
+        TypeKind::Ref(RefTypeKind::Function(fun_ty)) => fun_ty.effects.terms.clone(),
+        _ => Vec::new(),
+    }
+}
+
+fn first_matching_arm_for_direct_perform<'a>(
+    handle: &'a hir::HandleExpr,
+    op_fqn: &str,
+    effect_ty: TypeId,
+) -> Option<&'a hir::HandleArm> {
+    let mut same_op_fallback = None;
+    for arm in &handle.arms {
+        if arm.op.op.fqn != op_fqn {
+            continue;
+        }
+        if same_op_fallback.is_none() {
+            same_op_fallback = Some(arm);
+        }
+        if arm.op.effect_ty == effect_ty {
+            return Some(arm);
+        }
+    }
+    same_op_fallback
+}
+
 fn ordinary_callee_resume_slot_type(
     body: &hir::Block,
     source_path: &SuspendSourcePath,
@@ -7463,5 +8011,293 @@ fn ordinary_callee_resume_slot_type(
         }
         SuspendResumeConsumer::ReturnValue if source_path.frames.is_empty() => declared_return_ty,
         _ => resume_slot.ty(),
+    }
+}
+
+#[cfg(test)]
+mod plan_tests {
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::session::Session;
+    use crate::source::SourceFile;
+    use crate::typecheck;
+
+    use super::*;
+
+    #[test]
+    fn direct_step_effect_rows_include_direct_effectful_call_after_escape_site() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val burst: (Int) -> Int / (Boom) = { seed: Int ->
+            Boom.boom(seed)
+        }
+        val value: Int = Ask.current()
+        burst(value)
+    } with {
+        Ask.current(), k -> 7
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let rows =
+            compute_escape_continuation_direct_step_effect_rows_for_handle(&lowered.types, handle);
+        let row = rows
+            .get(&continuation)
+            .expect("expected a direct-step effect row for escape continuation binder");
+
+        assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
+    }
+
+    #[test]
+    fn direct_step_rows_stop_at_next_escape_boundary() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun boom(code: Int): Int
+}
+
+fun demo(): Int / (Boom) {
+    return handle {
+        val first: Int = Ask.current()
+        val second: Int = Ask.current()
+        Boom.boom(second)
+    } with {
+        Ask.current(), k -> 7
+    }
+}
+"#,
+        );
+        let handle = first_handle_in_file(&lowered.file)
+            .map(|(_, handle)| handle)
+            .expect("expected a handle");
+        let continuation = only_escape_continuation_symbol(handle);
+
+        let mut rows = compute_escape_continuation_direct_step_rows_by_site(&lowered.types, handle);
+        rows.sort_by_key(|row| row.site_id);
+
+        assert_eq!(rows.len(), 2, "expected two handled Ask.current escape sites");
+        assert_eq!(rows[0].continuation, continuation);
+        assert_eq!(rows[1].continuation, continuation);
+        assert!(
+            rows[0].effects.is_pure(),
+            "first site should stop before the second escape boundary, found {:?}",
+            effect_row_terms(&lowered.types, &rows[0].effects)
+        );
+        assert_eq!(effect_row_terms(&lowered.types, &rows[1].effects), ["a.Boom"]);
+    }
+
+    fn effect_row_terms(types: &TypeStore, row: &EffectRow) -> Vec<String> {
+        row.terms
+            .iter()
+            .map(|ty| types.display(*ty).to_string())
+            .collect()
+    }
+
+    fn only_escape_continuation_symbol(handle: &hir::HandleExpr) -> hir::SymbolId {
+        handle
+            .arms
+            .iter()
+            .find_map(|arm| match arm.kind {
+                hir::HandleArmKind::EscapeContinuation { continuation } => Some(continuation),
+                hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => {
+                    None
+                }
+            })
+            .expect("expected an escape continuation arm")
+    }
+
+    fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
+        let session = Session::new().expect("session");
+        let source = SourceFile::new_virtual("<mem>", source_text);
+        let mut ast = parse_file(&source).expect("parse");
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&source, &ast));
+            Index::build(&pairs).expect("index")
+        };
+
+        let headers =
+            crate::resolve::check_file_headers(&source, &ast, &index).expect("resolve headers");
+        crate::resolve::check_file_bodies(&source, &mut ast, &index, &headers)
+            .expect("resolve bodies");
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        let mut env = typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).expect("env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("extend type env");
+
+        typecheck::check_file_annotations(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check annotations");
+        typecheck::check_file_type_refs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check type refs");
+        typecheck::check_file_exprs(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut typecheck_types,
+            builtins,
+        )
+        .expect("check exprs");
+
+        let mut unit: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&source, &ast));
+
+        hir::lower_for_compilation_unit_multi_files(
+            &source,
+            &index,
+            &unit,
+            &[(&source, &ast)],
+            &[],
+            &typecheck_types,
+        )
+        .expect("lower")
+    }
+
+    fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
+        for item in &file.items {
+            if let hir::Item::Fun(fun) = item
+                && let Some(body) = &fun.body
+                && let Some(handle) = first_handle_in_block(body)
+            {
+                return Some((fun, handle));
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {
+        for stmt in &block.stmts {
+            if let Some(handle) = first_handle_in_stmt(stmt) {
+                return Some(handle);
+            }
+        }
+        None
+    }
+
+    fn first_handle_in_stmt(stmt: &hir::Stmt) -> Option<&hir::HandleExpr> {
+        match &stmt.kind {
+            hir::StmtKind::Expr(expr) => first_handle_in_expr(expr),
+            hir::StmtKind::Val(decl) => decl.init.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::StmtKind::While { cond, body } => {
+                first_handle_in_expr(cond).or_else(|| first_handle_in_block(body))
+            }
+            hir::StmtKind::Return { value } => value.as_ref().and_then(first_handle_in_expr),
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => None,
+        }
+    }
+
+    fn first_handle_in_expr(expr: &hir::Expr) -> Option<&hir::HandleExpr> {
+        match &expr.kind {
+            hir::ExprKind::Handle(handle) => Some(handle),
+            hir::ExprKind::Block(block) => first_handle_in_block(block),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => first_handle_in_expr(cond)
+                .or_else(|| first_handle_in_expr(then_branch))
+                .or_else(|| else_branch.as_deref().and_then(first_handle_in_expr)),
+            hir::ExprKind::When { subject, arms } => first_handle_in_expr(subject).or_else(|| {
+                arms.iter()
+                    .find_map(|arm| arm.guard.as_ref().and_then(first_handle_in_expr))
+                    .or_else(|| arms.iter().find_map(|arm| first_handle_in_expr(&arm.body)))
+            }),
+            hir::ExprKind::Call { callee, args } => first_handle_in_expr(callee).or_else(|| {
+                args.iter().find_map(|arg| match arg {
+                    hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                    hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+                })
+            }),
+            hir::ExprKind::StructLit { fields, .. } => {
+                fields.iter().find_map(|field| first_handle_in_expr(&field.value))
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                elements.iter().find_map(first_handle_in_expr)
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|part| {
+                let hir::InterpolatedStringPart::Expr { expr } = part else {
+                    return None;
+                };
+                first_handle_in_expr(expr)
+            }),
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => first_handle_in_expr(inner),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                first_handle_in_expr(lhs).or_else(|| first_handle_in_expr(rhs))
+            }
+            hir::ExprKind::Closure(closure) => first_handle_in_expr(&closure.body),
+            hir::ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                hir::CallArg::Positional(expr) => first_handle_in_expr(expr),
+                hir::CallArg::Named { value, .. } => first_handle_in_expr(value),
+            }),
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. }
+            | hir::ExprKind::Todo(_) => None,
+        }
     }
 }

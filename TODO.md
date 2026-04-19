@@ -813,15 +813,42 @@
   - 子任务完成后，escape continuation binder 与 `Continuation.resume` 都以同一套 resumed-step effect summary 为准。
 - 依赖：T4008a
 
-### T4008b1 [TODO] 为 escape continuation binder 建立“恢复一步”的 effect-row 分析
-- 范围：
-  - 为 handle body 建立从 escape site 恢复后，到“下一次 suspension / return / 正常完成”为止的 effect summary。
-  - handled suspension 需要作为当前 step 的边界，不能把 prefix effects 或 fresh continuation 之后的 tail 误计入当前 `k.resume` 的 effect row。
-  - 补充最小回归，至少覆盖“后续 tail 含 `Boom` 时，`requirePure(k)` 不能再错误通过”的场景。
-- 验收：
-  - 有稳定 side table 或等价分析结果可供后续 binder / `resume` 复用。
-  - 新回归能够复现并卡住当前 `k` 被错误注入为 `eff Pure` 的问题。
+### T4008b1 [DONE] 将 resumed-step 分析拆分为“tail 重建 / 直接边界总结”与“arm/finally 语义补齐”
+- 说明：
+  - 继续下钻后确认，原 `T4008b1` 仍同时覆盖两套独立基础设施：
+    - 先从 escape site 精确重建 resumed tail（不能把 prefix effects 算进去）；
+    - 再把 arm body、`finally`、nested handle、隐藏 init 边界等“step 何时停止、哪些效果属于当前 step”语义全部接上。
+  - 若不拆分就直接宣称“已有 resumed-step summary”，很容易把只覆盖直线 direct-perform 场景的近似误当成完整语义，再次形成规范偏差。
+  - 现细化为 `T4008b1a -> T4008b1b`：先固定可复用的 resumed-tail 重建与 direct boundary summary 主线，再补齐复杂边界语义。
 - 依赖：T4008a
+
+### T4008b1a [DONE] 为 escape site 重建 resumed tail，并收口 direct perform / direct call 的 step effect summary
+- 范围：
+  - 为 handle body 中命中的 escape site 重建“从该 site 恢复后”的 resumed tail，不能把 prefix effects 算进去。
+  - 基于该 tail 为 direct `perform` / direct effectful call 建立 step-level effect summary；再次命中 escape continuation 边界时必须停止，不能把 fresh continuation 之后的 tail 算进去。
+  - 补充最小回归，至少覆盖“后续 tail 含 `Boom` 时，当前 site 的 summary 不再是 `Pure`”以及“第二个 escape site 之后的 tail 不计入第一个 site”两类场景。
+- 验收：
+  - 有稳定的内部分析 API 或等价结果，能按 escape continuation binder 暴露 direct resumed-step 的 `EffectRow`。
+  - 新回归能够复现并卡住当前 `k` 被错误注入为 `eff Pure` 的根因样例。
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/effect/state_machine_plan.rs` 现新增 `compute_escape_continuation_direct_step_effect_rows_for_handle(...)` 及相关 resumed-tail / direct-step summary 辅助入口，复用现有 `HandlePlanBuilder` 与 ordinary-callee resume-tail 重建逻辑，从命中的 escape site 精确重建“恢复后的一步”。
+  - direct summary 现覆盖 direct `perform` 与 handle 内局部函数值的 direct effectful call；再次命中 escape continuation 边界时会停止，不再把后续 site 的 tail 误算进当前 step。为避免只依赖 HIR `callee.ty`，analysis 还会回退读取 handle 内局部声明元数据里的函数值类型。
+  - 已新增 2 条 Rust 单测，分别覆盖“resumed tail 中的 direct effectful function-value call 会被计入 summary”与“第二个 escape site 之后的 tail 不计入第一个 site”。
+- 已验证：
+  - `cargo test -p scoopc direct_step_`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4008a
+
+### T4008b1b [TODO] 为 resumed-step 补齐 arm body / `finally` / nested handle / hidden boundary 语义
+- 范围：
+  - direct summary 不再把 non-resuming / immediate-resume arm body、`finally`、nested handle、顶层/对象 once-init 等隐藏边界遗漏在外。
+  - current handle inactive/active 切换要与现有 state-machine 语义一致，不能把 arm body 中由外层处理的效果重新算成当前 handle 已处理。
+  - 补充对应回归，覆盖 direct summary 之外的复杂边界语义。
+- 验收：
+  - `T4008b1a` 提供的 API 对上述边界场景也给出与 state-machine 语义一致的 step effect row。
+- 依赖：T4008b1a
 
 ### T4008b2 [TODO] 基于 resumed-step summary 收口 continuation binder 类型与 `Continuation.resume`
 - 范围：
@@ -831,7 +858,7 @@
 - 验收：
   - binder 类型不再能被 `requirePure(k)` 误接收。
   - `resume` required-effects 会从推导出的 `E` 正确传播。
-- 依赖：T4008b1
+- 依赖：T4008b1b
 
 ### T4008c [TODO] 打通 richer effect polymorphism 与 receiver effect op lowering
 - 范围：
