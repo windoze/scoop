@@ -1416,6 +1416,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// `Continuation.resume(...)` 的 resumed body 若再次 suspend outward，
+    /// 会先把“当前待继续的 inner continuation”暂存到 runtime TLS；outer
+    /// call-boundary replay 再从 TLS 恢复并继续该 inner continuation。
+    pub(super) fn declare_runtime_continuation_resume_publish_pending_continuation(
+        &self,
+    ) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_PUBLISH_PENDING_CONTINUATION;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// T1607：返回 `ScoopContinuation` 的 LLVM 结构类型（用于 GEP 到
     /// `resume_word` / `resume_gc_ref` / captured callee suspend state）。
     ///

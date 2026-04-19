@@ -4270,7 +4270,7 @@ fn try_infer_continuation_resume_call_expr_type(
         call_expr.span,
     )?;
     lower.record_performed_effect(raise_runtime_error, call_expr.span);
-    lower.record_continuation_resume_call_site(call_expr.span);
+    lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
 
     let ret = if safe {
         lower.ty_option(builtins.unit)

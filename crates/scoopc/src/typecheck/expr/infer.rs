@@ -1765,16 +1765,19 @@ pub(super) fn infer_handle_expr_type(
                 )?;
             }
             ast::HandleArmKind::EscapeContinuation { k_span } => {
-                // `, k ->`：注入 continuation binder 的类型 `Continuation<T>`（T 为 op 返回类型）。
+                // `, k ->`：注入 continuation binder 的类型 `Continuation<T, eff E>`。
                 //
                 // 说明：
-                // - 当前阶段 continuation 的 effect row 参数仍使用 sysroot 默认值（`Pure`）；
+                // - `E` 来自 `T4008b1` 的 resumed-step summary；
+                // - 首轮 typecheck 尚未拿到该 summary 时会暂退到 `Pure`，随后由 `check_file_exprs`
+                //   的第二阶段用精确 effect row 重跑；
                 // - `k.resume(value)` 的 required-effects 传播在 `Continuation.resume` 的内建规则中处理（spec §5.5）。
-                let cont_ty = lower.lower_type_fqn_with_args(
-                    "scoop.core.Continuation".to_string(),
-                    vec![lowered.op_return_ty],
-                    arm.span,
-                )?;
+                let cont_effects = lower
+                    .escape_continuation_effect_row(arm.span)
+                    .cloned()
+                    .unwrap_or_else(EffectRow::pure);
+                let cont_ty = lower.ty_continuation(lowered.op_return_ty, cont_effects);
+                lower.record_inferred_binding_ty(k_span, cont_ty);
                 arm_locals.insert(k_span, cont_ty);
                 let arm_inputs = inputs.with_locals(&arm_locals);
 

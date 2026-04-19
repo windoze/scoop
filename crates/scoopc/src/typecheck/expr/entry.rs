@@ -1,11 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
+use crate::hir;
 use crate::monomorph::MonomorphKey;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
+
+#[cfg(not(feature = "llvm"))]
+use crate::effect_step_summary::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program as compute_escape_continuation_direct_step_effect_rows_for_handle_with_program;
+#[cfg(feature = "llvm")]
+use crate::llvm::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program as compute_escape_continuation_direct_step_effect_rows_for_handle_with_program;
 
 use super::call::{
     check_call_arg_named_rules, check_fn_value_to_any_erasure_gate, collect_call_arg_infos,
@@ -87,6 +93,22 @@ struct CtorCallCheckRequest<'a> {
     call_span: Span,
     args: &'a [ast::Expr],
     exclude_ctor_span: Option<Span>,
+}
+
+#[derive(Clone)]
+struct CheckFileExprsPassResult {
+    inferred_expr_tys: HashMap<Span, TypeId>,
+    inferred_binding_tys: HashMap<Span, TypeId>,
+    inferred_performed_effect_tys: HashMap<Span, TypeId>,
+    inferred_handle_arm_effect_tys: HashMap<Span, TypeId>,
+    safe_member_access_resolved: HashMap<Span, ast::ResolvedMemberRef>,
+    typechecked_member_resolved: HashMap<Span, ast::ResolvedMemberRef>,
+    continuation_resume_call_sites: HashSet<Span>,
+    non_pure_continuation_resume_call_sites: HashSet<Span>,
+    top_level_fun_value_refs: HashMap<Span, ast::TopLevelFunValueRef>,
+    typechecked_ctor_call_bindings: HashMap<Span, ast::CtorCallBinding>,
+    monomorph_keys: Vec<MonomorphKey>,
+    type_instantiation_keys: Vec<TypeInstantiationKey>,
 }
 
 /// 对一个文件的表达式做最小类型检查。
@@ -212,7 +234,27 @@ fn check_file_exprs_impl(
 ) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
     let source = request.source;
     let file = request.file;
-    let builtins = request.builtins;
+    reset_file_expr_side_tables(file);
+
+    let first_pass = check_file_exprs_pass(request, index, imports, env, types, HashMap::new())?;
+    apply_check_file_exprs_pass_result(file, &first_pass);
+
+    let precise_escape_rows =
+        compute_escape_continuation_effect_rows_for_file(source, file, index, env, types)?;
+    let final_pass = if precise_escape_rows.is_empty() {
+        first_pass
+    } else {
+        check_file_exprs_pass(request, index, imports, env, types, precise_escape_rows)?
+    };
+
+    apply_check_file_exprs_pass_result(file, &final_pass);
+    Ok((
+        final_pass.monomorph_keys,
+        final_pass.type_instantiation_keys,
+    ))
+}
+
+fn reset_file_expr_side_tables(file: &ast::File) {
     file.replace_inferred_expr_tys(HashMap::new());
     file.replace_inferred_binding_tys(HashMap::new());
     file.replace_inferred_performed_effect_tys(HashMap::new());
@@ -220,8 +262,37 @@ fn check_file_exprs_impl(
     file.replace_safe_member_access_resolved(HashMap::new());
     file.replace_typechecked_member_resolved(HashMap::new());
     file.replace_continuation_resume_call_sites(HashSet::new());
+    file.replace_non_pure_continuation_resume_call_sites(HashSet::new());
     file.replace_top_level_fun_value_refs(HashMap::new());
     file.replace_typechecked_ctor_call_bindings(HashMap::new());
+}
+
+fn apply_check_file_exprs_pass_result(file: &ast::File, result: &CheckFileExprsPassResult) {
+    file.replace_inferred_expr_tys(result.inferred_expr_tys.clone());
+    file.replace_inferred_binding_tys(result.inferred_binding_tys.clone());
+    file.replace_inferred_performed_effect_tys(result.inferred_performed_effect_tys.clone());
+    file.replace_inferred_handle_arm_effect_tys(result.inferred_handle_arm_effect_tys.clone());
+    file.replace_safe_member_access_resolved(result.safe_member_access_resolved.clone());
+    file.replace_typechecked_member_resolved(result.typechecked_member_resolved.clone());
+    file.replace_continuation_resume_call_sites(result.continuation_resume_call_sites.clone());
+    file.replace_non_pure_continuation_resume_call_sites(
+        result.non_pure_continuation_resume_call_sites.clone(),
+    );
+    file.replace_top_level_fun_value_refs(result.top_level_fun_value_refs.clone());
+    file.replace_typechecked_ctor_call_bindings(result.typechecked_ctor_call_bindings.clone());
+}
+
+fn check_file_exprs_pass(
+    request: CheckFileExprsRequest<'_>,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    escape_continuation_effect_rows: HashMap<Span, EffectRow>,
+) -> Result<CheckFileExprsPassResult, ExprTypeError> {
+    let source = request.source;
+    let file = request.file;
+    let builtins = request.builtins;
 
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
@@ -241,6 +312,7 @@ fn check_file_exprs_impl(
     let top_level_types =
         collect_top_level_value_types(source, file, index, imports, env, types, builtins)?;
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    lower.set_escape_continuation_effect_rows(escape_continuation_effect_rows);
     if request.collect_monomorph {
         lower.enable_monomorph_collection();
     }
@@ -338,36 +410,334 @@ fn check_file_exprs_impl(
         }
     }
 
-    request
-        .file
-        .replace_inferred_expr_tys(lower.take_inferred_expr_tys());
-    request
-        .file
-        .replace_inferred_binding_tys(lower.take_inferred_binding_tys());
-    request
-        .file
-        .replace_inferred_performed_effect_tys(lower.take_inferred_performed_effect_tys());
-    request
-        .file
-        .replace_inferred_handle_arm_effect_tys(lower.take_inferred_handle_arm_effect_tys());
-    request
-        .file
-        .replace_safe_member_access_resolved(lower.take_safe_member_access_resolutions());
-    request
-        .file
-        .replace_typechecked_member_resolved(lower.take_typechecked_member_resolutions());
-    request
-        .file
-        .replace_continuation_resume_call_sites(lower.take_continuation_resume_call_sites());
-    request
-        .file
-        .replace_top_level_fun_value_refs(lower.take_top_level_fun_value_refs());
-    request
-        .file
-        .replace_typechecked_ctor_call_bindings(lower.take_typechecked_ctor_call_bindings());
-    let monomorph = lower.take_monomorph_keys();
-    let type_insts = lower.take_type_instantiation_keys();
-    Ok((monomorph, type_insts))
+    let monomorph_keys = lower.take_monomorph_keys();
+    let type_instantiation_keys = lower.take_type_instantiation_keys();
+    Ok(CheckFileExprsPassResult {
+        inferred_expr_tys: lower.take_inferred_expr_tys(),
+        inferred_binding_tys: lower.take_inferred_binding_tys(),
+        inferred_performed_effect_tys: lower.take_inferred_performed_effect_tys(),
+        inferred_handle_arm_effect_tys: lower.take_inferred_handle_arm_effect_tys(),
+        safe_member_access_resolved: lower.take_safe_member_access_resolutions(),
+        typechecked_member_resolved: lower.take_typechecked_member_resolutions(),
+        continuation_resume_call_sites: lower.take_continuation_resume_call_sites(),
+        non_pure_continuation_resume_call_sites: lower
+            .take_non_pure_continuation_resume_call_sites(),
+        top_level_fun_value_refs: lower.take_top_level_fun_value_refs(),
+        typechecked_ctor_call_bindings: lower.take_typechecked_ctor_call_bindings(),
+        monomorph_keys,
+        type_instantiation_keys,
+    })
+}
+
+fn compute_escape_continuation_effect_rows_for_file(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    typecheck_types: &mut TypeStore,
+) -> Result<HashMap<Span, EffectRow>, ExprTypeError> {
+    let compilation_unit = build_typechecked_compilation_unit(source, file, env);
+    let lowered = hir::lower_for_compilation_unit_multi_files_with_type_env(
+        index,
+        &compilation_unit,
+        &[(source, file)],
+        &[],
+        Some(env),
+        typecheck_types,
+    )
+    .map_err(|_| ExprTypeError::UnsupportedExpr {
+        kind: "escape continuation resumed-step summary lowering",
+        span: Span::new(0, source.text().len()).into(),
+    })?;
+
+    Ok(collect_escape_continuation_effect_rows_from_lowered(
+        &lowered,
+        typecheck_types,
+    ))
+}
+
+fn build_typechecked_compilation_unit<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    env: &'a TypeEnv,
+) -> Vec<(&'a SourceFile, &'a ast::File)> {
+    let mut unit = env
+        .files()
+        .filter_map(|(path, stored_file)| env.source(path).map(|src| (src, stored_file)))
+        .collect::<Vec<_>>();
+
+    if let Some(existing) = unit.iter_mut().find(|(src, _)| src.path() == source.path()) {
+        *existing = (source, file);
+    } else {
+        unit.push((source, file));
+    }
+
+    unit.sort_by(|(lhs, _), (rhs, _)| lhs.path().cmp(rhs.path()));
+    unit
+}
+
+fn collect_escape_continuation_effect_rows_from_lowered(
+    lowered: &hir::LoweredHir,
+    typecheck_types: &mut TypeStore,
+) -> HashMap<Span, EffectRow> {
+    let mut out = HashMap::new();
+
+    for item in &lowered.file.items {
+        match item {
+            hir::Item::Fun(fun) => {
+                if let Some(body) = fun.body.as_ref() {
+                    collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
+                }
+            }
+            hir::Item::Val(val) => {
+                if let Some(init) = val.init.as_ref() {
+                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+                }
+            }
+            hir::Item::Todo { .. } => {}
+        }
+    }
+
+    for fun in &lowered.member_funs {
+        if let Some(body) = fun.body.as_ref() {
+            collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
+        }
+    }
+
+    for var in lowered.top_level_vars.values() {
+        if let Some(init) = var.init.as_ref() {
+            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+        }
+    }
+
+    for konst in lowered.top_level_consts.values() {
+        if let Some(init) = konst.init.as_ref() {
+            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+        }
+    }
+
+    for value in lowered.top_level_immutable_values.values() {
+        if let Some(init) = value.init.as_ref() {
+            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+        }
+    }
+
+    for init in lowered.object_inits.values() {
+        for step in &init.steps {
+            match step {
+                hir::ObjectInitStep::PropertyInit { init, .. } => {
+                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+                }
+                hir::ObjectInitStep::InitBlock { block } => {
+                    collect_escape_rows_in_block(lowered, block, typecheck_types, &mut out);
+                }
+            }
+        }
+    }
+
+    for init in lowered.class_inits.values() {
+        for arg in &init.super_ctor_args {
+            collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, &mut out);
+        }
+        for step in &init.steps {
+            match step {
+                hir::ClassInitStep::PropertyInit { init, .. } => {
+                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
+                }
+                hir::ClassInitStep::InitBlock { block } => {
+                    collect_escape_rows_in_block(lowered, block, typecheck_types, &mut out);
+                }
+            }
+        }
+        for ctor in &init.ctors {
+            if let Some(delegation) = &ctor.delegation {
+                for arg in &delegation.args {
+                    collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, &mut out);
+                }
+            }
+            if let Some(body) = &ctor.body {
+                collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
+            }
+        }
+    }
+
+    out
+}
+
+fn collect_escape_rows_in_block(
+    lowered: &hir::LoweredHir,
+    block: &hir::Block,
+    typecheck_types: &mut TypeStore,
+    out: &mut HashMap<Span, EffectRow>,
+) {
+    for stmt in &block.stmts {
+        collect_escape_rows_in_stmt(lowered, stmt, typecheck_types, out);
+    }
+}
+
+fn collect_escape_rows_in_stmt(
+    lowered: &hir::LoweredHir,
+    stmt: &hir::Stmt,
+    typecheck_types: &mut TypeStore,
+    out: &mut HashMap<Span, EffectRow>,
+) {
+    match &stmt.kind {
+        hir::StmtKind::Expr(expr) => {
+            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
+        }
+        hir::StmtKind::Val(val) => {
+            if let Some(init) = val.init.as_ref() {
+                collect_escape_rows_in_expr(lowered, init, typecheck_types, out);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_escape_rows_in_expr(lowered, lhs, typecheck_types, out);
+            collect_escape_rows_in_expr(lowered, rhs, typecheck_types, out);
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_escape_rows_in_expr(lowered, cond, typecheck_types, out);
+            collect_escape_rows_in_block(lowered, body, typecheck_types, out);
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(value) = value.as_ref() {
+                collect_escape_rows_in_expr(lowered, value, typecheck_types, out);
+            }
+        }
+        hir::StmtKind::Empty
+        | hir::StmtKind::Break { .. }
+        | hir::StmtKind::Continue { .. }
+        | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_escape_rows_in_expr(
+    lowered: &hir::LoweredHir,
+    expr: &hir::Expr,
+    typecheck_types: &mut TypeStore,
+    out: &mut HashMap<Span, EffectRow>,
+) {
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
+        | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_escape_rows_in_expr(lowered, &field.value, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_escape_rows_in_expr(lowered, element, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_escape_rows_in_expr(lowered, expr, typecheck_types, out);
+                }
+            }
+        }
+        hir::ExprKind::Unary { expr, .. }
+        | hir::ExprKind::TypeCheck { expr, .. }
+        | hir::ExprKind::Cast { expr, .. } => {
+            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
+        }
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_escape_rows_in_expr(lowered, lhs, typecheck_types, out);
+            collect_escape_rows_in_expr(lowered, rhs, typecheck_types, out);
+        }
+        hir::ExprKind::Block(block) => {
+            collect_escape_rows_in_block(lowered, block, typecheck_types, out)
+        }
+        hir::ExprKind::Closure(closure) => {
+            collect_escape_rows_in_expr(lowered, &closure.body, typecheck_types, out)
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_escape_rows_in_expr(lowered, cond, typecheck_types, out);
+            collect_escape_rows_in_expr(lowered, then_branch, typecheck_types, out);
+            if let Some(else_branch) = else_branch.as_deref() {
+                collect_escape_rows_in_expr(lowered, else_branch, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_escape_rows_in_expr(lowered, subject, typecheck_types, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_escape_rows_in_expr(lowered, guard, typecheck_types, out);
+                }
+                collect_escape_rows_in_expr(lowered, &arm.body, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::MemberAccess { receiver, .. } => {
+            collect_escape_rows_in_expr(lowered, receiver, typecheck_types, out);
+        }
+        hir::ExprKind::Call { callee, args } => {
+            collect_escape_rows_in_expr(lowered, callee, typecheck_types, out);
+            for arg in args {
+                collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, out);
+            }
+        }
+        hir::ExprKind::Handle(handle) => {
+            let rows = compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
+                &lowered.types,
+                handle,
+                &lowered.object_inits,
+                &lowered.top_level_immutable_values,
+            );
+            for arm in &handle.arms {
+                if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind {
+                    let row = rows
+                        .get(&continuation)
+                        .cloned()
+                        .unwrap_or_else(EffectRow::pure);
+                    out.insert(
+                        arm.span,
+                        EffectRow::new(
+                            row.terms
+                                .into_iter()
+                                .map(|ty| typecheck_types.re_intern_from(&lowered.types, ty))
+                                .collect(),
+                        ),
+                    );
+                }
+            }
+
+            collect_escape_rows_in_block(lowered, &handle.body, typecheck_types, out);
+            for arm in &handle.arms {
+                collect_escape_rows_in_expr(lowered, &arm.body, typecheck_types, out);
+            }
+            if let Some(finally) = handle.finally.as_ref() {
+                collect_escape_rows_in_block(lowered, finally, typecheck_types, out);
+            }
+        }
+    }
+}
+
+fn collect_escape_rows_in_call_arg(
+    lowered: &hir::LoweredHir,
+    arg: &hir::CallArg,
+    typecheck_types: &mut TypeStore,
+    out: &mut HashMap<Span, EffectRow>,
+) {
+    match arg {
+        hir::CallArg::Positional(expr) => {
+            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
+        }
+        hir::CallArg::Named { value, .. } => {
+            collect_escape_rows_in_expr(lowered, value, typecheck_types, out)
+        }
+    }
 }
 
 pub(super) fn try_infer_fun_return_ty_from_block(
@@ -1505,4 +1875,211 @@ fn build_type_where_bound_entries(
         });
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::parser::parse_file;
+    use crate::resolve;
+    use crate::session::Session;
+    use crate::typecheck;
+
+    fn setup_typed_file(
+        source_text: &str,
+    ) -> (
+        SourceFile,
+        ast::File,
+        Index,
+        ImportTable,
+        TypeEnv,
+        TypeStore,
+        BuiltinTypes,
+    ) {
+        let session = Session::new().expect("session");
+        let source = SourceFile::new_virtual("<t4008b2-entry>", source_text);
+        let mut ast = parse_file(&source).expect("parse");
+
+        typecheck::check_file_headers(&source, &ast).expect("headers");
+        typecheck::check_file_struct_decls(&source, &ast).expect("struct decls");
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                unit.push((&file.source, &file.ast));
+            }
+            unit.push((&source, &ast));
+            Index::build(&unit).expect("index")
+        };
+        let headers = resolve::check_file_headers(&source, &ast, &index).expect("resolve headers");
+        resolve::check_file_bodies(&source, &mut ast, &index, &headers).expect("resolve bodies");
+        let imports = headers.imports.clone();
+
+        let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).expect("type env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("extend type env");
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        typecheck::check_file_annotations(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("annotations");
+        typecheck::check_file_properties(&source, &ast, &index, &env).expect("properties");
+        typecheck::check_file_inheritance(&source, &ast, &index).expect("inheritance");
+        typecheck::check_file_interfaces(&source, &ast, &index, &env).expect("interfaces");
+        typecheck::check_file_override_effects(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("override effects");
+        typecheck::check_file_type_refs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("type refs");
+        typecheck::check_file_where_clauses(
+            &source,
+            &ast,
+            &index,
+            &headers.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .expect("where clauses");
+        typecheck::check_file_overload_conflicts(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect("overload conflicts");
+
+        (source, ast, index, imports, env, types, builtins)
+    }
+
+    fn escape_arm_spans(file: &ast::File) -> (Span, Span) {
+        for item in &file.items {
+            if let ast::Item::Fun(fun) = item
+                && let ast::FunBody::Block(body) = &fun.body
+            {
+                for stmt in &body.stmts {
+                    if let ast::StmtKind::Return {
+                        value: Some(expr), ..
+                    } = &stmt.kind
+                        && let ast::ExprKind::Handle { arms, .. } = &expr.kind
+                    {
+                        for arm in arms {
+                            if let ast::HandleArmKind::EscapeContinuation { k_span } = arm.kind {
+                                return (arm.span, k_span);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        panic!("expected an escape continuation arm");
+    }
+
+    const ESCAPE_BINDER_SOURCE: &str = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+private fun demo(): Int {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        seed + extra
+    } with {
+        Ask.current(), k -> {
+            0
+        }
+    }
+}
+"#;
+
+    const ESCAPE_BINDER_REQUIRE_PURE_SOURCE: &str = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+fun requirePure(k: Continuation<Int, eff Pure>): Unit {}
+
+fun requireBoom(k: Continuation<Int, eff Boom>): Unit {}
+
+private fun bad(): Int {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        seed + extra
+    } with {
+        Ask.current(), k -> {
+            requirePure(k)
+            requireBoom(k)
+            0
+        }
+    }
+}
+"#;
+
+    #[test]
+    fn escape_continuation_effect_rows_from_file_include_next_perform_boundary() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(ESCAPE_BINDER_SOURCE);
+        typecheck::check_file_exprs(&source, &ast, &index, &imports, &env, &mut types, builtins)
+            .expect("typecheck should succeed");
+
+        let rows = compute_escape_continuation_effect_rows_for_file(
+            &source, &ast, &index, &env, &mut types,
+        )
+        .expect("direct-step rows");
+        let (arm_span, _) = escape_arm_spans(&ast);
+        let row = rows.get(&arm_span).expect("escape arm row");
+
+        assert_eq!(types.display(row.terms[0]).to_string(), "a.Boom");
+    }
+
+    #[test]
+    fn check_file_exprs_retypes_escape_continuation_binder_with_precise_effect_row() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(ESCAPE_BINDER_SOURCE);
+        typecheck::check_file_exprs(&source, &ast, &index, &imports, &env, &mut types, builtins)
+            .expect("typecheck should succeed");
+
+        let (_, k_span) = escape_arm_spans(&ast);
+        let k_ty = ast
+            .inferred_binding_ty(k_span)
+            .expect("escape continuation binder type");
+        assert_eq!(
+            types.display(k_ty).to_string(),
+            "scoop.core.Continuation<Int, eff a.Boom>"
+        );
+    }
+
+    #[test]
+    fn precise_escape_continuation_type_rejects_require_pure_helper() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(ESCAPE_BINDER_REQUIRE_PURE_SOURCE);
+        let err = typecheck::check_file_exprs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect_err("escape continuation binder should not pass as eff Pure");
+
+        assert!(matches!(err, ExprTypeError::CallArgTypeMismatch { .. }));
+    }
 }

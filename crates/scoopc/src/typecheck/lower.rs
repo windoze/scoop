@@ -448,6 +448,21 @@ pub(crate) struct TypeLowering<'a> {
     /// - 作为 effect segmentation 的确定语义 side table；
     /// - 避免后续阶段再按 `resume` 这个名字或调用形状做 builtin 推断。
     continuation_resume_call_sites: HashSet<Span>,
+    /// `Continuation.resume` 中 receiver continuation 的 effect row 非 Pure 的调用点。
+    ///
+    /// 用途：
+    /// - 区分“仅会隐藏触发 `Raise<RuntimeError>`”与“resumed body 还会对外继续 suspend”；
+    /// - effect segmentation 只对这批调用点走 call-boundary replay 主线，Pure continuation
+    ///   则继续保留 self-contained `try/catch` / runtime-raise hidden-boundary 语义。
+    non_pure_continuation_resume_call_sites: HashSet<Span>,
+    /// escape continuation arm 的 resumed-step effect row（按 arm span 索引）。
+    ///
+    /// 用途：
+    /// - `, k ->` 注入 `Continuation<T, eff E>` 时复用 `T4008b1` 的 step-level summary，
+    ///   避免退回默认 `Pure`；
+    /// - key 选用 arm span，而不是 binder span / SymbolId，是为了让 typecheck 两阶段重跑时
+    ///   能稳定地在 AST 与 HIR 之间对齐同一个 handler arm。
+    escape_continuation_effect_rows: HashMap<Span, EffectRow>,
     /// typecheck 选中的“顶层函数值”目标。
     ///
     /// 用途：
@@ -575,6 +590,8 @@ impl<'a> TypeLowering<'a> {
             safe_member_access_resolutions: HashMap::new(),
             typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
+            non_pure_continuation_resume_call_sites: HashSet::new(),
+            escape_continuation_effect_rows: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
             typechecked_ctor_call_bindings: HashMap::new(),
             monomorph_requests: None,
@@ -1290,8 +1307,29 @@ impl<'a> TypeLowering<'a> {
             .insert(member_span, resolved);
     }
 
-    pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span) {
+    pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span, non_pure: bool) {
         self.continuation_resume_call_sites.insert(call_span);
+        if non_pure {
+            self.non_pure_continuation_resume_call_sites
+                .insert(call_span);
+        }
+    }
+
+    pub(super) fn set_escape_continuation_effect_rows(&mut self, rows: HashMap<Span, EffectRow>) {
+        self.escape_continuation_effect_rows = rows;
+    }
+
+    pub(super) fn escape_continuation_effect_row(&self, arm_span: Span) -> Option<&EffectRow> {
+        self.escape_continuation_effect_rows.get(&arm_span)
+    }
+
+    pub(super) fn ty_continuation(&mut self, value_ty: TypeId, effects: EffectRow) -> TypeId {
+        self.types
+            .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.Continuation".to_string(),
+                args: vec![value_ty],
+                eff: Some(effects),
+            })))
     }
 
     pub(super) fn record_top_level_fun_value_ref(
@@ -1351,6 +1389,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn take_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
         std::mem::take(&mut self.continuation_resume_call_sites)
+    }
+
+    pub(super) fn take_non_pure_continuation_resume_call_sites(&mut self) -> HashSet<Span> {
+        std::mem::take(&mut self.non_pure_continuation_resume_call_sites)
     }
 
     pub(super) fn take_top_level_fun_value_refs(

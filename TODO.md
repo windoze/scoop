@@ -803,7 +803,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4007R
 
-### T4008b [TODO] 收口 continuation 类型语义与 `Continuation.resume` builtin surface（拆分执行）
+### T4008b [DONE] 收口 continuation 类型语义与 `Continuation.resume` builtin surface（拆分执行）
 - 说明：
   - 原任务同时要求 escape continuation binder 的 `Continuation<T, eff E>` 不再退回默认 `Pure`，以及 `Continuation.resume` 的 required-effects / lowering / codegen surface 一并与规范收口。
   - 现有最小 probe `/tmp/t4008b-probe2/continuation_escape_binder_effect_row_is_not_pure.scoop` 已确认：`Ask.current(), k -> { requirePure(k); requireBoom(k) }` 当前会错误成功，说明 binder 仍被注入为 `Continuation<Int, eff Pure>`，而不是能反映恢复后一步语义的 `E`。
@@ -811,6 +811,9 @@
   - 为避免在错误的 effect-row 近似上继续推进，现拆分为 `T4008b1 -> T4008b2`。
 - 验收：
   - 子任务完成后，escape continuation binder 与 `Continuation.resume` 都以同一套 resumed-step effect summary 为准。
+- 已完成：
+  - `T4008b1` / `T4008b2` 已全部完成；escape continuation binder 与 `Continuation.resume` 现统一复用同一份 resumed-step effect summary，不再分别依赖默认 `Pure` 或额外的 builtin 形状猜测。
+  - `Continuation.resume` 已按 receiver continuation 的 effect row 做 pure / non-pure 分流：`Continuation<T, eff Pure>.resume(...)` 继续保留 hidden `Raise<RuntimeError>` 语义，`Continuation<T, eff E>.resume(...)` 在 `E` 非 Pure 时走 outward-suspending replay 主线。
 - 依赖：T4008a
 
 ### T4008b1 [DONE] 将 resumed-step 分析拆分为“tail 重建 / 直接边界总结”与“arm/finally 语义补齐”
@@ -859,7 +862,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008b1a
 
-### T4008b2 [TODO] 基于 resumed-step summary 收口 continuation binder 类型与 `Continuation.resume`
+### T4008b2 [DONE] 基于 resumed-step summary 收口 continuation binder 类型与 `Continuation.resume`
 - 范围：
   - `, k ->` 注入 `Continuation<T, eff E>` 时使用 `T4008b1` 计算出的 step-level `E`，不再退回默认 `Pure`。
   - `Continuation.resume` 的 typecheck / lowering / codegen 与规范 `k.resume(value): Unit / (E + Raise<RuntimeError>)` 对齐，复用同一份 resumed-step 语义，不再保留额外的 shape-based 调用限制。
@@ -867,6 +870,24 @@
 - 验收：
   - binder 类型不再能被 `requirePure(k)` 误接收。
   - `resume` required-effects 会从推导出的 `E` 正确传播。
+- 已完成：
+  - `check_file_exprs` 现已改为两阶段：第一阶段先完成常规 expr typecheck 并收集 typechecked side tables，随后基于 `T4008b1` 的 resumed-step summary 重新计算 escape continuation binder 的精确 effect row，再用第二阶段把 `, k ->` 注入类型收口为 `Continuation<T, eff E>`，不再默认退回 `Pure`。
+  - `Continuation.resume` 的 typecheck / lowering / LLVM effect segmentation 现统一消费同一套 side tables：AST / HIR 会同时记录“所有 `Continuation.resume` 调用点”与“non-pure continuation resume 调用点”，pure continuation 继续分类为 hidden `RuntimeRaise`，non-pure continuation 才分类为 `CallMaySuspend` 并进入 replay 主线。
+  - runtime / codegen 已补齐 resumed tail 再次 outward suspend 时的 replay 状态传递：outer `handle { k.resume(...) }` 现在可以继续接住 resumed tail 中后续产生的 effect，而 pure continuation 的嵌套 `try/catch` / `handle` 语义不再被错误破坏。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/continuation_escape_binder_effect_row_is_not_pure.scoop`
+    - `tests/fixtures/typecheck/continuation_resume_from_escape_binder_requires_step_effect.scoop`
+    - `tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop`
+    - `crates/scoopc/src/typecheck/expr/entry.rs` 中 3 条 binder/retype 单测
+    - `crates/scoopc/src/llvm/codegen/effect/state_machine_segments.rs` / `state_machine_transform.rs` / `state_machine_emitter.rs` 中 pure/non-pure continuation resume 分类与 replay 回归
+- 已验证：
+  - `cargo test -p scoopc continuation_resume -- --nocapture`
+  - `cargo test -p scoopc when_arm_try_resume_nested_handle_ir_keeps_binder_scope_for_inner_resume -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures target/t4008b2-fixtures/infer`（`fixtures: ok (2)`）
+  - `cargo run -q -p scoop -- test --fixtures target/t4008b2-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (331)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008b1b
 
 ### T4008c [TODO] 打通 richer effect polymorphism 与 receiver effect op lowering

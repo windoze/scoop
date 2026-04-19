@@ -1,0 +1,75 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_escape_binder_resume_effect_row_runtime_basic.stdout
+//
+// 目标：T4008b2
+// - escape continuation binder 可以作为 `Continuation<T, eff Boom>` 传递；
+// - 稍后 `resume` 时，恢复后的 tail 会按推导出的 effect row 继续执行；
+// - 入口 `main` 保持 Pure，但初次求值与稍后 `resume` 都能通过外层 `handle` 正确吸收 `Boom`。
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+fun acceptBoom(k: Continuation<Int, eff Boom>): Continuation<Int, eff Boom> {
+    return k
+}
+
+class Cell(var saved: Continuation<Int, eff Boom>?, var resumedTotal: Int)
+
+private fun start(cell: Cell): Int / Boom {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        cell.resumedTotal = seed + extra
+        0
+    } with {
+        Ask.current(), k -> {
+            cell.saved = Some(acceptBoom(k))
+            40
+        }
+    }
+}
+
+fun main(): Int {
+    val none_saved: Continuation<Int, eff Boom>? = None()
+    val cell: Cell = Cell(none_saved, 0 - 1)
+
+    val handled: Int = handle {
+        start(cell)
+    } with {
+        Boom.next() -> {
+            println("unexpected_initial_boom")
+            0 - 999
+        }
+    }
+
+    println(handled)
+    println(cell.resumedTotal)
+
+    when (cell.saved) {
+        Some(k) -> {
+            val resumeResult: Unit = try {
+                handle {
+                    k.resume(5)
+                } with {
+                    Boom.next() -> resume {
+                        resume(7)
+                    }
+                }
+            } catch (e: RuntimeError) {
+                println("unexpected_runtime_error")
+            }
+            resumeResult
+        }
+        None -> println("missing")
+    }
+
+    println(cell.resumedTotal)
+    return 0
+}

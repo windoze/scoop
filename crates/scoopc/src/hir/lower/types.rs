@@ -19,8 +19,8 @@ use crate::ty::{BuiltinTypes, TypeStore};
 use super::super::{
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
     EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
-    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelImmutableValueIndex,
-    TopLevelVarIndex, WhenPatBindingTypeIndex,
+    NonPureContinuationResumeCallSiteIndex, ObjectInitIndex, StructLayoutIndex, SymbolId,
+    TopLevelConstIndex, TopLevelImmutableValueIndex, TopLevelVarIndex, WhenPatBindingTypeIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -220,6 +220,8 @@ pub struct LoweredHir {
     pub ctor_call_sites: CtorCallSiteIndex,
     /// typecheck 已确认的 `Continuation.resume` 调用点集合。
     pub continuation_resume_call_sites: ContinuationResumeCallSiteIndex,
+    /// receiver continuation 的 effect row 非 Pure 的 `Continuation.resume` 调用点集合。
+    pub non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex,
     /// `when` pattern binder 的精确类型索引；供后端恢复函数值等精确局部类型。
     pub when_pat_binding_tys: WhenPatBindingTypeIndex,
     /// nominal 类型种类索引（effect/class/interface/...）。

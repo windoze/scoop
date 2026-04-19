@@ -1693,7 +1693,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: source_span.into(),
             },
         )?;
+        let is_continuation_resume_call = self
+            .continuation_resume_call_sites
+            .contains(&self.current_call_site(call_expr.span)?);
+        let saved_replay_mode = self.current_continuation_resume_replay;
+        self.current_continuation_resume_replay = is_continuation_resume_call;
         let call_result = self.codegen_expr_in_expected_context(call_expr, None)?;
+        self.current_continuation_resume_replay = saved_replay_mode;
         self.store_value_to_frame_slot(
             source_span,
             resume_slot,
@@ -2096,6 +2102,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "frame_continuation_ptr",
                 )?;
                 self.builder.build_store(cont_gep, cont)?;
+
+                // 若当前 suspend 发生在 `Continuation.resume(...)` 的 resumed body 内，
+                // runtime 会把这次新分配出来的 inner continuation 暂存到 TLS。
+                // outer call-boundary replay 复用同一条 slot，把新的 resume payload
+                // 送回该 inner continuation 后继续执行原 call site 之后的状态。
+                let publish_pending =
+                    self.declare_runtime_continuation_resume_publish_pending_continuation();
+                self.builder.build_call(
+                    publish_pending,
+                    &[cont.into()],
+                    "publish_pending_continuation_resume_inner_continuation",
+                )?;
 
                 // Direct `perform` sites only wrote the TLS payload; they
                 // still need to publish the active flag and source trace here.

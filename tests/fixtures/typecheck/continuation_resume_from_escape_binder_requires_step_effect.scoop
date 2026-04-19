@@ -1,0 +1,34 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 22:26
+// 目标：T4008b2：`Continuation.resume` 从 escape binder 读取的 required effects 必须来自 resumed-step summary。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+private fun bad(): Int / Ask {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        seed + extra
+    } with {
+        Ask.current(), k -> {
+            val resumed: Unit = try {
+                k.resume(1)
+            } catch (e: RuntimeError) {
+            }
+            resumed
+            0
+        }
+    }
+}

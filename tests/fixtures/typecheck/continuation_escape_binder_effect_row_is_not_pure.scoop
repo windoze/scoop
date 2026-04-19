@@ -1,0 +1,35 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_type_mismatch
+// EXPECT-ERROR: 调用参数类型不匹配
+// EXPECT-ERROR-AT: 30:25
+// 目标：T4008b2：escape continuation binder 的类型需要反映 resumed-step effect row，而不是默认退回 `Pure`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+fun requirePure(k: Continuation<Int, eff Pure>): Unit {}
+
+fun requireBoom(k: Continuation<Int, eff Boom>): Unit {}
+
+private fun bad(): Int {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        seed + extra
+    } with {
+        Ask.current(), k -> {
+            requirePure(k)
+            requireBoom(k)
+            0
+        }
+    }
+}

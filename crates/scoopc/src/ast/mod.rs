@@ -74,6 +74,13 @@ pub struct File {
     /// - 该表只承载“已被 typecheck 证实”的 builtin 语义点，不承载任何基于语法形状的推断；
     /// - effect segmentation 读取它来识别隐藏 suspend site，避免再按 member 名称或 receiver 形状猜测。
     pub(crate) continuation_resume_call_sites: RefCell<HashSet<Span>>,
+    /// typecheck 已确认的“非 Pure continuation.resume 调用点”。
+    ///
+    /// 说明：
+    /// - `Continuation<T, eff Pure>.resume(...)` 只需要 hidden `Raise<RuntimeError>` 边界；
+    /// - 只有 `E` 非 Pure 时，effect segmentation 才应把该 call site 视为真正的
+    ///   outward-suspending call-boundary，并走 resume.after.call replay 主线。
+    pub(crate) non_pure_continuation_resume_call_sites: RefCell<HashSet<Span>>,
     /// typecheck 选中的“顶层函数值”目标（按表达式 span 索引）。
     ///
     /// 说明：
@@ -173,6 +180,16 @@ impl File {
 
     pub fn continuation_resume_call_sites(&self) -> HashSet<Span> {
         self.continuation_resume_call_sites.borrow().clone()
+    }
+
+    pub fn replace_non_pure_continuation_resume_call_sites(&self, sites: HashSet<Span>) {
+        *self.non_pure_continuation_resume_call_sites.borrow_mut() = sites;
+    }
+
+    pub fn non_pure_continuation_resume_call_sites(&self) -> HashSet<Span> {
+        self.non_pure_continuation_resume_call_sites
+            .borrow()
+            .clone()
     }
 
     pub fn replace_top_level_fun_value_refs(&self, refs: HashMap<Span, TopLevelFunValueRef>) {

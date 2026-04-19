@@ -11,6 +11,8 @@
 pub mod ast;
 pub mod comptime;
 pub mod cone;
+#[cfg(not(feature = "llvm"))]
+pub(crate) mod effect_step_summary;
 pub mod hir;
 pub mod infer;
 pub mod itable;

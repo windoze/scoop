@@ -2851,7 +2851,7 @@ fun demo(): Int / (Ask) {
                 ],
             ),
             (
-                "runtime_raise_hidden_site",
+                "pure_continuation_resume_runtime_raise_hidden_site",
                 r#"
 package a
 
@@ -4430,14 +4430,19 @@ fun demo(flag: Bool): Int {
             .keys()
             .cloned()
             .collect();
+        let program_facts = SuspendCallProgramFacts {
+            ctor_call_targets: &ctor_call_targets,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: &lowered
+                .non_pure_continuation_resume_call_sites,
+            object_value_fqns: &object_value_fqns,
+            object_property_fqns: &object_property_fqns,
+            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+        };
         let known_fun_effects = collect_known_fun_call_suspendability(
             &lowered.types,
             &fun_index,
-            &ctor_call_targets,
-            &lowered.continuation_resume_call_sites,
-            &object_value_fqns,
-            &object_property_fqns,
-            &top_level_immutable_value_fqns,
+            program_facts,
         );
 
         let mut known_local_metadata = HashMap::new();
@@ -4446,11 +4451,7 @@ fun demo(flag: Bool): Int {
             types: &lowered.types,
             known_fun_effects: &known_fun_effects,
             current_source_path: owner_fun.source_path.as_path(),
-            ctor_call_targets: &ctor_call_targets,
-            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            object_value_fqns: &object_value_fqns,
-            object_property_fqns: &object_property_fqns,
-            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+            program_facts,
         };
         let known_local_fun_effects =
             collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
@@ -4470,6 +4471,9 @@ fun demo(flag: Bool): Int {
             current_source_path: owner_fun.source_path.clone(),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
+            non_pure_continuation_resume_call_sites: lowered
+                .non_pure_continuation_resume_call_sites
+                .clone(),
             object_value_fqns,
             object_property_fqns,
             top_level_immutable_value_fqns,

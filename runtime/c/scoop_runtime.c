@@ -457,6 +457,15 @@ SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 // - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
 static SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
 
+// `Continuation.resume(...)` 的 resumed body 若再次 suspend outward，
+// 需要把“当前待继续的 inner continuation”先暂存在 TLS，等 runtime 从 step_fn
+// 返回后再包装成 replay-state 暴露给 outer call-boundary。
+static SCOOP_THREAD_LOCAL void *__scoop_continuation_resume_pending_continuation = 0;
+
+// 动态范围标记：当前线程是否正运行在 `scoop_continuation_resume(...)` 驱动的
+// resumed body 内。Suspend terminator 会据此决定是否向上发布 pending continuation。
+static SCOOP_THREAD_LOCAL uint32_t __scoop_continuation_resume_active = 0;
+
 static void scoop_effect_perform_slot_drop_gc_ref(void) {
   if (__scoop_effect_perform_slot.payload_gc_ref != 0) {
     scoop_unpin(__scoop_effect_perform_slot.payload_gc_ref);
@@ -656,6 +665,8 @@ void scoop_thread_unregister(void) {
   __scoop_effect_active = 0;
   __scoop_effect_handler_stack_top = 0;
   __scoop_callee_suspend_state = 0;
+  __scoop_continuation_resume_pending_continuation = 0;
+  __scoop_continuation_resume_active = 0;
   scoop_effect_perform_slot_reset();
   scoop_effect_trace_reset(0, 0);
 
@@ -712,6 +723,18 @@ void *scoop_callee_suspend_state_get(void) {
 
 void scoop_callee_suspend_state_clear(void) {
   __scoop_callee_suspend_state = 0;
+}
+
+void scoop_continuation_resume_publish_pending_continuation(void *continuation) {
+  if (continuation == 0 || __scoop_continuation_resume_active == 0) {
+    return;
+  }
+
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  __scoop_continuation_resume_pending_continuation = continuation;
 }
 
 // test-only helper：允许 runtime 集成测试显式种入一个“调用方原 TLS”哨兵值，
@@ -1145,6 +1168,79 @@ uint32_t scoop_continuation_try_resume(void *continuation) {
   return 0;
 }
 
+typedef struct ScoopContinuationResumeReplayState {
+  ScoopGcObjectHeader hdr;
+  uint64_t resume_word;
+  void *resume_gc_ref;
+  uint32_t site_tag;
+  void *pending_continuation;
+  void *prev_callee_suspend_state;
+} ScoopContinuationResumeReplayState;
+
+static uint64_t scoop_continuation_resume_replay_state_trace(
+    void *object, ScoopGcTraceVisitor visitor, void *ctx) {
+  if (object == 0 || visitor == 0) {
+    return 0;
+  }
+
+  ScoopContinuationResumeReplayState *state =
+      (ScoopContinuationResumeReplayState *)object;
+  uint64_t refs = 0;
+
+  if (state->resume_gc_ref != 0) {
+    void **slot = (void **)&state->resume_gc_ref;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  if (state->pending_continuation != 0) {
+    void **slot = (void **)&state->pending_continuation;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  if (state->prev_callee_suspend_state != 0) {
+    void **slot = (void **)&state->prev_callee_suspend_state;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  return refs;
+}
+
+static const ScoopTypeDescriptor SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopContinuationResumeReplayState),
+    .align_bytes = (uint64_t)_Alignof(ScoopContinuationResumeReplayState),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = scoop_continuation_resume_replay_state_trace,
+    .release_fn = 0,
+};
+
+static ScoopContinuationResumeReplayState *
+scoop_continuation_resume_replay_state_alloc(void *pending_continuation,
+                                             void *prev_callee_suspend_state) {
+  ScoopContinuationResumeReplayState *state =
+      (ScoopContinuationResumeReplayState *)scoop_alloc(
+          (uint64_t)sizeof(ScoopContinuationResumeReplayState));
+  if (state == 0) {
+    return 0;
+  }
+
+  state->hdr.type_desc = &SCOOP_CONTINUATION_RESUME_REPLAY_STATE_TYPE_DESC;
+  state->resume_word = 0;
+  state->resume_gc_ref = 0;
+  state->site_tag = UINT32_MAX;
+  state->pending_continuation = pending_continuation;
+  state->prev_callee_suspend_state = prev_callee_suspend_state;
+  scoop_pin(state);
+  return state;
+}
+
 // Runtime-originated `Raise<RuntimeError>` 必须与编译器侧
 // `encode_effect_transport_value()` 保持同一套 perform-slot 合同：
 // unit enum variant 作为单 word tag 传输，`gc_ref` 置空。
@@ -1176,7 +1272,12 @@ static void scoop_continuation_resume_common(void *continuation) {
   ScoopEffectHandlerFrame *saved =
       scoop_effect_handler_stack_swap_top(captured_handler_stack_top);
   void *saved_callee_suspend_state = __scoop_callee_suspend_state;
+  void *saved_pending_continuation =
+      __scoop_continuation_resume_pending_continuation;
+  uint32_t saved_resume_active = __scoop_continuation_resume_active;
   void *captured_callee_suspend_state = k->captured_callee_suspend_state;
+  __scoop_continuation_resume_pending_continuation = 0;
+  __scoop_continuation_resume_active = saved_resume_active + 1u;
 
   // T3009b2a：TLS 只承担“当前 resumed body 正在消费哪个 callee state”的临时职责；
   // continuation 自己才是持久化 owner。为了避免 moving GC 在 TLS raw 指针尚未被
@@ -1196,7 +1297,18 @@ static void scoop_continuation_resume_common(void *continuation) {
     k->step_fn(k->state, k->resume_word, k->resume_gc_ref);
   }
 
-  __scoop_callee_suspend_state = saved_callee_suspend_state;
+  void *pending_continuation = __scoop_continuation_resume_pending_continuation;
+  __scoop_continuation_resume_pending_continuation = saved_pending_continuation;
+  __scoop_continuation_resume_active = saved_resume_active;
+  if (pending_continuation != 0) {
+    ScoopContinuationResumeReplayState *replay_state =
+        scoop_continuation_resume_replay_state_alloc(pending_continuation,
+                                                     saved_callee_suspend_state);
+    __scoop_callee_suspend_state =
+        replay_state != 0 ? (void *)replay_state : saved_callee_suspend_state;
+  } else {
+    __scoop_callee_suspend_state = saved_callee_suspend_state;
+  }
   if (captured_callee_suspend_state != 0) {
     scoop_unpin(captured_callee_suspend_state);
   }

@@ -32,8 +32,8 @@ use crate::ty::{
 
 use super::{
     Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex,
-    Expr, ExprKind, File, FunDecl, Item, ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl,
-    ValueRef,
+    Expr, ExprKind, File, FunDecl, Item, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
+    Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
 };
 
 use types::*;
@@ -1371,6 +1371,11 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         .into_iter()
         .map(|span| CallSite::new(source.path().to_path_buf(), span))
         .collect();
+    let non_pure_continuation_resume_call_sites = ast
+        .non_pure_continuation_resume_call_sites()
+        .into_iter()
+        .map(|span| CallSite::new(source.path().to_path_buf(), span))
+        .collect();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -1486,6 +1491,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,
@@ -1522,6 +1528,11 @@ pub fn lower_for_compilation_unit(
     )?;
     let continuation_resume_call_sites = file
         .continuation_resume_call_sites()
+        .into_iter()
+        .map(|span| CallSite::new(source.path().to_path_buf(), span))
+        .collect();
+    let non_pure_continuation_resume_call_sites = file
+        .non_pure_continuation_resume_call_sites()
         .into_iter()
         .map(|span| CallSite::new(source.path().to_path_buf(), span))
         .collect();
@@ -1618,6 +1629,7 @@ pub fn lower_for_compilation_unit(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,
@@ -1687,6 +1699,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
     let mut continuation_resume_call_sites: ContinuationResumeCallSiteIndex =
         ContinuationResumeCallSiteIndex::new();
+    let mut non_pure_continuation_resume_call_sites: NonPureContinuationResumeCallSiteIndex =
+        NonPureContinuationResumeCallSiteIndex::new();
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
     let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
     let mut top_level_immutable_values: super::TopLevelImmutableValueIndex = HashMap::new();
@@ -1738,6 +1752,11 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         ctor_call_sites.extend(file_ctor_call_sites);
         continuation_resume_call_sites.extend(
             file.continuation_resume_call_sites()
+                .into_iter()
+                .map(|span| CallSite::new(source.path().to_path_buf(), span)),
+        );
+        non_pure_continuation_resume_call_sites.extend(
+            file.non_pure_continuation_resume_call_sites()
                 .into_iter()
                 .map(|span| CallSite::new(source.path().to_path_buf(), span)),
         );
@@ -1852,6 +1871,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        non_pure_continuation_resume_call_sites,
         when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,

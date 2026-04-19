@@ -23,6 +23,8 @@ mod unified_state_machine_skeleton {
     include!("state_machine_transform.rs");
 }
 
+pub(crate) use unified_state_machine_skeleton::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EffectTransportKind {
     Word,
@@ -34,6 +36,8 @@ const CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX: u32 = 1;
 const CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX: u32 = 2;
 const CALLEE_SUSPEND_STATE_SITE_TAG_INDEX: u32 = 3;
 const CALLEE_SUSPEND_STATE_USER_FIELD_BASE_INDEX: u32 = 4;
+const CONTINUATION_RESUME_REPLAY_STATE_PENDING_CONTINUATION_INDEX: u32 = 4;
+const CONTINUATION_RESUME_REPLAY_STATE_PREV_CALLEE_SUSPEND_STATE_INDEX: u32 = 5;
 
 #[derive(Clone, Copy)]
 pub(super) struct CalleeSuspendResumeState<'ctx> {
@@ -42,6 +46,13 @@ pub(super) struct CalleeSuspendResumeState<'ctx> {
     pub(super) resume_word: IntValue<'ctx>,
     pub(super) resume_gc_ref: PointerValue<'ctx>,
     pub(super) site_tag: IntValue<'ctx>,
+}
+
+#[derive(Clone, Copy)]
+struct ContinuationResumeReplayState<'ctx> {
+    resume_word: IntValue<'ctx>,
+    resume_gc_ref: PointerValue<'ctx>,
+    pending_continuation: PointerValue<'ctx>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -132,6 +143,152 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })
             .map(BasicValueEnum::into_pointer_value)
+    }
+
+    fn restore_callee_suspend_state_from_ptr(
+        &mut self,
+        at: crate::span::Span,
+        state: PointerValue<'ctx>,
+        label: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let current_fn = self.current_codegen_function(at)?;
+        let has_prev = self.ptr_is_non_null(at, state, &format!("{label}_has_prev"))?;
+        let publish_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_publish"));
+        let clear_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_clear"));
+        let continue_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("{label}_continue"));
+        self.builder
+            .build_conditional_branch(has_prev, publish_bb, clear_bb)?;
+
+        self.builder.position_at_end(publish_bb);
+        let publish = self.declare_runtime_callee_suspend_state_publish();
+        self.builder
+            .build_call(publish, &[state.into()], &format!("{label}_publish_call"))?;
+        self.builder.build_unconditional_branch(continue_bb)?;
+
+        self.builder.position_at_end(clear_bb);
+        let clear = self.declare_runtime_callee_suspend_state_clear();
+        self.builder
+            .build_call(clear, &[], &format!("{label}_clear_call"))?;
+        self.builder.build_unconditional_branch(continue_bb)?;
+
+        self.builder.position_at_end(continue_bb);
+        Ok(())
+    }
+
+    fn llvm_continuation_resume_replay_state_type(&self) -> StructType<'ctx> {
+        const NAME: &str = "scoop.runtime.ContinuationResumeReplayState";
+        if let Some(existing) = self.context.get_struct_type(NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(NAME);
+        ty.set_body(
+            &[
+                self.llvm_gc_object_header_type().into(),
+                self.context.i64_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+                self.context.i32_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+                self.llvm_gc_i8_ptr_type().into(),
+            ],
+            false,
+        );
+        ty
+    }
+
+    fn take_continuation_resume_replay_state(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<ContinuationResumeReplayState<'ctx>, LlvmEmitError> {
+        let state_raw =
+            self.current_callee_suspend_state_ptr(at, "continuation_resume_replay_state_raw")?;
+        let state_ty = self.llvm_continuation_resume_replay_state_type();
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            self.llvm_ptr_type(self.gc_address_space()),
+            "continuation_resume_replay_state_ptr",
+        )?;
+        let resume_word_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX,
+            "continuation_resume_replay_word_gep",
+        )?;
+        let resume_word = self
+            .builder
+            .build_load(
+                self.context.i64_type(),
+                resume_word_gep,
+                "continuation_resume_replay_word",
+            )?
+            .into_int_value();
+        let resume_gc_ref_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CALLEE_SUSPEND_STATE_RESUME_GC_REF_INDEX,
+            "continuation_resume_replay_gc_ref_gep",
+        )?;
+        let resume_gc_ref = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                resume_gc_ref_gep,
+                "continuation_resume_replay_gc_ref",
+            )?
+            .into_pointer_value();
+        let continuation_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CONTINUATION_RESUME_REPLAY_STATE_PENDING_CONTINUATION_INDEX,
+            "continuation_resume_replay_cont_gep",
+        )?;
+        let pending_continuation = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                continuation_gep,
+                "continuation_resume_replay_cont",
+            )?
+            .into_pointer_value();
+        let prev_state_gep = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            CONTINUATION_RESUME_REPLAY_STATE_PREV_CALLEE_SUSPEND_STATE_INDEX,
+            "continuation_resume_prev_callee_state_gep",
+        )?;
+        let prev_callee_suspend_state = self
+            .builder
+            .build_load(
+                self.llvm_gc_i8_ptr_type(),
+                prev_state_gep,
+                "continuation_resume_prev_callee_state",
+            )?
+            .into_pointer_value();
+
+        self.restore_callee_suspend_state_from_ptr(
+            at,
+            prev_callee_suspend_state,
+            "continuation_resume_replay_restore",
+        )?;
+
+        let unpin = self.declare_runtime_gc_unpin();
+        self.builder.build_call(
+            unpin,
+            &[state_raw.into()],
+            "unpin_continuation_resume_replay_state",
+        )?;
+
+        Ok(ContinuationResumeReplayState {
+            resume_word,
+            resume_gc_ref,
+            pending_continuation,
+        })
     }
 
     fn llvm_callee_suspend_state_prefix_type(&self) -> StructType<'ctx> {
@@ -674,6 +831,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if self.current_continuation_resume_replay {
+            let replay = self.take_continuation_resume_replay_state(span)?;
+            self.write_encoded_resume_payload_to_continuation(
+                replay.pending_continuation,
+                replay.resume_word,
+                replay.resume_gc_ref,
+            )?;
+
+            let resume_fn = self.declare_runtime_continuation_resume();
+            self.builder.build_call(
+                resume_fn,
+                &[replay.pending_continuation.into()],
+                "continuation_resume_replay",
+            )?;
+            self.emit_ordinary_call_effect_propagation_check(
+                span,
+                "continuation_resume_replay_effect",
+            )?;
+            return Ok(CgValue::unit());
+        }
+
         let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "Continuation.resume callee shape",
@@ -1360,8 +1538,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         val: CgValue<'ctx>,
         cont_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let cont_ty = self.llvm_continuation_struct_type();
         let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
+        self.write_encoded_resume_payload_to_continuation(cont_ptr, word, gc_ref)
+    }
+
+    pub(super) fn write_encoded_resume_payload_to_continuation(
+        &mut self,
+        cont_ptr: PointerValue<'ctx>,
+        word: IntValue<'ctx>,
+        gc_ref: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let cont_ty = self.llvm_continuation_struct_type();
         let word_gep = self.builder.build_struct_gep(
             cont_ty,
             cont_ptr,

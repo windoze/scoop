@@ -37,6 +37,7 @@ use crate::span::Span;
 mod codegen;
 mod stackmap;
 mod target;
+pub(crate) use codegen::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
 pub use target::{HostTargetInfo, LlvmTargetError};
 
 /// LLVM statepoint GC 策略名（内置于 LLVM）。
@@ -653,6 +654,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
         when_pat_binding_tys: &lowered.when_pat_binding_tys,
         nominal_kinds: &lowered.nominal_kinds,
         nominal_variances: &lowered.nominal_variances,
@@ -782,6 +784,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
             class_itables: &lowered.class_itables,
             ctor_call_sites: &lowered.ctor_call_sites,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: &lowered
+                .non_pure_continuation_resume_call_sites,
             when_pat_binding_tys: &lowered.when_pat_binding_tys,
             nominal_kinds: &lowered.nominal_kinds,
             nominal_variances: &lowered.nominal_variances,
@@ -868,6 +872,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         class_itables: &lowered.class_itables,
         ctor_call_sites: &lowered.ctor_call_sites,
         continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+        non_pure_continuation_resume_call_sites: &lowered.non_pure_continuation_resume_call_sites,
         when_pat_binding_tys: &lowered.when_pat_binding_tys,
         nominal_kinds: &lowered.nominal_kinds,
         nominal_variances: &lowered.nominal_variances,

@@ -79,6 +79,8 @@ use types::{
     CgEnumLayout, CgEnumPayload, CgEnumRepr, CgEnumVariant, CgTy, CgValue, GC_ADDRSPACE, IntTy,
 };
 
+pub(crate) use effect::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
+
 /// Closure lowering 后，codegen 需要分别知道：
 /// - receiver lambda 的隐式 `this` 绑定（来自 LLVM receiver 参数，而非 capture env）；
 /// - 普通显式参数 / 隐式 `it` 绑定；
@@ -239,6 +241,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    non_pure_continuation_resume_call_sites: &'a hir::NonPureContinuationResumeCallSiteIndex,
     when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
     nominal_variances: &'a hir::NominalVarianceIndex,
@@ -322,6 +325,13 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 进入其它独立函数体（例如 closure body、effect step_fn）时必须保存/恢复此字段，
     ///   避免把外层计划泄漏到不相关的代码生成上下文。
     current_callee_suspend_plan: Option<CalleeSuspendPlan>,
+    /// `Continuation.resume(...)` 的 outer call-boundary replay 模式。
+    ///
+    /// 说明：
+    /// - fresh path 直接对原 receiver continuation 调用 runtime resume；
+    /// - replay path 则从 runtime TLS 取回“上一次 suspend outward 时挂起的 inner continuation”，
+    ///   再把新的 resume payload 送回该 inner continuation，最后继续执行原 call site 之后的外层状态。
+    current_continuation_resume_replay: bool,
     /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
     top_level_const_eval_stack: Vec<String>,
 }
@@ -424,6 +434,8 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    pub(super) non_pure_continuation_resume_call_sites:
+        &'a hir::NonPureContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) nominal_variances: &'a hir::NominalVarianceIndex,
@@ -468,6 +480,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
@@ -502,6 +515,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites,
             when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
@@ -523,6 +537,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             effect_function_return_context: None,
             current_sret_return_ptr: None,
             current_callee_suspend_plan: None,
+            current_continuation_resume_replay: false,
             top_level_const_eval_stack: Vec::new(),
         }
     }
@@ -1490,6 +1505,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables: self.class_itables,
             ctor_call_sites: self.ctor_call_sites,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
             when_pat_binding_tys: self.when_pat_binding_tys,
             nominal_kinds: self.nominal_kinds,
             nominal_variances: self.nominal_variances,
@@ -11349,6 +11365,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 class_itables: self.class_itables,
                 ctor_call_sites: self.ctor_call_sites,
                 continuation_resume_call_sites: self.continuation_resume_call_sites,
+                non_pure_continuation_resume_call_sites: self
+                    .non_pure_continuation_resume_call_sites,
                 when_pat_binding_tys: self.when_pat_binding_tys,
                 nominal_kinds: self.nominal_kinds,
                 nominal_variances: self.nominal_variances,
@@ -13989,6 +14007,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables: self.class_itables,
             ctor_call_sites: self.ctor_call_sites,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: self.non_pure_continuation_resume_call_sites,
             when_pat_binding_tys: self.when_pat_binding_tys,
             nominal_kinds: self.nominal_kinds,
             nominal_variances: self.nominal_variances,

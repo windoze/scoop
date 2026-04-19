@@ -2705,7 +2705,7 @@ fun demo(): Int / (Ask) {
     }
 
     #[test]
-    fn segment_dump_marks_runtime_raise_as_hidden_suspend_site() {
+    fn segment_dump_marks_pure_continuation_resume_as_runtime_raise_site() {
         let dump = build_segment_dump(
             r#"
 package a
@@ -2772,6 +2772,45 @@ fun demo(k: Continuation<Int>): Int {
                 .is_none(),
             "unmarked call sites must not be inferred as builtin resume sites"
         );
+    }
+
+    #[test]
+    fn non_pure_continuation_resume_classifies_as_call_suspend_site() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun demo(k: Continuation<Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
+    k.resume(1)
+    val result: Int = handle {
+        0
+    } with {
+        Raise.raise(err: RuntimeError) -> 1
+    }
+    result
+}
+"#,
+        );
+
+        let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
+        let context = collect_plan_context(&lowered, fun);
+        let builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
+        let resume_call_site = lowered
+            .non_pure_continuation_resume_call_sites
+            .iter()
+            .next()
+            .cloned()
+            .expect("expected a non-pure Continuation.resume call site");
+        assert!(matches!(
+            builder.classify_builtin_suspend_call(resume_call_site.span),
+            Some(SuspendSiteKind::CallMaySuspend { callee }) if callee == "Continuation.resume"
+        ));
     }
 
     #[test]
@@ -4444,14 +4483,19 @@ fun demo(limit: Int): Int {
             .keys()
             .cloned()
             .collect();
+        let program_facts = SuspendCallProgramFacts {
+            ctor_call_targets: &ctor_call_targets,
+            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: &lowered
+                .non_pure_continuation_resume_call_sites,
+            object_value_fqns: &object_value_fqns,
+            object_property_fqns: &object_property_fqns,
+            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+        };
         let known_fun_effects = collect_known_fun_call_suspendability(
             &lowered.types,
             &fun_index,
-            &ctor_call_targets,
-            &lowered.continuation_resume_call_sites,
-            &object_value_fqns,
-            &object_property_fqns,
-            &top_level_immutable_value_fqns,
+            program_facts,
         );
 
         let mut known_local_metadata = HashMap::new();
@@ -4460,11 +4504,7 @@ fun demo(limit: Int): Int {
             types: &lowered.types,
             known_fun_effects: &known_fun_effects,
             current_source_path: owner_fun.source_path.as_path(),
-            ctor_call_targets: &ctor_call_targets,
-            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            object_value_fqns: &object_value_fqns,
-            object_property_fqns: &object_property_fqns,
-            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+            program_facts,
         };
         let known_local_fun_effects =
             collect_known_local_fun_call_suspendability_in_fun(owner_fun, &analysis);
@@ -4484,6 +4524,9 @@ fun demo(limit: Int): Int {
             current_source_path: owner_fun.source_path.clone(),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
+            non_pure_continuation_resume_call_sites: lowered
+                .non_pure_continuation_resume_call_sites
+                .clone(),
             object_value_fqns,
             object_property_fqns,
             top_level_immutable_value_fqns,

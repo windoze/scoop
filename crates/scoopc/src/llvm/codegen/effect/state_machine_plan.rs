@@ -21,6 +21,7 @@ struct HandlePlanContext {
     current_source_path: PathBuf,
     ctor_call_targets: hir::CtorCallSiteIndex,
     continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
+    non_pure_continuation_resume_call_sites: hir::NonPureContinuationResumeCallSiteIndex,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
     top_level_immutable_value_fqns: HashSet<String>,
@@ -1574,11 +1575,16 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             types: self.types,
             known_fun_effects: &self.context.known_fun_effects,
             current_source_path: self.context.current_source_path.as_path(),
-            ctor_call_targets: &self.context.ctor_call_targets,
-            continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
-            object_value_fqns: &self.context.object_value_fqns,
-            object_property_fqns: &self.context.object_property_fqns,
-            top_level_immutable_value_fqns: &self.context.top_level_immutable_value_fqns,
+            program_facts: SuspendCallProgramFacts {
+                ctor_call_targets: &self.context.ctor_call_targets,
+                continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
+                non_pure_continuation_resume_call_sites: &self
+                    .context
+                    .non_pure_continuation_resume_call_sites,
+                object_value_fqns: &self.context.object_value_fqns,
+                object_property_fqns: &self.context.object_property_fqns,
+                top_level_immutable_value_fqns: &self.context.top_level_immutable_value_fqns,
+            },
         }
         .function_value_may_suspend_when_called(expr, &self.known_local_fun_effects)
     }
@@ -2580,14 +2586,36 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
     }
 
     fn classify_builtin_suspend_call(&self, call_span: Span) -> Option<SuspendSiteKind> {
-        // `Continuation.resume` 的 builtin 语义只来自上游 typecheck 已确认的调用点 side table；
+        // `Continuation.resume` 的 builtin 语义只来自上游 typecheck 已确认的 side tables；
         // segmentation 本身不再按成员名、receiver 类型或其它代码形状做推断。
-        self.context
+        //
+        // 只有 receiver continuation 的 effect row 非 Pure 时，resumed body 才会像普通
+        // effectful callee 一样再次 suspend outward，outer handle 需要走
+        // resume.after.call replay 主线。Pure continuation 则只保留 hidden
+        // `Raise<RuntimeError>` 边界，使 `try { k.resume(...) } catch` 继续保持
+        // self-contained nested-handle 语义。
+        let call_site = self.context.call_site(call_span);
+        if !self
+            .context
             .continuation_resume_call_sites
-            .contains(&self.context.call_site(call_span))
-            .then(|| SuspendSiteKind::RuntimeRaise {
+            .contains(&call_site)
+        {
+            return None;
+        }
+
+        if self
+            .context
+            .non_pure_continuation_resume_call_sites
+            .contains(&call_site)
+        {
+            Some(SuspendSiteKind::CallMaySuspend {
+                callee: "Continuation.resume".to_string(),
+            })
+        } else {
+            Some(SuspendSiteKind::RuntimeRaise {
                 reason: "Continuation.resume".to_string(),
             })
+        }
     }
 
     fn classify_hidden_suspend_var_ref(
@@ -6078,8 +6106,14 @@ struct SuspendCallAnalysis<'a> {
     types: &'a TypeStore,
     known_fun_effects: &'a HashMap<String, bool>,
     current_source_path: &'a Path,
+    program_facts: SuspendCallProgramFacts<'a>,
+}
+
+#[derive(Clone, Copy)]
+struct SuspendCallProgramFacts<'a> {
     ctor_call_targets: &'a hir::CtorCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    non_pure_continuation_resume_call_sites: &'a hir::NonPureContinuationResumeCallSiteIndex,
     object_value_fqns: &'a HashSet<String>,
     object_property_fqns: &'a HashSet<String>,
     top_level_immutable_value_fqns: &'a HashSet<String>,
@@ -6326,8 +6360,11 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.object_value_fqns.contains(fqn)
-                    || self.top_level_immutable_value_fqns.contains(fqn)
+                self.program_facts.object_value_fqns.contains(fqn)
+                    || self
+                        .program_facts
+                        .top_level_immutable_value_fqns
+                        .contains(fqn)
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => false,
             hir::ExprKind::StructLit { fields, .. } => fields
@@ -6376,8 +6413,8 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || matches!(
                         member.resolved.as_ref(),
                         Some(hir::MemberRef::Value { fqn, .. })
-                            if self.object_value_fqns.contains(fqn)
-                                || self.object_property_fqns.contains(fqn)
+                            if self.program_facts.object_value_fqns.contains(fqn)
+                                || self.program_facts.object_property_fqns.contains(fqn)
                     )
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
@@ -6385,9 +6422,13 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || self.expr_may_suspend(rhs, known_locals)
             }
             hir::ExprKind::Call { callee, args } => {
-                self.continuation_resume_call_sites
+                self.program_facts
+                    .continuation_resume_call_sites
                     .contains(&self.call_site(expr.span))
-                    || self.ctor_call_targets.contains_key(&self.call_site(expr.span))
+                    || self
+                        .program_facts
+                        .ctor_call_targets
+                        .contains_key(&self.call_site(expr.span))
                     || self.function_value_may_suspend_when_called(callee, known_locals)
                     || self.expr_may_suspend(callee, known_locals)
                     || args.iter().any(|arg| match arg {
@@ -6470,11 +6511,7 @@ impl<'a> SuspendCallAnalysis<'a> {
 fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    ctor_call_targets: &hir::CtorCallSiteIndex,
-    continuation_resume_call_sites: &hir::ContinuationResumeCallSiteIndex,
-    object_value_fqns: &HashSet<String>,
-    object_property_fqns: &HashSet<String>,
-    top_level_immutable_value_fqns: &HashSet<String>,
+    program_facts: SuspendCallProgramFacts<'_>,
 ) -> HashMap<String, bool> {
     let mut known_fun_effects = fun_index
         .iter()
@@ -6496,11 +6533,7 @@ fn collect_known_fun_call_suspendability(
                 types,
                 known_fun_effects: &snapshot,
                 current_source_path: fun.source_path.as_path(),
-                ctor_call_targets,
-                continuation_resume_call_sites,
-                object_value_fqns,
-                object_property_fqns,
-                top_level_immutable_value_fqns,
+                program_facts,
             };
             let seed_locals = fun
                 .params
@@ -7130,6 +7163,7 @@ impl HandlePlanContext {
         hir::SymbolId::from_raw(raw)
     }
 
+    #[cfg(feature = "llvm")]
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
         let ctor_call_targets = cg.ctor_call_sites.clone();
         let object_value_fqns = cg.object_inits.keys().cloned().collect();
@@ -7188,6 +7222,9 @@ impl HandlePlanContext {
             current_source_path,
             ctor_call_targets,
             continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
+            non_pure_continuation_resume_call_sites: cg
+                .non_pure_continuation_resume_call_sites
+                .clone(),
             object_value_fqns,
             object_property_fqns,
             top_level_immutable_value_fqns,
@@ -7199,6 +7236,7 @@ impl HandlePlanContext {
     }
 }
 
+#[cfg(feature = "llvm")]
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in super::super) fn build_ordinary_callee_suspend_plan_from_unified_contract(
         &self,
@@ -7321,14 +7359,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
+        let program_facts = SuspendCallProgramFacts {
+            ctor_call_targets: &ctor_call_targets,
+            continuation_resume_call_sites: self.continuation_resume_call_sites,
+            non_pure_continuation_resume_call_sites: self
+                .non_pure_continuation_resume_call_sites,
+            object_value_fqns: &object_value_fqns,
+            object_property_fqns: &object_property_fqns,
+            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+        };
         let known_fun_effects = collect_known_fun_call_suspendability(
             self.types,
             self.fun_index,
-            &ctor_call_targets,
-            self.continuation_resume_call_sites,
-            &object_value_fqns,
-            &object_property_fqns,
-            &top_level_immutable_value_fqns,
+            program_facts,
         );
         *self.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
     }
@@ -7391,11 +7434,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .current_source()
                 .expect("codegen context should always have a current source")
                 .path(),
-            ctor_call_targets: &ctor_call_targets,
-            continuation_resume_call_sites: self.continuation_resume_call_sites,
-            object_value_fqns: &object_value_fqns,
-            object_property_fqns: &object_property_fqns,
-            top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+            program_facts: SuspendCallProgramFacts {
+                ctor_call_targets: &ctor_call_targets,
+                continuation_resume_call_sites: self.continuation_resume_call_sites,
+                non_pure_continuation_resume_call_sites: self
+                    .non_pure_continuation_resume_call_sites,
+                object_value_fqns: &object_value_fqns,
+                object_property_fqns: &object_property_fqns,
+                top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
+            },
         }
         .function_value_may_suspend_when_called(expr, &known_locals)
     }
@@ -7454,6 +7501,22 @@ pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle(
 ) -> HashMap<hir::SymbolId, EffectRow> {
     compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
         types, handle, None,
+    )
+}
+
+pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(
+    types: &TypeStore,
+    handle: &hir::HandleExpr,
+    object_inits: &hir::ObjectInitIndex,
+    top_level_immutable_values: &hir::TopLevelImmutableValueIndex,
+) -> HashMap<hir::SymbolId, EffectRow> {
+    compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
+        types,
+        handle,
+        Some(DirectStepProgramInfo {
+            object_inits,
+            top_level_immutable_values,
+        }),
     )
 }
 
@@ -7615,6 +7678,7 @@ fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePl
         current_source_path: PathBuf::from("<t4008b1a>"),
         ctor_call_targets: HashMap::new(),
         continuation_resume_call_sites: HashSet::new(),
+        non_pure_continuation_resume_call_sites: HashSet::new(),
         object_value_fqns: HashSet::new(),
         object_property_fqns: HashSet::new(),
         top_level_immutable_value_fqns: HashSet::new(),
