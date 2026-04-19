@@ -8,7 +8,9 @@
 //!
 //! 说明：
 //! - 目前仍只支持“表达式/语句最小子集”；复杂控制流需要 MIR/CFG codegen（后续任务）。
-//! - 目前只编译单模块：不会做跨文件/跨包的泛型实例化与链接管理（后续任务）。
+//! - 目前仍只生成单个 LLVM module，但该 module 已可覆盖整个 compilation unit；
+//!   多文件顶层值读取与跨文件泛型实例化走同一模块内的 codegen 主线。
+//! - 尚未做多模块拆分与真正的链接管理（后续任务）。
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};

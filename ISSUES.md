@@ -92,11 +92,11 @@
 - 影响：spec Appendix B.3.2 中已经公开的 `?:` 目前只存在于“语法 + 静态规则”层，无法成为稳定的可执行语言特性。
 - 证据：`crates/scoopc/src/typecheck/expr/infer.rs:270-270`；`crates/scoopc/src/typecheck/expr/member.rs:58-82`；`tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop:1-16`；`crates/scoopc/src/hir/lower/expr.rs:3112-3113`；`crates/scoopc/src/llvm/codegen/mod.rs:13813-13816`。
 
-## 14. 跨文件 / 跨包编译链路仍有明显边界
+## 14. 跨文件 / 跨包编译链路已收口
 
-- 现状：表达式 typecheck 里的顶层值类型表仍只收“当前文件”；单态化 lowering 仍只实例化“当前文件内”的顶层函数；扩展函数解析仍只在同包内查找。
-- 影响：多文件 / 多包工程虽然已经能走通主路径，但跨文件顶层值、跨文件泛型实例化、跨包扩展分发这些能力仍不完整，语言规则还没有在 compilation-unit 维度上完全统一。
-- 证据：`crates/scoopc/src/typecheck/expr/entry.rs:232-237`；`crates/scoopc/src/monomorph/lower.rs:242-245`；`crates/scoopc/src/resolve/mod.rs:432-436`。
+- 现状：compilation-unit 主线现在会按整个编译单元聚合顶层值类型；`scoop build/run` 会从全部源文件收集 monomorph keys，并在 HIR lowering 阶段为跨文件顶层泛型函数生成实例；resolver/typecheck 对 extension 的候选收集已统一覆盖“同包隐式可见 + star import + 显式 import”的跨包 / 跨 cone 发现路径。
+- 影响：跨文件顶层值、跨文件泛型实例化与跨包扩展解析已不再是语言规则缺口；`T4007` 之后的工作可以直接建立在统一的 compilation-unit 语义上继续推进。单文件 `scoop dump-ir` 调试入口仍按单文件输入建模，但它不再计入这里的编译链 issue。
+- 证据：`crates/scoopc/src/typecheck/expr/collect.rs`；`crates/scoop/src/commands/build.rs`；`crates/scoopc/src/hir/lower/util.rs`；`crates/scoopc/src/resolve/scopes.rs`；`tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic/src/main.scoop`；`tests/fixtures/typecheck_cone/cross_cone_extension_imports/app/star_import_ok.scoop`；`tests/fixtures/resolve_cone/extension_imports/app/star_import_ok.scoop`。
 
 ## 15. RTTI 仍不支持泛型 / `eff` 参数化类型
 

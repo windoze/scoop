@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：跨 cone / 跨包 extension 在显式 import 后应进入 typecheck 主线，而不再停留在 resolver 层。
+
+package fixtures.typecheck_cone.cross_cone_extension_imports.app
+
+import scoop.core.*
+import fixtures.typecheck_cone.cross_cone_extension_imports.lib.Point
+import fixtures.typecheck_cone.cross_cone_extension_imports.lib.ext
+
+fun use_explicit_import(p: Point): Int {
+    return p.ext()
+}

@@ -54,6 +54,10 @@
 > 2026-04-19 当前轮完成更新：`T4005T` 已完成。typecheck `infer_call_expr_type` 现已在未命中 `top_level_funs` 时回查 `top_level_types`，让顶层命名 `val` / 顶层 pattern binder 上的函数值直接复用既有函数值调用检查，而顶层 `FunPtr` direct call 继续走同一套 callable-value 参数绑定与 unsafe 门禁，不再只有局部 `val fp = ...` 才能进入主线。LLVM `codegen_call` 也已补齐对顶层 callable value 的识别：它会先按顶层值类型决定是“函数值间接调用”还是“`FunPtr` 间接调用”，再通过统一的 `codegen_top_level_value_ref` 读取顶层 const / immutable value / var，不再把 `ValueRef::TopLevel` 一概当成“普通顶层函数名”。实现过程中还顺带修复了一个此前未被正式登记、但直接阻塞顶层 pattern binder callable probe 的既有 codegen 裂缝：tuple literal 元素先前没有按元素类型进入 expected-context，导致 `({ 7 }, 4)` 这类含 closure literal 的 tuple 在 LLVM 阶段落入 `expression kind` unsupported；现在 tuple literal 已与 struct literal 对齐，按元素类型驱动元素 codegen。新增 `top_level_callable_value_call_basic` run-pass 回归后，顶层命名函数值、顶层 pattern binder 函数值、顶层 `FunPtr` direct call，以及它们在其它顶层 initializer 中的调用都已稳定 build/run。已验证 `cargo run -p scoop -- run tests/fixtures/run-pass/top_level_callable_value_call_basic.scoop`、定向 run-pass fixtures root（`fixtures: ok (1)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4005SR`。
 >
 > 2026-04-19 当前轮完成更新：`T4005SR` 已完成。复审 `T4005S/T4005T` 后确认，局部 destructuring、`when` binder、顶层命名 `val`、顶层 pattern binder 与顶层 `FunPtr` 现已统一进入 callable-value 主线，没有再按 callee 形态分叉；但复审过程中也抓到一条剩余的 typecheck 裂缝：`infer_expr_type_in_expected_context` 先前完全没有为 tuple literal 向下传播 expected element type，导致顶层 pattern binder initializer `val (f, n): (String.(Int) -> Int, Int) = ({ ...this... }, 3)` 里的 receiver lambda 仍按“无 expected type”检查，报 `unknown_local_value_type: this`。当前已为 tuple literal 补齐 expected-context 传播，让 tuple 元素逐个复用 `infer_in_expected(...)`，receiver function type 会正确下传到 lambda 元素。新增的 `callable_value_pattern_binder_receiver_named_args_basic` run-pass 回归同时覆盖了顶层命名 receiver function value、顶层 pattern binder、局部 destructuring、`when` binder 与顶层 `FunPtr`，且统一使用 receiver + named args；连同既有 `top_level_callable_value_call_basic` / `when_pattern_function_value_call_basic`、`tests/fixtures/typecheck`（`fixtures: ok (329)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 一并通过。当前下一项推进到 `T4006`。
+>
+> 2026-04-19 当前轮完成更新：`T4006` 已完成。经核查，issue 14 中原先记录的三条 compilation-unit 缺口实际已分别由前序主线收口，但仓库里缺少把这三条能力固定下来的正式 regression，且 `ISSUES.md` / 注释仍保留过时说法。当前已新增 `run_pass_cone/cross_file_generic_top_level_val_basic`，覆盖“跨文件顶层 `val` + 非入口文件顶层泛型函数实例化”；新增 `typecheck_cone/cross_cone_extension_imports`，覆盖跨 cone / 跨包 extension 的显式 import 与 star import typecheck 主线；并同步把 issue 14 收口为“已完成”。定向夹具、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均已通过。
+>
+> 2026-04-19 当前轮计划调整：在 `T4006` 收尾时补跑全量 `cargo run -p scoop -- test`，发现仓库里已有的 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop` 仍会在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: sysroot print/println arg type`。该问题与 `T4006` 无直接交叉，但它会阻断后续 review / 阶段验收，因此在 `T4006R` 前新增 blocker `T4006S`：先收口 delegated property lazy(None) 读取进入 `print/println` 的类型传递与 codegen 主线，再继续做 compilation-unit review。当前下一项切换为 `T4006S`。
 
 ## 0. 工作原则
 
@@ -76,9 +80,10 @@
 8. 新增 blocker：pattern binder 中函数值的可调用 lowering / codegen
 9. 新增 blocker：顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
 10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
-11. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
-12. `ISSUES.md` 第 1 条：effect / continuation 完整性
-13. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+11. 新增 blocker：delegated property lazy(None) 读取进入 `print/println` 的 codegen 类型缺口
+12. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持
+13. `ISSUES.md` 第 1 条：effect / continuation 完整性
+14. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
 ## 2. 分阶段目标
 
@@ -104,6 +109,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
+- 当前状态：`T4006` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化，以及跨 cone / 跨包 extension import 的 typecheck 主线。收尾时补跑全量 fixtures 暴露出 delegated property lazy(None) 读取进入 `print/println` 的既有 codegen 裂缝，因此在 `T4006R` 前插入 `T4006S`，当前下一项先处理该 blocker。
 
 ### P5. effect 完整性收口
 

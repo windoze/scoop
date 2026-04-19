@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck_cone.cross_cone_extension_imports.lib
+
+import scoop.core.*
+
+public struct Point {}
+
+public fun Point.ext(): Int {
+    return 7
+}

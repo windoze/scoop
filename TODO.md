@@ -516,7 +516,7 @@
 
 ## T4006：跨文件 / 跨包编译链路
 
-### T4006 [TODO] 收口跨文件顶层值、跨文件实例化与跨包扩展解析
+### T4006 [DONE] 收口跨文件顶层值、跨文件实例化与跨包扩展解析
 - 范围：
   - 顶层值类型表不再只看当前文件。
   - 单态化 lowering 支持跨文件顶层函数实例化。
@@ -524,12 +524,32 @@
 - 验收：
   - 新增多文件 / 多包 regression。
   - `ISSUES.md` 第 14 条收窄或关闭。
+- 已完成：
+  - 新增 `tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic`，覆盖同一 cone 中“跨文件顶层 `val` 读取 + 非入口文件顶层泛型函数实例化”主线，确认 `helperBase/helperDelta/helperSummary` 这类非入口文件绑定与 `id<T>` 的跨文件实例化都能稳定 build/run。
+  - 新增 `tests/fixtures/typecheck_cone/cross_cone_extension_imports`，覆盖跨 cone / 跨包 extension 的显式 import 与 star import 两条 typecheck 主线；同时复验既有 `tests/fixtures/resolve_cone/extension_imports`，确认 resolver 候选收集与导入语义仍一致。
+  - 同步更新 `ISSUES.md` 与相关注释，收口“顶层值只看当前文件 / monomorph 只看当前文件 / extension 只看同包”的过时说法，并明确单文件 `dump-ir` helper 不再计入 compilation-unit issue。
+- 已验证：
+  - `cargo run -p scoop -- test --fixtures /tmp/t4006-runpass.negqIs`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures /tmp/t4006-typecone.3DoKIZ`（`fixtures: ok (3)`）
+  - `cargo run -p scoop -- test --fixtures /tmp/t4006-resolve2.iuHi5G`（`fixtures: ok (6)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005SR
+
+### T4006S [TODO] 修复 delegated property lazy(None) 读取进入 `print/println` 时的 codegen 类型缺口
+- 说明：
+  - 在完成 `T4006` 的全量验证时，`cargo run -p scoop -- test` 当前会失败在 `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop`，错误为 `scoop::llvm::unsupported_main_body: sysroot print/println arg type`。
+  - 该失败与 `T4006` 的 compilation-unit 改动无直接交叉，但它说明 delegated property lazy getter 的 HIR / codegen 类型传递仍有既有裂缝；若不先收口，后续 review 与阶段验收会继续停在红基线上。
+- 范围：
+  - 修复 `val x: Int by lazy(LazyThreadSafetyMode.None) { ... }` 一类读取在 `println(x)` 等调用位置的结果类型丢失问题。
+  - 为 delegated property lazy(None) 的读取 + 打印路径补充定向 regression。
+  - 重新验证 `cargo run -p scoop -- test` 不再被该用例阻断。
+- 依赖：T4006
 
 ### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一
 - 重点：
   - 不允许只靠“入口文件特权”维持通过。
-- 依赖：T4006
+- 依赖：T4006S
 
 ## T4007：RTTI 参数化支持
 

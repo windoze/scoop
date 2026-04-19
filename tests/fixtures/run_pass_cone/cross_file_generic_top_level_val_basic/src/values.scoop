@@ -1,0 +1,11 @@
+package fixtures.run_pass_cone.cross_file_generic_top_level_val_basic
+
+import scoop.core.*
+
+val helperBase: Int = 40
+val helperDelta: Int = id(2)
+val helperSummary: Int = helperBase + helperDelta
+
+public fun helperText(): String {
+    return id("ok")
+}

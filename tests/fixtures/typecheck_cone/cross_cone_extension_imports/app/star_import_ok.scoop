@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：跨 cone / 跨包 extension 在 star import 后同样应进入 typecheck 主线。
+
+package fixtures.typecheck_cone.cross_cone_extension_imports.app
+
+import scoop.core.*
+import fixtures.typecheck_cone.cross_cone_extension_imports.lib.*
+
+fun use_star_import(p: Point): Int {
+    return p.ext()
+}

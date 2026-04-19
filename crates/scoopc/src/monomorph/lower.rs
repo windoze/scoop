@@ -2,9 +2,13 @@
 //! 生成“具体实例”的 MIR（T0712）。
 //!
 //! 当前阶段目标（最小可回归落点）：
-//! - 只对“当前文件内”的泛型函数调用生成实例；
+//! - `lower_for_dump` 仍按“单文件输入 + sysroot”建模，因此这里只对“当前文件内”的泛型函数调用生成实例；
 //! - 只实例化 type params（`fun <T>`）；effect row 参数与名义类型泛型后置；
 //! - 生成的实例以 `fqn::<TypeArgs...>` 命名，并做去重缓存（同 key 只生成一次）。
+//!
+//! 说明：
+//! - build/run 的 compilation-unit 多文件主线不经过本模块，而是由 `scoop build/run` 收集全部源文件的
+//!   monomorph keys，并在 HIR lowering 的 `collect_generic_fun_instantiations` 中完成跨文件实例化。
 
 use std::collections::{HashMap, HashSet};
 
@@ -239,7 +243,7 @@ pub fn lower_for_dump(
             continue;
         }
 
-        // 当前阶段：仅支持实例化“当前文件内”的顶层函数。
+        // `dump-ir` 仍是单文件调试入口：这里只实例化当前输入文件内的顶层函数。
         if key.symbol.decl_file != source.path() {
             continue;
         }

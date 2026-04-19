@@ -433,7 +433,8 @@ pub struct ExtensionPropertySymbol {
 /// - 扩展函数在语法上仍是”顶层 fun 声明”，因此其符号本体仍存放在 `by_fqn` 的 fun 命名空间里；
 /// - 这里额外记录 receiver 的”可用于匹配的类型 FQN”，用于把 `receiver.member()` 的 `member`
 ///   在无同名 member 时解析到 extension；
-/// - 当前阶段仅用于 name resolution（不做重载/最具体匹配），并且只会在**同包**内查找扩展声明。
+/// - 当前阶段仅用于 name resolution（不做重载/最具体匹配）；候选收集规则由 resolver scope 决定，
+///   已覆盖“同包隐式可见 + star import + 显式 import”的跨包/跨 cone extension 发现主线。
 #[derive(Debug, Clone)]
 pub struct ExtensionFunSymbol {
     /// 扩展函数自身的 FQN（例如 `a.ext`）。

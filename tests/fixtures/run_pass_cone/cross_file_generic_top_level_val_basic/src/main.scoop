@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// 目标：cone 多文件主线统一支持跨文件顶层 `val` 读取，以及非入口文件中的顶层泛型函数实例化。
+
+package fixtures.run_pass_cone.cross_file_generic_top_level_val_basic
+
+import scoop.core.*
+
+val entryTotal: Int = helperSummary
+
+fun main() {
+    println(helperBase)
+    println(helperDelta)
+    println(entryTotal)
+    println(helperText())
+}
