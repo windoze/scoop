@@ -1,0 +1,16 @@
+package fixtures.run_pass_cone.top_level_val_pattern_multi_file_basic
+
+import scoop.core.*
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+fun seedPoint(base: Int): Point {
+    println("seed-point")
+    return Point { x: base + 10, y: base + 20 }
+}
+
+val Point { x: px, y: py } = seedPoint(tupleTotal())
+val pointTotal: Int = px + py

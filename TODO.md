@@ -348,13 +348,27 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004a1
 
-### T4004b [TODO] 打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering
+### T4004b [DONE] 打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering
 - 范围：
   - 顶层 pattern initializer 只求值一次；各 binder 复用统一投影结果，不得把 initializer 重复展开到每个 binder。
   - 非 `const` 顶层 binder 复用 `top_level_immutable_values` 主线，保持初始化顺序、可见性与循环引用失败路径稳定。
   - 新增 lowering / run-pass 回归，覆盖 tuple / struct / enum 顶层 binder 读取。
 - 验收：
   - 顶层 binder 在 `main`、其它顶层 initializer 与跨文件调用中可稳定 build/run。
+- 完成：
+  - HIR lowering 现会把顶层 pattern `val` 展开成“隐藏 subject + 可选隐藏 check + 可见 binder”的一组顶层 immutable value：subject once-init 负责 initializer 求值，variant 路径额外通过隐藏 `Unit` check 值统一复用运行期匹配失败语义，binder 自身继续复用局部 destructuring 已有的投影 / `when` 提取 helper，不再保留匿名且不可执行的顶层值形态。
+  - 顶层 pattern binder 现统一进入 `top_level_immutable_values` side table，并直接复用普通顶层 `val` 的 once-init / guard / 递归初始化失败主线；同文件 `main`、其它顶层 initializer 与 cone 多文件跨文件读取都可稳定 build/run。
+  - 已新增回归：
+    - Rust 单测 `lower_typed_single_source_file_expands_top_level_pattern_into_hidden_subject_and_check`
+    - `tests/fixtures/run-pass/top_level_val_pattern_runtime_basic.scoop`
+    - `tests/fixtures/run_pass_cone/top_level_val_pattern_multi_file_basic/**`
+- 已验证：
+  - `cargo test -p scoopc top_level_`
+  - `cargo run -p scoop -- test --fixtures <临时 fixtures root（仅包含 run-pass/top_level_val_pattern_runtime_basic）>`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures <临时 fixtures root（仅包含 run_pass_cone/top_level_val_pattern_multi_file_basic）>`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- build <临时 probe>/main.scoop -o <临时 probe>/a.out`，随后执行产物返回 `3`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4004a2
 
 ### T4004R [TODO] Review：确认顶层与局部 pattern binding 复用同一套语义

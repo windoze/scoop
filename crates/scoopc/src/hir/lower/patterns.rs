@@ -4,6 +4,8 @@
 //! - 当前主要承载 `when` 的模式（`WhenPat`）AST → HIR 转换；
 //! - 规则与 span 选择尽量保持既有行为稳定，避免 HIR fixtures 输出漂移。
 
+use sha2::{Digest, Sha256};
+
 use crate::ast;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
@@ -12,13 +14,103 @@ use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 use super::HirLowering;
 use super::ValScope;
 use super::types::ExpectedExpr;
+use super::util::*;
 
 use super::super::{
-    Block, Expr, ExprKind, LiteralKind, MemberAccess, MemberRef, Stmt, StmtKind, ValDecl, ValueRef,
-    WhenArm, WhenPat,
+    Block, Expr, ExprKind, Item, LiteralKind, MemberAccess, MemberRef, Stmt, StmtKind, ValDecl,
+    ValueRef, WhenArm, WhenPat,
 };
 
 impl<'a> HirLowering<'a> {
+    pub(super) fn lower_top_level_pattern_val_items(
+        &mut self,
+        pkg_prefix: &str,
+        v: &ast::ValDecl,
+        out: &mut Vec<Item>,
+    ) {
+        let ast::ValBinding::Pattern(pattern) = &v.binding else {
+            unreachable!("only top-level pattern val declarations should reach this helper");
+        };
+
+        let mut subject_decl = self.lower_val_decl(pkg_prefix, v, ValScope::TopLevel);
+        let subject_ty = subject_decl.ty;
+        let base_name = self.synthetic_top_level_pattern_base_name(v.span);
+        let subject_name = format!("{base_name}__subject");
+        let subject_fqn = join_prefix(pkg_prefix, &subject_name);
+        subject_decl.id = Some(self.symbols.intern_top_level(subject_fqn.clone()));
+        subject_decl.name = Some(subject_name);
+        subject_decl.mutable = false;
+        self.record_top_level_immutable_value(
+            subject_fqn.clone(),
+            v.span,
+            subject_ty,
+            subject_decl.init.clone(),
+        );
+        out.push(Item::Val(subject_decl));
+
+        let subject_ref = self.synth_top_level_ref(pattern.span, subject_ty, subject_fqn);
+
+        let check_fqn: Option<String> = if self.pattern_contains_variant(pattern) {
+            let check_name = format!("{base_name}__check");
+            let check_fqn = join_prefix(pkg_prefix, &check_name);
+            let check_init = self.synth_pattern_runtime_check_expr(subject_ref.clone(), pattern);
+            self.record_top_level_immutable_value(
+                check_fqn.clone(),
+                v.span,
+                self.builtins.unit,
+                Some(check_init.clone()),
+            );
+            out.push(Item::Val(ValDecl {
+                span: v.span,
+                id: Some(self.symbols.intern_top_level(check_fqn.clone())),
+                name: Some(check_name),
+                mutable: false,
+                ty: self.builtins.unit,
+                init: Some(check_init),
+            }));
+            Some(check_fqn)
+        } else {
+            None
+        };
+
+        for binder in v.binding.bound_idents() {
+            let binder_name = binder.text(self.source).to_string();
+            let binder_fqn = join_prefix(pkg_prefix, &binder_name);
+            let binder_ty = self
+                .typechecked_binding_ty(binder.span)
+                .unwrap_or(self.builtins.any);
+            let Some(mut init) = self.synth_pattern_binding_init_expr(
+                subject_ref.clone(),
+                pattern,
+                binder.span,
+                binder_ty,
+            ) else {
+                continue;
+            };
+
+            if let Some(check_fqn) = check_fqn.as_ref() {
+                let check_ref =
+                    self.synth_top_level_ref(pattern.span, self.builtins.unit, check_fqn.clone());
+                init = self.sequence_expr(pattern.span, vec![check_ref], init);
+            }
+
+            self.record_top_level_immutable_value(
+                binder_fqn.clone(),
+                binder.span,
+                binder_ty,
+                Some(init.clone()),
+            );
+            out.push(Item::Val(ValDecl {
+                span: v.span,
+                id: Some(self.symbols.intern_top_level(binder_fqn)),
+                name: Some(binder_name),
+                mutable: false,
+                ty: binder_ty,
+                init: Some(init),
+            }));
+        }
+    }
+
     pub(super) fn lower_when_arm(
         &mut self,
         pkg_prefix: &str,
@@ -436,6 +528,17 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    fn synth_top_level_ref(&mut self, span: Span, ty: TypeId, fqn: String) -> Expr {
+        Expr {
+            span,
+            ty,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn,
+            }),
+        }
+    }
+
     fn synth_tuple_member_access(&mut self, receiver: Expr, span: Span, index: usize) -> Expr {
         Expr {
             span,
@@ -532,6 +635,69 @@ impl<'a> HirLowering<'a> {
                 stmts,
             }),
         }
+    }
+
+    fn sequence_expr(&self, span: Span, steps: Vec<Expr>, tail: Expr) -> Expr {
+        if steps.is_empty() {
+            return tail;
+        }
+
+        let mut stmts: Vec<Stmt> = steps
+            .into_iter()
+            .map(|expr| Stmt {
+                span: expr.span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Expr(expr),
+            })
+            .collect();
+        let tail_ty = tail.ty;
+        stmts.push(Stmt {
+            span: tail.span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(tail),
+        });
+
+        Expr {
+            span,
+            ty: tail_ty,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: tail_ty,
+                stmts,
+            }),
+        }
+    }
+
+    fn record_top_level_immutable_value(
+        &mut self,
+        fqn: String,
+        span: Span,
+        ty: TypeId,
+        init: Option<Expr>,
+    ) {
+        self.top_level_immutable_values.insert(
+            fqn.clone(),
+            super::super::TopLevelImmutableValue {
+                fqn,
+                source_path: self.source.path().to_path_buf(),
+                span,
+                ty,
+                init,
+            },
+        );
+    }
+
+    fn synthetic_top_level_pattern_base_name(&self, span: Span) -> String {
+        let source_key = self.source.path().display().to_string();
+        let digest = Sha256::digest(source_key.as_bytes());
+        let bytes: [u8; 8] = digest[0..8]
+            .try_into()
+            .expect("sha256 output should contain 8 bytes");
+        let source_hash = u64::from_le_bytes(bytes);
+        format!(
+            "__top_level_pattern_{source_hash:016x}_{}_{}",
+            span.start, span.end
+        )
     }
 }
 

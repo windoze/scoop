@@ -238,7 +238,7 @@ impl<'a> HirLowering<'a> {
         let mut items = Vec::with_capacity(self.file.items.len());
 
         for item in &self.file.items {
-            items.push(self.lower_item(&pkg_prefix, item));
+            self.lower_item_into(&pkg_prefix, item, &mut items);
         }
 
         File { items }
@@ -301,27 +301,36 @@ impl<'a> HirLowering<'a> {
         out
     }
 
-    fn lower_item(&mut self, pkg_prefix: &str, item: &ast::Item) -> Item {
+    fn lower_item_into(&mut self, pkg_prefix: &str, item: &ast::Item, out: &mut Vec<Item>) {
         match item {
-            ast::Item::Fun(fun) => Item::Fun(self.lower_fun_decl(pkg_prefix, fun)),
-            ast::Item::Val(v) => Item::Val(self.lower_val_decl(pkg_prefix, v, ValScope::TopLevel)),
-            ast::Item::TypeAlias(ta) => Item::Todo {
+            ast::Item::Fun(fun) => out.push(Item::Fun(self.lower_fun_decl(pkg_prefix, fun))),
+            ast::Item::Val(v) if matches!(v.binding, ast::ValBinding::Pattern(_)) => {
+                self.lower_top_level_pattern_val_items(pkg_prefix, v, out);
+            }
+            ast::Item::Val(v) => out.push(Item::Val(self.lower_val_decl(
+                pkg_prefix,
+                v,
+                ValScope::TopLevel,
+            ))),
+            ast::Item::TypeAlias(ta) => out.push(Item::Todo {
                 span: ta.span,
                 kind: "typealias",
-            },
-            ast::Item::ComptimeIf(ci) => Item::Todo {
+            }),
+            ast::Item::ComptimeIf(ci) => out.push(Item::Todo {
                 span: ci.span,
                 kind: "comptime_if_item",
-            },
-            ast::Item::Type(ty) => Item::Todo {
+            }),
+            ast::Item::Type(ty) => out.push(Item::Todo {
                 span: ty.span,
                 kind: "type",
-            },
-            ast::Item::Object(obj) => Item::Todo {
+            }),
+            ast::Item::Object(obj) => out.push(Item::Todo {
                 span: obj.span,
                 kind: "object",
-            },
-            ast::Item::ExtensionProperty(p) => self.lower_extension_property(pkg_prefix, p),
+            }),
+            ast::Item::ExtensionProperty(p) => {
+                out.push(self.lower_extension_property(pkg_prefix, p))
+            }
         }
     }
 
@@ -2264,6 +2273,97 @@ mod tests {
             &types,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_expands_top_level_pattern_into_hidden_subject_and_check() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4004b>",
+            r#"
+package fixtures.t4004b
+
+import scoop.core.*
+
+enum MaybeInt {
+    Present(val value: Int),
+    None,
+}
+
+val Present(total) = Present(7)
+
+fun main(): Int {
+    return total
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let total_fqn = "fixtures.t4004b.total";
+        let top_level_value_names = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Val(val) => val.name.as_deref(),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(top_level_value_names.contains(&"total"));
+
+        let hidden_subjects = lowered
+            .top_level_immutable_values
+            .keys()
+            .filter(|fqn| fqn.contains("__top_level_pattern_") && fqn.ends_with("__subject"))
+            .cloned()
+            .collect::<Vec<_>>();
+        let hidden_checks = lowered
+            .top_level_immutable_values
+            .keys()
+            .filter(|fqn| fqn.contains("__top_level_pattern_") && fqn.ends_with("__check"))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(hidden_subjects.len(), 1);
+        assert_eq!(hidden_checks.len(), 1);
+        let hidden_subject = &hidden_subjects[0];
+        let hidden_check = &hidden_checks[0];
+
+        let total = lowered
+            .top_level_immutable_values
+            .get(total_fqn)
+            .expect("应收集到可见 binder total 的顶层 immutable value 记录");
+        let init = total.init.as_ref().expect("binder 应带 initializer");
+        let ExprKind::Block(block) = &init.kind else {
+            panic!("variant binder initializer 应先顺序触发隐藏 check，再执行 payload 提取");
+        };
+        let [check_stmt, extract_stmt] = block.stmts.as_slice() else {
+            panic!("binder initializer block 应只包含 check + extract 两步");
+        };
+
+        let StmtKind::Expr(check_expr) = &check_stmt.kind else {
+            panic!("第一步应为隐藏 check 的表达式语句");
+        };
+        assert!(
+            matches!(
+                &check_expr.kind,
+                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) if fqn == hidden_check
+            ),
+            "第一步应引用隐藏 check 顶层值"
+        );
+
+        let StmtKind::Expr(extract_expr) = &extract_stmt.kind else {
+            panic!("第二步应为 binder 提取表达式");
+        };
+        let ExprKind::When { subject, .. } = &extract_expr.kind else {
+            panic!("第二步应通过 when 提取 variant payload");
+        };
+        assert!(
+            matches!(
+                &subject.kind,
+                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) if fqn == hidden_subject
+            ),
+            "variant payload 提取应复用隐藏 subject 顶层值"
+        );
     }
 
     fn assert_raise_runtime_error_effect_ty(types: &TypeStore, effect_ty: TypeId) {

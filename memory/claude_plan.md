@@ -1,80 +1,43 @@
-# 本次执行计划（高层摘要）
+# 本轮执行记录（T4004b）
 
-## 目标
-- 先检查最新一次 Git 提交是否提到任何遗留问题；如果有，优先修复这些问题。
-- 读取 `TODO.md`，定位第一个未完成任务。
-- 如果该任务过大或存在前置依赖缺口，则先把任务拆分并更新 `PLAN.md` / `TODO.md`。
-- 只完成一个任务（或一个新拆出的首个子任务），完成后测试、更新文档、提交 Git，并停止。
+## 任务结论
+- 本轮执行的首个未完成任务是 `T4004b`：打通顶层 `val` pattern binder 的 HIR / LLVM once-init lowering。
+- 最新提交 `aac2f9b632aaf0b1430ff0f78e45a8a23c2914c7` 未声明额外需要先修复的遗留问题；执行开始时工作树干净。
+- `T4004b` 已完成，`TODO.md` 与 `PLAN.md` 已同步更新；下一项待执行任务为 `T4004R`，本轮不会继续。
 
-## 约束与执行原则
-- 不绕过规范，不接受临时性 workaround。
-- 若发现规范不匹配、缺失特性、已有缺陷或被最新提交提到的未解决问题，必须先修复或将其显式前置到 `TODO.md`。
-- 任何关键进展、计划调整、阻塞原因，都要同步更新本文件。
-- 所有输出与记录使用中文。
+## 实现摘要
+1. 定位当前断点：
+   - 最小 probe `val (a, b) = (1, 2)` 之前在 `cargo run -p scoop -- build ...` 时会报 `scoop::llvm::unsupported_main_body: top-level value ref`。
+   - 原因是顶层 pattern `val` 在 HIR 中仍保留为匿名顶层声明，`a/b` 的引用能解析，但后端没有对应的 `top_level_immutable_values` 元数据。
+2. 调整 HIR lowering：
+   - `lower_file` / `lower_item_into` 现在允许一条顶层 AST item 展开为多个 HIR item。
+   - 顶层 pattern `val` 现会被 lowering 成一组顶层 immutable value：
+     - 隐藏 subject：承载 initializer 的 once-init；
+     - 隐藏 check：仅 variant 路径生成，负责统一复用局部 destructuring 的运行期匹配失败语义；
+     - 可见 binder：每个 binder 都成为普通顶层 immutable value，继续复用既有投影 / `when` 提取 helper。
+3. 对接现有后端主线：
+   - 所有顶层 pattern binder、隐藏 subject、隐藏 check 都进入 `top_level_immutable_values` side table。
+   - 因此它们直接复用普通顶层 `val` 已有的 once-init、guard、递归初始化失败检测与跨文件读取路径，没有引入新的 ad-hoc codegen 分支。
+4. 补充回归：
+   - Rust lowering 单测：验证顶层 variant pattern 会生成隐藏 subject/check，且 binder 初始化先触发 check、再复用 subject 做提取。
+   - 单文件 run-pass：覆盖 tuple / struct / enum 顶层 binder 的运行期读取和顶层 initializer 链。
+   - cone 多文件 run-pass：覆盖跨文件 binder 读取与多文件 build/run。
 
-## 预计步骤
-1. 查看最新提交信息与改动摘要，确认是否提到已知问题或 TODO。
-2. 读取 `TODO.md` 与 `PLAN.md`，确定当前第一优先级任务。
-3. 结合代码现状评估任务范围；如过大，则拆解为更小子任务并更新计划文件。
-4. 阅读相关源码、测试、规范或夹具，定位实现入口与风险点。
-5. 实现任务所需修改，必要时补充/调整测试。
-6. 运行与任务相关的验证：
-   - 优先运行最小相关测试集；
-   - 再运行必要的更大范围测试；
-   - 若改动涉及通用路径，补跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`（视耗时和改动范围裁剪，但要保证充分验证）。
-7. 更新 `TODO.md`、`PLAN.md`、本文件，记录完成情况或依赖调整。
-8. 检查工作区改动，使用清晰的提交信息创建 Git commit。
-9. 停止，不继续处理下一个任务。
-
-## 计划文件更新规则
-- 完成“检查最新提交”后，补记检查结论。
-- 确认首个目标任务后，补记任务编号/标题与是否需要拆分。
-- 开始改代码前，补记将要修改的模块与测试策略。
-- 测试完成后，补记测试命令与结果。
-- 提交前，补记最终完成状态与提交说明。
-
-## 当前进展
-- 已检查最新提交 `75776dcb4a21a88ab390cc458602894e7eb8373d`（`[T4004a1] 接通顶层 pattern 注解静态路径`），提交说明本身未额外声明需要先修复的遗留问题。
-- 已确认 `TODO.md` 当前首个可执行未完成条目为 `T4004a2`：为顶层 `val` pattern binder 补齐 initializer 驱动推断与跨文件类型可见性。
-- 目前不需要再拆分任务；计划直接实现该子任务并完成验证。
-
-## 即将进行的代码改动
-- 放宽 `typecheck/headers.rs` 中“顶层 pattern binding 必须显式整体类型注解”的门禁，只保留对普通顶层命名 `val` 缺注解的约束。
-- 在 `typecheck/type_env.rs` 保留编译单元文件 AST 视图，供跨文件顶层值类型收集时复用。
-- 在 `typecheck/expr/collect.rs` 实现“跨文件顶层值类型表”收集：
-  - 先收集显式类型注解路径；
-  - 再对无整体注解的顶层 pattern binding 做 initializer 驱动推断；
-  - 让其它文件对这些 binder 的静态引用可见。
-- 在 `typecheck/expr/entry.rs` 调整顶层 initializer 检查逻辑，使顶层 pattern binding 在无整体类型注解时复用 initializer 推断结果。
-
-## 测试计划
-- 先跑定向 `cargo test -p scoopc top_level_`。
-- 再跑 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`。
-- 补跑 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck_multi`。
-- 最后跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-
-## 已完成的实现
-- 已放宽 `typecheck/headers.rs`：顶层 `val` pattern binding 不再在 header phase 强制整体类型注解，改由 initializer typecheck 负责推断。
-- 已扩展 `typecheck/type_env.rs`：记录编译单元文件 AST，供跨文件顶层值类型收集复用。
-- 已重写 `typecheck/expr/collect.rs` 中的顶层值类型收集逻辑：
-  - 先跨文件收集显式类型注解的顶层值；
-  - 再对无整体注解的顶层 pattern binding 做迭代推断；
-  - 让推断出的 binder 类型进入跨文件可见的 top-level value type 表。
-- 已调整 `typecheck/expr/entry.rs` 顶层 initializer 检查：
-  - 有整体类型注解时仍按 expected-type 校验；
-  - 无整体注解的顶层 pattern binding 直接以 initializer 推断类型驱动 binder 类型分发。
-- 已更新回归：
-  - 删除旧的 `tests/fixtures/typecheck/top_level_val_pattern_missing_type_is_error.scoop`；
-  - 新增同文件推断回归 `tests/fixtures/typecheck/top_level_val_pattern_inferred_same_file_ok.scoop`；
-  - 新增多文件回归目录 `tests/fixtures/typecheck_multi/top_level_val_pattern_inferred_cross_file/`。
-
-## 已完成验证
+## 验证结果
+- `cargo test -p scoopc lower_typed_single_source_file_expands_top_level_pattern_into_hidden_subject_and_check -- --nocapture`：通过。
 - `cargo test -p scoopc top_level_`：通过。
-- `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`：通过，`fixtures: ok (329)`。
-- `cargo run -p scoop -- test --fixtures /tmp/t4004a2-typecheck-multi`：通过，`fixtures: ok (4)`。
+- `cargo run -p scoop -- test --fixtures <临时 root，仅含 run-pass/top_level_val_pattern_runtime_basic>`：通过，`fixtures: ok (1)`。
+- `cargo run -p scoop -- test --fixtures <临时 root，仅含 run_pass_cone/top_level_val_pattern_multi_file_basic>`：通过，`fixtures: ok (1)`。
+- 最小 build probe：
+  - `cargo run -p scoop -- build <临时>/main.scoop -o <临时>/a.out`
+  - 执行产物返回 `3`，说明先前的 `top-level value ref` 构建失败路径已消失。
 - `cargo test --all`：通过。
 - `cargo clippy --all-targets -- -D warnings`：通过。
 
-## 当前状态
-- `T4004a2` 已完成，可以在更新 `TODO.md` / `PLAN.md` 后提交。
-- 下一未完成任务为 `T4004b`，本次不会继续执行。
+## 文档状态
+- `TODO.md`：已将 `T4004b` 标记为 `[DONE]`，并记录实现与验证结果。
+- `PLAN.md`：已追加本轮完成记录，并把下一项推进到 `T4004R`。
+
+## 剩余动作
+- [已完成] 检查最终 diff 与 whitespace。
+- [待执行] 提交一次 Git commit，提交后停止。

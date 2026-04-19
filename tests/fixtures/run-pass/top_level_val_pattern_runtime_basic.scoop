@@ -1,0 +1,54 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_val_pattern_runtime_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4004b：顶层 `val` pattern binder 需要进入普通顶层 immutable value 的 once-init 主线：
+// - initializer 只求值一次；
+// - tuple / struct / enum binder 可被其它顶层 initializer 与 `main` 稳定读取。
+
+import scoop.core.*
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+enum MaybeInt {
+    Present(val value: Int),
+    None,
+}
+
+fun seedPair(): (Int, Int) {
+    println("seed-pair")
+    return (20, 22)
+}
+
+fun buildPoint(base: Int): Point {
+    println("build-point")
+    return Point { x: base, y: base + 1 }
+}
+
+fun buildMaybe(total: Int): MaybeInt {
+    println("build-maybe")
+    return Present(total + 10)
+}
+
+val (left, right) = seedPair()
+val tupleSum: Int = left + right
+
+val Point { x, y } = buildPoint(tupleSum)
+val pointSum: Int = x + y
+
+val Present(total) = buildMaybe(pointSum)
+val finalTotal: Int = total + tupleSum
+
+fun main(): Int {
+    println(left)
+    println(right)
+    println(x)
+    println(y)
+    println(total)
+    println(finalTotal)
+    println(finalTotal)
+    return 0
+}

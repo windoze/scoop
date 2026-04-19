@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// 目标：顶层 pattern binder 在 cone 多文件 build/run 中也能跨文件稳定读取。
+
+package fixtures.run_pass_cone.top_level_val_pattern_multi_file_basic
+
+import scoop.core.*
+
+val combined: Int = left + right + px + py + total + tupleTotal() + pointTotal
+
+fun main() {
+    println(tupleTotal())
+    println(pointTotal)
+    println(total)
+    println(combined)
+    println(left)
+    println(py)
+}

@@ -1,0 +1,14 @@
+package fixtures.run_pass_cone.top_level_val_pattern_multi_file_basic
+
+import scoop.core.*
+
+fun seedTuple(): (Int, Int) {
+    println("seed-tuple")
+    return (1, 2)
+}
+
+val (left, right) = seedTuple()
+
+public fun tupleTotal(): Int {
+    return left + right
+}

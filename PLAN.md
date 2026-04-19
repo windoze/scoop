@@ -38,6 +38,8 @@
 > 2026-04-19 当前轮完成更新：`T4004a1` 已完成。顶层 `val` parser 现已支持 tuple / struct / enum pattern，并接受 `val <pattern>: Type = initializer` 形式的整体类型注解；顶层 `var` destructuring 继续在 parser 阶段按与局部路径一致的规则拒绝。为避免 resolver/index 与 typecheck 对 binder 收集再次分叉，`ValBinding` 新增统一的 `bound_idents()` helper，顶层 pattern binder 现会注入 value namespace，供同文件后续顶层声明与函数体解析。类型侧，`check_top_level_val_header` 现允许“带整体类型注解的顶层 pattern binding”，并继续对“无整体类型注解的顶层 pattern binding”报 `missing_type_annotation`；`collect_top_level_value_types` 则会把整体类型经 `val_pat::infer_val_pat_bindings` 分发到各 binder，顶层 initializer typecheck 也会把 binder 类型写回 side table，为后续 `T4004b` 复用。已新增两条 parser 单测与两条 typecheck fixture，并验证 `cargo test -p scoopc top_level_`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004a2`。
 >
 > 2026-04-19 当前轮完成更新：`T4004a2` 已完成。顶层 `val` pattern binding 现在不再强制显式整体类型注解：header phase 仅继续约束普通顶层命名 `val/var`，而顶层 pattern binding 会在表达式 typecheck 中直接从 initializer 推断 subject 类型，并通过 `val_pat::infer_val_pat_bindings` 把 tuple / struct / enum binder 类型写回 side table。为让这些 binder 能被其它文件静态读取，`TypeEnv` 现额外保留编译单元文件 AST 视图，`collect_top_level_value_types` 也从“当前文件显式注解收集”升级为“跨文件显式收集 + 无注解顶层 pattern binder 迭代推断”的 compilation-unit 级值类型表。已新增 `top_level_val_pattern_inferred_same_file_ok` 与多文件 case `top_level_val_pattern_inferred_cross_file`，并验证 `cargo test -p scoopc top_level_`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）、临时 fixtures root 下的定向 `typecheck_multi` case（`fixtures: ok (4)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004b`。
+>
+> 2026-04-19 当前轮完成更新：`T4004b` 已完成。顶层 pattern `val` 的 HIR lowering 现会把一条声明展开成“隐藏 subject + 可选隐藏 check + 可见 binder”的一组顶层 immutable value：subject 负责 once-init initializer，variant 路径额外通过隐藏 `Unit` check 值统一复用局部 destructuring 的运行期匹配失败语义，binder 自身则继续复用既有的投影 / `when` 提取 helper。这样顶层 tuple / struct / enum destructuring 不再停在匿名顶层值 + `top-level value ref` unsupported，而是直接落入普通顶层 `val` 已有的 once-init / guard / 递归初始化失败主线；新增的 lowering 单测、单文件 run-pass 与 cone 多文件 run-pass 回归也覆盖了同文件与跨文件读取。已验证 `cargo test -p scoopc top_level_`、两条定向 `cargo run -p scoop -- test --fixtures <临时 root>`（均 `fixtures: ok (1)`）、最小 build probe、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。当前下一项推进到 `T4004R`。
 
 ## 0. 工作原则
 
@@ -80,7 +82,7 @@
 
 - 先收口普通顶层 `val` 的可执行读取语义，再收口局部 `val` pattern binding 的可执行 lowering/codegen，最后推进顶层 `val` pattern binding 与 Elvis `?:` 的 lowering / codegen。
 - 目标是把“语法 + typecheck 已存在，但 lowering / codegen 不完整”的 feature 清掉，避免继续堆积半实现特性。
-- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` / `T4004a1` / `T4004a2` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。顶层 pattern binding 的静态接入现已同时覆盖“显式整体类型注解”与“initializer 驱动推断 + 跨文件 binder 类型可见性”两条路径；P3 当前下一项进入 `T4004b`，补顶层 binder 的 HIR / LLVM once-init lowering。
+- 当前状态：`T4003S` / `T4003SR` / `T4003T` / `T4003TR` / `T4004a1` / `T4004a2` / `T4004b` 已完成；普通顶层 `val` 现已具备独立 once-init + 稳定读取主线，局部 `val` destructuring 也已确认通过“synthetic subject + 命名 binder + 通用投影/校验 helper”落入统一可执行主线，可直接被顶层 once-init 版本复用。顶层 pattern binding 现已同时覆盖“显式整体类型注解”“initializer 驱动推断 + 跨文件 binder 类型可见性”“HIR / LLVM once-init lowering”三条路径；P3 当前下一项进入 `T4004R`，复审顶层与局部 pattern binding 的统一语义。
 
 ### P4. compilation-unit 与 runtime type info 收口
 
