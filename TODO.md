@@ -1,13 +1,14 @@
-# TODO（Scoop：下一轮核心语言 / codegen 与 Task 设计）
+# TODO（Scoop：当前审计剩余 issue 收口）
 
 > 生成时间：2026-04-18  
 > 历史归档：`TODO-4.md` / `PLAN-4.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮以 `ISSUES.md` 中既有九项为主线；若执行中发现新的前置 blocker，需先插入到依赖它的任务之前。
+> 本轮以 `ISSUES.md` 当前仍未关闭的条目为主线；若执行中发现新的前置 blocker，需先插入到依赖它的任务之前。
 
 ## 全局约束
 
-- 在 effect / `Task` 之前的所有条目都属于核心语言 / codegen 主线；完成前不得启动 effect / `Task` 两项。
+- `TODO.md` 中已标记 `[DONE]` 的条目只作历史归档；即使 `ISSUES.md` 改写了问题描述，也只能通过新增未完成任务继续收口，不能回写这些已完成条目。
+- 当前剩余实现顺序为：effect / continuation -> `Task` object model -> value semantics / or-pattern -> annotation / `inline` -> FFI / ABI -> const / comptime。
 - 每个实现任务后必须立即做 review 任务；review 只审查生产代码与规范一致性，不以测试命名代替结论。
 - 若某项实现改变公开语义，必须同步 `SCOOP_FULL_SPEC.md`；若涉及运行时合同，还要同步 `SCOOP_RUNTIME.md` 或相关 sysroot 文档。
 - 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、spawn scheduling 相关内容一律留待后续。
@@ -939,28 +940,255 @@
   - `ISSUES.md` 第 1 条中关于 receiver effect op 的剩余描述收窄或关闭。
 - 依赖：T4008cS
 
+### T4008c3 [TODO] 收口 handler arm head 的 effect-op 绑定主线
+- 说明：
+  - 重新对照最新 `ISSUES.md` 后，除多 type-param / receiver effect op 之外，第 1 条还明确保留了另一条未落地的 surface 限制：handler arm head 仍只接受“早期就被识别成 effect operation 的 AST 形状”，没有与真实的 effect-op call / perform binder 共用同一套绑定语义。
+  - 若不单独补齐这一层，前面 `T4008c1` / `T4008c2` 即便打通了 effect instance 与 receiver payload，handle surface 仍会残留独立门禁，导致 effect 语义继续按源码形状分叉。
+- 范围：
+  - handler arm head 与 effect op call / perform 共用同一套 callee 绑定与 effect-instance 实例化语义，不再只接受裸 effect-op 形状。
+  - 多 effect type params、receiver effect op 与多 payload binder 在 arm head 上统一进入同一 side table / lowering 主线。
+  - 补充对应 parse / typecheck / run-pass regression，覆盖 arm head 不再依赖早期 AST 形状才能匹配 handler。
+- 验收：
+  - `ISSUES.md` 第 1 条中“handler arm head 仍只接受 effect operation”的部分收窄或关闭。
+- 依赖：T4008c2
+
+### T4008c4 [TODO] 扩展 `Continuation.resume` 的调用 surface，并收口 `ImmediateResume` storage contract
+- 说明：
+  - `T4008b2` 已收口 continuation binder 的 effect-row 与 replay 主线，但最新 `ISSUES.md` 第 1 条仍保留两项未完成 surface：`Continuation.resume` 目前仍只接受一个实参、命名实参也只认 `value = ...`；同时 `-> resume` / `ImmediateResume` 对应的 stack-local fast path 仍未形成独立 storage 选择，heap-only full machine 只是当前保守实现。
+  - 这两点都不适合继续隐含在 review 里带过，需要显式任务来决定“真正实现”还是“明确写成 deferred contract”。
+- 范围：
+  - `Continuation.resume` 进入统一 callable-value binder：不再只支持单值 payload，也不再只接受 `value = ...` 这一种命名实参。
+  - receiver / named args / payload arity 与普通调用语义保持一致，避免 continuation resume 再保留单独的 shape-based surface。
+  - `ImmediateResume` / `-> resume` 的 lowering contract 明确化：若本轮仍保持 heap-only full machine，则必须把 stack-local fast path 记为显式 deferred item，并把 `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 注释的同步任务纳入验收，而不是继续保留隐含承诺。
+- 验收：
+  - `ISSUES.md` 第 1 条中关于 `Continuation.resume` surface 的剩余描述收窄或关闭。
+  - `ImmediateResume` 若仍未实现 stack-local storage，也必须留下明确的 deferred contract 与文档同步任务。
+- 依赖：T4008c3
+
 ### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
 - 重点：
   - continuation / effect codegen 不能回流到按源码形状补丁选路。
-- 依赖：T4008c2
+  - handler arm head 与 `Continuation.resume` 不能继续保留独立于普通 call binder 的 surface 特判。
+  - 若 `ImmediateResume` 仍维持 heap-only lowering，review 结论里必须明确记录其 deferred contract，而不是静默保留 spec/实现分裂。
+- 依赖：T4008c4
 
 ## T4009：`Task` 设计定型
 
-### T4009 [TODO] 把 `Task<T>` 定型为通用的 pollable object，并隐藏 raw continuation
-- 范围：
-  - 明确 `Task<T>` 是 general API，`Continuation<T, eff E>` 是 advanced API。
-  - 定义 `Task.poll()` / `step()` 与 `Poll<T>` 合同。
-  - 支持 manual stepping，不依赖 executor framework 才能成立。
-  - 清理 executor-centric、handle-based `Task` 叙事与对应文档。
+### T4009 [TODO] 将 `Task<T>` 从 executor-centric handle ABI 收口为普通 pollable object（拆分执行）
+- 说明：
+  - 最新 `ISSUES.md` 第 2 条已把缺口收窄到 object model / lowering contract：`spawn { ... }` 仍要求 body 可赋给 `Int`，`Task<T>` 与 `scoop.task.Executor` 仍直接映射成 word-sized handle，`taskCreate` / `onComplete` / `join` 也仍直连旧 runtime ABI。
+  - 为避免单轮同时改 runtime ABI、sysroot surface 与 async 叙事，现拆分为 `T4009a -> T4009b -> T4009R`：先拆掉 handle ABI 绑定，再定 poll / step / `Poll<T>` 合同与 raw continuation 的隐藏边界。
 - 验收：
-  - `ISSUES.md` 第 2 条收窄或关闭。
+  - 子任务全部完成后，`ISSUES.md` 第 2 条收窄或关闭。
   - `SCOOP_FULL_SPEC.md` 对 `Task` / `Continuation` / async surface 的边界表述一致。
   - 如 runtime / sysroot 合同改变，相关文档同步更新。
 - 依赖：T4008R
+
+### T4009a [TODO] 拆掉 `Task<T>` / `Executor` 的 hard-coded handle ABI 绑定
+- 范围：
+  - `spawn { ... }` body 不再被旧 ABI 绑死为 `Int`；`Task<T>` / `Executor` 也不再直接映射成 word-sized runtime handle。
+  - `taskCreate` / `onComplete` / `join` 的 lowering 不再把旧 runtime symbol（如 `scoop_task_u64_create`、`scoop_task_u64_on_complete_resume_u64`、`__scoop_task_join_int`）当成 `Task` 公开语义本体。
+  - 为后续普通对象表示补齐必要的 typecheck / HIR / LLVM / runtime metadata，使 `Task` 能从“hard-coded ABI handle”过渡到“有明确对象模型的值”。
+- 验收：
+  - `Task` / `Executor` 的语言语义不再依赖旧 handle ABI 叙事才能成立。
+  - `spawn` / `join` / `onComplete` 的 regression 能覆盖“非 `Int` body”“非 handle 直通”与 object-model 相关路径。
+- 依赖：T4009
+
+### T4009b [TODO] 定义 `Task.poll()` / `step()` / `Poll<T>` 合同，并隐藏 raw continuation
+- 范围：
+  - 明确 `Task<T>` 是 general API，`Continuation<T, eff E>` 是 advanced API；Task 内部 continuation state 改为私有实现细节。
+  - 定义 `Task.poll()` / `step()` 与 `Poll<T>` 的对象模型、返回合同与 manual stepping 语义，不依赖 executor framework 才能成立。
+  - 清理 executor-centric、handle-based `Task` 叙事与对应文档；若 stdlib / sysroot surface 需要调整，也在本任务内显式列出同步项。
+- 验收：
+  - `Task<T>` 可在 manual polling / stepping 下自洽成立，且 raw continuation 不再是默认 async API。
+  - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 文档的 `Task` / `Continuation` 边界表述一致。
+- 依赖：T4009a
 
 ### T4009R [TODO] Review：确认 `Task` 本体已脱离 executor 前提
 - 重点：
   - `Task` 必须能在 manual polling 下成立。
   - raw continuation 不应继续成为易误用的默认 API。
   - executor 相关内容若仍未设计，只能作为明确的 deferred item 留下。
-- 依赖：T4009
+- 依赖：T4009b
+
+## T4010：值类型不可变语义与 `with`
+
+### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
+- 说明：
+  - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a -> T4010b -> T4010R`。
+- 验收：
+  - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
+- 依赖：T4009R
+
+### T4010a [TODO] 将 `with` 从 `struct` 泛化到 tuple / enum 等值类型
+- 范围：
+  - `with` base 不再只接受 `struct`；tuple、enum payload 等值类型也进入统一的 immutable copy-update 主线。
+  - 继续复用现有多段字段路径与并行冲突检查语义，避免为 tuple / enum 单独开 ad-hoc 更新规则。
+  - 新增 typecheck / run-pass / lowering regression，覆盖 nested path、并行冲突与 initializer 单次求值语义。
+- 验收：
+  - `with` 在 tuple / enum / struct 上都走同一条“复制后更新”主线，不回流到字段写回式可变语义。
+- 依赖：T4010
+
+### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
+- 范围：
+  - 为值类型声明补齐字段默认值等声明便利性，避免 immutable value object 仍需样板式全量显式初始化。
+  - 保持与 `with` 的 copy-update 语义一致：默认值只影响构造 / 声明入口，不引入运行期可变写回。
+  - 如规范文字、sysroot 示例或相关注释需要调整，在本任务内显式同步相应文档任务。
+- 验收：
+  - `ISSUES.md` 第 7 条中“字段默认值这类声明便利性仍未覆盖”的部分收窄或关闭。
+- 依赖：T4010a
+
+### T4010R [TODO] Review：确认值类型仍保持整体不可变
+- 重点：
+  - 不接受把 `with` 扩展成字段级写回式 `var`。
+  - 不允许借“默认值人体工学”重新引入可变值类型叙事。
+- 依赖：T4010b
+
+## T4011：`when` 的无 binder or-pattern 子集
+
+### T4011 [TODO] 先收口“无 binder 的 payload or-pattern”
+- 说明：
+  - `ISSUES.md` 第 8 条当前明确建议先支持 `A(..) | B(..)` / `A(_) | B(_)` 这类“只判别、不绑定”的 payload or-pattern；`A(x) | B(x)` 的 binder-sharing 以及 bare `A | C` 的“忽略 payload”语法糖都不应在这一轮一起放开。
+- 范围：
+  - resolver / typecheck / lowering / runtime matching 支持无 binder 的 payload or-pattern。
+  - 现有 binder 声明与作用域规则保持不变：`WhenPat::Or` 仍不引入 binder，带 binder 的 or-pattern 继续报精确错误。
+  - 新增 parse / typecheck / run-pass regression，覆盖 variant payload 判别、wildcard payload 与 mismatch 路径。
+- 验收：
+  - `ISSUES.md` 第 8 条收窄到明确的 binder-sharing 后续设计，或直接关闭。
+- 依赖：T4010R
+
+### T4011R [TODO] Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar
+- 重点：
+  - 不允许把 `A(x) | C(x)` 之类分支宽松合成 `Any` binder。
+  - 不允许把 bare `A | C` 偷偷扩成“忽略 payload”的 parser 糖。
+- 依赖：T4011
+
+## T4012：annotation model 与 built-in annotations
+
+### T4012 [TODO] 收口 annotation class model 与 non-inline built-in annotations（拆分执行）
+- 说明：
+  - `ISSUES.md` 第 9 条当前同时包含两类缺口：annotation class 仍停在 data-only 主构造参数子集，built-in annotation 也仍只覆盖 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`。
+  - 其中 `@Inline` 与 `ISSUES.md` 第 10 条的 legacy inline 清理强耦合，因此本组任务先只覆盖 annotation model 与 non-inline built-ins，`@Inline` 明确顺延到 `T4013` 统一收口。
+- 验收：
+  - 子任务全部完成后，`ISSUES.md` 第 9 条至少收窄到与 `@Inline` 交叉的剩余项，或被完全关闭。
+- 依赖：T4011R
+
+### T4012a [TODO] 让 annotation class 进入统一 nominal model
+- 范围：
+  - annotation class 不再只限于“主构造参数承载数据”的 data-only 子集；supertypes / implements / type body 进入统一的 parser / resolver / typecheck 主线。
+  - 保留 annotation-specific 约束，但这些约束应建立在统一 nominal model 之上，而不是继续依赖单独的“annotation class 特殊 AST 子集”。
+  - 补充 parse / typecheck regression，覆盖 richer annotation declaration 与非法组合诊断。
+- 验收：
+  - `ISSUES.md` 第 9 条中“annotation class 不支持继承 / 实现接口 / 类型体”的部分收窄或关闭。
+- 依赖：T4012
+
+### T4012b [TODO] 补齐 non-inline built-in annotations 的编译器语义
+- 范围：
+  - built-in annotation 的编译器识别不再只停在 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`。
+  - 先收口 `@Deprecated`、`@AllowIntrinsic`、`@Suppress` 等 non-inline built-ins 的解析、诊断与行为；`@Inline` 明确留到 `T4013`，避免再次把 inline 做成控制流语义。
+  - 如公开语义或诊断文本变化涉及规范 / 文档，在本任务中显式列出同步项，而不是直接跳过。
+- 验收：
+  - `ISSUES.md` 第 9 条中除 `@Inline` 外的 built-in annotation behavior 缺口收窄或关闭。
+- 依赖：T4012a
+
+### T4012R [TODO] Review：确认 annotation system 不再停在 data-only + 少数 hard-coded built-ins
+- 重点：
+  - richer annotation model 不能只是对个别 built-in annotation 额外开后门。
+  - `@Inline` 的剩余交叉项必须明确移交给 `T4013`，不能在本条 review 里含混带过。
+- 依赖：T4012b
+
+## T4013：legacy `inline` / non-local return 语义清理
+
+### T4013 [TODO] 删除 `inline` 的控制流语义残留，并把 `@Inline` 收口为非语义优化提示
+- 范围：
+  - 移除 inline 函数 lambda 实参中的 non-local return 语义门禁、错误文案与对应 fixture 口径，不再让 `inline` 参与控制流语义。
+  - `@Inline` 若保留，则只作为优化提示存在，不引入任何额外的 non-local return / break / continue 语义。
+  - 若规范文字、spec fixtures 或 sysroot 注释需要同步，在本任务内显式列出相应更新与 `spec-fixtures check` 验收。
+- 验收：
+  - `ISSUES.md` 第 10 条收窄或关闭。
+  - `ISSUES.md` 第 9 条中与 `@Inline` 相关的剩余交叉项一并关闭。
+- 依赖：T4012R
+
+### T4013R [TODO] Review：确认 `inline` / `@Inline` 都不再参与控制流语义
+- 重点：
+  - 不允许把旧的 non-local return 规则换个入口继续保留。
+  - 若未来还要重新引入相关能力，也只能作为显式 deferred design item 留下。
+- 依赖：T4013
+
+## T4014：FFI / ABI 边界与 pinned token
+
+### T4014 [TODO] 收口普通 `@Extern` 的 effect-impermeable 边界与 `Pinned` ABI model（拆分执行）
+- 说明：
+  - 最新 `ISSUES.md` 第 11 条把当前缺口明确拆成两条：普通 FFI 边界仍缺少 “effect / continuation / non-local control 不可穿透” 的明确契约；`Pinned` 也仍不是可直接出现在 ABI 上的 word-sized opaque token。
+  - 这两条既共享 FFI 边界主题，又会分别影响 typecheck contract 与 sysroot / ABI surface，因此拆分为 `T4014a -> T4014b -> T4014R`。
+- 验收：
+  - 子任务全部完成后，`ISSUES.md` 第 11 条收窄或关闭。
+- 依赖：T4013R
+
+### T4014a [TODO] 明确普通 `@Extern` 不能穿透 effect / continuation / non-local control
+- 范围：
+  - 普通 `@Extern` ABI 的 typecheck / lowering / runtime contract 明确禁止 effect、continuation 与 non-local control 穿越边界。
+  - `@NoGC`、`Ptr<T>` / `UIntPtr` / handle 桥接与普通 FFI 约束之间的关系要形成统一叙事，而不是继续依赖隐含约定。
+  - 补充 typecheck / docs / regression，覆盖违规签名、违规调用与允许的显式桥接路径。
+- 验收：
+  - 普通 FFI 接口不再暴露隐藏的 GC / effect 语义；边界契约在诊断与文档上都可见。
+- 依赖：T4014
+
+### T4014b [TODO] 将 `Pinned` 收口为可上 ABI 的 opaque token
+- 范围：
+  - `Pinned` 不再只停留在 `struct Pinned(val value: Any)` 这一库层包装；需要形成像 `FunPtr<F>` 一样可直接出现在 ABI 上的明确 token 模型，或等价的统一 opaque surface。
+  - sysroot / `unsafe.scoop` / runtime ABI 文档中的 pinned bridge 约定要与类型系统可见的 token 形状一致，不再完全依赖 `UIntPtr` / `Ptr<T>` 的手工协议。
+  - 补充 extern signature / round-trip regression，覆盖 pin、传递、回传与 unpin/释放边界。
+- 验收：
+  - `ISSUES.md` 第 11 条中关于 `Pinned` token model 的剩余描述收窄或关闭。
+- 依赖：T4014a
+
+### T4014R [TODO] Review：确认普通 FFI 边界不再隐含 GC / effect 语义
+- 重点：
+  - 不允许普通 `@Extern` ABI 继续默许 effect / continuation 穿越。
+  - `Pinned` 不能只是文档口头概念；必须有与 ABI surface 对齐的类型系统表示。
+- 依赖：T4014b
+
+## T4015：const / comptime 扩展
+
+### T4015 [TODO] 将 const/comptime 从最小纯算术子集扩到可用的纯计算模型（拆分执行）
+- 说明：
+  - 最新 `ISSUES.md` 第 12 条把当前限制拆成三层：`const fun` 解析仍只支持同文件 + 名字/参数个数的最小选择；常量 evaluator / interpreter 仍只覆盖很窄的纯表达式子集；header phase 仍对 effect row / `eff` 参数采取一刀切早退。
+  - 这三层依赖顺序不同，因此拆分为 `T4015a -> T4015b -> T4015c -> T4015R`。
+- 验收：
+  - 子任务全部完成后，`ISSUES.md` 第 12 条收窄或关闭。
+- 依赖：T4014R
+
+### T4015a [TODO] 收口 `const fun` 的解析 / 选择 / 跨文件调用主线
+- 范围：
+  - `const fun` 解释器不再只按“同文件 + 函数名 + 参数个数”做最小选择；需要接入统一的声明处上下文、重载与跨文件解析主线。
+  - `const fun` 的 call-site 选择、generic 实例化与 declaration context 要与普通函数解析保持可解释的一致性，而不是继续依赖 comptime 私有旁路。
+  - 补充对应单测 / regression，覆盖跨文件 const 调用、重载选择与错误路径。
+- 验收：
+  - `ISSUES.md` 第 12 条中“const fun 解释器当前只支持同文件、按函数名 + 参数个数的最小选择”的部分收窄或关闭。
+- 依赖：T4015
+
+### T4015b [TODO] 扩展纯 comptime evaluator / interpreter 到控制流、局部声明与循环等常见结构
+- 范围：
+  - 常量 evaluator / interpreter 从“字面量 + 一元/二元运算”扩展到更完整的纯计算子集，包括控制流、局部声明与循环等常见结构。
+  - 继续保持纯计算前提，不把 effectful execution 偷偷放进 comptime；必要时通过明确 diagnostics 区分“纯但未支持”和“语义上不允许”。
+  - 补充 regression，覆盖条件分支、局部绑定、循环与跨函数纯计算。
+- 验收：
+  - `ISSUES.md` 第 12 条中“常量 evaluator 仍只覆盖很窄纯计算子集”的部分收窄或关闭。
+- 依赖：T4015a
+
+### T4015c [TODO] 重新收口 `const fun` 的 effect-row / `eff` 参数 contract
+- 范围：
+  - `const fun` 对 non-`Pure` effect row 与 `eff` 参数的限制不能继续停留在“一刀切早退但没有明确 contract”；需要决定并实现可支持的纯兼容子集，或把不支持部分写成显式 deferred contract 与精确诊断。
+  - typecheck、文档与 comptime interpreter 的边界表述必须一致，不再出现 header phase、解释器与 spec 三处口径分裂。
+  - 若本轮仍选择保守限制，必须把 `SCOOP_FULL_SPEC.md` / 相关文档的同步任务纳入验收。
+- 验收：
+  - `ISSUES.md` 第 12 条中关于 non-`Pure` effect row / `eff` 参数的剩余描述收窄或关闭。
+- 依赖：T4015b
+
+### T4015R [TODO] Review：确认 const/comptime 不再只靠“同文件 + 名字/参数个数 + 字面量求值”的最小旁路
+- 重点：
+  - 不允许在 parser/typecheck 接受更多语法后，解释器仍偷偷回退到最小选择模型。
+  - comptime 的“纯计算”边界必须由统一 contract 说明，而不是散落在多个早期 gate 里。
+- 依赖：T4015c

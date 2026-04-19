@@ -16,9 +16,9 @@
 
 ## 1. effect / continuation 主路径已足够支撑手动 step 的 `Task`，但仍未覆盖完整规范语义
 
-- 现状：escape continuation 已经可以 capture、堆存、跨作用域 later-resume，并且 `resume` payload 已覆盖 `Unit`、GC 引用与带引用字段的复合值；现有 FIFO/LIFO scheduler fixtures 也已经证明 pure Scoop 代码可以把 `Continuation<T>` 存进普通 class 字段后手动推进计算。因此，从“Task 内部靠 continuation stepping”这个角度看，effect codegen 主路径已经可用。但 richer 语义仍未补齐：handler arm head 仍只接受 effect operation；effect type param 仍只支持单一 type param；receiver effect op 仍被拒绝；escape continuation binder 仍注入默认 effect row 的 `Continuation<T>`；`Continuation.resume` 仍只接受一个实参，并且命名实参只接受 `value = ...`。另外，在 async 组合子路径上，当前 LLVM 后端对 escape continuation 的组合能力仍偏弱，`Task<Int>.andThen` 这类“一个 setup 里串两个 await”仍需要拆成两段 `handle`。
-- 影响：effect / continuation 已经不再是 “Task redesign 无法开始” 的 blocker；它已经足以支撑“Task 是普通对象、内部保存并推进 continuation”的方向。真正尚未完成的是更完整的 effect polymorphism、receiver-op 支持，以及更自然的多 suspend / 多 await 组合写法。
-- 证据：`tests/fixtures/run-pass/effect_escape_continuation_scheduler_fifo_multi_task.scoop:18-163`；`tests/fixtures/run-pass/effect_escape_continuation_scheduler_lifo_multi_task.scoop:19-155`；`tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop:12-40`；`tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop:12-38`；`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop:19-58`；`crates/scoopc/src/typecheck/expr/infer.rs:1246-1261`；`crates/scoopc/src/typecheck/expr/infer.rs:1719-1729`；`crates/scoopc/src/typecheck/expr/call.rs:3419-3436`；`crates/scoopc/src/typecheck/expr/call.rs:3646-3735`；`stdlib/task.scoop:116-149`。
+- 现状：escape continuation 已经可以 capture、堆存、跨作用域 later-resume，并且 `resume` payload 已覆盖 `Unit`、GC 引用与带引用字段的复合值；现有 FIFO/LIFO scheduler fixtures 也已经证明 pure Scoop 代码可以把 `Continuation<T>` 存进普通 class 字段后手动推进计算。因此，从“Task 内部靠 continuation stepping”这个角度看，effect codegen 主路径已经可用。但 richer 语义仍未补齐：handler arm head 仍只接受 effect operation；effect type param 仍只支持单一 type param；receiver effect op 仍被拒绝；escape continuation binder 仍注入默认 effect row 的 `Continuation<T>`；`Continuation.resume` 仍只接受一个实参，并且命名实参只接受 `value = ...`。另外，在 async 组合子路径上，当前 LLVM 后端对 escape continuation 的组合能力仍偏弱，`Task<Int>.andThen` 这类“一个 setup 里串两个 await”仍需要拆成两段 `handle`。与此同时，统一 effect state machine lowering 当前仍固定生成 heap-allocated full machine；spec 里 `-> resume` / ImmediateResume 对应的 stack-local fast path 还没有落成独立的 storage 选择，所以从实现现状看，heap-only 仍是唯一覆盖所有 case 且保证语义正确的保守 lowering。
+- 影响：effect / continuation 已经不再是 “Task redesign 无法开始” 的 blocker；它已经足以支撑“Task 是普通对象、内部保存并推进 continuation”的方向。真正尚未完成的是更完整的 effect polymorphism、receiver-op 支持，以及更自然的多 suspend / 多 await 组合写法；而 ImmediateResume 的 stack-local 语义当前仍主要停留在 spec / design 层，尚未成为独立优化路径。
+- 证据：`tests/fixtures/run-pass/effect_escape_continuation_scheduler_fifo_multi_task.scoop:18-163`；`tests/fixtures/run-pass/effect_escape_continuation_scheduler_lifo_multi_task.scoop:19-155`；`tests/fixtures/run-pass/effect_escape_continuation_resume_unit.scoop:12-40`；`tests/fixtures/run-pass/effect_escape_continuation_resume_string.scoop:12-38`；`tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_resume_struct_with_ref.scoop:19-58`；`crates/scoopc/src/typecheck/expr/infer.rs:1246-1261`；`crates/scoopc/src/typecheck/expr/call.rs:3419-3436`；`crates/scoopc/src/typecheck/expr/call.rs:3646-3735`；`stdlib/task.scoop:116-149`；`SCOOP_FULL_SPEC.md:724-725`；`crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs:551-555`；`crates/scoopc/src/llvm/codegen/effect/state_machine_transform.rs:576-582`；`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs:2804-2819`。
 
 ## 2. `Task` 仍未定型为通用的 pollable object；当前实现还绑在 executor-centric 的 hard-coded ABI 上
 
@@ -50,17 +50,17 @@
 - 影响：局部解构绑定已经逐步推进，但顶层声明还不能复用同一套语法，特性覆盖不一致。
 - 证据：`crates/scoopc/src/typecheck/headers.rs:26-32`；`crates/scoopc/src/typecheck/headers.rs:173-193`。
 
-## 7. 值类型建模仍不完整：`struct` 字段与 `with` 更新仍有硬限制
+## 7. 值类型语义应继续保持不可变；后续重点是增强 `with`
 
-- 现状：`struct` 字段仍不允许 `var`，也不允许默认值；`with` 更新虽然已经支持嵌套字段路径，但 base 仍只支持 `struct`，不会覆盖 tuple / enum 这类其它值类型。
-- 影响：值对象的声明与更新能力仍偏弱，无法完整覆盖更接近 Kotlin / record-style 的常见写法。
-- 证据：`crates/scoopc/src/typecheck/structs.rs:3-7`；`crates/scoopc/src/typecheck/structs.rs:35-50`；`crates/scoopc/src/typecheck/expr/infer.rs:2531-2551`；`crates/scoopc/src/typecheck/expr/error.rs:926-935`。
+- 现状：spec 已明确所有 value type 都是 immutable，`with` 的语义也是“创建修改后的副本”；当前实现据此拒绝 `struct` 的 `var` 字段和值类型上的 `var` property。也就是说，这里的缺口不应再理解为“还没支持 Swift-style 可变 struct”。真正仍未完成的是 immutable-friendly 的更新与声明能力：`with` 当前虽然已经支持多段字段路径与并行冲突检查，但 base 仍只支持 `struct`，还不能泛化到 tuple / enum 等其它值类型；字段默认值这类声明便利性也仍未覆盖。
+- 影响：如果把“字段级写回式 `var`”继续当成待补 feature，会把当前更接近 Valhalla-style 的 value semantics 搅混。更清晰的方向是保持整体不可变，把值对象更新统一收敛到显式 `with`，再逐步增强 `with` 的覆盖面与人体工学。
+- 证据：`SCOOP_FULL_SPEC.md:45-46`；`SCOOP_FULL_SPEC.md:371-371`；`SCOOP_FULL_SPEC.md:1588-1588`；`SCOOP_FULL_SPEC.md:1628-1628`；`crates/scoopc/src/typecheck/structs.rs:3-7`；`crates/scoopc/src/typecheck/structs.rs:35-50`；`crates/scoopc/src/typecheck/properties.rs:62-72`；`crates/scoopc/src/typecheck/expr/infer.rs:2967-3041`；`crates/scoopc/src/typecheck/expr/error.rs:925-955`。
 
-## 8. `when` 的 or-pattern 仍不能引入 binder
+## 8. `when` 的 or-pattern 仍应先收敛到“无 binder”子集
 
-- 现状：or-pattern 已可用于简单判别，但一旦在 `A(x) | B(x)` 这类模式里引入 binder，就会被直接拒绝。
-- 影响：模式匹配的表达能力仍被限制在“无绑定的 or-pattern”，不能把多个分支合并成共享绑定的写法。
-- 证据：`crates/scoopc/src/typecheck/when_pat.rs:90-98`。
+- 现状：or-pattern 已可用于简单判别，但一旦在 `A(x) | B(x)` 这类模式里引入 binder，就会被直接拒绝；resolver 也不会在 `WhenPat::Or` 下声明 binder。与此同时，现有语法已经可以表达 `A(..) | B(..)` / `A(_) | B(_)` 这类“只判别、不绑定”的子集。
+- 影响：当前真正低风险、低改动的方向应是优先支持“无 binder 的 payload or-pattern”。若未来要放开 binder-sharing，则至少需要要求“各分支 binder 集合一致且每个 binder 精确同型”，不能把 `A(x) | C(x)` 这类情况宽松合流成 `Any`。另外，暂不应把 bare `A | C` 扩成“忽略 payload”的语法糖，因为 parser 当前把大写裸名解释为 0-arg variant。
+- 证据：`crates/scoopc/src/typecheck/when_pat.rs:89-103`；`crates/scoopc/src/typecheck/when_pat.rs:193-206`；`crates/scoopc/src/resolve/scopes.rs:940-950`；`crates/scoopc/src/parser/expr.rs:2077-2085`。
 
 ## 9. annotation 系统仍只覆盖部分规范
 
@@ -68,17 +68,17 @@
 - 影响：注解系统已经有基本声明、use-site target 与 `@Target/@Retention` 校验，但 richer annotation model 与多项 built-in annotation behavior 仍未兑现。
 - 证据：`crates/scoopc/src/typecheck/annotations.rs:77-90`；`crates/scoopc/src/typecheck/builtin_annotations.rs:12-18`；`crates/scoopc/src/typecheck/builtin_annotations.rs:53-66`；`crates/scoopc/src/resolve/mod.rs:311-340`；`SCOOP_FULL_SPEC.md:2285-2299`。
 
-## 10. `inline` / non-local return 语义与规范仍不一致
+## 10. 应先删除 legacy `inline` / non-local return 语义残留；新设计另议
 
-- 现状：spec §7.2 明确写的是“`inline` 只是优化提示，没有语义效果，也不存在 non-local return”；但当前 typecheck 的 statement checker 会把 `inline` 当成控制流语义的一部分，允许 inline 函数的 lambda 实参里出现 non-local return。更进一步，这条规则本身仍是不完整的：部分调用路径（例如跨文件顶层函数、若干 member call 路径）仍默认按 `inline = false` 处理。
-- 影响：当前仓库对 `inline` 的语言模型本身就是分裂的：规范说“无语义”，实现却在静态门禁上赋予了语义，而且还没有统一传播到所有调用形态。
-- 证据：`SCOOP_FULL_SPEC.md:1341-1348`；`crates/scoopc/src/typecheck/expr/stmt.rs:196-224`；`crates/scoopc/src/typecheck/expr/stmt.rs:1365-1401`；`crates/scoopc/src/typecheck/expr/call.rs:1154-1155`；`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop:1-12`。
+- 现状：spec §7.2 明确写的是“`inline` 只是优化提示，没有语义效果，也不存在 non-local return”；但当前 typecheck 仍把 `inline` 当成控制流语义的一部分，允许 inline 函数的 lambda 实参里出现 non-local return，错误文案和 fixture 也仍沿用这套 legacy 模型。
+- 影响：当前仓库对 `inline` 的语言模型仍然分裂。更稳的方向不是继续修补这套 legacy 规则，而是先把相关 wording / gate / fixture 从现有语言模型中移除；若以后要重新引入 non-local return / break / continue，更适合基于 effect / handler 重新设计，而不是继续绑定在 `inline` 上。
+- 证据：`SCOOP_FULL_SPEC.md:1341-1348`；`crates/scoopc/src/typecheck/expr/stmt.rs:190-264`；`crates/scoopc/src/typecheck/expr/error.rs:1093-1100`；`crates/scoopc/src/typecheck/expr/mod.rs:93-97`；`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop:1-12`；`tests/fixtures/typecheck/return_in_non_inline_lambda_arg_is_error.scoop:1-15`。
 
-## 11. FFI / ABI 仍停留在 C ABI + GC-free 最小子集
+## 11. FFI / ABI 仍缺少明确的 effect-impermeable 边界与 pinned token 模型
 
-- 现状：`@CallingConvention` 仍只接受 `"c"` / `"cdecl"`；`@Extern` 顶层变量与函数 ABI 签名仍要求 GC-free 值类型；`FunPtr<F>` 仍不支持 receiver function type；codegen 对函数指针调用也仍只按 C ABI 发 indirect call。
-- 影响：系统互操作虽然已经打开，但 ABI 维度的表达能力仍很窄，无法覆盖更复杂的宿主互操作场景。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs:145-156`；`crates/scoopc/src/typecheck/annotations.rs:176-191`；`crates/scoopc/src/typecheck/lower.rs:146-150`；`crates/scoopc/src/typecheck/expr/call.rs:974-978`；`crates/scoopc/src/llvm/codegen/mod.rs:9659-9663`。
+- 现状：`@CallingConvention` 仍只覆盖最小 C ABI；`@Extern` 仍要求 ABI 签名为 GC-free 值类型，并鼓励通过 `Ptr<T>` / `UIntPtr` / handle 显式桥接。这个方向本身没问题，但普通 FFI 边界在规范与实现意图上仍缺少两条更明确的约束：其一，effect / continuation / non-local control 不应穿越普通 `@Extern` ABI；其二，当前 `Pinned` 仍是 `struct Pinned(val value: Any)`，不是像 `FunPtr<F>` 那样可直接出现在 ABI 上的 word-sized opaque token，因此“pin 后直接声明 extern 参数”的模型仍未定型。
+- 影响：如果没有清晰的边界契约，FFI 只能继续依赖 `UIntPtr` / `Ptr<T>` 的手工协议，类型系统看不见“这是 pinned token”；同时也难以把 `@NoGC` 收敛成“普通 FFI 接口不暴露 GC / effect 语义”的更清楚模型。
+- 证据：`crates/scoopc/src/typecheck/annotations.rs:184-191`；`crates/scoopc/src/typecheck/annotations.rs:1435-1441`；`SCOOP_FULL_SPEC.md:2804-2812`；`SCOOP_FULL_SPEC.md:2846-2847`；`sysroot/core.scoop:212-223`；`sysroot/unsafe.scoop:16-22`；`sysroot/unsafe.scoop:92-98`；`crates/scoopc/src/llvm/codegen/ty.rs:86-96`。
 
 ## 12. const / comptime 仍然只覆盖很窄的纯计算子集
 

@@ -3,7 +3,7 @@
 > 生成时间：2026-04-18  
 > 历史归档：`PLAN-4.md` / `TODO-4.md`  
 > 依据：`ISSUES.md` 当前审计结果  
-> 本轮主题：先收口核心语言与 codegen 缺口，再推进 effect 完整性与 `Task` 设计；executor framework 明确留到下一阶段。
+> 本轮主题：在既有核心语言 / codegen 收口基础上，先完成 effect 完整性与 `Task` 设计，再继续推进 `ISSUES.md` 中剩余的规范 gap；executor framework 明确留到下一阶段。
 >
 > 2026-04-18 当前轮完成更新：`T4001` 与 `T4001R` 已完成。`where` 子句现已支持带类型实参的 nominal bound；`TypeEnv` / `TypeLowering` 会保留并具体化 direct supertypes；assignable / 上转规则已改为沿具体化后的 supertype 链做 DFS；`*` 现作为 typecheck 内部 star projection 保留，并在导出 / RTTI / LLVM 侧擦除为 `Any?` 读视图。复审确认上述语义走统一主线，没有新增 `Array` / `Collection` / 单个 interface 的旁路特判，也没有把 star projection 在前端主线上重新降回 `Any`。已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (326)`）与 T4001 定向 run-pass（`target/debug/scoop test --fixtures target/t4001r-fixtures/run-pass`，`fixtures: ok (2)`）。当前下一项推进到 `T4002`。
 >
@@ -104,6 +104,8 @@
 > 2026-04-19 当前轮计划调整：在为 `T4008c1` 增加 run-pass 回归时，发现另一个独立的 effect codegen 缺口：`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs::emit_perform_op` 当前只接受 0/1 个 payload arg，带两个及以上形参的 effect op 会在 state-machine 路径报 `state machine perform arity`。该问题不阻塞 `T4008c1` 的“多 effect type params”收口，但它会直接阻塞后续 receiver effect op lowering，因为 receiver effect op 至少会额外引入一个 receiver payload。为避免把这个旧限制继续埋在 `T4008c2` 里，现已在 `TODO.md` 中补记 `T4008cS`，执行顺序调整为 `T4008c1 -> T4008cS -> T4008c2 -> T4008R`；本轮仍继续完成 `T4008c1`。
 >
 > 2026-04-19 当前轮计划调整：在执行 `cargo run -q -p scoop -- test` 做全量 fixture 复验时，命中了另一个更靠前的既有 blocker：`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop` 当前在本工作树与 clean `HEAD`（`45a1144`）里都会错误输出 `fetch_resume / resume_else_1 / missing2`，说明 statement-position if/else 的 direct + indirect same-stmt mixed replay 在 else 分支仍会把 indirect site 错误重放成 direct site 的 resumed tail，导致第二个 continuation 丢失。由于这个问题会直接阻塞 `T4008c1` 的全量验证，现已把它登记为新的前置任务 `T4008c0`，并将执行顺序调整为 `T4008c0 -> T4008c1 -> T4008cS -> T4008c2 -> T4008R`。本轮停止在任务重排与 blocker 记录，不保留 `T4008c1` 的未提交实现。
+>
+> 2026-04-19 当前轮计划调整：重新对照最新 `ISSUES.md` 后，确认当前未完成范围已经不再止于 `T4008` / `T4009`。其中 `ISSUES.md` 第 1 条在现有 `T4008c0 -> T4008c1 -> T4008cS -> T4008c2` 之外，还剩两类未在 `TODO.md` 中显式落位的子项：一是 handler arm head 仍只接受 effect operation 的 surface 门禁，二是 `Continuation.resume` 的多实参 / 一般命名实参与 `ImmediateResume` storage contract 仍未收口；现补拆为 `T4008c3 -> T4008c4 -> T4008R`。`ISSUES.md` 第 2 条也不再只需要一个笼统的 “pollable object” 任务，而是先拆掉 `Task<T>` / `Executor` 的 hard-coded handle ABI，再定 poll/step API 与 raw continuation 的隐藏边界，因此改为 `T4009a -> T4009b -> T4009R`。此外，`ISSUES.md` 第 7-12 条仍属未关闭条目，现顺延补记为 `T4010 -> T4015`，依次覆盖 immutable value `with` / 默认值、无 binder or-pattern、annotation model 与 built-in behavior、legacy `inline` 语义清理、FFI pinned/effect-impermeable 边界，以及 const/comptime 扩展。当前下一项仍保持 `T4008c0`。
 
 ## 0. 工作原则
 
@@ -116,23 +118,29 @@
 
 ## 1. 顺序总览
 
-1. `ISSUES.md` 第 5 条：泛型约束、参数化超类型与 star projection
-2. `ISSUES.md` 第 3 条：lambda 推断与 receiver lambda
-3. `ISSUES.md` 第 4 条：调用语义早期门禁
-4. 新增 blocker：普通顶层 `val` 的可执行读取语义
-5. 新增 blocker：局部 `val` pattern binding 的可执行 lowering / codegen
-6. `ISSUES.md` 第 6 条：顶层 `val` pattern binding
-7. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen
-8. 新增 blocker：pattern binder 中函数值的可调用 lowering / codegen
-9. 新增 blocker：顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义
-10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路
-11. 新增 blocker：delegated property lazy(None) 读取进入 `print/println` 的 codegen 类型缺口
-12. 新增 blocker：`gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
-13. 新增 blocker：full fixture suite 中 `top_level_val_recursive_init_is_error` 的顺序相关 stdout mismatch
-14. 新增 blocker：链式成员访问在非局部 receiver 上的解析 / codegen
-15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
-16. `ISSUES.md` 第 1 条：effect / continuation 完整性
-17. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
+1. `ISSUES.md` 第 5 条：泛型约束、参数化超类型与 star projection（已完成）
+2. `ISSUES.md` 第 3 条：lambda 推断与 receiver lambda（已完成）
+3. `ISSUES.md` 第 4 条：调用语义早期门禁（已完成）
+4. 新增 blocker：普通顶层 `val` 的可执行读取语义（已完成）
+5. 新增 blocker：局部 `val` pattern binding 的可执行 lowering / codegen（已完成）
+6. `ISSUES.md` 第 6 条：顶层 `val` pattern binding（已完成）
+7. `ISSUES.md` 第 13 条：Elvis `?:` lowering / codegen（已完成）
+8. 新增 blocker：pattern binder 中函数值的可调用 lowering / codegen（已完成）
+9. 新增 blocker：顶层 callable value（含顶层 pattern binder / `FunPtr`）的调用语义（已完成）
+10. `ISSUES.md` 第 14 条：跨文件 / 跨包编译链路（已完成）
+11. 新增 blocker：delegated property lazy(None) 读取进入 `print/println` 的 codegen 类型缺口（已完成）
+12. 新增 blocker：`gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口（已完成）
+13. 新增 blocker：full fixture suite 中 `top_level_val_recursive_init_is_error` 的陈旧 stdout golden mismatch（已完成）
+14. 新增 blocker：链式成员访问在非局部 receiver 上的解析 / codegen（已完成）
+15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（已完成：`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
+16. `ISSUES.md` 第 1 条：effect / continuation 完整性（进行中：`T4008c0 -> T4008c1 -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`）
+17. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义（待开始：`T4009a -> T4009b -> T4009R`）
+18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（待开始：`T4010a -> T4010b -> T4010R`）
+19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（待开始：`T4011 -> T4011R`）
+20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
+21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
+22. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 pinned token 模型（待开始：`T4014a -> T4014b -> T4014R`）
+23. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（待开始：`T4015a -> T4015b -> T4015c -> T4015R`）
 
 ## 2. 分阶段目标
 
@@ -164,16 +172,37 @@
 
 - 在核心语言与 codegen feature 收口后，再回头补 effect / continuation 剩余缺口。
 - 目标不是扩 executor，而是把手动 stepping `Task` 所需的 effect 语义补完整，包括更自然的多 suspend 组合、continuation 类型语义与相关 lowering。
-- 当前状态：`T4008` 已拆分为 `T4008a -> T4008b1 -> T4008b2 -> T4008c0 -> T4008c1 -> T4008cS -> T4008c2 -> T4008R`，其中 `T4008b1` 又已细化为 `T4008b1a -> T4008b1b`。`T4008a`、`T4008b1a`、`T4008b1b` 与 `T4008b2` 已完成：真实 stdlib `Task.andThen` 已改为单个 setup `handle` 内连续两次 `Async.await`；resumed-step 分析已先后收口 escape site resumed tail、direct `perform` / direct effectful call summary、current-handle active/inactive 语义、immediate/non-resuming/escape arm body、`finally`、nested handle boundary 与 hidden once-init boundary；基于这份 summary，escape continuation binder 已重新定型为精确的 `Continuation<T, eff E>`，而 `Continuation.resume` 也已按 pure / non-pure continuation 分流为 hidden runtime-raise 与 outward replay 两条主线。当前下一项切换到 `T4008c0`，先修复 statement-position if/else mixed replay 的 else 分支 continuation 丢失，再回到多 effect type params 与后续 receiver effect op lowering。
+- 当前状态：`T4008` 现已按 `T4008a -> T4008b1a -> T4008b1b -> T4008b2 -> T4008c0 -> T4008c1 -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R` 排序推进。`T4008a`、`T4008b1a`、`T4008b1b` 与 `T4008b2` 已完成：真实 stdlib `Task.andThen` 已改为单个 setup `handle` 内连续两次 `Async.await`；resumed-step 分析已先后收口 escape site resumed tail、direct `perform` / direct effectful call summary、current-handle active/inactive 语义、immediate/non-resuming/escape arm body、`finally`、nested handle boundary 与 hidden once-init boundary；基于这份 summary，escape continuation binder 已重新定型为精确的 `Continuation<T, eff E>`，而 `Continuation.resume` 也已按 pure / non-pure continuation 分流为 hidden runtime-raise 与 outward replay 两条主线。结合最新 `ISSUES.md`，第 1 条剩余待收口的范围现明确收窄为：statement-position mixed replay blocker、多 effect type params、多 payload perform、receiver effect op、handler arm head surface，以及 `Continuation.resume` 的多实参 / 命名实参与 `ImmediateResume` storage contract。当前下一项切换到 `T4008c0`。
 
 ### P6. `Task` 设计定型
 
 - 只聚焦 `Task<T>` 本体：pollable object、manual stepping、private continuation state、advanced `Continuation` 隐藏边界。
 - 不在本轮定义 executor interface、wakeup API 或 `spawn` 最终调度模型。
+- 当前状态：`ISSUES.md` 第 2 条现已按 `T4009a -> T4009b -> T4009R` 拆分执行：先拆掉 `Task<T>` / `Executor` 对 word-sized handle ABI、`taskCreate` / `onComplete` / `join` 直连 runtime symbol、以及 `spawn { ... } -> Int` 的旧设计绑定，再定 poll / step / `Poll<T>` 合同与 raw continuation 的隐藏边界。当前仍依赖 `T4008R` 收口后再启动。
+
+### P7. 不可变 value semantics 与模式匹配子集
+
+- 继续保持 value type 整体不可变，不把缺口误解为“再加回 Swift-style 可变 struct”；后续重点是增强 `with`、值类型默认值人体工学，以及先收口无 binder 的 payload or-pattern。
+- 当前状态：`T4010a -> T4010b -> T4010R -> T4011 -> T4011R` 待开始；依赖 `T4009R`。
+
+### P8. annotation model 与 `inline` 语义清理
+
+- 先扩展 annotation class model 与 non-inline built-in annotations，再删除 legacy `inline` / non-local return 语义残留，并把 `@Inline` 收口为纯优化提示而非控制流语义。
+- 当前状态：`T4012a -> T4012b -> T4012R -> T4013 -> T4013R` 待开始；其中 `T4012` 只先覆盖 `@Deprecated` / `@AllowIntrinsic` / `@Suppress` 等 non-inline built-ins，`@Inline` 明确顺延到 `T4013` 与 legacy inline 清理一起完成。
+
+### P9. FFI / ABI 边界收口
+
+- 聚焦普通 `@Extern` 的 effect-impermeable 边界，以及 `Pinned` 作为 ABI 可见 opaque token 的模型收口。
+- 当前状态：`T4014a -> T4014b -> T4014R` 待开始；依赖 `T4013R`。
+
+### P10. const / comptime 扩展
+
+- 在保持纯计算模型前提下，扩展 const/comptime 的解析、控制流与 effect-row 合同，避免继续停留在“同文件 + 名字/参数个数 + 字面量求值”的最小子集。
+- 当前状态：`T4015a -> T4015b -> T4015c -> T4015R` 待开始；依赖 `T4014R`。
 
 ## 3. 各阶段完成标准
 
-### C1. effect / `Task` 之前的核心语言 / codegen 条目
+### C1. 非 effect / `Task` 的语言 / codegen 条目
 
 - 对应 `ISSUES.md` 条目已被关闭，或至少收缩为新的、更窄的剩余 blocker。
 - 新增或更新的 fixtures 覆盖 typecheck、HIR / MIR / LLVM lowering、run-pass 或相关 regression。
@@ -194,7 +223,7 @@
 
 - 本轮不完成 executor framework。
 - 本轮不定义 work-stealing、event loop、I/O driver、waker、queueing 或 `spawn` 的最终调度语义。
-- 本轮不扩展与上述九项无直接关系的 stdlib surface。
+- 本轮不扩展与 `ISSUES.md` 当前审计条目无直接关系的 stdlib surface。
 
 ## 5. 最终验收
 
