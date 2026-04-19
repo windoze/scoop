@@ -90,6 +90,8 @@
 > 2026-04-19 当前轮计划调整：原 `T4008` 同时覆盖 escape continuation 多 await 组合、continuation 类型语义 / `resume` builtin surface，以及 richer effect polymorphism / receiver effect op 三条主线。为避免单轮同时横跨 stdlib async adapter、typecheck builtin、effect-op lowering 与 codegen，现已将其拆分为 `T4008a -> T4008b -> T4008c -> T4008R`。其中 `T4008a` 先清理一个已确认过时的 workaround：临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 已证明单个 setup `handle` 内连续两次 `Async.await` 可以稳定 build/run（stdout `17`），因此真实生效的 `stdlib/task.scoop` 不应继续保留“双层 handle”实现。当前本轮执行目标切换为 `T4008a`。
 >
 > 2026-04-19 当前轮完成更新：`T4008a` 已完成。真实生效的 `stdlib/task.scoop` 现已把 `Task<Int>.andThen` 从“第一段等待 `this`、第二段再等待 `next`”的嵌套 `handle` workaround 收口为单个 setup `handle` 内连续两次 `Async.await`；outer handler 仍统一通过 `task.onComplete(executor, k)` 回挂 continuation，因此 stdlib async adapter 主线已与现有 escape continuation 多 perform 能力对齐。补丁同时移除了“单个 `handle` 只支持一个 perform 点”的过时注释。验证上，临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 继续输出 `17`，`tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` 也已重新通过，说明 `Task.andThen` 已不再依赖 shape-based workaround。当前下一项推进到 `T4008b`。
+>
+> 2026-04-19 当前轮计划调整：在为 `T4008b` 做最小 probe 时，`/tmp/t4008b-probe2/continuation_escape_binder_effect_row_is_not_pure.scoop` 暴露出一个更底层的 blocker：`Ask.current(), k -> { requirePure(k); requireBoom(k) }` 当前会错误成功，说明 escape continuation binder 仍被注入为 `Continuation<Int, eff Pure>`。继续审计 `crates/scoopc/src/typecheck/expr/infer.rs` 与 `crates/scoopc/src/typecheck/lower.rs` 后确认，现有 typecheck 只有“整段函数体 / handle body performed effects 收集”，并没有“从某个 escape site 恢复后，到下一次 suspension / return / 正常完成”为止的 resumed-step effect summary；若直接拿整段 body 的 effects 去填 `Continuation<T, eff E>`，会把 prefix effects 以及 fresh continuation 之后的 tail 一起误算进当前 `resume` step，形成新的规范偏差。基于这个 blocker，`T4008b` 现已进一步拆分为 `T4008b1 -> T4008b2`：先建立 resumed-step effect-row 分析，再基于该分析收口 binder 类型与 `Continuation.resume` surface。当前下一项切换为 `T4008b1`。
 
 ## 0. 工作原则
 
@@ -150,7 +152,7 @@
 
 - 在核心语言与 codegen feature 收口后，再回头补 effect / continuation 剩余缺口。
 - 目标不是扩 executor，而是把手动 stepping `Task` 所需的 effect 语义补完整，包括更自然的多 suspend 组合、continuation 类型语义与相关 lowering。
-- 当前状态：`T4008` 已拆分为 `T4008a -> T4008b -> T4008c -> T4008R`；其中 `T4008a` 已完成，真实 stdlib `Task.andThen` 已改为单个 setup `handle` 内连续两次 `Async.await`，不再保留双 `handle` workaround。下一项进入 `T4008b`，继续收口 `Continuation<T, eff E>` 与 `Continuation.resume` 主线。
+- 当前状态：`T4008` 已拆分为 `T4008a -> T4008b1 -> T4008b2 -> T4008c -> T4008R`；其中 `T4008a` 已完成，真实 stdlib `Task.andThen` 已改为单个 setup `handle` 内连续两次 `Async.await`，不再保留双 `handle` workaround。最新 probe 已确认 escape continuation binder 仍错误地退回 `eff Pure`，而现有 typecheck 基础设施缺少 resumed-step effect summary，因此下一项先切到 `T4008b1`，补齐“从 escape site 恢复一步”的 effect-row 分析，再继续 `T4008b2` 收口 `Continuation<T, eff E>` 与 `Continuation.resume` 主线。
 
 ### P6. `Task` 设计定型
 

@@ -1,36 +1,49 @@
-# 本轮执行计划（决策摘要）
+# 执行计划记录
 
-说明：这里记录可执行计划、关键判断和进度更新，不写入不可审计的内部推理细节。
+## 约束说明
 
-## 初始计划
+- 本文件记录可共享的执行计划、观察、关键决策、完成状态与变更原因。
+- 不写入逐字内部思维；改为提供足够审计执行过程的摘要、依据与步骤。
 
-1. 检查最新一次 Git 提交的提交信息与变更范围，确认是否提到已知问题或遗留修复项。
+## 初始步骤
+
+1. 检查最新一次提交，确认是否提到了需要先处理的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务的上下文、依赖和已有计划。
-4. 如果首个未完成任务过大，先将其拆分为更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一个子任务。
-5. 实现当前目标任务，并补充或调整必要测试。
-6. 运行与本次修改相关的验证命令，至少覆盖：
-   - 相关定向测试；
-   - 必要时执行 `cargo test --all`；
-   - `cargo clippy --all-targets -- -D warnings`（如果本次改动范围允许且时间成本合理）。
-7. 更新进度文档：
-   - 在 `TODO.md` 标记当前任务完成，或在受阻时按依赖顺序重排；
-   - 在 `PLAN.md` 记录状态变化与后续影响；
-   - 在本文件补充执行记录。
-8. 使用清晰的提交信息提交本轮变更，然后停止，不继续下一个任务。
+3. 评估该任务是否过大：
+   - 若可直接完成，则开始实现。
+   - 若过大，则先拆分任务，更新 `PLAN.md` 与 `TODO.md`，并只执行拆分后的第一个子任务。
+4. 在实现过程中同步更新本文件，记录：
+   - 当前目标
+   - 发现的问题
+   - 是否触发任务重排/新增前置任务
+   - 已完成的关键步骤
+5. 完成后执行相关测试与质量检查，至少覆盖任务相关验证；若范围允许，补充工作区要求的通用检查。
+6. 更新 `TODO.md` 与 `PLAN.md`。
+7. 以清晰的提交信息提交本次改动。
+8. 停止，不进入下一个任务。
 
-## 进度记录
+## 执行中的判断准则
 
-- 已创建本计划文件，等待检查最新提交、`TODO.md` 与 `PLAN.md`。
-- 已确认最新提交 `[T4007R] 复审 RTTI 参数化覆盖主线` 未声明新的待修复遗留缺陷；当前工作区只有本文件的未提交修改。
-- 已定位首个未完成任务为 `T4008`。该任务过大，现已决定拆分为 `T4008a -> T4008b -> T4008c -> T4008R`，并同步写回 `TODO.md` / `PLAN.md`。
-- 关键验证结论：临时 probe `/tmp/t4008a_single_handle_and_then_probe.scoop` 已成功 build/run，stdout 为 `17`。这说明单个 setup `handle` 内连续两次 `Async.await` 已是可执行主线，`stdlib/task.scoop` 中 `Task.andThen` 的双 `handle` 已属于过时 workaround。
-- 当前执行目标：完成 `T4008a`，即清理 `Task.andThen` 的双 `handle` workaround，并用真实 stdlib 路径重新验证相关 run-pass / 质量门禁。
-- 已完成 `T4008a` 实现：`stdlib/task.scoop` 的 `Task<Int>.andThen` 已收口为单个 setup `handle` 内顺序执行两次 `Async.await`，删除了过时的双 `handle` workaround 与对应注释。
-- 已完成验证：
-  - `cargo run -q -p scoop -- run /tmp/t4008a_single_handle_and_then_probe.scoop` -> stdout `17`
-  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` -> stdout 与 golden 一致
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass` -> `fixtures: ok (349)`
-  - `cargo test --all` -> 通过
-  - `cargo clippy --all-targets -- -D warnings` -> 通过
-- 待执行的收尾步骤：检查 diff、提交本轮变更（建议消息：`[T4008a] 移除 Task.andThen 双 handle workaround`），然后停止。
+- 如遇规格不匹配、缺失语言特性、已有 bug 或依赖前置能力不足，不采用规避方案。
+- 若当前任务被前置问题阻塞：
+  - 在 `TODO.md` 中新增或重排前置任务；
+  - 在 `PLAN.md` 中记录阻塞原因；
+  - 提交这些计划性改动后停止。
+- 不回退或覆盖与当前任务无关的用户现有改动。
+
+## 当前状态
+
+- 已检查最新提交：提交说明未额外声明必须先修的遗留问题。
+- 已读取 `TODO.md` / `PLAN.md`，当前首个未完成任务原为 `T4008b`。
+- 已完成初步可行性评估，结论如下：
+  1. `T4008b` 不能按原描述直接安全推进，需要先拆分。
+  2. 证据：
+     - 当前 `crates/scoopc/src/typecheck/expr/infer.rs` 在 `, k ->` 分支中仍直接注入默认 `Continuation<T>`，没有为 `E` 建模。
+     - 当前 `crates/scoopc/src/typecheck/lower.rs` 只有函数体 / handle body 级别的 `performed_effects` 收集，没有“从某个 escape site 恢复后，到下一次 suspension / return / 正常完成”为止”的 step-level effect summary。
+     - probe `/tmp/t4008b-probe2/continuation_escape_binder_effect_row_is_not_pure.scoop` 已复现错误：`Ask.current(), k -> { requirePure(k); requireBoom(k) }` 当前“期望失败，但执行成功”，说明 binder 仍被错误地视为 `Continuation<Int, eff Pure>`。
+  3. 判断：
+     - 若直接把整段 handle body 的 effects 塞给 `Continuation<T, eff E>`，会把 prefix effects 与 fresh continuation 之后的 tail 一起误算进当前 `resume` step，属于新的规范偏差。
+     - 因此先在 `TODO.md` / `PLAN.md` 中把 `T4008b` 拆成前置分析任务与后续语义收口任务，再停止本轮，等待下一次调用实现新的首个子任务。
+- 已更新：
+  - `TODO.md`：将 `T4008b` 拆分为 `T4008b1`（resumed-step effect-row 分析）与 `T4008b2`（基于该分析收口 binder 与 `resume`）。
+  - `PLAN.md`：记录 probe 结论、阻塞原因与新的执行顺序。

@@ -803,14 +803,35 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4007R
 
-### T4008b [TODO] 收口 continuation 类型语义与 `Continuation.resume` builtin surface
-- 范围：
-  - escape continuation binder 不再一律退回默认 `Continuation<T>` / `eff Pure`。
-  - `Continuation.resume` 的 typecheck / lowering / codegen 与规范 `k.resume(value): Unit / (E + Raise<RuntimeError>)` 对齐，不再保留额外的 shape-based 调用限制。
-  - 补充 typecheck / run-pass 回归，覆盖 effect-row 传播与 `resume` 调用主线。
+### T4008b [TODO] 收口 continuation 类型语义与 `Continuation.resume` builtin surface（拆分执行）
+- 说明：
+  - 原任务同时要求 escape continuation binder 的 `Continuation<T, eff E>` 不再退回默认 `Pure`，以及 `Continuation.resume` 的 required-effects / lowering / codegen surface 一并与规范收口。
+  - 现有最小 probe `/tmp/t4008b-probe2/continuation_escape_binder_effect_row_is_not_pure.scoop` 已确认：`Ask.current(), k -> { requirePure(k); requireBoom(k) }` 当前会错误成功，说明 binder 仍被注入为 `Continuation<Int, eff Pure>`，而不是能反映恢复后一步语义的 `E`。
+  - 进一步检查发现，typecheck 目前只有“整段函数体/handle body 的 performed effects 收集”，并没有“从某个 escape site 恢复后，到下一次 suspension / return / 正常完成”为止的 step-level effect summary。若直接把整段 body 的 effects 塞给 `E`，会把 prefix effects、以及 fresh continuation 之后才执行的 tail 一起误算进去，属于新的规范偏差。
+  - 为避免在错误的 effect-row 近似上继续推进，现拆分为 `T4008b1 -> T4008b2`。
 - 验收：
-  - 对应回归能区分 `Continuation<..., eff E>` 的 `E`，并验证 `resume` required-effects 传播。
+  - 子任务完成后，escape continuation binder 与 `Continuation.resume` 都以同一套 resumed-step effect summary 为准。
 - 依赖：T4008a
+
+### T4008b1 [TODO] 为 escape continuation binder 建立“恢复一步”的 effect-row 分析
+- 范围：
+  - 为 handle body 建立从 escape site 恢复后，到“下一次 suspension / return / 正常完成”为止的 effect summary。
+  - handled suspension 需要作为当前 step 的边界，不能把 prefix effects 或 fresh continuation 之后的 tail 误计入当前 `k.resume` 的 effect row。
+  - 补充最小回归，至少覆盖“后续 tail 含 `Boom` 时，`requirePure(k)` 不能再错误通过”的场景。
+- 验收：
+  - 有稳定 side table 或等价分析结果可供后续 binder / `resume` 复用。
+  - 新回归能够复现并卡住当前 `k` 被错误注入为 `eff Pure` 的问题。
+- 依赖：T4008a
+
+### T4008b2 [TODO] 基于 resumed-step summary 收口 continuation binder 类型与 `Continuation.resume`
+- 范围：
+  - `, k ->` 注入 `Continuation<T, eff E>` 时使用 `T4008b1` 计算出的 step-level `E`，不再退回默认 `Pure`。
+  - `Continuation.resume` 的 typecheck / lowering / codegen 与规范 `k.resume(value): Unit / (E + Raise<RuntimeError>)` 对齐，复用同一份 resumed-step 语义，不再保留额外的 shape-based 调用限制。
+  - 补充 typecheck / run-pass 回归，覆盖 binder 类型区分、effect-row 传播与 `resume` 调用主线。
+- 验收：
+  - binder 类型不再能被 `requirePure(k)` 误接收。
+  - `resume` required-effects 会从推导出的 `E` 正确传播。
+- 依赖：T4008b1
 
 ### T4008c [TODO] 打通 richer effect polymorphism 与 receiver effect op lowering
 - 范围：
@@ -819,7 +840,7 @@
   - 补充对应 parse / typecheck / run-pass 回归。
 - 验收：
   - `ISSUES.md` 第 1 条中关于 richer effect polymorphism 与 receiver effect op 的剩余描述收窄或关闭。
-- 依赖：T4008b
+- 依赖：T4008b2
 
 ### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
 - 重点：
