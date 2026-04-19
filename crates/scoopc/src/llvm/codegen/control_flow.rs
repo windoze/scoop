@@ -903,11 +903,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(loaded),
                 };
                 let _ = self.store_local_value(at, ptr, subject_ty, v)?;
+                let hir_ty = self.when_pat_binding_hir_ty(pat.span())?;
                 self.env.insert(
                     *id,
                     CgLocal {
-                        hir_ty: None,
-                        call_may_suspend: false,
+                        hir_ty,
+                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
                         ty: subject_ty,
                         ptr,
                         mutable: false,
@@ -1016,11 +1017,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                                 let ptr = self.create_entry_alloca(at, name, field_cg)?;
                                 let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
+                                let hir_ty = self.when_pat_binding_hir_ty(arg_pat.span())?;
                                 self.env.insert(
                                     *id,
                                     CgLocal {
-                                        hir_ty: None,
-                                        call_may_suspend: false,
+                                        hir_ty,
+                                        call_may_suspend: self
+                                            .local_call_may_suspend_from_hir_ty(hir_ty),
                                         ty: field_cg,
                                         ptr,
                                         mutable: false,
@@ -1097,11 +1100,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         hir::WhenPat::Bind { id, name, .. } => {
                             let ptr = self.create_entry_alloca(at, name, field_cg)?;
                             let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
+                            let hir_ty = self.when_pat_binding_hir_ty(first_pat.span())?;
                             self.env.insert(
                                 *id,
                                 CgLocal {
-                                    hir_ty: None,
-                                    call_may_suspend: false,
+                                    hir_ty,
+                                    call_may_suspend: self
+                                        .local_call_may_suspend_from_hir_ty(hir_ty),
                                     ty: field_cg,
                                     ptr,
                                     mutable: false,
@@ -1277,11 +1282,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     hir::WhenPat::Bind { id, name, .. } => {
                         let ptr = self.create_entry_alloca(at, name, field_cg)?;
                         let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
+                        let hir_ty = self.when_pat_binding_hir_ty(arg_pat.span())?;
                         self.env.insert(
                             *id,
                             CgLocal {
-                                hir_ty: None,
-                                call_may_suspend: false,
+                                hir_ty,
+                                call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
                                 ty: field_cg,
                                 ptr,
                                 mutable: false,
@@ -1376,11 +1382,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             };
                             let ptr = self.create_entry_alloca(at, name, elem_ty)?;
                             let _ = self.store_local_value(at, ptr, elem_ty, extracted_v)?;
+                            let hir_ty = self.when_pat_binding_hir_ty(elem_pat.span())?;
                             self.env.insert(
                                 *id,
                                 CgLocal {
-                                    hir_ty: None,
-                                    call_may_suspend: false,
+                                    hir_ty,
+                                    call_may_suspend: self
+                                        .local_call_may_suspend_from_hir_ty(hir_ty),
                                     ty: elem_ty,
                                     ptr,
                                     mutable: false,

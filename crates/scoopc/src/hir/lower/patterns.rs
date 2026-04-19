@@ -139,11 +139,17 @@ impl<'a> HirLowering<'a> {
                 span: Span::new(is_span.start, ty.span().end),
                 ty: self.lower_type_ref(ty),
             },
-            ast::WhenPat::Bind { ident } => WhenPat::Bind {
-                span: ident.span,
-                id: self.intern_local_symbol(ident.span, false),
-                name: ident.text(self.source).to_string(),
-            },
+            ast::WhenPat::Bind { ident } => {
+                let binder_ty = self
+                    .typechecked_binding_ty(ident.span)
+                    .unwrap_or(self.builtins.any);
+                self.record_when_pat_binding_ty(ident.span, binder_ty);
+                WhenPat::Bind {
+                    span: ident.span,
+                    id: self.intern_local_symbol(ident.span, false),
+                    name: ident.text(self.source).to_string(),
+                }
+            }
             ast::WhenPat::Tuple { span, elements } => WhenPat::Tuple {
                 span: *span,
                 elements: elements.iter().map(|e| self.lower_when_pat(e)).collect(),
@@ -305,6 +311,7 @@ impl<'a> HirLowering<'a> {
                 _ if self.pattern_contains_variant(arg) => {
                     let (bind_span, bind_id, bind_name) =
                         self.fresh_synthetic_local(arg.span, "__destructure_check", false);
+                    self.record_when_pat_binding_ty(bind_span, self.builtins.any);
                     arm_args.push(WhenPat::Bind {
                         span: bind_span,
                         id: bind_id,
@@ -431,6 +438,7 @@ impl<'a> HirLowering<'a> {
                     if idx == target_index {
                         let (bind_span, bind_id, bind_name) =
                             self.fresh_synthetic_local(arg.span, "__destructure_extract", false);
+                        self.record_when_pat_binding_ty(bind_span, self.builtins.any);
                         arm_args.push(WhenPat::Bind {
                             span: bind_span,
                             id: bind_id,

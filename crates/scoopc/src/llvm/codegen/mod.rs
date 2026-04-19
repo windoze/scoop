@@ -239,6 +239,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     nominal_kinds: &'a hir::NominalKindIndex,
     nominal_variances: &'a hir::NominalVarianceIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
@@ -423,6 +424,7 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
+    pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) nominal_variances: &'a hir::NominalVarianceIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
@@ -466,6 +468,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
             direct_supertypes,
@@ -499,6 +502,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables,
             ctor_call_sites,
             continuation_resume_call_sites,
+            when_pat_binding_tys,
             nominal_kinds,
             nominal_variances,
             direct_supertypes,
@@ -521,6 +525,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_callee_suspend_plan: None,
             top_level_const_eval_stack: Vec::new(),
         }
+    }
+
+    fn when_pat_binding_hir_ty(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Option<TypeId>, LlvmEmitError> {
+        let source = self.current_source()?;
+        Ok(self
+            .when_pat_binding_tys
+            .get(&hir::WhenPatBindingSite {
+                source_path: source.path().to_path_buf(),
+                decl_span: span,
+            })
+            .copied())
     }
 
     fn current_source(&self) -> Result<&SourceFile, LlvmEmitError> {
@@ -1467,6 +1485,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables: self.class_itables,
             ctor_call_sites: self.ctor_call_sites,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
+            when_pat_binding_tys: self.when_pat_binding_tys,
             nominal_kinds: self.nominal_kinds,
             nominal_variances: self.nominal_variances,
             direct_supertypes: self.direct_supertypes,
@@ -11156,6 +11175,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 class_itables: self.class_itables,
                 ctor_call_sites: self.ctor_call_sites,
                 continuation_resume_call_sites: self.continuation_resume_call_sites,
+                when_pat_binding_tys: self.when_pat_binding_tys,
                 nominal_kinds: self.nominal_kinds,
                 nominal_variances: self.nominal_variances,
                 direct_supertypes: self.direct_supertypes,
@@ -13856,6 +13876,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             class_itables: self.class_itables,
             ctor_call_sites: self.ctor_call_sites,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
+            when_pat_binding_tys: self.when_pat_binding_tys,
             nominal_kinds: self.nominal_kinds,
             nominal_variances: self.nominal_variances,
             direct_supertypes: self.direct_supertypes,

@@ -20,7 +20,7 @@ use super::super::{
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, DirectSupertypesIndex,
     EnumLayoutIndex, ExternFunIndex, File, FunDecl, NominalKindIndex, NominalVarianceIndex,
     ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelImmutableValueIndex,
-    TopLevelVarIndex,
+    TopLevelVarIndex, WhenPatBindingTypeIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -220,6 +220,8 @@ pub struct LoweredHir {
     pub ctor_call_sites: CtorCallSiteIndex,
     /// typecheck 已确认的 `Continuation.resume` 调用点集合。
     pub continuation_resume_call_sites: ContinuationResumeCallSiteIndex,
+    /// `when` pattern binder 的精确类型索引；供后端恢复函数值等精确局部类型。
+    pub when_pat_binding_tys: WhenPatBindingTypeIndex,
     /// nominal 类型种类索引（effect/class/interface/...）。
     pub nominal_kinds: NominalKindIndex,
     /// nominal 声明处 variance 索引。

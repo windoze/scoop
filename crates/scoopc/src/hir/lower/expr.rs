@@ -1032,6 +1032,13 @@ impl<'a> HirLowering<'a> {
         Some(self.types.re_intern_from(typecheck_types, ty))
     }
 
+    fn option_inner_ty(&self, ty: TypeId) -> Option<TypeId> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => Some(*inner),
+            _ => None,
+        }
+    }
+
     fn typechecked_performed_effect_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_performed_effect_ty(span)?;
@@ -2659,7 +2666,9 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, expr));
         let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+        let binder_ty = self.option_inner_ty(subject.ty).unwrap_or(result_ty);
         let v_sym = self.intern_local_symbol(op_span, false);
+        self.record_when_pat_binding_ty(op_span, binder_ty);
 
         let some_arm = WhenArm {
             span: op_span,
@@ -2725,7 +2734,11 @@ impl<'a> HirLowering<'a> {
         let subject = Box::new(self.lower_expr(pkg_prefix, lhs));
         let rhs = self.lower_expr(pkg_prefix, rhs);
         let result_ty = self.typechecked_expr_ty(span).unwrap_or(rhs.ty);
+        let binder_ty = self
+            .option_inner_ty(subject.ty)
+            .unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
+        self.record_when_pat_binding_ty(op_span, binder_ty);
 
         let some_arm = WhenArm {
             span: op_span,
@@ -2786,7 +2799,11 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
         let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+        let binder_ty = self
+            .option_inner_ty(subject.ty)
+            .unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
+        self.record_when_pat_binding_ty(op_span, binder_ty);
 
         let v_ref = Expr {
             span: op_span,
@@ -2859,7 +2876,11 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
         let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+        let binder_ty = self
+            .option_inner_ty(subject.ty)
+            .unwrap_or(self.builtins.any);
         let v_sym = self.intern_local_symbol(op_span, false);
+        self.record_when_pat_binding_ty(op_span, binder_ty);
 
         let v_ref = Expr {
             span: op_span,

@@ -440,15 +440,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005
 
-### T4005S [TODO] 收口 `when` / pattern binder 中函数值的可调用 lowering / codegen
+### T4005S [DONE] 收口 `when` / pattern binder 中函数值的可调用 lowering / codegen
 - 说明：
   - 在执行 `T4005R` 的扩展 probe 时，发现一个独立于 Elvis 本身的既有裂缝：`when (some) { Some(g) -> g(); None -> ... }` 这类“pattern binder 承载函数值并立即调用”的场景，当前会在 LLVM 阶段报 `call callee` unsupported。
   - 该问题说明 callable-value 主线虽然已覆盖普通局部、顶层函数值与 funptr，但对 pattern binder 引入的函数值仍有 lowering / codegen 元数据缺口；若不显式入表，后续继续推进 compilation-unit / RTTI / effect 任务时会把这个核心调用语义裂缝继续带下去。
 - 范围：
   - `when` / 其它 pattern binder 引入的函数值，需要在 HIR / LLVM 主线上保持可调用元数据，不再退化成不可调用的普通 local ref。
   - 新增最小 run-pass 回归，覆盖 `Some(f) -> f()` 一类 pattern binder callable 场景。
+- 已完成：
+  - typecheck 现会把 `when_pat::infer_when_pat_bindings` 的结果写回 `inferred_binding_tys` side table，不再只在 arm 局部环境里临时可见。
+  - HIR lowering 新增 `when_pat_binding_tys` side table，并在 source / synthetic `when` binder 位置记录精确 `TypeId`，供后端恢复 callable-value 元数据。
+  - LLVM `bind_when_pat` 现按“当前源文件 + binder span”回查 binder 的 `hir_ty`，并同步恢复基于类型的 `call_may_suspend`；`Some(f) -> f()` 与 `(g, n) -> g() + n` 不再退化成 `call callee` unsupported。
+  - 已新增 `tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`，同时覆盖 variant binder 与 tuple binder 中函数值立即调用。
 - 验收：
   - pattern binder 引入的函数值与普通局部函数值保持一致，可稳定 build/run。
+- 已验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures <临时 root，仅包含 when_pattern_function_value_call_basic>`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4005R
 
 ### T4005SR [TODO] Review：确认 callable-value 主线已覆盖 pattern binder

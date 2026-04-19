@@ -206,9 +206,11 @@ pub(super) fn infer_expr_type(
             for arm in arms {
                 // T0427：对 pattern 做最小类型约束，并把 binder 注入到该 arm 的局部环境中。
                 let mut arm_locals: HashMap<Span, TypeId> = inputs.locals.clone();
-                for (decl_span, ty) in when_pat::infer_when_pat_bindings(
+                let bindings = when_pat::infer_when_pat_bindings(
                     source, &arm.pat, subject_ty, lower, builtins,
-                )? {
+                )?;
+                for (decl_span, ty) in bindings {
+                    lower.record_inferred_binding_ty(decl_span, ty);
                     arm_locals.insert(decl_span, ty);
                 }
                 let arm_inputs = inputs.with_locals(&arm_locals);
@@ -2324,9 +2326,10 @@ fn infer_when_expr_type_in_expected_context(
 
     for arm in arms {
         let mut arm_locals: HashMap<Span, TypeId> = inputs.locals.clone();
-        for (decl_span, ty) in
-            when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
-        {
+        let bindings =
+            when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?;
+        for (decl_span, ty) in bindings {
+            lower.record_inferred_binding_ty(decl_span, ty);
             arm_locals.insert(decl_span, ty);
         }
         let arm_inputs = inputs.with_locals(&arm_locals);

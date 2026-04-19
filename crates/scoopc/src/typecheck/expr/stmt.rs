@@ -1295,13 +1295,15 @@ fn check_expr_stmt_with_mode(
                 let mut arm_mutable = state.mutable_bindings.clone();
 
                 if let Some(subject_ty) = subject_ty {
-                    for (decl_span, ty) in when_pat::infer_when_pat_bindings(
+                    let bindings = when_pat::infer_when_pat_bindings(
                         shared.source,
                         &arm.pat,
                         subject_ty,
                         lower,
                         shared.builtins,
-                    )? {
+                    )?;
+                    for (decl_span, ty) in bindings {
+                        lower.record_inferred_binding_ty(decl_span, ty);
                         arm_locals.insert(decl_span, ty);
                         arm_stable.insert(decl_span);
                     }

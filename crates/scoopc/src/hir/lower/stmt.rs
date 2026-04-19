@@ -823,6 +823,7 @@ impl<'a> HirLowering<'a> {
         some_body_stmts.push(binder_decl);
         some_body_stmts.extend(body_block.stmts);
 
+        self.record_when_pat_binding_ty(item_span, elem_ty);
         let some_arm = super::super::WhenArm {
             span: for_span,
             pat: super::super::WhenPat::Variant {

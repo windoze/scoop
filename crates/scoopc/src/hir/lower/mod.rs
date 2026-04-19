@@ -73,6 +73,8 @@ struct HirLowering<'a> {
     top_level_consts: super::TopLevelConstIndex,
     /// 普通顶层 immutable value 索引：供后端生成 once-init + 稳定读取主线。
     top_level_immutable_values: super::TopLevelImmutableValueIndex,
+    /// `when` pattern binder 的精确类型索引：供后端恢复 binder 的原始 `TypeId`。
+    when_pat_binding_tys: super::WhenPatBindingTypeIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -155,6 +157,7 @@ impl<'a> HirLowering<'a> {
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
+            when_pat_binding_tys: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -180,6 +183,14 @@ impl<'a> HirLowering<'a> {
             }
         }
         id
+    }
+
+    fn record_when_pat_binding_ty(&mut self, decl_span: Span, ty: TypeId) {
+        let site = super::WhenPatBindingSite {
+            source_path: self.source.path().to_path_buf(),
+            decl_span,
+        };
+        self.when_pat_binding_tys.insert(site, ty);
     }
 
     fn fresh_synthetic_local(
@@ -1365,6 +1376,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        when_pat_binding_tys,
     ) = {
         let mut ctx = HirLowering::new(
             source,
@@ -1384,6 +1396,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
+        let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
         (
             file,
             member_funs,
@@ -1391,6 +1404,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            when_pat_binding_tys,
         )
     };
 
@@ -1464,6 +1478,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,
         direct_supertypes,
@@ -1511,6 +1526,7 @@ pub fn lower_for_compilation_unit(
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
+        when_pat_binding_tys,
     ) = {
         let mut ctx = HirLowering::new(
             source,
@@ -1530,6 +1546,7 @@ pub fn lower_for_compilation_unit(
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
+        let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
         (
             file_hir,
             member_funs,
@@ -1537,6 +1554,7 @@ pub fn lower_for_compilation_unit(
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
+            when_pat_binding_tys,
         )
     };
 
@@ -1588,6 +1606,7 @@ pub fn lower_for_compilation_unit(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,
         direct_supertypes,
@@ -1631,6 +1650,7 @@ pub fn lower_for_compilation_unit_multi_files(
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
     let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
     let mut top_level_immutable_values: super::TopLevelImmutableValueIndex = HashMap::new();
+    let mut when_pat_binding_tys: super::WhenPatBindingTypeIndex = HashMap::new();
 
     for (source, file) in files_to_lower {
         let (
@@ -1640,6 +1660,7 @@ pub fn lower_for_compilation_unit_multi_files(
             file_top_level_vars,
             file_top_level_consts,
             file_top_level_immutable_values,
+            file_when_pat_binding_tys,
         ) = {
             let mut ctx = HirLowering::new(
                 source,
@@ -1662,6 +1683,7 @@ pub fn lower_for_compilation_unit_multi_files(
             let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
                 std::mem::take(&mut ctx.top_level_immutable_values);
+            let file_when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
             (
                 file_hir,
                 file_member_funs,
@@ -1669,6 +1691,7 @@ pub fn lower_for_compilation_unit_multi_files(
                 file_top_level_vars,
                 file_top_level_consts,
                 file_top_level_immutable_values,
+                file_when_pat_binding_tys,
             )
         };
 
@@ -1682,6 +1705,7 @@ pub fn lower_for_compilation_unit_multi_files(
         top_level_vars.extend(file_top_level_vars);
         top_level_consts.extend(file_top_level_consts);
         top_level_immutable_values.extend(file_top_level_immutable_values);
+        when_pat_binding_tys.extend(file_when_pat_binding_tys);
         member_funs.extend(file_member_funs);
         items.extend(file_hir.items);
     }
@@ -1792,6 +1816,7 @@ pub fn lower_for_compilation_unit_multi_files(
         class_itables,
         ctor_call_sites,
         continuation_resume_call_sites,
+        when_pat_binding_tys,
         nominal_kinds: type_kinds,
         nominal_variances,
         direct_supertypes,

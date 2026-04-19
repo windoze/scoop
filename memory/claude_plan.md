@@ -1,49 +1,68 @@
-# 当前执行计划
+# 执行计划记录
 
-更新时间：2026-04-19
+说明：按要求记录执行计划、关键步骤进展与必要调整。这里记录的是可审阅的执行摘要，不包含逐字内部推理。
 
-说明：按要求先写入计划与执行步骤摘要。这里记录可审阅的分析结论、行动顺序、关键判断与进度更新，不包含不适合公开的完整内部推理原文。
+## 初始计划
 
-## 任务目标
-
-本次调用只完成 `TODO.md` 中第一个未完成任务，然后停止。若发现阻塞该任务的前置缺陷，则先把缺陷显式加入 `TODO.md` / `PLAN.md`，调整顺序，提交后停止。
-
-## 执行顺序
-
-1. 检查最新一次 git 提交信息，确认是否提到已知问题、遗留缺陷或必须先修复的事项。
+1. 检查最新一次 Git 提交，确认提交说明或关联改动里是否暴露了需要先修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对该任务上下文、依赖与现有分解。
-4. 若任务过大，先细分为更小的子任务，并同步更新 `TODO.md` 与 `PLAN.md`；本次只做拆分后的第一个子任务。
-5. 阅读实现与相关测试代码，确认当前行为、规范要求与可能的前置缺陷。
-6. 实现该任务，必要时补充或重构测试。
+3. 阅读 `PLAN.md`，理解现有任务顺序、依赖与预期交付物。
+4. 评估该任务是否足够小且可在本轮完整交付。
+5. 如果任务过大或存在前置缺口：
+   - 拆分为更小子任务；
+   - 更新 `PLAN.md`；
+   - 调整 `TODO.md` 中的任务顺序与依赖；
+   - 本轮只执行新的第一个子任务。
+6. 实现当前目标任务，避免任何规避式方案；若发现规范缺口或实现边界，先把缺口转化为更前置的任务。
 7. 运行相关验证：
-   - 最小相关测试
-   - 受影响模块测试
-   - 如改动范围允许，再运行更高层验证
-   - 按要求检查 `cargo clippy --all-targets -- -D warnings`
-8. 更新文档状态：
-   - 在 `TODO.md` 标记当前任务完成
-   - 在 `PLAN.md` 记录完成情况与后续调整
-   - 在本文件记录关键进度
-9. 查看 git diff，确认仅包含合理改动。
-10. 提交 git commit，提交信息对应当前任务。
-11. 停止，不继续下一个任务。
+   - 最小必要测试；
+   - 相关集成/回归测试；
+   - `cargo fmt`；
+   - `cargo clippy --all-targets -- -D warnings`（若与当前改动相关且成本可接受）；
+   - 其他该任务直接涉及的验证命令。
+8. 更新文档与任务状态：
+   - 在 `TODO.md` 标记当前任务完成，或在受阻时重排任务；
+   - 更新 `PLAN.md` 反映现状与后续依赖；
+   - 按需补充 `README.md` / 注释 / 测试。
+9. 检查工作区变更，确认未误改无关内容。
+10. 以清晰提交信息创建一次 Git 提交，然后停止，不继续处理下一个任务。
 
-## 风险与处理原则
+## 进展日志
 
-- 如果最新提交提到问题，则先修复这些问题，再进入 `TODO.md` 任务。
-- 如果实现中发现规范不匹配、语言特性缺失、运行时缺陷或测试只能靠变通方案通过，则不能绕过，必须先把该问题加入 `TODO.md` 作为前置任务，并更新 `PLAN.md` 后提交停止。
-- 不回退用户已有改动；若发现冲突性未预期修改，先判断是否影响当前任务，再决定是否继续。
+- 已写入初始计划。
+- 已检查最新提交：`6dd5953966f15862c99080f2ddcb04f1dc389fe0`，提交说明为 `[T4005R] 收口 Elvis review 裂缝`。
+- 已阅读 `TODO.md` 与 `PLAN.md`，确认当前第一个未完成任务为 `T4005S`：收口 `when` / pattern binder 中函数值的可调用 lowering / codegen。
+- 该任务同时也是最近一轮复审明确暴露出的既有问题，属于必须先处理的前置 blocker。
+- 已复现故障：
+  - `when (maybe) { Some(f) -> f(); None -> 0 }` 在 LLVM 阶段报 `call callee` unsupported；
+  - `when (pair) { (g, n) -> g() + n }` 同样失败；
+  - 对照验证表明，局部 `val (f, _) = pair; f()` 早已可执行，裂缝集中在 `when` binder 主线。
+- 已定位根因：
+  - LLVM `bind_when_pat` 把 binder local 的 `hir_ty` 一律丢成 `None`；
+  - 更早一层的 typecheck 也没有把 `when_pat::infer_when_pat_bindings` 的结果写回 `inferred_binding_tys` side table，导致 typed HIR lowering 无法恢复 binder 的精确类型。
+- 已完成修复：
+  - typecheck 现会把 `when` pattern binder 的推断类型写回 side table；
+  - HIR lowering 新增 `when_pat_binding_tys` side table，并在 source/synthetic binder 处填充；
+  - LLVM `bind_when_pat` 现按当前源文件 + binder span 恢复 `hir_ty`，并同步恢复 `call_may_suspend` 的类型层信息。
+- 已新增回归：
+  - `tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
+  - `tests/fixtures/run-pass/when_pattern_function_value_call_basic.stdout`
+- 已完成验证：
+  - `cargo run -p scoop -- run tests/fixtures/run-pass/when_pattern_function_value_call_basic.scoop`
+  - `cargo run -p scoop -- test --fixtures <临时 root，仅包含 when_pattern_function_value_call_basic>`（`fixtures: ok (1)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (329)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
-## 进度记录
+## 当前执行细化
 
-- 2026-04-19：已创建本计划文件，下一步开始检查最新提交与 `TODO.md`。
-- 2026-04-19：已确认本次首个未完成任务为 `T4005R`（Elvis review）。
-- 2026-04-19：复审与临时 probe 已覆盖 `safe-call + Elvis`、顶层初始化 Elvis、struct rhs Elvis；这些路径可执行。
-- 2026-04-19：发现一条真实缺口：`val xs: Array<Int> = maybe ?: []` 当前会在 typecheck 阶段报 `array_lit_type_annotation_required`。原因是 Elvis rhs 仍按“无 expected type 的独立表达式”推断，没有把 lhs 的 nullable inner type 向 rhs 传播。
-- 2026-04-19：计划调整为先修复 Elvis rhs expected-type 传播，再补回归（优先覆盖空数组 rhs 与 lambda rhs），随后重跑定向测试、全量测试与 clippy，再更新 `TODO.md` / `PLAN.md` 并提交。
-- 2026-04-19：已修复 Elvis rhs expected-type 传播：rhs 现统一使用 lhs nullable inner type 做 expected-context typecheck。
-- 2026-04-19：复审中继续发现第二条 Elvis 可执行裂缝：`noneThunk ?: { 7 }` 在降成 `when` 后，arm body 的 `Closure` 没有接入 expected-context codegen，LLVM 会报 `expression kind` unsupported；现已修复为 `codegen_expr_in_expected_context` 直接走闭包 codegen 主线。
-- 2026-04-19：已新增回归 `tests/fixtures/run-pass/elvis_rhs_expected_context_basic.scoop`，覆盖 `noneArray ?: []` 与 `noneThunk ?: { 7 }` 两条先前失败路径。
-- 2026-04-19：已完成验证：新增 Elvis run-pass、既有 Elvis run-pass、`safe-call + Elvis` 临时 probe、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 全部通过。
-- 2026-04-19：扩展 probe 还暴露出一个与 Elvis 修复独立的既有 callable bug：pattern binder 承载函数值时，`Some(f) -> f()` 仍会在 LLVM 侧报 `call callee` unsupported。该问题已按流程登记进 `TODO.md` / `PLAN.md` 作为后续顺序任务，本次调用仍只完成 `T4005R` 并停止。
+1. 复现 `Some(f) -> f()` 一类 pattern binder 函数值调用在 LLVM 阶段的失败。
+2. 阅读与 callable-value、pattern binder、`when` lowering、LLVM call callee 选择相关的实现，定位“函数值可调用元数据”在哪一步丢失。
+3. 在不新增旁路特判的前提下修复主线：
+   - 让 pattern binder 引入的函数值保留与普通局部函数值一致的可调用表示；
+   - 确保 `when` / pattern binder lowering 与现有 callable-value codegen 共享同一套元数据来源。
+4. 新增或更新最小回归：
+   - 至少覆盖 `when (x) { Some(f) -> f(); None -> ... }`；
+   - 如有必要，补一个非 `when` 的 pattern binder 调用用例，证明不是单一语法形态补丁。
+5. 运行定向验证，再运行全量要求的格式化 / 测试 / lint。
+6. 更新 `TODO.md`、`PLAN.md`、本计划记录并提交。

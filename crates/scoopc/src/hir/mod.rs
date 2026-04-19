@@ -691,6 +691,20 @@ pub type DirectSupertypesIndex = HashMap<String, Vec<String>>;
 /// - effect segmentation 读取它来识别隐藏 suspend site。
 pub type ContinuationResumeCallSiteIndex = HashSet<Span>;
 
+/// 一个 `when` pattern binder 的声明位置键。
+///
+/// 说明：
+/// - `decl_span` 单独不足以跨文件唯一，因此要连同 `source_path` 一起作为 key；
+/// - 该索引只服务于后端恢复 binder 的精确 `TypeId`，不影响 `dump-hir` 输出稳定性。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct WhenPatBindingSite {
+    pub source_path: PathBuf,
+    pub decl_span: Span,
+}
+
+/// `when` pattern binder 的精确类型索引。
+pub type WhenPatBindingTypeIndex = HashMap<WhenPatBindingSite, TypeId>;
+
 /// 外部函数（`@Extern`）的最小后端视图。
 ///
 /// 说明：

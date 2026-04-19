@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: when_pattern_function_value_call_basic.stdout
+//
+// T4005S: `when` / pattern binder 引入的函数值也必须保留 callable-value 元数据，
+// 不能在 LLVM 侧退化成不可调用的普通 local ref。
+// - variant binder：`Some(f) -> f()`
+// - tuple binder：`(g, n) -> g() + n`
+
+import scoop.core.*
+
+fun main() {
+    val base: () -> Int = { 7 }
+    val maybe: (() -> Int)? = Some(base)
+    val pair: (() -> Int, Int) = (base, 5)
+
+    val fromVariant: Int = when (maybe) {
+        Some(f) -> f()
+        None -> 0
+    }
+
+    val fromTuple: Int = when (pair) {
+        (g, n) -> g() + n
+    }
+
+    println(fromVariant.toString())
+    println(fromTuple.toString())
+}
