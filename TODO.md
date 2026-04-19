@@ -890,19 +890,59 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008b1b
 
-### T4008c [TODO] 打通 richer effect polymorphism 与 receiver effect op lowering
-- 范围：
-  - effect op call / handle arm 不再硬编码拒绝多 effect type params。
-  - receiver effect op 与相关 perform / handler lowering / codegen 进入统一主线，不靠 ad-hoc 特判。
-  - 补充对应 parse / typecheck / run-pass 回归。
-- 验收：
-  - `ISSUES.md` 第 1 条中关于 richer effect polymorphism 与 receiver effect op 的剩余描述收窄或关闭。
+### T4008c [DONE] 将 richer effect polymorphism 与 receiver effect op lowering 拆分执行
+- 说明：
+  - 原任务同时要求收口“多 effect type params 的 effect instance 实例化 / handler 匹配”与“带 receiver 的 effect op 调用 / handle lowering / state-machine codegen”，横跨 typecheck、HIR lowering 与 LLVM effect dispatch 三层。
+  - 继续审计 `crates/scoopc/src/typecheck/expr/call.rs` 与 `crates/scoopc/src/typecheck/expr/infer.rs` 后确认，现有缺口也体现在两类独立 hard gate：一类是 `effect_sym.type_param_names.len() > 1` 直接 early reject，另一类是 `op.sig.receiver.is_some()` 直接报 unsupported。
+  - 为避免单轮同时放大“effect instance 实例化”和“receiver 参与 perform payload / arm binder 布局”两套回归矩阵，现细化为 `T4008c1 -> T4008c2` 顺序推进。
 - 依赖：T4008b2
+
+### T4008c0 [TODO] 修复 statement-position if/else mixed replay 在 else 分支丢失第二次 continuation
+- 说明：
+  - 在当前工作树和 clean `HEAD`（`45a1144`）里，`tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop` 都会错误输出 `fetch_resume / resume_else_1 / missing2`，而不是 golden 中的 `fetch_enter 40 / ask_arm 2 / 41 / resume_else_2`。
+  - 这说明无 immediate-resume 的 multi-arm handle 在 statement-position if/else 中处理“direct perform 之后再命中同分支 indirect site”的 replay 时，else 分支仍会把 indirect site 错误重放成 direct site 的 resumed tail，导致 fresh continuation 丢失。
+- 范围：
+  - 修复 else 分支在 direct + indirect same-stmt mixed 场景下的 source-path / escape replay 目标构造。
+  - 补充对应 run-pass / state-machine regression，锁定第二次 continuation 的重放与 `after_resume1` / `after_resume2` 顺序。
+- 验收：
+  - `tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop` 重新与现有 golden 对齐。
+  - `cargo run -p scoop -- test` 不再被该 fixture 阻塞。
+- 依赖：T4008c
+
+### T4008c1 [TODO] 收口多 effect type params 的 effect op call / handle arm 实例化
+- 范围：
+  - effect op call / handle arm 不再硬编码拒绝 2+ effect type params。
+  - performed-effect / handled-effect side table 保留完整 effect type args，不再只按单一尾参数回填 effect instance。
+  - 补充对应 typecheck / run-pass 回归，覆盖多 effect type params 的调用、handler 捕获与 effect instance dispatch；回归不再依赖尚未收口的“多实参 perform payload”路径。
+- 验收：
+  - `effect Pair<K, V>` 一类 effect 的 op call 与 handle arm 能进入统一 typecheck / lowering / runtime dispatch 主线。
+  - `ISSUES.md` 第 1 条中“effect type param 仍只支持单一 type param”的部分收窄或关闭。
+- 依赖：T4008c0
+
+### T4008cS [TODO] 支持 effect state-machine 的多实参 perform payload lowering
+- 说明：
+  - 在为 `T4008c1` 增加 run-pass 回归时发现，`crates/scoopc/src/llvm/codegen/effect/state_machine_emitter.rs::emit_perform_op` 当前只接受 0/1 个 payload arg，`effect Edge<A, B> { fun visit(from: A, to: B): Int }` 一类两形参 effect op 在 state-machine 路径会报 `state machine perform arity`。
+  - 这是独立于 “多 effect type params” 的旧 codegen 缺口；如果不先收口，后续 receiver effect op 把 receiver 当作第 0 个 payload 后会继续撞上同一限制。
+- 范围：
+  - state-machine perform / handler dispatch 支持 2+ 形参 effect op，不再只接受单 payload expr。
+  - 补充对应 run-pass / LLVM regression，覆盖同一 effect op 的多 binder payload 进入 perform slot 与 arm binder 读取。
+- 验收：
+  - 多形参 effect op 在普通 handle / immediate-resume / escape-continuation 路径都不再报 `state machine perform arity`。
+- 依赖：T4008c1
+
+### T4008c2 [TODO] 打通 receiver effect op 的 perform / handler lowering / codegen
+- 范围：
+  - receiver effect op 不再在 typecheck 早退报 unsupported。
+  - receiver effect op 的调用与 handle arm binder 统一按“receiver 作为第 0 个形参 / 第 0 个 binder”进入 HIR / LLVM effect dispatch 主线。
+  - 补充 parse / typecheck / run-pass 回归，避免把 receiver effect op 做成 ad-hoc 特判。
+- 验收：
+  - `ISSUES.md` 第 1 条中关于 receiver effect op 的剩余描述收窄或关闭。
+- 依赖：T4008cS
 
 ### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
 - 重点：
   - continuation / effect codegen 不能回流到按源码形状补丁选路。
-- 依赖：T4008c
+- 依赖：T4008c2
 
 ## T4009：`Task` 设计定型
 
