@@ -1068,11 +1068,20 @@
     - `tests/fixtures/run-pass/continuation_resume_surface_named_tuple_and_unit_basic.stdout`
 - 依赖：T4008c3
 
-### T4008R [TODO] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
+### T4008R [DONE] Review：确认 effect 完整性收口没有引入新的 shape-based lowering
 - 重点：
   - continuation / effect codegen 不能回流到按源码形状补丁选路。
   - handler arm head 与 `Continuation.resume` 不能继续保留独立于普通 call binder 的 surface 特判。
   - 若 `ImmediateResume` 仍维持 heap-only lowering，review 结论里必须明确记录其 deferred contract，而不是静默保留 spec/实现分裂。
+- 完成：
+  - 已复审 `crates/scoopc/src/typecheck/expr/call.rs::lower_effect_op_signature`、`crates/scoopc/src/typecheck/expr/infer.rs::lower_handle_arm_effect_op_sig` 与 `crates/scoopc/src/hir/lower/expr.rs::maybe_lower_effect_op_call`：effect-op call、receiver effect op 与 handler arm head 继续共享同一套签名 lowering、`arg_mapping` 与 payload tuple metadata；HIR `EffectOpCallInfo` 记录的是 typecheck 已确认的 `arg_mapping` / `payload_tuple_ty`，LLVM `codegen_perform_payload_value` 与 state-machine arm binder 只消费这份 side table，没有按 binder 数量、receiver 形态或源码写法重新猜 transport。
+  - 已复审 `try_infer_continuation_resume_call_expr_type`、`continuation_resume_call_sites`、`codegen_continuation_resume_builtin` 与 `classify_builtin_suspend_call`：`Continuation.resume` 的 surface 继续复用普通 call binder helper（`collect_call_arg_infos`、命名实参校验、`map_call_args_to_params` / `map_call_args_to_params_by_name`），state-machine / LLVM 是否把调用识别为 builtin 只看 typecheck 写回的 call-site side table，不再按 member 名、receiver 形状或 payload 个数做语义选路；codegen 内部的 `callee shape` 检查只是对已选 builtin 路径的结构断言。
+  - 已复审 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `sysroot/core.scoop`：`ImmediateResume` / `-> resume` 当前仍统一走 GC-managed full-machine lowering，stack-local fast path 已明确记录为 deferred optimization，不再保留静默的 spec/实现分裂。
+- 已验证：
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1070)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c4
 
 ## T4009：`Task` 设计定型
