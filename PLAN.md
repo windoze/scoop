@@ -78,6 +78,10 @@
 > 2026-04-19 当前轮完成更新：`T4007a` 已完成。LLVM `codegen_ref_is_instance_of_nonnull` 现对带 type args 的 class target 优先按 `nominal_layout_key` 查找具体实例化后的 `ClassInit` / type descriptor，不再先命中 base generic class；因此 `Holder<Int>` / `Holder<UInt>` 这类参数化 class target 的 `is/as/as?` 现在都能走正确的具体实例化 descriptor。已新增 run-pass 回归 `type_check_cast_generic_class_instantiation_basic`，覆盖 `is Holder<Int>`、`is Holder<UInt>`、`as? Holder<Int>`、`as? Holder<UInt>` 与 `as Holder<UInt>` 失败触发 `ClassCastFailed` 的路径；同时用 `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop --type 'Holder<Int>'` 复验了具体实例化 descriptor 可观测输出。已验证新增 run-pass、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。尚未收口的 parameterized interface / `eff` target 运行期匹配，以及旧 RTTI 导出 API 的参数化 nominal 门禁，已顺延到 `T4007b` / `T4007c`。当前下一项推进到 `T4007b`。
 >
 > 2026-04-19 当前轮完成更新：`T4007b` 已完成。根因确认是 class itable 长期只保存 base `interface_id`，导致 LLVM `is/as/as?` 对 parameterized interface / `eff` target 只能按未参数化 interface 判真；当前已在 `crates/scoopc/src/itable.rs` 为每个 concrete interface 实例补齐 `interface_type_name` / `interface_type_id` 与 `runtime_match_type_names` / `runtime_match_type_ids`，并复用 `TypeLowering::instantiated_direct_supertypes(...)` 与 `is_type_assignable(...)` 预计算“该实例在运行期可匹配哪些 target”。LLVM `codegen_ref_is_instance_of_nonnull` 现改为扫描 `runtime_match_type_ids` 做匹配，而 interface method dispatch 仍继续按 base `interface_id + slot` 查表，因此 `Readable<String>` / `Readable<Any>` / `Readable<Int>` 与 `Disposable<eff Pure>` / `Disposable<eff Raise<RuntimeError>>` 的正反路径现在都与前端 assignable 规则一致。为让 `dump-rtti` 与运行期观察口径一致，`crates/scoopc/src/rtti/type_desc.rs` 也已接入 precise class itable metadata，并新增 RTTI 单测 `dump_rtti_class_itable_entries_preserve_parameterized_runtime_match_metadata`；同时顺手修复了 `TypeDescError` 误包装 `miette::Report` 的编译问题，并把既有 RTTI 单测里的无效源码片段改成当前语言规则下的合法程序。已新增 run-pass 回归 `type_check_cast_parameterized_interface_runtime_match_basic`，并验证 `cargo check --all-targets`、新 run-pass、`dump-rtti --type 'StringReadable'` / `--type 'PureManaged'`、`cargo test -p scoopc rtti::type_desc::tests`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。`ISSUES.md` 第 15 条现已收窄为“仅剩旧 RTTI 导出 API 的参数化 nominal 门禁”，当前下一项推进到 `T4007c`。
+>
+> 2026-04-19 当前轮完成更新：`T4007c` 已完成。旧 RTTI `dump_type_rtti` 现改为通过 synthetic type query + `TypeLowering::new_with_ctx(...)` 在“当前文件 package/import 语境”下解析查询，因此 `Readable<String>`、`Disposable<eff Raise<RuntimeError>>`、`Pair<Int>` 等参数化 nominal 都能直接导出，不再因为 args / `eff` 早退；同时，`rtti/mod.rs` 现会收集当前编译单元（含 sysroot）的 struct 声明头，并在导出参数化 struct RTTI 时通过 `lower_type_ref_in_decl_file_with_scopes(...)` 按声明处文件上下文实例化字段类型，使 generic struct 的字段 RTTI、offset 与 size/align 与 concrete use-site 保持一致。`nominal_layout(...)` 也已去掉对 args / `eff` 的硬拒绝：class/interface/effect 继续走 pointer layout，enum 继续走 word-sized fallback，struct 则使用实例化后的字段类型计算布局；旧 RTTI 的 canonical name / `type_id` 仍统一复用 `TypeStore::display` + `stable_hash64`。已新增 2 条旧 RTTI 单测，并同步 `SCOOP_RUNTIME.md` 说明参数化 nominal 的 canonical name 要包含 concrete type args 与 use-site `eff` row。已验证 `cargo test -p scoopc rtti:: -- --nocapture`、`cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'StringReadable'`、`cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop --type 'Holder<Int>'` 与 `cargo clippy --all-targets -- -D warnings`。
+>
+> 2026-04-19 当前轮计划调整：在为 `T4007c` 做全量 Rust 测试复验时，`cargo test --all` 暴露出一个与 RTTI 导出主线无直接交集、但会阻断全量验证的既有 runtime 裂缝：`crates/scoop_runtime/tests/gc_immix_compaction.rs` 中 `immix_compaction_does_not_move_pinned_objects` 与 `immix_compaction_updates_native_roots_slots_and_object_fields` 会长时间停留在 `waiting for park: epoch=2 parked=0 need=1`，超过 60 秒不前进。为避免把这个既有挂起继续静默带过，现已在 `T4007c` 与 `T4007R` 之间插入新的 blocker `T4007S`，下一项执行目标切换为 `T4007S`。
 
 ## 0. 工作原则
 
@@ -104,7 +108,7 @@
 12. 新增 blocker：`gc_continuation_cross_thread_resume_with_objects` 的 codegen `value coercion` 缺口
 13. 新增 blocker：full fixture suite 中 `top_level_val_recursive_init_is_error` 的顺序相关 stdout mismatch
 14. 新增 blocker：链式成员访问在非局部 receiver 上的解析 / codegen
-15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（`T4007a -> T4007b -> T4007c -> T4007R`）
+15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性
 17. `ISSUES.md` 第 2 条：`Task` 设计与 pollable object 语义
 
@@ -132,7 +136,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
-- 当前状态：`T4006` / `T4006S` / `T4006T` / `T4006U` / `T4006V` / `T4006R` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering、class ctor 实参求值不会污染调用者 locals、“receiver 为另一个 member access 结果值”的链式成员访问主线，以及 non-entry file 的 ctor / `Continuation.resume` 调用点 side table。全量 `cargo run -p scoop -- test` 现为绿色（`fixtures: ok (1053)`），P4 阶段已完成；其后的 RTTI 参数化任务现已拆分为 `T4007a -> T4007b -> T4007c -> T4007R`，其中 `T4007a` 已完成，下一项切换为 `T4007b`。
+- 当前状态：`T4006` / `T4006S` / `T4006T` / `T4006U` / `T4006V` / `T4006R` / `T4007a` / `T4007b` / `T4007c` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering、class ctor 实参求值不会污染调用者 locals、“receiver 为另一个 member access 结果值”的链式成员访问主线，以及旧 RTTI API 对参数化 nominal 的 query / field-instantiation / canonical name 对齐。`cargo run -p scoop -- test` 仍为绿色（`fixtures: ok (1053)`），RTTI 定向单测与 `dump-rtti` spot check 也已通过；不过 `cargo test --all` 目前被既有 runtime compaction 测试挂起阻断，因此在进入 `T4007R` review 前额外插入了 `T4007S` 作为验证 blocker，当前下一项切换为 `T4007S`。
 
 ### P5. effect 完整性收口
 

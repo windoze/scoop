@@ -703,20 +703,47 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4007a
 
-### T4007c [TODO] 收口旧 RTTI 导出 API 的参数化类型支持与文档同步
+### T4007c [DONE] 收口旧 RTTI 导出 API 的参数化类型支持与文档同步
 - 范围：
   - `crates/scoopc/src/rtti/mod.rs` 不再对 generic / `eff` 参数化 nominal 直接报 `unsupported_generic_type`。
   - 旧 RTTI 导出 API 的 canonical name / type_id 口径与 `dump-rtti` 当前 type descriptor 输出保持一致。
   - 如有必要，同步 `SCOOP_RUNTIME.md` / `SCOOP_FULL_SPEC.md` 的 RTTI 可观测性描述。
 - 验收：
   - 新增 RTTI 定向测试与必要的文档同步。
+- 完成：
+  - 旧 RTTI `dump_type_rtti` 现改为通过 synthetic type query + `TypeLowering::new_with_ctx(...)` 在“当前文件 package/import 语境”下解析查询，因此 `Readable<String>`、`Disposable<eff Raise<RuntimeError>>`、`Pair<Int>` 一类带 type args / `eff` row 的 nominal 都能直接导出，不再早退到 `unsupported_generic_type`。
+  - `rtti/mod.rs` 现会收集当前编译单元（含 sysroot）的 struct 声明头，并在导出参数化 struct RTTI 时通过 `lower_type_ref_in_decl_file_with_scopes(...)` 重新按声明处文件上下文实例化字段类型；因此 generic struct 的字段类型、offset、size/align 现在都和 concrete use-site 一致。
+  - `nominal_layout(...)` 已去掉对 args / `eff` 的早期硬拒绝：class/interface/effect 继续走 pointer layout，enum 继续走 word-sized fallback，struct 则使用实例化后的字段类型计算布局；旧 RTTI 的 canonical name / type_id 仍统一由 `TypeStore::display` + `stable_hash64` 生成。
+  - 已新增 2 条旧 RTTI 单测，分别覆盖参数化 struct 字段实例化，以及 parameterized interface / `eff` target 与 `type_desc` metadata 的 canonical name / type_id 对齐；同时补充 `SCOOP_RUNTIME.md`，明确参数化 nominal 的 canonical name 需包含 concrete type args 与 use-site `eff` row。
+- 已验证：
+  - `cargo test -p scoopc rtti:: -- --nocapture`
+  - `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop --type 'StringReadable'`
+  - `cargo run -p scoop -- dump-rtti tests/fixtures/run-pass/type_check_cast_generic_class_instantiation_basic.scoop --type 'Holder<Int>'`
+  - `cargo clippy --all-targets -- -D warnings`
+  - 已尝试 `cargo test --all`，但被既有 runtime 测试 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 中两条 compaction 用例挂起阻断；该问题已显式入列为 `T4007S`，不会静默略过。
 - 依赖：T4007b
+
+### T4007S [TODO] 排查并修复 `cargo test --all` 中 `gc_immix_compaction` 的既有挂起
+- 说明：
+  - 在 `T4007c` 验证阶段，`cargo test --all` 会稳定卡在 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 的
+    `immix_compaction_does_not_move_pinned_objects` 与
+    `immix_compaction_updates_native_roots_slots_and_object_fields`；
+    输出会反复停留在 `waiting for park: epoch=2 parked=0 need=1`，超过 60 秒不前进。
+  - 该挂起与本轮 RTTI 导出代码路径无直接交集，但它阻断了当前基线对全量 Rust 测试的完成验证，不能继续被当成“与当前任务无关”而忽略。
+- 范围：
+  - 定位并修复上述两条 compaction 测试的 STW / park 协调挂起。
+  - 恢复 `cargo test --all` 可完整跑通。
+- 验收：
+  - `cargo test -p scoop_runtime immix_compaction_does_not_move_pinned_objects -- --nocapture`
+  - `cargo test -p scoop_runtime immix_compaction_updates_native_roots_slots_and_object_fields -- --nocapture`
+  - `cargo test --all`
+- 依赖：T4007c
 
 ### T4007R [TODO] Review：确认 RTTI 不再只覆盖未参数化类型
 - 重点：
   - 不允许对 generic / `eff` target 继续静默退回 base unparameterized descriptor / interface id。
   - `dump-rtti` 与运行期 `is/as/as?` 观察到的 canonical name / type_id 必须保持一致。
-- 依赖：T4007c
+- 依赖：T4007S
 
 ## T4008：effect / continuation 完整性
 

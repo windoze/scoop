@@ -302,6 +302,7 @@ typedef void (*ScoopTypeReleaseFn)(void *object);
 The following fields exist in the type descriptor as ABI-stable placeholders; their full semantics are specified by TODO T15:
 
 - `type_id: u64` — stable type identifier (recommended: compiler stable hash of the canonical type name).
+  For parameterized nominals, the canonical name should include the concrete type arguments and use-site `eff` row (for example `pkg.Box<Int>` or `pkg.Disposable<eff Raise<RuntimeError>>`), so runtime metadata and RTTI/debug tooling observe the same identity.
 - `parent_type_desc` — the parent class descriptor, forming an inheritance chain.
 - `itable` — interface table pointer; required for `is/as` checks against interfaces.
 - `vtable` — virtual dispatch table pointer; required for class dynamic dispatch.

@@ -98,8 +98,8 @@
 - 影响：跨文件顶层值、跨文件泛型实例化与跨包扩展解析已不再是语言规则缺口；`T4007` 之后的工作可以直接建立在统一的 compilation-unit 语义上继续推进。单文件 `scoop dump-ir` 调试入口仍按单文件输入建模，但它不再计入这里的编译链 issue。
 - 证据：`crates/scoopc/src/typecheck/expr/collect.rs`；`crates/scoop/src/commands/build.rs`；`crates/scoopc/src/hir/lower/util.rs`；`crates/scoopc/src/resolve/scopes.rs`；`tests/fixtures/run_pass_cone/cross_file_generic_top_level_val_basic/src/main.scoop`；`tests/fixtures/typecheck_cone/cross_cone_extension_imports/app/star_import_ok.scoop`；`tests/fixtures/resolve_cone/extension_imports/app/star_import_ok.scoop`。
 
-## 15. 旧 RTTI 导出 API 仍不支持泛型 / `eff` 参数化 nominal
+## 15. 旧 RTTI 导出 API 对泛型 / `eff` 参数化 nominal 的缺口已收口
 
-- 现状：parameterized interface 与 `eff` target 的运行期匹配，以及 `dump-rtti` 的 type descriptor 导出已经能保留具体实例化 metadata；当前剩余缺口集中在 `crates/scoopc/src/rtti/mod.rs` 旧 RTTI 导出 API，它仍会对 generic / `eff` 参数化 nominal 直接报 `unsupported_generic_type`。
-- 影响：运行期 `is/as/as?` 与 `dump-rtti` 的可观测 RTTI 已经不再退回 base interface id，但旧 RTTI API 仍无法查询 generic / effect-parameterized nominal 的 canonical name / type_id。
-- 证据：`crates/scoopc/src/rtti/mod.rs:122-124`；`crates/scoopc/src/rtti/mod.rs:438-441`；`crates/scoopc/src/rtti/type_desc.rs`；`tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`。
+- 现状：旧 RTTI `dump_type_rtti` 现已支持通过当前文件 package/import 语境解析参数化 nominal query；generic struct 会按声明处文件上下文重新实例化字段类型并计算布局，parameterized interface / `eff` target 也会导出与 `type_desc` metadata 一致的 canonical name / `type_id`。
+- 影响：运行期 `is/as/as?`、`dump-rtti` 的 type descriptor 输出，以及旧 RTTI API 对参数化 nominal 的可观测 identity 现在都已对齐，不再残留“旧 API 直接拒绝 args / eff”的独立语言缺口。
+- 证据：`crates/scoopc/src/rtti/mod.rs`；`crates/scoopc/src/typecheck/lower.rs`；`crates/scoopc/src/rtti/type_desc.rs`；`tests/fixtures/run-pass/type_check_cast_parameterized_interface_runtime_match_basic.scoop`；`crates/scoopc/src/rtti/mod.rs` 单测 `rtti_parameterized_struct_query_instantiates_field_types` 与 `rtti_parameterized_nominal_query_matches_type_desc_metadata`。

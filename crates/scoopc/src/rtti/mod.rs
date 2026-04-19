@@ -5,13 +5,16 @@
 //! - 该信息主要用于调试/后续 GC 与后端集成；不承诺提供完整运行期反射能力（spec §6.6）。
 //!
 //! 约束（v0）：
-//! - 仅覆盖 **非泛型** `struct` 的字段布局（primary ctor params + 有 backing field 的属性）；
+//! - `dump_file_rtti` 仍只枚举“当前输入文件内可直接命名的非参数化 struct”；
+//! - `dump_type_rtti` 则允许查询参数化 nominal，并使用 `TypeStore::display` 产出的
+//!   canonical name 计算稳定 `type_id`；
 //! - 其它类型只提供 size/align（或按指针大小占位）；
 //! - 目标平台布局暂用 host pointer size/align（与 typecheck/layout 一致，T0803 再替换为 target machine）。
 
 pub mod type_desc;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 
 use miette::Diagnostic;
 use serde::Serialize;
@@ -119,21 +122,21 @@ pub enum RttiError {
     #[diagnostic(code(scoop::rtti::ambiguous_type))]
     AmbiguousType { name: String, candidates: String },
 
-    #[error("暂不支持生成 RTTI：泛型/eff 参数化类型：{name}")]
-    #[diagnostic(code(scoop::rtti::unsupported_generic_type))]
-    UnsupportedGenericType { name: String },
-
     #[error("struct RTTI 生成缺少声明：{fqn}")]
     #[diagnostic(code(scoop::rtti::missing_struct_decl))]
     MissingStructDecl { fqn: String },
 }
 
-/// 计算输入文件内“可生成 RTTI 的类型表”（当前仅 non-generic struct），并返回稳定输出结构。
+/// 计算输入文件内“可生成 RTTI 的类型表”，并返回稳定输出结构。
+///
+/// 当前阶段：
+/// - 列表模式仍只导出当前输入文件里“声明本身已是 concrete 的 struct”；
+/// - 参数化 nominal 的查询能力由 `dump_type_rtti` 提供。
 pub fn dump_file_rtti(session: &Session, source: &SourceFile) -> Result<RttiDump, RttiError> {
     let mut cx = RttiContext::build(session, source)?;
     let mut out: Vec<TypeRtti> = Vec::new();
 
-    let mut names: Vec<String> = cx.structs.keys().cloned().collect();
+    let mut names = cx.dumpable_structs.clone();
     names.sort();
     for fqn in names {
         let ty = cx.struct_type_id(&fqn);
@@ -154,7 +157,7 @@ pub fn dump_file_rtti(session: &Session, source: &SourceFile) -> Result<RttiDump
 ///
 /// 说明（v0）：
 /// - 支持 builtin：`Any/String/Unit/Bool/Int/UInt/IntN/UIntN`（最小集合）；
-/// - 支持 input file 内 non-generic struct 的 FQN 或 simple name（simple name 必须唯一）。
+/// - 支持当前文件语境下可解析的 type query，包括带 type args / `eff` row 的 nominal。
 pub fn dump_type_rtti(
     session: &Session,
     source: &SourceFile,
@@ -166,19 +169,24 @@ pub fn dump_type_rtti(
 }
 
 struct StructInfo {
+    decl_file: PathBuf,
     fields: Vec<StructFieldInfo>,
 }
 
 struct StructFieldInfo {
     name: String,
-    ty: TypeId,
+    ty: ast::TypeRef,
 }
 
 struct RttiContext {
+    index: Index,
     env: TypeEnv,
     types: TypeStore,
     builtins: BuiltinTypes,
     target: TargetLayout,
+    query_pkg_prefix: String,
+    query_imports: ImportTable,
+    dumpable_structs: Vec<String>,
     structs: HashMap<String, StructInfo>,
     layout_cache: HashMap<TypeId, TypeLayout>,
     in_progress: HashSet<TypeId>,
@@ -213,21 +221,23 @@ impl RttiContext {
         // 5) 建立 struct 字段类型索引（会在 TypeStore 中 intern 字段类型与 struct 自身类型）。
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let structs = collect_struct_infos(
-            source,
-            &file,
-            &index,
-            &resolved_headers.imports,
-            &env,
-            &mut types,
-            builtins,
-        )?;
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        let mut all_pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &session.sysroot().files {
+            all_pairs.push((&f.source, &f.ast));
+        }
+        all_pairs.push((source, &file));
+        let (dumpable_structs, structs) = collect_struct_infos(&all_pairs, source.path())?;
 
         Ok(Self {
+            index,
             env,
             types,
             builtins,
             target: TargetLayout::host(),
+            query_pkg_prefix: pkg_prefix,
+            query_imports: resolved_headers.imports.clone(),
+            dumpable_structs,
             structs,
             layout_cache: HashMap::new(),
             in_progress: HashSet::new(),
@@ -240,32 +250,26 @@ impl RttiContext {
             return Ok(id);
         }
 
-        // 2) 允许 FQN 或 simple name 查找 input file 内的 struct。
-        if self.structs.contains_key(name) {
-            return Ok(self.struct_type_id(name));
-        }
-
-        // simple name：取最后一段做匹配（保证输出稳定，用 BTreeMap 排序）。
-        let mut by_simple: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for fqn in self.structs.keys() {
-            let simple = fqn.rsplit('.').next().unwrap_or(fqn).to_string();
-            by_simple.entry(simple).or_default().push(fqn.clone());
-        }
-
-        if let Some(cands) = by_simple.get(name) {
-            if cands.len() == 1 {
-                let fqn = &cands[0];
-                return Ok(self.struct_type_id(fqn));
-            }
-            return Err(RttiError::AmbiguousType {
+        let (query_source, query_ty) = parse_type_query(name)?;
+        let mut lower = TypeLowering::new_with_ctx(
+            &query_source,
+            &self.index,
+            &self.env,
+            &mut self.types,
+            self.builtins,
+            self.query_pkg_prefix.clone(),
+            self.query_imports.clone(),
+        );
+        match lower.lower_type_ref(&query_ty) {
+            Ok(ty) => Ok(ty),
+            Err(
+                TypeLowerError::UnresolvedType { .. }
+                | TypeLowerError::MissingTypeSymbolInEnv { .. },
+            ) => Err(RttiError::UnknownType {
                 name: name.to_string(),
-                candidates: cands.join(", "),
-            });
+            }),
+            Err(err) => Err(err.into()),
         }
-
-        Err(RttiError::UnknownType {
-            name: name.to_string(),
-        })
     }
 
     fn builtin_type_id(&mut self, name: &str) -> Option<TypeId> {
@@ -345,7 +349,7 @@ impl RttiContext {
                         crate::typecheck::TypeSymbolKind::TypeAlias => (RttiKind::Opaque, None),
                         crate::typecheck::TypeSymbolKind::Nominal(kind) => match kind {
                             ast::TypeKind::Struct => {
-                                let fields = Some(self.struct_fields_rtti(&nominal.fqn)?);
+                                let fields = Some(self.struct_fields_rtti(&nominal)?);
                                 (RttiKind::Struct, fields)
                             }
                             ast::TypeKind::Enum => (RttiKind::Enum, None),
@@ -368,14 +372,8 @@ impl RttiContext {
         })
     }
 
-    fn struct_fields_rtti(&mut self, fqn: &str) -> Result<Vec<FieldRtti>, RttiError> {
-        let Some(info) = self.structs.get(fqn) else {
-            return Err(RttiError::MissingStructDecl {
-                fqn: fqn.to_string(),
-            });
-        };
-        let fields_snapshot: Vec<(String, TypeId)> =
-            info.fields.iter().map(|f| (f.name.clone(), f.ty)).collect();
+    fn struct_fields_rtti(&mut self, nominal: &NominalType) -> Result<Vec<FieldRtti>, RttiError> {
+        let fields_snapshot = self.lower_struct_field_types(nominal)?;
 
         let mut out: Vec<FieldRtti> = Vec::with_capacity(fields_snapshot.len());
         let mut offset = 0u64;
@@ -391,6 +389,65 @@ impl RttiContext {
                 is_ref: self.types.is_ref(field_ty),
             });
             offset = offset.saturating_add(layout.size);
+        }
+        Ok(out)
+    }
+
+    fn lower_struct_field_types(
+        &mut self,
+        nominal: &NominalType,
+    ) -> Result<Vec<(String, TypeId)>, RttiError> {
+        let Some(info) = self.structs.get(&nominal.fqn) else {
+            return Err(RttiError::MissingStructDecl {
+                fqn: nominal.fqn.clone(),
+            });
+        };
+        let Some(sym) = self.env.type_symbol(&nominal.fqn) else {
+            return Err(RttiError::MissingStructDecl {
+                fqn: nominal.fqn.clone(),
+            });
+        };
+        let decl_source =
+            self.env
+                .source(&info.decl_file)
+                .ok_or_else(|| RttiError::MissingStructDecl {
+                    fqn: nominal.fqn.clone(),
+                })?;
+        let (pkg_prefix, imports) = self
+            .env
+            .file_type_context(&info.decl_file)
+            .map(|ctx| (ctx.pkg_prefix.clone(), ctx.imports.clone()))
+            .unwrap_or_else(|| (self.query_pkg_prefix.clone(), self.query_imports.clone()));
+
+        let mut lower = TypeLowering::new_with_ctx(
+            decl_source,
+            &self.index,
+            &self.env,
+            &mut self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+
+        let mut out: Vec<(String, TypeId)> = Vec::with_capacity(info.fields.len());
+        for field in &info.fields {
+            let type_bindings = sym
+                .type_param_names
+                .iter()
+                .cloned()
+                .zip(nominal.args.iter().copied())
+                .collect::<Vec<_>>();
+            let eff_bindings = match (&sym.eff_param, nominal.eff.clone()) {
+                (Some(eff_param), Some(row)) => vec![(eff_param.name.clone(), row)],
+                _ => Vec::new(),
+            };
+            let field_ty = lower.lower_type_ref_in_decl_file_with_scopes(
+                &info.decl_file,
+                type_bindings,
+                eff_bindings,
+                &field.ty,
+            )?;
+            out.push((field.name.clone(), field_ty));
         }
         Ok(out)
     }
@@ -436,12 +493,6 @@ impl RttiContext {
     }
 
     fn nominal_layout(&mut self, nominal: &NominalType) -> Result<TypeLayout, RttiError> {
-        if !nominal.args.is_empty() || nominal.eff.is_some() {
-            return Err(RttiError::UnsupportedGenericType {
-                name: nominal.fqn.clone(),
-            });
-        }
-
         let Some(sym) = self.env.type_symbol(&nominal.fqn) else {
             return Ok(self.pointer_layout().without_niche());
         };
@@ -458,18 +509,17 @@ impl RttiContext {
                     // v0：暂不把 rich enum 的精确布局语义绑死到 RTTI；后续可复用 typecheck/layout 的规则。
                     Ok(self.word_layout())
                 }
-                ast::TypeKind::Struct => self.struct_layout(&nominal.fqn),
+                ast::TypeKind::Struct => self.struct_layout(nominal),
             },
         }
     }
 
-    fn struct_layout(&mut self, fqn: &str) -> Result<TypeLayout, RttiError> {
-        let Some(info) = self.structs.get(fqn) else {
-            return Err(RttiError::MissingStructDecl {
-                fqn: fqn.to_string(),
-            });
-        };
-        let fields_snapshot: Vec<TypeId> = info.fields.iter().map(|f| f.ty).collect();
+    fn struct_layout(&mut self, nominal: &NominalType) -> Result<TypeLayout, RttiError> {
+        let fields_snapshot: Vec<TypeId> = self
+            .lower_struct_field_types(nominal)?
+            .into_iter()
+            .map(|(_, ty)| ty)
+            .collect();
         let mut size = 0u64;
         let mut align = 1u64;
         for field_ty in fields_snapshot {
@@ -550,32 +600,36 @@ impl WithoutNiche for TypeLayout {
 }
 
 fn collect_struct_infos(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    imports: &ImportTable,
-    env: &TypeEnv,
-    types: &mut TypeStore,
-    builtins: BuiltinTypes,
-) -> Result<HashMap<String, StructInfo>, RttiError> {
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
-
-    let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    pairs: &[(&SourceFile, &ast::File)],
+    main_source_path: &std::path::Path,
+) -> Result<(Vec<String>, HashMap<String, StructInfo>), RttiError> {
+    let mut dumpable: Vec<String> = Vec::new();
     let mut out: HashMap<String, StructInfo> = HashMap::new();
-    for item in &file.items {
-        let ast::Item::Type(ty) = item else {
-            continue;
-        };
-        collect_struct_infos_in_type_decl(source, ty, &pkg_prefix, &mut lower, &mut out)?;
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            collect_struct_infos_in_type_decl(
+                source,
+                ty,
+                &pkg_prefix,
+                main_source_path,
+                &mut dumpable,
+                &mut out,
+            )?;
+        }
     }
-    Ok(out)
+    Ok((dumpable, out))
 }
 
 fn collect_struct_infos_in_type_decl(
     source: &SourceFile,
     decl: &ast::TypeDecl,
     prefix: &str,
-    lower: &mut TypeLowering<'_>,
+    main_source_path: &std::path::Path,
+    dumpable: &mut Vec<String>,
     out: &mut HashMap<String, StructInfo>,
 ) -> Result<(), RttiError> {
     let local_name = decl.name.text(source).to_string();
@@ -585,47 +639,53 @@ fn collect_struct_infos_in_type_decl(
         format!("{prefix}.{local_name}")
     };
 
-    if matches!(decl.kind, ast::TypeKind::Struct) {
-        // v0：跳过泛型/eff 参数化 struct（布局需要单态化）。
-        if !decl.type_params.is_empty() || decl.eff_param.is_some() {
-            // 仅当后续按名字查询到该类型时才报错；这里先跳过。
-        } else if !out.contains_key(&type_fqn) {
-            let mut fields: Vec<StructFieldInfo> = Vec::new();
+    if matches!(decl.kind, ast::TypeKind::Struct) && !out.contains_key(&type_fqn) {
+        let mut fields: Vec<StructFieldInfo> = Vec::new();
 
-            // 1) primary ctor params
-            if let Some(primary_ctor) = &decl.primary_ctor {
-                for p in &primary_ctor.params {
-                    let Some(ty_ref) = &p.ty else { continue };
-                    let field_name = p.name.text(source).to_string();
-                    let field_ty = lower.lower_type_ref(ty_ref)?;
-                    fields.push(StructFieldInfo {
-                        name: field_name,
-                        ty: field_ty,
-                    });
-                }
+        // 1) primary ctor params
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                let Some(ty_ref) = &p.ty else { continue };
+                let field_name = p.name.text(source).to_string();
+                fields.push(StructFieldInfo {
+                    name: field_name,
+                    ty: ty_ref.clone(),
+                });
             }
-
-            // 2) type body properties with backing field（v0：无 delegate/getter/setter）
-            if let Some(body) = &decl.body {
-                for member in &body.members {
-                    let ast::TypeMember::Property(p) = member else {
-                        continue;
-                    };
-                    if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
-                        continue;
-                    }
-                    let Some(ty_ref) = &p.ty else { continue };
-                    let field_name = p.name.text(source).to_string();
-                    let field_ty = lower.lower_type_ref(ty_ref)?;
-                    fields.push(StructFieldInfo {
-                        name: field_name,
-                        ty: field_ty,
-                    });
-                }
-            }
-
-            out.insert(type_fqn.clone(), StructInfo { fields });
         }
+
+        // 2) type body properties with backing field（v0：无 delegate/getter/setter）
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(p) = member else {
+                    continue;
+                };
+                if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
+                    continue;
+                }
+                let Some(ty_ref) = &p.ty else { continue };
+                let field_name = p.name.text(source).to_string();
+                fields.push(StructFieldInfo {
+                    name: field_name,
+                    ty: ty_ref.clone(),
+                });
+            }
+        }
+
+        if source.path() == main_source_path
+            && decl.type_params.is_empty()
+            && decl.eff_param.is_none()
+        {
+            dumpable.push(type_fqn.clone());
+        }
+
+        out.insert(
+            type_fqn.clone(),
+            StructInfo {
+                decl_file: source.path().to_path_buf(),
+                fields,
+            },
+        );
     }
 
     // 递归 nested types（可能存在 nested struct）。
@@ -633,10 +693,24 @@ fn collect_struct_infos_in_type_decl(
         for member in &body.members {
             match member {
                 ast::TypeMember::Type(nested) => {
-                    collect_struct_infos_in_type_decl(source, nested, &type_fqn, lower, out)?;
+                    collect_struct_infos_in_type_decl(
+                        source,
+                        nested,
+                        &type_fqn,
+                        main_source_path,
+                        dumpable,
+                        out,
+                    )?;
                 }
                 ast::TypeMember::Object(obj) => {
-                    collect_struct_infos_in_object_decl(source, obj, &type_fqn, lower, out)?;
+                    collect_struct_infos_in_object_decl(
+                        source,
+                        obj,
+                        &type_fqn,
+                        main_source_path,
+                        dumpable,
+                        out,
+                    )?;
                 }
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::Property(_)
@@ -654,7 +728,8 @@ fn collect_struct_infos_in_object_decl(
     source: &SourceFile,
     obj: &ast::ObjectDecl,
     prefix: &str,
-    lower: &mut TypeLowering<'_>,
+    main_source_path: &std::path::Path,
+    dumpable: &mut Vec<String>,
     out: &mut HashMap<String, StructInfo>,
 ) -> Result<(), RttiError> {
     let obj_name = match &obj.name {
@@ -678,10 +753,24 @@ fn collect_struct_infos_in_object_decl(
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                collect_struct_infos_in_type_decl(source, nested, &obj_fqn, lower, out)?;
+                collect_struct_infos_in_type_decl(
+                    source,
+                    nested,
+                    &obj_fqn,
+                    main_source_path,
+                    dumpable,
+                    out,
+                )?;
             }
             ast::TypeMember::Object(nested) => {
-                collect_struct_infos_in_object_decl(source, nested, &obj_fqn, lower, out)?;
+                collect_struct_infos_in_object_decl(
+                    source,
+                    nested,
+                    &obj_fqn,
+                    main_source_path,
+                    dumpable,
+                    out,
+                )?;
             }
             ast::TypeMember::Property(_)
             | ast::TypeMember::EnumVariant(_)
@@ -703,6 +792,20 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| id.text(source))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn parse_type_query(name: &str) -> Result<(SourceFile, ast::TypeRef), ParseError> {
+    let source =
+        SourceFile::new_virtual("<rtti-query>", format!("typealias __RttiQuery = {name}\n"));
+    let file = parse_file(&source)?;
+    let ast::Item::TypeAlias(alias) = file
+        .items
+        .first()
+        .expect("synthetic RTTI query file should contain one typealias item")
+    else {
+        unreachable!("synthetic RTTI query file should parse as typealias")
+    };
+    Ok((source, alias.ty.clone()))
 }
 
 fn stable_hash64(text: &str) -> u64 {
@@ -736,6 +839,7 @@ fn parse_int_width_suffix(name: &str) -> Option<(bool, u16)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rtti::type_desc;
 
     #[test]
     fn rtti_struct_field_offsets_basic() {
@@ -763,5 +867,110 @@ struct Point(val x: Int, val y: Int)
         assert_eq!(fields[0].offset, 0);
         assert_eq!(fields[1].name, "y");
         assert_eq!(fields[1].offset, ptr);
+    }
+
+    #[test]
+    fn rtti_parameterized_struct_query_instantiates_field_types() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+struct Pair<T>(val first: T, val second: T)
+"#,
+        );
+
+        let rtti = dump_type_rtti(&sess, &src, "Pair<Int>").unwrap();
+        assert_eq!(rtti.kind, RttiKind::Struct);
+        assert_eq!(rtti.name, "rtti.Pair<Int>");
+        assert_eq!(rtti.type_id, stable_hash64("rtti.Pair<Int>"));
+
+        let ptr = std::mem::size_of::<usize>() as u64;
+        assert_eq!(rtti.align, ptr);
+        assert_eq!(rtti.size, ptr * 2);
+
+        let fields = rtti
+            .fields
+            .expect("parameterized struct should expose fields");
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].name, "first");
+        assert_eq!(fields[0].ty, "Int");
+        assert_eq!(fields[0].offset, 0);
+        assert_eq!(fields[1].name, "second");
+        assert_eq!(fields[1].ty, "Int");
+        assert_eq!(fields[1].offset, ptr);
+    }
+
+    #[test]
+    fn rtti_parameterized_nominal_query_matches_type_desc_metadata() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+import scoop.core.*
+
+interface Readable<out T> {
+  fun get(): T
+}
+
+class StringReadable : Readable<String> {
+  fun get(): String { return "hello" }
+}
+
+interface Disposable<eff E = Pure> {
+  fun dispose(): Unit / E
+}
+
+class RaiseManaged : Disposable<eff Raise<RuntimeError>> {
+  fun dispose(): Unit { return }
+}
+"#,
+        );
+
+        let readable = dump_type_rtti(&sess, &src, "Readable<String>").unwrap();
+        assert_eq!(readable.kind, RttiKind::Ref);
+        assert_eq!(readable.name, "rtti.Readable<String>");
+        assert_eq!(readable.type_id, stable_hash64("rtti.Readable<String>"));
+
+        let disposable_raise =
+            dump_type_rtti(&sess, &src, "Disposable<eff Raise<RuntimeError>>").unwrap();
+        assert_eq!(disposable_raise.kind, RttiKind::Ref);
+        assert!(disposable_raise.name.contains("Disposable<eff"));
+        assert!(disposable_raise.name.contains("Raise"));
+        assert!(disposable_raise.name.contains("RuntimeError"));
+        assert_eq!(
+            disposable_raise.type_id,
+            stable_hash64(&disposable_raise.name)
+        );
+
+        let dump = type_desc::dump_file_type_desc(&sess, &src).unwrap();
+        let string_readable = dump
+            .types
+            .iter()
+            .find(|ty| ty.name == "rtti.StringReadable")
+            .expect("type_desc should contain StringReadable");
+        let readable_entry = string_readable
+            .itable_entries
+            .iter()
+            .find(|entry| entry.interface_name == "rtti.Readable")
+            .expect("StringReadable should expose Readable metadata");
+        assert_eq!(readable.name, readable_entry.interface_type_name);
+        assert_eq!(readable.type_id, readable_entry.interface_type_id);
+
+        let raise_managed = dump
+            .types
+            .iter()
+            .find(|ty| ty.name == "rtti.RaiseManaged")
+            .expect("type_desc should contain RaiseManaged");
+        let disposable_entry = raise_managed
+            .itable_entries
+            .iter()
+            .find(|entry| entry.interface_name == "rtti.Disposable")
+            .expect("RaiseManaged should expose Disposable metadata");
+        assert_eq!(disposable_raise.name, disposable_entry.interface_type_name);
+        assert_eq!(disposable_raise.type_id, disposable_entry.interface_type_id);
     }
 }

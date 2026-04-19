@@ -1026,7 +1026,7 @@ impl<'a> TypeLowering<'a> {
     /// - 跨文件（sysroot / cone 依赖）的函数签名收集：当参数/返回类型里出现 `/ E` 时，
     ///   需要在 lowering 阶段先把 `E` 绑定到默认值（缺省 Pure），以便类型可以被正确构造，
     ///   并在调用点再用推断出的 `E_arg` 做实例化替换。
-    pub(super) fn lower_type_ref_in_decl_file_with_scopes(
+    pub(crate) fn lower_type_ref_in_decl_file_with_scopes(
         &mut self,
         decl_file: &Path,
         type_bindings: impl IntoIterator<Item = (String, TypeId)>,
