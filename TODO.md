@@ -589,15 +589,24 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006S
 
-### T4006U [TODO] 修复 full fixture suite 中 `top_level_val_recursive_init_is_error` 的顺序相关 stdout mismatch
+### T4006U [DONE] 修复 full fixture suite 中 `top_level_val_recursive_init_is_error` 的陈旧 stdout golden mismatch
 - 说明：
-  - `T4006T` 收口后重新跑 `cargo run -p scoop -- test`，套件已越过 `gc_continuation_cross_thread_resume_with_objects.scoop`，但会稳定失败在 `tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop`。
-  - 当前异常不是单 fixture 最小复现失败：单独把该 fixture 拷到临时 fixtures root 后，`cargo run -p scoop -- test --fixtures <临时 root>` 可通过；但全量 `cargo run -p scoop -- test` 会稳定报“stdout 与 golden 不一致”。
-  - 这说明现存问题更像是 full run-pass 顺序/夹具 harness/运行期副作用干扰，而不是该 fixture 本身的直接 build/run 红线；若不先查清，`T4006R` 的全量 fixture review 仍无法建立在绿基线上。
+  - `T4006T` 收口后重新跑 `cargo run -p scoop -- test`，套件稳定失败在 `tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop` 的 stdout golden 比对。
+  - 复查后确认失败根因并非顺序污染：`target/debug/scoop run .../top_level_val_recursive_init_is_error.scoop` 的实际行为一直是“退出码 `1`，stdout/stderr 为空”，而 `top_level_val_recursive_init_is_error.stdout` 自 `T4003SR` 起保留了一个单独的换行符，变成了陈旧 golden。
 - 范围：
-  - 精确定位 full suite 中该 fixture 的实际 stdout 来源与顺序相关污染点。
-  - 修复对应的 fixture runner、运行期状态清理或相关 codegen 行为，使全量 `cargo run -p scoop -- test` 在该 fixture 上与 standalone 结果一致。
+  - 精确定位该 fixture 的实际 stdout 与 golden 期望差异来源。
+  - 修正 fixture 期望，使其与“递归初始化在进入 `main` 前即终止，因此 stdout 为空”的当前语义一致。
   - 重新验证 `cargo run -p scoop -- test` 不再被该 fixture 阻断。
+- 完成：
+  - 已确认 `top_level_val_recursive_init_is_error` 的真实输出为“无 stdout + 退出码 `1`”；问题根因是 golden 文件仍保留历史换行，而不是 harness / 顺序污染。
+  - 已将 `tests/fixtures/run-pass/top_level_val_recursive_init_is_error.stdout` 收口为空文件，并在 fixture 注释中明确“程序在进入 `main` 前终止，因此 stdout 为空”的语义。
+  - 重新跑完整 fixture suite 后，`cargo run -p scoop -- test` 现已全绿，不再被该 fixture 阻断。
+- 已验证：
+  - `target/debug/scoop test --fixtures <仅含 top_level_val_recursive_init_is_error 的临时 root>`（`fixtures: ok (1)`）
+  - `target/debug/scoop test --fixtures tests/fixtures/run-pass`（`fixtures: ok (346)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1051)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006T
 
 ### T4006V [TODO] 收口链式成员访问在非局部 receiver 上的解析 / codegen

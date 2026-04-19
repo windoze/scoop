@@ -66,6 +66,8 @@
 > 2026-04-19 当前轮完成更新：`T4006T` 已完成。根因不在 effect/GC 专属路径，而在 class ctor 实参求值主线：`ClassInit` side table 使用独立 lowering context 生成 ctor 参数 `SymbolId`，旧的 `codegen_class_ctor_eval_args` 又会在“显式实参尚未全部求值完”时把这些 side-table 参数提前写入 `env`，从而污染调用者 locals。`return Node(name, t, value)` 一类 helper 在求值最后一个 `value` 实参时，会把调用者局部 `value:Int` 误读成已提前绑定的 ctor 参数 `name:String`，最终落入 `String -> Int` 的 `value coercion` unsupported。当前已把 ctor / super ctor / `this(...)` delegation 的实参求值改成两阶段：先在调用者环境中求值全部显式实参，再进入 ctor 参数作用域绑定显式值并补齐默认值。新增 focused regression `class_ctor_arg_eval_scope_shadow_free_basic` 后，`gc_continuation_escape_deep_object_graph` 与 `gc_continuation_cross_thread_resume_with_objects` 都已稳定 build/run，定向 fixtures root（3 条）也已通过；`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均为绿色。重新跑 `cargo run -p scoop -- test` 时，套件已越过原先的 `gc_continuation_cross_thread_resume_with_objects` 红线，并继续向后稳定失败在 `top_level_val_recursive_init_is_error.scoop` 的 full-suite stdout mismatch，因此在 `T4006R` 前新增 `T4006U`。
 >
 > 2026-04-19 当前轮计划调整：在为 `T4006T` 添加更小的 focused regression 时，最小 probe `println(node.tag.label)` 还暴露出一个独立既有缺口：链式成员访问在 receiver 不是“局部 struct slot”而是“另一个 member access 结果值”时，HIR 会把外层 `label` 保留为 `member.resolved = None`，LLVM `codegen_member_access` 继而报 `scoop::llvm::unsupported_main_body: member access target`。该问题与 ctor 实参求值污染不是同一根因，因此在 `T4006U` 之后、`T4006R` 之前再插入新的 blocker `T4006V`，单独收口链式成员访问主线。当前下一项切换为 `T4006U`。
+>
+> 2026-04-19 当前轮完成更新：`T4006U` 已完成。复查后确认该失败并不是 full-suite 顺序污染：`target/debug/scoop run tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop` 的实际行为始终是“退出码 `1`，stdout/stderr 为空”，真正过时的是 `top_level_val_recursive_init_is_error.stdout` 自 `T4003SR` 起遗留的单个换行。当前已将该 golden 收口为空文件，并在 fixture 注释中明确“递归初始化会在进入 `main` 前终止，因此 stdout 为空”的语义。验证上，最小临时 root（`fixtures: ok (1)`）、`tests/fixtures/run-pass`（`fixtures: ok (346)`）、全量 `cargo run -p scoop -- test`（`fixtures: ok (1051)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均已通过。当前下一项推进到 `T4006V`。
 
 ## 0. 工作原则
 
@@ -120,7 +122,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
-- 当前状态：`T4006` / `T4006S` / `T4006T` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering，以及 class ctor 实参求值不会污染调用者 locals 的 focused 主线。重跑全量 fixtures 时，`gc_continuation_cross_thread_resume_with_objects.scoop` 已被清除，但套件继续向后暴露出 `top_level_val_recursive_init_is_error.scoop` 的顺序相关 stdout mismatch；与此同时，在添加 focused regression 时又确认链式成员访问 `node.tag.label` 仍有独立解析 / codegen 缺口。因此在 `T4006R` 前继续插入 `T4006U -> T4006V`，当前下一项先处理 `T4006U`。
+- 当前状态：`T4006` / `T4006S` / `T4006T` / `T4006U` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering，以及 class ctor 实参求值不会污染调用者 locals 的 focused 主线；同时还清理了 `top_level_val_recursive_init_is_error` 的陈旧 stdout golden，使全量 `cargo run -p scoop -- test` 重新回到绿基线。当前剩余的 compilation-unit 阶段前置 blocker 是链式成员访问 `node.tag.label` 的独立解析 / codegen 缺口，下一项切换为 `T4006V`。
 
 ### P5. effect 完整性收口
 
