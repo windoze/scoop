@@ -1,25 +1,38 @@
-// Scoop C runtime: Task<T> / executor primitives (early stage).
+// Scoop C runtime: Task<T> / Executor primitives (object-model stage).
 //
 // 说明：
-// - 该文件实现 spec §5.7 所需的最小 executor 运行期原语（TODO T0917）：
-//   - `ScoopExecutor`：一个最小队列，支持入队 continuation + resume(u64 payload)
-//   - `ScoopTaskU64`：任务状态机 + completion 回调（完成后恢复等待者 continuation）
-//   - 可选显式 start：把 task body 入队到 executor 运行并完成
-// - 该实现是 cooperative、单队列、无取消：更复杂调度/并行/取消留给后续任务扩展。
+// - `Task<T>` / `Executor` 现在都是真正的 GC-managed 对象，而不是 word-sized handle；
+// - runtime 私有队列 / waiter 节点继续使用 `malloc`，但所有跨 GC 边界悬挂的对象引用
+//   都通过 `pin/unpin` 显式托管，避免 moving GC 下的悬挂指针；
+// - 调度语义仍保持最小 cooperative executor：单队列、无取消、无 work-stealing。
 
-#include <stdint.h>
 #include <stddef.h>
-#include <inttypes.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <stdatomic.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "platform/platform.h"
 #include "scoop_gc.h"
 
-// `scoop_runtime_init` / `scoop_continuation_resume_u64` 由 `scoop_runtime.c` 提供。
-void scoop_runtime_init(void);
-void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value);
+void scoop_thread_register(void);
+void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
+void scoop_continuation_resume(void *continuation);
+uint32_t scoop_task_complete(void *task_obj, uint64_t result_word, void *result_gc_ref);
+
+typedef struct ScoopEffectHandlerFrame ScoopEffectHandlerFrame;
+typedef void (*ScoopContinuationStepFn)(void *state, uint64_t resume_word, void *resume_gc_ref);
+
+typedef struct ScoopContinuationLayout {
+  ScoopGcObjectHeader hdr;
+  _Atomic uint32_t resumed;
+  uint32_t resume_state_tag;
+  ScoopEffectHandlerFrame *captured_handler_stack_top;
+  void *state;
+  ScoopContinuationStepFn step_fn;
+  uint64_t resume_word;
+  void *resume_gc_ref;
+  void *captured_callee_suspend_state;
+} ScoopContinuationLayout;
 
 typedef enum ScoopTaskStateU32 {
   SCOOP_TASK_STATE_CREATED = 0u,
@@ -29,9 +42,9 @@ typedef enum ScoopTaskStateU32 {
 } ScoopTaskStateU32;
 
 typedef struct ScoopExecutor ScoopExecutor;
-typedef struct ScoopTaskU64 ScoopTaskU64;
+typedef struct ScoopTask ScoopTask;
 
-typedef uint64_t (*ScoopTaskBodyU64Fn)(void *ctx);
+typedef uint64_t (*ScoopTaskBodyFn)(void *closure_obj, void **out_gc_ref);
 
 typedef struct ScoopExecutorJob {
   struct ScoopExecutorJob *next;
@@ -39,50 +52,160 @@ typedef struct ScoopExecutorJob {
   uint32_t _reserved_u32;
   union {
     struct {
-      void *continuation;
-      uint64_t resume_value;
-    } resume_u64;
+      void *continuation;   // pinned while queued
+      uint64_t resume_word;
+      void *resume_gc_ref;  // pinned while queued when non-null
+    } resume;
     struct {
-      ScoopTaskU64 *task;
+      ScoopTask *task;  // pinned while queued
     } run_task;
   } as;
 } ScoopExecutorJob;
 
-typedef struct ScoopExecutor {
+typedef struct ScoopTaskWaiter {
+  struct ScoopTaskWaiter *next;
+  ScoopExecutor *executor;  // pinned while waiting
+  void *continuation;       // pinned while waiting
+} ScoopTaskWaiter;
+
+struct ScoopExecutor {
+  ScoopGcObjectHeader header;
   ScoopPlatformMutex lock;
   ScoopExecutorJob *head;
   ScoopExecutorJob *tail;
   uint64_t pending_count;
-} ScoopExecutor;
-
-typedef struct ScoopTaskWaiter {
-  struct ScoopTaskWaiter *next;
-  ScoopExecutor *executor;
-  void *continuation;
-} ScoopTaskWaiter;
-
-typedef struct ScoopTaskU64 {
-  ScoopPlatformMutex lock;
-  ScoopTaskStateU32 state;
-  uint32_t _reserved_u32;
-  ScoopTaskBodyU64Fn body_fn;
-  void *body_ctx;
-  uint64_t result_u64;
-  ScoopTaskWaiter *waiters_head;
-  ScoopTaskWaiter *waiters_tail;
-} ScoopTaskU64;
-
-enum {
-  SCOOP_EXECUTOR_JOB_RESUME_U64 = 1u,
-  SCOOP_EXECUTOR_JOB_RUN_TASK_U64 = 2u,
+  uint32_t destroyed;
+  uint32_t lock_initialized;
 };
 
-static void scoop_executor_enqueue_job(ScoopExecutor *executor, ScoopExecutorJob *job) {
-  if (executor == 0 || job == 0) {
+struct ScoopTask {
+  ScoopGcObjectHeader header;
+  ScoopPlatformMutex lock;
+  uint32_t state;
+  uint32_t lock_initialized;
+  ScoopTaskBodyFn body_fn;
+  void *body_closure_obj;  // GC-traced
+  uint64_t result_word;
+  void *result_gc_ref;  // GC-traced
+  ScoopTaskWaiter *waiters_head;
+  ScoopTaskWaiter *waiters_tail;
+};
+
+enum {
+  SCOOP_EXECUTOR_JOB_RESUME_TRANSPORT = 1u,
+  SCOOP_EXECUTOR_JOB_RUN_TASK = 2u,
+};
+
+static void scoop_pin_nullable_or_die(void *obj) {
+  if (obj != 0 && !scoop_pin(obj)) {
+    exit(3);
+  }
+}
+
+static void scoop_unpin_nullable(void *obj) {
+  if (obj != 0) {
+    (void)scoop_unpin(obj);
+  }
+}
+
+static uint64_t scoop_task_trace(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
+  if (object == 0 || visitor == 0) {
+    return 0;
+  }
+
+  ScoopTask *task = (ScoopTask *)object;
+  uint64_t refs = 0;
+
+  if (task->body_closure_obj != 0) {
+    void **slot = (void **)&task->body_closure_obj;
+    visitor(slot, ctx);
+    refs++;
+  }
+  if (task->result_gc_ref != 0) {
+    void **slot = (void **)&task->result_gc_ref;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  return refs;
+}
+
+static void scoop_executor_release(void *object);
+static void scoop_task_release(void *object);
+
+static const ScoopTypeDescriptor SCOOP_EXECUTOR_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopExecutor),
+    .align_bytes = (uint64_t)_Alignof(ScoopExecutor),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = scoop_executor_release,
+};
+
+static const ScoopTypeDescriptor SCOOP_TASK_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopTask),
+    .align_bytes = (uint64_t)_Alignof(ScoopTask),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = scoop_task_trace,
+    .release_fn = scoop_task_release,
+};
+
+static int scoop_executor_can_queue(const ScoopExecutor *executor) {
+  return executor != 0 && executor->lock_initialized != 0 && executor->destroyed == 0;
+}
+
+static void scoop_executor_job_release(ScoopExecutorJob *job) {
+  if (job == 0) {
     return;
   }
 
+  switch (job->kind) {
+    case SCOOP_EXECUTOR_JOB_RESUME_TRANSPORT:
+      scoop_unpin_nullable(job->as.resume.continuation);
+      scoop_unpin_nullable(job->as.resume.resume_gc_ref);
+      break;
+    case SCOOP_EXECUTOR_JOB_RUN_TASK:
+      scoop_unpin_nullable((void *)job->as.run_task.task);
+      break;
+    default:
+      break;
+  }
+
+  free(job);
+}
+
+static void scoop_task_waiter_release(ScoopTaskWaiter *waiter) {
+  if (waiter == 0) {
+    return;
+  }
+
+  scoop_unpin_nullable((void *)waiter->executor);
+  scoop_unpin_nullable(waiter->continuation);
+  free(waiter);
+}
+
+static uint32_t scoop_executor_enqueue_job_owned(ScoopExecutor *executor, ScoopExecutorJob *job) {
+  if (!scoop_executor_can_queue(executor) || job == 0) {
+    scoop_executor_job_release(job);
+    return 0;
+  }
+
   scoop_platform_sync_mutex_lock(&executor->lock);
+  if (executor->destroyed) {
+    scoop_platform_sync_mutex_unlock(&executor->lock);
+    scoop_executor_job_release(job);
+    return 0;
+  }
+
   job->next = 0;
   if (executor->tail == 0) {
     executor->head = job;
@@ -93,10 +216,11 @@ static void scoop_executor_enqueue_job(ScoopExecutor *executor, ScoopExecutorJob
   }
   executor->pending_count += 1;
   scoop_platform_sync_mutex_unlock(&executor->lock);
+  return 1;
 }
 
 static ScoopExecutorJob *scoop_executor_try_pop_job(ScoopExecutor *executor) {
-  if (executor == 0) {
+  if (!scoop_executor_can_queue(executor)) {
     return 0;
   }
 
@@ -120,142 +244,324 @@ static ScoopExecutorJob *scoop_executor_try_pop_job(ScoopExecutor *executor) {
   return job;
 }
 
-static void scoop_executor_enqueue_resume_u64_pinned(ScoopExecutor *executor,
-                                                     void *continuation,
-                                                     uint64_t resume_value) {
-  if (executor == 0 || continuation == 0) {
+static void scoop_executor_cleanup_queue(ScoopExecutor *executor) {
+  if (executor == 0) {
     return;
   }
 
+  ScoopExecutorJob *jobs = 0;
+  if (executor->lock_initialized) {
+    scoop_platform_sync_mutex_lock(&executor->lock);
+    jobs = executor->head;
+    executor->head = 0;
+    executor->tail = 0;
+    executor->pending_count = 0;
+    scoop_platform_sync_mutex_unlock(&executor->lock);
+  } else {
+    jobs = executor->head;
+    executor->head = 0;
+    executor->tail = 0;
+    executor->pending_count = 0;
+  }
+
+  while (jobs != 0) {
+    ScoopExecutorJob *next = jobs->next;
+    jobs->next = 0;
+    scoop_executor_job_release(jobs);
+    jobs = next;
+  }
+}
+
+static void scoop_task_cleanup_waiters(ScoopTask *task) {
+  if (task == 0) {
+    return;
+  }
+
+  ScoopTaskWaiter *waiters = 0;
+  if (task->lock_initialized) {
+    scoop_platform_sync_mutex_lock(&task->lock);
+    waiters = task->waiters_head;
+    task->waiters_head = 0;
+    task->waiters_tail = 0;
+    scoop_platform_sync_mutex_unlock(&task->lock);
+  } else {
+    waiters = task->waiters_head;
+    task->waiters_head = 0;
+    task->waiters_tail = 0;
+  }
+
+  while (waiters != 0) {
+    ScoopTaskWaiter *next = waiters->next;
+    waiters->next = 0;
+    scoop_task_waiter_release(waiters);
+    waiters = next;
+  }
+}
+
+static void scoop_executor_release(void *object) {
+  if (object == 0) {
+    return;
+  }
+
+  ScoopExecutor *executor = (ScoopExecutor *)object;
+  if (executor->destroyed) {
+    return;
+  }
+
+  scoop_executor_cleanup_queue(executor);
+  if (executor->lock_initialized) {
+    scoop_platform_sync_mutex_destroy(&executor->lock);
+    executor->lock_initialized = 0;
+  }
+  executor->destroyed = 1;
+}
+
+static void scoop_task_release(void *object) {
+  if (object == 0) {
+    return;
+  }
+
+  ScoopTask *task = (ScoopTask *)object;
+  scoop_task_cleanup_waiters(task);
+  if (task->lock_initialized) {
+    scoop_platform_sync_mutex_destroy(&task->lock);
+    task->lock_initialized = 0;
+  }
+}
+
+static uint32_t scoop_executor_enqueue_resume_transport_pinned(ScoopExecutor *executor,
+                                                               void *continuation,
+                                                               uint64_t resume_word,
+                                                               void *resume_gc_ref) {
+  if (!scoop_executor_can_queue(executor) || continuation == 0) {
+    scoop_unpin_nullable(continuation);
+    return 0;
+  }
+
+  scoop_pin_nullable_or_die(resume_gc_ref);
+
   ScoopExecutorJob *job = (ScoopExecutorJob *)malloc(sizeof(ScoopExecutorJob));
   if (job == 0) {
-    // OOM：executor/job 是调度关键路径；early stage 直接 fail-fast。
     exit(3);
   }
 
   job->next = 0;
-  job->kind = SCOOP_EXECUTOR_JOB_RESUME_U64;
+  job->kind = SCOOP_EXECUTOR_JOB_RESUME_TRANSPORT;
   job->_reserved_u32 = 0;
-  job->as.resume_u64.continuation = continuation;
-  job->as.resume_u64.resume_value = resume_value;
-  scoop_executor_enqueue_job(executor, job);
+  job->as.resume.continuation = continuation;
+  job->as.resume.resume_word = resume_word;
+  job->as.resume.resume_gc_ref = resume_gc_ref;
+  return scoop_executor_enqueue_job_owned(executor, job);
 }
 
-uint64_t scoop_executor_create(void) {
-  scoop_runtime_init();
+static uint32_t scoop_executor_enqueue_run_task(ScoopExecutor *executor, ScoopTask *task) {
+  if (!scoop_executor_can_queue(executor) || task == 0) {
+    return 0;
+  }
 
-  ScoopExecutor *executor = (ScoopExecutor *)malloc(sizeof(ScoopExecutor));
+  scoop_pin_nullable_or_die((void *)task);
+
+  ScoopExecutorJob *job = (ScoopExecutorJob *)malloc(sizeof(ScoopExecutorJob));
+  if (job == 0) {
+    exit(3);
+  }
+
+  job->next = 0;
+  job->kind = SCOOP_EXECUTOR_JOB_RUN_TASK;
+  job->_reserved_u32 = 0;
+  job->as.run_task.task = task;
+  return scoop_executor_enqueue_job_owned(executor, job);
+}
+
+static ScoopTask *scoop_task_alloc(ScoopTaskBodyFn body_fn, void *body_closure_obj) {
+  scoop_pin_nullable_or_die(body_closure_obj);
+
+  ScoopTask *task = (ScoopTask *)scoop_alloc_typed(
+      &SCOOP_TASK_TYPE_DESC, (uint64_t)sizeof(ScoopTask));
+  if (task == 0) {
+    scoop_unpin_nullable(body_closure_obj);
+    return 0;
+  }
+
+  task->state = (uint32_t)SCOOP_TASK_STATE_CREATED;
+  task->lock_initialized = 0;
+  task->body_fn = body_fn;
+  task->body_closure_obj = body_closure_obj;
+  task->result_word = 0;
+  task->result_gc_ref = 0;
+  task->waiters_head = 0;
+  task->waiters_tail = 0;
+
+  if (!scoop_platform_sync_mutex_init(&task->lock)) {
+    scoop_unpin_nullable(body_closure_obj);
+    return 0;
+  }
+
+  task->lock_initialized = 1;
+  scoop_unpin_nullable(body_closure_obj);
+  return task;
+}
+
+static uint32_t scoop_task_read_completed_result(ScoopTask *task,
+                                                 uint64_t *out_word,
+                                                 void **out_gc_ref) {
+  if (task == 0 || !task->lock_initialized) {
+    return 0;
+  }
+
+  scoop_platform_sync_mutex_lock(&task->lock);
+  if (task->state != (uint32_t)SCOOP_TASK_STATE_COMPLETED) {
+    scoop_platform_sync_mutex_unlock(&task->lock);
+    exit(3);
+  }
+
+  if (out_word != 0) {
+    *out_word = task->result_word;
+  }
+  if (out_gc_ref != 0) {
+    *out_gc_ref = task->result_gc_ref;
+  }
+  scoop_platform_sync_mutex_unlock(&task->lock);
+  return 1;
+}
+
+static void scoop_task_run_body_on_executor(ScoopTask *task) {
+  if (task == 0 || !task->lock_initialized) {
+    return;
+  }
+
+  ScoopTaskBodyFn body_fn = 0;
+  void *body_closure_obj = 0;
+
+  scoop_platform_sync_mutex_lock(&task->lock);
+  if (task->state == (uint32_t)SCOOP_TASK_STATE_COMPLETED) {
+    scoop_platform_sync_mutex_unlock(&task->lock);
+    return;
+  }
+
+  task->state = (uint32_t)SCOOP_TASK_STATE_RUNNING;
+  body_fn = task->body_fn;
+  body_closure_obj = task->body_closure_obj;
+  scoop_pin_nullable_or_die(body_closure_obj);
+  scoop_platform_sync_mutex_unlock(&task->lock);
+
+  uint64_t result_word = 0;
+  void *result_gc_ref = 0;
+  if (body_fn != 0) {
+    result_word = body_fn(body_closure_obj, &result_gc_ref);
+  }
+
+  scoop_unpin_nullable(body_closure_obj);
+  (void)scoop_task_complete((void *)task, result_word, result_gc_ref);
+}
+
+void *scoop_executor_create(void) {
+  scoop_thread_register();
+
+  ScoopExecutor *executor = (ScoopExecutor *)scoop_alloc_typed(
+      &SCOOP_EXECUTOR_TYPE_DESC, (uint64_t)sizeof(ScoopExecutor));
   if (executor == 0) {
     return 0;
   }
 
-  (void)memset(executor, 0, sizeof(ScoopExecutor));
-  if (!scoop_platform_sync_mutex_init(&executor->lock)) {
-    free(executor);
-    return 0;
-  }
   executor->head = 0;
   executor->tail = 0;
   executor->pending_count = 0;
-  return (uint64_t)(uintptr_t)executor;
-}
+  executor->destroyed = 0;
+  executor->lock_initialized = 0;
 
-void scoop_executor_destroy(uint64_t executor_handle) {
-  if (executor_handle == 0) {
-    return;
-  }
-
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
-
-  // 说明：early stage 为避免泄漏 pinned roots，这里会把队列 drain 掉并做对应 unpin；
-  // 但不会执行 job（即不会 resume continuation / run task）。
-  ScoopExecutorJob *job = 0;
-  while ((job = scoop_executor_try_pop_job(executor)) != 0) {
-    if (job->kind == SCOOP_EXECUTOR_JOB_RESUME_U64) {
-      (void)scoop_unpin(job->as.resume_u64.continuation);
-    }
-    free(job);
-  }
-
-  scoop_platform_sync_mutex_destroy(&executor->lock);
-  free(executor);
-}
-
-uint64_t scoop_executor_debug_pending_count(uint64_t executor_handle) {
-  if (executor_handle == 0) {
+  if (!scoop_platform_sync_mutex_init(&executor->lock)) {
     return 0;
   }
 
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
+  executor->lock_initialized = 1;
+  return (void *)executor;
+}
+
+void scoop_executor_destroy(void *executor_obj) {
+  if (executor_obj == 0) {
+    return;
+  }
+
+  scoop_thread_register();
+
+  ScoopExecutor *executor = (ScoopExecutor *)executor_obj;
+  if (executor->destroyed) {
+    return;
+  }
+
+  scoop_executor_cleanup_queue(executor);
+  if (executor->lock_initialized) {
+    scoop_platform_sync_mutex_destroy(&executor->lock);
+    executor->lock_initialized = 0;
+  }
+  executor->destroyed = 1;
+}
+
+uint64_t scoop_executor_debug_pending_count(void *executor_obj) {
+  if (executor_obj == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  ScoopExecutor *executor = (ScoopExecutor *)executor_obj;
+  if (!scoop_executor_can_queue(executor)) {
+    return 0;
+  }
+
   scoop_platform_sync_mutex_lock(&executor->lock);
   uint64_t n = executor->pending_count;
   scoop_platform_sync_mutex_unlock(&executor->lock);
   return n;
 }
 
-void scoop_executor_enqueue_resume_u64(uint64_t executor_handle,
-                                      void *continuation,
-                                      uint64_t resume_value) {
-  if (executor_handle == 0 || continuation == 0) {
-    return;
-  }
-
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
-
-  // 说明：pin 失败意味着 continuation 不是由 `scoop_alloc` 分配/登记的 GC 对象；
-  // 这通常表示编译器/runtime 之间的 ABI 假设被破坏：early stage 直接 fail-fast。
-  if (!scoop_pin(continuation)) {
-    exit(3);
-  }
-
-  scoop_executor_enqueue_resume_u64_pinned(executor, continuation, resume_value);
-}
-
-static void scoop_task_u64_run_body_on_executor(ScoopTaskU64 *task, ScoopExecutor *executor);
-
-uint64_t scoop_executor_run_next(uint64_t executor_handle) {
-  if (executor_handle == 0) {
+uint64_t scoop_executor_run_next(void *executor_obj) {
+  if (executor_obj == 0) {
     return 0;
   }
 
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
+  scoop_thread_register();
+
+  ScoopExecutor *executor = (ScoopExecutor *)executor_obj;
   ScoopExecutorJob *job = scoop_executor_try_pop_job(executor);
   if (job == 0) {
     return 0;
   }
 
-  if (job->kind == SCOOP_EXECUTOR_JOB_RESUME_U64) {
-    void *continuation = job->as.resume_u64.continuation;
-    uint64_t value = job->as.resume_u64.resume_value;
-    scoop_continuation_resume_u64(continuation, value);
-    (void)scoop_unpin(continuation);
-    free(job);
+  if (job->kind == SCOOP_EXECUTOR_JOB_RESUME_TRANSPORT) {
+    ScoopContinuationLayout *continuation =
+        (ScoopContinuationLayout *)job->as.resume.continuation;
+    if (continuation != 0) {
+      continuation->resume_word = job->as.resume.resume_word;
+      continuation->resume_gc_ref = job->as.resume.resume_gc_ref;
+      scoop_continuation_resume((void *)continuation);
+    }
+    scoop_executor_job_release(job);
     return 1;
   }
 
-  if (job->kind == SCOOP_EXECUTOR_JOB_RUN_TASK_U64) {
-    ScoopTaskU64 *task = job->as.run_task.task;
-    free(job);
-    scoop_task_u64_run_body_on_executor(task, executor);
+  if (job->kind == SCOOP_EXECUTOR_JOB_RUN_TASK) {
+    ScoopTask *task = job->as.run_task.task;
+    scoop_task_run_body_on_executor(task);
+    scoop_executor_job_release(job);
     return 1;
   }
 
-  // unknown job kind：早期阶段直接忽略（更安全：避免崩溃）。
-  free(job);
+  scoop_executor_job_release(job);
   return 1;
 }
 
-uint64_t scoop_executor_run_until_idle(uint64_t executor_handle, uint64_t max_steps) {
-  if (executor_handle == 0) {
+uint64_t scoop_executor_run_until_idle(void *executor_obj, uint64_t max_steps) {
+  if (executor_obj == 0) {
     return 0;
   }
 
-  // max_steps==0 视为 “不设上限”，避免调用方必须手动传 UINT64_MAX。
   uint64_t limit = max_steps == 0 ? UINT64_MAX : max_steps;
   uint64_t ran = 0;
 
   while (ran < limit) {
-    if (!scoop_executor_run_next(executor_handle)) {
+    if (!scoop_executor_run_next(executor_obj)) {
       break;
     }
     ran++;
@@ -264,177 +570,165 @@ uint64_t scoop_executor_run_until_idle(uint64_t executor_handle, uint64_t max_st
   return ran;
 }
 
-uint64_t scoop_task_u64_create(ScoopTaskBodyU64Fn body_fn, void *body_ctx) {
-  scoop_runtime_init();
-
-  ScoopTaskU64 *task = (ScoopTaskU64 *)malloc(sizeof(ScoopTaskU64));
-  if (task == 0) {
-    return 0;
-  }
-
-  (void)memset(task, 0, sizeof(ScoopTaskU64));
-  if (!scoop_platform_sync_mutex_init(&task->lock)) {
-    free(task);
-    return 0;
-  }
-  task->state = SCOOP_TASK_STATE_CREATED;
-  task->_reserved_u32 = 0;
-  task->body_fn = body_fn;
-  task->body_ctx = body_ctx;
-  task->result_u64 = 0;
-  task->waiters_head = 0;
-  task->waiters_tail = 0;
-
-  return (uint64_t)(uintptr_t)task;
+void *scoop_task_create(ScoopTaskBodyFn body_fn, void *body_closure_obj) {
+  scoop_thread_register();
+  return (void *)scoop_task_alloc(body_fn, body_closure_obj);
 }
 
-void scoop_task_u64_destroy(uint64_t task_handle) {
-  if (task_handle == 0) {
-    return;
-  }
-
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-
-  scoop_platform_sync_mutex_lock(&task->lock);
-  ScoopTaskWaiter *waiters = task->waiters_head;
-  task->waiters_head = 0;
-  task->waiters_tail = 0;
-  scoop_platform_sync_mutex_unlock(&task->lock);
-
-  // destroy 时若仍有 waiters，说明使用方未完成/未 drain；这里做 best-effort 清理：
-  // - unpin 以避免 pinned roots 泄漏
-  // - free waiter nodes
-  while (waiters != 0) {
-    ScoopTaskWaiter *next = waiters->next;
-    if (waiters->continuation != 0) {
-      (void)scoop_unpin(waiters->continuation);
-    }
-    free(waiters);
-    waiters = next;
-  }
-
-  scoop_platform_sync_mutex_destroy(&task->lock);
-  free(task);
+void *scoop_task_create_manual(void) {
+  scoop_thread_register();
+  return (void *)scoop_task_alloc(0, 0);
 }
 
-uint32_t scoop_task_u64_state(uint64_t task_handle) {
-  if (task_handle == 0) {
-    return SCOOP_TASK_STATE_CREATED;
+uint32_t scoop_task_state(void *task_obj) {
+  if (task_obj == 0) {
+    return (uint32_t)SCOOP_TASK_STATE_CREATED;
   }
 
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
+  scoop_thread_register();
+
+  ScoopTask *task = (ScoopTask *)task_obj;
+  if (!task->lock_initialized) {
+    return (uint32_t)SCOOP_TASK_STATE_CREATED;
+  }
+
   scoop_platform_sync_mutex_lock(&task->lock);
-  uint32_t state = (uint32_t)task->state;
+  uint32_t state = task->state;
   scoop_platform_sync_mutex_unlock(&task->lock);
   return state;
 }
 
-uint64_t scoop_task_u64_result(uint64_t task_handle) {
-  if (task_handle == 0) {
+uint64_t scoop_task_result_word(void *task_obj) {
+  if (task_obj == 0) {
     return 0;
   }
 
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-  scoop_platform_sync_mutex_lock(&task->lock);
-  uint64_t v = task->result_u64;
-  scoop_platform_sync_mutex_unlock(&task->lock);
-  return v;
+  scoop_thread_register();
+
+  uint64_t word = 0;
+  (void)scoop_task_read_completed_result((ScoopTask *)task_obj, &word, 0);
+  return word;
 }
 
-uint32_t scoop_task_u64_try_start(uint64_t task_handle, uint64_t executor_handle) {
-  if (task_handle == 0 || executor_handle == 0) {
+void *scoop_task_result_gc_ref(void *task_obj) {
+  if (task_obj == 0) {
     return 0;
   }
 
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
+  scoop_thread_register();
+
+  void *gc_ref = 0;
+  (void)scoop_task_read_completed_result((ScoopTask *)task_obj, 0, &gc_ref);
+  return gc_ref;
+}
+
+uint32_t scoop_task_try_start(void *task_obj, void *executor_obj) {
+  if (task_obj == 0 || executor_obj == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  ScoopTask *task = (ScoopTask *)task_obj;
+  ScoopExecutor *executor = (ScoopExecutor *)executor_obj;
+  if (!task->lock_initialized || !scoop_executor_can_queue(executor)) {
+    return 0;
+  }
 
   scoop_platform_sync_mutex_lock(&task->lock);
-  if (task->state != SCOOP_TASK_STATE_CREATED) {
+  if (task->state != (uint32_t)SCOOP_TASK_STATE_CREATED || task->body_fn == 0) {
     scoop_platform_sync_mutex_unlock(&task->lock);
     return 0;
   }
-  if (task->body_fn == 0) {
-    // 没有 body 的 task 只能由外部驱动完成（例如 I/O completion）。
-    scoop_platform_sync_mutex_unlock(&task->lock);
-    return 0;
-  }
-  task->state = SCOOP_TASK_STATE_SCHEDULED;
+
+  task->state = (uint32_t)SCOOP_TASK_STATE_SCHEDULED;
   scoop_platform_sync_mutex_unlock(&task->lock);
 
-  ScoopExecutorJob *job = (ScoopExecutorJob *)malloc(sizeof(ScoopExecutorJob));
-  if (job == 0) {
-    exit(3);
+  if (!scoop_executor_enqueue_run_task(executor, task)) {
+    scoop_platform_sync_mutex_lock(&task->lock);
+    if (task->state == (uint32_t)SCOOP_TASK_STATE_SCHEDULED) {
+      task->state = (uint32_t)SCOOP_TASK_STATE_CREATED;
+    }
+    scoop_platform_sync_mutex_unlock(&task->lock);
+    return 0;
   }
-  job->next = 0;
-  job->kind = SCOOP_EXECUTOR_JOB_RUN_TASK_U64;
-  job->_reserved_u32 = 0;
-  job->as.run_task.task = task;
-  scoop_executor_enqueue_job(executor, job);
 
   return 1;
 }
 
-uint32_t scoop_task_u64_complete(uint64_t task_handle, uint64_t value) {
-  if (task_handle == 0) {
+uint32_t scoop_task_complete(void *task_obj, uint64_t result_word, void *result_gc_ref) {
+  if (task_obj == 0) {
     return 0;
   }
 
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
+  scoop_thread_register();
+
+  ScoopTask *task = (ScoopTask *)task_obj;
+  if (!task->lock_initialized) {
+    return 0;
+  }
 
   scoop_platform_sync_mutex_lock(&task->lock);
-  if (task->state == SCOOP_TASK_STATE_COMPLETED) {
-    // one-shot：重复 complete 为运行期错误（与 continuation resume/join 对齐）。
+  if (task->state == (uint32_t)SCOOP_TASK_STATE_COMPLETED) {
     scoop_platform_sync_mutex_unlock(&task->lock);
     exit(3);
   }
 
-  task->state = SCOOP_TASK_STATE_COMPLETED;
-  task->result_u64 = value;
+  task->state = (uint32_t)SCOOP_TASK_STATE_COMPLETED;
+  task->body_fn = 0;
+  task->body_closure_obj = 0;
+  task->result_word = result_word;
+  task->result_gc_ref = result_gc_ref;
 
   ScoopTaskWaiter *waiters = task->waiters_head;
   task->waiters_head = 0;
   task->waiters_tail = 0;
   scoop_platform_sync_mutex_unlock(&task->lock);
 
-  // 把 waiters 的 continuation 入队到对应 executor。
-  ScoopTaskWaiter *it = waiters;
-  while (it != 0) {
-    ScoopTaskWaiter *next = it->next;
-    scoop_executor_enqueue_resume_u64_pinned(it->executor, it->continuation, value);
-    free(it);
-    it = next;
+  while (waiters != 0) {
+    ScoopTaskWaiter *next = waiters->next;
+    waiters->next = 0;
+    (void)scoop_executor_enqueue_resume_transport_pinned(
+        waiters->executor, waiters->continuation, result_word, result_gc_ref);
+    scoop_unpin_nullable((void *)waiters->executor);
+    free(waiters);
+    waiters = next;
   }
 
   return 1;
 }
 
-uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle,
-                                               uint64_t executor_handle,
-                                               void *continuation) {
-  if (task_handle == 0 || executor_handle == 0 || continuation == 0) {
+uint32_t scoop_task_on_complete(void *task_obj, void *executor_obj, void *continuation) {
+  if (task_obj == 0 || executor_obj == 0 || continuation == 0) {
     return 0;
   }
 
-  ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-  ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
+  scoop_thread_register();
 
-  if (!scoop_pin(continuation)) {
-    exit(3);
+  ScoopTask *task = (ScoopTask *)task_obj;
+  ScoopExecutor *executor = (ScoopExecutor *)executor_obj;
+  if (!task->lock_initialized || !scoop_executor_can_queue(executor)) {
+    return 0;
   }
+
+  scoop_pin_nullable_or_die(continuation);
 
   scoop_platform_sync_mutex_lock(&task->lock);
-  if (task->state == SCOOP_TASK_STATE_COMPLETED) {
-    uint64_t value = task->result_u64;
+  if (task->state == (uint32_t)SCOOP_TASK_STATE_COMPLETED) {
+    uint64_t result_word = task->result_word;
+    void *result_gc_ref = task->result_gc_ref;
     scoop_platform_sync_mutex_unlock(&task->lock);
-    scoop_executor_enqueue_resume_u64_pinned(executor, continuation, value);
-    return 1;
+    return scoop_executor_enqueue_resume_transport_pinned(
+        executor, continuation, result_word, result_gc_ref);
   }
+
+  scoop_pin_nullable_or_die((void *)executor);
 
   ScoopTaskWaiter *node = (ScoopTaskWaiter *)malloc(sizeof(ScoopTaskWaiter));
   if (node == 0) {
     scoop_platform_sync_mutex_unlock(&task->lock);
-    (void)scoop_unpin(continuation);
+    scoop_unpin_nullable((void *)executor);
+    scoop_unpin_nullable(continuation);
     exit(3);
   }
 
@@ -452,31 +746,4 @@ uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle,
 
   scoop_platform_sync_mutex_unlock(&task->lock);
   return 1;
-}
-
-static void scoop_task_u64_run_body_on_executor(ScoopTaskU64 *task, ScoopExecutor *executor) {
-  (void)executor;
-  if (task == 0) {
-    return;
-  }
-
-  ScoopTaskBodyU64Fn body_fn = 0;
-  void *body_ctx = 0;
-
-  scoop_platform_sync_mutex_lock(&task->lock);
-  if (task->state == SCOOP_TASK_STATE_COMPLETED) {
-    scoop_platform_sync_mutex_unlock(&task->lock);
-    return;
-  }
-  task->state = SCOOP_TASK_STATE_RUNNING;
-  body_fn = task->body_fn;
-  body_ctx = task->body_ctx;
-  scoop_platform_sync_mutex_unlock(&task->lock);
-
-  uint64_t value = 0;
-  if (body_fn != 0) {
-    value = body_fn(body_ctx);
-  }
-
-  (void)scoop_task_u64_complete((uint64_t)(uintptr_t)task, value);
 }

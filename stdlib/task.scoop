@@ -25,7 +25,7 @@ import scoop.task.*
 /// - `spawn` 只负责把 body 入队；真正执行仍由 `Executor.runNext/runUntilIdle/await` 驱动；
 /// - `tryStart` 的返回值用于调试；v0 不把它作为错误模型的一部分。
 fun Executor.spawn(block: () -> Int): Task<Int> {
-    val t: Task<Int> = taskCreate(block)
+    val t: Task<Int> = taskCreate<Int>(block)
     val _started: Bool = t.tryStart(this)
     return t
 }
@@ -80,7 +80,7 @@ fun Executor.await(task: Task<Int>): Int / Raise<RuntimeError> {
 ///   - task 完成时，runtime 会把 continuation 入队到 executor 并以 result 恢复；
 ///   - continuation 恢复后执行 mapper 并 complete 输出 task。
 fun Task<Int>.map(executor: Executor, mapper: (Int) -> Int): Task<Int> {
-    val resultTask: Task<Int> = taskCreateManual()
+    val resultTask: Task<Int> = taskCreateManual<Int>()
     val _ = this.tryStart(executor)
 
     val _setup: Unit = handle {
@@ -110,7 +110,7 @@ fun Task<Int>.map(executor: Executor, mapper: (Int) -> Int): Task<Int> {
 /// - `andThen` 会在获得 next task 后尝试 start 它，以便 `executor.await(t.andThen(...))` 可直接工作；
 /// - next task 也允许是 manual task：此时 `tryStart` 会返回 false，但仍可被外部 complete。
 fun Task<Int>.andThen(executor: Executor, binder: (Int) -> Task<Int>): Task<Int> {
-    val resultTask: Task<Int> = taskCreateManual()
+    val resultTask: Task<Int> = taskCreateManual<Int>()
     val _ = this.tryStart(executor)
 
     val _setup: Unit = handle {

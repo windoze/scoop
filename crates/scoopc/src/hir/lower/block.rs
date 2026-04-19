@@ -76,8 +76,8 @@ impl<'a> HirLowering<'a> {
         mut block: Block,
         wrap_tail_expr: bool,
     ) -> Block {
-        // T0623：把 `async fun` 的返回值包装成 task 句柄：
-        // - `return expr` → `return __scoop_task_spawn_int(expr)`（early stage 仅支持 Int）；
+        // T0623：把 `async fun` 的返回值包装成 task 对象：
+        // - `return expr` → `return __scoop_task_from_result(expr)`；
         // - block tail expr（隐式返回）同样做一次包装。
 
         for stmt in &mut block.stmts {
@@ -94,7 +94,7 @@ impl<'a> HirLowering<'a> {
                 }
                 StmtKind::Return { value } => {
                     if let Some(v) = value.take() {
-                        *value = Some(self.wrap_task_spawn_int_call(stmt.span, v));
+                        *value = Some(self.wrap_task_from_result_call(stmt.span, v));
                     }
                 }
                 _ => {}
@@ -117,7 +117,7 @@ impl<'a> HirLowering<'a> {
                         kind: ExprKind::Missing,
                     },
                 );
-                *expr = self.wrap_task_spawn_int_call(expr_span, old);
+                *expr = self.wrap_task_from_result_call(expr_span, old);
             }
         }
 
@@ -134,9 +134,10 @@ impl<'a> HirLowering<'a> {
         block
     }
 
-    fn wrap_task_spawn_int_call(&mut self, at: Span, value: Expr) -> Expr {
-        // `__scoop_task_spawn_int(value)` → task handle (`UInt`)。
-        let fqn = Self::TASK_SPAWN_INT_FQN.to_string();
+    fn wrap_task_from_result_call(&mut self, at: Span, value: Expr) -> Expr {
+        // `__scoop_task_from_result(value)` → completed task object（spawn final desugar deferred）。
+        let result_ty = self.task_type_of(value.ty);
+        let fqn = Self::TASK_FROM_RESULT_FQN.to_string();
         let callee = Expr {
             span: at,
             ty: self.builtins.any,
@@ -148,7 +149,7 @@ impl<'a> HirLowering<'a> {
 
         Expr {
             span: at,
-            ty: self.builtins.uint,
+            ty: result_ty,
             kind: ExprKind::Call {
                 callee: Box::new(callee),
                 args: vec![CallArg::Positional(value)],

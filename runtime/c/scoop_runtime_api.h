@@ -168,15 +168,16 @@
   X(scoop_sync_once_create) \
   X(scoop_sync_once_is_done) \
   X(scoop_sync_once_run) \
-  X(scoop_task_join_int) \
-  X(scoop_task_spawn_int) \
-  X(scoop_task_u64_complete) \
-  X(scoop_task_u64_create) \
-  X(scoop_task_u64_destroy) \
-  X(scoop_task_u64_on_complete_resume_u64) \
-  X(scoop_task_u64_result) \
-  X(scoop_task_u64_state) \
-  X(scoop_task_u64_try_start) \
+  X(scoop_task_complete) \
+  X(scoop_task_create) \
+  X(scoop_task_create_manual) \
+  X(scoop_task_from_result) \
+  X(scoop_task_join) \
+  X(scoop_task_on_complete) \
+  X(scoop_task_result_gc_ref) \
+  X(scoop_task_result_word) \
+  X(scoop_task_state) \
+  X(scoop_task_try_start) \
   X(scoop_test_add_int) \
   X(scoop_test_callee_suspend_state_set) \
   X(scoop_test_continuation_resume_replay_state_create) \

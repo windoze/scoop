@@ -19,7 +19,7 @@ effect Waiter {
 fun main(): Int {
     val ex: Executor = executorCreate()
 
-    val t: Task<Int> = taskCreate {
+    val t: Task<Int> = taskCreate<Int> {
         println("body")
         7
     }
@@ -129,7 +129,7 @@ fun main(): Int {
     println(ex.debugPendingCount())
 
     // manual task：没有 body，不能 start，只能 complete
-    val m: Task<Int> = taskCreateManual()
+    val m: Task<Int> = taskCreateManual<Int>()
     println("m_state0")
     println(m.state())
 

@@ -521,8 +521,9 @@ impl<'a> HirLowering<'a> {
                     span: binder_decl_span,
                     id: binder_id,
                     name: binder_name.clone(),
-                    // NOTE: 当前阶段 Task 运行期表示为 word-sized handle；这里用 `UInt` 承载它。
-                    ty: self.builtins.uint,
+                    // 当前 `async {}` 的最小可执行路径仍沿用“同步 join Int task 后 immediate-resume”；
+                    // 更完整的 polymorphic task polling 会在 `T4009b` 继续定型。
+                    ty: self.task_type_of(self.builtins.int),
                 };
 
                 let op = HandleOp {
@@ -553,12 +554,12 @@ impl<'a> HirLowering<'a> {
                 };
                 let binder_arg = Expr {
                     span: binder_decl_span,
-                    ty: self.builtins.uint,
+                    ty: self.task_type_of(self.builtins.int),
                     kind: ExprKind::VarRef(binder_ref),
                 };
 
-                // `await task` 的最小可执行语义：调用 sysroot task helper 取回结果（目前只支持 `Int`）。
-                let join_fqn = Self::TASK_JOIN_INT_FQN.to_string();
+                // `await task` 的最小可执行语义：调用内部 join helper 取回结果。
+                let join_fqn = Self::TASK_JOIN_FQN.to_string();
                 let join_callee = Expr {
                     span: binder_decl_span,
                     ty: self.builtins.any,
@@ -604,19 +605,19 @@ impl<'a> HirLowering<'a> {
                 // T0620：`spawn { ... }`（结构化并发最小模型）。
                 //
                 // 当前阶段（最小可回归落点）：
-                // - `spawn` 的 body 先按普通 block 表达式执行并产出一个 `Int` 值；
-                // - 该值通过 runtime helper 包装为一个 task handle（后续可替换为更完整的 `Task<T>` 模型）。
-                //
-                // NOTE: 这里刻意不使用 lambda/closure，以避免依赖 closure codegen（尚未接入）。
+                // - `spawn` 的最终调度语义仍待后续任务定型；
+                // - 这里先保留“先算出结果，再包装成 task object”的最小可执行语义；
+                // - 关键变化是：结果不再被限制为 `Int`，并且任务值不再落成整数句柄。
 
                 let body = self.lower_block(pkg_prefix, body);
+                let body_ty = body.ty;
                 let body_expr = Expr {
                     span: body.span,
-                    ty: body.ty,
+                    ty: body_ty,
                     kind: ExprKind::Block(body),
                 };
 
-                let fqn = Self::TASK_SPAWN_INT_FQN.to_string();
+                let fqn = Self::TASK_FROM_RESULT_FQN.to_string();
                 let callee = Expr {
                     span: e.span,
                     ty: self.builtins.any,
@@ -631,8 +632,8 @@ impl<'a> HirLowering<'a> {
                         callee: Box::new(callee),
                         args: vec![CallArg::Positional(body_expr)],
                     },
-                    // task handle：用 word-sized `UInt` 表示。
-                    self.builtins.uint,
+                    self.typechecked_expr_ty(e.span)
+                        .unwrap_or_else(|| self.task_type_of(body_ty)),
                 )
             }
             ast::ExprKind::Await { await_span, expr } => {
@@ -671,10 +672,10 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::Join { join_span, expr } => {
                 // T0620：`join expr`（结构化并发最小模型）。
                 //
-                // 当前阶段：join 仅支持 `Int` 句柄，并返回 `Int`（后续会替换为 `await Task<T>`）。
+                // 当前阶段：join 仍是内部 one-shot helper，但其值表示已脱离 `Int handle`。
                 let inner = self.lower_expr(pkg_prefix, expr);
 
-                let fqn = Self::TASK_JOIN_INT_FQN.to_string();
+                let fqn = Self::TASK_JOIN_FQN.to_string();
                 let callee = Expr {
                     span: *join_span,
                     ty: self.builtins.any,
@@ -689,7 +690,8 @@ impl<'a> HirLowering<'a> {
                         callee: Box::new(callee),
                         args: vec![CallArg::Positional(inner)],
                     },
-                    self.builtins.int,
+                    self.typechecked_expr_ty(e.span)
+                        .unwrap_or(self.builtins.any),
                 )
             }
             ast::ExprKind::MemberAccess { receiver, member } => {

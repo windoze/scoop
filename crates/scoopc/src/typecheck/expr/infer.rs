@@ -514,8 +514,8 @@ fn infer_async_expr_type(
 ///
 /// 当前阶段（最小可回归落点）：
 /// - `spawn` 被视为一次 `Async` performed effect（与规范中 desugar 到 `Async.spawn(...)` 对齐）；
-/// - 先只支持 `spawn` body 的值类型为 `Int`，并返回一个 `Int` 句柄（后续由 `Task<T>` 替换）；
-/// - 更完整的 `Task<T>` / generic spawn / 取消语义留给后续任务（T0622/T0917）。
+/// - `spawn` body 的值类型直接成为 `Task<T>` 的 `T`；
+/// - `spawn` 的最终调度 / executor 语义仍留给后续任务（T4009b+）。
 fn infer_spawn_expr_type(
     inputs: ExprInferInputs<'_>,
     spawn_expr: &ast::Expr,
@@ -524,17 +524,6 @@ fn infer_spawn_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     let body_ty = infer_block_value_type(inputs, body, lower)?;
 
-    let expected_ty = inputs.builtins.int;
-    if !is_type_assignable(body_ty, expected_ty, lower, inputs.builtins) {
-        return Err(ExprTypeError::CallArgTypeMismatch {
-            callee: "spawn".to_string(),
-            index: 1,
-            expected: lower.fmt_type(expected_ty),
-            found: lower.fmt_type(body_ty),
-            span: body.span.into(),
-        });
-    }
-
     let async_effect = lower.lower_type_fqn_with_args(
         ASYNC_EFFECT_FQN.to_string(),
         Vec::new(),
@@ -542,10 +531,7 @@ fn infer_spawn_expr_type(
     )?;
     lower.record_performed_effect(async_effect, spawn_expr.span);
 
-    // T0622：为 `spawn/await` 引入 `Task<T>` 的最小类型模型：
-    // - 当前阶段仍只支持 `T = Int` 的可执行落点；
-    // - `Task<T>` 的运行期语义（lazy/executor/取消）由后续 runtime 任务补齐（T0917）。
-    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![expected_ty], spawn_expr.span)?)
+    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![body_ty], spawn_expr.span)?)
 }
 
 fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {

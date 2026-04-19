@@ -9,11 +9,11 @@ import scoop.task.*
 fun useTaskExecutor(executor: Executor, k: Continuation<Int>): Unit {
     val ex: Executor = executor
 
-    val t1: Task<Int> = taskCreate {
+    val t1: Task<Int> = taskCreate<Int> {
         7
     }
 
-    val t2: Task<Int> = taskCreateManual()
+    val t2: Task<Int> = taskCreateManual<Int>()
 
     val s0: Int = t1.state()
     val _r0: Int = t1.result()
@@ -44,4 +44,3 @@ fun useTaskExecutor(executor: Executor, k: Continuation<Int>): Unit {
     println(s0)
     return ()
 }
-

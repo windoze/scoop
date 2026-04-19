@@ -25,23 +25,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
-            // T0622：`Task<T>` 在早期阶段先落到 “word-sized handle”（runtime 用 `uint64_t` 承载）。
-            // 为保持 run-pass/codegen 可回归，这里把它视为 `UInt` 风格的整数句柄类型。
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.Task" => {
-                Some(CgTy::Int(IntTy {
-                    bits: self.host.word_bit_width(),
-                    signed: false,
-                }))
-            }
-            // T1319e：std v3 executor 句柄在 early stage 与 `Task<T>` 一致：落到 word-sized handle（u64）。
-            TypeKind::Ref(RefTypeKind::Nominal(nominal))
-                if nominal.fqn == "scoop.task.Executor" =>
-            {
-                Some(CgTy::Int(IntTy {
-                    bits: self.host.word_bit_width(),
-                    signed: false,
-                }))
-            }
             TypeKind::Ref(_) => Some(CgTy::Ref),
             TypeKind::StarProjection(star) => self.cg_ty_of(star.read_ty),
             TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),

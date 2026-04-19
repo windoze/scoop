@@ -116,8 +116,9 @@ struct HirLoweringSetup<'a> {
 
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
-    const TASK_SPAWN_INT_FQN: &'static str = "scoop.core.__scoop_task_spawn_int";
-    const TASK_JOIN_INT_FQN: &'static str = "scoop.core.__scoop_task_join_int";
+    const TASK_FROM_RESULT_FQN: &'static str = "scoop.core.__scoop_task_from_result";
+    const TASK_JOIN_FQN: &'static str = "scoop.core.__scoop_task_join";
+    const TASK_TYPE_FQN: &'static str = "scoop.core.Task";
     const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
     const ARRAY_BUILDER_NEW_FQN: &'static str = "scoop.core.__scoop_array_builder_new";
     const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
@@ -1282,6 +1283,10 @@ impl<'a> HirLowering<'a> {
                 .types
                 .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
         }
+    }
+
+    fn task_type_of(&mut self, inner_ty: TypeId) -> TypeId {
+        self.intern_nominal(Self::TASK_TYPE_FQN.to_string(), vec![inner_ty], None)
     }
 
     fn push_type_params(&mut self, params: &[ast::TypeParam]) {

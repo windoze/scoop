@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: spawn_join_string_basic.stdout
+//
+// T4009a：`spawn/join` 不再绑定到 `Int`-only handle ABI。
+//
+// 目标覆盖：
+// - `spawn { ... }` 可返回 `String`；
+// - `join task` 通过 `Task<T>` object transport 取回 GC 引用结果。
+
+import scoop.core.*
+
+fun main(): Int {
+    val value: String = async {
+        val task: Task<String> = spawn {
+            println("body")
+            "hello"
+        }
+        join task
+    }
+    println("joined")
+    println(value)
+    return 0
+}

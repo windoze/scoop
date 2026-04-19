@@ -4,12 +4,13 @@ use scoop_runtime as _;
 use core::ffi::c_void;
 use core::ptr;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 static EVENTS: Mutex<Vec<u64>> = Mutex::new(Vec::new());
-static TASK_HANDLE: AtomicU64 = AtomicU64::new(0);
+static TASK_HANDLE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 
-type ScoopTaskBodyU64Fn = Option<extern "C" fn(ctx: *mut c_void) -> u64>;
+type ScoopTaskBodyFn =
+    Option<extern "C" fn(closure_obj: *mut c_void, out_gc_ref: *mut *mut c_void) -> u64>;
 type ScoopContinuationStepFn =
     Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
@@ -23,19 +24,18 @@ unsafe extern "C" {
         step_fn: ScoopContinuationStepFn,
     ) -> *mut c_void;
 
-    fn scoop_executor_create() -> u64;
-    fn scoop_executor_destroy(executor_handle: u64);
-    fn scoop_executor_debug_pending_count(executor_handle: u64) -> u64;
-    fn scoop_executor_run_until_idle(executor_handle: u64, max_steps: u64) -> u64;
+    fn scoop_executor_create() -> *mut c_void;
+    fn scoop_executor_destroy(executor_obj: *mut c_void);
+    fn scoop_executor_debug_pending_count(executor_obj: *mut c_void) -> u64;
+    fn scoop_executor_run_until_idle(executor_obj: *mut c_void, max_steps: u64) -> u64;
 
-    fn scoop_task_u64_create(body_fn: ScoopTaskBodyU64Fn, body_ctx: *mut c_void) -> u64;
-    fn scoop_task_u64_destroy(task_handle: u64);
-    fn scoop_task_u64_state(task_handle: u64) -> u32;
-    fn scoop_task_u64_result(task_handle: u64) -> u64;
-    fn scoop_task_u64_try_start(task_handle: u64, executor_handle: u64) -> u32;
-    fn scoop_task_u64_on_complete_resume_u64(
-        task_handle: u64,
-        executor_handle: u64,
+    fn scoop_task_create(body_fn: ScoopTaskBodyFn, body_closure_obj: *mut c_void) -> *mut c_void;
+    fn scoop_task_state(task_obj: *mut c_void) -> u32;
+    fn scoop_task_result_word(task_obj: *mut c_void) -> u64;
+    fn scoop_task_try_start(task_obj: *mut c_void, executor_obj: *mut c_void) -> u32;
+    fn scoop_task_on_complete(
+        task_obj: *mut c_void,
+        executor_obj: *mut c_void,
         continuation: *mut c_void,
     ) -> u32;
 }
@@ -47,14 +47,19 @@ fn lock_events() -> std::sync::MutexGuard<'static, Vec<u64>> {
     }
 }
 
-extern "C" fn task_body_u64(_ctx: *mut c_void) -> u64 {
+extern "C" fn task_body_u64(_closure_obj: *mut c_void, out_gc_ref: *mut *mut c_void) -> u64 {
+    if !out_gc_ref.is_null() {
+        unsafe {
+            *out_gc_ref = ptr::null_mut();
+        }
+    }
     lock_events().push(100);
     42
 }
 
 extern "C" fn cont_step_a(_state: *mut c_void, resume_value: u64, _resume_gc_ref: *mut c_void) {
     let task = TASK_HANDLE.load(Ordering::Relaxed);
-    let state = unsafe { scoop_task_u64_state(task) };
+    let state = unsafe { scoop_task_state(task) };
 
     let mut events = lock_events();
     events.push(1);
@@ -64,7 +69,7 @@ extern "C" fn cont_step_a(_state: *mut c_void, resume_value: u64, _resume_gc_ref
 
 extern "C" fn cont_step_b(_state: *mut c_void, resume_value: u64, _resume_gc_ref: *mut c_void) {
     let task = TASK_HANDLE.load(Ordering::Relaxed);
-    let state = unsafe { scoop_task_u64_state(task) };
+    let state = unsafe { scoop_task_state(task) };
 
     let mut events = lock_events();
     events.push(2);
@@ -82,14 +87,14 @@ fn task_executor_minimal_start_complete_and_resume_waiters_in_order() {
     lock_events().clear();
 
     let executor = unsafe { scoop_executor_create() };
-    assert_ne!(executor, 0);
+    assert_ne!(executor, ptr::null_mut());
 
-    let task = unsafe { scoop_task_u64_create(Some(task_body_u64), ptr::null_mut()) };
-    assert_ne!(task, 0);
+    let task = unsafe { scoop_task_create(Some(task_body_u64), ptr::null_mut()) };
+    assert_ne!(task, ptr::null_mut());
     TASK_HANDLE.store(task, Ordering::Relaxed);
 
-    // 0=created（见 runtime/c/scoop_runtime.c：SCOOP_TASK_STATE_CREATED）。
-    assert_eq!(unsafe { scoop_task_u64_state(task) }, 0);
+    // 0=created（见 runtime/c/scoop_task_executor.c：SCOOP_TASK_STATE_CREATED）。
+    assert_eq!(unsafe { scoop_task_state(task) }, 0);
     assert_eq!(unsafe { scoop_executor_debug_pending_count(executor) }, 0);
     assert_eq!(unsafe { scoop_executor_run_until_idle(executor, 100) }, 0);
     assert!(lock_events().is_empty());
@@ -100,19 +105,13 @@ fn task_executor_minimal_start_complete_and_resume_waiters_in_order() {
     let k2 = unsafe { scoop_continuation_alloc(ptr::null_mut(), Some(cont_step_b)) };
     assert!(!k2.is_null());
 
-    assert_eq!(
-        unsafe { scoop_task_u64_on_complete_resume_u64(task, executor, k1) },
-        1
-    );
-    assert_eq!(
-        unsafe { scoop_task_u64_on_complete_resume_u64(task, executor, k2) },
-        1
-    );
+    assert_eq!(unsafe { scoop_task_on_complete(task, executor, k1) }, 1);
+    assert_eq!(unsafe { scoop_task_on_complete(task, executor, k2) }, 1);
 
     // 显式 start：把 task body 入队到 executor。
-    assert_eq!(unsafe { scoop_task_u64_try_start(task, executor) }, 1);
+    assert_eq!(unsafe { scoop_task_try_start(task, executor) }, 1);
     // 1=scheduled
-    assert_eq!(unsafe { scoop_task_u64_state(task) }, 1);
+    assert_eq!(unsafe { scoop_task_state(task) }, 1);
     assert_eq!(unsafe { scoop_executor_debug_pending_count(executor) }, 1);
 
     // run until idle：
@@ -122,8 +121,8 @@ fn task_executor_minimal_start_complete_and_resume_waiters_in_order() {
     assert_eq!(ran, 3, "expected: run_task + resume(A) + resume(B)");
 
     // 3=completed
-    assert_eq!(unsafe { scoop_task_u64_state(task) }, 3);
-    assert_eq!(unsafe { scoop_task_u64_result(task) }, 42);
+    assert_eq!(unsafe { scoop_task_state(task) }, 3);
+    assert_eq!(unsafe { scoop_task_result_word(task) }, 42);
     assert_eq!(unsafe { scoop_executor_debug_pending_count(executor) }, 0);
 
     let events = lock_events().clone();
@@ -137,7 +136,6 @@ fn task_executor_minimal_start_complete_and_resume_waiters_in_order() {
     );
 
     unsafe {
-        scoop_task_u64_destroy(task);
         scoop_executor_destroy(executor);
         scoop_thread_unregister();
     }

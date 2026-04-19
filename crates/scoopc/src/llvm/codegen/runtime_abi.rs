@@ -738,8 +738,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `uint64_t scoop_executor_create(void)`
-        let fn_ty = self.context.i64_type().fn_type(&[], false);
+        // `void* scoop_executor_create(void)`
+        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -749,9 +749,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void scoop_executor_destroy(uint64_t executor_handle)`
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        // `void scoop_executor_destroy(void* executor_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -762,9 +762,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `uint64_t scoop_executor_debug_pending_count(uint64_t executor_handle)`
+        // `uint64_t scoop_executor_debug_pending_count(void* executor_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -775,9 +776,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `uint64_t scoop_executor_run_next(uint64_t executor_handle)`
+        // `uint64_t scoop_executor_run_next(void* executor_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -788,96 +790,157 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `uint64_t scoop_executor_run_until_idle(uint64_t executor_handle, uint64_t max_steps)`
+        // `uint64_t scoop_executor_run_until_idle(void* executor_obj, uint64_t max_steps)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i64_ty.into(), i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_task_u64_create(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_CREATE;
+    pub(super) fn declare_runtime_task_create(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_CREATE;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `uint64_t scoop_task_u64_create(uint64_t (*body_fn)(void*), void* body_ctx)`
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let i64_ty = self.context.i64_type();
+        // `void* scoop_task_create(uint64_t (*body_fn)(void* closure_obj, void** out_gc_ref), void* closure_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let body_fn_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [body_fn_ptr_ty.into(), i8_ptr_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [body_fn_ptr_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_create_manual(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_CREATE_MANUAL;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_task_create_manual(void)`
+        let fn_ty = self.llvm_gc_i8_ptr_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_state(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_STATE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_task_state(void* task_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_result_word(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_RESULT_WORD;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_task_result_word(void* task_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_task_u64_state(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_STATE;
+    pub(super) fn declare_runtime_task_result_gc_ref(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_RESULT_GC_REF;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `uint32_t scoop_task_u64_state(uint64_t task_handle)`
-        let i64_ty = self.context.i64_type();
+        // `void* scoop_task_result_gc_ref(void* task_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_try_start(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_TRY_START;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_task_try_start(void* task_obj, void* executor_obj)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    pub(super) fn declare_runtime_task_u64_result(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_RESULT;
+    pub(super) fn declare_runtime_task_complete(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_COMPLETE;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `uint64_t scoop_task_u64_result(uint64_t task_handle)`
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
-        let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_task_u64_try_start(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_TRY_START;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint32_t scoop_task_u64_try_start(uint64_t task_handle, uint64_t executor_handle)`
+        // `uint32_t scoop_task_complete(void* task_obj, uint64_t word, void* gc_ref)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i64_ty.into(), i64_ty.into()];
-        let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_task_u64_complete(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_COMPLETE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint32_t scoop_task_u64_complete(uint64_t task_handle, uint64_t value)`
-        let i64_ty = self.context.i64_type();
-        let i32_ty = self.context.i32_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i64_ty.into(), i64_ty.into()];
-        let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_task_u64_on_complete_resume_u64(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_U64_ON_COMPLETE_RESUME_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle, uint64_t executor_handle, void* continuation)`
-        let i64_ty = self.context.i64_type();
-        let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i64_ty.into(), i64_ty.into(), i8_ptr_ty.into()];
+            [gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_on_complete(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_ON_COMPLETE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_task_on_complete(void* task_obj, void* executor_obj, void* continuation)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] = [
+            gc_i8_ptr_ty.into(),
+            gc_i8_ptr_ty.into(),
+            gc_i8_ptr_ty.into(),
+        ];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_from_result(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_FROM_RESULT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_task_from_result(uint64_t word, void* gc_ref)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i64_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    pub(super) fn declare_runtime_task_join(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TASK_JOIN;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_task_join(void* task_obj, void** out_gc_ref)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let out_gc_ref_slot_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [gc_i8_ptr_ty.into(), out_gc_ref_slot_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -1219,32 +1282,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_task_spawn_int(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_SPAWN_INT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint64_t scoop_task_spawn_int(int64_t value)`
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
-        let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    pub(super) fn declare_runtime_task_join_int(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_TASK_JOIN_INT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `int64_t scoop_task_join_int(uint64_t handle)`
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
-        let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 }

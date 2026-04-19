@@ -1449,49 +1449,62 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
   }
 }
 
-// --- Tasks / spawn/join（early stage, TODO T0620） ---
+// --- Tasks / spawn/join helpers（object-model stage, TODO T4009a） ---
 //
 // 说明：
-// - 当前阶段只提供最小可执行语义：`spawn { body }` 会先在当前线程计算出 `Int` 值，
-//   再由 runtime 分配一个句柄对象保存该值；`join handle` 取回该值；
-// - 该实现不提供真实并行/取消；更完整的 `Task<T>`/executor 原语见 `runtime/c/scoop_task_executor.c`（T0917）。
-// - `join` 当前为 one-shot：对同一个 handle 重复 join 会直接 `exit(3)`（与 `resume` 的运行期断言保持一致）。
+// - `spawn { ... }` 当前的最小 lowering 会先在当前线程算出结果，再通过
+//   `scoop_task_from_result(word, gc_ref)` 包装成一个已完成的 `Task<T>` 对象；
+// - `join task` 则通过 `scoop_task_join(task, &out_gc_ref)` 读取已完成 task 的 transport 值；
+// - 真实的 `Task<T>` / `Executor` 状态机、`taskCreate` / `onComplete` / `complete`
+//   主体实现在 `runtime/c/scoop_task_executor.c`。
 
-typedef struct ScoopTaskInt {
-  uint32_t joined;
-  uint32_t _reserved_u32;
-  int64_t value;
-} ScoopTaskInt;
+void *scoop_task_create_manual(void);
+uint32_t scoop_task_complete(void *task_obj, uint64_t result_word, void *result_gc_ref);
+uint64_t scoop_task_result_word(void *task_obj);
+void *scoop_task_result_gc_ref(void *task_obj);
 
-uint64_t scoop_task_spawn_int(int64_t value) {
+void *scoop_task_from_result(uint64_t result_word, void *result_gc_ref) {
   if (!scoop_rt_initialized) {
     scoop_runtime_init();
   }
 
-  ScoopTaskInt *task = (ScoopTaskInt *)malloc(sizeof(ScoopTaskInt));
-  if (task == 0) {
-    // OOM：返回 0 句柄（join 时会返回 0）。
-    return 0;
-  }
-
-  task->joined = 0;
-  task->_reserved_u32 = 0;
-  task->value = value;
-  return (uint64_t)(uintptr_t)task;
-}
-
-int64_t scoop_task_join_int(uint64_t handle) {
-  if (handle == 0) {
-    return 0;
-  }
-
-  ScoopTaskInt *task = (ScoopTaskInt *)(uintptr_t)handle;
-  if (task->joined) {
+  if (result_gc_ref != 0 && !scoop_pin(result_gc_ref)) {
     exit(3);
   }
 
-  task->joined = 1;
-  return task->value;
+  void *task = scoop_task_create_manual();
+  if (task == 0) {
+    scoop_unpin(result_gc_ref);
+    return 0;
+  }
+
+  uint32_t ok = scoop_task_complete(task, result_word, result_gc_ref);
+  scoop_unpin(result_gc_ref);
+  if (!ok) {
+    return 0;
+  }
+
+  return task;
+}
+
+uint64_t scoop_task_join(void *task_obj, void **out_gc_ref) {
+  if (out_gc_ref != 0) {
+    *out_gc_ref = 0;
+  }
+  if (task_obj == 0) {
+    return 0;
+  }
+
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
+  uint64_t result_word = scoop_task_result_word(task_obj);
+  void *result_gc_ref = scoop_task_result_gc_ref(task_obj);
+  if (out_gc_ref != 0) {
+    *out_gc_ref = result_gc_ref;
+  }
+  return result_word;
 }
 
 static int scoop_is_indent_ws(uint8_t c) {

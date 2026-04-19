@@ -451,7 +451,8 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int>, value:
 // Task（spec §5.3 / §5.7）
 //
 // 说明：
-// - `Task<T>` 是异步计算的句柄类型；其具体运行期模型（executor/调度/取消）由 runtime 任务补齐；
+// - `Task<T>` 是异步计算对象；当前 runtime 以 GC-managed heap object 保存其私有状态；
+// - 其完整 poll/step/executor 合同仍由后续任务继续定型；
 // - 规范语义：Task 默认为 lazy：直到 `await`（或显式启动，例如 `spawn`）才要求执行。
 // - 当前阶段先把它作为"可在类型系统中出现的名义类型"，用于 `await/spawn` 的最小建模（T0622）。
 class Task<T>
@@ -470,10 +471,10 @@ effect Async {
 //
 // 说明：
 // - 该组 API 仅用于 `spawn/join` 语法糖的最小可执行落点（T0620）；
-// - 当前阶段先只支持 `Int` 结果，并不承诺稳定 ABI；
-// - 后续会被 `Task<T>` + executor/runtime 原语替换（T0622/T0917）。
-fun __scoop_task_spawn_int(value: Int): Task<Int>
-fun __scoop_task_join_int(task: Task<Int>): Int
+// - `spawn` 的最终 desugar 仍待后续任务定型；当前 helper 只负责把“已算出的结果值”包装成 task；
+// - `join` 当前仍是最小 one-shot helper，不承诺最终 API 语义。
+fun <T> __scoop_task_from_result(value: T): Task<T>
+fun <T> __scoop_task_join(task: Task<T>): T
 
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {

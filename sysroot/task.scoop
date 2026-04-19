@@ -6,14 +6,14 @@
 // - 语义/性能（work-stealing、多 executor、取消）均留给后续任务扩展。
 //
 // 设计约定（early stage）：
-// - `Executor` 句柄当前以“word-sized handle”落地（与 `Task<T>` 一致），避免过早引入 GC-managed 对象布局；
-// - 本模块的 API 面向 std/runtime 的 glue，不承诺稳定 ABI（与 sysroot 其它 runtime-adapter 一致）。
+// - `Executor` / `Task<T>` 当前都落到 runtime 私有的 GC-managed 对象表示；
+// - 本模块的 API 面向 std/runtime glue，不承诺稳定 ABI（与 sysroot 其它 runtime-adapter 一致）。
 
 package scoop.task
 
 import scoop.core.*
 
-/// 协作式执行器（opaque handle；语义由 std/runtime 约定）。
+/// 协作式执行器（opaque object；语义由 std/runtime 约定）。
 class Executor
 
 // --- Executor ---
@@ -41,34 +41,34 @@ fun Executor.runNext(): Bool
 /// 约定：`maxSteps == 0` 表示“不设上限”（由 runtime 解释）。
 fun Executor.runUntilIdle(maxSteps: Int): Int
 
-// --- Task<Int>（u64 payload 的最小落点，early stage） ---
+// --- Task<T>（object-model 最小落点，early stage） ---
 
 /// 创建一个带有 body 的 task：start 后会在 executor 中运行 `block` 并完成。
-fun taskCreate(block: () -> Int): Task<Int>
+fun <T> taskCreate(block: () -> T): Task<T>
 
 /// 创建一个“无 body”的 task：不能 start，只能由外部显式 `complete`。
-fun taskCreateManual(): Task<Int>
+fun <T> taskCreateManual(): Task<T>
 
 /// 返回 task 的当前状态（稳定数值见 runtime 约定）。
-fun Task<Int>.state(): Int
+fun <T> Task<T>.state(): Int
 
 /// 返回 task 的结果（仅在 completed 后有意义）。
-fun Task<Int>.result(): Int
+fun <T> Task<T>.result(): T
 
 /// 尝试启动 task：把 task body 入队到 executor（若 task 处于 created 且有 body）。
-fun Task<Int>.tryStart(executor: Executor): Bool
+fun <T> Task<T>.tryStart(executor: Executor): Bool
 
 /// 显式完成 task，并把所有 onComplete waiters 入队到对应 executor。
 ///
 /// 说明：重复 complete 会触发运行期 one-shot 断言（exit(3)）。
-fun Task<Int>.complete(value: Int): Bool
+fun <T> Task<T>.complete(value: T): Bool
 
 /// 注册完成回调：当 task 完成时，把 continuation 入队到 executor，并以 `value` 恢复它。
 ///
 /// 说明：
 /// - 若 task 已完成，则立即把 continuation 入队到 executor；
 /// - continuation 由 runtime pin/unpin，避免 GC sweep 期间被回收。
-fun Task<Int>.onComplete(executor: Executor, continuation: Continuation<Int>): Bool
+fun <T> Task<T>.onComplete(executor: Executor, continuation: Continuation<T>): Bool
 
 // --- Task async adapters（stdlib v4，early stage） ---
 //

@@ -1096,7 +1096,7 @@
   - 如 runtime / sysroot 合同改变，相关文档同步更新。
 - 依赖：T4008R
 
-### T4009a [TODO] 拆掉 `Task<T>` / `Executor` 的 hard-coded handle ABI 绑定
+### T4009a [DONE] 拆掉 `Task<T>` / `Executor` 的 hard-coded handle ABI 绑定
 - 范围：
   - `spawn { ... }` body 不再被旧 ABI 绑死为 `Int`；`Task<T>` / `Executor` 也不再直接映射成 word-sized runtime handle。
   - `taskCreate` / `onComplete` / `join` 的 lowering 不再把旧 runtime symbol（如 `scoop_task_u64_create`、`scoop_task_u64_on_complete_resume_u64`、`__scoop_task_join_int`）当成 `Task` 公开语义本体。
