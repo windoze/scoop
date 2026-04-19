@@ -2756,14 +2756,14 @@ fun demo(k: Continuation<Int>): Int {
         let (fun, handle) = first_handle_in_file(&lowered.file).expect("expected a handle expression");
         let context = collect_plan_context(&lowered, fun);
         let builder = HandlePlanBuilder::new(&lowered.types, handle, &context);
-        let resume_call_span = lowered
+        let resume_call_site = lowered
             .continuation_resume_call_sites
             .iter()
-            .copied()
             .next()
+            .cloned()
             .expect("expected a typechecked Continuation.resume call site");
         assert!(matches!(
-            builder.classify_builtin_suspend_call(resume_call_span),
+            builder.classify_builtin_suspend_call(resume_call_site.span),
             Some(SuspendSiteKind::RuntimeRaise { reason }) if reason == "Continuation.resume"
         ));
         assert!(
@@ -4459,6 +4459,7 @@ fun demo(limit: Int): Int {
         let analysis = SuspendCallAnalysis {
             types: &lowered.types,
             known_fun_effects: &known_fun_effects,
+            current_source_path: owner_fun.source_path.as_path(),
             ctor_call_targets: &ctor_call_targets,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
             object_value_fqns: &object_value_fqns,
@@ -4480,6 +4481,7 @@ fun demo(limit: Int): Int {
             known_local_fun_effects,
             known_local_metadata,
             next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
+            current_source_path: owner_fun.source_path.clone(),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,

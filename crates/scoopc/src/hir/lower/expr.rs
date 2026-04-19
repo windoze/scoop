@@ -357,7 +357,9 @@ impl<'a> HirLowering<'a> {
                             .typechecked_ctor_call_info(e.span)
                             .or_else(|| self.resolver_fallback_ctor_call_info(id, args))
                     {
-                        self.ctor_call_sites.entry(e.span).or_insert(binding);
+                        self.ctor_call_sites
+                            .entry(self.call_site(e.span))
+                            .or_insert(binding);
                     }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);

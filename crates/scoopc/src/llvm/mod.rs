@@ -1153,6 +1153,7 @@ fn collect_reachable_top_level_funs<'a>(
         scanned_class_init_steps: HashSet::new(),
         scanned_top_level_consts: HashSet::new(),
         scanned_top_level_immutable_values: HashSet::new(),
+        current_source_path: None,
     };
 
     // 入口：扫描 `main` 的函数体，但不把 `main` 本身加入 reachable 集合（它由 `codegen_main_exit_code` 生成）。
@@ -1213,9 +1214,23 @@ struct ReachabilityCollector<'a> {
     scanned_class_init_steps: HashSet<String>,
     scanned_top_level_consts: HashSet<String>,
     scanned_top_level_immutable_values: HashSet<String>,
+    current_source_path: Option<PathBuf>,
 }
 
 impl<'a> ReachabilityCollector<'a> {
+    fn with_source_path<T>(&mut self, source_path: &Path, f: impl FnOnce(&mut Self) -> T) -> T {
+        let prev = self.current_source_path.replace(source_path.to_path_buf());
+        let out = f(self);
+        self.current_source_path = prev;
+        out
+    }
+
+    fn current_call_site(&self, span: Span) -> Option<hir::CallSite> {
+        self.current_source_path
+            .as_ref()
+            .map(|path| hir::CallSite::new(path.clone(), span))
+    }
+
     fn enqueue_fun(&mut self, fqn: String) {
         if self.seen_calls.insert(fqn.clone()) {
             self.fun_queue.push_back(fqn);
@@ -1226,12 +1241,14 @@ impl<'a> ReachabilityCollector<'a> {
         if !self.scanned_top_level_consts.insert(fqn.to_string()) {
             return;
         }
-        let Some(top_level_const) = self.top_level_consts.get(fqn) else {
+        let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() else {
             return;
         };
-        if let Some(init) = top_level_const.init.as_ref() {
-            self.scan_expr(init);
-        }
+        self.with_source_path(top_level_const.source_path.as_path(), |this| {
+            if let Some(init) = top_level_const.init.as_ref() {
+                this.scan_expr(init);
+            }
+        });
     }
 
     fn scan_top_level_immutable_value(&mut self, fqn: &str) {
@@ -1241,12 +1258,14 @@ impl<'a> ReachabilityCollector<'a> {
         {
             return;
         }
-        let Some(value) = self.top_level_immutable_values.get(fqn) else {
+        let Some(value) = self.top_level_immutable_values.get(fqn).cloned() else {
             return;
         };
-        if let Some(init) = value.init.as_ref() {
-            self.scan_expr(init);
-        }
+        self.with_source_path(value.source_path.as_path(), |this| {
+            if let Some(init) = value.init.as_ref() {
+                this.scan_expr(init);
+            }
+        });
     }
 
     fn enqueue_vtable_impls(&mut self, class_fqn: &str) {
@@ -1280,7 +1299,10 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn enqueue_ctor_call_site(&mut self, call_span: Span) {
-        let Some(info) = self.ctor_call_sites.get(&call_span) else {
+        let Some(call_site) = self.current_call_site(call_span) else {
+            return;
+        };
+        let Some(info) = self.ctor_call_sites.get(&call_site) else {
             return;
         };
 
@@ -1319,10 +1341,12 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn scan_fun(&mut self, fun: &hir::FunDecl) {
-        let Some(body) = fun.body.as_ref() else {
-            return;
-        };
-        self.scan_block(body);
+        self.with_source_path(fun.source_path.as_path(), |this| {
+            let Some(body) = fun.body.as_ref() else {
+                return;
+            };
+            this.scan_block(body);
+        });
     }
 
     fn scan_block(&mut self, block: &hir::Block) {
@@ -1458,16 +1482,18 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn scan_class_init_steps(&mut self, class: &hir::ClassInit) {
-        for step in &class.steps {
-            match step {
-                hir::ClassInitStep::PropertyInit { init, .. } => self.scan_expr(init),
-                hir::ClassInitStep::InitBlock { block } => self.scan_block(block),
+        self.with_source_path(class.source_path.as_path(), |this| {
+            for step in &class.steps {
+                match step {
+                    hir::ClassInitStep::PropertyInit { init, .. } => this.scan_expr(init),
+                    hir::ClassInitStep::InitBlock { block } => this.scan_block(block),
+                }
             }
-        }
+        });
     }
 
     fn scan_ctor(&mut self, class_fqn: &str, ctor_span: Option<Span>) {
-        let Some(class) = self.class_inits.get(class_fqn) else {
+        let Some(class) = self.class_inits.get(class_fqn).cloned() else {
             return;
         };
 
@@ -1481,69 +1507,71 @@ impl<'a> ReachabilityCollector<'a> {
 
         // class init steps（property initializer / init blocks）对所有构造路径都可达：只扫描一次。
         if self.scanned_class_init_steps.insert(class.fqn.clone()) {
-            self.scan_class_init_steps(class);
+            self.scan_class_init_steps(&class);
         }
 
-        let ctor = self.pick_ctor_by_call_target(class, ctor_span);
+        self.with_source_path(class.source_path.as_path(), |this| {
+            let ctor = this.pick_ctor_by_call_target(&class, ctor_span);
 
-        // delegation / super ctor args
-        match ctor {
-            Some(ctor) if ctor.kind == hir::ClassCtorKind::Secondary => {
-                if let Some(deleg) = ctor.delegation.as_ref() {
-                    for arg in &deleg.args {
-                        self.scan_call_arg(arg);
-                    }
-                    if let Some(call) = deleg.call.as_ref() {
-                        self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
-                    } else {
-                        match deleg.kind {
-                            ast::CtorDelegationKind::This => {
-                                self.enqueue_ctor(class.fqn.clone(), None);
-                            }
-                            ast::CtorDelegationKind::Super => {
-                                if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                                    self.enqueue_ctor(super_fqn.to_string(), None);
+            // delegation / super ctor args
+            match ctor {
+                Some(ctor) if ctor.kind == hir::ClassCtorKind::Secondary => {
+                    if let Some(deleg) = ctor.delegation.as_ref() {
+                        for arg in &deleg.args {
+                            this.scan_call_arg(arg);
+                        }
+                        if let Some(call) = deleg.call.as_ref() {
+                            this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                        } else {
+                            match deleg.kind {
+                                ast::CtorDelegationKind::This => {
+                                    this.enqueue_ctor(class.fqn.clone(), None);
+                                }
+                                ast::CtorDelegationKind::Super => {
+                                    if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                                        this.enqueue_ctor(super_fqn.to_string(), None);
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        // secondary ctor（无 delegation）：走 class header 的 super ctor args。
+                        for arg in &class.super_ctor_args {
+                            this.scan_call_arg(arg);
+                        }
+                        if let Some(call) = class.super_ctor_call.as_ref() {
+                            this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                        } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                            this.enqueue_ctor(super_fqn.to_string(), None);
+                        }
                     }
-                } else {
-                    // secondary ctor（无 delegation）：走 class header 的 super ctor args。
+
+                    // secondary ctor body
+                    if let Some(body) = ctor.body.as_ref() {
+                        this.scan_block(body);
+                    }
+                }
+                _ => {
+                    // primary ctor（或隐式 0-参 primary ctor）：走 class header 的 super ctor args。
                     for arg in &class.super_ctor_args {
-                        self.scan_call_arg(arg);
+                        this.scan_call_arg(arg);
                     }
                     if let Some(call) = class.super_ctor_call.as_ref() {
-                        self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
+                        this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
                     } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                        self.enqueue_ctor(super_fqn.to_string(), None);
+                        this.enqueue_ctor(super_fqn.to_string(), None);
                     }
                 }
+            }
 
-                // secondary ctor body
-                if let Some(body) = ctor.body.as_ref() {
-                    self.scan_block(body);
+            if let Some(ctor) = ctor {
+                for param in &ctor.params {
+                    if let Some(default_value) = param.default_value.as_ref() {
+                        this.scan_expr(default_value);
+                    }
                 }
             }
-            _ => {
-                // primary ctor（或隐式 0-参 primary ctor）：走 class header 的 super ctor args。
-                for arg in &class.super_ctor_args {
-                    self.scan_call_arg(arg);
-                }
-                if let Some(call) = class.super_ctor_call.as_ref() {
-                    self.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
-                } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                    self.enqueue_ctor(super_fqn.to_string(), None);
-                }
-            }
-        }
-
-        if let Some(ctor) = ctor {
-            for param in &ctor.params {
-                if let Some(default_value) = param.default_value.as_ref() {
-                    self.scan_expr(default_value);
-                }
-            }
-        }
+        });
     }
 }
 

@@ -629,9 +629,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006U
 
-### T4006R [TODO] Review：确认 compilation-unit 维度规则已统一
+### T4006R [DONE] Review：确认 compilation-unit 维度规则已统一
 - 重点：
   - 不允许只靠“入口文件特权”维持通过。
+- 完成：
+  - 复审 `build -> typecheck -> lower_for_compilation_unit_multi_files -> reachability/codegen -> effect state-machine` 主线后，确认此前仍残留一个真实的入口文件特权裂缝：`ctor_call_sites` 与 `continuation_resume_call_sites` 只按裸 `Span` 建索引，multi-file lowering 因而只保留入口文件 side table；非入口文件中的 ctor 调用会在 codegen 侧漏失绑定，误落入 enum variant ctor fallback，而 `Continuation.resume` 也只能在入口文件里被 effect segmentation 识别。
+  - 已将两类调用点 side table 统一收口为 source-aware 的 `hir::CallSite { source_path, span }` 键，并让 HIR lowering、reachability、LLVM codegen、known-fun suspend 分析与 unified state-machine plan 全部按“当前源码文件 + span”查询，不再依赖入口文件特权。
+  - 已新增 HIR 单测 `lower_for_compilation_unit_multi_files_preserves_non_entry_call_site_side_tables`，直接断言非入口文件中的 ctor 调用点与 `Continuation.resume` 调用点都会进入全局 side table；并新增 cone run-pass 回归 `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic/**`，同时覆盖 helper 函数、object init、class init 三条非入口文件 ctor 路径。
+- 已验证：
+  - `cargo test -p scoopc lower_typed_single_source_file_records_statement_position_continuation_resume_call_site -- --nocapture`
+  - `cargo test -p scoopc lower_for_compilation_unit_multi_files_preserves_non_entry_call_site_side_tables -- --nocapture`
+  - `cargo run -p scoop -- build tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic -o /tmp/t4006r_cross_file_ctor.out`
+  - `/tmp/t4006r_cross_file_ctor.out`（stdout 为 `42 / 10:7 / 10:9`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1053)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4006V
 
 ## T4007：RTTI 参数化支持

@@ -70,6 +70,8 @@
 > 2026-04-19 当前轮完成更新：`T4006U` 已完成。复查后确认该失败并不是 full-suite 顺序污染：`target/debug/scoop run tests/fixtures/run-pass/top_level_val_recursive_init_is_error.scoop` 的实际行为始终是“退出码 `1`，stdout/stderr 为空”，真正过时的是 `top_level_val_recursive_init_is_error.stdout` 自 `T4003SR` 起遗留的单个换行。当前已将该 golden 收口为空文件，并在 fixture 注释中明确“递归初始化会在进入 `main` 前终止，因此 stdout 为空”的语义。验证上，最小临时 root（`fixtures: ok (1)`）、`tests/fixtures/run-pass`（`fixtures: ok (346)`）、全量 `cargo run -p scoop -- test`（`fixtures: ok (1051)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均已通过。当前下一项推进到 `T4006V`。
 >
 > 2026-04-19 当前轮完成更新：`T4006V` 已完成。根因不是 LLVM 单点特判缺失，而是 member-value 解析主线在普通链式 receiver 上断开：resolver 只能为裸 ident / 少数特殊 receiver 写回 `member.resolved`，`holder.node.tag.label` 这类“receiver 是另一个 member access 结果值”的访问不会在外层成员保留绑定；同时，普通 `MemberAccess` / assignment lhs 的 typecheck 先前也不像 `?.` 那样在 `member.resolved` 为空时按已推导 receiver 类型做 late resolve，导致一部分场景前置报 `member access（未 resolve）`，另一部分场景则把 `resolved = None` 漏进 HIR，最终在 LLVM 报 `member access target`。当前已在 `typecheck::expr::member` 收口共享 helper `resolve_member_value_target_for_receiver`，让普通 member access、safe member access 与 assignment lhs 统一复用“优先使用 resolver 结果，必要时按 receiver 静态类型晚解析值成员”的主线，并继续让 receiver lambda 的隐式 `this` 优先走晚解析避免陈旧绑定。新增 HIR 单测 `lower_typed_single_source_file_preserves_chained_member_access_resolution` 与 run-pass 回归 `chained_member_access_non_local_receiver_basic` 后，最小 probe `println(node.tag.label)`、定向 fixture root、`cargo test --all`、全量 `cargo run -p scoop -- test`（`fixtures: ok (1052)`）与 `cargo clippy --all-targets -- -D warnings` 均已通过。当前下一项推进到 `T4006R`。
+>
+> 2026-04-19 当前轮完成更新：`T4006R` 已完成。review 发现 compilation-unit 主线里仍残留一个真实的入口文件特权裂缝：`ctor_call_sites` 与 `continuation_resume_call_sites` 只按裸 `Span` 记录，`lower_for_compilation_unit_multi_files` 为回避跨文件 span 冲突而只保留入口文件 side table；结果非入口文件中的 `Box(y = ...)` 会在 codegen 侧漏失 ctor 绑定，误落入 enum variant ctor fallback，而 `Continuation.resume` 也只能在入口文件里被 effect segmentation 识别。当前已把两类调用点 side table 统一改为 source-aware 的 `hir::CallSite { source_path, span }`，并让 HIR lowering、reachability、LLVM codegen、known-fun suspend 分析与 unified state-machine plan 全部按“当前源码文件 + span”查询，彻底移除 multi-file lowering 对入口文件 side table 的特权过滤。新增 HIR 单测 `lower_for_compilation_unit_multi_files_preserves_non_entry_call_site_side_tables` 与 cone run-pass 回归 `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic/**` 后，非入口文件中的 helper 函数 / object init / class init 三条 ctor 路径都已稳定 build/run；全量 `cargo run -p scoop -- test`（`fixtures: ok (1053)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 均为绿色。当前下一项切换为 `T4007`。
 
 ## 0. 工作原则
 
@@ -124,7 +126,7 @@
 
 - 跨文件 / 跨包 compilation chain 与 RTTI 参数化支持放在同一阶段处理。
 - 目标是先让语言规则跨 compilation unit 一致，再补运行时类型描述符对泛型 / `eff` 的覆盖。
-- 当前状态：`T4006` / `T4006S` / `T4006T` / `T4006U` / `T4006V` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering、class ctor 实参求值不会污染调用者 locals，以及“receiver 为另一个 member access 结果值”的链式成员访问主线。全量 `cargo run -p scoop -- test` 现为绿色（`fixtures: ok (1052)`），P4 阶段当前下一项切换为 compilation-unit review `T4006R`。
+- 当前状态：`T4006` / `T4006S` / `T4006T` / `T4006U` / `T4006V` / `T4006R` 已完成；新增 regression 已覆盖跨文件顶层 `val`、非入口文件顶层泛型函数实例化、跨 cone / 跨包 extension import、`lazy(None)` 读取进入 print-like lowering、class ctor 实参求值不会污染调用者 locals、“receiver 为另一个 member access 结果值”的链式成员访问主线，以及 non-entry file 的 ctor / `Continuation.resume` 调用点 side table。全量 `cargo run -p scoop -- test` 现为绿色（`fixtures: ok (1053)`），P4 阶段已完成，下一项切换为 P5 前的 RTTI 实现任务 `T4007`。
 
 ### P5. effect 完整性收口
 

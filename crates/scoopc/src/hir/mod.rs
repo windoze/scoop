@@ -665,15 +665,36 @@ pub struct CtorCallInfo {
     pub arg_mapping: Vec<Option<usize>>,
 }
 
-/// 调用点的 ctor 绑定索引：call span → 已选中的 ctor 调用信息。
+/// 一个调用点在编译单元内的稳定位置键。
+///
+/// 说明：
+/// - 多文件 lowering 中，裸 `Span` 只在“单个源文件内部”唯一；
+/// - 因此任何需要跨文件合并的 side table，都必须把 `source_path` 一起作为 key；
+/// - 当前主要用于 ctor 调用点与 `Continuation.resume` 调用点。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CallSite {
+    pub source_path: PathBuf,
+    pub span: Span,
+}
+
+impl CallSite {
+    pub fn new(source_path: impl Into<PathBuf>, span: Span) -> Self {
+        Self {
+            source_path: source_path.into(),
+            span,
+        }
+    }
+}
+
+/// 调用点的 ctor 绑定索引：`source_path + call span` → 已选中的 ctor 调用信息。
 ///
 /// 说明：
 /// - HIR v0 仍会把 ctor 调用的 callee 保留为 `UnresolvedIdent`，以保持 dump 输出稳定；
 /// - LLVM codegen 需要知道“该调用实际是哪个 ctor、如何把 named/default args 绑定到形参”，
 ///   因此这里把 typecheck 已确认的绑定结果以 side table 的形式保留下来；
 /// - key 使用整个 call expr 的 span，而不是 callee ident span，避免默认值补齐与 named arg
-///   绑定信息在后端丢失。
-pub type CtorCallSiteIndex = HashMap<Span, CtorCallInfo>;
+///   绑定信息在后端丢失；并且会携带 `source_path`，避免多文件 lowering 时的 span 冲突。
+pub type CtorCallSiteIndex = HashMap<CallSite, CtorCallInfo>;
 
 /// `nominal FQN -> ast::TypeKind` 的索引（由 HIR lowering 构建，供后端识别 effect/class/interface/...）。
 pub type NominalKindIndex = HashMap<String, ast::TypeKind>;
@@ -684,12 +705,12 @@ pub type NominalVarianceIndex = HashMap<String, Vec<Option<ast::TypeParamVarianc
 /// `nominal FQN -> 直接超类型 FQN 列表` 的索引。
 pub type DirectSupertypesIndex = HashMap<String, Vec<String>>;
 
-/// typecheck 已确认的 `Continuation.resume` 调用点集合（call expr span）。
+/// typecheck 已确认的 `Continuation.resume` 调用点集合（`source_path + call expr span`）。
 ///
 /// 说明：
 /// - 该 side table 只承载确定语义事实，不承载任何调用形状分类；
 /// - effect segmentation 读取它来识别隐藏 suspend site。
-pub type ContinuationResumeCallSiteIndex = HashSet<Span>;
+pub type ContinuationResumeCallSiteIndex = HashSet<CallSite>;
 
 /// 一个 `when` pattern binder 的声明位置键。
 ///

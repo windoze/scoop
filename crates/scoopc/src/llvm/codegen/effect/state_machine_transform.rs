@@ -4445,6 +4445,7 @@ fun demo(flag: Bool): Int {
         let analysis = SuspendCallAnalysis {
             types: &lowered.types,
             known_fun_effects: &known_fun_effects,
+            current_source_path: owner_fun.source_path.as_path(),
             ctor_call_targets: &ctor_call_targets,
             continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
             object_value_fqns: &object_value_fqns,
@@ -4466,6 +4467,7 @@ fun demo(flag: Bool): Int {
             known_local_fun_effects,
             known_local_metadata,
             next_synthetic_symbol_raw: std::cell::Cell::new(next_synthetic_symbol_raw),
+            current_source_path: owner_fun.source_path.clone(),
             ctor_call_targets,
             continuation_resume_call_sites: lowered.continuation_resume_call_sites.clone(),
             object_value_fqns,

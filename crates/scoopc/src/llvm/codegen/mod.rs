@@ -550,6 +550,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
     }
 
+    fn current_call_site(&self, span: crate::span::Span) -> Result<hir::CallSite, LlvmEmitError> {
+        let source = self.current_source()?;
+        Ok(hir::CallSite::new(source.path().to_path_buf(), span))
+    }
+
     fn source_id_for_path(
         &self,
         path: &Path,
@@ -2041,7 +2046,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0125：call expression 的结果 TypeId（用于泛型 class ctor 的 mangled FQN 查找）。
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if self.continuation_resume_call_sites.contains(&span) {
+        if self
+            .continuation_resume_call_sites
+            .contains(&self.current_call_site(span)?)
+        {
             return self.codegen_continuation_resume_builtin(span, callee, args);
         }
 
@@ -2657,7 +2665,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
             // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
-            if let Some(site) = self.ctor_call_sites.get(&span) {
+            let call_site = self.current_call_site(span)?;
+            if let Some(site) = self.ctor_call_sites.get(&call_site) {
                 return self.codegen_class_ctor_call(
                     span,
                     callee.span,

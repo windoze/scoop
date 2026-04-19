@@ -1,0 +1,28 @@
+package fixtures.run_pass_cone.cross_file_ctor_named_default_basic
+
+import scoop.core.*
+
+class Box(val x: Int = 10, val y: Int = 20) {
+    val label: String = f"{x}:{y}"
+}
+
+object Store {
+    val seeded: Box = Box(y = 7)
+}
+
+class Holder() {
+    val boxed: Box = Box(y = 9)
+}
+
+public fun helper_sum(): Int {
+    val box = Box(y = 32)
+    return box.x + box.y
+}
+
+public fun helper_object_label(): String {
+    return Store.seeded.label
+}
+
+public fun helper_class_label(): String {
+    return Holder().boxed.label
+}

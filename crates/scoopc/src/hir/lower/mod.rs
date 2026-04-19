@@ -31,8 +31,8 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, Expr,
-    ExprKind, File, FunDecl, Item, ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl,
+    Block, CallArg, CallSite, ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex,
+    Expr, ExprKind, File, FunDecl, Item, ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl,
     ValueRef,
 };
 
@@ -191,6 +191,10 @@ impl<'a> HirLowering<'a> {
             decl_span,
         };
         self.when_pat_binding_tys.insert(site, ty);
+    }
+
+    fn call_site(&self, span: Span) -> CallSite {
+        CallSite::new(self.source.path().to_path_buf(), span)
     }
 
     fn fresh_synthetic_local(
@@ -1362,7 +1366,11 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
         crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
-    let continuation_resume_call_sites = ast.continuation_resume_call_sites();
+    let continuation_resume_call_sites = ast
+        .continuation_resume_call_sites()
+        .into_iter()
+        .map(|span| CallSite::new(source.path().to_path_buf(), span))
+        .collect();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -1512,7 +1520,11 @@ pub fn lower_for_compilation_unit(
         index,
         &class_vtables,
     )?;
-    let continuation_resume_call_sites = file.continuation_resume_call_sites();
+    let continuation_resume_call_sites = file
+        .continuation_resume_call_sites()
+        .into_iter()
+        .map(|span| CallSite::new(source.path().to_path_buf(), span))
+        .collect();
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -1621,7 +1633,7 @@ pub fn lower_for_compilation_unit(
 /// - T0150c：HIR 继续保留本地 span，但不再在 lowering 时 eager parse Int/String 字面量；
 ///   后续阶段通过“声明所属源文件 + 本地 span”回查原文。
 pub fn lower_for_compilation_unit_multi_files(
-    entry_source: &SourceFile,
+    _entry_source: &SourceFile,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
@@ -1695,12 +1707,12 @@ pub fn lower_for_compilation_unit_multi_files(
             )
         };
 
-        // `CtorCallSiteIndex` 当前以 `Span` 作为 key（offset-only，不含文件标识）。
-        // 为避免跨文件 span 冲突导致错误 codegen，当前阶段只保留入口文件的 ctor call-sites。
-        if source.path() == entry_source.path() {
-            ctor_call_sites.extend(file_ctor_call_sites);
-            continuation_resume_call_sites.extend(file.continuation_resume_call_sites());
-        }
+        ctor_call_sites.extend(file_ctor_call_sites);
+        continuation_resume_call_sites.extend(
+            file.continuation_resume_call_sites()
+                .into_iter()
+                .map(|span| CallSite::new(source.path().to_path_buf(), span)),
+        );
 
         top_level_vars.extend(file_top_level_vars);
         top_level_consts.extend(file_top_level_consts);
@@ -1741,9 +1753,7 @@ pub fn lower_for_compilation_unit_multi_files(
             builtins,
         );
         object_inits.extend(file_object_inits);
-        if source.path() == entry_source.path() {
-            ctor_call_sites.extend(file_object_ctor_call_sites);
-        }
+        ctor_call_sites.extend(file_object_ctor_call_sites);
 
         let (file_class_inits, file_class_ctor_call_sites) = collect_class_inits(
             source,
@@ -1755,9 +1765,7 @@ pub fn lower_for_compilation_unit_multi_files(
             builtins,
         );
         class_inits.extend(file_class_inits);
-        if source.path() == entry_source.path() {
-            ctor_call_sites.extend(file_class_ctor_call_sites);
-        }
+        ctor_call_sites.extend(file_class_ctor_call_sites);
     }
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
@@ -1939,7 +1947,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
-    use crate::hir::{ClassInitStep, ObjectInitStep};
+    use crate::hir::{CallSite, ClassInitStep, ObjectInitStep};
     use crate::resolve::Index;
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
@@ -2781,6 +2789,231 @@ fun main(): Int { return id(1) }
     }
 
     #[test]
+    fn lower_for_compilation_unit_multi_files_preserves_non_entry_call_site_side_tables() {
+        let sess = Session::new().unwrap();
+
+        let src_helper = SourceFile::new_virtual(
+            "<t4006r_helper>",
+            r#"
+package fixtures.t4006r
+
+import scoop.core.*
+
+class Box(val x: Int = 10, val y: Int = 20)
+
+public fun helper_sum(): Int {
+    val box = Box(y = 32)
+    return box.x + box.y
+}
+
+public fun resume_once(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
+    k.resume(1)
+}
+"#,
+        );
+        let src_main = SourceFile::new_virtual(
+            "<t4006r_main>",
+            r#"
+package fixtures.t4006r
+
+import scoop.core.*
+
+fun main(): Int {
+    return helper_sum()
+}
+"#,
+        );
+
+        let mut ast_helper = parse_file(&src_helper).unwrap();
+        let mut ast_main = parse_file(&src_main).unwrap();
+
+        typecheck::check_file_headers(&src_helper, &ast_helper).unwrap();
+        typecheck::check_file_struct_decls(&src_helper, &ast_helper).unwrap();
+        typecheck::check_file_headers(&src_main, &ast_main).unwrap();
+        typecheck::check_file_struct_decls(&src_main, &ast_main).unwrap();
+
+        let index = {
+            let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for f in &sess.sysroot().files {
+                unit.push((&f.source, &f.ast));
+            }
+            unit.push((&src_helper, &ast_helper));
+            unit.push((&src_main, &ast_main));
+            Index::build(&unit).unwrap()
+        };
+
+        let headers_helper =
+            crate::resolve::check_file_headers(&src_helper, &ast_helper, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_helper, &mut ast_helper, &index, &headers_helper)
+            .unwrap();
+
+        let headers_main =
+            crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+        let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&src_helper, &ast_helper, &index)
+            .unwrap();
+        env.extend_from_file(&src_main, &ast_main, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        for (source, ast, headers) in [
+            (&src_helper, &ast_helper, &headers_helper),
+            (&src_main, &ast_main, &headers_main),
+        ] {
+            typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_properties(source, ast, &index, &env).unwrap();
+            typecheck::check_file_inheritance(source, ast, &index).unwrap();
+            typecheck::check_file_interfaces(source, ast, &index, &env).unwrap();
+            typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_where_clauses(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_exprs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .unwrap();
+        }
+
+        typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            unit.push((&f.source, &f.ast));
+        }
+        unit.push((&src_helper, &ast_helper));
+        unit.push((&src_main, &ast_main));
+
+        let lowered = lower_for_compilation_unit_multi_files(
+            &src_main,
+            &index,
+            &unit,
+            &[(&src_helper, &ast_helper), (&src_main, &ast_main)],
+            &[],
+            &types,
+        )
+        .unwrap();
+
+        let helper_sum = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4006r.helper_sum" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 helper_sum");
+        let helper_sum_body = helper_sum.body.as_ref().expect("helper_sum 应有 body");
+        let ctor_call_span = match helper_sum_body.stmts.as_slice() {
+            [
+                Stmt {
+                    kind: StmtKind::Val(val_decl),
+                    ..
+                },
+                ..,
+            ] => match val_decl.init.as_ref().map(|expr| &expr.kind) {
+                Some(ExprKind::Call { .. }) => {
+                    val_decl.init.as_ref().expect("box 应有 initializer").span
+                }
+                other => panic!(
+                    "helper_sum 的首个 val 应由 ctor call 初始化，实际为 {:?}",
+                    other
+                ),
+            },
+            stmts => panic!("helper_sum body 形态不符合预期: {:?}", stmts),
+        };
+        assert!(
+            lowered.ctor_call_sites.contains_key(&CallSite::new(
+                src_helper.path().to_path_buf(),
+                ctor_call_span,
+            )),
+            "非入口文件中的 ctor 调用点应保留在 lowering side table 中"
+        );
+
+        let resume_once = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4006r.resume_once" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 resume_once");
+        let resume_body = resume_once.body.as_ref().expect("resume_once 应有 body");
+        let resume_span = match resume_body.stmts.as_slice() {
+            [
+                Stmt {
+                    kind: StmtKind::Expr(expr),
+                    ..
+                },
+            ] => match &expr.kind {
+                ExprKind::Call { .. } => expr.span,
+                other => panic!("resume_once 的唯一语句应为 call expr，实际为 {:?}", other),
+            },
+            stmts => panic!("resume_once body 形态不符合预期: {:?}", stmts),
+        };
+        assert!(
+            lowered
+                .continuation_resume_call_sites
+                .contains(&CallSite::new(src_helper.path().to_path_buf(), resume_span,)),
+            "非入口文件中的 Continuation.resume 调用点应保留在 lowering side table 中"
+        );
+    }
+
+    #[test]
     fn lower_for_compilation_unit_multi_files_preserves_safe_member_access_resolution() {
         let sess = Session::new().unwrap();
         let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -3130,7 +3363,7 @@ fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
         assert!(
             lowered
                 .continuation_resume_call_sites
-                .contains(&resume_span),
+                .contains(&CallSite::new(source.path().to_path_buf(), resume_span)),
             "statement-position `Continuation.resume(...)` 应写入 continuation_resume_call_sites"
         );
     }

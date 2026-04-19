@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.cross_file_ctor_named_default_basic
+
+import scoop.core.*
+
+fun main() {
+    println(helper_sum())
+    println(helper_object_label())
+    println(helper_class_label())
+}

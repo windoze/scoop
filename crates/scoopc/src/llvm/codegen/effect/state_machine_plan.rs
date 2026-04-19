@@ -1,6 +1,7 @@
 use crate::ast;
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 use crate::hir;
 use crate::span::Span;
@@ -17,8 +18,9 @@ struct HandlePlanContext {
     known_local_fun_effects: HashMap<hir::SymbolId, bool>,
     known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
-    ctor_call_targets: HashMap<Span, hir::CtorCallInfo>,
-    continuation_resume_call_sites: HashSet<Span>,
+    current_source_path: PathBuf,
+    ctor_call_targets: hir::CtorCallSiteIndex,
+    continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
     top_level_immutable_value_fqns: HashSet<String>,
@@ -1571,6 +1573,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         SuspendCallAnalysis {
             types: self.types,
             known_fun_effects: &self.context.known_fun_effects,
+            current_source_path: self.context.current_source_path.as_path(),
             ctor_call_targets: &self.context.ctor_call_targets,
             continuation_resume_call_sites: &self.context.continuation_resume_call_sites,
             object_value_fqns: &self.context.object_value_fqns,
@@ -2543,7 +2546,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             };
         }
 
-        if let Some(target) = self.context.ctor_call_targets.get(&expr.span) {
+        if let Some(target) = self
+            .context
+            .ctor_call_targets
+            .get(&self.context.call_site(expr.span))
+        {
             let class_name = if target.class_fqn.is_empty() {
                 format!("ctor@{:?}", callee.span)
             } else {
@@ -2577,7 +2584,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         // segmentation 本身不再按成员名、receiver 类型或其它代码形状做推断。
         self.context
             .continuation_resume_call_sites
-            .contains(&call_span)
+            .contains(&self.context.call_site(call_span))
             .then(|| SuspendSiteKind::RuntimeRaise {
                 reason: "Continuation.resume".to_string(),
             })
@@ -6070,14 +6077,19 @@ fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
 struct SuspendCallAnalysis<'a> {
     types: &'a TypeStore,
     known_fun_effects: &'a HashMap<String, bool>,
-    ctor_call_targets: &'a HashMap<Span, hir::CtorCallInfo>,
-    continuation_resume_call_sites: &'a HashSet<Span>,
+    current_source_path: &'a Path,
+    ctor_call_targets: &'a hir::CtorCallSiteIndex,
+    continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     object_value_fqns: &'a HashSet<String>,
     object_property_fqns: &'a HashSet<String>,
     top_level_immutable_value_fqns: &'a HashSet<String>,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
+    fn call_site(&self, span: Span) -> hir::CallSite {
+        hir::CallSite::new(self.current_source_path.to_path_buf(), span)
+    }
+
     fn block_may_suspend(
         &self,
         block: &hir::Block,
@@ -6373,8 +6385,9 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || self.expr_may_suspend(rhs, known_locals)
             }
             hir::ExprKind::Call { callee, args } => {
-                self.continuation_resume_call_sites.contains(&expr.span)
-                    || self.ctor_call_targets.contains_key(&expr.span)
+                self.continuation_resume_call_sites
+                    .contains(&self.call_site(expr.span))
+                    || self.ctor_call_targets.contains_key(&self.call_site(expr.span))
                     || self.function_value_may_suspend_when_called(callee, known_locals)
                     || self.expr_may_suspend(callee, known_locals)
                     || args.iter().any(|arg| match arg {
@@ -6457,8 +6470,8 @@ impl<'a> SuspendCallAnalysis<'a> {
 fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    ctor_call_targets: &HashMap<Span, hir::CtorCallInfo>,
-    continuation_resume_call_sites: &HashSet<Span>,
+    ctor_call_targets: &hir::CtorCallSiteIndex,
+    continuation_resume_call_sites: &hir::ContinuationResumeCallSiteIndex,
     object_value_fqns: &HashSet<String>,
     object_property_fqns: &HashSet<String>,
     top_level_immutable_value_fqns: &HashSet<String>,
@@ -6470,15 +6483,6 @@ fn collect_known_fun_call_suspendability(
 
     loop {
         let snapshot = known_fun_effects.clone();
-        let analysis = SuspendCallAnalysis {
-            types,
-            known_fun_effects: &snapshot,
-            ctor_call_targets,
-            continuation_resume_call_sites,
-            object_value_fqns,
-            object_property_fqns,
-            top_level_immutable_value_fqns,
-        };
         let mut newly_effectful = Vec::new();
         let mut changed = false;
         for (fqn, fun) in fun_index {
@@ -6487,6 +6491,16 @@ fn collect_known_fun_call_suspendability(
             }
             let Some(body) = &fun.body else {
                 continue;
+            };
+            let analysis = SuspendCallAnalysis {
+                types,
+                known_fun_effects: &snapshot,
+                current_source_path: fun.source_path.as_path(),
+                ctor_call_targets,
+                continuation_resume_call_sites,
+                object_value_fqns,
+                object_property_fqns,
+                top_level_immutable_value_fqns,
             };
             let seed_locals = fun
                 .params
@@ -7098,6 +7112,10 @@ fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
 }
 
 impl HandlePlanContext {
+    fn call_site(&self, span: Span) -> hir::CallSite {
+        hir::CallSite::new(self.current_source_path.clone(), span)
+    }
+
     fn reserve_synthetic_symbol_floor(&self, floor: u32) {
         let current = self.next_synthetic_symbol_raw.get();
         if floor > current {
@@ -7156,12 +7174,18 @@ impl HandlePlanContext {
             .max()
             .unwrap_or(0)
             .saturating_add(1);
+        let current_source_path = cg
+            .current_source()
+            .expect("codegen context should always have a current source")
+            .path()
+            .to_path_buf();
 
         Self {
             known_fun_effects,
             known_local_fun_effects,
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
+            current_source_path,
             ctor_call_targets,
             continuation_resume_call_sites: cg.continuation_resume_call_sites.clone(),
             object_value_fqns,
@@ -7363,6 +7387,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         SuspendCallAnalysis {
             types: self.types,
             known_fun_effects: &known_fun_effects,
+            current_source_path: self
+                .current_source()
+                .expect("codegen context should always have a current source")
+                .path(),
             ctor_call_targets: &ctor_call_targets,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
             object_value_fqns: &object_value_fqns,
