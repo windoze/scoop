@@ -1,0 +1,58 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_multi_type_params_dispatch_basic.stdout
+//
+// T4008c1: 多 effect type params 的 performed/handled effect 实例不再退化成单一尾参。
+// - `Pair<A, B>.ping((a, b))` 可从单个 tuple payload 推断两个 effect type params；
+// - handler arm 可按 binder 注解区分 `Pair<String, Int>` 与 `Pair<Int, String>`；
+// - 无 binder 注解时，可从 body 内唯一 performed effect 反推完整 handled effect instance。
+
+import scoop.core.*
+
+effect Pair<A, B> {
+    fun ping(payload: (A, B)): Int
+}
+
+fun useStringInt(): Int / Pair<String, Int> {
+    return Pair.ping(("left", 7))
+}
+
+fun useIntString(): Int / Pair<Int, String> {
+    return Pair.ping((9, "right"))
+}
+
+fun handleAnnotatedDispatch(): Int {
+    return handle {
+        useStringInt()
+    } with {
+        Pair.ping(payload: (String, Int)) -> {
+            val (label, n) = payload
+            println(label)
+            println(n.toString())
+            n + 100
+        }
+        Pair.ping(payload: (Int, String)) -> {
+            println("wrong_arm")
+            0
+        }
+    }
+}
+
+fun handleBodyInferredDispatch(): Int {
+    return handle {
+        useIntString()
+    } with {
+        Pair.ping(payload) -> {
+            val (n, label) = payload
+            println(label)
+            n + 1
+        }
+    }
+}
+
+fun main(): Int {
+    val annotated = handleAnnotatedDispatch()
+    val inferred = handleBodyInferredDispatch()
+    println(annotated.toString())
+    println(inferred.toString())
+    return 0
+}

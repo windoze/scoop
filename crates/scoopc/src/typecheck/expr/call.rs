@@ -3967,15 +3967,6 @@ pub(super) fn infer_effect_op_call_expr_type(
         });
     };
 
-    // 当前阶段（T0602）目标：先只支持 sysroot 的 `Raise<E>`（单一 type param），
-    // 更完整的 effect polymorphism / 多 type params 留给后续任务（T0609+）。
-    if effect_sym.type_param_names.len() > 1 {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "effect op call（multiple effect type params）",
-            span: call_expr.span.into(),
-        });
-    }
-
     if op.sig.receiver.is_some() {
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "effect op call（receiver not supported）",
@@ -3999,7 +3990,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         bindings.push((tp.name.clone(), param_ty));
     }
 
-    if let Some(name) = effect_sym.type_param_names.first() {
+    for name in &effect_sym.type_param_names {
         let param_ty =
             lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
         type_params.push(param_ty);

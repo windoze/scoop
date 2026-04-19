@@ -914,7 +914,7 @@
   - 已验证 `cargo test -q -p scoopc non_resuming_arm_ir_does_not_publish_pending_continuation -- --nocapture`、`cargo test -q -p scoop_runtime continuation_resume_preserves_step_fn_replaced_callee_suspend_state -- --nocapture`、`cargo test -q -p scoop_runtime continuation_resume_does_not_resurrect_saved_replay_state_tls -- --nocapture`、`cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_multi_escape_custom_nonresuming_direct_indirect_if_multi.scoop`、`cargo run -q -p scoop -- test`（`fixtures: ok (1058)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
 - 依赖：T4008c
 
-### T4008c1 [TODO] 收口多 effect type params 的 effect op call / handle arm 实例化
+### T4008c1 [DONE] 收口多 effect type params 的 effect op call / handle arm 实例化
 - 范围：
   - effect op call / handle arm 不再硬编码拒绝 2+ effect type params。
   - performed-effect / handled-effect side table 保留完整 effect type args，不再只按单一尾参数回填 effect instance。
@@ -922,6 +922,20 @@
 - 验收：
   - `effect Pair<K, V>` 一类 effect 的 op call 与 handle arm 能进入统一 typecheck / lowering / runtime dispatch 主线。
   - `ISSUES.md` 第 1 条中“effect type param 仍只支持单一 type param”的部分收窄或关闭。
+- 完成：
+  - `infer_effect_op_call_expr_type` 与 `lower_handle_arm_effect_op_sig` 不再对 `effect_sym.type_param_names.len() > 1` 早退报错；effect op 可实例化签名现统一纳入“全部 op type params + 全部 effect type params”，不再把 effect instance 退化成单一尾参数。
+  - performed-effect / handled-effect side table 现会保留完整 effect type args：effect op call 会把完整实例化后的 effect type args 回填到 `record_inferred_performed_effect_ty`，handler arm 则可通过 binder 类型注解或 body 内 performed effect 的唯一候选反推出完整 handled effect，并写回 `record_inferred_handle_arm_effect_ty` 供 HIR lowering / LLVM dispatch 复用。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/effect_multi_type_params_tuple_payload_ok.scoop`
+    - `tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.scoop`
+    - `tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.stdout`
+- 已验证：
+  - `cargo fmt --check`
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/effect_multi_type_params_dispatch_basic.scoop`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (332)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1060)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4008c0
 
 ### T4008cS [TODO] 支持 effect state-machine 的多实参 perform payload lowering

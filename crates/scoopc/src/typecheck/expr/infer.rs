@@ -1297,13 +1297,6 @@ pub(super) fn infer_handle_expr_type(
             });
         }
 
-        // 当前阶段（T0606）只支持单一 type param（与 effect op call 的限制保持一致）。
-        if effect_sym.type_param_names.len() > 1 {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: "handle arm（multiple effect type params）",
-                span: arm.op.effect.span.into(),
-            });
-        }
         if op.sig.receiver.is_some() {
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "handle arm（effect op receiver not supported）",
@@ -1330,7 +1323,7 @@ pub(super) fn infer_handle_expr_type(
         }
 
         let mut type_params: Vec<TypeId> = Vec::new();
-        if let Some(name) = effect_sym.type_param_names.first() {
+        for name in &effect_sym.type_param_names {
             let param_ty =
                 lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
             type_params.push(param_ty);
