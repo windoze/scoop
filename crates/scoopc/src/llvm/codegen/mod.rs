@@ -2492,7 +2492,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn.starts_with("scoop.core.__scoop_array_builder_") {
                 return self.codegen_sysroot_array_builder_intrinsics(span, callee.span, fqn, args);
             }
-            // T0620/T4009a：spawn/join 内建 helper 走 `Task<T>` object-model runtime ABI。
+            // T4009：Task 内部 helper 统一走普通 `Task<T>` object-model runtime ABI。
             if fqn == "scoop.core.poll"
                 || fqn == "scoop.core.step"
                 || fqn == "scoop.core.__scoop_task_from_result"

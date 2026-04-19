@@ -4,7 +4,8 @@
 // - `Task<T>` 当前只承载 lazy/manual polling 语义；
 // - `poll()` / `step()` 都驱动任务执行，直到“下一次挂起或完成”为止；
 // - task 的 suspended-state carrier 对外不可见，runtime 内部继续借助 raw continuation；
-// - `join` 仍是过渡期 helper：它循环 `poll()`，直到任务完成。
+// - `scoop_task_join` 只是 compiler/runtime/test harness 使用的内部 helper：它循环 `poll()`，
+//   直到任务完成；它不代表公开的 structured-concurrency `join` 语义。
 
 #include <stddef.h>
 #include <stdint.h>

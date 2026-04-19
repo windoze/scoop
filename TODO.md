@@ -1210,7 +1210,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009a3
 
-### T4009c [TODO] 将 `spawn` / `join` 从当前 `Task` core 语义中移出，并明确留待后续 structured concurrency
+### T4009c [DONE] 将 `spawn` / `join` 从当前 `Task` core 语义中移出，并明确留待后续 structured concurrency
 - 范围：
   - `spawn`、`join`、调度、queueing、wakeup registration 不再作为当前 `Task` core 的定义性语义，也不再驱动 `Task<T>` 的对象模型设计。
   - 当前代码库中若存在“先执行 body 再包装 completed task”之类的临时 `spawn` 语义，应明确移除、降级或改写为 deferred note，避免继续误导 `Task` 设计。
@@ -1218,6 +1218,19 @@
 - 验收：
   - `Task<T>` core 与 `spawn` / `join` / executor scheduling 叙事彻底解耦。
   - 文档中剩余的 `spawn` 内容只以明确 deferred item 形式出现。
+- 已完成：
+  - parser / AST 继续保留 `spawn { ... }` 与 `join expr` 的语法壳，但 typecheck 现在会统一报 `structured_concurrency_deferred`，明确它们不属于当前 `Task` core；相关正向 `spawn/join` 夹具已替换为 `async {}` / `await` / handled `Async.await` 主线，并新增 `spawn_deferred_is_error` / `join_deferred_is_error` 负向回归。
+  - HIR lowering 不再把 `spawn` / `join` 落到 `__scoop_task_from_result` / `__scoop_task_join` 的“最小可执行语义”；它们现在只保留为 deferred 占位节点。`sysroot/core.scoop`、`runtime/c/scoop_task.c`、`SCOOP_FULL_SPEC.md` 与 `SCOOP_RUNTIME.md` 也已同步改写为“structured concurrency（含公开 `spawn/join`）留待后续；当前仅保留内部 task helper”。
+  - 在验证过程中额外暴露并修复了一个既有 `Task` core 裂缝：当 `async` 体的尾值直接是 `await task` 且结果为 GC 引用类型（例如 `String`）时，结果会在进入 `step_ready(...)` 前丢失。`crates/scoopc/src/hir/lower/block.rs` 现会先把 async body 的尾值物化到合成局部，再交给 `__task_ready_value` / `step_ready(...)`，从而让 `Task<String>` 的嵌套 await 与现有 `Task<Int>` 主线一致。
+  - `ISSUES.md` 第 2 条已从“pollable object 尚未定型”收窄为“`Task` core 已定型，下一项只剩 stable handle 作为 wake token / reactor identity 的合同”。
+- 已验证：
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (336)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (357)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1072)`）
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`（`spec fixtures: ok (1)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009b
 
 ### T4009h [TODO] 收口 stable handle 作为 wake token / reactor identity 的合同

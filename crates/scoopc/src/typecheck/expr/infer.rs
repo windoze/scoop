@@ -253,15 +253,14 @@ pub(super) fn infer_expr_type(
             finally,
         } => infer_handle_expr_type(inputs, expr, body, arms, finally.as_ref(), lower),
         ast::ExprKind::Async { body } => infer_async_expr_type(inputs, expr, body, lower),
-        ast::ExprKind::Spawn { body } => infer_spawn_expr_type(inputs, expr, body, lower),
+        ast::ExprKind::Spawn { .. } => structured_concurrency_deferred("spawn", expr.span),
         ast::ExprKind::Await {
             await_span: _,
             expr: inner,
         } => infer_await_expr_type(inputs, expr, inner, lower),
-        ast::ExprKind::Join {
-            join_span,
-            expr: inner,
-        } => infer_join_expr_type(inputs, expr, *join_span, inner, lower),
+        ast::ExprKind::Join { join_span, .. } => {
+            structured_concurrency_deferred("join", *join_span)
+        }
         ast::ExprKind::WithUpdate {
             base,
             updates,
@@ -510,28 +509,18 @@ fn infer_async_expr_type(
     Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![body_ty], async_expr.span)?)
 }
 
-/// 推导 `spawn { ... }` 的类型，并把 `Async` 计入 required effects（T0620）。
+/// 当前阶段不再把 `spawn` / `join` 视为 `Task` core 的一部分。
 ///
-/// 当前阶段（最小可回归落点）：
-/// - `spawn` 被视为一次 `Async` performed effect（与规范中 desugar 到 `Async.spawn(...)` 对齐）；
-/// - `spawn` body 的值类型直接成为 `Task<T>` 的 `T`；
-/// - `spawn` 的最终调度 / executor 语义仍留给后续任务（T4009b+）。
-fn infer_spawn_expr_type(
-    inputs: ExprInferInputs<'_>,
-    spawn_expr: &ast::Expr,
-    body: &ast::Block,
-    lower: &mut TypeLowering<'_>,
+/// parser / AST 仍保留语法节点，仅用于给出稳定诊断，并为后续 structured concurrency
+/// 任务保留语法壳；在 typecheck 阶段就应显式报“留待后续”。
+fn structured_concurrency_deferred(
+    feature: &'static str,
+    span: Span,
 ) -> Result<TypeId, ExprTypeError> {
-    let body_ty = infer_block_value_type(inputs, body, lower)?;
-
-    let async_effect = lower.lower_type_fqn_with_args(
-        ASYNC_EFFECT_FQN.to_string(),
-        Vec::new(),
-        spawn_expr.span,
-    )?;
-    lower.record_performed_effect(async_effect, spawn_expr.span);
-
-    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![body_ty], spawn_expr.span)?)
+    Err(ExprTypeError::StructuredConcurrencyDeferred {
+        feature,
+        span: span.into(),
+    })
 }
 
 fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
@@ -583,43 +572,6 @@ fn infer_await_expr_type(
     )?;
     lower.record_inferred_performed_effect_ty(await_expr.span, async_effect);
     lower.record_performed_effect(async_effect, await_expr.span);
-    Ok(result_ty)
-}
-
-/// 推导 `join expr` 的类型，并把 `Async` 计入 required effects（T0620）。
-///
-/// 当前阶段（最小可回归落点）：
-/// - `join` 仅支持等待一个 `Task<T>` 并返回 `T`（当前最小可执行落点仍是 `T = Int`）；
-/// - `join` 视为一次 `Async` performed effect（与 `await` 保持一致）。
-fn infer_join_expr_type(
-    inputs: ExprInferInputs<'_>,
-    _join_expr: &ast::Expr,
-    join_span: Span,
-    inner: &ast::Expr,
-    lower: &mut TypeLowering<'_>,
-) -> Result<TypeId, ExprTypeError> {
-    let found_ty = inputs.infer(lower, inner)?;
-
-    let Some(result_ty) = task_inner_type(found_ty, lower) else {
-        let expected_task = lower.lower_type_fqn_with_args(
-            TASK_FQN.to_string(),
-            vec![inputs.builtins.any],
-            join_span,
-        )?;
-        return Err(ExprTypeError::CallArgTypeMismatch {
-            callee: "join".to_string(),
-            index: 1,
-            expected: lower.fmt_type(expected_task),
-            found: lower.fmt_type(found_ty),
-            span: inner.span.into(),
-        });
-    };
-
-    let async_effect =
-        lower.lower_type_fqn_with_args(ASYNC_EFFECT_FQN.to_string(), Vec::new(), join_span)?;
-    lower.record_inferred_performed_effect_ty(join_span, async_effect);
-    lower.record_performed_effect(async_effect, join_span);
-
     Ok(result_ty)
 }
 

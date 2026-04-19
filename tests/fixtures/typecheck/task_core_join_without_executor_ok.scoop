@@ -1,12 +1,13 @@
 // EXPECT: pass
-// 目标：T4009a2：`Task` core 不再依赖 `scoop.task` / `Executor` 公开 surface，外层可直接通过 `join` 驱动。
+// 目标：T4009c：`Task` core 不再依赖公开 `spawn/join` surface；
+//      外层只通过 handled `Async.await` + 内部 helper 驱动 lazy task。
 
 package fixtures.typecheck
 
 import scoop.core.*
 
 async fun fetch(): Int {
-    val t: Task<Int> = spawn { 40 }
+    val t: Task<Int> = async { 40 }
     return await t + 1
 }
 

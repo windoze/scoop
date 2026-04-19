@@ -489,41 +489,11 @@ impl<'a> HirLowering<'a> {
                 let task_expr = self.lower_async_task_expr_from_block(pkg_prefix, e.span, body);
                 (task_expr.kind, task_expr.ty)
             }
-            ast::ExprKind::Spawn { body } => {
-                // T0620：`spawn { ... }`（结构化并发最小模型）。
-                //
-                // 当前阶段（最小可回归落点）：
-                // - `spawn` 的最终调度语义仍待后续任务定型；
-                // - 这里先保留“先算出结果，再包装成 task object”的最小可执行语义；
-                // - 关键变化是：结果不再被限制为 `Int`，并且任务值不再落成整数句柄。
-
-                let body = self.lower_block(pkg_prefix, body);
-                let body_ty = body.ty;
-                let body_expr = Expr {
-                    span: body.span,
-                    ty: body_ty,
-                    kind: ExprKind::Block(body),
-                };
-
-                let fqn = Self::TASK_FROM_RESULT_FQN.to_string();
-                let callee = Expr {
-                    span: e.span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::VarRef(ValueRef::TopLevel {
-                        id: self.symbols.intern_top_level(fqn.clone()),
-                        fqn,
-                    }),
-                };
-
-                (
-                    ExprKind::Call {
-                        callee: Box::new(callee),
-                        args: vec![CallArg::Positional(body_expr)],
-                    },
-                    self.typechecked_expr_ty(e.span)
-                        .unwrap_or_else(|| self.task_type_of(body_ty)),
-                )
-            }
+            ast::ExprKind::Spawn { .. } => (
+                ExprKind::Todo("structured_concurrency_spawn_deferred"),
+                self.typechecked_expr_ty(e.span)
+                    .unwrap_or(self.builtins.any),
+            ),
             ast::ExprKind::Await { await_span, expr } => {
                 // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
                 //
@@ -555,12 +525,11 @@ impl<'a> HirLowering<'a> {
                     result_ty,
                 )
             }
-            ast::ExprKind::Join { join_span, expr } => {
-                // T0620：`join expr`（结构化并发最小模型）。
-                //
-                // 当前阶段：join 仍是内部 one-shot helper，但其值表示已脱离 `Int handle`。
-                self.lower_task_join_call_expr(pkg_prefix, e.span, *join_span, expr)
-            }
+            ast::ExprKind::Join { .. } => (
+                ExprKind::Todo("structured_concurrency_join_deferred"),
+                self.typechecked_expr_ty(e.span)
+                    .unwrap_or(self.builtins.any),
+            ),
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.lower_member_access_expr(pkg_prefix, receiver, member)
             }
@@ -1926,35 +1895,6 @@ impl<'a> HirLowering<'a> {
             }),
             typechecked_fun_ty
                 .map(|(ty, _)| ty)
-                .unwrap_or(self.builtins.any),
-        )
-    }
-
-    fn lower_task_join_call_expr(
-        &mut self,
-        pkg_prefix: &str,
-        result_span: Span,
-        call_span: Span,
-        expr: &ast::Expr,
-    ) -> (ExprKind, TypeId) {
-        let inner = self.lower_expr(pkg_prefix, expr);
-
-        let fqn = Self::TASK_JOIN_FQN.to_string();
-        let callee = Expr {
-            span: call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(fqn.clone()),
-                fqn,
-            }),
-        };
-
-        (
-            ExprKind::Call {
-                callee: Box::new(callee),
-                args: vec![CallArg::Positional(inner)],
-            },
-            self.typechecked_expr_ty(result_span)
                 .unwrap_or(self.builtins.any),
         )
     }

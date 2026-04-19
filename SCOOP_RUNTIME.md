@@ -337,7 +337,7 @@ This stage standardizes the internal runtime ABI that backs `Task.poll()` / `Tas
 - `scoop_task_poll(task, out_word, out_gc_ref)` is the runtime entry used by both `Task.poll()` and `Task.step()`. It starts or resumes the task until the next suspension or completion, returning:
   - `0` for `Poll.Pending`
   - `1` for `Poll.Ready(value)` and writing the transport payload to `out_word/out_gc_ref`
-- `scoop_task_join` is now defined in terms of repeated `scoop_task_poll`.
+- `scoop_task_join` is now defined in terms of repeated `scoop_task_poll`. It remains an internal helper used by compiler/runtime/test harness code; it does not define a public structured-concurrency `join` surface.
 
 Implementation note:
 

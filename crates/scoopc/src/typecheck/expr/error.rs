@@ -18,6 +18,16 @@ pub enum ExprTypeError {
     },
 
     #[error(
+        "当前阶段尚未定义公开的 structured concurrency 语法 `{feature}`；请改用 `async {{ ... }}` / `async fun` 创建 `Task<T>`，并通过 `await` 或 `Task.poll()/step()` 驱动"
+    )]
+    #[diagnostic(code(scoop::typecheck::structured_concurrency_deferred))]
+    StructuredConcurrencyDeferred {
+        feature: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
         "无法推断 lambda 参数类型：参数 `{param}` 缺少类型注解，且当前语境没有期望的函数类型（约束来源：期望函数类型）"
     )]
     #[diagnostic(code(scoop::typecheck::lambda_param_type_not_inferred))]

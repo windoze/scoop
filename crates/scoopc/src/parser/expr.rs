@@ -269,12 +269,12 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // spec §5.7：`spawn { ... }`（结构化并发语法糖，T0620）。
+        // spec §5.7：`spawn { ... }`（为后续 structured concurrency 保留的语法壳）。
         //
         // 说明：
         // - 为避免与 Kotlin 风格 trailing lambda 的 `spawn { ... }`（call + lambda）形态冲突，
         //   这里把 `spawn` 作为“上下文关键字”在前缀位置优先解析为独立语法节点；
-        // - 当前阶段只支持紧跟一个 block：`spawn { ... }`。
+        // - 当前阶段只负责保留 AST 形状；真正语义由 typecheck 明确报 deferred。
         if self.peek_ident_text("spawn") {
             let spawn_kw = self.bump(); // `spawn`（ident）
             let start = spawn_kw.span.start;
@@ -286,11 +286,12 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        // T0620：`join expr`（结构化并发最小语法糖）。
+        // T0620：`join expr`（为后续 structured concurrency 保留的语法壳）。
         //
         // 说明：
         // - lexer 当前把 `join` 作为 ident（上下文关键字），因此这里通过字面文本判别；
-        // - `join` 作为前缀操作符，优先级与 `await`/`!`/`-` 等前缀一元运算对齐。
+        // - `join` 仍按前缀操作符建模，便于后续阶段恢复该语法；当前语义由 typecheck
+        //   明确报 deferred，而不是继续落到 `Task` core。
         if self.peek_ident_text("join") {
             let join_kw = self.bump(); // `join`（ident）
             let tok = *self.peek();

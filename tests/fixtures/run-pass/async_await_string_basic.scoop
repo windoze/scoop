@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: async_await_string_basic.stdout
+//
+// T4009c：公开 `spawn/join` surface 现已留待后续 structured concurrency；
+// 当前字符串任务主线应统一走 `async { ... }` + `await` + handled `Async.await`。
+//
+// 目标覆盖：
+// - `async { ... }` 可稳定构造 `Task<String>`；
+// - 外层 task 可 `await` 另一个 `Task<String>`；
+// - handled `Async.await` 继续通过内部 `__scoop_task_join` helper 驱动 lazy task。
+
+import scoop.core.*
+
+fun main(): Int {
+    val valueTask: Task<String> = async {
+        val task: Task<String> = async {
+            println("body")
+            "hello"
+        }
+        await task
+    }
+
+    val value: String = handle {
+        Async.await(valueTask)
+    } with {
+        Async.await(taskArg: Task<String>) -> __scoop_task_join(taskArg)
+    }
+
+    println("awaited")
+    println(value)
+    return 0
+}

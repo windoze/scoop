@@ -118,8 +118,6 @@ impl<'a> HirLowering<'a> {
     const ASYNC_EFFECT_FQN: &'static str = "scoop.core.Async";
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
     const TASK_CREATE_FQN: &'static str = "scoop.core.__scoop_task_create";
-    const TASK_FROM_RESULT_FQN: &'static str = "scoop.core.__scoop_task_from_result";
-    const TASK_JOIN_FQN: &'static str = "scoop.core.__scoop_task_join";
     const TASK_STEP_PENDING_FQN: &'static str = "scoop.core.__scoop_task_step_pending";
     const TASK_STEP_READY_FQN: &'static str = "scoop.core.__scoop_task_step_ready";
     const TASK_STEP_RESULT_FQN: &'static str = "scoop.core.__TaskStepResult";
@@ -530,9 +528,8 @@ impl<'a> HirLowering<'a> {
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         //
-        // T0623：`async fun foo(): T` 对外暴露 `Task<T>`：
-        // - 早期 HIR 里 task 先用 word-sized `UInt` 句柄承载（与 `spawn/join` 一致）；
-        // - 真正的 `Task<T>` nominal type lowering 与 ABI 会在后续任务中补齐。
+        // T0623/T4009：`async fun foo(): T` 对外统一暴露 `Task<T>`，并直接建立在普通 nominal
+        // object lowering 上；不再把旧的 `spawn/join` 早期语义当作 `Task` core 前提。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
         let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let inner_return_ty = fun

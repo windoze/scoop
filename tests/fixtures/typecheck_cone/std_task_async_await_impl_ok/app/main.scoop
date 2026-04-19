@@ -7,7 +7,7 @@ package fixtures.typecheck_cone.std_task_async_await_impl_ok.app
 import scoop.core.*
 
 async fun fetch(): Int {
-    val inner: Task<Int> = spawn { 1 }
+    val inner: Task<Int> = async { 1 }
     return await inner + 1
 }
 

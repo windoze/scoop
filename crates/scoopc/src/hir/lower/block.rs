@@ -165,10 +165,54 @@ impl<'a> HirLowering<'a> {
         inner_return_ty: TypeId,
     ) -> Expr {
         let step_result_ty = self.task_step_result_type();
+        let mut normalized_body = lowered_body;
+        if let Some(tail_stmt) = normalized_body.stmts.pop() {
+            match tail_stmt.kind {
+                // 先把 async body 的尾值物化到局部，避免“尾值直接是 await/handle replay”
+                // 时在后续 `__task_ready_value` 包装里丢掉 GC 引用结果。
+                StmtKind::Expr(tail_expr) => {
+                    let (body_value_span, body_value_id, body_value_name) =
+                        self.fresh_synthetic_local(body_span, "__task_body_value", false);
+                    let body_value_ref = Expr {
+                        span: body_value_span,
+                        ty: inner_return_ty,
+                        kind: ExprKind::VarRef(ValueRef::Local {
+                            id: body_value_id,
+                            name: body_value_name.clone(),
+                            decl_span: body_value_span,
+                        }),
+                    };
+                    normalized_body.stmts.push(Stmt {
+                        span: tail_stmt.span,
+                        ty: inner_return_ty,
+                        kind: StmtKind::Val(super::super::ValDecl {
+                            span: tail_stmt.span,
+                            id: Some(body_value_id),
+                            name: Some(body_value_name),
+                            mutable: false,
+                            ty: inner_return_ty,
+                            init: Some(tail_expr),
+                        }),
+                    });
+                    normalized_body.stmts.push(Stmt {
+                        span: tail_stmt.span,
+                        ty: inner_return_ty,
+                        kind: StmtKind::Expr(body_value_ref),
+                    });
+                }
+                other => {
+                    normalized_body.stmts.push(Stmt {
+                        span: tail_stmt.span,
+                        ty: tail_stmt.ty,
+                        kind: other,
+                    });
+                }
+            }
+        }
         let body_expr = Expr {
-            span: lowered_body.span,
+            span: normalized_body.span,
             ty: inner_return_ty,
-            kind: ExprKind::Block(lowered_body),
+            kind: ExprKind::Block(normalized_body),
         };
         let (ready_value_span, ready_value_id, ready_value_name) =
             self.fresh_synthetic_local(body_span, "__task_ready_value", false);

@@ -2370,7 +2370,7 @@ import scoop.core.*
 
 fun main(): Int {
     val task: Task<Int> = async {
-        val t: Task<Int> = spawn { 41 }
+        val t: Task<Int> = async { 41 }
         val x: Int = await t
         x + 1
     }

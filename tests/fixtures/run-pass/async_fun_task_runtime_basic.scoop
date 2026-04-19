@@ -5,7 +5,7 @@
 //
 // 目标覆盖：
 // - `async fun foo(): T` 对外返回 `Task<T>`；
-// - 外层可直接通过 `join` 驱动 lazy task；
+// - 外层可通过 handled `Async.await` + 内部 helper 驱动 lazy task；
 // - task body 内 `await` 另一个 `async fun` 返回的 lazy task 时，会通过内部
 //   `step-ready/pending + poll` driver 推进该 task，而不是继续依赖“外层立即求值”旧语义。
 

@@ -841,7 +841,8 @@ impl<'a> BlockScopeChecker<'a> {
                 self.check_block(body)?;
             }
             ast::ExprKind::Spawn { body } => {
-                // spec §5.7：`spawn { ... }` 的 body 同样是一个 block。
+                // `spawn` 当前虽在 typecheck 阶段报 deferred，但其 block 仍需参与词法作用域检查，
+                // 这样后续 structured concurrency 任务恢复语义时无需改 resolver 主线。
                 self.check_block(body)?;
             }
             ast::ExprKind::Await { expr, .. } => {
@@ -849,7 +850,7 @@ impl<'a> BlockScopeChecker<'a> {
                 self.check_expr(expr.as_mut())?;
             }
             ast::ExprKind::Join { expr, .. } => {
-                // T0620：`join expr` 只是一层前缀语法糖，递归检查其操作数即可。
+                // `join` 当前虽在 typecheck 阶段报 deferred，但其操作数仍需完成普通名字解析。
                 self.check_expr(expr.as_mut())?;
             }
             ast::ExprKind::TypeApply { callee, .. } => {

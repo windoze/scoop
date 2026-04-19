@@ -474,14 +474,16 @@ effect Async {
     fun <T> await(task: Task<T>): T
 }
 
-// Tasks / spawn/join（early stage, internal）。
+// Task internal helpers（compiler/runtime only）。
 //
 // 说明：
 // - `__TaskStepResult` 与 `__scoop_task_step_*` 只服务 compiler/runtime 的私有 task driver，
 //   不构成用户态 API；
 // - `__scoop_task_create` 是 `async` sugar 的内部 lazy-task 创建落点，不构成用户态 API；
-// - `spawn` 的最终 desugar 仍待后续任务定型；当前 helper 只负责把“已算出的结果值”包装成 task；
-// - `join` 当前仍是过渡期 helper：其实现会循环 `poll()` 直到 task 完成。
+// - structured concurrency（包括公开的 `spawn` / `join` 语法）仍留待后续任务，不属于当前
+//   `Task` core 合同；
+// - `__scoop_task_from_result` / `__scoop_task_join` 只是 compiler/runtime/test harness 使用的
+//   内部 helper：前者把已知结果包装成 task，后者通过循环 `poll()` 等到 task 完成。
 class __TaskStepResult
 fun <T> __scoop_task_create(block: () -> __TaskStepResult): Task<T>
 fun <T> __scoop_task_step_ready(value: T): __TaskStepResult
