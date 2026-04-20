@@ -1291,7 +1291,7 @@
 ### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
-  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2 -> T4010b -> T4010R`。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
@@ -1300,9 +1300,10 @@
 - 说明：
   - tuple 的 copy-update 只是现有 product 类型主线的自然扩展：路径语义可直接复用 `._0 / _1` 与 tuple literal 重建。
   - enum payload 则额外牵涉“路径如何静态选中 variant payload、是否要求保留原 variant、以及当前缺失的普通 enum payload member-access 主线”三类问题；若与 tuple 一起强行落地，容易引入 shape-based 特判或不稳定语义。
-  - 因此现将原 `T4010a` 再拆为 `T4010a1 -> T4010a2`：本轮先收口 tuple / struct+tuple 混合路径，后续再单独定义并实现 enum payload 的 copy-update 语义。
+  - 在继续推进 enum payload `with` 时，又发现一条更底层的既有 codegen blocker：当前 `when` / variant binder 对 inline 非标量 enum payload（例如 `Ok(val point: Point)`）仍会在 LLVM 阶段报 `enum payload (non-scalar)` unsupported；而 enum payload nested-path update 的 run-pass 验收必须建立在这条解构主线上，不能通过“只测标量 payload / 只挑 boxed variant”规避。
+  - 因此现将原 `T4010a` 细化为 `T4010a1 -> T4010a2a -> T4010a2b`：先收口 tuple / struct+tuple 混合路径，再补齐 inline 非标量 enum payload 的 `when`/codegen 主线，最后单独实现 enum payload 的 copy-update 语义。
 - 验收：
-  - `T4010a1` 与 `T4010a2` 全部完成后，`with` 在 tuple / enum / struct 上都走统一的 immutable copy-update 主线，不回流到字段写回式可变语义。
+  - `T4010a1`、`T4010a2a` 与 `T4010a2b` 全部完成后，`with` 在 tuple / enum / struct 上都走统一的 immutable copy-update 主线，不回流到字段写回式可变语义。
 - 依赖：T4010
 
 ### T4010a1 [DONE] 将 `with` 泛化到 tuple 与 struct+tuple 混合嵌套路径
@@ -1331,14 +1332,29 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a
 
-### T4010a2 [TODO] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen
+### T4010a2a [TODO] 收口 inline 非标量 enum payload 的 `when` / codegen 解构主线
+- 说明：
+  - 在尝试为 `with` 增加 enum payload nested-path run-pass 验收时，最小 probe
+    `enum Result { Ok(val point: Point), Err(val code: Int) }`
+    上的普通 `when (r) { Ok(point) -> point.x ... }`
+    就会在 LLVM 阶段报 `scoop::llvm::unsupported_main_body: enum payload (non-scalar)`。
+  - 这说明当前 blocker 不在 `with` 语义本身，而在更底层的 enum payload 解构/codegen 主线。若继续只靠标量 payload 或 boxed-only 例子推进 `with`，会把真正的既有缺口掩盖掉。
+- 范围：
+  - 修复 `when` / variant binder 对 inline 非标量 enum payload（如 struct/tuple payload）的提取与 codegen。
+  - 补齐对应 run-pass / lowering regression，为后续 enum payload `with` 提供可执行前提。
+- 验收：
+  - 最小 probe `Ok(val point: Point)` 的 `when` 解构可 build/run。
+  - `T4010a2b` 可在不依赖 workaround 的前提下为 enum payload nested-path 增加 run-pass。
+- 依赖：T4010a1
+
+### T4010a2b [TODO] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen
 - 范围：
   - 明确 enum payload 路径的静态语义：路径如何定位 payload、何时允许更新、是否要求保留原 variant，避免把语义含混地塞进 lowering 特判。
   - 在语义明确后，把 enum payload 更新接入与 struct / tuple 相同的 immutable copy-update 主线，而不是新增 enum-only ad-hoc 更新器。
   - 新增 typecheck / run-pass / lowering regression，覆盖 enum payload nested path 与非法路径诊断。
 - 验收：
   - enum payload 更新语义有明确静态规则，且 lowering / codegen 复用统一 copy-update substrate。
-- 依赖：T4010a1
+- 依赖：T4010a2a
 
 ### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
 - 范围：
@@ -1347,7 +1363,7 @@
   - 如规范文字、sysroot 示例或相关注释需要调整，在本任务内显式同步相应文档任务。
 - 验收：
   - `ISSUES.md` 第 7 条中“字段默认值这类声明便利性仍未覆盖”的部分收窄或关闭。
-- 依赖：T4010a2
+- 依赖：T4010a2b
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
