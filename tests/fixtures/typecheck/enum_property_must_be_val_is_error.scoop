@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::value_type_property_must_be_val
+// EXPECT-ERROR-AT: 11:9
+// EXPECT-ERROR: 值类型（struct/enum）属性不允许 `var`
+package fixtures.typecheck
+import scoop.core.*
+
+enum Token {
+    A
+
+    var code: Int
+}

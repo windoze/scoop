@@ -1288,12 +1288,16 @@
 
 ## T4010：值类型不可变语义与 `with`
 
-### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
+### T4010 [DONE] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
   - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010b1 -> T4010b1a -> T4010b1a1 -> T4010b1b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
+- 完成：
+  - `T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` / `T4010b1a1` / `T4010b1b` / `T4010R` 已全部完成。
+  - `with` 现已在 `struct` / `tuple` / `enum` 上统一走 immutable copy-update 主线；值类型字段默认值、computed property getter、跨文件 generic value member access 与 `struct` 主构造参数 `var` 漏检等前置裂缝也已全部收口。
+  - `T4010R` 复审进一步确认：值类型更新仍只允许通过 `with`，没有借默认值人体工学或 value-type property 路径重新引入字段级写回式可变语义。
 - 依赖：T4009R
 
 ### T4010a [DONE] 将 `with` 从 `struct` 泛化到更多值类型（拆分执行）
@@ -1582,10 +1586,21 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1a1
 
-### T4010R [TODO] Review：确认值类型仍保持整体不可变
+### T4010R [DONE] Review：确认值类型仍保持整体不可变
 - 重点：
   - 不接受把 `with` 扩展成字段级写回式 `var`。
   - 不允许借“默认值人体工学”重新引入可变值类型叙事。
+- 已完成：
+  - 复审 `typecheck::structs`、`typecheck::properties`、`typecheck::expr::collect`、`typecheck::expr::stmt` 与 `typecheck::expr::infer` 后确认，值类型不可变约束已收口到统一主线：`struct` 主构造参数与 body property 都会静态拒绝 `var`，`struct` / `enum` value-type property 会统一拒绝 `var`、setter、delegate 与会生成 backing field 的 computed-property initializer，赋值语句则统一通过 `member_mutabilities` 阻止值类型字段写回。
+  - 复审 `with` / 默认值相关路径后确认，`with` 仍只产生 copy-update 结果值，不会原位写回；字段默认值只影响构造入口，没有重新引入可变 backing field 或 setter 语义。
+  - 为避免 review 只覆盖 `struct` 而漏掉 `enum` 的 value-type property 约束，新增 typecheck 回归：
+    - `tests/fixtures/typecheck/enum_property_must_be_val_is_error.scoop`
+    - `tests/fixtures/typecheck/enum_property_setter_not_allowed_is_error.scoop`
+- 已验证：
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (350)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1102)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1b
 
 ## T4011：`when` 的无 binder or-pattern 子集
