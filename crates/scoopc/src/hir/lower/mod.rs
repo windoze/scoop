@@ -1485,8 +1485,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
     let mut enum_layouts = collect_enum_layouts(&pairs, &index, &types);
     // T0124：泛型 struct/enum 的具体实例化布局。
-    struct_layouts.extend(collect_generic_struct_instantiation_layouts(&pairs, &types));
-    enum_layouts.extend(collect_generic_enum_instantiation_layouts(&pairs, &types));
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+        &pairs, &index, &types,
+    ));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+        &pairs, &index, &types,
+    ));
     // T0125：泛型 class 的具体实例化 ClassInit。
     let class_inits = {
         let mut ci = class_inits;
@@ -1634,10 +1638,12 @@ pub fn lower_for_compilation_unit(
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(
         compilation_unit,
+        index,
         &types,
     ));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
         compilation_unit,
+        index,
         &types,
     ));
     // T0125：泛型 class 的具体实例化 ClassInit。
@@ -1832,10 +1838,12 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(
         compilation_unit,
+        index,
         &types,
     ));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
         compilation_unit,
+        index,
         &types,
     ));
 

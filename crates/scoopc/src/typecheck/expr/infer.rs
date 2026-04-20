@@ -2736,6 +2736,92 @@ fn infer_struct_lit_expr_type(
     Ok(struct_ty)
 }
 
+fn collect_named_type_param_refs(
+    ty: TypeId,
+    bindings: &HashMap<String, TypeId>,
+    out: &mut HashMap<String, TypeId>,
+    lower: &TypeLowering<'_>,
+) {
+    match lower.type_kind(ty) {
+        TypeKind::Param(p) => {
+            if bindings.contains_key(&p.name) {
+                out.entry(p.name).or_insert(ty);
+            }
+        }
+        TypeKind::StarProjection(_) => {}
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String) => {}
+        TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            collect_named_type_param_refs(inner, bindings, out, lower);
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            for element in elements {
+                collect_named_type_param_refs(element, bindings, out, lower);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            for arg in nominal.args {
+                collect_named_type_param_refs(arg, bindings, out, lower);
+            }
+            if let Some(row) = nominal.eff {
+                for effect in row.terms {
+                    collect_named_type_param_refs(effect, bindings, out, lower);
+                }
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            if let Some(receiver) = fun.receiver {
+                collect_named_type_param_refs(receiver, bindings, out, lower);
+            }
+            for param in fun.params {
+                collect_named_type_param_refs(param, bindings, out, lower);
+            }
+            collect_named_type_param_refs(fun.return_ty, bindings, out, lower);
+            for effect in fun.effects.terms {
+                collect_named_type_param_refs(effect, bindings, out, lower);
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            for variant in union.variants {
+                collect_named_type_param_refs(variant, bindings, out, lower);
+            }
+        }
+    }
+}
+
+fn instantiate_type_param_bindings_by_name(
+    ty: TypeId,
+    bindings: &HashMap<String, TypeId>,
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<TypeId, ExprTypeError> {
+    if bindings.is_empty() {
+        return Ok(ty);
+    }
+
+    let mut refs_by_name: HashMap<String, TypeId> = HashMap::new();
+    collect_named_type_param_refs(ty, bindings, &mut refs_by_name, lower);
+
+    let mut out = ty;
+    for (name, param_ty) in refs_by_name {
+        let Some(arg_ty) = bindings.get(&name).copied() else {
+            continue;
+        };
+        out = substitute_single_type_param(out, param_ty, arg_ty, lower, use_span)?;
+    }
+    Ok(out)
+}
+
 /// T0124: Infer the type of a generic struct literal using the expected type context.
 ///
 /// When the struct literal omits type arguments (e.g., `Pair { first: 10, second: 20 }`)
@@ -2778,11 +2864,12 @@ fn infer_generic_struct_lit_expr_type(
         if rest.contains('.') {
             continue;
         }
-        // Substitute type params to concrete types.
-        let concrete_ty = match lower.type_kind(*field_ty) {
-            TypeKind::Param(p) => subst.get(&p.name).copied().unwrap_or(*field_ty),
-            _ => *field_ty,
-        };
+        let concrete_ty = instantiate_type_param_bindings_by_name(
+            *field_ty,
+            &subst,
+            lower,
+            struct_lit_expr.span,
+        )?;
         expected_fields.insert(rest.to_string(), concrete_ty);
     }
 

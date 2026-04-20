@@ -3228,6 +3228,18 @@ pub(super) struct MatchedCtorOverload {
     pub(super) inferred_type_args: Vec<TypeId>,
 }
 
+type InstantiatedCtorParamTypes = (Vec<TypeId>, Vec<TypeId>);
+
+struct CtorParamInstantiationRequest<'a> {
+    param_tys: &'a [TypeId],
+    type_param_names: &'a [String],
+    decl_file: &'a std::path::Path,
+    mapping: &'a [Option<usize>],
+    call_args: &'a [CallArgInfo<'a>],
+    builtins: BuiltinTypes,
+    call_span: Span,
+}
+
 fn is_strictly_more_specific_ctor_overload(
     a: &MatchedCtorOverload,
     b: &MatchedCtorOverload,
@@ -3283,6 +3295,88 @@ pub(super) fn pick_most_specific_ctor_overload(
         return None;
     }
     Some(idx)
+}
+
+fn instantiate_ctor_param_tys(
+    request: CtorParamInstantiationRequest<'_>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<InstantiatedCtorParamTypes>, ExprTypeError> {
+    let CtorParamInstantiationRequest {
+        param_tys,
+        type_param_names,
+        decl_file,
+        mapping,
+        call_args,
+        builtins,
+        call_span,
+    } = request;
+
+    if type_param_names.is_empty() {
+        return Ok(Some((Vec::new(), param_tys.to_vec())));
+    }
+
+    let fresh_type_params: Vec<TypeId> = type_param_names
+        .iter()
+        .cloned()
+        .map(|name| lower.ty_param_named(name, decl_file.to_path_buf(), Span::new(0, 0)))
+        .collect();
+
+    let mut inferred: HashMap<TypeId, TypeId> = HashMap::new();
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let Some(arg_idx) = arg_idx else {
+            continue;
+        };
+        let Some(expected_ty) = param_tys.get(param_idx).copied() else {
+            return Ok(None);
+        };
+        let Some(arg) = call_args.get(arg_idx) else {
+            return Ok(None);
+        };
+        let found_is_placeholder = matches!(arg.expr.kind, ast::ExprKind::Lambda(_));
+
+        for param_ty in fresh_type_params.iter().copied() {
+            let mut candidates: Vec<TypeId> = Vec::new();
+            collect_type_arg_candidates_for_single_type_param(
+                expected_ty,
+                arg.ty,
+                param_ty,
+                &mut candidates,
+                lower,
+                builtins,
+                found_is_placeholder,
+            );
+
+            for candidate in candidates {
+                match inferred.get(&param_ty).copied() {
+                    None => {
+                        inferred.insert(param_ty, candidate);
+                    }
+                    Some(bound) if bound == candidate => {}
+                    Some(_) => return Ok(None),
+                }
+            }
+        }
+    }
+
+    let inferred_type_args: Vec<TypeId> = fresh_type_params
+        .iter()
+        .copied()
+        .map(|param_ty| inferred.get(&param_ty).copied().unwrap_or(builtins.any))
+        .collect();
+
+    let mut instantiated_param_tys = param_tys.to_vec();
+    for (param_ty, arg_ty) in fresh_type_params
+        .iter()
+        .copied()
+        .zip(inferred_type_args.iter().copied())
+    {
+        for expected_ty in &mut instantiated_param_tys {
+            *expected_ty =
+                substitute_single_type_param(*expected_ty, param_ty, arg_ty, lower, call_span)?;
+        }
+    }
+
+    Ok(Some((inferred_type_args, instantiated_param_tys)))
 }
 
 pub(super) fn collect_matched_ctor_overloads_for_owner(
@@ -3375,12 +3469,28 @@ pub(super) fn collect_matched_ctor_overloads_for_owner(
             continue;
         }
 
+        let Some((inferred_type_args, instantiated_param_tys)) = instantiate_ctor_param_tys(
+            CtorParamInstantiationRequest {
+                param_tys: &param_tys,
+                type_param_names: &type_param_names,
+                decl_file: &ctor.decl_file,
+                mapping: &mapping,
+                call_args,
+                builtins,
+                call_span,
+            },
+            lower,
+        )?
+        else {
+            continue;
+        };
+
         let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
             let Some(arg_idx) = arg_idx else {
                 continue;
             };
-            let Some(expected_ty) = param_tys.get(param_idx).copied() else {
+            let Some(expected_ty) = instantiated_param_tys.get(param_idx).copied() else {
                 ok = false;
                 break;
             };
@@ -3402,24 +3512,6 @@ pub(super) fn collect_matched_ctor_overloads_for_owner(
         if !ok {
             continue;
         }
-
-        let inferred_type_args = {
-            let mut inferred: HashMap<String, TypeId> = HashMap::new();
-            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                let Some(arg_idx) = arg_idx else { continue };
-                let Some(&expected_ty) = param_tys.get(param_idx) else {
-                    continue;
-                };
-                if let TypeKind::Param(p) = lower.type_kind(expected_ty) {
-                    let arg_ty = call_args[arg_idx].ty;
-                    inferred.entry(p.name.clone()).or_insert(arg_ty);
-                }
-            }
-            type_param_names
-                .iter()
-                .map(|name| inferred.get(name).copied().unwrap_or(builtins.any))
-                .collect::<Vec<_>>()
-        };
 
         let defaults_used = mapping.iter().filter(|arg_idx| arg_idx.is_none()).count();
         matched.push(MatchedCtorOverload {

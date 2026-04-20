@@ -2377,10 +2377,12 @@ fn append_struct_body_property_layout_fields(
 /// 字段的 ty_fqn 通过 type param 替换为具体类型。
 pub(super) fn collect_generic_struct_instantiation_layouts(
     pairs: &[(&SourceFile, &ast::File)],
+    index: &Index,
     types: &TypeStore,
 ) -> StructLayoutIndex {
     // 1) 收集泛型 struct 声明：base_fqn → (source, decl)
-    let mut generic_structs: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
+    let mut generic_structs: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
+        HashMap::new();
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
@@ -2398,7 +2400,7 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             } else {
                 format!("{pkg_prefix}.{name}")
             };
-            generic_structs.insert(fqn, (source, ty));
+            generic_structs.insert(fqn, (source, file, ty));
         }
     }
 
@@ -2416,7 +2418,7 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             continue;
         }
 
-        let Some((source, decl)) = generic_structs.get(&nominal.fqn) else {
+        let Some((source, file, decl)) = generic_structs.get(&nominal.fqn) else {
             continue;
         };
 
@@ -2442,8 +2444,10 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
                 // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型。
-                let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
-                let ty = resolve_field_type_id(source, p.ty.as_ref(), &param_map, types);
+                let ty_fqn =
+                    resolve_field_type_fqn(source, file, index, p.ty.as_ref(), &param_map, types);
+                let ty =
+                    resolve_field_type_id(source, file, index, p.ty.as_ref(), &param_map, types);
                 push_struct_layout_field(
                     &mut fields,
                     &nominal.fqn,
@@ -2460,8 +2464,8 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             &nominal.fqn,
             |ty_ref| {
                 (
-                    resolve_field_type_fqn(source, Some(ty_ref), &param_map, types),
-                    resolve_field_type_id(source, Some(ty_ref), &param_map, types),
+                    resolve_field_type_fqn(source, file, index, Some(ty_ref), &param_map, types),
+                    resolve_field_type_id(source, file, index, Some(ty_ref), &param_map, types),
                 )
             },
             &mut fields,
@@ -2485,10 +2489,12 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
 /// 与 `collect_generic_struct_instantiation_layouts` 类似，为泛型 enum 的具体实例化生成布局。
 pub(super) fn collect_generic_enum_instantiation_layouts(
     pairs: &[(&SourceFile, &ast::File)],
+    index: &Index,
     types: &TypeStore,
 ) -> EnumLayoutIndex {
     // 1) 收集泛型 enum 声明
-    let mut generic_enums: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
+    let mut generic_enums: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
+        HashMap::new();
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
@@ -2506,7 +2512,7 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
             } else {
                 format!("{pkg_prefix}.{name}")
             };
-            generic_enums.insert(fqn, (source, ty));
+            generic_enums.insert(fqn, (source, file, ty));
         }
     }
 
@@ -2524,7 +2530,7 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
             continue;
         }
 
-        let Some((source, decl)) = generic_enums.get(&nominal.fqn) else {
+        let Some((source, file, decl)) = generic_enums.get(&nominal.fqn) else {
             continue;
         };
 
@@ -2559,8 +2565,22 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
-                    let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
-                    let ty = resolve_field_type_id(source, p.ty.as_ref(), &param_map, types);
+                    let ty_fqn = resolve_field_type_fqn(
+                        source,
+                        file,
+                        index,
+                        p.ty.as_ref(),
+                        &param_map,
+                        types,
+                    );
+                    let ty = resolve_field_type_id(
+                        source,
+                        file,
+                        index,
+                        p.ty.as_ref(),
+                        &param_map,
+                        types,
+                    );
                     fields.push(EnumVariantFieldLayout {
                         span: p.name.span,
                         name: field_name,
@@ -2792,56 +2812,67 @@ fn substitute_type_param(
 /// 解析字段的类型 FQN：如果字段类型是 type param，替换为具体类型的 FQN。
 fn resolve_field_type_fqn(
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     ty_ref: Option<&ast::TypeRef>,
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &TypeStore,
 ) -> Option<String> {
-    let ty_ref = ty_ref?;
-    // 如果是简单路径（单段），检查是否为 type param
-    if let ast::TypeRef::Path(path) = ty_ref
-        && path.segments.len() == 1
-        && path.args.is_empty()
-    {
-        let name = path.segments[0].text(source);
-        if let Some(concrete_ty) = param_map.get(name) {
-            return type_id_to_layout_fqn(types, *concrete_ty);
-        }
-    }
-    // 非 type param：暂不解析（泛型嵌套留到后续任务）
-    None
+    let ty = resolve_field_type_id(source, file, index, ty_ref, param_map, types)?;
+    type_id_to_layout_fqn(types, ty)
 }
 
 fn resolve_field_type_id(
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     ty_ref: Option<&ast::TypeRef>,
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &TypeStore,
 ) -> Option<crate::ty::TypeId> {
     let ty_ref = ty_ref?;
-    if let ast::TypeRef::Path(path) = ty_ref
-        && path.segments.len() == 1
-        && path.args.is_empty()
-    {
-        let name = path.segments[0].text(source);
-        if let Some(concrete_ty) = param_map.get(name) {
-            return Some(*concrete_ty);
-        }
-    }
-
     match ty_ref {
+        ast::TypeRef::Path(path) => {
+            if path.segments.len() == 1 && path.args.is_empty() {
+                let name = path.segments[0].text(source);
+                if let Some(concrete_ty) = param_map.get(name) {
+                    return Some(*concrete_ty);
+                }
+            }
+
+            let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty_ref)?;
+            let layout_key = if path.args.is_empty() {
+                base_fqn
+            } else {
+                let args = path
+                    .args
+                    .iter()
+                    .map(|arg| {
+                        resolve_field_type_id(source, file, index, Some(arg), param_map, types)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                mangle_nominal_fqn(&base_fqn, &args, types)
+            };
+            find_layout_type_id_by_key(types, &layout_key)
+        }
         ast::TypeRef::Tuple(tuple) => {
             let elements = tuple
                 .elements
                 .iter()
-                .map(|elem| resolve_field_type_id(source, Some(elem), param_map, types))
+                .map(|elem| {
+                    resolve_field_type_id(source, file, index, Some(elem), param_map, types)
+                })
                 .collect::<Option<Vec<_>>>()?;
             find_tuple_layout_type_id(types, &elements)
         }
         ast::TypeRef::Nullable { inner, .. } => {
-            let inner_ty = resolve_field_type_id(source, Some(inner), param_map, types)?;
+            let inner_ty =
+                resolve_field_type_id(source, file, index, Some(inner), param_map, types)?;
             find_option_layout_type_id(types, inner_ty)
         }
-        _ => None,
+        ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
     }
 }
 

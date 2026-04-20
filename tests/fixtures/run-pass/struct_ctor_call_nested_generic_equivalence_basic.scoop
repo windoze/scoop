@@ -1,0 +1,24 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// T4010b0R: struct ctor call 与 struct literal 在嵌套泛型字段上必须共享同一条具体化主线。
+
+import scoop.core.*
+
+struct Box<T>(val value: T)
+
+struct Wrapper<T>(val box: Box<T>)
+
+fun literalValue(): Int {
+    val wrapped: Wrapper<Int> = Wrapper { box: Box(40) }
+    return wrapped.box.value
+}
+
+fun ctorValue(): Int {
+    val wrapped: Wrapper<Int> = Wrapper(Box(2))
+    return wrapped.box.value
+}
+
+fun main(): Int {
+    return literalValue() + ctorValue() - 42
+}

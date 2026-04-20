@@ -1432,10 +1432,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a2b
 
-### T4010b0R [TODO] Review：确认 `struct` ctor call 不再与 struct literal 分裂
+### T4010b0R [DONE] Review：确认 `struct` ctor call 不再与 struct literal 分裂
 - 重点：
   - 不允许继续只有 `StructName { ... }` 可执行，而 `StructName(...)` 仍报 `callee_not_callable`。
   - 不允许为 struct ctor call 额外开一条与 struct literal 脱节的构造/默认值旁路。
+- 已完成：
+  - 复审发现 unified construction 主线在“嵌套泛型字段”上仍有同源裂缝：对 `struct Wrapper<T>(val box: Box<T>)` 而言，`val wrapped: Wrapper<Int> = Wrapper { box: Box(41) }` 会在 generic struct literal 路径报字段类型不匹配，而 `val wrapped: Wrapper<Int> = Wrapper(Box(41))` 会在 ctor overload 路径报 `no_matching_overload`。两条路径的根因一致，都是只支持顶层 `T`、没有递归具体化 `Box<T>` 这类 nested nominal 字段。
+  - 已把 generic struct literal 与 ctor overload 绑定统一收口为递归 type-param 具体化主线：前者会按 type param 名称递归替换 `Box<T>` / tuple / nullable / function field type 中的 `T`；后者会先从 nested generic 形状里递归收集 type-arg 约束，再按实例化后的 concrete param types 验参，不再只识别“形参类型本身就是 `T`”的特例。
+  - 为了完成执行级 review，又发现 HIR generic struct/enum layout 先前只会为裸 `T` / tuple / nullable 字段保留 concrete `TypeId` / layout key，`Box<T>` 这类 nested nominal 字段会在 LLVM 阶段落入 `scoop::llvm::unsupported_main_body: struct field type`。现已把字段 layout 解析切到“声明处 nominal path + 递归 type-arg substitution”主线，struct literal 与 struct ctor call 在 nested generic field 上共享同一套 concrete layout metadata。
+  - 已新增 run-pass 回归 `tests/fixtures/run-pass/struct_ctor_call_nested_generic_equivalence_basic.scoop`，覆盖 `Wrapper { box: Box(40) }` 与 `Wrapper(Box(2))` 对同一 `Wrapper<Int>` nested generic field 的 build/run 等价性。
+- 已验证：
+  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/struct_ctor_call_nested_generic_equivalence_basic.scoop -o /tmp/t4010b0r_fixture.out`
+  - `/tmp/t4010b0r_fixture.out`（退出码 `0`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (362)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (344)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b0
 
 ### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
