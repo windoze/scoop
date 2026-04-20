@@ -82,6 +82,16 @@ pub enum ParseError {
         #[label("这里的裸 `{{ ... }}` 不再作为局部 unsafe block 解析")]
         span: miette::SourceSpan,
     },
+
+    #[error("语法错误：`-> resume {{ ... }}` 已从 handler arm 语法移除")]
+    #[diagnostic(
+        code(scoop::parse::handle_immediate_resume_removed),
+        help("改用 `Effect.op(...), k -> {{ k.resume(...) }}`")
+    )]
+    HandleImmediateResumeRemoved {
+        #[label("这里的 `resume` 不再作为 handler arm 语法关键字")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
@@ -153,6 +163,7 @@ impl ParseError {
             ParseError::FStringUnescapedRBrace { span } => Some(*span),
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
+            ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
         }
     }
 }

@@ -340,10 +340,8 @@ pub enum ExprKind {
     /// effect handler 表达式：`handle { ... } with { ... }`（spec §5.4）。
     ///
     /// 当前阶段：
-    /// - 支持 non-resuming arms（`->`）、
-    ///   immediate-resume arms（`-> resume`，T0616）
-    ///   与 escape-continuation arms（`, k ->`，T0617）；
-    /// - HIR 保留 arm 语义形态与隐式/显式 binder 符号，供后续 lowering/codegen 识别。
+    /// - 支持 non-resuming arms（`->`）与 escape-continuation arms（`, k ->`，T0617）；
+    /// - HIR 保留 arm 语义形态与显式 continuation binder 符号，供后续 lowering/codegen 识别。
     Handle(HandleExpr),
     Todo(&'static str),
 }
@@ -997,14 +995,10 @@ impl fmt::Debug for HandleArm {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // 为了保持 HIR fixtures 的 dump 输出尽量稳定：
         // - non-resuming arm 不额外打印 kind（与旧版输出保持一致）
-        // - `-> resume` arm 仅在必要时打印 resume symbol 以便回归与调试
         let mut s = f.debug_struct("HandleArm");
         s.field("span", &self.span);
         s.field("op", &self.op);
         match self.kind {
-            HandleArmKind::ImmediateResume { resume } => {
-                s.field("resume", &resume);
-            }
             HandleArmKind::EscapeContinuation { continuation } => {
                 s.field("continuation", &continuation);
             }
@@ -1020,11 +1014,6 @@ impl fmt::Debug for HandleArm {
 pub enum HandleArmKind {
     /// `->`：非恢复 arm；handled computation 被放弃（try/catch lowering 产物）。
     NonResuming,
-    /// `-> resume`：立即恢复 arm（T0616）。
-    ///
-    /// `resume(value)` 是一个隐式注入的局部符号：其 `SymbolId` 存在于本字段中，
-    /// 供后续 lowering/codegen 识别并生成 state machine 跳转。
-    ImmediateResume { resume: SymbolId },
     /// `, k ->`：逃逸 continuation arm（T0617）。
     ///
     /// `k.resume(value)` 会在后续 lowering/codegen 中生成对 runtime continuation 的调用。

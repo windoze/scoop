@@ -56,9 +56,9 @@ fun main() {
         Abort.stop(second)
         99
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(40)
+            k.resume(40)
         }
         Ask.ask(seed), k -> {
             cell.seen = cell.seen + 1

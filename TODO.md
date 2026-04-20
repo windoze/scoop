@@ -70,7 +70,7 @@
   - `Continuation.resume(...)` 能作为真正返回 delimiter answer 的表达式 surface 工作，而不是继续被 typecheck / HIR 钉死为 `Unit`。
 - 依赖：T4016a2
 
-### T4016b1 [TODO] 删除用户态 `-> resume` 语法，并把 tail-resume 收口为 lowering / codegen 内部分类
+### T4016b1 [DONE] 删除用户态 `-> resume` 语法，并把 tail-resume 收口为 lowering / codegen 内部分类
 - 范围：
   - parser / AST / HIR / resolver / typecheck 不再把 `Effect.op(...) -> resume { ... }` 当作独立用户态 arm surface；语法层改为 removed-syntax diagnostics，并显式指向 `Effect.op(...), k -> { k.resume(...) }` 的迁移路径。
   - 原先依赖 `-> resume` 的 fixtures / 回归统一改写为 `, k ->` + `k.resume(...)`；用户态只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 arm 形态。

@@ -35,10 +35,10 @@ fun immediate_case(): Int {
         println(x)
         x + 10
     } with {
-        Echo.bump(text, by) -> resume {
+        Echo.bump(text, by) , k -> {
             println(text)
             println(by)
-            resume(text.length() + by)
+            k.resume(text.length() + by)
         }
     }
 }

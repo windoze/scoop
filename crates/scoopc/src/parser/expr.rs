@@ -822,7 +822,6 @@ impl<'a> Parser<'a> {
     ///
     /// 当前阶段：
     /// - 支持 non-resuming arm：`Effect.op(binders...) -> body`；
-    /// - 支持 immediate-resume arm：`Effect.op(binders...) -> resume { ... }`（T0616）；
     /// - 语法错误在 arm 级别做恢复：尽量跳到下一个 arm 起始继续解析；
     /// - 支持 escape continuation arm：`Effect.op(binders...), k -> body`（T0617）。
     fn parse_handle_expr(&mut self) -> Result<ast::Expr, ParseError> {
@@ -1018,27 +1017,16 @@ impl<'a> Parser<'a> {
 
         let arrow = self.expect_symbol(Symbol::Arrow)?;
 
-        // spec §5.4：`-> resume { ... }`（immediate-resume）。
+        // spec §5.4 / T4016b1：`-> resume { ... }` 已从用户态语法移除。
         //
-        // 注意：`resume` 在 lexer 层仍是 ident；这里以“`resume` + `{`”的形态做语法判别，
-        // 避免把它误解析为普通 call 表达式（Kotlin 风格的 trailing lambda）。
+        // 注意：这里仍主动消费整段 block 以便完成 arm 级错误恢复，然后给出明确迁移诊断。
         if self.peek_ident_text("resume")
             && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
         {
             let resume_tok = self.bump(); // `resume`（ident）
-            let resume_span = resume_tok.span;
-            let block = self.parse_block()?;
-            let body = ast::Expr {
-                span: block.span,
-                kind: ast::ExprKind::Block(block),
-            };
-
-            return Ok(ast::HandleArm {
-                span: Span::new(op.span.start, body.span.end),
-                op,
-                arrow_span: arrow.span,
-                kind: ast::HandleArmKind::ImmediateResume { resume_span },
-                body,
+            let _ = self.parse_block()?;
+            return Err(ParseError::HandleImmediateResumeRemoved {
+                span: resume_tok.span.into(),
             });
         }
 

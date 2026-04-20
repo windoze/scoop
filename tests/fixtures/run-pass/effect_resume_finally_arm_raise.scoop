@@ -5,7 +5,7 @@
 //
 // 目标覆盖：
 // - handle body perform 后进入 immediate-resume arm；
-// - arm body 在调用 `resume(value)` 前触发 `Raise.raise`；
+// - arm body 在调用 `k.resume(value)` 前触发 `Raise.raise`；
 // - finally 在 raise 向外传播前恰好执行一次。
 
 import scoop.core.*
@@ -23,11 +23,11 @@ fun main() {
             println("body_unreachable")
             x
         } with {
-            Yield.next() -> resume {
+            Yield.next() , k -> {
                 println("arm_start")
                 Raise.raise(77)
                 println("arm_unreachable")
-                resume(0)
+                k.resume(0)
             }
         } finally {
             println("finally")

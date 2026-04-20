@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T2001：同一个 `handle` 中允许混用 `->` / `-> resume` / `, k ->`，
+// 目标：T2001/T4016b1：同一个 `handle` 中允许混用 `->` 与 `, k ->`，
 // 并且 non-resuming / escape-continuation arm 会按真实返回路径参与结果类型检查。
 
 package fixtures.typecheck
@@ -31,8 +31,8 @@ fun demo(mode: Int): Int {
             0
         }
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
         Ask.current(), k -> {
             val keep: Continuation<Int> = k

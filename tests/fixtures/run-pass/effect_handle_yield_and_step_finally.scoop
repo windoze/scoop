@@ -29,14 +29,14 @@ fun main() {
         Abort.stop(second + 3)
         0
     } with {
-        Step.take(seed: Int) -> resume {
+        Step.take(seed: Int) , k -> {
             println("step_arm")
             println(seed)
-            resume(seed * 2)
+            k.resume(seed * 2)
         }
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(10)
+            k.resume(10)
         }
         Abort.stop(code: Int) -> {
             println("abort_arm")

@@ -33,9 +33,9 @@ fun run(limit: Int): Int {
         println("after_loop")
         i
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("arm")
-            resume(1)
+            k.resume(1)
         }
     }
 }

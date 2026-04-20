@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::handle_immediate_resume_removed
+// EXPECT-ERROR: `-> resume { ... }` 已从 handler arm 语法移除
+// EXPECT-ERROR-AT: 18:25
+
+package fixtures.parse
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun demo(): Int {
+    handle {
+        Yield.next()
+    } with {
+        Yield.next() -> resume {
+            resume(41)
+        }
+    }
+}

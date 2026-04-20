@@ -30,9 +30,9 @@ fun run(): Int {
         }
         total + i
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("arm")
-            resume(3)
+            k.resume(3)
         }
     }
 }

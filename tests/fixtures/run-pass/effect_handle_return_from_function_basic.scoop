@@ -16,8 +16,8 @@ fun earlyReturn(): Int {
         println("handle_body")
         return 41
     } with {
-        Yield.next() -> resume {
-            resume(0)
+        Yield.next() , k -> {
+            k.resume(0)
         }
     }
 

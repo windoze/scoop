@@ -841,10 +841,6 @@ impl<'a> BlockScopeChecker<'a> {
                     for b in &arm.op.binders {
                         self.declare_ident_typed(&b.name, b.ty.clone())?;
                     }
-                    // spec §5.4：`-> resume` arm 里 `resume(value)` 是一个隐式注入的局部符号。
-                    if let ast::HandleArmKind::ImmediateResume { resume_span } = arm.kind {
-                        self.declare_ident(&ast::Ident::new(resume_span))?;
-                    }
                     // spec §5.4：`, k ->` arm 里 `k` 是显式 continuation binder（作为局部值）。
                     if let ast::HandleArmKind::EscapeContinuation { k_span } = arm.kind {
                         self.declare_ident(&ast::Ident::new(k_span))?;

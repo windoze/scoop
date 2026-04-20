@@ -14,7 +14,7 @@ File {
         },
         Fun(
             FunDecl {
-                span: 170..626,
+                span: 170..625,
                 fqn: "fixtures.hir.demo",
                 name: "demo",
                 ty: TypeId(
@@ -35,19 +35,19 @@ File {
                 ),
                 body: Some(
                     Block {
-                        span: 195..626,
+                        span: 195..625,
                         ty: TypeId(
                             0,
                         ),
                         stmts: [
                             Stmt {
-                                span: 201..613,
+                                span: 201..612,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 201..613,
+                                        span: 201..612,
                                         id: Some(
                                             S6,
                                         ),
@@ -60,7 +60,7 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 219..613,
+                                                span: 219..612,
                                                 ty: TypeId(
                                                     0,
                                                 ),
@@ -427,7 +427,7 @@ File {
                                                         },
                                                         arms: [
                                                             HandleArm {
-                                                                span: 486..543,
+                                                                span: 486..542,
                                                                 op: HandleOp {
                                                                     span: 486..498,
                                                                     effect_ty: TypeId(
@@ -439,48 +439,61 @@ File {
                                                                     },
                                                                     binders: [],
                                                                 },
-                                                                resume: S3,
+                                                                continuation: S3,
                                                                 body: Expr {
-                                                                    span: 509..543,
+                                                                    span: 506..542,
                                                                     ty: TypeId(
                                                                         0,
                                                                     ),
                                                                     kind: Block(
                                                                         Block {
-                                                                            span: 509..543,
+                                                                            span: 506..542,
                                                                             ty: TypeId(
                                                                                 0,
                                                                             ),
                                                                             stmts: [
                                                                                 Stmt {
-                                                                                    span: 523..533,
+                                                                                    span: 520..532,
                                                                                     ty: TypeId(
                                                                                         2,
                                                                                     ),
                                                                                     kind: Expr(
                                                                                         Expr {
-                                                                                            span: 523..533,
+                                                                                            span: 520..532,
                                                                                             ty: TypeId(
                                                                                                 0,
                                                                                             ),
                                                                                             kind: Call {
                                                                                                 callee: Expr {
-                                                                                                    span: 523..529,
+                                                                                                    span: 520..528,
                                                                                                     ty: TypeId(
                                                                                                         0,
                                                                                                     ),
-                                                                                                    kind: VarRef(
-                                                                                                        Local {
-                                                                                                            id: S3,
-                                                                                                            name: "resume",
-                                                                                                            decl_span: 502..508,
+                                                                                                    kind: MemberAccess {
+                                                                                                        receiver: Expr {
+                                                                                                            span: 520..521,
+                                                                                                            ty: TypeId(
+                                                                                                                0,
+                                                                                                            ),
+                                                                                                            kind: VarRef(
+                                                                                                                Local {
+                                                                                                                    id: S3,
+                                                                                                                    name: "k",
+                                                                                                                    decl_span: 501..502,
+                                                                                                                },
+                                                                                                            ),
                                                                                                         },
-                                                                                                    ),
+                                                                                                        member: MemberAccess {
+                                                                                                            span: 522..528,
+                                                                                                            name: "resume",
+                                                                                                            resolved: None,
+                                                                                                        },
+                                                                                                    },
                                                                                                 },
                                                                                                 args: [
                                                                                                     Positional(
                                                                                                         Expr {
-                                                                                                            span: 530..532,
+                                                                                                            span: 529..531,
                                                                                                             ty: TypeId(
                                                                                                                 5,
                                                                                                             ),
@@ -500,21 +513,21 @@ File {
                                                                 },
                                                             },
                                                             HandleArm {
-                                                                span: 552..573,
+                                                                span: 551..572,
                                                                 op: HandleOp {
-                                                                    span: 552..565,
+                                                                    span: 551..564,
                                                                     effect_ty: TypeId(
                                                                         12,
                                                                     ),
                                                                     op: EffectOpRef {
-                                                                        span: 556..563,
+                                                                        span: 555..562,
                                                                         fqn: "fixtures.hir.Ask.current",
                                                                     },
                                                                     binders: [],
                                                                 },
                                                                 continuation: S4,
                                                                 body: Expr {
-                                                                    span: 572..573,
+                                                                    span: 571..572,
                                                                     ty: TypeId(
                                                                         5,
                                                                     ),
@@ -524,19 +537,19 @@ File {
                                                                 },
                                                             },
                                                             HandleArm {
-                                                                span: 582..607,
+                                                                span: 581..606,
                                                                 op: HandleOp {
-                                                                    span: 582..602,
+                                                                    span: 581..601,
                                                                     effect_ty: TypeId(
                                                                         13,
                                                                     ),
                                                                     op: EffectOpRef {
-                                                                        span: 587..591,
+                                                                        span: 586..590,
                                                                         fqn: "fixtures.hir.Boom.boom",
                                                                     },
                                                                     binders: [
                                                                         HandleBinder {
-                                                                            span: 592..601,
+                                                                            span: 591..600,
                                                                             id: S5,
                                                                             name: "code",
                                                                             ty: TypeId(
@@ -546,7 +559,7 @@ File {
                                                                     ],
                                                                 },
                                                                 body: Expr {
-                                                                    span: 606..607,
+                                                                    span: 605..606,
                                                                     ty: TypeId(
                                                                         5,
                                                                     ),
@@ -565,13 +578,13 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 618..624,
+                                span: 617..623,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 618..624,
+                                        span: 617..623,
                                         ty: TypeId(
                                             0,
                                         ),

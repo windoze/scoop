@@ -157,9 +157,6 @@ fn collect_declared_locals_in_expr(expr: &super::super::Expr, declared: &mut Has
                     declared.insert(b.id);
                 }
                 match arm.kind {
-                    super::super::HandleArmKind::ImmediateResume { resume } => {
-                        declared.insert(resume);
-                    }
                     super::super::HandleArmKind::EscapeContinuation { continuation } => {
                         declared.insert(continuation);
                     }

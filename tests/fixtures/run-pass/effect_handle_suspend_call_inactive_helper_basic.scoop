@@ -31,8 +31,8 @@ fun main(): Int {
         println("inactive_after")
         value
     } with {
-        Ask.ask() -> resume {
-            resume(2)
+        Ask.ask() , k -> {
+            k.resume(2)
         }
     }
     println(inactive_result)
@@ -43,8 +43,8 @@ fun main(): Int {
         println("active_after")
         value
     } with {
-        Ask.ask() -> resume {
-            resume(2)
+        Ask.ask() , k -> {
+            k.resume(2)
         }
     }
     println(active_result)

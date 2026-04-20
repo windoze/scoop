@@ -31,9 +31,9 @@ fun run(flag: Bool): Int {
         println("after_if")
         seed + 200
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("arm_else")
-            resume(30)
+            k.resume(30)
         }
     }
 }

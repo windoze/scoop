@@ -1518,21 +1518,31 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
     fn arm_body_may_suspend_outward(&self, arm: &hir::HandleArm) -> bool {
         match arm.kind {
-            hir::HandleArmKind::NonResuming | hir::HandleArmKind::EscapeContinuation { .. } => {
-                self.expr_contains_suspend_subtree(&arm.body)
-            }
-            hir::HandleArmKind::ImmediateResume { resume } => {
-                self.immediate_resume_arm_tail_may_suspend_outward(&arm.body, resume)
+            hir::HandleArmKind::NonResuming => self.expr_contains_suspend_subtree(&arm.body),
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                if self.tail_resume_arm_matches(&arm.body, continuation) {
+                    self.tail_resume_arm_may_suspend_outward(&arm.body, continuation)
+                } else {
+                    self.expr_contains_suspend_subtree(&arm.body)
+                }
             }
         }
     }
 
-    fn immediate_resume_arm_tail_may_suspend_outward(
+    fn tail_resume_arm_matches(&self, expr: &hir::Expr, continuation_symbol: hir::SymbolId) -> bool {
+        tail_resume_arm_matches_static(expr, continuation_symbol)
+    }
+
+    fn tail_resume_stmt_matches(&self, stmt: &hir::Stmt, continuation_symbol: hir::SymbolId) -> bool {
+        matches!(&stmt.kind, hir::StmtKind::Expr(expr) if tail_resume_arm_matches_static(expr, continuation_symbol))
+    }
+
+    fn tail_resume_arm_may_suspend_outward(
         &self,
         expr: &hir::Expr,
-        resume_symbol: hir::SymbolId,
+        continuation_symbol: hir::SymbolId,
     ) -> bool {
-        if let Some(payload) = self.extract_immediate_resume_payload_expr(expr, resume_symbol) {
+        if let Some(payload) = extract_tail_resume_payload_expr(expr, continuation_symbol) {
             return self.expr_contains_suspend_subtree(payload);
         }
 
@@ -1544,10 +1554,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 prefix_stmts
                     .iter()
                     .any(|stmt| self.stmt_contains_suspend_subtree(stmt))
-                    || self.immediate_resume_arm_tail_stmt_may_suspend_outward(
-                        tail_stmt,
-                        resume_symbol,
-                    )
+                    || self.tail_resume_stmt_may_suspend_outward(tail_stmt, continuation_symbol)
             }
             hir::ExprKind::If {
                 cond,
@@ -1555,12 +1562,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 else_branch,
             } => {
                 self.expr_contains_suspend_subtree(cond)
-                    || self.immediate_resume_arm_tail_may_suspend_outward(
-                        then_branch,
-                        resume_symbol,
-                    )
+                    || self.tail_resume_arm_may_suspend_outward(then_branch, continuation_symbol)
                     || else_branch.as_deref().is_none_or(|expr| {
-                        self.immediate_resume_arm_tail_may_suspend_outward(expr, resume_symbol)
+                        self.tail_resume_arm_may_suspend_outward(expr, continuation_symbol)
                     })
             }
             hir::ExprKind::When { subject, arms } => {
@@ -1569,9 +1573,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                         arm.guard
                             .as_ref()
                             .is_some_and(|guard| self.expr_contains_suspend_subtree(guard))
-                            || self.immediate_resume_arm_tail_may_suspend_outward(
+                            || self.tail_resume_arm_may_suspend_outward(
                                 &arm.body,
-                                resume_symbol,
+                                continuation_symbol,
                             )
                     })
             }
@@ -1579,37 +1583,15 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         }
     }
 
-    fn immediate_resume_arm_tail_stmt_may_suspend_outward(
+    fn tail_resume_stmt_may_suspend_outward(
         &self,
         stmt: &hir::Stmt,
-        resume_symbol: hir::SymbolId,
+        continuation_symbol: hir::SymbolId,
     ) -> bool {
         let hir::StmtKind::Expr(expr) = &stmt.kind else {
             return true;
         };
-        self.immediate_resume_arm_tail_may_suspend_outward(expr, resume_symbol)
-    }
-
-    fn extract_immediate_resume_payload_expr<'hir_expr>(
-        &self,
-        expr: &'hir_expr hir::Expr,
-        resume_symbol: hir::SymbolId,
-    ) -> Option<&'hir_expr hir::Expr> {
-        let hir::ExprKind::Call { callee, args } = &expr.kind else {
-            return None;
-        };
-        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind else {
-            return None;
-        };
-        if *id != resume_symbol {
-            return None;
-        }
-
-        match args.as_slice() {
-            [hir::CallArg::Positional(payload)] => Some(payload),
-            [hir::CallArg::Named { value, .. }] => Some(value),
-            _ => None,
-        }
+        self.tail_resume_arm_may_suspend_outward(expr, continuation_symbol)
     }
 
     fn local_function_value_may_suspend_when_called(&self, expr: &hir::Expr) -> bool {
@@ -2830,9 +2812,6 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 .collect::<HashSet<_>>();
             match arm.kind {
                 hir::HandleArmKind::NonResuming => {}
-                hir::HandleArmKind::ImmediateResume { resume } => {
-                    declared.insert(resume);
-                }
                 hir::HandleArmKind::EscapeContinuation { continuation } => {
                     declared.insert(continuation);
                 }
@@ -2866,10 +2845,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
             let arm_exit = match arm.kind {
                 hir::HandleArmKind::NonResuming => ArmBodyExit::ReturnHandle,
-                hir::HandleArmKind::ImmediateResume { .. } => ArmBodyExit::ResumeMatchedSite,
-                hir::HandleArmKind::EscapeContinuation { .. } => {
-                    ArmBodyExit::MaterializeContinuation
+                hir::HandleArmKind::EscapeContinuation { continuation }
+                    if self.tail_resume_arm_matches(&arm.body, continuation) =>
+                {
+                    ArmBodyExit::ResumeMatchedSite
                 }
+                hir::HandleArmKind::EscapeContinuation { .. } => ArmBodyExit::MaterializeContinuation,
             };
             self.set_terminator(body_entry_state, StateTerminator::ArmExit(arm_exit));
             let body_may_suspend_outward = self.arm_body_may_suspend_outward(arm);
@@ -6040,9 +6021,6 @@ fn next_synthetic_symbol_seed(
         }
         match arm.kind {
             hir::HandleArmKind::NonResuming => {}
-            hir::HandleArmKind::ImmediateResume { resume } => {
-                ids.insert(resume);
-            }
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 ids.insert(continuation);
             }
@@ -6128,6 +6106,60 @@ fn reachable_states(
     seen
 }
 
+fn extract_tail_resume_payload_expr(
+    expr: &hir::Expr,
+    continuation_symbol: hir::SymbolId,
+) -> Option<&hir::Expr> {
+    let hir::ExprKind::Call { callee, args } = &expr.kind else {
+        return None;
+    };
+    let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+        return None;
+    };
+    let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind else {
+        return None;
+    };
+    if *id != continuation_symbol || member.name != "resume" {
+        return None;
+    }
+
+    match args.as_slice() {
+        [hir::CallArg::Positional(payload)] => Some(payload),
+        [hir::CallArg::Named { value, .. }] => Some(value),
+        _ => None,
+    }
+}
+
+fn tail_resume_arm_matches_static(expr: &hir::Expr, continuation_symbol: hir::SymbolId) -> bool {
+    if extract_tail_resume_payload_expr(expr, continuation_symbol).is_some() {
+        return true;
+    }
+
+    match &expr.kind {
+        hir::ExprKind::Block(block) => block
+            .stmts
+            .last()
+            .is_some_and(|stmt| matches!(&stmt.kind, hir::StmtKind::Expr(expr) if tail_resume_arm_matches_static(expr, continuation_symbol))),
+        hir::ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            tail_resume_arm_matches_static(then_branch, continuation_symbol)
+                && else_branch
+                    .as_deref()
+                    .is_some_and(|expr| tail_resume_arm_matches_static(expr, continuation_symbol))
+        }
+        hir::ExprKind::When { arms, .. } => {
+            !arms.is_empty()
+                && arms
+                    .iter()
+                    .all(|arm| tail_resume_arm_matches_static(&arm.body, continuation_symbol))
+        }
+        _ => false,
+    }
+}
+
 fn try_extract_callee_fqn(callee: &hir::Expr) -> Option<String> {
     match &callee.kind {
         hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.clone()),
@@ -6155,9 +6187,6 @@ fn collect_outer_scope_slots(
         }
         match arm.kind {
             hir::HandleArmKind::NonResuming => {}
-            hir::HandleArmKind::ImmediateResume { resume } => {
-                declared.insert(resume);
-            }
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 declared.insert(continuation);
             }
@@ -6975,9 +7004,6 @@ fn collect_declared_local_ids_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::S
                 }
                 match arm.kind {
                     hir::HandleArmKind::NonResuming => {}
-                    hir::HandleArmKind::ImmediateResume { resume } => {
-                        out.insert(resume);
-                    }
                     hir::HandleArmKind::EscapeContinuation { continuation } => {
                         out.insert(continuation);
                     }
@@ -7426,9 +7452,8 @@ fn handle_arm_payload_signature(arm: &hir::HandleArm) -> usize {
 fn handle_arm_kind_signature(kind: hir::HandleArmKind) -> usize {
     match kind {
         hir::HandleArmKind::NonResuming => 1,
-        hir::HandleArmKind::ImmediateResume { resume } => 2 ^ (resume.as_u32() as usize),
         hir::HandleArmKind::EscapeContinuation { continuation } => {
-            3 ^ (continuation.as_u32() as usize)
+            2 ^ (continuation.as_u32() as usize)
         }
     }
 }
@@ -7995,9 +8020,7 @@ fn select_escape_continuation_for_direct_site(
         }
         match arm.kind {
             hir::HandleArmKind::EscapeContinuation { continuation } => return Some(continuation),
-            hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => {
-                return None;
-            }
+            hir::HandleArmKind::NonResuming => return None,
         }
     }
     same_op_fallback
@@ -8784,9 +8807,12 @@ fn summarize_direct_step_dispatch_arm(
     }
     if arm_summary.may_continue {
         match arm.kind {
-            hir::HandleArmKind::ImmediateResume { .. } => out.may_continue = true,
-            hir::HandleArmKind::NonResuming
-            | hir::HandleArmKind::EscapeContinuation { .. } => {
+            hir::HandleArmKind::EscapeContinuation { continuation }
+                if tail_resume_arm_matches_static(&arm.body, continuation) =>
+            {
+                out.may_continue = true
+            }
+            hir::HandleArmKind::NonResuming | hir::HandleArmKind::EscapeContinuation { .. } => {
                 out.merge_paths(finalize_handle_terminal(
                     types,
                     ctx,
@@ -9145,9 +9171,9 @@ fun demo(): Int / (Boom) {
         first + second
     } with {
         Ask.current(), k -> 7
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             val _: Int = Boom.boom(41)
-            resume(3)
+            k.resume(3)
         }
     }
 }
@@ -9286,9 +9312,9 @@ fun demo(): Int / (Boom) {
         seed + nested
     } with {
         Ask.current(), k -> 7
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             val _: Int = Boom.boom(11)
-            resume(5)
+            k.resume(5)
         }
     }
 }
@@ -9373,9 +9399,7 @@ fun demo(): Int / (Boom) {
             .iter()
             .find_map(|arm| match arm.kind {
                 hir::HandleArmKind::EscapeContinuation { continuation } => Some(continuation),
-                hir::HandleArmKind::NonResuming | hir::HandleArmKind::ImmediateResume { .. } => {
-                    None
-                }
+                hir::HandleArmKind::NonResuming => None,
             })
             .expect("expected an escape continuation arm")
     }

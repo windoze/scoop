@@ -51,54 +51,43 @@ const STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
 /// The handle entry reads this and propagates the return upward.
 const STATE_TAG_FUNCTION_RETURNED: u32 = 0xFFFF_FFFF;
 
-fn rewrite_immediate_resume_arm_body(
+fn try_rewrite_tail_resume_arm_body(
     arm: &hir::HandleArm,
-    resume_symbol: hir::SymbolId,
-) -> Result<hir::Expr, LlvmEmitError> {
-    // Internal lowerings such as `await task` may synthesize an immediate-
-    // resume arm whose body is a direct `resume(expr)` call rather than a
-    // source-level block. Rewrite from the top-level tail expression so both
-    // source-authored blocks and synthesized expression bodies share the same
-    // dedicated path.
-    rewrite_immediate_resume_tail_expr(&arm.body, resume_symbol)
+    continuation_symbol: hir::SymbolId,
+) -> Option<hir::Expr> {
+    // 某些 escape-continuation arms 只是把 tail `k.resume(payload)` 作为 source-level surface。
+    // 这里把它们保守识别成内部 tail-resume fast path，避免继续依赖公开的 `-> resume` 语法节点。
+    try_rewrite_tail_resume_expr(&arm.body, continuation_symbol)
 }
 
-fn rewrite_immediate_resume_tail_stmt(
+fn try_rewrite_tail_resume_stmt(
     stmt: &mut hir::Stmt,
-    resume_symbol: hir::SymbolId,
-) -> Result<hir::Expr, LlvmEmitError> {
+    continuation_symbol: hir::SymbolId,
+) -> Option<hir::Expr> {
     let hir::StmtKind::Expr(expr) = &mut stmt.kind else {
-        return Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "immediate resume arm tail statement",
-            at: stmt.span.into(),
-        });
+        return None;
     };
-    let rewritten = rewrite_immediate_resume_tail_expr(expr, resume_symbol)?;
+    let rewritten = try_rewrite_tail_resume_expr(expr, continuation_symbol)?;
     stmt.ty = rewritten.ty;
     *expr = rewritten.clone();
-    Ok(rewritten)
+    Some(rewritten)
 }
 
-fn rewrite_immediate_resume_tail_expr(
+fn try_rewrite_tail_resume_expr(
     expr: &hir::Expr,
-    resume_symbol: hir::SymbolId,
-) -> Result<hir::Expr, LlvmEmitError> {
-    if let Some(payload) = extract_immediate_resume_payload_expr(expr, resume_symbol)? {
-        return Ok(payload);
+    continuation_symbol: hir::SymbolId,
+) -> Option<hir::Expr> {
+    if let Some(payload) = extract_tail_resume_payload_expr(expr, continuation_symbol) {
+        return Some(payload);
     }
 
     match &expr.kind {
         hir::ExprKind::Block(block) => {
             let mut rewritten_block = block.clone();
-            let Some(tail_stmt) = rewritten_block.stmts.last_mut() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "immediate resume nested block tail",
-                    at: expr.span.into(),
-                });
-            };
-            let rewritten_tail = rewrite_immediate_resume_tail_stmt(tail_stmt, resume_symbol)?;
+            let tail_stmt = rewritten_block.stmts.last_mut()?;
+            let rewritten_tail = try_rewrite_tail_resume_stmt(tail_stmt, continuation_symbol)?;
             rewritten_block.ty = rewritten_tail.ty;
-            Ok(hir::Expr {
+            Some(hir::Expr {
                 span: expr.span,
                 ty: rewritten_tail.ty,
                 kind: hir::ExprKind::Block(rewritten_block),
@@ -109,16 +98,11 @@ fn rewrite_immediate_resume_tail_expr(
             then_branch,
             else_branch,
         } => {
-            let rewritten_then = rewrite_immediate_resume_tail_expr(then_branch, resume_symbol)?;
+            let rewritten_then = try_rewrite_tail_resume_expr(then_branch, continuation_symbol)?;
+            let rewritten_else = else_branch.as_ref()?;
             let rewritten_else =
-                else_branch
-                    .as_ref()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "immediate resume if tail without else",
-                        at: expr.span.into(),
-                    })?;
-            let rewritten_else = rewrite_immediate_resume_tail_expr(rewritten_else, resume_symbol)?;
-            Ok(hir::Expr {
+                try_rewrite_tail_resume_expr(rewritten_else, continuation_symbol)?;
+            Some(hir::Expr {
                 span: expr.span,
                 ty: rewritten_then.ty,
                 kind: hir::ExprKind::If {
@@ -131,13 +115,13 @@ fn rewrite_immediate_resume_tail_expr(
         hir::ExprKind::When { subject, arms } => {
             let mut rewritten_arms = arms.clone();
             for arm in &mut rewritten_arms {
-                arm.body = rewrite_immediate_resume_tail_expr(&arm.body, resume_symbol)?;
+                arm.body = try_rewrite_tail_resume_expr(&arm.body, continuation_symbol)?;
             }
             let result_ty = rewritten_arms
                 .first()
                 .map(|arm| arm.body.ty)
                 .unwrap_or(expr.ty);
-            Ok(hir::Expr {
+            Some(hir::Expr {
                 span: expr.span,
                 ty: result_ty,
                 kind: hir::ExprKind::When {
@@ -146,39 +130,32 @@ fn rewrite_immediate_resume_tail_expr(
                 },
             })
         }
-        _ => Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "immediate resume arm tail expression",
-            at: expr.span.into(),
-        }),
+        _ => None,
     }
 }
 
-fn extract_immediate_resume_payload_expr(
+fn extract_tail_resume_payload_expr(
     expr: &hir::Expr,
-    resume_symbol: hir::SymbolId,
-) -> Result<Option<hir::Expr>, LlvmEmitError> {
+    continuation_symbol: hir::SymbolId,
+) -> Option<hir::Expr> {
     let hir::ExprKind::Call { callee, args } = &expr.kind else {
-        return Ok(None);
+        return None;
     };
-    let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind else {
-        return Ok(None);
+    let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+        return None;
     };
-    if *id != resume_symbol {
-        return Ok(None);
+    let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind else {
+        return None;
+    };
+    if *id != continuation_symbol || member.name != "resume" {
+        return None;
     }
 
-    let payload = match args.as_slice() {
-        [hir::CallArg::Positional(payload)] => payload.clone(),
-        [hir::CallArg::Named { value, .. }] => value.clone(),
-        _ => {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "immediate resume call arity",
-                at: expr.span.into(),
-            });
-        }
-    };
-
-    Ok(Some(payload))
+    match args.as_slice() {
+        [hir::CallArg::Positional(payload)] => Some(payload.clone()),
+        [hir::CallArg::Named { value, .. }] => Some(value.clone()),
+        _ => None,
+    }
 }
 
 /// Tracks the frame struct layout for a specific handle expression, mapping
@@ -2206,9 +2183,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             UnifiedStateTerminator::ArmResumeMatchedSite => {
-                // ImmediateResume arm: the arm has computed a resume value
-                // (in last_value).  Write it into the continuation's
-                // resume_word/resume_gc_ref and call continuation_resume.
+                // Tail `k.resume(...)` fast path：arm body 已计算出 resume payload（保存在
+                // last_value 中）。把它写回 continuation，然后调用 continuation_resume。
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
@@ -3405,11 +3381,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // EscapeContinuation arms bind the continuation as a local.  Immediate
-        // resume arms are handled by dedicated tail-expression lowering below,
-        // so they no longer need a placeholder `resume` local.
+        // EscapeContinuation arms bind the continuation as a local；若其 body 恰好是
+        // tail `k.resume(...)`，后续会被内部 fast path 识别并改写。
         match arm.kind {
-            hir::HandleArmKind::ImmediateResume { .. } => {}
             hir::HandleArmKind::EscapeContinuation { continuation } => {
                 // Load the continuation pointer from the dedicated runtime
                 // continuation slot (where Suspend stored it).
@@ -3520,18 +3494,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_return_ty = self.current_fun_return_ty.take();
         self.current_fun_return_ty = Some(CgTy::Never);
 
-        let result = match arm.kind {
-            hir::HandleArmKind::ImmediateResume { resume } => {
-                let rewritten = rewrite_immediate_resume_arm_body(arm, resume)?;
+        let tail_resume_rewritten = match arm.kind {
+            hir::HandleArmKind::EscapeContinuation { continuation } => {
+                try_rewrite_tail_resume_arm_body(arm, continuation)
+            }
+            hir::HandleArmKind::NonResuming => None,
+        };
+
+        let result = match tail_resume_rewritten {
+            Some(rewritten) => {
                 let payload_cg_ty =
                     self.cg_ty_of(rewritten.ty)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "immediate resume payload type",
+                            kind: "tail resume payload type",
                             at: rewritten.span.into(),
                         })?;
                 self.codegen_expr_in_expected_context(&rewritten, Some(payload_cg_ty))
             }
-            _ => self.codegen_expr_in_expected_context(&arm.body, None),
+            None => self.codegen_expr_in_expected_context(&arm.body, None),
         };
 
         self.current_fun_return_ty = saved_return_ty;
@@ -3693,7 +3673,7 @@ mod tests {
     use crate::typecheck;
 
     #[test]
-    fn immediate_resume_arm_body_rewrites_tail_resume_call_to_payload_expr() {
+    fn tail_resume_arm_body_rewrites_tail_resume_call_to_payload_expr() {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
@@ -3708,9 +3688,9 @@ fun demo(): Int {
     handle {
         Yield.next()
     } with {
-        Yield.next() -> resume {
+        Yield.next(), k -> {
             println("in_handler")
-            resume(41)
+            k.resume(41)
         }
     }
 }
@@ -3719,12 +3699,12 @@ fun demo(): Int {
 
         let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
         let arm = handle.arms.first().expect("expected an arm");
-        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
-            panic!("expected immediate-resume arm");
+        let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind else {
+            panic!("expected escape-continuation arm");
         };
 
-        let rewritten = rewrite_immediate_resume_arm_body(arm, resume)
-            .expect("immediate-resume arm should rewrite");
+        let rewritten = try_rewrite_tail_resume_arm_body(arm, continuation)
+            .expect("tail-resume arm should rewrite");
         let hir::ExprKind::Block(block) = &rewritten.kind else {
             panic!("rewritten arm body should stay a block");
         };
@@ -3741,7 +3721,7 @@ fun demo(): Int {
     }
 
     #[test]
-    fn immediate_resume_arm_body_rewrites_if_branch_tails() {
+    fn tail_resume_arm_body_rewrites_if_branch_tails() {
         let (source, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
@@ -3756,11 +3736,11 @@ fun demo(flag: Bool): Int {
     handle {
         Yield.next()
     } with {
-        Yield.next() -> resume {
+        Yield.next(), k -> {
             if (flag) {
-                resume(1)
+                k.resume(1)
             } else {
-                resume(2)
+                k.resume(2)
             }
         }
     }
@@ -3770,12 +3750,12 @@ fun demo(flag: Bool): Int {
 
         let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
         let arm = handle.arms.first().expect("expected an arm");
-        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
-            panic!("expected immediate-resume arm");
+        let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind else {
+            panic!("expected escape-continuation arm");
         };
 
-        let rewritten = rewrite_immediate_resume_arm_body(arm, resume)
-            .expect("immediate-resume arm should rewrite");
+        let rewritten = try_rewrite_tail_resume_arm_body(arm, continuation)
+            .expect("tail-resume arm should rewrite");
         let hir::ExprKind::Block(block) = &rewritten.kind else {
             panic!("rewritten arm body should stay a block");
         };
@@ -3803,7 +3783,7 @@ fun demo(flag: Bool): Int {
     }
 
     #[test]
-    fn immediate_resume_arm_body_rewrites_non_block_tail_resume_call() {
+    fn tail_resume_arm_body_rewrites_non_block_tail_resume_call() {
         let (_, lowered) = lower_typed_single_source_with_source(
             r#"
 package a
@@ -3818,9 +3798,9 @@ fun demo(): Int {
     handle {
         Yield.next()
     } with {
-        Yield.next() -> resume {
+        Yield.next(), k -> {
             println("in_handler")
-            resume(41)
+            k.resume(41)
         }
     }
 }
@@ -3829,8 +3809,8 @@ fun demo(): Int {
 
         let (_, handle) = first_handle_in_file(&lowered.file).expect("expected a handle");
         let arm = handle.arms.first().expect("expected an arm");
-        let hir::HandleArmKind::ImmediateResume { resume } = arm.kind else {
-            panic!("expected immediate-resume arm");
+        let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind else {
+            panic!("expected escape-continuation arm");
         };
         let hir::ExprKind::Block(block) = &arm.body.kind else {
             panic!("expected source arm body to lower to block");
@@ -3847,8 +3827,8 @@ fun demo(): Int {
             body: tail_expr.clone(),
             ..arm.clone()
         };
-        let rewritten = rewrite_immediate_resume_arm_body(&direct_arm, resume)
-            .expect("non-block immediate-resume arm should rewrite");
+        let rewritten = try_rewrite_tail_resume_arm_body(&direct_arm, continuation)
+            .expect("non-block tail-resume arm should rewrite");
 
         assert!(matches!(rewritten.kind, hir::ExprKind::Literal(_)));
     }
@@ -4384,8 +4364,8 @@ fun main(): Int {
         val value: Int = helper(true) + 1
         value
     } with {
-        Ask.ask() -> resume {
-            resume(2)
+        Ask.ask(), k -> {
+            k.resume(2)
         }
     }
     println(result)
@@ -4447,8 +4427,8 @@ fun main(): Int {
         val value: Int = helper(true) + 1
         value
     } with {
-        Ask.ask() -> resume {
-            resume(2)
+        Ask.ask(), k -> {
+            k.resume(2)
         }
     }
     println(result)

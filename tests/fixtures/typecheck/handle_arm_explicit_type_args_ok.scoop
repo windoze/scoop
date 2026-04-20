@@ -40,9 +40,9 @@ fun handleImmediate(): Int {
     return handle {
         Query.ask<Int>(5)
     } with {
-        Query.ask<Int>(seed) -> resume {
+        Query.ask<Int>(seed) , k -> {
             val seed_copy: Int = seed
-            resume(seed_copy + 1)
+            k.resume(seed_copy + 1)
         }
     }
 }

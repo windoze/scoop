@@ -18,16 +18,16 @@ fun returnFromNestedHandle(): Int {
             println("inner_handle_body")
             return 13
         } with {
-            Yield.next() -> resume {
-                resume(0)
+            Yield.next() , k -> {
+                k.resume(0)
             }
         }
 
         println("after_inner_handle")
         inner
     } with {
-        Yield.next() -> resume {
-            resume(0)
+        Yield.next() , k -> {
+            k.resume(0)
         }
     }
 

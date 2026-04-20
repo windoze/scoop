@@ -22,8 +22,8 @@ fun main(): Int {
             println("inactive_inner_after")
             inner + 1
         } with {
-            Ask.ask() -> resume {
-                resume(7)
+            Ask.ask() , k -> {
+                k.resume(7)
             }
         }) + 10
         println("inactive_outer_after")

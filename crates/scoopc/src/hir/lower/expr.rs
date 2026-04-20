@@ -3967,9 +3967,6 @@ impl<'a> HirLowering<'a> {
     fn lower_handle_arm(&mut self, pkg_prefix: &str, arm: &ast::HandleArm) -> HandleArm {
         let kind = match arm.kind {
             ast::HandleArmKind::NonResuming => HandleArmKind::NonResuming,
-            ast::HandleArmKind::ImmediateResume { resume_span } => HandleArmKind::ImmediateResume {
-                resume: self.intern_local_symbol(resume_span, false),
-            },
             ast::HandleArmKind::EscapeContinuation { k_span } => {
                 HandleArmKind::EscapeContinuation {
                     continuation: self.intern_local_symbol(k_span, false),

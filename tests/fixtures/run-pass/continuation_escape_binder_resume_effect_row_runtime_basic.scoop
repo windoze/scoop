@@ -58,8 +58,8 @@ fun main(): Int {
                 handle {
                     k.resume(5)
                 } with {
-                    Boom.next() -> resume {
-                        resume(7)
+                    Boom.next() , k -> {
+                        k.resume(7)
                     }
                 }
             } catch (e: RuntimeError) {

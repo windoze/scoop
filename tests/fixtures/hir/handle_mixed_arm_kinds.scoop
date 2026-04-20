@@ -27,8 +27,8 @@ fun demo(mode: Int): Int {
             0
         }
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
         Ask.current(), k -> 7
         Boom.boom(code: Int) -> 0

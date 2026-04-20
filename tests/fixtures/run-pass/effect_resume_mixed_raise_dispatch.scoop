@@ -22,9 +22,9 @@ fun main(): Int {
         Raise.raise(7)
         99
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(41)
+            k.resume(41)
         }
         Raise.raise(err: Int) -> {
             println("raise_arm")

@@ -37,9 +37,9 @@ fun main() {
         Abort.stop(x + 1)
         99
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(41)
+            k.resume(41)
         }
         Ask.ask(), k -> {
             println("ask_arm")

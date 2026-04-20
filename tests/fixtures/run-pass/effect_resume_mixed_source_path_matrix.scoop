@@ -81,9 +81,9 @@ fun main() {
         println(nested)
         base + nested + i
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(40)
+            k.resume(40)
         }
         Ask.ask(seed: Int), k -> {
             cell.seen = cell.seen + 1

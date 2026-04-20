@@ -51,7 +51,12 @@
     - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
     - `Task` 当前“resume 后回读 frame 前缀得到 `__TaskStepResult`”的路径只是待 `T4016c/d` 移除的 task-only 实现债务。
   - `T4016a` 设计/注释收口阶段已完成；由于当前 runtime ABI 仍是 `void scoop_continuation_resume(void*)`，而前端 / HIR / LLVM 又把 `-> resume` immediate-resume 与 `Continuation.resume(...): Unit` 绑在一起，`T4016b` 已拆成更小子任务。
-  - 下一步先做 `T4016b1`：删除用户态 `-> resume` 语法，并把 tail `k.resume(...)` 收口为内部 lowering / codegen 分类；待此步完成后，再进入显式 answer type 与 runtime answer-return 通道。
+  - `T4016b1` 已完成：
+    - parser / AST / HIR / resolver / typecheck 已移除用户态 `-> resume` surface，并改为 removed-syntax diagnostic；
+    - AST / HIR 级别的 `ImmediateResume` arm kind 已删除；tail `k.resume(...)` 仅作为 lowering / codegen 内部分类保留；
+    - 相关 parse / HIR / typecheck / run-pass fixtures 已迁移到 `, k ->` + `k.resume(...)`，并同步了必要的 golden / 预期；
+    - 已验证 `cargo test --all`、受影响 fixture 子集（38 个）以及 `cargo clippy --all-targets -- -D warnings` 通过。
+  - 下一步进入 `T4016b2`：把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface，再继续推进 `T4016c` / `T4016b3` 的返回值主线。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

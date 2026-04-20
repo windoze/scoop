@@ -29,8 +29,8 @@ fun demo() {
     val _ignored: Int = handle {
         Query.ask<Int>(5)
     } with {
-        Query.ask<Int>(seed) -> resume {
-            resume(seed + 1)
+        Query.ask<Int>(seed) , k -> {
+            k.resume(seed + 1)
         }
     }
 

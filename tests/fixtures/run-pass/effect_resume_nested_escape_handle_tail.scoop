@@ -39,9 +39,9 @@ fun main() {
             }
         }
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("yield_arm")
-            resume(41)
+            k.resume(41)
         }
     }
 

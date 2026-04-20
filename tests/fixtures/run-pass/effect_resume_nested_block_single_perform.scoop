@@ -36,9 +36,9 @@ fun main() {
         println("after_outer")
         seed + 100
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("arm")
-            resume(31)
+            k.resume(31)
         }
     }
     println("result")

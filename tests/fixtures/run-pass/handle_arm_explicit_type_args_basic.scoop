@@ -45,10 +45,10 @@ fun immediate_case(): Int {
         println(x)
         x + 1
     } with {
-        Query.ask<Int>(seed) -> resume {
+        Query.ask<Int>(seed) , k -> {
             println("resume_seed")
             println(seed)
-            resume(seed + 1)
+            k.resume(seed + 1)
         }
     }
 }

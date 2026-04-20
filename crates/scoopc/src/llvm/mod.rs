@@ -2258,10 +2258,10 @@ fun main(): Int {
         println("after")
         x + 1
     } with {
-        Edge.visit(from, to) -> resume {
+        Edge.visit(from, to) , k -> {
             println(from)
             println(to)
-            resume(to + 1)
+            k.resume(to + 1)
         }
     }
 }

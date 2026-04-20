@@ -1,14 +1,12 @@
-// EXPECT: fail
-// T3009a1: spec 已明确要求 immediate-resume arm 中的 `resume(value)`
-// 必须在每条控制流路径的尾值位置恰好一次；重复/非 tail 形状应在前置阶段报错，
-// 不能再漏到 generic local-call 或运行期 one-shot 语义。
+// EXPECT: pass
+// T4016b1: 删除用户态 `-> resume` 后，旧 immediate-resume 专用的前端静态约束也随之移除。
+// 该 fixture 保留“同一 arm 内出现多个 `k.resume(...)` 调用”的 migrated source shape，
+// 只要求它不再因为旧 special form 规则而在前端失败。
 //
-// 历史背景：
-// - 该 fixture 早期用于回归“多次 resume 触发运行期退出”的旧实现；
-// - 当前按规范改为静态拒绝，并保留此路径作为 CLI/build 诊断回归。
-//
-// 目标覆盖：
-// - 同一路径内重复调用 `resume(value)` 会在 typecheck 阶段稳定报错。
+// 说明：
+// - 真正的 one-shot 运行期重复 resume 语义由
+//   `effect_escape_continuation_resume_later_exit.scoop` 覆盖；
+// - 本例不再承担“必须在 typecheck 阶段报错”的回归职责。
 
 import scoop.core.*
 
@@ -21,9 +19,9 @@ fun main(): Int {
         val y: Int = Yield.next()
         y
     } with {
-        Yield.next() -> resume {
-            resume(1)
-            resume(2)
+        Yield.next() , k -> {
+            k.resume(1)
+            k.resume(2)
         }
     }
 

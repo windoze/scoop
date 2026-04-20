@@ -6,7 +6,7 @@
 //
 // 目标覆盖：
 // - 单个 `val x = perform` immediate-resume handle 可与 `finally` 组合；
-// - arm 调用 `resume(value)` 后，body 继续执行；
+// - arm 调用 `k.resume(value)` 后，body 继续执行；
 // - body 正常完成后，finally 恰好执行一次。
 
 import scoop.core.*
@@ -24,9 +24,9 @@ fun main() {
         println(x)
         x + 1
     } with {
-        Yield.next() -> resume {
+        Yield.next() , k -> {
             println("arm_start")
-            resume(41)
+            k.resume(41)
         }
     } finally {
         println("finally")

@@ -2025,8 +2025,8 @@ fun demo(): Int {
         val y: Int = Log.current(x)
         x + y
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
         Log.current(seed: Int) -> seed + 1
     } finally {
@@ -2134,8 +2134,8 @@ fun demo(mode: Int): Int {
             val x: Int = Yield.next()
             x + mode
         } with {
-            Yield.next() -> resume {
-                resume(10)
+            Yield.next() , k -> {
+                k.resume(10)
             }
         }
         if (mode == 0) {
@@ -2230,8 +2230,8 @@ fun demo(seed: Int): Int {
         val x: Int = Yield.next(local0, local1)
         x + local0 + local1
     } with {
-        Yield.next(left: Int, right: Int) -> resume {
-            resume(left + right + outer0 + outer1)
+        Yield.next(left: Int, right: Int) , k -> {
+            k.resume(left + right + outer0 + outer1)
         }
     }
     result
@@ -2292,8 +2292,8 @@ fun demo(seed: Int): Int {
         val x: Int = Yield.next(local)
         x + local
     } with {
-        Yield.next(arg: Int) -> resume {
-            resume(arg + base)
+        Yield.next(arg: Int) , k -> {
+            k.resume(arg + base)
         }
     }
     result
@@ -2330,8 +2330,8 @@ fun demo(seed: Int): Int {
         val x: Int = Yield.next(local)
         x + local
     } with {
-        Yield.next(arg: Int) -> resume {
-            resume(arg + base)
+        Yield.next(arg: Int) , k -> {
+            k.resume(arg + base)
         }
     }
     result
@@ -2374,8 +2374,8 @@ fun demo(): Int {
         val x: Int = Yield.next()
         x + 1
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
     }
     result
@@ -2420,8 +2420,8 @@ fun demo(): Int {
         val x: Int = Yield.next()
         x
     } with {
-        Yield.next() -> resume {
-            resume(2)
+        Yield.next() , k -> {
+            k.resume(2)
         }
     }
     0
@@ -2476,8 +2476,8 @@ fun demo(): Int {
         val z: Int = Ask.current()
         x + y + z
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
         Log.current(seed: Int) -> seed + 1
         Ask.current(), k -> 7
@@ -2532,8 +2532,8 @@ fun demo(): Int {
     val result: Int = handle {
         1 + 2
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
     }
     result
@@ -2570,8 +2570,8 @@ fun demo(flag: Bool): Int {
         }
         sum
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
     } finally {
         println("cleanup")
@@ -2608,8 +2608,8 @@ fun demo(thunk: () -> Int / (Ask)): Int {
         val b: Int = thunk()
         a + b
     } with {
-        Ask.ask(seed) -> resume {
-            resume(seed + 10)
+        Ask.ask(seed) , k -> {
+            k.resume(seed + 10)
         }
     }
     result
@@ -2647,8 +2647,8 @@ fun demo(limit: Int): Int {
         }
         outer
     } with {
-        Yield.next() -> resume {
-            resume(1)
+        Yield.next() , k -> {
+            k.resume(1)
         }
     }
     result
@@ -2681,8 +2681,8 @@ fun demo(flag: Bool): Int {
             false -> 0
         }
     } with {
-        Yield.next() -> resume {
-            resume(1)
+        Yield.next() , k -> {
+            k.resume(1)
         }
     }
     result
@@ -2718,8 +2718,8 @@ fun demo(mode: Int): Int {
             val x: Int = Yield.next()
             x + mode
         } with {
-            Yield.next() -> resume {
-                resume(10)
+            Yield.next() , k -> {
+                k.resume(10)
             }
         }
         if (mode == 0) {
@@ -2762,8 +2762,8 @@ fun demo(): Int {
         val y: Int = Log.current(x)
         x + y
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
         Log.current(seed: Int) -> seed + 1
     } finally {
@@ -2806,8 +2806,8 @@ fun demo(limit: Int, thunk: (Int) -> Int / (Ask)): Int {
         }
         base + i
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
         Ask.ask(seed: Int), k -> seed + 2
     }
@@ -2952,15 +2952,15 @@ fun demo(seed: Int): Int {
             val asked: Int = Ask.current()
             asked + local + seed
         } with {
-            Ask.current() -> resume {
-                resume(base)
+            Ask.current() , k -> {
+                k.resume(base)
             }
         }
         val x: Int = Yield.next(local)
         x + inner + local
     } with {
-        Yield.next(arg: Int) -> resume {
-            resume(arg + base)
+        Yield.next(arg: Int) , k -> {
+            k.resume(arg + base)
         }
     }
     result
@@ -3023,8 +3023,8 @@ fun demo(seed: Int): Int {
         }
         total
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
     }
     result
@@ -3251,7 +3251,7 @@ fun demo(seed: Int): Int {
             .expect("expected execute-arm payload in unified machine");
         assert!(matches!(
             plan_arm.2,
-            hir::HandleArmKind::ImmediateResume { .. }
+            hir::HandleArmKind::EscapeContinuation { .. }
         ));
         assert_eq!(plan_arm, segment_arm);
         assert_eq!(plan_arm, machine_arm);
@@ -3278,8 +3278,8 @@ fun demo(): Int {
         val y: Int = add(Yield.next() + 1, 2)
         y
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
     }
     result
@@ -3331,8 +3331,8 @@ fun demo(): Int {
             val inner: Int = Yield.next()
             inner + 1
         } with {
-            Yield.next() -> resume {
-                resume(41)
+            Yield.next() , k -> {
+                k.resume(41)
             }
         }) + 2
         y
@@ -3454,8 +3454,8 @@ fun demo(): Int {
         val y: Int = Log.current(x)
         x + y
     } with {
-        Yield.next() -> resume {
-            resume(10)
+        Yield.next() , k -> {
+            k.resume(10)
         }
         Log.current(seed: Int) -> seed + 1
     } finally {
@@ -3614,15 +3614,15 @@ fun demo(seed: Int): Int {
             val inner: Int = Yield.next()
             marker + inner
         } with {
-            Yield.next() -> resume {
-                resume(41)
+            Yield.next() , k -> {
+                k.resume(41)
             }
         }
         val outer: Int = Yield.next()
         outer + marker
     } with {
-        Yield.next() -> resume {
-            resume(42)
+        Yield.next() , k -> {
+            k.resume(42)
         }
     }
     result
@@ -3715,15 +3715,15 @@ fun demo(seed: Int): Int {
             val inner: Int = Yield.next()
             marker + inner
         } with {
-            Yield.next() -> resume {
-                resume(41)
+            Yield.next() , k -> {
+                k.resume(41)
             }
         }
         val outer: Int = Yield.next()
         outer + marker
     } with {
-        Yield.next() -> resume {
-            resume(42)
+        Yield.next() , k -> {
+            k.resume(42)
         }
     }
     result
@@ -3858,8 +3858,8 @@ fun demo(seed: Int): Int {
         val mapper: (Int) -> Int = { x -> x + seed }
         mapper(input)
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
     }
     result
@@ -3916,8 +3916,8 @@ fun demo(limit: Int): Int {
             limit
         }
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
     }
     result
@@ -3971,8 +3971,8 @@ fun demo(): Int {
         saved = 1
         saved
     } with {
-        Yield.next() -> resume {
-            resume(41)
+        Yield.next() , k -> {
+            k.resume(41)
         }
     }
 }
@@ -4037,14 +4037,14 @@ fun demo(): Int {
             saved = saved + 1
             saved
         } with {
-            Yield.next() -> resume {
-                resume(())
+            Yield.next() , k -> {
+                k.resume(())
             }
         }
         saved
     } with {
-        Yield.next() -> resume {
-            resume(())
+        Yield.next() , k -> {
+            k.resume(())
         }
     }
 }
