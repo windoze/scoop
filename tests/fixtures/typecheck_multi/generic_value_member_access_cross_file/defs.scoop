@@ -3,6 +3,8 @@
 package fixtures.typecheck_multi.generic_value_member_access_cross_file
 
 struct Box<T>(val value: T) {
+    val bodyCopy: T = value
+
     val readBack: T
-        get() = this.value
+        get() = this.bodyCopy
 }

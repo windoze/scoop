@@ -1527,7 +1527,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1
 
-### T4010b1a1 [TODO] 补齐真实 `typecheck_multi` 编译单元下的跨文件值成员解析
+### T4010b1a1 [DONE] 补齐真实 `typecheck_multi` 编译单元下的跨文件值成员解析
 - 说明：
   - 在执行 `T4010b1b` 验证时重跑完整 fixture suite，`tests/fixtures/typecheck_multi/generic_value_member_access_cross_file` 作为真实 `typecheck_multi/<case>/` 多文件编译单元仍失败，报 `scoop::typecheck::unsupported_expr: member access（未 resolve）`。
   - 进一步复查后确认，`T4010b1a` 当时使用的命令
@@ -1541,6 +1541,18 @@
 - 验收：
   - `cargo run -q -p scoop -- test` 不再在 `generic_value_member_access_cross_file` 处失败。
   - `T4010b1b` 与后续 `T4010R` 可建立在真实跨文件 generic value member access 已打通的基线上继续推进。
+- 已完成：
+  - `collect_struct_field_types` 现会先扫描 `TypeEnv` 中其它已知源文件的 AST，再补齐没有 AST 上下文的 ctor fallback；跨文件 value nominal 的 ctor 字段、body property 与 getter-only property 现已走同一条 member type collection 主线。
+  - member late resolve 现改为按 `Index.by_fqn` 中的 value symbol 与可见性判断成员是否存在，不再把“是否能晚解析”错误绑死在 `struct_field_types` 是否碰巧收集到条目上。
+  - `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file` 已扩展为同时覆盖 direct field、body property 与 getter-only property；`scoop test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file` 现会按真正的 `typecheck_multi` case 执行，不再退回成 parse 假绿灯。
+  - `crates/scoop/src/fixtures/mod.rs` 已新增 driver regression：当 `--fixtures` 直接指向 `typecheck_multi/<case>` 目录时，runner 会把它当作单个多文件编译单元执行。
+- 已验证：
+  - `cargo test -p scoopc collect_struct_field_types_includes_foreign_body_properties -- --nocapture`
+  - `cargo test -p scoop run_all_treats_typecheck_multi_case_root_as_single_case -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`（`fixtures: ok (2)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1098)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1a
 
 ### T4010b1b [TODO] 禁止 `struct` 主构造参数 `var` 回流为可变字段语义

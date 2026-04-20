@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
@@ -798,7 +799,7 @@ fn collect_member_mutabilities_in_object_decl(
     }
 }
 
-/// 收集当前文件内“可通过成员访问读取”的 value members 声明类型（member FQN → TypeId）。
+/// 收集当前编译单元内“可通过成员访问读取”的 value members 声明类型（member FQN → TypeId）。
 ///
 /// 说明：
 /// - 初始版本（T0408）仅收集 `struct`（值类型）的字段；
@@ -806,8 +807,10 @@ fn collect_member_mutabilities_in_object_decl(
 /// - 字段来源：
 ///   - 主构造参数（`struct Point(val x: Int)`）：在语义上等价于字段
 ///   - type body 内的 `val/var` property（`struct Point { val x: Int }`）
-/// - 当前阶段默认只扫描“当前文件”的 AST；但为支持 stdlib 注入后的跨文件 member access/struct literal，
-///   会额外从 `Index` 的 primary ctor 信息补全“跨文件 ctor 字段”（type body property 仍以当前文件为准）。
+/// - 现在会先扫描当前文件 AST，再扫描 `TypeEnv` 中其它已知源文件的 AST，以补齐真实跨文件
+///   member access / struct literal 所需的 body property 与 getter-only property；
+/// - 对于没有 AST 上下文的外部类型（例如仅通过索引暴露的声明），仍会额外从 `Index` 的
+///   primary ctor 信息补全“跨文件 ctor 字段”。
 pub(super) fn collect_struct_field_types(
     source: &SourceFile,
     file: &ast::File,
@@ -838,13 +841,39 @@ pub(super) fn collect_struct_field_types(
         }
     }
 
-    // 补全“跨文件 ctor 字段”的 member 类型表：
+    // 先补全“当前编译单元内其它已知源文件”的 value member 类型表。
+    //
+    // 说明：
+    // - 真实 `typecheck_multi/<case>/` 会按“整个编译单元”构建 `TypeEnv`，因此这里需要把
+    //   foreign AST 里的 ctor 字段、body property 与 getter-only property 一并收进来；
+    // - generic owner 使用 fresh type params 作为占位，后续 member access 读取时再由
+    //   `instantiate_member_value_type_from_receiver_ty` 按 receiver 的 concrete args 具体化。
+    let mut foreign_files = lower
+        .env()
+        .files()
+        .filter(|(path, _)| path.as_path() != source.path())
+        .filter_map(|(path, stored_file)| {
+            let stored_source = lower.env().source(path)?.clone();
+            Some((path.clone(), stored_source, stored_file.clone()))
+        })
+        .collect::<Vec<_>>();
+    foreign_files.sort_by(|(lhs, _, _), (rhs, _, _)| lhs.cmp(rhs));
+
+    for (_, foreign_source, foreign_file) in foreign_files {
+        collect_struct_field_types_in_foreign_file(
+            &foreign_source,
+            &foreign_file,
+            lower,
+            &mut map,
+        )?;
+    }
+
+    // 额外补全“没有 AST 上下文的跨文件 ctor 字段”：
     //
     // 背景：
-    // - `check_file_exprs` 逐文件执行，但 driver 可能注入 stdlib（多文件编译单元）；
-    // - stdlib/用户代码可能会构造或访问 sysroot/其它文件声明的 struct/class 字段；
-    // - 若只扫描当前文件，会在 struct literal / member access 处产生
-    //   `struct_lit_unknown_field` / `unsupported_member_access` 的假错误。
+    // - 某些外部声明只以索引/符号形式暴露，没有完整 AST 参与当前 `TypeEnv`；
+    // - 这类场景下仍至少需要 primary ctor 字段类型，避免 struct literal / member access
+    //   在 fallback 路径下退回 `struct_lit_unknown_field` / `unsupported_member_access`。
     //
     // 约定：
     // - 只考虑 primary constructor 的参数（secondary ctor 不是字段声明来源）；
@@ -888,6 +917,265 @@ pub(super) fn collect_struct_field_types(
     }
 
     Ok(map)
+}
+
+fn collect_struct_field_types_in_foreign_file(
+    source: &SourceFile,
+    file: &ast::File,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+    for item in &file.items {
+        match item {
+            ast::Item::Type(ty) => {
+                collect_struct_field_types_in_foreign_type_decl(
+                    source,
+                    source.path(),
+                    ty,
+                    &pkg_prefix,
+                    lower,
+                    out,
+                )?;
+            }
+            ast::Item::Object(obj) => {
+                collect_struct_field_types_in_foreign_object_decl(
+                    source,
+                    source.path(),
+                    obj,
+                    &pkg_prefix,
+                    lower,
+                    out,
+                )?;
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_struct_field_types_in_foreign_type_decl(
+    source: &SourceFile,
+    decl_file: &Path,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+    let type_param_names = decl
+        .type_params
+        .iter()
+        .map(|param| source.slice(param.name.span).to_string())
+        .collect::<Vec<_>>();
+
+    if matches!(decl.kind, ast::TypeKind::Struct) {
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for param in &primary_ctor.params {
+                let Some(ty_ref) = &param.ty else {
+                    continue;
+                };
+                let field_name = source.slice(param.name.span);
+                insert_foreign_struct_field_type(
+                    decl_file,
+                    &type_fqn,
+                    field_name,
+                    &type_param_names,
+                    ty_ref,
+                    lower,
+                    out,
+                )?;
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(prop) = member else {
+                    continue;
+                };
+                let Some(ty_ref) = &prop.ty else {
+                    continue;
+                };
+                let field_name = source.slice(prop.name.span);
+                insert_foreign_struct_field_type(
+                    decl_file,
+                    &type_fqn,
+                    field_name,
+                    &type_param_names,
+                    ty_ref,
+                    lower,
+                    out,
+                )?;
+            }
+        }
+    }
+
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for param in &primary_ctor.params {
+                if param.kind.is_none() {
+                    continue;
+                }
+                let Some(ty_ref) = &param.ty else {
+                    continue;
+                };
+                let field_name = source.slice(param.name.span);
+                insert_foreign_struct_field_type(
+                    decl_file,
+                    &type_fqn,
+                    field_name,
+                    &type_param_names,
+                    ty_ref,
+                    lower,
+                    out,
+                )?;
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(prop) = member else {
+                    continue;
+                };
+                let Some(ty_ref) = &prop.ty else {
+                    continue;
+                };
+                let field_name = source.slice(prop.name.span);
+                insert_foreign_struct_field_type(
+                    decl_file,
+                    &type_fqn,
+                    field_name,
+                    &type_param_names,
+                    ty_ref,
+                    lower,
+                    out,
+                )?;
+            }
+        }
+    }
+
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    collect_struct_field_types_in_foreign_type_decl(
+                        source, decl_file, nested, &type_fqn, lower, out,
+                    )?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    collect_struct_field_types_in_foreign_object_decl(
+                        source, decl_file, obj, &type_fqn, lower, out,
+                    )?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_struct_field_types_in_foreign_object_decl(
+    source: &SourceFile,
+    decl_file: &Path,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let obj_name = match &obj.name {
+        Some(name) => source.slice(name.span).to_string(),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => "Companion".to_string(),
+            ast::ObjectKind::Object => {
+                return Ok(());
+            }
+        },
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        obj_name
+    } else {
+        format!("{prefix}.{obj_name}")
+    };
+
+    let Some(body) = &obj.body else {
+        return Ok(());
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(prop) => {
+                let Some(ty_ref) = &prop.ty else {
+                    continue;
+                };
+                let field_name = source.slice(prop.name.span);
+                insert_foreign_struct_field_type(
+                    decl_file,
+                    &obj_fqn,
+                    field_name,
+                    &[],
+                    ty_ref,
+                    lower,
+                    out,
+                )?;
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_struct_field_types_in_foreign_type_decl(
+                    source, decl_file, nested, &obj_fqn, lower, out,
+                )?;
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_struct_field_types_in_foreign_object_decl(
+                    source, decl_file, nested, &obj_fqn, lower, out,
+                )?;
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+
+    Ok(())
+}
+
+fn insert_foreign_struct_field_type(
+    decl_file: &Path,
+    owner_fqn: &str,
+    field_name: &str,
+    type_param_names: &[String],
+    ty_ref: &ast::TypeRef,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let field_fqn = format!("{owner_fqn}.{field_name}");
+    if out.contains_key(&field_fqn) {
+        return Ok(());
+    }
+
+    let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+        decl_file,
+        type_param_names,
+        ty_ref,
+    )?;
+    out.insert(field_fqn, ty);
+    Ok(())
 }
 
 fn collect_struct_field_types_in_type_decl(
@@ -1095,5 +1383,58 @@ mod tests {
             &lower,
             builtins
         ));
+    }
+
+    #[test]
+    fn collect_struct_field_types_includes_foreign_body_properties() {
+        let defs = SourceFile::new_virtual(
+            "defs.scoop",
+            r#"
+package fixtures.typecheck_multi.generic_value_member_access_cross_file
+
+struct Box<T>(val value: T) {
+    val bodyCopy: T = value
+    val readBack: T
+        get() = this.bodyCopy
+}
+"#,
+        );
+        let defs_ast = parse_file(&defs).unwrap();
+        let use_source = SourceFile::new_virtual(
+            "use.scoop",
+            r#"
+package fixtures.typecheck_multi.generic_value_member_access_cross_file
+
+fun crossFileTotal(): Int {
+    return Box(40).value + Box(1).bodyCopy + Box(1).readBack
+}
+"#,
+        );
+        let use_ast = parse_file(&use_source).unwrap();
+        let index = Index::build(&[(&defs, &defs_ast), (&use_source, &use_ast)]).unwrap();
+        let imports = ImportTable::build(&use_source, &use_ast, &index).unwrap();
+
+        let mut env = TypeEnv::default();
+        env.extend_from_file(&defs, &defs_ast, &index).unwrap();
+        env.extend_from_file(&use_source, &use_ast, &index).unwrap();
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut lower = TypeLowering::new(
+            &use_source,
+            &use_ast,
+            &index,
+            &imports,
+            &env,
+            &mut types,
+            builtins,
+        );
+
+        let fields = collect_struct_field_types(&use_source, &use_ast, &mut lower).unwrap();
+        let owner = "fixtures.typecheck_multi.generic_value_member_access_cross_file.Box";
+
+        assert!(fields.contains_key(&format!("{owner}.value")));
+        assert!(fields.contains_key(&format!("{owner}.bodyCopy")));
+        assert!(fields.contains_key(&format!("{owner}.readBack")));
     }
 }

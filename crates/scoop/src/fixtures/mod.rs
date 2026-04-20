@@ -79,6 +79,12 @@ pub fn run_all(
     opt_level: Option<OptLevel>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
+    if is_typecheck_multi_case_root(fixtures_root) {
+        let session = scoopc::session::Session::new()?;
+        return run_typecheck_multi_case(&session, fixtures_root, fixtures_root)
+            .wrap_err_with(|| format!("typecheck_multi case 失败：{}", fixtures_root.display()));
+    }
+
     // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
     // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
     let resolve_multi_root = fixtures_root.join("resolve_multi");
@@ -172,6 +178,14 @@ pub fn run_all(
     }
 
     Ok(ok)
+}
+
+fn is_typecheck_multi_case_root(fixtures_root: &Path) -> bool {
+    fixtures_root.is_dir()
+        && fixtures_root
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "typecheck_multi")
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -2696,9 +2710,12 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
 #[cfg(test)]
 mod tests {
     use std::ffi::OsStr;
+    use std::fs;
     use std::path::Path;
 
-    use super::phase_name;
+    use tempfile::tempdir;
+
+    use super::{RunPassEnvOverrides, phase_name, run_all};
 
     #[test]
     fn phase_name_uses_relative_phase_dir_when_present() {
@@ -2728,5 +2745,45 @@ mod tests {
         let rel = Path::new("hello.scoop");
 
         assert_eq!(phase_name(fixtures_root, rel), None);
+    }
+
+    #[test]
+    fn run_all_treats_typecheck_multi_case_root_as_single_case() {
+        let dir = tempdir().unwrap();
+        let case_dir = dir
+            .path()
+            .join("typecheck_multi")
+            .join("cross_file_box_case");
+        fs::create_dir_all(&case_dir).unwrap();
+
+        fs::write(
+            case_dir.join("defs.scoop"),
+            r#"
+// EXPECT: pass
+
+package fixtures.typecheck_multi.cross_file_box_case
+
+struct Box<T>(val value: T) {
+    val bodyCopy: T = value
+    val readBack: T
+        get() = this.bodyCopy
+}
+"#,
+        )
+        .unwrap();
+        fs::write(
+            case_dir.join("use.scoop"),
+            r#"// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+
+package fixtures.typecheck_multi.cross_file_box_case
+
+val bad: Int = Box("oops").bodyCopy
+"#,
+        )
+        .unwrap();
+
+        let ok = run_all(&case_dir, None, &RunPassEnvOverrides::new()).unwrap();
+        assert_eq!(ok, 2);
     }
 }

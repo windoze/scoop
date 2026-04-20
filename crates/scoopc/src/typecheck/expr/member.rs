@@ -482,12 +482,30 @@ fn member_value_exists(
     receiver_ty_fqn: &str,
     direct_fqn: &str,
 ) -> bool {
-    inputs.struct_field_types.contains_key(direct_fqn)
+    member_value_symbol_visible_from_use_site(inputs.source, lower, direct_fqn)
         || lower.is_object_type(direct_fqn)
         || direct_fqn == "scoop.core.Pinned.value"
         || direct_fqn == "scoop.core.GcHandle.raw"
         || (receiver_ty_fqn == "scoop.core.Platform"
             && direct_fqn.starts_with("scoop.core.Platform."))
+}
+
+fn member_value_symbol_visible_from_use_site(
+    use_source: &crate::source::SourceFile,
+    lower: &TypeLowering<'_>,
+    fqn: &str,
+) -> bool {
+    let use_cone = lower.index().cone_of_source(use_source);
+    lower
+        .index()
+        .by_fqn
+        .get(fqn)
+        .and_then(|syms| syms.value.as_ref())
+        .is_some_and(|symbol| match symbol.visibility {
+            Visibility::Public => true,
+            Visibility::Internal => symbol.decl_cone == use_cone,
+            Visibility::Private => symbol.decl_file == use_source.path(),
+        })
 }
 
 fn find_extension_property_candidate(
