@@ -2786,7 +2786,7 @@ effect Boom {
     fun next(): Int
 }
 
-fun demo(k: Continuation<Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
+fun demo(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
     k.resume(1)
     val result: Int = handle {
         0

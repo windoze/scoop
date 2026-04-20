@@ -16,7 +16,7 @@ effect Suspend {
 }
 
 fun main() {
-    var saved: Continuation<Int>? = None()
+    var saved: Continuation<Int, Unit>? = None()
     var outerValue: Int = 5
 
     val _: Unit = handle {

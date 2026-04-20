@@ -14,7 +14,7 @@ effect Query {
 }
 
 fun main() {
-    var saved: Continuation<Int>? = None()
+    var saved: Continuation<Int, Unit>? = None()
 
     val _h: Unit = handle {
         val value: Int = Query.query()

@@ -13,7 +13,7 @@ effect Fetch {
 }
 
 fun main() {
-    var saved: Continuation<Point>? = None()
+    var saved: Continuation<Point, Unit>? = None()
 
     val _: Unit = handle {
         val p: Point = Fetch.fetch()

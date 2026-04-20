@@ -16,7 +16,7 @@ effect Query {
 }
 
 fun main() {
-    var saved: Continuation<Result>? = None()
+    var saved: Continuation<Result, Unit>? = None()
 
     // First pass: resume with Ok variant
     val _h1: Unit = handle {
@@ -54,7 +54,7 @@ fun main() {
     }
 
     // Second pass: resume with Err variant
-    var saved2: Continuation<Result>? = None()
+    var saved2: Continuation<Result, Unit>? = None()
 
     val _h2: Unit = handle {
         val r2: Result = Query.query()

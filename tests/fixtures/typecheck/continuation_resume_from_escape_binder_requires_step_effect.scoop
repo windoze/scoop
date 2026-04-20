@@ -23,9 +23,10 @@ private fun bad(): Int / Ask {
         seed + extra
     } with {
         Ask.current(), k -> {
-            val resumed: Unit = try {
+            val resumed: Int = try {
                 k.resume(1)
             } catch (e: RuntimeError) {
+                0
             }
             resumed
             0

@@ -56,6 +56,15 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "legacy `Continuation<Resume, eff E>` 简写已移除；请显式写出 answer type：`Continuation<Resume, Answer, eff E>`"
+    )]
+    #[diagnostic(code(scoop::typecheck::continuation_legacy_effect_shorthand_removed))]
+    ContinuationLegacyEffectShorthandRemoved {
+        #[label("这里需要显式 answer type")]
+        span: miette::SourceSpan,
+    },
+
     #[error("类型 {name} 不支持 use-site effect row 实参（`eff ...`）")]
     #[diagnostic(code(scoop::typecheck::use_site_eff_arg_not_allowed))]
     UseSiteEffectRowArgNotAllowed {
@@ -2318,6 +2327,13 @@ impl<'a> TypeLowering<'a> {
             _ => {}
         }
 
+        let continuation_legacy_effect_shorthand =
+            fqn == "scoop.core.Continuation" && type_args.len() == 1 && eff_arg.is_some();
+        if continuation_legacy_effect_shorthand {
+            return Err(TypeLowerError::ContinuationLegacyEffectShorthandRemoved {
+                span: path.span.into(),
+            });
+        }
         let continuation_legacy_shorthand =
             fqn == "scoop.core.Continuation" && type_args.len() == 1;
         let expected = self.env.type_param_count(&fqn).ok_or_else(|| {

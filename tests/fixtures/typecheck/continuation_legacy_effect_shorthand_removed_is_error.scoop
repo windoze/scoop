@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::continuation_legacy_effect_shorthand_removed
+// EXPECT-ERROR: legacy `Continuation<Resume, eff E>` 简写已移除
+// EXPECT-ERROR-AT: 16:12
+// 目标：T4016b4：带显式 `eff` 的 legacy continuation shorthand 不能再把 answer-hole
+// 拖进 replay/codegen 主线；需要显式写出 `Continuation<Resume, Answer, eff E>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun bad(k: Continuation<Int, eff Boom>) {}

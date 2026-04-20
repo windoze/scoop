@@ -10,7 +10,7 @@ effect Confirm {
 }
 
 fun main() {
-    var saved: Continuation<Bool>? = None()
+    var saved: Continuation<Bool, Unit>? = None()
 
     val _: Unit = handle {
         val answer: Bool = Confirm.confirm()

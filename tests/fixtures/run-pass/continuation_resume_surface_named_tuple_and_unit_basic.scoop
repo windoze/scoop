@@ -14,7 +14,7 @@ effect Ask {
 
 fun main() {
     println("unit_start")
-    var savedUnit: Continuation<Unit>? = None()
+    var savedUnit: Continuation<Unit, Unit>? = None()
 
     val handledUnit: Unit = handle {
         println("before_pause")
@@ -42,7 +42,7 @@ fun main() {
     }
 
     println("pair_start")
-    var savedPair: Continuation<(Int, String)>? = None()
+    var savedPair: Continuation<(Int, String), Unit>? = None()
 
     val handledPair: Unit = handle {
         val pair: (Int, String) = Ask.ask()

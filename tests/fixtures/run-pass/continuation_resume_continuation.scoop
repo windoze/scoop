@@ -1,8 +1,8 @@
 // RUN-STDOUT: continuation_resume_continuation.stdout
 //
 // T1702: Resume payload is itself a Continuation (ref type / GC-managed object).
-// The outer effect returns a Continuation<Int>, so the outer handle arm captures
-// a continuation whose resume payload is a Continuation<Int> object.
+// The outer effect returns a `Continuation<Int, Unit>`, so the outer handle arm captures
+// a continuation whose resume payload is a `Continuation<Int, Unit>` object.
 // Verifies that continuation objects can be passed as resume payloads through the
 // resume_gc_ref channel, and that the received continuation can subsequently be
 // resumed correctly. Tests GC root scanning of nested continuation objects.
@@ -11,7 +11,7 @@
 import scoop.core.*
 
 effect Outer {
-    fun getK(): Continuation<Int>
+    fun getK(): Continuation<Int, Unit>
 }
 
 effect Inner {
@@ -19,11 +19,11 @@ effect Inner {
 }
 
 fun main() {
-    var outerK: Continuation<Continuation<Int>>? = None()
+    var outerK: Continuation<Continuation<Int, Unit>, Unit>? = None()
 
     // Outer handle: body performs Outer.getK() to receive a continuation
     val _h1: Unit = handle {
-        val innerK: Continuation<Int> = Outer.getK()
+        val innerK: Continuation<Int, Unit> = Outer.getK()
         println("got_inner_k")
 
         // Resume the received continuation with a value
@@ -42,7 +42,7 @@ fun main() {
     println("after_outer_handle")
 
     // Now create an inner continuation by running another handle
-    var innerSaved: Continuation<Int>? = None()
+    var innerSaved: Continuation<Int, Unit>? = None()
 
     val _h2: Unit = handle {
         val v: Int = Inner.pause()

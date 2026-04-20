@@ -15,7 +15,7 @@ effect GetNamed {
 }
 
 fun main() {
-    var saved: Continuation<Named>? = None()
+    var saved: Continuation<Named, Unit>? = None()
 
     val _h: Unit = handle {
         val n: Named = GetNamed.get()

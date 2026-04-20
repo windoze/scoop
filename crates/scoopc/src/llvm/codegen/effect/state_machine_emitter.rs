@@ -277,20 +277,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // User slots: one LLVM field per UnifiedFrameSlot, in field_index order.
-        let mut user_slots: Vec<(usize, crate::ty::TypeId)> = frame
+        let mut user_slots: Vec<(usize, crate::ty::TypeId, String)> = frame
             .slots()
             .iter()
-            .map(|slot| (slot.field_index(), slot.slot().ty()))
+            .map(|slot| {
+                (
+                    slot.field_index(),
+                    slot.slot().ty(),
+                    format!("{}#{}", slot.slot().name(), slot.slot().id().as_u32()),
+                )
+            })
             .collect();
-        user_slots.sort_by_key(|(idx, _)| *idx);
+        user_slots.sort_by_key(|(idx, _, _)| *idx);
 
-        for (_idx, type_id) in &user_slots {
-            let cg_ty = self
-                .cg_ty_of(*type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+        for (field_index, type_id, slot_name) in &user_slots {
+            let Some(cg_ty) = self.cg_ty_of(*type_id) else {
+                tracing::warn!(
+                    field_index,
+                    slot_name = %slot_name,
+                    slot_ty = %self.types.display(*type_id),
+                    "effect frame slot type is not codegen-lowerable"
+                );
+                return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "effect frame slot type",
                     at: span.into(),
-                })?;
+                });
+            };
             let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
             field_types.push(llvm_ty);
         }

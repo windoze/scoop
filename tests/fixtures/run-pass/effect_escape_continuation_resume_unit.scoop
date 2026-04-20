@@ -10,7 +10,7 @@ effect Suspend {
 }
 
 fun main() {
-    var saved: Continuation<Unit>? = None()
+    var saved: Continuation<Unit, Unit>? = None()
 
     val _: Unit = handle {
         println("before_pause")

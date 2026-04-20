@@ -13,10 +13,10 @@ effect Provide {
     fun provide(): Box
 }
 
-class Cell(var k: Continuation<Box>?)
+class Cell(var k: Continuation<Box, Unit>?)
 
 fun main() {
-    val none_k: Continuation<Box>? = None()
+    val none_k: Continuation<Box, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {

@@ -14,7 +14,7 @@ effect Yield {
 
 fun main() {
     // 注意：当前阶段 `None` 作为“裸标识符值”尚不可用；用 `None()` 走 enum variant ctor 路径。
-    var saved: Continuation<Int>? = None()
+    var saved: Continuation<Int, Unit>? = None()
 
     // 说明：handle body 在 perform 处暂停；arm 把 k 存起来并返回。
     //
