@@ -1636,7 +1636,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010R
 
-### T4011b [TODO] 在统一 payload matching 主线上收口“无 binder 的 payload or-pattern”
+### T4011b [DONE] 在统一 payload matching 主线上收口“无 binder 的 payload or-pattern”
 - 说明：
   - `ISSUES.md` 第 8 条当前明确建议先支持 `A(..) | B(..)` / `A(_) | B(_)` 这类“只判别、不绑定”的 payload or-pattern；`A(x) | B(x)` 的 binder-sharing 以及 bare `A | C` 的“忽略 payload”语法糖都不应在这一轮一起放开。
 - 范围：
@@ -1645,6 +1645,21 @@
   - 新增 parse / typecheck / run-pass regression，覆盖 variant payload 判别、wildcard payload 与 mismatch 路径。
 - 验收：
   - `ISSUES.md` 第 8 条收窄到明确的 binder-sharing 后续设计，或直接关闭。
+- 已完成：
+  - LLVM enum `when` 条件判别现统一通过 `codegen_when_pat_cond_for_enum_with_tag` 递归处理 `WhenPat::Or` 下的每个分支；当分支为带 payload 子模式的 variant pattern 时，会直接复用 `T4011a` 的完整 payload matching 主线，不再退回成“只比较 tag”的旧逻辑。
+  - 现有 binder 规则保持不变：带 binder 的 or-pattern 仍由 typecheck 在前端拒绝，没有放开 binder-sharing；parser 也没有引入 bare `A | C` 的“忽略 payload”新语法糖。
+  - 已新增回归：
+    - parser 单测 `parse_when_variant_payload_or_pattern`
+    - `tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_is_error.scoop`
+    - `tests/fixtures/run-pass/when_or_pattern_variant_payload_basic.scoop`
+- 已验证：
+  - `cargo test -p scoopc parse_when_variant_payload_or_pattern -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures /tmp/t4011b-fixtures`（`fixtures: ok (2)`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_or_pattern_and_guard_basic.scoop`（退出码 `8`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_variant_payload_nested_tuple_basic.scoop`（退出码 `12`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1107)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4011a
 
 ### T4011R [TODO] Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar

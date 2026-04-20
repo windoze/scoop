@@ -260,6 +260,40 @@ fn parse_char_literal_expr_and_when_pattern() {
 }
 
 #[test]
+fn parse_when_variant_payload_or_pattern() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval choice = when (x) { Hit(0) | Miss() -> 1 else -> 2 }\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(choice) = &file.items[0] else {
+        panic!("期望第一个 item 为 val");
+    };
+    let choice_init = choice.init.as_ref().expect("choice 应有 initializer");
+    let ast::ExprKind::When { arms, .. } = &choice_init.kind else {
+        panic!("期望 choice initializer 为 when 表达式");
+    };
+    let ast::WhenPat::Or { pats, .. } = &arms[0].pat else {
+        panic!("期望首个 when pattern 为 or-pattern");
+    };
+    assert_eq!(pats.len(), 2);
+
+    let ast::WhenPat::Variant { name, args, .. } = &pats[0] else {
+        panic!("期望第一个 or 分支为 variant pattern");
+    };
+    assert_eq!(src.slice(name.span), "Hit");
+    assert_eq!(args.len(), 1);
+    assert!(matches!(args[0], ast::WhenPat::IntLit { .. }));
+
+    let ast::WhenPat::Variant { name, args, .. } = &pats[1] else {
+        panic!("期望第二个 or 分支为 variant pattern");
+    };
+    assert_eq!(src.slice(name.span), "Miss");
+    assert!(args.is_empty());
+}
+
+#[test]
 fn do_block_basic() {
     let src = SourceFile::new_virtual("<mem>", "fun f() { val x = do { 1 }; return x }");
     let file = parse_file(&src).unwrap();

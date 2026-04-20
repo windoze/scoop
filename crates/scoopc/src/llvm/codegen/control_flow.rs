@@ -1584,51 +1584,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgEnumRepr::ValueOnly { .. } => loaded.into_int_value(),
         };
 
-        match pat {
-            hir::WhenPat::Variant { .. } => self.codegen_when_variant_pat_cond_full(
-                at,
-                enum_ty,
-                &variants,
-                tag,
-                pat,
-                subject_ptr,
-            ),
-            _ => self.codegen_when_pat_cond_for_enum_with_tag(at, &variants, tag, pat),
-        }
+        self.codegen_when_pat_cond_for_enum_with_tag(at, enum_ty, &variants, tag, pat, subject_ptr)
     }
 
     pub(super) fn codegen_when_pat_cond_for_enum_with_tag(
-        &self,
-        _at: crate::span::Span,
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
         variants: &[CgEnumVariant],
         tag: IntValue<'ctx>,
         pat: &hir::WhenPat,
+        subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         match pat {
             hir::WhenPat::Else { .. }
             | hir::WhenPat::Wildcard { .. }
             | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
-            hir::WhenPat::Variant { name, args, .. } => {
-                let Some(variant) = variants.iter().find(|v| v.name == *name) else {
+            hir::WhenPat::Variant { name, .. } => {
+                let Some(_variant) = variants.iter().find(|v| v.name == *name) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when unknown enum variant",
                         at: pat.span().into(),
                     });
                 };
-                let _ = args;
 
-                let expected = tag.get_type().const_int(variant.tag, false);
-                Ok(self.builder.build_int_compare(
-                    IntPredicate::EQ,
+                // `T4011b`：or-pattern 内的 variant 分支也必须复用完整的 payload
+                // 子模式匹配主线，不能退回成“只比较 tag”的旧行为。
+                self.codegen_when_variant_pat_cond_full(
+                    at,
+                    enum_ty,
+                    variants,
                     tag,
-                    expected,
-                    "when_enum_tag_eq",
-                )?)
+                    pat,
+                    subject_ptr,
+                )
             }
             hir::WhenPat::Or { pats, .. } => {
                 let mut cond = self.context.bool_type().const_int(0, false);
                 for p in pats {
-                    let c = self.codegen_when_pat_cond_for_enum_with_tag(_at, variants, tag, p)?;
+                    let c = self.codegen_when_pat_cond_for_enum_with_tag(
+                        at,
+                        enum_ty,
+                        variants,
+                        tag,
+                        p,
+                        subject_ptr,
+                    )?;
                     cond = self.builder.build_or(cond, c, "when_or")?;
                 }
                 Ok(cond)

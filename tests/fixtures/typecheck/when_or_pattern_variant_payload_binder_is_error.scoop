@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_expr
+// EXPECT-ERROR-AT: 15:3
+// EXPECT-ERROR: when or-pattern（暂不支持 binder）
+
+package fixtures.typecheck
+
+enum Opt {
+  Hit(val value: Int),
+  Miss,
+}
+
+val x: Opt = Hit(1)
+val y: Int = when (x) {
+  Hit(v) | Miss() -> 1
+  else -> 2
+}

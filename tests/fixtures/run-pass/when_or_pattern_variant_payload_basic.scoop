@@ -1,0 +1,44 @@
+// EXPECT: pass
+// EXPECT-EXIT: 23
+//
+// T4011b: 顶层 or-pattern 的每个 enum variant 分支都应复用 payload 子模式匹配主线。
+//
+// 覆盖点：
+// - `Hit(0) | Miss()` 对 `Hit(1)` 不能仅因 tag 命中而错误通过
+// - `Hit(0) | Hit(1)` 对 `Hit(2)` 应回落到后续 wildcard payload 分支
+// - `Hit(_) | Miss()` 这类无 binder 的 wildcard payload or-pattern 可执行
+
+enum Choice {
+    Hit(val value: Int),
+    Miss,
+}
+
+fun classify_literal_or_miss(x: Choice): Int {
+    return when (x) {
+        Hit(0) | Miss() -> 1
+        Hit(_) -> 2
+    }
+}
+
+fun classify_two_literals(x: Choice): Int {
+    return when (x) {
+        Hit(0) | Hit(1) -> 4
+        Hit(_) -> 5
+        Miss() -> 6
+    }
+}
+
+fun classify_wildcard_or_miss(x: Choice): Int {
+    return when (x) {
+        Hit(_) | Miss() -> 7
+    }
+}
+
+fun main(): Int {
+    return classify_literal_or_miss(Hit(0))
+        + classify_literal_or_miss(Hit(1))
+        + classify_literal_or_miss(Miss())
+        + classify_two_literals(Hit(2))
+        + classify_wildcard_or_miss(Hit(9))
+        + classify_wildcard_or_miss(Miss())
+}
