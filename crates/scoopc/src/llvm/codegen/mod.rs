@@ -1662,12 +1662,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: value.span.into(),
             })?;
         let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
-        let _ = self
-            .builder
-            .build_call(init_fn, &[], "top_level_val_init")?;
-        if self.ordinary_effect_propagation_enabled() {
-            self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
-        } else {
+        self.with_conservative_gc_local_root_spills(at, |cg| {
+            let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
+            if cg.ordinary_effect_propagation_enabled() {
+                cg.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
+            }
+            Ok(())
+        })?;
+        if !self.ordinary_effect_propagation_enabled() {
             let insert_block =
                 self.builder
                     .get_insert_block()
@@ -2951,7 +2953,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "class_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
             rt_alloc,
             &[type_desc_i8.into(), size_v.into()],
             "rt_alloc_class",
@@ -3657,9 +3660,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let rt_fun = self.declare_runtime_trim_indent();
-        let call = self
-            .builder
-            .build_call(rt_fun, &[recv_ptr.into()], "rt_trim_indent")?;
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_fun,
+            &[recv_ptr.into()],
+            "rt_trim_indent",
+        )?;
         let ret = call
             .try_as_basic_value()
             .basic()
@@ -3788,7 +3794,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_string_concat();
-                let call = self.builder.build_call(
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
                     rt_fun,
                     &[recv_ptr.into(), other_ptr.into()],
                     "rt_string_concat",
@@ -4364,9 +4371,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let i64_ty = self.context.i64_type();
                 let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "Bool.toString return value",
@@ -4399,9 +4409,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "Int.toString return value",
@@ -4514,9 +4527,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         codepoint: IntValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let rt_fun = self.declare_runtime_char_to_string();
-        let call = self
-            .builder
-            .build_call(rt_fun, &[codepoint.into()], "rt_char_to_string")?;
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_fun,
+            &[codepoint.into()],
+            "rt_char_to_string",
+        )?;
         let ret = call
             .try_as_basic_value()
             .basic()
@@ -4641,9 +4657,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Float32 => self.declare_runtime_float32_to_string(),
             _ => unreachable!("filtered by unpack_float_cg_value"),
         };
-        let call = self
-            .builder
-            .build_call(rt_fun, &[float_val.into()], "rt_float_to_string")?;
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
+            rt_fun,
+            &[float_val.into()],
+            "rt_float_to_string",
+        )?;
         let ret = call
             .try_as_basic_value()
             .basic()
@@ -4952,9 +4971,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let str_ptr = self.codegen_char_to_string_value(expr.span, codepoint)?;
             let rt_fun = self.declare_runtime_print_like(rt_name);
-            let _ =
-                self.builder
-                    .build_call(rt_fun, &[str_ptr.into()], "rt_print_char_as_string")?;
+            let _ = self.build_call_preserving_gc_local_roots(
+                expr.span,
+                rt_fun,
+                &[str_ptr.into()],
+                "rt_print_char_as_string",
+            )?;
             return Ok(CgValue::unit());
         }
 
@@ -4986,9 +5008,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 let rt_fun = self.declare_runtime_print_like(rt_name);
-                let _ = self
-                    .builder
-                    .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
+                let _ = self.build_call_preserving_gc_local_roots(
+                    expr.span,
+                    rt_fun,
+                    &[str_ptr.into()],
+                    "rt_print",
+                )?;
                 Ok(CgValue::unit())
             }
             CgTy::Int(from_ty) => {
@@ -5017,9 +5042,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let str_ptr = self.codegen_int_to_string(expr.span, int64, to_ty.signed)?;
                 let rt_fun = self.declare_runtime_print_like(rt_name);
-                let _ =
-                    self.builder
-                        .build_call(rt_fun, &[str_ptr.into()], "rt_print_int_as_string")?;
+                let _ = self.build_call_preserving_gc_local_roots(
+                    expr.span,
+                    rt_fun,
+                    &[str_ptr.into()],
+                    "rt_print_int_as_string",
+                )?;
                 Ok(CgValue::unit())
             }
             // T0114: Bool → "true"/"false" → print.
@@ -5041,7 +5069,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_int_z_extend(bool_val, i64_ty, "bool_zext_print")?;
                 let rt_bool = self.declare_runtime_bool_to_string();
-                let call = self.builder.build_call(
+                let call = self.build_call_preserving_gc_local_roots(
+                    expr.span,
                     rt_bool,
                     &[bool_as_i64.into()],
                     "rt_bool_to_string_print",
@@ -5059,7 +5088,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_print_like(rt_name);
-                let _ = self.builder.build_call(
+                let _ = self.build_call_preserving_gc_local_roots(
+                    expr.span,
                     rt_fun,
                     &[str_ptr.into()],
                     "rt_print_bool_as_string",
@@ -5081,7 +5111,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_print_like(rt_name);
-                let _ = self.builder.build_call(
+                let _ = self.build_call_preserving_gc_local_roots(
+                    expr.span,
                     rt_fun,
                     &[str_ptr.into()],
                     "rt_print_float_as_string",
@@ -5134,9 +5165,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let i64_ty = self.context.i64_type();
                 let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "ToString.toString Bool ret",
@@ -5168,9 +5202,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "ToString.toString Int ret",
@@ -5247,9 +5284,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
         let rt_fun = self.declare_runtime_print_like(rt_name);
-        let _ = self
-            .builder
-            .build_call(rt_fun, &[str_ptr.into()], "rt_internal_print")?;
+        let _ = self.build_call_preserving_gc_local_roots(
+            expr.span,
+            rt_fun,
+            &[str_ptr.into()],
+            "rt_internal_print",
+        )?;
         Ok(CgValue::unit())
     }
 
@@ -5299,9 +5339,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let i64_ty = self.context.i64_type();
                 let bool_as_i64 = self.builder.build_int_z_extend(iv, i64_ty, "bool_zext")?;
                 let rt_fun = self.declare_runtime_bool_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[bool_as_i64.into()], "rt_bool_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "toString ext Bool ret",
@@ -5333,9 +5376,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 let rt_fun = self.declare_runtime_int_to_string();
-                let call =
-                    self.builder
-                        .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
+                let call = self.build_call_preserving_gc_local_roots(
+                    span,
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
                 let ret = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "toString ext Int ret",
@@ -5648,7 +5694,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "print_int_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
             rt_alloc,
             &[str_desc_i8.into(), size_v.into()],
             "rt_alloc_print_int_str",
@@ -8883,7 +8930,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.llvm_gc_i8_ptr_type(),
                     "thread_resume_k_i8",
                 )?;
-                let _ = self.builder.build_call(
+                let _ = self.build_call_preserving_gc_local_roots(
+                    span,
                     rt,
                     &[k_i8.into(), value_word.into()],
                     "thread_spawn_join_resume",
@@ -9468,21 +9516,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
 
-        if is_extern {
-            self.emit_enter_native_for_extern_call(span)?;
-        }
+        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+            if is_extern {
+                cg.emit_enter_native_for_extern_call(span)?;
+            }
 
-        let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
-        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+            let call_site = cg.builder.build_call(llvm_fun, &llvm_args, "call")?;
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
 
-        // extern/native 调用返回后，必须调用 leave_native 将线程状态从 InNative 切回 InManaged，
-        // 否则后续 effect 状态机检查（如 perform/Raise 设置的 TLS active flag）会在错误的线程状态下执行。
-        if is_extern {
-            let leave = self.declare_runtime_leave_native();
-            let _ = self.builder.build_call(leave, &[], "leave_native")?;
-        }
+            // extern/native 调用返回后，必须调用 leave_native 将线程状态从 InNative 切回 InManaged，
+            // 否则后续 effect 状态机检查（如 perform/Raise 设置的 TLS active flag）会在错误的线程状态下执行。
+            if is_extern {
+                let leave = cg.declare_runtime_leave_native();
+                let _ = cg.builder.build_call(leave, &[], "leave_native")?;
+            }
 
-        self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
+            cg.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
+            Ok(call_site)
+        })?;
 
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
@@ -9522,15 +9573,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 收集当前作用域内的 roots slots：使用局部变量自身的 alloca 槽位（而不是 shadow stack slot），
         // 以便 moving GC 更新时能被后续 `load local.ptr` 读取到最新指针值。
-        let mut slots: Vec<(u32, PointerValue<'ctx>)> = Vec::new();
-        for frame in &self.env.scopes {
-            for (id, local) in frame {
-                if matches!(local.ty, CgTy::Ref | CgTy::String) {
-                    slots.push((id.as_u32(), local.ptr));
-                }
-            }
-        }
-        slots.sort_by_key(|(id, _)| *id);
+        let slots = self
+            .collect_conservative_gc_root_slots(at)?
+            .into_iter()
+            .map(|(id, slot, _)| (id, slot))
+            .collect::<Vec<_>>();
 
         let (slots_base, slots_len) = if slots.is_empty() {
             (slots_ptr_ty.const_null(), i32_ty.const_zero())
@@ -9713,14 +9760,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "vtable_fn_typed",
         )?;
 
-        let call_site = self.builder.build_indirect_call(
-            llvm_fun_ty,
-            typed_fn_ptr,
-            &llvm_args,
-            "call_vtable",
-        )?;
-        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
-        self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
+        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site =
+                cg.builder
+                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_vtable")?;
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
+            cg.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
+            Ok(call_site)
+        })?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9932,14 +9979,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "itable_fn_typed",
         )?;
 
-        let call_site = self.builder.build_indirect_call(
-            llvm_fun_ty,
-            typed_fn_ptr,
-            &llvm_args,
-            "call_itable",
-        )?;
-        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
-        self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
+        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site =
+                cg.builder
+                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_itable")?;
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
+            cg.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
+            Ok(call_site)
+        })?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -10366,17 +10413,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(arg);
         }
 
-        let call_site = self.builder.build_indirect_call(
-            llvm_fun_ty,
-            typed_fn_ptr,
-            &llvm_args,
-            "call_funptr",
-        )?;
-        if let Some(result_ty) = hidden_sret_result_ty {
-            self.add_sret_attribute_to_call(call_site, 0, result_ty);
-        }
-        call_site.set_call_convention(0);
-        self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
+        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site =
+                cg.builder
+                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_funptr")?;
+            if let Some(result_ty) = hidden_sret_result_ty {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
+            call_site.set_call_convention(0);
+            cg.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
+            Ok(call_site)
+        })?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -10725,16 +10772,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(arg);
         }
 
-        let call_site = self.builder.build_indirect_call(
-            llvm_fun_ty,
-            typed_fn_ptr,
-            &llvm_args,
-            "call_closure",
-        )?;
-        if let Some(result_ty) = hidden_sret_result_ty {
-            self.add_sret_attribute_to_call(call_site, 0, result_ty);
-        }
-        self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
+        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+            let call_site =
+                cg.builder
+                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_closure")?;
+            if let Some(result_ty) = hidden_sret_result_ty {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
+            cg.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
+            Ok(call_site)
+        })?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -10928,7 +10975,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "closure_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
             rt_alloc,
             &[closure_desc_i8.into(), size_v.into()],
             "rt_alloc_closure",
@@ -11011,7 +11059,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "closure_env_type_desc_i8",
             )?;
             let rt_alloc = self.declare_runtime_alloc_typed();
-            let call = self.builder.build_call(
+            let call = self.build_call_preserving_gc_local_roots(
+                span,
                 rt_alloc,
                 &[env_desc_i8.into(), size_v.into()],
                 "rt_alloc_closure_env",
@@ -11738,7 +11787,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "enum_boxed_payload_type_desc_i8",
             )?;
             let rt_alloc = self.declare_runtime_alloc_typed();
-            let call = self.builder.build_call(
+            let call = self.build_call_preserving_gc_local_roots(
+                span,
                 rt_alloc,
                 &[desc_i8.into(), size_v.into()],
                 "rt_alloc_enum_boxed_payload",
@@ -12486,7 +12536,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "str_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
             rt_alloc,
             &[str_desc_i8.into(), size_v.into()],
             "rt_alloc_string_lit",
@@ -12693,7 +12744,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 "fstr_bool_zext",
                             )?;
                             let rt_bool = self.declare_runtime_bool_to_string();
-                            let call = self.builder.build_call(
+                            let call = self.build_call_preserving_gc_local_roots(
+                                expr.span,
                                 rt_bool,
                                 &[bool_as_i64.into()],
                                 "rt_bool_to_string_for_fstr",
@@ -12888,7 +12940,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "fstr_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            span,
             rt_alloc,
             &[str_desc_i8.into(), size_v.into()],
             "rt_alloc_fstr",
@@ -13476,8 +13529,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
-        let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
-        self.emit_ordinary_call_effect_propagation_check(at, "object_property_init_effect")?;
+        self.with_conservative_gc_local_root_spills(at, |cg| {
+            let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
+            cg.emit_ordinary_call_effect_propagation_check(at, "object_property_init_effect")?;
+            Ok(())
+        })?;
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
@@ -13724,7 +13780,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "object_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
             rt_alloc,
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_object",
@@ -13756,8 +13813,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
-        let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
-        self.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
+        self.with_conservative_gc_local_root_spills(at, |cg| {
+            let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
+            cg.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
+            Ok(())
+        })?;
 
         let instance = self.declare_object_instance_global(object_fqn);
         let loaded = self.builder.build_load(
@@ -15682,7 +15742,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "boxed_unit_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
             rt_alloc,
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_box_unit",
@@ -15747,9 +15808,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "boxed_int_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call =
-            self.builder
-                .build_call(rt_alloc, &[desc_i8.into(), size_v.into()], "rt_alloc_box")?;
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
+            rt_alloc,
+            &[desc_i8.into(), size_v.into()],
+            "rt_alloc_box",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()

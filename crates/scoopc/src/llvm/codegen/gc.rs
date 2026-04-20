@@ -20,7 +20,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // 重要：该调用点必须能产出 stackmap record，否则 GC 期间无法枚举 managed roots。
             let rt = self.declare_runtime_gc_collect_safepoint();
-            let _ = self.builder.build_call(rt, &[], "gc_collect_safepoint")?;
+            let _ = self.build_call_preserving_gc_local_roots(
+                span,
+                rt,
+                &[],
+                "gc_collect_safepoint",
+            )?;
             return Ok(Some(CgValue::unit()));
         }
 
@@ -97,9 +102,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let count_i64 = self.cast_int(count_raw, count_from, count_to)?;
 
             let rt = self.declare_runtime_gc_debug_alloc_garbage();
-            let _ = self
-                .builder
-                .build_call(rt, &[count_i64.into()], "gc_debug_alloc_garbage")?;
+            let _ = self.build_call_preserving_gc_local_roots(
+                span,
+                rt,
+                &[count_i64.into()],
+                "gc_debug_alloc_garbage",
+            )?;
             return Ok(Some(CgValue::unit()));
         }
 
@@ -791,6 +799,105 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn llvm_scoop_string_ptr_type(&self) -> inkwell::types::PointerType<'ctx> {
         self.llvm_ptr_type(self.gc_address_space())
+    }
+
+    fn local_gc_root_value_ptr_type(
+        &mut self,
+        at: crate::span::Span,
+        local: &CgLocal<'ctx>,
+    ) -> Result<Option<PointerType<'ctx>>, LlvmEmitError> {
+        let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
+        let BasicTypeEnum::PointerType(ptr_ty) = llvm_ty else {
+            return Ok(None);
+        };
+
+        if ptr_ty.get_address_space() == self.gc_address_space() {
+            Ok(Some(ptr_ty))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 收集当前 env 中“底层 LLVM 表示就是 GC 指针”的局部槽位。
+    ///
+    /// 说明：
+    /// - 不能只按 `CgTy::Ref | CgTy::String` 判断；
+    /// - `Option<Ref>` / `Option<Continuation>` 等 niche enum 也可能直接降成 `ptr addrspace(1)`；
+    /// - statepoint 只会追踪 live SSA roots，不会自动把 `alloca ptr addrspace(1)` 当作根，
+    ///   因此 ordinary 函数里的这类局部必须在 safepoint 前显式 load 成 SSA 值并在之后写回。
+    pub(super) fn collect_conservative_gc_root_slots(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<Vec<(u32, PointerValue<'ctx>, PointerType<'ctx>)>, LlvmEmitError> {
+        let mut locals = Vec::new();
+        for frame in &self.env.scopes {
+            for (id, local) in frame {
+                locals.push((id.as_u32(), *local));
+            }
+        }
+
+        let mut slots = Vec::new();
+        for (local_id, local) in locals {
+            if let Some(value_ptr_ty) = self.local_gc_root_value_ptr_type(at, &local)? {
+                slots.push((local_id, local.ptr, value_ptr_ty));
+            }
+        }
+        slots.sort_by_key(|(id, _, _)| *id);
+        Ok(slots)
+    }
+
+    /// 在一次 ordinary safepoint 前后保守 keepalive 所有 pointer-shaped GC locals。
+    ///
+    /// 做法：
+    /// - 调用前先从局部槽位 load 出 SSA root；
+    /// - 调用后再把 relocate 后的 SSA root store 回原槽位；
+    /// - 这样 `rewrite-statepoints-for-gc` 才会把这些 locals 纳入 `gc-live` / stackmap。
+    pub(super) fn with_conservative_gc_local_root_spills<T, F>(
+        &mut self,
+        at: crate::span::Span,
+        f: F,
+    ) -> Result<T, LlvmEmitError>
+    where
+        F: FnOnce(&mut Self) -> Result<T, LlvmEmitError>,
+    {
+        let spills = self
+            .collect_conservative_gc_root_slots(at)?
+            .into_iter()
+            .map(|(local_id, slot, value_ptr_ty)| {
+                let loaded = self
+                    .builder
+                    .build_load(value_ptr_ty, slot, &format!("gc_root_keepalive_{local_id}"))?
+                    .into_pointer_value();
+                Ok((slot, loaded))
+            })
+            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
+
+        let result = f(self)?;
+
+        let Some(insert_block) = self.builder.get_insert_block() else {
+            return Ok(result);
+        };
+        if insert_block.get_terminator().is_some() {
+            return Ok(result);
+        }
+
+        for (slot, value) in spills {
+            let _ = self.builder.build_store(slot, value)?;
+        }
+
+        Ok(result)
+    }
+
+    pub(super) fn build_call_preserving_gc_local_roots(
+        &mut self,
+        at: crate::span::Span,
+        callee: FunctionValue<'ctx>,
+        args: &[inkwell::values::BasicMetadataValueEnum<'ctx>],
+        name: &str,
+    ) -> Result<CallSiteValue<'ctx>, LlvmEmitError> {
+        self.with_conservative_gc_local_root_spills(at, |cg| {
+            Ok(cg.builder.build_call(callee, args, name)?)
+        })
     }
 
     pub(super) fn llvm_gc_object_header_type(&self) -> StructType<'ctx> {

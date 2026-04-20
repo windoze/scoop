@@ -45,7 +45,8 @@
   - `T4016c`：再收口 runtime / ABI 的 answer-return channel，避免前端静态模型与底层 `void scoop_continuation_resume(...)` 继续错位。
   - `T4016b3`：最后基于统一 answer-return 通道，把 `Continuation.resume(...): Answer` 的 typecheck / lowering / codegen 主线彻底接通。
   - `T4016b4a`：先移除 legacy `Continuation<Resume, eff E>` shorthand，并收口最先暴露出来的 answer-hole codegen blocker。
-  - `T4016b4b0`：全量 `run-pass` 复验时新暴露出 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 的 cross-thread continuation / GC stress runtime 崩溃，需先修掉该前置 blocker。
+  - `T4016b4a0`：继续补齐 object property / top-level immutable backing globals 的永久 GC roots 合同，先修掉显式 GC 后模块级引用会悬挂/错指的问题。
+  - `T4016b4b0`：在 `T4016b4a0` 之后，再回到 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 的 cross-thread continuation / GC stress runtime 崩溃，收口剩余的 continuation / frame liveness / thread 路径问题。
   - `T4016b4b`：在 `T4016b4b0` 之后，再用全量 `run-pass` 完成 pure `Continuation<Resume>` shorthand 的收尾迁移与最终验收。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
@@ -92,11 +93,16 @@
     - 构造器参数路径现已支持 expected-type placeholder 回填，`Cell(None())` 这类场景不再阻断 continuation fixture build；
     - 相关 run-pass / typecheck fixtures 与 LLVM 内嵌测试源码已大批迁移到显式 answer type；
     - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 但继续用全量 `run-pass` 验收 `T4016b4b` 时，暴露出新的 runtime 前置 blocker，需要先抽成 `T4016b4b0`：
+  - 但继续用全量 `run-pass` 验收 `T4016b4b` 时，暴露出新的 runtime 前置 blocker，最初先抽成 `T4016b4b0`：
     - `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 现已可以成功 build；
     - `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 会在输出 `workerA_resuming` 后以 `exit code -1` 异常结束；
     - 当前阻塞点因此已从 pure shorthand 的 codegen 泄漏，转为 cross-thread escaped continuation 在 GC stress 下的 runtime 崩溃。
-  - 下一步先完成 `T4016b4b0`，修复该 runtime blocker；之后回到 `T4016b4b` 完成全量 `run-pass` 验收，再推进 `T4016d` 与 `T4016R`。
+  - 本轮进一步定位后，确认 `T4016b4b0` 之前还存在一个更基础的 GC 缺口，需要先前置为 `T4016b4a0`：
+    - ordinary safepoint 对 pointer-shaped locals 的 keepalive / relocated 写回缺口已经修复，最小复现 `effect_escape_continuation_resume_cross_thread.scoop` 在 `SCOOP_GC_STRESS=1` 下恢复正常；
+    - 但目标 fixture 中的崩点继续深挖后发现，worker 线程读到的并不是被回收后的 continuation 对象，而是 `__scoop_object_prop__Shared.cellA` 这个模块级全局槽本身已经在显式 GC 后被改写成字符串对象指针；
+    - GDB 显示：主线程在 `cellA.k = Some(k)` 时写入的 `CellA` 与 continuation 指针都正常；而在 `gc_before_workers` 之后、worker 线程刚进入 `workerAFn` 尚未读字段前，`__scoop_object_prop__Shared.cellA` 已从原 `CellA` 对象变成了 `"taskA_arm"` 对应的 `ScoopString` 对象；
+    - 结合 codegen/runtime 现状，当前更准确的 blocker 是：object property globals 与同类 `top_level_immutable_values` backing globals 没有进入 GC 的永久 roots/update 合同，导致模块级 GC 指针全局值在显式 GC 后悬挂或错指。
+  - 下一步先完成 `T4016b4a0`，补齐模块级 GC 指针全局槽的永久 roots；之后回到 `T4016b4b0` 修复该 fixture 剩余的 cross-thread continuation / GC stress runtime blocker，再推进 `T4016b4b`、`T4016d` 与 `T4016R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

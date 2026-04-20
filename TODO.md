@@ -121,7 +121,7 @@
   - 此前前端曾临时接受旧 shorthand，并用内部 continuation answer-hole 补齐缺失的 answer type。
   - 也正因此，当 shorthand continuation 被存进字段/局部并跨 suspend 进入 effect frame / runtime object model 时，answer-hole 会以 `TypeKind::Param` 形式泄漏到 monomorph / LLVM codegen；最早暴露在 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`，随后又在 `continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_async_executor_fifo.scoop` 等用例上确认了同一路径的问题。
   - 当前工作树已基本完成 pure shorthand 的 lowering 清理与显式 answer type 迁移，但在复验全量 `run-pass` 时暴露出新的 runtime 前置缺陷：`gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 现可成功 build，却会在 `SCOOP_GC_STRESS=1` 下于 `workerA_resuming` 后异常退出。
-  - 因此本条现按 `T4016b4a -> T4016b4b0 -> T4016b4b` 顺序推进：先移除显式 `eff` shorthand，再修复阻断全量 `run-pass` 验收的 cross-thread continuation runtime 崩溃，最后回到 pure shorthand 的收尾验收。
+  - 因此本条现按 `T4016b4a -> T4016b4a0 -> T4016b4b0 -> T4016b4b` 顺序推进：先移除显式 `eff` shorthand，再补齐模块级 GC 指针全局槽的永久 roots 合同，随后修复阻断全量 `run-pass` 验收的 cross-thread continuation runtime 崩溃，最后回到 pure shorthand 的收尾验收。
 - 范围：
   - 子任务全部完成后，legacy shorthand 的过渡规则要清晰：显式 `eff` shorthand 不再允许进入前端主线；仍保留的 pure shorthand 也不能再把 answer-hole 带进 codegen。
 - 验收：
@@ -142,15 +142,28 @@
   - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop -o /tmp/cont-shorthand.out && /tmp/cont-shorthand.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4016b4
 
+### T4016b4a0 [TODO] 把 object property / top-level immutable backing globals 纳入永久 GC roots，恢复显式 GC 后的模块级引用稳定性
+- 范围：
+  - 定位并修复模块级 GC 指针全局槽未被 GC 作为永久 roots 扫描/更新的问题，至少覆盖：
+    - object property globals（`__scoop_object_prop__*`）
+    - top-level immutable backing globals（`top_level_immutable_values` 对应的 module-local backing globals）
+  - 明确并实现编译器 / runtime 对这类全局槽的 roots 合同：显式 GC、minor/major collection 与可能的 compaction 之后，这些槽仍必须稳定指向正确的 heap 对象，而不是悬挂地址或被后续分配复用的对象。
+  - 补 runtime / run-pass regression，覆盖“对象只通过模块级全局槽保活跨 GC 仍可正确读取”的路径，避免继续把该类问题伪装成 continuation/线程专用崩溃。
+- 验收：
+  - `Shared.cellA` 这类 object property 在显式 GC 后仍保持对象身份与字段值稳定，不会被后续字符串/闭包等分配复用。
+  - 模块级 GC 指针全局值在 GC 后不会因未扫描或未更新而悬挂；相关回归能稳定复现并锁定该合同。
+- 依赖：T4016b4a
+
 ### T4016b4b0 [TODO] 修复 GC stress 下 cross-thread escaped continuation resume 的 runtime 崩溃，恢复 `T4016b4b` 的有效验收前提
 - 范围：
-  - 定位并修复 `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下由 worker 线程 `resume` 已逃逸 continuation 时，于 `workerA_resuming` 后异常退出的问题。
+  - 在 `T4016b4a0` 补齐模块级 GC 指针全局槽 roots 合同之后，继续定位并修复 `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下由 worker 线程 `resume` 已逃逸 continuation 时，于 `workerA_resuming` 后异常退出的问题。
+  - 说明：当前已确认显式 GC 后 `__scoop_object_prop__Shared.cellA` 会被错误改写为后续字符串对象指针；该更基础的 global-roots 缺口需先由 `T4016b4a0` 修复，本条再继续收口 cross-thread continuation / GC / frame liveness 的剩余问题。
   - 核查 continuation / thread registration / GC rooting / frame liveness / cross-thread resume 合同，确保该 fixture 已能 build 的前提下，运行路径也与预期一致。
   - 补 runtime / run-pass regression，确认该类“cross-thread continuation + object allocation + GC collect”场景不再作为 `T4016b4b` 全量 `run-pass` 验收的噪声 blocker。
 - 验收：
   - `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop -o /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 成功，且 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 按预期 stdout 正常结束，不再在 `workerA_resuming` 后异常退出。
   - 相关 cross-thread continuation / GC stress run-pass 用例可稳定运行，为 `T4016b4b` 继续做全量 `run-pass` 验收恢复前提。
-- 依赖：T4016b4a
+- 依赖：T4016b4a0
 
 ### T4016b4b [TODO] 在 `T4016b4b0` 之后完成 pure `Continuation<Resume>` shorthand 的收尾迁移与全量 run-pass 验收
 - 范围：
