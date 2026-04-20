@@ -60,20 +60,36 @@
   - sysroot / 注释不再把旧 continuation surface 写成最终设计；与 `T4016a1` 的术语和迁移方向保持一致。
 - 依赖：T4016a1
 
-### T4016b [TODO] 把 answer type、returning-resume 与 arm syntax removal 接入 typecheck / HIR / lowering 主线
+### T4016b [TODO] 把 answer type、returning-resume 与 arm syntax removal 接入前端 / 中端主线（拆分执行）
+- 说明：
+  - 现状里有三件事被绑在同一个任务里：删除 `-> resume` 语法、把 continuation binder 升级为带 answer type 的静态模型、以及让 `Continuation.resume(...)` 真正返回 delimiter answer。
+  - 代码上这三件事横跨 parser / AST / HIR / typecheck / LLVM state machine，而且 runtime ABI 目前仍是 `void scoop_continuation_resume(void*)`；因此若不拆开，很容易把“删旧语法”和“接通 answer-return channel”强行耦合在一起。
+  - 本条先拆成 `T4016b1 -> T4016b2 -> T4016c -> T4016b3`：先删掉用户态 `-> resume` 并把 tail-resume 收口为内部优化分类，再把 answer type 接入 continuation 静态 surface，随后由 `T4016c` 提供 runtime / ABI 返回通道，最后回到 `T4016b3` 完成 answer-returning `resume` 的主线接入。
+- 验收：
+  - 子任务全部完成后，`-> resume` 不再保留任何用户态或 lowering 侧 special form，continuation answer type 也不再是 task-private 概念。
+  - `Continuation.resume(...)` 能作为真正返回 delimiter answer 的表达式 surface 工作，而不是继续被 typecheck / HIR 钉死为 `Unit`。
+- 依赖：T4016a2
+
+### T4016b1 [TODO] 删除用户态 `-> resume` 语法，并把 tail-resume 收口为 lowering / codegen 内部分类
+- 范围：
+  - parser / AST / HIR / resolver / typecheck 不再把 `Effect.op(...) -> resume { ... }` 当作独立用户态 arm surface；语法层改为 removed-syntax diagnostics，并显式指向 `Effect.op(...), k -> { k.resume(...) }` 的迁移路径。
+  - 原先依赖 `-> resume` 的 fixtures / 回归统一改写为 `, k ->` + `k.resume(...)`；用户态只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 arm 形态。
+  - lowering / codegen 若仍需要“tail-resume fast path”，只能在 escape-continuation arm 内部按 `k.resume(...)` 的尾位置形状做内部分类，不能继续把 `ImmediateResume` 当成公开语义节点。
+  - 补充 parse / typecheck / HIR / lowering / run-pass regression，覆盖 removed-syntax diagnostics、迁移后等价行为，以及 tail `k.resume(...)` 的内部优化路径仍可工作。
+- 验收：
+  - `-> resume` 在用户态彻底消失；相关回归全部迁移到 continuation arm。
+  - 生产代码中不再保留 AST / HIR 级别的 immediate-resume arm kind；若有 tail-resume 优化，只存在于内部 lowering / codegen 分类。
+- 依赖：T4016b
+
+### T4016b2 [TODO] 把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface
 - 范围：
   - continuation binder 类型不再只携带 payload type 与 resumed-step effect row；handle type inference 必须把 delimiter answer type 一并接入 `, k ->` arm 的静态模型。
-  - `Continuation.resume(...)` 改为真正返回表达式值的 builtin surface，不再在 typecheck / HIR 中被钉死成 `Unit` 返回。
-  - parser / typecheck / HIR / lowering 全线删除 `-> resume` 用户态语法与相应 special lowering；原先依赖该语法的 case 统一降为 `, k ->` + `k.resume(...)`。
-  - 补充 typecheck / lowering / run-pass regression，覆盖：
-    - arm 内 `k.resume(...)` 后继续执行本地代码；
-    - nested handle / `finally` / early return；
-    - resumed computation 再次 suspend 并暴露 fresh continuation；
-    - 已移除的 `-> resume` 语法 diagnostics，以及迁移到 continuation arm 后的等价行为。
+  - `sysroot/core.scoop`、type lowering、type pretty-print 与相关 diagnostics 统一切到 `Continuation<Resume, Answer, eff E>` surface；显式 continuation 类型注解与推导出的 `k` binder 类型都要能看到 answer type。
+  - 补充 typecheck / HIR regression，覆盖显式 `Continuation<Resume, Answer, eff E>` 注解、answer type mismatch、以及 handle delimiter answer 的推导与打印。
 - 验收：
-  - 在语言层面，`k.resume(...)` 后续代码既能 typecheck，也能在 resumed computation 正常完成时稳定执行。
-  - continuation answer type 不再是 task-private 概念，而是 compiler 主线的一等语义对象；`-> resume` 不再保留任何用户态或 lowering 侧 special form。
-- 依赖：T4016a2
+  - continuation answer type 成为 compiler 主线的一等静态语义对象，而不再只存在于文档或 task-private 叙事中。
+  - `, k ->` binder 的静态类型与 spec/runtime 文档中的 `Continuation<Resume, Answer, eff E>` 口径一致。
+- 依赖：T4016b1
 
 ### T4016c [TODO] 收口 state machine / runtime / ABI，使 continuation result 成为一等返回通道
 - 范围：
@@ -84,7 +100,21 @@
 - 验收：
   - generic `Continuation.resume(...)` 的 lowering / runtime 路径可统一消费 answer-return channel；`Task` 之外的普通 continuation 调用点也不再需要特殊解释。
   - runtime 合同不再要求“先 resume，再由 task 私有代码手动解码 frame 结果槽”。
-- 依赖：T4016b
+- 依赖：T4016b2
+
+### T4016b3 [TODO] 基于统一 answer-return 通道完成 `Continuation.resume(...): Answer` 的 typecheck / lowering 主线接入
+- 范围：
+  - `Continuation.resume(...)` 改为真正返回表达式值的 builtin surface，不再在 typecheck / HIR / lowering 中被钉死成 `Unit` 返回。
+  - 基于 `T4016c` 已提供的 runtime / ABI 返回通道，接通 expression-position `k.resume(...)` 的 lowering / codegen，并补齐对 safe-call、tuple payload surface、required effects 与 hidden `Raise<RuntimeError>` 边界的统一处理。
+  - 补充 typecheck / lowering / run-pass regression，覆盖：
+    - arm 内 `k.resume(...)` 后继续执行本地代码；
+    - `k.resume(...)` 结果参与表达式求值；
+    - nested handle / `finally` / early return；
+    - resumed computation 再次 suspend 并暴露 fresh continuation。
+- 验收：
+  - 在语言层面，`k.resume(...)` 后续代码既能 typecheck，也能在 resumed computation 正常完成时稳定执行。
+  - expression-position `k.resume(...)` 可真实观察到 delimiter answer，而不是“静态上返回值、运行时却仍是 `Unit`”。
+- 依赖：T4016c
 
 ### T4016d [TODO] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack
 - 范围：
@@ -95,7 +125,7 @@
 - 验收：
   - `runtime/c/scoop_task.c` 不再通过“调用 `scoop_continuation_resume(...)` 后读取 continuation heap frame 前缀”恢复 `__TaskStepResult`。
   - `Task` 可被解释为 continuation-based thin wrapper，而不再需要在设计文档里保留“runtime hack” caveat。
-- 依赖：T4016c
+- 依赖：T4016b3
 
 ### T4016R [TODO] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack
 - 重点：

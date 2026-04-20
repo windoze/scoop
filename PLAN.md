@@ -20,7 +20,7 @@
 
 ## 1. 顺序总览
 
-1. 新增优先项：正确的单次 delimited continuation 与 `Task` 去 hack（`T4016a1 -> T4016a2 -> T4016b -> T4016c -> T4016d -> T4016R`）
+1. 新增优先项：正确的单次 delimited continuation 与 `Task` 去 hack（`T4016a1 -> T4016a2 -> T4016b1 -> T4016b2 -> T4016c -> T4016b3 -> T4016d -> T4016R`）
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -39,13 +39,19 @@
 - 为了把设计收口和主线实现分开推进，`T4016a` 进一步拆成两步：
   - `T4016a1`：先在 spec / runtime 设计文档中定稿 answer-returning continuation、deep handler、`-> resume` 移除与迁移叙事。
   - `T4016a2`：再把 sysroot / 内部注释对齐到同一套过渡合同，为 `T4016b` 的 parser / typecheck / HIR / lowering 实装清障。
+- 随着代码盘点，`T4016b` 再拆成三步并与 `T4016c` 交错推进：
+  - `T4016b1`：先移除用户态 `-> resume` 语法，并把原先 immediate-resume 的 tail 形态收口为 lowering / codegen 内部分类。
+  - `T4016b2`：把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface。
+  - `T4016c`：再收口 runtime / ABI 的 answer-return channel，避免前端静态模型与底层 `void scoop_continuation_resume(...)` 继续错位。
+  - `T4016b3`：最后基于统一 answer-return 通道，把 `Continuation.resume(...): Answer` 的 typecheck / lowering / codegen 主线彻底接通。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
     - `Continuation<T, eff E>` 仍只是过渡中的 sysroot surface，answer type 尚待 `T4016b` 接入主线；
     - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
     - `Task` 当前“resume 后回读 frame 前缀得到 `__TaskStepResult`”的路径只是待 `T4016c/d` 移除的 task-only 实现债务。
-  - `T4016a` 设计/注释收口阶段已完成；下一步进入 `T4016b`，把 answer type、returning-resume 与 `-> resume` 移除正式接入 parser / typecheck / HIR / lowering 主线。
+  - `T4016a` 设计/注释收口阶段已完成；由于当前 runtime ABI 仍是 `void scoop_continuation_resume(void*)`，而前端 / HIR / LLVM 又把 `-> resume` immediate-resume 与 `Continuation.resume(...): Unit` 绑在一起，`T4016b` 已拆成更小子任务。
+  - 下一步先做 `T4016b1`：删除用户态 `-> resume` 语法，并把 tail `k.resume(...)` 收口为内部 lowering / codegen 分类；待此步完成后，再进入显式 answer type 与 runtime answer-return 通道。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
@@ -69,13 +75,13 @@
 ### C1. delimited continuation / `Task`
 
 - `Continuation` 的静态模型必须显式承载 answer type，或给出等价但同样显式的语言级表示；不得继续把 answer type 藏在 task-private runtime 旁路中。
-- `k.resume(...)` 必须成为真正返回表达式值的 primitive，而不是仅“触发 resumed step 后返回 `Unit`”的 builtin call。
+- `k.resume(...)` 最终必须成为真正返回表达式值的 primitive，而不是仅“触发 resumed step 后返回 `Unit`”的 builtin call。
 - 语言层面只允许 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 arm；`-> resume` 必须作为已移除语法报错，而不是继续作为隐藏 special form 存活。
 - fixtures / tests 需覆盖：
+  - `-> resume` removed-syntax diagnostics，以及迁移到 `, k ->` + `k.resume(...)` 后的等价行为；
   - arm 内 `k.resume(...)` 之后继续执行本地代码；
   - nested handle / `finally` / early return；
   - resumed computation 再次 suspend 时捕获 fresh continuation；
-  - 已移除的 `-> resume` 语法给出明确诊断，并能迁移到 `, k ->` + `k.resume(...)`；
   - `Task.poll()/step()` 在新语义下仍保持公开合同不变。
 - `Task` 必须不再依赖“调用 `scoop_continuation_resume(...)` 后再偷读 heap frame 前缀”的 runtime hack；若底层仍复用 frame result transport，也必须是统一 continuation ABI 的内部实现细节。
 
