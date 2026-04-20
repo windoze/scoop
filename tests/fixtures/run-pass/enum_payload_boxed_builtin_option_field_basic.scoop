@@ -1,0 +1,33 @@
+// EXPECT: pass
+// EXPECT-EXIT: 94
+//
+// T4011S：boxed enum payload object / type descriptor 需要支持 builtin `Option<T>` 字段。
+//
+// 覆盖：
+// - 多字段 variant 进入 boxed payload 主线；
+// - boxed payload object 里的 `Option<Bool>` 字段能稳定 build/run；
+// - `when` 对 builtin enum 字段的嵌套 payload pattern 仍能正常工作。
+
+import scoop.core.*
+
+enum Outer {
+    Wrap(val score: Int, val inner: Option<Bool>),
+    Empty,
+}
+
+fun eval(x: Outer): Int {
+    return when (x) {
+        Wrap(score, Some(true)) -> score
+        Wrap(score, Some(false)) -> score + 10
+        Wrap(score, None) -> score + 20
+        Empty -> 40
+    }
+}
+
+fun main(): Int {
+    val noneInner: Option<Bool> = None()
+    return eval(Wrap(7, Some(true)))
+        + eval(Wrap(8, Some(false)))
+        + eval(Wrap(9, noneInner))
+        + eval(Empty())
+}

@@ -1,0 +1,33 @@
+// EXPECT: pass
+// EXPECT-EXIT: 37
+//
+// T4011S：普通 custom enum 作为另一个 enum 的 payload 时，需要进入统一可执行主线。
+//
+// 覆盖：
+// - 单字段 custom nested enum payload 不再落入 `unsupported repr`；
+// - 非 niche nested enum 会被导向 boxed payload 主线；
+// - `when` 能继续对 nested enum payload 递归做 variant 子模式匹配。
+
+import scoop.core.*
+
+enum Inner {
+    Hit(val value: Int),
+    Miss,
+}
+
+enum Outer {
+    Wrap(val inner: Inner),
+    Empty,
+}
+
+fun eval(x: Outer): Int {
+    return when (x) {
+        Wrap(Hit(v)) -> v
+        Wrap(Miss) -> 10
+        Empty -> 20
+    }
+}
+
+fun main(): Int {
+    return eval(Wrap(Hit(7))) + eval(Wrap(Miss())) + eval(Empty())
+}

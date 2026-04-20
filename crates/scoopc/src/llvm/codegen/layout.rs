@@ -447,6 +447,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         kind: "Option<T> inner type",
                         at: at.into(),
                     })?;
+                let some_boxed = self.enum_variant_requires_boxing(at, &[inner_cg])?;
 
                 Ok(CgEnumLayout {
                     repr,
@@ -454,7 +455,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CgEnumVariant {
                             name: "Some".to_string(),
                             tag: 0,
-                            boxed: false,
+                            boxed: some_boxed,
                             fields: vec![inner_cg],
                         },
                         CgEnumVariant {
@@ -506,11 +507,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let cg = self.cg_ty_of_layout_field(f.span, f.ty, f.ty_fqn.as_deref())?;
                         fields.push(cg);
                     }
-                    // 当前阶段 inline tagged union payload 只支持“单字段标量/单字段 GC ref”；
-                    // 多字段 payload，以及单字段但字段本身是 tuple / struct 的 aggregate value，
-                    // 都需要走 boxed variant 主线。
+                    // 当前阶段 inline tagged union payload 只支持：
+                    // - 单字段标量 / 单字段 GC ref；
+                    // - 仍保持 niche 表示的 builtin `Option<T>`。
+                    //
+                    // 多字段 payload，以及单字段但字段本身是 tuple / struct /
+                    // 非 niche nested enum 的 aggregate value，都需要走 boxed variant 主线。
                     let boxed = !matches!(repr, CgEnumRepr::ValueOnly { .. })
-                        && self.enum_variant_requires_boxing(&fields);
+                        && self.enum_variant_requires_boxing(at, &fields)?;
                     variants.push(CgEnumVariant {
                         name: v.name.clone(),
                         tag: v.tag,
@@ -574,16 +578,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(TypeLayout::new(size, align))
     }
 
-    fn enum_variant_requires_boxing(&self, fields: &[CgTy]) -> bool {
-        fields.len() > 1
-            || matches!(
-                fields,
-                [field_ty] if self.enum_field_requires_boxing(*field_ty)
-            )
+    fn enum_variant_requires_boxing(
+        &mut self,
+        at: crate::span::Span,
+        fields: &[CgTy],
+    ) -> Result<bool, LlvmEmitError> {
+        if fields.len() > 1 {
+            return Ok(true);
+        }
+        if let [field_ty] = fields {
+            return self.enum_field_requires_boxing(at, *field_ty);
+        }
+        Ok(false)
     }
 
-    fn enum_field_requires_boxing(&self, field_ty: CgTy) -> bool {
-        matches!(field_ty, CgTy::Tuple(_) | CgTy::Struct(_))
+    fn enum_field_requires_boxing(
+        &mut self,
+        at: crate::span::Span,
+        field_ty: CgTy,
+    ) -> Result<bool, LlvmEmitError> {
+        match field_ty {
+            CgTy::Tuple(_) | CgTy::Struct(_) => Ok(true),
+            // inline nested enum 目前只继续保留 niche path；
+            // 其余 nested enum（含 nominal/value-only/tagged-union，以及 tagged-union `Option<T>`）
+            // 一律进入 boxed payload 主线，避免落到 `{payload_word, payload_ptr}` 的错误旁路。
+            CgTy::Enum(enum_ty) => match self.types.kind(enum_ty) {
+                TypeKind::Value(ValueTypeKind::Option(_)) => Ok(!matches!(
+                    self.cg_enum_layout(at, enum_ty)?.repr,
+                    CgEnumRepr::Niche { .. }
+                )),
+                _ => Ok(true),
+            },
+            _ => Ok(false),
+        }
     }
 
     fn cg_ty_layout(&self, ty: CgTy) -> Result<TypeLayout, LlvmEmitError> {

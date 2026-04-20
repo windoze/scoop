@@ -1,0 +1,29 @@
+// EXPECT: pass
+// EXPECT-EXIT: 33
+//
+// T4011S：builtin `Option<T>` 作为外层 enum 时，也要能承载 custom enum payload。
+//
+// 覆盖：
+// - `Option<Inner>` 在 inner 为非 niche custom enum 时不再报 `unsupported repr`；
+// - builtin `Option<T>` 的 `Some` payload 会按统一 boxing 边界承载 nested enum；
+// - `when` 对 `Some(Hit(v))` / `Some(Miss)` / `None` 三态保持正确语义。
+
+import scoop.core.*
+
+enum Inner {
+    Hit(val value: Int),
+    Miss,
+}
+
+fun eval(x: Option<Inner>): Int {
+    return when (x) {
+        Some(Hit(v)) -> v
+        Some(Miss) -> 10
+        None -> 20
+    }
+}
+
+fun main(): Int {
+    val noneValue: Option<Inner> = None()
+    return eval(Some(Hit(3))) + eval(Some(Miss())) + eval(noneValue)
+}

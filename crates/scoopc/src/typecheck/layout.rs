@@ -264,6 +264,13 @@ impl<'a> LayoutComputer<'a> {
         let layout = TypeLayout::new(size, align);
 
         let option_id = self.option_type_id(inner);
+        let some_boxed = self.enum_variant_requires_boxing(&[inner])?;
+        let some_payload = if some_boxed {
+            self.word_layout()
+        } else {
+            inner_layout.without_niche()
+        };
+
         self.enum_cache.insert(
             option_id,
             EnumLayout {
@@ -278,8 +285,8 @@ impl<'a> LayoutComputer<'a> {
                 variants: vec![
                     EnumVariantLayout {
                         name: "Some".to_string(),
-                        boxed: false,
-                        payload: inner_layout.without_niche(),
+                        boxed: some_boxed,
+                        payload: some_payload,
                     },
                     EnumVariantLayout {
                         name: "None".to_string(),
@@ -430,14 +437,18 @@ impl<'a> LayoutComputer<'a> {
         let mut variants: Vec<EnumVariantLayout> = Vec::with_capacity(decl.variants.len());
         for (v, fields) in decl.variants.iter().zip(lowered_variant_fields.iter()) {
             let payload = self.aggregate_fields_layout(fields)?;
-            // 当前阶段 inline tagged union payload 只承载“单字段标量 / 单字段 GC ref”。
+            // 当前阶段 inline tagged union payload 只承载：
+            // - 单字段标量 / 单字段 GC ref；
+            // - 以及仍保持 niche 表示的 builtin `Option<T>`。
+            //
             // 因此以下 payload 需要提前进入 boxed 主线：
             // - 多字段 variant；
-            // - 单字段但字段本身是 tuple / struct 的 aggregate value。
+            // - 单字段但字段本身是 tuple / struct 的 aggregate value；
+            // - 单字段但字段本身仍是“非 niche 的 nested enum”。
             //
             // 注意：这里仍保留 “raw payload size/align” 以便 size disparity lint 能触发；
             // 之后会在统一的 boxing pass 中把 boxed variants 的 payload layout 收敛为 word-sized。
-            let boxed = self.enum_variant_requires_boxing(fields);
+            let boxed = self.enum_variant_requires_boxing(fields)?;
             variants.push(EnumVariantLayout {
                 name: v.name.clone(),
                 boxed,
@@ -542,22 +553,30 @@ impl<'a> LayoutComputer<'a> {
         Ok(TypeLayout::new(size, align))
     }
 
-    fn enum_variant_requires_boxing(&self, fields: &[TypeId]) -> bool {
-        fields.len() > 1
-            || matches!(
-                fields,
-                [field_ty] if self.enum_field_requires_boxing(*field_ty)
-            )
+    fn enum_variant_requires_boxing(&mut self, fields: &[TypeId]) -> Result<bool, LayoutError> {
+        if fields.len() > 1 {
+            return Ok(true);
+        }
+        if let [field_ty] = fields {
+            return self.enum_field_requires_boxing(*field_ty);
+        }
+        Ok(false)
     }
 
-    fn enum_field_requires_boxing(&self, ty: TypeId) -> bool {
+    fn enum_field_requires_boxing(&mut self, ty: TypeId) -> Result<bool, LayoutError> {
         match self.types.kind(ty) {
-            TypeKind::Value(ValueTypeKind::Tuple(_)) => true,
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => matches!(
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => Ok(true),
+            TypeKind::Value(ValueTypeKind::Option(_)) => Ok(!matches!(
+                self.enum_layout(ty)?.repr,
+                EnumRepr::Niche { .. }
+            )),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Ok(matches!(
                 self.env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
-                Some(TypeSymbolKind::Nominal(ast::TypeKind::Struct))
-            ),
-            _ => false,
+                Some(TypeSymbolKind::Nominal(
+                    ast::TypeKind::Struct | ast::TypeKind::Enum
+                ))
+            )),
+            _ => Ok(false),
         }
     }
 

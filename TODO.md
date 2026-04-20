@@ -1681,7 +1681,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4011b
 
-### T4011S [TODO] 收口 enum payload 中的一般 nested enum / builtin enum 字段表示
+### T4011S [DONE] 收口 enum payload 中的一般 nested enum / builtin enum 字段表示
 - 说明：
   - 在为 `T4011a` 设计更广的 nested-variant probe 时，发现两条仍未显式记录的表示缺口：一是 boxed enum payload object / type descriptor 遇到 builtin `Option<T>` 这类 enum-typed field 时仍可能在 `cg_ty_of_type_fqn` 报 `struct field type`；二是非 boxed 的 nested enum payload 仍只支持 niche-nested 路径，普通 custom enum 作为另一个 enum payload 时会报 `enum payload (nested enum, unsupported repr)`。
   - 这两条缺口不阻塞当前 `T4011a -> T4011b -> T4011R` 的 payload matching 主线，因此本轮仅登记为后续跟进任务；但它们属于真实语言实现缺口，不能继续依赖“避开这种 payload 形状”的隐性约束。
@@ -1689,8 +1689,26 @@
   - 收口 boxed enum payload object / type descriptor 对 builtin enum field（如 `Option<T>`）的 metadata 与 LLVM 类型映射。
   - 明确并实现 nested enum payload 在 inline / boxed 表示下的可执行承载边界，不再只支持 niche-nested 的局部路径。
   - 新增 run-pass / regression，覆盖 builtin enum field 与 custom enum field 作为 enum payload 的组合。
+- 已完成：
+  - `hir::lower::util::type_id_to_layout_fqn` 现在会为 builtin `Option<T>` 生成稳定 layout key，使 enum / boxed payload field 收集能够保留真实 `TypeId`，`Option<T>` 字段不再在后端回退到基名 `scoop.core.Option` 并报 `struct field type`。
+  - typecheck layout 与 LLVM enum layout 现在统一固定 nested enum payload 边界：仍保持 niche 表示的 nested `Option<T>` 继续 inline，其余 nested enum（包含 nominal enum 与 tagged-union `Option<T>`）统一进入 boxed payload 主线，不再错误落入 `{ payload_word, payload_ptr }` 的 inline 小 payload 旁路。
+  - boxed payload struct / object / type descriptor 的命名入口现在接受任意 enum-like `TypeId`，builtin `Option<T>` 在 outer enum 需要 boxed payload 时也能生成稳定的 LLVM 类型与 runtime type descriptor。
+  - 已新增 run-pass 回归：
+    - `tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop`
+    - `tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop`
+    - `tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`
 - 验收：
   - 相关 probe 不再报 `struct field type` 或 `enum payload (nested enum, unsupported repr)`。
+- 已验证：
+  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop -o /tmp/enum_payload_boxed_builtin_option_field_basic.out`
+  - `/tmp/enum_payload_boxed_builtin_option_field_basic.out`（退出码 `94`）
+  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop -o /tmp/enum_payload_nested_custom_enum_basic.out`
+  - `/tmp/enum_payload_nested_custom_enum_basic.out`（退出码 `37`）
+  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop -o /tmp/option_nested_custom_enum_payload_basic.out`
+  - `/tmp/option_nested_custom_enum_payload_basic.out`（退出码 `33`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1112)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4011R
 
 ## T4012：annotation model 与 built-in annotations

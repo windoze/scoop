@@ -2246,6 +2246,11 @@ pub(super) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) ->
         TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),
         TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(format!("scoop.core.UInt{bits}")),
         TypeKind::Value(ValueTypeKind::Nothing) => Some("scoop.core.Nothing".to_string()),
+        // builtin `Option<T>` 在类型系统里不是 nominal，但 layout 索引仍需要一个稳定 key，
+        // 以便 enum payload / boxed payload object 的字段收集能恢复真实 TypeId。
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            Some(mangle_nominal_fqn("scoop.core.Option", &[*inner], types))
+        }
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
             Some(mangle_nominal_fqn(&nominal.fqn, &nominal.args, types))
         }

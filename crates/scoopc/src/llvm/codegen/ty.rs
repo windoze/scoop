@@ -22,6 +22,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types)
     }
 
+    fn enum_layout_key(
+        &self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        unsupported_kind: &'static str,
+    ) -> Result<String, LlvmEmitError> {
+        match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(crate::hir::mangle_nominal_fqn(
+                "scoop.core.Option",
+                &[*inner],
+                self.types,
+            )),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                Ok(self.nominal_layout_key(nominal))
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: unsupported_kind,
+                at: at.into(),
+            }),
+        }
+    }
+
     pub(super) fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
@@ -610,22 +632,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let enum_fqn = match self.types.kind(enum_ty) {
-            TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum boxed payload type",
-                    at: at.into(),
-                });
-            }
-        };
+        let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload type")?;
 
         // 说明：boxed payload 在运行期是一个独立的聚合对象；当前阶段用一个具名 LLVM struct 承载其字段布局，
         // 以便 ctor/binder 双方对齐类型（避免 bitcast 到不一致的匿名 struct）。
         let name = format!(
             "scoop_boxed_payload_{}_{}",
-            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&enum_fqn),
             sanitize_llvm_ident(&variant.name)
         );
 
@@ -648,19 +661,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         enum_ty: TypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let enum_fqn = match self.types.kind(enum_ty) {
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum boxed payload object type",
-                    at: at.into(),
-                });
-            }
-        };
+        let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload object type")?;
 
         let name = format!(
             "scoop.runtime.EnumBoxedPayload__{}__{}",
-            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&enum_fqn),
             sanitize_llvm_ident(&variant.name)
         );
         if let Some(existing) = self.context.get_struct_type(&name) {
@@ -681,19 +686,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         variant: &CgEnumVariant,
         payload_obj_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let enum_fqn = match self.types.kind(enum_ty) {
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum boxed payload type desc",
-                    at: at.into(),
-                });
-            }
-        };
+        let enum_fqn = self.enum_layout_key(at, enum_ty, "enum boxed payload type desc")?;
 
         let global_name = format!(
             "__scoop_type_desc_runtime__enum_boxed_payload__{}__{}",
-            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&enum_fqn),
             sanitize_llvm_ident(&variant.name)
         );
         if let Some(existing) = self.module.get_global(&global_name) {
