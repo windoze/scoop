@@ -94,10 +94,18 @@ fn check_one_struct_fields(
 ) -> Result<(), StructDeclError> {
     let mut seen: HashMap<String, Span> = HashMap::new();
 
-    // 1) 主构造参数：当前阶段 parser 允许但不在 AST 中表达 `val/var`；
-    //    对 struct 我们先把所有 ctor params 视为字段（与 resolver 阶段一致）。
+    // 1) 主构造参数：对 struct 一律视为 direct field。
+    //    `val`/省略前缀都表示不可变字段；显式 `var` 必须在这里被静态拒绝。
     if let Some(primary_ctor) = &decl.primary_ctor {
         for p in &primary_ctor.params {
+            if matches!(p.kind, Some(ast::ValKind::Var)) {
+                let field = source.slice(p.name.span).to_string();
+                return Err(StructDeclError::StructFieldMustBeVal {
+                    struct_fqn: struct_fqn.to_string(),
+                    field,
+                    span: p.name.span.into(),
+                });
+            }
             insert_field_name(source, struct_fqn, p.name.span, &mut seen)?;
         }
     }

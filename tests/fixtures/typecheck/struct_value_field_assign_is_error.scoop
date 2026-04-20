@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::assignment_target_not_mutable
+// EXPECT-ERROR-AT: 12:7
+// EXPECT-ERROR: 不可赋值
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun main() {
+    var p = Point(1, 2)
+    p.x = 7
+}

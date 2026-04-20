@@ -1,49 +1,84 @@
-# 执行计划
+# 当前执行计划
 
-说明：我会把可公开的执行计划与进度记录在这里；不会写入内部私有推理细节，但会完整记录步骤、决策结果、阻塞点与后续动作。
+## 约束与目标
 
-## 初始计划
+- 本次只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
+- 在开始具体实现前，先检查最新提交是否提到了需要先修复的既有问题；若有，优先处理这些问题。
+- 执行过程中若发现当前任务依赖缺失、实现边界不完整或与规范不一致，必须先把问题写回 `TODO.md` / `PLAN.md`，调整依赖顺序，再停止本轮。
+- 所有过程记录、计划调整、关键完成节点都要同步更新到本文件。
 
-1. 检查最新一次 Git 提交的信息，确认是否提到已知遗留问题。
-2. 如果最新提交提到需要先修复的遗留问题，优先定位并修复这些问题，再继续后续任务流。
-3. 读取 `TODO.md`，识别第一个未完成任务。
-4. 判断该任务是否过大：
-   - 如果可直接完成，则进入实现；
-   - 如果过大，则在 `PLAN.md` 中拆分为更小的子任务，并同步更新 `TODO.md`，本次只执行拆分后的第一个子任务。
-5. 阅读与该任务相关的代码、测试、规范和计划文件，确认实现边界与依赖。
-6. 按规格实现该任务；如果遇到任何会导致“绕过实现缺口”的情况，停止采用变通方案，转而把真实缺口整理为新的前置任务，并更新 `TODO.md` / `PLAN.md`。
-7. 运行相关验证：
-   - 至少运行与修改相关的测试；
-   - 如适用，运行 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或足以证明本次修改正确性的更小范围命令。
-8. 更新文档与任务状态：
-   - 在 `TODO.md` 中标记本次完成的任务；
-   - 在 `PLAN.md` 中记录当前状态、后续依赖与必要调整；
-   - 持续更新本文件记录关键进展。
-9. 使用清晰的提交信息提交本次变更。
-10. 完成首个未完成任务后立即停止，不继续处理下一个任务。
+## 初始步骤
+
+1. 查看最新一次提交的信息，确认是否有明确提到尚未解决的遗留问题。
+2. 查看当前工作区状态，避免误覆盖已有修改，并确认是否存在需要纳入本次提交的意外变更。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 阅读 `PLAN.md`，确认该任务的背景、依赖、预期完成标准。
+5. 判断该任务是否可以在本轮完整完成：
+   - 若可以，直接实现、补测试、验证、更新文档与任务状态。
+   - 若不可以，拆分为更小的子任务，并同步更新 `TODO.md` 与 `PLAN.md`。
+
+## 实施与验证策略
+
+- 优先通过精确搜索定位相关模块、测试与规范描述，避免盲目修改。
+- 代码改动后至少执行与本任务直接相关的测试；若改动影响面较大，再扩大到对应 crate 或工作区级别检查。
+- 在最终提交前，按要求执行格式化、相关测试，必要时执行 `cargo clippy --all-targets -- -D warnings` 以确保无警告。
+
+## 待确认信息
+
+- 最新提交是否显式留下了必须先修复的问题。
+- `TODO.md` 当前第一个未完成任务的编号、依赖与验收标准。
+- 当前工作区是否存在用户未提交修改，需要在编辑时规避或一并纳入。
 
 ## 进度记录
 
-- 已创建计划文件，等待开始检查最新提交与任务列表。
-- 已检查最新提交 `f521c9edec8f573a26bf4b200431a7278b08ecf9`，提交说明为“`[T4010b1a1] Insert blocker for true typecheck_multi value member resolution`”。
-- 已读取 `TODO.md` / `PLAN.md`，确认当前第一个未完成任务是 `T4010b1a1`：补齐真实 `typecheck_multi` 编译单元下的跨文件值成员解析。
-- 当前判断：该任务边界清晰，先不再拆分；本轮直接以修复真实跨文件 generic value member access 为目标推进。
-- 下一步：
-  1. 读取 `T4010b1a1` 的任务说明与失败 fixture；
-  2. 排查 `typecheck_multi` 编译单元下 member candidate 收集与 late resolve 路径；
-  3. 实现修复并补充/更新必要回归；
-  4. 跑定向验证、全量测试、`clippy`；
-  5. 更新 `TODO.md` / `PLAN.md`，提交本轮变更后停止。
-- 已完成实现：
-  1. 扩展 `collect_struct_field_types`，让它在真实多文件编译单元中收集 foreign AST 里的 ctor 字段、body property 与 getter-only property，并对 generic owner 保留可后续具体化的占位类型。
-  2. 调整 member late resolve 的存在性判断，改为基于 `Index.by_fqn` 的 value symbol + 可见性，而不是把“能否晚解析”绑定在字段类型表是否已收集。
-  3. 更新真实回归 fixture `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`，补上 body property 覆盖。
-  4. 为 fixtures driver 增加回归保护：当 `--fixtures` 直接指向 `typecheck_multi/<case>` 目录时，按多文件 case 执行而不是退回 parse。
-- 已完成验证：
-  - `cargo test -p scoopc collect_struct_field_types_includes_foreign_body_properties -- --nocapture`
-  - `cargo test -p scoop run_all_treats_typecheck_multi_case_root_as_single_case -- --nocapture`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`
-  - `cargo run -q -p scoop -- test`
-  - `cargo test --all -- --test-threads=1`
-  - `cargo clippy --all-targets -- -D warnings`
-- 当前结果：`T4010b1a1` 已完成；下一项应为 `T4010b1b`。本轮接下来只更新任务状态并提交，不继续进入下一任务实现。
+- 已创建本文件。
+- 已检查最新提交 `48e53c4fa087063421744ba01be8404742bb4032`（提交信息：`Update CI pipeline`）；提交信息本身未提到需要先处理的遗留功能/语义问题。
+- 已检查工作区状态：当前仅有本文件修改，暂无其它用户未提交改动需要规避。
+- 已读取 `TODO.md` / `PLAN.md` 的当前主线状态，定位到第一个未完成任务为 `T4010b1b`：`禁止 struct 主构造参数 var 回流为可变字段语义`。
+- 当前判断：`T4010b1b` 是 `T4010R` 之前的明确前置 blocker，需要先确认 spec/issue 约束、现有实现缺口以及相关模块，再决定是否可直接在本轮完整收口。
+
+## 下一步
+
+1. 在 `crates/scoopc/src/typecheck/structs.rs` 中为 `struct` 主构造参数补上 `var` 静态拒绝，复用现有 `StructFieldMustBeVal` 诊断。
+2. 在 `crates/scoopc/src/typecheck/expr/collect.rs` 中把 `struct` 成员 mutability 收口为统一不可变，防止 ctor `var` 继续被记录进 `member_mutabilities`。
+3. 新增 typecheck fixture，覆盖：
+   - `struct Point(var x: Int)` 在 typecheck 阶段直接失败；
+   - 合法 `struct` 字段 `p.x = 7` 在 typecheck 阶段报 `assignment_target_not_mutable`。
+4. 跑定向验证，再跑 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+5. 若验证通过，更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+## 已确认的实现细节
+
+- `parser/decls.rs` 已把主构造参数上的 `val/var` 写入 `ast::Param.kind`，因此问题不在 parser。
+- `typecheck/structs.rs::check_one_struct_fields` 当前只对 type body property 的 `var` 报 `StructFieldMustBeVal`，完全漏掉主构造参数。
+- `typecheck/expr/collect.rs::collect_member_mutabilities_in_type_decl` 当前会把 `struct` 主构造参数 `var` 记录为 mutable，直接导致 `p.x = 7` 通过 typecheck，并拖到 LLVM 才在 `assignment lhs` unsupported 处失败。
+- 已复现两个最小现象：
+  - `struct Point(var x: Int, val y: Int)` 当前可成功 build。
+  - `var p = Point(1, 2); p.x = 7` 当前直到 LLVM 才失败；而合法 `struct Point(val x: Int, ...)` 的同类赋值已能在 typecheck 报 `assignment_target_not_mutable`，可作为稳定回归目标。
+
+## 实际改动
+
+1. 已在 `crates/scoopc/src/typecheck/structs.rs` 中为 `struct` 主构造参数补上 `var` 静态拒绝，复用现有 `StructFieldMustBeVal` 诊断。
+2. 已在 `crates/scoopc/src/typecheck/expr/collect.rs` 中把 `struct` 成员 mutability 收口为统一不可变，不再把 ctor 参数上的 `var` 记成 mutable。
+3. 已新增两条 typecheck fixture：
+   - `tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop`
+   - `tests/fixtures/typecheck/struct_value_field_assign_is_error.scoop`
+4. 已同步更新 `TODO.md` 与 `PLAN.md`，将 `T4010b1b` 标记为完成，并把下一项推进点切到 `T4010R`。
+
+## 验证结果
+
+- `cargo fmt --all`
+- `cargo run -q -p scoop -- build /tmp/t4010b1b_probe.scoop -o /tmp/t4010b1b_probe.out`
+  - 结果：按预期在 typecheck 阶段报 `scoop::typecheck::struct_field_must_be_val`
+- `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - 结果：`fixtures: ok (348)`
+- `cargo run -q -p scoop -- test`
+  - 结果：`fixtures: ok (1100)`
+- `cargo test --all -- --test-threads=1`
+- `cargo clippy --all-targets -- -D warnings`
+
+## 当前状态
+
+- `T4010b1b` 已完成。
+- 当前工作区待提交内容包括源码修复、两条新 fixture，以及计划/任务追踪文件更新。
+- 下一项应从 `T4010R` 开始，复审值类型整体不可变语义是否还存在其它裂缝。

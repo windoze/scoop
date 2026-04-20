@@ -1555,7 +1555,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1a
 
-### T4010b1b [TODO] 禁止 `struct` 主构造参数 `var` 回流为可变字段语义
+### T4010b1b [DONE] 禁止 `struct` 主构造参数 `var` 回流为可变字段语义
 - 说明：
   - 在执行 `T4010R` review 时，最小 probe `struct Point(var x: Int, val y: Int)` 当前可成功 build 并运行（退出码 `3`），与 spec §2.1 / §9 / §10 以及 `ISSUES.md` 第 7 条“值类型整体不可变”的约束直接冲突。
   - 复审根因后确认：parser 已把主构造参数的 `val/var` 语法写入 `ast::Param.kind`，但 `typecheck::structs::check_one_struct_fields` 仍沿用“struct ctor param 不表达 val/var”的旧假设，只收字段名、不拒绝 `var`。
@@ -1567,6 +1567,19 @@
 - 验收：
   - 上述最小 probe 在 typecheck 阶段即失败，并给出明确诊断。
   - `T4010R` 可在不带这条已知裂缝的基线上继续复审“值类型整体不可变”。
+- 已完成：
+  - `typecheck::structs::check_one_struct_fields` 现已把 `struct` 主构造参数统一视为 immutable direct field；若参数显式写成 `var`，会直接复用现有 `StructFieldMustBeVal` 诊断在前端静态阶段报错。
+  - `typecheck::expr::collect::collect_member_mutabilities_in_type_decl` 对 `struct` 成员现统一记录为不可变，不再把主构造参数上的 `var` 语法漏记成 mutable，从而阻止值类型字段写回继续混进赋值主线。
+  - 已新增 typecheck 回归：
+    - `tests/fixtures/typecheck/struct_primary_ctor_var_is_error.scoop`
+    - `tests/fixtures/typecheck/struct_value_field_assign_is_error.scoop`
+- 已验证：
+  - `cargo fmt --all`
+  - `cargo run -q -p scoop -- build /tmp/t4010b1b_probe.scoop -o /tmp/t4010b1b_probe.out`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (348)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1100)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1a1
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变

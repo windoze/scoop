@@ -678,7 +678,9 @@ fn collect_member_mutabilities_in_type_decl(
                 };
                 let field_name = source.slice(p.name.span);
                 let field_fqn = format!("{type_fqn}.{field_name}");
-                out.insert(field_fqn, matches!(p.kind, Some(ast::ValKind::Var)));
+                // struct value members 始终是 immutable direct field；显式 `var`
+                // 会在 `check_file_struct_decls` 提前报错，这里不再把它泄漏成 mutable。
+                out.insert(field_fqn, false);
             }
         }
 
@@ -692,7 +694,7 @@ fn collect_member_mutabilities_in_type_decl(
                 };
                 let field_name = source.slice(p.name.span);
                 let field_fqn = format!("{type_fqn}.{field_name}");
-                out.insert(field_fqn, matches!(p.kind, ast::ValKind::Var));
+                out.insert(field_fqn, false);
             }
         }
     }
