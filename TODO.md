@@ -1291,7 +1291,7 @@
 ### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
-  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b -> T4010R`。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
@@ -1394,14 +1394,38 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a2a
 
+### T4010b0 [TODO] 收口 `struct` ctor call 与 struct literal 的统一构造语义
+- 说明：
+  - 在开始 `T4010b` 前，先用最小 probe
+    `struct Point(val x: Int, val y: Int); fun main(): Int { val p: Point = Point(1, 2); return p.x + p.y }`
+    验证 spec §2.3.1 中“`Point { x: 1, y: 2 }` 等价于 `Point(1, 2)`”的现状，结果 typecheck 直接报
+    `scoop::typecheck::callee_not_callable: Point`。
+  - 这说明当前 `struct` 构造语义仍然分裂：struct literal 已可执行，但 direct ctor call 连基本 callability 都没接入；如果继续把字段默认值只补到 struct literal，就会把既有 spec mismatch 固化成 workaround。
+- 范围：
+  - 让 `StructName(...)` 进入与 `StructName { ... }` 对齐的统一构造主线，至少覆盖 callability、命名/默认参数绑定与 lowering/codegen substrate 的复用。
+  - 不允许把 struct ctor call 偷渡成 class-ctor special-case，也不允许只让“带默认值的新场景”可用而保留普通 `Point(1, 2)` 失败。
+  - 新增 typecheck / run-pass / lowering regression，覆盖普通位置参数、命名实参与与 struct literal 等价的基本行为。
+- 验收：
+  - spec §2.3.1 的最小 probe 可 build/run。
+  - `T4010b` 可建立在统一构造入口上继续推进字段默认值，而不是只补单一 surface。
+- 依赖：T4010a2b
+
+### T4010b0R [TODO] Review：确认 `struct` ctor call 不再与 struct literal 分裂
+- 重点：
+  - 不允许继续只有 `StructName { ... }` 可执行，而 `StructName(...)` 仍报 `callee_not_callable`。
+  - 不允许为 struct ctor call 额外开一条与 struct literal 脱节的构造/默认值旁路。
+- 依赖：T4010b0
+
 ### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
+- 说明：
+  - 依赖 `T4010b0` / `T4010b0R` 先把 `struct` ctor call 与 struct literal 的统一构造主线收口；否则字段默认值只能错误地挂在单个入口上，违背 spec §2.3.1 的等价承诺。
 - 范围：
   - 为值类型声明补齐字段默认值等声明便利性，避免 immutable value object 仍需样板式全量显式初始化。
   - 保持与 `with` 的 copy-update 语义一致：默认值只影响构造 / 声明入口，不引入运行期可变写回。
   - 如规范文字、sysroot 示例或相关注释需要调整，在本任务内显式同步相应文档任务。
 - 验收：
   - `ISSUES.md` 第 7 条中“字段默认值这类声明便利性仍未覆盖”的部分收窄或关闭。
-- 依赖：T4010a2b
+- 依赖：T4010b0R
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
