@@ -1,75 +1,56 @@
-# 当前执行计划
+## 当前执行计划（审阅版）
 
-## 约束与执行边界
+说明：按要求先记录执行计划。此文件只包含可审阅的任务分析摘要、执行步骤、风险和进度，不包含内部私有推理细节。
 
-- 本轮只处理 `TODO.md` 中第一个未完成任务，完成后立即停止。
-- 在开始具体实现前，先检查最新提交是否提到现存问题；若有，先修复这些问题。
-- 若首个未完成任务过大，先拆分任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-- 任何发现的规范不一致、实现缺口、测试绕过或依赖缺失，都必须先转化为前置任务，更新 `TODO.md` / `PLAN.md`，提交后停止，不能带着 workaround 继续。
-- 所有说明与工作记录使用中文。
+### 目标
 
-## 初始步骤
+完成 `TODO.md` 中第一项未完成任务，并在完成后更新计划/任务状态、运行相关测试、提交 Git commit，然后停止。
 
-1. 查看最新一次提交信息，判断是否提及尚未解决的问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 结合 `PLAN.md`、相关代码和规范，判断该任务是否可以在本轮完整落地。
-4. 如果任务过大或存在前置依赖缺口：
-   - 拆分为更小的子任务；
-   - 更新 `PLAN.md`；
-   - 更新 `TODO.md` 的顺序与依赖；
-   - 本轮只执行拆分后的第一个子任务，或在被阻塞时只提交任务调整。
+### 执行步骤
 
-## 实施步骤
-
-1. 阅读与目标任务直接相关的代码、测试、文档。
-2. 实现任务，避免引入临时兼容层、跳过分支或仅针对 fixture 的补丁。
-3. 补充或调整测试，确保行为与规范一致。
-4. 运行相关验证：
+1. 检查最新一次 Git 提交，确认其是否提到任何已知遗留问题。
+2. 如果最新提交提到需先修复的遗留问题，优先定位并修复这些问题，再继续后续步骤。
+3. 阅读 `TODO.md`，识别第一项未完成任务。
+4. 评估该任务规模与前置依赖：
+   - 若任务可直接完成，进入实现。
+   - 若任务过大或存在明确前置依赖/规格缺口，更新 `PLAN.md` 与 `TODO.md`，将任务拆分或重排，并只执行拆分后的第一项。
+5. 阅读相关代码、规格、测试与文档，确定实现位置与影响范围。
+6. 实现任务，确保不引入临时性 workaround，不偏离规格。
+7. 运行相关测试与必要的质量检查：
    - 至少运行与改动直接相关的测试；
-   - 如改动影响面较广，补充运行更大范围测试；
-   - 最终检查 `cargo clippy --all-targets -- -D warnings` 是否通过（如果适用于本次改动范围）。
-5. 更新文档状态：
-   - 在 `TODO.md` 标记该任务完成，或在阻塞时调整任务顺序；
-   - 在 `PLAN.md` 记录当前状态、后续依赖与变更原因；
-   - 持续更新本文件，记录关键进展和计划变化。
-6. 使用清晰的提交信息提交本轮变更。
+   - 若影响面较大，补充运行更广范围测试；
+   - 按要求关注 `cargo clippy --all-targets -- -D warnings` 是否通过。
+8. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记完成，或在阻塞时按依赖顺序调整任务；
+   - 更新 `PLAN.md` 记录当前状态与后续安排；
+   - 如有必要，更新 `README.md` 或内联注释。
+9. 检查工作区改动，整理提交内容。
+10. 使用清晰的提交信息创建 Git commit，然后停止。
 
-## 进度记录
+### 约束与判断原则
 
-- 已创建本轮计划文件。
-- 已检查最新提交 `497f0af [T4009c] Defer spawn and join surface`：提交说明本身未额外引入需先处理的新遗留 issue。
-- 已读取 `TODO.md` / `PLAN.md` / `ISSUES.md`，确认首个未完成任务为 `T4009h`。
-- 已核对现状：
-  - runtime stable handle API（`scoop_handle_new/get/drop`）与低层 Rust 单测 `crates/scoop_runtime/tests/stable_handle.rs` 已存在；
-  - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / `sysroot/core.scoop` 已说明“长期 token 用 handle、短时裸地址借出用 pin”；
-  - 仍缺少两类产出：一是 native 侧长期保存 `GcHandle.raw` 并回传给 Scoop 的回归；二是 stale token / cancelled registration / lookup failure 的高层合同文字。
-- 已确认当前任务无需再拆子任务，本轮计划直接完成：
-  1. 为测试辅助层补一个最小 handle-slot extern helper，模拟 reactor/callback 持有并回传 `GcHandle.raw`；
-  2. 新增正向 runtime_gc fixture，覆盖 handle token 经 native round-trip 后仍能定位对象；
-  3. 新增失败 fixture，覆盖“取消/释放后，晚到的 stale token lookup 会失败”；
-  4. 同步更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`，明确 ownership / round-trip / stale token / pin 职责边界；
-  5. 更新 `TODO.md` / `PLAN.md`，运行定向验证与全量要求中的关键命令。
-- 已完成实现：
-  - `runtime/c/scoop_test.c` 新增 `scoop_test_handle_token_slot_reset/store/take`，可模拟 native 长期保存 `GcHandle.raw` 并在稍后回传；
-  - `runtime/c/scoop_runtime_api.h` / `runtime/c/scoop_gc.h` 同步补齐导出与底层合同注释；
-  - 新增 `tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop` 与 `tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`；
-  - 已同步更新 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop`。
-- 执行中发现并处理的一个实现细节：
-  - `GcHandle` 在 Scoop 侧应通过 struct literal `GcHandle { raw: raw }` 重建，而不是写成可调用构造 `GcHandle(raw)`；这不是新的 blocker，而是当前语言对 struct 的既有构造规则，已在 fixture 与文档中统一改正。
-- 已完成验证：
-  - `cargo run -q -p scoop -- run tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop` → stdout `wake 7`
-  - `cargo run -q -p scoop -- run tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop` → 退出码 `3`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/runtime_gc` → `fixtures: ok (19)`
-  - `cargo test -q -p scoop_runtime --test stable_handle` → 通过
-  - `cargo run -q -p scoop_tools -- spec-fixtures check` → `spec fixtures: ok (1)`
-  - `cargo run -q -p scoop -- test` → `fixtures: ok (1074)`
-  - `cargo test --all` → 通过
-  - `cargo clippy --all-targets -- -D warnings` → 通过
-- 已同步状态：
-  - `TODO.md` 已将 `T4009h` 标记为完成，并写入实现摘要与验证命令；
-  - `PLAN.md` 已把 P6 / issue 跟踪推进到 `T4009R`；
-  - 下一次调用应从 `T4009R` 开始。
+- 仅处理一个任务。
+- 遇到规格缺口、实现边界或缺失特性时，不绕过；必须先在 `TODO.md`/`PLAN.md` 中显式建模依赖。
+- 不回退用户已有改动；若工作区存在无关脏改动，仅在必要范围内协作处理。
 
-## 记录原则
+### 进度记录
 
-- 这里记录的是执行计划、关键决策、进度与外显依据，不记录不可复现的私有推理。
+- 2026-04-20：已创建本计划文件，尚未开始仓库检查。
+- 2026-04-20：已检查最新提交 `f8dec450b22345561c2517875f2bcaf82916a698`（`[T4009h] Close stable handle wake-token contract`），提交说明未额外引入需要先行修复的点名遗留问题。
+- 2026-04-20：已读取 `TODO.md` / `PLAN.md` / `ISSUES.md`，确认当前顺序上的首个未完成执行项是 `T4009R`（Review：确认 `Task` 本体已脱离 executor 前提）。
+- 2026-04-20：当前执行焦点切换为 `T4009R`。下一步将：
+  1. 全局检索残留的 `Executor` / `scoop.task.*` / 公开 `spawn/join` 主线依赖；
+  2. 复审 `Task.poll()/step()`、async sugar、runtime task object model、stable handle / `Pinned` 职责边界；
+  3. 运行针对性测试与质量检查；
+  4. 若确认无剩余裂缝，则更新 `TODO.md` / `PLAN.md` / `ISSUES.md` 并提交。
+- 2026-04-20：结构审计已完成。已复审 `sysroot/core.scoop`、`runtime/c/scoop_task.c`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoop_runtime/src/abi_exports_allowlist.rs`，并全局扫描 `crates/` / `runtime/` / `sysroot/` / `stdlib/`，确认当前主线没有公开 `scoop.task.*` / `Executor` surface 或 runtime executor implementation 残留；`spawn` / `join` 当前只保留 deferred 语法壳。
+- 2026-04-20：验证已完成，结果全绿。已运行：
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo test -q -p scoop_runtime --test task_spawn_join`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`
+  - `cargo run -q -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 2026-04-20：已将 review 结论写回 `TODO.md` / `PLAN.md` / `ISSUES.md`：`T4009R` 与总任务 `T4009` 已标记完成，`ISSUES.md` 第 2 条已改写为“已收口”，下一项已前移到 `T4010a`。下一步只剩整理工作区并创建本轮 commit。

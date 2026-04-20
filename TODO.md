@@ -1086,7 +1086,7 @@
 
 ## T4009：`Task` 设计定型
 
-### T4009 [TODO] 收口 `Task<T>` core，并移除当前代码库中 executor-centric 实现（拆分执行）
+### T4009 [DONE] 收口 `Task<T>` core，并移除当前代码库中 executor-centric 实现（拆分执行）
 - 说明：
   - 最新设计讨论已明确：`Task<T>` 应是普通 Scoop class，`async {}` 与 `async fun` 只是 `Task` sugar；语言合同不要求 task-specific special codegen。
   - 当前 runtime / sysroot / stdlib / LLVM 中的 executor-centric implementation 与 special-case 已被确认是 premature / incomplete / wrong direction。`T4009a [DONE]` 只保留“脱离旧 handle ABI”的历史清理记录，不再代表 `Executor` / `spawn` / runtime executor 方向应继续扩展。
@@ -1095,6 +1095,11 @@
   - 子任务全部完成后，`ISSUES.md` 第 2 条收窄或关闭。
   - `SCOOP_FULL_SPEC.md` 对 `Task` / `Continuation` / async surface 的边界表述一致。
   - 如 runtime / sysroot 合同改变，相关文档同步更新。
+- 完成：
+  - `T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R` 已按顺序全部完成。
+  - `Task<T>` 当前已作为普通、lazy、可手动 `poll()/step()` 的 Scoop class 成立；`async {}` / `async fun` 统一只是 `Task` sugar，raw continuation 仅保留为内部 suspended-state carrier。
+  - 公开 `scoop.task.*` / `Executor` surface、runtime executor implementation 与 compiler 侧对应 special-case 已从主线移除；structured concurrency（含公开 `spawn` / `join`）仅作为明确 deferred item 保留。
+  - stable handle / `Pinned` 的职责分离已与 `Task` / reactor 叙事统一：`GcHandle.raw` 承担长期 wake token / identity，`Pinned` 只承担短时裸地址借出。
 - 依赖：T4008R
 
 ### T4009a [DONE] 拆掉 `Task<T>` / `Executor` 的 hard-coded handle ABI 绑定
@@ -1259,13 +1264,26 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009c
 
-### T4009R [TODO] Review：确认 `Task` 本体已脱离 executor 前提
+### T4009R [DONE] Review：确认 `Task` 本体已脱离 executor 前提
 - 重点：
   - `Task` 必须能在 manual polling 下成立，且作为普通 Scoop class 自洽。
   - `async {}` / `async fun` 只能体现为 `Task` sugar，不再依赖 task-specific special codegen 或 executor ABI。
   - raw continuation 不应继续成为易误用的默认 API。
   - 当前 executor implementation 已从 core/runtime 叙事中移除；executor 相关内容若仍未设计，只能作为明确的 deferred item 留下。
   - stable handle / pin 的职责分离要与 `Task` / reactor 叙事一致。
+- 完成：
+  - 已复审 `sysroot/core.scoop`、`runtime/c/scoop_task.c`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoop_runtime/src/abi_exports_allowlist.rs` 与相关 typecheck 入口，确认当前公开 surface 只剩 `Task<T>`、`Poll<T>`、`Task.poll()/step()` 与内部 `__scoop_task_*` helper；`scoop_task_join` 也仅保留为 compiler/runtime/test harness 使用的内部 poll-loop helper。
+  - 已全局扫描 `crates/`、`runtime/`、`sysroot/`、`stdlib/`，确认公开 `scoop.task.*` / `Executor` surface 与 runtime executor implementation 没有残留在当前主线；`spawn` / `join` 只保留语法壳并在 typecheck 统一报 `structured_concurrency_deferred`。
+  - 已复审 handle / pin 合同与 `Task` 叙事的衔接：`GcHandle.raw` 现用于 reactor / callback / future executor 的长期 wake token，`Pinned` 只用于短时裸地址借出，没有重新把 pin 当作 `Task` identity 或 wakeup 注册前提。
+- 已验证：
+  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo test -q -p scoop_runtime --test task_spawn_join`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`
+  - `cargo run -q -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009h
 
 ## T4010：值类型不可变语义与 `with`
