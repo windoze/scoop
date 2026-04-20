@@ -63,6 +63,12 @@ fn nominal_type_args_assignable(
         .zip(expected_args.iter().copied())
         .enumerate()
     {
+        if lower.is_continuation_answer_hole(found_arg)
+            || lower.is_continuation_answer_hole(expected_arg)
+        {
+            continue;
+        }
+
         if lower.is_star_projection(expected_arg) {
             if lower.is_star_projection(found_arg) {
                 continue;
@@ -82,7 +88,11 @@ fn nominal_type_args_assignable(
 
         match declared {
             None => {
-                if found_arg != expected_arg {
+                if !types_equal_or_continuation_hole_compatible(
+                    found_arg,
+                    expected_arg,
+                    lower,
+                ) {
                     return false;
                 }
             }
@@ -97,7 +107,11 @@ fn nominal_type_args_assignable(
                 }
             }
             Some(_) => {
-                if found_arg != expected_arg {
+                if !types_equal_or_continuation_hole_compatible(
+                    found_arg,
+                    expected_arg,
+                    lower,
+                ) {
                     return false;
                 }
             }
@@ -105,6 +119,66 @@ fn nominal_type_args_assignable(
     }
 
     true
+}
+
+fn types_equal_or_continuation_hole_compatible(
+    found: TypeId,
+    expected: TypeId,
+    lower: &TypeLowering<'_>,
+) -> bool {
+    if found == expected {
+        return true;
+    }
+    if lower.is_continuation_answer_hole(found) || lower.is_continuation_answer_hole(expected) {
+        return true;
+    }
+
+    match (lower.type_kind(found), lower.type_kind(expected)) {
+        (
+            TypeKind::Value(ValueTypeKind::Option(found_inner)),
+            TypeKind::Value(ValueTypeKind::Option(expected_inner)),
+        ) => types_equal_or_continuation_hole_compatible(found_inner, expected_inner, lower),
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(found_elems)),
+            TypeKind::Value(ValueTypeKind::Tuple(expected_elems)),
+        ) => {
+            found_elems.len() == expected_elems.len()
+                && found_elems.iter().copied().zip(expected_elems.iter().copied()).all(
+                    |(found_elem, expected_elem)| {
+                        types_equal_or_continuation_hole_compatible(
+                            found_elem,
+                            expected_elem,
+                            lower,
+                        )
+                    },
+                )
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
+            TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
+        ) => {
+            found_nominal.fqn == expected_nominal.fqn
+                && found_nominal.eff == expected_nominal.eff
+                && found_nominal.args.len() == expected_nominal.args.len()
+                && found_nominal
+                    .args
+                    .iter()
+                    .copied()
+                    .zip(expected_nominal.args.iter().copied())
+                    .all(|(found_arg, expected_arg)| {
+                        types_equal_or_continuation_hole_compatible(
+                            found_arg,
+                            expected_arg,
+                            lower,
+                        )
+                    })
+        }
+        _ => false,
+    }
 }
 
 fn concrete_nominal_is_subtype(
@@ -213,6 +287,29 @@ pub(crate) fn is_type_assignable(
     // 注意：当前阶段类型系统仍不完整（名义继承/泛型/row 变量等），因此这里的判断只基于已有的
     // `is_type_assignable` 能力做递归。
     match (found_kind, expected_kind) {
+        (
+            TypeKind::Value(ValueTypeKind::Option(found_inner)),
+            TypeKind::Value(ValueTypeKind::Option(expected_inner)),
+        ) => types_equal_or_continuation_hole_compatible(
+            found_inner,
+            expected_inner,
+            lower,
+        ),
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(found_elems)),
+            TypeKind::Value(ValueTypeKind::Tuple(expected_elems)),
+        ) => {
+            found_elems.len() == expected_elems.len()
+                && found_elems.iter().copied().zip(expected_elems.iter().copied()).all(
+                    |(found_elem, expected_elem)| {
+                        types_equal_or_continuation_hole_compatible(
+                            found_elem,
+                            expected_elem,
+                            lower,
+                        )
+                    },
+                )
+        }
         (
             TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),

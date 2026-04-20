@@ -27,6 +27,7 @@ use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
 const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
+const CONTINUATION_ANSWER_HOLE_DECL_FILE: &str = "<continuation-answer-hole>";
 
 #[derive(Debug, Clone)]
 pub(crate) struct StructDirectFieldInfo {
@@ -465,8 +466,8 @@ pub(crate) struct TypeLowering<'a> {
     /// escape continuation arm 的 resumed-step effect row（按 arm span 索引）。
     ///
     /// 用途：
-    /// - `, k ->` 注入 `Continuation<T, eff E>` 时复用 `T4008b1` 的 step-level summary，
-    ///   避免退回默认 `Pure`；
+    /// - `, k ->` 注入 `Continuation<Resume, Answer, eff E>` 时复用 `T4008b1` 的
+    ///   step-level summary，并把 delimiter answer type 一并写回静态模型；
     /// - key 选用 arm span，而不是 binder span / SymbolId，是为了让 typecheck 两阶段重跑时
     ///   能稳定地在 AST 与 HIR 之间对齐同一个 handler arm。
     escape_continuation_effect_rows: HashMap<Span, EffectRow>,
@@ -1390,13 +1391,37 @@ impl<'a> TypeLowering<'a> {
         self.escape_continuation_effect_rows.get(&arm_span)
     }
 
-    pub(super) fn ty_continuation(&mut self, value_ty: TypeId, effects: EffectRow) -> TypeId {
+    pub(super) fn ty_continuation(
+        &mut self,
+        resume_ty: TypeId,
+        answer_ty: TypeId,
+        effects: EffectRow,
+    ) -> TypeId {
         self.types
             .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
                 fqn: "scoop.core.Continuation".to_string(),
-                args: vec![value_ty],
+                args: vec![resume_ty, answer_ty],
                 eff: Some(effects),
             })))
+    }
+
+    pub(super) fn ty_continuation_answer_hole(&mut self, span: Span) -> TypeId {
+        self.types.ty_param(TypeParamType {
+            name: "_".to_string(),
+            decl_file: PathBuf::from(CONTINUATION_ANSWER_HOLE_DECL_FILE),
+            decl_span: span,
+        })
+    }
+
+    pub(super) fn is_continuation_answer_hole(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Param(TypeParamType {
+                name,
+                decl_file,
+                ..
+            }) if name == "_" && decl_file == &PathBuf::from(CONTINUATION_ANSWER_HOLE_DECL_FILE)
+        )
     }
 
     pub(super) fn record_top_level_fun_value_ref(
@@ -2293,13 +2318,19 @@ impl<'a> TypeLowering<'a> {
             _ => {}
         }
 
+        let continuation_legacy_shorthand =
+            fqn == "scoop.core.Continuation" && type_args.len() == 1;
         let expected = self.env.type_param_count(&fqn).ok_or_else(|| {
             TypeLowerError::MissingTypeSymbolInEnv {
                 fqn: fqn.clone(),
                 span: path.span.into(),
             }
         })?;
-        let found = type_args.len();
+        let found = if continuation_legacy_shorthand {
+            expected
+        } else {
+            type_args.len()
+        };
         if expected != found {
             return Err(TypeLowerError::TypeArityMismatch {
                 name: fqn,
@@ -2317,10 +2348,13 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
-        let args = type_args
+        let mut args = type_args
             .iter()
             .map(|a| self.lower_type_ref(a))
             .collect::<Result<Vec<_>, _>>()?;
+        if continuation_legacy_shorthand {
+            args.push(self.ty_continuation_answer_hole(path.span));
+        }
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
         if fqn == PTR_FQN

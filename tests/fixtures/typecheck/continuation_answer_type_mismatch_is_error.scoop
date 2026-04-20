@@ -1,0 +1,28 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_type_mismatch
+// EXPECT-ERROR: 调用参数类型不匹配
+// EXPECT-ERROR-AT: 24:25
+// 目标：T4016b2：escape continuation binder 的静态类型必须携带 delimiter answer type，
+// 因此把 `Continuation<Int, Int, eff Pure>` 传给 `Continuation<Int, Unit, eff Pure>` 应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+fun requireUnit(k: Continuation<Int, Unit, eff Pure>): Unit {}
+
+private fun bad(): Int {
+    return handle {
+        val seed: Int = Ask.current()
+        seed + 1
+    } with {
+        Ask.current(), k -> {
+            requireUnit(k)
+            0
+        }
+    }
+}

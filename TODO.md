@@ -81,7 +81,7 @@
   - 生产代码中不再保留 AST / HIR 级别的 immediate-resume arm kind；若有 tail-resume 优化，只存在于内部 lowering / codegen 分类。
 - 依赖：T4016b
 
-### T4016b2 [TODO] 把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface
+### T4016b2 [DONE] 把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface
 - 范围：
   - continuation binder 类型不再只携带 payload type 与 resumed-step effect row；handle type inference 必须把 delimiter answer type 一并接入 `, k ->` arm 的静态模型。
   - `sysroot/core.scoop`、type lowering、type pretty-print 与相关 diagnostics 统一切到 `Continuation<Resume, Answer, eff E>` surface；显式 continuation 类型注解与推导出的 `k` binder 类型都要能看到 answer type。

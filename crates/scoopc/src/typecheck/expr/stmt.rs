@@ -1338,6 +1338,7 @@ fn check_expr_stmt_with_mode(
                 body,
                 arms,
                 finally.as_ref(),
+                None,
                 lower,
             )?;
             Ok(())

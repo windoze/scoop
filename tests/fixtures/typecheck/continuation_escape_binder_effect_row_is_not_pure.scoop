@@ -16,9 +16,9 @@ effect Boom {
     fun next(): Int
 }
 
-fun requirePure(k: Continuation<Int, eff Pure>): Unit {}
+fun requirePure(k: Continuation<Int, Int, eff Pure>): Unit {}
 
-fun requireBoom(k: Continuation<Int, eff Boom>): Unit {}
+fun requireBoom(k: Continuation<Int, Int, eff Boom>): Unit {}
 
 private fun bad(): Int {
     return handle {

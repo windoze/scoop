@@ -251,7 +251,7 @@ pub(super) fn infer_expr_type(
             body,
             arms,
             finally,
-        } => infer_handle_expr_type(inputs, expr, body, arms, finally.as_ref(), lower),
+        } => infer_handle_expr_type(inputs, expr, body, arms, finally.as_ref(), None, lower),
         ast::ExprKind::Async { body } => infer_async_expr_type(inputs, expr, body, lower),
         ast::ExprKind::Spawn { .. } => structured_concurrency_deferred("spawn", expr.span),
         ast::ExprKind::Await {
@@ -959,6 +959,7 @@ pub(super) fn infer_handle_expr_type(
     body: &ast::Block,
     arms: &[ast::HandleArm],
     finally: Option<&ast::Block>,
+    expected_handle_answer_ty: Option<TypeId>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
@@ -1357,7 +1358,7 @@ pub(super) fn infer_handle_expr_type(
     let mut result_ty: Option<TypeId> = if body_ty != builtins.nothing {
         Some(body_ty)
     } else {
-        None
+        expected_handle_answer_ty
     };
 
     for arm in arms {
@@ -1410,18 +1411,27 @@ pub(super) fn infer_handle_expr_type(
 
         match arm.kind {
             ast::HandleArmKind::EscapeContinuation { k_span } => {
-                // `, k ->`：注入 continuation binder 的类型 `Continuation<T, eff E>`。
+                // `, k ->`：注入 continuation binder 的类型
+                // `Continuation<Resume, Answer, eff E>`。
                 //
                 // 说明：
                 // - `E` 来自 `T4008b1` 的 resumed-step summary；
                 // - 首轮 typecheck 尚未拿到该 summary 时会暂退到 `Pure`，随后由 `check_file_exprs`
                 //   的第二阶段用精确 effect row 重跑；
+                // - `Answer` 优先取当前已知的 handle delimiter 结果类型；若当前仍未知，则先放入
+                //   内部 answer-hole，待本 arm/后续路径把结果类型定下来后回填。
                 // - `k.resume(value)` 的 required-effects 传播在 `Continuation.resume` 的内建规则中处理（spec §5.5）。
                 let cont_effects = lower
                     .escape_continuation_effect_row(arm.span)
                     .cloned()
                     .unwrap_or_else(EffectRow::pure);
-                let cont_ty = lower.ty_continuation(lowered.op_return_ty, cont_effects);
+                let cont_answer_ty = result_ty
+                    .unwrap_or_else(|| lower.ty_continuation_answer_hole(arm.span));
+                let cont_ty = lower.ty_continuation(
+                    lowered.op_return_ty,
+                    cont_answer_ty,
+                    cont_effects.clone(),
+                );
                 lower.record_inferred_binding_ty(k_span, cont_ty);
                 arm_locals.insert(k_span, cont_ty);
                 let arm_inputs = inputs.with_locals(&arm_locals);
@@ -1454,6 +1464,30 @@ pub(super) fn infer_handle_expr_type(
                     builtins,
                     arm.body.span,
                 )?;
+
+                if lower.is_continuation_answer_hole(cont_answer_ty)
+                    && let Some(final_answer_ty) = result_ty
+                {
+                    let finalized_cont_ty = lower.ty_continuation(
+                        lowered.op_return_ty,
+                        final_answer_ty,
+                        cont_effects.clone(),
+                    );
+                    lower.record_inferred_binding_ty(k_span, finalized_cont_ty);
+
+                    let mut finalized_arm_locals = arm_locals.clone();
+                    finalized_arm_locals.insert(k_span, finalized_cont_ty);
+                    let finalized_inputs = inputs.with_locals(&finalized_arm_locals);
+                    let _ = lower.with_nested_effect_collection(|lower| match result_ty {
+                        Some(expected) => finalized_inputs.infer_in_expected(
+                            lower,
+                            &arm.body,
+                            expected,
+                            ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
+                        ),
+                        None => finalized_inputs.infer(lower, &arm.body),
+                    })?;
+                }
             }
             ast::HandleArmKind::NonResuming => {
                 let arm_inputs = inputs.with_locals(&arm_locals);
@@ -1891,6 +1925,23 @@ pub(super) fn infer_expr_type_in_expected_context(
             arms,
             expected_ty,
             &expected_from,
+            lower,
+        );
+    }
+
+    if let ast::ExprKind::Handle {
+        body,
+        arms,
+        finally,
+    } = &expr.kind
+    {
+        return infer_handle_expr_type(
+            inputs,
+            expr,
+            body,
+            arms,
+            finally.as_ref(),
+            Some(expected_ty),
             lower,
         );
     }

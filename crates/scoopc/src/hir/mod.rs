@@ -745,7 +745,8 @@ pub type ContinuationResumeCallSiteIndex = HashSet<CallSite>;
 ///
 /// 说明：
 /// - 只有这些 call site 才需要按“会再次向外 suspend 的 call-boundary”处理；
-/// - `Continuation<T, eff Pure>.resume(...)` 仍只保留 hidden `Raise<RuntimeError>` 边界。
+/// - `Continuation<Resume, Answer, eff Pure>.resume(...)` 仍只保留 hidden
+///   `Raise<RuntimeError>` 边界。
 pub type NonPureContinuationResumeCallSiteIndex = HashSet<CallSite>;
 
 /// 一个 `when` pattern binder 的声明位置键。

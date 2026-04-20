@@ -8,7 +8,6 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun bad(k: Continuation<Int, eff Pure>) {
+fun bad(k: Continuation<Int, Unit, eff Pure>) {
     k.resume(1)
 }
-

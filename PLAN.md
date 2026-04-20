@@ -56,7 +56,14 @@
     - AST / HIR 级别的 `ImmediateResume` arm kind 已删除；tail `k.resume(...)` 仅作为 lowering / codegen 内部分类保留；
     - 相关 parse / HIR / typecheck / run-pass fixtures 已迁移到 `, k ->` + `k.resume(...)`，并同步了必要的 golden / 预期；
     - 已验证 `cargo test --all`、受影响 fixture 子集（38 个）以及 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 下一步进入 `T4016b2`：把 continuation answer type 接入 binder 静态模型与显式 `Continuation<Resume, Answer, eff E>` surface，再继续推进 `T4016c` / `T4016b3` 的返回值主线。
+  - `T4016b2` 已完成：
+    - `sysroot/core.scoop` 已切到显式 `Continuation<Resume, Answer, eff E = Pure>`，并把 task step continuation 的 answer type 明确写成 `__TaskStepResult`；
+    - escape continuation binder 的静态类型现已显式携带 delimiter answer type；当 answer type 在首轮进入 arm body 前尚未确定时，typecheck 会先放入内部 answer-hole，并在 handle 结果类型确定后回填/复验 binder；
+    - type lowering / pretty-print / diagnostics / HIR 都已能消费 `Continuation<Resume, Answer, eff E>` surface；`Continuation.resume` 与 LLVM payload 读取路径也已切到从新 surface 的第一个普通类型参数读取 payload；
+    - 为避免一次性迁移大量旧 fixture/source，前端暂时保留 `Continuation<Resume, eff E>` / `Continuation<Resume>` 的过渡 lowering 兼容；内部 answer-hole 只服务旧注解兼容，不改变推导出的 binder 类型与新显式 surface；
+    - 已补充并验证 answer type mismatch、escape binder answer/effect 推导、显式 continuation answer 注解、HIR 参数类型显示，以及相关 shorthand 兼容 run-pass。
+    - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/hir`、选定 continuation `run-pass` 用例、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - 下一步进入 `T4016c`：收口 runtime / ABI 的 answer-return channel，再继续推进 `T4016b3` 的返回值主线。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

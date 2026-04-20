@@ -3533,7 +3533,7 @@ public fun helper_sum(): Int {
     return box.x + box.y
 }
 
-public fun resume_once(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
+public fun resume_once(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
     k.resume(1)
 }
 "#,
@@ -3719,6 +3719,10 @@ fun main(): Int {
                 _ => None,
             })
             .expect("应收集到 resume_once");
+        assert_eq!(
+            lowered.types.display(resume_once.params[0].ty).to_string(),
+            "scoop.core.Continuation<Int, Unit, eff Pure>"
+        );
         let resume_body = resume_once.body.as_ref().expect("resume_once 应有 body");
         let resume_span = match resume_body.stmts.as_slice() {
             [
@@ -4356,7 +4360,7 @@ package fixtures.t3016c0
 
 import scoop.core.*
 
-fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
+fun run(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
     k.resume(1)
 }
 "#,
@@ -4372,6 +4376,10 @@ fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
                 _ => None,
             })
             .expect("应收集到 fixtures.t3016c0.run");
+        assert_eq!(
+            lowered.types.display(run_fun.params[0].ty).to_string(),
+            "scoop.core.Continuation<Int, Unit, eff Pure>"
+        );
         let body = run_fun.body.as_ref().expect("run 应有 body");
         let resume_span = match body.stmts.as_slice() {
             [

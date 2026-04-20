@@ -77,7 +77,8 @@ pub struct File {
     /// typecheck 已确认的“非 Pure continuation.resume 调用点”。
     ///
     /// 说明：
-    /// - `Continuation<T, eff Pure>.resume(...)` 只需要 hidden `Raise<RuntimeError>` 边界；
+    /// - `Continuation<Resume, Answer, eff Pure>.resume(...)` 只需要 hidden
+    ///   `Raise<RuntimeError>` 边界；
     /// - 只有 `E` 非 Pure 时，effect segmentation 才应把该 call site 视为真正的
     ///   outward-suspending call-boundary，并走 resume.after.call replay 主线。
     pub(crate) non_pure_continuation_resume_call_sites: RefCell<HashSet<Span>>,

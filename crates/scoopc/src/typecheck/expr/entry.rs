@@ -2141,9 +2141,9 @@ effect Boom {
     fun next(): Int
 }
 
-fun requirePure(k: Continuation<Int, eff Pure>): Unit {}
+fun requirePure(k: Continuation<Int, Int, eff Pure>): Unit {}
 
-fun requireBoom(k: Continuation<Int, eff Boom>): Unit {}
+fun requireBoom(k: Continuation<Int, Int, eff Boom>): Unit {}
 
 private fun bad(): Int {
     return handle {
@@ -2154,6 +2154,30 @@ private fun bad(): Int {
         Ask.current(), k -> {
             requirePure(k)
             requireBoom(k)
+            0
+        }
+    }
+}
+"#;
+
+    const ESCAPE_BINDER_REQUIRE_WRONG_ANSWER_SOURCE: &str = r#"
+package a
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+fun requireUnit(k: Continuation<Int, Unit, eff Pure>): Unit {}
+
+private fun bad(): Int {
+    return handle {
+        val seed: Int = Ask.current()
+        seed + 1
+    } with {
+        Ask.current(), k -> {
+            requireUnit(k)
             0
         }
     }
@@ -2190,7 +2214,7 @@ private fun bad(): Int {
             .expect("escape continuation binder type");
         assert_eq!(
             types.display(k_ty).to_string(),
-            "scoop.core.Continuation<Int, eff a.Boom>"
+            "scoop.core.Continuation<Int, Int, eff a.Boom>"
         );
     }
 
@@ -2202,6 +2226,18 @@ private fun bad(): Int {
             &source, &ast, &index, &imports, &env, &mut types, builtins,
         )
         .expect_err("escape continuation binder should not pass as eff Pure");
+
+        assert!(matches!(err, ExprTypeError::CallArgTypeMismatch { .. }));
+    }
+
+    #[test]
+    fn precise_escape_continuation_type_rejects_wrong_answer_helper() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(ESCAPE_BINDER_REQUIRE_WRONG_ANSWER_SOURCE);
+        let err = typecheck::check_file_exprs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect_err("escape continuation binder should not pass as wrong answer type");
 
         assert!(matches!(err, ExprTypeError::CallArgTypeMismatch { .. }));
     }
