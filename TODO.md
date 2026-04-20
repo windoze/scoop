@@ -1450,7 +1450,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b0
 
-### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
+### T4010b [DONE] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
 - 说明：
   - 依赖 `T4010b0` / `T4010b0R` 先把 `struct` ctor call 与 struct literal 的统一构造主线收口；否则字段默认值只能错误地挂在单个入口上，违背 spec §2.3.1 的等价承诺。
 - 范围：
@@ -1459,13 +1459,41 @@
   - 如规范文字、sysroot 示例或相关注释需要调整，在本任务内显式同步相应文档任务。
 - 验收：
   - `ISSUES.md` 第 7 条中“字段默认值这类声明便利性仍未覆盖”的部分收窄或关闭。
+- 已完成：
+  - resolver synthetic struct ctor、typecheck 的 struct literal / direct ctor / `with` / value pattern 主线现统一只把 direct field 视为构造字段，getter-only computed property 不再被误判为必填 ctor slot。
+  - struct direct field 默认值现已贯通 primary ctor 参数与 body-property 字段，并统一作用于 `StructName(...)` 与 `StructName { ... }` 两条构造入口；HIR lowering 会先按源码顺序绑定显式字段，再按声明顺序补默认值，最后构造完整 `StructLit`。
+  - `SCOOP_FULL_SPEC.md` 已同步澄清：`struct` 允许 body direct field、direct field 可带默认值，默认值仅影响构造；computed property 仍不参与 layout/direct construction。
+  - 已新增/更新回归：
+    - `tests/fixtures/typecheck/struct_direct_field_default_value_ok.scoop`
+    - `tests/fixtures/typecheck/struct_computed_property_not_ctor_field_ok.scoop`
+    - `tests/fixtures/run-pass/struct_default_field_ctor_and_literal_equivalence_basic.scoop`
+    - `tests/fixtures/run-pass/struct_computed_property_not_ctor_field_basic.scoop`
+    - `tests/fixtures/hir/struct_default_field_lowering.scoop`
+- 已验证：
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (345)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (19)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (364)`）
+  - `cargo test -p scoop_runtime --test gc_immix_compaction -- --test-threads=1`
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b0R
+
+### T4010b1 [TODO] 收口值类型 computed property 的 getter lowering / codegen
+- 说明：
+  - 在验证 `T4010b` 时，最小 build probe `struct Point(val x: Int) { val doubled: Int get() = this.x * 2 }` 暴露出一条独立既有裂缝：虽然 computed property 已不再被误纳入 direct ctor / struct literal 字段集合，但运行期读取 `p.doubled` 仍会在 HIR/LLVM 侧误走“直接字段访问”，最终报 `scoop::llvm::unsupported_main_body: unknown struct field`。
+- 范围：
+  - 为值类型 getter-only computed property 补齐统一的 member access lowering / codegen 主线，不能再把它当成 direct field。
+  - 保持 direct field / computed property 的分工清晰：direct field 参与 layout 与构造，computed property 只通过 getter 求值。
+  - 新增 run-pass / lowering regression，覆盖 struct（必要时也覆盖 enum）computed property 读取。
+- 验收：
+  - `Point(1).doubled` / `Point { x: 2 }.doubled` 一类最小 probe 可稳定 build/run。
+- 依赖：T4010b
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
   - 不接受把 `with` 扩展成字段级写回式 `var`。
   - 不允许借“默认值人体工学”重新引入可变值类型叙事。
-- 依赖：T4010b
+- 依赖：T4010b1
 
 ## T4011：`when` 的无 binder or-pattern 子集
 

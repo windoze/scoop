@@ -875,25 +875,15 @@ fn check_class_member_fun_bodies_in_type_decl(
         format!("{prefix}.{local_name}")
     };
 
-    // 仅在 class 内启用 member fun body typecheck（T0438）。
-    if matches!(decl.kind, ast::TypeKind::Class) {
-        let ctor_params: &[ast::Param] = decl
-            .primary_ctor
-            .as_ref()
-            .map(|c| c.params.as_slice())
-            .unwrap_or(&[]);
+    let ctor_params: &[ast::Param] = decl
+        .primary_ctor
+        .as_ref()
+        .map(|c| c.params.as_slice())
+        .unwrap_or(&[]);
 
-        // `this` 在 class 成员体中可见：resolver 会把 `this` 解析到 `decl.name.span`（T0313）。
-        //
-        // class 的 type params 在成员体内可见：
-        // - 让 `this` 的类型可表示为 `C<T, ...>`（而不是 `C<Any, ...>` 占位）；
-        // - 让成员体内出现的 `as T` / `is T` 等 type position 能通过 lowering。
-        //
-        // 这同样避免了 `where` 约束满足性检查（T0458）对 “未知实参” 的误报：
-        // `this: C<T>` 中的 `T` 是 `TypeKind::Param`，约束在该层被视作假设而非此刻验证的条件。
+    if matches!(decl.kind, ast::TypeKind::Class | ast::TypeKind::Struct) {
         lower.push_type_params(&decl.type_params);
 
-        // T0130：推入类型声明处的 where 约束，以便成员方法体内可通过 bound 驱动方法分发。
         let type_where_bounds_pushed = if let Some(wc) = &decl.where_clause {
             let bounds = build_type_where_bound_entries(source, &decl.type_params, wc);
             lower.push_where_bounds(bounds);
@@ -903,54 +893,65 @@ fn check_class_member_fun_bodies_in_type_decl(
         };
 
         let result: Result<(), ExprTypeError> = (|| {
-            let this_ty_args = decl
-                .type_params
-                .iter()
-                .map(|p| lower.ty_param_from_decl(p))
-                .collect::<Vec<_>>();
-            let this_ty =
-                lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)?;
+            check_primary_ctor_default_exprs(shared, decl, lower)?;
 
-            let superclass_fqn = decl
-                .supertypes
-                .iter()
-                .find(|st| st.ctor_args_span.is_some())
-                .and_then(|st| lower.index().type_ref_to_fqn_in_file(source, file, &st.ty));
+            if matches!(decl.kind, ast::TypeKind::Struct) {
+                check_struct_direct_field_initializer_exprs(shared, decl, ctor_params, lower)?;
+            }
 
-            check_class_super_ctor_call_exprs(shared, &type_fqn, decl, ctor_params, lower)?;
+            if matches!(decl.kind, ast::TypeKind::Class) {
+                let this_ty_args = decl
+                    .type_params
+                    .iter()
+                    .map(|p| lower.ty_param_from_decl(p))
+                    .collect::<Vec<_>>();
+                let this_ty = lower.lower_type_fqn_with_args(
+                    type_fqn.clone(),
+                    this_ty_args,
+                    decl.name.span,
+                )?;
 
-            let class_shared = ClassExprShared {
-                file: shared,
-                this_decl_span: decl.name.span,
-                this_ty,
-                ctor_params,
-            };
+                let superclass_fqn = decl
+                    .supertypes
+                    .iter()
+                    .find(|st| st.ctor_args_span.is_some())
+                    .and_then(|st| lower.index().type_ref_to_fqn_in_file(source, file, &st.ty));
 
-            if let Some(body) = &decl.body {
-                for member in &body.members {
-                    match member {
-                        ast::TypeMember::Fun(fun) => {
-                            check_class_member_fun_body_exprs(class_shared, fun, lower)?;
+                check_class_super_ctor_call_exprs(shared, &type_fqn, decl, ctor_params, lower)?;
+
+                let class_shared = ClassExprShared {
+                    file: shared,
+                    this_decl_span: decl.name.span,
+                    this_ty,
+                    ctor_params,
+                };
+
+                if let Some(body) = &decl.body {
+                    for member in &body.members {
+                        match member {
+                            ast::TypeMember::Fun(fun) => {
+                                check_class_member_fun_body_exprs(class_shared, fun, lower)?;
+                            }
+                            ast::TypeMember::Property(p) => {
+                                check_class_property_initializer_exprs(class_shared, p, lower)?;
+                            }
+                            ast::TypeMember::InitBlock(b) => {
+                                check_class_init_block_exprs(class_shared, b, lower)?;
+                            }
+                            ast::TypeMember::SecondaryCtor(ctor) => {
+                                check_class_secondary_ctor_exprs(
+                                    class_shared,
+                                    &type_fqn,
+                                    decl.primary_ctor.is_some(),
+                                    superclass_fqn.as_deref(),
+                                    ctor,
+                                    lower,
+                                )?;
+                            }
+                            ast::TypeMember::EnumVariant(_)
+                            | ast::TypeMember::Type(_)
+                            | ast::TypeMember::Object(_) => {}
                         }
-                        ast::TypeMember::Property(p) => {
-                            check_class_property_initializer_exprs(class_shared, p, lower)?;
-                        }
-                        ast::TypeMember::InitBlock(b) => {
-                            check_class_init_block_exprs(class_shared, b, lower)?;
-                        }
-                        ast::TypeMember::SecondaryCtor(ctor) => {
-                            check_class_secondary_ctor_exprs(
-                                class_shared,
-                                &type_fqn,
-                                decl.primary_ctor.is_some(),
-                                superclass_fqn.as_deref(),
-                                ctor,
-                                lower,
-                            )?;
-                        }
-                        ast::TypeMember::EnumVariant(_)
-                        | ast::TypeMember::Type(_)
-                        | ast::TypeMember::Object(_) => {}
                     }
                 }
             }
@@ -973,6 +974,122 @@ fn check_class_member_fun_bodies_in_type_decl(
             };
             check_class_member_fun_bodies_in_type_decl(shared, nested, &type_fqn, lower)?;
         }
+    }
+
+    Ok(())
+}
+
+fn check_primary_ctor_default_exprs(
+    shared: FileExprShared<'_>,
+    decl: &ast::TypeDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let builtins = shared.builtins;
+    let Some(primary_ctor) = &decl.primary_ctor else {
+        return Ok(());
+    };
+
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    for p in &primary_ctor.params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+
+        let Some(default_value) = &p.default_value else {
+            continue;
+        };
+
+        let type_name = source.slice(decl.name.span).to_string();
+        let param_name = source.slice(p.name.span).to_string();
+        let found_ty = expr_infer_inputs(shared.stmt_shared(), &locals).infer_in_expected(
+            lower,
+            default_value,
+            ty,
+            ExpectedTypeFrom::new(format!(
+                "`{}` 主构造参数 `{}` 的默认值",
+                type_name, param_name
+            )),
+        )?;
+
+        if is_type_assignable(found_ty, ty, lower, builtins)
+            || literal_absorbs_to_expected(default_value, ty, source, lower, builtins)
+        {
+            continue;
+        }
+
+        return Err(ExprTypeError::DefaultParamValueTypeMismatch {
+            fun: format!("{}::<ctor>", type_name),
+            param: param_name,
+            expected: lower.fmt_type(ty),
+            found: lower.fmt_type(found_ty),
+            span: default_value.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_struct_direct_field_initializer_exprs(
+    shared: FileExprShared<'_>,
+    decl: &ast::TypeDecl,
+    ctor_params: &[ast::Param],
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let builtins = shared.builtins;
+    let Some(body) = &decl.body else {
+        return Ok(());
+    };
+
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    for p in ctor_params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+    }
+
+    for member in &body.members {
+        let ast::TypeMember::Property(p) = member else {
+            continue;
+        };
+        if !p.is_direct_field() {
+            continue;
+        }
+        let Some(init) = &p.init else {
+            continue;
+        };
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+
+        let expected = lower.lower_type_ref(ty_ref)?;
+        let found = expr_infer_inputs(shared.stmt_shared(), &locals).infer_in_expected(
+            lower,
+            init,
+            expected,
+            ExpectedTypeFrom::new(format!(
+                "struct `{}` 字段 `{}` 的默认值",
+                source.slice(decl.name.span),
+                source.slice(p.name.span)
+            )),
+        )?;
+
+        if is_type_assignable(found, expected, lower, builtins)
+            || literal_absorbs_to_expected(init, expected, source, lower, builtins)
+        {
+            continue;
+        }
+
+        return Err(ExprTypeError::InitializerTypeMismatch {
+            expected: lower.fmt_type(expected),
+            found: lower.fmt_type(found),
+            span: init.span.into(),
+        });
     }
 
     Ok(())

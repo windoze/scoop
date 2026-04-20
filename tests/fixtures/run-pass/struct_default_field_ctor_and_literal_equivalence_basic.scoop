@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: struct_default_field_ctor_and_literal_equivalence_basic.stdout
+//
+// 目标：
+// - struct 直接字段默认值同时作用于 `StructName(...)` 与 `StructName { ... }`；
+// - 显式提供的字段按源码顺序求值，缺失字段再按声明顺序补默认值；
+// - body-property 风格 direct field 的默认值也能引用更早的 ctor field。
+
+import scoop.core.*
+
+fun mark(n: Int): Int {
+    println(n)
+    return n
+}
+
+struct Point(val x: Int = mark(10)) {
+    val y: Int = mark(x + 1)
+}
+
+fun main(): Int {
+    val fromCtor: Point = Point(y = mark(1))
+    val fromLit: Point = Point { x: mark(2) }
+    println(fromCtor.x)
+    println(fromCtor.y)
+    println(fromLit.x)
+    println(fromLit.y)
+    return 0
+}

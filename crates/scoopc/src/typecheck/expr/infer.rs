@@ -2618,14 +2618,12 @@ fn infer_struct_lit_expr_type(
     fields: &[ast::StructLitField],
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
-    let source = inputs.source;
-    let builtins = inputs.builtins;
     // 先把 TypeName lowering 为一个 nominal value type（struct/enum）；并进一步约束必须是 struct。
     let struct_ty = lower.lower_type_ref(&ast::TypeRef::Path(ty.clone()))?;
 
-    let (struct_fqn, struct_name) = match lower.type_kind(struct_ty) {
+    let (struct_fqn, struct_args, struct_name) = match lower.type_kind(struct_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-            (nominal.fqn, lower.fmt_type(struct_ty))
+            (nominal.fqn, nominal.args.clone(), lower.fmt_type(struct_ty))
         }
         _ => {
             return Err(ExprTypeError::StructLitNotStruct {
@@ -2645,34 +2643,43 @@ fn infer_struct_lit_expr_type(
         });
     }
 
-    // 收集该 struct 的“直接字段”（不包含 nested type 的字段）。
-    //
-    // 说明：`collect_struct_field_types` 会为 nested struct 生成形如：
-    //   `Outer.Inner.x`
-    // 对于 `Outer { ... }` 的 struct literal，我们只接受 `Outer.<field>` 这一层。
-    let prefix = format!("{struct_fqn}.");
-    let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
-    for (field_fqn, field_ty) in inputs.struct_field_types {
-        let Some(rest) = field_fqn.strip_prefix(&prefix) else {
-            continue;
-        };
-        if rest.contains('.') {
-            continue;
-        }
-        expected_fields.insert(rest.to_string(), *field_ty);
+    let field_infos =
+        lower.lower_struct_direct_field_infos(&struct_fqn, &struct_args, struct_lit_expr.span)?;
+    check_struct_lit_fields(
+        inputs,
+        struct_lit_expr,
+        fields,
+        &struct_name,
+        &field_infos,
+        lower,
+    )?;
+    Ok(struct_ty)
+}
+
+fn check_struct_lit_fields(
+    inputs: ExprInferInputs<'_>,
+    struct_lit_expr: &ast::Expr,
+    fields: &[ast::StructLitField],
+    struct_name: &str,
+    field_infos: &[crate::typecheck::lower::StructDirectFieldInfo],
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
+    let mut expected_fields: HashMap<String, (TypeId, bool)> =
+        HashMap::with_capacity(field_infos.len());
+    for field in field_infos {
+        expected_fields.insert(field.name.clone(), (field.ty, field.has_default));
     }
 
-    // 逐项检查：
-    // - 字段名不可重复
-    // - 字段必须存在于 struct 声明中
-    // - 字段初始化表达式类型必须可赋值给字段类型（最小 assignable 规则）
     let mut seen: HashMap<String, Span> = HashMap::new();
     for f in fields {
         let field_name = source.slice(f.name.span).to_string();
 
         if let Some(prev) = seen.get(&field_name).copied() {
             return Err(ExprTypeError::StructLitDuplicateField {
-                struct_name: struct_name.clone(),
+                struct_name: struct_name.to_string(),
                 field: field_name,
                 first: prev.into(),
                 second: f.name.span.into(),
@@ -2680,9 +2687,9 @@ fn infer_struct_lit_expr_type(
         }
         seen.insert(field_name.clone(), f.name.span);
 
-        let Some(expected_ty) = expected_fields.get(&field_name).copied() else {
+        let Some((expected_ty, _has_default)) = expected_fields.get(&field_name).copied() else {
             return Err(ExprTypeError::StructLitUnknownField {
-                struct_name: struct_name.clone(),
+                struct_name: struct_name.to_string(),
                 field: field_name,
                 span: f.name.span.into(),
             });
@@ -2702,7 +2709,7 @@ fn infer_struct_lit_expr_type(
             && !literal_absorbs_to_expected(&f.value, expected_ty, source, lower, builtins)
         {
             return Err(ExprTypeError::StructLitFieldTypeMismatch {
-                struct_name: struct_name.clone(),
+                struct_name: struct_name.to_string(),
                 field: field_name,
                 expected: lower.fmt_type(expected_ty),
                 found: lower.fmt_type(found_ty),
@@ -2711,15 +2718,14 @@ fn infer_struct_lit_expr_type(
         }
     }
 
-    // 当前阶段（T0423）约束：struct literal 必须显式提供所有字段（不支持默认值/可选字段）。
     let mut missing: Vec<String> = expected_fields
-        .keys()
-        .filter(|name| !seen.contains_key(*name))
-        .cloned()
+        .iter()
+        .filter_map(|(name, (_ty, has_default))| {
+            (!*has_default && !seen.contains_key(name)).then_some(name.clone())
+        })
         .collect();
     missing.sort();
     if !missing.is_empty() {
-        // 尽量把错误定位到右花括号 `}`（缺字段通常发生在结尾）。
         let close_brace = if struct_lit_expr.span.end > 0 {
             Span::new(struct_lit_expr.span.end - 1, struct_lit_expr.span.end)
         } else {
@@ -2727,99 +2733,13 @@ fn infer_struct_lit_expr_type(
         };
 
         return Err(ExprTypeError::StructLitMissingFields {
-            struct_name,
+            struct_name: struct_name.to_string(),
             fields: missing.join(", "),
             span: close_brace.into(),
         });
     }
 
-    Ok(struct_ty)
-}
-
-fn collect_named_type_param_refs(
-    ty: TypeId,
-    bindings: &HashMap<String, TypeId>,
-    out: &mut HashMap<String, TypeId>,
-    lower: &TypeLowering<'_>,
-) {
-    match lower.type_kind(ty) {
-        TypeKind::Param(p) => {
-            if bindings.contains_key(&p.name) {
-                out.entry(p.name).or_insert(ty);
-            }
-        }
-        TypeKind::StarProjection(_) => {}
-        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String) => {}
-        TypeKind::Value(ValueTypeKind::Unit)
-        | TypeKind::Value(ValueTypeKind::Nothing)
-        | TypeKind::Value(ValueTypeKind::Bool)
-        | TypeKind::Value(ValueTypeKind::Char)
-        | TypeKind::Value(ValueTypeKind::Float64)
-        | TypeKind::Value(ValueTypeKind::Float32)
-        | TypeKind::Value(ValueTypeKind::Int)
-        | TypeKind::Value(ValueTypeKind::UInt)
-        | TypeKind::Value(ValueTypeKind::IntN(_))
-        | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
-        TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            collect_named_type_param_refs(inner, bindings, out, lower);
-        }
-        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
-            for element in elements {
-                collect_named_type_param_refs(element, bindings, out, lower);
-            }
-        }
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-            for arg in nominal.args {
-                collect_named_type_param_refs(arg, bindings, out, lower);
-            }
-            if let Some(row) = nominal.eff {
-                for effect in row.terms {
-                    collect_named_type_param_refs(effect, bindings, out, lower);
-                }
-            }
-        }
-        TypeKind::Ref(RefTypeKind::Function(fun)) => {
-            if let Some(receiver) = fun.receiver {
-                collect_named_type_param_refs(receiver, bindings, out, lower);
-            }
-            for param in fun.params {
-                collect_named_type_param_refs(param, bindings, out, lower);
-            }
-            collect_named_type_param_refs(fun.return_ty, bindings, out, lower);
-            for effect in fun.effects.terms {
-                collect_named_type_param_refs(effect, bindings, out, lower);
-            }
-        }
-        TypeKind::Ref(RefTypeKind::Union(union)) => {
-            for variant in union.variants {
-                collect_named_type_param_refs(variant, bindings, out, lower);
-            }
-        }
-    }
-}
-
-fn instantiate_type_param_bindings_by_name(
-    ty: TypeId,
-    bindings: &HashMap<String, TypeId>,
-    lower: &mut TypeLowering<'_>,
-    use_span: Span,
-) -> Result<TypeId, ExprTypeError> {
-    if bindings.is_empty() {
-        return Ok(ty);
-    }
-
-    let mut refs_by_name: HashMap<String, TypeId> = HashMap::new();
-    collect_named_type_param_refs(ty, bindings, &mut refs_by_name, lower);
-
-    let mut out = ty;
-    for (name, param_ty) in refs_by_name {
-        let Some(arg_ty) = bindings.get(&name).copied() else {
-            continue;
-        };
-        out = substitute_single_type_param(out, param_ty, arg_ty, lower, use_span)?;
-    }
-    Ok(out)
+    Ok(())
 }
 
 /// T0124: Infer the type of a generic struct literal using the expected type context.
@@ -2834,111 +2754,21 @@ fn infer_generic_struct_lit_expr_type(
     fields: &[ast::StructLitField],
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
-    let source = inputs.source;
-    let builtins = inputs.builtins;
     let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty) else {
         unreachable!("caller guarantees expected_ty is a Nominal");
     };
     let struct_fqn = nominal.fqn.clone();
-    let type_args = nominal.args.clone();
     let struct_name = lower.fmt_type(expected_ty);
-
-    // Build substitution map: type param name → concrete TypeId.
-    let param_names = lower
-        .env()
-        .type_symbol(&struct_fqn)
-        .map(|s| s.type_param_names.clone())
-        .unwrap_or_default();
-    let subst: HashMap<String, TypeId> = param_names
-        .into_iter()
-        .zip(type_args.iter().copied())
-        .collect();
-
-    // Collect direct fields of this struct (same prefix logic as non-generic path).
-    let prefix = format!("{struct_fqn}.");
-    let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
-    for (field_fqn, field_ty) in inputs.struct_field_types {
-        let Some(rest) = field_fqn.strip_prefix(&prefix) else {
-            continue;
-        };
-        if rest.contains('.') {
-            continue;
-        }
-        let concrete_ty = instantiate_type_param_bindings_by_name(
-            *field_ty,
-            &subst,
-            lower,
-            struct_lit_expr.span,
-        )?;
-        expected_fields.insert(rest.to_string(), concrete_ty);
-    }
-
-    // Validate fields (same logic as infer_struct_lit_expr_type).
-    let mut seen: HashMap<String, Span> = HashMap::new();
-    for f in fields {
-        let field_name = source.slice(f.name.span).to_string();
-
-        if let Some(prev) = seen.get(&field_name).copied() {
-            return Err(ExprTypeError::StructLitDuplicateField {
-                struct_name: struct_name.clone(),
-                field: field_name,
-                first: prev.into(),
-                second: f.name.span.into(),
-            });
-        }
-        seen.insert(field_name.clone(), f.name.span);
-
-        let Some(field_expected_ty) = expected_fields.get(&field_name).copied() else {
-            return Err(ExprTypeError::StructLitUnknownField {
-                struct_name: struct_name.clone(),
-                field: field_name,
-                span: f.name.span.into(),
-            });
-        };
-
-        let found_ty = inputs.infer_in_expected(
-            lower,
-            &f.value,
-            field_expected_ty,
-            ExpectedTypeFrom::new(format!(
-                "struct `{}` 字段 `{}` 的类型",
-                struct_name, field_name
-            )),
-        )?;
-
-        if !is_type_assignable(found_ty, field_expected_ty, lower, builtins)
-            && !literal_absorbs_to_expected(&f.value, field_expected_ty, source, lower, builtins)
-        {
-            return Err(ExprTypeError::StructLitFieldTypeMismatch {
-                struct_name: struct_name.clone(),
-                field: field_name,
-                expected: lower.fmt_type(field_expected_ty),
-                found: lower.fmt_type(found_ty),
-                span: f.value.span.into(),
-            });
-        }
-    }
-
-    // Check for missing fields.
-    let mut missing: Vec<String> = expected_fields
-        .keys()
-        .filter(|name| !seen.contains_key(*name))
-        .cloned()
-        .collect();
-    missing.sort();
-    if !missing.is_empty() {
-        let close_brace = if struct_lit_expr.span.end > 0 {
-            Span::new(struct_lit_expr.span.end - 1, struct_lit_expr.span.end)
-        } else {
-            struct_lit_expr.span
-        };
-        return Err(ExprTypeError::StructLitMissingFields {
-            struct_name,
-            fields: missing.join(", "),
-            span: close_brace.into(),
-        });
-    }
-
+    let field_infos =
+        lower.lower_struct_direct_field_infos(&struct_fqn, &nominal.args, struct_lit_expr.span)?;
+    check_struct_lit_fields(
+        inputs,
+        struct_lit_expr,
+        fields,
+        &struct_name,
+        &field_infos,
+        lower,
+    )?;
     Ok(expected_ty)
 }
 
@@ -3078,11 +2908,15 @@ fn infer_with_update_expr_type(
                 WithUpdateAggregateKind::Struct { fqn } => {
                     let seg = &u.path.segments[idx];
                     let field = source.slice(seg.span).to_string();
-                    let field_fqn = format!("{fqn}.{field}");
-                    let field_ty = inputs
-                        .struct_field_types
-                        .get(&field_fqn)
-                        .copied()
+                    let struct_args = match lower.type_kind(current_ty) {
+                        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.args.clone(),
+                        _ => Vec::new(),
+                    };
+                    let field_ty = lower
+                        .lower_struct_direct_field_infos(&fqn, &struct_args, seg.span)?
+                        .into_iter()
+                        .find(|info| info.name == field)
+                        .map(|info| info.ty)
                         .ok_or_else(|| ExprTypeError::WithUpdateUnknownField {
                             struct_name: current_owner_name.clone(),
                             field: field.clone(),

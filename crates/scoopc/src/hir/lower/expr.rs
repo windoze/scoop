@@ -932,6 +932,83 @@ impl<'a> HirLowering<'a> {
         self.file.typechecked_ctor_call_binding(span)
     }
 
+    fn struct_instance_from_type_id(&self, ty: TypeId) -> Option<(String, Vec<TypeId>)> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty).clone() else {
+            return None;
+        };
+        if !matches!(
+            self.type_kinds.get(&nominal.fqn),
+            Some(ast::TypeKind::Struct)
+        ) {
+            return None;
+        }
+        Some((nominal.fqn, nominal.args))
+    }
+
+    fn with_bound_struct_default_context<T>(
+        &mut self,
+        decl_source: &'a crate::source::SourceFile,
+        decl_file: &'a ast::File,
+        type_params: &[String],
+        concrete_args: &[TypeId],
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        self.with_foreign_ast_context(decl_source, decl_file, |this| {
+            this.push_type_param_bindings(
+                type_params
+                    .iter()
+                    .cloned()
+                    .zip(concrete_args.iter().copied()),
+            );
+            let result = f(this);
+            this.pop_type_params();
+            result
+        })
+    }
+
+    fn struct_default_param_expected_expr(
+        &mut self,
+        decl_source: &'a crate::source::SourceFile,
+        decl_file: &'a ast::File,
+        type_params: &[String],
+        concrete_args: &[TypeId],
+        param: &DefaultArgParamInfo,
+    ) -> ExpectedExpr {
+        self.with_bound_struct_default_context(
+            decl_source,
+            decl_file,
+            type_params,
+            concrete_args,
+            |this| {
+                let value_ty = param
+                    .ty_ref
+                    .as_ref()
+                    .map(|ty| this.lower_type_ref(ty))
+                    .unwrap_or(this.builtins.any);
+                ExpectedExpr {
+                    value_ty: Some(value_ty),
+                    array_lit_target: param
+                        .ty_ref
+                        .as_ref()
+                        .and_then(|ty| this.array_lit_target_from_type_ref(ty)),
+                    array_lit_ty: Some(value_ty),
+                    struct_lit_ty: Some(value_ty),
+                }
+            },
+        )
+    }
+
+    fn struct_default_param_local_id(
+        &mut self,
+        decl_source: &'a crate::source::SourceFile,
+        decl_file: &'a ast::File,
+        decl_span: Span,
+    ) -> crate::hir::SymbolId {
+        self.with_foreign_ast_context(decl_source, decl_file, |this| {
+            this.intern_local_symbol(decl_span, false)
+        })
+    }
+
     /// 无完整 typecheck 的 lowering/IR 测试入口仍可能需要识别简单 nominal ctor call。
     ///
     /// 说明：
@@ -1022,6 +1099,12 @@ impl<'a> HirLowering<'a> {
             return None;
         }
 
+        let result_ty = typechecked_call_ty
+            .unwrap_or_else(|| self.intern_nominal(binding.owner_fqn.clone(), Vec::new(), None));
+        let (struct_fqn, concrete_args) = self
+            .struct_instance_from_type_id(result_ty)
+            .unwrap_or_else(|| (binding.owner_fqn.clone(), Vec::new()));
+
         let ctor = self
             .index
             .constructors
@@ -1032,31 +1115,172 @@ impl<'a> HirLowering<'a> {
             return None;
         }
 
-        let result_ty = typechecked_call_ty
-            .unwrap_or_else(|| self.intern_nominal(binding.owner_fqn.clone(), Vec::new(), None));
-        let mut fields = Vec::with_capacity(ctor.params.len());
+        let needs_defaults = binding.arg_mapping.iter().any(|slot| slot.is_none());
+        if !needs_defaults {
+            let mut fields = Vec::with_capacity(ctor.params.len());
+            for (param_idx, param) in ctor.params.iter().enumerate() {
+                let arg_idx = binding.arg_mapping.get(param_idx).copied().flatten()?;
+                let arg = args.get(arg_idx)?;
+                let value_expr = match &arg.kind {
+                    ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
+                    _ => arg,
+                };
+                fields.push(StructLitField {
+                    span: value_expr.span,
+                    name: param.name.clone(),
+                    name_span: call_span,
+                    colon_span: call_span,
+                    value: self.lower_expr(pkg_prefix, value_expr),
+                });
+            }
+            return Some((
+                ExprKind::StructLit {
+                    ty: result_ty,
+                    fields,
+                },
+                result_ty,
+            ));
+        }
 
-        for (param_idx, param) in ctor.params.iter().enumerate() {
-            let arg_idx = binding.arg_mapping.get(param_idx).copied().flatten()?;
-            let arg = args.get(arg_idx)?;
-            let value_expr = match &arg.kind {
+        let info = self.default_arg_structs.get(&struct_fqn).cloned()?;
+        if binding.arg_mapping.len() != info.params.len() {
+            return None;
+        }
+        let (decl_source, decl_file) = self.decl_ast_context(&info.decl_file)?;
+        let decl_pkg_prefix = package_prefix(decl_source, decl_file.package.as_ref());
+
+        let expecteds: Vec<ExpectedExpr> = info
+            .params
+            .iter()
+            .map(|param| {
+                self.struct_default_param_expected_expr(
+                    decl_source,
+                    decl_file,
+                    &info.type_params,
+                    &concrete_args,
+                    param,
+                )
+            })
+            .collect();
+        let param_ids: Vec<crate::hir::SymbolId> = info
+            .params
+            .iter()
+            .map(|param| {
+                self.struct_default_param_local_id(decl_source, decl_file, param.decl_span)
+            })
+            .collect();
+
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in binding.arg_mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let slot = arg_to_param.get_mut(arg_idx)?;
+            if slot.is_some() {
+                return None;
+            }
+            *slot = Some(param_idx);
+        }
+        if arg_to_param.iter().any(|slot| slot.is_none()) {
+            return None;
+        }
+
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(info.params.len() + 1);
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param.get(arg_idx).copied().flatten()?;
+            let param = info.params.get(param_idx)?;
+            let expected = *expecteds.get(param_idx)?;
+            let arg_value = match &arg.kind {
                 ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
                 _ => arg,
             };
-            fields.push(StructLitField {
-                span: value_expr.span,
-                name: param.name.clone(),
-                name_span: call_span,
-                colon_span: call_span,
-                value: self.lower_expr(pkg_prefix, value_expr),
+            let init = self.lower_expr_with_expected(pkg_prefix, arg_value, expected);
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(*param_ids.get(param_idx)?),
+                    name: Some(param.name.clone()),
+                    mutable: false,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    init: Some(init),
+                }),
             });
         }
 
-        Some((
-            ExprKind::StructLit {
+        for (param_idx, param) in info.params.iter().enumerate() {
+            if binding
+                .arg_mapping
+                .get(param_idx)
+                .copied()
+                .flatten()
+                .is_some()
+            {
+                continue;
+            }
+            let default_value = param.default_value.as_ref()?;
+            let expected = *expecteds.get(param_idx)?;
+            let init = self.with_bound_struct_default_context(
+                decl_source,
+                decl_file,
+                &info.type_params,
+                &concrete_args,
+                |this| this.lower_expr_with_expected(&decl_pkg_prefix, default_value, expected),
+            );
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span: call_span,
+                    id: Some(*param_ids.get(param_idx)?),
+                    name: Some(param.name.clone()),
+                    mutable: false,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    init: Some(init),
+                }),
+            });
+        }
+
+        let mut fields = Vec::with_capacity(info.params.len());
+        for (param_idx, param) in info.params.iter().enumerate() {
+            let expected = *expecteds.get(param_idx)?;
+            fields.push(StructLitField {
+                span: call_span,
+                name: param.name.clone(),
+                name_span: call_span,
+                colon_span: call_span,
+                value: Expr {
+                    span: param.decl_span,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id: *param_ids.get(param_idx)?,
+                        name: param.name.clone(),
+                        decl_span: param.decl_span,
+                    }),
+                },
+            });
+        }
+        let struct_expr = Expr {
+            span: call_span,
+            ty: result_ty,
+            kind: ExprKind::StructLit {
                 ty: result_ty,
                 fields,
             },
+        };
+        stmts.push(Stmt {
+            span: call_span,
+            ty: result_ty,
+            kind: StmtKind::Expr(struct_expr),
+        });
+
+        Some((
+            ExprKind::Block(Block {
+                span: call_span,
+                ty: result_ty,
+                stmts,
+            }),
             result_ty,
         ))
     }
@@ -1980,7 +2204,7 @@ impl<'a> HirLowering<'a> {
     fn lower_struct_lit_expr(
         &mut self,
         pkg_prefix: &str,
-        _span: Span,
+        span: Span,
         ty: &ast::TypePath,
         fields: &[ast::StructLitField],
         expected_ty: Option<TypeId>,
@@ -2008,22 +2232,258 @@ impl<'a> HirLowering<'a> {
             self.lower_type_path(ty)
         };
 
-        let lowered_fields = fields
-            .iter()
-            .map(|f| StructLitField {
-                span: f.span,
-                name: f.name.text(self.source).to_string(),
-                name_span: f.name.span,
-                colon_span: f.colon_span,
-                value: self.lower_expr(pkg_prefix, &f.value),
-            })
-            .collect::<Vec<_>>();
+        let Some((struct_fqn, concrete_args)) = self.struct_instance_from_type_id(ty_id) else {
+            let lowered_fields = fields
+                .iter()
+                .map(|f| StructLitField {
+                    span: f.span,
+                    name: f.name.text(self.source).to_string(),
+                    name_span: f.name.span,
+                    colon_span: f.colon_span,
+                    value: self.lower_expr(pkg_prefix, &f.value),
+                })
+                .collect::<Vec<_>>();
 
-        (
-            ExprKind::StructLit {
+            return (
+                ExprKind::StructLit {
+                    ty: ty_id,
+                    fields: lowered_fields,
+                },
+                ty_id,
+            );
+        };
+
+        let Some(info) = self.default_arg_structs.get(&struct_fqn).cloned() else {
+            let lowered_fields = fields
+                .iter()
+                .map(|f| StructLitField {
+                    span: f.span,
+                    name: f.name.text(self.source).to_string(),
+                    name_span: f.name.span,
+                    colon_span: f.colon_span,
+                    value: self.lower_expr(pkg_prefix, &f.value),
+                })
+                .collect::<Vec<_>>();
+
+            return (
+                ExprKind::StructLit {
+                    ty: ty_id,
+                    fields: lowered_fields,
+                },
+                ty_id,
+            );
+        };
+
+        let mut param_to_field: Vec<Option<usize>> = vec![None; info.params.len()];
+        for (field_idx, field) in fields.iter().enumerate() {
+            let field_name = field.name.text(self.source);
+            let Some(param_idx) = info
+                .params
+                .iter()
+                .position(|param| param.name == field_name)
+            else {
+                let lowered_fields = fields
+                    .iter()
+                    .map(|f| StructLitField {
+                        span: f.span,
+                        name: f.name.text(self.source).to_string(),
+                        name_span: f.name.span,
+                        colon_span: f.colon_span,
+                        value: self.lower_expr(pkg_prefix, &f.value),
+                    })
+                    .collect::<Vec<_>>();
+                return (
+                    ExprKind::StructLit {
+                        ty: ty_id,
+                        fields: lowered_fields,
+                    },
+                    ty_id,
+                );
+            };
+            let slot = param_to_field
+                .get_mut(param_idx)
+                .expect("param index in range");
+            if slot.is_some() {
+                let lowered_fields = fields
+                    .iter()
+                    .map(|f| StructLitField {
+                        span: f.span,
+                        name: f.name.text(self.source).to_string(),
+                        name_span: f.name.span,
+                        colon_span: f.colon_span,
+                        value: self.lower_expr(pkg_prefix, &f.value),
+                    })
+                    .collect::<Vec<_>>();
+                return (
+                    ExprKind::StructLit {
+                        ty: ty_id,
+                        fields: lowered_fields,
+                    },
+                    ty_id,
+                );
+            }
+            *slot = Some(field_idx);
+        }
+
+        let needs_defaults = param_to_field.iter().any(|slot| slot.is_none());
+        if !needs_defaults {
+            let lowered_fields = fields
+                .iter()
+                .map(|f| StructLitField {
+                    span: f.span,
+                    name: f.name.text(self.source).to_string(),
+                    name_span: f.name.span,
+                    colon_span: f.colon_span,
+                    value: self.lower_expr(pkg_prefix, &f.value),
+                })
+                .collect::<Vec<_>>();
+
+            return (
+                ExprKind::StructLit {
+                    ty: ty_id,
+                    fields: lowered_fields,
+                },
+                ty_id,
+            );
+        }
+
+        let Some((decl_source, decl_file)) = self.decl_ast_context(&info.decl_file) else {
+            let lowered_fields = fields
+                .iter()
+                .map(|f| StructLitField {
+                    span: f.span,
+                    name: f.name.text(self.source).to_string(),
+                    name_span: f.name.span,
+                    colon_span: f.colon_span,
+                    value: self.lower_expr(pkg_prefix, &f.value),
+                })
+                .collect::<Vec<_>>();
+
+            return (
+                ExprKind::StructLit {
+                    ty: ty_id,
+                    fields: lowered_fields,
+                },
+                ty_id,
+            );
+        };
+        let decl_pkg_prefix = package_prefix(decl_source, decl_file.package.as_ref());
+        let expecteds: Vec<ExpectedExpr> = info
+            .params
+            .iter()
+            .map(|param| {
+                self.struct_default_param_expected_expr(
+                    decl_source,
+                    decl_file,
+                    &info.type_params,
+                    &concrete_args,
+                    param,
+                )
+            })
+            .collect();
+        let param_ids: Vec<crate::hir::SymbolId> = info
+            .params
+            .iter()
+            .map(|param| {
+                self.struct_default_param_local_id(decl_source, decl_file, param.decl_span)
+            })
+            .collect();
+
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(info.params.len() + 1);
+        for field in fields {
+            let field_name = field.name.text(self.source);
+            let param_idx = info
+                .params
+                .iter()
+                .position(|param| param.name == field_name)
+                .expect("known field name mapped to param");
+            let expected = *expecteds.get(param_idx).expect("expected info collected");
+            let init = self.lower_expr_with_expected(pkg_prefix, &field.value, expected);
+            let param = info.params.get(param_idx).expect("param index in range");
+            stmts.push(Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span,
+                    id: Some(*param_ids.get(param_idx).expect("param id collected")),
+                    name: Some(param.name.clone()),
+                    mutable: false,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    init: Some(init),
+                }),
+            });
+        }
+
+        for (param_idx, param) in info.params.iter().enumerate() {
+            if param_to_field.get(param_idx).copied().flatten().is_some() {
+                continue;
+            }
+            let default_value = param
+                .default_value
+                .as_ref()
+                .expect("missing field requires default");
+            let expected = *expecteds.get(param_idx).expect("expected info collected");
+            let init = self.with_bound_struct_default_context(
+                decl_source,
+                decl_file,
+                &info.type_params,
+                &concrete_args,
+                |this| this.lower_expr_with_expected(&decl_pkg_prefix, default_value, expected),
+            );
+            stmts.push(Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(ValDecl {
+                    span,
+                    id: Some(*param_ids.get(param_idx).expect("param id collected")),
+                    name: Some(param.name.clone()),
+                    mutable: false,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    init: Some(init),
+                }),
+            });
+        }
+
+        let mut lowered_fields = Vec::with_capacity(info.params.len());
+        for (param_idx, param) in info.params.iter().enumerate() {
+            let expected = *expecteds.get(param_idx).expect("expected info collected");
+            lowered_fields.push(StructLitField {
+                span,
+                name: param.name.clone(),
+                name_span: span,
+                colon_span: span,
+                value: Expr {
+                    span: param.decl_span,
+                    ty: expected.value_ty.unwrap_or(self.builtins.any),
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id: *param_ids.get(param_idx).expect("param id collected"),
+                        name: param.name.clone(),
+                        decl_span: param.decl_span,
+                    }),
+                },
+            });
+        }
+
+        let struct_expr = Expr {
+            span,
+            ty: ty_id,
+            kind: ExprKind::StructLit {
                 ty: ty_id,
                 fields: lowered_fields,
             },
+        };
+        stmts.push(Stmt {
+            span,
+            ty: ty_id,
+            kind: StmtKind::Expr(struct_expr),
+        });
+
+        (
+            ExprKind::Block(Block {
+                span,
+                ty: ty_id,
+                stmts,
+            }),
             ty_id,
         )
     }

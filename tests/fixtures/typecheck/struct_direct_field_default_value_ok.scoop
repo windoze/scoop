@@ -1,0 +1,11 @@
+// EXPECT: pass
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point(val x: Int = 1) {
+    val y: Int = x + 1
+}
+
+val fromCtor: Point = Point()
+val fromNamedCtor: Point = Point(y = 5)
+val fromLit: Point = Point { x: 10 }

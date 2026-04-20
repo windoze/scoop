@@ -102,6 +102,10 @@ struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
 
 - Structs can implement interfaces.
 - Structs cannot extend other structs or classes.
+- Struct direct fields may be declared either in the primary constructor (`struct Point(val x: Int)`)
+  or in the type body (`struct Point { val x: Int }`).
+- Struct direct fields may have default values. These defaults participate uniformly in both
+  `StructName(...)` and `StructName { ... }` construction forms.
 - Structs can contain both value type and reference type fields.
 - Any reference-typed fields stored inside value types must remain **precisely traceable** by the GC:
   - On the stack, the compiler provides precise stack maps (GC stack maps) for all live GC pointers, including those nested inside spilled value-typed aggregates.
@@ -113,6 +117,14 @@ struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
 val p = Point { x: 1, y: 2 }
 // equivalent to constructor call:
 val p = Point(1, 2)
+
+struct Offset(val x: Int = 1) {
+    val y: Int = x + 1
+}
+
+val a = Offset()
+val b = Offset(y = 5)
+val c = Offset { x: 10 }
 ```
 
 #### 2.3.2 Enum (Rich Enum)
@@ -1606,7 +1618,7 @@ y = 20              // ✅ rebinds y to new value 20
 
 ### 10.1 Basic Properties
 
-Properties in Scoop follow Kotlin semantics. In classes, properties can have custom accessors (getters and setters). In structs and enums (value types), only computed properties (getter-only) are allowed since value types are immutable.
+Properties in Scoop follow Kotlin semantics. In classes, properties can have custom accessors (getters and setters). In value types, mutation accessors are still forbidden, but structs may declare both direct fields and getter-only computed properties; enums may declare getter-only computed properties.
 
 ```kotlin
 class User(private var _name: String, private var _age: Int) {
@@ -1646,10 +1658,12 @@ If neither accessor references `field`, no backing field is generated — the pr
 
 ### 10.2 Properties on Value Types
 
-Structs and enums can have computed properties (getter-only). Since value types are immutable, setters are not allowed.
+Structs may declare direct fields in the body as long as they remain immutable (`val`), and both structs and enums may declare computed properties (getter-only). Since value types are immutable, setters are not allowed.
 
 ```kotlin
 struct Point(val x: Int, val y: Int) {
+    val quadrant: Int = if (x >= 0 && y >= 0) 1 else 0
+
     val magnitude: Double
         get() = sqrt((x * x + y * y).toDouble())
 
@@ -1668,6 +1682,12 @@ enum Shape {
         }
 }
 ```
+
+Rules:
+
+- A struct direct field is a stored field: it participates in layout, construction, destructuring, and `with` copy-update.
+- A struct direct field's default value is evaluated at the construction site, after any explicitly provided arguments are evaluated and before the final value is assembled.
+- A computed property does **not** participate in direct construction or layout; it is derived from the constructed value.
 
 ### 10.3 Extension Properties
 

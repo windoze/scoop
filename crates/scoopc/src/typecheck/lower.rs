@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::monomorph::{MonomorphKey, MonomorphSymbol};
-use crate::resolve::{ImportTable, Index, Visibility};
+use crate::resolve::{ConstructorKind, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
@@ -27,6 +27,13 @@ use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
 const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
+
+#[derive(Debug, Clone)]
+pub(crate) struct StructDirectFieldInfo {
+    pub name: String,
+    pub ty: TypeId,
+    pub has_default: bool,
+}
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeLowerError {
@@ -961,6 +968,59 @@ impl<'a> TypeLowering<'a> {
         let out = ctx.lower_type_ref(ty);
         ctx.pop_type_param_bindings();
         out
+    }
+
+    pub(crate) fn lower_struct_direct_field_infos(
+        &mut self,
+        struct_fqn: &str,
+        concrete_args: &[TypeId],
+        use_span: Span,
+    ) -> Result<Vec<StructDirectFieldInfo>, TypeLowerError> {
+        let Some(ctors) = self.index.constructors.get(struct_fqn) else {
+            return Ok(Vec::new());
+        };
+        let Some(primary_ctor) = ctors
+            .iter()
+            .find(|ctor| ctor.kind == ConstructorKind::Primary)
+        else {
+            return Ok(Vec::new());
+        };
+
+        let type_param_names = self
+            .env
+            .type_symbol(struct_fqn)
+            .map(|sym| sym.type_param_names.clone())
+            .unwrap_or_default();
+        let bindings: Vec<(String, TypeId)> = type_param_names
+            .into_iter()
+            .zip(concrete_args.iter().copied())
+            .collect();
+
+        let mut out = Vec::with_capacity(primary_ctor.params.len());
+        for param in &primary_ctor.params {
+            let Some(ty_ref) = &param.ty else {
+                continue;
+            };
+            let ty = self.lower_type_ref_in_decl_file_with_bindings(
+                &primary_ctor.decl_file,
+                bindings.iter().cloned(),
+                ty_ref,
+            )?;
+            out.push(StructDirectFieldInfo {
+                name: param.name.clone(),
+                ty,
+                has_default: param.has_default,
+            });
+        }
+
+        if primary_ctor.params.iter().any(|param| param.ty.is_none()) {
+            return Err(TypeLowerError::UnsupportedTypeRef {
+                kind: "struct direct field type",
+                span: use_span.into(),
+            });
+        }
+
+        Ok(out)
     }
 
     /// 在“声明处文件”的 package/import 上下文中 lower 一个 effect row expression，并注入 use-site type args。
@@ -2037,6 +2097,9 @@ impl<'a> TypeLowering<'a> {
                 let ast::TypeMember::Property(p) = member else {
                     continue;
                 };
+                if !p.is_direct_field() {
+                    continue;
+                }
                 let Some(ty_ref) = p.ty.as_ref() else {
                     return Ok(false);
                 };

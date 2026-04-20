@@ -514,7 +514,9 @@ pub(super) fn collect_object_inits(
     builtins: BuiltinTypes,
 ) -> (ObjectInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -524,6 +526,8 @@ pub(super) fn collect_object_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
             builtins,
         },
     );
@@ -655,7 +659,9 @@ pub(super) fn collect_class_inits(
     builtins: BuiltinTypes,
 ) -> (ClassInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
+    let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -665,6 +671,8 @@ pub(super) fn collect_class_inits(
             typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
             builtins,
         },
     );

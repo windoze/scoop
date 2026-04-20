@@ -1340,6 +1340,9 @@ impl Index {
                 let ast::TypeMember::Property(property) = member else {
                     continue;
                 };
+                if !property.is_direct_field() {
+                    continue;
+                }
                 params.push(ParamSig {
                     name: source.slice(property.name.span).to_string(),
                     name_span: property.name.span,

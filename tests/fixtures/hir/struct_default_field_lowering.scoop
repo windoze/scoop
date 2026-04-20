@@ -1,0 +1,9 @@
+package fixtures.hir
+
+import scoop.core.*
+
+struct Point(val x: Int = 1) {
+    val y: Int = x + 1
+}
+
+val point: Point = Point(y = 5)

@@ -3,7 +3,7 @@
 //! 当前阶段只关心 “字段（field）”：
 //! - 收集 struct 字段列表（用于后续 typecheck/codegen 扩展的基础）
 //! - 检查重复字段名
-//! - 约束字段必须是不可变（`val`）且不支持默认值
+//! - 约束字段必须是不可变（`val`）
 //!
 //! 说明：
 //! - 字段的“类型合法性”（TypeRef lowering、unresolved type、arity 等）由
@@ -35,15 +35,6 @@ pub enum StructDeclError {
     #[error("struct 字段暂不支持 `var`：{struct_fqn}.{field}")]
     #[diagnostic(code(scoop::typecheck::struct_field_must_be_val))]
     StructFieldMustBeVal {
-        struct_fqn: String,
-        field: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("struct 字段暂不支持默认值：{struct_fqn}.{field}")]
-    #[diagnostic(code(scoop::typecheck::struct_field_default_value_not_supported))]
-    StructFieldDefaultValueNotSupported {
         struct_fqn: String,
         field: String,
         #[label("这里")]
@@ -107,16 +98,6 @@ fn check_one_struct_fields(
     //    对 struct 我们先把所有 ctor params 视为字段（与 resolver 阶段一致）。
     if let Some(primary_ctor) = &decl.primary_ctor {
         for p in &primary_ctor.params {
-            // 字段默认值：当前阶段不支持（避免引入初始化顺序/求值语义）。
-            if let Some(default_value) = &p.default_value {
-                let field = source.slice(p.name.span).to_string();
-                return Err(StructDeclError::StructFieldDefaultValueNotSupported {
-                    struct_fqn: struct_fqn.to_string(),
-                    field,
-                    span: default_value.span.into(),
-                });
-            }
-
             insert_field_name(source, struct_fqn, p.name.span, &mut seen)?;
         }
     }
@@ -136,15 +117,6 @@ fn check_one_struct_fields(
                 struct_fqn: struct_fqn.to_string(),
                 field,
                 span: p.name.span.into(),
-            });
-        }
-
-        if let Some(init) = &p.init {
-            let field = source.slice(p.name.span).to_string();
-            return Err(StructDeclError::StructFieldDefaultValueNotSupported {
-                struct_fqn: struct_fqn.to_string(),
-                field,
-                span: init.span.into(),
             });
         }
 

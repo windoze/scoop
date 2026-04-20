@@ -906,6 +906,18 @@ impl std::fmt::Debug for PropertyDecl {
     }
 }
 
+impl PropertyDecl {
+    /// 该属性是否是“直接存储字段”。
+    ///
+    /// 用途：
+    /// - `struct` 的 unified construction / default field / `with` / destructuring 主线只应
+    ///   作用于真实存储字段；
+    /// - 带 delegate 或 accessor 的属性属于计算/转发属性，不应被误当作 direct field。
+    pub fn is_direct_field(&self) -> bool {
+        self.delegate.is_none() && self.getter.is_none() && self.setter.is_none()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccessorKind {
     Get,

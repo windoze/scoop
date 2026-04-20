@@ -1,0 +1,11 @@
+// EXPECT: pass
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point(val x: Int) {
+    val doubled: Int
+        get() = this.x * 2
+}
+
+val fromCtor: Point = Point(1)
+val fromLit: Point = Point { x: 2 }

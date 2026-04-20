@@ -234,11 +234,14 @@ impl<'a> BlockScopeChecker<'a> {
                 ast::TypeMember::Property(p) => {
                     let init_scope = matches!(ty.kind, ast::TypeKind::Class)
                         .then_some(&init_visible_value_members);
+                    let allow_this_in_initializer =
+                        !matches!(ty.kind, ast::TypeKind::Struct) || !p.is_direct_field();
                     self.check_type_member_property(
                         p,
                         &this_ctx,
                         ctor_params,
                         init_scope,
+                        allow_this_in_initializer,
                         matches!(ty.kind, ast::TypeKind::Class),
                     )?;
 
@@ -308,7 +311,7 @@ impl<'a> BlockScopeChecker<'a> {
             match member {
                 ast::TypeMember::EnumVariant(_v) => {}
                 ast::TypeMember::Property(p) => {
-                    self.check_type_member_property(p, &this_ctx, ctor_params, None, false)?
+                    self.check_type_member_property(p, &this_ctx, ctor_params, None, false, false)?
                 }
                 ast::TypeMember::InitBlock(b) => {
                     // object/companion object 也允许出现 `init { ... }`：需要在其中解析值名字引用，
@@ -451,15 +454,17 @@ impl<'a> BlockScopeChecker<'a> {
         this_ctx: &ThisContext,
         ctor_params: &[ast::Param],
         init_visible_value_members: Option<&HashSet<String>>,
+        allow_this_in_initializer: bool,
         inject_backing_field_ident: bool,
     ) -> Result<(), ResolveError> {
-        self.with_this_context(this_ctx.clone(), |this| {
-            // 属性初始化表达式：允许引用主构造参数（T0313）。
-            if let Some(init) = &mut p.init {
+        // 属性初始化表达式：允许引用主构造参数（T0313）。
+        //
+        // 对 struct 的 direct field 而言，`= expr` 语义上是“调用点默认值”而不是“实例初始化体”：
+        // 此时还没有可用的 `this`，只能看到 ctor params 与顶层名字。
+        if let Some(init) = &mut p.init {
+            let check_init = |this: &mut Self, init: &mut ast::Expr| {
                 this.with_ctor_params_scope(ctor_params, |this| {
-                    // T0316：property initializer 属于 class 初始化阶段，禁止访问"后置属性"（前向引用）。
-                    //
-                    // 说明：这里只对 value namespace 做限制；method 仍可通过 `this.m()` 访问。
+                    // T0316：class property initializer 属于初始化阶段，禁止访问"后置属性"。
                     if let Some(visible) = init_visible_value_members {
                         this.with_init_value_members_context(
                             this_ctx.ty_fqn.as_deref(),
@@ -470,12 +475,20 @@ impl<'a> BlockScopeChecker<'a> {
                     }
 
                     this.check_expr(init)
-                })?;
-            }
+                })
+            };
 
-            // 委托属性：delegate 表达式属于初始化语境，同样允许引用主构造参数（T0313）
-            // 且遵循初始化阶段的前向引用限制（T0316）。
-            if let Some(delegate) = &mut p.delegate {
+            if allow_this_in_initializer {
+                self.with_this_context(this_ctx.clone(), |this| check_init(this, init))?;
+            } else {
+                check_init(self, init)?;
+            }
+        }
+
+        // 委托属性：delegate 表达式属于初始化语境，同样允许引用主构造参数（T0313）
+        // 且遵循初始化阶段的前向引用限制（T0316）。
+        if let Some(delegate) = &mut p.delegate {
+            let check_delegate = |this: &mut Self, delegate: &mut ast::Expr| {
                 this.with_ctor_params_scope(ctor_params, |this| {
                     if let Some(visible) = init_visible_value_members {
                         this.with_init_value_members_context(
@@ -486,9 +499,17 @@ impl<'a> BlockScopeChecker<'a> {
                         return Ok(());
                     }
                     this.check_expr(delegate)
-                })?;
-            }
+                })
+            };
 
+            if allow_this_in_initializer {
+                self.with_this_context(this_ctx.clone(), |this| check_delegate(this, delegate))?;
+            } else {
+                check_delegate(self, delegate)?;
+            }
+        }
+
+        self.with_this_context(this_ctx.clone(), |this| {
             // delegated property 不生成 backing field：因此不注入 `field`。
             let inject_backing_field_ident = inject_backing_field_ident && p.delegate.is_none();
 

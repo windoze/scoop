@@ -21,7 +21,6 @@ struct ValPatChecker<'a, 'lower> {
     source: &'a SourceFile,
     lower: &'a mut TypeLowering<'lower>,
     builtins: BuiltinTypes,
-    struct_field_types: &'a HashMap<String, TypeId>,
     bindings: &'a mut HashMap<Span, TypeId>,
 }
 
@@ -255,6 +254,7 @@ impl ValPatChecker<'_, '_> {
             });
         };
         let struct_fqn = nominal.fqn.clone();
+        let struct_args = nominal.args.clone();
 
         if !matches!(
             self.lower.nominal_decl_kind(&struct_fqn),
@@ -275,21 +275,17 @@ impl ValPatChecker<'_, '_> {
             });
         }
 
-        // 3) 收集该 struct 的“直接字段”（不包含 nested type 的字段）。
-        //
-        // 说明：`collect_struct_field_types` 会为 nested struct 生成形如：
-        //   `Outer.Inner.x`
-        // 对于 `Outer { ... }` 的 struct pattern，我们只接受 `Outer.<field>` 这一层。
         let prefix = format!("{struct_fqn}.");
         let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
-        for (field_fqn, field_ty) in self.struct_field_types {
+        for field in
+            self.lower
+                .lower_struct_direct_field_infos(&struct_fqn, &struct_args, pat.span)?
+        {
+            let field_fqn = format!("{prefix}{}", field.name);
             let Some(rest) = field_fqn.strip_prefix(&prefix) else {
                 continue;
             };
-            if rest.contains('.') {
-                continue;
-            }
-            expected_fields.insert(rest.to_string(), *field_ty);
+            expected_fields.insert(rest.to_string(), field.ty);
         }
 
         // 4) 逐项检查字段：
@@ -359,7 +355,7 @@ pub(super) fn infer_val_pat_bindings(
     init_ty: TypeId,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
-    struct_field_types: &HashMap<String, TypeId>,
+    _struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<HashMap<Span, TypeId>, ExprTypeError> {
     let mut bindings = HashMap::new();
     {
@@ -367,7 +363,6 @@ pub(super) fn infer_val_pat_bindings(
             source,
             lower,
             builtins,
-            struct_field_types,
             bindings: &mut bindings,
         };
         checker.check_val_pat(pat, init_ty)?;

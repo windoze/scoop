@@ -1,0 +1,164 @@
+File {
+    items: [
+        Todo {
+            span: 43..98,
+            kind: "type",
+        },
+        Val(
+            ValDecl {
+                span: 100..131,
+                id: Some(
+                    S2,
+                ),
+                name: Some(
+                    "point",
+                ),
+                mutable: false,
+                ty: TypeId(
+                    10,
+                ),
+                init: Some(
+                    Expr {
+                        span: 119..131,
+                        ty: TypeId(
+                            10,
+                        ),
+                        kind: Block(
+                            Block {
+                                span: 119..131,
+                                ty: TypeId(
+                                    10,
+                                ),
+                                stmts: [
+                                    Stmt {
+                                        span: 119..131,
+                                        ty: TypeId(
+                                            2,
+                                        ),
+                                        kind: Val(
+                                            ValDecl {
+                                                span: 119..131,
+                                                id: Some(
+                                                    S1,
+                                                ),
+                                                name: Some(
+                                                    "y",
+                                                ),
+                                                mutable: false,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                init: Some(
+                                                    Expr {
+                                                        span: 129..130,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                    Stmt {
+                                        span: 119..131,
+                                        ty: TypeId(
+                                            2,
+                                        ),
+                                        kind: Val(
+                                            ValDecl {
+                                                span: 119..131,
+                                                id: Some(
+                                                    S0,
+                                                ),
+                                                name: Some(
+                                                    "x",
+                                                ),
+                                                mutable: false,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                init: Some(
+                                                    Expr {
+                                                        span: 69..70,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                    Stmt {
+                                        span: 119..131,
+                                        ty: TypeId(
+                                            10,
+                                        ),
+                                        kind: Expr(
+                                            Expr {
+                                                span: 119..131,
+                                                ty: TypeId(
+                                                    10,
+                                                ),
+                                                kind: StructLit {
+                                                    ty: TypeId(
+                                                        10,
+                                                    ),
+                                                    fields: [
+                                                        StructLitField {
+                                                            span: 119..131,
+                                                            name: "x",
+                                                            name_span: 119..131,
+                                                            colon_span: 119..131,
+                                                            value: Expr {
+                                                                span: 60..61,
+                                                                ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S0,
+                                                                        name: "x",
+                                                                        decl_span: 60..61,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                        StructLitField {
+                                                            span: 119..131,
+                                                            name: "y",
+                                                            name_span: 119..131,
+                                                            colon_span: 119..131,
+                                                            value: Expr {
+                                                                span: 82..83,
+                                                                ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S1,
+                                                                        name: "y",
+                                                                        decl_span: 82..83,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ],
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+    ],
+}

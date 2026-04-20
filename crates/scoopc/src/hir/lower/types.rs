@@ -143,6 +143,13 @@ pub(super) struct DefaultArgParamInfo {
     pub(super) default_value: Option<ast::Expr>,
 }
 
+#[derive(Debug, Clone)]
+pub(super) struct DefaultArgStructInfo {
+    pub(super) decl_file: PathBuf,
+    pub(super) type_params: Vec<String>,
+    pub(super) params: Vec<DefaultArgParamInfo>,
+}
+
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
 #[derive(Debug, Error, Diagnostic)]
 pub enum HirLowerError {

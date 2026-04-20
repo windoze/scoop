@@ -60,8 +60,16 @@ struct HirLowering<'a> {
     /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
     /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
     delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    /// 当前 lowering 可见的完整编译单元 AST（含 sysroot/同编译单元其它文件）。
+    ///
+    /// 用途：
+    /// - 跨文件 struct 默认字段 lowering 需要回到“声明处 AST”读取默认值表达式；
+    /// - 这里保留 `(SourceFile, ast::File)` 对，按 `decl_file` 做查找即可。
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     /// 顶层函数默认参数信息索引：`fqn -> params(default)`（用于 call-site 默认参数补齐，T1305）。
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
+    /// struct 直接字段默认值信息索引：`struct fqn -> direct field params(default)`。
+    default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     /// ctor 调用点候选集合：callee span → candidate type fqns。
     ///
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
@@ -111,6 +119,8 @@ struct HirLoweringSetup<'a> {
     typecheck_types: Option<&'a TypeStore>,
     type_kinds: &'a HashMap<String, ast::TypeKind>,
     delegated_properties: &'a DelegatedPropertyIndex<'a>,
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    default_arg_structs: HashMap<String, DefaultArgStructInfo>,
     builtins: BuiltinTypes,
 }
 
@@ -151,6 +161,8 @@ impl<'a> HirLowering<'a> {
             typecheck_types,
             type_kinds,
             delegated_properties,
+            compilation_unit,
+            default_arg_structs,
             builtins,
         } = setup;
         Self {
@@ -160,7 +172,9 @@ impl<'a> HirLowering<'a> {
             typecheck_types,
             type_kinds,
             delegated_properties,
+            compilation_unit,
             default_arg_funs: HashMap::new(),
+            default_arg_structs,
             ctor_call_sites: HashMap::new(),
             effect_op_call_sites: HashMap::new(),
             handle_payload_tuple_tys: HashMap::new(),
@@ -1346,6 +1360,158 @@ impl<'a> HirLowering<'a> {
             .rev()
             .find_map(|scope| scope.get(name).copied())
     }
+
+    fn decl_ast_context(
+        &self,
+        decl_file: &std::path::Path,
+    ) -> Option<(&'a SourceFile, &'a ast::File)> {
+        self.compilation_unit
+            .iter()
+            .copied()
+            .find(|(source, _)| source.path() == decl_file)
+    }
+}
+
+fn collect_default_arg_structs(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> HashMap<String, DefaultArgStructInfo> {
+    let mut out: HashMap<String, DefaultArgStructInfo> = HashMap::new();
+
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            collect_default_arg_structs_in_type_decl(source, ty, &pkg_prefix, &mut out);
+        }
+    }
+
+    out
+}
+
+fn collect_default_arg_structs_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    out: &mut HashMap<String, DefaultArgStructInfo>,
+) {
+    let local_name = decl.name.text(source).to_string();
+    let type_fqn = if prefix.is_empty() {
+        local_name
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    if matches!(decl.kind, ast::TypeKind::Struct) {
+        let mut params: Vec<DefaultArgParamInfo> = Vec::new();
+
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                params.push(DefaultArgParamInfo {
+                    decl_span: p.name.span,
+                    name: p.name.text(source).to_string(),
+                    ty_ref: p.ty.clone(),
+                    default_value: p.default_value.clone(),
+                });
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(p) = member else {
+                    continue;
+                };
+                if !p.is_direct_field() {
+                    continue;
+                }
+                params.push(DefaultArgParamInfo {
+                    decl_span: p.name.span,
+                    name: p.name.text(source).to_string(),
+                    ty_ref: p.ty.clone(),
+                    default_value: p.init.clone(),
+                });
+            }
+        }
+
+        if params.iter().any(|p| p.default_value.is_some()) {
+            out.insert(
+                type_fqn.clone(),
+                DefaultArgStructInfo {
+                    decl_file: source.path().to_path_buf(),
+                    type_params: decl
+                        .type_params
+                        .iter()
+                        .map(|p| p.name.text(source).to_string())
+                        .collect(),
+                    params,
+                },
+            );
+        }
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_default_arg_structs_in_type_decl(source, nested, &type_fqn, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_default_arg_structs_in_object_decl(source, obj, &type_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_default_arg_structs_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    out: &mut HashMap<String, DefaultArgStructInfo>,
+) {
+    let Some(obj_name) = obj
+        .name
+        .as_ref()
+        .map(|id| id.text(source).to_string())
+        .or_else(|| match obj.kind {
+            ast::ObjectKind::Companion => Some("Companion".to_string()),
+            ast::ObjectKind::Object => None,
+        })
+    else {
+        return;
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        obj_name
+    } else {
+        format!("{prefix}.{obj_name}")
+    };
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_default_arg_structs_in_type_decl(source, nested, &obj_fqn, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_default_arg_structs_in_object_decl(source, nested, &obj_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1389,6 +1555,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
     let delegated_properties = collect_delegated_properties(&pairs);
+    let default_arg_structs = collect_default_arg_structs(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
         crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
@@ -1428,6 +1595,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 typecheck_types: None,
                 type_kinds: &type_kinds,
                 delegated_properties: &delegated_properties,
+                compilation_unit: &pairs,
+                default_arg_structs: default_arg_structs.clone(),
                 builtins,
             },
         );
@@ -1558,6 +1727,7 @@ pub fn lower_for_compilation_unit(
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
         compilation_unit,
@@ -1600,6 +1770,8 @@ pub fn lower_for_compilation_unit(
                 typecheck_types: None,
                 type_kinds: &type_kinds,
                 delegated_properties: &delegated_properties,
+                compilation_unit,
+                default_arg_structs: default_arg_structs.clone(),
                 builtins,
             },
         );
@@ -1722,6 +1894,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = match type_env {
         Some(env) => crate::itable::collect_runtime_interfaces_and_class_itables_with_env(
@@ -1777,6 +1950,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
                     typecheck_types: Some(typecheck_types),
                     type_kinds: &type_kinds,
                     delegated_properties: &delegated_properties,
+                    compilation_unit,
+                    default_arg_structs: default_arg_structs.clone(),
                     builtins,
                 },
             );
@@ -1979,6 +2154,7 @@ pub(crate) fn lower_fun_with_type_bindings(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -1988,6 +2164,8 @@ pub(crate) fn lower_fun_with_type_bindings(
             typecheck_types: None,
             type_kinds,
             delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
             builtins,
         },
     );
@@ -2027,6 +2205,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2036,6 +2215,8 @@ pub(crate) fn lower_member_fun_with_type_bindings(
             typecheck_types: None,
             type_kinds,
             delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
             builtins,
         },
     );

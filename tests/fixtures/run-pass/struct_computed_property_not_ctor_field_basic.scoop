@@ -1,0 +1,23 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// 目标：
+// - computed property 不应进入 struct 的 direct ctor / struct literal 字段集合；
+// - `Point(1)` 与 `Point { x: 2 }` 在存在 getter-only property 时仍可正常构造。
+
+import scoop.core.*
+
+struct Point(val x: Int) {
+    val doubled: Int
+        get() = this.x * 2
+}
+
+fun main(): Int {
+    val fromCtor: Point = Point(1)
+    val fromLit: Point = Point { x: 2 }
+    return if (fromCtor.x == 1 && fromLit.x == 2) {
+        0
+    } else {
+        1
+    }
+}
