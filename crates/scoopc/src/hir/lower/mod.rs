@@ -2049,7 +2049,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
-    use crate::hir::{CallSite, ClassInitStep, ObjectInitStep};
+    use crate::hir::{CallSite, ClassInitStep, ObjectInitStep, WhenPat};
     use crate::resolve::Index;
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
@@ -3465,6 +3465,128 @@ fun use(pair: (Point, (Int, Int))) {
         assert!(matches!(
             nested_tuple[1].kind,
             ExprKind::MemberAccess { .. }
+        ));
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_expands_with_update_over_enum_payload_paths() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4010a2b>",
+            r#"
+package fixtures.t4010a2b
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+fun use(r: Result) {
+    val updated: Result = r with { Ok.point.x: 10, Err.code: 20 }
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4010a2b.use" => Some(fun),
+                _ => None,
+            })
+            .expect("expected lowered function");
+        let body = fun.body.as_ref().expect("expected function body");
+        let updated_init = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Val(decl) if decl.name.as_deref() == Some("updated") => {
+                    decl.init.as_ref()
+                }
+                _ => None,
+            })
+            .expect("expected updated init");
+
+        assert!(
+            !expr_contains_todo_kind(updated_init, "with_update"),
+            "enum with-update lowering should not fall back to Todo: {updated_init:#?}"
+        );
+
+        let ExprKind::Block(block) = &updated_init.kind else {
+            panic!("enum with-update init should lower to block: {updated_init:#?}");
+        };
+        assert_eq!(block.stmts.len(), 2, "{block:#?}");
+
+        let StmtKind::Expr(rebuilt_expr) = &block.stmts[1].kind else {
+            panic!(
+                "second with-update stmt should be rebuilt value: {:#?}",
+                block.stmts[1]
+            );
+        };
+
+        let ExprKind::When { subject, arms } = &rebuilt_expr.kind else {
+            panic!("enum with-update should rebuild through when: {rebuilt_expr:#?}");
+        };
+        assert!(matches!(
+            &subject.kind,
+            ExprKind::VarRef(ValueRef::Local { name, .. }) if name == "$with_base"
+        ));
+        assert_eq!(arms.len(), 2);
+
+        let ok_arm = arms
+            .iter()
+            .find(|arm| matches!(&arm.pat, WhenPat::Variant { name, .. } if name == "Ok"))
+            .expect("expected Ok arm");
+        let ExprKind::Call { callee, args } = &ok_arm.body.kind else {
+            panic!("Ok arm should rebuild variant ctor: {:#?}", ok_arm.body);
+        };
+        assert!(matches!(
+            &callee.kind,
+            ExprKind::UnresolvedIdent { name } if name == "Ok"
+        ));
+        assert_eq!(args.len(), 1);
+        let CallArg::Positional(ok_payload) = &args[0] else {
+            panic!("Ok arm payload should be positional: {:#?}", args[0]);
+        };
+        let ExprKind::StructLit { fields, .. } = &ok_payload.kind else {
+            panic!("Ok payload should rebuild nested Point: {ok_payload:#?}");
+        };
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].name, "x");
+        assert!(matches!(
+            fields[0].value.kind,
+            ExprKind::Literal(LiteralKind::Int)
+        ));
+        assert_eq!(fields[1].name, "y");
+        assert!(matches!(
+            fields[1].value.kind,
+            ExprKind::MemberAccess { .. }
+        ));
+
+        let err_arm = arms
+            .iter()
+            .find(|arm| matches!(&arm.pat, WhenPat::Variant { name, .. } if name == "Err"))
+            .expect("expected Err arm");
+        let ExprKind::Call { callee, args } = &err_arm.body.kind else {
+            panic!("Err arm should rebuild variant ctor: {:#?}", err_arm.body);
+        };
+        assert!(matches!(
+            &callee.kind,
+            ExprKind::UnresolvedIdent { name } if name == "Err"
+        ));
+        assert_eq!(args.len(), 1);
+        let CallArg::Positional(err_payload) = &args[0] else {
+            panic!("Err arm payload should be positional: {:#?}", args[0]);
+        };
+        assert!(matches!(
+            err_payload.kind,
+            ExprKind::Literal(LiteralKind::Int)
         ));
     }
 

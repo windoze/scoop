@@ -932,9 +932,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error(
-        "`with` 的 base 必须是值类型（struct/tuple/enum）；当前实现仅支持 struct/tuple，但得到 {found}"
-    )]
+    #[error("`with` 的 base 必须是可复制更新的值类型（struct/tuple/enum），但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::with_update_base_not_supported))]
     WithUpdateBaseNotSupported {
         found: String,
@@ -972,13 +970,31 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "`with` 嵌套字段路径不可继续：`{struct_name}.{field}` 的类型必须是可复制更新的值类型（struct/tuple），但得到 {found}"
+        "`with` 嵌套字段路径不可继续：`{struct_name}.{field}` 的类型必须是可复制更新的值类型（struct/tuple/enum），但得到 {found}"
     )]
     #[diagnostic(code(scoop::typecheck::with_update_nested_path_not_struct))]
     WithUpdateNestedPathNotStruct {
         struct_name: String,
         field: String,
         found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`{enum_name}` 不存在 variant：{variant}")]
+    #[diagnostic(code(scoop::typecheck::with_update_unknown_variant))]
+    WithUpdateUnknownVariant {
+        enum_name: String,
+        variant: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("enum `with` 路径必须在 `{enum_name}.{variant}` 后继续指定 payload 字段")]
+    #[diagnostic(code(scoop::typecheck::with_update_variant_field_required))]
+    WithUpdateVariantFieldRequired {
+        enum_name: String,
+        variant: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },

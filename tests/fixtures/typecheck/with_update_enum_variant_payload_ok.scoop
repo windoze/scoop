@@ -1,0 +1,17 @@
+// EXPECT: ok
+// 目标：T4010a2b enum `with` 现支持以 variant 前缀定位 payload，并在不同 variant 路径间共享同一套 copy-update 规则。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+fun use(r: Result) {
+    val updated: Result = r with { Ok.point.x: 1, Err.code: 2 }
+}

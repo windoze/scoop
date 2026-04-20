@@ -1,0 +1,51 @@
+package fixtures.run_pass
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+enum PairOrNone {
+    Pair(val left: Int, val right: Int),
+    None,
+}
+
+fun printResult(r: Result) {
+    when (r) {
+        Ok(point) -> {
+            println("Ok")
+            println(point.x)
+            println(point.y)
+        }
+        Err(code) -> {
+            println("Err")
+            println(code)
+        }
+    }
+}
+
+fun printPair(value: PairOrNone) {
+    when (value) {
+        Pair(left, right) -> {
+            println(left)
+            println(right)
+        }
+        None -> println(-1)
+    }
+}
+
+fun main(): Int {
+    val ok: Result = Ok(Point { x: 1, y: 2 })
+    val err: Result = Err(5)
+    val pair: PairOrNone = Pair(3, 4)
+
+    printResult(ok with { Ok.point.x: 7 })
+    printResult(err with { Ok.point.x: 7 })
+    printResult(err with { Err.code: 42 })
+    printPair(pair with { Pair.right: 9 })
+    return 0
+}

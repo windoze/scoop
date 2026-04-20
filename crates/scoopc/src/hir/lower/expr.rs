@@ -645,6 +645,7 @@ impl<'a> HirLowering<'a> {
                 with_span,
                 updates,
                 resolved_copy_update_tys,
+                resolved_copy_update_enums,
             } => {
                 return self.lower_with_update_expr(
                     pkg_prefix,
@@ -653,6 +654,7 @@ impl<'a> HirLowering<'a> {
                     base,
                     updates,
                     resolved_copy_update_tys,
+                    resolved_copy_update_enums,
                 );
             }
         };
@@ -1964,7 +1966,8 @@ impl<'a> HirLowering<'a> {
     ///   <按具体值类型重建 aggregate>
     /// }
     /// ```
-    /// 对于嵌套路径，递归重建内层 struct / tuple。
+    /// 对于嵌套路径，递归重建内层 struct / tuple / enum。
+    #[allow(clippy::too_many_arguments)]
     fn lower_with_update_expr(
         &mut self,
         pkg_prefix: &str,
@@ -1973,6 +1976,9 @@ impl<'a> HirLowering<'a> {
         base: &ast::Expr,
         updates: &[ast::WithUpdateField],
         resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
+        resolved_copy_update_enums: &std::cell::OnceCell<
+            std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
+        >,
     ) -> Expr {
         let typecheck_types = match self.typecheck_types {
             Some(types) => types,
@@ -1992,6 +1998,44 @@ impl<'a> HirLowering<'a> {
                     (
                         prefix.clone(),
                         self.types.re_intern_from(typecheck_types, *ty),
+                    )
+                })
+                .collect::<std::collections::HashMap<_, _>>(),
+            None => {
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
+
+        let aggregate_enum_map = match resolved_copy_update_enums.get() {
+            Some(map) => map
+                .iter()
+                .map(|(prefix, info)| {
+                    (
+                        prefix.clone(),
+                        ast::WithUpdateResolvedEnum {
+                            enum_fqn: info.enum_fqn.clone(),
+                            variants: info
+                                .variants
+                                .iter()
+                                .map(|variant| ast::WithUpdateResolvedEnumVariant {
+                                    name: variant.name.clone(),
+                                    fields: variant
+                                        .fields
+                                        .iter()
+                                        .map(|field| ast::WithUpdateResolvedEnumField {
+                                            name: field.name.clone(),
+                                            ty: self
+                                                .types
+                                                .re_intern_from(typecheck_types, field.ty),
+                                        })
+                                        .collect(),
+                                })
+                                .collect(),
+                        },
                     )
                 })
                 .collect::<std::collections::HashMap<_, _>>(),
@@ -2050,6 +2094,7 @@ impl<'a> HirLowering<'a> {
             &base_ref,
             &grouped,
             &aggregate_ty_map,
+            &aggregate_enum_map,
             "",
         );
 
@@ -2093,11 +2138,13 @@ impl<'a> HirLowering<'a> {
         base_access: &Expr,
         grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
     ) -> Expr {
         enum LoweringAggregateKind {
             Struct(String),
             Tuple,
+            Enum,
             Unsupported,
         }
 
@@ -2111,6 +2158,14 @@ impl<'a> HirLowering<'a> {
                 LoweringAggregateKind::Struct(nominal.fqn.clone())
             }
             TypeKind::Value(ValueTypeKind::Tuple(_)) => LoweringAggregateKind::Tuple,
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if matches!(
+                    self.type_kinds.get(&nominal.fqn),
+                    Some(&ast::TypeKind::Enum)
+                ) =>
+            {
+                LoweringAggregateKind::Enum
+            }
             _ => LoweringAggregateKind::Unsupported,
         };
 
@@ -2124,6 +2179,7 @@ impl<'a> HirLowering<'a> {
                 base_access,
                 grouped,
                 aggregate_ty_map,
+                aggregate_enum_map,
                 current_prefix,
             ),
             LoweringAggregateKind::Tuple => self.build_with_tuple_lit(
@@ -2134,6 +2190,18 @@ impl<'a> HirLowering<'a> {
                 base_access,
                 grouped,
                 aggregate_ty_map,
+                aggregate_enum_map,
+                current_prefix,
+            ),
+            LoweringAggregateKind::Enum => self.build_with_enum_expr(
+                pkg_prefix,
+                expr_span,
+                with_span,
+                aggregate_ty,
+                base_access,
+                grouped,
+                aggregate_ty_map,
+                aggregate_enum_map,
                 current_prefix,
             ),
             LoweringAggregateKind::Unsupported => Expr {
@@ -2161,6 +2229,7 @@ impl<'a> HirLowering<'a> {
         base_access: &Expr,
         grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
     ) -> Expr {
         let field_names: Vec<String> = self
@@ -2197,44 +2266,17 @@ impl<'a> HirLowering<'a> {
             };
 
             let value = if let Some(update_group) = grouped.get(field_name) {
-                if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
-                    self.lower_expr(pkg_prefix, val_expr)
-                } else {
-                    let nested_prefix = if current_prefix.is_empty() {
-                        field_name.clone()
-                    } else {
-                        format!("{}.{}", current_prefix, field_name)
-                    };
-
-                    if let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() {
-                        let mut nested_grouped: std::collections::HashMap<
-                            String,
-                            Vec<(&[ast::Ident], &ast::Expr)>,
-                        > = std::collections::HashMap::new();
-                        for (rest, val) in update_group {
-                            if !rest.is_empty() {
-                                let next = self.source.slice(rest[0].span).to_string();
-                                nested_grouped
-                                    .entry(next)
-                                    .or_default()
-                                    .push((&rest[1..], *val));
-                            }
-                        }
-
-                        self.build_with_copy_expr(
-                            pkg_prefix,
-                            expr_span,
-                            with_span,
-                            nested_ty,
-                            &field_access,
-                            &nested_grouped,
-                            aggregate_ty_map,
-                            &nested_prefix,
-                        )
-                    } else {
-                        field_access
-                    }
-                }
+                self.build_with_field_value(
+                    pkg_prefix,
+                    expr_span,
+                    with_span,
+                    field_name,
+                    field_access,
+                    update_group,
+                    aggregate_ty_map,
+                    aggregate_enum_map,
+                    current_prefix,
+                )
             } else {
                 field_access
             };
@@ -2271,6 +2313,7 @@ impl<'a> HirLowering<'a> {
         base_access: &Expr,
         grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
         aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
         current_prefix: &str,
     ) -> Expr {
         let element_tys = match self.types.kind(tuple_ty) {
@@ -2301,44 +2344,17 @@ impl<'a> HirLowering<'a> {
             };
 
             let value = if let Some(update_group) = grouped.get(&member_name) {
-                if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
-                    self.lower_expr(pkg_prefix, val_expr)
-                } else {
-                    let nested_prefix = if current_prefix.is_empty() {
-                        member_name.clone()
-                    } else {
-                        format!("{}.{}", current_prefix, member_name)
-                    };
-
-                    if let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() {
-                        let mut nested_grouped: std::collections::HashMap<
-                            String,
-                            Vec<(&[ast::Ident], &ast::Expr)>,
-                        > = std::collections::HashMap::new();
-                        for (rest, val) in update_group {
-                            if !rest.is_empty() {
-                                let next = self.source.slice(rest[0].span).to_string();
-                                nested_grouped
-                                    .entry(next)
-                                    .or_default()
-                                    .push((&rest[1..], *val));
-                            }
-                        }
-
-                        self.build_with_copy_expr(
-                            pkg_prefix,
-                            expr_span,
-                            with_span,
-                            nested_ty,
-                            &field_access,
-                            &nested_grouped,
-                            aggregate_ty_map,
-                            &nested_prefix,
-                        )
-                    } else {
-                        field_access
-                    }
-                }
+                self.build_with_field_value(
+                    pkg_prefix,
+                    expr_span,
+                    with_span,
+                    &member_name,
+                    field_access,
+                    update_group,
+                    aggregate_ty_map,
+                    aggregate_enum_map,
+                    current_prefix,
+                )
             } else {
                 field_access
             };
@@ -2351,6 +2367,206 @@ impl<'a> HirLowering<'a> {
             ty: tuple_ty,
             kind: ExprKind::TupleLit { elements },
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_with_enum_expr(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        enum_ty: TypeId,
+        base_access: &Expr,
+        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
+        current_prefix: &str,
+    ) -> Expr {
+        let Some(enum_info) = aggregate_enum_map.get(current_prefix) else {
+            return Expr {
+                span: expr_span,
+                ty: self.builtins.any,
+                kind: ExprKind::Todo("with_update"),
+            };
+        };
+
+        let mut arms: Vec<WhenArm> = Vec::with_capacity(enum_info.variants.len());
+        for variant in &enum_info.variants {
+            let update_group = grouped.get(&variant.name);
+            let mut pat_args: Vec<WhenPat> = Vec::with_capacity(variant.fields.len());
+            let mut field_refs: Vec<(String, Expr)> = Vec::with_capacity(variant.fields.len());
+
+            for field in &variant.fields {
+                let (decl_span, id, name) =
+                    self.fresh_synthetic_local(with_span, "__with_enum_field", false);
+                self.record_when_pat_binding_ty(decl_span, field.ty);
+                pat_args.push(WhenPat::Bind {
+                    span: decl_span,
+                    id,
+                    name: name.clone(),
+                });
+                field_refs.push((
+                    field.name.clone(),
+                    Expr {
+                        span: with_span,
+                        ty: field.ty,
+                        kind: ExprKind::VarRef(ValueRef::Local {
+                            id,
+                            name,
+                            decl_span,
+                        }),
+                    },
+                ));
+            }
+
+            let body = if let Some(update_group) = update_group {
+                let mut grouped_by_field: std::collections::HashMap<
+                    String,
+                    Vec<(&[ast::Ident], &ast::Expr)>,
+                > = std::collections::HashMap::new();
+                for (rest, val) in update_group {
+                    if rest.is_empty() {
+                        return Expr {
+                            span: expr_span,
+                            ty: self.builtins.any,
+                            kind: ExprKind::Todo("with_update"),
+                        };
+                    }
+                    let next = self.source.slice(rest[0].span).to_string();
+                    grouped_by_field
+                        .entry(next)
+                        .or_default()
+                        .push((&rest[1..], *val));
+                }
+
+                let mut args: Vec<CallArg> = Vec::with_capacity(variant.fields.len());
+                for field in &variant.fields {
+                    let Some((_, field_ref)) =
+                        field_refs.iter().find(|(name, _)| name == &field.name)
+                    else {
+                        return Expr {
+                            span: expr_span,
+                            ty: self.builtins.any,
+                            kind: ExprKind::Todo("with_update"),
+                        };
+                    };
+                    let variant_prefix = if current_prefix.is_empty() {
+                        variant.name.clone()
+                    } else {
+                        format!("{}.{}", current_prefix, variant.name)
+                    };
+                    let value = if let Some(field_group) = grouped_by_field.get(&field.name) {
+                        self.build_with_field_value(
+                            pkg_prefix,
+                            expr_span,
+                            with_span,
+                            &field.name,
+                            field_ref.clone(),
+                            field_group,
+                            aggregate_ty_map,
+                            aggregate_enum_map,
+                            &variant_prefix,
+                        )
+                    } else {
+                        field_ref.clone()
+                    };
+                    args.push(CallArg::Positional(value));
+                }
+
+                Expr {
+                    span: expr_span,
+                    ty: enum_ty,
+                    kind: ExprKind::Call {
+                        callee: Box::new(Expr {
+                            span: with_span,
+                            ty: self.builtins.any,
+                            kind: ExprKind::UnresolvedIdent {
+                                name: variant.name.clone(),
+                            },
+                        }),
+                        args,
+                    },
+                }
+            } else {
+                base_access.clone()
+            };
+
+            arms.push(WhenArm {
+                span: expr_span,
+                pat: WhenPat::Variant {
+                    span: with_span,
+                    name_span: with_span,
+                    name: variant.name.clone(),
+                    args: pat_args,
+                },
+                guard: None,
+                arrow_span: with_span,
+                body,
+            });
+        }
+
+        Expr {
+            span: expr_span,
+            ty: enum_ty,
+            kind: ExprKind::When {
+                subject: Box::new(base_access.clone()),
+                arms,
+            },
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_with_field_value(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        field_name: &str,
+        field_access: Expr,
+        update_group: &[(&[ast::Ident], &ast::Expr)],
+        aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        aggregate_enum_map: &std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
+        current_prefix: &str,
+    ) -> Expr {
+        if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
+            return self.lower_expr(pkg_prefix, val_expr);
+        }
+
+        let nested_prefix = if current_prefix.is_empty() {
+            field_name.to_string()
+        } else {
+            format!("{}.{}", current_prefix, field_name)
+        };
+
+        let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() else {
+            return field_access;
+        };
+
+        let mut nested_grouped: std::collections::HashMap<
+            String,
+            Vec<(&[ast::Ident], &ast::Expr)>,
+        > = std::collections::HashMap::new();
+        for (rest, val) in update_group {
+            if !rest.is_empty() {
+                let next = self.source.slice(rest[0].span).to_string();
+                nested_grouped
+                    .entry(next)
+                    .or_default()
+                    .push((&rest[1..], *val));
+            }
+        }
+
+        self.build_with_copy_expr(
+            pkg_prefix,
+            expr_span,
+            with_span,
+            nested_ty,
+            &field_access,
+            &nested_grouped,
+            aggregate_ty_map,
+            aggregate_enum_map,
+            &nested_prefix,
+        )
     }
 
     fn lower_member_access_expr(

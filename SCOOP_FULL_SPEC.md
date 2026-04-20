@@ -382,11 +382,20 @@ val line3 = line with {
     start: Point { x: 1, y: 2 }
     end: Point(10, 10)
 }
+
+val result2 = result with {
+    Ok.point.x: 5
+    Err.code: 42
+}
 ```
 
 - Syntax: `expr with { path: value, ... }`
 - **Parallel semantics**: All right-hand side expressions are evaluated against the original value. There is no order dependency between updates.
 - Paths can be arbitrarily deep: `a.b.c: value`.
+- For enum payload updates, the path must start with a variant name. For example,
+  `result with { Ok.point.x: 5 }`.
+- Enum `with` preserves the runtime variant. Updates for the current variant rebuild that
+  variant’s payload; updates targeting other variants are ignored and the original value is kept.
 - `with` returns a new value; the original is unchanged.
 
 ## 3. Generics

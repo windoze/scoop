@@ -2521,6 +2521,7 @@ impl<'a> Parser<'a> {
                 with_span: with_kw.span,
                 updates,
                 resolved_copy_update_tys: OnceCell::new(),
+                resolved_copy_update_enums: OnceCell::new(),
             },
         })
     }

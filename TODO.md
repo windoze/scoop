@@ -1296,7 +1296,7 @@
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
 
-### T4010a [TODO] 将 `with` 从 `struct` 泛化到更多值类型（拆分执行）
+### T4010a [DONE] 将 `with` 从 `struct` 泛化到更多值类型（拆分执行）
 - 说明：
   - tuple 的 copy-update 只是现有 product 类型主线的自然扩展：路径语义可直接复用 `._0 / _1` 与 tuple literal 重建。
   - enum payload 则额外牵涉“路径如何静态选中 variant payload、是否要求保留原 variant、以及当前缺失的普通 enum payload member-access 主线”三类问题；若与 tuple 一起强行落地，容易引入 shape-based 特判或不稳定语义。
@@ -1304,6 +1304,10 @@
   - 因此现将原 `T4010a` 细化为 `T4010a1 -> T4010a2a -> T4010a2b`：先收口 tuple / struct+tuple 混合路径，再补齐 inline 非标量 enum payload 的 `when`/codegen 主线，最后单独实现 enum payload 的 copy-update 语义。
 - 验收：
   - `T4010a1`、`T4010a2a` 与 `T4010a2b` 全部完成后，`with` 在 tuple / enum / struct 上都走统一的 immutable copy-update 主线，不回流到字段写回式可变语义。
+- 已完成：
+  - `T4010a1` 已把 `with` 从 struct 扩到 tuple 与 struct+tuple 混合嵌套路径。
+  - `T4010a2a` 已打通 inline 非标量 enum payload 的 `when` / variant binder codegen 主线。
+  - `T4010a2b` 已明确 enum `with` 的 variant-prefix 静态语义，并把 enum payload copy-update 接入统一 lowering / codegen。
 - 依赖：T4010
 
 ### T4010a1 [DONE] 将 `with` 泛化到 tuple 与 struct+tuple 混合嵌套路径
@@ -1361,13 +1365,33 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a1
 
-### T4010a2b [TODO] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen
+### T4010a2b [DONE] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen
 - 范围：
   - 明确 enum payload 路径的静态语义：路径如何定位 payload、何时允许更新、是否要求保留原 variant，避免把语义含混地塞进 lowering 特判。
   - 在语义明确后，把 enum payload 更新接入与 struct / tuple 相同的 immutable copy-update 主线，而不是新增 enum-only ad-hoc 更新器。
   - 新增 typecheck / run-pass / lowering regression，覆盖 enum payload nested path 与非法路径诊断。
 - 验收：
   - enum payload 更新语义有明确静态规则，且 lowering / codegen 复用统一 copy-update substrate。
+- 已完成：
+  - enum `with` 的静态语义现已固定为“路径首段必须是 variant 名”，例如 `result with { Ok.point.x: 1 }`；运行时始终保留原 variant，只重建命中的当前 variant payload，其他 variant 原样返回。
+  - typecheck 新增 `resolved_copy_update_enums` side table，把 `with` 路径前缀写回为“concrete enum -> concrete variant/field 形状”；struct / tuple / enum 现可在同一条多段路径校验与 overlap 检查主线上自由穿越。
+  - HIR lowering 现会把 enum copy-update 收口为 `when + variant ctor` 重建，并递归复用既有 struct / tuple copy-update helper，不再为 enum 单独维护一套后端更新器。
+  - `SCOOP_FULL_SPEC.md` 已同步补充 enum `with` 的 variant-prefix 语义、原 variant 保留规则与示例。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/with_update_enum_variant_payload_ok.scoop`
+    - `tests/fixtures/typecheck/with_update_enum_unknown_variant_is_error.scoop`
+    - `tests/fixtures/typecheck/with_update_enum_variant_field_required_is_error.scoop`
+    - `tests/fixtures/run-pass/with_update_enum_variant_payload_basic.scoop`
+    - `tests/fixtures/run-pass/with_update_enum_variant_payload_basic.stdout`
+    - `crates/scoopc/src/hir/lower/mod.rs` 单测 `lower_typed_single_source_file_expands_with_update_over_enum_payload_paths`
+- 已验证：
+  - `cargo test -q -p scoopc lower_typed_single_source_file_expands_with_update_over_enum_payload_paths -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures /tmp/t4010a2b-fixtures/typecheck`（`fixtures: ok (3)`）
+  - `cargo run -q -p scoop -- test --fixtures /tmp/t4010a2b-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (342)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (17)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a2a
 
 ### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学

@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_variant_field_required
+// EXPECT-ERROR: payload 字段
+// 目标：T4010a2b enum `with` 选择 variant 后必须继续给出 payload 字段路径。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Err(val code: Int),
+}
+
+fun use(r: Result) {
+    val updated: Result = r with { Ok: 1 }
+}

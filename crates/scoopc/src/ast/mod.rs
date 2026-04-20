@@ -1103,6 +1103,30 @@ pub struct WithUpdateField {
     pub value: Expr,
 }
 
+/// typecheck 写回的 enum `with` copy-update 语义摘要。
+///
+/// 说明：
+/// - key 仍由 `ExprKind::WithUpdate` 中的 path-prefix side table 管理；
+/// - 这里只保存 lowering 需要的“当前 enum 的 concrete variant/field 形状”，
+///   避免 HIR lowering 再次复刻 enum 泛型实参替换逻辑。
+#[derive(Debug, Clone)]
+pub struct WithUpdateResolvedEnum {
+    pub enum_fqn: String,
+    pub variants: Vec<WithUpdateResolvedEnumVariant>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WithUpdateResolvedEnumVariant {
+    pub name: String,
+    pub fields: Vec<WithUpdateResolvedEnumField>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WithUpdateResolvedEnumField {
+    pub name: String,
+    pub ty: TypeId,
+}
+
 /// struct literal 的字段初始化项：`name: expr`（spec §12）。
 #[derive(Debug, Clone)]
 pub struct StructLitField {
@@ -1689,8 +1713,9 @@ pub enum ExprKind {
     /// 说明：
     /// - 语法建模见 T0216；
     /// - 字段存在性与类型检查已在 typecheck 阶段实现（T0415）；
-    /// - HIR lowering 会按具体值类型把 `with` 展开为 copy-update block（struct/tuple 等）；
-    /// - enum payload copy-update 仍在后续任务中继续补齐。
+    /// - HIR lowering 会按具体值类型把 `with` 展开为 copy-update block / `when`
+    ///   重建（struct/tuple/enum）；
+    /// - enum 路径以 variant 名开头，例如 `result with { Ok.point.x: 1 }`。
     WithUpdate {
         base: Box<Expr>,
         with_span: Span,
@@ -1702,9 +1727,19 @@ pub enum ExprKind {
         /// - `"start"` / `"_0"` / `"start._0"` = 对应中间路径前缀的具体 aggregate type。
         ///
         /// lowering 会把这些 `TypeId` 重新 intern 到自己的 `TypeStore`，从而按 struct/tuple
-        /// 统一重建 aggregate，而不是只靠 struct FQN 特判。
+        /// /enum 统一重建 aggregate，而不是只靠 struct FQN 特判。
         /// 使用 `OnceCell` 允许 typecheck 以共享引用写回。
         resolved_copy_update_tys: OnceCell<std::collections::HashMap<String, TypeId>>,
+        /// typecheck 写回的 enum prefix -> concrete variant/field 形状。
+        ///
+        /// 约定：
+        /// - `""` = base 表达式自身就是 enum；
+        /// - `"Ok.point"` / `"payload.Result"` = 路径前缀落到某个 enum 值时的具体 enum 信息。
+        ///
+        /// lowering 读取后可直接把 enum copy-update 收口为 `when` + variant ctor 重建，
+        /// 而不必在 AST/HIR 之间重复 enum 泛型实参 substitution。
+        resolved_copy_update_enums:
+            OnceCell<std::collections::HashMap<String, WithUpdateResolvedEnum>>,
     },
 }
 

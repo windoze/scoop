@@ -265,8 +265,16 @@ pub(super) fn infer_expr_type(
             base,
             updates,
             resolved_copy_update_tys,
+            resolved_copy_update_enums,
             ..
-        } => infer_with_update_expr_type(inputs, base, updates, resolved_copy_update_tys, lower),
+        } => infer_with_update_expr_type(
+            inputs,
+            base,
+            updates,
+            resolved_copy_update_tys,
+            resolved_copy_update_enums,
+            lower,
+        ),
         ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(inputs, lhs, rhs, lower),
         ast::ExprKind::Binary {
             lhs,
@@ -2852,23 +2860,33 @@ fn infer_with_update_expr_type(
     base: &ast::Expr,
     updates: &[ast::WithUpdateField],
     resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
+    resolved_copy_update_enums: &std::cell::OnceCell<
+        std::collections::HashMap<String, ast::WithUpdateResolvedEnum>,
+    >,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
     // 先递归类型检查 base：保证 `p with { ... }` 中的 `p` 自身也会被覆盖。
     let base_ty = inputs.infer(lower, base)?;
 
-    if with_update_aggregate_kind(lower, base_ty).is_none() {
+    let Some(base_kind) =
+        with_update_aggregate_kind(lower, source, base_ty, base.span, inputs.builtins)?
+    else {
         return Err(ExprTypeError::WithUpdateBaseNotSupported {
             found: lower.fmt_type(base_ty),
             span: base.span.into(),
         });
-    }
+    };
 
-    // 收集 copy-update 路径上的各层 aggregate 具体类型，供 lowering 统一重建 struct/tuple。
+    // 收集 copy-update 路径上的各层 aggregate 具体类型，供 lowering 统一重建 struct/tuple/enum。
     let mut aggregate_ty_map: std::collections::HashMap<String, TypeId> =
         std::collections::HashMap::new();
+    let mut enum_info_map: std::collections::HashMap<String, ast::WithUpdateResolvedEnum> =
+        std::collections::HashMap::new();
     aggregate_ty_map.insert(String::new(), base_ty);
+    if let WithUpdateAggregateKind::Enum { info } = base_kind {
+        enum_info_map.insert(String::new(), info);
+    }
 
     // `with` 的并行语义：update 之间没有顺序依赖，因此要求：
     // - 完全相同的 path 不能重复出现（否则“谁覆盖谁”会引入顺序）
@@ -2929,10 +2947,17 @@ fn infer_with_update_expr_type(
         // 当前阶段支持：
         // - struct 字段：`point.x`
         // - tuple 元素：`pair._0`
-        // - 中间层可在 struct / tuple 之间自由切换。
+        // - enum payload：`result.Ok.point.x`
+        // - 中间层可在 struct / tuple / enum 之间自由切换。
         let mut current_ty = base_ty;
         let mut current_owner_name = lower.fmt_type(base_ty);
         let mut path_prefix_parts: Vec<String> = Vec::new();
+        let segments: Vec<String> = u
+            .path
+            .segments
+            .iter()
+            .map(|seg| source.slice(seg.span).to_string())
+            .collect();
 
         if u.path.segments.is_empty() {
             // parser 不会产生空路径；这里仅保持健壮性。
@@ -2942,12 +2967,32 @@ fn infer_with_update_expr_type(
             });
         }
 
-        for (i, seg) in u.path.segments.iter().enumerate() {
-            let field = source.slice(seg.span).to_string();
-            let field_ty = match with_update_aggregate_kind(lower, current_ty) {
-                Some(WithUpdateAggregateKind::Struct { fqn }) => {
+        let mut idx: usize = 0;
+        while idx < u.path.segments.len() {
+            let aggregate_kind = with_update_aggregate_kind(
+                lower,
+                source,
+                current_ty,
+                u.path.span,
+                inputs.builtins,
+            )?
+            .ok_or_else(|| ExprTypeError::WithUpdateNestedPathNotStruct {
+                struct_name: current_owner_name.clone(),
+                field: segments
+                    .get(idx)
+                    .cloned()
+                    .unwrap_or_else(|| "<unknown>".to_string()),
+                found: lower.fmt_type(current_ty),
+                span: u.path.segments[idx].span.into(),
+            })?;
+
+            let mut consumed_prefix: Vec<String> = Vec::new();
+            let (field_name, field_ty, field_span) = match aggregate_kind {
+                WithUpdateAggregateKind::Struct { fqn } => {
+                    let seg = &u.path.segments[idx];
+                    let field = source.slice(seg.span).to_string();
                     let field_fqn = format!("{fqn}.{field}");
-                    inputs
+                    let field_ty = inputs
                         .struct_field_types
                         .get(&field_fqn)
                         .copied()
@@ -2955,36 +3000,75 @@ fn infer_with_update_expr_type(
                             struct_name: current_owner_name.clone(),
                             field: field.clone(),
                             span: seg.span.into(),
-                        })?
+                        })?;
+                    consumed_prefix.push(field.clone());
+                    idx += 1;
+                    (field, field_ty, seg.span)
                 }
-                Some(WithUpdateAggregateKind::Tuple { elements }) => {
-                    let Some(idx) = parse_with_update_tuple_member_index(&field) else {
+                WithUpdateAggregateKind::Tuple { elements } => {
+                    let seg = &u.path.segments[idx];
+                    let field = source.slice(seg.span).to_string();
+                    let Some(tuple_index) = parse_with_update_tuple_member_index(&field) else {
                         return Err(ExprTypeError::WithUpdateUnknownField {
                             struct_name: current_owner_name.clone(),
-                            field,
+                            field: field.clone(),
                             span: seg.span.into(),
                         });
                     };
-                    let Some(field_ty) = elements.get(idx).copied() else {
+                    let Some(field_ty) = elements.get(tuple_index).copied() else {
                         return Err(ExprTypeError::WithUpdateUnknownField {
                             struct_name: current_owner_name.clone(),
-                            field,
+                            field: field.clone(),
                             span: seg.span.into(),
                         });
                     };
-                    field_ty
+                    consumed_prefix.push(field.clone());
+                    idx += 1;
+                    (field, field_ty, seg.span)
                 }
-                None => {
-                    return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
-                        struct_name: current_owner_name.clone(),
-                        field,
-                        found: lower.fmt_type(current_ty),
-                        span: seg.span.into(),
-                    });
+                WithUpdateAggregateKind::Enum { info } => {
+                    let variant_seg = &u.path.segments[idx];
+                    let variant_name = source.slice(variant_seg.span).to_string();
+                    let variant = info
+                        .variants
+                        .iter()
+                        .find(|variant| variant.name == variant_name)
+                        .ok_or_else(|| ExprTypeError::WithUpdateUnknownVariant {
+                            enum_name: current_owner_name.clone(),
+                            variant: variant_name.clone(),
+                            span: variant_seg.span.into(),
+                        })?;
+                    if idx + 1 >= u.path.segments.len() {
+                        return Err(ExprTypeError::WithUpdateVariantFieldRequired {
+                            enum_name: current_owner_name.clone(),
+                            variant: variant_name.clone(),
+                            span: variant_seg.span.into(),
+                        });
+                    }
+
+                    let owner_name = format!("{}.{}", current_owner_name, variant.name);
+                    let field_seg = &u.path.segments[idx + 1];
+                    let field = source.slice(field_seg.span).to_string();
+                    let field_ty = variant
+                        .fields
+                        .iter()
+                        .find(|field_info| field_info.name == field)
+                        .map(|field_info| field_info.ty)
+                        .ok_or_else(|| ExprTypeError::WithUpdateUnknownField {
+                            struct_name: owner_name.clone(),
+                            field: field.clone(),
+                            span: field_seg.span.into(),
+                        })?;
+
+                    current_owner_name = owner_name;
+                    consumed_prefix.push(variant.name.clone());
+                    consumed_prefix.push(field.clone());
+                    idx += 2;
+                    (field, field_ty, field_seg.span)
                 }
             };
 
-            let is_last = i + 1 == u.path.segments.len();
+            let is_last = idx == u.path.segments.len();
             if is_last {
                 let expected_ty = field_ty;
                 let found_ty = inputs.infer_in_expected(
@@ -2993,7 +3077,7 @@ fn infer_with_update_expr_type(
                     expected_ty,
                     ExpectedTypeFrom::new(format!(
                         "with-update `{}` 字段 `{}` 的类型",
-                        current_owner_name, field
+                        current_owner_name, field_name
                     )),
                 )?;
 
@@ -3008,7 +3092,7 @@ fn infer_with_update_expr_type(
                 {
                     return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
                         struct_name: current_owner_name.clone(),
-                        field,
+                        field: field_name,
                         expected: lower.fmt_type(expected_ty),
                         found: lower.fmt_type(found_ty),
                         span: u.value.span.into(),
@@ -3018,20 +3102,25 @@ fn infer_with_update_expr_type(
                 break;
             }
 
-            // 中间段：必须继续落在可复制更新的 aggregate（struct/tuple）上。
-            if with_update_aggregate_kind(lower, field_ty).is_none() {
+            // 中间段：必须继续落在可复制更新的 aggregate（struct/tuple/enum）上。
+            let nested_kind =
+                with_update_aggregate_kind(lower, source, field_ty, field_span, inputs.builtins)?;
+            if nested_kind.is_none() {
                 return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
                     struct_name: current_owner_name.clone(),
-                    field,
+                    field: field_name,
                     found: lower.fmt_type(field_ty),
-                    span: seg.span.into(),
+                    span: field_span.into(),
                 });
             }
 
             // 记录中间 aggregate 具体类型：path_prefix → TypeId。
-            path_prefix_parts.push(field.clone());
+            path_prefix_parts.extend(consumed_prefix);
             let prefix_key = path_prefix_parts.join(".");
-            aggregate_ty_map.insert(prefix_key, field_ty);
+            aggregate_ty_map.insert(prefix_key.clone(), field_ty);
+            if let Some(WithUpdateAggregateKind::Enum { info }) = nested_kind {
+                enum_info_map.insert(prefix_key, info);
+            }
 
             current_ty = field_ty;
             current_owner_name = lower.fmt_type(field_ty);
@@ -3040,8 +3129,9 @@ fn infer_with_update_expr_type(
         // loop 中在最后一段已完成 value typecheck；这里无需额外动作。
     }
 
-    // 写回所有层级的 aggregate type，供 HIR lowering 统一重建 struct/tuple。
+    // 写回所有层级的 aggregate type / enum 形状，供 HIR lowering 统一重建 struct/tuple/enum。
     let _ = resolved_copy_update_tys.set(aggregate_ty_map);
+    let _ = resolved_copy_update_enums.set(enum_info_map);
 
     Ok(base_ty)
 }
@@ -3050,26 +3140,126 @@ fn infer_with_update_expr_type(
 enum WithUpdateAggregateKind {
     Struct { fqn: String },
     Tuple { elements: Vec<TypeId> },
+    Enum { info: ast::WithUpdateResolvedEnum },
 }
 
 fn with_update_aggregate_kind(
-    lower: &TypeLowering<'_>,
+    lower: &mut TypeLowering<'_>,
+    source: &SourceFile,
     ty: TypeId,
-) -> Option<WithUpdateAggregateKind> {
-    match lower.type_kind(ty) {
+    use_span: Span,
+    builtins: BuiltinTypes,
+) -> Result<Option<WithUpdateAggregateKind>, ExprTypeError> {
+    match lower.type_kind(ty).clone() {
         TypeKind::Value(ValueTypeKind::Nominal(nominal))
             if matches!(
                 lower.nominal_decl_kind(&nominal.fqn),
                 Some(ast::TypeKind::Struct)
             ) =>
         {
-            Some(WithUpdateAggregateKind::Struct { fqn: nominal.fqn })
+            Ok(Some(WithUpdateAggregateKind::Struct { fqn: nominal.fqn }))
         }
-        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(WithUpdateAggregateKind::Tuple {
-            elements: elements.to_vec(),
-        }),
-        _ => None,
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            Ok(Some(WithUpdateAggregateKind::Tuple {
+                elements: elements.to_vec(),
+            }))
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if matches!(
+                lower.nominal_decl_kind(&nominal.fqn),
+                Some(ast::TypeKind::Enum)
+            ) =>
+        {
+            let info = resolve_with_update_enum_info(
+                lower,
+                source,
+                &nominal.fqn,
+                &nominal.args,
+                use_span,
+                builtins,
+            )?;
+            Ok(Some(WithUpdateAggregateKind::Enum { info }))
+        }
+        _ => Ok(None),
     }
+}
+
+fn resolve_with_update_enum_info(
+    lower: &mut TypeLowering<'_>,
+    source: &SourceFile,
+    enum_fqn: &str,
+    enum_args: &[TypeId],
+    use_span: Span,
+    builtins: BuiltinTypes,
+) -> Result<ast::WithUpdateResolvedEnum, ExprTypeError> {
+    let decl =
+        lower
+            .env()
+            .enum_decl(enum_fqn)
+            .cloned()
+            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "with enum copy-update（缺少 enum 声明信息）",
+                span: use_span.into(),
+            })?;
+
+    if decl.type_params.len() != enum_args.len() {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "with enum copy-update（enum type args 数量异常）",
+            span: use_span.into(),
+        });
+    }
+
+    let enum_source = lower
+        .env()
+        .source(&decl.decl_file)
+        .cloned()
+        .unwrap_or_else(|| source.clone());
+    let type_param_set: HashSet<String> = decl.type_params.iter().cloned().collect();
+    let subst: HashMap<String, TypeId> = decl
+        .type_params
+        .iter()
+        .cloned()
+        .zip(enum_args.iter().copied())
+        .collect();
+
+    let variants = decl
+        .variants
+        .iter()
+        .map(|variant| {
+            let fields = variant
+                .fields
+                .iter()
+                .map(|field| {
+                    let ty = lower_type_ref_with_enum_subst(
+                        EnumTypeSubstContext {
+                            enum_source: &enum_source,
+                            use_span,
+                            enum_fqn,
+                            builtins,
+                            type_param_set: &type_param_set,
+                            subst: &subst,
+                        },
+                        &field.ty,
+                        lower,
+                    )?;
+                    Ok(ast::WithUpdateResolvedEnumField {
+                        name: field.name.clone(),
+                        ty,
+                    })
+                })
+                .collect::<Result<Vec<_>, ExprTypeError>>()?;
+
+            Ok(ast::WithUpdateResolvedEnumVariant {
+                name: variant.name.clone(),
+                fields,
+            })
+        })
+        .collect::<Result<Vec<_>, ExprTypeError>>()?;
+
+    Ok(ast::WithUpdateResolvedEnum {
+        enum_fqn: enum_fqn.to_string(),
+        variants,
+    })
 }
 
 fn parse_with_update_tuple_member_index(text: &str) -> Option<usize> {
