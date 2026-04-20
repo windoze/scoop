@@ -168,7 +168,7 @@
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性（面向 `Task` 手动 stepping 的收口与 review 已完成：`T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`；剩余 richer async 组合缺口仅保留在 issue 说明中，不再阻塞下一阶段）
 17. `ISSUES.md` 第 2 条：`Task` core / async sugar / stable handle wake-token 语义（已完成：`T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R`；`T4009a` 仅保留为历史 ABI 清理记录）
 18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（已完成：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` / `T4010b1a1` / `T4010b1b` / `T4010R`）
-19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（当前下一项：`T4011 -> T4011R`）
+19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（当前下一项：`T4011a -> T4011b -> T4011R`）
 20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
 21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
 22. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（待开始：`T4014a -> T4014b -> T4014R`）
@@ -244,11 +244,13 @@
 > 2026-04-20 当前轮完成更新：`T4010b1b` 已完成。`struct` 主构造参数上的显式 `var` 现已在 `typecheck::structs::check_one_struct_fields` 阶段统一按 `StructFieldMustBeVal` 拒绝，不再以“旧 AST 假设”漏进后续 lowering / codegen；与此同时，`typecheck::expr::collect::collect_member_mutabilities_in_type_decl` 对 `struct` direct field 现统一记录为 immutable，避免 ctor 参数上的 `var` 语法再次被误写进 `member_mutabilities` 并把 `p.x = 7` 放过到 LLVM。新增 typecheck 回归 `struct_primary_ctor_var_is_error` 与 `struct_value_field_assign_is_error`，分别锁定“声明阶段直接拒绝 `struct Point(var x: Int)`”与“合法 struct 字段赋值仍在 typecheck 报 `assignment_target_not_mutable`”两条路径。已验证 `cargo fmt --all`、最小 probe `cargo run -q -p scoop -- build /tmp/t4010b1b_probe.scoop -o /tmp/t4010b1b_probe.out`（报 `scoop::typecheck::struct_field_must_be_val`）、`cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (348)`）、`cargo run -q -p scoop -- test`（`fixtures: ok (1100)`）、`cargo test --all -- --test-threads=1` 与 `cargo clippy --all-targets -- -D warnings`。P7 当前下一项推进到 `T4010R`。
 >
 > 2026-04-20 当前轮完成更新：`T4010R` 已完成。复审 `typecheck::structs`、`typecheck::properties`、`typecheck::expr::collect`、`typecheck::expr::stmt` 与 `typecheck::expr::infer` 后，确认值类型不可变约束现在走统一主线：`struct` 主构造参数与 body property 会静态拒绝 `var`，`struct` / `enum` value-type property 会统一拒绝 `var`、setter、delegate 与 computed-property initializer，赋值语句通过 `member_mutabilities` 一致地阻止值类型字段写回，而 `with` 与默认值路径仍保持“构造新值 / copy-update”语义，没有回流出字段级写回式可变模型。为避免 review 覆盖只落在 `struct` 上，本轮补充了两条 enum 侧 typecheck 回归 `enum_property_must_be_val_is_error` 与 `enum_property_setter_not_allowed_is_error`，分别锁定“enum body property 不能写成 `var`”和“enum getter-only property 不允许自定义 setter”。已验证 `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (350)`）、`cargo run -q -p scoop -- test`（`fixtures: ok (1102)`）、`cargo test --all -- --test-threads=1` 与 `cargo clippy --all-targets -- -D warnings`。P7 现已完成 `ISSUES.md` 第 7 条，当前下一项推进到 `T4011`。
+>
+> 2026-04-20 当前轮计划调整：开始执行原 `T4011` 前，先用最小 probe 验证“无 binder 的 payload or-pattern”所依赖的底层路径。结果发现 blocker 不在 `WhenPat::Or` 本身，而在更基础的 enum variant payload 子模式匹配主线：单分支 `Some(0)` 与 `One((0, _))` 目前都会在 LLVM codegen 阶段报 `scoop::llvm::unsupported_main_body: when variant arg pattern`；而 `Some(0) | None()` 在 `Some(1)` 上又会因为 `codegen_when_pat_cond_for_enum_with_tag` 仅比较 tag、`bind_when_pat` 对 `WhenPat::Or` 不递归 payload，错误地返回命中结果。若继续只为 `A(..) | B(..)` / `A(_) | B(_)` 补 or-pattern 特判，就会把现有单分支 payload mismatch 固化成 workaround。为此，现将原 `T4011` 拆分为 `T4011a -> T4011b -> T4011R`：先收口单分支 enum variant payload 的无 binder 子模式匹配，再回到 payload or-pattern 本身。本轮到此停止，等待下一次调用从 `T4011a` 开始。
 
 ### P7. 不可变 value semantics 与模式匹配子集
 
 - 继续保持 value type 整体不可变，不把缺口误解为“再加回 Swift-style 可变 struct”；后续重点是增强 `with`、值类型默认值人体工学，以及先收口无 binder 的 payload or-pattern。
-- 当前状态：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` / `T4010b1a1` / `T4010b1b` / `T4010R` 已完成，`T4010a` 与 `T4010` 已整体收口；值类型更新仍只通过 `with` 进入 copy-update 主线，默认值与 value-type property 路径没有重新引入字段写回式可变语义。P7 剩余顺序现为 `T4011 -> T4011R`；当前下一项为 `T4011`。
+- 当前状态：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` / `T4010b1a1` / `T4010b1b` / `T4010R` 已完成，`T4010a` 与 `T4010` 已整体收口；值类型更新仍只通过 `with` 进入 copy-update 主线，默认值与 value-type property 路径没有重新引入字段写回式可变语义。新增 blocker `T4011a` 用于先收口单分支 enum variant payload 的无 binder 子模式匹配；P7 剩余顺序现为 `T4011a -> T4011b -> T4011R`；当前下一项为 `T4011a`。
 
 ### P8. annotation model 与 `inline` 语义清理
 

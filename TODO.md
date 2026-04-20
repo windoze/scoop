@@ -1605,22 +1605,36 @@
 
 ## T4011：`when` 的无 binder or-pattern 子集
 
-### T4011 [TODO] 先收口“无 binder 的 payload or-pattern”
+### T4011a [TODO] 先收口 `when` enum variant payload 的无 binder 子模式匹配
+- 说明：
+  - 开始执行原 `T4011` 时的最小 probe 表明，单分支 `Some(0)` / `One((0, _))` 这类 variant payload pattern 当前仍未进入真正的运行期匹配主线：LLVM 会在 `bind_when_pat` 阶段报 `when variant arg pattern` unsupported。
+  - 同时，`Some(0) | None()` 这类 or-pattern 还会因为 `WhenPat::Or` 当前跳过 payload 绑定/校验、而 `codegen_when_pat_cond_for_enum_with_tag` 仅比较 tag，错误地把 `Some(1)` 判成命中。
+  - 这说明 blocker 不在 or-pattern 语法本身，而在更底层的 enum variant payload 子模式匹配尚未收口；若继续只为 `A(..) | B(..)` / `A(_) | B(_)` 做局部特判，会把既有单分支 payload mismatch 固化成 workaround。
+- 范围：
+  - `when` 的单分支 enum variant pattern 支持无 binder payload 子模式的运行期判别与 lowering / codegen。
+  - 至少覆盖 literal / wildcard / tuple / nested variant 等已被 parser / typecheck 接受的无 binder 子模式；现有 binder 作用域规则保持不变。
+  - 新增 run-pass / regression，覆盖 payload 命中与 mismatch 路径。
+- 验收：
+  - `Some(0)` 对 `Some(1)` 不再错误命中或报 LLVM unsupported。
+  - `One((0, _))` 等嵌套 payload 子模式可稳定进入统一 matching 主线。
+- 依赖：T4010R
+
+### T4011b [TODO] 在统一 payload matching 主线上收口“无 binder 的 payload or-pattern”
 - 说明：
   - `ISSUES.md` 第 8 条当前明确建议先支持 `A(..) | B(..)` / `A(_) | B(_)` 这类“只判别、不绑定”的 payload or-pattern；`A(x) | B(x)` 的 binder-sharing 以及 bare `A | C` 的“忽略 payload”语法糖都不应在这一轮一起放开。
 - 范围：
-  - resolver / typecheck / lowering / runtime matching 支持无 binder 的 payload or-pattern。
+  - resolver / typecheck / lowering / runtime matching 支持无 binder 的 payload or-pattern，并直接复用 `T4011a` 的单分支 payload 子模式匹配主线。
   - 现有 binder 声明与作用域规则保持不变：`WhenPat::Or` 仍不引入 binder，带 binder 的 or-pattern 继续报精确错误。
   - 新增 parse / typecheck / run-pass regression，覆盖 variant payload 判别、wildcard payload 与 mismatch 路径。
 - 验收：
   - `ISSUES.md` 第 8 条收窄到明确的 binder-sharing 后续设计，或直接关闭。
-- 依赖：T4010R
+- 依赖：T4011a
 
 ### T4011R [TODO] Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar
 - 重点：
   - 不允许把 `A(x) | C(x)` 之类分支宽松合成 `Any` binder。
   - 不允许把 bare `A | C` 偷偷扩成“忽略 payload”的 parser 糖。
-- 依赖：T4011
+- 依赖：T4011b
 
 ## T4012：annotation model 与 built-in annotations
 

@@ -1,68 +1,50 @@
-## 执行思路摘要
+# 本轮执行计划
 
-说明：这里记录可公开的高层推理摘要与执行计划，不记录逐字内部思维过程。
+## 说明
 
-### 当前状态
+按要求，先记录本轮的可执行计划、检查顺序、阶段性完成情况与后续调整。这里记录的是面向实现的摘要性计划与决策，不包含不可审计的内部推理细节。
 
-1. 已检查最新提交：`45c288c [T4010b1b] Reject mutable struct ctor params`。
-2. 最新提交正文没有额外列出“必须先修”的既有问题；当前工作树只有本文件尚未提交。
-3. 已读取 `TODO.md` / `PLAN.md` / `README.md` / `ISSUES.md`。
-4. 当前真正需要执行的首个未完成条目是 `T4010R`，不是总括条目 `T4010` 本身。
+## 初始步骤
 
-### 当前任务
+1. 检查最新一次 Git 提交，确认是否提到需要先修复的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，确认当前任务上下文、依赖关系与是否需要拆分任务。
+4. 如果首个未完成任务过大或被实现缺口阻塞：
+   - 在 `PLAN.md` 中细化子任务或记录阻塞原因；
+   - 在 `TODO.md` 中重排任务顺序并补充前置任务；
+   - 本轮只执行调整后的第一个可执行子任务。
 
-`T4010R`：Review：确认值类型仍保持整体不可变。
+## 执行步骤
 
-复审重点：
-1. 不接受把 `with` 扩展成字段级写回式 `var`。
-2. 不允许借“默认值人体工学”重新引入可变值类型叙事。
+1. 实现当前目标任务。
+2. 补充或更新测试。
+3. 运行格式化、测试、必要的 lint / clippy，确保无警告。
+4. 更新 `TODO.md` 与 `PLAN.md`，记录完成状态或依赖调整。
+5. 提交本轮修改，随后停止。
 
-### 已确认的实现基线
+## 本轮关注点
 
-1. `struct` 主构造参数显式 `var` 已在 `typecheck::structs::check_one_struct_fields` 中被 `StructFieldMustBeVal` 拒绝。
-2. `struct` / `enum` body property 统一走 `check_one_value_type_property`，会拒绝：
-   - `var` property
-   - setter
-   - delegated property
-   - computed property initializer
-3. 赋值语句 `lhs = rhs` 对 member access 统一读取 `member_mutabilities`；`struct` 成员目前统一记录为 immutable，因此 `p.x = 7` 会在 typecheck 报 `assignment_target_not_mutable`。
-4. `with` 的 typecheck / lowering 主线当前只接受 value aggregate（`struct` / `tuple` / `enum`）并返回基值类型，语义是 copy-update，不是原位写回。
+- 不接受绕过规范的临时方案。
+- 如果发现规范缺口、语言能力缺口或既有 bug，会先把它们提升为明确任务并更新计划，再决定本轮是否继续实现。
+- 在关键阶段完成后，会回写本文件以便检查进度。
 
-### 进行中的验证
+## 当前结论
 
-1. 已完成对值类型不可变约束遗漏入口的复查，重点覆盖：
-   - `enum` 上的 `var` property / setter
-   - 现有 fixture 是否已覆盖 value-type property 约束
-   - `with` 与默认值相关路径是否会回流出可变语义
-2. 本轮未发现新的规范裂缝；因此按 review 任务预期，补了最小 regression 覆盖缺失入口。
-3. 当前正在同步更新 `TODO.md` / `PLAN.md` / 本文件，并准备提交本轮任务。
+- 最新提交未在提交说明中额外引入新的“先修复再继续”的既有 issue。
+- 当前首个未完成任务原本是 `T4011`。
+- 在执行前探针中确认了新的前置 blocker：
+  - 单分支 `when` variant payload 子模式并未真正进入 LLVM 匹配主线；
+  - `Some(0)` / `One((0, _))` 目前会报 `when variant arg pattern` unsupported；
+  - `Some(0) | None()` 在 `Some(1)` 上会错误命中，说明 `Or` 当前绕过了 payload 子模式判别。
+- 因此本轮不直接修改生产代码，转为按阻塞流程更新 `TODO.md` / `PLAN.md`，把任务拆成 `T4011a -> T4011b -> T4011R`，并在提交后停止。
 
-### 本轮已做修改
+## 进度
 
-1. 新增 typecheck 回归：
-   - `tests/fixtures/typecheck/enum_property_must_be_val_is_error.scoop`
-   - `tests/fixtures/typecheck/enum_property_setter_not_allowed_is_error.scoop`
-2. 更新 `TODO.md`：将 `T4010` / `T4010R` 标记为完成，并记录 review 结论与验证命令。
-3. 更新 `PLAN.md`：把 P7 当前状态推进到 `T4011`。
-
-### 复审结论
-
-1. 值类型不可变约束目前走统一主线：
-   - `struct` 主构造参数与 body property 静态拒绝 `var`
-   - `struct` / `enum` value-type property 统一拒绝 `var`、setter、delegate 与 computed-property initializer
-   - 赋值语句通过 `member_mutabilities` 一致地拒绝值类型字段写回
-2. `with` 仍是 copy-update；字段默认值只影响构造入口，没有重新引入可变 backing field / setter 语义。
-3. 本轮没有发现需要前插到 `TODO.md` 的新 blocker，因此可正常完成 `T4010R`。
-
-### 已完成验证
-
-1. `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck` -> `fixtures: ok (350)`
-2. `cargo run -q -p scoop -- test` -> `fixtures: ok (1102)`
-3. `cargo test --all -- --test-threads=1` -> 通过
-4. `cargo clippy --all-targets -- -D warnings` -> 通过
-
-### 执行约束
-
-- 如果发现任何仍会让 value type 重新表现为“可变字段”的路径，必须先把问题前插到 `TODO.md`，不能带着问题完成 `T4010R`。
-- 不回退用户已有改动；仅在当前任务相关范围内增量修改。
-- 输出、计划记录与结论统一使用中文。
+- [x] 已写入本轮计划文件
+- [x] 检查最新提交
+- [x] 读取并确认首个未完成任务
+- [x] 判断是否需要任务拆分/重排
+- [ ] 实现任务
+- [ ] 测试与 lint
+- [x] 更新 `TODO.md` / `PLAN.md`
+- [ ] 提交变更
