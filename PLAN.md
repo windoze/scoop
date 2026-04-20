@@ -167,7 +167,7 @@
 15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（已完成：`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性（面向 `Task` 手动 stepping 的收口与 review 已完成：`T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`；剩余 richer async 组合缺口仅保留在 issue 说明中，不再阻塞下一阶段）
 17. `ISSUES.md` 第 2 条：`Task` core / async sugar / stable handle wake-token 语义（已完成：`T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R`；`T4009a` 仅保留为历史 ABI 清理记录）
-18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（进行中：`T4010a1` 已完成，剩余 `T4010a2a -> T4010a2b -> T4010b -> T4010R`）
+18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（进行中：`T4010a1` / `T4010a2a` 已完成，剩余 `T4010a2b -> T4010b -> T4010R`）
 19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（待开始：`T4011 -> T4011R`）
 20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
 21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
@@ -218,11 +218,13 @@
 > 2026-04-20 当前轮完成更新：`T4010a1` 已完成。`with` 的主线现在不再只认识 struct：typecheck 会把 copy-update 路径前缀写回为“具体 aggregate TypeId” side table，tuple 根节点与 struct/tuple 混合嵌套路径都能复用同一套多段路径校验、expected-type 下推与并行冲突检查；HIR lowering 则会按这些具体类型递归重建 tuple / struct，继续保持 `$with_base` 单次求值与未更新元素从原值复制的语义。新增的 typecheck 回归已覆盖 tuple nested path、tuple element expected-type mismatch 与 tuple 路径冲突；run-pass 回归 `with_update_tuple_nested_single_eval_basic` 进一步锁定了“base 只求值一次 + 未更新字段保持原值”；`scoopc` 单测 `lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths` 则直接验证 typed lowering 不再退回 `Todo("with_update")`，而是产出 tuple/struct 重建块。已验证 `cargo test -q -p scoopc lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths -- --nocapture`、`cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (339)`）、`cargo run -q -p scoop -- test --fixtures target/t4010a1-fixtures/run-pass`（`fixtures: ok (1)`）、`cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (17)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。P7 当前下一项推进到 `T4010a2`，继续为 enum payload copy-update 定义明确静态语义。
 >
 > 2026-04-20 当前轮计划调整：在真正实现 `T4010a2` 之前，先做了两个最小 probe：一是独立 `when` probe `enum Result { Ok(val point: Point), Err(val code: Int) }` 上的 `when (r) { Ok(point) -> point.x ... }`，二是基于同样 payload 形状的 enum `with` nested-path probe。结果两者都会在 LLVM 阶段稳定报 `scoop::llvm::unsupported_main_body: enum payload (non-scalar)`，说明当前 blocker 不在 `with` 语义，而在更底层的 inline 非标量 enum payload 解构/codegen 主线。由于 `T4010a2` 的 run-pass 验收必须覆盖 enum payload nested path，若改用“只测标量 payload”或“只挑 boxed variant”的例子继续推进，就会把这条既有实现缺口掩盖成 fixture 选型问题，属于不允许的 workaround。为此，现将原 `T4010a2` 再细化为 `T4010a2a -> T4010a2b`：先收口 inline 非标量 enum payload 的 `when` / variant binder codegen，再回到 enum payload `with` copy-update 本身。
+>
+> 2026-04-20 当前轮完成更新：`T4010a2a` 已完成。typecheck/layout 与 LLVM enum layout 现已统一把“单字段但字段类型是 struct / tuple 的 variant”视为 boxed variant，不再把这类 payload 送进仅支持标量 / GC ref 的 inline tagged-union 通道；同时，HIR `StructFieldLayout` / `EnumVariantFieldLayout` 也额外保留了字段真实 `TypeId`，让 LLVM 后端可以直接恢复 tuple / nullable 等没有稳定 `ty_fqn` 文本的 payload 字段。修复后，最小 probe `Ok(val point: Point)` 的 `when` 解构可成功 build 并按预期返回 `7`，局部 variant binder 也能在同一条主线上提取 tuple payload。新增 run-pass 回归 `enum_variant_non_scalar_payload_basic` 覆盖 struct payload、tuple payload 与局部 variant binder，LLVM 单测 `enum_single_field_non_scalar_payload_uses_boxed_variant_path` 则锁定 boxed payload object / descriptor 的生成。已验证 `cargo test -q -p scoopc enum_single_field_non_scalar_payload_uses_boxed_variant_path -- --nocapture`、`cargo run -q -p scoop -- test --fixtures /tmp/t4010a2a-fixtures/run-pass`（`fixtures: ok (1)`）、`cargo run -q -p scoop -- build /tmp/t4010a2a_probe.scoop -o /tmp/t4010a2a_probe.out && /tmp/t4010a2a_probe.out`（退出码 `7`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。P7 当前下一项推进到 `T4010a2b`，在已打通的 enum payload 执行主线上继续定义并实现 `with` copy-update 语义。
 
 ### P7. 不可变 value semantics 与模式匹配子集
 
 - 继续保持 value type 整体不可变，不把缺口误解为“再加回 Swift-style 可变 struct”；后续重点是增强 `with`、值类型默认值人体工学，以及先收口无 binder 的 payload or-pattern。
-- 当前状态：`T4010a1` 已完成；剩余顺序为 `T4010a2a -> T4010a2b -> T4010b -> T4010R -> T4011 -> T4011R`；当前下一项为 `T4010a2a`。
+- 当前状态：`T4010a1` / `T4010a2a` 已完成；剩余顺序为 `T4010a2b -> T4010b -> T4010R -> T4011 -> T4011R`；当前下一项为 `T4010a2b`。
 
 ### P8. annotation model 与 `inline` 语义清理
 

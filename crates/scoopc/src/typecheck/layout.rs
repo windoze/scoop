@@ -22,8 +22,8 @@ use crate::ty::layout::{
 };
 use crate::ty::{BuiltinTypes, NominalType, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
+use super::{TypeEnv, TypeSymbolKind};
 
 // boxing / lint 的启发式阈值（spec §2.3.2 未给出精确数值，先在实现侧固定）。
 const ENUM_BOX_DISPARITY_RATIO: u64 = 4;
@@ -430,11 +430,14 @@ impl<'a> LayoutComputer<'a> {
         let mut variants: Vec<EnumVariantLayout> = Vec::with_capacity(decl.variants.len());
         for (v, fields) in decl.variants.iter().zip(lowered_variant_fields.iter()) {
             let payload = self.aggregate_fields_layout(fields)?;
-            // 当前阶段 inline tagged union payload 仍只承载单字段；多字段 variant 必须走 boxing。
+            // 当前阶段 inline tagged union payload 只承载“单字段标量 / 单字段 GC ref”。
+            // 因此以下 payload 需要提前进入 boxed 主线：
+            // - 多字段 variant；
+            // - 单字段但字段本身是 tuple / struct 的 aggregate value。
             //
             // 注意：这里仍保留 “raw payload size/align” 以便 size disparity lint 能触发；
             // 之后会在统一的 boxing pass 中把 boxed variants 的 payload layout 收敛为 word-sized。
-            let boxed = fields.len() > 1;
+            let boxed = self.enum_variant_requires_boxing(fields);
             variants.push(EnumVariantLayout {
                 name: v.name.clone(),
                 boxed,
@@ -537,6 +540,25 @@ impl<'a> LayoutComputer<'a> {
         }
         size = align_to(size, align);
         Ok(TypeLayout::new(size, align))
+    }
+
+    fn enum_variant_requires_boxing(&self, fields: &[TypeId]) -> bool {
+        fields.len() > 1
+            || matches!(
+                fields,
+                [field_ty] if self.enum_field_requires_boxing(*field_ty)
+            )
+    }
+
+    fn enum_field_requires_boxing(&self, ty: TypeId) -> bool {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => true,
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => matches!(
+                self.env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
+                Some(TypeSymbolKind::Nominal(ast::TypeKind::Struct))
+            ),
+            _ => false,
+        }
     }
 
     fn enum_type_id(&mut self, nominal: &NominalType) -> TypeId {

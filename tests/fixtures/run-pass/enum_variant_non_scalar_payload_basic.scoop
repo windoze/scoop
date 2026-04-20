@@ -1,0 +1,39 @@
+// EXPECT: pass
+// RUN-STDOUT: enum_variant_non_scalar_payload_basic.stdout
+//
+// T4010a2a：inline 非标量 enum payload 需要进入统一可执行主线。
+// - 单字段 struct payload 不再卡在 `enum payload (non-scalar)`；
+// - 单字段 tuple payload 也可被 `when` 与局部 variant binder 正常提取。
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Msg(val payload: (String, Int)),
+    Err(val code: Int),
+}
+
+fun read(result: Result): Int {
+    return when (result) {
+        Ok(point) -> point.x + point.y
+        Msg(payload) -> payload._1
+        Err(code) -> code
+    }
+}
+
+fun main() {
+    val ok: Result = Ok(Point { x: 7, y: 8 })
+    val msg: Result = Msg(("hello", 30))
+
+    println(read(ok))
+    println(read(msg))
+
+    val Result.Ok(boundPoint) = ok
+    val Result.Msg(boundPayload) = msg
+
+    println(boundPoint.x)
+    println(boundPayload._0)
+    println(boundPayload._1)
+}

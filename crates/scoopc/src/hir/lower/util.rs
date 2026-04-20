@@ -1978,6 +1978,7 @@ fn parse_int_literal_u32(text: &str) -> Option<u32> {
 pub(super) fn collect_struct_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
+    types: &TypeStore,
 ) -> StructLayoutIndex {
     let mut out: StructLayoutIndex = HashMap::new();
 
@@ -2016,6 +2017,10 @@ pub(super) fn collect_struct_layouts(
             let mut fields: Vec<StructFieldLayout> = Vec::new();
             if let Some(primary_ctor) = &ty.primary_ctor {
                 for p in &primary_ctor.params {
+                    let ty = p
+                        .ty
+                        .as_ref()
+                        .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types));
                     let ty_fqn =
                         p.ty.as_ref()
                             .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
@@ -2024,6 +2029,7 @@ pub(super) fn collect_struct_layouts(
                         &fqn,
                         p.name.span,
                         p.name.text(source).to_string(),
+                        ty,
                         ty_fqn,
                     );
                 }
@@ -2032,7 +2038,12 @@ pub(super) fn collect_struct_layouts(
                 source,
                 ty.body.as_ref(),
                 &fqn,
-                |ty_ref| index.type_ref_to_fqn_in_file(source, file, ty_ref),
+                |ty_ref| {
+                    (
+                        index.type_ref_to_fqn_in_file(source, file, ty_ref),
+                        type_ref_to_layout_type_id(source, file, index, ty_ref, types),
+                    )
+                },
                 &mut fields,
             );
 
@@ -2059,6 +2070,7 @@ pub(super) fn collect_struct_layouts(
 pub(super) fn collect_enum_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
+    types: &TypeStore,
 ) -> EnumLayoutIndex {
     let mut out: EnumLayoutIndex = HashMap::new();
 
@@ -2150,12 +2162,17 @@ pub(super) fn collect_enum_layouts(
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
+                    let ty = p
+                        .ty
+                        .as_ref()
+                        .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types));
                     let ty_fqn =
                         p.ty.as_ref()
                             .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
                     fields.push(EnumVariantFieldLayout {
                         span: p.name.span,
                         name: field_name,
+                        ty,
                         ty_fqn,
                     });
                 }
@@ -2227,11 +2244,82 @@ pub(super) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) ->
     }
 }
 
+pub(super) fn type_ref_to_layout_type_id(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ty: &ast::TypeRef,
+    types: &TypeStore,
+) -> Option<crate::ty::TypeId> {
+    match ty {
+        ast::TypeRef::Path(path) => {
+            let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty)?;
+            let layout_key = if path.args.is_empty() {
+                base_fqn
+            } else {
+                let args = path
+                    .args
+                    .iter()
+                    .map(|arg| type_ref_to_layout_type_id(source, file, index, arg, types))
+                    .collect::<Option<Vec<_>>>()?;
+                mangle_nominal_fqn(&base_fqn, &args, types)
+            };
+            find_layout_type_id_by_key(types, &layout_key)
+        }
+        ast::TypeRef::Tuple(tuple) => {
+            let elements = tuple
+                .elements
+                .iter()
+                .map(|elem| type_ref_to_layout_type_id(source, file, index, elem, types))
+                .collect::<Option<Vec<_>>>()?;
+            find_tuple_layout_type_id(types, &elements)
+        }
+        ast::TypeRef::Nullable { inner, .. } => {
+            let inner_ty = type_ref_to_layout_type_id(source, file, index, inner, types)?;
+            find_option_layout_type_id(types, inner_ty)
+        }
+        ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<crate::ty::TypeId> {
+    types
+        .iter_ids()
+        .find(|id| type_id_to_layout_fqn(types, *id).as_deref() == Some(layout_key))
+}
+
+fn find_tuple_layout_type_id(
+    types: &TypeStore,
+    elements: &[crate::ty::TypeId],
+) -> Option<crate::ty::TypeId> {
+    types.iter_ids().find(|id| {
+        matches!(
+            types.kind(*id),
+            TypeKind::Value(ValueTypeKind::Tuple(existing)) if existing.as_slice() == elements
+        )
+    })
+}
+
+fn find_option_layout_type_id(
+    types: &TypeStore,
+    inner_ty: crate::ty::TypeId,
+) -> Option<crate::ty::TypeId> {
+    types.iter_ids().find(|id| {
+        matches!(
+            types.kind(*id),
+            TypeKind::Value(ValueTypeKind::Option(existing)) if *existing == inner_ty
+        )
+    })
+}
+
 fn push_struct_layout_field(
     fields: &mut Vec<StructFieldLayout>,
     owner_fqn: &str,
     span: Span,
     name: String,
+    ty: Option<crate::ty::TypeId>,
     ty_fqn: Option<String>,
 ) {
     let field_fqn = format!("{owner_fqn}.{name}");
@@ -2239,6 +2327,7 @@ fn push_struct_layout_field(
         span,
         name,
         fqn: field_fqn,
+        ty,
         ty_fqn,
     });
 }
@@ -2247,7 +2336,7 @@ fn append_struct_body_property_layout_fields(
     source: &SourceFile,
     body: Option<&ast::TypeBody>,
     owner_fqn: &str,
-    mut resolve_ty_fqn: impl FnMut(&ast::TypeRef) -> Option<String>,
+    mut resolve_field_ty: impl FnMut(&ast::TypeRef) -> (Option<String>, Option<crate::ty::TypeId>),
     fields: &mut Vec<StructFieldLayout>,
 ) {
     let Some(body) = body else {
@@ -2267,12 +2356,14 @@ fn append_struct_body_property_layout_fields(
             continue;
         };
 
+        let (ty_fqn, ty) = resolve_field_ty(ty_ref);
         push_struct_layout_field(
             fields,
             owner_fqn,
             property.name.span,
             property.name.text(source).to_string(),
-            resolve_ty_fqn(ty_ref),
+            ty,
+            ty_fqn,
         );
     }
 }
@@ -2352,11 +2443,13 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             for p in &primary_ctor.params {
                 // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型。
                 let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
+                let ty = resolve_field_type_id(source, p.ty.as_ref(), &param_map, types);
                 push_struct_layout_field(
                     &mut fields,
                     &nominal.fqn,
                     p.name.span,
                     p.name.text(source).to_string(),
+                    ty,
                     ty_fqn,
                 );
             }
@@ -2365,7 +2458,12 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             source,
             decl.body.as_ref(),
             &nominal.fqn,
-            |ty_ref| resolve_field_type_fqn(source, Some(ty_ref), &param_map, types),
+            |ty_ref| {
+                (
+                    resolve_field_type_fqn(source, Some(ty_ref), &param_map, types),
+                    resolve_field_type_id(source, Some(ty_ref), &param_map, types),
+                )
+            },
             &mut fields,
         );
 
@@ -2462,9 +2560,11 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
                     let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
+                    let ty = resolve_field_type_id(source, p.ty.as_ref(), &param_map, types);
                     fields.push(EnumVariantFieldLayout {
                         span: p.name.span,
                         name: field_name,
+                        ty,
                         ty_fqn,
                     });
                 }
@@ -2709,6 +2809,40 @@ fn resolve_field_type_fqn(
     }
     // 非 type param：暂不解析（泛型嵌套留到后续任务）
     None
+}
+
+fn resolve_field_type_id(
+    source: &SourceFile,
+    ty_ref: Option<&ast::TypeRef>,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    types: &TypeStore,
+) -> Option<crate::ty::TypeId> {
+    let ty_ref = ty_ref?;
+    if let ast::TypeRef::Path(path) = ty_ref
+        && path.segments.len() == 1
+        && path.args.is_empty()
+    {
+        let name = path.segments[0].text(source);
+        if let Some(concrete_ty) = param_map.get(name) {
+            return Some(*concrete_ty);
+        }
+    }
+
+    match ty_ref {
+        ast::TypeRef::Tuple(tuple) => {
+            let elements = tuple
+                .elements
+                .iter()
+                .map(|elem| resolve_field_type_id(source, Some(elem), param_map, types))
+                .collect::<Option<Vec<_>>>()?;
+            find_tuple_layout_type_id(types, &elements)
+        }
+        ast::TypeRef::Nullable { inner, .. } => {
+            let inner_ty = resolve_field_type_id(source, Some(inner), param_map, types)?;
+            find_option_layout_type_id(types, inner_ty)
+        }
+        _ => None,
+    }
 }
 
 /// T0126: 为所有具体的泛型 class 实例化生成单态化的成员方法 FunDecl。

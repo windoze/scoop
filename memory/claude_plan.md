@@ -1,15 +1,19 @@
-# 本轮计划（执行前）
+# 本轮计划（2026-04-20，本次执行）
+
+## 说明
+
+- 这里记录的是可公开的决策摘要、约束、执行步骤和阶段性结论。
+- 不记录内部逐词推理；只保留后续核查进度所需的信息。
 
 ## 目标
 
-本轮只处理 `TODO.md` 中第一个未完成任务，并在完成后停止。根据上一轮交接摘要，当前预期的下一项任务是 `T4010a2`，主题是为 `with` copy-update 补全 enum payload 语义与实现；但在真正实施前，仍需先核对最新提交、`TODO.md`、`PLAN.md` 与工作树状态。
+本轮只处理 `TODO.md` 中第一个未完成任务，并在完成后停止。当前暂定的首个未完成任务仍可能是 `T4010a2`，但必须先检查最新提交是否提到任何需优先修复的既有问题，并重新核对 `TODO.md` / `PLAN.md` / 工作树状态。
 
 ## 决策依据摘要
 
-- 上一轮已经完成 `T4010a1`，并提交为 `790722d`。
-- `with` 对 struct/tuple 的统一扩展已经落地，enum payload 仍未支持。
-- 当前已知边界是：如果 base 不是 struct/tuple，则类型检查阶段仍报 `with_update_base_not_supported`。
-- 这一轮的关键风险不在“怎么把 enum 硬接进去”，而在“先把 enum payload 的静态语义定义清楚”，否则容易引入 shape-based 特判或与既有 member access 语义冲突。
+- 需要遵循用户流程：先修最新提交中明确提到的既有问题，再处理 `TODO.md` 首项。
+- 如果首项任务过大，必须先拆分并同步更新 `PLAN.md` 与 `TODO.md`，然后只执行拆分后的第一项。
+- 如果实施途中发现真实前置能力缺口或规格不匹配，不能绕过，必须把缺口前移成新的任务，更新计划并提交后停止。
 
 ## 执行步骤
 
@@ -41,56 +45,49 @@
 - 若任务可完成：代码、测试、计划文档与任务状态一并更新，并形成单个提交。
 - 若任务不可直接完成：补充前置任务、重排依赖、更新计划文档，并形成单个提交。
 
-## 执行中更新（已确认）
+## 当前待确认点
 
-- 已检查最新提交 `790722d [T4010a1] Generalize with-update to tuples`；提交信息本身未显式提到需要先修的额外既有问题。
-- 已核对 `TODO.md` / `PLAN.md`：当前第一项未完成任务确认为 `T4010a2`。
-- 已用最小探针确认当前边界：
-  - 普通 enum payload member access 仍未打通：`r.value` 当前报 `scoop::resolve::unresolved_member`。
-  - enum variant pattern / `when` 解构主线可执行。
-  - enum `with` 当前仍报 `scoop::typecheck::with_update_base_not_supported`。
+- 之前的计划文件中已经记录过一次针对 `T4010a2` 的探索结论，但本轮必须重新核对它是否已被正式落到 `TODO.md` / `PLAN.md` / Git 历史中，而不能直接假定该结论仍然成立。
+- 若最新提交已处理完上述 blocker，则本轮应继续推进后续首项任务；若未处理，则需要以仓库当前状态为准。
 
-## 当前实现决策
+## 执行中更新
 
-- 本轮不把 enum payload `with` 建立在“未完成的普通 enum payload member access”之上，也不采用按字段名全局猜 variant 的规则。
-- 采用显式 variant 前缀语义：
-  - enum 路径在遇到 enum 节点时，下一段必须先写 variant 名；
-  - variant 名之后必须继续写该 variant 的 payload 字段名；
-  - 例如：`result with { Ok.value: 2 }`、`holder with { state.Ok.point.x: 9 }`。
-- 语义约束：
-  - `with` 仍保持 immutable copy-update；
-  - enum 更新不会切换 variant；
-  - 只对“当前运行时 tag 命中的 variant”应用该 variant 下的更新；
-  - 未命中的 variant 路径在该分支上不生效，结果保留原值。
-- 这样做的原因：
-  - 避免 `value` / `error` 这类字段名在不同 variant 间的歧义；
-  - 不需要把 enum `with` 错绑到尚未存在的普通 payload member access；
-  - lowering 仍可复用现有“单次求值 + 递归重建”主线，只需把 enum 分支降为按 variant `when` 重建。
+- 已检查最新提交 `3d4f542 [T4010a2a] Reorder enum with-update blockers`：
+  - 提交本身没有留下“顺手待修的小问题”；它做的是把一个真实前置 blocker 正式前移到 `TODO.md` / `PLAN.md`。
+  - 因此“先修最新提交提到的既有问题”在本轮等价于先执行 `T4010a2a`。
+- 已核对 `TODO.md`：
+  - 第一项未完成任务确认为 `T4010a2a`。
+  - `T4010a2b` 明确依赖 `T4010a2a`，本轮不得越过。
+- 已核对工作树：
+  - 当前唯一未提交改动是本轮对 `memory/claude_plan.md` 的更新，没有发现其他用户改动需要避让。
+- 下一步：
+  - 阅读 `when` pattern typecheck / HIR lowering / LLVM enum payload codegen；
+  - 用最小 probe 复现 `enum payload (non-scalar)`；
+  - 判断缺口落在 payload 提取、binder 表示、还是 `when` 分支 codegen。
+- 已复现并收窄真实根因：
+  - `Ok(val point: Point)` 的最小 probe 先证实了 `enum payload (non-scalar)`；
+  - 进一步分离构造/解构后确认，问题并不只在 `when`，还包括单字段 aggregate payload 的 enum ctor codegen；
+  - 再继续下钻后确认，tuple payload 还暴露出第二条老假设：HIR layout 侧只保留 `ty_fqn`，而 tuple 这类字段没有稳定 FQN，LLVM 无法恢复其真实 `CgTy`。
+- 已采用的实现方案：
+  - 不发明新的 inline aggregate payload ABI；
+  - 直接把“单字段但字段类型是 struct / tuple 的 variant”纳入现有 boxed-variant 主线；
+  - 同时让 HIR `StructFieldLayout` / `EnumVariantFieldLayout` 保留字段真实 `TypeId`，供 LLVM 后端优先恢复 tuple / nullable 等无 `ty_fqn` 字段类型。
 
-## 下一步实现
+## 本轮结果
 
-1. 扩展 `with` typecheck side table：不再只记录“prefix -> TypeId”，而是记录 lowering 所需的 copy-update target 信息，补上 enum variant payload 元数据。
-2. 在 typecheck 中新增 enum 路径解析与诊断：
-   - 非法 variant 前缀；
-   - variant 后缺字段；
-   - 非法 payload 字段；
-   - 嵌套路径继续进入 struct / tuple / enum 时的 expected-type 下推。
-3. 在 HIR lowering 中新增 enum 分支：
-   - `base` 仍只求值一次；
-   - 针对被更新到的 variant 生成 `when` arm，绑定 payload 字段后重建同一 variant；
-   - 未命中的 variant 走 `else -> $with_base`。
-4. 补 typecheck / run-pass / lowering 单测与 spec 文本，再跑全量验证。
-
-## 本轮最终结论
-
-- 在把上述语义接到最小实现后，独立 `when` probe 与 enum `with` nested-path probe 都稳定暴露出同一个更底层 blocker：
-  - `enum Result { Ok(val point: Point), Err(val code: Int) }`
-  - `when (r) { Ok(point) -> point.x ... }`
-  - build 阶段报 `scoop::llvm::unsupported_main_body: enum payload (non-scalar)`
-- 这证明当前缺口不止是 `with` 自身；inline 非标量 enum payload 的 `when` / variant binder codegen 主线本来就未收口。
-- 按任务规则，不能靠“只选标量 payload”或“只选 boxed variant”的例子把 `T4010a2` 做成表面完成；那会掩盖真实前置能力缺口。
-- 因此本轮决定：
-  - 撤回未完成的 `T4010a2` 生产代码与临时回归；
-  - 把原 `T4010a2` 重排为 `T4010a2a -> T4010a2b`；
-  - 当前提交只记录 blocker、依赖重排与原因说明；
-  - 下一轮从 `T4010a2a` 开始，先修 `when` / codegen 对 inline 非标量 enum payload 的解构支持。
+- `T4010a2a` 已完成。
+- 代码层面：
+  - typecheck/layout 与 LLVM enum layout 的 boxing 判定已统一；
+  - 单字段 struct payload / tuple payload 不再落入 `enum payload (non-scalar)` unsupported；
+  - `when` 与局部 variant binder 都能在统一主线上提取这类 payload。
+- 新增回归：
+  - `tests/fixtures/run-pass/enum_variant_non_scalar_payload_basic.scoop`
+  - `crates/scoopc/src/llvm/mod.rs` 单测 `enum_single_field_non_scalar_payload_uses_boxed_variant_path`
+- 已完成验证：
+  - `cargo test -q -p scoopc enum_single_field_non_scalar_payload_uses_boxed_variant_path -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures /tmp/t4010a2a-fixtures/run-pass`
+  - `cargo run -q -p scoop -- build /tmp/t4010a2a_probe.scoop -o /tmp/t4010a2a_probe.out && /tmp/t4010a2a_probe.out`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 文档状态：
+  - 待提交前已同步更新 `TODO.md` 与 `PLAN.md`，当前下一项已切换到 `T4010a2b`。

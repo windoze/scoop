@@ -1332,7 +1332,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a
 
-### T4010a2a [TODO] 收口 inline 非标量 enum payload 的 `when` / codegen 解构主线
+### T4010a2a [DONE] 收口 inline 非标量 enum payload 的 `when` / codegen 解构主线
 - 说明：
   - 在尝试为 `with` 增加 enum payload nested-path run-pass 验收时，最小 probe
     `enum Result { Ok(val point: Point), Err(val code: Int) }`
@@ -1345,6 +1345,20 @@
 - 验收：
   - 最小 probe `Ok(val point: Point)` 的 `when` 解构可 build/run。
   - `T4010a2b` 可在不依赖 workaround 的前提下为 enum payload nested-path 增加 run-pass。
+- 已完成：
+  - typecheck/layout 与 LLVM enum layout 现已统一把“单字段但字段类型是 struct / tuple 的 variant”判为 boxed variant，不再把这类 payload 送进仅支持标量/GC ref 的 inline tagged-union 通道。
+  - HIR `StructFieldLayout` / `EnumVariantFieldLayout` 现额外保留字段真实 `TypeId`；LLVM 后端优先用该 `TypeId` 恢复 `CgTy`，从而 tuple / nullable 等没有稳定 `ty_fqn` 文本的字段也能进入统一 codegen 主线。
+  - `when` 与局部 variant binder 现在都能对单字段 struct payload / tuple payload 正常提取并执行；后续 `T4010a2b` 可以直接在这条主线上为 enum payload `with` 追加 nested-path copy-update。
+  - 已新增回归：
+    - `tests/fixtures/run-pass/enum_variant_non_scalar_payload_basic.scoop`
+    - `tests/fixtures/run-pass/enum_variant_non_scalar_payload_basic.stdout`
+    - `crates/scoopc/src/llvm/mod.rs` 单测 `enum_single_field_non_scalar_payload_uses_boxed_variant_path`
+- 已验证：
+  - `cargo test -q -p scoopc enum_single_field_non_scalar_payload_uses_boxed_variant_path -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures /tmp/t4010a2a-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- build /tmp/t4010a2a_probe.scoop -o /tmp/t4010a2a_probe.out && /tmp/t4010a2a_probe.out`（退出码 `7`，对应 `Ok(point) -> point.x`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a1
 
 ### T4010a2b [TODO] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen

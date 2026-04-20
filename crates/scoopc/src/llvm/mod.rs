@@ -2690,6 +2690,52 @@ fun main(): Int {
     }
 
     #[test]
+    fn enum_single_field_non_scalar_payload_uses_boxed_variant_path() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val point: Point),
+    Msg(val payload: (String, Int)),
+    Err(val code: Int),
+}
+
+fun main(): Int {
+    val ok: Result = Ok(Point { x: 7, y: 8 })
+    val msg: Result = Msg(("hello", 30))
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Ok"),
+            "single-field struct payload 应生成 boxed payload object type"
+        );
+        assert!(
+            ir.contains("scoop.runtime.EnumBoxedPayload__a_Result__Msg"),
+            "single-field tuple payload 应生成 boxed payload object type"
+        );
+        assert!(
+            ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Ok"),
+            "boxed struct payload 应生成对应的类型描述符"
+        );
+        assert!(
+            ir.contains("__scoop_type_desc_runtime__enum_boxed_payload__a_Result__Msg"),
+            "boxed tuple payload 应生成对应的类型描述符"
+        );
+    }
+
+    #[test]
     fn missing_main_is_reported() {
         let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
         let session = Session::new().unwrap();

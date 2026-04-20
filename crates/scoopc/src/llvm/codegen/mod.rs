@@ -13090,7 +13090,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let field_cg = self.cg_ty_of_type_fqn(init.span, field.ty_fqn.as_deref())?;
+            let field_cg =
+                self.cg_ty_of_layout_field(init.span, field.ty, field.ty_fqn.as_deref())?;
 
             // 重要：struct 字段 initializer 需要以字段类型作为 expected context。
             //

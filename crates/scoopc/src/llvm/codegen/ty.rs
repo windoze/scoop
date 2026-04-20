@@ -288,6 +288,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    pub(super) fn cg_ty_of_layout_field(
+        &self,
+        at: crate::span::Span,
+        ty: Option<TypeId>,
+        ty_fqn: Option<&str>,
+    ) -> Result<CgTy, LlvmEmitError> {
+        if let Some(ty) = ty
+            && let Some(cg) = self.cg_ty_of(ty)
+        {
+            return Ok(cg);
+        }
+        self.cg_ty_of_type_fqn(at, ty_fqn)
+    }
+
     pub(super) fn llvm_basic_type_of(
         &mut self,
         at: crate::span::Span,
@@ -345,7 +359,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut user_fields: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(layout.fields.len());
                 for field in &layout.fields {
-                    let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+                    let field_cg =
+                        self.cg_ty_of_layout_field(field.span, field.ty, field.ty_fqn.as_deref())?;
                     user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
                 }
 
@@ -373,7 +388,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut user_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
         for field in &layout.fields {
-            let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+            let field_cg =
+                self.cg_ty_of_layout_field(field.span, field.ty, field.ty_fqn.as_deref())?;
             user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
         }
 

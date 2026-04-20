@@ -196,7 +196,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let field = &layout.fields[idx];
-        let field_ty = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+        let field_ty = self.cg_ty_of_layout_field(field.span, field.ty, field.ty_fqn.as_deref())?;
 
         // T0119: For `@CLayout(packed = N)` with N > 1, the LLVM struct has padding
         // elements inserted, so the logical field index differs from the LLVM element index.
@@ -503,12 +503,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 for v in &hir_layout.variants {
                     let mut fields = Vec::with_capacity(v.fields.len());
                     for f in &v.fields {
-                        let cg = self.cg_ty_of_type_fqn(f.span, f.ty_fqn.as_deref())?;
+                        let cg = self.cg_ty_of_layout_field(f.span, f.ty, f.ty_fqn.as_deref())?;
                         fields.push(cg);
                     }
-                    // 当前阶段 inline tagged union payload 仍只支持“单字段标量/单字段 GC ref”；
-                    // 多字段 variant 必须 box 为独立 heap object（T1516）。
-                    let boxed = !matches!(repr, CgEnumRepr::ValueOnly { .. }) && fields.len() > 1;
+                    // 当前阶段 inline tagged union payload 只支持“单字段标量/单字段 GC ref”；
+                    // 多字段 payload，以及单字段但字段本身是 tuple / struct 的 aggregate value，
+                    // 都需要走 boxed variant 主线。
+                    let boxed = !matches!(repr, CgEnumRepr::ValueOnly { .. })
+                        && self.enum_variant_requires_boxing(&fields);
                     variants.push(CgEnumVariant {
                         name: v.name.clone(),
                         tag: v.tag,
@@ -570,6 +572,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         size = align_to(size, align);
         Ok(TypeLayout::new(size, align))
+    }
+
+    fn enum_variant_requires_boxing(&self, fields: &[CgTy]) -> bool {
+        fields.len() > 1
+            || matches!(
+                fields,
+                [field_ty] if self.enum_field_requires_boxing(*field_ty)
+            )
+    }
+
+    fn enum_field_requires_boxing(&self, field_ty: CgTy) -> bool {
+        matches!(field_ty, CgTy::Tuple(_) | CgTy::Struct(_))
     }
 
     fn cg_ty_layout(&self, ty: CgTy) -> Result<TypeLayout, LlvmEmitError> {
