@@ -1662,10 +1662,23 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4011a
 
-### T4011R [TODO] Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar
+### T4011R [DONE] Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar
 - 重点：
   - 不允许把 `A(x) | C(x)` 之类分支宽松合成 `Any` binder。
   - 不允许把 bare `A | C` 偷偷扩成“忽略 payload”的 parser 糖。
+- 完成：
+  - 已复审 `parser::expr::parse_when_pat_internal`、`typecheck::when_pat::check_when_pat` 与 LLVM `when` lowering 主线：`WhenPat::Or` 仍不引入 binder，typecheck 会先用 `when_pat_contains_bind` 递归拒绝任何嵌套 binder，因此 `A(x) | C(x)` 不会被宽松合成共享 binder，更不会退化成 `Any` binder。
+  - 已复审 bare variant 解析边界：parser 对大写裸标识符仍只生成 0 参数 `WhenPat::Variant`，不会偷偷扩成 payload wildcard / rest sugar；对真实带 payload 的 variant，typecheck 仍会以 `when_variant_pat_arity_mismatch` 拒绝 `Hit | Miss` 这类写法。
+  - 已补充回归：
+    - parser 单测 `parse_when_bare_variant_or_pattern_keeps_zero_arity_variants`
+    - `tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop`
+    - `tests/fixtures/typecheck/when_or_pattern_variant_payload_bare_name_is_error.scoop`
+- 已验证：
+  - `cargo test -p scoopc parse_when_ -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (353)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1109)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4011b
 
 ### T4011S [TODO] 收口 enum payload 中的一般 nested enum / builtin enum 字段表示

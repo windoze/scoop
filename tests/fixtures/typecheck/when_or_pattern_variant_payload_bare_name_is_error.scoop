@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_variant_pat_arity_mismatch
+// EXPECT-ERROR-AT: 15:3
+// EXPECT-ERROR: `when` 的 variant pattern 参数数量不匹配
+
+package fixtures.typecheck
+
+enum Choice {
+  Hit(val left: Int),
+  Miss(val right: Int),
+}
+
+val x: Choice = Hit(1)
+val y: Int = when (x) {
+  Hit | Miss -> 1
+  else -> 0
+}

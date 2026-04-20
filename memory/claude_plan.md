@@ -1,50 +1,81 @@
-# 本轮执行计划
+# 本轮执行计划与进度记录
 
-说明：按要求维护执行计划、关键决策与进度记录。此文件记录的是可审计的计划与结论摘要，不包含逐字内部推理。
+## 说明
 
-## 初始计划
+按要求，本文件在执行仓库检查与代码命令前创建，并在后续关键步骤完成或计划调整时持续更新。
 
-1. 检查最新提交内容，确认是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`、`PLAN.md`，识别第一个未完成任务，并判断是否需要拆分为更小子任务。
-3. 如任务可直接执行，实施代码修改；如存在前置缺口或规范不匹配，先更新 `TODO.md` / `PLAN.md` 反映依赖关系。
-4. 运行相关测试与必要的质量检查，至少覆盖受影响范围；若条件允许，补充更广的回归验证。
-5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况、风险和后续状态。
-6. 使用清晰的提交信息提交本轮改动，然后停止。
+说明边界：
+- 这里记录可共享的执行计划、判断依据摘要、关键发现、风险与进度。
+- 不记录模型的私有内部推理逐字过程，但会尽量完整记录外显步骤，便于审阅。
 
-## 进度记录
+## 当前目标
 
-- 已创建本计划文件，待开始仓库检查。
-- 已检查最新提交 `164d5e2 [T4011a] Lower when variant payload subpatterns`；提交信息未额外声明需要先修复的既有问题。
-- 已阅读 `TODO.md` / `PLAN.md` / `ISSUES.md`，确认当前首个未完成任务为 `T4011b`：在统一 payload matching 主线上收口“无 binder 的 payload or-pattern”。
-- 已完成实现：LLVM enum `when` 条件判别现会让 `WhenPat::Or` 下的每个 variant 分支复用完整 payload 子模式匹配主线，不再只比较 tag。
-- 已补充回归：
-  - parser 单测：`parse_when_variant_payload_or_pattern`
-  - typecheck fixture：`when_or_pattern_variant_payload_binder_is_error.scoop`
-  - run-pass fixture：`when_or_pattern_variant_payload_basic.scoop`
-- 已完成定向验证：
-  - parser 单测通过。
-  - 临时 fixtures root `cargo run -q -p scoop -- test --fixtures /tmp/t4011b-fixtures` 通过（`fixtures: ok (2)`）。
-  - 最小 probe `Hit(0) | Miss()` 与 `Hit(0) | Hit(1)` 的误命中已修复，退出码分别变为 `2` / `8`。
-  - 既有回归 `when_or_pattern_and_guard_basic.scoop` 与 `when_variant_payload_nested_tuple_basic.scoop` 继续通过。
-- 已完成全量验证：
-  - `cargo run -q -p scoop -- test` -> `fixtures: ok (1107)`
-  - `cargo test --all -- --test-threads=1` -> 通过
-  - `cargo clippy --all-targets -- -D warnings` -> 通过
-- 已同步项目文档：
-  - `TODO.md` 已将 `T4011b` 标记为完成并记录验证命令。
-  - `PLAN.md` 已记录本轮实现结论，并将下一项推进到 `T4011R`。
+完成 `TODO.md` 中第一个未完成任务；若发现前置阻塞问题或最新提交中提到的遗留问题，则先修复这些问题，再决定是否继续当前任务；本轮只完成一个任务后停止。
 
-## 当前执行计划（细化）
+## 执行步骤
 
-1. 阅读 `T4011b` 相关实现位置与现有回归，构造最小复现，确认当前失败点。
-2. 修改 resolver / typecheck / HIR / LLVM 中与 `WhenPat::Or` 相关的实现，确保：
-   - 无 binder 的 payload or-pattern 走统一 payload matching 主线。
-   - 带 binder 的 or-pattern 继续报错。
-   - 不放开 bare variant sugar。
-3. 新增或更新 parse / typecheck / run-pass 回归，覆盖 payload 命中、wildcard payload、mismatch 路径。
-4. 运行定向验证，再运行全量任务要求的测试与质量检查。
-5. 更新 `TODO.md`、`PLAN.md`、本文件，提交本轮改动并停止。
+1. 查看最新一次提交信息，确认是否明确提到已有问题、回归、临时方案或待补修复项。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，核对当前计划、任务编号、依赖关系和已有拆分。
+4. 结合代码现状评估该任务是否可在本轮完整交付：
+   - 若可直接完成，则进入实现。
+   - 若过大或存在明显前置依赖，则在 `PLAN.md` / `TODO.md` 中拆分或重排，并以首个新子任务作为本轮目标。
+5. 实现任务，同时检查是否遇到规范不一致、语言特性缺失、运行时/类型系统/诊断缺陷等真实阻塞：
+   - 若遇到阻塞，不做规避实现。
+   - 在 `TODO.md` 中新增前置修复任务并重排顺序。
+   - 在 `PLAN.md` 中记录阻塞原因与依赖。
+   - 提交后停止。
+6. 对实现结果执行必要验证：
+   - 至少运行与改动直接相关的测试。
+   - 若范围允许，运行更广覆盖。
+   - 按要求检查无警告：优先考虑 `cargo clippy --all-targets -- -D warnings`。
+7. 更新文档状态：
+   - 在 `TODO.md` 中标记任务完成或重排后的待办顺序。
+   - 在 `PLAN.md` 中记录已完成内容、后续影响和剩余事项。
+   - 若实现影响使用方式或仓库说明，检查 `README.md` 是否需要更新。
+8. 检查工作树，确认只包含本轮相关改动，不回退用户已有改动。
+9. 提交本轮改动，提交信息使用明确的任务描述。
+10. 停止，不继续处理后续任务。
 
-## 收尾状态
+## 待记录项
 
-- 当前代码与文档已就绪，下一步仅剩整理提交并停止在本轮任务边界。
+- 最新提交检查结果：已完成；最新提交仅记录 `T4011b` 收口内容，未额外挂出新的先修 issue
+- 第一个未完成任务：`T4011R Review：确认 or-pattern 没有偷偷放开 binder-sharing 或 bare-variant sugar`
+- 是否需要任务拆分：不需要；本轮可直接作为 review 任务完成
+- 实现摘要：已完成；补充 parser / typecheck 回归，锁定“禁止 binder-sharing”“禁止 bare payload variant sugar”两条边界
+- 测试命令与结果：已完成；见下方“测试结果”
+- 文档更新摘要：已完成；已更新 `TODO.md` / `PLAN.md`
+- 最终提交信息：待执行
+
+## 当前进展
+
+- 已查看最新提交 `35ed218a319d4efbc62091bbe7adb942bcfe47f1`（`[T4011b] Lower when payload or-pattern matching`）。
+- 最新提交说明未额外挂出新的“先修 issue”；当前仍按 `TODO.md` 顺序推进。
+- 已确认 `TODO.md` 中第一个未完成任务为 `T4011R`，且 `PLAN.md` 中下一项也一致指向 `T4011R`。
+- 当前执行策略：
+  - 先复审 parser / typecheck / LLVM `when` payload-or-pattern 主线；
+  - 再用最小 probe 与现有回归验证“禁止 binder-sharing”“禁止 bare payload variant sugar”两条边界；
+  - 若无真实缺口，则把 `T4011R` 标记完成并补充 review 结论。
+
+## 实现摘要
+
+- 已补充 parser 单测 `parse_when_bare_variant_or_pattern_keeps_zero_arity_variants`，确认 bare `Hit | Miss` 在 parser 里仍只是两个 0 参数 variant pattern，不会被偷偷扩成 wildcard/rest payload sugar。
+- 已新增 typecheck 负例：
+  - `tests/fixtures/typecheck/when_or_pattern_variant_payload_binder_sharing_is_error.scoop`
+  - `tests/fixtures/typecheck/when_or_pattern_variant_payload_bare_name_is_error.scoop`
+- 复审结论：
+  - `typecheck::when_pat::check_when_pat` 对 `ast::WhenPat::Or` 仍先做 `when_pat_contains_bind` 递归检查，因此 `A(x) | C(x)` 不会被宽松合并成共享 binder。
+  - payload variant 若写成 bare `A | C`，仍会在 typecheck 命中 `when_variant_pat_arity_mismatch`，而不是被当成“忽略 payload”的合法 sugar。
+
+## 测试结果
+
+- `cargo test -p scoopc parse_when_ -- --nocapture`：通过。
+- `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`：通过，`fixtures: ok (353)`。
+- `cargo run -q -p scoop -- test`：通过，`fixtures: ok (1109)`。
+- `cargo test --all -- --test-threads=1`：通过。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+
+## 文档更新摘要
+
+- 已将 `TODO.md` 中的 `T4011R` 标记为完成，并记录 review 结论、回归与验证命令。
+- 已将 `PLAN.md` 更新到 `T4011R` 完成状态，并把下一项推进到 `T4011S`。
