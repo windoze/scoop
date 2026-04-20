@@ -33,7 +33,7 @@
 - [x] 已完成实现。
 - [x] 已完成测试。
 - [x] 已更新 `TODO.md` / `PLAN.md` / 本文件。
-- [ ] 已提交 commit。
+- [x] 已提交 commit。
 
 ## 当前判断
 
@@ -71,6 +71,11 @@
   - 该问题已写回 `TODO.md` / `PLAN.md` 为后续任务 `T4010b1`，并放在 `T4010R` 之前。
 - 备注：
   - 本机上直接跑 `cargo test --all` 会在 `gc_immix_compaction` 两个 runtime 测试并发执行时卡在 STW wait；单独串行运行 `cargo test -p scoop_runtime --test gc_immix_compaction -- --test-threads=1` 与全量 `cargo test --all -- --test-threads=1` 均通过，说明这是现存 runtime 测试并发问题，不是本轮前端改动引入的新失败。
+
+## 收尾记录
+
+- 已提交实现 commit：`c9a5b94`（`[T4010b] Support struct direct field defaults`）。
+- 下一轮首个未完成任务已更新为 `T4010b1`：收口值类型 computed property 的 getter lowering / codegen。
 
 ## 下一步
 
