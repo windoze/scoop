@@ -1485,10 +1485,10 @@ impl<'a> HirLowering<'a> {
         self.intern_nominal(Self::ASYNC_EFFECT_FQN.to_string(), Vec::new(), None)
     }
 
-    fn continuation_type_of(&mut self, payload_ty: TypeId) -> TypeId {
+    fn continuation_type_of(&mut self, payload_ty: TypeId, answer_ty: TypeId) -> TypeId {
         self.intern_nominal(
             "scoop.core.Continuation".to_string(),
-            vec![payload_ty],
+            vec![payload_ty, answer_ty],
             None,
         )
     }
@@ -2605,7 +2605,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
 mod tests {
     use super::*;
     use crate::hir::LiteralKind;
-    use crate::hir::{CallSite, ClassInitStep, ObjectInitStep, WhenPat};
+    use crate::hir::{CallArg, CallSite, ClassInitStep, ObjectInitStep, WhenPat};
     use crate::resolve::Index;
     use crate::ty::{RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
     use crate::typecheck;
@@ -2926,6 +2926,112 @@ mod tests {
                 | StmtKind::Continue { .. }
                 | StmtKind::Todo(_) => {}
             }
+        }
+    }
+
+    fn find_top_level_call_in_block<'a>(block: &'a Block, fqn: &str) -> Option<&'a Expr> {
+        block.stmts.iter().find_map(|stmt| match &stmt.kind {
+            StmtKind::Expr(expr) => find_top_level_call_in_expr(expr, fqn),
+            StmtKind::Val(val) => val
+                .init
+                .as_ref()
+                .and_then(|expr| find_top_level_call_in_expr(expr, fqn)),
+            StmtKind::Assign { lhs, rhs, .. } => find_top_level_call_in_expr(lhs, fqn)
+                .or_else(|| find_top_level_call_in_expr(rhs, fqn)),
+            StmtKind::While { cond, body } => find_top_level_call_in_expr(cond, fqn)
+                .or_else(|| find_top_level_call_in_block(body, fqn)),
+            StmtKind::Return { value } => value
+                .as_ref()
+                .and_then(|expr| find_top_level_call_in_expr(expr, fqn)),
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => None,
+        })
+    }
+
+    fn find_top_level_call_in_expr<'a>(expr: &'a Expr, fqn: &str) -> Option<&'a Expr> {
+        match &expr.kind {
+            ExprKind::Call { callee, args } => {
+                if let ExprKind::VarRef(ValueRef::TopLevel {
+                    fqn: callee_fqn, ..
+                }) = &callee.kind
+                    && callee_fqn == fqn
+                {
+                    return Some(expr);
+                }
+                find_top_level_call_in_expr(callee, fqn).or_else(|| {
+                    args.iter().find_map(|arg| match arg {
+                        CallArg::Positional(expr) => find_top_level_call_in_expr(expr, fqn),
+                        CallArg::Named { value, .. } => find_top_level_call_in_expr(value, fqn),
+                    })
+                })
+            }
+            ExprKind::MemberAccess { receiver, .. } => find_top_level_call_in_expr(receiver, fqn),
+            ExprKind::When { subject, arms } => {
+                find_top_level_call_in_expr(subject, fqn).or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .and_then(|guard| find_top_level_call_in_expr(guard, fqn))
+                            .or_else(|| find_top_level_call_in_expr(&arm.body, fqn))
+                    })
+                })
+            }
+            ExprKind::Block(block) => find_top_level_call_in_block(block, fqn),
+            ExprKind::Closure(closure) => find_top_level_call_in_expr(&closure.body, fqn),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => find_top_level_call_in_expr(cond, fqn)
+                .or_else(|| find_top_level_call_in_expr(then_branch, fqn))
+                .or_else(|| {
+                    else_branch
+                        .as_deref()
+                        .and_then(|expr| find_top_level_call_in_expr(expr, fqn))
+                }),
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. } => find_top_level_call_in_expr(expr, fqn),
+            ExprKind::Binary { lhs, rhs, .. } => find_top_level_call_in_expr(lhs, fqn)
+                .or_else(|| find_top_level_call_in_expr(rhs, fqn)),
+            ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .find_map(|field| find_top_level_call_in_expr(&field.value, fqn)),
+            ExprKind::TupleLit { elements } => elements
+                .iter()
+                .find_map(|element| find_top_level_call_in_expr(element, fqn)),
+            ExprKind::InterpolatedString { parts, .. } => {
+                parts.iter().find_map(|part| match part {
+                    crate::hir::InterpolatedStringPart::Expr { expr } => {
+                        find_top_level_call_in_expr(expr, fqn)
+                    }
+                    crate::hir::InterpolatedStringPart::Text { .. } => None,
+                })
+            }
+            ExprKind::Perform { args, .. } => args.iter().find_map(|arg| match arg {
+                CallArg::Positional(expr) => find_top_level_call_in_expr(expr, fqn),
+                CallArg::Named { value, .. } => find_top_level_call_in_expr(value, fqn),
+            }),
+            ExprKind::Handle(handle) => find_top_level_call_in_block(&handle.body, fqn)
+                .or_else(|| {
+                    handle
+                        .arms
+                        .iter()
+                        .find_map(|arm| find_top_level_call_in_expr(&arm.body, fqn))
+                })
+                .or_else(|| {
+                    handle
+                        .finally
+                        .as_ref()
+                        .and_then(|block| find_top_level_call_in_block(block, fqn))
+                }),
+            ExprKind::Literal(_)
+            | ExprKind::VarRef(_)
+            | ExprKind::UnresolvedIdent { .. }
+            | ExprKind::Missing
+            | ExprKind::Todo(_) => None,
         }
     }
 
@@ -4451,6 +4557,60 @@ fun run(): Unit / Echo {
         assert!(
             lowered.continuation_resume_call_sites.is_empty(),
             "effect op `resume` 不应污染 continuation_resume_call_sites"
+        );
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_erases_async_step_payload_but_keeps_step_answer_explicit() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4016d_async_task_step_answer>",
+            r#"
+package fixtures.t4016d
+
+import scoop.core.*
+
+async fun fetch(): Int {
+    val task: Task<Int> = async { 41 }
+    val value: Int = await task
+    return value + 1
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let fetch_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4016d.fetch" => Some(fun),
+                _ => None,
+            })
+            .expect("应收集到 fixtures.t4016d.fetch");
+        let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
+        let pending_call =
+            find_top_level_call_in_block(fetch_body, "scoop.core.__scoop_task_step_pending")
+                .expect("async lowering 应生成私有 task pending helper 调用");
+
+        let ExprKind::Call { args, .. } = &pending_call.kind else {
+            panic!("__scoop_task_step_pending 应为 call expr");
+        };
+        let [
+            CallArg::Positional(awaited_expr),
+            CallArg::Positional(continuation_expr),
+        ] = args.as_slice()
+        else {
+            panic!("__scoop_task_step_pending 应接收 awaited task 与 continuation 两个位置参数");
+        };
+
+        assert_eq!(
+            lowered.types.display(awaited_expr.ty).to_string(),
+            "scoop.core.Task<Any>"
+        );
+        assert_eq!(
+            lowered.types.display(continuation_expr.ty).to_string(),
+            "scoop.core.Continuation<Any, scoop.core.__TaskStepResult>"
         );
     }
 

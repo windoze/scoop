@@ -958,10 +958,10 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // `T4016a1` 已把语言语义收口为“answer-returning continuation”：
 // `k.resume(...)` 在最近 delimiter 正常完成时应产生该 delimiter 的 answer。
 // 当前 C runtime 结构体里显式记录的仍只有 resume payload transport；delimiter answer
-// 继续复用标准化 state-machine 结果槽，但 `T4016c` 起通过统一 helper
+// 继续复用标准化 state-machine 结果槽，并通过统一 helper
 // `scoop_continuation_resume_into(...)` 暴露给 caller，避免 `Task`/LLVM 直接窥视 frame 前缀。
-// `T4016b3` 已把 expression-position `resume(...): Answer` 接到前端/LLVM 主线；
-// `T4016d` 再继续收口剩余 task 叙事与 surface 债务。
+// expression-position `resume(...): Answer` 与 `Task.poll()/step()` 现在都走同一条
+// continuation answer-return 通道；task 只是把该 answer 解释为私有 step result。
 //
 // T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，
 // 允许传递任意类型的 resume payload（scalar 走 word，GC ref/boxed compound 走 gc_ref）。

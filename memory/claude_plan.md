@@ -1,104 +1,76 @@
-# 执行计划记录
+# 本轮执行计划
 
-## 说明
+说明：我不会写入逐字的内部推理过程，但会持续记录可公开的执行计划、关键判断依据、执行进展与结果，便于检查当前状态。
 
-用户要求在执行任何代码或命令前，先把计划写入本文件。由于此时尚未检查仓库状态、最新提交、`TODO.md` 与 `PLAN.md`，下面先记录一版初始执行计划。后续在读取仓库信息后，我会把实际发现、任务拆分、阻塞原因、已完成步骤和计划调整继续追加到本文件中。
+## 初始计划
 
-出于信息安全与协作可读性考虑，本文件记录的是可审计的执行计划、依据、决策和进展，不写逐字逐句的内部推理草稿。
+1. 检查最新一次 Git 提交，确认是否提到了需要先处理的既有问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对当前计划与任务依赖关系。
+4. 判断该任务是否可以在本轮完整完成。
+5. 如果任务过大，先细化为更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，然后只执行新的第一个子任务。
+6. 实现本轮目标任务，并补充或调整必要测试。
+7. 运行相关验证，包括至少与改动直接相关的测试；若涉及全局质量要求，再补跑 `cargo fmt`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 或足够覆盖本任务的命令。
+8. 更新 `TODO.md`、`PLAN.md` 与本文件，记录完成情况或阻塞原因。
+9. 提交 Git commit，随后停止，不继续处理下一个任务。
 
-## 初始执行计划
+## 待确认信息
 
-1. 检查最新一次 Git 提交，确认提交说明中是否提到已知问题、未完成修复或需要优先处理的遗留事项。
-2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，确认当前任务是否已有分解、依赖或顺序约束。
-4. 如果第一个未完成任务过大或存在隐含前置依赖：
-   - 将任务拆分为更小的可执行子任务；
-   - 更新 `PLAN.md`；
-   - 更新 `TODO.md`，把子任务放到正确的依赖顺序中；
-   - 本次只执行拆分后排在最前的那个子任务。
-5. 在实现前检查是否存在会阻塞该任务的规范不匹配、缺失语言特性、运行时缺陷或测试基础设施问题。
-6. 如果发现阻塞项：
-   - 不做规避性实现；
-   - 在 `TODO.md` 中加入前置修复任务并调整顺序；
-   - 在 `PLAN.md` 与本文件记录阻塞原因；
-   - 提交变更后停止。
-7. 如果不存在阻塞项：
-   - 实现当前首个未完成任务；
-   - 补充或调整测试；
-   - 运行相关验证，包括必要时的 `cargo test`、目标测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`；
-   - 修复验证阶段发现的问题。
-8. 完成后更新文档：
-   - 在 `TODO.md` 中把当前任务标记完成；
-   - 更新 `PLAN.md` 反映当前状态；
-   - 在本文件记录已完成步骤与验证结果。
-9. 检查工作区差异，确保没有误改或未解释的变更。
-10. 提交本次变更，提交信息应清晰描述当前完成的任务，然后停止，不继续处理下一个任务。
+- 最新提交是否提到必须先修复的问题。
+- `TODO.md` 中第一个未完成任务的具体内容与依赖。
+- 当前工作区是否已有未提交改动，需要在不回退他人修改的前提下协同处理。
 
-## 进展状态
+## 已确认
 
-- 当前状态：已完成首轮仓库读取，得到以下结论：
-  - 最新提交为 `32ee6c8b41434c5263dab676069dcf043de5269f`，提交说明是 `[T4016c] Add shared continuation answer-return helper`。
-  - 该提交说明本身未额外声明需要先修复的遗留 issue；暂未发现“提交信息里直接点名、必须先于当前任务处理”的 pre-existing issue。
-  - `TODO.md` 中前置的 `T4016a1`、`T4016a2`、`T4016b1`、`T4016b2`、`T4016c` 已完成。
-  - 当前顺序上第一个可执行的未完成叶子任务是 `T4016b3`：基于统一 answer-return 通道完成 `Continuation.resume(...): Answer` 的 typecheck / lowering 主线接入。
-  - `PLAN.md` 也把下一步明确记录为进入 `T4016b3`。
+- 最新提交 `f6976dba` 的提交说明为 `[T4016b3] Wire Continuation.resume answer-return through typecheck and lowering`，未额外声明需要先修复的既有问题。
+- 当前工作区除本文件外无未提交改动。
+- `TODO.md` 中首个未完成条目是 `T4016d`：让 `Task` 退化为基于 continuation answer type 的薄封装，并移除剩余 runtime hack / 叙事债务。
+- 初步盘点表明本任务可以直接完成，无需继续拆分。
 
-## 当前任务理解
+## 发现的具体收口点
 
-- 现状很可能是：
-  - runtime / ABI 已经具备 answer-return helper；
-  - continuation binder 的静态类型已经带 answer type；
-  - 但 `Continuation.resume(...)` 在 typecheck / HIR / lowering 主线上仍可能被当作 `Unit`、语句式 builtin、或只在特定 fast-path 中返回结果。
-- 本任务需要把它收口为真正的表达式：
-  - `k.resume(...)` 的静态类型应为 continuation 的 answer type；
-  - lowering / codegen 要使用现有 answer-return ABI；
-  - 相关 effect / safe-call / tuple payload / nested handle / fresh continuation 行为需要补测试确认。
+1. `async` lowering 里的内部 pending-path 仍在用旧式/擦除过度的 continuation 形状构造 HIR，需要把 task step continuation 的 answer type 显式接到 lowering 产物。
+2. `sysroot/core.scoop`、`SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md` 与 runtime 注释里仍保留 “`T4016d` 待收口” 一类过渡表述，需要改成最终叙事。
+3. 需要补一条能直接约束该 lowering 结果的测试，避免以后再次回退到旧 continuation 形状。
 
-## 细化执行计划（针对 T4016b3）
+## 更新后的执行步骤
 
-1. 盘点 `Continuation.resume` 在 parser / typecheck / HIR / MIR / LLVM / runtime 中的当前实现与特判位置。
-2. 确认它目前为何仍未完成 `T4016b3`：是静态类型仍为 `Unit`、HIR 节点缺失返回值建模，还是 lowering 没把 answer 通道接成表达式结果。
-3. 若实现范围可控，则直接修改主线：
-   - 让 `Continuation.resume(...)` 在类型系统中返回 answer type；
-   - 让 expression-position resume 的 lowering 使用统一 answer-return helper；
-   - 校正涉及 safe-call、tuple payload、required effects 与 hidden `Raise<RuntimeError>` 的边界。
-4. 为关键语义补回归：
-   - arm 内 `k.resume(...)` 后继续执行本地代码；
-   - `k.resume(...)` 参与表达式求值；
-   - nested handle / `finally` / early return；
-   - resumed computation 再次 suspend 暴露 fresh continuation。
-5. 运行相关测试与质量检查；若发现规范不匹配或新的前置阻塞，则停止当前实现，改写 `TODO.md` / `PLAN.md` / 本文件后提交。
+1. 修正 `async` lowering 的内部 continuation 类型构造，使 task step continuation 明确挂上 `__TaskStepResult` answer。
+2. 视实现需要同步调整相关内部 helper 注释或声明，确保 `Task` 被描述为 “ordinary object + private step-result continuation”。
+3. 增加/更新单元测试与必要 fixture，覆盖 async lowering 产物中的 task step continuation 形状。
+4. 运行格式化与相关测试；若改动范围允许，补跑全量 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，记录 `T4016d` 完成。
+6. 提交本轮变更并停止。
 
-## 本轮续做计划（2026-04-21，第二阶段）
+## 当前进展
 
-1. 核对当前工作区差异，确认上一阶段实现已经完整落在 `T4016b3` 范围内，尤其检查是否存在仅格式化产生的无意语义修改。
-2. 将 `TODO.md` 中的 `T4016b3` 标记为已完成，并把 `PLAN.md` 的“下一步”推进到 `T4016d`。
-3. 同步更新 `sysroot/core.scoop` 与 `runtime/c/scoop_runtime.c` 中仍将 `T4016b3` 描述为“待接通”的过时注释，避免文档口径落后于实现。
-4. 记录本轮实现摘要、关键回归与验证结果，然后做最小必要回归、自查 diff、提交并停止，不进入 `T4016d`。
-
-## 进展更新（T4016b3 已完成）
-
-- 已检查 `git diff -- crates/scoopc/src/typecheck/assignable.rs`，确认该文件只有 `cargo fmt` 造成的格式化变化，没有语义修改。
-- `T4016b3` 的实现已落地：
-  - `Continuation.resume(...)` typecheck 现返回 continuation 的 answer type；safe-call `?.resume(...)` 返回 `Option<Answer>`。
-  - escape continuation arm 的 tail-resume 过渡路径不再绕开 handle 结果类型与 answer-hole 回填。
-  - LLVM lowering 已为 fresh-path / replay-path 的 `Continuation.resume(...): Answer` 接通共享 answer-return helper，并在需要时解码 answer transport。
-  - statement-mode safe-call `?.resume(...)` 已修复 builtin 识别顺序，避免被普通 safe member access 提前吞掉。
-- 已补充回归：
-  - `tests/fixtures/typecheck/continuation_resume_answer_expression_ok.scoop`
-  - `tests/fixtures/run-pass/continuation_resume_answer_expression_basic.scoop`
-  - `tests/fixtures/run-pass/continuation_resume_answer_replay_basic.scoop`
+- 已修改 `crates/scoopc/src/hir/lower/block.rs` 与 `crates/scoopc/src/hir/lower/mod.rs`：
+  - async lowering 生成的私有 task continuation 现在显式带 `__TaskStepResult` answer；
+  - 为测试加入了递归查找内部 top-level call 的辅助函数与新单测骨架。
+- 已修改 `sysroot/core.scoop`：
+  - 将 `__scoop_task_step_pending` 的内部 helper surface 收口为擦除 payload 的
+    `Task<Any>` / `Continuation<Any, __TaskStepResult>`；
+  - 注释改成最终叙事，不再保留 “T4016d 待收口” 的过渡描述。
+- 已修改 `SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md`、`runtime/c/scoop_runtime.c`：
+  - 文档/注释已改为最终表述：`Task` 与 expression-position `Continuation.resume(...)`
+    共用同一条 continuation answer-return 通道。
 - 已完成验证：
-  - `cargo test -p scoopc continuation_resume`
-  - `cargo run -p scoop -- test --fixtures /tmp/scoop-fixtures`
+  - `cargo fmt`
+  - `cargo test -p scoopc erases_async_step_payload`
+  - `cargo test -p scoopc async_task_resume_ir_does_not_replay_original_await_site`
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-  - `cargo fmt`
-- 已完成收尾文档同步：
-  - `TODO.md` 已将 `T4016b3` 标记为 `[DONE]`；
-  - `PLAN.md` 已把下一步推进到 `T4016d`；
-  - `sysroot/core.scoop` / `runtime/c/scoop_runtime.c` 已把“`T4016b3` 待接通”的过时注释更新为“已完成主线接入，`T4016d` 继续收口 task 叙事”。
-- 已完成最终自查：
-  - `git diff --check` 通过；
-  - 最小回归再次通过：`cargo test -p scoopc continuation_resume`、`cargo run -p scoop -- test --fixtures /tmp/scoop-fixtures`。
-- 当前状态：本轮只剩下 `git add` / `git commit`，提交后即停止，不进入 `T4016d`。
+
+## 新发现的阻塞
+
+- 在追加执行 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 时，`continuation_escape_binder_resume_effect_row_runtime_basic.scoop` 失败。
+- 单独重现后确认：
+  - 失败不是 `Task` thin-wrapper 改动本身，而是 legacy `Continuation<Resume, eff E>` shorthand 兼容路径把 continuation answer-hole 以 `TypeKind::Param` 形式泄漏进 LLVM codegen；
+  - 具体症状为 `cg_ty_of: TypeKind::Param(_) encountered in codegen (monomorph miss)`，随后报 `effect frame slot type`。
+- 该问题未在现有 `TODO.md` 中单独立项，但它会阻塞 `T4016d` 的完整 run-pass 验收。
+
+## 处理决定
+
+1. 按流程把这个问题新增为 `TODO.md` / `PLAN.md` 中位于 `T4016d` 之前的 blocker 任务。
+2. 保留本轮已经完成且通过 `cargo test --all` / `clippy` 的 task-thin-wrapper 收口改动。
+3. 不把 `T4016d` 标记完成；本轮提交以“发现并显式排程 blocker，同时保留已验证的部分收口改动”为止。

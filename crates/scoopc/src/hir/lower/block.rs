@@ -258,8 +258,12 @@ impl<'a> HirLowering<'a> {
             ],
         };
 
+        // 这里由一个内部 `Async.await` handler 统一拦截 task body 中的所有 await 站点，
+        // 因而 resume payload 在 HIR 边界上擦除为 `Any`；但 step driver 的 delimiter answer
+        // 继续显式保留为私有 `__TaskStepResult`，使 `Task` 只成为 continuation answer model
+        // 之上的薄封装，而不是另一套黑箱 ABI。
         let task_binder_ty = self.task_type_of(self.builtins.any);
-        let continuation_ty = self.continuation_type_of(self.builtins.any);
+        let continuation_ty = self.continuation_type_of(self.builtins.any, step_result_ty);
         let (task_span, task_id, task_name) =
             self.fresh_synthetic_local(body_span, "__task_awaited", false);
         let (continuation_span, continuation_id, continuation_name) =
