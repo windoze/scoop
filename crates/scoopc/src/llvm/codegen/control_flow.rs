@@ -294,9 +294,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let expected_out_ty = expected;
 
-        let needs_chain = arms
-            .iter()
-            .any(|arm| arm.guard.is_some() || self.when_pat_contains_or(&arm.pat));
+        let needs_chain = arms.iter().any(|arm| {
+            arm.guard.is_some()
+                || self.when_pat_contains_or(&arm.pat)
+                || matches!(subject_ty, CgTy::Enum(_))
+                    && Self::when_variant_pat_needs_chain(&arm.pat)
+        });
 
         if needs_chain {
             // guard / or-pattern：用“链式判别 + guard 失败回落到下一个分支”的 CFG。
@@ -891,9 +894,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | hir::WhenPat::CharLit { .. }
             | hir::WhenPat::StringLit { .. }
             | hir::WhenPat::BoolLit { .. } => Ok(()),
-            hir::WhenPat::Bind { id, name, .. } => {
+            hir::WhenPat::Bind { .. } => {
                 // `x -> ...`：绑定整个 subject。
-                let ptr = self.create_entry_alloca(at, name, subject_ty)?;
                 let llvm_ty = self.llvm_basic_type_of(at, subject_ty)?;
                 let loaded = self
                     .builder
@@ -902,19 +904,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: subject_ty,
                     value: Some(loaded),
                 };
-                let _ = self.store_local_value(at, ptr, subject_ty, v)?;
-                let hir_ty = self.when_pat_binding_hir_ty(pat.span())?;
-                self.env.insert(
-                    *id,
-                    CgLocal {
-                        hir_ty,
-                        call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
-                        ty: subject_ty,
-                        ptr,
-                        mutable: false,
-                    },
-                );
-                Ok(())
+                self.bind_when_pat_extracted_value(at, pat, subject_ty, v, "when_bind_subject")
             }
             hir::WhenPat::Variant { name, args, .. } => {
                 let CgTy::Enum(enum_ty) = subject_ty else {
@@ -962,345 +952,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
 
-                // boxed variant：payload 是指向“payload struct”的指针（存放所有字段）。
-                if variant.boxed {
-                    let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
-                    let raw_struct = loaded.into_struct_value();
+                for (idx, arg_pat) in prefix_pats.iter().enumerate() {
+                    if !Self::when_variant_arg_needs_binding(arg_pat) {
+                        continue;
+                    }
 
-                    let payload_struct_ty =
-                        self.llvm_enum_boxed_payload_struct_type(at, enum_ty, &variant)?;
-                    let payload_ptr = self
-                        .builder
-                        .build_extract_value(raw_struct, 2, "when_payload_ptr")?
-                        .into_pointer_value();
-
-                    let payload_obj_ty =
-                        self.llvm_enum_boxed_payload_object_type(at, enum_ty, &variant)?;
-                    let payload_obj_ptr = self.builder.build_pointer_cast(
-                        payload_ptr,
-                        self.llvm_ptr_type(self.gc_address_space()),
-                        "when_payload_obj_ptr",
+                    let field_cg =
+                        *variant
+                            .fields
+                            .get(idx)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when variant payload field index",
+                                at: arg_pat.span().into(),
+                            })?;
+                    let extracted = self.extract_matched_when_variant_field_value(
+                        enum_ty,
+                        repr,
+                        &variant,
+                        idx,
+                        arg_pat.span(),
+                        subject_ptr,
                     )?;
-                    let payload_gep = self.builder.build_struct_gep(
-                        payload_obj_ty,
-                        payload_obj_ptr,
-                        1,
-                        "when_payload_gep",
+                    let tmp_name = format!("when_variant_field_{}_{}", variant.name, idx);
+                    self.bind_when_pat_extracted_value(
+                        at, arg_pat, field_cg, extracted, &tmp_name,
                     )?;
-                    let payload_loaded = self
-                        .builder
-                        .build_load(payload_struct_ty, payload_gep, "load_when_payload")?
-                        .into_struct_value();
-
-                    for (idx, arg_pat) in prefix_pats.iter().enumerate() {
-                        let field_cg =
-                            *variant
-                                .fields
-                                .get(idx)
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when boxed payload field index",
-                                    at: arg_pat.span().into(),
-                                })?;
-
-                        match arg_pat {
-                            hir::WhenPat::Bind { id, name, .. } => {
-                                let raw = self.builder.build_extract_value(
-                                    payload_loaded,
-                                    idx as u32,
-                                    "when_payload_field",
-                                )?;
-                                let extracted =
-                                    self.cg_value_from_loaded(arg_pat.span(), field_cg, raw)?;
-
-                                let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                                let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
-                                let hir_ty = self.when_pat_binding_hir_ty(arg_pat.span())?;
-                                self.env.insert(
-                                    *id,
-                                    CgLocal {
-                                        hir_ty,
-                                        call_may_suspend: self
-                                            .local_call_may_suspend_from_hir_ty(hir_ty),
-                                        ty: field_cg,
-                                        ptr,
-                                        mutable: false,
-                                    },
-                                );
-                            }
-                            hir::WhenPat::Wildcard { .. } => {}
-                            hir::WhenPat::Rest { .. } => break,
-                            _ => {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when variant arg pattern",
-                                    at: arg_pat.span().into(),
-                                });
-                            }
-                        }
-                    }
-
-                    return Ok(());
-                }
-
-                // niche enum（当前仅 Option<T>）：payload 就是 enum 本身。
-                if matches!(repr, CgEnumRepr::Niche { .. }) {
-                    if variant.fields.len() != 1 {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "niche enum variant arity",
-                            at: pat.span().into(),
-                        });
-                    }
-
-                    let field_cg = variant.fields[0];
-                    let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?;
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
-
-                    // 存储类型可能与字段类型不同（例如 `Option<Bool>` 存储为 u8）。
-                    let extracted = match field_cg {
-                        CgTy::Bool => {
-                            let b = self.builder.build_int_truncate(
-                                loaded.into_int_value(),
-                                self.context.bool_type(),
-                                "option_bool_from_u8",
-                            )?;
-                            CgValue::bool(b)
-                        }
-                        CgTy::String => CgValue {
-                            ty: CgTy::String,
-                            value: Some(loaded.into_pointer_value().into()),
-                        },
-                        CgTy::Ref => CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(loaded.into_pointer_value().into()),
-                        },
-                        CgTy::Never
-                        | CgTy::Unit
-                        | CgTy::Float64
-                        | CgTy::Float32
-                        | CgTy::Int(_)
-                        | CgTy::Tuple(_)
-                        | CgTy::Struct(_)
-                        | CgTy::Enum(_) => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "niche enum payload type",
-                                at: pat.span().into(),
-                            });
-                        }
-                    };
-
-                    // niche enum 的 binder 只能绑定第一个字段（且 rest 可能忽略其余）。
-                    let Some(first_pat) = prefix_pats.first() else {
-                        return Ok(());
-                    };
-                    match first_pat {
-                        hir::WhenPat::Bind { id, name, .. } => {
-                            let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                            let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
-                            let hir_ty = self.when_pat_binding_hir_ty(first_pat.span())?;
-                            self.env.insert(
-                                *id,
-                                CgLocal {
-                                    hir_ty,
-                                    call_may_suspend: self
-                                        .local_call_may_suspend_from_hir_ty(hir_ty),
-                                    ty: field_cg,
-                                    ptr,
-                                    mutable: false,
-                                },
-                            );
-                        }
-                        hir::WhenPat::Wildcard { .. } | hir::WhenPat::Rest { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when variant arg pattern",
-                                at: first_pat.span().into(),
-                            });
-                        }
-                    }
-
-                    return Ok(());
-                }
-
-                // inline tagged union：仍只支持 “小 payload”（单字段标量）。
-                if variant.fields.len() != 1 || prefix_pats.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant payload (inline, unsupported arity)",
-                        at: pat.span().into(),
-                    });
-                }
-
-                let field_cg = variant.fields[0];
-                let arg_pat = &prefix_pats[0];
-
-                let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
-                let loaded =
-                    self.builder
-                        .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
-                let raw_struct = loaded.into_struct_value();
-                let payload_word = self
-                    .builder
-                    .build_extract_value(raw_struct, 1, "when_payload_word")?
-                    .into_int_value();
-                let payload_ptr = self
-                    .builder
-                    .build_extract_value(raw_struct, 2, "when_payload_ptr")?
-                    .into_pointer_value();
-
-                // 当前阶段 tagged union payload 分成两路：
-                // - word：承载 Bool/Int 等标量
-                // - gc ptr：承载 Ref/String 等 GC-managed 指针
-                let extracted = match field_cg {
-                    CgTy::Never => CgValue::never(),
-                    CgTy::Unit => CgValue::unit(),
-                    CgTy::Bool => {
-                        let b = self.builder.build_int_truncate(
-                            payload_word,
-                            self.context.bool_type(),
-                            "payload_to_bool",
-                        )?;
-                        CgValue::bool(b)
-                    }
-                    CgTy::Int(int_ty) => {
-                        let from = self.enum_payload_ty();
-                        let casted = self.cast_int(payload_word, from, int_ty)?;
-                        CgValue::int(casted, int_ty)
-                    }
-                    CgTy::Float64 => {
-                        let raw = self
-                            .builder
-                            .build_bit_cast(
-                                payload_word,
-                                self.context.f64_type(),
-                                "payload_to_f64",
-                            )?
-                            .into_float_value();
-                        CgValue::float(raw, CgTy::Float64)
-                    }
-                    CgTy::Float32 => {
-                        let bits32 = self.builder.build_int_truncate(
-                            payload_word,
-                            self.context.i32_type(),
-                            "payload_to_f32_bits",
-                        )?;
-                        let raw = self
-                            .builder
-                            .build_bit_cast(bits32, self.context.f32_type(), "payload_to_f32")?
-                            .into_float_value();
-                        CgValue::float(raw, CgTy::Float32)
-                    }
-                    CgTy::String => {
-                        let ptr = self.builder.build_pointer_cast(
-                            payload_ptr,
-                            self.llvm_scoop_string_ptr_type(),
-                            "payload_to_str",
-                        )?;
-                        CgValue {
-                            ty: CgTy::String,
-                            value: Some(ptr.into()),
-                        }
-                    }
-                    CgTy::Ref => CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(payload_ptr.into()),
-                    },
-                    CgTy::Enum(nested_enum_ty) => {
-                        let repr = self.cg_enum_layout(at, nested_enum_ty)?.repr;
-                        match repr {
-                            CgEnumRepr::Niche {
-                                storage,
-                                none_value,
-                            } => match storage {
-                                NicheStorage::Pointer => {
-                                    if none_value != 0 {
-                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                            kind: "when payload nested niche pointer none_value (must be NULL)",
-                                            at: arg_pat.span().into(),
-                                        });
-                                    }
-
-                                    let llvm_nested =
-                                        self.llvm_enum_value_type(at, nested_enum_ty)?;
-                                    let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
-                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                            kind: "when payload nested niche storage (non-pointer)",
-                                            at: arg_pat.span().into(),
-                                        });
-                                    };
-
-                                    let casted = self.builder.build_pointer_cast(
-                                        payload_ptr,
-                                        ptr_ty,
-                                        "when_payload_nested_niche_ptr",
-                                    )?;
-                                    CgValue {
-                                        ty: CgTy::Enum(nested_enum_ty),
-                                        value: Some(casted.into()),
-                                    }
-                                }
-                                NicheStorage::U8 => {
-                                    let llvm_nested =
-                                        self.llvm_enum_value_type(at, nested_enum_ty)?;
-                                    let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
-                                        return Err(LlvmEmitError::UnsupportedMainBody {
-                                            kind: "when payload nested niche storage (non-int)",
-                                            at: arg_pat.span().into(),
-                                        });
-                                    };
-
-                                    let v = self.builder.build_int_truncate(
-                                        payload_word,
-                                        int_ty,
-                                        "when_payload_nested_niche_u8",
-                                    )?;
-                                    CgValue {
-                                        ty: CgTy::Enum(nested_enum_ty),
-                                        value: Some(v.into()),
-                                    }
-                                }
-                            },
-                            _ => {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when payload (nested enum, unsupported repr)",
-                                    at: arg_pat.span().into(),
-                                });
-                            }
-                        }
-                    }
-                    CgTy::Tuple(_) | CgTy::Struct(_) => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when payload (non-scalar)",
-                            at: arg_pat.span().into(),
-                        });
-                    }
-                };
-
-                match arg_pat {
-                    hir::WhenPat::Bind { id, name, .. } => {
-                        let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                        let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
-                        let hir_ty = self.when_pat_binding_hir_ty(arg_pat.span())?;
-                        self.env.insert(
-                            *id,
-                            CgLocal {
-                                hir_ty,
-                                call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
-                                ty: field_cg,
-                                ptr,
-                                mutable: false,
-                            },
-                        );
-                    }
-                    hir::WhenPat::Wildcard { .. } | hir::WhenPat::Rest { .. } => {}
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when variant arg pattern",
-                            at: arg_pat.span().into(),
-                        });
-                    }
                 }
 
                 Ok(())
@@ -1411,6 +1087,385 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn bind_when_pat_value(
+        &mut self,
+        at: crate::span::Span,
+        bind_span: crate::span::Span,
+        id: hir::SymbolId,
+        name: &str,
+        value_ty: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let ptr = self.create_entry_alloca(at, name, value_ty)?;
+        let _ = self.store_local_value(at, ptr, value_ty, value)?;
+        let hir_ty = self.when_pat_binding_hir_ty(bind_span)?;
+        self.env.insert(
+            id,
+            CgLocal {
+                hir_ty,
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(hir_ty),
+                ty: value_ty,
+                ptr,
+                mutable: false,
+            },
+        );
+        Ok(())
+    }
+
+    fn bind_when_pat_extracted_value(
+        &mut self,
+        at: crate::span::Span,
+        pat: &hir::WhenPat,
+        value_ty: CgTy,
+        value: CgValue<'ctx>,
+        tmp_name: &str,
+    ) -> Result<(), LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Bind { id, name, span } => {
+                self.bind_when_pat_value(at, *span, *id, name, value_ty, value)
+            }
+            hir::WhenPat::Tuple { .. } | hir::WhenPat::Variant { .. } => {
+                let tmp_ptr = self.create_entry_alloca(at, tmp_name, value_ty)?;
+                let _ = self.store_local_value(at, tmp_ptr, value_ty, value)?;
+                self.bind_when_pat(at, value_ty, pat, tmp_ptr)
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn codegen_when_pat_cond_for_extracted_value(
+        &mut self,
+        at: crate::span::Span,
+        pat: &hir::WhenPat,
+        value_ty: CgTy,
+        value: CgValue<'ctx>,
+        tmp_name: &str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Bind { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Rest { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            _ => {
+                let tmp_ptr = self.create_entry_alloca(at, tmp_name, value_ty)?;
+                let _ = self.store_local_value(at, tmp_ptr, value_ty, value)?;
+                self.codegen_when_pat_cond(pat.span(), value_ty, pat, tmp_ptr)
+            }
+        }
+    }
+
+    /// 在调用点已经确认 variant tag 命中的前提下，提取单个 payload 字段。
+    ///
+    /// 注意：
+    /// - 该 helper 假设调用者已经先做了 tag 判别；
+    /// - 对 boxed payload 必须在 tag 命中后再解引用，避免错误解引用其它 variant 的 payload 指针。
+    fn extract_matched_when_variant_field_value(
+        &mut self,
+        enum_ty: TypeId,
+        repr: CgEnumRepr,
+        variant: &CgEnumVariant,
+        field_idx: usize,
+        field_span: crate::span::Span,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let field_cg =
+            *variant
+                .fields
+                .get(field_idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when variant payload field index",
+                    at: field_span.into(),
+                })?;
+
+        if variant.boxed {
+            let llvm_enum_ty = self
+                .llvm_enum_value_type(field_span, enum_ty)?
+                .into_struct_type();
+            let loaded = self
+                .builder
+                .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+            let raw_struct = loaded.into_struct_value();
+            let payload_struct_ty =
+                self.llvm_enum_boxed_payload_struct_type(field_span, enum_ty, variant)?;
+            let payload_ptr = self
+                .builder
+                .build_extract_value(raw_struct, 2, "when_payload_ptr")?
+                .into_pointer_value();
+            let payload_obj_ty =
+                self.llvm_enum_boxed_payload_object_type(field_span, enum_ty, variant)?;
+            let payload_obj_ptr = self.builder.build_pointer_cast(
+                payload_ptr,
+                self.llvm_ptr_type(self.gc_address_space()),
+                "when_payload_obj_ptr",
+            )?;
+            let payload_gep = self.builder.build_struct_gep(
+                payload_obj_ty,
+                payload_obj_ptr,
+                1,
+                "when_payload_gep",
+            )?;
+            let payload_loaded = self
+                .builder
+                .build_load(payload_struct_ty, payload_gep, "load_when_payload")?
+                .into_struct_value();
+            let raw = self.builder.build_extract_value(
+                payload_loaded,
+                field_idx as u32,
+                "when_payload_field",
+            )?;
+            return self.cg_value_from_loaded(field_span, field_cg, raw);
+        }
+
+        if matches!(repr, CgEnumRepr::Niche { .. }) {
+            if variant.fields.len() != 1 || field_idx != 0 {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "niche enum variant arity",
+                    at: field_span.into(),
+                });
+            }
+
+            let llvm_enum_ty = self.llvm_enum_value_type(field_span, enum_ty)?;
+            let loaded = self
+                .builder
+                .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+
+            return match field_cg {
+                CgTy::Bool => {
+                    let b = self.builder.build_int_truncate(
+                        loaded.into_int_value(),
+                        self.context.bool_type(),
+                        "option_bool_from_u8",
+                    )?;
+                    Ok(CgValue::bool(b))
+                }
+                CgTy::String => Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(loaded.into_pointer_value().into()),
+                }),
+                CgTy::Ref => Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(loaded.into_pointer_value().into()),
+                }),
+                CgTy::Enum(nested_enum_ty) => {
+                    let nested_repr = self.cg_enum_layout(field_span, nested_enum_ty)?.repr;
+                    match nested_repr {
+                        CgEnumRepr::Niche {
+                            storage,
+                            none_value,
+                        } => match storage {
+                            NicheStorage::Pointer => {
+                                if none_value != 0 {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "when payload nested niche pointer none_value (must be NULL)",
+                                        at: field_span.into(),
+                                    });
+                                }
+
+                                let llvm_nested =
+                                    self.llvm_enum_value_type(field_span, nested_enum_ty)?;
+                                let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "when payload nested niche storage (non-pointer)",
+                                        at: field_span.into(),
+                                    });
+                                };
+
+                                let casted = self.builder.build_pointer_cast(
+                                    loaded.into_pointer_value(),
+                                    ptr_ty,
+                                    "when_payload_nested_niche_ptr",
+                                )?;
+                                Ok(CgValue {
+                                    ty: CgTy::Enum(nested_enum_ty),
+                                    value: Some(casted.into()),
+                                })
+                            }
+                            NicheStorage::U8 => {
+                                let llvm_nested =
+                                    self.llvm_enum_value_type(field_span, nested_enum_ty)?;
+                                let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "when payload nested niche storage (non-int)",
+                                        at: field_span.into(),
+                                    });
+                                };
+
+                                let raw = loaded.into_int_value();
+                                let value =
+                                    if raw.get_type().get_bit_width() == int_ty.get_bit_width() {
+                                        raw
+                                    } else {
+                                        self.builder.build_int_truncate(
+                                            raw,
+                                            int_ty,
+                                            "when_payload_nested_niche_u8",
+                                        )?
+                                    };
+                                Ok(CgValue {
+                                    ty: CgTy::Enum(nested_enum_ty),
+                                    value: Some(value.into()),
+                                })
+                            }
+                        },
+                        _ => Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when payload (nested enum, unsupported repr)",
+                            at: field_span.into(),
+                        }),
+                    }
+                }
+                CgTy::Never
+                | CgTy::Unit
+                | CgTy::Float64
+                | CgTy::Float32
+                | CgTy::Int(_)
+                | CgTy::Tuple(_)
+                | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "niche enum payload type",
+                    at: field_span.into(),
+                }),
+            };
+        }
+
+        if !matches!(repr, CgEnumRepr::TaggedUnion) || variant.fields.len() != 1 || field_idx != 0 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when variant payload (inline, unsupported arity)",
+                at: field_span.into(),
+            });
+        }
+
+        let llvm_enum_ty = self
+            .llvm_enum_value_type(field_span, enum_ty)?
+            .into_struct_type();
+        let loaded = self
+            .builder
+            .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+        let raw_struct = loaded.into_struct_value();
+        let payload_word = self
+            .builder
+            .build_extract_value(raw_struct, 1, "when_payload_word")?
+            .into_int_value();
+        let payload_ptr = self
+            .builder
+            .build_extract_value(raw_struct, 2, "when_payload_ptr")?
+            .into_pointer_value();
+
+        match field_cg {
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool => {
+                let b = self.builder.build_int_truncate(
+                    payload_word,
+                    self.context.bool_type(),
+                    "payload_to_bool",
+                )?;
+                Ok(CgValue::bool(b))
+            }
+            CgTy::Int(int_ty) => {
+                let from = self.enum_payload_ty();
+                let casted = self.cast_int(payload_word, from, int_ty)?;
+                Ok(CgValue::int(casted, int_ty))
+            }
+            CgTy::Float64 => {
+                let raw = self
+                    .builder
+                    .build_bit_cast(payload_word, self.context.f64_type(), "payload_to_f64")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float64))
+            }
+            CgTy::Float32 => {
+                let bits32 = self.builder.build_int_truncate(
+                    payload_word,
+                    self.context.i32_type(),
+                    "payload_to_f32_bits",
+                )?;
+                let raw = self
+                    .builder
+                    .build_bit_cast(bits32, self.context.f32_type(), "payload_to_f32")?
+                    .into_float_value();
+                Ok(CgValue::float(raw, CgTy::Float32))
+            }
+            CgTy::String => {
+                let ptr = self.builder.build_pointer_cast(
+                    payload_ptr,
+                    self.llvm_scoop_string_ptr_type(),
+                    "payload_to_str",
+                )?;
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(ptr.into()),
+                })
+            }
+            CgTy::Ref => Ok(CgValue {
+                ty: CgTy::Ref,
+                value: Some(payload_ptr.into()),
+            }),
+            CgTy::Enum(nested_enum_ty) => {
+                let nested_repr = self.cg_enum_layout(field_span, nested_enum_ty)?.repr;
+                match nested_repr {
+                    CgEnumRepr::Niche {
+                        storage,
+                        none_value,
+                    } => match storage {
+                        NicheStorage::Pointer => {
+                            if none_value != 0 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "when payload nested niche pointer none_value (must be NULL)",
+                                    at: field_span.into(),
+                                });
+                            }
+
+                            let llvm_nested =
+                                self.llvm_enum_value_type(field_span, nested_enum_ty)?;
+                            let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "when payload nested niche storage (non-pointer)",
+                                    at: field_span.into(),
+                                });
+                            };
+
+                            let casted = self.builder.build_pointer_cast(
+                                payload_ptr,
+                                ptr_ty,
+                                "when_payload_nested_niche_ptr",
+                            )?;
+                            Ok(CgValue {
+                                ty: CgTy::Enum(nested_enum_ty),
+                                value: Some(casted.into()),
+                            })
+                        }
+                        NicheStorage::U8 => {
+                            let llvm_nested =
+                                self.llvm_enum_value_type(field_span, nested_enum_ty)?;
+                            let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "when payload nested niche storage (non-int)",
+                                    at: field_span.into(),
+                                });
+                            };
+
+                            let v = self.builder.build_int_truncate(
+                                payload_word,
+                                int_ty,
+                                "when_payload_nested_niche_u8",
+                            )?;
+                            Ok(CgValue {
+                                ty: CgTy::Enum(nested_enum_ty),
+                                value: Some(v.into()),
+                            })
+                        }
+                    },
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when payload (nested enum, unsupported repr)",
+                        at: field_span.into(),
+                    }),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when payload (non-scalar)",
+                at: field_span.into(),
+            }),
+        }
+    }
+
     pub(super) fn when_pat_contains_or(&self, pat: &hir::WhenPat) -> bool {
         match pat {
             hir::WhenPat::Or { .. } => true,
@@ -1420,6 +1475,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Variant { args, .. } => args.iter().any(|p| self.when_pat_contains_or(p)),
             _ => false,
         }
+    }
+
+    fn when_variant_pat_needs_chain(pat: &hir::WhenPat) -> bool {
+        match pat {
+            hir::WhenPat::Variant { args, .. } => {
+                args.iter().any(Self::when_variant_arg_needs_payload_match)
+            }
+            _ => false,
+        }
+    }
+
+    fn when_variant_arg_needs_payload_match(pat: &hir::WhenPat) -> bool {
+        !matches!(
+            pat,
+            hir::WhenPat::Bind { .. } | hir::WhenPat::Wildcard { .. } | hir::WhenPat::Rest { .. }
+        )
+    }
+
+    fn when_variant_arg_needs_binding(pat: &hir::WhenPat) -> bool {
+        matches!(
+            pat,
+            hir::WhenPat::Bind { .. } | hir::WhenPat::Tuple { .. } | hir::WhenPat::Variant { .. }
+        )
     }
 
     pub(super) fn codegen_when_pat_cond(
@@ -1506,7 +1584,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgEnumRepr::ValueOnly { .. } => loaded.into_int_value(),
         };
 
-        self.codegen_when_pat_cond_for_enum_with_tag(at, &variants, tag, pat)
+        match pat {
+            hir::WhenPat::Variant { .. } => self.codegen_when_variant_pat_cond_full(
+                at,
+                enum_ty,
+                &variants,
+                tag,
+                pat,
+                subject_ptr,
+            ),
+            _ => self.codegen_when_pat_cond_for_enum_with_tag(at, &variants, tag, pat),
+        }
     }
 
     pub(super) fn codegen_when_pat_cond_for_enum_with_tag(
@@ -1550,6 +1638,128 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: pat.span().into(),
             }),
         }
+    }
+
+    fn codegen_when_variant_pat_cond_full(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        variants: &[CgEnumVariant],
+        tag: IntValue<'ctx>,
+        pat: &hir::WhenPat,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let hir::WhenPat::Variant { name, args, .. } = pat else {
+            unreachable!("caller already filtered non-variant patterns");
+        };
+
+        let Some(variant) = variants.iter().find(|v| v.name == *name).cloned() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when unknown enum variant",
+                at: pat.span().into(),
+            });
+        };
+
+        let (prefix_pats, has_rest) = match args.last() {
+            Some(hir::WhenPat::Rest { .. }) => (&args[..args.len().saturating_sub(1)], true),
+            _ => (args.as_slice(), false),
+        };
+
+        let expected_arity = variant.fields.len();
+        let found_arity = prefix_pats.len();
+        if (!has_rest && expected_arity != found_arity)
+            || (has_rest && found_arity > expected_arity)
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when variant arity mismatch",
+                at: pat.span().into(),
+            });
+        }
+
+        let expected = tag.get_type().const_int(variant.tag, false);
+        let tag_eq =
+            self.builder
+                .build_int_compare(IntPredicate::EQ, tag, expected, "when_enum_tag_eq")?;
+
+        if !prefix_pats
+            .iter()
+            .any(Self::when_variant_arg_needs_payload_match)
+        {
+            return Ok(tag_eq);
+        }
+
+        let repr = self.cg_enum_layout(at, enum_ty)?.repr;
+        let current_bb =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: pat.span().into(),
+                })?;
+        let func = current_bb
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: pat.span().into(),
+            })?;
+        let payload_bb = self
+            .context
+            .append_basic_block(func, "when_variant_payload");
+        let merge_bb = self
+            .context
+            .append_basic_block(func, "when_variant_payload_merge");
+
+        // 只有在 tag 已匹配时才进入 payload 子模式检查，避免错误解引用其它 variant 的 payload。
+        self.builder
+            .build_conditional_branch(tag_eq, payload_bb, merge_bb)?;
+
+        self.builder.position_at_end(payload_bb);
+        let mut payload_cond = self.context.bool_type().const_int(1, false);
+        for (idx, arg_pat) in prefix_pats.iter().enumerate() {
+            if !Self::when_variant_arg_needs_payload_match(arg_pat) {
+                continue;
+            }
+
+            let field_cg = *variant
+                .fields
+                .get(idx)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when variant payload field index",
+                    at: arg_pat.span().into(),
+                })?;
+            let extracted = self.extract_matched_when_variant_field_value(
+                enum_ty,
+                repr,
+                &variant,
+                idx,
+                arg_pat.span(),
+                subject_ptr,
+            )?;
+            let tmp_name = format!("when_variant_cond_{}_{}", variant.name, idx);
+            let field_cond = self.codegen_when_pat_cond_for_extracted_value(
+                at, arg_pat, field_cg, extracted, &tmp_name,
+            )?;
+            payload_cond =
+                self.builder
+                    .build_and(payload_cond, field_cond, "when_variant_payload_and")?;
+        }
+
+        let payload_tail =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when variant payload tail block",
+                    at: pat.span().into(),
+                })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "when_variant_match")?;
+        let no_match = self.context.bool_type().const_int(0, false);
+        phi.add_incoming(&[(&no_match, current_bb), (&payload_cond, payload_tail)]);
+        Ok(phi.as_basic_value().into_int_value())
     }
 
     pub(super) fn codegen_when_pat_cond_for_bool(

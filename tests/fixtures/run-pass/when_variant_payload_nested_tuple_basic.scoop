@@ -1,0 +1,34 @@
+// EXPECT: pass
+// EXPECT-EXIT: 12
+//
+// T4011a: 单分支 enum variant payload 子模式匹配
+//
+// 覆盖：
+// - payload 中的 tuple 子模式
+// - tuple 子模式 mismatch 后能继续回落到后续同 variant 分支
+
+import scoop.core.*
+
+enum Inner {
+    Zero,
+    One(val pair: (Int, Int)),
+}
+
+fun main(): Int {
+    val hit: Inner = One((0, 9))
+    val miss: Inner = One((7, 9))
+
+    val a: Int = when (hit) {
+        One((0, _)) -> 10
+        One((_, _)) -> 20
+        else -> 30
+    }
+
+    val b: Int = when (miss) {
+        One((0, _)) -> 1
+        One((_, _)) -> 2
+        else -> 3
+    }
+
+    return a + b
+}

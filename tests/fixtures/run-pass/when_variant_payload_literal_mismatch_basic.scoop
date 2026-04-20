@@ -1,0 +1,42 @@
+// EXPECT: pass
+// EXPECT-EXIT: 27
+//
+// T4011a: 单分支 enum variant payload 子模式匹配
+//
+// 覆盖：
+// - `Some(0)` 不会把 `Some(1)` 错判成命中
+// - `Some(_)` 仍可作为同 variant 的 fallback
+// - `None` 与带 payload 的 variant 继续共享统一 when matching 主线
+
+import scoop.core.*
+
+enum Opt {
+    Some(val value: Int),
+    None,
+}
+
+fun main(): Int {
+    val pos: Opt = Some(1)
+    val zero: Opt = Some(0)
+    val none: Opt = None()
+
+    val a: Int = when (pos) {
+        Some(0) -> 10
+        Some(_) -> 20
+        None -> 30
+    }
+
+    val b: Int = when (zero) {
+        Some(0) -> 1
+        Some(_) -> 2
+        None -> 3
+    }
+
+    val c: Int = when (none) {
+        Some(0) -> 4
+        Some(_) -> 5
+        None -> 6
+    }
+
+    return a + b + c
+}

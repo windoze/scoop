@@ -1605,7 +1605,7 @@
 
 ## T4011：`when` 的无 binder or-pattern 子集
 
-### T4011a [TODO] 先收口 `when` enum variant payload 的无 binder 子模式匹配
+### T4011a [DONE] 先收口 `when` enum variant payload 的无 binder 子模式匹配
 - 说明：
   - 开始执行原 `T4011` 时的最小 probe 表明，单分支 `Some(0)` / `One((0, _))` 这类 variant payload pattern 当前仍未进入真正的运行期匹配主线：LLVM 会在 `bind_when_pat` 阶段报 `when variant arg pattern` unsupported。
   - 同时，`Some(0) | None()` 这类 or-pattern 还会因为 `WhenPat::Or` 当前跳过 payload 绑定/校验、而 `codegen_when_pat_cond_for_enum_with_tag` 仅比较 tag，错误地把 `Some(1)` 判成命中。
@@ -1617,6 +1617,23 @@
 - 验收：
   - `Some(0)` 对 `Some(1)` 不再错误命中或报 LLVM unsupported。
   - `One((0, _))` 等嵌套 payload 子模式可稳定进入统一 matching 主线。
+- 完成：
+  - `codegen_when_expr` 现会把“顶层 enum variant 且 payload 含非平凡子模式”的分支切到统一链式判别 CFG；`codegen_when_pat_cond_for_enum` 也新增了“单分支 variant payload 先判 tag、命中后再递归检查 payload 子模式”的主线，不再只比较 tag 后直接进入 arm。
+  - `bind_when_pat` 现通过共享 payload 提取 helper 递归复用既有 tuple / variant 绑定逻辑；对单分支 payload 子模式中的 literal / tuple / nested variant 不再报 `when variant arg pattern` unsupported。
+  - niche `Option<T>` 的 payload 提取现已支持“payload 本身仍是 niche enum”的情形，因此 `Option<Option<Bool>>` 这类 nested variant 也可走统一匹配主线；顶层 payload or-pattern 仍明确留给 `T4011b`，没有提前放开。
+  - 已新增 run-pass 回归：
+    - `tests/fixtures/run-pass/when_variant_payload_literal_mismatch_basic.scoop`
+    - `tests/fixtures/run-pass/when_variant_payload_nested_tuple_basic.scoop`
+    - `tests/fixtures/run-pass/when_variant_payload_nested_variant_basic.scoop`
+- 已验证：
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_variant_payload_literal_mismatch_basic.scoop`（退出码 `27`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_variant_payload_nested_tuple_basic.scoop`（退出码 `12`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_variant_payload_nested_variant_basic.scoop`（退出码 `18`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_switch_basic.scoop`（退出码 `5`）
+  - `cargo run -q -p scoop -- run tests/fixtures/run-pass/when_or_pattern_and_guard_basic.scoop`（退出码 `8`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1105)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010R
 
 ### T4011b [TODO] 在统一 payload matching 主线上收口“无 binder 的 payload or-pattern”
@@ -1635,6 +1652,18 @@
   - 不允许把 `A(x) | C(x)` 之类分支宽松合成 `Any` binder。
   - 不允许把 bare `A | C` 偷偷扩成“忽略 payload”的 parser 糖。
 - 依赖：T4011b
+
+### T4011S [TODO] 收口 enum payload 中的一般 nested enum / builtin enum 字段表示
+- 说明：
+  - 在为 `T4011a` 设计更广的 nested-variant probe 时，发现两条仍未显式记录的表示缺口：一是 boxed enum payload object / type descriptor 遇到 builtin `Option<T>` 这类 enum-typed field 时仍可能在 `cg_ty_of_type_fqn` 报 `struct field type`；二是非 boxed 的 nested enum payload 仍只支持 niche-nested 路径，普通 custom enum 作为另一个 enum payload 时会报 `enum payload (nested enum, unsupported repr)`。
+  - 这两条缺口不阻塞当前 `T4011a -> T4011b -> T4011R` 的 payload matching 主线，因此本轮仅登记为后续跟进任务；但它们属于真实语言实现缺口，不能继续依赖“避开这种 payload 形状”的隐性约束。
+- 范围：
+  - 收口 boxed enum payload object / type descriptor 对 builtin enum field（如 `Option<T>`）的 metadata 与 LLVM 类型映射。
+  - 明确并实现 nested enum payload 在 inline / boxed 表示下的可执行承载边界，不再只支持 niche-nested 的局部路径。
+  - 新增 run-pass / regression，覆盖 builtin enum field 与 custom enum field 作为 enum payload 的组合。
+- 验收：
+  - 相关 probe 不再报 `struct field type` 或 `enum payload (nested enum, unsupported repr)`。
+- 依赖：T4011R
 
 ## T4012：annotation model 与 built-in annotations
 

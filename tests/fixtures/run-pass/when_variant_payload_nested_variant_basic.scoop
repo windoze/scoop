@@ -1,0 +1,39 @@
+// EXPECT: pass
+// EXPECT-EXIT: 18
+//
+// T4011a: 单分支 enum variant payload 子模式匹配
+//
+// 覆盖：
+// - payload 中的 nested variant
+// - nested variant mismatch 后能继续回落到后续同 variant 分支
+
+import scoop.core.*
+
+fun main(): Int {
+    val hit: Option<Option<Bool>> = Some(Some(true))
+    val miss: Option<Option<Bool>> = Some(Some(false))
+    val none: Option<Option<Bool>> = Some(None())
+
+    val a: Int = when (hit) {
+        Some(Some(true)) -> 10
+        Some(Some(_)) -> 20
+        Some(None) -> 30
+        None -> 40
+    }
+
+    val b: Int = when (miss) {
+        Some(Some(true)) -> 1
+        Some(Some(_)) -> 2
+        Some(None) -> 3
+        None -> 4
+    }
+
+    val c: Int = when (none) {
+        Some(Some(true)) -> 4
+        Some(Some(_)) -> 5
+        Some(None) -> 6
+        None -> 7
+    }
+
+    return a + b + c
+}
