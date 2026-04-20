@@ -41,7 +41,11 @@
   - `T4016a2`：再把 sysroot / 内部注释对齐到同一套过渡合同，为 `T4016b` 的 parser / typecheck / HIR / lowering 实装清障。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
-  - 下一步是 `T4016a2`：把 sysroot / 内部注释对齐到同一套过渡合同，再进入 `T4016b` 的 parser / typecheck / HIR / lowering 主线实现。
+  - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
+    - `Continuation<T, eff E>` 仍只是过渡中的 sysroot surface，answer type 尚待 `T4016b` 接入主线；
+    - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
+    - `Task` 当前“resume 后回读 frame 前缀得到 `__TaskStepResult`”的路径只是待 `T4016c/d` 移除的 task-only 实现债务。
+  - `T4016a` 设计/注释收口阶段已完成；下一步进入 `T4016b`，把 answer type、returning-resume 与 `-> resume` 移除正式接入 parser / typecheck / HIR / lowering 主线。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

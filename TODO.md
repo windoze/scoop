@@ -32,7 +32,7 @@
   - `Task` 不再依赖 task-only 的 runtime frame-peek hack；若底层仍有 frame result transport，也必须是 continuation ABI 的通用内部细节。
 - 依赖：无
 
-### T4016a [TODO] 定义正确的 one-shot deep delimited continuation surface、answer type 与最终 handler 语法（拆分执行）
+### T4016a [DONE] 定义正确的 one-shot deep delimited continuation surface、answer type 与最终 handler 语法（拆分执行）
 - 说明：
   - 原条目同时要求“规范/运行时叙事定稿”和“sysroot / compiler 可见表示对齐”，一次性改动面仍然偏大，也会与 `T4016b` 的主线接入互相牵连。
   - 因此先拆成“文档/设计收口”与“sysroot / 内部注释过渡合同”两步，再进入 `T4016b` 做 parser / typecheck / HIR / lowering 实装。
@@ -51,7 +51,7 @@
   - 文档能明确回答 arm 内 `k.resume(...)` 后续语句、nested handle、fresh continuation、cross-thread resume，以及 `-> resume` 的替代表达。
 - 依赖：T4016a
 
-### T4016a2 [TODO] 在 sysroot / 实现注释中对齐 continuation / Task 的过渡合同
+### T4016a2 [DONE] 在 sysroot / 实现注释中对齐 continuation / Task 的过渡合同
 - 范围：
   - 在 `sysroot/core.scoop` 与必要的实现注释中，把 continuation / `Task` 的术语对齐到 `T4016a1` 已定稿的 answer model 与 handler surface。
   - 在不提前切断现有实现的前提下，明确标出哪些 sysroot / 内部注释仍属 `T4016b/c/d` 之前的过渡表达，避免继续把“`resume` 返回 `Unit`”写成稳定设计结论。

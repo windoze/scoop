@@ -1,89 +1,86 @@
-# 本轮执行计划
+## 当前执行计划
 
-更新时间：2026-04-21
+### 目标
 
-## 任务目标
+本次调用只完成 `TODO.md` 中第一个未完成任务，然后停止。在进入实现前，先检查最新提交是否提到需要先修复的遗留问题；如果有，则这些问题优先于 `TODO.md` 任务处理。
 
-按 `TODO.md` 的顺序执行**第一个未完成任务**，在完成实现、测试、文档更新和提交后立即停止。
+### 约束与执行原则
 
-## 思路摘要
+- 先写本文件，再执行任何命令或代码。
+- 不接受规避式实现；如果发现规范缺口、实现边界或前置依赖缺失，必须先把问题写入 `TODO.md`/`PLAN.md`，调整顺序后停止。
+- 只完成一个任务或一个新拆分出的首个子任务。
+- 任务完成后必须更新 `TODO.md`、`PLAN.md`，运行充分测试，并创建 Git 提交。
+- 如果过程中计划发生变化，或完成了关键节点，需要继续更新本文件。
 
-基于当前要求，本轮需要先确认两类前置条件：
+### 初始步骤
 
-1. 最新提交是否明确提到已有缺陷、已知问题或待补修内容；若有，需要先修复这些问题。
-2. `TODO.md` 中当前排在最前面的未完成任务是什么，以及它是否可以在本轮完整落地。
-
-随后按以下原则推进：
-
-- 如果首个未完成任务可以直接完成，就实现它并补齐测试。
-- 如果该任务依赖尚未完成的语言特性、运行时能力或现存缺陷修复，则不能绕过；必须先把缺失项整理为更前置的任务，更新 `TODO.md` / `PLAN.md`，提交后停止。
-- 执行过程中如发现计划判断有误、实现范围需要调整、或关键步骤已完成，会继续更新此文件。
-
-## 分步执行计划
-
-1. 检查最新一次 Git 提交的提交信息与变更说明，确认是否带有“已知问题 / follow-up / FIXME / TODO / bug”等需要先处理的内容。
+1. 查看最新一次 Git 提交，确认提交说明中是否提到尚未修复的问题、已知缺陷或需要跟进的事项。
 2. 读取 `TODO.md`，定位第一个未完成任务。
-3. 读取 `PLAN.md`，核对该任务的上下文、依赖和现有分解是否一致。
-4. 评估该任务复杂度与依赖：
-   - 若可在本轮完整完成，直接进入实现。
-   - 若不可直接完整完成，则把任务拆解为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后执行拆解后的第一个子任务。
-5. 在动手修改代码前，再次更新本文件，记录将要修改的模块与验证策略。
-6. 实现目标任务，保持实现符合规范，不采用规避式 workaround。
-7. 运行与改动相关的验证命令，至少覆盖：
-   - 直接相关测试
-   - 必要的回归测试
-   - `cargo fmt --check`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 若任务影响整体可构建性，再补充 `cargo test --all` 或更合适的子集
-8. 若测试暴露规格不匹配或已有缺陷：
-   - 优先修复属于本任务范围内的问题；
-   - 若暴露更基础的前置缺陷，则更新 `TODO.md` / `PLAN.md` 调整优先级，并在提交后停止。
-9. 完成后更新文档状态：
-   - 在 `TODO.md` 标记该任务完成
-   - 在 `PLAN.md` 记录当前状态与后续影响
-   - 在本文件记录已完成步骤与结果
-10. 生成一次 Git 提交，提交信息对应当前任务，然后停止。
+3. 读取 `PLAN.md`，核对该任务是否已有上下文、依赖或阶段计划。
+4. 判断该任务是否足够小且可以在本次调用内完整交付。
+5. 如果任务过大或存在前置缺口：
+   - 将任务拆成更小的子任务；
+   - 更新 `PLAN.md`；
+   - 更新 `TODO.md` 的任务顺序和依赖；
+   - 只执行拆分后的第一个子任务。
+6. 实现任务并补充/调整测试。
+7. 运行相关验证，至少覆盖受影响测试；若任务影响范围较大，再补充工作区级检查。
+8. 更新 `TODO.md`、`PLAN.md`、本文件。
+9. 进行 Git 提交，并停止。
 
-## 当前状态
+### 预期检查项
 
-- 已完成：初始化本轮计划文件。
-- 已完成：检查最新 Git 提交；提交信息为 `Update plan`，未显式声明需要先修复的既有缺陷。
-- 已完成：读取 `TODO.md` 与 `PLAN.md`。
-- 已判断：`TODO.md` 中排在最前面的可执行未完成子任务为 `T4016a`；总括条目 `T4016` 已经完成任务拆分，因此本轮聚焦 `T4016a`。
-- 已修正判断：在进一步核对 `sysroot` / compiler 主线约束后，原始 `T4016a` 仍偏大，已拆成 `T4016a1`（spec/runtime 设计文档）与 `T4016a2`（sysroot / 实现注释过渡合同）。
-- 已完成：更新 `TODO.md` / `PLAN.md`，把顺序调整为 `T4016a1 -> T4016a2 -> T4016b -> ...`。
-- 已完成：执行新的首个子任务 `T4016a1`，收口了 spec / runtime doc 中的 continuation surface、handler 语法与迁移说明。
-- 已完成验证：
-  - `cargo fmt --check`
-  - `cargo run -p scoop_tools -- spec-fixtures check`
-  - `cargo clippy --all-targets -- -D warnings`
-  - `cargo test --all`
-- 进行中：更新任务状态并准备本轮收尾提交。
+- 相关功能行为与规范一致。
+- 相关测试通过。
+- 若可行，执行 `cargo fmt`、相关测试命令，以及必要的 `cargo clippy --all-targets -- -D warnings`。
+- 不覆盖或回退用户已有修改。
 
-## 针对 T4016a 的即时检查要点
+### 停止条件
 
-1. 现有 `Continuation` 类型定义、sysroot surface、spec 与 runtime 文档是否仍停留在 `resume(...): Unit` 叙事。
-2. parser / AST / HIR 是否仍保留 `-> resume` 用户态语法，相关测试与文档分布在哪里。
-3. typecheck 是否已经部分携带 answer type，还是完全缺失。
-4. `Task` 是否已经与 continuation answer model 解耦，还是仍依赖 runtime frame result hack。
-5. 根据以上现状，判断 `T4016a` 是否可作为“文档/表面设计收口任务”独立完成，或是否必须进一步拆成更小步骤。
-6. 当前实际执行项改为 `T4016a1`，因此优先修改以下位置：
-   - `SCOOP_FULL_SPEC.md`
-   - `SCOOP_RUNTIME.md`
-7. 明确写清：
-   - `Continuation` 的 answer type 语义与推荐表面模型；
-   - `k.resume(...): Answer / (E + Raise<RuntimeError>)`；
-   - deep handler / fresh continuation / cross-thread resume；
-   - `-> resume` 已移除，迁移到 `, k ->` + `k.resume(...)`；
-   - multi-shot / clone / replay 继续 deferred。
-8. 完成 `T4016a1` 后，运行文档相关验证与必要的编译/测试子集，确认没有因文档更新引入构建问题。
-9. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+满足以下任一条件即停止：
 
-## 本轮结果摘要
+- 首个未完成任务已完整实现、验证、更新文档并提交。
+- 发现该任务被未实现前置依赖阻塞，已在 `TODO.md`/`PLAN.md` 中重排并提交。
+- 发现最新提交指出的遗留问题需要先处理，且本次已完成该问题的修复、验证、文档更新和提交。
 
-- `T4016a` 已拆成更小的 `T4016a1` / `T4016a2`，避免把设计定稿与 sysroot / compiler 表示改动混在同一次提交里。
-- `T4016a1` 已完成：
-  - `SCOOP_FULL_SPEC.md` 现已把用户态 handler surface 收口为 `->` 与 `, k ->` 两种形式。
-  - continuation 文档语义已改为 answer-returning：`k.resume(payload...): Answer / (E + Raise<RuntimeError>)`。
-  - 规范文字已明确 deep handler、fresh continuation、cross-thread resume、one-shot，以及 `-> resume` 的迁移方向。
-  - `SCOOP_RUNTIME.md` 已同步为同一套目标合同，并明确后续由 `T4016b/c/d` 完成主线实现对齐。
+### 当前状态
+
+- 已完成：创建计划文件。
+- 已完成：检查最新提交；提交信息仅为 `[T4016a1] Define answer-returning continuation surface`，未额外指出需要优先修复的遗留问题。
+- 已完成：读取 `TODO.md` / `PLAN.md`，确认首个未完成任务为 `T4016a2`。
+- 当前任务：对齐 `sysroot/core.scoop` 与必要实现注释中的 continuation / `Task` 过渡合同，使其与 `T4016a1` 文档口径一致。
+
+### 本次实现聚焦
+
+1. 检查 `sysroot/core.scoop` 中 `Continuation`、`Task`、`__TaskStepResult` 等注释，找出仍把 `resume` 或旧 `Task` 驱动写成稳定设计结论的表述。
+2. 检查 runtime / compiler 中少量最关键注释，尤其是 `Task` 仍依赖 frame peek hack 的位置，确认是否需要把其明确写为过渡债务。
+3. 仅修改必要注释与计划文档，不提前实现 `T4016b/c` 的行为改动。
+4. 运行最小但足够的验证，确保注释更新未引入格式或测试问题；若改动触及编译面，再扩大验证范围。
+5. 更新 `TODO.md`、`PLAN.md` 与本文件，标记 `T4016a2` 完成后提交并停止。
+
+### 已完成的关键步骤
+
+- 已检查 `sysroot/core.scoop` 中 `Continuation` / `Task` / `__TaskStepResult` 注释，并把它们改成“当前仅是过渡 surface”的表述：
+  - `Continuation<T, eff E>` 目前只显式暴露 payload 与 required effects，不应被理解为 `resume` 最终返回 `Unit`；
+  - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
+  - `Task`/`__TaskStepResult` 已明确标注为“私有 step-result continuation answer 的过渡承载”。
+- 已更新 `runtime/c/scoop_task.c` 注释，明确当前 “resume 后回读 frame 前缀得到 `__TaskStepResult`” 是 task-only 过渡债务，等待 `T4016c/d` 移除。
+- 已更新 `runtime/c/scoop_runtime.c` 注释，补充当前 C runtime 仍只显式记录 resume payload transport，而 delimiter answer 仍属待显式化的 continuation ABI 过渡状态。
+
+### 当前下一步
+
+1. 运行验证命令，确认注释更新未引入任何构建、fixture 或 lint 回归。
+2. 若验证通过，更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+### 验证结果
+
+- `cargo test --all`：通过。
+- `cargo run -p scoop -- test`：通过，结果为 `fixtures: ok (1112)`。
+- `cargo clippy --all-targets -- -D warnings`：通过。
+- `git diff --check`：通过。
+
+### 收尾状态
+
+- 已将 `TODO.md` 中的 `T4016a2` 标记为完成，并同步把父任务 `T4016a` 标记为完成。
+- 已将 `PLAN.md` 的当前状态前移到 `T4016b`，说明 `T4016a2` 已完成的具体注释对齐内容。
+- 下一步仅剩：检查最终 diff，创建本次任务提交，然后停止。

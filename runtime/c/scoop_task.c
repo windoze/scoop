@@ -4,6 +4,9 @@
 // - `Task<T>` 当前只承载 lazy/manual polling 语义；
 // - `poll()` / `step()` 都驱动任务执行，直到“下一次挂起或完成”为止；
 // - task 的 suspended-state carrier 对外不可见，runtime 内部继续借助 raw continuation；
+// - 从 `T4016a1` 的目标语义看，task step driver 的私有 delimiter answer 实际上是
+//   `__TaskStepResult`；当前 runtime 仍通过 continuation heap frame 前缀把它取回来，
+//   这只是 `T4016c/d` 之前的过渡耦合，不是最终 continuation ABI；
 // - `scoop_task_join` 只是 compiler/runtime/test harness 使用的内部 helper：它循环 `poll()`，
 //   直到任务完成；它不代表公开的 structured-concurrency `join` 语义。
 
@@ -40,7 +43,9 @@ typedef enum ScoopTaskStepKindU32 {
 // task runtime 只需要：
 // - 向 continuation 写入 resume payload；
 // - 在 `scoop_continuation_resume(...)` 返回后，读取 continuation 的 heap state frame，
-//   再从标准化的 frame 前缀中取回 handle result（这里即 `__TaskStepResult`）。
+//   再从标准化的 frame 前缀中取回 handle result（这里即 `__TaskStepResult`）；
+// - 上述“resume 后回读 frame 前缀”的做法是 task-only 过渡债务：等 `T4016c/d` 把 delimiter
+//   answer channel 变成 continuation ABI 的通用返回通道后，这里应改为直接消费显式 answer。
 typedef struct ScoopContinuation {
   ScoopGcObjectHeader hdr;
   _Atomic uint32_t resumed;
@@ -56,6 +61,9 @@ typedef struct ScoopContinuation {
 // state-machine frame 的统一前缀（见 `state_machine_emitter.rs`）：
 // - `state_tag`：当前 state / sentinel completion tag
 // - `resume_word` / `resume_gc_ref`：handle result transport
+//
+// 这里当前还承担 task runtime 回读私有 `__TaskStepResult` answer 的桥接职责；
+// `T4016c/d` 完成后，task 不应再依赖这条 task-only 回读路径。
 typedef struct ScoopEffectFrameResultPrefix {
   ScoopGcObjectHeader hdr;
   uint32_t state_tag;
@@ -414,6 +422,9 @@ static ScoopTaskStepResult *scoop_task_resume_continuation_to_step(
   k->resume_gc_ref = resume_gc_ref;
   scoop_continuation_resume(continuation);
 
+  // 过渡期实现：当前 generic continuation ABI 还不会把 delimiter answer 作为显式返回值
+  // 直接交给 caller；task driver 只能从标准化 frame 前缀读回 `__TaskStepResult`。
+  // `T4016c/d` 收口 answer-returning continuation 后，这里应改成消费通用 answer 通道。
   if (k->state == 0) {
     exit(3);
   }
