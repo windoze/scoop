@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_overlapping_paths
+// EXPECT-ERROR: 路径冲突
+// 目标：T4010a1 tuple 路径也应复用 `with` 的并行冲突检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use(pair: ((Int, Int), Int)) {
+    val updated: ((Int, Int), Int) = pair with { _0: (1, 2), _0._1: 3 }
+}

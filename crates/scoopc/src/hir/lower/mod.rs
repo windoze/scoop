@@ -2182,6 +2182,75 @@ mod tests {
         }
     }
 
+    fn expr_contains_todo_kind(expr: &Expr, kind: &str) -> bool {
+        match &expr.kind {
+            ExprKind::Todo(found) => *found == kind,
+            ExprKind::MemberAccess { receiver, .. } => expr_contains_todo_kind(receiver, kind),
+            ExprKind::Call { callee, args } => {
+                expr_contains_todo_kind(callee, kind)
+                    || args.iter().any(|arg| match arg {
+                        CallArg::Positional(expr) => expr_contains_todo_kind(expr, kind),
+                        CallArg::Named { value, .. } => expr_contains_todo_kind(value, kind),
+                    })
+            }
+            ExprKind::StructLit { fields, .. } => fields
+                .iter()
+                .any(|field| expr_contains_todo_kind(&field.value, kind)),
+            ExprKind::TupleLit { elements } => elements
+                .iter()
+                .any(|element| expr_contains_todo_kind(element, kind)),
+            ExprKind::When { subject, arms } => {
+                expr_contains_todo_kind(subject, kind)
+                    || arms
+                        .iter()
+                        .any(|arm| expr_contains_todo_kind(&arm.body, kind))
+            }
+            ExprKind::Block(block) => block.stmts.iter().any(|stmt| match &stmt.kind {
+                StmtKind::Expr(expr) => expr_contains_todo_kind(expr, kind),
+                StmtKind::Val(decl) => decl
+                    .init
+                    .as_ref()
+                    .is_some_and(|expr| expr_contains_todo_kind(expr, kind)),
+                StmtKind::Assign { lhs, rhs, .. } => {
+                    expr_contains_todo_kind(lhs, kind) || expr_contains_todo_kind(rhs, kind)
+                }
+                StmtKind::While { cond, body } => {
+                    expr_contains_todo_kind(cond, kind)
+                        || body.stmts.iter().any(|body_stmt| match &body_stmt.kind {
+                            StmtKind::Expr(expr) => expr_contains_todo_kind(expr, kind),
+                            StmtKind::Val(decl) => decl
+                                .init
+                                .as_ref()
+                                .is_some_and(|expr| expr_contains_todo_kind(expr, kind)),
+                            _ => false,
+                        })
+                }
+                StmtKind::Return { value } => value
+                    .as_ref()
+                    .is_some_and(|expr| expr_contains_todo_kind(expr, kind)),
+                _ => false,
+            }),
+            ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                expr_contains_todo_kind(cond, kind)
+                    || expr_contains_todo_kind(then_branch, kind)
+                    || else_branch
+                        .as_deref()
+                        .is_some_and(|expr| expr_contains_todo_kind(expr, kind))
+            }
+            ExprKind::Unary { expr, .. }
+            | ExprKind::TypeCheck { expr, .. }
+            | ExprKind::Cast { expr, .. } => expr_contains_todo_kind(expr, kind),
+            ExprKind::Binary { lhs, rhs, .. } => {
+                expr_contains_todo_kind(lhs, kind) || expr_contains_todo_kind(rhs, kind)
+            }
+            _ => false,
+        }
+    }
+
     fn collect_top_level_call_fqns_in_expr(expr: &Expr, out: &mut Vec<String>) {
         match &expr.kind {
             ExprKind::Call { callee, args } => {
@@ -3289,6 +3358,114 @@ fun main(): Int {
             !unresolved_member_names.iter().any(|name| name == "score"),
             "{unresolved_member_names:?}"
         );
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4010a1>",
+            r#"
+package fixtures.t4010a1
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use(pair: (Point, (Int, Int))) {
+    val updated: (Point, (Int, Int)) = pair with { _0.x: 10, _1._0: 30 }
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+        let fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Fun(fun) if fun.fqn == "fixtures.t4010a1.use" => Some(fun),
+                _ => None,
+            })
+            .expect("expected lowered function");
+        let body = fun.body.as_ref().expect("expected function body");
+        let updated_init = body
+            .stmts
+            .iter()
+            .find_map(|stmt| match &stmt.kind {
+                StmtKind::Val(decl) if decl.name.as_deref() == Some("updated") => {
+                    decl.init.as_ref()
+                }
+                _ => None,
+            })
+            .expect("expected updated init");
+
+        assert!(
+            !expr_contains_todo_kind(updated_init, "with_update"),
+            "with-update lowering should not fall back to Todo: {updated_init:#?}"
+        );
+
+        let ExprKind::Block(block) = &updated_init.kind else {
+            panic!("with-update init should lower to block: {updated_init:#?}");
+        };
+        assert_eq!(block.stmts.len(), 2, "{block:#?}");
+
+        let StmtKind::Val(base_decl) = &block.stmts[0].kind else {
+            panic!(
+                "first with-update stmt should bind synthetic base: {:#?}",
+                block.stmts[0]
+            );
+        };
+        assert_eq!(base_decl.name.as_deref(), Some("$with_base"));
+
+        let StmtKind::Expr(rebuilt_expr) = &block.stmts[1].kind else {
+            panic!(
+                "second with-update stmt should be rebuilt value: {:#?}",
+                block.stmts[1]
+            );
+        };
+
+        let ExprKind::TupleLit { elements } = &rebuilt_expr.kind else {
+            panic!("with-update over tuple should rebuild tuple literal: {rebuilt_expr:#?}");
+        };
+        assert_eq!(elements.len(), 2);
+
+        let ExprKind::StructLit { fields, .. } = &elements[0].kind else {
+            panic!(
+                "first tuple element should rebuild nested struct: {:#?}",
+                elements[0]
+            );
+        };
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0].name, "x");
+        assert!(matches!(
+            fields[0].value.kind,
+            ExprKind::Literal(LiteralKind::Int)
+        ));
+        assert_eq!(fields[1].name, "y");
+        assert!(matches!(
+            fields[1].value.kind,
+            ExprKind::MemberAccess { .. }
+        ));
+
+        let ExprKind::TupleLit {
+            elements: nested_tuple,
+        } = &elements[1].kind
+        else {
+            panic!(
+                "second tuple element should rebuild nested tuple: {:#?}",
+                elements[1]
+            );
+        };
+        assert_eq!(nested_tuple.len(), 2);
+        assert!(matches!(
+            nested_tuple[0].kind,
+            ExprKind::Literal(LiteralKind::Int)
+        ));
+        assert!(matches!(
+            nested_tuple[1].kind,
+            ExprKind::MemberAccess { .. }
+        ));
     }
 
     #[test]

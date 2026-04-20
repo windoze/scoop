@@ -644,7 +644,7 @@ impl<'a> HirLowering<'a> {
                 base,
                 with_span,
                 updates,
-                resolved_struct_fqns,
+                resolved_copy_update_tys,
             } => {
                 return self.lower_with_update_expr(
                     pkg_prefix,
@@ -652,7 +652,7 @@ impl<'a> HirLowering<'a> {
                     *with_span,
                     base,
                     updates,
-                    resolved_struct_fqns,
+                    resolved_copy_update_tys,
                 );
             }
         };
@@ -1957,14 +1957,14 @@ impl<'a> HirLowering<'a> {
 
     /// `with` 表达式 lowering（spec §2.6）。
     ///
-    /// 将 `base with { field1: v1; nested.field: v2 }` 展开为一个 block：
+    /// 将 `base with { path: value }` 展开为一个 copy-update block：
     /// ```text
     /// {
     ///   val $with_base = <base>
-    ///   StructLit { field1: v1, field2: $with_base.field2, ... }
+    ///   <按具体值类型重建 aggregate>
     /// }
     /// ```
-    /// 对于嵌套路径，递归生成内层 StructLit。
+    /// 对于嵌套路径，递归重建内层 struct / tuple。
     fn lower_with_update_expr(
         &mut self,
         pkg_prefix: &str,
@@ -1972,23 +1972,10 @@ impl<'a> HirLowering<'a> {
         with_span: Span,
         base: &ast::Expr,
         updates: &[ast::WithUpdateField],
-        resolved_struct_fqns: &std::cell::OnceCell<std::collections::HashMap<String, String>>,
+        resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
     ) -> Expr {
-        // 读取 typecheck 写回的 FQN map。
-        let fqn_map = match resolved_struct_fqns.get() {
-            Some(map) => map,
-            None => {
-                // dump-hir（无 typecheck）时回退。
-                return Expr {
-                    span: expr_span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Todo("with_update"),
-                };
-            }
-        };
-
-        let base_fqn = match fqn_map.get("") {
-            Some(fqn) => fqn.clone(),
+        let typecheck_types = match self.typecheck_types {
+            Some(types) => types,
             None => {
                 return Expr {
                     span: expr_span,
@@ -1998,11 +1985,37 @@ impl<'a> HirLowering<'a> {
             }
         };
 
-        let ty_id = self.intern_nominal(base_fqn.clone(), vec![], None);
+        let aggregate_ty_map = match resolved_copy_update_tys.get() {
+            Some(map) => map
+                .iter()
+                .map(|(prefix, ty)| {
+                    (
+                        prefix.clone(),
+                        self.types.re_intern_from(typecheck_types, *ty),
+                    )
+                })
+                .collect::<std::collections::HashMap<_, _>>(),
+            None => {
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
 
-        // lower base expression，绑定到合成 val 以保证单次求值。
+        let base_ty = match aggregate_ty_map.get("") {
+            Some(ty) => *ty,
+            None => {
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
+
         let base_lowered = self.lower_expr(pkg_prefix, base);
-        let base_ty = ty_id;
         let base_id = self.intern_local_symbol(with_span, false);
 
         let base_ref = Expr {
@@ -2015,7 +2028,6 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        // 将 updates 按第一段 field name 分组。
         let mut grouped: std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>> =
             std::collections::HashMap::new();
         for u in updates {
@@ -2030,12 +2042,17 @@ impl<'a> HirLowering<'a> {
                 .push((&segs[1..], &u.value));
         }
 
-        // 生成 struct lit 字段列表。
-        let struct_lit = self.build_with_struct_lit(
-            pkg_prefix, expr_span, with_span, &base_fqn, ty_id, &base_ref, &grouped, fqn_map, "",
+        let rebuilt = self.build_with_copy_expr(
+            pkg_prefix,
+            expr_span,
+            with_span,
+            base_ty,
+            &base_ref,
+            &grouped,
+            &aggregate_ty_map,
+            "",
         );
 
-        // 包装为 block：{ val $with_base = base; struct_lit }
         let val_stmt = Stmt {
             span: with_span,
             ty: base_ty,
@@ -2051,18 +2068,79 @@ impl<'a> HirLowering<'a> {
 
         let result_stmt = Stmt {
             span: expr_span,
-            ty: ty_id,
-            kind: StmtKind::Expr(struct_lit),
+            ty: base_ty,
+            kind: StmtKind::Expr(rebuilt),
         };
 
         Expr {
             span: expr_span,
-            ty: ty_id,
+            ty: base_ty,
             kind: ExprKind::Block(Block {
                 span: expr_span,
-                ty: ty_id,
+                ty: base_ty,
                 stmts: vec![val_stmt, result_stmt],
             }),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_with_copy_expr(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        aggregate_ty: TypeId,
+        base_access: &Expr,
+        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        current_prefix: &str,
+    ) -> Expr {
+        enum LoweringAggregateKind {
+            Struct(String),
+            Tuple,
+            Unsupported,
+        }
+
+        let lowering_kind = match self.types.kind(aggregate_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if matches!(
+                    self.type_kinds.get(&nominal.fqn),
+                    Some(&ast::TypeKind::Struct)
+                ) =>
+            {
+                LoweringAggregateKind::Struct(nominal.fqn.clone())
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => LoweringAggregateKind::Tuple,
+            _ => LoweringAggregateKind::Unsupported,
+        };
+
+        match lowering_kind {
+            LoweringAggregateKind::Struct(struct_fqn) => self.build_with_struct_lit(
+                pkg_prefix,
+                expr_span,
+                with_span,
+                &struct_fqn,
+                aggregate_ty,
+                base_access,
+                grouped,
+                aggregate_ty_map,
+                current_prefix,
+            ),
+            LoweringAggregateKind::Tuple => self.build_with_tuple_lit(
+                pkg_prefix,
+                expr_span,
+                with_span,
+                aggregate_ty,
+                base_access,
+                grouped,
+                aggregate_ty_map,
+                current_prefix,
+            ),
+            LoweringAggregateKind::Unsupported => Expr {
+                span: expr_span,
+                ty: self.builtins.any,
+                kind: ExprKind::Todo("with_update"),
+            },
         }
     }
 
@@ -2070,7 +2148,7 @@ impl<'a> HirLowering<'a> {
     ///
     /// `base_access` 是访问当前层级 base 值的表达式（例如 `$with_base` 或 `$with_base.start`）。
     /// `grouped` 中 key 为当前层级的 field name，value 为 (remaining path segments, value expr)。
-    /// `fqn_map` 为 typecheck 写回的 path_prefix → struct FQN 映射。
+    /// `aggregate_ty_map` 为 typecheck 写回的 path_prefix → 具体 aggregate type 映射。
     /// `current_prefix` 为当前层级的路径前缀（例如 `""` 或 `"start"`）。
     #[allow(clippy::too_many_arguments)]
     fn build_with_struct_lit(
@@ -2082,10 +2160,9 @@ impl<'a> HirLowering<'a> {
         struct_ty: TypeId,
         base_access: &Expr,
         grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
-        fqn_map: &std::collections::HashMap<String, String>,
+        aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
         current_prefix: &str,
     ) -> Expr {
-        // 从 index.constructors 查找 primary constructor 的字段列表。
         let field_names: Vec<String> = self
             .index
             .constructors
@@ -2120,22 +2197,16 @@ impl<'a> HirLowering<'a> {
             };
 
             let value = if let Some(update_group) = grouped.get(field_name) {
-                // 检查是否有直接赋值（剩余 segments 为空）。
                 if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
-                    // 直接覆盖：`field: value`
                     self.lower_expr(pkg_prefix, val_expr)
                 } else {
-                    // 嵌套路径：查找 fqn_map 中该字段的 struct FQN。
                     let nested_prefix = if current_prefix.is_empty() {
                         field_name.clone()
                     } else {
                         format!("{}.{}", current_prefix, field_name)
                     };
 
-                    if let Some(nested_fqn) = fqn_map.get(&nested_prefix) {
-                        let nested_ty = self.intern_nominal(nested_fqn.clone(), vec![], None);
-
-                        // 按下一段 field name 重新分组。
+                    if let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() {
                         let mut nested_grouped: std::collections::HashMap<
                             String,
                             Vec<(&[ast::Ident], &ast::Expr)>,
@@ -2150,24 +2221,21 @@ impl<'a> HirLowering<'a> {
                             }
                         }
 
-                        self.build_with_struct_lit(
+                        self.build_with_copy_expr(
                             pkg_prefix,
                             expr_span,
                             with_span,
-                            nested_fqn,
                             nested_ty,
                             &field_access,
                             &nested_grouped,
-                            fqn_map,
+                            aggregate_ty_map,
                             &nested_prefix,
                         )
                     } else {
-                        // 回退：无法解析嵌套类型时使用 field access
                         field_access
                     }
                 }
             } else {
-                // 未被更新的字段：从 base 复制。
                 field_access
             };
 
@@ -2187,6 +2255,101 @@ impl<'a> HirLowering<'a> {
                 ty: struct_ty,
                 fields,
             },
+        }
+    }
+
+    /// 递归构造 with-update 的 TupleLit 表达式。
+    ///
+    /// tuple 元素沿用 `_0` / `_1` / ... 成员访问语法读取原值，再按 grouped 中的更新重建。
+    #[allow(clippy::too_many_arguments)]
+    fn build_with_tuple_lit(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        tuple_ty: TypeId,
+        base_access: &Expr,
+        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        aggregate_ty_map: &std::collections::HashMap<String, TypeId>,
+        current_prefix: &str,
+    ) -> Expr {
+        let element_tys = match self.types.kind(tuple_ty) {
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.to_vec(),
+            _ => {
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
+
+        let mut elements = Vec::with_capacity(element_tys.len());
+        for (idx, _) in element_tys.iter().enumerate() {
+            let member_name = format!("_{idx}");
+            let field_access = Expr {
+                span: with_span,
+                ty: self.builtins.any,
+                kind: ExprKind::MemberAccess {
+                    receiver: Box::new(base_access.clone()),
+                    member: MemberAccess {
+                        span: with_span,
+                        name: member_name.clone(),
+                        resolved: None,
+                    },
+                },
+            };
+
+            let value = if let Some(update_group) = grouped.get(&member_name) {
+                if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
+                    self.lower_expr(pkg_prefix, val_expr)
+                } else {
+                    let nested_prefix = if current_prefix.is_empty() {
+                        member_name.clone()
+                    } else {
+                        format!("{}.{}", current_prefix, member_name)
+                    };
+
+                    if let Some(nested_ty) = aggregate_ty_map.get(&nested_prefix).copied() {
+                        let mut nested_grouped: std::collections::HashMap<
+                            String,
+                            Vec<(&[ast::Ident], &ast::Expr)>,
+                        > = std::collections::HashMap::new();
+                        for (rest, val) in update_group {
+                            if !rest.is_empty() {
+                                let next = self.source.slice(rest[0].span).to_string();
+                                nested_grouped
+                                    .entry(next)
+                                    .or_default()
+                                    .push((&rest[1..], *val));
+                            }
+                        }
+
+                        self.build_with_copy_expr(
+                            pkg_prefix,
+                            expr_span,
+                            with_span,
+                            nested_ty,
+                            &field_access,
+                            &nested_grouped,
+                            aggregate_ty_map,
+                            &nested_prefix,
+                        )
+                    } else {
+                        field_access
+                    }
+                }
+            } else {
+                field_access
+            };
+
+            elements.push(value);
+        }
+
+        Expr {
+            span: expr_span,
+            ty: tuple_ty,
+            kind: ExprKind::TupleLit { elements },
         }
     }
 

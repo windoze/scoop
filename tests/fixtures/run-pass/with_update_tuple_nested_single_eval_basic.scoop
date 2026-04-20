@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: with_update_tuple_nested_single_eval_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T4010a1: `with` 在 tuple 与 struct+tuple 混合嵌套路径上走统一 copy-update 主线。
+// 同时验证：
+// - base 表达式只求值一次；
+// - 未更新的字段/元素保持原值。
+
+package fixtures.runpass
+
+import scoop.core.*
+
+class Counter(var hits: Int)
+
+struct Point(val x: Int, val y: Int)
+
+fun build(counter: Counter): (Point, (Int, Int)) {
+    counter.hits = counter.hits + 1
+    return (Point { x: 1, y: 2 }, (3, 4))
+}
+
+fun main(): Int {
+    val counter: Counter = Counter(0)
+    val updated: (Point, (Int, Int)) = build(counter) with { _0.x: 10, _1._0: 30 }
+    println(counter.hits)
+    println(updated._0.x)
+    println(updated._0.y)
+    println(updated._1._0)
+    println(updated._1._1)
+    0
+}

@@ -1689,16 +1689,22 @@ pub enum ExprKind {
     /// 说明：
     /// - 语法建模见 T0216；
     /// - 字段存在性与类型检查已在 typecheck 阶段实现（T0415）；
-    /// - HIR lowering 将 `with` 展开为 struct literal（T0109）。
+    /// - HIR lowering 会按具体值类型把 `with` 展开为 copy-update block（struct/tuple 等）；
+    /// - enum payload copy-update 仍在后续任务中继续补齐。
     WithUpdate {
         base: Box<Expr>,
         with_span: Span,
         updates: Vec<WithUpdateField>,
-        /// typecheck 写回的各层 struct FQN 映射表。
-        /// key 为字段路径前缀（`""` = base struct，`"start"` = start 字段的 struct 类型），
-        /// value 为对应 struct 的 FQN（例如 `"pkg.Point"`）。
+        /// typecheck 写回的 copy-update 路径前缀 -> 具体 aggregate type 映射。
+        ///
+        /// 约定：
+        /// - `""` = base 表达式自身的具体值类型；
+        /// - `"start"` / `"_0"` / `"start._0"` = 对应中间路径前缀的具体 aggregate type。
+        ///
+        /// lowering 会把这些 `TypeId` 重新 intern 到自己的 `TypeStore`，从而按 struct/tuple
+        /// 统一重建 aggregate，而不是只靠 struct FQN 特判。
         /// 使用 `OnceCell` 允许 typecheck 以共享引用写回。
-        resolved_struct_fqns: OnceCell<std::collections::HashMap<String, String>>,
+        resolved_copy_update_tys: OnceCell<std::collections::HashMap<String, TypeId>>,
     },
 }
 

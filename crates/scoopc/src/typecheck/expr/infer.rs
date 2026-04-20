@@ -264,9 +264,9 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::WithUpdate {
             base,
             updates,
-            resolved_struct_fqns,
+            resolved_copy_update_tys,
             ..
-        } => infer_with_update_expr_type(inputs, base, updates, resolved_struct_fqns, lower),
+        } => infer_with_update_expr_type(inputs, base, updates, resolved_copy_update_tys, lower),
         ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(inputs, lhs, rhs, lower),
         ast::ExprKind::Binary {
             lhs,
@@ -2851,38 +2851,24 @@ fn infer_with_update_expr_type(
     inputs: ExprInferInputs<'_>,
     base: &ast::Expr,
     updates: &[ast::WithUpdateField],
-    resolved_struct_fqns: &std::cell::OnceCell<std::collections::HashMap<String, String>>,
+    resolved_copy_update_tys: &std::cell::OnceCell<std::collections::HashMap<String, TypeId>>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
     // 先递归类型检查 base：保证 `p with { ... }` 中的 `p` 自身也会被覆盖。
     let base_ty = inputs.infer(lower, base)?;
 
-    // 当前阶段（T0415）仅支持 struct 字段更新：
-    // - base 必须是名义值类型，并且其声明 kind 为 `struct`
-    let (base_struct_fqn, base_struct_name) = match lower.type_kind(base_ty) {
-        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (nominal.fqn, lower.fmt_type(base_ty)),
-        _ => {
-            return Err(ExprTypeError::WithUpdateBaseNotSupported {
-                found: lower.fmt_type(base_ty),
-                span: base.span.into(),
-            });
-        }
-    };
-
-    if !matches!(
-        lower.nominal_decl_kind(&base_struct_fqn),
-        Some(ast::TypeKind::Struct)
-    ) {
+    if with_update_aggregate_kind(lower, base_ty).is_none() {
         return Err(ExprTypeError::WithUpdateBaseNotSupported {
-            found: base_struct_name,
+            found: lower.fmt_type(base_ty),
             span: base.span.into(),
         });
     }
 
-    // 收集各层 struct FQN：key 为路径前缀，value 为 struct FQN。
-    let mut fqn_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    fqn_map.insert(String::new(), base_struct_fqn.clone());
+    // 收集 copy-update 路径上的各层 aggregate 具体类型，供 lowering 统一重建 struct/tuple。
+    let mut aggregate_ty_map: std::collections::HashMap<String, TypeId> =
+        std::collections::HashMap::new();
+    aggregate_ty_map.insert(String::new(), base_ty);
 
     // `with` 的并行语义：update 之间没有顺序依赖，因此要求：
     // - 完全相同的 path 不能重复出现（否则“谁覆盖谁”会引入顺序）
@@ -2940,11 +2926,12 @@ fn infer_with_update_expr_type(
     for u in updates {
         // 路径可以多段：`a.b.c: value`。
         //
-        // 当前阶段限制：
-        // - 每一段都必须是 struct 字段
-        // - 中间段字段类型必须是 struct（才能继续向下更新）
-        let mut current_struct_fqn = base_struct_fqn.clone();
-        let mut current_struct_name = lower.fmt_type(base_ty);
+        // 当前阶段支持：
+        // - struct 字段：`point.x`
+        // - tuple 元素：`pair._0`
+        // - 中间层可在 struct / tuple 之间自由切换。
+        let mut current_ty = base_ty;
+        let mut current_owner_name = lower.fmt_type(base_ty);
         let mut path_prefix_parts: Vec<String> = Vec::new();
 
         if u.path.segments.is_empty() {
@@ -2957,13 +2944,44 @@ fn infer_with_update_expr_type(
 
         for (i, seg) in u.path.segments.iter().enumerate() {
             let field = source.slice(seg.span).to_string();
-            let field_fqn = format!("{current_struct_fqn}.{field}");
-            let Some(field_ty) = inputs.struct_field_types.get(&field_fqn).copied() else {
-                return Err(ExprTypeError::WithUpdateUnknownField {
-                    struct_name: current_struct_name.clone(),
-                    field,
-                    span: seg.span.into(),
-                });
+            let field_ty = match with_update_aggregate_kind(lower, current_ty) {
+                Some(WithUpdateAggregateKind::Struct { fqn }) => {
+                    let field_fqn = format!("{fqn}.{field}");
+                    inputs
+                        .struct_field_types
+                        .get(&field_fqn)
+                        .copied()
+                        .ok_or_else(|| ExprTypeError::WithUpdateUnknownField {
+                            struct_name: current_owner_name.clone(),
+                            field: field.clone(),
+                            span: seg.span.into(),
+                        })?
+                }
+                Some(WithUpdateAggregateKind::Tuple { elements }) => {
+                    let Some(idx) = parse_with_update_tuple_member_index(&field) else {
+                        return Err(ExprTypeError::WithUpdateUnknownField {
+                            struct_name: current_owner_name.clone(),
+                            field,
+                            span: seg.span.into(),
+                        });
+                    };
+                    let Some(field_ty) = elements.get(idx).copied() else {
+                        return Err(ExprTypeError::WithUpdateUnknownField {
+                            struct_name: current_owner_name.clone(),
+                            field,
+                            span: seg.span.into(),
+                        });
+                    };
+                    field_ty
+                }
+                None => {
+                    return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
+                        struct_name: current_owner_name.clone(),
+                        field,
+                        found: lower.fmt_type(current_ty),
+                        span: seg.span.into(),
+                    });
+                }
             };
 
             let is_last = i + 1 == u.path.segments.len();
@@ -2975,7 +2993,7 @@ fn infer_with_update_expr_type(
                     expected_ty,
                     ExpectedTypeFrom::new(format!(
                         "with-update `{}` 字段 `{}` 的类型",
-                        current_struct_name, field
+                        current_owner_name, field
                     )),
                 )?;
 
@@ -2989,7 +3007,7 @@ fn infer_with_update_expr_type(
                     )
                 {
                     return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
-                        struct_name: current_struct_name.clone(),
+                        struct_name: current_owner_name.clone(),
                         field,
                         expected: lower.fmt_type(expected_ty),
                         found: lower.fmt_type(found_ty),
@@ -3000,49 +3018,66 @@ fn infer_with_update_expr_type(
                 break;
             }
 
-            // 中间段：必须是 struct 才能继续向下。
-            let (next_fqn, next_name) = match lower.type_kind(field_ty) {
-                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                    (nominal.fqn, lower.fmt_type(field_ty))
-                }
-                _ => {
-                    return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
-                        struct_name: current_struct_name.clone(),
-                        field,
-                        found: lower.fmt_type(field_ty),
-                        span: seg.span.into(),
-                    });
-                }
-            };
-
-            if !matches!(
-                lower.nominal_decl_kind(&next_fqn),
-                Some(ast::TypeKind::Struct)
-            ) {
+            // 中间段：必须继续落在可复制更新的 aggregate（struct/tuple）上。
+            if with_update_aggregate_kind(lower, field_ty).is_none() {
                 return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
-                    struct_name: current_struct_name.clone(),
+                    struct_name: current_owner_name.clone(),
                     field,
-                    found: next_name,
+                    found: lower.fmt_type(field_ty),
                     span: seg.span.into(),
                 });
             }
 
-            // 记录中间 struct FQN：path_prefix → struct FQN。
+            // 记录中间 aggregate 具体类型：path_prefix → TypeId。
             path_prefix_parts.push(field.clone());
             let prefix_key = path_prefix_parts.join(".");
-            fqn_map.insert(prefix_key, next_fqn.clone());
+            aggregate_ty_map.insert(prefix_key, field_ty);
 
-            current_struct_fqn = next_fqn;
-            current_struct_name = next_name;
+            current_ty = field_ty;
+            current_owner_name = lower.fmt_type(field_ty);
         }
 
         // loop 中在最后一段已完成 value typecheck；这里无需额外动作。
     }
 
-    // 写回所有层级的 struct FQN，供 HIR lowering 使用。
-    let _ = resolved_struct_fqns.set(fqn_map);
+    // 写回所有层级的 aggregate type，供 HIR lowering 统一重建 struct/tuple。
+    let _ = resolved_copy_update_tys.set(aggregate_ty_map);
 
     Ok(base_ty)
+}
+
+#[derive(Clone)]
+enum WithUpdateAggregateKind {
+    Struct { fqn: String },
+    Tuple { elements: Vec<TypeId> },
+}
+
+fn with_update_aggregate_kind(
+    lower: &TypeLowering<'_>,
+    ty: TypeId,
+) -> Option<WithUpdateAggregateKind> {
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if matches!(
+                lower.nominal_decl_kind(&nominal.fqn),
+                Some(ast::TypeKind::Struct)
+            ) =>
+        {
+            Some(WithUpdateAggregateKind::Struct { fqn: nominal.fqn })
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(WithUpdateAggregateKind::Tuple {
+            elements: elements.to_vec(),
+        }),
+        _ => None,
+    }
+}
+
+fn parse_with_update_tuple_member_index(text: &str) -> Option<usize> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() || !digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse::<usize>().ok()
 }
 
 fn is_cast_allowed(

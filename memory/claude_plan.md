@@ -1,56 +1,47 @@
-## 当前执行计划（审阅版）
+# 当前执行计划
 
-说明：按要求先记录执行计划。此文件只包含可审阅的任务分析摘要、执行步骤、风险和进度，不包含内部私有推理细节。
+## 约束说明
 
-### 目标
+- 按要求先记录计划，再执行任何仓库检查或构建命令。
+- 这里记录的是可审计的执行计划与决策摘要，不包含冗长的内部推理展开。
+- 本轮目标是完成 `TODO.md` 中第一个未完成任务，完成后立即停止。
 
-完成 `TODO.md` 中第一项未完成任务，并在完成后更新计划/任务状态、运行相关测试、提交 Git commit，然后停止。
+## 初始步骤
 
-### 执行步骤
+1. 检查最新一次 Git 提交，确认提交说明里是否提到需要先修复的既有问题。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 如该任务过大或依赖缺失，拆分任务并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
 
-1. 检查最新一次 Git 提交，确认其是否提到任何已知遗留问题。
-2. 如果最新提交提到需先修复的遗留问题，优先定位并修复这些问题，再继续后续步骤。
-3. 阅读 `TODO.md`，识别第一项未完成任务。
-4. 评估该任务规模与前置依赖：
-   - 若任务可直接完成，进入实现。
-   - 若任务过大或存在明确前置依赖/规格缺口，更新 `PLAN.md` 与 `TODO.md`，将任务拆分或重排，并只执行拆分后的第一项。
-5. 阅读相关代码、规格、测试与文档，确定实现位置与影响范围。
-6. 实现任务，确保不引入临时性 workaround，不偏离规格。
-7. 运行相关测试与必要的质量检查：
-   - 至少运行与改动直接相关的测试；
-   - 若影响面较大，补充运行更广范围测试；
-   - 按要求关注 `cargo clippy --all-targets -- -D warnings` 是否通过。
-8. 更新文档与任务状态：
-   - 在 `TODO.md` 中标记完成，或在阻塞时按依赖顺序调整任务；
-   - 更新 `PLAN.md` 记录当前状态与后续安排；
-   - 如有必要，更新 `README.md` 或内联注释。
-9. 检查工作区改动，整理提交内容。
-10. 使用清晰的提交信息创建 Git commit，然后停止。
+## 执行步骤
 
-### 约束与判断原则
+1. 阅读与当前任务相关的代码、规格、测试和计划文档。
+2. 确认是否存在阻塞当前任务的规范偏差、实现缺口或历史问题。
+3. 若存在阻塞：
+   - 将缺口转化为新的前置任务并写入 `TODO.md`。
+   - 在 `PLAN.md` 中记录依赖关系和阻塞原因。
+   - 提交文档变更后停止。
+4. 若不存在阻塞：
+   - 实现当前任务。
+   - 运行相关测试、必要的 `cargo fmt`、`cargo test`、`cargo clippy --all-targets -- -D warnings`。
+   - 修复所有因此暴露的问题。
 
-- 仅处理一个任务。
-- 遇到规格缺口、实现边界或缺失特性时，不绕过；必须先在 `TODO.md`/`PLAN.md` 中显式建模依赖。
-- 不回退用户已有改动；若工作区存在无关脏改动，仅在必要范围内协作处理。
+## 收尾步骤
 
-### 进度记录
+1. 更新 `memory/claude_plan.md` 记录关键进展与计划变化。
+2. 在 `TODO.md` 中将本轮完成的任务标记为完成。
+3. 在 `PLAN.md` 中更新当前状态、后续顺序和任何风险说明。
+4. 用清晰的 Git 提交信息提交本轮所有改动。
+5. 停止，不继续处理下一个任务。
+
+## 进度记录
 
 - 2026-04-20：已创建本计划文件，尚未开始仓库检查。
-- 2026-04-20：已检查最新提交 `f8dec450b22345561c2517875f2bcaf82916a698`（`[T4009h] Close stable handle wake-token contract`），提交说明未额外引入需要先行修复的点名遗留问题。
-- 2026-04-20：已读取 `TODO.md` / `PLAN.md` / `ISSUES.md`，确认当前顺序上的首个未完成执行项是 `T4009R`（Review：确认 `Task` 本体已脱离 executor 前提）。
-- 2026-04-20：当前执行焦点切换为 `T4009R`。下一步将：
-  1. 全局检索残留的 `Executor` / `scoop.task.*` / 公开 `spawn/join` 主线依赖；
-  2. 复审 `Task.poll()/step()`、async sugar、runtime task object model、stable handle / `Pinned` 职责边界；
-  3. 运行针对性测试与质量检查；
-  4. 若确认无剩余裂缝，则更新 `TODO.md` / `PLAN.md` / `ISSUES.md` 并提交。
-- 2026-04-20：结构审计已完成。已复审 `sysroot/core.scoop`、`runtime/c/scoop_task.c`、`crates/scoopc/src/llvm/codegen/mod.rs`、`crates/scoop_runtime/src/abi_exports_allowlist.rs`，并全局扫描 `crates/` / `runtime/` / `sysroot/` / `stdlib/`，确认当前主线没有公开 `scoop.task.*` / `Executor` surface 或 runtime executor implementation 残留；`spawn` / `join` 当前只保留 deferred 语法壳。
-- 2026-04-20：验证已完成，结果全绿。已运行：
-  - `cargo test -q -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
-  - `cargo test -q -p scoop_runtime --test task_spawn_join`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/runtime_gc`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`
-  - `cargo run -q -p scoop_tools -- spec-fixtures check`
-  - `cargo run -q -p scoop -- test`
-  - `cargo test --all`
-  - `cargo clippy --all-targets -- -D warnings`
-- 2026-04-20：已将 review 结论写回 `TODO.md` / `PLAN.md` / `ISSUES.md`：`T4009R` 与总任务 `T4009` 已标记完成，`ISSUES.md` 第 2 条已改写为“已收口”，下一项已前移到 `T4010a`。下一步只剩整理工作区并创建本轮 commit。
+- 2026-04-20：已检查最新提交、`TODO.md`、`PLAN.md`、`ISSUES.md` 与 `with` 相关实现；当前首个未完成任务位于 `T4010`。
+- 2026-04-20：已用最小 probe 复核现状：tuple `with` 与 enum `with` 都仍在 typecheck 阶段统一报 `with_update_base_not_supported`，当前实现确认为 struct-only。
+- 2026-04-20：决定将原 `T4010a` 再拆为 `T4010a1`（tuple / struct+tuple 混合 copy-update）与 `T4010a2`（enum payload copy-update 语义），本轮执行 `T4010a1`。
+- 2026-04-20：已完成 `T4010a1` 实现。核心改动包括：
+  - 把 `with` 的 typecheck side table 从 struct-FQN map 升级为“路径前缀 -> 具体 aggregate TypeId”。
+  - 让 HIR lowering 按具体值类型递归重建 tuple / struct，并保持 base 单次求值。
+  - 新增 tuple nested path / type mismatch / overlapping-path fixtures，以及 typed lowering 单测。
+- 2026-04-20：已验证 `cargo test -q -p scoopc lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths -- --nocapture`、`cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -q -p scoop -- test --fixtures target/t4010a1-fixtures/run-pass`、`cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
+- 2026-04-20：下一项已切换为 `T4010a2`，但按本轮要求将在提交 `T4010a1` 后停止。

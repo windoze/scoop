@@ -1291,19 +1291,54 @@
 ### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
-  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a -> T4010b -> T4010R`。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2 -> T4010b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
 
-### T4010a [TODO] 将 `with` 从 `struct` 泛化到 tuple / enum 等值类型
-- 范围：
-  - `with` base 不再只接受 `struct`；tuple、enum payload 等值类型也进入统一的 immutable copy-update 主线。
-  - 继续复用现有多段字段路径与并行冲突检查语义，避免为 tuple / enum 单独开 ad-hoc 更新规则。
-  - 新增 typecheck / run-pass / lowering regression，覆盖 nested path、并行冲突与 initializer 单次求值语义。
+### T4010a [TODO] 将 `with` 从 `struct` 泛化到更多值类型（拆分执行）
+- 说明：
+  - tuple 的 copy-update 只是现有 product 类型主线的自然扩展：路径语义可直接复用 `._0 / _1` 与 tuple literal 重建。
+  - enum payload 则额外牵涉“路径如何静态选中 variant payload、是否要求保留原 variant、以及当前缺失的普通 enum payload member-access 主线”三类问题；若与 tuple 一起强行落地，容易引入 shape-based 特判或不稳定语义。
+  - 因此现将原 `T4010a` 再拆为 `T4010a1 -> T4010a2`：本轮先收口 tuple / struct+tuple 混合路径，后续再单独定义并实现 enum payload 的 copy-update 语义。
 - 验收：
-  - `with` 在 tuple / enum / struct 上都走同一条“复制后更新”主线，不回流到字段写回式可变语义。
+  - `T4010a1` 与 `T4010a2` 全部完成后，`with` 在 tuple / enum / struct 上都走统一的 immutable copy-update 主线，不回流到字段写回式可变语义。
 - 依赖：T4010
+
+### T4010a1 [DONE] 将 `with` 泛化到 tuple 与 struct+tuple 混合嵌套路径
+- 范围：
+  - `with` base 不再只接受 `struct`；tuple 进入统一的 immutable copy-update 主线。
+  - 嵌套路径可在 struct / tuple 之间自由穿越，继续复用现有多段路径与并行冲突检查语义，不为 tuple 额外开第二套 update 规则。
+  - 新增 typecheck / run-pass / lowering regression，覆盖 tuple nested path、并行冲突与 initializer 单次求值语义。
+- 验收：
+  - `with` 在 tuple / struct 上都走同一条“复制后更新”主线；tuple 更新不回流到位置写回式可变语义。
+- 已完成：
+  - typecheck 的 `with` 路径解析已从“struct FQN map”升级为“copy-update 路径前缀 -> 具体 aggregate TypeId” side table；tuple 根节点与 struct/tuple 混合嵌套路径现都能进入统一校验主线。
+  - HIR lowering 现会按具体值类型递归重建 tuple / struct：root `with` 继续保证 base 只求值一次，未更新元素从 `$with_base` 复制，嵌套 tuple 不再退回 `Todo("with_update")`。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/with_update_tuple_nested_path_ok.scoop`
+    - `tests/fixtures/typecheck/with_update_tuple_field_type_mismatch_is_error.scoop`
+    - `tests/fixtures/typecheck/with_update_tuple_overlapping_paths_is_error.scoop`
+    - `tests/fixtures/run-pass/with_update_tuple_nested_single_eval_basic.scoop`
+    - `tests/fixtures/run-pass/with_update_tuple_nested_single_eval_basic.stdout`
+    - `crates/scoopc/src/hir/lower/mod.rs` 单测 `lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths`
+- 已验证：
+  - `cargo test -q -p scoopc lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths -- --nocapture`
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (339)`）
+  - `cargo run -q -p scoop -- test --fixtures target/t4010a1-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (17)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 依赖：T4010a
+
+### T4010a2 [TODO] 明确 enum payload 的 `with` copy-update 语义并接入统一 lowering / codegen
+- 范围：
+  - 明确 enum payload 路径的静态语义：路径如何定位 payload、何时允许更新、是否要求保留原 variant，避免把语义含混地塞进 lowering 特判。
+  - 在语义明确后，把 enum payload 更新接入与 struct / tuple 相同的 immutable copy-update 主线，而不是新增 enum-only ad-hoc 更新器。
+  - 新增 typecheck / run-pass / lowering regression，覆盖 enum payload nested path 与非法路径诊断。
+- 验收：
+  - enum payload 更新语义有明确静态规则，且 lowering / codegen 复用统一 copy-update substrate。
+- 依赖：T4010a1
 
 ### T4010b [TODO] 补齐值类型字段默认值与 immutable-friendly 声明人体工学
 - 范围：
@@ -1312,7 +1347,7 @@
   - 如规范文字、sysroot 示例或相关注释需要调整，在本任务内显式同步相应文档任务。
 - 验收：
   - `ISSUES.md` 第 7 条中“字段默认值这类声明便利性仍未覆盖”的部分收窄或关闭。
-- 依赖：T4010a
+- 依赖：T4010a2
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：

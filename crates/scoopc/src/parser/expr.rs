@@ -2520,7 +2520,7 @@ impl<'a> Parser<'a> {
                 base: Box::new(base),
                 with_span: with_kw.span,
                 updates,
-                resolved_struct_fqns: OnceCell::new(),
+                resolved_copy_update_tys: OnceCell::new(),
             },
         })
     }

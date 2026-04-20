@@ -167,7 +167,7 @@
 15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（已完成：`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性（面向 `Task` 手动 stepping 的收口与 review 已完成：`T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`；剩余 richer async 组合缺口仅保留在 issue 说明中，不再阻塞下一阶段）
 17. `ISSUES.md` 第 2 条：`Task` core / async sugar / stable handle wake-token 语义（已完成：`T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R`；`T4009a` 仅保留为历史 ABI 清理记录）
-18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（待开始：`T4010a -> T4010b -> T4010R`）
+18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（进行中：`T4010a1` 已完成，剩余 `T4010a2 -> T4010b -> T4010R`）
 19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（待开始：`T4011 -> T4011R`）
 20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
 21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
@@ -212,11 +212,15 @@
 - `async {}` 与 `async fun` 都只是 `Task` sugar；语言合同不要求 dedicated executor ABI 或 task-specific special codegen。
 - 当前代码库里的 executor-centric surface / runtime implementation 被视为待移除项；`spawn` / executor / wakeup registration 继续 deferred。
 - 当前状态：`T4009a` 仅保留为历史 ABI 清理记录，不再被视为当前方向的 endorsement；`T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R` 已全部完成，`async {}` / `async fun` 对调用者现已统一暴露 lazy `Task<T>`，`Task.poll()` / `Task.step()` / `Poll<T>` 的最小手动 stepping 合同也已落地，公开的 `scoop.task` / `Executor` surface、runtime executor implementation，以及 compiler 端遗留的 `scoop.task.*` / `Executor` hard-coded 分支都已移除；公开 `spawn/join` surface 也已显式降回 deferred structured-concurrency 议题，不再驱动 `Task` object model。stable handle / pin 的职责也已固定：reactor / callback / future executor 使用 `GcHandle.raw` 作为长期 wake token，`Pinned` 仅承担短时裸地址借出。P6 阶段现已收口完成，下一项切换为 P7 的 `T4010a`。
+>
+> 2026-04-20 当前轮计划调整：开始执行 `T4010a` 前，先用最小 probe 复核现状：`pair with { _0: 10 }` 与 `r with { value: 10 }` 目前都统一卡在 `scoop::typecheck::with_update_base_not_supported`，说明实现仍完全写死在 struct-only 主线。进一步审阅 `typecheck/expr/infer.rs`、`hir/lower/expr.rs` 与 `typecheck/expr/member.rs` 后确认，tuple copy-update 与 enum payload copy-update 的难度明显不对称：tuple 只需把现有“按路径递归重建 aggregate”从 struct 扩到 tuple；而 enum payload 仍缺“路径如何静态选中 payload、是否要求保留原 variant、普通 enum payload member access 语义”三项前提。为避免把 tuple 实现建立在 enum 特判或含混规则上，现将原 `T4010a` 再拆为 `T4010a1 -> T4010a2`，本轮先执行 `T4010a1`，只收口 tuple 与 struct+tuple 混合嵌套路径，`T4010a2` 再单独定义并实现 enum payload copy-update。
+>
+> 2026-04-20 当前轮完成更新：`T4010a1` 已完成。`with` 的主线现在不再只认识 struct：typecheck 会把 copy-update 路径前缀写回为“具体 aggregate TypeId” side table，tuple 根节点与 struct/tuple 混合嵌套路径都能复用同一套多段路径校验、expected-type 下推与并行冲突检查；HIR lowering 则会按这些具体类型递归重建 tuple / struct，继续保持 `$with_base` 单次求值与未更新元素从原值复制的语义。新增的 typecheck 回归已覆盖 tuple nested path、tuple element expected-type mismatch 与 tuple 路径冲突；run-pass 回归 `with_update_tuple_nested_single_eval_basic` 进一步锁定了“base 只求值一次 + 未更新字段保持原值”；`scoopc` 单测 `lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths` 则直接验证 typed lowering 不再退回 `Todo("with_update")`，而是产出 tuple/struct 重建块。已验证 `cargo test -q -p scoopc lower_typed_single_source_file_expands_with_update_over_tuple_nested_paths -- --nocapture`、`cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (339)`）、`cargo run -q -p scoop -- test --fixtures target/t4010a1-fixtures/run-pass`（`fixtures: ok (1)`）、`cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (17)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。P7 当前下一项推进到 `T4010a2`，继续为 enum payload copy-update 定义明确静态语义。
 
 ### P7. 不可变 value semantics 与模式匹配子集
 
 - 继续保持 value type 整体不可变，不把缺口误解为“再加回 Swift-style 可变 struct”；后续重点是增强 `with`、值类型默认值人体工学，以及先收口无 binder 的 payload or-pattern。
-- 当前状态：`T4010a -> T4010b -> T4010R -> T4011 -> T4011R` 待开始；下一项为 `T4010a`。
+- 当前状态：`T4010a1` 已完成；剩余顺序为 `T4010a2 -> T4010b -> T4010R -> T4011 -> T4011R`；当前下一项为 `T4010a2`。
 
 ### P8. annotation model 与 `inline` 语义清理
 

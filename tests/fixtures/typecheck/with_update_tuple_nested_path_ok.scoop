@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T4010a1 `with` 支持 tuple 与 struct+tuple 混合嵌套路径。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use(pair: (Point, (Int, Int))) {
+    val updated: (Point, (Int, Int)) = pair with { _0.x: 1, _1._0: 3 }
+}
