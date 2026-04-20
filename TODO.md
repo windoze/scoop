@@ -1502,13 +1502,29 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b
 
-### T4010b1a [TODO] 具体化泛型值类型 member access / getter 读取的结果类型
+### T4010b1a [DONE] 具体化泛型值类型 member access / getter 读取的结果类型
 - 说明：
   - 在为 `T4010b1` 验证 generic 值类型 getter 时，最小复现 `struct Box<T>(val value: T) { val readBack: T get() = this.value }` 仍暴露出一个更前置的静态裂缝：`Box(9).readBack` 在“无 expected-type 约束”的使用点（如 `Box(9).readBack == 9`）会继续把结果类型保留为抽象 `T`，导致后续运算/比较报 `binary_op_operand_type_mismatch`。
 - 范围：
   - member access typecheck 需要根据 receiver 的具体 nominal type args，把 direct field / computed property 的声明类型统一具体化为 concrete result type。
   - 不允许只为 computed property 单点补丁；同一条具体化主线必须同时覆盖 direct field、getter-only property，以及必要的跨文件 generic nominal member 读取。
   - 新增 typecheck / run-pass 回归，覆盖 `Box<Int>.value` / `Box<Int>.readBack` 一类最小 probe 在“无 expected-type 帮助”下的读取与后续运算。
+- 完成：
+  - `typecheck/expr/member.rs` 现会在值成员读取时，沿 receiver 及其已具体化的 direct supertypes 查找成员所属 nominal 实例，并回到成员声明处文件重新 lowering 原始 `TypeRef`，把 owner type params 按使用点 concrete args 统一替换为结果类型。
+  - 这条主线同时覆盖 direct field 与 getter-only property，不再只依赖 `struct_field_types` 中可能保留抽象 `T` 的缓存；跨文件 generic nominal member 读取也会复用相同的声明处重 lowering 逻辑。
+  - 已新增回归：
+    - `tests/fixtures/typecheck/struct_generic_member_access_result_type_ok.scoop`
+    - `tests/fixtures/run-pass/struct_generic_member_access_result_type_basic.scoop`
+    - `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file/defs.scoop`
+    - `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file/use.scoop`
+- 已验证：
+  - `cargo run -q -p scoop -- test --fixtures target/t4010b1a-fixtures/typecheck`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test --fixtures target/t4010b1a-fixtures/run-pass`（`fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`（`fixtures: ok (2)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (346)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (366)`）
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变

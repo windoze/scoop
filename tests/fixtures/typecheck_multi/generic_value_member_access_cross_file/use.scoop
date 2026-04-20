@@ -1,0 +1,13 @@
+// EXPECT: pass
+//
+// T4010b1a：跨文件 generic nominal member 读取也必须按 receiver 实例化类型，而不是把结果停留在抽象 `T`。
+
+package fixtures.typecheck_multi.generic_value_member_access_cross_file
+
+fun crossFileTotal(): Int {
+    val directMatches = Box(9).value == 9
+    val getterMatches = Box(9).readBack == 9
+    val total = Box(40).value + Box(2).readBack
+
+    return if (directMatches && getterMatches) total else 0
+}

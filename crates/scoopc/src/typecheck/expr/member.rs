@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::ast;
 use crate::resolve::Visibility;
 use crate::span::Span;
@@ -5,6 +7,7 @@ use crate::syntax::string_literal::{StringLiteralParseError, parse_string_litera
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::infer::ExpectedTypeFrom;
+use super::util::package_prefix;
 use super::{ExprInferInputs, ExprTypeError};
 
 use super::super::assignable::is_type_assignable;
@@ -412,6 +415,12 @@ fn infer_member_access_with_receiver_ty(
                     span: member.span.into(),
                 }
             })?;
+            let ty = if let Some(receiver_ty) = receiver_ty {
+                instantiate_member_value_type_from_receiver_ty(receiver_ty, fqn, lower)?
+                    .unwrap_or(ty)
+            } else {
+                ty
+            };
             Ok(MemberAccessInference {
                 ty,
                 resolved: Some(ast::ResolvedMemberRef::Value { fqn: fqn.clone() }),
@@ -572,4 +581,236 @@ fn parse_tuple_member_index(text: &str) -> Option<usize> {
         return None;
     }
     digits.parse::<usize>().ok()
+}
+
+/// 依据 receiver 的具体 nominal 实例，把成员声明类型重新 lower 成使用点结果类型。
+fn instantiate_member_value_type_from_receiver_ty(
+    receiver_ty: TypeId,
+    member_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some((owner_fqn, concrete_args)) =
+        find_member_owner_nominal_instantiation(receiver_ty, member_fqn, lower)?
+    else {
+        return Ok(None);
+    };
+    let Some(type_ref) = find_member_decl_type_ref(lower, &owner_fqn, member_fqn) else {
+        return Ok(None);
+    };
+    let Some(sym) = lower.env().type_symbol(&owner_fqn).cloned() else {
+        return Ok(None);
+    };
+
+    let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+        &sym.decl_file,
+        sym.type_param_names
+            .iter()
+            .cloned()
+            .zip(concrete_args.iter().copied()),
+        &type_ref,
+    )?;
+    Ok(Some(ty))
+}
+
+/// 沿 receiver 及其已具体化的 direct supertypes 查找成员所属 nominal 的具体实例。
+fn find_member_owner_nominal_instantiation(
+    receiver_ty: TypeId,
+    member_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<(String, Vec<TypeId>)>, ExprTypeError> {
+    let Some((member_owner_fqn, _)) = member_fqn.rsplit_once('.') else {
+        return Ok(None);
+    };
+
+    let mut stack = vec![receiver_ty];
+    let mut visited: HashSet<TypeId> = HashSet::new();
+
+    while let Some(cur) = stack.pop() {
+        if !visited.insert(cur) {
+            continue;
+        }
+
+        let (nominal_fqn, nominal_args) = match lower.type_kind(cur) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            | TypeKind::Ref(RefTypeKind::Nominal(nominal)) => (nominal.fqn, nominal.args),
+            _ => continue,
+        };
+
+        if nominal_fqn == member_owner_fqn {
+            return Ok(Some((nominal_fqn, nominal_args)));
+        }
+
+        stack.extend(lower.instantiated_direct_supertypes(cur)?);
+    }
+
+    Ok(None)
+}
+
+/// 从成员声明处找回原始 `TypeRef`，供后续在声明处文件上下文中重新 lower。
+fn find_member_decl_type_ref(
+    lower: &TypeLowering<'_>,
+    owner_fqn: &str,
+    member_fqn: &str,
+) -> Option<ast::TypeRef> {
+    let member_name = member_fqn.strip_prefix(owner_fqn)?.strip_prefix('.')?;
+    if member_name.contains('.') {
+        return None;
+    }
+
+    let sym = lower.env().type_symbol(owner_fqn)?;
+    let source = lower.env().source(&sym.decl_file)?;
+    let file = lower.env().file_ast(&sym.decl_file)?;
+    let decl = find_type_decl_by_fqn(source, file, owner_fqn)?;
+
+    find_member_type_ref_in_type_decl(source, decl, member_name)
+}
+
+fn find_member_type_ref_in_type_decl(
+    source: &crate::source::SourceFile,
+    decl: &ast::TypeDecl,
+    member_name: &str,
+) -> Option<ast::TypeRef> {
+    if let Some(primary_ctor) = &decl.primary_ctor {
+        for param in &primary_ctor.params {
+            let name = source.slice(param.name.span);
+            if name != member_name {
+                continue;
+            }
+            let ctor_param_is_member = matches!(decl.kind, ast::TypeKind::Struct)
+                || (matches!(decl.kind, ast::TypeKind::Class) && param.kind.is_some());
+            if ctor_param_is_member {
+                return param.ty.clone();
+            }
+        }
+    }
+
+    let body = decl.body.as_ref()?;
+    for member in &body.members {
+        let ast::TypeMember::Property(prop) = member else {
+            continue;
+        };
+        let name = source.slice(prop.name.span);
+        if name == member_name {
+            return prop.ty.clone();
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_by_fqn<'a>(
+    source: &crate::source::SourceFile,
+    file: &'a ast::File,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+    for item in &file.items {
+        match item {
+            ast::Item::Type(ty) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, ty, &pkg_prefix, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, obj, &pkg_prefix, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_in_type_decl<'a>(
+    source: &crate::source::SourceFile,
+    decl: &'a ast::TypeDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    if type_fqn == target_fqn {
+        return Some(decl);
+    }
+
+    let body = decl.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, nested, &type_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, obj, &type_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_in_object_decl<'a>(
+    source: &crate::source::SourceFile,
+    obj: &'a ast::ObjectDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let local_name = match (&obj.name, obj.kind) {
+        (Some(name), _) => source.slice(name.span).to_string(),
+        (None, ast::ObjectKind::Companion) => "Companion".to_string(),
+        (None, ast::ObjectKind::Object) => return None,
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        local_name
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    let body = obj.body.as_ref()?;
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, nested, &obj_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(nested) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, nested, &obj_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }

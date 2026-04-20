@@ -1,0 +1,20 @@
+// EXPECT: pass
+//
+// T4010b1a：
+// - 泛型值类型成员读取应按 receiver 的 concrete type args 具体化结果类型；
+// - direct field 与 getter-only property 在“无 expected-type 帮助”下都应可继续参与比较/运算。
+
+import scoop.core.*
+
+struct Box<T>(val value: T) {
+    val readBack: T
+        get() = this.value
+}
+
+fun probe(): Int {
+    val directMatches = Box(9).value == 9
+    val getterMatches = Box(9).readBack == 9
+    val total = Box(40).value + Box(2).readBack
+
+    return if (directMatches && getterMatches) total else 0
+}

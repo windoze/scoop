@@ -10,19 +10,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang
-        run: sudo apt-get update && sudo apt-get install -y clang
-
-      - name: Install LLVM 18 (llvm-config)
-        run: sudo apt-get update && sudo apt-get install -y llvm-18-dev
+      - name: Install LLVM 21 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release software-properties-common
+          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 21
+          sudo apt-get install -y clang-21 llvm-21-dev
 
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Configure LLVM_SYS_181_PREFIX
+      - name: Configure LLVM 21 environment
         run: |
-          echo "LLVM_SYS_181_PREFIX=$(llvm-config-18 --prefix)" >> "$GITHUB_ENV"
-          llvm-config-18 --version
+          LLVM_PREFIX="$(llvm-config-21 --prefix)"
+          echo "$LLVM_PREFIX/bin" >> "$GITHUB_PATH"
+          echo "CC=$LLVM_PREFIX/bin/clang" >> "$GITHUB_ENV"
+          echo "CXX=$LLVM_PREFIX/bin/clang++" >> "$GITHUB_ENV"
+          echo "LLVM_CONFIG_PATH=$LLVM_PREFIX/bin/llvm-config" >> "$GITHUB_ENV"
+          echo "LLVM_SYS_211_PREFIX=$LLVM_PREFIX" >> "$GITHUB_ENV"
+          "$LLVM_PREFIX/bin/llvm-config" --version
+          "$LLVM_PREFIX/bin/clang" --version
 
       - name: Cargo test
         run: cargo test --all --all-targets

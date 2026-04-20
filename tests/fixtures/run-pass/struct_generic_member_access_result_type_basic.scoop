@@ -1,0 +1,25 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// T4010b1a：
+// - `Box<Int>.value` / `Box<Int>.readBack` 在无 expected-type 帮助时都应具体化为 `Int`；
+// - 后续比较与算术不应再看到抽象 `T`。
+
+import scoop.core.*
+
+struct Box<T>(val value: T) {
+    val readBack: T
+        get() = this.value
+}
+
+fun main(): Int {
+    val directMatches = Box(9).value == 9
+    val getterMatches = Box(9).readBack == 9
+    val total = Box(40).value + Box(2).readBack
+
+    return if (directMatches && getterMatches && total == 42) {
+        0
+    } else {
+        1
+    }
+}
