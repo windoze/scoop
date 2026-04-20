@@ -52,7 +52,13 @@
 - 已判断：`TODO.md` 中排在最前面的可执行未完成子任务为 `T4016a`；总括条目 `T4016` 已经完成任务拆分，因此本轮聚焦 `T4016a`。
 - 已修正判断：在进一步核对 `sysroot` / compiler 主线约束后，原始 `T4016a` 仍偏大，已拆成 `T4016a1`（spec/runtime 设计文档）与 `T4016a2`（sysroot / 实现注释过渡合同）。
 - 已完成：更新 `TODO.md` / `PLAN.md`，把顺序调整为 `T4016a1 -> T4016a2 -> T4016b -> ...`。
-- 进行中：执行新的首个子任务 `T4016a1`，收集并改写 spec / runtime doc 中的 continuation surface、handler 语法与迁移说明。
+- 已完成：执行新的首个子任务 `T4016a1`，收口了 spec / runtime doc 中的 continuation surface、handler 语法与迁移说明。
+- 已完成验证：
+  - `cargo fmt --check`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo test --all`
+- 进行中：更新任务状态并准备本轮收尾提交。
 
 ## 针对 T4016a 的即时检查要点
 
@@ -72,3 +78,12 @@
    - multi-shot / clone / replay 继续 deferred。
 8. 完成 `T4016a1` 后，运行文档相关验证与必要的编译/测试子集，确认没有因文档更新引入构建问题。
 9. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。
+
+## 本轮结果摘要
+
+- `T4016a` 已拆成更小的 `T4016a1` / `T4016a2`，避免把设计定稿与 sysroot / compiler 表示改动混在同一次提交里。
+- `T4016a1` 已完成：
+  - `SCOOP_FULL_SPEC.md` 现已把用户态 handler surface 收口为 `->` 与 `, k ->` 两种形式。
+  - continuation 文档语义已改为 answer-returning：`k.resume(payload...): Answer / (E + Raise<RuntimeError>)`。
+  - 规范文字已明确 deep handler、fresh continuation、cross-thread resume、one-shot，以及 `-> resume` 的迁移方向。
+  - `SCOOP_RUNTIME.md` 已同步为同一套目标合同，并明确后续由 `T4016b/c/d` 完成主线实现对齐。

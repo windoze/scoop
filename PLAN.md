@@ -1,6 +1,6 @@
 # Scoop：下一轮计划（正确的单次 delimited continuation 优先）
 
-> 生成时间：2026-04-20  
+> 生成时间：2026-04-21  
 > 历史归档：`PLAN-5.md` / `TODO-5.md`  
 > 本轮主题：先把 `Continuation` 从当前“为 effect / async lowering 服务的 step-driving advanced API”收口为**正确的单次（one-shot）delimited continuation**，再让 `Task` 真正退化为其上的薄封装；annotation、删除 `inline` 关键字、FFI / ABI、const / comptime 顺延。  
 > 设计前提：**不支持 multi-shot continuation**。Scoop 保持当前可变局部、writeback、once-init 与 GC-managed frame 的整体运行时方向，不为 continuation cloning / replay 另开一套“immutable everything”语义世界。
@@ -39,7 +39,9 @@
 - 为了把设计收口和主线实现分开推进，`T4016a` 进一步拆成两步：
   - `T4016a1`：先在 spec / runtime 设计文档中定稿 answer-returning continuation、deep handler、`-> resume` 移除与迁移叙事。
   - `T4016a2`：再把 sysroot / 内部注释对齐到同一套过渡合同，为 `T4016b` 的 parser / typecheck / HIR / lowering 实装清障。
-- 当前状态：`T4016a1 -> T4016a2 -> T4016b -> T4016c -> T4016d -> T4016R` 待开始。
+- 当前状态：
+  - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
+  - 下一步是 `T4016a2`：把 sysroot / 内部注释对齐到同一套过渡合同，再进入 `T4016b` 的 parser / typecheck / HIR / lowering 主线实现。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

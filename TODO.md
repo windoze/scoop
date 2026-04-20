@@ -40,7 +40,7 @@
   - 子任务全部完成后，spec / runtime doc / sysroot / 注释对 continuation answer model、deep handler、one-shot 合同与 `-> resume` 移除形成统一叙事。
 - 依赖：T4016
 
-### T4016a1 [TODO] 在 spec / runtime 设计文档中收口 answer-returning continuation 与最终 handler surface
+### T4016a1 [DONE] 在 spec / runtime 设计文档中收口 answer-returning continuation 与最终 handler surface
 - 范围：
   - 在 `SCOOP_FULL_SPEC.md` 与 `SCOOP_RUNTIME.md` 中明确 continuation 的 answer type 语义：`k.resume(payload...): Answer / (E + Raise<RuntimeError>)`，并说明 resumed computation 正常完成 delimiter 后，本地代码可在调用点之后继续执行。
   - 固定 deep handler 语义：`k` 在捕获的 handler stack 下恢复，arm body 期间当前 handler inactive，再次 suspend 时捕获 fresh continuation。

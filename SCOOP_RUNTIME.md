@@ -325,14 +325,26 @@ Runtime type tests (`is/as/as?`) are expected to follow these rules once impleme
 
 ## 10. Effect / Continuation Lowering Contract
 
-This section records the current implementation contract for effect state machines and continuation resume payload transport.
+This section records the continuation contract that the implementation is converging on during `T4016`; follow-up tasks finish the compiler/runtime alignment.
 
-- `Continuation.resume` shares the same payload-shape contract as effect payload transport:
-  - `Continuation<Unit>.resume()` is accepted.
-  - `Continuation<(A0, A1, ...)>.resume(v0, v1, ...)` is accepted, and named args use `a0`, `a1`, ...
-  - The legacy single-payload form `k.resume(value)` remains accepted for compatibility, including tuple payloads passed as one tuple value.
-- Escape continuations (`, k ->`) are still represented as GC-managed continuation objects whose payload travels through the runtime `(resume_word, resume_gc_ref)` transport ABI.
-- Immediate-resume arms (`-> resume`) currently reuse the same unified GC-managed full-machine lowering as the rest of effect codegen. A dedicated stack-local fast path is still a deferred optimization; it is not part of the current runtime ABI contract and no stable runtime symbol depends on it yet.
+- Language-level continuation model: `Continuation<Resume, Answer, eff E = Pure>`.
+  - `Resume` is the handled operation's result type.
+  - `Answer` is the nearest `handle` delimiter's result type.
+  - `E` is the required effect row of the resumed computation.
+- `k.resume(payload...): Answer / (E + Raise<RuntimeError>)`.
+  - Payload surface continues to follow the resume payload shape:
+    - `Continuation<Unit, Answer>.resume()` is accepted.
+    - `Continuation<(A0, A1, ...), Answer>.resume(v0, v1, ...)` is accepted, and named args use `a0`, `a1`, ...
+    - The legacy single-payload form `k.resume(value)` remains accepted for compatibility, including tuple payloads passed as one tuple value.
+  - If the resumed computation normally reaches the delimiter, `k.resume(...)` returns that delimiter answer to the call site and local code after the call continues.
+- User-facing resuming handler syntax is only `Effect.op(args), k -> expr`.
+  - Legacy `-> resume` syntax is removed from the language surface.
+  - If the compiler recognizes tail-position `k.resume(...)` and lowers it more directly, that is an internal optimization class rather than a distinct surface form.
+- Resuming continuations remain one-shot and deep:
+  - The continuation captures the handler stack active at the suspension point.
+  - Resuming from another OS thread reinstalls that captured handler stack for the duration of the resumed computation.
+  - If the resumed computation suspends again, that suspension exposes a fresh continuation; `k.resume(...)` itself still exposes only the eventual delimiter answer or a raised error.
+- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement. `T4016b/c/d` will finish making the delimiter-answer channel explicit in the generic continuation ABI and remove the remaining task-only frame-peek coupling.
 
 ## 11. Task Polling Runtime Contract
 

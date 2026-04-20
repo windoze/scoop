@@ -680,7 +680,7 @@ fun fetchData(): String / Raise<IOError> {
 
 ### 5.4 Handling Effects
 
-Handler arms have three explicit forms, distinguished by syntax:
+Handler arms have two user-facing forms, distinguished by syntax:
 
 #### Non-resuming handler (`->`)
 
@@ -695,98 +695,81 @@ handle {
 }
 ```
 
-`resume()` is a compile error inside a non-resuming arm. The computation body does not continue after the handler runs.
+Bare `resume(...)` is unavailable in a non-resuming arm because no continuation is bound. The computation body does not continue after the handler runs.
 
-#### Immediate-resume handler (`-> resume`)
+#### Resuming handler (`, k ->`)
 
-The handler resumes the computation synchronously. The body is compiled into a state machine; each `perform` point is a suspend/resume boundary.
+The handler captures the remainder of the handled computation up to the nearest `handle` delimiter as a first-class continuation. Conceptually, the binder has type `Continuation<Resume, Answer, eff E>`, where `Resume` is the handled operation's result type and `Answer` is the delimiter's result type.
 
 ```kotlin
 handle {
-    process()
+    val value = Yield.next()
+    value + 1
 } with {
-    Logger.log(level, msg) -> resume {
-        println("[" + level + "] " + msg)
-        resume(Unit)
+    Yield.next(), k -> {
+        val answer: Int = k.resume(41)
+        println("resumed answer = " + answer)
+        answer
     }
 }
 ```
 
-`resume(value)` must be called exactly once inside a `-> resume` arm.
+`k.resume(payload...)` resumes the captured computation under the handler stack captured at the suspension point. If that resumed computation normally completes the delimiter, `k.resume(...)` evaluates to the delimiter answer and execution continues after the call site in the arm body or other code that resumed `k`.
 
-A stack-local fast path is permitted but not required. The current compiler lowers `-> resume` through the same unified full-machine contract used by the rest of effect lowering; a dedicated stack-local fast path remains a deferred optimization and is not part of the current runtime ABI contract.
+The continuation may be resumed immediately, stored for later, or resumed from another OS thread. Directly capturing and resuming `Continuation` values is an **advanced control-flow API**. General-purpose async code should normally expose `Task<T>` rather than raw continuations.
 
-#### Escape-continuation handler (`, k ->`)
-
-The continuation is captured as a first-class `Continuation<T, eff E>` value. It can be stored, passed to other functions, and resumed later — possibly after the handler has returned.
-
-```kotlin
-handle {
-    val data = await fetchData()
-    println(data)
-} with {
-    Async.await(task), k -> {
-        // k : Continuation<T, eff E>
-        // advanced API: store `k` in a GC-managed object and resume it later
-        ()
-    }
-}
-```
-
-`resume()` is unavailable; use `k.resume(...)` explicitly. The state machine is heap-allocated (GC-managed) so it can outlive the handler scope.
+Legacy `Effect.op(args) -> resume { ... }` syntax is removed. Write `Effect.op(args), k -> { ...; k.resume(payload...) }` instead. An implementation may still recognize tail-position `k.resume(...)` as an internal fast path / lowering class, but that distinction is not user-visible syntax.
 
 `k.resume(...)` is **one-shot**: calling it twice performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (and therefore requires `Raise<RuntimeError>` unless handled).
 
-Directly capturing and resuming `Continuation` values is an **advanced control-flow API**. General-purpose async code should normally expose `Task<T>` rather than raw continuations.
-
 #### Summary
 
-| Arm syntax | `resume()` | `k` | State machine | Allocation |
+| Arm syntax | Continuation binder | Resumption expression | State machine | Allocation |
 |---|---|---|---|---|
-| `Effect.op(args) -> { ... }` | compile error | no | none | none |
-| `Effect.op(args) -> resume { ... }` | required | no | implementation-defined state machine | implementation-defined |
-| `Effect.op(args), k -> { ... }` | unavailable | yes | heap struct + step fn | GC |
+| `Effect.op(args) -> { ... }` | no | unavailable | none | none |
+| `Effect.op(args), k -> { ... }` | yes | explicit `k.resume(...)` | implementation-defined resumable state machine | implementation-defined |
 
 ### 5.5 Continuation Type
 
-`Continuation<T, eff E = Pure>` is a built-in generic type representing a suspended computation that expects a value of type `T` to continue.
+`Continuation<Resume, Answer, eff E = Pure>` is a built-in generic type representing a suspended computation that consumes a resume payload of type `Resume` and, if it reaches the delimiter normally, produces answer type `Answer`.
 
-- `T` is determined by the return type of the effect operation.
+- `Resume` is determined by the return type of the handled effect operation.
+- `Answer` is the result type of the nearest `handle` delimiter that captured the continuation.
 - `E` is the **required effect row** of the suspended computation when it is resumed (i.e., resuming the continuation may perform effects in `E`).
 
 ```kotlin
 effect Ask {
-    fun question(prompt: String): String   // continuation: Continuation<String, eff E>
+    fun question(prompt: String): String   // continuation: Continuation<String, Answer, eff E>
 }
 
 effect Yield {
-    fun next(): Int                        // continuation: Continuation<Int, eff E>
+    fun next(): Int                        // continuation: Continuation<Int, Answer, eff E>
 }
 ```
 
 Operations:
-- `k.resume(payload...): Unit / (E + Raise<RuntimeError>)` — resume the suspended computation.
+- `k.resume(payload...): Answer / (E + Raise<RuntimeError>)` — resume the suspended computation.
   - Payload surface follows the continuation payload shape:
-    - If `T` is `Unit`, `k.resume()` is accepted.
-    - If `T` is a tuple `(A0, A1, ...)`, `k.resume(v0, v1, ...)` is accepted; named args use `a0`, `a1`, ...
+    - If `Resume` is `Unit`, `k.resume()` is accepted.
+    - If `Resume` is a tuple `(A0, A1, ...)`, `k.resume(v0, v1, ...)` is accepted; named args use `a0`, `a1`, ...
     - For all payload types, the legacy single-payload form `k.resume(value)` remains accepted; for tuple payloads this means passing the tuple value itself.
   - One-shot: if called twice, performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (no panic).
-  - If the resumed computation suspends again through an escape-continuation handler, that handler captures a **fresh** continuation. `k.resume(...)` itself still returns `Unit`; it does not return the next continuation.
+  - If the resumed computation normally completes the delimiter, the resulting `Answer` is returned to the `k.resume(...)` call site and local code after the call continues.
+  - If the resumed computation suspends again through another resuming handler, that suspension captures a **fresh** continuation. `k.resume(...)` does not surface that fresh continuation as a special second return value; it still yields the eventual delimiter answer or raises.
 
 Resumption context:
 
-- `Continuation<T, eff E>` captures the dynamic effect context (the active handler stack; Appendix A) at the suspension point.
+- `Continuation<Resume, Answer, eff E>` captures the dynamic effect context (the active handler stack; Appendix A) and the nearest delimiter boundary at the suspension point.
 - Calling `k.resume(...)` resumes the computation under that captured handler stack, even if `resume` is invoked from a different OS thread.
 - Implementations typically realize this by storing the captured handler stack pointer in the continuation object and installing it into the current thread’s TLS effect state for the duration of the resumed step, then restoring the previous TLS state on return.
-- `Continuation<T, eff E>` belongs to the language's **advanced API surface**. Typical async code should interact with `Task<T>`; runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
+- `Continuation<Resume, Answer, eff E>` belongs to the language's **advanced API surface**. Typical async code should interact with `Task<T>`; runtimes and advanced libraries may store continuations internally and replace them with a fresh continuation after each suspension.
 
 ### 5.6 Compilation Strategy
 
 | Arm form | Compilation strategy |
 |---|---|
 | `->` (non-resuming) | Flag-based CPS unwinding; no state machine |
-| `-> resume` (immediate) | Implementation-defined state machine. The current compiler reuses the unified full-machine lowering; a dedicated stack-local fast path is deferred. |
-| `, k ->` (escape) | GC-allocated state machine struct; step function driven by external caller |
+| `, k ->` (resuming) | Implementation-defined resumable state machine / continuation object. Tail-position `k.resume(...)` may be optimized internally, but there is no separate user-facing syntax. |
 
 Implementation details:
 
@@ -794,9 +777,9 @@ Note: the runtime symbol names used in this section (e.g., `__scoop_effect_activ
 
 - **Per-thread runtime state**: effect dispatch/unwinding state is maintained in thread-local storage (TLS), including the active handler stack pointer and the current "perform slot" used by flag-based unwinding.
 - **Cross-thread resume**: when a continuation is resumed, its captured handler stack is installed into the resuming thread’s TLS effect state. This makes the effect context conceptually fiber-local whether the continuation is resumed manually or by some future executor/scheduler framework.
+- **Continuation answer channel**: a resuming state machine must preserve a transport path for the delimiter answer so that `k.resume(...)` yields `Answer` rather than `Unit`. The exact transport slots / helper APIs are implementation-defined.
 - **Flag-based unwinding**: `__scoop_effect_active` is a thread-local flag. `scoop_perform_*` functions write the operation tag and arguments into the thread-local perform slot, set the flag, and return; callers check the flag and propagate. Before running any user code during propagation (handler arm bodies, `finally` blocks), the runtime/compiled code must capture the slot and clear the flag; if the effect is still unhandled at that boundary, it is re-raised after cleanup.
-- **Stack state machine**: Handle body split into segments at perform/call boundaries. `Var` locals lifted across segments. While-loop dispatches to handler arms on each suspend, re-enters at next state on resume.
-- **Heap state machine**: Same segmentation, but state + lifted locals live in a GC-allocated struct. A `step()`/`poll()` driver advances the computation until the next suspension or completion and reports `Pending` or `Ready(value)`. Escape continuations may keep a pointer to this struct.
+- **Resumable state machine**: Implementations may realize `, k ->` with stack-local, heap-backed, or mixed state machines, provided they preserve one-shot deep continuation semantics, answer-returning `k.resume(...)`, cleanup / `finally`, and fresh-continuation-on-re-suspend behavior.
 - **One-shot only**: Each suspension point resumes at most once. Multi-shot continuations are not supported.
 
 ### 5.7 Syntax Sugar for Common Effects
@@ -901,7 +884,7 @@ while (true) {
 ```
 
 Key semantics:
-- `Task<T>` is the **general-purpose async API**. `Continuation<T, eff E>` remains the lower-level advanced API used to implement tasks and other control-flow libraries directly.
+- `Task<T>` is the **general-purpose async API**. `Continuation<Resume, Answer, eff E>` remains the lower-level advanced API used to implement tasks and other control-flow libraries directly.
 - `async { body }` creates a lazy `Task<T>`.
 - `async fun foo(): T` desugars to `fun foo(): Task<T>` — the caller receives a `Task<T>`.
 - `await expr` inside an async body desugars to `perform Async.await(expr)`.
@@ -936,7 +919,7 @@ It does **not** yet fix:
 
 #### Generator / yield (library-level, no dedicated syntax)
 
-Generators use immediate-resume handlers:
+Generators use resuming handlers:
 
 ```kotlin
 effect Emit<T> {
@@ -951,13 +934,13 @@ fun fibonacci(): Sequence<Int> / Emit<Int> {
     }
 }
 
-// Consumer uses immediate-resume handler:
+// Consumer uses resuming handler:
 handle {
     fibonacci()
 } with {
-    Emit.emit(value) -> resume {
+    Emit.emit(value), k -> {
         println(value)
-        resume(Unit)
+        k.resume()
     }
 }
 ```
@@ -980,17 +963,17 @@ handle {
     Logger.log(level, msg) -> println("[" + level + "] " + msg)
 }
 
-// Immediate-resume handler:
+// Resuming handler:
 handle {
     process()
 } with {
-    Logger.log(level, msg) -> resume {
+    Logger.log(level, msg), k -> {
         println("[" + level + "] " + msg)
-        resume(Unit)
+        k.resume()
     }
 }
 
-// Escape-continuation handler (e.g., buffered logging):
+// Stored-continuation handler (e.g., buffered logging):
 handle {
     process()
 } with {
@@ -3038,7 +3021,7 @@ When evaluating `perform E.op(args...)`:
 3. The effect is dispatched to **only that** target handler.
 4. If there is no such active handler instance, the effect remains unhandled and propagates outward. If an unhandled effect reaches the program boundary, it is a runtime error (panic). Well-typed programs should prevent this by ensuring entry points require `Pure!` (see §5.10).
 
-This rule is independent of the handler arm form (`->`, `-> resume`, or `, k ->`).
+This rule is independent of the handler arm form (`->` or `, k ->`).
 
 ### A.4 Handler Arm Execution Is Outside the Handler’s Dispatch Scope
 
@@ -3072,8 +3055,7 @@ handle {
 
 ### A.5 Interaction With Continuations
 
-- **Immediate-resume arms (`-> resume`)**: The handler is inactive during the arm body; after the arm calls `resume(value)` and control returns to the resumed computation, the handler becomes active again for that resumed computation.
-- **Escape-continuation arms (`, k ->`)**: When `k.resume(...)` is invoked, the resumed computation runs under the dynamic scope of the handler that created `k`, except that the handler is inactive while executing any of its own arms (per §A.4).
+- **Resuming arms (`, k ->`)**: The handler is inactive during the arm body. When `k.resume(...)` is invoked, the resumed computation runs under the dynamic scope of the handler that created `k`, except that the handler is inactive while executing any of its own arms (per §A.4). If the resumed computation reaches the delimiter normally, the delimiter answer returns to the `k.resume(...)` call site and the surrounding arm body then continues.
 
 ### A.6 Non-goals
 
