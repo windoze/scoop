@@ -38,7 +38,7 @@
 - [x] 更新 `TODO.md`
 - [x] 更新 `PLAN.md`
 - [x] 更新本文件进度
-- [ ] 提交 Git commit
+- [x] 提交 Git commit
 
 ## 当前进展
 
@@ -89,3 +89,5 @@
 
 - `T4010b0R` 已完成并已在 `TODO.md` / `PLAN.md` 中结案。
 - 下一轮首个未完成任务将是 `T4010b`。
+- 已创建提交：
+  - `be1e742` `[T4010b0R] Review unified struct construction path`
