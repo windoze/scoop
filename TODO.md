@@ -1291,7 +1291,7 @@
 ### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
-  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010b1 -> T4010b1a -> T4010b1b -> T4010R`。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010b1 -> T4010b1a -> T4010b1a1 -> T4010b1b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
@@ -1527,6 +1527,22 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1
 
+### T4010b1a1 [TODO] 补齐真实 `typecheck_multi` 编译单元下的跨文件值成员解析
+- 说明：
+  - 在执行 `T4010b1b` 验证时重跑完整 fixture suite，`tests/fixtures/typecheck_multi/generic_value_member_access_cross_file` 作为真实 `typecheck_multi/<case>/` 多文件编译单元仍失败，报 `scoop::typecheck::unsupported_expr: member access（未 resolve）`。
+  - 进一步复查后确认，`T4010b1a` 当时使用的命令
+    `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`
+    只是把 case 目录当普通 fixtures root 跑，并没有走 `typecheck_multi` 的多文件入口，因此没有真正验证跨文件编译单元语义。
+  - 当前根因是：`typecheck::expr::collect::collect_struct_field_types` 的跨文件补全只从 constructor 元数据补 primary ctor 字段；定义在另一文件 type body 里的值成员（包括 getter-only property）不会进入 member candidate 表，导致 `resolve_member_value_target_from_receiver_ty` 无法为 `Box(9).readBack` 这类访问做晚解析。
+- 范围：
+  - 真实 `typecheck_multi` 编译单元下，跨文件 value nominal 的 direct field、body property、getter-only property 都必须能被 member access 晚解析命中。
+  - 不允许只为 getter 单点特判；同一条 cross-file member candidate 主线必须覆盖值类型成员解析，并继续复用 `T4010b1a` 已落地的“声明处重 lowering + concrete result type”路径。
+  - 新增 regression / driver coverage，避免再次把 `typecheck_multi` case 目录当普通 fixtures root 造成假绿灯。
+- 验收：
+  - `cargo run -q -p scoop -- test` 不再在 `generic_value_member_access_cross_file` 处失败。
+  - `T4010b1b` 与后续 `T4010R` 可建立在真实跨文件 generic value member access 已打通的基线上继续推进。
+- 依赖：T4010b1a
+
 ### T4010b1b [TODO] 禁止 `struct` 主构造参数 `var` 回流为可变字段语义
 - 说明：
   - 在执行 `T4010R` review 时，最小 probe `struct Point(var x: Int, val y: Int)` 当前可成功 build 并运行（退出码 `3`），与 spec §2.1 / §9 / §10 以及 `ISSUES.md` 第 7 条“值类型整体不可变”的约束直接冲突。
@@ -1539,7 +1555,7 @@
 - 验收：
   - 上述最小 probe 在 typecheck 阶段即失败，并给出明确诊断。
   - `T4010R` 可在不带这条已知裂缝的基线上继续复审“值类型整体不可变”。
-- 依赖：T4010b1a
+- 依赖：T4010b1a1
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
