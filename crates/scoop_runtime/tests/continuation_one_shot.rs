@@ -4,6 +4,7 @@ use scoop_runtime as _;
 use core::ffi::c_void;
 use core::ptr;
 use core::sync::atomic::{AtomicPtr, AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 
 // 对齐 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）。
 #[repr(C)]
@@ -37,10 +38,22 @@ struct ScoopContinuation {
     captured_callee_suspend_state: *mut c_void,
 }
 
+#[repr(C)]
+struct ScoopEffectFrameResultPrefix {
+    hdr: ScoopGcObjectHeader,
+    state_tag: u32,
+    _padding: u32,
+    resume_word: u64,
+    resume_gc_ref: *mut c_void,
+}
+
 type ScoopContinuationStepFn =
     Option<extern "C" fn(state: *mut c_void, resume_word: u64, resume_gc_ref: *mut c_void)>;
 
+const SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED: u32 = 0xFFFF_FFFE;
+
 static OBSERVED_CALLEE_SUSPEND_STATE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+static CONTINUATION_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 struct HandlerSnapshotObservations {
     found_ptr: AtomicUsize,
@@ -48,7 +61,15 @@ struct HandlerSnapshotObservations {
     found_active: AtomicU32,
 }
 
+fn continuation_test_guard() -> MutexGuard<'static, ()> {
+    CONTINUATION_TEST_LOCK
+        .lock()
+        .expect("continuation test lock")
+}
+
 unsafe extern "C" {
+    fn scoop_alloc(size: u64) -> *mut c_void;
+
     fn scoop_runtime_init();
 
     fn scoop_thread_register();
@@ -79,11 +100,31 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
     fn scoop_continuation_resume(continuation: *mut c_void);
+    fn scoop_continuation_resume_into(
+        continuation: *mut c_void,
+        out_word: *mut u64,
+        out_gc_ref: *mut *mut c_void,
+    ) -> u32;
 
     fn scoop_sync_once_create() -> *mut c_void;
 }
 
 extern "C" fn noop_step(_state: *mut c_void, _resume_word: u64, _resume_gc_ref: *mut c_void) {}
+
+extern "C" fn write_answer_transport_step(
+    state: *mut c_void,
+    resume_word: u64,
+    resume_gc_ref: *mut c_void,
+) {
+    if state.is_null() {
+        return;
+    }
+
+    let frame = unsafe { &mut *(state as *mut ScoopEffectFrameResultPrefix) };
+    frame.state_tag = SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED;
+    frame.resume_word = resume_word;
+    frame.resume_gc_ref = resume_gc_ref;
+}
 
 extern "C" fn observe_callee_suspend_state_step(
     _state: *mut c_void,
@@ -137,6 +178,7 @@ extern "C" fn observe_handler_snapshot_step(
 
 #[test]
 fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();
@@ -196,6 +238,7 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
 
 #[test]
 fn continuation_double_resume_uses_shared_runtime_error_transport_contract() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();
@@ -248,7 +291,85 @@ fn continuation_double_resume_uses_shared_runtime_error_transport_contract() {
 }
 
 #[test]
+fn continuation_resume_into_returns_answer_transport_and_clears_outputs_on_failure() {
+    let _guard = continuation_test_guard();
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+        scoop_effect_clear();
+
+        let frame = scoop_alloc(core::mem::size_of::<ScoopEffectFrameResultPrefix>() as u64)
+            as *mut ScoopEffectFrameResultPrefix;
+        assert!(
+            !frame.is_null(),
+            "answer frame prefix allocation must succeed"
+        );
+        (*frame).state_tag = 0;
+        (*frame)._padding = 0;
+        (*frame).resume_word = 0;
+        (*frame).resume_gc_ref = ptr::null_mut();
+
+        let expected_gc_ref = scoop_sync_once_create();
+        assert!(
+            !expected_gc_ref.is_null(),
+            "gc_ref answer payload sentinel must be allocated"
+        );
+
+        let k = scoop_continuation_alloc(frame as *mut c_void, Some(write_answer_transport_step));
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
+
+        let cont = &mut *(k as *mut ScoopContinuation);
+        cont.resume_word = 77;
+        cont.resume_gc_ref = expected_gc_ref;
+
+        let mut out_word = u64::MAX;
+        let mut out_gc_ref = frame as *mut c_void;
+        assert_eq!(
+            scoop_continuation_resume_into(k, &mut out_word, &mut out_gc_ref),
+            1,
+            "resume_into must report a delimiter answer when the resumed step finishes normally"
+        );
+        assert_eq!(out_word, 77);
+        assert_eq!(out_gc_ref, expected_gc_ref);
+        assert_eq!(
+            scoop_effect_is_active(),
+            0,
+            "successful resume_into must not leave the effect-active flag set"
+        );
+
+        out_word = 999;
+        out_gc_ref = expected_gc_ref;
+        assert_eq!(
+            scoop_continuation_resume_into(k, &mut out_word, &mut out_gc_ref),
+            0,
+            "double resume should report that no delimiter answer was produced"
+        );
+        assert_eq!(
+            out_word, 0,
+            "failed resume_into must clear the scalar out slot"
+        );
+        assert_eq!(
+            out_gc_ref,
+            ptr::null_mut(),
+            "failed resume_into must clear the gc_ref out slot"
+        );
+        assert_eq!(
+            scoop_effect_is_active(),
+            1,
+            "failed resume_into must still surface RuntimeError through the shared effect transport"
+        );
+
+        scoop_effect_clear();
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
 fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_frame_pops() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();
@@ -317,6 +438,7 @@ fn continuation_resume_keeps_captured_handler_snapshot_alive_after_original_fram
 
 #[test]
 fn continuation_resume_temporarily_restores_captured_callee_suspend_state() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();
@@ -364,6 +486,7 @@ fn continuation_resume_temporarily_restores_captured_callee_suspend_state() {
 
 #[test]
 fn continuation_resume_preserves_step_fn_replaced_callee_suspend_state() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();
@@ -416,6 +539,7 @@ fn continuation_resume_preserves_step_fn_replaced_callee_suspend_state() {
 
 #[test]
 fn continuation_resume_does_not_resurrect_saved_replay_state_tls() {
+    let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();

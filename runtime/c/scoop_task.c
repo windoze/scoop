@@ -5,8 +5,8 @@
 // - `poll()` / `step()` 都驱动任务执行，直到“下一次挂起或完成”为止；
 // - task 的 suspended-state carrier 对外不可见，runtime 内部继续借助 raw continuation；
 // - 从 `T4016a1` 的目标语义看，task step driver 的私有 delimiter answer 实际上是
-//   `__TaskStepResult`；当前 runtime 仍通过 continuation heap frame 前缀把它取回来，
-//   这只是 `T4016c/d` 之前的过渡耦合，不是最终 continuation ABI；
+//   `__TaskStepResult`；`T4016c` 起 task runtime 已改为通过共享 continuation answer helper
+//   消费它，而不是自行窥视 continuation heap frame 前缀；
 // - `scoop_task_join` 只是 compiler/runtime/test harness 使用的内部 helper：它循环 `poll()`，
 //   直到任务完成；它不代表公开的 structured-concurrency `join` 语义。
 
@@ -22,7 +22,9 @@ void scoop_runtime_init(void);
 uint32_t scoop_runtime_is_initialized(void);
 void scoop_thread_register(void);
 void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
-void scoop_continuation_resume(void *continuation);
+uint32_t scoop_continuation_resume_into(void *continuation,
+                                        uint64_t *out_word,
+                                        void **out_gc_ref);
 
 typedef void *(*ScoopTaskBodyFn)(void *closure_obj);
 
@@ -42,10 +44,8 @@ typedef enum ScoopTaskStepKindU32 {
 //
 // task runtime 只需要：
 // - 向 continuation 写入 resume payload；
-// - 在 `scoop_continuation_resume(...)` 返回后，读取 continuation 的 heap state frame，
-//   再从标准化的 frame 前缀中取回 handle result（这里即 `__TaskStepResult`）；
-// - 上述“resume 后回读 frame 前缀”的做法是 task-only 过渡债务：等 `T4016c/d` 把 delimiter
-//   answer channel 变成 continuation ABI 的通用返回通道后，这里应改为直接消费显式 answer。
+// - 调用共享的 `scoop_continuation_resume_into(...)`；
+// - 把 helper 返回的 delimiter answer 解释为私有 `__TaskStepResult`。
 typedef struct ScoopContinuation {
   ScoopGcObjectHeader hdr;
   _Atomic uint32_t resumed;
@@ -57,25 +57,6 @@ typedef struct ScoopContinuation {
   void *resume_gc_ref;
   void *captured_callee_suspend_state;
 } ScoopContinuation;
-
-// state-machine frame 的统一前缀（见 `state_machine_emitter.rs`）：
-// - `state_tag`：当前 state / sentinel completion tag
-// - `resume_word` / `resume_gc_ref`：handle result transport
-//
-// 这里当前还承担 task runtime 回读私有 `__TaskStepResult` answer 的桥接职责；
-// `T4016c/d` 完成后，task 不应再依赖这条 task-only 回读路径。
-typedef struct ScoopEffectFrameResultPrefix {
-  ScoopGcObjectHeader hdr;
-  uint32_t state_tag;
-  uint32_t _padding;
-  uint64_t resume_word;
-  void *resume_gc_ref;
-} ScoopEffectFrameResultPrefix;
-
-enum {
-  SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED = 0xFFFFFFFEu,
-  SCOOP_EFFECT_FRAME_STATE_TAG_FUNCTION_RETURNED = 0xFFFFFFFFu,
-};
 
 typedef struct ScoopTaskStepResult {
   ScoopGcObjectHeader hdr;
@@ -107,12 +88,6 @@ _Static_assert(offsetof(ScoopContinuation, resume_word) ==
 _Static_assert(offsetof(ScoopContinuation, resume_gc_ref) ==
                    offsetof(ScoopContinuation, resume_word) + sizeof(uint64_t),
                "ScoopContinuation.resume_gc_ref must follow resume_word");
-_Static_assert(offsetof(ScoopEffectFrameResultPrefix, state_tag) ==
-                   sizeof(ScoopGcObjectHeader),
-               "ScoopEffectFrameResultPrefix.state_tag offset must follow header");
-_Static_assert(offsetof(ScoopEffectFrameResultPrefix, resume_word) ==
-                   sizeof(ScoopGcObjectHeader) + 8u,
-               "ScoopEffectFrameResultPrefix.resume_word offset must match state-machine frame");
 #endif
 
 static void scoop_pin_nullable_or_die(void *obj) {
@@ -420,26 +395,18 @@ static ScoopTaskStepResult *scoop_task_resume_continuation_to_step(
   ScoopContinuation *k = (ScoopContinuation *)continuation;
   k->resume_word = resume_word;
   k->resume_gc_ref = resume_gc_ref;
-  scoop_continuation_resume(continuation);
-
-  // 过渡期实现：当前 generic continuation ABI 还不会把 delimiter answer 作为显式返回值
-  // 直接交给 caller；task driver 只能从标准化 frame 前缀读回 `__TaskStepResult`。
-  // `T4016c/d` 收口 answer-returning continuation 后，这里应改成消费通用 answer 通道。
-  if (k->state == 0) {
+  uint64_t step_word = 0;
+  void *step_gc_ref = 0;
+  if (!scoop_continuation_resume_into(continuation, &step_word, &step_gc_ref)) {
     exit(3);
   }
 
-  ScoopEffectFrameResultPrefix *frame =
-      (ScoopEffectFrameResultPrefix *)k->state;
-  if (frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED &&
-      frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_FUNCTION_RETURNED) {
-    exit(3);
-  }
-  if (frame->resume_gc_ref == 0) {
+  (void)step_word;
+  if (step_gc_ref == 0) {
     exit(3);
   }
 
-  return (ScoopTaskStepResult *)frame->resume_gc_ref;
+  return (ScoopTaskStepResult *)step_gc_ref;
 }
 
 static uint32_t scoop_task_begin_running_created(ScoopTask *task,

@@ -2350,8 +2350,8 @@ fun main(): Int {
             "state-machine handler binder lowering should unbox the transported tuple payload before reading multiple binders"
         );
         assert!(
-            ir.contains("@scoop_continuation_resume"),
-            "immediate-resume regression should still materialize continuation resume in the state-machine path"
+            ir.contains("@scoop_continuation_resume_into"),
+            "Continuation.resume lowering should route through the shared answer-return helper entry"
         );
         assert!(
             !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),

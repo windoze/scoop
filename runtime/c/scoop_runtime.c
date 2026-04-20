@@ -958,7 +958,9 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // `T4016a1` 已把语言语义收口为“answer-returning continuation”：
 // `k.resume(...)` 在最近 delimiter 正常完成时应产生该 delimiter 的 answer。
 // 当前 C runtime 结构体里显式记录的仍只有 resume payload transport；delimiter answer
-// 目前仍通过 state-machine 结果槽/调用方约定间接发布，`T4016c/d` 会把它收口成通用 continuation ABI。
+// 继续复用标准化 state-machine 结果槽，但 `T4016c` 起通过统一 helper
+// `scoop_continuation_resume_into(...)` 暴露给 caller，避免 `Task`/LLVM 直接窥视 frame 前缀。
+// `T4016b3/d` 再继续把 expression-position `resume(...): Answer` 与 task 叙事完全收口。
 //
 // T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，
 // 允许传递任意类型的 resume payload（scalar 走 word，GC ref/boxed compound 走 gc_ref）。
@@ -1010,8 +1012,18 @@ typedef struct ScoopEffectFrameBase {
   uint32_t state_tag;
 } ScoopEffectFrameBase;
 
+typedef struct ScoopEffectFrameResultPrefix {
+  ScoopGcObjectHeader hdr;
+  uint32_t state_tag;
+  uint32_t _padding;
+  uint64_t resume_word;
+  void *resume_gc_ref;
+} ScoopEffectFrameResultPrefix;
+
 enum {
   SCOOP_CONTINUATION_RESUME_STATE_UNSET = UINT32_MAX,
+  SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED = 0xFFFFFFFEu,
+  SCOOP_EFFECT_FRAME_STATE_TAG_FUNCTION_RETURNED = 0xFFFFFFFFu,
 };
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
@@ -1038,6 +1050,12 @@ _Static_assert(
     "ScoopContinuation.captured_callee_suspend_state must follow resume_gc_ref");
 _Static_assert((sizeof(ScoopContinuation) % sizeof(void *)) == 0,
                "ScoopContinuation size must be pointer-aligned");
+_Static_assert(offsetof(ScoopEffectFrameResultPrefix, state_tag) ==
+                   sizeof(ScoopGcObjectHeader),
+               "ScoopEffectFrameResultPrefix.state_tag offset must follow header");
+_Static_assert(offsetof(ScoopEffectFrameResultPrefix, resume_word) ==
+                   sizeof(ScoopGcObjectHeader) + 8u,
+               "ScoopEffectFrameResultPrefix.resume_word offset must match state-machine frame");
 #endif
 
 static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
@@ -1284,9 +1302,9 @@ static void scoop_effect_raise_runtime_error_variant(uint64_t variant_tag) {
 // - one-shot：同一个 continuation 只能成功 resume 一次；第二次为运行期错误（exit(3)）。
 // - fiber-local：resume 时需要恢复其捕获的 handler stack（Appendix A），允许在另一线程执行；
 //   并在 step_fn 返回后恢复调用方原 TLS handler stack。
-// - 当前 runtime entry 的职责仍是“驱动 resumed computation 向前走”；若 resumed computation
-//   正常到达 delimiter，它的 answer 目前由状态机结果 transport 对外发布，而不是作为这个 C 函数的
-//   直接返回值。`T4016c/d` 会把这条 answer-return channel 收口成 continuation ABI 的显式部分。
+// - 本 helper 只负责“驱动 resumed computation 向前走”；若 resumed computation 正常到达
+//   delimiter，则由 `scoop_continuation_resume_into(...)` 在外层把标准化 frame transport
+//   提升成 continuation ABI 的显式 answer channel。
 //
 // T1607：resume payload 由调用方预先写入 `k->resume_word` / `k->resume_gc_ref`；
 // runtime 在调用 step_fn 时把两个槽位都传入。
@@ -1377,7 +1395,70 @@ static uint32_t scoop_continuation_resume_try(void *continuation) {
   return 1;
 }
 
-// T1607：新 ABI——调用方已将 payload 写入 `k->resume_word` / `k->resume_gc_ref`。
+static uint32_t scoop_continuation_read_answer_transport(void *continuation,
+                                                         uint64_t *out_word,
+                                                         void **out_gc_ref) {
+  if (out_word != 0) {
+    *out_word = 0;
+  }
+  if (out_gc_ref != 0) {
+    *out_gc_ref = 0;
+  }
+  if (continuation == 0) {
+    return 0;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  if (k->state == 0) {
+    exit(3);
+  }
+
+  ScoopEffectFrameResultPrefix *frame = (ScoopEffectFrameResultPrefix *)k->state;
+  if (frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_HANDLE_RETURNED &&
+      frame->state_tag != SCOOP_EFFECT_FRAME_STATE_TAG_FUNCTION_RETURNED) {
+    exit(3);
+  }
+
+  if (out_word != 0) {
+    *out_word = frame->resume_word;
+  }
+  if (out_gc_ref != 0) {
+    *out_gc_ref = frame->resume_gc_ref;
+  }
+  return 1;
+}
+
+// 显式 continuation answer channel。
+//
+// 调用方先按共享 payload contract 写入 `resume_word` / `resume_gc_ref`；
+// helper 执行 one-shot 检查与 resume；若 resumed computation 正常完成最近 delimiter，
+// 则把 answer transport 写回 `out_word/out_gc_ref` 并返回 1。
+//
+// 返回 0 表示本次 resume 没有产出 delimiter answer：
+// - continuation 已被重复 resume，runtime 已通过 `Raise<RuntimeError>` 发布错误；
+// - 或 resumed computation 继续向外传播 effect，caller 应沿既有 effect-active 边界处理。
+uint32_t scoop_continuation_resume_into(void *continuation,
+                                        uint64_t *out_word,
+                                        void **out_gc_ref) {
+  if (out_word != 0) {
+    *out_word = 0;
+  }
+  if (out_gc_ref != 0) {
+    *out_gc_ref = 0;
+  }
+  if (!scoop_continuation_resume_try(continuation)) {
+    return 0;
+  }
+
+  scoop_continuation_resume_common(continuation);
+  if (__scoop_effect_active != 0) {
+    return 0;
+  }
+
+  return scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
+}
+
+// 兼容入口：保留旧 ABI 形状，仅负责驱动 resume；不要求 caller 消费 answer transport。
 void scoop_continuation_resume(void *continuation) {
   if (!scoop_continuation_resume_try(continuation)) {
     return;

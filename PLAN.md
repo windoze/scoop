@@ -49,8 +49,8 @@
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
     - `Continuation<T, eff E>` 仍只是过渡中的 sysroot surface，answer type 尚待 `T4016b` 接入主线；
     - 用户态 handler surface 只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；
-    - `Task` 当前“resume 后回读 frame 前缀得到 `__TaskStepResult`”的路径只是待 `T4016c/d` 移除的 task-only 实现债务。
-  - `T4016a` 设计/注释收口阶段已完成；由于当前 runtime ABI 仍是 `void scoop_continuation_resume(void*)`，而前端 / HIR / LLVM 又把 `-> resume` immediate-resume 与 `Continuation.resume(...): Unit` 绑在一起，`T4016b` 已拆成更小子任务。
+    - 当时 `Task` 仍保留“resume 后回读 frame 前缀得到 `__TaskStepResult`”的过渡债务；该债务已在 `T4016c` 收口进共享 helper。
+  - `T4016a` 设计/注释收口阶段已完成；围绕旧 `void scoop_continuation_resume(void*)` 的 runtime ABI 错位也已在 `T4016c` 开始拆开。
   - `T4016b1` 已完成：
     - parser / AST / HIR / resolver / typecheck 已移除用户态 `-> resume` surface，并改为 removed-syntax diagnostic；
     - AST / HIR 级别的 `ImmediateResume` arm kind 已删除；tail `k.resume(...)` 仅作为 lowering / codegen 内部分类保留；
@@ -63,7 +63,13 @@
     - 为避免一次性迁移大量旧 fixture/source，前端暂时保留 `Continuation<Resume, eff E>` / `Continuation<Resume>` 的过渡 lowering 兼容；内部 answer-hole 只服务旧注解兼容，不改变推导出的 binder 类型与新显式 surface；
     - 已补充并验证 answer type mismatch、escape binder answer/effect 推导、显式 continuation answer 注解、HIR 参数类型显示，以及相关 shorthand 兼容 run-pass。
     - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/hir`、选定 continuation `run-pass` 用例、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 下一步进入 `T4016c`：收口 runtime / ABI 的 answer-return channel，再继续推进 `T4016b3` 的返回值主线。
+  - `T4016c` 已完成：
+    - runtime 新增共享 helper `scoop_continuation_resume_into(...)`：负责 one-shot 检查、执行 resume，并在 resumed computation 正常完成 delimiter 时把 answer transport 通过显式 ABI 写回 caller；
+    - LLVM `Continuation.resume` lowering 与 state-machine tail-resume fast path 已切到该 helper，避免继续依赖旧的 void-only resume ABI；
+    - `runtime/c/scoop_task.c` 已改为通过共享 helper 取得 `__TaskStepResult`，不再直接回读 continuation heap frame 前缀；
+    - 已同步 `sysroot/core.scoop` / `SCOOP_RUNTIME.md` 的过渡叙事，并补 runtime `continuation_one_shot` 回归、两个 LLVM IR 定向测试，以及 `task_poll_step_manual_basic.scoop`、`continuation_resume_surface_named_tuple_and_unit_basic.scoop` 的端到端运行验证；
+    - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - 下一步进入 `T4016b3`：把现有 runtime answer-return helper 真正接到 expression-position `Continuation.resume(...): Answer` 的 typecheck / lowering 主线。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

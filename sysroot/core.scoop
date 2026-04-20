@@ -470,8 +470,8 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 // - `poll()` / `step()` 是手动驱动 task 的公开 surface；raw continuation 仅作为内部 suspended-state
 //   carrier 存在；
 // - 按 `T4016a1` 的目标语义，`Task` 最终应可被理解为“ordinary object + 私有 step-result
-//   continuation”的薄封装；当前 runtime 仍会在 resume 后回读标准化 frame 前缀拿到下一步
-//   `__TaskStepResult`，这是 `T4016c/d` 待移除的实现债务，不是稳定合同。
+//   continuation”的薄封装；`T4016c` 起 runtime 已通过共享 continuation answer helper
+//   取得下一步 `__TaskStepResult`，底层 frame transport 继续只是 runtime ABI 内部细节，不是稳定合同。
 enum Poll<T> {
     Pending,
     Ready(val value: T),
@@ -503,7 +503,8 @@ effect Async {
 //   还没有把 continuation answer type 显式接进类型表面；
 // - 因而 `__scoop_task_step_pending(..., continuation: Continuation<T, __TaskStepResult>)`
 //   里的 continuation 现在已经把 task step answer type 显式挂到静态 surface；只是 generic
-//   `Continuation.resume(...): Answer` 的运行时返回通道仍要等 `T4016c/b3/d` 才会完全接通。
+//   `Continuation.resume(...): Answer` 的运行时 helper 已在 `T4016c` 接通；`T4016b3/d`
+//   再继续把它完全推到语言 surface 与最终 task 叙事。
 // - `__scoop_task_from_result` / `__scoop_task_join` 只是 compiler/runtime/test harness 使用的
 //   内部 helper：前者把已知结果包装成 task，后者通过循环 `poll()` 等到 task 完成。
 class __TaskStepResult

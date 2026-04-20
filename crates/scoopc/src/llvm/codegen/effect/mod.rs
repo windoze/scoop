@@ -1218,10 +1218,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 replay.resume_gc_ref,
             )?;
 
-            let resume_fn = self.declare_runtime_continuation_resume();
+            let resume_fn = self.declare_runtime_continuation_resume_into();
+            let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
             self.builder.build_call(
                 resume_fn,
-                &[replay.pending_continuation.into()],
+                &[
+                    replay.pending_continuation.into(),
+                    null_slot.into(),
+                    null_slot.into(),
+                ],
                 "continuation_resume_replay",
             )?;
             self.emit_ordinary_call_effect_propagation_check(
@@ -1277,9 +1282,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
 
-        let resume_fn = self.declare_runtime_continuation_resume();
-        self.builder
-            .build_call(resume_fn, &[cont_ptr.into()], "continuation_resume")?;
+        let resume_fn = self.declare_runtime_continuation_resume_into();
+        let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
+        self.builder.build_call(
+            resume_fn,
+            &[cont_ptr.into(), null_slot.into(), null_slot.into()],
+            "continuation_resume",
+        )?;
 
         self.emit_ordinary_call_effect_propagation_check(span, "continuation_resume_effect")?;
         Ok(CgValue::unit())

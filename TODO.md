@@ -91,7 +91,7 @@
   - `, k ->` binder 的静态类型与 spec/runtime 文档中的 `Continuation<Resume, Answer, eff E>` 口径一致。
 - 依赖：T4016b1
 
-### T4016c [TODO] 收口 state machine / runtime / ABI，使 continuation result 成为一等返回通道
+### T4016c [DONE] 收口 state machine / runtime / ABI，使 continuation result 成为一等返回通道
 - 范围：
   - runtime / LLVM / state-machine contract 要把 continuation answer 作为统一返回通道收口，而不是让调用方在 `resume` 之后再按 task-private 规则窥视 frame 布局取值。
   - 继续保留 one-shot、cross-thread resume、cleanup / `finally`、fresh continuation on re-suspend 等既有运行时能力，但它们都必须与 answer-returning resume 语义对齐。
@@ -120,10 +120,9 @@
 - 范围：
   - task-private step driver 的 continuation answer type 要显式化：当前 `__TaskStepResult` 可继续作为内部 carrier，但它应成为 raw continuation 的显式 answer，而不是在 runtime `resume` 后由 task 私有代码回读得到的隐藏结果。
   - `Task.poll()/step()` 继续只暴露 `Poll<T>`；内部 richer step result 仍保持私有，但要建立在统一 continuation answer model 上。
-  - async/await lowering、task runtime 与 docs 叙事必须能解释为“ordinary object + private step-result continuation”，而不是“对 continuation ABI 另加一个 task-only 黑箱协定”。
+  - async/await lowering、task runtime 与 docs 叙事必须能解释为“ordinary object + private step-result continuation”，而不是“对 continuation ABI 另加一个 task-only 黑箱协定”。`T4016c` 已把 runtime resume path 改到共享 helper；本条继续收口剩余 surface / narrative 债务。
   - 不重新引入 executor / scheduler special-case；若需要 helper API，也必须是 continuation-based 的通用 helper，而不是新的 task-only runtime hack。
 - 验收：
-  - `runtime/c/scoop_task.c` 不再通过“调用 `scoop_continuation_resume(...)` 后读取 continuation heap frame 前缀”恢复 `__TaskStepResult`。
   - `Task` 可被解释为 continuation-based thin wrapper，而不再需要在设计文档里保留“runtime hack” caveat。
 - 依赖：T4016b3
 

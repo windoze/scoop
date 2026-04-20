@@ -100,8 +100,7 @@ fn try_rewrite_tail_resume_expr(
         } => {
             let rewritten_then = try_rewrite_tail_resume_expr(then_branch, continuation_symbol)?;
             let rewritten_else = else_branch.as_ref()?;
-            let rewritten_else =
-                try_rewrite_tail_resume_expr(rewritten_else, continuation_symbol)?;
+            let rewritten_else = try_rewrite_tail_resume_expr(rewritten_else, continuation_symbol)?;
             Some(hir::Expr {
                 span: expr.span,
                 ty: rewritten_then.ty,
@@ -2201,9 +2200,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.write_resume_payload_to_continuation(span, val, cont_ptr)?;
                 }
 
-                // Call scoop_continuation_resume(k).
-                let resume_fn = self.declare_runtime_continuation_resume();
-                self.builder.build_call(resume_fn, &[cont_ptr.into()], "")?;
+                // Tail fast path 仍不直接消费 answer transport，但 runtime entry 已统一切到
+                // continuation answer-channel helper，避免 resume sites 再分裂成第二套 ABI。
+                let resume_fn = self.declare_runtime_continuation_resume_into();
+                let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
+                self.builder.build_call(
+                    resume_fn,
+                    &[cont_ptr.into(), null_slot.into(), null_slot.into()],
+                    "",
+                )?;
 
                 // After resume returns, the step_fn has finished (or
                 // suspended again — the dispatch loop handles that).
@@ -4722,8 +4727,8 @@ fun main(): Int {
             .expect("llvm ir");
 
         assert!(
-            ir.contains("call void @scoop_continuation_resume"),
-            "outer when-arm try/catch should still lower Continuation.resume via the dedicated runtime entry"
+            ir.contains("call i32 @scoop_continuation_resume_into"),
+            "outer when-arm try/catch should lower Continuation.resume via the shared answer-return runtime entry"
         );
     }
 

@@ -22,7 +22,7 @@ pub(super) const SCOOP_CALLEE_SUSPEND_STATE_CLEAR: &str = "scoop_callee_suspend_
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
 pub(super) const SCOOP_CALLEE_SUSPEND_STATE_PUBLISH: &str = "scoop_callee_suspend_state_publish";
 pub(super) const SCOOP_CONTINUATION_ALLOC: &str = "scoop_continuation_alloc";
-pub(super) const SCOOP_CONTINUATION_RESUME: &str = "scoop_continuation_resume";
+pub(super) const SCOOP_CONTINUATION_RESUME_INTO: &str = "scoop_continuation_resume_into";
 pub(super) const SCOOP_CONTINUATION_RESUME_PUBLISH_PENDING_CONTINUATION: &str =
     "scoop_continuation_resume_publish_pending_continuation";
 pub(super) const SCOOP_EFFECT_CLEAR: &str = "scoop_effect_clear";

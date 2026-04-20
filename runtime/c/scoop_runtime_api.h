@@ -47,6 +47,7 @@
   X(scoop_channels_send_u64) \
   X(scoop_continuation_alloc) \
   X(scoop_continuation_resume) \
+  X(scoop_continuation_resume_into) \
   X(scoop_continuation_resume_publish_pending_continuation) \
   X(scoop_continuation_resume_u64) \
   X(scoop_continuation_try_resume) \

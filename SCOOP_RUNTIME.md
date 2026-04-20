@@ -344,7 +344,7 @@ This section records the continuation contract that the implementation is conver
   - The continuation captures the handler stack active at the suspension point.
   - Resuming from another OS thread reinstalls that captured handler stack for the duration of the resumed computation.
   - If the resumed computation suspends again, that suspension exposes a fresh continuation; `k.resume(...)` itself still exposes only the eventual delimiter answer or a raised error.
-- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement. `T4016b/c/d` will finish making the delimiter-answer channel explicit in the generic continuation ABI and remove the remaining task-only frame-peek coupling.
+- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement, and `scoop_continuation_resume_into(...)` now exposes the delimiter-answer channel through the generic continuation ABI. `T4016b3/d` will finish wiring that channel to expression-position `k.resume(...)` and the final `Task` thin-wrapper story.
 
 ## 11. Task Polling Runtime Contract
 
@@ -361,4 +361,4 @@ This stage standardizes the internal runtime ABI that backs `Task.poll()` / `Tas
 Implementation note:
 
 - The private `__TaskStepResult` carrier is not part of the public language surface.
-- When a pending task resumes a captured continuation, the runtime reads the next `__TaskStepResult` from the standardized state-machine frame prefix (`state_tag`, `resume_word`, `resume_gc_ref`). This keeps raw continuation/frame details inside the runtime boundary while preserving the public `Poll<T>` contract.
+- When a pending task resumes a captured continuation, the runtime now asks the shared continuation answer helper to read the next `__TaskStepResult` from the standardized state-machine frame transport (`state_tag`, `resume_word`, `resume_gc_ref`). This keeps raw continuation/frame details inside the runtime boundary while preserving the public `Poll<T>` contract.
