@@ -102,7 +102,7 @@
   - runtime 合同不再要求“先 resume，再由 task 私有代码手动解码 frame 结果槽”。
 - 依赖：T4016b2
 
-### T4016b3 [TODO] 基于统一 answer-return 通道完成 `Continuation.resume(...): Answer` 的 typecheck / lowering 主线接入
+### T4016b3 [DONE] 基于统一 answer-return 通道完成 `Continuation.resume(...): Answer` 的 typecheck / lowering 主线接入
 - 范围：
   - `Continuation.resume(...)` 改为真正返回表达式值的 builtin surface，不再在 typecheck / HIR / lowering 中被钉死成 `Unit` 返回。
   - 基于 `T4016c` 已提供的 runtime / ABI 返回通道，接通 expression-position `k.resume(...)` 的 lowering / codegen，并补齐对 safe-call、tuple payload surface、required effects 与 hidden `Raise<RuntimeError>` 边界的统一处理。

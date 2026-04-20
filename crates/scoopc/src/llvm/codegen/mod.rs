@@ -2109,7 +2109,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .continuation_resume_call_sites
             .contains(&self.current_call_site(span)?)
         {
-            return self.codegen_continuation_resume_builtin(span, callee, args);
+            return self
+                .codegen_continuation_resume_builtin(span, callee, args, expected, result_ty);
         }
 
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。

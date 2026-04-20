@@ -4098,10 +4098,10 @@ effect Suspend {
     fun pause(): Int
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Unit>?)
 
 fun main(): Int {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {
@@ -4681,10 +4681,10 @@ effect Suspend {
     fun pause(): Int
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Unit>?)
 
 fun main(): Int {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val result: Int = try {

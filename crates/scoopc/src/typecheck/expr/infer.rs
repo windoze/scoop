@@ -1425,8 +1425,8 @@ pub(super) fn infer_handle_expr_type(
                     .escape_continuation_effect_row(arm.span)
                     .cloned()
                     .unwrap_or_else(EffectRow::pure);
-                let cont_answer_ty = result_ty
-                    .unwrap_or_else(|| lower.ty_continuation_answer_hole(arm.span));
+                let cont_answer_ty =
+                    result_ty.unwrap_or_else(|| lower.ty_continuation_answer_hole(arm.span));
                 let cont_ty = lower.ty_continuation(
                     lowered.op_return_ty,
                     cont_answer_ty,
@@ -1437,11 +1437,39 @@ pub(super) fn infer_handle_expr_type(
                 let arm_inputs = inputs.with_locals(&arm_locals);
 
                 // 过渡阶段：若 arm body 仍是“旧 immediate-resume 等价的尾 `k.resume(...)` 形状”，
-                // 则它继续走“只恢复 handled computation、不参与 handle 结果类型推导”的内部路径。
+                // lowering/codegen 依然可以把它识别成内部 fast path；
+                // 但 `resume(...): Answer` 的静态语义已经接通，因此该路径现在仍需参与
+                // handle 结果类型推导，只是继续把其 required-effects 视为内部优化细节，
+                // 不在此处分裂出第二套用户态 surface。
                 if is_tail_resume_escape_arm_expr(source, &arm.body, k_span) {
-                    let _ = lower.with_nested_effect_collection(|lower| {
+                    let (arm_body_ty, _) = lower.with_nested_effect_collection(|lower| {
                         arm_inputs.infer(lower, &arm.body)
                     })?;
+                    record_handle_return_path(
+                        &mut result_ty,
+                        arm_body_ty,
+                        lower,
+                        builtins,
+                        arm.body.span,
+                    )?;
+
+                    if lower.is_continuation_answer_hole(cont_answer_ty)
+                        && let Some(final_answer_ty) = result_ty
+                    {
+                        let finalized_cont_ty = lower.ty_continuation(
+                            lowered.op_return_ty,
+                            final_answer_ty,
+                            cont_effects.clone(),
+                        );
+                        lower.record_inferred_binding_ty(k_span, finalized_cont_ty);
+
+                        let mut finalized_arm_locals = arm_locals.clone();
+                        finalized_arm_locals.insert(k_span, finalized_cont_ty);
+                        let finalized_inputs = inputs.with_locals(&finalized_arm_locals);
+                        let _ = lower.with_nested_effect_collection(|lower| {
+                            finalized_inputs.infer(lower, &arm.body)
+                        })?;
+                    }
                     continue;
                 }
 

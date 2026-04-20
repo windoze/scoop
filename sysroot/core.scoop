@@ -440,8 +440,8 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 //   的 required effects；
 // - 按 `T4016a1` 已定稿的语义，`k.resume(payload...)` 在 resumed computation 正常完成最近
 //   delimiter 时应返回该 delimiter 的 answer type；
-// - `T4016b2` 只把 answer type 接进静态模型；`resume(...): Answer` 的真正返回值主线仍留待
-//   `T4016b3` 接通，因此当前实现层面还处于“surface 已显式、builtin 返回值仍过渡”的阶段；
+// - `T4016b2` / `T4016b3` 已分别把 answer type 接进静态模型，并把 `resume(...): Answer`
+//   的 typecheck / lowering 主线接通；当前 surface 已能把 delimiter answer 作为普通表达式值返回；
 // - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
 // - builtin `Continuation.resume` 由编译器识别：
 //   - `Continuation<Unit, Answer>` 允许 `k.resume()`；
@@ -499,12 +499,12 @@ effect Async {
 // - `__scoop_task_create` 是 `async` sugar 的内部 lazy-task 创建落点，不构成用户态 API；
 // - structured concurrency（包括公开的 `spawn` / `join` 语法）仍留待后续任务，不属于当前
 //   `Task` core 合同；
-// - `__TaskStepResult` 已经对应 task step driver 的私有 delimiter answer carrier；只是当前 sysroot
-//   还没有把 continuation answer type 显式接进类型表面；
-// - 因而 `__scoop_task_step_pending(..., continuation: Continuation<T, __TaskStepResult>)`
-//   里的 continuation 现在已经把 task step answer type 显式挂到静态 surface；只是 generic
-//   `Continuation.resume(...): Answer` 的运行时 helper 已在 `T4016c` 接通；`T4016b3/d`
-//   再继续把它完全推到语言 surface 与最终 task 叙事。
+// - `__TaskStepResult` 已经对应 task step driver 的私有 delimiter answer carrier；
+// - `__scoop_task_step_pending(..., continuation: Continuation<T, __TaskStepResult>)`
+//   里的 continuation 现在已经把 task step answer type 显式挂到静态 surface，而 generic
+//   `Continuation.resume(...): Answer` 也已在 `T4016b3` 接通到语言主线；
+// - `T4016d` 继续收口剩余 task surface / narrative 债务，使 `Task` 真正退化为该 continuation
+//   模型上的薄封装。
 // - `__scoop_task_from_result` / `__scoop_task_join` 只是 compiler/runtime/test harness 使用的
 //   内部 helper：前者把已知结果包装成 task，后者通过循环 `poll()` 等到 task 完成。
 class __TaskStepResult

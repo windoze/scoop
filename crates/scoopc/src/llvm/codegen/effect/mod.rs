@@ -1209,6 +1209,129 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee: &hir::Expr,
         args: &[hir::CallArg],
+        expected: Option<CgTy>,
+        result_ty: Option<TypeId>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if matches!(expected, Some(CgTy::Unit)) {
+            return self.codegen_continuation_resume_builtin_discard_answer(span, callee, args);
+        }
+
+        let hir::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume callee shape",
+                at: callee.span.into(),
+            });
+        };
+
+        let receiver_ty = self
+            .resolve_expr_concrete_type(receiver)
+            .unwrap_or(receiver.ty);
+        let (payload_ty, receiver_answer_ty) = match self.types.kind(receiver_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() >= 2 =>
+            {
+                (Some(nominal.args[0]), Some(nominal.args[1]))
+            }
+            _ => (None, None),
+        };
+        let answer_cg_ty = result_ty
+            .and_then(|ty| self.cg_ty_of(ty))
+            .or_else(|| receiver_answer_ty.and_then(|ty| self.cg_ty_of(ty)))
+            .or(expected)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume answer type",
+                at: span.into(),
+            })?;
+
+        if self.current_continuation_resume_replay {
+            let replay = self.take_continuation_resume_replay_state(span)?;
+            self.write_encoded_resume_payload_to_continuation(
+                replay.pending_continuation,
+                replay.resume_word,
+                replay.resume_gc_ref,
+            )?;
+
+            let resume_fn = self.declare_runtime_continuation_resume_into();
+            let (out_word_slot, out_gc_ref_slot) =
+                self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "replay")?;
+            self.builder.build_call(
+                resume_fn,
+                &[
+                    replay.pending_continuation.into(),
+                    out_word_slot.into(),
+                    out_gc_ref_slot.into(),
+                ],
+                "continuation_resume_replay",
+            )?;
+            self.emit_ordinary_call_effect_propagation_check(
+                span,
+                "continuation_resume_replay_effect",
+            )?;
+            return self.load_continuation_resume_answer(
+                span,
+                answer_cg_ty,
+                out_word_slot,
+                out_gc_ref_slot,
+                "replay",
+            );
+        }
+
+        let continuation = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+        let continuation = self.coerce_value(receiver.span, continuation, CgTy::Ref)?;
+        let Some(raw_continuation) = continuation.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cont_ptr) = raw_continuation else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        // `Continuation.resume(...)` 的 authoritative payload / answer type 都来自
+        // receiver 的 `Continuation<Resume, Answer, eff E>` 实参。
+        let payload = if let Some(payload_ty) = payload_ty {
+            self.codegen_continuation_resume_payload_value(span, payload_ty, args)?
+        } else {
+            self.codegen_continuation_resume_legacy_payload_value(None, args)?
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Continuation.resume payload type",
+                    at: receiver.span.into(),
+                })?
+        };
+        self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
+
+        let resume_fn = self.declare_runtime_continuation_resume_into();
+        let (out_word_slot, out_gc_ref_slot) =
+            self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "fresh")?;
+        self.builder.build_call(
+            resume_fn,
+            &[
+                cont_ptr.into(),
+                out_word_slot.into(),
+                out_gc_ref_slot.into(),
+            ],
+            "continuation_resume",
+        )?;
+
+        self.emit_ordinary_call_effect_propagation_check(span, "continuation_resume_effect")?;
+        self.load_continuation_resume_answer(
+            span,
+            answer_cg_ty,
+            out_word_slot,
+            out_gc_ref_slot,
+            "fresh",
+        )
+    }
+
+    fn codegen_continuation_resume_builtin_discard_answer(
+        &mut self,
+        span: crate::span::Span,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if self.current_continuation_resume_replay {
             let replay = self.take_continuation_resume_replay_state(span)?;
@@ -1258,8 +1381,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        // `Continuation.resume(...)` 的 authoritative payload type 来自
-        // receiver 的 `Continuation<Resume, Answer, eff E>` 的第一个实参。
         let receiver_ty = self
             .resolve_expr_concrete_type(receiver)
             .unwrap_or(receiver.ty);
@@ -1292,6 +1413,67 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.emit_ordinary_call_effect_propagation_check(span, "continuation_resume_effect")?;
         Ok(CgValue::unit())
+    }
+
+    fn alloc_continuation_resume_answer_slots(
+        &mut self,
+        span: crate::span::Span,
+        answer_cg_ty: CgTy,
+        suffix: &str,
+    ) -> Result<(PointerValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        if matches!(answer_cg_ty, CgTy::Unit | CgTy::Never) {
+            let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
+            return Ok((null_slot, null_slot));
+        }
+
+        let out_word_slot = self.create_entry_alloca_raw(
+            span,
+            &format!("continuation_resume_out_word_{suffix}"),
+            self.context.i64_type().into(),
+        )?;
+        self.builder
+            .build_store(out_word_slot, self.context.i64_type().const_zero())?;
+        let out_gc_ref_slot = self.create_entry_alloca_raw(
+            span,
+            &format!("continuation_resume_out_gc_ref_{suffix}"),
+            self.llvm_gc_i8_ptr_type().into(),
+        )?;
+        self.builder
+            .build_store(out_gc_ref_slot, self.llvm_gc_i8_ptr_type().const_null())?;
+        Ok((out_word_slot, out_gc_ref_slot))
+    }
+
+    fn load_continuation_resume_answer(
+        &mut self,
+        span: crate::span::Span,
+        answer_cg_ty: CgTy,
+        out_word_slot: PointerValue<'ctx>,
+        out_gc_ref_slot: PointerValue<'ctx>,
+        suffix: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match answer_cg_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            target => {
+                let loaded_word = self
+                    .builder
+                    .build_load(
+                        self.context.i64_type(),
+                        out_word_slot,
+                        &format!("continuation_resume_word_{suffix}"),
+                    )?
+                    .into_int_value();
+                let loaded_gc_ref = self
+                    .builder
+                    .build_load(
+                        self.llvm_gc_i8_ptr_type(),
+                        out_gc_ref_slot,
+                        &format!("continuation_resume_gc_ref_{suffix}"),
+                    )?
+                    .into_pointer_value();
+                self.decode_effect_transport_value(span, loaded_word, loaded_gc_ref, target)
+            }
+        }
     }
 
     /// Emit code for a standalone `perform` expression (outside of a state

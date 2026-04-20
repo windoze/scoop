@@ -960,7 +960,8 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // 当前 C runtime 结构体里显式记录的仍只有 resume payload transport；delimiter answer
 // 继续复用标准化 state-machine 结果槽，但 `T4016c` 起通过统一 helper
 // `scoop_continuation_resume_into(...)` 暴露给 caller，避免 `Task`/LLVM 直接窥视 frame 前缀。
-// `T4016b3/d` 再继续把 expression-position `resume(...): Answer` 与 task 叙事完全收口。
+// `T4016b3` 已把 expression-position `resume(...): Answer` 接到前端/LLVM 主线；
+// `T4016d` 再继续收口剩余 task 叙事与 surface 债务。
 //
 // T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，
 // 允许传递任意类型的 resume payload（scalar 走 word，GC ref/boxed compound 走 gc_ref）。

@@ -276,7 +276,30 @@ fn check_call_expr_stmt_fallback(
     state: &mut StmtExprState<'_>,
     ctx: StmtExprContext,
 ) -> Result<(), ExprTypeError> {
-    check_expr_stmt_with_mode(shared, callee, lower, state, ctx.flow, ctx.call_mode)?;
+    if let ast::ExprKind::SafeMemberAccess {
+        receiver, member, ..
+    } = &callee.kind
+        && shared.source.slice(member.span) == "resume"
+    {
+        let receiver_ty =
+            expr_infer_inputs_with_flow(shared, state.locals, ctx.flow).infer(lower, receiver)?;
+        let is_safe_continuation_resume = match lower.type_kind(receiver_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => matches!(
+                lower.type_kind(inner),
+                TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                    if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() >= 2
+            ),
+            _ => false,
+        };
+
+        if is_safe_continuation_resume {
+            check_expr_stmt_with_mode(shared, receiver, lower, state, ctx.flow, ctx.call_mode)?;
+        } else {
+            check_expr_stmt_with_mode(shared, callee, lower, state, ctx.flow, ctx.call_mode)?;
+        }
+    } else {
+        check_expr_stmt_with_mode(shared, callee, lower, state, ctx.flow, ctx.call_mode)?;
+    }
 
     for arg in args {
         if matches!(arg.kind, ast::ExprKind::Lambda(_)) {

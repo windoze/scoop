@@ -88,11 +88,7 @@ fn nominal_type_args_assignable(
 
         match declared {
             None => {
-                if !types_equal_or_continuation_hole_compatible(
-                    found_arg,
-                    expected_arg,
-                    lower,
-                ) {
+                if !types_equal_or_continuation_hole_compatible(found_arg, expected_arg, lower) {
                     return false;
                 }
             }
@@ -107,11 +103,7 @@ fn nominal_type_args_assignable(
                 }
             }
             Some(_) => {
-                if !types_equal_or_continuation_hole_compatible(
-                    found_arg,
-                    expected_arg,
-                    lower,
-                ) {
+                if !types_equal_or_continuation_hole_compatible(found_arg, expected_arg, lower) {
                     return false;
                 }
             }
@@ -143,15 +135,17 @@ fn types_equal_or_continuation_hole_compatible(
             TypeKind::Value(ValueTypeKind::Tuple(expected_elems)),
         ) => {
             found_elems.len() == expected_elems.len()
-                && found_elems.iter().copied().zip(expected_elems.iter().copied()).all(
-                    |(found_elem, expected_elem)| {
+                && found_elems
+                    .iter()
+                    .copied()
+                    .zip(expected_elems.iter().copied())
+                    .all(|(found_elem, expected_elem)| {
                         types_equal_or_continuation_hole_compatible(
                             found_elem,
                             expected_elem,
                             lower,
                         )
-                    },
-                )
+                    })
         }
         (
             TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
@@ -170,11 +164,7 @@ fn types_equal_or_continuation_hole_compatible(
                     .copied()
                     .zip(expected_nominal.args.iter().copied())
                     .all(|(found_arg, expected_arg)| {
-                        types_equal_or_continuation_hole_compatible(
-                            found_arg,
-                            expected_arg,
-                            lower,
-                        )
+                        types_equal_or_continuation_hole_compatible(found_arg, expected_arg, lower)
                     })
         }
         _ => false,
@@ -290,25 +280,23 @@ pub(crate) fn is_type_assignable(
         (
             TypeKind::Value(ValueTypeKind::Option(found_inner)),
             TypeKind::Value(ValueTypeKind::Option(expected_inner)),
-        ) => types_equal_or_continuation_hole_compatible(
-            found_inner,
-            expected_inner,
-            lower,
-        ),
+        ) => types_equal_or_continuation_hole_compatible(found_inner, expected_inner, lower),
         (
             TypeKind::Value(ValueTypeKind::Tuple(found_elems)),
             TypeKind::Value(ValueTypeKind::Tuple(expected_elems)),
         ) => {
             found_elems.len() == expected_elems.len()
-                && found_elems.iter().copied().zip(expected_elems.iter().copied()).all(
-                    |(found_elem, expected_elem)| {
+                && found_elems
+                    .iter()
+                    .copied()
+                    .zip(expected_elems.iter().copied())
+                    .all(|(found_elem, expected_elem)| {
                         types_equal_or_continuation_hole_compatible(
                             found_elem,
                             expected_elem,
                             lower,
                         )
-                    },
-                )
+                    })
         }
         (
             TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),

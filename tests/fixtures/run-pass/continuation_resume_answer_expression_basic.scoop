@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_answer_expression_basic.stdout
+//
+// 目标：T4016b3 fresh-path `Continuation.resume(...): Answer`
+// - `k.resume(...)` 在 arm body 中作为表达式返回 delimiter answer；
+// - resumed body 正常完成后，arm 内本地代码继续执行并可读取该 answer；
+// - 入口 `main` 通过 `try/catch` 吸收 one-shot runtime error 边界，保持 Pure。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("body_before")
+        val value: Int = Yield.next()
+        println("body_after")
+        println(value)
+        value + 1
+    } with {
+        Yield.next(), k -> {
+            println("arm_before")
+            val resumed: Int = try {
+                k.resume(41)
+            } catch (e: RuntimeError) {
+                println("runtime_error")
+                0 - 1000
+            }
+            println("arm_after")
+            println(resumed)
+            resumed + 10
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

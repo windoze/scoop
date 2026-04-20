@@ -4314,18 +4314,22 @@ fn try_infer_continuation_resume_call_expr_type(
     // 说明：
     // - 当前阶段 typecheck 尚未支持 class/interface 的实例方法调用；因此这里把 `resume` 视为一个
     //   "内建 member call 形态"，独立于扩展函数解析。
-    // - `Continuation<Resume, Answer, eff E>` 的 `E` 视为"调用 resume 可能执行的 required effects"。
-    // - `T4016b2` 只把 answer type 接入 continuation 静态 surface；`resume(...): Answer`
-    //   的真正返回值主线仍留待 `T4016b3`，因此这里暂时仍把 `resume` 当作 `Unit` 返回。
+    // - `Continuation<Resume, Answer, eff E>` 的 `E` 视为"调用 resume 可能执行的 required effects"；
+    // - `resume(...): Answer` 的 authoritative 静态返回类型来自 receiver continuation 的
+    //   第二个类型实参；safe-call `receiver?.resume(...)` 则进一步包成 `Option<Answer>`。
     if source.slice(member.span) != "resume" {
         return Ok(None);
     }
 
-    let (expected_value_ty, effects) = match lower.type_kind(receiver_ty) {
+    let (expected_value_ty, answer_ty, effects) = match lower.type_kind(receiver_ty) {
         TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            if nominal.fqn == "scoop.core.Continuation" && !nominal.args.is_empty() =>
+            if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() >= 2 =>
         {
-            (nominal.args[0], nominal.eff.unwrap_or_else(EffectRow::pure))
+            (
+                nominal.args[0],
+                nominal.args[1],
+                nominal.eff.unwrap_or_else(EffectRow::pure),
+            )
         }
         _ => return Ok(None),
     };
@@ -4414,9 +4418,9 @@ fn try_infer_continuation_resume_call_expr_type(
         lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
 
         let ret = if safe {
-            lower.ty_option(builtins.unit)
+            lower.ty_option(answer_ty)
         } else {
-            builtins.unit
+            answer_ty
         };
         return Ok(Some(ret));
     }
@@ -4495,9 +4499,9 @@ fn try_infer_continuation_resume_call_expr_type(
         lower.record_continuation_resume_call_site(call_expr.span, !effects.is_pure());
 
         let ret = if safe {
-            lower.ty_option(builtins.unit)
+            lower.ty_option(answer_ty)
         } else {
-            builtins.unit
+            answer_ty
         };
         return Ok(Some(ret));
     }

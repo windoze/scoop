@@ -69,7 +69,13 @@
     - `runtime/c/scoop_task.c` 已改为通过共享 helper 取得 `__TaskStepResult`，不再直接回读 continuation heap frame 前缀；
     - 已同步 `sysroot/core.scoop` / `SCOOP_RUNTIME.md` 的过渡叙事，并补 runtime `continuation_one_shot` 回归、两个 LLVM IR 定向测试，以及 `task_poll_step_manual_basic.scoop`、`continuation_resume_surface_named_tuple_and_unit_basic.scoop` 的端到端运行验证；
     - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 下一步进入 `T4016b3`：把现有 runtime answer-return helper 真正接到 expression-position `Continuation.resume(...): Answer` 的 typecheck / lowering 主线。
+  - `T4016b3` 已完成：
+    - `Continuation.resume(...)` 的 typecheck 已改为返回 continuation 的 answer type，safe-call `receiver?.resume(...)` 也会相应返回 `Option<Answer>`；
+    - escape continuation arm 的 tail-resume 过渡路径不再绕开 handle result / answer-hole 推导，answer type 会在 handle 结果确定后回填并重新校验 arm body；
+    - LLVM lowering 已把 fresh-path / replay-path 的 `Continuation.resume(...): Answer` 都接到共享 answer-return helper，并在需要时解码 answer transport；
+    - 已补 typecheck / run-pass 回归，覆盖 expression-position resume、safe-call，以及 resumed computation 再次 suspend 的 replay-path answer-return。
+    - 已验证 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`、定向 continuation 回归与新增 fixture 子集通过。
+  - 下一步进入 `T4016d`：让 `Task` 彻底退化为基于 continuation answer type 的薄封装，并收口剩余 task/runtime 叙事债务。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

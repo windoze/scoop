@@ -1,0 +1,86 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_answer_replay_basic.stdout
+//
+// 目标：T4016b3 replay-path `Continuation.resume(...): Answer`
+// - 外层 `k0.resume(...)` 在恢复过程中再次 suspend 时，call-boundary replay 仍要把 answer
+//   送回到原始 `resume` 调用点；
+// - fresh continuation `k1.resume(...)` 的 answer 会先返回到内层 arm body；
+// - 两层 answer-return 都应允许调用点之后的本地代码继续执行。
+
+import scoop.core.*
+
+effect Ask {
+    fun current(): Int
+}
+
+effect Boom {
+    fun next(): Int
+}
+
+class Cell(var saved: Continuation<Int, Int, eff Boom>?, var total: Int)
+
+private fun start(cell: Cell): Int / Boom {
+    return handle {
+        val seed: Int = Ask.current()
+        val extra: Int = Boom.next()
+        cell.total = seed + extra
+        seed + extra
+    } with {
+        Ask.current(), k -> {
+            cell.saved = Some(k)
+            0 - 1
+        }
+    }
+}
+
+fun main(): Int {
+    val none_saved: Continuation<Int, Int, eff Boom>? = None()
+    val cell: Cell = Cell(none_saved, 0 - 999)
+
+    val initial: Int = handle {
+        start(cell)
+    } with {
+        Boom.next() -> {
+            0 - 2
+        }
+    }
+    println("initial")
+    println(initial)
+    println("total0")
+    println(cell.total)
+
+    when (cell.saved) {
+        Some(k0) -> {
+            val finalAnswer: Int = try {
+                handle {
+                    val resumed0: Int = k0.resume(5)
+                    println("after_outer_resume")
+                    println(resumed0)
+                    resumed0 + 1000
+                } with {
+                    Boom.next(), k1 -> {
+                        val inner: Int = try {
+                            k1.resume(7)
+                        } catch (e: RuntimeError) {
+                            println("inner_runtime_error")
+                            0 - 1000
+                        }
+                        println("inner_answer")
+                        println(inner)
+                        inner + 100
+                    }
+                }
+            } catch (e: RuntimeError) {
+                println("outer_runtime_error")
+                0 - 2000
+            }
+            println("final_answer")
+            println(finalAnswer)
+        }
+        None -> println("missing")
+    }
+
+    println("total1")
+    println(cell.total)
+    return 0
+}
