@@ -1,0 +1,24 @@
+// EXPECT: pass
+// EXPECT-EXIT: 0
+//
+// T4010b1：
+// - 值类型 computed property 读取应走 getter，而不是 direct field；
+// - `StructName(...)` 与 `StructName { ... }` 两条构造入口都应可稳定读取 getter。
+
+import scoop.core.*
+
+struct Point(val x: Int) {
+    val doubled: Int
+        get() = this.x * 2
+}
+
+fun main(): Int {
+    val fromCtor: Point = Point(1)
+    val fromLit: Point = Point { x: 2 }
+
+    return if (fromCtor.doubled == 2 && fromLit.doubled == 4) {
+        0
+    } else {
+        1
+    }
+}

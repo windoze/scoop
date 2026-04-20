@@ -9162,7 +9162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// T0126: 尝试将泛型 class 成员方法调用的 FQN 解析为单态化后的变体。
+    /// T0126/T4010b1: 尝试将泛型 nominal 成员 callable 的 FQN 解析为单态化后的变体。
     ///
     /// 例如：`Box.get` + receiver `Box<Int>` → `Box.get::<Int>`
     ///
@@ -9199,24 +9199,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         }
 
-        // 从第一个参数（receiver）的 HIR 表达式中提取 hir_ty
+        // 从第一个参数（receiver）的 HIR 表达式中提取具体 nominal 类型。
         let first_arg = args.first()?;
         let hir::CallArg::Positional(receiver_expr) = first_arg else {
             return None;
         };
 
-        let receiver_hir_ty =
-            if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver_expr.kind {
-                self.env.get(*id).and_then(|local| local.hir_ty)?
-            } else {
-                return None;
-            };
+        let receiver_hir_ty = self.resolve_expr_concrete_type(receiver_expr)?;
 
-        // 从 receiver 的 nominal 类型中提取 type args
-        let crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) =
-            self.types.kind(receiver_hir_ty)
-        else {
-            return None;
+        // 从 receiver 的 nominal 类型中提取 type args。
+        let nominal = match self.types.kind(receiver_hir_ty) {
+            crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal))
+            | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) => nominal,
+            _ => return None,
         };
 
         if nominal.args.is_empty() {

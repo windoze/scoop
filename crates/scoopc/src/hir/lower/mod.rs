@@ -17,7 +17,7 @@ mod stmt;
 pub use types::{HirLowerError, LoweredHir};
 pub use util::mangle_nominal_fqn;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast;
 use crate::parser::parse_file;
@@ -70,6 +70,12 @@ struct HirLowering<'a> {
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
     /// struct 直接字段默认值信息索引：`struct fqn -> direct field params(default)`。
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
+    /// 值类型 computed property getter 索引：`Owner.prop`。
+    ///
+    /// 用途：
+    /// - `struct/enum` 的 getter-only property 访问需要在 HIR 阶段降糖为 getter 调用；
+    /// - 避免 LLVM/codegen 再把它误当作 direct field 去查 layout。
+    value_type_computed_properties: &'a HashSet<String>,
     /// ctor 调用点候选集合：callee span → candidate type fqns。
     ///
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
@@ -121,6 +127,7 @@ struct HirLoweringSetup<'a> {
     delegated_properties: &'a DelegatedPropertyIndex<'a>,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     default_arg_structs: HashMap<String, DefaultArgStructInfo>,
+    value_type_computed_properties: &'a HashSet<String>,
     builtins: BuiltinTypes,
 }
 
@@ -163,6 +170,7 @@ impl<'a> HirLowering<'a> {
             delegated_properties,
             compilation_unit,
             default_arg_structs,
+            value_type_computed_properties,
             builtins,
         } = setup;
         Self {
@@ -175,6 +183,7 @@ impl<'a> HirLowering<'a> {
             compilation_unit,
             default_arg_funs: HashMap::new(),
             default_arg_structs,
+            value_type_computed_properties,
             ctor_call_sites: HashMap::new(),
             effect_op_call_sites: HashMap::new(),
             handle_payload_tuple_tys: HashMap::new(),
@@ -373,7 +382,8 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    /// 收集并 lowering 当前文件内的 class/object member `fun` 声明为可 codegen 的顶层函数形态。
+    /// 收集并 lowering 当前文件内的 member `fun` / 值类型 computed property getter，
+    /// 为可 codegen 的顶层函数形态。
     ///
     /// 说明：
     /// - 该收集发生在 `lower_file()` 之后，作为 side table 保存，避免影响 `dump-hir` 的输出稳定性；
@@ -417,6 +427,18 @@ impl<'a> HirLowering<'a> {
 
         for member in &body.members {
             match member {
+                ast::TypeMember::Property(prop)
+                    if matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
+                        && prop.getter.is_some() =>
+                {
+                    out.push(self.lower_value_property_getter_decl(
+                        pkg_prefix,
+                        &owner_fqn,
+                        &decl.type_params,
+                        decl.name.span,
+                        prop,
+                    ));
+                }
                 ast::TypeMember::Fun(fun) => {
                     out.push(self.lower_member_fun_decl(
                         pkg_prefix,
@@ -433,9 +455,9 @@ impl<'a> HirLowering<'a> {
                     self.collect_member_funs_in_object_decl(pkg_prefix, obj, &owner_fqn, out);
                 }
                 ast::TypeMember::EnumVariant(_)
-                | ast::TypeMember::Property(_)
                 | ast::TypeMember::InitBlock(_)
                 | ast::TypeMember::SecondaryCtor(_) => {}
+                ast::TypeMember::Property(_) => {}
             }
         }
     }
@@ -784,6 +806,89 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    /// 将值类型（struct/enum）的 getter-only computed property 降低为“顶层函数形态”。
+    ///
+    /// 约定：
+    /// - FQN 直接复用属性 FQN（例如 `pkg.Point.doubled`）；
+    /// - 第 0 个参数为显式 `this`；
+    /// - body 直接来自 accessor getter body。
+    fn lower_value_property_getter_decl(
+        &mut self,
+        pkg_prefix: &str,
+        owner_fqn: &str,
+        owner_type_params: &[ast::TypeParam],
+        this_decl_span: Span,
+        prop: &ast::PropertyDecl,
+    ) -> FunDecl {
+        let getter = prop.getter.as_ref().expect(
+            "computed property getter collection only calls this helper for getter-only properties",
+        );
+
+        self.push_type_params(owner_type_params);
+
+        let name = prop.name.text(self.source).to_string();
+        let fqn = format!("{owner_fqn}.{name}");
+
+        let this_id = self.intern_local_symbol(this_decl_span, false);
+        let this_args: Vec<TypeId> = owner_type_params
+            .iter()
+            .filter_map(|p| self.lookup_type_param(p.name.text(self.source)))
+            .collect();
+        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_args, None);
+        let params = vec![Param {
+            span: this_decl_span,
+            id: this_id,
+            name: "this".to_string(),
+            ty: this_ty,
+        }];
+
+        let return_ty = prop
+            .ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            EffectRow::pure(),
+            false,
+        );
+
+        let body = match &getter.body {
+            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Expr(e) => {
+                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let expr_ty = lowered_expr.ty;
+                Some(Block {
+                    span: e.span,
+                    ty: expr_ty,
+                    stmts: vec![Stmt {
+                        span: e.span,
+                        ty: expr_ty,
+                        kind: StmtKind::Expr(lowered_expr),
+                    }],
+                })
+            }
+            ast::AccessorBody::Missing => None,
+        };
+
+        self.pop_type_params();
+
+        FunDecl {
+            span: prop.span,
+            fqn,
+            name,
+            source_path: self.source.path().to_path_buf(),
+            is_const: false,
+            ty,
+            params,
+            return_ty,
+            body,
+        }
+    }
+
     /// 在“已绑定 type params”的语境下降低一个函数声明。
     ///
     /// 用途：
@@ -985,6 +1090,76 @@ impl<'a> HirLowering<'a> {
             name,
             source_path: self.source.path().to_path_buf(),
             is_const: is_const_fun,
+            ty,
+            params,
+            return_ty,
+            body,
+        }
+    }
+
+    /// 将值类型 computed property getter 在“已绑定 owner type params”的语境下降低为 HIR。
+    fn lower_value_property_getter_decl_with_bound_type_params(
+        &mut self,
+        pkg_prefix: &str,
+        owner_fqn: &str,
+        this_decl_span: Span,
+        this_concrete_args: &[TypeId],
+        prop: &ast::PropertyDecl,
+    ) -> FunDecl {
+        let getter = prop.getter.as_ref().expect(
+            "computed property getter collection only calls this helper for getter-only properties",
+        );
+
+        let name = prop.name.text(self.source).to_string();
+        let fqn = format!("{owner_fqn}.{name}");
+
+        let this_id = self.intern_local_symbol(this_decl_span, false);
+        let this_ty = self.intern_nominal(owner_fqn.to_string(), this_concrete_args.to_vec(), None);
+        let params = vec![Param {
+            span: this_decl_span,
+            id: this_id,
+            name: "this".to_string(),
+            ty: this_ty,
+        }];
+
+        let return_ty = prop
+            .ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            EffectRow::pure(),
+            false,
+        );
+
+        let body = match &getter.body {
+            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Expr(e) => {
+                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let expr_ty = lowered_expr.ty;
+                Some(Block {
+                    span: e.span,
+                    ty: expr_ty,
+                    stmts: vec![Stmt {
+                        span: e.span,
+                        ty: expr_ty,
+                        kind: StmtKind::Expr(lowered_expr),
+                    }],
+                })
+            }
+            ast::AccessorBody::Missing => None,
+        };
+
+        FunDecl {
+            span: prop.span,
+            fqn,
+            name,
+            source_path: self.source.path().to_path_buf(),
+            is_const: false,
             ty,
             params,
             return_ty,
@@ -1390,6 +1565,124 @@ fn collect_default_arg_structs(
     out
 }
 
+fn collect_value_type_computed_property_fqns(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> HashSet<String> {
+    let mut out: HashSet<String> = HashSet::new();
+
+    for (source, file) in compilation_unit {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            match item {
+                ast::Item::Type(ty) => {
+                    collect_value_type_computed_property_fqns_in_type_decl(
+                        source,
+                        ty,
+                        &pkg_prefix,
+                        &mut out,
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    collect_value_type_computed_property_fqns_in_object_decl(
+                        source,
+                        obj,
+                        &pkg_prefix,
+                        &mut out,
+                    );
+                }
+                ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_) => {}
+            }
+        }
+    }
+
+    out
+}
+
+fn collect_value_type_computed_property_fqns_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    let local_name = decl.name.text(source).to_string();
+    let type_fqn = join_prefix(prefix, &local_name);
+
+    if matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
+        && let Some(body) = &decl.body
+    {
+        for member in &body.members {
+            let ast::TypeMember::Property(prop) = member else {
+                continue;
+            };
+            if prop.getter.is_some() {
+                out.insert(format!("{}.{}", type_fqn, prop.name.text(source)));
+            }
+        }
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_value_type_computed_property_fqns_in_type_decl(
+                    source, nested, &type_fqn, out,
+                );
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_value_type_computed_property_fqns_in_object_decl(
+                    source, obj, &type_fqn, out,
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_value_type_computed_property_fqns_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    out: &mut HashSet<String>,
+) {
+    let Some(obj_name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let obj_fqn = join_prefix(prefix, &obj_name);
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_value_type_computed_property_fqns_in_type_decl(
+                    source, nested, &obj_fqn, out,
+                );
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_value_type_computed_property_fqns_in_object_decl(
+                    source, nested, &obj_fqn, out,
+                );
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
 fn collect_default_arg_structs_in_type_decl(
     source: &SourceFile,
     decl: &ast::TypeDecl,
@@ -1556,6 +1849,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
     let delegated_properties = collect_delegated_properties(&pairs);
     let default_arg_structs = collect_default_arg_structs(&pairs);
+    let value_type_computed_properties = collect_value_type_computed_property_fqns(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
     let (interfaces, class_itables) =
         crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
@@ -1597,6 +1891,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 delegated_properties: &delegated_properties,
                 compilation_unit: &pairs,
                 default_arg_structs: default_arg_structs.clone(),
+                value_type_computed_properties: &value_type_computed_properties,
                 builtins,
             },
         );
@@ -1669,7 +1964,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ci
     };
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
-    let monomorphized_member_funs = collect_generic_class_member_fun_instantiations(
+    let monomorphized_member_funs = collect_generic_member_fun_instantiations(
         &pairs,
         &index,
         &type_kinds,
@@ -1728,6 +2023,8 @@ pub fn lower_for_compilation_unit(
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
+    let value_type_computed_properties =
+        collect_value_type_computed_property_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
         compilation_unit,
@@ -1772,6 +2069,7 @@ pub fn lower_for_compilation_unit(
                 delegated_properties: &delegated_properties,
                 compilation_unit,
                 default_arg_structs: default_arg_structs.clone(),
+                value_type_computed_properties: &value_type_computed_properties,
                 builtins,
             },
         );
@@ -1895,6 +2193,8 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
+    let value_type_computed_properties =
+        collect_value_type_computed_property_fqns(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
     let (interfaces, class_itables) = match type_env {
         Some(env) => crate::itable::collect_runtime_interfaces_and_class_itables_with_env(
@@ -1952,6 +2252,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
                     delegated_properties: &delegated_properties,
                     compilation_unit,
                     default_arg_structs: default_arg_structs.clone(),
+                    value_type_computed_properties: &value_type_computed_properties,
                     builtins,
                 },
             );
@@ -2080,7 +2381,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     ));
 
     // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
-    member_funs.extend(collect_generic_class_member_fun_instantiations(
+    member_funs.extend(collect_generic_member_fun_instantiations(
         compilation_unit,
         index,
         &type_kinds,
@@ -2133,6 +2434,13 @@ pub(super) struct BoundMemberFunLoweringTarget<'a> {
     pub(super) fun: &'a ast::FunDecl,
 }
 
+pub(super) struct BoundValuePropertyGetterLoweringTarget<'a> {
+    pub(super) owner_fqn: &'a str,
+    pub(super) this_decl_span: Span,
+    pub(super) this_concrete_args: &'a [TypeId],
+    pub(super) property: &'a ast::PropertyDecl,
+}
+
 /// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
 ///
 /// 说明：
@@ -2155,6 +2463,8 @@ pub(crate) fn lower_fun_with_type_bindings(
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);
     let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let value_type_computed_properties =
+        collect_value_type_computed_property_fqns(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2166,6 +2476,7 @@ pub(crate) fn lower_fun_with_type_bindings(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
@@ -2206,6 +2517,8 @@ pub(crate) fn lower_member_fun_with_type_bindings(
     let compilation_unit = [(source, file)];
     let delegated_properties = collect_delegated_properties(&compilation_unit);
     let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let value_type_computed_properties =
+        collect_value_type_computed_property_fqns(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -2217,6 +2530,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
@@ -2229,6 +2543,59 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         this_decl_span,
         this_concrete_args,
         fun,
+    );
+    ctx.pop_type_params();
+    out
+}
+
+/// 将值类型 computed property getter 在“已绑定 owner type params”的语境下降低为 HIR。
+pub(crate) fn lower_value_property_getter_with_type_bindings(
+    inputs: LoweringInputs<'_>,
+    target: BoundValuePropertyGetterLoweringTarget<'_>,
+    owner_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> FunDecl {
+    let LoweringInputs {
+        source,
+        file,
+        index,
+        type_kinds,
+        types,
+        builtins,
+    } = inputs;
+    let BoundValuePropertyGetterLoweringTarget {
+        owner_fqn,
+        this_decl_span,
+        this_concrete_args,
+        property,
+    } = target;
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let compilation_unit = [(source, file)];
+    let delegated_properties = collect_delegated_properties(&compilation_unit);
+    let default_arg_structs = collect_default_arg_structs(&compilation_unit);
+    let value_type_computed_properties =
+        collect_value_type_computed_property_fqns(&compilation_unit);
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        types,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds,
+            delegated_properties: &delegated_properties,
+            compilation_unit: &compilation_unit,
+            default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
+            builtins,
+        },
+    );
+    ctx.push_type_param_bindings(owner_type_bindings);
+    let out = ctx.lower_value_property_getter_decl_with_bound_type_params(
+        &pkg_prefix,
+        owner_fqn,
+        this_decl_span,
+        this_concrete_args,
+        property,
     );
     ctx.pop_type_params();
     out
@@ -3777,6 +4144,76 @@ fun use(r: Result) {
             err_payload.kind,
             ExprKind::Literal(LiteralKind::Int)
         ));
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_rewrites_value_computed_property_access_to_getter_call() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4010b1>",
+            r#"
+package fixtures.t4010b1
+
+import scoop.core.*
+
+struct Point(val x: Int) {
+    val doubled: Int
+        get() = this.x * 2
+}
+
+fun use() {
+    val result: Int = Point(3).doubled
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+
+        let find_result_init = |fun_fqn: &str| {
+            let fun = lowered
+                .file
+                .items
+                .iter()
+                .find_map(|item| match item {
+                    Item::Fun(fun) if fun.fqn == fun_fqn => Some(fun),
+                    _ => None,
+                })
+                .expect("expected lowered function");
+            let body = fun.body.as_ref().expect("expected function body");
+            body.stmts
+                .iter()
+                .find_map(|stmt| match &stmt.kind {
+                    StmtKind::Val(decl) if decl.name.as_deref() == Some("result") => {
+                        decl.init.as_ref()
+                    }
+                    _ => None,
+                })
+                .expect("expected result initializer")
+        };
+
+        let point_result_init = find_result_init("fixtures.t4010b1.use");
+        let ExprKind::Call {
+            callee: point_callee,
+            args: point_args,
+        } = &point_result_init.kind
+        else {
+            panic!(
+                "value computed property access should lower to getter call: {point_result_init:#?}"
+            );
+        };
+        let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &point_callee.kind else {
+            panic!("getter callee should be top-level value ref: {point_callee:#?}");
+        };
+        assert_eq!(fqn, "fixtures.t4010b1.Point.doubled");
+        assert_eq!(point_args.len(), 1);
+
+        assert!(
+            lowered
+                .member_funs
+                .iter()
+                .any(|fun| fun.fqn == "fixtures.t4010b1.Point.doubled"),
+            "expected non-generic computed property getter to be collected as member callable"
+        );
     }
 
     #[test]

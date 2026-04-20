@@ -3211,6 +3211,27 @@ impl<'a> HirLowering<'a> {
             );
         }
 
+        // T4010b1：值类型 computed property access → getter(receiver)。
+        if let Some(ast::ResolvedMemberRef::Value { fqn }) = resolved.as_ref()
+            && self.value_type_computed_properties.contains(fqn)
+        {
+            let callee = Expr {
+                span: member.span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::TopLevel {
+                    id: self.symbols.intern_top_level(fqn.clone()),
+                    fqn: fqn.clone(),
+                }),
+            };
+            return (
+                ExprKind::Call {
+                    callee: Box::new(callee),
+                    args: vec![CallArg::Positional(receiver)],
+                },
+                self.builtins.any,
+            );
+        }
+
         let receiver = Box::new(receiver);
 
         let resolved = resolved.as_ref().map(|r| self.lower_resolved_member_ref(r));

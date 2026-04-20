@@ -517,6 +517,8 @@ pub(super) fn collect_object_inits(
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
+    let value_type_computed_properties =
+        super::collect_value_type_computed_property_fqns(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -528,6 +530,7 @@ pub(super) fn collect_object_inits(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
@@ -662,6 +665,8 @@ pub(super) fn collect_class_inits(
     let compilation_unit = [(source, file)];
     let delegated_properties: DelegatedPropertyIndex<'_> = HashMap::new();
     let default_arg_structs = super::collect_default_arg_structs(&compilation_unit);
+    let value_type_computed_properties =
+        super::collect_value_type_computed_property_fqns(&compilation_unit);
     let mut ctx = HirLowering::new(
         source,
         file,
@@ -673,6 +678,7 @@ pub(super) fn collect_class_inits(
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
             default_arg_structs,
+            value_type_computed_properties: &value_type_computed_properties,
             builtins,
         },
     );
@@ -2884,36 +2890,36 @@ fn resolve_field_type_id(
     }
 }
 
-/// T0126: 为所有具体的泛型 class 实例化生成单态化的成员方法 FunDecl。
+/// T0126/T4010b1: 为所有具体的泛型 nominal 实例化生成单态化的成员 callable HIR。
 ///
-/// 扫描 TypeStore 中的具体 class 实例化（例如 `Box<Int>`, `Box<String>`），
-/// 为每个实例化的每个成员方法生成一个带具体类型的 FunDecl。
+/// 覆盖范围：
+/// - class/struct/enum 的 member `fun`
+/// - struct/enum 的 getter-only computed property
 ///
-/// 生成的 FunDecl 的 FQN 使用 monomorph 格式：`"pkg.Box.get::<Int>"`,
+/// 生成的 FunDecl FQN 使用 monomorph 形式：`"pkg.Box.get::<Int>"`，
 /// 以与原始的 `"pkg.Box.get"`（含 Param 类型）共存于 `fun_index` 中。
-pub(super) fn collect_generic_class_member_fun_instantiations(
+pub(super) fn collect_generic_member_fun_instantiations(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
     type_kinds: &HashMap<String, ast::TypeKind>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Vec<super::super::FunDecl> {
-    // 1) 收集泛型 class 声明：base_fqn → (source, file, decl)
-    let mut generic_classes: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
+    // 1) 收集泛型 nominal 声明：base_fqn -> (source, file, decl)
+    let mut generic_owners: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
         HashMap::new();
     for (source, file) in pairs {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
-        collect_generic_class_decls_with_file(
+        collect_generic_member_owner_decls_with_file(
             source,
             file,
             &pkg_prefix,
-            &pkg_prefix,
             &file.items,
-            &mut generic_classes,
+            &mut generic_owners,
         );
     }
 
-    if generic_classes.is_empty() {
+    if generic_owners.is_empty() {
         return Vec::new();
     }
 
@@ -2924,13 +2930,15 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
     // 需要先收集所有 TypeId，因为后面会 &mut types
     let all_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
     for ty_id in all_ids {
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
-            continue;
+        let nominal = match types.kind(ty_id) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal,
+            _ => continue,
         };
         if nominal.args.is_empty() {
             continue;
         }
-        if !generic_classes.contains_key(&nominal.fqn) {
+        if !generic_owners.contains_key(&nominal.fqn) {
             continue;
         }
         // 跳过仍包含 Param 类型的实例化（例如 Box<T>）
@@ -2954,7 +2962,7 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
     let mut out: Vec<super::super::FunDecl> = Vec::new();
 
     for (base_fqn, concrete_args) in &instantiations {
-        let Some((source, file, decl)) = generic_classes.get(base_fqn) else {
+        let Some((source, file, decl)) = generic_owners.get(base_fqn) else {
             continue;
         };
 
@@ -2982,37 +2990,59 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
             format!("::<{args_str}>")
         };
 
-        // 遍历 class body 中的成员方法
+        // 遍历 nominal body 中的成员 callable。
         let Some(body) = &decl.body else {
             continue;
         };
         for member in &body.members {
-            let ast::TypeMember::Fun(fun) = member else {
-                continue;
-            };
-
-            let mut hir_fun = super::lower_member_fun_with_type_bindings(
-                super::LoweringInputs {
-                    source,
-                    file,
-                    index,
-                    type_kinds,
-                    types,
-                    builtins,
-                },
-                super::BoundMemberFunLoweringTarget {
-                    owner_fqn: base_fqn,
-                    this_decl_span: decl.name.span,
-                    this_concrete_args: concrete_args,
-                    fun,
-                },
-                bindings.clone(),
-            );
-
-            // 重命名 FQN：例如 "pkg.Box.get" → "pkg.Box.get::<Int>"
-            hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
-
-            out.push(hir_fun);
+            match member {
+                ast::TypeMember::Fun(fun) => {
+                    let mut hir_fun = super::lower_member_fun_with_type_bindings(
+                        super::LoweringInputs {
+                            source,
+                            file,
+                            index,
+                            type_kinds,
+                            types,
+                            builtins,
+                        },
+                        super::BoundMemberFunLoweringTarget {
+                            owner_fqn: base_fqn,
+                            this_decl_span: decl.name.span,
+                            this_concrete_args: concrete_args,
+                            fun,
+                        },
+                        bindings.clone(),
+                    );
+                    hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
+                    out.push(hir_fun);
+                }
+                ast::TypeMember::Property(property)
+                    if matches!(decl.kind, ast::TypeKind::Struct | ast::TypeKind::Enum)
+                        && property.getter.is_some() =>
+                {
+                    let mut hir_fun = super::lower_value_property_getter_with_type_bindings(
+                        super::LoweringInputs {
+                            source,
+                            file,
+                            index,
+                            type_kinds,
+                            types,
+                            builtins,
+                        },
+                        super::BoundValuePropertyGetterLoweringTarget {
+                            owner_fqn: base_fqn,
+                            this_decl_span: decl.name.span,
+                            this_concrete_args: concrete_args,
+                            property,
+                        },
+                        bindings.clone(),
+                    );
+                    hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
+                    out.push(hir_fun);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -3020,10 +3050,9 @@ pub(super) fn collect_generic_class_member_fun_instantiations(
 }
 
 /// 类似 `collect_generic_class_decls_in_items`，但同时记录 file 引用（用于单态化 lowering）。
-fn collect_generic_class_decls_with_file<'a>(
+fn collect_generic_member_owner_decls_with_file<'a>(
     source: &'a SourceFile,
     file: &'a ast::File,
-    _pkg_prefix: &str,
     owner_prefix: &str,
     items: &'a [ast::Item],
     out: &mut HashMap<String, (&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)>,
@@ -3034,21 +3063,29 @@ fn collect_generic_class_decls_with_file<'a>(
                 let name = ty.name.text(source).to_string();
                 let fqn = join_prefix(owner_prefix, &name);
 
-                if matches!(ty.kind, ast::TypeKind::Class) && !ty.type_params.is_empty() {
+                if matches!(
+                    ty.kind,
+                    ast::TypeKind::Class | ast::TypeKind::Struct | ast::TypeKind::Enum
+                ) && !ty.type_params.is_empty()
+                {
                     out.insert(fqn.clone(), (source, file, ty));
                 }
 
                 // 嵌套声明
                 if let Some(body) = &ty.body {
                     for member in &body.members {
-                        if let ast::TypeMember::Type(nested) = member {
-                            let nested_name = nested.name.text(source).to_string();
-                            let nested_fqn = join_prefix(&fqn, &nested_name);
-                            if matches!(nested.kind, ast::TypeKind::Class)
-                                && !nested.type_params.is_empty()
-                            {
-                                out.insert(nested_fqn, (source, file, nested));
+                        match member {
+                            ast::TypeMember::Type(nested) => {
+                                collect_generic_member_owner_decls_in_type_decl(
+                                    source, file, nested, &fqn, out,
+                                );
                             }
+                            ast::TypeMember::Object(obj) => {
+                                collect_generic_member_owner_decls_in_object_decl(
+                                    source, file, obj, &fqn, out,
+                                );
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -3059,18 +3096,86 @@ fn collect_generic_class_decls_with_file<'a>(
                     let obj_fqn = join_prefix(owner_prefix, &obj_name);
                     if let Some(body) = &obj.body {
                         for member in &body.members {
-                            if let ast::TypeMember::Type(nested) = member {
-                                let nested_name = nested.name.text(source).to_string();
-                                let nested_fqn = join_prefix(&obj_fqn, &nested_name);
-                                if matches!(nested.kind, ast::TypeKind::Class)
-                                    && !nested.type_params.is_empty()
-                                {
-                                    out.insert(nested_fqn, (source, file, nested));
+                            match member {
+                                ast::TypeMember::Type(nested) => {
+                                    collect_generic_member_owner_decls_in_type_decl(
+                                        source, file, nested, &obj_fqn, out,
+                                    );
                                 }
+                                ast::TypeMember::Object(nested) => {
+                                    collect_generic_member_owner_decls_in_object_decl(
+                                        source, file, nested, &obj_fqn, out,
+                                    );
+                                }
+                                _ => {}
                             }
                         }
                     }
                 }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn collect_generic_member_owner_decls_in_type_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    decl: &'a ast::TypeDecl,
+    prefix: &str,
+    out: &mut HashMap<String, (&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)>,
+) {
+    let name = decl.name.text(source).to_string();
+    let fqn = join_prefix(prefix, &name);
+    if matches!(
+        decl.kind,
+        ast::TypeKind::Class | ast::TypeKind::Struct | ast::TypeKind::Enum
+    ) && !decl.type_params.is_empty()
+    {
+        out.insert(fqn.clone(), (source, file, decl));
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_generic_member_owner_decls_in_type_decl(source, file, nested, &fqn, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_generic_member_owner_decls_in_object_decl(source, file, obj, &fqn, out);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn collect_generic_member_owner_decls_in_object_decl<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    obj: &'a ast::ObjectDecl,
+    prefix: &str,
+    out: &mut HashMap<String, (&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)>,
+) {
+    let Some(name) = obj.name.as_ref().map(|n| n.text(source).to_string()) else {
+        return;
+    };
+    let owner_fqn = join_prefix(prefix, &name);
+    let Some(body) = &obj.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_generic_member_owner_decls_in_type_decl(
+                    source, file, nested, &owner_fqn, out,
+                );
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_generic_member_owner_decls_in_object_decl(
+                    source, file, nested, &owner_fqn, out,
+                );
             }
             _ => {}
         }

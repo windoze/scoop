@@ -180,12 +180,12 @@ pub enum HirLowerError {
 #[derive(Debug)]
 pub struct LoweredHir {
     pub file: File,
-    /// class/object 的 member `fun` 降为可 codegen 的“顶层函数形态”（显式 `this` 参数）。
+    /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///
     /// 说明：
     /// - 这是一个 side table：不影响 `dump-hir` 输出稳定性（`dump-hir` 只打印 `file`）；
-    /// - 供 LLVM 后端把 `receiver.method(args...)`（lowering 后的 `TopLevel(owner.method)` 调用）
-    ///   解析到真实函数体（T1508a）。
+    /// - 供 LLVM 后端把 `receiver.method(args...)` / `receiver.prop`（lowering 后的顶层调用）
+    ///   解析到真实函数体（T1508a/T4010b1）。
     pub member_funs: Vec<FunDecl>,
     pub types: TypeStore,
     /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。

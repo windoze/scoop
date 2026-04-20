@@ -1478,7 +1478,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b0R
 
-### T4010b1 [TODO] 收口值类型 computed property 的 getter lowering / codegen
+### T4010b1 [DONE] 收口值类型 computed property 的 getter lowering / codegen
 - 说明：
   - 在验证 `T4010b` 时，最小 build probe `struct Point(val x: Int) { val doubled: Int get() = this.x * 2 }` 暴露出一条独立既有裂缝：虽然 computed property 已不再被误纳入 direct ctor / struct literal 字段集合，但运行期读取 `p.doubled` 仍会在 HIR/LLVM 侧误走“直接字段访问”，最终报 `scoop::llvm::unsupported_main_body: unknown struct field`。
 - 范围：
@@ -1487,13 +1487,35 @@
   - 新增 run-pass / lowering regression，覆盖 struct（必要时也覆盖 enum）computed property 读取。
 - 验收：
   - `Point(1).doubled` / `Point { x: 2 }.doubled` 一类最小 probe 可稳定 build/run。
+- 完成：
+  - typed HIR lowering 现会把值类型 computed property 读取统一改写为 getter 调用；`receiver.prop` 不再落回 direct field `MemberAccess` 主线。
+  - `member_funs` side table 现同时收集 struct/enum getter-only computed property，对应 getter FQN 直接复用属性 FQN（例如 `fixtures.t4010b1.Point.doubled`）。
+  - LLVM 调用目标解析与 generic member callable 单态化已补齐 value nominal receiver 路径，为后续泛型值类型 getter/runtime 调用收口提供统一后端入口。
+  - 新增回归：
+    - `tests/fixtures/run-pass/struct_computed_property_getter_basic.scoop`
+    - `crates/scoopc/src/hir/lower/mod.rs` 单测 `lower_typed_single_source_file_rewrites_value_computed_property_access_to_getter_call`
+  - 执行全量 fixture suite 时还顺手修复了一条既有快照漂移：`tests/fixtures/parse/with_update_expr.ast` 现已同步 `resolved_copy_update_tys` / `resolved_copy_update_enums` 字段名，避免无关旧红灯干扰本任务验证。
+- 已验证：
+  - `cargo test -p scoopc rewrites_value_computed_property_access_to_getter_call`
+  - `cargo run -q -p scoop -- test`
+  - `cargo test --all -- --test-threads=1`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b
+
+### T4010b1a [TODO] 具体化泛型值类型 member access / getter 读取的结果类型
+- 说明：
+  - 在为 `T4010b1` 验证 generic 值类型 getter 时，最小复现 `struct Box<T>(val value: T) { val readBack: T get() = this.value }` 仍暴露出一个更前置的静态裂缝：`Box(9).readBack` 在“无 expected-type 约束”的使用点（如 `Box(9).readBack == 9`）会继续把结果类型保留为抽象 `T`，导致后续运算/比较报 `binary_op_operand_type_mismatch`。
+- 范围：
+  - member access typecheck 需要根据 receiver 的具体 nominal type args，把 direct field / computed property 的声明类型统一具体化为 concrete result type。
+  - 不允许只为 computed property 单点补丁；同一条具体化主线必须同时覆盖 direct field、getter-only property，以及必要的跨文件 generic nominal member 读取。
+  - 新增 typecheck / run-pass 回归，覆盖 `Box<Int>.value` / `Box<Int>.readBack` 一类最小 probe 在“无 expected-type 帮助”下的读取与后续运算。
+- 依赖：T4010b1
 
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
   - 不接受把 `with` 扩展成字段级写回式 `var`。
   - 不允许借“默认值人体工学”重新引入可变值类型叙事。
-- 依赖：T4010b1
+- 依赖：T4010b1a
 
 ## T4011：`when` 的无 binder or-pattern 子集
 
