@@ -893,7 +893,7 @@ Key semantics:
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.
 - The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.
-- When async/reactor integration eventually needs a long-lived wake token across safepoints, that token should be a stable GC handle (§15.10.1), not a pinned task reference. The task/object needs to stay alive, but it does not need to remain pinned while native code merely stores an opaque identity token.
+- When async/reactor integration eventually needs a long-lived wake token across safepoints, that token should be a stable GC handle (§15.10.1), typically the `GcHandle.raw` word round-tripped through native registration state, not a pinned task reference. The task/object needs to stay alive, but it does not need to remain pinned while native code merely stores an opaque identity token. Copying `GcHandle` / `.raw` does not clone the underlying runtime handle; cancellation/completion must still consume that handle exactly once via `GC.handleDrop`, and any later callback token is stale.
 
 #### structured concurrency (deferred)
 
@@ -2862,8 +2862,11 @@ struct GcHandle(val raw: UIntPtr)
 Semantics:
 
 - `GC.handleNew(obj)` creates a new handle that keeps `obj` alive and returns the handle token.
+- `GcHandle.raw` may be copied and passed through FFI as a word-sized opaque token, but copying the bits does **not** clone or retain the underlying runtime handle record. Each successful `GC.handleNew` must still be paired with exactly one successful `GC.handleDrop`.
 - `GC.handleGet(handle)` returns the current object reference for this handle. The returned reference may point to a different address at different times (object movement is allowed).
+- The intended long-lived round-trip is: create a handle in Scoop, store `handle.raw` in native state, later reconstruct `GcHandle { raw: raw }` when a callback/completion/wake event arrives, resolve it with `GC.handleGet`, and finally call `GC.handleDrop` when that registration/completion no longer needs the token.
 - `GC.handleDrop(handle)` releases the handle. Dropping/forgetting to call `handleDrop` is a resource leak.
+- Using `GC.handleGet` or `GC.handleDrop` on a stale / unknown token (already dropped, cancelled, corrupted, or otherwise absent from the runtime handle table) is a runtime error. The low-level runtime ABI may report lookup failure as `null` / `0`; the language-level intrinsic surface is then free to trap or report that failure deterministically.
 - A GC handle does **not** imply pinning: it does not guarantee a stable object address. If raw pointers into the object are required, the object must additionally be pinned for that duration (see §15.10).
 - Stable GC handles are the intended long-lived token for async I/O completion callbacks, reactor registrations, wakeup identities, and similar native bookkeeping. They keep the object alive but do not pin it; pinning remains a separate short-lived operation only for borrowing raw addresses.
 

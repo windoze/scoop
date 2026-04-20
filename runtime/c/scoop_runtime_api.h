@@ -181,6 +181,9 @@
   X(scoop_test_gc_stack_walking_unwind_smoke) \
   X(scoop_test_get_add_int_funptr) \
   X(scoop_test_get_make_int_pair_funptr) \
+  X(scoop_test_handle_token_slot_reset) \
+  X(scoop_test_handle_token_slot_store) \
+  X(scoop_test_handle_token_slot_take) \
   X(scoop_test_handle_get_object_addr) \
   X(scoop_test_stackmap_statepoint_smoke) \
   X(scoop_test_unwind_capture_ips) \

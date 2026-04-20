@@ -259,11 +259,13 @@ uint32_t scoop_unpin(void *obj);
 // 说明：
 // - stable handle 用于把 heap 对象引用以“整数 token”形式交给 native/外部系统长期持有；
 // - 与 pin 不同：handle 不保证对象地址不变（moving GC 下对象可能被搬迁）；
+// - 复制 `uint64_t handle` / `GcHandle.raw` 只会复制 token 位模式，不会克隆底层 handle record；
+//   每次成功 `scoop_handle_new` 仍只允许被 `scoop_handle_drop` 消费一次；
 // - runtime 必须把 handle 表视为 roots，并在 moving/compaction 时更新 handle->obj 槽位。
 //
 // API 约定（v0）：
 // - handle 值 0 表示失败/空 handle；
-// - get/drop 对非法 handle 返回 NULL/0（不崩溃）。
+// - get/drop 对非法/陈旧 handle 返回 NULL/0（不崩溃）；语言级 surface 可据此选择 trap。
 uint64_t scoop_handle_new(void *obj);
 void *scoop_handle_get(uint64_t handle);
 uint32_t scoop_handle_drop(uint64_t handle);

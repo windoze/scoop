@@ -1,0 +1,55 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: gc_handle_token_roundtrip_callback_basic.stdout.txt
+//
+// T4009h：stable handle 作为 reactor / callback wake token 的最小 round-trip 回归。
+//
+// 说明：
+// - native 侧只长期保存 `GcHandle.raw`，不保存对象地址，也不要求对象保持 pinned；
+// - callback 到来时再把 raw token 回传给 Scoop，重新包装成 `GcHandle` 后执行 `handleGet`；
+// - 对象若需要短时裸地址借出，应在 `handleGet` 之后另行 pin，而不是把 `Pinned` 当长期 token。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_reset")
+fun handleTokenSlotReset(): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_store")
+fun handleTokenSlotStore(raw: UInt): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_take")
+fun handleTokenSlotTake(): UInt
+
+class WakeCell(val message: String)
+
+fun main() {
+    @Unsafe do { handleTokenSlotReset() }
+
+    var obj: Any = WakeCell(f"wake {7}")
+    val wakeHandle: GcHandle = @Unsafe do { GC.handleNew(obj) }
+
+    // 模拟 reactor / completion callback 只保存 stable token。
+    @Unsafe do { handleTokenSlotStore(wakeHandle.raw) }
+
+    // 清掉直接 roots，让对象只通过 handle 表保活，然后跨 safepoint round-trip。
+    obj = "other root"
+    __scoop_gc_collect()
+
+    val raw: UInt = @Unsafe do { handleTokenSlotTake() }
+    val returned: GcHandle = GcHandle { raw: raw }
+    val gotAny: Any = @Unsafe do { GC.handleGet(returned) }
+    val gotCell: WakeCell? = gotAny as? WakeCell
+    val got: WakeCell = when (gotCell) {
+        Some(v) -> v
+        None -> WakeCell("bad")
+    }
+    println(got.message)
+
+    // ownership 只消费一次：`handle.raw` 的回传不会克隆新的底层 handle record。
+    @Unsafe do { GC.handleDrop(returned) }
+}

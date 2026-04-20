@@ -1,0 +1,42 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+//
+// T4009h：取消注册后，native 侧晚到的 stale wake token 必须失效。
+//
+// 说明：
+// - runtime 低层 `scoop_handle_get/drop` 对 stale token 返回 NULL/0；
+// - 语言级 `GC.handleGet/handleDrop` 则把该 lookup failure 视为运行时错误；
+// - 这里模拟：native 仍握着旧 raw token，但 Scoop 已先取消注册并 `handleDrop`。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_reset")
+fun handleTokenSlotReset(): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_store")
+fun handleTokenSlotStore(raw: UInt): Unit
+
+@Unsafe
+@Extern("scoop_test_handle_token_slot_take")
+fun handleTokenSlotTake(): UInt
+
+fun main() {
+    @Unsafe do { handleTokenSlotReset() }
+
+    val obj: Any = f"late {9}"
+    val wakeHandle: GcHandle = @Unsafe do { GC.handleNew(obj) }
+    @Unsafe do { handleTokenSlotStore(wakeHandle.raw) }
+
+    // 模拟取消注册：owner 先释放 handle，native 仍握着旧 token。
+    @Unsafe do { GC.handleDrop(wakeHandle) }
+
+    val staleRaw: UInt = @Unsafe do { handleTokenSlotTake() }
+    val stale: GcHandle = GcHandle { raw: staleRaw }
+
+    // 晚到 callback 再尝试 lookup，必须失败，而不是把旧 token 当成仍然有效。
+    val _shouldFail: Any = @Unsafe do { GC.handleGet(stale) }
+}

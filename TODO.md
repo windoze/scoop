@@ -1233,7 +1233,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009b
 
-### T4009h [TODO] 收口 stable handle 作为 wake token / reactor identity 的合同
+### T4009h [DONE] 收口 stable handle 作为 wake token / reactor identity 的合同
 - 范围：
   - 复用现有 stable opaque GC handle（`GcHandle.raw: UIntPtr`）作为 reactor / OS callback / future executor 的 wake token，不再以 pinned `Task` ref 作为长期注册形态。
   - 明确 handle 的 ownership、保活、drop、跨 FFI 传递与回调 round-trip 合同；task/object 在 OS event polling 期间只需要被 handle 保活，不需要保持 pinned。
@@ -1242,6 +1242,21 @@
 - 验收：
   - reactor / callback / future executor 可统一以 stable handle 识别并唤醒对象，而不是依赖 pin。
   - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / 相关 sysroot 文档对 handle / pin 的职责划分一致。
+- 已完成：
+  - `runtime/c/scoop_test.c` 新增 `scoop_test_handle_token_slot_reset/store/take`，用于模拟 native/reactor 长期保存 `GcHandle.raw` 并稍后 round-trip 回 Scoop；对应导出已写入 `runtime/c/scoop_runtime_api.h`。
+  - 新增 `tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`，覆盖 “只存 stable token、不保持 pinned、跨 GC safepoint 回传后仍可通过 `GC.handleGet` 定位对象” 的正向路径。
+  - 新增 `tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`，覆盖取消注册后 stale token lookup 的语言层行为：runtime 低层 lookup failure 仍返回 `NULL/0`，而当前语言级 `GC.handleGet` 会把它稳定收口为退出码 `3` 的运行时错误。
+  - `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / `sysroot/core.scoop` / `runtime/c/scoop_gc.h` 已统一明确 handle ownership、`GcHandle.raw` 的 FFI round-trip、stale token / cancelled registration 的语义，以及 `Pinned` 仅限短时裸地址借出的职责边界。
+  - 同步补记一个实现细节：Scoop 侧从 raw token 重建句柄应写作 `GcHandle { raw: raw }`（struct literal），避免把 stable token round-trip 误写成 nominal call。
+- 已验证：
+  - `cargo run -q -p scoop -- run tests/fixtures/runtime_gc/gc_handle_token_roundtrip_callback_basic.scoop`（stdout=`wake 7`）
+  - `cargo run -q -p scoop -- run tests/fixtures/runtime_gc/gc_handle_stale_callback_token_is_error.scoop`（退出码 `3`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/runtime_gc`（`fixtures: ok (19)`）
+  - `cargo test -q -p scoop_runtime --test stable_handle`
+  - `cargo run -q -p scoop_tools -- spec-fixtures check`（`spec fixtures: ok (1)`）
+  - `cargo run -q -p scoop -- test`（`fixtures: ok (1074)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4009c
 
 ### T4009R [TODO] Review：确认 `Task` 本体已脱离 executor 前提

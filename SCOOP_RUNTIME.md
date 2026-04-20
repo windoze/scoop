@@ -110,6 +110,13 @@ For **long-lived** references that must survive safepoints (e.g. storing a refer
 
 In particular, reactor registrations / completion callbacks / wake tokens should normally store a stable GC handle token rather than a pinned reference. The handle keeps the target object alive across safepoints; pinning is only needed for short-lived raw-address borrowing.
 
+Operational contract:
+
+- Native state should store the stable token (`GcHandle.raw`) rather than a raw object address. The raw address returned by a handle lookup is still only a momentary view and must not be cached across safepoints.
+- Copying the token bits does not clone the underlying runtime handle record. Ownership is protocol-defined: one successful `handleNew` still requires exactly one matching `handleDrop`, even if the token is round-tripped through multiple native frames or callback queues.
+- If native code needs a raw pointer after `handleGet`, it must separately pin for that short borrowing window. `Pinned` is not the long-lived identity object.
+- The low-level runtime ABI may report stale / unknown handle lookup as `NULL` / `0`; the language-level `GC.handleGet` / `GC.handleDrop` surface may then trap. In practice this means late callbacks after cancellation must treat the old token as invalid rather than trying to resurrect it.
+
 ## 5. Pointer ↔ integer casts
 
 Casting between pointers and integers is inherently unsafe and must only be permitted in an unsafe context (`@Unsafe` function body or `@Unsafe do { ... }` block).

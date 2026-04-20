@@ -199,6 +199,9 @@ object GC {
     //
     // 说明：
     // - 用于把 heap 对象引用以"稳定 token"形式交给 native 长期持有（token 稳定，对象地址可变化）；
+    // - `GcHandle.raw` 可作为 `UIntPtr` 经 `@Extern` 往返 native state；复制 `GcHandle` / `.raw`
+    //   不会克隆底层 handle record，因此每次 `handleNew` 仍只允许一次 `handleDrop`；
+    // - stale handle 的 runtime lookup 会失败；语言级 `handleGet` / `handleDrop` 会把它视为错误；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
     @Unsafe
     fun handleNew(obj: Any): GcHandle
@@ -220,6 +223,7 @@ object GC {
 struct GcHandle(val raw: UIntPtr)
 
 // Value type handle. Exact fields are implementation-defined (spec §15.10).
+// 仅用于短时裸地址借出；不承担 reactor / callback 的长期 wake-token 语义。
 struct Pinned(val value: Any)
 
 // Effect runtime（测试辅助）。

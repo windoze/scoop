@@ -201,6 +201,27 @@ __attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
 //   扫描/保活 call-site 上的对象引用（避免误回收）。
 void scoop_test_gc_collect_in_native(void) { scoop_gc_collect(); }
 
+// 最小 stable-handle token slot：模拟 reactor / completion callback / future executor
+// 在 native 状态里长期保存 `GcHandle.raw`，并在稍后把该 token 回传给 Scoop。
+//
+// 约定：
+// - slot 里只保存 word-sized token，不保存对象地址；
+// - `take` 会消费当前 token 并清空 slot，模拟“一次回调取走 wake token”；
+// - 这些 helper 不会替调用方调用 `handleDrop`；ownership 仍由测试侧明确验证。
+static uintptr_t scoop_test_handle_token_slot = 0;
+
+void scoop_test_handle_token_slot_reset(void) {
+  __atomic_store_n(&scoop_test_handle_token_slot, (uintptr_t)0, __ATOMIC_SEQ_CST);
+}
+
+void scoop_test_handle_token_slot_store(uintptr_t handle_raw) {
+  __atomic_store_n(&scoop_test_handle_token_slot, handle_raw, __ATOMIC_SEQ_CST);
+}
+
+uintptr_t scoop_test_handle_token_slot_take(void) {
+  return __atomic_exchange_n(&scoop_test_handle_token_slot, (uintptr_t)0, __ATOMIC_SEQ_CST);
+}
+
 // 返回 stable handle 当前指向对象的地址（用于 pin/unpin + moving GC 回归）。
 //
 // 说明：
