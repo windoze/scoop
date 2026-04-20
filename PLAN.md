@@ -167,7 +167,7 @@
 15. `ISSUES.md` 第 15 条：RTTI 对泛型 / `eff` 参数化类型的支持（已完成：`T4007a -> T4007b -> T4007c -> T4007S -> T4007R`）
 16. `ISSUES.md` 第 1 条：effect / continuation 完整性（面向 `Task` 手动 stepping 的收口与 review 已完成：`T4008c0 -> T4008c1 -> T4008cP -> T4008cS -> T4008c2 -> T4008c3 -> T4008c4 -> T4008R`；剩余 richer async 组合缺口仅保留在 issue 说明中，不再阻塞下一阶段）
 17. `ISSUES.md` 第 2 条：`Task` core / async sugar / stable handle wake-token 语义（已完成：`T4009a1` / `T4009a2` / `T4009a3` / `T4009b` / `T4009c` / `T4009h` / `T4009R`；`T4009a` 仅保留为历史 ABI 清理记录）
-18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（进行中：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` 已完成，剩余 `T4010b1a -> T4010R`）
+18. `ISSUES.md` 第 7 条：值类型不可变语义与 `with` / 默认值人体工学（进行中：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` 已完成，剩余 `T4010b1b -> T4010R`）
 19. `ISSUES.md` 第 8 条：`when` 的无 binder or-pattern 子集（待开始：`T4011 -> T4011R`）
 20. `ISSUES.md` 第 9 条：annotation model 与 built-in annotation behavior（待开始：`T4012a -> T4012b -> T4012R`）
 21. `ISSUES.md` 第 10 条：删除 legacy `inline` / non-local return 语义残留（待开始：`T4013 -> T4013R`）
@@ -234,11 +234,13 @@
 > 2026-04-20 当前轮完成更新：`T4010b1` 已完成。typed HIR lowering 现会把值类型 computed property 读取统一改写为 getter 调用，`receiver.prop` 不再落回 direct field `MemberAccess`；`member_funs` side table 也已同步收集 struct/enum getter-only computed property，使 `Point(1).doubled` / `Point { x: 2 }.doubled` 两条最小 probe 在统一 getter 主线上稳定 build/run。为避免 generic 值类型 getter 后续落回“未实例化成员 callable”旁路，本轮还把 member callable 单态化与 LLVM 调用目标解析扩到 value nominal receiver；对应 typed lowering 单测 `lower_typed_single_source_file_rewrites_value_computed_property_access_to_getter_call` 已钉住“属性读取 -> getter 调用”的 HIR 形态，run-pass 回归 `struct_computed_property_getter_basic` 也已覆盖 ctor/literal 两条构造入口。执行全量 fixture suite 时另发现一条既有测试噪音：`with_update_expr.ast` 的 parse snapshot 仍停留在旧的 `resolved_struct_fqns` 字段名，本轮已顺手同步到当前 AST 形态，避免无关旧红灯掩盖 getter 回归结果。已验证 `cargo test -p scoopc rewrites_value_computed_property_access_to_getter_call`、`cargo run -q -p scoop -- test`（`fixtures: ok (1094)`）、`cargo test --all -- --test-threads=1` 与 `cargo clippy --all-targets -- -D warnings`。验证 generic 值类型 getter 时还暴露出一个更前置的静态缺口：`Box(9).readBack == 9` 一类“无 expected-type 帮助”的读取仍把结果类型保留为抽象 `T`；因此已在 `T4010R` 前继续前插新的任务 `T4010b1a`，先收口 generic value member access 的结果类型具体化，再做 value-semantics review。P7 当前下一项推进到 `T4010b1a`。
 >
 > 2026-04-20 当前轮完成更新：`T4010b1a` 已完成。member access typecheck 现已把“成员声明类型具体化”收口为统一主线：读取值成员时，会先沿 receiver 及其已具体化的 direct supertypes 找到成员所属 nominal 实例，再回到声明处文件重新 lowering 原始成员 `TypeRef`，并将 owner type params 用使用点 concrete args 替换。这样 `Box(9).value` / `Box(9).readBack` 不再停留在抽象 `T`，而会得到 `Int`，同一条主线同时覆盖 direct field、getter-only property 与跨文件 generic nominal member 读取。新增回归覆盖单文件 typecheck、单文件 run-pass 与跨文件 typecheck_multi：`struct_generic_member_access_result_type_ok`、`struct_generic_member_access_result_type_basic`、`generic_value_member_access_cross_file`。已验证定向 fixture（`fixtures: ok (1/1/2)`）、全量 `tests/fixtures/typecheck`（`fixtures: ok (346)`）、全量 `tests/fixtures/run-pass`（`fixtures: ok (366)`）、`cargo test --all -- --test-threads=1` 与 `cargo clippy --all-targets -- -D warnings`。P7 当前下一项推进到 `T4010R`。
+>
+> 2026-04-20 当前轮计划调整：开始执行 `T4010R` 复审时，用最小 probe `struct Point(var x: Int, val y: Int)` 重新验证“值类型整体不可变”的现状，结果 `cargo run -q -p scoop -- build /tmp/t4010r_struct_ctor_var_probe_build.scoop -o /tmp/t4010r_struct_ctor_var_probe_build.out` 成功，生成程序运行退出码 `3`。进一步复查 `crates/scoopc/src/parser/decls.rs`、`crates/scoopc/src/typecheck/structs.rs` 与 `crates/scoopc/src/typecheck/expr/collect.rs` 后确认：parser 已把主构造参数 `val/var` 存入 `ast::Param.kind`，但 `check_one_struct_fields` 仍沿用“struct ctor param 不表达 val/var”的旧假设，没有拒绝 `struct Point(var x: Int)`；而 member mutability 收集又会把这类 ctor param 标成 mutable，导致 `p.x = 7` 在 typecheck 阶段也被错误接受，直到 LLVM 才在 `assignment lhs` unsupported 处暴露。由于这与 spec §2.1 / §9 / §10 和 `ISSUES.md` 第 7 条“值类型整体不可变”直接冲突，`T4010R` 不能在该红线上完成。为此，现已在 `T4010R` 前插入新的 blocker `T4010b1b`，先收口 struct 主构造参数 `var` 的漏检与成员 mutability 泄漏，再继续做整体 immutability review。本轮到此停止，等待下一次调用从 `T4010b1b` 开始。
 
 ### P7. 不可变 value semantics 与模式匹配子集
 
 - 继续保持 value type 整体不可变，不把缺口误解为“再加回 Swift-style 可变 struct”；后续重点是增强 `with`、值类型默认值人体工学，以及先收口无 binder 的 payload or-pattern。
-- 当前状态：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` 已完成，`T4010a` 已整体收口；value-semantics 子线的剩余顺序为 `T4010R -> T4011 -> T4011R`；当前下一项为 `T4010R`。
+- 当前状态：`T4010a1` / `T4010a2a` / `T4010a2b` / `T4010b0` / `T4010b0R` / `T4010b` / `T4010b1` / `T4010b1a` 已完成，`T4010a` 已整体收口；review 阶段新发现 `struct` 主构造参数 `var` 会漏过前端并错误写入 member mutability，故新增 blocker `T4010b1b`；value-semantics 子线的剩余顺序为 `T4010b1b -> T4010R -> T4011 -> T4011R`；当前下一项为 `T4010b1b`。
 
 ### P8. annotation model 与 `inline` 语义清理
 

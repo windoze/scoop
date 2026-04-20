@@ -1291,7 +1291,7 @@
 ### T4010 [TODO] 在保持不可变 value semantics 的前提下收口 `with` 与声明人体工学（拆分执行）
 - 说明：
   - 最新 `ISSUES.md` 第 7 条已经把方向收窄为“继续保持值类型不可变”，当前缺口不再是支持字段级写回式 `var`，而是 `with` 仍只覆盖 `struct`、尚未泛化到 tuple / enum 等其它值类型，以及字段默认值这类 immutable-friendly 声明便利性仍未覆盖。
-  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010R`。
+  - 为避免把“值更新语义”与“声明人体工学”再次搅在一个大任务里，现拆分为 `T4010a1 -> T4010a2a -> T4010a2b -> T4010b0 -> T4010b0R -> T4010b -> T4010b1 -> T4010b1a -> T4010b1b -> T4010R`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 7 条收窄或关闭。
 - 依赖：T4009R
@@ -1527,11 +1527,25 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010b1
 
+### T4010b1b [TODO] 禁止 `struct` 主构造参数 `var` 回流为可变字段语义
+- 说明：
+  - 在执行 `T4010R` review 时，最小 probe `struct Point(var x: Int, val y: Int)` 当前可成功 build 并运行（退出码 `3`），与 spec §2.1 / §9 / §10 以及 `ISSUES.md` 第 7 条“值类型整体不可变”的约束直接冲突。
+  - 复审根因后确认：parser 已把主构造参数的 `val/var` 语法写入 `ast::Param.kind`，但 `typecheck::structs::check_one_struct_fields` 仍沿用“struct ctor param 不表达 val/var”的旧假设，只收字段名、不拒绝 `var`。
+  - 更进一步，`typecheck::expr::collect::collect_member_mutabilities_in_type_decl` 还会把 struct 主构造参数上的 `var` 记入 `member_mutabilities`；因此 `p.x = 7` 这类字段写回会在 typecheck 阶段被错误接受，直到 LLVM 侧才在 `assignment lhs` unsupported 处暴露。
+- 范围：
+  - `struct` 主构造参数必须统一按 immutable direct field 处理；显式 `var` 要在前端静态阶段报错，不能继续漏到 lowering / codegen。
+  - 值类型 member mutability 收集必须与上述规则一致，不能再把 struct 主构造参数标成 mutable。
+  - 新增 regression，至少覆盖“`struct Point(var x: Int)` 直接报错”与“值类型字段写回不因 ctor `var` 语法漏网”。
+- 验收：
+  - 上述最小 probe 在 typecheck 阶段即失败，并给出明确诊断。
+  - `T4010R` 可在不带这条已知裂缝的基线上继续复审“值类型整体不可变”。
+- 依赖：T4010b1a
+
 ### T4010R [TODO] Review：确认值类型仍保持整体不可变
 - 重点：
   - 不接受把 `with` 扩展成字段级写回式 `var`。
   - 不允许借“默认值人体工学”重新引入可变值类型叙事。
-- 依赖：T4010b1a
+- 依赖：T4010b1b
 
 ## T4011：`when` 的无 binder or-pattern 子集
 

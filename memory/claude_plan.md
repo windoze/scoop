@@ -1,94 +1,44 @@
-# 执行计划与决策日志
+# 执行计划
 
-## 说明
+说明：按安全约束，这里记录的是可审阅的高层执行计划、关键判断和进度，不包含逐字内部推理。
 
-按用户要求，本文件用于记录本轮执行的计划、关键决策、进展与必要的调整。
+## 初始计划
 
-出于协作和可审阅性的考虑，这里记录的是可执行计划、检查项、结论与变更理由，而不是不可复用的原始思维草稿。
-
-## 初始目标
-
-本轮只完成 `TODO.md` 中**第一个未完成任务**，完成后停止。
-
-在处理任务前，先检查最新提交是否提到任何已知问题；若有，需先修复这些问题，再进入 `TODO.md` 的任务执行。
-
-## 初始执行步骤
-
-1. 检查最新一次 git 提交
-   - 查看提交信息
-   - 查看提交涉及的改动摘要
-   - 判断是否提到了待修复的问题、已知缺陷、`FIXME`、`TODO`、回退说明或临时方案
-
-2. 读取任务与计划文件
-   - 读取 `TODO.md`
-   - 读取 `PLAN.md`
-   - 如有必要，读取 `README.md`、`AGENTS.md` 以及与首个未完成任务直接相关的文档
-
-3. 确定本轮目标
-   - 找到 `TODO.md` 中第一个未完成任务
-   - 判断任务是否过大、是否依赖未实现能力、是否被规范不匹配阻塞
-   - 如果任务过大或被阻塞，则先拆分/重排 `TODO.md` 与 `PLAN.md`，本轮仅处理拆分后的第一个子任务或阻塞修复
-
-4. 实施任务
-   - 定位相关模块、测试与规范
-   - 修改代码
-   - 如发现任何规范偏差、现有 bug、缺失功能或依赖问题，按要求将其显式加入 `TODO.md` 并调整顺序
-
-5. 验证
-   - 运行与改动直接相关的测试
-   - 运行必要的全局检查，至少包括适当范围内的 `cargo test`
-   - 按要求尽量保证 `cargo clippy --all-targets -- -D warnings` 无警告；若成本过高或出现与本任务无关的既有问题，需要明确记录
-
-6. 文档与计划同步
-   - 更新 `TODO.md`：标记本轮完成的任务，或在阻塞时按依赖顺序重排
-   - 更新 `PLAN.md`：记录当前状态、拆分结果、阻塞原因或后续计划
-   - 继续更新本文件，记录关键结论与执行进度
-
-7. 提交
-   - 生成清晰的 git commit
-   - 本轮结束，不继续下一个任务
+1. 创建本文件，作为本轮工作的计划与进度日志。
+2. 检查最新一次 Git 提交，确认是否提到任何已知问题；如果提到了，需要先纳入本轮处理范围。
+3. 阅读 `TODO.md`，定位第一个未完成任务。
+4. 如该任务过大，拆分为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后只执行拆分后的第一个子任务。
+5. 实现当前目标任务，必要时补充或调整测试。
+6. 运行相关验证，至少覆盖：
+   - 直接相关测试
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+   如发现问题，先修复再继续。
+7. 更新文档与任务状态：
+   - 在 `TODO.md` 中标记当前任务完成，或在受阻时按要求重排任务。
+   - 在 `PLAN.md` 中记录当前状态、依赖与后续顺序。
+   - 持续更新本文件，记录关键步骤完成情况或计划变化。
+8. 使用清晰的 Git 提交信息提交本轮变更。
+9. 停止，不继续处理下一个任务。
 
 ## 当前状态
 
-- 已完成：创建本计划文件
-- 已完成：检查最新提交与任务清单
-- 已完成：定位 `T4010b1a` 的实现入口与复现用例
-- 已完成：实现 `T4010b1a`、补充回归、完成验证
-- 待执行：更新 git 暂存区并提交本轮任务
+- 已创建计划文件。
+- 已检查最新提交：`[T4010b1a] Instantiate generic value member access result types`；提交说明未显式要求先修其它 issue，但已把下一项推进点更新为 `T4010R`。
+- 已读取 `TODO.md` / `PLAN.md`，确认本轮原始目标为 `T4010R`。
+- 在执行 `T4010R` review 时发现新的前置 blocker，当前不能直接完成该 review。
 
-## 进展日志
+## 关键发现
 
-- 2026-04-20：初始化本文件，准备进入仓库检查阶段。
-- 2026-04-20：检查 `git log -1` 后确认最新提交标题为 `[T4010b1] Lower value computed property access through getters`，提交正文未附带额外已知问题说明，因此没有“提交信息中明确要求先修复”的独立 issue 需要在任务前插入。
-- 2026-04-20：读取 `TODO.md` / `PLAN.md` 后确认当前第一个未完成任务为 `T4010b1a`：具体化泛型值类型 member access / getter 读取的结果类型。当前已知最小复现为 `struct Box<T>(val value: T) { val readBack: T get() = this.value }` 下，`Box(9).readBack == 9` 在无 expected type 帮助时仍把读取结果保留为抽象 `T`。
-- 2026-04-20：完成实现。`typecheck/expr/member.rs` 现会在值成员读取时，沿 receiver 及其已具体化的 direct supertypes 查找成员所属 nominal 实例，并回到声明处文件重新 lowering 成员原始 `TypeRef`，把 owner type params 用使用点 concrete args 统一替换为结果类型。这样 direct field 与 getter-only property 都不再把读取结果停留在抽象 `T`。
-- 2026-04-20：新增回归：
-  - `tests/fixtures/typecheck/struct_generic_member_access_result_type_ok.scoop`
-  - `tests/fixtures/run-pass/struct_generic_member_access_result_type_basic.scoop`
-  - `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file/defs.scoop`
-  - `tests/fixtures/typecheck_multi/generic_value_member_access_cross_file/use.scoop`
-- 2026-04-20：验证通过：
-  - `cargo run -q -p scoop -- test --fixtures target/t4010b1a-fixtures/typecheck`（`fixtures: ok (1)`）
-  - `cargo run -q -p scoop -- test --fixtures target/t4010b1a-fixtures/run-pass`（`fixtures: ok (1)`）
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck_multi/generic_value_member_access_cross_file`（`fixtures: ok (2)`）
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (346)`）
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (366)`）
-  - `cargo test --all -- --test-threads=1`
-  - `cargo clippy --all-targets -- -D warnings`
-- 2026-04-20：注意到工作区里已有用户改动 `.github/workflows/ci.yml`，本轮未修改也不会回退该文件；提交时只纳入本轮任务相关文件。
+- 最小 probe `struct Point(var x: Int, val y: Int)` 当前可成功 build 并运行，程序退出码为 `3`。
+- 这与规范中“所有 value type 都是 immutable；`var` 只能重绑定槽位、不能让值类型字段可写”的约束冲突。
+- 初步根因：
+  - parser 已把主构造参数 `val/var` 写入 `ast::Param.kind`。
+  - `typecheck::structs::check_one_struct_fields` 仍沿用旧假设，只收字段名、不拒绝 `struct` 主构造参数上的 `var`。
+  - `typecheck::expr::collect::collect_member_mutabilities_in_type_decl` 会把这类 ctor `var` 继续记成 mutable member，导致 `p.x = 7` 这类写回在 typecheck 阶段也会漏网，直到 LLVM 才报 `assignment lhs` unsupported。
 
-## 当前任务理解
+## 计划调整
 
-`T4010b1a` 的目标不是只修 computed property，而是把“基于具体 receiver nominal type args 推导成员读取结果类型”的逻辑收口为统一主线，至少覆盖：
-
-- direct field：如 `Box(9).value`
-- getter-only property：如 `Box(9).readBack`
-- 必要的跨文件 generic nominal member 读取
-
-并保证这些读取在没有 expected-type 帮助时，后续比较/运算能看到 concrete type（例如 `Int`），而不是继续保留抽象 `T`。
-
-## 下一步执行计划
-
-1. 复核 `git status`，确认只暂存本轮任务相关文件。
-2. 生成提交，提交信息使用任务号 `T4010b1a`。
-3. 本轮结束，不继续处理 `T4010R`。
+1. 在 `TODO.md` 中把该问题前插为新的 blocker 任务 `T4010b1b`，并把 `T4010R` 顺延到其后。
+2. 在 `PLAN.md` 中记录发现过程、根因和新的执行顺序。
+3. 本轮不继续做生产代码修复；按要求提交“任务重排 + 计划更新”后停止，等待下一轮从 `T4010b1b` 开始。
