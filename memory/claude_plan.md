@@ -1,143 +1,74 @@
-# 本轮执行计划与进度记录
+# 本轮执行计划
 
-## 说明
+更新时间：2026-04-21
 
-- 本文件记录当前轮可共享的执行计划、判断依据摘要、关键发现、风险与进度。
-- 不记录模型私有内部推理逐字过程，但会尽量完整记录外显步骤，便于审阅。
+## 任务目标
 
-## 当前目标
+按 `TODO.md` 的顺序执行**第一个未完成任务**，在完成实现、测试、文档更新和提交后立即停止。
 
-完成 `TODO.md` 中第一个未完成任务 `T4011S`：收口 enum payload 中的一般 nested enum / builtin enum 字段表示。本轮只处理这一个任务，完成后提交并停止。
+## 思路摘要
 
-## 已完成的前置检查
+基于当前要求，本轮需要先确认两类前置条件：
 
-1. 已检查工作区状态：`git status --short` 为空，当前无未提交改动。
-2. 已检查最新提交：`fd9aadf8ea1bba8dd6c53c840346fc2ff75c5a26`，提交信息为 `[T4011R] Review payload or-pattern boundaries`。
-3. 已检查最新提交是否明确挂出先修 issue：
-   - 提交信息与变更文件仅记录 `T4011R` review 收口，没有额外挂出的未修复问题。
-   - 因此当前仍按 `TODO.md` 的顺序继续推进。
-4. 已读取 `TODO.md` 与 `PLAN.md`：
-   - 当前第一个未完成任务为 `T4011S`。
-   - `PLAN.md` 当前下一项也明确推进到 `T4011S`，与 `TODO.md` 一致。
+1. 最新提交是否明确提到已有缺陷、已知问题或待补修内容；若有，需要先修复这些问题。
+2. `TODO.md` 中当前排在最前面的未完成任务是什么，以及它是否可以在本轮完整落地。
 
-## 任务边界摘要
+随后按以下原则推进：
 
-`T4011S` 当前明确覆盖两类真实实现缺口：
+- 如果首个未完成任务可以直接完成，就实现它并补齐测试。
+- 如果该任务依赖尚未完成的语言特性、运行时能力或现存缺陷修复，则不能绕过；必须先把缺失项整理为更前置的任务，更新 `TODO.md` / `PLAN.md`，提交后停止。
+- 执行过程中如发现计划判断有误、实现范围需要调整、或关键步骤已完成，会继续更新此文件。
 
-1. boxed enum payload object / type descriptor 遇到 builtin enum 字段（例如 `Option<T>`）时，LLVM 类型映射或 metadata 仍可能报 `struct field type`。
-2. 非 boxed 的 nested enum payload 当前只收口了 niche-nested 的局部路径；普通 custom enum 作为另一个 enum 的 payload 时，仍可能报 `enum payload (nested enum, unsupported repr)`。
+## 分步执行计划
 
-验收标准：
-
-- 相关 probe 不再报 `struct field type`。
-- 相关 probe 不再报 `enum payload (nested enum, unsupported repr)`。
-- 需要补充 run-pass / regression，覆盖 builtin enum field 与 custom enum field 作为 enum payload 的组合。
-
-## 当前执行计划
-
-1. 读取 `T4011S` 相关代码路径与已有测试，定位当前失败入口：
-   - enum layout / metadata
-   - LLVM enum payload lowering
-   - payload object type / type descriptor 生成
-2. 构造或复用最小 probe，确认两类报错是否仍可稳定复现，并分离是否属于同一个底层表示缺口。
-3. 评估 `T4011S` 是否可在本轮完整交付：
-   - 若范围收敛且主线统一，则直接实现。
-   - 若发现任务实际上包含多个必须串行收口的前置缺口，则按要求在 `TODO.md` / `PLAN.md` 拆分，并仅执行第一个子任务。
-4. 实现代码修改，要求：
-   - 不通过“只避开某种 payload 形状”的方式绕过问题。
-   - 统一修复 builtin enum field metadata 与 nested enum payload 表示主线。
-5. 运行验证：
-   - 定向最小 probe / 新增回归
-   - 相关 fixture 子集
-   - `cargo test --all -- --test-threads=1`
+1. 检查最新一次 Git 提交的提交信息与变更说明，确认是否带有“已知问题 / follow-up / FIXME / TODO / bug”等需要先处理的内容。
+2. 读取 `TODO.md`，定位第一个未完成任务。
+3. 读取 `PLAN.md`，核对该任务的上下文、依赖和现有分解是否一致。
+4. 评估该任务复杂度与依赖：
+   - 若可在本轮完整完成，直接进入实现。
+   - 若不可直接完整完成，则把任务拆解为更小的子任务，并同步更新 `PLAN.md` 与 `TODO.md`，随后执行拆解后的第一个子任务。
+5. 在动手修改代码前，再次更新本文件，记录将要修改的模块与验证策略。
+6. 实现目标任务，保持实现符合规范，不采用规避式 workaround。
+7. 运行与改动相关的验证命令，至少覆盖：
+   - 直接相关测试
+   - 必要的回归测试
+   - `cargo fmt --check`
    - `cargo clippy --all-targets -- -D warnings`
-6. 更新 `TODO.md` / `PLAN.md` / 本文件，并提交。
+   - 若任务影响整体可构建性，再补充 `cargo test --all` 或更合适的子集
+8. 若测试暴露规格不匹配或已有缺陷：
+   - 优先修复属于本任务范围内的问题；
+   - 若暴露更基础的前置缺陷，则更新 `TODO.md` / `PLAN.md` 调整优先级，并在提交后停止。
+9. 完成后更新文档状态：
+   - 在 `TODO.md` 标记该任务完成
+   - 在 `PLAN.md` 记录当前状态与后续影响
+   - 在本文件记录已完成步骤与结果
+10. 生成一次 Git 提交，提交信息对应当前任务，然后停止。
 
-## 当前进展
+## 当前状态
 
-- 已确认本轮目标是 `T4011S`。
-- 已完成最小复现，当前判断本轮不需要继续拆分；两类报错都落在同一层 enum payload 表示 / layout 类型保留问题上，可作为一个完整切片收口。
-- 已定位的直接代码入口：
-  - `crates/scoopc/src/hir/lower/util.rs`
-  - `crates/scoopc/src/typecheck/layout.rs`
-  - `crates/scoopc/src/llvm/codegen/layout.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-- 当前下一步：修复 builtin `Option<T>` 字段在 layout 收集中的 `TypeId`/layout FQN 保留，并统一 nested enum payload 的 boxing 决策。
+- 已完成：初始化本轮计划文件。
+- 已完成：检查最新 Git 提交；提交信息为 `Update plan`，未显式声明需要先修复的既有缺陷。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`。
+- 已判断：`TODO.md` 中排在最前面的可执行未完成子任务为 `T4016a`；总括条目 `T4016` 已经完成任务拆分，因此本轮聚焦 `T4016a`。
+- 已修正判断：在进一步核对 `sysroot` / compiler 主线约束后，原始 `T4016a` 仍偏大，已拆成 `T4016a1`（spec/runtime 设计文档）与 `T4016a2`（sysroot / 实现注释过渡合同）。
+- 已完成：更新 `TODO.md` / `PLAN.md`，把顺序调整为 `T4016a1 -> T4016a2 -> T4016b -> ...`。
+- 进行中：执行新的首个子任务 `T4016a1`，收集并改写 spec / runtime doc 中的 continuation surface、handler 语法与迁移说明。
 
-## 复现结论
+## 针对 T4016a 的即时检查要点
 
-### Probe 1：boxed payload + builtin enum 字段
-
-- 文件：`/tmp/t4011s_boxed_builtin_enum_field_probe.scoop`
-- 命令：
-  - `cargo run -q -p scoop -- build /tmp/t4011s_boxed_builtin_enum_field_probe.scoop -o /tmp/t4011s_boxed_builtin_enum_field_probe.out`
-- 结果：
-  - 失败，报 `scoop::llvm::unsupported_main_body`
-  - 具体节点：`struct field type`
-- 当前判断：
-  - `Option<T>` 这类 builtin enum path 在 layout 收集中没有稳定恢复为字段 `TypeId`，后端回退到只看 `ty_fqn` 时丢失了具体实例信息。
-
-### Probe 2：custom nested enum payload
-
-- 文件：`/tmp/t4011s_nested_custom_enum_probe.scoop`
-- 命令：
-  - `cargo run -q -p scoop -- build /tmp/t4011s_nested_custom_enum_probe.scoop -o /tmp/t4011s_nested_custom_enum_probe.out`
-- 结果：
-  - 失败，报 `scoop::llvm::unsupported_main_body`
-  - 具体节点：`enum payload (nested enum, unsupported repr)`
-- 当前判断：
-  - 当前实现只让 niche-nested enum 继续走 inline payload；普通 tagged union nested enum 仍被错误当成 inline 小 payload，而没有在布局阶段进入 boxed payload 主线。
-
-## 实现决策
-
-- 本轮收口边界拟定为：
-  - builtin `Option<T>` 等 enum-typed 字段在 layout 收集阶段必须保留真实 `TypeId` / layout FQN；
-  - nested enum payload 中，仍可 inline 的仅限既有 niche 路径；
-  - 其余 nested enum payload 统一进入 boxed payload 主线，不再落到“unsupported repr”。
-
-## 待记录项
-
-- 实现摘要：已完成；见下方“实现摘要”
-- 测试命令与结果：已完成；见下方“测试结果”
-- 文档更新摘要：已完成；见下方“文档更新摘要”
-- 最终提交信息：`[T4011S] Support nested enum payload boxing`
-
-## 实现摘要
-
-- `crates/scoopc/src/hir/lower/util.rs`
-  - 为 builtin `Option<T>` 增加稳定 layout key 生成，使 enum / boxed payload field 收集能够恢复真实 `TypeId`，不再只剩基名 `scoop.core.Option`。
-- `crates/scoopc/src/typecheck/layout.rs`
-  - 固定 nested enum payload 的 boxing 边界：仍保持 niche 表示的 nested `Option<T>` 可继续 inline，其余 nested enum 一律 boxed。
-  - `Option<T>` 的 tagged-union fallback 现在也会按同一条 boxing 规则决定 `Some` payload 是否装箱。
-- `crates/scoopc/src/llvm/codegen/layout.rs`
-  - LLVM enum layout 与前端 layout 现复用相同边界：多字段 / tuple / struct / 非 niche nested enum 全部走 boxed payload 主线。
-- `crates/scoopc/src/llvm/codegen/ty.rs`
-  - boxed payload struct / object / type descriptor 的命名入口已扩展到 enum-like `TypeId`，builtin `Option<T>` 在 outer-option boxed payload 路径下也能生成稳定 LLVM 类型和 runtime type descriptor。
-- 新增 run-pass 回归：
-  - `tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop`
-  - `tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop`
-  - `tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop`
-
-## 测试结果
-
-- 最小复现 probe：
-  - `/tmp/t4011s_boxed_builtin_enum_field_probe.scoop` 现可成功 build，产物退出码为 `9`。
-  - `/tmp/t4011s_nested_custom_enum_probe.scoop` 现可成功 build，产物退出码为 `7`。
-- 新增回归定向验证：
-  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/enum_payload_boxed_builtin_option_field_basic.scoop -o /tmp/enum_payload_boxed_builtin_option_field_basic.out`
-  - `/tmp/enum_payload_boxed_builtin_option_field_basic.out`：退出码 `94`
-  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/enum_payload_nested_custom_enum_basic.scoop -o /tmp/enum_payload_nested_custom_enum_basic.out`
-  - `/tmp/enum_payload_nested_custom_enum_basic.out`：退出码 `37`
-  - `cargo run -q -p scoop -- build tests/fixtures/run-pass/option_nested_custom_enum_payload_basic.scoop -o /tmp/option_nested_custom_enum_payload_basic.out`
-  - `/tmp/option_nested_custom_enum_payload_basic.out`：退出码 `33`
-- 全量验证：
-  - `cargo fmt --all`
-  - `cargo run -q -p scoop -- test`：通过，`fixtures: ok (1112)`
-  - `cargo test --all -- --test-threads=1`：通过
-  - `cargo clippy --all-targets -- -D warnings`：通过
-
-## 文档更新摘要
-
-- 已将 `TODO.md` 中的 `T4011S` 标记为完成，并记录本轮固定下来的实现边界与回归。
-- 已将 `PLAN.md` 更新到 `T4011S` 完成状态，`P7` 标记为完成，下一项推进到 `T4012`。
-- 本文件已补齐实现摘要、测试结果与后续状态。
+1. 现有 `Continuation` 类型定义、sysroot surface、spec 与 runtime 文档是否仍停留在 `resume(...): Unit` 叙事。
+2. parser / AST / HIR 是否仍保留 `-> resume` 用户态语法，相关测试与文档分布在哪里。
+3. typecheck 是否已经部分携带 answer type，还是完全缺失。
+4. `Task` 是否已经与 continuation answer model 解耦，还是仍依赖 runtime frame result hack。
+5. 根据以上现状，判断 `T4016a` 是否可作为“文档/表面设计收口任务”独立完成，或是否必须进一步拆成更小步骤。
+6. 当前实际执行项改为 `T4016a1`，因此优先修改以下位置：
+   - `SCOOP_FULL_SPEC.md`
+   - `SCOOP_RUNTIME.md`
+7. 明确写清：
+   - `Continuation` 的 answer type 语义与推荐表面模型；
+   - `k.resume(...): Answer / (E + Raise<RuntimeError>)`；
+   - deep handler / fresh continuation / cross-thread resume；
+   - `-> resume` 已移除，迁移到 `, k ->` + `k.resume(...)`；
+   - multi-shot / clone / replay 继续 deferred。
+8. 完成 `T4016a1` 后，运行文档相关验证与必要的编译/测试子集，确认没有因文档更新引入构建问题。
+9. 更新 `TODO.md` / `PLAN.md` / 本文件并提交。

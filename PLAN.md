@@ -20,7 +20,7 @@
 
 ## 1. 顺序总览
 
-1. 新增优先项：正确的单次 delimited continuation 与 `Task` 去 hack（`T4016a -> T4016b -> T4016c -> T4016d -> T4016R`）
+1. 新增优先项：正确的单次 delimited continuation 与 `Task` 去 hack（`T4016a1 -> T4016a2 -> T4016b -> T4016c -> T4016d -> T4016R`）
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -36,7 +36,10 @@
 - 若编译器仍需要 stack-local fast path / immediate-resume 分类，只能作为 lowering / codegen 内部优化，不得再暴露为独立语义或语法。
 - 单次约束维持不变：不引入 frame clone、continuation copy、可重复 resume，也不把语言整体改造成“全部不可变以支持 multi-shot”。
 - `Task` 需要真正成为“ordinary object + private continuation / step-result carrier”的薄封装：内部 continuation 的 answer type 由 task step driver 显式建模，而不是通过 runtime 私有 frame-layout 旁路回读。
-- 当前状态：`T4016a -> T4016b -> T4016c -> T4016d -> T4016R` 待开始。
+- 为了把设计收口和主线实现分开推进，`T4016a` 进一步拆成两步：
+  - `T4016a1`：先在 spec / runtime 设计文档中定稿 answer-returning continuation、deep handler、`-> resume` 移除与迁移叙事。
+  - `T4016a2`：再把 sysroot / 内部注释对齐到同一套过渡合同，为 `T4016b` 的 parser / typecheck / HIR / lowering 实装清障。
+- 当前状态：`T4016a1 -> T4016a2 -> T4016b -> T4016c -> T4016d -> T4016R` 待开始。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

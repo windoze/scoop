@@ -32,17 +32,33 @@
   - `Task` 不再依赖 task-only 的 runtime frame-peek hack；若底层仍有 frame result transport，也必须是 continuation ABI 的通用内部细节。
 - 依赖：无
 
-### T4016a [TODO] 定义正确的 one-shot deep delimited continuation surface、answer type 与最终 handler 语法
-- 范围：
-  - 为 `Continuation` 引入显式 answer type；默认方向是收口为形如 `Continuation<Resume, Answer, eff E = Pure>` 的模型。若最终表面语法采用等价变体，也必须保证 answer type 在 typecheck / HIR / docs 中显式可见，而不是继续藏在 runtime 私有约定里。
-  - 明确定义 `k.resume(payload...): Answer / (E + Raise<RuntimeError>)` 的语言语义；若 resumed computation 正常完成 delimiter，控制流返回到调用点之后继续执行。
-  - 固定 deep handler 语义：`k` 恢复时在捕获的 handler stack 下执行；handler 在自身 arm body 中 inactive，恢复后的 computation 再次对同一 effect suspend 时捕获 fresh continuation。
-  - 语言层面固定只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm。删除 `-> resume` 用户态语法；原能力统一由 `, k ->` + `k.resume(...)` 承担。若实现上仍需要 immediate / linear / synchronous resume 分类，只能是 lowering / codegen 内部优化。
-  - 明确 one-shot 约束与重复 resume 的运行时错误合同；multi-shot / clone / replay 明确写成 deferred non-goal。
+### T4016a [TODO] 定义正确的 one-shot deep delimited continuation surface、answer type 与最终 handler 语法（拆分执行）
+- 说明：
+  - 原条目同时要求“规范/运行时叙事定稿”和“sysroot / compiler 可见表示对齐”，一次性改动面仍然偏大，也会与 `T4016b` 的主线接入互相牵连。
+  - 因此先拆成“文档/设计收口”与“sysroot / 内部注释过渡合同”两步，再进入 `T4016b` 做 parser / typecheck / HIR / lowering 实装。
 - 验收：
-  - spec / sysroot / 注释中的 continuation surface 与术语统一，不再同时存在“`resume` 返回 `Unit`”和“continuation 代表剩余计算结果”的口径分裂。
-  - 设计文档中明确回答 arm 内 `k.resume(...)` 后续语句、nested handle、fresh continuation、cross-thread resume，以及已移除 `-> resume` 的替代表达与迁移方向。
+  - 子任务全部完成后，spec / runtime doc / sysroot / 注释对 continuation answer model、deep handler、one-shot 合同与 `-> resume` 移除形成统一叙事。
 - 依赖：T4016
+
+### T4016a1 [TODO] 在 spec / runtime 设计文档中收口 answer-returning continuation 与最终 handler surface
+- 范围：
+  - 在 `SCOOP_FULL_SPEC.md` 与 `SCOOP_RUNTIME.md` 中明确 continuation 的 answer type 语义：`k.resume(payload...): Answer / (E + Raise<RuntimeError>)`，并说明 resumed computation 正常完成 delimiter 后，本地代码可在调用点之后继续执行。
+  - 固定 deep handler 语义：`k` 在捕获的 handler stack 下恢复，arm body 期间当前 handler inactive，再次 suspend 时捕获 fresh continuation。
+  - 在用户态设计文档中移除 `-> resume` 语法，只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`；同时写清从旧语法迁移到 `, k ->` + `k.resume(...)` 的方向。
+  - 明确 one-shot、重复 resume 的运行时错误合同，以及 multi-shot / clone / replay 继续 deferred。
+- 验收：
+  - 设计文档不再同时保留“`k.resume(...)` 返回 `Unit`”与“continuation 代表剩余计算结果”的分裂表述。
+  - 文档能明确回答 arm 内 `k.resume(...)` 后续语句、nested handle、fresh continuation、cross-thread resume，以及 `-> resume` 的替代表达。
+- 依赖：T4016a
+
+### T4016a2 [TODO] 在 sysroot / 实现注释中对齐 continuation / Task 的过渡合同
+- 范围：
+  - 在 `sysroot/core.scoop` 与必要的实现注释中，把 continuation / `Task` 的术语对齐到 `T4016a1` 已定稿的 answer model 与 handler surface。
+  - 在不提前切断现有实现的前提下，明确标出哪些 sysroot / 内部注释仍属 `T4016b/c/d` 之前的过渡表达，避免继续把“`resume` 返回 `Unit`”写成稳定设计结论。
+  - 说明 `Task` 将在后续任务中退化为“基于 continuation answer type 的薄封装”，并把 task-only runtime hack 明确保留为待移除的实现债务。
+- 验收：
+  - sysroot / 注释不再把旧 continuation surface 写成最终设计；与 `T4016a1` 的术语和迁移方向保持一致。
+- 依赖：T4016a1
 
 ### T4016b [TODO] 把 answer type、returning-resume 与 arm syntax removal 接入 typecheck / HIR / lowering 主线
 - 范围：
@@ -57,7 +73,7 @@
 - 验收：
   - 在语言层面，`k.resume(...)` 后续代码既能 typecheck，也能在 resumed computation 正常完成时稳定执行。
   - continuation answer type 不再是 task-private 概念，而是 compiler 主线的一等语义对象；`-> resume` 不再保留任何用户态或 lowering 侧 special form。
-- 依赖：T4016a
+- 依赖：T4016a2
 
 ### T4016c [TODO] 收口 state machine / runtime / ABI，使 continuation result 成为一等返回通道
 - 范围：
