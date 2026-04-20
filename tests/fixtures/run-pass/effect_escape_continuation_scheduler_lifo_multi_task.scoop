@@ -20,13 +20,13 @@ effect Await {
 // Push writes at stack.top, then increments top.
 // Pop decrements top, then reads at stack.top.
 class Stack(
-    var k0: Continuation<Int>?,
-    var k1: Continuation<Int>?,
+    var k0: Continuation<Int, Unit>?,
+    var k1: Continuation<Int, Unit>?,
     var top: Int
 )
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val s: Stack = Stack(none_k, none_k, 0)
 
     // --- Task A: 2 suspensions, accumulates values ---

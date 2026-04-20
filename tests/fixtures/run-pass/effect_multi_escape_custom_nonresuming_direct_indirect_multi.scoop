@@ -18,7 +18,7 @@ effect Abort {
     fun stop(text: String): Nothing
 }
 
-class Cell(var k: Continuation<String>?, var count: Int)
+class Cell(var k: Continuation<String, Int>?, var count: Int)
 
 fun fetch(tag: Int): String / (Ask) {
     println("fetch_enter")
@@ -29,7 +29,7 @@ fun fetch(tag: Int): String / (Ask) {
     msg
 }
 
-fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
+fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String, Int>?) {
     cell.k = none_k
     cell.count = 0
 
@@ -74,10 +74,11 @@ fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume("alpha")
             } catch (e: RuntimeError) {
                 println("unexpected_resume_a1")
+                0
             }
         }
         None -> println("missing_a1")
@@ -87,10 +88,11 @@ fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume("beta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume_a2")
+                0
             }
         }
         None -> println("missing_a2")
@@ -100,10 +102,11 @@ fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     when (cell.k) {
         Some(k3) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k3.resume("gamma")
             } catch (e: RuntimeError) {
                 println("unexpected_resume_a3")
+                0
             }
         }
         None -> println("missing_a3")
@@ -111,7 +114,7 @@ fun run_direct_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     println("after_resume_a3")
 }
 
-fun run_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
+fun run_indirect_direct(cell: Cell, none_k: Continuation<String, Int>?) {
     cell.k = none_k
     cell.count = 0
 
@@ -151,10 +154,11 @@ fun run_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume("hello")
             } catch (e: RuntimeError) {
                 println("unexpected_resume_b1")
+                0
             }
         }
         None -> println("missing_b1")
@@ -164,10 +168,11 @@ fun run_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume("world")
             } catch (e: RuntimeError) {
                 println("unexpected_resume_b2")
+                0
             }
         }
         None -> println("missing_b2")
@@ -176,7 +181,7 @@ fun run_indirect_direct(cell: Cell, none_k: Continuation<String>?) {
 }
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k, 0)
     run_direct_indirect_direct(cell, none_k)
     run_indirect_direct(cell, none_k)

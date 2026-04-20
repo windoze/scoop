@@ -2712,7 +2712,7 @@ package a
 
 import scoop.core.*
 
-fun demo(k: Continuation<Int>): Int {
+fun demo(k: Continuation<Int, Int>): Int {
     val result: Int = try {
         k.resume(1)
         11
@@ -2736,7 +2736,7 @@ package a
 
 import scoop.core.*
 
-fun demo(k: Continuation<Int>): Int {
+fun demo(k: Continuation<Int, Int>): Int {
     val ignored: Int = try {
         k.resume(1)
         0
@@ -4203,10 +4203,10 @@ effect Yield {
     fun next(): Int
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Unit>?)
 
 fun demo(): Int {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {

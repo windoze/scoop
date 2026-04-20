@@ -17,7 +17,7 @@ fun runAction(f: () -> Int / (Ask)): Int / (Ask) {
 }
 
 fun main() {
-    var saved_k: Continuation<Int>? = None()
+    var saved_k: Continuation<Int, Int>? = None()
 
     val result: Int = handle {
         val x: Int = 7
@@ -45,10 +45,11 @@ fun main() {
 
     when (saved_k) {
         Some(k) -> {
-            val _: Unit = try {
+            val _: Int = try {
                 k.resume(100)
             } catch (e: RuntimeError) {
                 println("resume_error")
+                0
             }
             println("after_resume")
         }

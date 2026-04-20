@@ -25,7 +25,7 @@ fun fetch(base: Int): String / (Ask) {
 }
 
 fun main() {
-    var saved: Continuation<String>? = None()
+    var saved: Continuation<String, Int>? = None()
 
     val result: Int = handle {
         val prefix: String = "prefix"
@@ -57,10 +57,11 @@ fun main() {
 
     when (saved) {
         Some(k) -> {
-            val _: Unit = try {
+            val _: Int = try {
                 k.resume("hello")
             } catch (e: RuntimeError) {
                 println("unexpected_error")
+                0
             }
             println("after_resume")
         }

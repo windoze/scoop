@@ -14,10 +14,10 @@ effect Ask {
     fun ask(): String
 }
 
-class Cell(var k: Continuation<String>?)
+class Cell(var k: Continuation<String, Unit>?)
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {

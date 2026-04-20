@@ -12,12 +12,12 @@ effect Yield {
     fun next(): Int
 }
 
-class Cell(var k: Continuation<Int>?, var n: Int)
+class Cell(var k: Continuation<Int, Unit>?, var n: Int)
 
 fun main() {
     // 说明：当前阶段 typecheck 对“构造调用的实参”不会用形参类型做 enum variant ctor 消歧，
-    // 因此这里先用显式类型注解把 `None()` 固定为 `Option<Continuation<Int>>`。
-    val none_k: Continuation<Int>? = None()
+    // 因此这里先用显式类型注解把 `None()` 固定为 `Option<Continuation<Int, Unit>>`。
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k, 0)
 
     // 注意：LLVM codegen 的 `handle` 仍需要期望类型语境；这里用 `val _: Unit = ...` 的形式提供。

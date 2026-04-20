@@ -119,7 +119,7 @@ impl<'a> Parser<'a> {
     /// Expect a closing `>` for generic type arguments. If the current token is `>>` (GtGt),
     /// split it: consume the first `>` and mutate the token in-place to a single `>` (Gt)
     /// with an adjusted span, so the outer generic parser can consume it next.
-    /// This handles nested generics like `Continuation<Continuation<Int>>`.
+    /// This handles nested generics like `Continuation<Continuation<Int, Unit>>`.
     pub(super) fn expect_gt_or_split_gtgt(&mut self) -> Result<Token, ParseError> {
         if self.peek_symbol(Symbol::Gt) {
             return Ok(self.bump());

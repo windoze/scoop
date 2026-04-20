@@ -20,10 +20,10 @@ effect Abort {
     fun stop(code: Int): Nothing
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Int>?)
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Int>? = None()
     val cell: Cell = Cell(none_k)
 
     val result: Int = handle {
@@ -65,10 +65,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume(10)
             } catch (e: RuntimeError) {
                 println("unexpected_resume1")
+                0
             }
         }
         None -> println("missing1")
@@ -78,10 +79,11 @@ fun main() {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume(20)
             } catch (e: RuntimeError) {
                 println("unexpected_resume2")
+                0
             }
         }
         None -> println("missing2")

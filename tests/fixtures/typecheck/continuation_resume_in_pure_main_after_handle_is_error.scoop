@@ -14,7 +14,7 @@ effect Ask {
 }
 
 fun main() {
-    var saved: Continuation<Int>? = None()
+    var saved: Continuation<Int, Int>? = None()
 
     val _ignored: Int = handle {
         Ask.get()

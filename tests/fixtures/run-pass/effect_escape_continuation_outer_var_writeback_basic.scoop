@@ -16,7 +16,7 @@ effect Suspend {
 
 fun main() {
     var bodySeen: Int = 0
-    var saved: Continuation<Unit>? = None()
+    var saved: Continuation<Unit, Unit>? = None()
     var note: String = "before"
 
     val _: Unit = handle {

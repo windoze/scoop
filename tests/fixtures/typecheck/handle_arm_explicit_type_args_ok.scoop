@@ -47,14 +47,14 @@ fun handleImmediate(): Int {
     }
 }
 
-fun handleEscape(cell: Box<Continuation<Int>?>): Unit / Raise<RuntimeError> {
+fun handleEscape(cell: Box<Continuation<Int, Unit>?>): Unit / Raise<RuntimeError> {
     val _: Unit = handle {
         val x: Int = Query.ask<Int>(6)
         val _sink: Int = x
     } with {
         Query.ask<Int>(seed), k -> {
             val seed_copy: Int = seed
-            val cont_copy: Continuation<Int> = k
+            val cont_copy: Continuation<Int, Unit> = k
             cell.value = Some(cont_copy)
             cont_copy.resume(seed_copy + 2)
         }

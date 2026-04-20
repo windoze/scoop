@@ -17,15 +17,15 @@ effect Await {
 
 // Fixed-capacity FIFO queue holding up to 4 continuations.
 class Queue(
-    var k0: Continuation<Int>?,
-    var k1: Continuation<Int>?,
-    var k2: Continuation<Int>?,
-    var k3: Continuation<Int>?,
+    var k0: Continuation<Int, Unit>?,
+    var k1: Continuation<Int, Unit>?,
+    var k2: Continuation<Int, Unit>?,
+    var k3: Continuation<Int, Unit>?,
     var writePos: Int
 )
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val q: Queue = Queue(none_k, none_k, none_k, none_k, 0)
 
     // --- Task A: 2 suspensions, accumulates values ---

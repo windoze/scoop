@@ -235,7 +235,7 @@ impl<'a> Parser<'a> {
             }
             break;
         }
-        // Handle `>>` as two `>` tokens for nested generics (e.g., `Continuation<Continuation<Int>>`).
+        // Handle `>>` as two `>` tokens for nested generics (e.g., `Continuation<Continuation<Int, Unit>>`).
         let gt = self.expect_gt_or_split_gtgt()?;
         Ok((args, gt.span.end))
     }

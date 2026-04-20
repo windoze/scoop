@@ -19,11 +19,11 @@ effect EffectB {
     fun askB(): Int
 }
 
-class CellA(var k: Continuation<Int>?)
-class CellB(var k: Continuation<Int>?)
+class CellA(var k: Continuation<Int, Unit>?)
+class CellB(var k: Continuation<Int, Unit>?)
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cellA: CellA = CellA(none_k)
     val cellB: CellB = CellB(none_k)
 

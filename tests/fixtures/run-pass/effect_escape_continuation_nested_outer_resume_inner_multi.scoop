@@ -22,10 +22,10 @@ effect EffectB {
     fun fireB(code: Int): Nothing
 }
 
-class CellK(var k: Continuation<Int>?)
+class CellK(var k: Continuation<Int, Unit>?)
 
 fun main(): Int {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: CellK = CellK(none_k)
 
     val result: Int = handle {

@@ -37,7 +37,7 @@ fun demo(mode: Int): Int {
             k.resume(41)
         }
         Ask.current(), k -> {
-            val keep: Continuation<Int> = k
+            val keep: Continuation<Int, Int> = k
             val _ = keep
             7
         }

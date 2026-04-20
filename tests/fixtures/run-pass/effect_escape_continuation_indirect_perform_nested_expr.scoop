@@ -19,7 +19,7 @@ fun compute(): Int / (Ask) {
 }
 
 fun main() {
-    var saved_k: Continuation<Int>? = None()
+    var saved_k: Continuation<Int, Int>? = None()
 
     val result: Int = handle {
         println("body_start")
@@ -39,10 +39,11 @@ fun main() {
 
     when (saved_k) {
         Some(k) -> {
-            val _: Unit = try {
+            val _: Int = try {
                 k.resume(32)
             } catch (e: RuntimeError) {
                 println("resume_error")
+                0
             }
             println("after_resume")
         }

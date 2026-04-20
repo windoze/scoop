@@ -3863,7 +3863,7 @@ effect Suspend {
 }
 
 fun main() {
-    var saved: Continuation<Unit>? = None()
+    var saved: Continuation<Unit, Unit>? = None()
     var note: String = "before"
 
     val _: Unit = handle {
@@ -4183,10 +4183,10 @@ effect Suspend {
     fun pause(msg: String): Unit
 }
 
-class Cell(var saved: Continuation<Unit>?)
+class Cell(var saved: Continuation<Unit, Unit>?)
 
 fun main(): Int {
-    val none_k: Continuation<Unit>? = None()
+    val none_k: Continuation<Unit, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {
@@ -4760,10 +4760,10 @@ effect Abort {
     fun stop(): Nothing
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Int>?)
 
 fun main(): Int {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Int>? = None()
     val cell: Cell = Cell(none_k)
 
     return handle {

@@ -38,6 +38,7 @@ pub(super) struct CallArgInfo<'a> {
     pub(super) expr: &'a ast::Expr,
     pub(super) ty: TypeId,
     pub(super) is_spread: bool,
+    pub(super) needs_expected_type: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -67,10 +68,54 @@ pub(in super::super) struct EnumTypeSubstContext<'a> {
 /// - 这里提前推导所有实参类型，保证：
 ///   - 子表达式的类型错误不会被重载筛选吞掉；
 ///   - 后续候选过滤只做纯比较，不再递归进入表达式树。
+fn infer_call_arg_info_ty(
+    inputs: ExprInferInputs<'_>,
+    expr_for_ty: &ast::Expr,
+    allow_expected_type_placeholder: bool,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(TypeId, bool), ExprTypeError> {
+    match expr_for_ty.kind {
+        // lambda 的类型通常依赖 expected type；在"预收集实参信息"阶段先用占位类型，
+        // 以便后续在"已选定签名"的语境下重新 typecheck（T0504）。
+        ast::ExprKind::Lambda(_) => Ok((inputs.builtins.any, true)),
+        _ if is_top_level_fun_value_candidate_expr(inputs, expr_for_ty, lower)? => {
+            Ok((inputs.builtins.any, true))
+        }
+        _ => match inputs.infer(lower, expr_for_ty) {
+            Ok(ty) => Ok((ty, false)),
+            Err(ExprTypeError::AmbiguousEnumVariantCtor { .. })
+                if allow_expected_type_placeholder =>
+            {
+                // 允许诸如 `Cell(None())` 这类由构造参数 expected type 才能消歧的实参先占位，
+                // 等候选构造函数参数类型确定后再在 expected-context 中重做 typecheck。
+                Ok((inputs.builtins.any, true))
+            }
+            Err(err) => Err(err),
+        },
+    }
+}
+
 pub(super) fn collect_call_arg_infos<'a>(
     inputs: ExprInferInputs<'_>,
     args: &'a [ast::Expr],
     lower: &mut TypeLowering<'_>,
+) -> Result<Vec<CallArgInfo<'a>>, ExprTypeError> {
+    collect_call_arg_infos_impl(inputs, args, lower, false)
+}
+
+pub(super) fn collect_call_arg_infos_allow_expected_type_placeholders<'a>(
+    inputs: ExprInferInputs<'_>,
+    args: &'a [ast::Expr],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Vec<CallArgInfo<'a>>, ExprTypeError> {
+    collect_call_arg_infos_impl(inputs, args, lower, true)
+}
+
+fn collect_call_arg_infos_impl<'a>(
+    inputs: ExprInferInputs<'_>,
+    args: &'a [ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    allow_expected_type_placeholder: bool,
 ) -> Result<Vec<CallArgInfo<'a>>, ExprTypeError> {
     let mut out: Vec<CallArgInfo<'a>> = Vec::with_capacity(args.len());
 
@@ -84,15 +129,12 @@ pub(super) fn collect_call_arg_infos<'a>(
                     ast::ExprKind::SpreadArg { expr: inner, .. } => (inner.as_ref(), true),
                     _ => (expr, false),
                 };
-                let ty = match expr_for_ty.kind {
-                    // lambda 的类型通常依赖 expected type；在"预收集实参信息"阶段先用占位类型，
-                    // 以便后续在"已选定签名"的语境下重新 typecheck（T0504）。
-                    ast::ExprKind::Lambda(_) => inputs.builtins.any,
-                    _ if is_top_level_fun_value_candidate_expr(inputs, expr_for_ty, lower)? => {
-                        inputs.builtins.any
-                    }
-                    _ => inputs.infer(lower, expr_for_ty)?,
-                };
+                let (ty, needs_expected_type) = infer_call_arg_info_ty(
+                    inputs,
+                    expr_for_ty,
+                    allow_expected_type_placeholder,
+                    lower,
+                )?;
                 out.push(CallArgInfo {
                     kind: CallArgKind::Named {
                         name: name_text,
@@ -101,6 +143,7 @@ pub(super) fn collect_call_arg_infos<'a>(
                     expr,
                     ty,
                     is_spread,
+                    needs_expected_type,
                 });
             }
             _ => {
@@ -108,18 +151,18 @@ pub(super) fn collect_call_arg_infos<'a>(
                     ast::ExprKind::SpreadArg { expr: inner, .. } => (inner.as_ref(), true),
                     _ => (arg, false),
                 };
-                let ty = match expr_for_ty.kind {
-                    ast::ExprKind::Lambda(_) => inputs.builtins.any,
-                    _ if is_top_level_fun_value_candidate_expr(inputs, expr_for_ty, lower)? => {
-                        inputs.builtins.any
-                    }
-                    _ => inputs.infer(lower, expr_for_ty)?,
-                };
+                let (ty, needs_expected_type) = infer_call_arg_info_ty(
+                    inputs,
+                    expr_for_ty,
+                    allow_expected_type_placeholder,
+                    lower,
+                )?;
                 out.push(CallArgInfo {
                     kind: CallArgKind::Positional,
                     expr: arg,
                     ty,
                     is_spread,
+                    needs_expected_type,
                 });
             }
         }
@@ -811,7 +854,7 @@ fn infer_function_type_call_expr_type(
         });
     };
 
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
     let param_names = callable_value_param_names(&fun);
     let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
@@ -1017,7 +1060,7 @@ fn infer_funptr_type_call_expr_type(
         });
     };
 
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
     let param_names = callable_value_param_names(&fun);
     let expected_arity = param_names.len();
     if call_args.iter().any(|arg| arg.is_spread) {
@@ -3497,7 +3540,21 @@ pub(super) fn collect_matched_ctor_overloads_for_owner(
 
             expected_arg_tys[arg_idx] = expected_ty;
             let arg = &call_args[arg_idx];
-            let found_ty = arg.ty;
+            let found_ty = if arg.needs_expected_type {
+                inputs.infer_in_expected(
+                    lower,
+                    arg.expr,
+                    expected_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "`{}` 的第 {} 个构造参数 `{}`",
+                        callee_for_diag,
+                        param_idx + 1,
+                        param_names[param_idx]
+                    )),
+                )?
+            } else {
+                arg.ty
+            };
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins)
                 || literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins)
@@ -3606,7 +3663,7 @@ fn infer_nominal_constructor_call_expr_type(
         return Ok(None);
     }
 
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
     let use_cone = lower.index().cone_of_source(source);
     let callee_name = source.slice(callee.span).to_string();
     check_call_arg_named_rules(&callee_name, &call_args)?;
@@ -5326,6 +5383,7 @@ fn infer_member_call_expr_type(
                 expr: receiver,
                 ty: actual_receiver_ty,
                 is_spread: false,
+                needs_expected_type: false,
             };
 
             let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
@@ -8003,6 +8061,7 @@ fn try_infer_where_bound_method_call(
             expr: receiver,
             ty: receiver_ty,
             is_spread: false,
+            needs_expected_type: false,
         };
 
         let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);

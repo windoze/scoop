@@ -22,10 +22,10 @@ effect Abort {
     fun stop(text: String): Nothing
 }
 
-class Cell(var k: Continuation<String>?, var seen: Int)
+class Cell(var k: Continuation<String, Int>?, var seen: Int)
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k, 0)
 
     val result: Int = handle {
@@ -87,10 +87,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume("alpha")
             } catch (e: RuntimeError) {
                 println("unexpected_resume1")
+                0
             }
         }
         None -> println("missing1")
@@ -100,10 +101,11 @@ fun main() {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume("beta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume2")
+                0
             }
         }
         None -> println("missing2")

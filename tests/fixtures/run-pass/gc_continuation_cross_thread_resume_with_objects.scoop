@@ -23,7 +23,7 @@ effect Await {
     fun pause(): Int
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Unit>?)
 
 struct Tag(val label: String, val score: Int)
 
@@ -46,7 +46,7 @@ fun describeNode(n: Node): String {
 }
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k)
 
     val _: Unit = handle {

@@ -24,7 +24,7 @@ fun main() {
     println("between")
 
     // 2) escape continuation handle as expression statement (no val binding).
-    var cell_k: Continuation<Int>? = None()
+    var cell_k: Continuation<Int, Unit>? = None()
     handle {
         println("handle_body")
         val x: Int = Suspend.fetch()

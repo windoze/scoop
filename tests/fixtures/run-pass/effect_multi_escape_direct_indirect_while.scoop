@@ -18,7 +18,7 @@ effect Abort {
     fun stop(text: String): Nothing
 }
 
-class Cell(var k: Continuation<String>?, var count: Int)
+class Cell(var k: Continuation<String, Int>?, var count: Int)
 
 fun fetch(seed: Int, label: String): String / (Ask) {
     println("fetch_enter")
@@ -32,7 +32,7 @@ fun fetch(seed: Int, label: String): String / (Ask) {
 }
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k, 0)
 
     val result: Int = handle {
@@ -80,10 +80,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume("alpha")
             } catch (e: RuntimeError) {
                 println("unexpected_resume1")
+                0
             }
         }
         None -> println("missing1")
@@ -93,10 +94,11 @@ fun main() {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume("beta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume2")
+                0
             }
         }
         None -> println("missing2")
@@ -106,10 +108,11 @@ fun main() {
     when (cell.k) {
         Some(k3) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k3.resume("gamma")
             } catch (e: RuntimeError) {
                 println("unexpected_resume3")
+                0
             }
         }
         None -> println("missing3")
@@ -119,10 +122,11 @@ fun main() {
     when (cell.k) {
         Some(k4) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k4.resume("delta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume4")
+                0
             }
         }
         None -> println("missing4")

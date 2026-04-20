@@ -8,7 +8,7 @@ effect Edge {
     fun visit(from: String, to: Int): Int
 }
 
-class Cell(var k: Continuation<Int>?, var total: Int)
+class Cell(var k: Continuation<Int, Unit>?, var total: Int)
 
 fun plain_branch(flag: Bool): Int {
     return handle {
@@ -67,7 +67,7 @@ fun main(): Int {
     println("immediate_result")
     println(immediate)
 
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k, 0)
     escape_case(cell)
     println("after_escape_handle")

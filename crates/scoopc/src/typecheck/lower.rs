@@ -65,6 +65,15 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "legacy `Continuation<Resume>` 简写已移除；请显式写出 answer type：`Continuation<Resume, Answer>`"
+    )]
+    #[diagnostic(code(scoop::typecheck::continuation_legacy_pure_shorthand_removed))]
+    ContinuationLegacyPureShorthandRemoved {
+        #[label("这里需要显式 answer type")]
+        span: miette::SourceSpan,
+    },
+
     #[error("类型 {name} 不支持 use-site effect row 实参（`eff ...`）")]
     #[diagnostic(code(scoop::typecheck::use_site_eff_arg_not_allowed))]
     UseSiteEffectRowArgNotAllowed {
@@ -2334,19 +2343,20 @@ impl<'a> TypeLowering<'a> {
                 span: path.span.into(),
             });
         }
-        let continuation_legacy_shorthand =
+        let continuation_legacy_pure_shorthand =
             fqn == "scoop.core.Continuation" && type_args.len() == 1;
+        if continuation_legacy_pure_shorthand {
+            return Err(TypeLowerError::ContinuationLegacyPureShorthandRemoved {
+                span: path.span.into(),
+            });
+        }
         let expected = self.env.type_param_count(&fqn).ok_or_else(|| {
             TypeLowerError::MissingTypeSymbolInEnv {
                 fqn: fqn.clone(),
                 span: path.span.into(),
             }
         })?;
-        let found = if continuation_legacy_shorthand {
-            expected
-        } else {
-            type_args.len()
-        };
+        let found = type_args.len();
         if expected != found {
             return Err(TypeLowerError::TypeArityMismatch {
                 name: fqn,
@@ -2364,13 +2374,10 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
-        let mut args = type_args
+        let args = type_args
             .iter()
             .map(|a| self.lower_type_ref(a))
             .collect::<Result<Vec<_>, _>>()?;
-        if continuation_legacy_shorthand {
-            args.push(self.ty_continuation_answer_hole(path.span));
-        }
 
         // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
         if fqn == PTR_FQN

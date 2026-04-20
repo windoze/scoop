@@ -12,7 +12,7 @@ effect Yield {
 }
 
 fun main() {
-    var saved: Continuation<Int>? = None()
+    var saved: Continuation<Int, Unit>? = None()
 
     // 注意：当前 LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val ignore: Unit = ...` 的形式提供。
     val ignore: Unit = handle {

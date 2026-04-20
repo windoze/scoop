@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::continuation_legacy_pure_shorthand_removed
+// EXPECT-ERROR: legacy `Continuation<Resume>` 简写已移除
+// EXPECT-ERROR-AT: 12:12
+// 目标：T4016b4b：pure continuation shorthand 也必须显式写出 answer type，
+// 避免内部 answer-hole 继续进入 replay / codegen 主线。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(k: Continuation<Int>) {}

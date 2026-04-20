@@ -781,12 +781,14 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             expr: lhs,
             ty: lhs_ty,
             is_spread: false,
+            needs_expected_type: false,
         },
         CallArgInfo {
             kind: CallArgKind::Positional,
             expr: rhs,
             ty: rhs_ty_for_selection,
             is_spread: false,
+            needs_expected_type: matches!(rhs.kind, ast::ExprKind::Lambda(_)),
         },
     ];
 

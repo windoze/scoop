@@ -28,13 +28,13 @@ effect AwaitT2 {
 
 // Per-task continuation slots for round-robin scheduling.
 class Scheduler(
-    var t0: Continuation<Int>?,
-    var t1: Continuation<Int>?,
-    var t2: Continuation<Int>?
+    var t0: Continuation<Int, Unit>?,
+    var t1: Continuation<Int, Unit>?,
+    var t2: Continuation<Int, Unit>?
 )
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val sched: Scheduler = Scheduler(none_k, none_k, none_k)
 
     // --- Task 0: 1 suspension (finishes after first resume) ---

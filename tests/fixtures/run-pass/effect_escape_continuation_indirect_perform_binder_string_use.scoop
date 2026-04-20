@@ -19,7 +19,7 @@ fun fetch(): String / (Ask) {
 }
 
 fun main() {
-    var saved_k: Continuation<String>? = None()
+    var saved_k: Continuation<String, String>? = None()
 
     val result: String = handle {
         println("body_start")
@@ -40,10 +40,11 @@ fun main() {
 
     when (saved_k) {
         Some(k) -> {
-            val _: Unit = try {
+            val _: String = try {
                 k.resume("world")
             } catch (e: RuntimeError) {
                 println("resume_error")
+                ""
             }
             println("after_resume")
         }

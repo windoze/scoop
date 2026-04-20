@@ -1,6 +1,7 @@
 // EXPECT: fail
-// T3304: 当前该 fixture 的真实阻塞不是统一 effect codegen，而是多 import 下 `None()`
-// 命中 `Option.None` 与 `LazyThreadSafetyMode.None` 的 enum ctor 歧义；待名称解析/expected-type 消歧收口后回收。
+// T4016b4b0: 当前该 fixture 已可成功 build；真实阻塞变为 worker 线程 cross-thread
+// resume 已逃逸 continuation 时的 runtime 崩溃。在 `SCOOP_GC_STRESS=1` 下，程序会在
+// 输出 `workerA_resuming` 后异常退出；待 continuation / GC / thread lifecycle 合同收口后回收。
 // RUN-STDOUT: gc_continuation_multi_thread_concurrent_alloc_resume.stdout
 //
 // T1705: Multi-thread + GC + escaping continuation — worker threads resume continuations.
@@ -34,8 +35,8 @@ effect AwaitB {
     fun pauseB(): Int
 }
 
-class CellA(var k: Continuation<Int>?)
-class CellB(var k: Continuation<Int>?)
+class CellA(var k: Continuation<Int, Unit>?)
+class CellB(var k: Continuation<Int, Unit>?)
 
 object Shared {
     val cellA: CellA = CellA(None())
@@ -44,7 +45,7 @@ object Shared {
 
 fun workerAFn() {
     val cell: CellA = Shared.cellA
-    val theK: Continuation<Int>? = cell.k
+    val theK: Continuation<Int, Unit>? = cell.k
     when (theK) {
         Some(ka) -> {
             println("workerA_resuming")
@@ -61,7 +62,7 @@ fun workerAFn() {
 
 fun workerBFn() {
     val cell: CellB = Shared.cellB
-    val theK: Continuation<Int>? = cell.k
+    val theK: Continuation<Int, Unit>? = cell.k
     when (theK) {
         Some(kb) -> {
             println("workerB_resuming")

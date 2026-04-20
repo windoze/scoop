@@ -20,7 +20,7 @@ effect Abort {
     fun stop(text: String): Nothing
 }
 
-class Cell(var k: Continuation<String>?)
+class Cell(var k: Continuation<String, Int>?)
 
 fun fetch(seed: Int): String / (Ask) {
     println("fetch_enter")
@@ -32,7 +32,7 @@ fun fetch(seed: Int): String / (Ask) {
 }
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k)
 
     val result: Int = handle {
@@ -73,10 +73,11 @@ fun main() {
     when (cell.k) {
         Some(k) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k.resume("hello")
             } catch (e: RuntimeError) {
                 println("unexpected_error")
+                0
             }
             println("after_resume")
         }

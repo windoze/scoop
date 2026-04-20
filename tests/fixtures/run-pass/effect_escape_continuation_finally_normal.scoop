@@ -16,10 +16,10 @@ effect Ask {
     fun get(): Int
 }
 
-class Cell(var k: Continuation<Int>?)
+class Cell(var k: Continuation<Int, Int>?)
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Int>? = None()
     val cell: Cell = Cell(none_k)
 
     println("before_handle")
@@ -46,10 +46,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             // `resume` 在类型系统里可能抛 `RuntimeError`；用 try/catch 维持 `main` 的 Pure 约束。
-            val _resume: Unit = try {
+            val _resume: Int = try {
                 k1.resume(42)
             } catch (e: RuntimeError) {
                 println("unexpected_resume")
+                0
             }
         }
         None -> println("no_k")

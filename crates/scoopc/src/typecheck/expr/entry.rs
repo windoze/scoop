@@ -14,8 +14,8 @@ use crate::effect_step_summary::compute_escape_continuation_direct_step_effect_r
 use crate::llvm::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program as compute_escape_continuation_direct_step_effect_rows_for_handle_with_program;
 
 use super::call::{
-    check_call_arg_named_rules, check_fn_value_to_any_erasure_gate, collect_call_arg_infos,
-    select_ctor_overload_for_owner,
+    check_call_arg_named_rules, check_fn_value_to_any_erasure_gate,
+    collect_call_arg_infos_allow_expected_type_placeholders, select_ctor_overload_for_owner,
 };
 use super::collect::{
     collect_member_mutabilities, collect_struct_field_types, collect_top_level_fun_signatures,
@@ -1675,7 +1675,7 @@ fn check_ctor_call_args_by_arity(
         args,
         exclude_ctor_span,
     } = request;
-    let call_args = collect_call_arg_infos(inputs, args, lower)?;
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
     check_call_arg_named_rules(&callee_for_diag, &call_args)?;
     let chosen = select_ctor_overload_for_owner(
         inputs,

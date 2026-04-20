@@ -118,9 +118,10 @@
 
 ### T4016b4 [TODO] 收口 legacy `Continuation<Resume, eff E>` / `Continuation<Resume>` 兼容 shorthand，避免 answer-hole 泄漏到 codegen（拆分执行）
 - 说明：
-  - 当前前端仍临时接受旧 shorthand，并用内部 continuation answer-hole 补齐缺失的 answer type。
-  - 但当 shorthand continuation 被存进字段/局部并跨 suspend 进入 effect frame / runtime object model 时，answer-hole 可能以 `TypeKind::Param` 形式泄漏到 monomorph / LLVM codegen；最早暴露在 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`，而随着回归推进又确认 pure shorthand 仍会在 `continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_async_executor_fifo.scoop` 等用例上沿同一路径泄漏到 `__resume_site*` frame slot。
-  - 由于“移除显式 `eff` shorthand”与“系统迁移仍会 `resume` 的 pure shorthand fixtures/source”规模差异明显，本条拆成 `T4016b4a -> T4016b4b` 顺序推进。
+  - 此前前端曾临时接受旧 shorthand，并用内部 continuation answer-hole 补齐缺失的 answer type。
+  - 也正因此，当 shorthand continuation 被存进字段/局部并跨 suspend 进入 effect frame / runtime object model 时，answer-hole 会以 `TypeKind::Param` 形式泄漏到 monomorph / LLVM codegen；最早暴露在 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`，随后又在 `continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_async_executor_fifo.scoop` 等用例上确认了同一路径的问题。
+  - 当前工作树已基本完成 pure shorthand 的 lowering 清理与显式 answer type 迁移，但在复验全量 `run-pass` 时暴露出新的 runtime 前置缺陷：`gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 现可成功 build，却会在 `SCOOP_GC_STRESS=1` 下于 `workerA_resuming` 后异常退出。
+  - 因此本条现按 `T4016b4a -> T4016b4b0 -> T4016b4b` 顺序推进：先移除显式 `eff` shorthand，再修复阻断全量 `run-pass` 验收的 cross-thread continuation runtime 崩溃，最后回到 pure shorthand 的收尾验收。
 - 范围：
   - 子任务全部完成后，legacy shorthand 的过渡规则要清晰：显式 `eff` shorthand 不再允许进入前端主线；仍保留的 pure shorthand 也不能再把 answer-hole 带进 codegen。
 - 验收：
@@ -141,19 +142,25 @@
   - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop -o /tmp/cont-shorthand.out && /tmp/cont-shorthand.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4016b4
 
-### T4016b4b [TODO] 系统迁移仍会 `resume` 的 pure `Continuation<Resume>` shorthand，并彻底清空 run-pass 中的 answer-hole 泄漏
+### T4016b4b0 [TODO] 修复 GC stress 下 cross-thread escaped continuation resume 的 runtime 崩溃，恢复 `T4016b4b` 的有效验收前提
 - 范围：
-  - 盘点并迁移仍通过 `Continuation<Resume>` 保存/转运后再 `resume(...)` 的 legacy fixture/source，把 answer type 显式化，或在无法保持正确语义时给出更早的 compatibility diagnostic。
-  - 重点覆盖当前仍会在 replay / resume site 上暴露 answer-hole 的 run-pass 用例，例如：
-    - `continuation_resume_continuation.scoop`
-    - `continuation_resume_enum.scoop`
-    - `effect_escape_continuation_async_executor_fifo.scoop`
-    - 以及同类“保存 shorthand continuation，稍后 resume”的其它 legacy fixtures
-  - 补 run-pass / codegen regression，确认 pure shorthand 不再把 `TypeKind::Param(_)` 泄漏到 `__resume_site*` frame slot。
+  - 定位并修复 `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下由 worker 线程 `resume` 已逃逸 continuation 时，于 `workerA_resuming` 后异常退出的问题。
+  - 核查 continuation / thread registration / GC rooting / frame liveness / cross-thread resume 合同，确保该 fixture 已能 build 的前提下，运行路径也与预期一致。
+  - 补 runtime / run-pass regression，确认该类“cross-thread continuation + object allocation + GC collect”场景不再作为 `T4016b4b` 全量 `run-pass` 验收的噪声 blocker。
+- 验收：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop -o /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 成功，且 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 按预期 stdout 正常结束，不再在 `workerA_resuming` 后异常退出。
+  - 相关 cross-thread continuation / GC stress run-pass 用例可稳定运行，为 `T4016b4b` 继续做全量 `run-pass` 验收恢复前提。
+- 依赖：T4016b4a
+
+### T4016b4b [TODO] 在 `T4016b4b0` 之后完成 pure `Continuation<Resume>` shorthand 的收尾迁移与全量 run-pass 验收
+- 范围：
+  - 在 `T4016b4b0` 修复 runtime 崩溃后，重新盘点并复验仍可能通过 `Continuation<Resume>` 保存/转运后再 `resume(...)` 的剩余 legacy fixture/source；若仍有遗漏，继续把 answer type 显式化，或在无法保持正确语义时给出更早的 compatibility diagnostic。
+  - 用全量 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 收尾验证 pure shorthand 已不再沿 replay / resume path 把 continuation answer-hole 泄漏到 codegen。
+  - 如全量回归仍揭示新的 pure shorthand 残留点，补对应 run-pass / codegen regression，直至 `TypeKind::Param(_)` 不再出现在 `__resume_site*` frame slot。
 - 验收：
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 全量通过。
   - legacy `Continuation<Resume>` shorthand 不再在任何 resume / replay path 上把 continuation answer-hole 泄漏进 codegen。
-- 依赖：T4016b4a
+- 依赖：T4016b4b0
 
 ### T4016d [TODO] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack
 - 范围：

@@ -10,7 +10,7 @@ effect Ask {
     fun ask(seed: Int): String
 }
 
-class Cell(var k: Continuation<String>?, var seen: Int)
+class Cell(var k: Continuation<String, String>?, var seen: Int)
 
 fun viaBranch(flag: Bool, base: Int): String / (Ask) {
     val result: String = if (flag) do {
@@ -32,7 +32,7 @@ fun viaBranch(flag: Bool, base: Int): String / (Ask) {
 }
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, String>? = None()
     val cell: Cell = Cell(none_k, 0)
 
     val result: String = handle {
@@ -62,10 +62,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: String = try {
                 k1.resume("alpha")
             } catch (e: RuntimeError) {
                 println("unexpected_resume1")
+                ""
             }
         }
         None -> println("missing1")
@@ -75,10 +76,11 @@ fun main() {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: String = try {
                 k2.resume("beta")
             } catch (e: RuntimeError) {
                 println("unexpected_resume2")
+                ""
             }
         }
         None -> println("missing2")

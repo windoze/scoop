@@ -17,7 +17,7 @@ fun callIt(f: () -> Int / (Ask)): Int / (Ask) {
 }
 
 fun main() {
-    var saved_k: Continuation<Reply>? = None()
+    var saved_k: Continuation<Reply, Int>? = None()
 
     val result: Int = handle {
         val prefix: String = "resume"
@@ -46,10 +46,11 @@ fun main() {
 
     when (saved_k) {
         Some(k) -> {
-            val _: Unit = try {
+            val _: Int = try {
                 k.resume(Reply { label: "boxed", score: 41 })
             } catch (e: RuntimeError) {
                 println("resume_error")
+                0
             }
             println("after_resume")
         }

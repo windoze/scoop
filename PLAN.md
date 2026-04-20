@@ -45,7 +45,8 @@
   - `T4016c`：再收口 runtime / ABI 的 answer-return channel，避免前端静态模型与底层 `void scoop_continuation_resume(...)` 继续错位。
   - `T4016b3`：最后基于统一 answer-return 通道，把 `Continuation.resume(...): Answer` 的 typecheck / lowering / codegen 主线彻底接通。
   - `T4016b4a`：先移除 legacy `Continuation<Resume, eff E>` shorthand，并收口最先暴露出来的 answer-hole codegen blocker。
-  - `T4016b4b`：再系统迁移仍会 `resume` 的 pure `Continuation<Resume>` shorthand，用全量 `run-pass` 清空剩余 answer-hole 泄漏。
+  - `T4016b4b0`：全量 `run-pass` 复验时新暴露出 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 的 cross-thread continuation / GC stress runtime 崩溃，需先修掉该前置 blocker。
+  - `T4016b4b`：在 `T4016b4b0` 之后，再用全量 `run-pass` 完成 pure `Continuation<Resume>` shorthand 的收尾迁移与最终验收。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -86,10 +87,16 @@
     - `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`、`continuation_resume_from_escape_binder_requires_step_effect.scoop` 与 `non_pure_continuation_resume_classifies_as_call_suspend_site` 单测已迁到显式 answer type；
     - 同时先把一批显然 answer=`Unit` 的 resume payload fixtures 迁到 `Continuation<Payload, Unit>`，避免继续混用旧 shorthand 叙事；
     - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop -o /tmp/cont-shorthand.out && /tmp/cont-shorthand.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 但 `T4016d` 的最终收口/验收目前仍被 `T4016b4b` 阻塞：
-    - 全量 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 继续在 legacy pure shorthand fixtures 上失败，例如 `continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_async_executor_fifo.scoop`；
-    - 根因与首个 blocker 同源：`Continuation<Resume>` 仍会把 continuation answer-hole 以 `TypeKind::Param` 形式泄漏到 LLVM `__resume_site*` frame slot，最终触发 `cg_ty_of: TypeKind::Param(_)` / `effect frame slot type`。
-  - 下一步先完成 `T4016b4b`，再回到 `T4016d` 做最终验收并推进 `T4016R`。
+  - `T4016b4b` 的编译器/fixture 迁移已基本推进到位：
+    - type lowering 已移除 legacy pure `Continuation<Resume>` 自动补 answer-hole 的兼容路径，并新增 removed diagnostic，要求显式写成 `Continuation<Resume, Answer>`；
+    - 构造器参数路径现已支持 expected-type placeholder 回填，`Cell(None())` 这类场景不再阻断 continuation fixture build；
+    - 相关 run-pass / typecheck fixtures 与 LLVM 内嵌测试源码已大批迁移到显式 answer type；
+    - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - 但继续用全量 `run-pass` 验收 `T4016b4b` 时，暴露出新的 runtime 前置 blocker，需要先抽成 `T4016b4b0`：
+    - `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 现已可以成功 build；
+    - `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 会在输出 `workerA_resuming` 后以 `exit code -1` 异常结束；
+    - 当前阻塞点因此已从 pure shorthand 的 codegen 泄漏，转为 cross-thread escaped continuation 在 GC stress 下的 runtime 崩溃。
+  - 下一步先完成 `T4016b4b0`，修复该 runtime blocker；之后回到 `T4016b4b` 完成全量 `run-pass` 验收，再推进 `T4016d` 与 `T4016R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

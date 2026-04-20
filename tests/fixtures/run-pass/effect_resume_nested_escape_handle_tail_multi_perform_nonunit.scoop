@@ -21,10 +21,10 @@ effect Ask {
     fun ask(): String
 }
 
-class Cell(var k: Continuation<String>?)
+class Cell(var k: Continuation<String, Int>?)
 
 fun main() {
-    val none_k: Continuation<String>? = None()
+    val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k)
     val note: String? = Some("captured_note")
 
@@ -65,10 +65,11 @@ fun main() {
     when (cell.k) {
         Some(k1) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k1.resume("hello")
             } catch (e: RuntimeError) {
                 println("unexpected_error1")
+                0
             }
             println("after_resume1")
         }
@@ -78,10 +79,11 @@ fun main() {
     when (cell.k) {
         Some(k2) -> {
             cell.k = none_k
-            val _: Unit = try {
+            val _: Int = try {
                 k2.resume("world")
             } catch (e: RuntimeError) {
                 println("unexpected_error2")
+                0
             }
             println("after_resume2")
         }

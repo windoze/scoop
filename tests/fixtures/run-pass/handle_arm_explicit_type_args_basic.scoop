@@ -17,7 +17,7 @@ effect Query {
     fun <T> ask(seed: Int): T
 }
 
-class Cell(var k: Continuation<Int>?, var total: Int)
+class Cell(var k: Continuation<Int, Unit>?, var total: Int)
 
 fun pair_case(): Int {
     return handle {
@@ -78,7 +78,7 @@ fun main(): Int {
     val immediate: Int = immediate_case()
     println(immediate)
 
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k, 0)
     escape_case(cell)
     println("after_escape_handle")

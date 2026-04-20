@@ -2857,7 +2857,7 @@ package a
 
 import scoop.core.*
 
-fun demo(k: Continuation<Int>): Int {
+fun demo(k: Continuation<Int, Int>): Int {
     val result: Int = try {
         k.resume(1)
         11

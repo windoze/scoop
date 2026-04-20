@@ -11,7 +11,7 @@ effect Ask {
 }
 
 fun main() {
-    var saved: Continuation<String>? = None()
+    var saved: Continuation<String, Unit>? = None()
 
     val _: Unit = handle {
         println("body_start")

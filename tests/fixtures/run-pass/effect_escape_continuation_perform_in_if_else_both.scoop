@@ -14,10 +14,10 @@ effect Suspend {
     fun fetch(): Int
 }
 
-class Cell(var k: Continuation<Int>?, var n: Int)
+class Cell(var k: Continuation<Int, Unit>?, var n: Int)
 
 fun main() {
-    val none_k: Continuation<Int>? = None()
+    val none_k: Continuation<Int, Unit>? = None()
     val cell: Cell = Cell(none_k, 0)
 
     val _: Unit = handle {
