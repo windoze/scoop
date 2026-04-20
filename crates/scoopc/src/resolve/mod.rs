@@ -944,8 +944,19 @@ impl Index {
             ..decl_origin
         };
 
-        // T0318：构造函数 overload set（primary + secondary）。
-        if let Some(primary_ctor) = &ty.primary_ctor {
+        // T0318/T4010b0：构造函数 overload set。
+        //
+        // - class：保留显式 primary/secondary ctor；
+        // - struct：统一暴露一个“按 direct field 列表构造”的 synthetic primary ctor，
+        //   让 `StructName(...)` 与 `StructName { ... }` 共享同一组字段绑定语义。
+        if matches!(ty.kind, ast::TypeKind::Struct) {
+            self.insert_struct_field_constructor_overload(
+                &type_prefix,
+                type_origin,
+                visibility,
+                ty,
+            );
+        } else if let Some(primary_ctor) = &ty.primary_ctor {
             self.insert_constructor_overload(
                 &type_prefix,
                 type_origin,
@@ -1048,18 +1059,21 @@ impl Index {
                 ast::TypeMember::InitBlock(_b) => {
                     // init block 不引入命名空间符号；它属于初始化执行体（Appendix B.2.2）。
                 }
-                ast::TypeMember::SecondaryCtor(_ctor) => {
-                    // T0318：secondary constructor 进入该 type 的 constructors overload set。
-                    let ctor = _ctor;
-                    let ctor_visibility = visibility_from_modifiers(&ctor.modifiers, ctor.span)?;
-                    self.insert_constructor_overload(
-                        &type_prefix,
-                        type_origin,
-                        ConstructorKind::Secondary,
-                        ctor_visibility,
-                        ctor.span,
-                        &ctor.params,
-                    );
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    // T4010b0：struct 的 direct construction 统一走 synthetic field ctor，
+                    // secondary ctor 不进入可调用候选，避免把 class-only 初始化执行体误暴露到 value type。
+                    if matches!(ty.kind, ast::TypeKind::Class) {
+                        let ctor_visibility =
+                            visibility_from_modifiers(&ctor.modifiers, ctor.span)?;
+                        self.insert_constructor_overload(
+                            &type_prefix,
+                            type_origin,
+                            ConstructorKind::Secondary,
+                            ctor_visibility,
+                            ctor.span,
+                            &ctor.params,
+                        );
+                    }
                 }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
@@ -1256,12 +1270,10 @@ impl Index {
         span: Span,
         params: &[ast::Param],
     ) {
-        let DeclOrigin { cone, source, .. } = decl_origin;
-        let decl_file = source.path().to_path_buf();
         let params = params
             .iter()
             .map(|p| ParamSig {
-                name: source.slice(p.name.span).to_string(),
+                name: decl_origin.source.slice(p.name.span).to_string(),
                 name_span: p.name.span,
                 ty: p.ty.clone(),
                 has_default: p.default_value.is_some(),
@@ -1269,6 +1281,27 @@ impl Index {
             })
             .collect::<Vec<_>>();
 
+        self.insert_constructor_overload_from_param_sigs(
+            type_fqn,
+            decl_origin,
+            kind,
+            visibility,
+            span,
+            params,
+        );
+    }
+
+    fn insert_constructor_overload_from_param_sigs(
+        &mut self,
+        type_fqn: &str,
+        decl_origin: DeclOrigin<'_>,
+        kind: ConstructorKind,
+        visibility: Visibility,
+        span: Span,
+        params: Vec<ParamSig>,
+    ) {
+        let DeclOrigin { cone, source, .. } = decl_origin;
+        let decl_file = source.path().to_path_buf();
         self.constructors
             .entry(type_fqn.to_string())
             .or_default()
@@ -1280,6 +1313,57 @@ impl Index {
                 span,
                 params,
             });
+    }
+
+    fn insert_struct_field_constructor_overload(
+        &mut self,
+        type_fqn: &str,
+        decl_origin: DeclOrigin<'_>,
+        visibility: Visibility,
+        decl: &ast::TypeDecl,
+    ) {
+        let source = decl_origin.source;
+        let mut params: Vec<ParamSig> = Vec::new();
+
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            params.extend(primary_ctor.params.iter().map(|p| ParamSig {
+                name: source.slice(p.name.span).to_string(),
+                name_span: p.name.span,
+                ty: p.ty.clone(),
+                has_default: p.default_value.is_some(),
+                is_vararg: p.is_vararg,
+            }));
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(property) = member else {
+                    continue;
+                };
+                params.push(ParamSig {
+                    name: source.slice(property.name.span).to_string(),
+                    name_span: property.name.span,
+                    ty: property.ty.clone(),
+                    has_default: property.init.is_some(),
+                    is_vararg: false,
+                });
+            }
+        }
+
+        let span = decl
+            .primary_ctor
+            .as_ref()
+            .map(|ctor| ctor.params_span)
+            .unwrap_or(decl.span);
+
+        self.insert_constructor_overload_from_param_sigs(
+            type_fqn,
+            decl_origin,
+            ConstructorKind::Primary,
+            visibility,
+            span,
+            params,
+        );
     }
 
     fn insert_fun_overload(

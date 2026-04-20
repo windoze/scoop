@@ -2011,9 +2011,9 @@ pub(super) fn infer_call_expr_type(
                     return Ok(ctor_ty);
                 }
 
-                // T0454：class 构造调用（primary + secondary constructors）重载决议。
+                // T0454/T4010b0：nominal 构造调用（class ctor / struct field constructor）重载决议。
                 if let Some(ctor_ty) =
-                    infer_class_constructor_call_expr_type(inputs, call_expr, id, args, lower)?
+                    infer_nominal_constructor_call_expr_type(inputs, call_expr, id, args, lower)?
                 {
                     return Ok(ctor_ty);
                 }
@@ -3478,7 +3478,7 @@ pub(super) fn select_ctor_overload_for_owner(
     Ok(matched.swap_remove(idx))
 }
 
-fn infer_class_constructor_call_expr_type(
+fn infer_nominal_constructor_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::ValueIdent,
@@ -3492,36 +3492,26 @@ fn infer_class_constructor_call_expr_type(
         return Ok(None);
     };
 
-    let mut ctor_types: Vec<String> = call
+    let mut ctor_owners: Vec<(String, ast::TypeKind)> = call
         .candidates
         .iter()
-        .filter_map(|c| match c {
-            ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
-            ast::CallCandidate::Fun { .. } => None,
+        .filter_map(|candidate| {
+            let ast::CallCandidate::Constructor { ty_fqn } = candidate else {
+                return None;
+            };
+            match lower.env().type_symbol(ty_fqn).map(|sym| sym.kind) {
+                Some(TypeSymbolKind::Nominal(
+                    kind @ (ast::TypeKind::Class | ast::TypeKind::Struct),
+                )) => Some((ty_fqn.clone(), kind)),
+                _ => None,
+            }
         })
         .collect();
-    ctor_types.sort();
-    ctor_types.dedup();
+    ctor_owners.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+    ctor_owners.dedup_by(|(lhs, _), (rhs, _)| lhs == rhs);
 
-    if ctor_types.is_empty() {
+    if ctor_owners.is_empty() {
         return Ok(None);
-    }
-
-    ctor_types.retain(|ty_fqn| {
-        matches!(
-            lower.env().type_symbol(ty_fqn).map(|s| s.kind),
-            Some(TypeSymbolKind::Nominal(ast::TypeKind::Class))
-        )
-    });
-    if ctor_types.is_empty() {
-        return Ok(None);
-    }
-
-    if lower.in_const_context() {
-        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
-            ty: source.slice(callee.span).to_string(),
-            span: call_expr.span.into(),
-        });
     }
 
     let call_args = collect_call_arg_infos(inputs, args, lower)?;
@@ -3531,8 +3521,8 @@ fn infer_class_constructor_call_expr_type(
 
     if call_args_have_named(&call_args) {
         let mut all_names: HashSet<String> = HashSet::new();
-        for ty_fqn in ctor_types.iter() {
-            let Some(ctors) = lower.index().constructors.get(ty_fqn) else {
+        for (owner_fqn, _) in &ctor_owners {
+            let Some(ctors) = lower.index().constructors.get(owner_fqn) else {
                 continue;
             };
             for ctor in ctors
@@ -3560,10 +3550,10 @@ fn infer_class_constructor_call_expr_type(
     }
 
     let mut matched: Vec<MatchedCtorOverload> = Vec::new();
-    for ty_fqn in ctor_types {
+    for (owner_fqn, _) in &ctor_owners {
         matched.extend(collect_matched_ctor_overloads_for_owner(
             inputs,
-            &ty_fqn,
+            owner_fqn,
             call_expr.span,
             &callee_name,
             &call_args,
@@ -3592,6 +3582,18 @@ fn infer_class_constructor_call_expr_type(
         };
         matched.swap_remove(idx)
     };
+
+    let chosen_kind = ctor_owners
+        .iter()
+        .find_map(|(owner_fqn, kind)| (owner_fqn == &chosen.owner_fqn).then_some(*kind))
+        .expect("chosen ctor owner kind should exist");
+
+    if lower.in_const_context() && matches!(chosen_kind, ast::TypeKind::Class) {
+        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
+            ty: source.slice(callee.span).to_string(),
+            span: call_expr.span.into(),
+        });
+    }
 
     lower.record_typechecked_ctor_call_binding(
         call_expr.span,

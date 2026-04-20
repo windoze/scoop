@@ -346,6 +346,14 @@ impl<'a> HirLowering<'a> {
                     ))
                 })() {
                     (kind, ty)
+                } else if let Some((kind, ty)) = self.try_lower_struct_ctor_call_expr(
+                    pkg_prefix,
+                    e.span,
+                    callee,
+                    args,
+                    typechecked_call_ty,
+                ) {
+                    (kind, typechecked_call_ty.unwrap_or(ty))
                 } else if let Some((kind, ty)) =
                     self.try_lower_default_args_call_expr(pkg_prefix, e.span, callee, args)
                 {
@@ -355,12 +363,20 @@ impl<'a> HirLowering<'a> {
                     // 但 codegen 需要知道 typecheck 已选中的 ctor 目标与参数绑定。
                     if let ast::ExprKind::Ident(id) = &callee.kind
                         && let Some(binding) = self
-                            .typechecked_ctor_call_info(e.span)
-                            .or_else(|| self.resolver_fallback_ctor_call_info(id, args))
+                            .typechecked_ctor_call_binding(e.span)
+                            .or_else(|| self.resolver_fallback_ctor_call_binding(id, args))
+                        && matches!(
+                            self.type_kinds.get(&binding.owner_fqn),
+                            Some(ast::TypeKind::Class)
+                        )
                     {
                         self.ctor_call_sites
                             .entry(self.call_site(e.span))
-                            .or_insert(binding);
+                            .or_insert(super::super::CtorCallInfo {
+                                class_fqn: binding.owner_fqn,
+                                ctor_span: binding.ctor_span,
+                                arg_mapping: binding.arg_mapping,
+                            });
                     }
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
@@ -912,27 +928,22 @@ impl<'a> HirLowering<'a> {
         Some((fun_ref.fqn, type_args))
     }
 
-    fn typechecked_ctor_call_info(&self, span: Span) -> Option<super::super::CtorCallInfo> {
-        let binding = self.file.typechecked_ctor_call_binding(span)?;
-        Some(super::super::CtorCallInfo {
-            class_fqn: binding.owner_fqn,
-            ctor_span: binding.ctor_span,
-            arg_mapping: binding.arg_mapping,
-        })
+    fn typechecked_ctor_call_binding(&self, span: Span) -> Option<ast::CtorCallBinding> {
+        self.file.typechecked_ctor_call_binding(span)
     }
 
-    /// 无完整 typecheck 的 lowering/IR 测试入口仍可能需要识别简单 direct class ctor call。
+    /// 无完整 typecheck 的 lowering/IR 测试入口仍可能需要识别简单 nominal ctor call。
     ///
     /// 说明：
     /// - 优先使用 typecheck side table；这里只作为 resolver 级 fallback；
     /// - 仅依据 resolver 的 ctor 候选集合与调用形状恢复“唯一可判定”的目标；
     /// - 若存在重载歧义、vararg/spread、或需要更深类型信息才能决定的情况，则返回 `None`，
     ///   让无 typecheck 路径保持保守失败，而不是猜错目标 ctor。
-    fn resolver_fallback_ctor_call_info(
+    fn resolver_fallback_ctor_call_binding(
         &self,
         callee: &ast::ValueIdent,
         args: &[ast::Expr],
-    ) -> Option<super::super::CtorCallInfo> {
+    ) -> Option<ast::CtorCallBinding> {
         let call = callee.call.as_ref()?;
         let mut ctor_types: Vec<String> = call
             .candidates
@@ -961,8 +972,8 @@ impl<'a> HirLowering<'a> {
 
         if visible_ctors.is_empty() {
             return if args.is_empty() {
-                Some(super::super::CtorCallInfo {
-                    class_fqn: owner_fqn,
+                Some(ast::CtorCallBinding {
+                    owner_fqn,
                     ctor_span: None,
                     arg_mapping: Vec::new(),
                 })
@@ -983,11 +994,71 @@ impl<'a> HirLowering<'a> {
             return None;
         }
         let (ctor_span, arg_mapping) = matched.pop()?;
-        Some(super::super::CtorCallInfo {
-            class_fqn: owner_fqn,
+        Some(ast::CtorCallBinding {
+            owner_fqn,
             ctor_span,
             arg_mapping,
         })
+    }
+
+    fn try_lower_struct_ctor_call_expr(
+        &mut self,
+        pkg_prefix: &str,
+        call_span: Span,
+        callee: &ast::Expr,
+        args: &[ast::Expr],
+        typechecked_call_ty: Option<TypeId>,
+    ) -> Option<(ExprKind, TypeId)> {
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            return None;
+        };
+        let binding = self
+            .typechecked_ctor_call_binding(call_span)
+            .or_else(|| self.resolver_fallback_ctor_call_binding(id, args))?;
+        if !matches!(
+            self.type_kinds.get(&binding.owner_fqn),
+            Some(ast::TypeKind::Struct)
+        ) {
+            return None;
+        }
+
+        let ctor = self
+            .index
+            .constructors
+            .get(&binding.owner_fqn)?
+            .iter()
+            .find(|ctor| binding.ctor_span == Some(ctor.span))?;
+        if binding.arg_mapping.len() != ctor.params.len() {
+            return None;
+        }
+
+        let result_ty = typechecked_call_ty
+            .unwrap_or_else(|| self.intern_nominal(binding.owner_fqn.clone(), Vec::new(), None));
+        let mut fields = Vec::with_capacity(ctor.params.len());
+
+        for (param_idx, param) in ctor.params.iter().enumerate() {
+            let arg_idx = binding.arg_mapping.get(param_idx).copied().flatten()?;
+            let arg = args.get(arg_idx)?;
+            let value_expr = match &arg.kind {
+                ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
+                _ => arg,
+            };
+            fields.push(StructLitField {
+                span: value_expr.span,
+                name: param.name.clone(),
+                name_span: call_span,
+                colon_span: call_span,
+                value: self.lower_expr(pkg_prefix, value_expr),
+            });
+        }
+
+        Some((
+            ExprKind::StructLit {
+                ty: result_ty,
+                fields,
+            },
+            result_ty,
+        ))
     }
 
     fn resolver_ctor_visible(&self, ctor: &ConstructorOverload) -> bool {

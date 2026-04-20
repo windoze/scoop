@@ -1,0 +1,68 @@
+File {
+    items: [
+        Todo {
+            span: 43..79,
+            kind: "type",
+        },
+        Val(
+            ValDecl {
+                span: 81..119,
+                id: Some(
+                    S0,
+                ),
+                name: Some(
+                    "point",
+                ),
+                mutable: false,
+                ty: TypeId(
+                    10,
+                ),
+                init: Some(
+                    Expr {
+                        span: 100..119,
+                        ty: TypeId(
+                            10,
+                        ),
+                        kind: StructLit {
+                            ty: TypeId(
+                                10,
+                            ),
+                            fields: [
+                                StructLitField {
+                                    span: 117..118,
+                                    name: "x",
+                                    name_span: 100..119,
+                                    colon_span: 100..119,
+                                    value: Expr {
+                                        span: 117..118,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Literal(
+                                            Int,
+                                        ),
+                                    },
+                                },
+                                StructLitField {
+                                    span: 110..111,
+                                    name: "y",
+                                    name_span: 100..119,
+                                    colon_span: 100..119,
+                                    value: Expr {
+                                        span: 110..111,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Literal(
+                                            Int,
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+    ],
+}

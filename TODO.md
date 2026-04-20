@@ -1394,7 +1394,7 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a2a
 
-### T4010b0 [TODO] 收口 `struct` ctor call 与 struct literal 的统一构造语义
+### T4010b0 [DONE] 收口 `struct` ctor call 与 struct literal 的统一构造语义
 - 说明：
   - 在开始 `T4010b` 前，先用最小 probe
     `struct Point(val x: Int, val y: Int); fun main(): Int { val p: Point = Point(1, 2); return p.x + p.y }`
@@ -1408,6 +1408,28 @@
 - 验收：
   - spec §2.3.1 的最小 probe 可 build/run。
   - `T4010b` 可建立在统一构造入口上继续推进字段默认值，而不是只补单一 surface。
+- 已完成：
+  - resolver / `Index::constructors` 现为 `struct` 合成基于 direct field 列表的 synthetic primary constructor：primary ctor 参数与 body-property 字段会按统一顺序进入同一组构造参数，不再只有“显式 primary ctor 参数”才可出现在 `StructName(...)`。
+  - `struct` 的 secondary ctor 不再进入 direct constructor candidate，避免把 class-only 初始化执行体误暴露为 value-construction 入口；`StructName(...)` 现统一表示“按字段列表构造 value”，而不是 class ctor special-case。
+  - typecheck 的 unresolved call 主线现统一处理 nominal constructor call：class ctor 与 struct field constructor 共用命名/位置实参绑定与 overload 选择；其中 class 继续保留 const-context gate，struct 则按 value construction 返回 concrete nominal value type。
+  - HIR lowering 现把 struct ctor call 直接收口为 `StructLit`，因此 LLVM 后端继续复用既有 struct aggregate codegen，而不是为 struct 再开一条 ctor-call side table / codegen 旁路。
+  - 已新增回归：
+    - `tests/fixtures/build/struct_ctor_call_minimal_ok.scoop`
+    - `tests/fixtures/run-pass/struct_ctor_call_literal_equivalence_basic.scoop`
+    - `tests/fixtures/typecheck/struct_ctor_call_ok.scoop`
+    - `tests/fixtures/typecheck/struct_ctor_call_unknown_named_arg_is_error.scoop`
+    - `tests/fixtures/hir/struct_ctor_call_lowering.scoop`
+    - `tests/fixtures/hir/struct_ctor_call_lowering.hir`
+    - `resolve::scopes::tests::struct_field_constructor_call_is_collected_as_candidate`
+- 已验证：
+  - `cargo test -q -p scoopc struct_field_constructor_call_is_collected_as_candidate -- --nocapture`
+  - `cargo run -q -p scoop -- build tests/fixtures/build/struct_ctor_call_minimal_ok.scoop -o /tmp/struct_ctor_call_minimal_ok.out`
+  - `/tmp/struct_ctor_call_minimal_ok.out`（退出码 `3`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (344)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/hir`（`fixtures: ok (18)`）
+  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (361)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4010a2b
 
 ### T4010b0R [TODO] Review：确认 `struct` ctor call 不再与 struct literal 分裂

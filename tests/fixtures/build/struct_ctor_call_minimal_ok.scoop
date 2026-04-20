@@ -1,0 +1,12 @@
+// EXPECT: pass
+//
+// 目标：spec §2.3.1 中 `Point { ... }` 与 `Point(...)` 的最小 probe 可稳定 build。
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun main(): Int {
+    val p: Point = Point(1, 2)
+    return p.x + p.y
+}

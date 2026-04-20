@@ -3062,6 +3062,69 @@ mod tests {
     }
 
     #[test]
+    fn struct_field_constructor_call_is_collected_as_candidate() {
+        let s1 = SourceFile::new_virtual(
+            "<p1>",
+            "package p1\nstruct Point {\n  val x: Int\n  val y: Int\n}",
+        );
+        let s2 = SourceFile::new_virtual(
+            "<use>",
+            "package use\nimport p1.Point\nfun use() { Point(1, 2) }",
+        );
+
+        let f1 = parse_file(&s1).unwrap();
+        let mut f2 = parse_file(&s2).unwrap();
+
+        let index = Index::build(&[(&s1, &f1), (&s2, &f2)]).unwrap();
+        super::super::check_file_bindings(&s2, &mut f2, &index).unwrap();
+
+        let fun_use = f2
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if s2.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, args } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            panic!("expected ident callee");
+        };
+
+        assert_eq!(args.len(), 2);
+        assert_eq!(
+            id.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![ast::CallCandidate::Constructor {
+                    ty_fqn: "p1.Point".to_string()
+                }],
+                shape: ast::CallShape {
+                    args: vec![
+                        ast::CallArgShape::Positional { span: args[0].span },
+                        ast::CallArgShape::Positional { span: args[1].span },
+                    ],
+                },
+            })
+        );
+    }
+
+    #[test]
     fn private_top_level_is_not_visible_from_other_file() {
         let s1 = SourceFile::new_virtual("<a1>", "package a\nprivate fun hidden() {}");
         let s2 = SourceFile::new_virtual("<a2>", "package a\nfun use() { hidden() }");

@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：T4010b0 struct ctor call 进入与 struct literal 对齐的字段绑定主线。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+struct Size {
+    val w: Int
+    val h: Int
+}
+
+fun use() {
+    val point: Point = Point(y = 2, x = 1)
+    val size: Size = Size(3, 4)
+}

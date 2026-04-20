@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unknown_call_arg_name
+// EXPECT-ERROR-AT: 17:27
+// EXPECT-ERROR: 没有名为 `depth` 的参数
+// 目标：struct ctor call 的命名参数校验应与统一调用绑定主线对齐。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Size {
+    val w: Int
+    val h: Int
+}
+
+fun use() {
+    val size: Size = Size(depth = 1, h = 2)
+}
