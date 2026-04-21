@@ -1480,6 +1480,14 @@ As a consequence, casting/boxing a function value to `Any` is only permitted whe
 
 Rationale: once the value is erased to `Any`, the effect row cannot be recovered or checked at runtime; allowing effectful function values to be stored as `Any` would permit calling them later without the required effect handling, leading to runtime failures.
 
+Explicit runtime casts are otherwise **not defined** on function types:
+
+- ❌ forbidden: `any as? (() -> Int / Pure!)`
+- ❌ forbidden: `f as (() -> Int / Pure!)`
+- ❌ forbidden: any `as` / `as?` whose source or target is a non-`Pure` function type
+
+Use ordinary function subtyping / coercion instead: parameter contravariance, return covariance, and effect-row widening are applied through expected types, assignment, branch merging, and generic instantiation. If a function value must cross a runtime nominal boundary, wrap it in a nominal container first and cast the wrapper, not the raw function value itself.
+
 Example:
 
 ```kotlin

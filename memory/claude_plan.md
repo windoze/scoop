@@ -1,73 +1,75 @@
-# 本轮执行计划（T4016T1a）
+# 当前执行计划（初始）
+
+## 说明
+
+按要求先记录计划与决策摘要，再开始任何仓库检查或命令执行。这里记录的是可审计的执行计划、关键判断依据与后续进度更新，不包含逐字原始内部推理。
 
 ## 目标
 
-完成 `TODO.md` 中当前第一个未完成任务 `T4016T1a`，修复“枚举/结构体字段为函数类型时的布局与调用链不完整”问题，并在完成后停止，不继续处理后续任务。
+本轮只完成 `TODO.md` 中“第一个未完成任务”，但在此之前必须先检查最新提交是否提到已有问题；如果提到，先修复该问题。执行过程中若发现任何既有 bug、回归、规约不匹配、实现边界缺口或测试暴露出的已有问题，都要立即纳入本轮范围，优先修复或在 `TODO.md` 中插入前置任务后停止。
 
-## 已确认前提
+## 步骤计划
 
-- 已检查上一轮总结，当前首个未完成任务是 `T4016T1a`。
-- 已识别两个必须一起修复的既有问题：
-  1. HIR layout side table 会把 `TypeRef::Function` 丢成 `None`，导致 LLVM 最终无法为函数类型字段生成正确 struct field type。
-  2. `receiver.f()` 中若 `f` 是函数值，typecheck 会错误报 `callee_not_callable`，阻塞字段上函数值的直接调用。
-- 这两个问题都属于当前任务范围，不能拆开只修一半。
+1. 查看最新一次 git 提交信息，确认是否显式提到某个已有问题、已知缺陷、回归或待补修复点。
+2. 读取 `TODO.md` 和 `PLAN.md`，识别第一个未完成任务，并理解当前任务排序与依赖。
+3. 如果该任务过大：
+   - 在 `PLAN.md` 中细化任务；
+   - 在 `TODO.md` 中拆分成更小的子任务并重排顺序；
+   - 选择拆分后的第一个子任务作为本轮目标。
+4. 在正式实现前检查相关代码、测试和规格上下文，识别任何阻塞性的既有问题。
+5. 实现目标任务或其前置修复。
+6. 运行充分验证：
+   - 至少运行与改动直接相关的测试；
+   - 若改动影响面较大，再运行更广的测试；
+   - 按要求运行无警告检查，例如 `cargo clippy --all-targets -- -D warnings`（若时间和影响面允许则纳入本轮验证）。
+7. 更新文档与计划：
+   - 勾选 `TODO.md` 中已完成任务；
+   - 更新 `PLAN.md`；
+   - 按进度更新本文件。
+8. 提交 git commit，提交信息描述本轮完成事项。
+9. 停止，不继续下一个任务。
 
-## 执行步骤
+## 初始风险与关注点
 
-1. 检查并修复当前 Rust 编译错误，重点关注：
-   - `crates/scoopc/src/hir/lower/util.rs`
-   - `crates/scoopc/src/llvm/codegen/mod.rs`
-2. 重新编译并运行最小定向用例，确认以下场景全部可用：
-   - enum payload 为函数值
-   - task state payload 为函数值
-   - struct 字段为函数值且可直接调用
-3. 运行相关 fixture 测试：
-   - `tests/fixtures/typecheck`
-   - `tests/fixtures/run-pass`
-4. 运行更完整验证：
-   - `cargo run -p scoop -- test`
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-5. 若中途发现新的既有 blocker：
-   - 优先修复；
-   - 若无法在本轮直接完成，则先更新 `TODO.md` / `PLAN.md` / 本文件，插入前置任务后停止。
-6. 若当前任务完成：
-   - 更新 `TODO.md`，将 `T4016T1a` 标记完成；
-   - 更新 `PLAN.md` 与本文件，记录结果；
-   - 提交 git commit；
-   - 停止。
-
-## 当前关注点
-
-- `hir/lower/util.rs` 里 generic layout collector 可能仍有借用冲突，需要通过缩短 `types.kind(...)` 的借用生命周期或改写闭包为显式循环解决。
-- `llvm/codegen/mod.rs` 里 callable callee 分支可能有 `self` 双重可变借用，需要把 `self.codegen_expr(callee)?` 拆成前置局部变量。
-- 必须确保实现不是 workaround，而是让字段上的函数类型走正常布局和 callable-value 主线。
+- 最新提交若只“提到”问题但未修复，需要先处理中断原任务流程。
+- 若首个未完成任务依赖当前尚未实现或存在缺陷的语言特性，不允许绕过，必须先把缺口作为前置任务写回 `TODO.md`/`PLAN.md`。
+- 若工作树已有未提交改动，需要谨慎避免覆盖用户改动。
 
 ## 进度记录
 
-- 已写入本轮计划。
-- 已修复当前 Rust 编译错误：
-  - `hir/lower/util.rs`：缩短 `TypeStore` 借用生命周期，并在 generic struct/enum layout 收集时先克隆 nominal 元数据，避免字段解析时的可变/不可变借用冲突。
-  - `llvm/codegen/mod.rs`：将 callable callee 的 `codegen_expr` 与 `coerce_value` 拆成两个步骤，消除 `self` 双重可变借用。
-- 已确认 `cargo check -p scoopc --features llvm` 通过。
-- 重新定位并修复了两个主线漏口：
-  - `typecheck/expr/call.rs`：当 member call 实际落在 value member 且该成员类型可调用时，除了沿 callable-value 主线推导返回类型，还需要把重新解析得到的 member resolution 写回 side table；否则 build 阶段 HIR 仍保留 `resolved: None`，LLVM 无法识别 `receiver.f()` 是函数值调用。
-  - `llvm/codegen/mod.rs`：补上 `MemberAccess` 与 struct 构造结果的 concrete type 恢复，使 struct/class 字段函数值可在 codegen 前恢复真实 `TypeId`，命中新加的 callable-callee 分支。
-- 三个最小定向用例已全部通过：
-  - `struct_function_field_call_basic.scoop` 可构建，执行退出码为 `7`。
-  - `task_state_function_payload_basic.scoop` 可构建，执行退出码为 `2`。
-  - `enum_function_payload_basic.scoop` 可构建，执行退出码为 `16`。
-- fixture 形状微调：
-  - enum probe 在 `main` 中改为先绑定 `val step: Step = Ready({ 8 })` 再调用 `drive(step)`，避免把验证重点混入当前与 prelude 同名 variant 的调用点歧义。
-  - task-state probe 用 `__scoop_task_step_ready(0)` 产出私有 `__TaskStepResult`，更贴近真实 task driver 路径。
-- 已完成更完整验证：
+- 已完成：初始计划写入。
+- 已完成：检查最新提交 `205c5211`，提交信息仅为 `Update plan`，未显式提到需优先修复的既有问题。
+- 已完成：读取 `TODO.md` / `PLAN.md`，确认当前顺序上的首个可执行未完成子任务为 `T4016T1b`：禁止带 effect 的函数类型使用 `as/as?`，收口函数类型转换语义。
+- 已完成：阅读 `typecheck/expr/infer.rs`、`typecheck/expr/error.rs`、`llvm/codegen/mod.rs`、`SCOOP_FULL_SPEC.md` 中与 `as/as?`、function type、effect row 相关的主线。
+- 已确认的既有问题：
+  - 当前 `is_cast_allowed` 仍把几乎所有 `ref -> ref` 显式 cast 一律放行。
+  - `Any as? (() -> Int / Pure!)` 这类 cast 能走过前端，但会在 LLVM 代码生成阶段失败为 `unsupported_main_body: type check target type`。
+  - 因此函数类型显式 cast 语义本身尚未收口，不能只处理 non-`Pure` effect row 而忽略 pure function target。
+- 当前决定：
+  - 在本轮内直接完成 `T4016T1b`，并把语义收口为：
+    - 显式 `as/as?` 不再定义在函数类型 runtime cast 上；
+    - 继续保留现有的 `closed Pure! function -> Any` 擦除门禁；
+    - 对 source/target 为 non-`Pure` 函数类型时，给出明确诊断，说明 effect row 不具备 runtime-checkable semantics；
+    - 对其余函数类型显式 cast（例如 `Any -> (() -> Int / Pure!)`）同样在前端拒绝，避免把未定义/未实现的 function runtime cast 漏到 LLVM。
+- 已完成实现：
+  1. 在 `typecheck/expr/infer.rs` 的 cast 路径加入 `check_function_type_cast_boundary`，让 direct function `as/as?` 在前端即被拒绝；`closed Pure! function -> Any` 继续允许。
+  2. 在 `typecheck/expr/error.rs` 中新增两个稳定诊断：
+     - `scoop::typecheck::function_type_cast_not_supported`
+     - `scoop::typecheck::effectful_function_type_cast_not_supported`
+  3. 更新 `SCOOP_FULL_SPEC.md`，明确函数类型的显式 runtime cast 不成立，普通函数子类型 / coercion 才是合法路径。
+  4. 新增 4 个定向 fixtures，覆盖：
+     - `Any -> pure function` 的 `as?` 禁止；
+     - non-`Pure` function `as` 禁止；
+     - non-`Pure` function `as?` 禁止；
+     - `Pure! -> Any` 的显式 cast 仍可通过。
+- 已完成验证：
   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
-  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
   - `cargo run -p scoop -- test`
   - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
-- 额外修复的既有 blocker：
-  - fixture runner 在 `cargo run -p scoop -- test` 中通过 `current_exe()` 获取到 `.../scoop (deleted)` 路径，导致 run-pass 自调用失败；现已修复为回退到去掉 `(deleted)` 后缀的真实路径。
-- 当前状态：
-  - `T4016T1a` 已完成并已更新 `TODO.md` / `PLAN.md`。
-  - 下一轮应从 `T4016T1R` 开始，而不是直接进入 `T4016T2`。
+- 已完成文档收口：
+  - `TODO.md` 已将 `T4016T1b` 标记为 `[DONE]`，并补充完成说明、回归列表与下一顺位 `T4016T1c`。
+  - `PLAN.md` 已同步为“`T4016T1b` 完成、下一步 `T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`”。
+- 当前待完成：
+  - 提交本轮改动并停止。

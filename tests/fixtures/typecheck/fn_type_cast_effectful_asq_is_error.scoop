@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::effectful_function_type_cast_not_supported
+// EXPECT-ERROR: effect row 只存在于编译期
+// EXPECT-ERROR-AT: 13:51
+// 目标：T4016T1b：带非 `Pure` effect row 的函数类型不能参与显式 `as?`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad() {
+    val f: () -> Int / Raise<RuntimeError> = { 1 }
+    val g: (() -> Int / Raise<RuntimeError>)? = f as? (() -> Int / Raise<RuntimeError>)
+    val _ = g
+}

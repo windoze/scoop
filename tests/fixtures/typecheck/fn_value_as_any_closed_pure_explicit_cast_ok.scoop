@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T4016T1b：闭合纯函数值仍可通过显式 `as Any` 擦除；这不是 function runtime cast。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun ok(): Unit / Raise<RuntimeError> {
+    val f: () -> Int / Pure! = { 1 }
+    val a: Any = f as Any
+    val _ = a
+}

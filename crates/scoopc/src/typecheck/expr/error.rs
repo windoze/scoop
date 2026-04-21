@@ -864,6 +864,28 @@ pub enum ExprTypeError {
     },
 
     #[error(
+        "显式 `as`/`as?` 不支持函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper"
+    )]
+    #[diagnostic(code(scoop::typecheck::function_type_cast_not_supported))]
+    FunctionTypeCastNotSupported {
+        from: String,
+        to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同"
+    )]
+    #[diagnostic(code(scoop::typecheck::effectful_function_type_cast_not_supported))]
+    EffectfulFunctionTypeCastNotSupported {
+        from: String,
+        to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
         "函数值擦除到 `Any` 仅允许闭合纯函数类型 `(...)->R / Pure!`（effects 不可在运行时保真）；但这里得到 {found}"
     )]
     #[diagnostic(code(scoop::typecheck::fn_value_to_any_requires_closed_pure))]

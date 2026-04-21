@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::function_type_cast_not_supported
+// EXPECT-ERROR: 不支持函数类型的 runtime cast
+// EXPECT-ERROR-AT: 14:37
+// 目标：T4016T1b：即使是闭合纯函数类型，也不定义 `Any -> function` 的显式 `as?` runtime cast。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad() {
+    val f: () -> Int / Pure! = { 1 }
+    val a: Any = f
+    val g: (() -> Int / Pure!)? = a as? (() -> Int / Pure!)
+    val _ = g
+}

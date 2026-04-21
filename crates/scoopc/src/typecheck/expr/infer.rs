@@ -141,6 +141,7 @@ pub(super) fn infer_expr_type(
             // spec §7.5：effects 是纯编译期信息，运行时不携带也无法验证；
             // 因此除 `(...)->R / Pure!` 外的函数值不允许擦除/转换为 `Any`（T0632）。
             check_fn_value_to_any_erasure_gate(from_ty, target_ty, *op_span, lower, builtins)?;
+            check_function_type_cast_boundary(from_ty, target_ty, *op_span, lower, builtins)?;
 
             if !is_cast_allowed(from_ty, target_ty, lower, builtins) {
                 return Err(ExprTypeError::InvalidCast {
@@ -3025,6 +3026,66 @@ fn parse_with_update_tuple_member_index(text: &str) -> Option<usize> {
         return None;
     }
     digits.parse::<usize>().ok()
+}
+
+fn check_function_type_cast_boundary(
+    from: TypeId,
+    to: TypeId,
+    at: Span,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    // 唯一保留的显式 cast 特例：闭合纯函数值可显式擦除到 `Any`。
+    if is_closed_pure_function_to_any_erasure(from, to, lower, builtins) {
+        return Ok(());
+    }
+
+    let from_fun = direct_function_type(from, lower);
+    let to_fun = direct_function_type(to, lower);
+    if from_fun.is_none() && to_fun.is_none() {
+        return Ok(());
+    }
+
+    let from_fmt = lower.fmt_type(from);
+    let to_fmt = lower.fmt_type(to);
+    if from_fun.as_ref().is_some_and(|fun| !fun.effects.is_pure())
+        || to_fun.as_ref().is_some_and(|fun| !fun.effects.is_pure())
+    {
+        return Err(ExprTypeError::EffectfulFunctionTypeCastNotSupported {
+            from: from_fmt,
+            to: to_fmt,
+            span: at.into(),
+        });
+    }
+
+    Err(ExprTypeError::FunctionTypeCastNotSupported {
+        from: from_fmt,
+        to: to_fmt,
+        span: at.into(),
+    })
+}
+
+fn is_closed_pure_function_to_any_erasure(
+    from: TypeId,
+    to: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    if to != builtins.any {
+        return false;
+    }
+
+    let Some(fun) = direct_function_type(from, lower) else {
+        return false;
+    };
+    fun.effects.is_pure() && fun.effects_closed
+}
+
+fn direct_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<crate::ty::FunctionType> {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Function(fun)) => Some(fun),
+        _ => None,
+    }
 }
 
 fn is_cast_allowed(

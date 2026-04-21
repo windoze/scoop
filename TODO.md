@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -281,7 +281,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1b [TODO] 禁止带 effect 的函数类型使用 `as/as?`，收口函数类型转换语义
+### T4016T1b [DONE] 禁止带 effect 的函数类型使用 `as/as?`，收口函数类型转换语义
 - 范围：
   - 在 typecheck / infer / diagnostics 中，若 `as` / `as?` 的 source 或 target 含函数类型且其 effect row 非 `Pure`，则直接报错；不得再把这类语法解释成 runtime cast，也不得把它包装成“只是编译期 `static_cast` 风格提示”的特判。
   - 保留普通函数子类型 / coercion 主线作为唯一合法路径：参数逆变、返回协变、effect row widening 与后续统一的 closed-row 规则仍通过赋值/期望类型/分支 LUB 生效，而不是通过显式 cast 驱动。
@@ -292,6 +292,18 @@
   - 文档与诊断不再暗示 non-`Pure` function type 可被 runtime cast。
   - 现有函数子类型 / coercion 场景保持可用，不需要通过显式 cast 才能上转到更宽 effect row。
 - 依赖：T4016T1a
+- 已完成：
+  - `typecheck/expr/infer.rs` 的 cast 路径已新增 `check_function_type_cast_boundary`：显式 `as/as?` 不再把函数类型当成 runtime cast 目标；唯一保留特例仍是闭合纯函数值显式擦除到 `Any`。
+  - 新增 `scoop::typecheck::function_type_cast_not_supported` 与 `scoop::typecheck::effectful_function_type_cast_not_supported` 两个稳定诊断，分别覆盖 “`Any -> pure function` / `function -> function` 未定义” 与 “non-`Pure` function type 不具备 runtime-checkable effect row” 两类错误。
+  - `SCOOP_FULL_SPEC.md` 已同步写明：函数值的显式 runtime cast 不成立，合法路径是普通函数子类型 / coercion；若必须跨 runtime nominal 边界，应先包成 nominal wrapper。
+  - 新增 `fn_type_cast_closed_pure_asq_is_error.scoop`、`fn_type_cast_effectful_as_is_error.scoop`、`fn_type_cast_effectful_asq_is_error.scoop` 与 `fn_value_as_any_closed_pure_explicit_cast_ok.scoop`，锁定 direct function cast 边界与 `Pure! -> Any` 显式擦除保留合同。
+  - 先前会漏到 LLVM 并报 `unsupported_main_body: type check target type` 的 `Any as? (() -> Int / Pure!)` 路径，现已在 typecheck 阶段被稳定拒绝。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T1c [TODO] 对 opaque function values 以静态 function type 的 effect row 上界决定 may-suspend 编译，补齐 wrapper/member 路径
 - 范围：
