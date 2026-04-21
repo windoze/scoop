@@ -1,22 +1,23 @@
 # TODO（Scoop：正确 delimited continuation 与剩余 issue 收口）
 
-> 生成时间：2026-04-20  
+> 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
+- 基于 `SCOOP_TASK.md`，core task 设计仍在进行中，不保留 `Poll<T>` / `poll()` 等命名或 surface 的向后兼容包袱；若公开 API 要改名，应直接收口到最终形态。
 - annotation 保持 **compile-time markers only**，不进入复杂 nominal / runtime 语义。
 - `inline` 关键字以移除为默认方向；若后续仍需表达内联偏好，统一由 `@Inline` 作为 compile-time marker 承担，不再保留关键字与控制流语义双轨。
 - 每个实现任务后必须立即做 review 任务；review 只审查生产代码与规范一致性，不以测试命名代替结论。
 - 若某项实现改变公开语义，必须同步 `SCOOP_FULL_SPEC.md`；若涉及运行时合同，还要同步 `SCOOP_RUNTIME.md`、`sysroot/core.scoop` 或相关文档。
-- 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、public `spawn` scheduling 相关内容一律留待后续。
+- 本轮不设计 executor framework；所有与 executor、wakeup、queueing、work-stealing、public `spawn` scheduling 相关内容一律留待后续 stdlib stage。
 
 ## T4016：正确的单次 delimited continuation、移除 `-> resume` 语法与 `Task` 去 hack
 
@@ -180,7 +181,7 @@
 ### T4016d [DONE] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack
 - 范围：
   - task-private step driver 的 continuation answer type 要显式化：当前 `__TaskStepResult` 可继续作为内部 carrier，但它应成为 raw continuation 的显式 answer，而不是在 runtime `resume` 后由 task 私有代码回读得到的隐藏结果。
-  - `Task.poll()/step()` 继续只暴露 `Poll<T>`；内部 richer step result 仍保持私有，但要建立在统一 continuation answer model 上。
+  - 当时公开 surface 里的 `Task.poll()/step()` 仍以 `Poll<T>` 作为投影层；内部 richer step result 仍保持私有，但要建立在统一 continuation answer model 上，并为后续 `T4016T1~T4016T3` 的 public renaming / surface 收口清障。
   - async/await lowering、task runtime 与 docs 叙事必须能解释为“ordinary object + private step-result continuation”，而不是“对 continuation ABI 另加一个 task-only 黑箱协定”。`T4016c` 已把 runtime resume path 改到共享 helper；本条继续收口剩余 surface / narrative 债务。
   - 不重新引入 executor / scheduler special-case；若需要 helper API，也必须是 continuation-based 的通用 helper，而不是新的 task-only runtime hack。
 - 验收：
@@ -229,6 +230,46 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T1510c1, T1510c2, T4016d
 
+## T4016T：最小化 core Task surface，并把 Task 主体迁回 Scoop（只覆盖 phase 1-3；phase 4 延期到 stdlib）
+
+- 说明：
+  - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
+  - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
+
+### T4016T1 [TODO] 将 core task public surface 直接收口为 `TaskStep<T>` + `step()`，并同步语言 / 运行时规格
+- 范围：
+  - 按 `SCOOP_TASK.md` 收口 `scoop.core` 的最小公开 task surface：保留 `Task<T>`、`TaskStep<T>`、`Task.step()` 与 `Async.await`，移除 `Poll<T>` 与 `Task.poll()`。
+  - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop`、相关实现注释、diagnostics 与 fixtures，把 `step()` 明确成唯一 core drive API；不保留 alias / compatibility 叙事。
+  - 明确 executor / wake / reactor / public `spawn` / `join` 继续 deferred，且属于后续 stdlib stage，而不是 `scoop.core` 或本组任务的范围。
+- 验收：
+  - 生产 surface 与生产文档中不再暴露 `Poll<T>` / `poll()`；`TaskStep<T>` + `step()` 成为唯一 core task 命名。
+  - 语言 spec、runtime spec、design doc、sysroot 与相关 fixtures 对 task public surface 形成统一叙事。
+- 依赖：T4016R
+
+### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
+- 范围：
+  - 依照 `SCOOP_TASK.md` 把 task-private driver result、task state 与 `Task.step()` 主体实现迁到 Scoop 代码；`__TaskStepResult` / `__TaskState` / 内部 helper 名称可调整，但必须是普通 Scoop 定义而不是新的 C runtime 语义节点。
+  - `async { ... }` / `async fun` / `await` 的 lowering 继续只保留语言特有 sugar 责任，但其落点要改成 ordinary Scoop helper / internal core definitions，不再依赖 `__scoop_task_*` runtime intrinsics 作为语义宿主。
+  - 为跨线程 drive/resume 定义最小同步合同：每个 task 至少有独占 drive attempt 的同步机制；优先复用 generic `Mutex` / sync runtime，而不是引入 task-only lock ABI。
+  - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 与必要实现注释，明确“task 主体在 Scoop 中、continuation / GC / thread / sync 在 runtime 中”的分层。
+- 验收：
+  - 大部分 task state / step-driving 逻辑已以普通 Scoop 代码存在并可测试，不再主要驻留于 `runtime/c/scoop_task.c`。
+  - async lowering 只剩 sugar / private glue，不再把 task-only runtime helper 当作语言主线的一部分。
+  - 文档已说明跨线程 `step()` / resume 的最小同步合同与 GC/rooting 约束。
+- 依赖：T4016T1
+
+### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
+- 范围：
+  - 删除 `scoop_task_create`、`scoop_task_poll`、`scoop_task_step_ready`、`scoop_task_step_pending`、`scoop_task_from_result`、`scoop_task_join` 及其 LLVM codegen special-case，移除 `runtime/c/scoop_task.c`。
+  - 若 core 仍需要 internal helper 名称，它们必须是 ordinary Scoop definitions，或者 generic continuation / sync runtime 的普通调用；不得再保留 task-only C ABI / intrinsic 分支。
+  - 重写 `SCOOP_RUNTIME.md` 中当前 task polling runtime contract，使其不再把 `scoop_task_*` 当作稳定 / 现行的 core task 合同；`SCOOP_FULL_SPEC.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 与实现注释同步到最终形态。
+  - 明确 executor / wake / reactor / public `spawn` / `join` 的 phase 4 完全延期到 stdlib stage，本组在此收口，不继续扩张 `scoop.core`。
+- 验收：
+  - 生产代码路径中不再存在 task-only runtime ABI 或 task-only LLVM codegen special case。
+  - `Task` 只依赖 generic continuation、GC、thread 与 sync runtime substrate；task 主体逻辑留在 Scoop。
+  - 语言 spec、runtime spec、design doc 与 sysroot 对 core task 最终合同完全一致。
+- 依赖：T4016T2
+
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
 
 ### T4012 [TODO] 收口 compile-time marker annotations 与 non-inline built-in annotations（拆分执行）
@@ -239,7 +280,7 @@
   - `@Inline` 与 `ISSUES.md` 第 10 条的 legacy inline 清理强耦合，因此本组任务先只覆盖 marker annotations 与 non-inline built-ins，`@Inline` 明确顺延到 `T4013`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 9 条至少收窄到与 `@Inline` 交叉的剩余项，或被完全关闭。
-- 依赖：T4016R
+- 依赖：T4016T3
 
 ### T4012a [DONE] 将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义
 - 范围：
