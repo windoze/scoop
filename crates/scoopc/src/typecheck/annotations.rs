@@ -11,7 +11,7 @@
 //! - annotation class 不引入继承、运行时对象模型或额外控制流语义。
 //!
 //! 非目标（留给后续任务）：
-//! - 完整的 built-in annotation behavior（`@Deprecated/@AllowIntrinsic/@Suppress/...`）；
+//! - 完整的 built-in annotation behavior（`@Deprecated/@Suppress/...`）；
 //! - 注解在表达式位置的语义（如 `@Suppress(...) expr`）；
 //! - 更丰富的 metaprogramming / reflection surface。
 
@@ -30,7 +30,7 @@ use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{
-    BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind,
+    BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind, file_allows_intrinsic,
 };
 use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
@@ -302,6 +302,20 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("用户源码中的 {decl_kind} 不能直接声明 `@Intrinsic`：{decl_name}")]
+    #[diagnostic(
+        code(scoop::typecheck::intrinsic_user_decl_requires_allow_intrinsic),
+        help(
+            "如确有需要，请先在文件开头标注 `@file:AllowIntrinsic`；sysroot 仍默认允许 `@Intrinsic` 声明"
+        )
+    )]
+    IntrinsicUserDeclRequiresAllowIntrinsic {
+        decl_kind: &'static str,
+        decl_name: String,
+        #[label("这里的 `@Intrinsic` 需要文件级 gate")]
+        span: miette::SourceSpan,
+    },
+
     #[error("非法的 AnnotationTarget：{name}")]
     #[diagnostic(code(scoop::typecheck::invalid_annotation_target_name))]
     InvalidAnnotationTargetName {
@@ -433,7 +447,8 @@ pub fn check_file_annotations(
         &file.file_annotations,
         AnnotationSite::new(AnnotationTargetKind::Module),
     )?;
-    reject_builtin_annotations_on_target(source, &file.file_annotations, "file")?;
+    check_builtin_annotations_on_file(source, &file.file_annotations)?;
+    let file_allows_intrinsic = file_allows_intrinsic(source, &file.file_annotations);
 
     for item in &file.items {
         match item {
@@ -465,7 +480,12 @@ pub fn check_file_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun, &mut lower)?;
+                check_builtin_annotations_on_fun_decl(
+                    source,
+                    file_allows_intrinsic,
+                    fun,
+                    &mut lower,
+                )?;
                 check_param_list_annotations(ctx, &mut lower, builtins, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
@@ -500,10 +520,24 @@ pub fn check_file_annotations(
                 check_top_level_var_storage_and_gc_free(source, file, index, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
-                check_type_decl_annotations(ctx, &mut lower, builtins, ty, &pkg_prefix)?;
+                check_type_decl_annotations(
+                    ctx,
+                    &mut lower,
+                    builtins,
+                    ty,
+                    &pkg_prefix,
+                    file_allows_intrinsic,
+                )?;
             }
             ast::Item::Object(obj) => {
-                check_object_decl_annotations(ctx, &mut lower, builtins, obj, &pkg_prefix)?;
+                check_object_decl_annotations(
+                    ctx,
+                    &mut lower,
+                    builtins,
+                    obj,
+                    &pkg_prefix,
+                    file_allows_intrinsic,
+                )?;
             }
             // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
             ast::Item::ComptimeIf(_ci) => {}
@@ -520,6 +554,7 @@ fn check_type_decl_annotations(
     builtins: BuiltinTypes,
     decl: &ast::TypeDecl,
     prefix: &str,
+    file_allows_intrinsic: bool,
 ) -> Result<(), AnnotationError> {
     let local = ctx.source.slice(decl.name.span);
     let type_fqn = join_prefix(prefix, local);
@@ -538,7 +573,7 @@ fn check_type_decl_annotations(
         AnnotationSite::new(AnnotationTargetKind::Type)
     };
     check_annotation_uses(ctx, lower, builtins, &decl.annotations, site)?;
-    check_builtin_annotations_on_type_decl(ctx.source, decl, &type_fqn)?;
+    check_builtin_annotations_on_type_decl(ctx.source, file_allows_intrinsic, decl, &type_fqn)?;
 
     // 1.5) `@CLayout(aligned, packed)`：GC-free struct 的 ABI 布局控制（spec §15.5.2）。
     //
@@ -609,14 +644,33 @@ fn check_type_decl_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(ctx.source, fun, lower)?;
+                check_builtin_annotations_on_fun_decl(
+                    ctx.source,
+                    file_allows_intrinsic,
+                    fun,
+                    lower,
+                )?;
                 check_param_list_annotations(ctx, lower, builtins, &fun.params)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(ctx, lower, builtins, nested, &type_fqn)?;
+                check_type_decl_annotations(
+                    ctx,
+                    lower,
+                    builtins,
+                    nested,
+                    &type_fqn,
+                    file_allows_intrinsic,
+                )?;
             }
             ast::TypeMember::Object(obj) => {
-                check_object_decl_annotations(ctx, lower, builtins, obj, &type_fqn)?;
+                check_object_decl_annotations(
+                    ctx,
+                    lower,
+                    builtins,
+                    obj,
+                    &type_fqn,
+                    file_allows_intrinsic,
+                )?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -652,6 +706,7 @@ fn check_object_decl_annotations(
     builtins: BuiltinTypes,
     obj: &ast::ObjectDecl,
     prefix: &str,
+    file_allows_intrinsic: bool,
 ) -> Result<(), AnnotationError> {
     reject_annotation_modifier_on_non_type_target(
         &obj.modifiers,
@@ -737,13 +792,32 @@ fn check_object_decl_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(ctx.source, fun, lower)?;
+                check_builtin_annotations_on_fun_decl(
+                    ctx.source,
+                    file_allows_intrinsic,
+                    fun,
+                    lower,
+                )?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(ctx, lower, builtins, nested, &obj_fqn)?;
+                check_type_decl_annotations(
+                    ctx,
+                    lower,
+                    builtins,
+                    nested,
+                    &obj_fqn,
+                    file_allows_intrinsic,
+                )?;
             }
             ast::TypeMember::Object(nested) => {
-                check_object_decl_annotations(ctx, lower, builtins, nested, &obj_fqn)?;
+                check_object_decl_annotations(
+                    ctx,
+                    lower,
+                    builtins,
+                    nested,
+                    &obj_fqn,
+                    file_allows_intrinsic,
+                )?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -1560,12 +1634,46 @@ fn reject_builtin_annotations_on_target(
     Ok(())
 }
 
+fn check_builtin_annotations_on_file(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+) -> Result<(), AnnotationError> {
+    for ann in annotations {
+        let Some(kind) = builtin_annotation_kind(source, ann) else {
+            continue;
+        };
+        match kind {
+            BuiltinAnnotationKind::AllowIntrinsic => {
+                if !ann.args.is_empty() {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
+                        annotation: format!("@{}", kind.name()),
+                        span: name_span.into(),
+                    });
+                }
+            }
+            _ => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "file",
+                    span: name_span.into(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
 fn check_builtin_annotations_on_fun_decl(
     source: &SourceFile,
+    file_allows_intrinsic: bool,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+    let fun_name = source.slice(fun.name.span).to_string();
 
     // 1) `@Unsafe/@NoGC/@Intrinsic` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数（见 TODO T1020）。
     for ann in &fun.annotations {
@@ -1577,10 +1685,28 @@ fn check_builtin_annotations_on_fun_decl(
             BuiltinAnnotationKind::CallingConvention => {
                 check_calling_convention_builtin_annotation_args(source, ann)?
             }
+            BuiltinAnnotationKind::AllowIntrinsic => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "function",
+                    span: name_span.into(),
+                });
+            }
             BuiltinAnnotationKind::Unsafe
             | BuiltinAnnotationKind::Safe
             | BuiltinAnnotationKind::NoGC
             | BuiltinAnnotationKind::Intrinsic => {
+                if kind == BuiltinAnnotationKind::Intrinsic {
+                    check_intrinsic_builtin_annotation_gate(
+                        source,
+                        file_allows_intrinsic,
+                        ann,
+                        "函数",
+                        &fun_name,
+                    )?;
+                }
                 if !ann.args.is_empty() {
                     let (_, name_span) = annotation_name_and_span(source, ann);
                     return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
@@ -1596,7 +1722,6 @@ fn check_builtin_annotations_on_fun_decl(
     if flags.is_extern
         && let ast::FunBody::Block(b) = &fun.body
     {
-        let fun_name = source.slice(fun.name.span).to_string();
         return Err(AnnotationError::ExternFunMustHaveNoBody {
             fun_name,
             span: b.span.into(),
@@ -1605,7 +1730,6 @@ fn check_builtin_annotations_on_fun_decl(
     if flags.is_intrinsic
         && let ast::FunBody::Block(b) = &fun.body
     {
-        let fun_name = source.slice(fun.name.span).to_string();
         return Err(AnnotationError::IntrinsicFunMustHaveNoBody {
             fun_name,
             span: b.span.into(),
@@ -2155,6 +2279,7 @@ fn check_extern_builtin_annotation_args(
 
 fn check_builtin_annotations_on_type_decl(
     source: &SourceFile,
+    file_allows_intrinsic: bool,
     decl: &ast::TypeDecl,
     type_fqn: &str,
 ) -> Result<(), AnnotationError> {
@@ -2174,6 +2299,13 @@ fn check_builtin_annotations_on_type_decl(
                 span: name_span.into(),
             });
         }
+        check_intrinsic_builtin_annotation_gate(
+            source,
+            file_allows_intrinsic,
+            ann,
+            "类型",
+            type_fqn,
+        )?;
         if !ann.args.is_empty() {
             let (_, name_span) = annotation_name_and_span(source, ann);
             return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
@@ -2205,6 +2337,32 @@ fn check_builtin_annotations_on_type_decl(
     }
 
     Ok(())
+}
+
+fn check_intrinsic_builtin_annotation_gate(
+    source: &SourceFile,
+    file_allows_intrinsic: bool,
+    ann: &ast::AnnotationUse,
+    decl_kind: &'static str,
+    decl_name: &str,
+) -> Result<(), AnnotationError> {
+    if file_allows_intrinsic || source_is_sysroot(source) {
+        return Ok(());
+    }
+
+    let (_, name_span) = annotation_name_and_span(source, ann);
+    Err(AnnotationError::IntrinsicUserDeclRequiresAllowIntrinsic {
+        decl_kind,
+        decl_name: decl_name.to_string(),
+        span: name_span.into(),
+    })
+}
+
+fn source_is_sysroot(source: &SourceFile) -> bool {
+    source
+        .path()
+        .components()
+        .any(|component| component.as_os_str() == std::ffi::OsStr::new("sysroot"))
 }
 
 fn check_builtin_annotations_on_object_decl(

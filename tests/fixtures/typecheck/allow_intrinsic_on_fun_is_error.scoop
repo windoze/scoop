@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_invalid_target
+// EXPECT-ERROR: 内建注解 `@AllowIntrinsic` 只能用于 文件 / 模块
+
+package fixtures.typecheck
+
+@AllowIntrinsic
+fun localMarker() {}

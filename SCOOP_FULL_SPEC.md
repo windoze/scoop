@@ -2588,6 +2588,8 @@ fun println(value: String)
 
 Intrinsic declarations live in the **sysroot** — a directory of `.scoop` files that define the compiler's built-in API surface (see SCOOP_RUNTIME.md §8 for the sysroot directory structure). The compiler parses these files before user code and resolves calls to intrinsics using its own internal implementations.
 
+Outside the sysroot, user code MUST NOT declare `@Intrinsic` surfaces by default. A source file (or equivalent module unit) that intentionally declares intrinsic APIs must opt in explicitly with `@AllowIntrinsic`, typically via a file-level annotation such as `@file:AllowIntrinsic`.
+
 This design serves two purposes:
 1. **Tooling**: LSP, debuggers, and documentation generators can read the sysroot `.scoop` files to discover built-in APIs, show hover documentation, and provide go-to-definition.
 2. **Specification**: The sysroot files are the source of truth for which built-in functions, methods, and types exist.

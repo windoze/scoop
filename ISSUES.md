@@ -64,7 +64,7 @@
 
 ## 9. annotation 的 declaration model 已收口为 compile-time markers only，但多项 built-in behavior 仍未兑现
 
-- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。当前剩余缺口主要收窄为 built-in annotation behavior：编译器硬编码识别的仍只有 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`，spec 里写到的 `@Deprecated`、`@Inline`、`@AllowIntrinsic`、`@Suppress` 等编译器语义尚未落地。
+- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。当前剩余缺口主要收窄为 built-in annotation behavior：编译器已硬编码识别 `Unsafe / Safe / NoGC / Extern / Intrinsic / AllowIntrinsic / CallingConvention`，并把 `@AllowIntrinsic` 收口为 file/module gate；spec 里写到的 `@Deprecated`、`@Inline`、`@Suppress` 等编译器语义仍未完全落地。
 - 影响：注解声明模型、use-site target 与 `@Target/@Retention` contract 已经统一；剩余 issue 不再是“annotation 要不要做成复杂 nominal feature”，而是 built-in annotations 的具体编译器行为仍不完整。
 - 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/resolve/mod.rs`；`SCOOP_FULL_SPEC.md` 第 15 节。
 

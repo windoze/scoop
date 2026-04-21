@@ -1,5 +1,8 @@
 // EXPECT: pass
-// 目标：T1013 内建注解 + `AnnotationTarget` 声明面可用，并对 `@Target` 参数做最小合法性检查（合法 case）。
+// 目标：T1013/T4012b1 内建注解 + `AnnotationTarget` 声明面可用，
+// 并对 `@Target` 参数与 `@file:AllowIntrinsic` gate 做最小合法性检查（合法 case）。
+
+@file:AllowIntrinsic
 
 package fixtures.typecheck
 
@@ -12,12 +15,14 @@ annotation class Column(val name: String)
 @TailRec
 fun f(x: Int): Int { return x }
 
-@AllowIntrinsic
-fun allowIntrinsicMarker() {}
+@Intrinsic
+fun compilerProvided(x: Int): Int
+
+@Intrinsic
+struct NativeToken
 
 @Suppress("unchecked")
 fun g() {}
 
 @CLayout
 struct CPoint(val x: Int, val y: Int)
-

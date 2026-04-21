@@ -1,92 +1,95 @@
-# 执行记录
+# 执行计划
 
-## 当前阶段
+说明：按要求先记录一份可审阅的执行计划。这里记录的是可公开的执行步骤、检查点和决策准则，不包含内部私有推理细节。
 
-已完成初始化与任务定位，进入 `T4012a` 实施。
+## 本轮目标
 
-## 约束说明
+只完成 `TODO.md` 中第一个未完成任务；如果在执行中发现其依赖前置缺陷、规格不匹配或任务过大，则先更新 `TODO.md` / `PLAN.md` 进行拆分或重排，并在完成一个明确任务后停止。
 
-- 按用户要求，先记录计划，再执行任何 shell 命令。
-- 这里只记录可审阅的执行计划与决策摘要，不写入不可验证的内部推理细节。
+## 执行步骤
 
-## 初始执行计划
+1. 检查最近一次 Git 提交信息与变更摘要。
+   - 确认最近提交是否显式提到已知问题、遗留缺陷或需要立即修复的事项。
+   - 若存在“当前范围内必须先修”的前置问题，先将其纳入本轮处理。
 
-1. 检查最近一次提交的提交信息与改动，确认是否提到了需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如该任务过大或依赖缺失，拆分任务并更新 `PLAN.md` 与 `TODO.md`，然后只处理拆分后的第一个子任务。
-4. 阅读相关代码、规格、测试与文档，确认实现边界与现状。
-5. 实现当前目标任务，必要时补充或整理模块与注释。
-6. 运行相关格式化、检查、测试与 lint，至少覆盖：
-   - `cargo fmt --check`（必要时先 `cargo fmt`）
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - 与当前任务直接相关的更小范围命令（如有）
-7. 若发现规范不匹配、缺失特性或既有缺陷阻塞当前任务：
-   - 先把该问题转化为更前置的 `TODO.md` 任务；
-   - 更新 `PLAN.md` 解释依赖关系；
-   - 提交这些计划调整并停止。
-8. 若任务完成：
-   - 在 `TODO.md` 中标记完成；
-   - 更新 `PLAN.md` 记录已完成内容与后续状态；
-   - 提交所有变更；
-   - 停止，不继续下一个任务。
+2. 读取并理解任务与计划文件。
+   - 查看 `TODO.md`，找出第一个未完成任务。
+   - 查看 `PLAN.md`，理解该任务的上下文、依赖、里程碑与约束。
+   - 如有必要，查看 `README.md`、`AGENTS.md`、相关模块代码与测试布局，确认实现边界。
 
-## 更新规则
+3. 判断首个未完成任务是否可在本轮完整完成。
+   - 若任务过大或边界不清，拆分为更小子任务。
+   - 更新 `PLAN.md`，写明拆分后的执行顺序。
+   - 更新 `TODO.md`，将原任务替换为或补充为新的子任务，并保证顺序与依赖正确。
+   - 本轮只执行拆分后排在最前的那个子任务。
 
-- 每完成一个关键步骤，或执行计划发生变化时，更新此文件。
+4. 先做必要的代码与测试调研。
+   - 定位相关 Rust crate、运行时、fixture、规范文档及现有测试。
+   - 识别是否存在规格与实现不一致、语言特性缺失、诊断错误、运行时漏洞或仅靠变通才能通过的情形。
+   - 若发现这种前置问题，必须先把它作为任务加入 `TODO.md`，更新 `PLAN.md` 说明阻塞原因，然后提交并停止。
 
-## 已完成的关键步骤
+5. 实现当前目标任务。
+   - 直接修改真实实现，不使用规避式 workaround。
+   - 保持模块边界清晰；如文件过长或职责混乱，顺手做必要但收敛的结构整理。
+   - 为不直观的模块或函数补充简洁注释，避免无信息量注释。
 
-1. 已检查最近一次提交 `14154fefabf612e786e51a3ee74a1e869a1a67bc` 的提交说明与改动摘要；未发现需要在 `TODO.md` 现有顺序之外优先修复的新既有问题。
-2. 已阅读 `TODO.md` 与 `PLAN.md`；当前首个未完成的可执行子任务为 `T4012a`：将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义。
-3. 已初步审阅 annotation 相关实现与文档：
-   - `crates/scoopc/src/typecheck/annotations.rs`
-   - `crates/scoopc/src/typecheck/builtin_annotations.rs`
-   - `crates/scoopc/src/typecheck/type_env.rs`
-   - `crates/scoopc/src/resolve/mod.rs`
-   - `sysroot/core.scoop`
-   - `SCOOP_FULL_SPEC.md`
-   - `ISSUES.md`
-4. 已完成 `T4012a` 实现：
-   - annotation declaration contract 已收口为 compile-time markers only；
-   - typecheck 新增拒绝：非法 `annotation` modifier target、annotation class nominal modifier、type/effect params、`where`、supertypes、type body；
-   - 规格与注释文档已同步。
-5. 已完成定向回归与全量验证：
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
-   - `cargo run -p scoop -- test`
-   - `cargo test --all`
-   - `cargo run -p scoop_tools -- spec-fixtures check`
-   - `cargo clippy --all-targets -- -D warnings`
+6. 增加或更新测试。
+   - 为本次改动补充最小且充分的单元测试、集成测试或 fixture。
+   - 若变更涉及规范示例或 doctest fixture，同步检查相应生成/校验流程。
+
+7. 运行验证。
+   - 至少运行与改动直接相关的测试。
+   - 如可行，运行更高层级验证，如 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`、相关 fixture 命令。
+   - 若失败，先修复失败或确认是否暴露出新的真实前置问题；若是前置问题，转回第 4 步的处理策略。
+
+8. 更新文档与任务状态。
+   - 在 `TODO.md` 中把本轮完成的任务标记为完成。
+   - 在 `PLAN.md` 中记录已完成内容、剩余风险和后续顺序。
+   - 根据执行进度随时回写本文件，记录关键步骤完成情况和计划变更。
+
+9. 提交本轮工作。
+   - 检查工作区变更，确保仅包含本轮相关改动以及必须一起提交的计划/提示文件更新。
+   - 使用清晰的 Git commit message 提交。
+
+10. 停止。
+   - 不进入下一个任务，等待下一轮调用。
+
+## 关键决策准则
+
+- 若存在规格不匹配、实现缺口、诊断错误、运行时 bug 或依赖缺失，不能绕过，必须先显式入列 `TODO.md`。
+- 若任务不能在本轮完整收敛，必须拆分，而不是提交半成品。
+- 若测试失败暴露出真实前置问题，优先调整任务顺序并记录原因，而不是在当前任务里硬拗。
+- 除非用户明确要求，否则不改写与当前任务无关的现有变更。
+
+## 进度记录
+
+- [x] 已创建本计划文件，准备开始检查最新提交与任务列表。
+- [x] 已检查最新提交是否包含需先修复的问题。
+- [x] 已定位 `TODO.md` 中第一个可行动的未完成叶子任务：`T4012b`。
+- [x] 已确认是否需要拆分任务并更新计划。
+- [x] 已完成拆分后的首个子任务 `T4012b1` 的实现与测试。
+- [x] 已更新 `TODO.md` / `PLAN.md`。
+- [ ] 已完成 Git 提交并停止。
 
 ## 当前判断
 
-- `T4012a` 已完成，不需要进一步拆分。
-- 现有实现已经拒绝了一部分复杂 annotation class 形态：
-  - 只能是 `class`
-  - 不支持 supertypes
-  - 不支持 type body
-  - 主构造参数必须为 `val`
-- 本轮补充后，annotation model 的主要剩余工作已切换到 `T4012b`：non-inline built-in annotations 的具体编译器语义。
+- 最近一次提交为 `[T4012a] 收口 annotation compile-time marker contract`，提交信息本身未额外注明新的前置 blocker。
+- `TODO.md` 中最前面的未完成可执行叶子任务最初是 `T4012b`：补齐 non-inline built-in annotations 的编译器语义。
+- 经过实现调研，已确认该条目需要正式拆分：
+  - `@AllowIntrinsic` 只依赖 built-in target/args 校验与用户态 `@Intrinsic` 门禁，适合本轮直接完成；
+  - `@Deprecated` 需要“声明注解元数据到使用点”的 warning 通路；
+  - `@Suppress` 还额外依赖 warning code 体系与表达式注解语义。
+- 因此本轮改为执行拆分后的首个子任务 `T4012b1`。
 
-## 细化执行计划（T4012a）
+## 本轮结果
 
-1. 在 annotation/typecheck 相关代码中补齐并收口 declaration-shape 约束：
-   - 明确 `annotation` modifier 只服务于 `annotation class`；
-   - annotation class 禁止 type params、effect params、where clause；
-   - 保持并复核现有 data-only 限制（无 supertype、无 body、参数必须 `val`）。
-2. 补充针对非法复杂 nominal 组合的 fixtures / 单测：
-   - 合法 marker annotation case；
-   - 非法 supertypes / body / type params / effect params / where clause / 非 class 目标等。
-3. 同步规范与相关文档，明确 annotation 是 compile-time markers only，而不是一般 nominal/runtime feature。
-4. 运行定向测试与全量质量检查：
-   - annotation 相关 fixtures
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-5. 若实现与规范一致且测试通过：
-   - 更新 `TODO.md`、`PLAN.md`；
-   - 提交变更并停止。
-
-## 当前状态
-
-- `TODO.md` / `PLAN.md` 尚待写回完成状态。
-- 下一步：整理 git diff、提交 `[T4012a] ...`，然后停止。
+- 已完成 `T4012b1`：
+  - 新增 `AllowIntrinsic` built-in 识别，并把 `@file:AllowIntrinsic` 收口为当前文件的 intrinsic declaration gate；
+  - 用户源码中的 `@Intrinsic` 函数 / 类型声明现在默认报错，要求显式加文件级 gate；sysroot 仍默认允许；
+  - 已同步 `stdlib/mutable_array.scoop`、`SCOOP_FULL_SPEC.md`、`sysroot/core.scoop`、`ISSUES.md` 与定向 fixtures。
+- 已完成验证：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`

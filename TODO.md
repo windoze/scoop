@@ -261,14 +261,53 @@
   - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4012b [TODO] 补齐 non-inline built-in annotations 的编译器语义
-- 范围：
-  - built-in annotation 的编译器识别不再只停在 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`。
-  - 先收口 `@Deprecated`、`@AllowIntrinsic`、`@Suppress` 等 non-inline built-ins 的解析、诊断与行为；`@Inline` 明确留到 `T4013`，避免再次把 inline 做成控制流语义。
-  - 如公开语义或诊断文本变化涉及规范 / 文档，在本任务中显式列出同步项，而不是直接跳过。
+### T4012b [TODO] 补齐 non-inline built-in annotations 的编译器语义（拆分执行）
+- 说明：
+  - 当前条目同时混合了三类复杂度明显不同的工作：`@AllowIntrinsic` 的文件级 gate、`@Deprecated` 的 warning-on-use 合同，以及 `@Suppress` 所需的 warning-code / suppression / expression-annotation surface。
+  - 现有前端虽然已具备注解 declaration / use-site 基础，但还没有“声明注解元数据沿调用路径传播 + 结构化 warning / suppression”这一整条主线；若不拆开，`@AllowIntrinsic` 这类局部 gate 很容易被 `@Deprecated/@Suppress` 的 warning 基础设施拖住。
+  - 因此先拆成 `T4012b1 -> T4012b2 -> T4012b3`：先收口 `@AllowIntrinsic` 与用户态 `@Intrinsic` 门禁，再补 `@Deprecated` 的最小可测 warning 合同，最后接通 `@Suppress` 所需的 warning-code 与表达式 / 声明 / 文件级 suppression surface。
 - 验收：
-  - `ISSUES.md` 第 9 条中除 `@Inline` 外的 built-in annotation behavior 缺口收窄或关闭。
+  - 子任务全部完成后，`ISSUES.md` 第 9 条中除 `@Inline` 外的 built-in annotation behavior 缺口收窄或关闭。
 - 依赖：T4012a
+
+### T4012b1 [DONE] 将 `@AllowIntrinsic` 收口为 file/module built-in gate，并禁止未授权的用户态 `@Intrinsic` 声明
+- 范围：
+  - 把 `@AllowIntrinsic` 纳入编译器硬编码识别的 built-in annotations，但其 target 只允许 file/module；错误 target 与错误参数形状要给出稳定 diagnostics。
+  - `@Intrinsic` 不再默认允许出现在普通用户源码中；用户态 `@Intrinsic` 函数 / 类型声明必须先通过文件级 `@file:AllowIntrinsic` 显式开门，sysroot 继续作为默认允许来源。
+  - 同步 `SCOOP_FULL_SPEC.md`、`sysroot/core.scoop`、相关注释与 fixtures，明确 `@AllowIntrinsic` 是“允许当前文件声明 intrinsic surface”的 gate，而不是普通 declaration marker。
+- 验收：
+  - 未标注 `@file:AllowIntrinsic` 的用户源码里，`@Intrinsic` 声明会在 typecheck 阶段被拒绝，并提示迁移到文件级 gate。
+  - 标注 `@file:AllowIntrinsic` 后，用户态 `@Intrinsic` 函数 / 类型声明可通过既有的最小 intrinsic declaration checks。
+  - `@AllowIntrinsic` 在非 file/module 目标或带参数时会给出稳定 diagnostics。
+- 依赖：T4012b
+- 已完成：
+  - `BuiltinAnnotationKind` 已新增 `AllowIntrinsic`，file-level annotations 现在会显式校验它的 target 与“无参数”合同。
+  - `check_file_annotations` 已把 `@file:AllowIntrinsic` 收口为当前文件的 intrinsic gate；用户源码中的 `@Intrinsic` 函数 / 类型声明若未开门，会报稳定的 `intrinsic_user_decl_requires_allow_intrinsic` 诊断。
+  - `stdlib/mutable_array.scoop` 与相关 typecheck fixtures 已同步迁移到新的 gate 合同；`ISSUES.md` 第 9 条也已缩小为剩余的 `@Deprecated/@Inline/@Suppress` 语义缺口。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
+
+### T4012b2 [TODO] 为 `@Deprecated` 建立最小可测的 declaration/use-site warning 合同
+- 范围：
+  - 将 `@Deprecated(message, replaceWith?)` 纳入 built-in annotation surface，校验参数形状、默认值与 target contract。
+  - 建立最小可测的 warning plumbing：使用点（至少覆盖当前已支持的函数 / 类型 / 属性引用路径）能看到 stable deprecation warning，而不是仅在 declaration 头部静态接受注解。
+  - 为跨文件 / sysroot 声明保留必要的注解元数据通路，避免 warning 只在当前文件 AST 上偶然生效。
+- 验收：
+  - `@Deprecated` 不再只是普通 annotation class 名字；其参数与使用点 warning 行为可被回归测试覆盖。
+- 依赖：T4012b1
+
+### T4012b3 [TODO] 为 `@Suppress` 建立 warning-code 与 expression/declaration/file suppression surface
+- 范围：
+  - 将 `@Suppress(warnings...)` 纳入 built-in annotation surface，校验参数形状并与 warning code 命名形成统一 contract。
+  - 接通 declaration / file-level suppression；若 expression annotation 仍缺语法面或 AST 支撑，需要在本任务中一并补齐，而不是继续把 spec 示例停留在文档层。
+  - 补 parse / typecheck / fixture runner regression，覆盖合法 suppression、未知 warning 名称、错误参数类型，以及 suppression 对 deprecation / lint warning 的实际效果。
+- 验收：
+  - `@Suppress` 不再只是被 parser 接受的普通 annotation use；其 warning suppression 行为与 spec 中的 expression/declaration/file surface 形成统一叙事。
+- 依赖：T4012b2
 
 ### T4012c [TODO] 加入 built-in `@Experimental(val feature = "...")` annotation，作为保留的 feature-gate marker
 - 范围：
@@ -279,7 +318,7 @@
 - 验收：
   - `@Experimental(feature = "...")` 已成为编译器识别的 built-in annotation，可作为未来 feature gate 的标准 marker。
   - 文档明确说明：当前只引入 annotation surface 与参数校验，不代表任何实验特性已经开始由它控制。
-- 依赖：T4012b
+- 依赖：T4012b3
 
 ### T4012R [TODO] Review：确认 annotation system 已收口为 compile-time markers，而不是新的复杂 nominal feature
 - 重点：

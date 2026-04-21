@@ -20,8 +20,8 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 均已完成；annotation 主线中的 `T4012a` 也已完成，下一步进入 non-inline built-in annotations（`T4012b`）
-2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b -> T4012c -> T4012R`）
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 均已完成；annotation 主线中的 `T4012a`、`T4012b1` 也已完成，下一步进入 `@Deprecated` warning contract（`T4012b2`）
+2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b2 -> T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
 5. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
@@ -155,9 +155,17 @@
   - typecheck 已把 annotation declaration model 收口为 compile-time markers only，并显式拒绝 `annotation` modifier 的非法目标、annotation class 的 nominal modifier、type/effect params、`where`、supertypes 与 type body；
   - `SCOOP_FULL_SPEC.md`、`sysroot/core.scoop`、`ISSUES.md` 与 parser / AST 注释已同步到同一叙事：annotation 只承载编译期 marker payload，不再保留“未来要扩成复杂 nominal feature”的错误方向；
   - 已新增 8 个 annotation 定向 typecheck fixtures，并复验 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-- 先收口 non-inline built-in annotations，并补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
+- `T4012b` 已拆成三步：
+  - `T4012b1` 已完成：
+    - `BuiltinAnnotationKind` 已新增 `AllowIntrinsic`，并在 file-level annotations 中强制“仅 file/module target、且无参数”的最小合同；
+    - `check_file_annotations` 已把 `@file:AllowIntrinsic` 收口为当前文件 intrinsic gate；用户源码中的 `@Intrinsic` 函数 / 类型声明若未开门，会给出稳定的 `intrinsic_user_decl_requires_allow_intrinsic` 诊断；
+    - `stdlib/mutable_array.scoop` 与新增的 typecheck fixtures 已同步迁移到这一 gate 合同；
+    - 已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - `T4012b2`：再为 `@Deprecated` 建立最小可测的 warning-on-use 合同。这要求把 declaration annotation 元数据带到使用点，而不是只在声明头上接受注解。
+  - `T4012b3`：最后为 `@Suppress` 建立 warning-code 与 suppression surface。由于 spec 还举了 expression annotation 例子，这一步需要连同表达式注解语义一起收口，不能只做声明头占位。
+- 在 `T4012b*` 收口后，再补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
 - 再删除 `inline` 关键字与 legacy non-local return 语义残留；若未来仍需内联提示，统一由 `@Inline` 作为纯优化 marker 承担。
-- 当前状态：`T4012b -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4012b2 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P3. FFI / ABI 边界收口
 
