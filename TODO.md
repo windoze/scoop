@@ -60,7 +60,7 @@
   - sysroot / 注释不再把旧 continuation surface 写成最终设计；与 `T4016a1` 的术语和迁移方向保持一致。
 - 依赖：T4016a1
 
-### T4016b [TODO] 把 answer type、returning-resume 与 arm syntax removal 接入前端 / 中端主线（拆分执行）
+### T4016b [DONE] 把 answer type、returning-resume 与 arm syntax removal 接入前端 / 中端主线（拆分执行）
 - 说明：
   - 现状里有三件事被绑在同一个任务里：删除 `-> resume` 语法、把 continuation binder 升级为带 answer type 的静态模型、以及让 `Continuation.resume(...)` 真正返回 delimiter answer。
   - 代码上这三件事横跨 parser / AST / HIR / typecheck / LLVM state machine，而且 runtime ABI 目前仍是 `void scoop_continuation_resume(void*)`；因此若不拆开，很容易把“删旧语法”和“接通 answer-return channel”强行耦合在一起。
@@ -116,7 +116,7 @@
   - expression-position `k.resume(...)` 可真实观察到 delimiter answer，而不是“静态上返回值、运行时却仍是 `Unit`”。
 - 依赖：T4016c
 
-### T4016b4 [TODO] 收口 legacy `Continuation<Resume, eff E>` / `Continuation<Resume>` 兼容 shorthand，避免 answer-hole 泄漏到 codegen（拆分执行）
+### T4016b4 [DONE] 收口 legacy `Continuation<Resume, eff E>` / `Continuation<Resume>` 兼容 shorthand，避免 answer-hole 泄漏到 codegen（拆分执行）
 - 说明：
   - 此前前端曾临时接受旧 shorthand，并用内部 continuation answer-hole 补齐缺失的 answer type。
   - 也正因此，当 shorthand continuation 被存进字段/局部并跨 suspend 进入 effect frame / runtime object model 时，answer-hole 会以 `TypeKind::Param` 形式泄漏到 monomorph / LLVM codegen；最早暴露在 `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`，随后又在 `continuation_resume_continuation.scoop`、`continuation_resume_enum.scoop`、`effect_escape_continuation_async_executor_fifo.scoop` 等用例上确认了同一路径的问题。
@@ -165,7 +165,7 @@
   - 已验证隔离的 fixture runner 子集 `cargo run -p scoop -- test --fixtures <temp-dir-containing-run-pass-fixture>` 通过；相关 cross-thread continuation / GC stress run-pass 用例重新具备稳定纳入自动回归的前提，可继续推进 `T4016b4b` 的全量 `run-pass` 验收。
 - 依赖：T4016b4a0
 
-### T4016b4b [TODO] 在 `T4016b4b0` 之后完成 pure `Continuation<Resume>` shorthand 的收尾迁移与全量 run-pass 验收
+### T4016b4b [DONE] 在 `T4016b4b0` 之后完成 pure `Continuation<Resume>` shorthand 的收尾迁移与全量 run-pass 验收
 - 范围：
   - 在 `T4016b4b0` 修复 runtime 崩溃后，重新盘点并复验仍可能通过 `Continuation<Resume>` 保存/转运后再 `resume(...)` 的剩余 legacy fixture/source；若仍有遗漏，继续把 answer type 显式化，或在无法保持正确语义时给出更早的 compatibility diagnostic。
   - 用全量 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 收尾验证 pure shorthand 已不再沿 replay / resume path 把 continuation answer-hole 泄漏到 codegen。
@@ -173,6 +173,8 @@
 - 验收：
   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 全量通过。
   - legacy `Continuation<Resume>` shorthand 不再在任何 resume / replay path 上把 continuation answer-hole 泄漏进 codegen。
+  - 已重新盘点仓库内剩余 `Continuation<Resume>` 文本匹配；除文档、任务记录与 removed-diagnostic 用例外，不再有会进入生产主线的 legacy pure shorthand。
+  - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4016b4b0
 
 ### T4016d [TODO] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack

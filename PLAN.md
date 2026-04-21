@@ -50,8 +50,8 @@
     - `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 已恢复为真实的 stress-mode `run-pass` 回归：fixture 头部现为 `EXPECT: pass`，并通过 `ENV: SCOOP_GC_STRESS=1` 固定开启压力路径；
     - 已复验隔离的 fixtures runner 子集、手动 `build + SCOOP_GC_STRESS=1` 执行路径、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；
     - 结论：此前在 `workerA_resuming` 后异常退出的 blocker 已随 `T4016b4a0` 的 GC roots 修复实质消失，本轮已把它正式收口为可持续回归的验收项。
-  - 下一步进入 `T4016b4b`：重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并用全量 `run-pass` 做最终验收。
-  - `T4016b4b`：在 `T4016b4b0` 之后，再用全量 `run-pass` 完成 pure `Continuation<Resume>` shorthand 的收尾迁移与最终验收。
+  - `T4016b4b` 已完成：已重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并以全量 `run-pass` 完成最终验收。
+  - 下一步进入 `T4016d`：继续把 `Task` 收口为基于 continuation answer type 的薄封装，并移除剩余 runtime hack 叙事/实现债务。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -92,21 +92,18 @@
     - `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`、`continuation_resume_from_escape_binder_requires_step_effect.scoop` 与 `non_pure_continuation_resume_classifies_as_call_suspend_site` 单测已迁到显式 answer type；
     - 同时先把一批显然 answer=`Unit` 的 resume payload fixtures 迁到 `Continuation<Payload, Unit>`，避免继续混用旧 shorthand 叙事；
     - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop -o /tmp/cont-shorthand.out && /tmp/cont-shorthand.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - `T4016b4b` 的编译器/fixture 迁移已基本推进到位：
+  - `T4016b4b` 已完成：
     - type lowering 已移除 legacy pure `Continuation<Resume>` 自动补 answer-hole 的兼容路径，并新增 removed diagnostic，要求显式写成 `Continuation<Resume, Answer>`；
     - 构造器参数路径现已支持 expected-type placeholder 回填，`Cell(None())` 这类场景不再阻断 continuation fixture build；
     - 相关 run-pass / typecheck fixtures 与 LLVM 内嵌测试源码已大批迁移到显式 answer type；
-    - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - 但继续用全量 `run-pass` 验收 `T4016b4b` 时，暴露出新的 runtime 前置 blocker，最初先抽成 `T4016b4b0`：
-    - `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 现已可以成功 build；
-    - `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 会在输出 `workerA_resuming` 后以 `exit code -1` 异常结束；
-    - 当前阻塞点因此已从 pure shorthand 的 codegen 泄漏，转为 cross-thread escaped continuation 在 GC stress 下的 runtime 崩溃。
+    - 已重新盘点仓库内剩余 `Continuation<Resume>` 文本匹配；除文档、计划/TODO 记录与 removed-diagnostic fixture 外，不再有会进入生产/codegen 主线的 legacy pure shorthand；
+    - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (375)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - 本轮已完成此前前置出的 `T4016b4a0`：
     - runtime 新增 `scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc)`，并在 baseline / immix / minimal / hosted 四个 backend 中接入 permanent global roots 扫描、verify 与 moving update；
     - LLVM codegen 改为在 object/top-level immutable 的 once-init 函数内就地注册 `__scoop_object_prop__*`、`__scoop_top_level_val__*` 与 `__scoop_object_instance__*`，同时为 backing global 生成可递归描述 nested GC refs 的 type descriptor；
     - 在修复注册路径时，还顺手收口了 ordinary pointer-shaped locals keepalive 的两个编译器回归：frame-slot GEP 现会在当前 block 重新物化，dispatch loop / task body wrapper 的嵌套函数 codegen 也不再泄漏 `env`；
     - 已验证 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`SCOOP_GC_MOVE=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/gc_module_global_roots_move_basic.out` 与 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 通过。
-  - 下一步回到 `T4016b4b0`：既然 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 stress 下现已跑通，需要判断该 blocker 是否已经随 `T4016b4a0` 实质消失；若仍有更窄残留，再单独抽出并修复后继续推进 `T4016b4b`、`T4016d` 与 `T4016R`。
+  - 下一步进入 `T4016d`：聚焦 `Task` 私有 step-result continuation 的最终薄封装语义，彻底移除 task-only runtime hack 与过渡叙事。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
