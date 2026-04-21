@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1R -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -235,6 +235,7 @@
 - 说明：
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
+  - 进一步推进 `T4016T2` 前，必须先补齐当前 LLVM 路径下“custom rich enum variant 直接承载 function type payload”这一既有缺口；否则 `Created(val start: () -> ...)` 这类 `Task` state 目标形状只能靠 wrapper / workaround 规避，违反本轮约束。
 
 ### T4016T1 [DONE] 将 core task public surface 直接收口为 `TaskStep<T>` + `step()`，并同步语言 / 运行时规格
 - 范围：
@@ -258,6 +259,24 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
+### T4016T1a [TODO] 补齐 rich enum variant 对 function-type payload 的布局 / LLVM 主线，允许 `Created(val start: () -> ...)`
+- 范围：
+  - 修复当前 `TypeRef::Function` 在 enum / struct layout side table 中丢失真实 `TypeId` / 可恢复布局键的问题，确保 HIR `EnumVariantFieldLayout`、boxed payload descriptor 与 LLVM enum layout 都能恢复 function-type 字段，而不是在 `struct field type`、`enum payload (non-scalar)` 或等价旧旁路上提前失败。
+  - 打通 custom rich enum 上的 function-type payload 构造、存储、`when` 解构、局部 binder 与后续 callable-value 调用主线；不得要求改用 `Option<() -> ...>`、额外 wrapper class / object，或 task-private runtime helper 作为 workaround。
+  - 补 `run-pass` / `typecheck` / 必要 LLVM 单测，直接覆盖 `enum Step { Ready(val f: () -> Int) }` 与 `Task` 目标形状 `Created(val start: () -> __TaskStepResult)` 的最小 probe，锁定自定义 enum variant 直接承载 closure payload 已可执行。
+- 验收：
+  - LLVM 路径下，自定义 enum variant 可直接承载 function type payload，并能在 ctor + pattern binder + callable invocation 主线上工作。
+  - `Task` 后续可直接用 `enum` + closure payload 表示内部 state，而不是先引入额外 wrapper / ABI 特判来绕过该既有问题。
+- 依赖：T4016T1
+
+### T4016T1R [TODO] Review：确认 function-type enum payload 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
+- 范围：
+  - 复审 typecheck layout、HIR enum field metadata、LLVM enum ctor / `when` 提取 / binder / callable-value call 路径，确认 function type 没有再被降格成无类型 `Ref` / `Any`，也没有通过 task-private wrapper、helper 命名约定或 fixture 缩窄规避问题。
+  - 复核新增回归同时覆盖 inline/boxed variant、top-level/local callable value，以及 `Created(val start: () -> ...)` 这类 `T4016T2` 直接依赖的形状。
+- 验收：
+  - 未发现“只对 task 私有形状可用”或“换成 `Option` / wrapper 才能过”的残余旁路；`T4016T2` 可以基于自定义 enum + closure payload 继续推进。
+- 依赖：T4016T1a
+
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
   - 依照 `SCOOP_TASK.md` 把 task-private driver result、task state 与 `Task.step()` 主体实现迁到 Scoop 代码；`__TaskStepResult` / `__TaskState` / 内部 helper 名称可调整，但必须是普通 Scoop 定义而不是新的 C runtime 语义节点。
@@ -268,7 +287,7 @@
   - 大部分 task state / step-driving 逻辑已以普通 Scoop 代码存在并可测试，不再主要驻留于 `runtime/c/scoop_task.c`。
   - async lowering 只剩 sugar / private glue，不再把 task-only runtime helper 当作语言主线的一部分。
   - 文档已说明跨线程 `step()` / resume 的最小同步合同与 GC/rooting 约束。
-- 依赖：T4016T1
+- 依赖：T4016T1R
 
 ### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
 - 范围：
