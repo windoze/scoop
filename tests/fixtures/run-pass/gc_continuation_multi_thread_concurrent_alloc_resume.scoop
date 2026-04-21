@@ -1,8 +1,10 @@
-// EXPECT: fail
-// T4016b4b0: 当前该 fixture 已可成功 build；真实阻塞变为 worker 线程 cross-thread
-// resume 已逃逸 continuation 时的 runtime 崩溃。在 `SCOOP_GC_STRESS=1` 下，程序会在
-// 输出 `workerA_resuming` 后异常退出；待 continuation / GC / thread lifecycle 合同收口后回收。
+// EXPECT: pass
 // RUN-STDOUT: gc_continuation_multi_thread_concurrent_alloc_resume.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T4016b4b0: cross-thread escaped continuation 在 worker 线程恢复时，必须能在 GC stress
+// 下稳定通过；本回归锁定“线程 join 后显式 GC + 后续 worker 再次 resume”这一序列，
+// 避免回退到 `workerA_resuming` 后异常退出。
 //
 // T1705: Multi-thread + GC + escaping continuation — worker threads resume continuations.
 //
@@ -20,9 +22,9 @@
 // - Object allocation in resumed continuation code executes in worker thread context.
 //
 // Note: T0105 fixed the STW deadlock (thread join/sleep now transition to IN_NATIVE).
-// SCOOP_GC_STRESS=1 no longer hangs, but GC rooting issues (T0106 scope) cause
-// continuations to be collected — this fixture uses explicit __scoop_gc_collect()
-// on main thread after worker threads join until GC rooting is fully audited.
+// 该用例继续保留显式 `__scoop_gc_collect()`，用于稳定覆盖“worker 线程退出后 thread list
+// 收缩 + main 线程显式 GC + 下一次 cross-thread resume”这一时序；同时通过 fixture 级
+// `SCOOP_GC_STRESS=1` 让 worker 内 resumed 路径上的分配也参与压力回归。
 
 import scoop.core.*
 import scoop.thread.*

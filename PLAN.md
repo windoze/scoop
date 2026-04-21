@@ -46,7 +46,11 @@
   - `T4016b3`：最后基于统一 answer-return 通道，把 `Continuation.resume(...): Answer` 的 typecheck / lowering / codegen 主线彻底接通。
   - `T4016b4a`：先移除 legacy `Continuation<Resume, eff E>` shorthand，并收口最先暴露出来的 answer-hole codegen blocker。
   - `T4016b4a0`：已完成 object property / top-level immutable backing globals 的永久 GC roots 合同，显式 GC 后的模块级引用悬挂/错指问题已收口。
-  - `T4016b4b0`：下一步回到 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 的 cross-thread continuation / GC stress 路径，确认剩余的 continuation / frame liveness / thread 问题是否已随 `T4016b4a0` 一并消失，或是否还需更窄修复。
+  - `T4016b4b0` 已完成：
+    - `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 已恢复为真实的 stress-mode `run-pass` 回归：fixture 头部现为 `EXPECT: pass`，并通过 `ENV: SCOOP_GC_STRESS=1` 固定开启压力路径；
+    - 已复验隔离的 fixtures runner 子集、手动 `build + SCOOP_GC_STRESS=1` 执行路径、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；
+    - 结论：此前在 `workerA_resuming` 后异常退出的 blocker 已随 `T4016b4a0` 的 GC roots 修复实质消失，本轮已把它正式收口为可持续回归的验收项。
+  - 下一步进入 `T4016b4b`：重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并用全量 `run-pass` 做最终验收。
   - `T4016b4b`：在 `T4016b4b0` 之后，再用全量 `run-pass` 完成 pure `Continuation<Resume>` shorthand 的收尾迁移与最终验收。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。

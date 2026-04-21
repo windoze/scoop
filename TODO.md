@@ -154,15 +154,15 @@
   - 模块级 GC 指针全局值在 GC 后不会因未扫描或未更新而悬挂；相关回归能稳定复现并锁定该合同。
 - 依赖：T4016b4a
 
-### T4016b4b0 [TODO] 修复 GC stress 下 cross-thread escaped continuation resume 的 runtime 崩溃，恢复 `T4016b4b` 的有效验收前提
+### T4016b4b0 [DONE] 修复 GC stress 下 cross-thread escaped continuation resume 的 runtime 崩溃，恢复 `T4016b4b` 的有效验收前提
 - 范围：
   - 在 `T4016b4a0` 补齐模块级 GC 指针全局槽 roots 合同之后，继续定位并修复 `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下由 worker 线程 `resume` 已逃逸 continuation 时，于 `workerA_resuming` 后异常退出的问题。
-  - 说明：`T4016b4a0` 已补齐 `__scoop_object_prop__*` / `__scoop_top_level_val__*` / `__scoop_object_instance__*` 的永久 roots/update 合同；`gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下现已能正常结束，本条下一步需要继续核查是否还存在更窄的 cross-thread continuation / frame liveness / thread 路径残留问题，再决定是否可直接并回 `T4016b4b` 的全量验收。
+  - 说明：`T4016b4a0` 已补齐 `__scoop_object_prop__*` / `__scoop_top_level_val__*` / `__scoop_object_instance__*` 的永久 roots/update 合同；本轮已确认 `gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下按预期 stdout 正常结束，不再在 `workerA_resuming` 后异常退出，并已把该用例恢复为真实的 stress-mode `run-pass` 回归（fixture 内显式启用 `ENV: SCOOP_GC_STRESS=1`）。
   - 核查 continuation / thread registration / GC rooting / frame liveness / cross-thread resume 合同，确保该 fixture 已能 build 的前提下，运行路径也与预期一致。
   - 补 runtime / run-pass regression，确认该类“cross-thread continuation + object allocation + GC collect”场景不再作为 `T4016b4b` 全量 `run-pass` 验收的噪声 blocker。
 - 验收：
-  - `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop -o /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 成功，且 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 按预期 stdout 正常结束，不再在 `workerA_resuming` 后异常退出。
-  - 相关 cross-thread continuation / GC stress run-pass 用例可稳定运行，为 `T4016b4b` 继续做全量 `run-pass` 验收恢复前提。
+  - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop -o /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 成功，且 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 按预期 stdout 正常结束，不再在 `workerA_resuming` 后异常退出。
+  - 已验证隔离的 fixture runner 子集 `cargo run -p scoop -- test --fixtures <temp-dir-containing-run-pass-fixture>` 通过；相关 cross-thread continuation / GC stress run-pass 用例重新具备稳定纳入自动回归的前提，可继续推进 `T4016b4b` 的全量 `run-pass` 验收。
 - 依赖：T4016b4a0
 
 ### T4016b4b [TODO] 在 `T4016b4b0` 之后完成 pure `Continuation<Resume>` shorthand 的收尾迁移与全量 run-pass 验收
