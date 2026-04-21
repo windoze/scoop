@@ -3,12 +3,12 @@
 > 生成时间：2026-04-20  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先完成正确的单次 delimited continuation / `Task` 去 hack，再回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：正确的单次 delimited continuation / `Task` 去 hack -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -187,13 +187,25 @@
   - `Task` 可被解释为 continuation-based thin wrapper，而不再需要在设计文档里保留“runtime hack” caveat。
 - 依赖：T4016b4b
 
+### T1510c1 [TODO] 修复 `@Extern` + `enter_native` 在 moving GC 下把过期 SSA keepalive 写回 managed 局部槽位
+- 范围：
+  - 修复 `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop` 暴露的既有问题：当前 LLVM IR 已为 extern 调用点生成 `scoop_enter_native(root_slots = 1)`，但 extern body 内触发 moving GC 后，codegen 仍沿用 native 期间的 SSA `gc.relocate` 值，再在 `leave_native` 之后把它写回原局部槽位。
+  - 该行为会覆盖 `native_roots` 已经原地更新过的新地址，把 pre-move/stale 指针 resurrect 回 managed frame；随后 `GC.handleNew/handleGet` 等路径会在错误地址上失败并 `exit(3)`。
+  - 修复应收口在 managed-frame 的 extern-call lowering / spill-reload 合同上：native 期间依赖 `enter_native` 注册的 roots slots，返回 managed 侧后必须从真实槽位重新取值，不能继续把 extern statepoint 的旧 SSA keepalive 当成 authoritative root。
+  - 补定向 regression，锁定 `@Extern` + `SCOOP_GC_MOVE=1` 下“roots 被更新且回 managed 后不复写旧地址”的合同，而不是只验证对象未被回收。
+- 验收：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 通过。
+  - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop` 在 `SCOOP_GC_MOVE=1` 下输出 `hello 7`，不再 `exit(3)`。
+  - 若保留 LLVM IR regression，需能直接体现“extern native call 返回后重取 updated slot，而不是把 native call 前/中的 SSA keepalive 写回局部槽位”。
+- 依赖：无
+
 ### T4016R [TODO] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack
 - 重点：
   - 不允许在实现 returning-resume 后偷偷引入 multi-shot / clone / replay。
   - 不允许 `-> resume` 继续以用户态语法、隐藏 special form 或第二套 lowering contract 存活；若存在 immediate-resume fast path，也只能是 continuation primitive 的内部优化。
   - `k.resume(...)` 必须真实返回 delimiter answer type；“resume 后本地代码继续执行”的语义要通过生产代码与回归确认，而不是只停在 spec 文字。
   - `Task` 必须使用同一 continuation contract；不允许继续依赖 frame layout poking、task-private ABI 假设或“resume 返回 `Unit` 但 task 另有旁路结果”的双重叙事。
-- 依赖：T4016d
+- 依赖：T1510c1, T4016d
 
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
 

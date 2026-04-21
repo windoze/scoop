@@ -2,7 +2,7 @@
 
 > 生成时间：2026-04-21  
 > 历史归档：`PLAN-5.md` / `TODO-5.md`  
-> 本轮主题：先把 `Continuation` 从当前“为 effect / async lowering 服务的 step-driving advanced API”收口为**正确的单次（one-shot）delimited continuation**，再让 `Task` 真正退化为其上的薄封装；annotation、删除 `inline` 关键字、FFI / ABI、const / comptime 顺延。  
+> 本轮主题：先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再把 `Continuation` 从当前“为 effect / async lowering 服务的 step-driving advanced API”收口为**正确的单次（one-shot）delimited continuation**，然后让 `Task` 真正退化为其上的薄封装；annotation、删除 `inline` 关键字、FFI / ABI、const / comptime 顺延。  
 > 设计前提：**不支持 multi-shot continuation**。Scoop 保持当前可变局部、writeback、once-init 与 GC-managed frame 的整体运行时方向，不为 continuation cloning / replay 另开一套“immutable everything”语义世界。
 
 ## 0. 工作原则
@@ -20,13 +20,26 @@
 
 ## 1. 顺序总览
 
-1. 新增优先项：正确的单次 delimited continuation 与 `Task` 去 hack（`T4016a1 -> T4016a2 -> T4016b1 -> T4016b2 -> T4016c -> T4016b3 -> T4016b4 -> T4016d -> T4016R`）
-2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
-3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
-4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
-5. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
+1. 新增前置 blocker：修复 `@Extern` + moving-GC native-roots 回归（`T1510c1`）
+2. 正确的单次 delimited continuation 与 `Task` 去 hack review 收口（`T4016a1 -> T4016a2 -> T4016b1 -> T4016b2 -> T4016c -> T4016b3 -> T4016b4 -> T4016d -> T4016R`，其中 `T4016R` 现额外依赖 `T1510c1`）
+3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
+4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
+5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
+6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
 
 ## 2. 分阶段目标
+
+### P0. 前置既有问题：`@Extern` + moving GC native-roots 回归
+
+- `cargo run -p scoop -- test` 在 `T4016R` 验证阶段暴露 `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop` 失败：fixture 期望在 `SCOOP_GC_MOVE=1` 下通过 `@Extern("scoop_test_gc_collect_in_native")` 触发 GC 后仍能打印 `hello 7`，实际进程 `exit(3)`。
+- 已复验：
+  - 单独 `cargo run -p scoop -- build tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop -o /tmp/extern_enter_native_roots_gc.out` 成功，但 `SCOOP_GC_MOVE=1 /tmp/extern_enter_native_roots_gc.out` 仍 `exit(3)`；
+  - `cargo test -p scoop_runtime --test gc_enter_native` 通过，说明 runtime 的 “InNative + native_roots 保活对象” 基本能力仍在。
+- 已定位到更精确的 blocking mismatch：
+  - fixture 的 LLVM IR 确实生成了 `scoop_enter_native(root_slots = 1)`，局部 `x` 的槽位也被放进 `native_root_slots`；
+  - 但 extern body 的 statepoint 返回后，codegen 继续沿用 native 期间的 SSA `gc.relocate` 值，并在 `scoop_leave_native()` 之后把它写回 `%x`；
+  - moving GC 若已通过 `native_roots` 把 `%x` 更新到新地址，这个“把旧 SSA 值写回局部槽位”的动作会把 stale/pre-move 指针 resurrect 回 managed frame，随后 `GC.handleNew/handleGet` 路径以 `exit(3)` 失败。
+- 因此当前应先执行 `T1510c1`：修正 extern-call lowering / spill-reload 合同，让 managed 侧在离开 native 后重新从真实 roots 槽位取值，而不是继续信任 native call 前/中的 SSA keepalive。
 
 ### P1. 正确的单次 delimited continuation 与 `Task` 去 hack
 
@@ -51,7 +64,10 @@
     - 已复验隔离的 fixtures runner 子集、手动 `build + SCOOP_GC_STRESS=1` 执行路径、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；
     - 结论：此前在 `workerA_resuming` 后异常退出的 blocker 已随 `T4016b4a0` 的 GC roots 修复实质消失，本轮已把它正式收口为可持续回归的验收项。
   - `T4016b4b` 已完成：已重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并以全量 `run-pass` 完成最终验收。
-  - 下一步进入 `T4016R`：对照 production code、runtime 合同与回归，确认 `Task` 已真正退化为 continuation thin wrapper，且没有残留 task-only hack 叙事。
+  - `T4016R` 的静态审查结论当前保持“待收口”：
+    - 已确认 `-> resume` 只剩 removed-syntax diagnostic，`Continuation.resume(...)` 的 typecheck / lowering / codegen 统一走 answer-returning helper，`Task` 也只在私有层把同一 continuation answer 通道解释为 `__TaskStepResult`；
+    - 但在尝试用全量 `cargo run -p scoop -- test` 关闭 review 时，命中了上面的 `T1510c1` 既有 blocker，因此 `T4016R` 不能在全量回归恢复绿色前标记完成。
+  - 新的顺序调整为：`T1510c1 -> T4016R -> T4012...`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -108,14 +124,14 @@
     - LLVM codegen 改为在 object/top-level immutable 的 once-init 函数内就地注册 `__scoop_object_prop__*`、`__scoop_top_level_val__*` 与 `__scoop_object_instance__*`，同时为 backing global 生成可递归描述 nested GC refs 的 type descriptor；
     - 在修复注册路径时，还顺手收口了 ordinary pointer-shaped locals keepalive 的两个编译器回归：frame-slot GEP 现会在当前 block 重新物化，dispatch loop / task body wrapper 的嵌套函数 codegen 也不再泄漏 `env`；
     - 已验证 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`SCOOP_GC_MOVE=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/gc_module_global_roots_move_basic.out` 与 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 通过。
-  - 下一步进入 `T4016R`：聚焦 review 视角确认 `Task`/continuation 语义与实现已完全对齐，并检查是否仍有 task-only runtime hack 或双重叙事残留。
+  - 下一步先做 `T1510c1`：修复 extern/native 路径在 moving GC 下把 stale SSA keepalive 写回 managed 局部槽位的问题；待全量回归恢复绿色后，再回到 `T4016R` 收口 review。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
 - annotation 保持 compile-time markers only，不进入复杂 nominal / runtime 语义。
 - 先收口 non-inline built-in annotations，并补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
 - 再删除 `inline` 关键字与 legacy non-local return 语义残留；若未来仍需内联提示，统一由 `@Inline` 作为纯优化 marker 承担。
-- 当前状态：`T4012a -> T4012b -> T4012c -> T4012R -> T4013 -> T4013R` 待开始。
+- 当前状态：`T1510c1` 之后，继续 `T4016R -> T4012a -> T4012b -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P3. FFI / ABI 边界收口
 
