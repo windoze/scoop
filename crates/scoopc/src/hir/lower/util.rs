@@ -2924,7 +2924,7 @@ fn resolve_field_type_fqn(
     type_id_to_layout_fqn(types, ty)
 }
 
-fn resolve_field_type_id(
+pub(super) fn resolve_field_type_id(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,

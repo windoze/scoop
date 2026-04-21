@@ -250,16 +250,16 @@ File {
                                                         guard: None,
                                                         arrow_span: 170..172,
                                                         body: Expr {
-                                                            span: 170..172,
+                                                            span: 170..170,
                                                             ty: TypeId(
-                                                                0,
+                                                                3,
                                                             ),
                                                             kind: Perform {
                                                                 effect_ty: TypeId(
                                                                     16,
                                                                 ),
                                                                 op: EffectOpRef {
-                                                                    span: 170..172,
+                                                                    span: 170..170,
                                                                     fqn: "scoop.core.Raise.raise",
                                                                 },
                                                                 args: [

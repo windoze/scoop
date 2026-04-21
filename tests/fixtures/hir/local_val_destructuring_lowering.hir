@@ -533,16 +533,16 @@ File {
                                                     guard: None,
                                                     arrow_span: 314..321,
                                                     body: Expr {
-                                                        span: 314..321,
+                                                        span: 314..314,
                                                         ty: TypeId(
-                                                            0,
+                                                            3,
                                                         ),
                                                         kind: Perform {
                                                             effect_ty: TypeId(
                                                                 15,
                                                             ),
                                                             op: EffectOpRef {
-                                                                span: 314..321,
+                                                                span: 314..314,
                                                                 fqn: "scoop.core.Raise.raise",
                                                             },
                                                             args: [
@@ -659,16 +659,16 @@ File {
                                                             guard: None,
                                                             arrow_span: 314..321,
                                                             body: Expr {
-                                                                span: 314..321,
+                                                                span: 314..314,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    3,
                                                                 ),
                                                                 kind: Perform {
                                                                     effect_ty: TypeId(
                                                                         15,
                                                                     ),
                                                                     op: EffectOpRef {
-                                                                        span: 314..321,
+                                                                        span: 314..314,
                                                                         fqn: "scoop.core.Raise.raise",
                                                                     },
                                                                     args: [

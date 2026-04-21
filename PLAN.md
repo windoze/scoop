@@ -21,7 +21,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b` 与 `T4016T1c` 均已完成；基于 `SCOOP_TASK.md`，下一步执行 `T4016T1R -> T4016T2 -> T4016T3`
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c` 与 `T4016T1R` 均已完成；基于 `SCOOP_TASK.md`，下一步执行 `T4016T2 -> T4016T3`
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -90,8 +90,12 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1`、`T4016T1a`、`T4016T1b` 与 `T4016T1c`，后续继续按 `SCOOP_TASK.md` 先做 `T4016T1R`，再推进 `T4016T2 -> T4016T3`。
-  - 当前顺序调整为：`T4016T1R -> T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c` 与 `T4016T1R`，后续继续按 `SCOOP_TASK.md` 推进 `T4016T2 -> T4016T3`。
+  - `T4016T1R` 期间又收口了一个必须优先修的既有缺口：boxed multi-field enum variant 经 `val Variant(...) = expr` 解构后，若 payload 含 function type 且后续直接调用，隐藏 `Raise.raise(...)` 会被 ordinary callee suspend plan 误建模成 `Ref` 型 resume slot。现已通过：
+    - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
+    - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
+    - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
+  - 当前顺序调整为：`T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -153,7 +157,7 @@
   - `T4016T1b` 已完成：cast 前端现已拒绝 function runtime cast；`Pure! -> Any` 的显式擦除保留，`Any -> pure function` 与 non-`Pure` function-type cast 均在 typecheck 阶段给出稳定诊断，避免再把未定义语义漏到 LLVM。
   - `T4016T1c` 已完成：opaque callable 现已按静态 function type 的 effect row 上界决定 may-suspend 编译；state-machine planner / suspend analysis / callable-value codegen 的 concrete-type 恢复已对齐到 member access、`Block`/`If`/`When`、higher-order 返回值与 object/struct/class field 路径，`wrapper.f()` 与 `choose(mode)()` 这类调用点不再漏掉 outward suspend。
   - 为完成全量验收，本轮同时修复了 fixture runner 在 `cargo run -p scoop -- test` 中通过 `current_exe()` 拿到 `.../scoop (deleted)` 路径而导致 run-pass 自调用失败的既有问题；runner 现会回退到去掉 `(deleted)` 后缀的真实路径，`cargo run -p scoop -- test` 已恢复通过。
-  - 下一步按 `SCOOP_TASK.md` 继续 `T4016T1R -> T4016T2 -> T4016T3`：先复审 function-type payload / cast boundary / opaque callable suspendability 主线无 task-only workaround，再把 task 主体迁回 Scoop 并删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
+  - 下一步按 `SCOOP_TASK.md` 继续 `T4016T2 -> T4016T3`：在 `T4016T1R` 已确认 rich enum / callable-value 主线无 task-only workaround 且 boxed multi-field function payload 缺口已收口后，把 task 主体迁回 Scoop 并删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
 
 ### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`）
 
@@ -180,11 +184,14 @@
     - `llvm/codegen/effect/state_machine_plan.rs` 与 `llvm/codegen/mod.rs` 已统一 opaque callable 的 concrete-type 恢复逻辑：`MemberAccess`、`Call`、`Block`、`If`、`When`、object property、struct/class field 上的函数值都能按静态 function type 的 effect row 决定 may-suspend；
     - 新增 `effect_indirect_perform_nonresuming_function_value_wrapper_member_direct*` 与 `effect_indirect_perform_nonresuming_function_value_higher_order_when_direct*` run-pass 回归，以及对应的 state-machine dump 单测，覆盖 wrapper member direct call、same-site pure/effectful actual values、`when` LUB 与 higher-order 返回值直调；
     - 已验证 `cargo test -p scoopc segment_dump_classifies_ -- --nocapture`、`cargo test -p scoopc unified_state_machine_transforms_all_segment_kinds_from_feature_matrix -- --nocapture`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check` 与 `cargo clippy --all-targets -- -D warnings`。
-  - `T4016T1R`：复审 rich enum / callable-value / state-machine planner / LLVM 主线没有残留 task-only wrapper、member-path 漏判或“先存局部变量再调”这类 workaround。
+  - `T4016T1R` 已完成：
+    - 复审 rich enum / callable-value / state-machine planner / LLVM 主线过程中，确认并修复了 boxed multi-field enum function payload 在 `val Variant(...) = expr` 解构调用路径上的既有缺口；
+    - `enum_function_payload_boxed_multi_field_basic.scoop` 已把 boxed ctor、`when` 解构调用与 `val` 解构调用一并锁进 run-pass 回归；
+    - 与 null-assert lowering 相关的 HIR golden 已同步到 “hidden `Raise.raise(...)` 为 `Nothing` 类型 + 零宽 span” 的新合同。
   - `T4016T2`：把 task 内部 driver / state / `step()` 主体迁回 Scoop，把 `async` / `await` lowering 改写到 ordinary Scoop helper target，并明确跨线程 drive/resume 的最小同步合同；语言 spec、runtime spec 与设计文档要同步改写；
   - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
 - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T1R -> T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

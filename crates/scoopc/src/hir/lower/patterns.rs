@@ -4,9 +4,12 @@
 //! - 当前主要承载 `when` 的模式（`WhenPat`）AST → HIR 转换；
 //! - 规则与 span 选择尽量保持既有行为稳定，避免 HIR fixtures 输出漂移。
 
+use std::collections::HashMap;
+
 use sha2::{Digest, Sha256};
 
 use crate::ast;
+use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
@@ -302,16 +305,20 @@ impl<'a> HirLowering<'a> {
             .last()
             .map(|segment| segment.text(self.source).to_string())
             .unwrap_or_default();
+        let subject_ty = subject.ty;
 
         let mut nested_checks = Vec::new();
         let mut arm_args = Vec::with_capacity(args.len());
-        for arg in args {
+        for (idx, arg) in args.iter().enumerate() {
             match &arg.kind {
                 ast::PatternKind::Rest => arm_args.push(WhenPat::Rest { span: arg.span }),
                 _ if self.pattern_contains_variant(arg) => {
                     let (bind_span, bind_id, bind_name) =
                         self.fresh_synthetic_local(arg.span, "__destructure_check", false);
-                    self.record_when_pat_binding_ty(bind_span, self.builtins.any);
+                    let bind_ty = self
+                        .variant_pattern_synthetic_bind_ty(subject_ty, path, idx)
+                        .unwrap_or(self.builtins.any);
+                    self.record_when_pat_binding_ty(bind_span, bind_ty);
                     arm_args.push(WhenPat::Bind {
                         span: bind_span,
                         id: bind_id,
@@ -319,7 +326,7 @@ impl<'a> HirLowering<'a> {
                     });
                     let nested_subject = self.synth_local_ref(
                         arg.span,
-                        self.builtins.any,
+                        bind_ty,
                         bind_id,
                         bind_name,
                         bind_span,
@@ -426,6 +433,7 @@ impl<'a> HirLowering<'a> {
                     .last()
                     .map(|segment| segment.text(self.source).to_string())
                     .unwrap_or_default();
+                let subject_ty = subject.ty;
 
                 let mut arm_args = Vec::with_capacity(args.len());
                 let mut arm_body = None;
@@ -438,7 +446,10 @@ impl<'a> HirLowering<'a> {
                     if idx == target_index {
                         let (bind_span, bind_id, bind_name) =
                             self.fresh_synthetic_local(arg.span, "__destructure_extract", false);
-                        self.record_when_pat_binding_ty(bind_span, self.builtins.any);
+                        let bind_ty = self
+                            .variant_pattern_synthetic_bind_ty(subject_ty, path, idx)
+                            .unwrap_or(self.builtins.any);
+                        self.record_when_pat_binding_ty(bind_span, bind_ty);
                         arm_args.push(WhenPat::Bind {
                             span: bind_span,
                             id: bind_id,
@@ -446,7 +457,7 @@ impl<'a> HirLowering<'a> {
                         });
                         let nested_subject = self.synth_local_ref(
                             arg.span,
-                            self.builtins.any,
+                            bind_ty,
                             bind_id,
                             bind_name,
                             bind_span,
@@ -515,6 +526,68 @@ impl<'a> HirLowering<'a> {
             | ast::PatternKind::Bind(_)
             | ast::PatternKind::Missing => false,
         }
+    }
+
+    fn variant_pattern_synthetic_bind_ty(
+        &mut self,
+        subject_ty: TypeId,
+        path: &ast::TypePath,
+        field_index: usize,
+    ) -> Option<TypeId> {
+        let (enum_fqn, enum_args) = match self.types.kind(subject_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => {
+                ("scoop.core.Option".to_string(), vec![*inner])
+            }
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                (nominal.fqn.clone(), nominal.args.clone())
+            }
+            _ => return None,
+        };
+
+        let (enum_source, enum_file, enum_decl) =
+            self.find_type_decl_in_compilation_unit(&enum_fqn)?;
+        if !matches!(enum_decl.kind, ast::TypeKind::Enum) {
+            return None;
+        }
+        if enum_decl.type_params.len() != enum_args.len() {
+            return None;
+        }
+
+        let variant_name = path.segments.last()?.text(self.source);
+        let body = enum_decl.body.as_ref()?;
+        let variant = body.members.iter().find_map(|member| match member {
+            ast::TypeMember::EnumVariant(variant)
+                if variant.name.text(enum_source) == variant_name =>
+            {
+                Some(variant)
+            }
+            _ => None,
+        })?;
+        let field = variant.params.get(field_index)?;
+        let param_map: HashMap<String, TypeId> = enum_decl
+            .type_params
+            .iter()
+            .map(|param| param.name.text(enum_source).to_string())
+            .zip(enum_args)
+            .collect();
+        resolve_field_type_id(
+            enum_source,
+            enum_file,
+            self.index,
+            field.ty.as_ref(),
+            &param_map,
+            self.types,
+        )
+    }
+
+    fn find_type_decl_in_compilation_unit(
+        &self,
+        target_fqn: &str,
+    ) -> Option<(&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)> {
+        self.compilation_unit.iter().find_map(|(source, file)| {
+            let pkg_prefix = package_prefix(source, file.package.as_ref());
+            find_type_decl_in_items(source, file, &pkg_prefix, &file.items, target_fqn)
+        })
     }
 
     fn synth_local_ref(
@@ -751,4 +824,112 @@ fn pattern_contains_binding(pattern: &ast::Pattern, target_span: Span) -> bool {
             .any(|arg| pattern_contains_binding(arg, target_span)),
         ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => false,
     }
+}
+
+fn find_type_decl_in_items<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    owner_prefix: &str,
+    items: &'a [ast::Item],
+    target_fqn: &str,
+) -> Option<(&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)> {
+    for item in items {
+        match item {
+            ast::Item::Type(ty) => {
+                let fqn = join_prefix(owner_prefix, ty.name.text(source));
+                if fqn == target_fqn {
+                    return Some((source, file, ty));
+                }
+                if let Some(body) = &ty.body
+                    && let Some(found) = find_type_decl_in_type_members(
+                        source,
+                        file,
+                        &fqn,
+                        &body.members,
+                        target_fqn,
+                    )
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::Object(obj) => {
+                let Some(name) = obj.name.as_ref() else {
+                    continue;
+                };
+                let obj_fqn = join_prefix(owner_prefix, name.text(source));
+                if let Some(body) = &obj.body
+                    && let Some(found) = find_type_decl_in_type_members(
+                        source,
+                        file,
+                        &obj_fqn,
+                        &body.members,
+                        target_fqn,
+                    )
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_in_type_members<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    owner_prefix: &str,
+    members: &'a [ast::TypeMember],
+    target_fqn: &str,
+) -> Option<(&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)> {
+    for member in members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                let fqn = join_prefix(owner_prefix, nested.name.text(source));
+                if fqn == target_fqn {
+                    return Some((source, file, nested));
+                }
+                if let Some(body) = &nested.body
+                    && let Some(found) = find_type_decl_in_type_members(
+                        source,
+                        file,
+                        &fqn,
+                        &body.members,
+                        target_fqn,
+                    )
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                let Some(name) = obj.name.as_ref() else {
+                    continue;
+                };
+                let obj_fqn = join_prefix(owner_prefix, name.text(source));
+                if let Some(body) = &obj.body
+                    && let Some(found) = find_type_decl_in_type_members(
+                        source,
+                        file,
+                        &obj_fqn,
+                        &body.members,
+                        target_fqn,
+                    )
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+
+    None
 }

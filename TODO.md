@@ -331,11 +331,25 @@
   - planner 与 codegen 不再对同一 callee 表达式得出相互矛盾的 suspendability 结论。
 - 依赖：T4016T1b
 
-### T4016T1R [TODO] Review：确认 function-type payload、cast 边界与 opaque callable suspendability 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
+### T4016T1R [DONE] Review：确认 function-type payload、cast 边界与 opaque callable suspendability 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
 - 范围：
   - 复审 typecheck layout、cast / infer diagnostics、HIR enum field metadata、state-machine suspendability 规划、LLVM enum ctor / `when` 提取 / binder / callable-value call 路径，确认 function type 没有再被降格成无类型 `Ref` / `Any`，也没有把 effect row 误当成 runtime-checkable metadata。
   - 复核新增回归同时覆盖 inline/boxed variant、top-level/local callable value、wrapper/member field direct call，以及 `Created(val start: () -> ...)` 这类 `T4016T2` 直接依赖的形状。
   - 确认实现不再要求“先把 `wrapper.f` 存进局部变量再调用”这类仅为绕过 planner/codegen 脱节而存在的临时写法。
+- 已完成：
+  - 复审过程中暴露出一个既有真实缺口：boxed multi-field enum variant 经 `val Variant(...) = expr` 解构后，若 payload 含 function type 且后续直接调用函数值，LLVM 路径会在隐藏 `Raise.raise(...)` resume-site 上把 `Any` 误落成 `Ref`，最终触发 `Ref -> Int` coercion 失败。
+  - `hir/lower/patterns.rs` / `hir/lower/util.rs` 现已为 variant pattern 的隐藏 binder 恢复真实字段类型；boxed rich enum 上的函数值字段不再在解构路径中退化成 `Any`。
+  - `hir/lower/expr.rs` 现已把 `synth_raise_null_assertion_failed()` 生成的隐藏 `Raise.raise(...)` HIR 类型收口为 `Nothing`，并使用零宽 span 避免与外层合成 `when` 完全重叠；ordinary callee suspend plan 不再把该 hidden raise 误建模为 `Ref` 型 resume slot。
+  - 新增 `tests/fixtures/run-pass/enum_function_payload_boxed_multi_field_basic.scoop`，直接覆盖 boxed payload ctor、`when` 解构调用与 `val Variant(...) = expr` 解构调用三条路径；并同步更新 `local_val_destructuring_lowering.hir` / `safe_call_not_null_assert.hir` 的 HIR golden。
+- 已复验：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/enum_function_payload_boxed_multi_field_basic.scoop -o /tmp/enum_function_payload_boxed_multi_field_basic.out`
+  - `/tmp/enum_function_payload_boxed_multi_field_basic.out`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo test -p scoopc segment_dump_classifies_ -- --nocapture`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - 未发现“只对 task 私有形状可用”“只有局部变量路径可用”或“换成 `Option` / wrapper / direct cast 才能过”的残余旁路；`T4016T2` 可以基于自定义 enum + closure payload 继续推进。
 - 依赖：T4016T1c

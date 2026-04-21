@@ -1,0 +1,31 @@
+// EXPECT: pass
+// EXPECT-EXIT: 26
+//
+// T4016T1R：多字段 enum variant 进入 boxed payload 主线后，函数类型字段仍需保持可调用。
+//
+// 覆盖：
+// - `enum Step { Loaded(val f: () -> Int, val n: Int) }` 的 boxed payload 构造；
+// - `when (step) { Loaded(f, n) -> ... }` 解构后直接调用 `f()`；
+// - `val Step.Loaded(f, n) = step` 解构后直接调用 `f()`；
+// - direct ctor call 作为实参传递到以上两条路径。
+
+enum Step {
+    Loaded(val f: () -> Int, val n: Int),
+    Stop,
+}
+
+fun viaWhen(step: Step): Int {
+    return when (step) {
+        Loaded(f, n) -> f() + n
+        Stop -> 0
+    }
+}
+
+fun viaVal(step: Step): Int {
+    val Step.Loaded(f, n) = step
+    return f() + n
+}
+
+fun main(): Int {
+    return viaWhen(Loaded({ 3 }, 5)) + viaVal(Loaded({ 7 }, 11))
+}

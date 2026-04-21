@@ -3857,6 +3857,7 @@ impl<'a> HirLowering<'a> {
 
     /// Synthesize `Raise.raise(RuntimeError.NullAssertionFailed)` as a `Perform` node.
     pub(super) fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {
+        let perform_span = Span::new(span.start, span.start);
         let error_expr = Expr {
             span,
             ty: self.builtins.any,
@@ -3879,14 +3880,14 @@ impl<'a> HirLowering<'a> {
             },
         };
         Expr {
-            span,
-            ty: self.builtins.any,
+            span: perform_span,
+            ty: self.builtins.nothing,
             kind: ExprKind::Perform {
                 effect_ty: self
                     .typechecked_performed_effect_ty(span)
                     .unwrap_or_else(|| self.synth_raise_runtime_error_effect_ty(span)),
                 op: EffectOpRef {
-                    span,
+                    span: perform_span,
                     fqn: Self::RAISE_RAISE_FQN.to_string(),
                 },
                 args: vec![CallArg::Positional(error_expr)],
