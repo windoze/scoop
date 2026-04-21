@@ -315,6 +315,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
                 file,
                 index: &index,
                 type_kinds: &type_kinds,
+                typecheck_types: None,
                 types: &mut types,
                 builtins,
             },

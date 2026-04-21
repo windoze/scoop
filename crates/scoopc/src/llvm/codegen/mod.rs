@@ -7251,22 +7251,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // `destroy` 为 overload set：根据 receiver 的名义类型分派到不同 runtime 符号。
-        //
-        // 注意：HIR dump 当前阶段不保证 `expr.ty` 对 call/varref 总是精确，因此这里优先尝试
-        // 从 local 绑定的 `hir_ty` 获取类型信息。
-        let recv_hir_ty = match &recv_expr.kind {
-            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                self.env.get(*id).and_then(|l| l.hir_ty)
-            }
-            _ => Some(recv_expr.ty),
-        };
-
-        let Some(recv_hir_ty) = recv_hir_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
+        // generic helper/method 体内的 `carrier.lock.destroy()` 往往以 member access 作为
+        // receiver，因此这里需要和其它 builtin/member call 一样优先恢复 concrete type，
+        // 不能只依赖局部 VarRef 或宽化后的 `expr.ty`。
+        let recv_hir_ty = self.resolve_expr_concrete_type(recv_expr).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "sync.destroy receiver hir type",
                 at: recv_expr.span.into(),
-            });
-        };
+            },
+        )?;
 
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(recv_hir_ty) else {
             return Err(LlvmEmitError::UnsupportedMainBody {

@@ -282,6 +282,7 @@ pub fn lower_for_dump(
                 file: &file,
                 index: &index,
                 type_kinds: &type_kinds,
+                typecheck_types: None,
                 types: &mut types,
                 builtins,
             },

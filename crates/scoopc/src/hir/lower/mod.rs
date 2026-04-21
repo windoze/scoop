@@ -1968,6 +1968,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         &pairs,
         &index,
         &type_kinds,
+        None,
         &mut types,
         builtins,
     );
@@ -2385,6 +2386,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         compilation_unit,
         index,
         &type_kinds,
+        Some(typecheck_types),
         &mut types,
         builtins,
     ));
@@ -2423,6 +2425,7 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) file: &'a ast::File,
     pub(crate) index: &'a Index,
     pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub(crate) typecheck_types: Option<&'a TypeStore>,
     pub(crate) types: &'a mut TypeStore,
     pub(crate) builtins: BuiltinTypes,
 }
@@ -2456,6 +2459,7 @@ pub(crate) fn lower_fun_with_type_bindings(
         file,
         index,
         type_kinds,
+        typecheck_types,
         types,
         builtins,
     } = inputs;
@@ -2471,7 +2475,7 @@ pub(crate) fn lower_fun_with_type_bindings(
         index,
         types,
         HirLoweringSetup {
-            typecheck_types: None,
+            typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
@@ -2504,6 +2508,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         file,
         index,
         type_kinds,
+        typecheck_types,
         types,
         builtins,
     } = inputs;
@@ -2525,7 +2530,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         index,
         types,
         HirLoweringSetup {
-            typecheck_types: None,
+            typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,
@@ -2559,6 +2564,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         file,
         index,
         type_kinds,
+        typecheck_types,
         types,
         builtins,
     } = inputs;
@@ -2580,7 +2586,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         index,
         types,
         HirLoweringSetup {
-            typecheck_types: None,
+            typecheck_types,
             type_kinds,
             delegated_properties: &delegated_properties,
             compilation_unit: &compilation_unit,

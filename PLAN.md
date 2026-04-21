@@ -208,11 +208,17 @@
     - `Any` receiver 的成员访问现会延后到 typecheck，并由 HIR lowering / LLVM codegen 保留 smart-cast 后的具体 receiver 类型；`if (x is Box<Int>) x.value` 已回到统一主线；
     - 新增 `task_generic_state_object_model_basic.scoop` 与 `smart_cast_any_member_access_generic_class_basic.scoop` 两个 run-pass 回归，锁定 concrete-instance object model 与 smart-cast generic member access；
     - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - `T4016T1d2`：补齐 generic helper / method body 内的 monomorph/type-param leak。当前仍未修的 blocker 是：`fun <T> drive(...)`、`if (x is Box<T>) x.value` 与 `carrier.lock.destroy()` 一类路径仍会把 `TypeKind::Param(T)` 漏进 LLVM codegen；在这一步完成前，`T4016T2` 不能继续。
+  - `T4016T1d2` 已完成：
+    - 已确认真正根因不是单独的 `sync.destroy` 或 class-layout 特判缺口，而是 monomorphized generic fun/member/getter 重新做 HIR lowering 时没有复用 typecheck side table，导致依赖 smart-cast / late member resolution 的路径（例如 `if (x is Box<T>) x.value`）退回到 base generic class `Box`，再在 LLVM class field lookup 上看到残留的 `field_ty = T`。
+    - `hir/lower/mod.rs` 的 `LoweringInputs` 现可携带 `typecheck_types`；`lower_fun_with_type_bindings`、`lower_member_fun_with_type_bindings` 与 `lower_value_property_getter_with_type_bindings` 在 compilation-unit lowering 主线中会复用原始 typecheck side table，并继续通过 active type-param bindings 把 `T` 替换为 concrete type。
+    - `hir/lower/util.rs` 的 generic fun/member instantiation 现会把 `Some(typecheck_types)` 传入上述 lowering helper；`monomorph/lower.rs` 与 `cone/pre_specialize.rs` 则继续显式传 `None`，保持 dump / 预专门化入口的现状不变。
+    - `llvm/codegen/mod.rs` 的 `sync.destroy` receiver 类型恢复已切到统一的 `resolve_expr_concrete_type(...)` 主线，`carrier.lock.destroy()` 这类 generic receiver 字段上的 concrete nominal 调用不再退回旧的 local-var-only 路径。
+    - 新增 run-pass 回归 `task_generic_state_generic_helper_method_basic.scoop`，同一用例同时锁定 `fun <T> drive(...)`、generic method body 中的 `if (x is Box<T>) x.value` 与 `carrier.lock.destroy()`。
+    - 已复验 `cargo fmt --check`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (387)`）、`cargo run -p scoop -- test`（`fixtures: ok (1157)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - `T4016T2`：把 task 内部 driver / state / `step()` 主体迁回 Scoop，把 `async` / `await` lowering 改写到 ordinary Scoop helper target，并明确跨线程 drive/resume 的最小同步合同；语言 spec、runtime spec 与设计文档要同步改写；
   - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
 - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T1d2 -> T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

@@ -1,0 +1,80 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+//
+// T4016T1d2：generic helper / method body 内不应再把 `TypeKind::Param(T)` 泄漏到 LLVM。
+//
+// 覆盖点：
+// - generic helper：`fun <T> drive(carrier: TaskCarrier<T>, fallback: T): T`；
+// - generic method body 中的 smart-cast + member access：`if (x is Box<T>) x.value`；
+// - generic receiver 字段上的 concrete method call：`carrier.lock.destroy()`。
+
+import scoop.core.*
+import scoop.sync.*
+
+enum DriverStep<T> {
+    Pending(
+        val awaited: Task<Any>,
+        val continuation: Continuation<Any, DriverStep<T>>
+    ),
+    Done(val value: T),
+}
+
+enum TaskState<T> {
+    Created(val start: () -> DriverStep<T>),
+    Running,
+    Waiting(
+        val awaited: Task<Any>,
+        val continuation: Continuation<Any, DriverStep<T>>
+    ),
+    Completed(val value: T),
+}
+
+class TaskCarrier<T>(
+    val lock: Mutex,
+    var state: Option<TaskState<T>>
+)
+
+class Box<T>(val value: T)
+
+class CarrierOps<T>(val fallback: T) {
+    fun readValue(x: Any): T {
+        if (x is Box<T>) {
+            return x.value
+        }
+        return this.fallback
+    }
+
+    fun destroy(carrier: TaskCarrier<T>) {
+        carrier.lock.destroy()
+    }
+}
+
+fun <T> drive(carrier: TaskCarrier<T>, fallback: T): T {
+    return when (carrier.state) {
+        Some(state) -> when (state) {
+            Created(start) -> when (start()) {
+                Done(value) -> {
+                    carrier.state = Some(Completed(value))
+                    value
+                }
+                Pending(_, _) -> fallback
+            }
+            Running -> fallback
+            Waiting(_, _) -> fallback
+            Completed(value) -> value
+        }
+        None -> fallback
+    }
+}
+
+fun main(): Int {
+    val lock: Mutex = mutexCreate()
+    val created: TaskState<Int> = Created({ Done(7) })
+    val carrier: TaskCarrier<Int> = TaskCarrier(lock, Some(created))
+    val ops: CarrierOps<Int> = CarrierOps(0)
+    val driven: Int = drive(carrier, 0)
+    val readBack: Int = ops.readValue(Box(5))
+    val result: Int = driven + readBack - 5
+    ops.destroy(carrier)
+    return result
+}

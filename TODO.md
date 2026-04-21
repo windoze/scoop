@@ -387,7 +387,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1d2 [TODO] 补齐 generic helper / method body 内的 monomorph/type-param leak
+### T4016T1d2 [DONE] 补齐 generic helper / method body 内的 monomorph/type-param leak
 - 范围：
   - 打通 generic state carrier 在 generic helper / method body 内的主线，不再让 `fun <T> drive(carrier: TaskCarrier<T>, fallback: T): T` 这类路径在 LLVM codegen 中泄漏 `TypeKind::Param(T)`。
   - 修复 generic smart-cast / member access 在 type param 语境下的具体化：例如 `if (x is Box<T>) x.value`、generic wrapper field 读取，以及 helper/method 体内的 generic class field 访问。
@@ -398,6 +398,19 @@
   - `fun <T> drive(...)`、`if (x is Box<T>) x.value` 与 `carrier.lock.destroy()` 这三类路径均具备稳定 regression。
   - `T4016T2` 不再被 generic helper / method body 的 type-param 泄漏阻塞。
 - 依赖：T4016T1d1
+- 已完成：
+  - `crates/scoopc/src/hir/lower/mod.rs` 的 `LoweringInputs` 现可携带 `typecheck_types`；`lower_fun_with_type_bindings`、`lower_member_fun_with_type_bindings` 与 `lower_value_property_getter_with_type_bindings` 会在单态化重 lowering 时复用原始 typecheck side table，再叠加当前的 type-param 绑定。
+  - `crates/scoopc/src/hir/lower/util.rs` 的 generic fun/member instantiation 主线现会在 compilation-unit lowering 路径上传递 `Some(typecheck_types)`，而 `monomorph/lower.rs` 与 `cone/pre_specialize.rs` 这类 dump / 预专门化路径继续显式传 `None`，避免把无 typecheck 的调试入口与正式编译主线混在一起。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 的 `sync.destroy` receiver 类型恢复已切到统一的 `resolve_expr_concrete_type(...)` 主线，`carrier.lock.destroy()` 这类 generic receiver 字段上的 concrete nominal 方法调用不再被旧的 local-var-only 逻辑卡住。
+  - 新增 `tests/fixtures/run-pass/task_generic_state_generic_helper_method_basic.scoop`，在一个最小回归里同时锁定 `fun <T> drive(...)`、generic method body 中的 `if (x is Box<T>) x.value`，以及 `carrier.lock.destroy()`。
+- 已复验：
+  - `cargo fmt --check`
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/task_generic_state_generic_helper_method_basic.scoop -o /tmp/task_generic_state_generic_helper_method_basic.out`
+  - `/tmp/task_generic_state_generic_helper_method_basic.out`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
