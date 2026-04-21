@@ -32,6 +32,7 @@ pub mod target;
 pub mod ty;
 pub mod typecheck;
 pub mod vtable;
+pub mod warnings;
 
 /// LLVM 后端（inkwell）。
 ///

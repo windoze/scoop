@@ -83,6 +83,44 @@ impl FrontendOutput {
     }
 }
 
+fn emit_frontend_warnings(
+    session: &scoopc::session::Session,
+    front: &FrontendOutput,
+    warnings: &[scoopc::warnings::CompileWarning],
+) {
+    for warning in warnings {
+        let source = find_warning_source(session, front, warning.file());
+        let (line, col) = source
+            .and_then(|source| source.offset_to_line_col(warning.span().start).ok())
+            .unwrap_or((1, 1));
+        eprintln!(
+            "{}:{line}:{col}: {}",
+            warning.file().display(),
+            warning.render()
+        );
+    }
+}
+
+fn find_warning_source<'a>(
+    session: &'a scoopc::session::Session,
+    front: &'a FrontendOutput,
+    path: &Path,
+) -> Option<&'a scoopc::source::SourceFile> {
+    front
+        .input
+        .sources
+        .iter()
+        .find(|source| source.path() == path)
+        .or_else(|| {
+            session
+                .sysroot()
+                .files
+                .iter()
+                .find(|file| file.source.path() == path)
+                .map(|file| &file.source)
+        })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildEmit {
     /// 产出可执行文件（默认）。
@@ -271,7 +309,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         (Some(root), Some(manifest)) => deps::load_dependency_graph(manifest, root)?,
         _ => Vec::new(),
     };
+    let warning_capture = scoopc::warnings::begin_capture();
     let front = run_frontend(&session, input, &deps)?;
+    let warnings = warning_capture.finish();
+    emit_frontend_warnings(&session, &front, &warnings);
     // 非 llvm 构建下，codegen 分支会被编译掉；这里显式访问一次 main 以避免 dead_code 警告，
     // 同时也作为“加载逻辑能稳定定位入口”的最小一致性校验。
     let _ = front.main_source();

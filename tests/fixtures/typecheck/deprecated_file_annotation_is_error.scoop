@@ -1,0 +1,7 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_invalid_target
+// EXPECT-ERROR: 内建注解 `@Deprecated` 只能用于 函数 / 类型 / 属性
+
+@file:Deprecated("legacy file marker")
+
+package fixtures.typecheck

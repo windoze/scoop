@@ -1548,6 +1548,7 @@ fn check_assign_expr_stmt(
                     })?
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
+                    lower.emit_deprecated_value_use(fqn, id.span, "属性");
                     let expected_ty =
                         shared.top_level_types.get(fqn).copied().ok_or_else(|| {
                             ExprTypeError::UnsupportedTopLevelValueType {

@@ -19,6 +19,11 @@ use crate::span::Span;
 use crate::sysroot::Sysroot;
 use crate::target::TargetPlatform;
 
+use super::builtin_annotations::{
+    BuiltinAnnotationKind, DeprecatedAnnotationInfo, builtin_annotation_kind,
+    parse_deprecated_annotation,
+};
+
 /// 类型符号的种类（type namespace）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeSymbolKind {
@@ -312,8 +317,17 @@ pub struct TypeEnv {
     supertype_defs: HashMap<String, Vec<DirectSupertypeInfo>>,
     file_ctx: HashMap<PathBuf, FileTypeContext>,
     type_aliases: HashMap<String, TypeAliasInfo>,
+    deprecated_types: HashMap<String, DeprecatedAnnotationInfo>,
+    deprecated_values: HashMap<String, DeprecatedAnnotationInfo>,
+    deprecated_funs: HashMap<DeprecatedDeclKey, DeprecatedAnnotationInfo>,
     /// 编译目标平台（用于 capability gating；默认 host）。
     target_platform: TargetPlatform,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct DeprecatedDeclKey {
+    decl_file: PathBuf,
+    decl_span: Span,
 }
 
 impl TypeEnv {
@@ -445,6 +459,25 @@ impl TypeEnv {
         self.type_aliases.get(fqn)
     }
 
+    pub(crate) fn deprecated_type(&self, fqn: &str) -> Option<&DeprecatedAnnotationInfo> {
+        self.deprecated_types.get(fqn)
+    }
+
+    pub(crate) fn deprecated_value(&self, fqn: &str) -> Option<&DeprecatedAnnotationInfo> {
+        self.deprecated_values.get(fqn)
+    }
+
+    pub(crate) fn deprecated_fun(
+        &self,
+        decl_file: &Path,
+        decl_span: Span,
+    ) -> Option<&DeprecatedAnnotationInfo> {
+        self.deprecated_funs.get(&DeprecatedDeclKey {
+            decl_file: decl_file.to_path_buf(),
+            decl_span,
+        })
+    }
+
     /// 返回给定 nominal type 的 direct supertypes（仅 FQN 视图；不包含隐式 `Any`）。
     ///
     /// 说明：
@@ -543,6 +576,12 @@ impl TypeEnv {
                             ty: ta.ty.clone(),
                         },
                     );
+                    self.record_type_deprecation(
+                        source,
+                        &join_prefix(&pkg_prefix, &name),
+                        &ta.annotations,
+                        AnnotationTargetKind::Type,
+                    );
                 }
                 ast::Item::Type(ty) => {
                     self.collect_type_decl(source, file, &pkg_prefix, ty, index)?;
@@ -550,10 +589,36 @@ impl TypeEnv {
                 ast::Item::Object(obj) => {
                     self.collect_object_decl(source, file, &pkg_prefix, obj, index)?;
                 }
-                ast::Item::Fun(_)
-                | ast::Item::Val(_)
-                | ast::Item::ExtensionProperty(_)
-                | ast::Item::ComptimeIf(_) => {}
+                ast::Item::Fun(fun) => {
+                    self.record_fun_deprecation(
+                        source,
+                        fun.name.span,
+                        &fun.annotations,
+                        AnnotationTargetKind::Function,
+                    );
+                }
+                ast::Item::Val(v) => {
+                    let Some(name) = v.name() else {
+                        continue;
+                    };
+                    let value_fqn = join_prefix(&pkg_prefix, source.slice(name.span));
+                    self.record_value_deprecation(
+                        source,
+                        &value_fqn,
+                        &v.annotations,
+                        AnnotationTargetKind::Property,
+                    );
+                }
+                ast::Item::ExtensionProperty(prop) => {
+                    let value_fqn = join_prefix(&pkg_prefix, source.slice(prop.name.span));
+                    self.record_value_deprecation(
+                        source,
+                        &value_fqn,
+                        &prop.annotations,
+                        AnnotationTargetKind::Property,
+                    );
+                }
+                ast::Item::ComptimeIf(_) => {}
             }
         }
 
@@ -634,6 +699,7 @@ impl TypeEnv {
                 decl_file: source.path().to_path_buf(),
             },
         )?;
+        self.record_type_deprecation(source, &fqn, &decl.annotations, AnnotationTargetKind::Type);
 
         // 记录 direct supertypes（用于后续最小子类型/boxing 判断）。
         //
@@ -750,6 +816,21 @@ impl TypeEnv {
             );
         }
 
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for param in &primary_ctor.params {
+                if param.kind.is_none() {
+                    continue;
+                }
+                let property_fqn = join_prefix(&fqn, source.slice(param.name.span));
+                self.record_value_deprecation(
+                    source,
+                    &property_fqn,
+                    &param.annotations,
+                    AnnotationTargetKind::Property,
+                );
+            }
+        }
+
         for member in &body.members {
             match member {
                 ast::TypeMember::Type(nested) => {
@@ -758,11 +839,26 @@ impl TypeEnv {
                 ast::TypeMember::Object(obj) => {
                     self.collect_object_decl(source, file, &fqn, obj, index)?;
                 }
+                ast::TypeMember::Property(prop) => {
+                    let property_fqn = join_prefix(&fqn, source.slice(prop.name.span));
+                    self.record_value_deprecation(
+                        source,
+                        &property_fqn,
+                        &prop.annotations,
+                        AnnotationTargetKind::Property,
+                    );
+                }
+                ast::TypeMember::Fun(fun) => {
+                    self.record_fun_deprecation(
+                        source,
+                        fun.name.span,
+                        &fun.annotations,
+                        AnnotationTargetKind::Function,
+                    );
+                }
                 ast::TypeMember::EnumVariant(_)
-                | ast::TypeMember::Property(_)
                 | ast::TypeMember::InitBlock(_)
-                | ast::TypeMember::SecondaryCtor(_)
-                | ast::TypeMember::Fun(_) => {}
+                | ast::TypeMember::SecondaryCtor(_) => {}
             }
         }
 
@@ -808,6 +904,8 @@ impl TypeEnv {
                 decl_file: source.path().to_path_buf(),
             },
         )?;
+        self.record_type_deprecation(source, &fqn, &obj.annotations, AnnotationTargetKind::Type);
+        self.record_value_deprecation(source, &fqn, &obj.annotations, AnnotationTargetKind::Type);
 
         // 记录 direct supertypes（与 nominal type 一致；不包含隐式 `Any`）。
         let mut supers: Vec<String> = Vec::new();
@@ -842,11 +940,26 @@ impl TypeEnv {
                 ast::TypeMember::Object(nested) => {
                     self.collect_object_decl(source, file, &fqn, nested, index)?;
                 }
+                ast::TypeMember::Property(prop) => {
+                    let property_fqn = join_prefix(&fqn, source.slice(prop.name.span));
+                    self.record_value_deprecation(
+                        source,
+                        &property_fqn,
+                        &prop.annotations,
+                        AnnotationTargetKind::Property,
+                    );
+                }
+                ast::TypeMember::Fun(fun) => {
+                    self.record_fun_deprecation(
+                        source,
+                        fun.name.span,
+                        &fun.annotations,
+                        AnnotationTargetKind::Function,
+                    );
+                }
                 ast::TypeMember::EnumVariant(_)
-                | ast::TypeMember::Property(_)
                 | ast::TypeMember::InitBlock(_)
-                | ast::TypeMember::SecondaryCtor(_)
-                | ast::TypeMember::Fun(_) => {}
+                | ast::TypeMember::SecondaryCtor(_) => {}
             }
         }
 
@@ -863,6 +976,55 @@ impl TypeEnv {
         }
         self.by_fqn.insert(fqn, symbol);
         Ok(())
+    }
+
+    fn record_type_deprecation(
+        &mut self,
+        source: &SourceFile,
+        fqn: &str,
+        annotations: &[ast::AnnotationUse],
+        primary_target: AnnotationTargetKind,
+    ) {
+        let Some(info) = extract_builtin_deprecated_info(source, annotations, primary_target)
+        else {
+            return;
+        };
+        self.deprecated_types.entry(fqn.to_string()).or_insert(info);
+    }
+
+    fn record_value_deprecation(
+        &mut self,
+        source: &SourceFile,
+        fqn: &str,
+        annotations: &[ast::AnnotationUse],
+        primary_target: AnnotationTargetKind,
+    ) {
+        let Some(info) = extract_builtin_deprecated_info(source, annotations, primary_target)
+        else {
+            return;
+        };
+        self.deprecated_values
+            .entry(fqn.to_string())
+            .or_insert(info);
+    }
+
+    fn record_fun_deprecation(
+        &mut self,
+        source: &SourceFile,
+        decl_span: Span,
+        annotations: &[ast::AnnotationUse],
+        primary_target: AnnotationTargetKind,
+    ) {
+        let Some(info) = extract_builtin_deprecated_info(source, annotations, primary_target)
+        else {
+            return;
+        };
+        self.deprecated_funs
+            .entry(DeprecatedDeclKey {
+                decl_file: source.path().to_path_buf(),
+                decl_span,
+            })
+            .or_insert(info);
     }
 }
 
@@ -994,6 +1156,43 @@ fn collect_member_access_path(
             true
         }
         _ => false,
+    }
+}
+
+fn extract_builtin_deprecated_info(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+    primary_target: AnnotationTargetKind,
+) -> Option<DeprecatedAnnotationInfo> {
+    for ann in annotations {
+        if builtin_annotation_kind(source, ann) != Some(BuiltinAnnotationKind::Deprecated) {
+            continue;
+        }
+        if effective_annotation_target(source, ann, primary_target) != primary_target {
+            continue;
+        }
+        if let Ok(info) = parse_deprecated_annotation(source, ann) {
+            return Some(info);
+        }
+    }
+    None
+}
+
+fn effective_annotation_target(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+    primary: AnnotationTargetKind,
+) -> AnnotationTargetKind {
+    let Some(target) = ann.use_site_target.as_ref() else {
+        return primary;
+    };
+    match source.slice(target.span) {
+        "file" => AnnotationTargetKind::Module,
+        "property" => AnnotationTargetKind::Property,
+        "field" => AnnotationTargetKind::Field,
+        "param" => AnnotationTargetKind::Param,
+        "get" | "set" => AnnotationTargetKind::Property,
+        _ => primary,
     }
 }
 

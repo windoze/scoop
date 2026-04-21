@@ -1,0 +1,19 @@
+// EXPECT: pass
+// RUN-STDOUT: deprecated_type_use_warning_basic.stdout
+// RUN-STDERR-CONTAINS: warn[deprecated]: 类型 `fixtures.run_pass.LegacyBox` 已弃用：use BetterBox；建议改用 `BetterBox`
+//
+// 目标：T4012b2 `@Deprecated` 类型在构造/use-site 应发出稳定 warning。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use BetterBox", replaceWith: "BetterBox")
+class LegacyBox(val value: Int)
+
+class BetterBox(val value: Int)
+
+fun main() {
+    val box = LegacyBox(7)
+    println(box.value)
+}

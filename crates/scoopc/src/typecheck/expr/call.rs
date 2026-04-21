@@ -1782,6 +1782,12 @@ pub(super) fn infer_top_level_fun_value_expr_type(
             &selected.instantiated.type_args,
         );
     }
+    lower.emit_deprecated_fun_use(
+        &callee_fqn,
+        &selected.sig.decl_file,
+        selected.sig.decl_span,
+        expr.span,
+    );
     lower.record_top_level_fun_value_ref(
         expr.span,
         callee_fqn,
@@ -1919,6 +1925,15 @@ pub(super) fn check_const_fun_call_gate(
         callee: callee_fqn.to_string(),
         span: call_span.into(),
     })
+}
+
+fn emit_deprecated_call_warning(
+    callee_fqn: &str,
+    sig: &FunSigOwned,
+    call_span: Span,
+    lower: &TypeLowering<'_>,
+) {
+    lower.emit_deprecated_fun_use(callee_fqn, &sig.decl_file, sig.decl_span, call_span);
 }
 
 pub(super) fn check_fn_value_to_any_erasure_gate(
@@ -2174,6 +2189,7 @@ pub(super) fn infer_call_expr_type(
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+                emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
                 let call_args = collect_call_arg_infos(inputs, args, lower)?;
                 check_call_arg_named_rules(&callee_fqn, &call_args)?;
                 check_call_named_args_exist_in_any_candidate(
@@ -3001,6 +3017,7 @@ pub(super) fn infer_call_expr_type(
             check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+            emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
             check_var_param_lvalue_gate(&callee_fqn, chosen.sig, &call_args, &chosen.mapping)?;
 
             // `@NoGC`：已知分配点（boxing）门禁。
@@ -5723,6 +5740,7 @@ fn infer_member_call_expr_type(
             check_unsafe_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             check_const_fun_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
+            emit_deprecated_call_warning(fqn, chosen.sig, call_expr.span, lower);
             check_var_param_lvalue_gate(
                 fqn,
                 chosen.sig,
@@ -6034,6 +6052,7 @@ fn infer_member_call_expr_type(
         check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+        emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
         let expected_args = sig.params.len().saturating_sub(1);
 
         let Some(param_names) = sig.param_names.get(1..) else {
@@ -6974,6 +6993,7 @@ fn infer_member_call_expr_type(
     check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
     check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
     check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+    emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
 
     // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。
     check_fn_value_to_any_erasure_gate(

@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_arg_type_mismatch
+// EXPECT-ERROR: 参数 `message` 类型不匹配
+
+package fixtures.typecheck
+
+@Deprecated(message: 1)
+fun oldApi() {}

@@ -773,6 +773,7 @@ fn infer_assign_expr_type(
                     })?
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
+                    lower.emit_deprecated_value_use(fqn, id.span, "属性");
                     inputs.top_level_types.get(fqn).copied().ok_or_else(|| {
                         ExprTypeError::UnsupportedTopLevelValueType {
                             fqn: fqn.clone(),
@@ -808,6 +809,7 @@ fn infer_assign_expr_type(
                     span: member.span.into(),
                 });
             };
+            lower.record_typechecked_member_resolution(member.span, resolved.clone());
 
             let fqn = match resolved {
                 ast::ResolvedMemberRef::Value { fqn } => fqn,
@@ -3104,12 +3106,14 @@ fn infer_value_ident_type(
             }),
         ast::ResolvedValueRef::TopLevel { fqn } => {
             if let Some(ty) = top_level_types.get(fqn).copied() {
+                lower.emit_deprecated_value_use(fqn, id.span, "属性");
                 return Ok(ty);
             }
 
             // Kotlin-like：`object Foo` 同时引入一个“类型名 Foo”与一个“值名 Foo”；
             // 在表达式位置引用 `Foo` 时，类型为该 object 的名义类型 `Foo`。
             if lower.is_object_type(fqn) {
+                lower.emit_deprecated_value_use(fqn, id.span, "对象");
                 return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), id.span)?);
             }
 

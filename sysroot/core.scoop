@@ -128,6 +128,7 @@ annotation class TailRec
 // - 默认情况下，`@Intrinsic` declaration surface 由 sysroot 持有；
 // - 用户源码若确实需要声明 intrinsic surface，必须先通过 `@file:AllowIntrinsic` 显式开门。
 annotation class AllowIntrinsic
+annotation class Deprecated(val message: String = "", val replaceWith: String = "")
 annotation class Suppress(val warning: String)
 // `@CLayout(aligned?, packed?)`（spec §15.5.2）：
 // - `aligned`：可选的结构体整体对齐（0 表示未指定）

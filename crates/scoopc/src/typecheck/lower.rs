@@ -21,6 +21,7 @@ use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
+use crate::warnings::{self, CompileWarning};
 
 use super::assignable::is_type_assignable;
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
@@ -1389,8 +1390,68 @@ impl<'a> TypeLowering<'a> {
         member_span: Span,
         resolved: ast::ResolvedMemberRef,
     ) {
+        match &resolved {
+            ast::ResolvedMemberRef::Value { fqn }
+            | ast::ResolvedMemberRef::ExtensionValue { fqn } => {
+                self.emit_deprecated_value_use(fqn, member_span, "属性");
+            }
+            ast::ResolvedMemberRef::Fun { .. } | ast::ResolvedMemberRef::ExtensionFun { .. } => {}
+        }
         self.typechecked_member_resolutions
             .insert(member_span, resolved);
+    }
+
+    pub(super) fn emit_deprecated_type_use(&self, fqn: &str, span: Span) {
+        let Some(info) = self.env.deprecated_type(fqn) else {
+            return;
+        };
+        warnings::emit(CompileWarning::deprecated_use(
+            self.source,
+            span,
+            "类型",
+            fqn,
+            &info.message,
+            info.replace_with.as_deref(),
+        ));
+    }
+
+    pub(super) fn emit_deprecated_value_use(
+        &self,
+        fqn: &str,
+        span: Span,
+        subject_kind: &'static str,
+    ) {
+        let Some(info) = self.env.deprecated_value(fqn) else {
+            return;
+        };
+        warnings::emit(CompileWarning::deprecated_use(
+            self.source,
+            span,
+            subject_kind,
+            fqn,
+            &info.message,
+            info.replace_with.as_deref(),
+        ));
+    }
+
+    pub(super) fn emit_deprecated_fun_use(
+        &self,
+        fqn: &str,
+        decl_file: &Path,
+        decl_span: Span,
+        use_span: Span,
+    ) {
+        let Some(info) = self.env.deprecated_fun(decl_file, decl_span) else {
+            return;
+        };
+        warnings::emit(CompileWarning::deprecated_use(
+            self.source,
+            use_span,
+            "函数",
+            fqn,
+            &info.message,
+            info.replace_with.as_deref(),
+        ));
     }
 
     pub(super) fn record_continuation_resume_call_site(&mut self, call_span: Span, non_pure: bool) {
@@ -1718,6 +1779,8 @@ impl<'a> TypeLowering<'a> {
         args: Vec<TypeId>,
         span: Span,
     ) -> Result<TypeId, TypeLowerError> {
+        self.emit_deprecated_type_use(&fqn, span);
+
         // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
         match fqn.as_str() {
             "scoop.core.Any" => {
@@ -2179,6 +2242,7 @@ impl<'a> TypeLowering<'a> {
             }
             Err(other) => return Err(other),
         };
+        self.emit_deprecated_type_use(&fqn, path.span);
 
         // T0253/T0511：
         // - use-site effect row 实参（`eff ...`）在 AST 中被建模为 `TypeRef::EffectRowArg`；

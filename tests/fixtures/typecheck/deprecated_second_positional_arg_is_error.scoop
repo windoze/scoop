@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::deprecated_annotation_only_first_arg_positional
+// EXPECT-ERROR: 只有第一个参数允许使用位置参数
+
+package fixtures.typecheck
+
+@Deprecated("use newApi", "newApi")
+fun oldApi() {}

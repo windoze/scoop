@@ -395,6 +395,15 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "内建注解 `@Deprecated` 只有第一个参数允许使用位置参数；后续参数必须使用命名形式 `replaceWith: ...`"
+    )]
+    #[diagnostic(code(scoop::typecheck::deprecated_annotation_only_first_arg_positional))]
+    DeprecatedAnnotationOnlyFirstArgPositional {
+        #[label("这里需要改为命名参数 `replaceWith: ...`")]
+        span: miette::SourceSpan,
+    },
+
     #[error("注解 `{annotation}` 的参数 `{param}` 必须是编译期常量表达式")]
     #[diagnostic(code(scoop::typecheck::annotation_arg_not_const))]
     AnnotationArgNotConst {
@@ -501,7 +510,12 @@ pub fn check_file_annotations(
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(source, &p.annotations, "extension property")?;
+                reject_builtin_annotations_on_target(
+                    source,
+                    &p.annotations,
+                    AnnotationTargetKind::Property,
+                    "extension property",
+                )?;
             }
             ast::Item::Val(v) => {
                 reject_annotation_modifier_on_non_type_target(
@@ -602,7 +616,12 @@ fn check_type_decl_annotations(
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &v.annotations,
+                    AnnotationTargetKind::EnumVariant,
+                    "enum variant",
+                )?;
             }
             ast::TypeMember::Property(p) => {
                 reject_annotation_modifier_on_non_type_target(&p.modifiers, "属性", p.name.span)?;
@@ -613,7 +632,12 @@ fn check_type_decl_annotations(
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &p.annotations,
+                    AnnotationTargetKind::Property,
+                    "property",
+                )?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
                 reject_annotation_modifier_on_non_type_target(
@@ -628,7 +652,12 @@ fn check_type_decl_annotations(
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &ctor.annotations, "constructor")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &ctor.annotations,
+                    AnnotationTargetKind::Constructor,
+                    "constructor",
+                )?;
                 check_param_list_annotations(ctx, lower, builtins, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
@@ -694,7 +723,12 @@ fn check_param_list_annotations(
             AnnotationSite::new(AnnotationTargetKind::Param)
         };
         check_annotation_uses(ctx, lower, builtins, &p.annotations, site)?;
-        reject_builtin_annotations_on_target(ctx.source, &p.annotations, "param")?;
+        reject_builtin_annotations_on_target(
+            ctx.source,
+            &p.annotations,
+            site.primary_target,
+            "param",
+        )?;
     }
     Ok(())
 }
@@ -751,7 +785,12 @@ fn check_object_decl_annotations(
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &v.annotations,
+                    AnnotationTargetKind::EnumVariant,
+                    "enum variant",
+                )?;
             }
             ast::TypeMember::Property(p) => {
                 reject_annotation_modifier_on_non_type_target(&p.modifiers, "属性", p.name.span)?;
@@ -762,7 +801,12 @@ fn check_object_decl_annotations(
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &p.annotations,
+                    AnnotationTargetKind::Property,
+                    "property",
+                )?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
                 reject_annotation_modifier_on_non_type_target(
@@ -777,7 +821,12 @@ fn check_object_decl_annotations(
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
-                reject_builtin_annotations_on_target(ctx.source, &ctor.annotations, "constructor")?;
+                reject_builtin_annotations_on_target(
+                    ctx.source,
+                    &ctor.annotations,
+                    AnnotationTargetKind::Constructor,
+                    "constructor",
+                )?;
             }
             ast::TypeMember::Fun(fun) => {
                 reject_annotation_modifier_on_non_type_target(
@@ -985,8 +1034,13 @@ fn check_one_annotation_use(
 
     // T1003：内建注解（`@Unsafe/@NoGC/@Extern/@Intrinsic`）由编译器识别，
     // 不要求存在对应的 `annotation class` 声明。
-    if builtin_annotation_kind(ctx.source, ann).is_some() {
-        return Ok(());
+    if let Some(kind) = builtin_annotation_kind(ctx.source, ann) {
+        return match kind {
+            BuiltinAnnotationKind::Deprecated => {
+                check_builtin_deprecated_annotation(ctx, lower, builtins, ann, site)
+            }
+            _ => Ok(()),
+        };
     }
 
     // 复用 Index 的“按 package/import 规则解析类型名”的逻辑来解析注解类型。
@@ -1059,6 +1113,72 @@ fn check_one_annotation_use(
     // T1019：注解参数的“类型匹配 + 编译期常量”检查。
     check_annotation_args(ctx, lower, builtins, &fqn, sym, ann)?;
 
+    Ok(())
+}
+
+fn check_builtin_deprecated_annotation(
+    ctx: AnnotationCheckContext<'_>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    ann: &ast::AnnotationUse,
+    site: AnnotationSite,
+) -> Result<(), AnnotationError> {
+    let effective_target = effective_annotation_target(ctx.source, ann, site.primary_target);
+    if !matches!(
+        effective_target,
+        AnnotationTargetKind::Function
+            | AnnotationTargetKind::Type
+            | AnnotationTargetKind::Property
+    ) {
+        let (_, name_span) = annotation_name_and_span(ctx.source, ann);
+        return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+            annotation: "@Deprecated".to_string(),
+            allowed: BuiltinAnnotationKind::Deprecated.allowed_targets_hint(),
+            found: effective_target.as_str(),
+            span: name_span.into(),
+        });
+    }
+
+    check_builtin_deprecated_arg_surface(ctx.source, ann)?;
+
+    let Some(sym) = ctx.env.type_symbol("scoop.core.Deprecated") else {
+        return Err(AnnotationError::UnresolvedAnnotationType {
+            name: "Deprecated".to_string(),
+            span: ann.span.into(),
+        });
+    };
+    check_annotation_args(ctx, lower, builtins, "scoop.core.Deprecated", sym, ann)
+}
+
+fn check_builtin_deprecated_arg_surface(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+
+    for arg in &ann.args {
+        if arg.name.is_some() {
+            seen_named = true;
+            continue;
+        }
+        if seen_named {
+            return Err(AnnotationError::AnnotationArgPositionalAfterNamed {
+                annotation: "scoop.core.Deprecated".to_string(),
+                span: arg.span.into(),
+            });
+        }
+        positional_count += 1;
+        if positional_count > 1 {
+            return Err(
+                AnnotationError::DeprecatedAnnotationOnlyFirstArgPositional {
+                    span: arg.span.into(),
+                },
+            );
+        }
+    }
+
+    let _ = source;
     Ok(())
 }
 
@@ -1617,12 +1737,23 @@ fn extract_string_literal_text(source: &SourceFile, expr: &ast::Expr) -> Option<
 fn reject_builtin_annotations_on_target(
     source: &SourceFile,
     annotations: &[ast::AnnotationUse],
+    primary_target: AnnotationTargetKind,
     found: &'static str,
 ) -> Result<(), AnnotationError> {
     for ann in annotations {
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
         };
+        if kind == BuiltinAnnotationKind::Deprecated
+            && matches!(
+                effective_annotation_target(source, ann, primary_target),
+                AnnotationTargetKind::Function
+                    | AnnotationTargetKind::Type
+                    | AnnotationTargetKind::Property
+            )
+        {
+            continue;
+        }
         let (_, name_span) = annotation_name_and_span(source, ann);
         return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
             annotation: format!("@{}", kind.name()),
@@ -1652,6 +1783,7 @@ fn check_builtin_annotations_on_file(
                     });
                 }
             }
+            BuiltinAnnotationKind::Deprecated => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -1715,6 +1847,7 @@ fn check_builtin_annotations_on_fun_decl(
                     });
                 }
             }
+            BuiltinAnnotationKind::Deprecated => {}
         }
     }
 
@@ -1812,6 +1945,7 @@ fn check_builtin_annotations_on_type_alias_decl(
             BuiltinAnnotationKind::CallingConvention => {
                 check_calling_convention_builtin_annotation_args(source, ann)?;
             }
+            BuiltinAnnotationKind::Deprecated => {}
             _ => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
                 return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
@@ -1837,16 +1971,19 @@ fn check_builtin_annotations_on_top_level_val_decl(
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
         };
-        if kind != BuiltinAnnotationKind::Extern {
-            let (_, name_span) = annotation_name_and_span(source, ann);
-            return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
-                annotation: format!("@{}", kind.name()),
-                allowed: kind.allowed_targets_hint(),
-                found: "val/var",
-                span: name_span.into(),
-            });
+        match kind {
+            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Deprecated => {}
+            _ => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "val/var",
+                    span: name_span.into(),
+                });
+            }
         }
-        check_extern_builtin_annotation_args(source, ann)?;
     }
 
     if !flags.is_extern {
@@ -2290,28 +2427,33 @@ fn check_builtin_annotations_on_type_decl(
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
         };
-        if kind != BuiltinAnnotationKind::Intrinsic {
-            let (_, name_span) = annotation_name_and_span(source, ann);
-            return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
-                annotation: format!("@{}", kind.name()),
-                allowed: kind.allowed_targets_hint(),
-                found: "type",
-                span: name_span.into(),
-            });
-        }
-        check_intrinsic_builtin_annotation_gate(
-            source,
-            file_allows_intrinsic,
-            ann,
-            "类型",
-            type_fqn,
-        )?;
-        if !ann.args.is_empty() {
-            let (_, name_span) = annotation_name_and_span(source, ann);
-            return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
-                annotation: format!("@{}", kind.name()),
-                span: name_span.into(),
-            });
+        match kind {
+            BuiltinAnnotationKind::Intrinsic => {
+                check_intrinsic_builtin_annotation_gate(
+                    source,
+                    file_allows_intrinsic,
+                    ann,
+                    "类型",
+                    type_fqn,
+                )?;
+                if !ann.args.is_empty() {
+                    let (_, name_span) = annotation_name_and_span(source, ann);
+                    return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
+                        annotation: format!("@{}", kind.name()),
+                        span: name_span.into(),
+                    });
+                }
+            }
+            BuiltinAnnotationKind::Deprecated => {}
+            _ => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "type",
+                    span: name_span.into(),
+                });
+            }
         }
     }
 
@@ -2373,16 +2515,19 @@ fn check_builtin_annotations_on_object_decl(
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
         };
-        if kind != BuiltinAnnotationKind::Extern {
-            let (_, name_span) = annotation_name_and_span(source, ann);
-            return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
-                annotation: format!("@{}", kind.name()),
-                allowed: kind.allowed_targets_hint(),
-                found: "object",
-                span: name_span.into(),
-            });
+        match kind {
+            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::Deprecated => {}
+            _ => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "object",
+                    span: name_span.into(),
+                });
+            }
         }
-        check_extern_builtin_annotation_args(source, ann)?;
     }
 
     Ok(())

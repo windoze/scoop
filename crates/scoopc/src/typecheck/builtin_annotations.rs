@@ -2,13 +2,16 @@
 //!
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
-//! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic` 的最小语义；
+//! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic/@AllowIntrinsic/@Deprecated`
+//!   的最小语义；
 //! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
 //!   会在编译器中附带额外语义；
 //! - 更完整的 `@Deprecated/@Suppress/...` 规则留给后续任务（见 TODO）。
 
 use crate::ast;
 use crate::source::SourceFile;
+use crate::span::Span;
+use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum BuiltinAnnotationKind {
@@ -18,6 +21,7 @@ pub(crate) enum BuiltinAnnotationKind {
     Extern,
     Intrinsic,
     AllowIntrinsic,
+    Deprecated,
     CallingConvention,
 }
 
@@ -30,6 +34,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Extern => "Extern",
             BuiltinAnnotationKind::Intrinsic => "Intrinsic",
             BuiltinAnnotationKind::AllowIntrinsic => "AllowIntrinsic",
+            BuiltinAnnotationKind::Deprecated => "Deprecated",
             BuiltinAnnotationKind::CallingConvention => "CallingConvention",
         }
     }
@@ -42,9 +47,26 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::Extern => "函数 / 顶层 val/var / object",
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
             BuiltinAnnotationKind::AllowIntrinsic => "文件 / 模块",
+            BuiltinAnnotationKind::Deprecated => "函数 / 类型 / 属性",
             BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeprecatedAnnotationInfo {
+    pub(crate) message: String,
+    pub(crate) replace_with: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum DeprecatedAnnotationParseError {
+    TooManyArgs { span: Span },
+    PositionalAfterNamed { span: Span },
+    OnlyFirstArgMayBePositional { span: Span },
+    UnknownParam { name: String, span: Span },
+    DuplicateParam { param: &'static str, span: Span },
+    ArgMustBeString { param: &'static str, span: Span },
 }
 
 /// 判断一个 `@Name(...)` 是否为内建注解。
@@ -70,6 +92,7 @@ pub(crate) fn builtin_annotation_kind(
         ["AllowIntrinsic"] | ["scoop", "core", "AllowIntrinsic"] => {
             Some(BuiltinAnnotationKind::AllowIntrinsic)
         }
+        ["Deprecated"] | ["scoop", "core", "Deprecated"] => Some(BuiltinAnnotationKind::Deprecated),
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
             Some(BuiltinAnnotationKind::CallingConvention)
         }
@@ -109,6 +132,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::Extern) => out.is_extern = true,
                 Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,
                 Some(BuiltinAnnotationKind::AllowIntrinsic) => {}
+                Some(BuiltinAnnotationKind::Deprecated) => {}
                 Some(BuiltinAnnotationKind::CallingConvention) => {}
                 None => {}
             }
@@ -120,5 +144,112 @@ impl BuiltinAnnotationFlags {
         }
 
         out
+    }
+}
+
+pub(crate) fn parse_deprecated_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<DeprecatedAnnotationInfo, DeprecatedAnnotationParseError> {
+    let mut message: Option<String> = None;
+    let mut replace_with: Option<String> = None;
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+
+    for arg in &ann.args {
+        match &arg.name {
+            Some(name_id) => {
+                seen_named = true;
+                let name = name_id.text(source);
+                match name {
+                    "message" => {
+                        if message.is_some() {
+                            return Err(DeprecatedAnnotationParseError::DuplicateParam {
+                                param: "message",
+                                span: name_id.span,
+                            });
+                        }
+                        message = Some(extract_deprecated_string_arg(
+                            source, &arg.value, "message",
+                        )?);
+                    }
+                    "replaceWith" => {
+                        if replace_with.is_some() {
+                            return Err(DeprecatedAnnotationParseError::DuplicateParam {
+                                param: "replaceWith",
+                                span: name_id.span,
+                            });
+                        }
+                        replace_with = Some(extract_deprecated_string_arg(
+                            source,
+                            &arg.value,
+                            "replaceWith",
+                        )?);
+                    }
+                    _ => {
+                        return Err(DeprecatedAnnotationParseError::UnknownParam {
+                            name: name.to_string(),
+                            span: name_id.span,
+                        });
+                    }
+                }
+            }
+            None => {
+                if seen_named {
+                    return Err(DeprecatedAnnotationParseError::PositionalAfterNamed {
+                        span: arg.span,
+                    });
+                }
+                if positional_count > 0 {
+                    return Err(
+                        DeprecatedAnnotationParseError::OnlyFirstArgMayBePositional {
+                            span: arg.span,
+                        },
+                    );
+                }
+                positional_count += 1;
+                message = Some(extract_deprecated_string_arg(
+                    source, &arg.value, "message",
+                )?);
+            }
+        }
+    }
+
+    if ann.args.len() > 2 {
+        let span = ann.args[2].span;
+        return Err(DeprecatedAnnotationParseError::TooManyArgs { span });
+    }
+
+    let replace_with = replace_with.filter(|value| !value.is_empty());
+    Ok(DeprecatedAnnotationInfo {
+        message: message.unwrap_or_default(),
+        replace_with,
+    })
+}
+
+fn extract_deprecated_string_arg(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    param: &'static str,
+) -> Result<String, DeprecatedAnnotationParseError> {
+    match expr.kind {
+        ast::ExprKind::StringLit => {
+            let raw = source.slice(expr.span);
+            match parse_string_literal_utf8(raw) {
+                Ok(text) => Ok(text),
+                Err(StringLiteralParseError::Invalid)
+                | Err(StringLiteralParseError::InvalidUtf8)
+                | Err(StringLiteralParseError::Interpolated) => {
+                    Err(DeprecatedAnnotationParseError::ArgMustBeString {
+                        param,
+                        span: expr.span,
+                    })
+                }
+            }
+        }
+        _ => Err(DeprecatedAnnotationParseError::ArgMustBeString {
+            param,
+            span: expr.span,
+        }),
     }
 }

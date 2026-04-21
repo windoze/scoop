@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: deprecated_fun_call_warning_basic.stdout
+// RUN-STDERR-CONTAINS: warn[deprecated]: 函数 `fixtures.run_pass.oldAdd` 已弃用：use newAdd；建议改用 `newAdd`
+//
+// 目标：T4012b2 `@Deprecated` 函数调用应在 use-site 发出稳定 warning。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use newAdd", replaceWith: "newAdd")
+fun oldAdd(x: Int, y: Int): Int {
+    return x + y
+}
+
+fun newAdd(x: Int, y: Int): Int {
+    return x + y + 100
+}
+
+fun main() {
+    println(oldAdd(1, 2))
+}

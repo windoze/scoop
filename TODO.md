@@ -291,7 +291,7 @@
   - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4012b2 [TODO] 为 `@Deprecated` 建立最小可测的 declaration/use-site warning 合同
+### T4012b2 [DONE] 为 `@Deprecated` 建立最小可测的 declaration/use-site warning 合同
 - 范围：
   - 将 `@Deprecated(message, replaceWith?)` 纳入 built-in annotation surface，校验参数形状、默认值与 target contract。
   - 建立最小可测的 warning plumbing：使用点（至少覆盖当前已支持的函数 / 类型 / 属性引用路径）能看到 stable deprecation warning，而不是仅在 declaration 头部静态接受注解。
@@ -299,6 +299,16 @@
 - 验收：
   - `@Deprecated` 不再只是普通 annotation class 名字；其参数与使用点 warning 行为可被回归测试覆盖。
 - 依赖：T4012b1
+- 已完成：
+  - `sysroot/core.scoop` 已补齐 `annotation class Deprecated(val message: String = "", val replaceWith: String = "")`，并将 built-in `@Deprecated` 的 target/参数 surface 收口到编译器检查主线。
+  - `TypeEnv` 现会为类型、顶层属性/值与函数收集 deprecation 元数据；type lowering、顶层值读取、函数调用与顶层函数值引用路径已能在 use-site 发出结构化 warning。
+  - `scoop build/run` 已接入 warning capture，并以 `path:line:col: warn[deprecated]: ...` 的稳定格式输出到 stderr。
+  - 已新增定向 fixtures，覆盖非法 file target、第二个位置参数非法、`message` 类型不匹配，以及函数/类型/顶层属性 use-site warning 输出。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4012b3 [TODO] 为 `@Suppress` 建立 warning-code 与 expression/declaration/file suppression surface
 - 范围：

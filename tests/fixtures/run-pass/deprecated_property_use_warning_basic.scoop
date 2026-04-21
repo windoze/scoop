@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: deprecated_property_use_warning_basic.stdout
+// RUN-STDERR-CONTAINS: warn[deprecated]: 属性 `fixtures.run_pass.oldValue` 已弃用：use currentValue；建议改用 `currentValue`
+//
+// 目标：T4012b2 `@Deprecated` 顶层属性读取应在 use-site 发出稳定 warning。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+@Deprecated("use currentValue", replaceWith: "currentValue")
+val oldValue: Int = 5
+
+fun main() {
+    println(oldValue)
+}
