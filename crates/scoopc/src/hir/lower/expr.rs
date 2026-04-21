@@ -881,13 +881,15 @@ impl<'a> HirLowering<'a> {
     pub(super) fn typechecked_expr_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_expr_ty(span)?;
-        Some(self.types.re_intern_from(typecheck_types, ty))
+        let ty = self.types.re_intern_from(typecheck_types, ty);
+        Some(self.apply_active_type_param_bindings(ty))
     }
 
     pub(super) fn typechecked_binding_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_binding_ty(span)?;
-        Some(self.types.re_intern_from(typecheck_types, ty))
+        let ty = self.types.re_intern_from(typecheck_types, ty);
+        Some(self.apply_active_type_param_bindings(ty))
     }
 
     fn option_inner_ty(&self, ty: TypeId) -> Option<TypeId> {
@@ -900,13 +902,15 @@ impl<'a> HirLowering<'a> {
     fn typechecked_performed_effect_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_performed_effect_ty(span)?;
-        Some(self.types.re_intern_from(typecheck_types, ty))
+        let ty = self.types.re_intern_from(typecheck_types, ty);
+        Some(self.apply_active_type_param_bindings(ty))
     }
 
     fn typechecked_handle_arm_effect_ty(&mut self, span: Span) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_handle_arm_effect_ty(span)?;
-        Some(self.types.re_intern_from(typecheck_types, ty))
+        let ty = self.types.re_intern_from(typecheck_types, ty);
+        Some(self.apply_active_type_param_bindings(ty))
     }
 
     fn typechecked_effect_op_call_binding(
@@ -923,9 +927,31 @@ impl<'a> HirLowering<'a> {
             .type_args
             .iter()
             .copied()
-            .map(|ty| self.types.re_intern_from(typecheck_types, ty))
+            .map(|ty| {
+                let ty = self.types.re_intern_from(typecheck_types, ty);
+                self.apply_active_type_param_bindings(ty)
+            })
             .collect();
         Some((fun_ref.fqn, type_args))
+    }
+
+    fn apply_active_type_param_bindings(&mut self, ty: TypeId) -> TypeId {
+        if self.type_param_scopes.is_empty() {
+            return ty;
+        }
+
+        let mut bindings = std::collections::HashMap::new();
+        for scope in &self.type_param_scopes {
+            for (name, bound_ty) in scope {
+                bindings.insert(name.clone(), *bound_ty);
+            }
+        }
+
+        if bindings.is_empty() {
+            ty
+        } else {
+            substitute_type_params(self.types, ty, &bindings)
+        }
     }
 
     fn typechecked_ctor_call_binding(&self, span: Span) -> Option<ast::CtorCallBinding> {
@@ -3387,8 +3413,8 @@ impl<'a> HirLowering<'a> {
 
         let ty = match &resolved {
             ValueRef::Local { decl_span, .. } => self
-                .typechecked_binding_ty(*decl_span)
-                .or_else(|| self.typechecked_expr_ty(id.span))
+                .typechecked_expr_ty(id.span)
+                .or_else(|| self.typechecked_binding_ty(*decl_span))
                 .unwrap_or(self.builtins.any),
             ValueRef::TopLevel { .. } => self
                 .typechecked_expr_ty(id.span)

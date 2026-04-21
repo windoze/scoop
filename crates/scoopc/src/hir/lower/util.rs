@@ -2267,7 +2267,7 @@ pub(super) fn type_ref_to_layout_type_id(
     ty: &ast::TypeRef,
     types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
-    lower_layout_type_ref_with_bindings(source, file, index, ty, &HashMap::new(), types)
+    lower_layout_type_ref_with_bindings(source, file, index, ty, None, &HashMap::new(), types)
 }
 
 fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<crate::ty::TypeId> {
@@ -2276,11 +2276,46 @@ fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<cra
         .find(|id| type_id_to_layout_fqn(types, *id).as_deref() == Some(layout_key))
 }
 
+fn intern_layout_nominal_type(
+    types: &mut TypeStore,
+    type_kinds: Option<&HashMap<String, ast::TypeKind>>,
+    base_fqn: &str,
+    type_args: Vec<crate::ty::TypeId>,
+) -> Option<crate::ty::TypeId> {
+    let kind = type_kinds
+        .and_then(|kinds| kinds.get(base_fqn).copied())
+        .map(|kind| !matches!(kind, ast::TypeKind::Struct | ast::TypeKind::Enum))
+        .or_else(|| {
+            types.iter_ids().find_map(|id| match types.kind(id) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == base_fqn => {
+                    Some(true)
+                }
+                TypeKind::Value(ValueTypeKind::Nominal(nominal)) if nominal.fqn == base_fqn => {
+                    Some(false)
+                }
+                _ => None,
+            })
+        })?;
+
+    let nominal = crate::ty::NominalType {
+        fqn: base_fqn.to_string(),
+        args: type_args,
+        eff: None,
+    };
+
+    Some(if kind {
+        types.intern(TypeKind::Ref(RefTypeKind::Nominal(nominal)))
+    } else {
+        types.intern(TypeKind::Value(ValueTypeKind::Nominal(nominal)))
+    })
+}
+
 fn lower_layout_type_ref_with_bindings(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
     ty: &ast::TypeRef,
+    type_kinds: Option<&HashMap<String, ast::TypeKind>>,
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
@@ -2300,16 +2335,17 @@ fn lower_layout_type_ref_with_bindings(
                     continue;
                 }
                 type_args.push(lower_layout_type_ref_with_bindings(
-                    source, file, index, arg, param_map, types,
+                    source, file, index, arg, type_kinds, param_map, types,
                 )?);
             }
 
             let layout_key = if type_args.is_empty() {
-                base_fqn
+                base_fqn.clone()
             } else {
                 mangle_nominal_fqn(&base_fqn, &type_args, types)
             };
             find_layout_type_id_by_key(types, &layout_key)
+                .or_else(|| intern_layout_nominal_type(types, type_kinds, &base_fqn, type_args))
         }
         ast::TypeRef::Tuple(tuple) => {
             if tuple.elements.is_empty() {
@@ -2326,20 +2362,23 @@ fn lower_layout_type_ref_with_bindings(
                 .elements
                 .iter()
                 .map(|elem| {
-                    lower_layout_type_ref_with_bindings(source, file, index, elem, param_map, types)
+                    lower_layout_type_ref_with_bindings(
+                        source, file, index, elem, type_kinds, param_map, types,
+                    )
                 })
                 .collect::<Option<Vec<_>>>()?;
             Some(types.ty_tuple(elements))
         }
         ast::TypeRef::Nullable { inner, .. } => {
-            let inner_ty =
-                lower_layout_type_ref_with_bindings(source, file, index, inner, param_map, types)?;
+            let inner_ty = lower_layout_type_ref_with_bindings(
+                source, file, index, inner, type_kinds, param_map, types,
+            )?;
             Some(types.ty_option(inner_ty))
         }
         ast::TypeRef::Function(fun) => {
             let receiver = match fun.receiver.as_ref() {
                 Some(receiver) => Some(lower_layout_type_ref_with_bindings(
-                    source, file, index, receiver, param_map, types,
+                    source, file, index, receiver, type_kinds, param_map, types,
                 )?),
                 None => None,
             };
@@ -2348,7 +2387,7 @@ fn lower_layout_type_ref_with_bindings(
                 .iter()
                 .map(|param| {
                     lower_layout_type_ref_with_bindings(
-                        source, file, index, param, param_map, types,
+                        source, file, index, param, type_kinds, param_map, types,
                     )
                 })
                 .collect::<Option<Vec<_>>>()?;
@@ -2357,6 +2396,7 @@ fn lower_layout_type_ref_with_bindings(
                 file,
                 index,
                 &fun.return_ty,
+                type_kinds,
                 param_map,
                 types,
             )?;
@@ -2365,6 +2405,7 @@ fn lower_layout_type_ref_with_bindings(
                 file,
                 index,
                 fun.effects.as_ref(),
+                type_kinds,
                 param_map,
                 types,
             )?;
@@ -2385,6 +2426,7 @@ fn lower_layout_effect_row_expr(
     file: &ast::File,
     index: &Index,
     expr: Option<&ast::EffectRowExpr>,
+    type_kinds: Option<&HashMap<String, ast::TypeKind>>,
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &mut TypeStore,
 ) -> Option<EffectRow> {
@@ -2404,6 +2446,7 @@ fn lower_layout_effect_row_expr(
                 file,
                 index,
                 &ast::TypeRef::Path(term.clone()),
+                type_kinds,
                 param_map,
                 types,
             )
@@ -2478,6 +2521,7 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
     index: &Index,
     types: &mut TypeStore,
 ) -> StructLayoutIndex {
+    let type_kinds = collect_type_decl_kinds(pairs);
     // 1) 收集泛型 struct 声明：base_fqn → (source, decl)
     let mut generic_structs: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
         HashMap::new();
@@ -2544,10 +2588,24 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
                 // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型。
-                let ty_fqn =
-                    resolve_field_type_fqn(source, file, index, p.ty.as_ref(), &param_map, types);
-                let ty =
-                    resolve_field_type_id(source, file, index, p.ty.as_ref(), &param_map, types);
+                let ty_fqn = resolve_field_type_fqn_with_type_kinds(
+                    source,
+                    file,
+                    index,
+                    Some(&type_kinds),
+                    p.ty.as_ref(),
+                    &param_map,
+                    types,
+                );
+                let ty = resolve_field_type_id_with_type_kinds(
+                    source,
+                    file,
+                    index,
+                    Some(&type_kinds),
+                    p.ty.as_ref(),
+                    &param_map,
+                    types,
+                );
                 push_struct_layout_field(
                     &mut fields,
                     &nominal.fqn,
@@ -2564,8 +2622,24 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             &nominal.fqn,
             |ty_ref| {
                 (
-                    resolve_field_type_fqn(source, file, index, Some(ty_ref), &param_map, types),
-                    resolve_field_type_id(source, file, index, Some(ty_ref), &param_map, types),
+                    resolve_field_type_fqn_with_type_kinds(
+                        source,
+                        file,
+                        index,
+                        Some(&type_kinds),
+                        Some(ty_ref),
+                        &param_map,
+                        types,
+                    ),
+                    resolve_field_type_id_with_type_kinds(
+                        source,
+                        file,
+                        index,
+                        Some(&type_kinds),
+                        Some(ty_ref),
+                        &param_map,
+                        types,
+                    ),
                 )
             },
             &mut fields,
@@ -2592,6 +2666,7 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
     index: &Index,
     types: &mut TypeStore,
 ) -> EnumLayoutIndex {
+    let type_kinds = collect_type_decl_kinds(pairs);
     // 1) 收集泛型 enum 声明
     let mut generic_enums: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
         HashMap::new();
@@ -2667,18 +2742,20 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
-                    let ty_fqn = resolve_field_type_fqn(
+                    let ty_fqn = resolve_field_type_fqn_with_type_kinds(
                         source,
                         file,
                         index,
+                        Some(&type_kinds),
                         p.ty.as_ref(),
                         &param_map,
                         types,
                     );
-                    let ty = resolve_field_type_id(
+                    let ty = resolve_field_type_id_with_type_kinds(
                         source,
                         file,
                         index,
+                        Some(&type_kinds),
                         p.ty.as_ref(),
                         &param_map,
                         types,
@@ -2722,7 +2799,7 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
 /// 字段的 TypeId 通过 type param 替换为具体类型（Param("T") → Int）。
 pub(super) fn collect_generic_class_instantiation_inits(
     pairs: &[(&SourceFile, &ast::File)],
-    types: &TypeStore,
+    types: &mut TypeStore,
     base_class_inits: &ClassInitIndex,
 ) -> ClassInitIndex {
     // 1) 收集泛型 class 声明：base_fqn → (source, decl)
@@ -2744,7 +2821,8 @@ pub(super) fn collect_generic_class_instantiation_inits(
 
     // 2) 扫描 TypeStore 中的具体实例化（class 是 ref type → RefTypeKind::Nominal）
     let mut out: ClassInitIndex = HashMap::new();
-    for ty_id in types.iter_ids() {
+    let concrete_type_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
+    for ty_id in concrete_type_ids {
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
             continue;
         };
@@ -2778,7 +2856,9 @@ pub(super) fn collect_generic_class_instantiation_inits(
             param_map.insert(name, nominal.args[idx]);
         }
 
-        // 替换字段类型：Param("T") → 具体 TypeId
+        // 替换字段类型：必须递归穿透 nominal args / Option / function 等嵌套位置，
+        // 否则 `__TaskState<T>`、`Option<T>` 这类字段会把 `TypeKind::Param`
+        // 残留到后端。
         let fields: Vec<ClassField> = base_init
             .fields
             .iter()
@@ -2786,7 +2866,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
                 fqn: f.fqn.clone(),
                 name: f.name.clone(),
                 mutable: f.mutable,
-                ty: substitute_type_param(types, f.ty, &param_map),
+                ty: substitute_type_params(types, f.ty, &param_map),
             })
             .collect();
 
@@ -2809,7 +2889,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
                         id: p.id,
                         name: p.name.clone(),
                         decl_span: p.decl_span,
-                        ty: substitute_type_param(types, p.ty, &param_map),
+                        ty: substitute_type_params(types, p.ty, &param_map),
                         has_default: p.has_default,
                         default_value: p.default_value.clone(),
                         is_property: p.is_property,
@@ -2899,29 +2979,236 @@ fn collect_generic_class_decls_in_items<'a>(
     }
 }
 
-/// 替换 TypeId 中的 TypeKind::Param 为具体类型。
-fn substitute_type_param(
-    types: &TypeStore,
+/// 递归替换 TypeId 中出现的类型参数。
+///
+/// 说明：
+/// - generic class instantiation 需要把字段/ctor 参数里的 `T` 穿透到嵌套类型内部；
+/// - 仅替换顶层 `TypeKind::Param` 会让 `Option<T>`、`State<T>`、`() -> Step<T>` 等形状
+///   把参数残留到 LLVM codegen。
+pub(super) fn substitute_type_params(
+    types: &mut TypeStore,
     ty: crate::ty::TypeId,
     param_map: &HashMap<String, crate::ty::TypeId>,
 ) -> crate::ty::TypeId {
-    match types.kind(ty) {
+    match types.kind(ty).clone() {
         TypeKind::Param(p) => param_map.get(&p.name).copied().unwrap_or(ty),
-        _ => ty,
+        TypeKind::StarProjection(star) => {
+            let read_ty = substitute_type_params(types, star.read_ty, param_map);
+            if read_ty == star.read_ty {
+                ty
+            } else {
+                types.ty_star_projection(read_ty)
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+        | TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Char)
+        | TypeKind::Value(ValueTypeKind::Float64)
+        | TypeKind::Value(ValueTypeKind::Float32)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => ty,
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let new_inner = substitute_type_params(types, inner, param_map);
+            if new_inner == inner {
+                ty
+            } else {
+                types.ty_option(new_inner)
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            let mut changed = false;
+            let new_elements: Vec<crate::ty::TypeId> = elements
+                .into_iter()
+                .map(|element| {
+                    let new_element = substitute_type_params(types, element, param_map);
+                    if new_element != element {
+                        changed = true;
+                    }
+                    new_element
+                })
+                .collect();
+            if changed {
+                types.ty_tuple(new_elements)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let args: Vec<crate::ty::TypeId> = nominal
+                .args
+                .into_iter()
+                .map(|arg| {
+                    let new_arg = substitute_type_params(types, arg, param_map);
+                    if new_arg != arg {
+                        changed = true;
+                    }
+                    new_arg
+                })
+                .collect();
+            let eff = nominal.eff.map(|row| {
+                let new_row = substitute_type_param_effect_row(types, &row, param_map);
+                if new_row != row {
+                    changed = true;
+                }
+                new_row
+            });
+            if changed {
+                types.intern(TypeKind::Ref(RefTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: nominal.fqn,
+                        args,
+                        eff,
+                    },
+                )))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let args: Vec<crate::ty::TypeId> = nominal
+                .args
+                .into_iter()
+                .map(|arg| {
+                    let new_arg = substitute_type_params(types, arg, param_map);
+                    if new_arg != arg {
+                        changed = true;
+                    }
+                    new_arg
+                })
+                .collect();
+            let eff = nominal.eff.map(|row| {
+                let new_row = substitute_type_param_effect_row(types, &row, param_map);
+                if new_row != row {
+                    changed = true;
+                }
+                new_row
+            });
+            if changed {
+                types.intern(TypeKind::Value(ValueTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: nominal.fqn,
+                        args,
+                        eff,
+                    },
+                )))
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            let mut changed = false;
+            let receiver = fun.receiver.map(|receiver| {
+                let new_receiver = substitute_type_params(types, receiver, param_map);
+                if new_receiver != receiver {
+                    changed = true;
+                }
+                new_receiver
+            });
+            let params: Vec<crate::ty::TypeId> = fun
+                .params
+                .into_iter()
+                .map(|param| {
+                    let new_param = substitute_type_params(types, param, param_map);
+                    if new_param != param {
+                        changed = true;
+                    }
+                    new_param
+                })
+                .collect();
+            let return_ty = substitute_type_params(types, fun.return_ty, param_map);
+            if return_ty != fun.return_ty {
+                changed = true;
+            }
+            let effects = substitute_type_param_effect_row(types, &fun.effects, param_map);
+            if effects != fun.effects {
+                changed = true;
+            }
+            if changed {
+                types.ty_function(receiver, params, return_ty, effects, fun.effects_closed)
+            } else {
+                ty
+            }
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            let mut changed = false;
+            let variants: Vec<crate::ty::TypeId> = union
+                .variants
+                .into_iter()
+                .map(|variant| {
+                    let new_variant = substitute_type_params(types, variant, param_map);
+                    if new_variant != variant {
+                        changed = true;
+                    }
+                    new_variant
+                })
+                .collect();
+            if changed {
+                types.ty_union(variants)
+            } else {
+                ty
+            }
+        }
+    }
+}
+
+fn substitute_type_param_effect_row(
+    types: &mut TypeStore,
+    row: &EffectRow,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+) -> EffectRow {
+    let mut changed = false;
+    let terms: Vec<crate::ty::TypeId> = row
+        .terms
+        .iter()
+        .copied()
+        .map(|term| {
+            let new_term = substitute_type_params(types, term, param_map);
+            if new_term != term {
+                changed = true;
+            }
+            new_term
+        })
+        .collect();
+    if changed {
+        EffectRow::new(terms)
+    } else {
+        EffectRow { terms }
     }
 }
 
 /// 解析字段的类型 FQN：如果字段类型是 type param，替换为具体类型的 FQN。
-fn resolve_field_type_fqn(
+fn resolve_field_type_fqn_with_type_kinds(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    type_kinds: Option<&HashMap<String, ast::TypeKind>>,
     ty_ref: Option<&ast::TypeRef>,
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &mut TypeStore,
 ) -> Option<String> {
-    let ty = resolve_field_type_id(source, file, index, ty_ref, param_map, types)?;
+    let ty = resolve_field_type_id_with_type_kinds(
+        source, file, index, type_kinds, ty_ref, param_map, types,
+    )?;
     type_id_to_layout_fqn(types, ty)
+}
+
+fn resolve_field_type_id_with_type_kinds(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_kinds: Option<&HashMap<String, ast::TypeKind>>,
+    ty_ref: Option<&ast::TypeRef>,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    types: &mut TypeStore,
+) -> Option<crate::ty::TypeId> {
+    let ty_ref = ty_ref?;
+    lower_layout_type_ref_with_bindings(source, file, index, ty_ref, type_kinds, param_map, types)
 }
 
 pub(super) fn resolve_field_type_id(
@@ -2932,8 +3219,7 @@ pub(super) fn resolve_field_type_id(
     param_map: &HashMap<String, crate::ty::TypeId>,
     types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
-    let ty_ref = ty_ref?;
-    lower_layout_type_ref_with_bindings(source, file, index, ty_ref, param_map, types)
+    resolve_field_type_id_with_type_kinds(source, file, index, None, ty_ref, param_map, types)
 }
 
 /// T0126/T4010b1: 为所有具体的泛型 nominal 实例化生成单态化的成员 callable HIR。

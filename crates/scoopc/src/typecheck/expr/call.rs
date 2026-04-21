@@ -3114,7 +3114,10 @@ pub(super) fn infer_call_expr_type(
         ),
         other => {
             let callee_ty = super::infer::infer_expr_type(inputs, callee_expr, lower)?;
-            if matches!(lower.type_kind(callee_ty), TypeKind::Ref(RefTypeKind::Function(_))) {
+            if matches!(
+                lower.type_kind(callee_ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            ) {
                 return infer_function_type_call_expr_type(
                     inputs,
                     call_expr,

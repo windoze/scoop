@@ -1859,6 +1859,14 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // `Any` receiver 上的成员访问可能需要等到 typecheck/smart-cast 后才能确定真实目标：
+        // 例如 `if (x is Box<T>) x.value` 在 resolver 阶段只能看到 `x: Any`。
+        // 这里不抢先报 `unresolved_member`，把 member 保持为未绑定，交给 typecheck 的
+        // late-resolution 路径在拿到收窄后的 receiver 类型后再决定。
+        if receiver_ty_fqn == "scoop.core.Any" {
+            return Ok(());
+        }
+
         Err(ResolveError::UnresolvedMember {
             name: member_fqn,
             span: member.span.into(),

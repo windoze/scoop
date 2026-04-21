@@ -1,0 +1,20 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+//
+// T4016T1d1：`Any` receiver 在 smart-cast 分支内应允许 typecheck 晚解析 generic class 字段访问，
+// 而不是被 resolver 过早拒绝，或在 codegen 时退回声明处的擦除类型。
+
+import scoop.core.*
+
+class Box<T>(val value: T)
+
+fun readValue(x: Any): Int {
+    if (x is Box<Int>) {
+        return x.value
+    }
+    return 0
+}
+
+fun main(): Int {
+    return readValue(Box(7))
+}

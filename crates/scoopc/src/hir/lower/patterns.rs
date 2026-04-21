@@ -324,13 +324,8 @@ impl<'a> HirLowering<'a> {
                         id: bind_id,
                         name: bind_name.clone(),
                     });
-                    let nested_subject = self.synth_local_ref(
-                        arg.span,
-                        bind_ty,
-                        bind_id,
-                        bind_name,
-                        bind_span,
-                    );
+                    let nested_subject =
+                        self.synth_local_ref(arg.span, bind_ty, bind_id, bind_name, bind_span);
                     nested_checks.push(self.synth_pattern_runtime_check_expr(nested_subject, arg));
                 }
                 _ => arm_args.push(WhenPat::Wildcard { span: arg.span }),
@@ -455,13 +450,8 @@ impl<'a> HirLowering<'a> {
                             id: bind_id,
                             name: bind_name.clone(),
                         });
-                        let nested_subject = self.synth_local_ref(
-                            arg.span,
-                            bind_ty,
-                            bind_id,
-                            bind_name,
-                            bind_span,
-                        );
+                        let nested_subject =
+                            self.synth_local_ref(arg.span, bind_ty, bind_id, bind_name, bind_span);
                         arm_body = self.synth_pattern_binding_init_expr(
                             nested_subject,
                             arg,

@@ -1,0 +1,66 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+//
+// T4016T1d1：ordinary Scoop 定义的 generic task-state object model 至少要能以“具体实例使用”
+// 直接落到 LLVM；generic helper/method 的 monomorph leak 由后续子任务继续收口。
+//
+// 覆盖点：
+// - generic class 字段：`Option<TaskState<T>>`；
+// - generic enum state：created/completed/waiting；
+// - function payload：`() -> DriverStep<T>`；
+// - continuation answer：`Continuation<Any, DriverStep<T>>`；
+// - per-task lock 形状：`Mutex` 作为普通 Scoop 字段；
+// - 读写同一 generic state carrier，而不是退回 task-only C runtime struct。
+
+import scoop.core.*
+import scoop.sync.*
+
+enum DriverStep<T> {
+    Pending(
+        val awaited: Task<Any>,
+        val continuation: Continuation<Any, DriverStep<T>>
+    ),
+    Done(val value: T),
+}
+
+enum TaskState<T> {
+    Created(val start: () -> DriverStep<T>),
+    Running,
+    Waiting(
+        val awaited: Task<Any>,
+        val continuation: Continuation<Any, DriverStep<T>>
+    ),
+    Completed(val value: T),
+}
+
+class TaskCarrier<T>(
+    val lock: Mutex,
+    var state: Option<TaskState<T>>
+)
+
+fun driveInt(carrier: TaskCarrier<Int>, fallback: Int): Int {
+    return when (carrier.state) {
+        Some(state) -> when (state) {
+            Created(start) -> when (start()) {
+                Done(value) -> {
+                    carrier.state = Some(Completed(value))
+                    value
+                }
+                Pending(_, _) -> fallback
+            }
+            Running -> fallback
+            Waiting(_, _) -> fallback
+            Completed(value) -> value
+        }
+        None -> fallback
+    }
+}
+
+fun main(): Int {
+    val lock: Mutex = mutexCreate()
+    val created: TaskState<Int> = Created({ Done(7) })
+    val carrier: TaskCarrier<Int> = TaskCarrier(lock, Some(created))
+    val value: Int = driveInt(carrier, 0)
+    lock.destroy()
+    return value
+}

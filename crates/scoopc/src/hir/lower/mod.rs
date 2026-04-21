@@ -1959,7 +1959,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let class_inits = {
         let mut ci = class_inits;
         ci.extend(collect_generic_class_instantiation_inits(
-            &pairs, &types, &ci,
+            &pairs, &mut types, &ci,
         ));
         ci
     };
@@ -2121,7 +2121,7 @@ pub fn lower_for_compilation_unit(
         let mut ci = class_inits;
         ci.extend(collect_generic_class_instantiation_inits(
             compilation_unit,
-            &types,
+            &mut types,
             &ci,
         ));
         ci
@@ -2353,7 +2353,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
-        &types,
+        &mut types,
         &class_inits,
     ));
 
@@ -2376,7 +2376,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     // 创建了新的泛型 class 实例化类型（例如 `Printer<Greeter>`），这里补充收集。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
-        &types,
+        &mut types,
         &class_inits,
     ));
 

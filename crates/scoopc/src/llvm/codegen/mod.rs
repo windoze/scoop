@@ -9716,8 +9716,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 如果 HIR type 已是可用的精确类型，直接使用。
         if !matches!(
             self.types.kind(ty),
-            crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
-                | crate::ty::TypeKind::Param(_)
+            crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any) | crate::ty::TypeKind::Param(_)
         ) {
             return Some(ty);
         }
@@ -13824,20 +13823,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(v);
                 }
 
-                // T0125：从 receiver 局部变量获取精确的 hir_ty（receiver.ty 在 HIR 中总是 Any，
-                // 但 CgLocal.hir_ty 保留了声明时的参数化类型，例如 Box<Int>）。
-                let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local {
-                    id,
-                    ..
-                }) = &receiver.kind
-                {
-                    self.env
-                        .get(*id)
-                        .and_then(|local| local.hir_ty)
-                        .unwrap_or(receiver.ty)
-                } else {
-                    receiver.ty
-                };
+                // 优先使用“当前表达式语境下最精确的 receiver 类型”：
+                // - smart-cast / branch narrowing 会把 `receiver.ty` 收窄到比声明更具体的类型；
+                // - 普通局部变量若仍只有 `Any` / `Param`，再回退到 env 里保存的原始 `hir_ty`。
+                let receiver_hir_ty = self
+                    .resolve_expr_concrete_type(receiver)
+                    .unwrap_or(receiver.ty);
 
                 // T1312：class 实例字段访问（`this.x` / `obj.x`）。
                 if let Some((class, field_idx, field_cg)) =
