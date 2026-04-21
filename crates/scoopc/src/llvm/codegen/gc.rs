@@ -840,6 +840,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots.push((local_id, slot_ptr, value_ptr_ty));
             }
         }
+        for extra in &self.extra_gc_root_slots {
+            slots.push((extra.id, extra.slot, extra.value_ptr_ty));
+        }
         slots.sort_by_key(|(id, _, _)| *id);
         Ok(slots)
     }

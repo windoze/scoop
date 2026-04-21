@@ -101,6 +101,19 @@ struct EvaluatedCallArg<'ctx> {
     pointer_value: Option<PointerValue<'ctx>>,
 }
 
+/// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
+///
+/// extern/native 调用期间，moving GC 会直接更新 managed locals / temp spill slots；
+/// 若外层表达式把带 GC refs 的中间值继续保留在 SSA 里，extern 返回后这些 SSA 会变 stale。
+/// 因此，凡是需要跨“后续子表达式求值”保存的 GC-sensitive 值，都先落到临时 slot，
+/// 最终消费时再 reload。
+#[derive(Clone, Copy)]
+struct DeferredCgValue<'ctx> {
+    ty: CgTy,
+    immediate: Option<BasicValueEnum<'ctx>>,
+    spill: Option<(u32, PointerValue<'ctx>, PointerType<'ctx>)>,
+}
+
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
@@ -121,6 +134,13 @@ struct CgLocal<'ctx> {
     ty: CgTy,
     ptr: PointerValue<'ctx>,
     mutable: bool,
+}
+
+#[derive(Clone, Copy)]
+struct ExtraGcRootSlot<'ctx> {
+    id: u32,
+    slot: PointerValue<'ctx>,
+    value_ptr_ty: PointerType<'ctx>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -251,6 +271,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     builtins: BuiltinTypes,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
+    extra_gc_root_slots: Vec<ExtraGcRootSlot<'ctx>>,
+    next_extra_gc_root_slot_id: u32,
     /// 顶层/member 函数“调用时是否可能成为 suspend boundary”的惰性缓存。
     known_fun_call_suspend_cache: RefCell<Option<HashMap<String, bool>>>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
@@ -531,6 +553,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             builtins,
             fun_index,
             env: Env::default(),
+            extra_gc_root_slots: Vec::new(),
+            next_extra_gc_root_slot_id: 0,
             known_fun_call_suspend_cache: RefCell::new(None),
             type_layout_cache: HashMap::new(),
             option_niche_cache: HashMap::new(),
@@ -968,13 +992,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let is_extern = self.extern_funs.contains_key(&fun.fqn);
         let llvm_name = self
             .extern_funs
             .get(&fun.fqn)
             .map(|e| e.symbol.as_str())
             .unwrap_or(fun.fqn.as_str());
 
-        let has_body = fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn);
+        let has_body = fun.body.is_some() && !is_extern;
 
         // LLVM's gc.result cannot lower aggregate types (struct/tuple/enum) that span
         // multiple physical registers — causes "Cannot emit physreg copy instruction".
@@ -987,14 +1012,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // functions that return GC-free aggregates but perform internal GC operations,
         // the proper fix is to convert aggregate returns to sret (TODO: future task).
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
+        // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
+        // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
+        // - native 内部即使触发 GC，也应以 slots 更新为准；
+        // - 不能再依赖 caller frame 上的 SSA `gc.relocate` / stackmap 结果。
+        let is_gc_leaf = returns_gc_free_aggregate || is_extern;
 
         if let Some(existing) = self.module.get_function(llvm_name) {
             if has_body {
                 existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
             }
-            if returns_gc_free_aggregate {
-                let attr = self.context.create_string_attribute("gc-leaf-function", "");
-                existing.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
+            if is_gc_leaf {
+                self.mark_gc_leaf_function(existing);
             }
             return Ok(existing);
         }
@@ -1019,7 +1048,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_params, false),
         };
 
-        let linkage = if self.extern_funs.contains_key(&fun.fqn) {
+        let linkage = if is_extern {
             Some(Linkage::External)
         } else {
             None
@@ -1030,11 +1059,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if has_body {
             llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
         }
-        if returns_gc_free_aggregate {
-            let attr = self.context.create_string_attribute("gc-leaf-function", "");
-            llvm_fun.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
+        if is_gc_leaf {
+            self.mark_gc_leaf_function(llvm_fun);
         }
         Ok(llvm_fun)
+    }
+
+    pub(super) fn mark_gc_leaf_function(&self, function: FunctionValue<'ctx>) {
+        let attr = self.context.create_string_attribute("gc-leaf-function", "");
+        function.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
     }
 
     fn llvm_call_convention_for_fqn(&self, fqn: &str) -> u32 {
@@ -1381,6 +1414,99 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         self.rematerialize_ptr_in_current_block(at, local.ptr, name)
+    }
+
+    fn register_extra_gc_root_slot(
+        &mut self,
+        slot: PointerValue<'ctx>,
+        value_ptr_ty: PointerType<'ctx>,
+    ) -> u32 {
+        let id = 0x8000_0000u32 | self.next_extra_gc_root_slot_id;
+        self.next_extra_gc_root_slot_id = self.next_extra_gc_root_slot_id.wrapping_add(1);
+        self.extra_gc_root_slots.push(ExtraGcRootSlot {
+            id,
+            slot,
+            value_ptr_ty,
+        });
+        id
+    }
+
+    fn unregister_extra_gc_root_slot(&mut self, id: u32) {
+        self.extra_gc_root_slots.retain(|slot| slot.id != id);
+    }
+
+    fn defer_gc_sensitive_cg_value(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: CgValue<'ctx>,
+    ) -> Result<DeferredCgValue<'ctx>, LlvmEmitError> {
+        let Some(raw) = value.value else {
+            return Ok(DeferredCgValue {
+                ty: value.ty,
+                immediate: None,
+                spill: None,
+            });
+        };
+
+        let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
+        let BasicTypeEnum::PointerType(value_ptr_ty) = llvm_ty else {
+            return Ok(DeferredCgValue {
+                ty: value.ty,
+                immediate: Some(raw),
+                spill: None,
+            });
+        };
+        if value_ptr_ty.get_address_space() != self.gc_address_space() {
+            return Ok(DeferredCgValue {
+                ty: value.ty,
+                immediate: Some(raw),
+                spill: None,
+            });
+        }
+
+        let slot = self.create_entry_alloca(at, name, value.ty)?;
+        let _ = self.store_local_value(at, slot, value.ty, value)?;
+        let root_slot_id = self.register_extra_gc_root_slot(slot, value_ptr_ty);
+        Ok(DeferredCgValue {
+            ty: value.ty,
+            immediate: None,
+            spill: Some((root_slot_id, slot, value_ptr_ty)),
+        })
+    }
+
+    fn materialize_deferred_cg_value(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: DeferredCgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if let Some(raw) = value.immediate {
+            return Ok(CgValue {
+                ty: value.ty,
+                value: Some(raw),
+            });
+        }
+
+        if let Some((root_slot_id, slot, value_ptr_ty)) = value.spill {
+            self.unregister_extra_gc_root_slot(root_slot_id);
+            let slot =
+                self.rematerialize_ptr_in_current_block(at, slot, &format!("{name}_slot"))?;
+            let loaded = self.builder.build_load(value_ptr_ty, slot, name)?;
+            return Ok(CgValue {
+                ty: value.ty,
+                value: Some(loaded),
+            });
+        }
+
+        match value.ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "materialize deferred value",
+                at: at.into(),
+            }),
+        }
     }
 
     fn codegen_initializer_expr(
@@ -3264,7 +3390,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let mut param_values: Vec<Option<CgValue<'ctx>>> = vec![None; ctor_params.len()];
-        let mut explicit_values: Vec<Option<(crate::span::Span, CgValue<'ctx>)>> =
+        let mut explicit_values: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; ctor_params.len()];
 
         for (arg_idx, arg) in args.iter().enumerate() {
@@ -3290,7 +3416,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
             };
             let v = self.coerce_value(expr.span, v, param_cg)?;
-            explicit_values[param_idx] = Some((expr.span, v));
+            let deferred = self.defer_gc_sensitive_cg_value(
+                expr.span,
+                &format!("class_ctor_arg_{param_idx}"),
+                v,
+            )?;
+            explicit_values[param_idx] = Some((expr.span, deferred));
         }
 
         self.env.push_scope();
@@ -3303,6 +3434,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let Some((expr_span, explicit)) = explicit_values[param_idx] else {
                     continue;
                 };
+                let explicit = self.materialize_deferred_cg_value(
+                    expr_span,
+                    &format!("class_ctor_arg_reload_{param_idx}"),
+                    explicit,
+                )?;
                 let stored = self.bind_class_ctor_call_param_value(
                     callee_span,
                     kind,
@@ -3450,11 +3586,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         class: &hir::ClassInit,
         ctor_params: &[hir::ClassCtorParam],
-        stored_args: &[CgValue<'ctx>],
         obj_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         // primary ctor 参数属性赋值（在 super ctor 之后执行，Kotlin-like）。
-        for (param, arg_v) in ctor_params.iter().zip(stored_args.iter()) {
+        for param in ctor_params {
             if !param.is_property {
                 continue;
             }
@@ -3477,8 +3612,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: callee_span.into(),
                 });
             };
+            let local = self
+                .env
+                .get(param.id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param local slot",
+                    at: callee_span.into(),
+                })?;
+            let local_ptr =
+                self.local_ptr_for_use(span, local, &format!("class_ctor_param_{}", param.name))?;
+            let loaded = self.builder.build_load(
+                self.llvm_basic_type_of(span, param_cg)?,
+                local_ptr,
+                &format!("load_class_ctor_param_{}", param.name),
+            )?;
+            let arg_v = self.cg_value_from_loaded(span, param_cg, loaded)?;
             let field_ptr = self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
-            let _ = self.store_local_value(span, field_ptr, param_cg, *arg_v)?;
+            let _ = self.store_local_value(span, field_ptr, param_cg, arg_v)?;
         }
 
         // property initializer / init blocks（按源码顺序）
@@ -3603,7 +3753,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
 
-            let mut stored_args: Vec<CgValue<'ctx>> = Vec::with_capacity(args.len());
             for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
                 let param_cg =
                     self.cg_ty_of(param.ty)
@@ -3612,9 +3761,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: callee_span.into(),
                         })?;
                 let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
-                let stored =
-                    self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
-                stored_args.push(stored);
+                let _ = self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
                 self.env.insert(
                     param.id,
                     CgLocal {
@@ -3689,7 +3836,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             callee_span,
                             class,
                             ctor_params,
-                            stored_args.as_slice(),
                             obj_ptr,
                         )?;
 
@@ -3715,14 +3861,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "class super ctor call overload mismatch/ambiguous",
             )?;
 
-            self.codegen_class_ctor_run_init_steps(
-                span,
-                callee_span,
-                class,
-                ctor_params,
-                stored_args.as_slice(),
-                obj_ptr,
-            )?;
+            self.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params, obj_ptr)?;
 
             if ctor_kind == hir::ClassCtorKind::Secondary
                 && let Some(body) = ctor_body
@@ -9628,23 +9767,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
 
-        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
-            if is_extern {
-                cg.emit_enter_native_for_extern_call(span)?;
-            }
-
-            let call_site = cg.builder.build_call(llvm_fun, &llvm_args, "call")?;
-            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
-
-            // extern/native 调用返回后，必须调用 leave_native 将线程状态从 InNative 切回 InManaged，
-            // 否则后续 effect 状态机检查（如 perform/Raise 设置的 TLS active flag）会在错误的线程状态下执行。
-            if is_extern {
-                let leave = cg.declare_runtime_leave_native();
-                let _ = cg.builder.build_call(leave, &[], "leave_native")?;
-            }
-
-            Ok(call_site)
-        })?;
+        let call_site = if is_extern {
+            self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)?
+        } else {
+            self.with_conservative_gc_local_root_spills(span, |cg| {
+                let call_site = cg.builder.build_call(llvm_fun, &llvm_args, "call")?;
+                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
+                Ok(call_site)
+            })?
+        };
         self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
 
         let ret_cg =
@@ -9728,6 +9859,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "enter_native",
         )?;
         Ok(())
+    }
+
+    fn emit_extern_native_call(
+        &mut self,
+        at: crate::span::Span,
+        fqn: &str,
+        llvm_fun: FunctionValue<'ctx>,
+        llvm_args: &[inkwell::values::BasicMetadataValueEnum<'ctx>],
+    ) -> Result<CallSiteValue<'ctx>, LlvmEmitError> {
+        // extern/native 调用期间，moving GC 会直接更新 managed locals / temp spill slots；
+        // 因此这里不能复用 ordinary safepoint 的“load SSA keepalive -> call -> store writeback”合同。
+        // 正确做法是：
+        // 1) 进入 native 前把当前 managed roots 暴露为 slots；
+        // 2) native 返回后继续信任这些 slots；
+        // 3) 让后续代码重新从 slots reload，而不是把 pre-native SSA 写回。
+        self.emit_enter_native_for_extern_call(at)?;
+
+        let call_site = self.builder.build_call(llvm_fun, llvm_args, "call")?;
+        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+
+        // extern/native 调用返回后，必须调用 leave_native 将线程状态从 InNative 切回 InManaged，
+        // 否则后续 effect 状态机检查（如 perform/Raise 设置的 TLS active flag）会在错误的线程状态下执行。
+        let leave = self.declare_runtime_leave_native();
+        let _ = self.builder.build_call(leave, &[], "leave_native")?;
+        Ok(call_site)
     }
 
     fn try_codegen_class_vtable_call(
@@ -10655,7 +10811,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        let mut evaluated: Vec<Option<EvaluatedCallArg<'ctx>>> = vec![None; param_names.len()];
+        let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
+            vec![None; param_names.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx =
                 arg_to_param
@@ -10688,29 +10845,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
             };
             let coerced = self.coerce_value(expr.span, v, target_cg)?;
-            let pointer_value = match coerced.value {
-                Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
-                _ => None,
-            };
-            let value = self.as_llvm_arg_value(expr.span, target_cg, coerced)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                expr.span,
+                &format!("call_arg_{param_idx}"),
+                coerced,
+            )?;
             let slot = evaluated
                 .get_mut(param_idx)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind,
                     at: span.into(),
                 })?;
-            *slot = Some(EvaluatedCallArg {
-                value,
-                pointer_value,
-            });
+            *slot = Some((expr.span, deferred));
         }
 
         evaluated
             .into_iter()
-            .map(|slot| {
-                slot.ok_or(LlvmEmitError::UnsupportedMainBody {
+            .enumerate()
+            .map(|(param_idx, slot)| {
+                let (expr_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind,
                     at: span.into(),
+                })?;
+                let materialized = self.materialize_deferred_cg_value(
+                    expr_span,
+                    &format!("call_arg_reload_{param_idx}"),
+                    deferred,
+                )?;
+                let pointer_value = match materialized.value {
+                    Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
+                    _ => None,
+                };
+                let value = self.as_llvm_arg_value(expr_span, materialized.ty, materialized)?;
+                Ok(EvaluatedCallArg {
+                    value,
+                    pointer_value,
                 })
             })
             .collect()
@@ -11821,7 +11990,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 先把所有实参在"字段期望类型"下 codegen 并做最小 coercion，避免后续重复走 codegen。
-        let mut field_values: Vec<(CgTy, CgValue<'ctx>)> = Vec::with_capacity(args.len());
+        let mut field_values: Vec<(crate::span::Span, CgTy, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(args.len());
         for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args.iter()).enumerate() {
             let hir::CallArg::Positional(arg_expr) = arg else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -11832,11 +12002,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let v = self.codegen_expr_in_expected_context(arg_expr, Some(field_cg))?;
             let coerced = self.coerce_value(arg_expr.span, v, field_cg)?;
-            field_values.push((field_cg, coerced));
+            let deferred = self.defer_gc_sensitive_cg_value(
+                arg_expr.span,
+                &format!("enum_ctor_field_{idx}"),
+                coerced,
+            )?;
+            field_values.push((arg_expr.span, field_cg, deferred));
 
             // 提前在 debug 名称里体现 index，便于排查（不影响语义）。
             let _ = idx;
         }
+
+        let field_values = field_values
+            .into_iter()
+            .enumerate()
+            .map(|(idx, (field_span, field_cg, deferred))| {
+                let materialized = self.materialize_deferred_cg_value(
+                    field_span,
+                    &format!("enum_ctor_field_reload_{idx}"),
+                    deferred,
+                )?;
+                Ok((field_cg, materialized))
+            })
+            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
 
         self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
     }
@@ -13257,7 +13445,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
-        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        let mut deferred_fields: Vec<(u32, String, crate::span::Span, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(layout.fields.len());
 
         for (idx, field) in layout.fields.iter().enumerate() {
             let Some(init) = fields.iter().find(|f| f.name == field.name) else {
@@ -13284,21 +13473,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 init_v
             };
 
-            let raw = match field_cg {
-                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct field value",
-                    at: init.value.span.into(),
-                })?,
-            };
+            let deferred = self.defer_gc_sensitive_cg_value(
+                init.value.span,
+                &format!("struct_field_{idx}"),
+                coerced,
+            )?;
 
             // T0119: For `@CLayout(packed = N)` with N > 1, use the remapped LLVM element index.
             let llvm_idx = self
                 .pack_field_indices
                 .get(&layout_key)
                 .map_or(idx as u32, |indices| indices[idx]);
+            deferred_fields.push((llvm_idx, field.name.clone(), init.value.span, deferred));
+        }
 
-            let name = format!("insert_{}", field.name);
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        for (idx, (llvm_idx, field_name, field_span, deferred)) in
+            deferred_fields.into_iter().enumerate()
+        {
+            let materialized = self.materialize_deferred_cg_value(
+                field_span,
+                &format!("struct_field_reload_{idx}"),
+                deferred,
+            )?;
+            let raw = match materialized.ty {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => materialized
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "struct field value",
+                        at: field_span.into(),
+                    })?,
+            };
+
+            let name = format!("insert_{field_name}");
             agg = self.builder.build_insert_value(agg, raw, llvm_idx, &name)?;
         }
 
@@ -13336,7 +13544,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
-        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
+        let mut deferred_elements: Vec<(usize, crate::span::Span, DeferredCgValue<'ctx>)> =
+            Vec::with_capacity(elements.len());
 
         for (idx, (elem_expr, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
             let elem_cg = self
@@ -13351,13 +13560,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 落回“无 expected function type”的通用 `expression kind` unsupported。
             let elem_v = self.codegen_expr_in_expected_context(elem_expr, Some(elem_cg))?;
             let coerced = self.coerce_value(elem_expr.span, elem_v, elem_cg)?;
+            let deferred = self.defer_gc_sensitive_cg_value(
+                elem_expr.span,
+                &format!("tuple_elem_{idx}"),
+                coerced,
+            )?;
+            deferred_elements.push((idx, elem_expr.span, deferred));
+        }
 
-            let raw: BasicValueEnum<'ctx> = match elem_cg {
+        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
+        for (idx, elem_span, deferred) in deferred_elements {
+            let materialized = self.materialize_deferred_cg_value(
+                elem_span,
+                &format!("tuple_elem_reload_{idx}"),
+                deferred,
+            )?;
+            let raw: BasicValueEnum<'ctx> = match materialized.ty {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element value",
-                    at: elem_expr.span.into(),
-                })?,
+                _ => materialized
+                    .value
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "tuple element value",
+                        at: elem_span.into(),
+                    })?,
             };
 
             let name = format!("insert_elem_{idx}");

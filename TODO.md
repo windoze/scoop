@@ -187,16 +187,18 @@
   - `Task` 可被解释为 continuation-based thin wrapper，而不再需要在设计文档里保留“runtime hack” caveat。
 - 依赖：T4016b4b
 
-### T1510c1 [TODO] 修复 `@Extern` + `enter_native` 在 moving GC 下把过期 SSA keepalive 写回 managed 局部槽位
+### T1510c1 [DONE] 修复 `@Extern` + `enter_native` 在 moving GC 下把过期 SSA keepalive 写回 managed 局部槽位
 - 范围：
   - 修复 `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop` 暴露的既有问题：当前 LLVM IR 已为 extern 调用点生成 `scoop_enter_native(root_slots = 1)`，但 extern body 内触发 moving GC 后，codegen 仍沿用 native 期间的 SSA `gc.relocate` 值，再在 `leave_native` 之后把它写回原局部槽位。
   - 该行为会覆盖 `native_roots` 已经原地更新过的新地址，把 pre-move/stale 指针 resurrect 回 managed frame；随后 `GC.handleNew/handleGet` 等路径会在错误地址上失败并 `exit(3)`。
   - 修复应收口在 managed-frame 的 extern-call lowering / spill-reload 合同上：native 期间依赖 `enter_native` 注册的 roots slots，返回 managed 侧后必须从真实槽位重新取值，不能继续把 extern statepoint 的旧 SSA keepalive 当成 authoritative root。
+  - 同时修复同类的“先求值的 direct GC SSA 值跨后续 extern/native 子表达式继续存活”问题：call args / class ctor params 等 pointer-shaped 临时值现在会先落到受根集管理的槽位，再在 native 返回后 reload。
   - 补定向 regression，锁定 `@Extern` + `SCOOP_GC_MOVE=1` 下“roots 被更新且回 managed 后不复写旧地址”的合同，而不是只验证对象未被回收。
 - 验收：
   - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 通过。
   - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop` 在 `SCOOP_GC_MOVE=1` 下输出 `hello 7`，不再 `exit(3)`。
-  - 若保留 LLVM IR regression，需能直接体现“extern native call 返回后重取 updated slot，而不是把 native call 前/中的 SSA keepalive 写回局部槽位”。
+  - `tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop` 在 `SCOOP_GC_MOVE=1` 下输出 `hello 7`，证明外层表达式中先求值的 direct GC SSA 也会在 native 返回后改为 reload。
+  - `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 锁定 LLVM IR：extern/native 三连调用不再被 statepoint 包裹，managed 侧通过 slot reload 继续使用更新后的 roots。
 - 依赖：无
 
 ### T4016R [TODO] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack

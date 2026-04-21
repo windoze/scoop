@@ -1,0 +1,32 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: extern_enter_native_roots_gc.stdout.txt
+// 目标：T1510c1：extern/native 调用若出现在外层表达式的后续子表达式中，先前求值的 GC 值也必须经由 slot reload，而不能继续保留 stale SSA。
+
+package fixtures.runtime_gc
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_gc_collect_in_native")
+fun gcCollectInNative(): Unit
+
+class Box(val a: Any, val b: Int)
+
+fun main() {
+    val x: Any = f"hello {7}"
+    val box = Box(x, @Unsafe do {
+        gcCollectInNative()
+        1
+    })
+
+    val h: GcHandle = @Unsafe do { GC.handleNew(box.a) }
+    val gotAny: Any = @Unsafe do { GC.handleGet(h) }
+    val gotOpt: String? = gotAny as? String
+    val got: String = when (gotOpt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+    println(got)
+    @Unsafe do { GC.handleDrop(h) }
+}

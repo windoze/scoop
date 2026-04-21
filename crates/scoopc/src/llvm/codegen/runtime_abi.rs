@@ -1067,6 +1067,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn declare_runtime_enter_native(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ENTER_NATIVE;
         if let Some(existing) = self.module.get_function(NAME) {
+            self.mark_gc_leaf_function(existing);
             return existing;
         }
 
@@ -1075,18 +1076,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [slots_ptr_ty.into(), i32_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
+        let function = self.module.add_function(NAME, fn_ty, None);
+        self.mark_gc_leaf_function(function);
+        function
     }
 
     pub(super) fn declare_runtime_leave_native(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_LEAVE_NATIVE;
         if let Some(existing) = self.module.get_function(NAME) {
+            self.mark_gc_leaf_function(existing);
             return existing;
         }
 
         // `void scoop_leave_native(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.module.add_function(NAME, fn_ty, None)
+        let function = self.module.add_function(NAME, fn_ty, None);
+        self.mark_gc_leaf_function(function);
+        function
     }
 
     pub(super) fn declare_runtime_gc_pin(&self) -> FunctionValue<'ctx> {

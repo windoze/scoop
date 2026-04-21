@@ -1,68 +1,77 @@
-# 执行计划与决策摘要
+# Claude Plan
 
-说明：基于安全与协作边界，这里不记录逐字内部推理，而是记录可审阅的决策摘要、执行计划、关键假设与进度更新。
+## 约束说明
+- 按要求先记录执行计划，再进行仓库检查与任务实现。
+- 这里记录的是可审阅的步骤摘要、假设与决策，不包含完整内部推理细节。
 
-## 初始目标
-
-本轮只完成 `TODO.md` 中第一个未完成任务；如果遇到阻塞，则按要求重排 `TODO.md` / `PLAN.md`，提交后停止。
-
-## 初始执行步骤
-
-1. 检查最新一次 Git 提交，确认是否提到需要优先修复的既有问题。
-2. 检查当前工作树状态，识别是否存在用户未提交修改，避免误覆盖。
-3. 阅读 `TODO.md`，定位第一个未完成任务。
-4. 阅读 `PLAN.md`，核对该任务的上下文、依赖和既有拆分。
-5. 判断该任务是否可在本轮完整完成：
-   - 若可完成，直接实现。
-   - 若过大或存在前置缺口，先把任务拆分/重排到 `TODO.md` 与 `PLAN.md`，本轮只执行拆分后的首个子任务或记录阻塞。
-6. 实现任务并补充/调整测试。
-7. 运行相关验证，至少覆盖：
-   - 任务相关测试
-   - 必要时运行更大范围回归
-   - `cargo fmt --check`
+## 初始执行计划
+1. 检查最新一次 Git 提交的提交信息与变更，确认是否提到需要先修复的既有问题；若有，优先修复并验证。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 评估该任务规模与依赖：
+   - 若可直接完成，则继续实现。
+   - 若过大或被前置缺陷阻塞，则分解任务并更新 `PLAN.md` 与 `TODO.md`，使第一个子任务成为当前执行目标。
+4. 阅读与当前任务相关的代码、规范、测试和计划文件，确认实现边界与现状。
+5. 实现当前目标任务，必要时补充/调整测试与文档。
+6. 运行必要验证，至少覆盖：
+   - 相关测试
+   - `cargo test --all`
    - `cargo clippy --all-targets -- -D warnings`
-8. 更新文档状态：
-   - 在 `TODO.md` 标记该任务完成或按依赖重排
-   - 在 `PLAN.md` 记录当前状态与后续顺序
-   - 在本文件记录关键进度
-9. 使用清晰提交信息提交本轮变更，然后停止。
+   - 如任务相关，再运行额外 fixture/spec 检查
+7. 根据执行结果更新文档：
+   - 在 `TODO.md` 中标记完成，或在阻塞时按依赖顺序重排任务
+   - 在 `PLAN.md` 中记录当前状态、分解、阻塞原因或后续安排
+   - 在本文件中同步关键进展与计划变化
+8. 检查工作区改动，确保不误改无关内容。
+9. 使用清晰的提交信息提交本次完成的单个任务，然后停止。
 
-## 当前假设
+## 风险与决策准则
+- 若发现规范不一致、缺失语言特性、运行时缺陷或测试仅靠变通才能通过，则视为真实项目问题；必须先在 `TODO.md`/`PLAN.md` 中建前置任务并调整顺序，不能绕过。
+- 不回退或覆盖非本次任务引入的现有修改；若遇到冲突，先分析是否阻塞当前任务。
+- 每完成关键里程碑（定位任务、决定分解、完成实现、完成验证、准备提交）后，都更新本文件。
 
-- 仓库可能存在未提交修改，必须避免回退非本轮变更。
-- “最新提交中的既有问题” 只有在提交信息或代码状态明确指向时才需要优先修复。
-- 只有在确认第一个未完成任务后，才能决定是否需要进一步拆分。
+## 待更新里程碑
+- [x] 检查最新提交
+- [x] 定位第一个未完成任务
+- [x] 判断是否需要任务分解
+- [x] 完成实现
+- [x] 完成验证
+- [x] 更新 `TODO.md` / `PLAN.md`
+- [ ] 提交并停止
 
-## 进度记录
-
-- 已创建本计划文件，准备开始仓库检查。
-- 已检查 `git log -1`、`TODO.md`、`PLAN.md`。
-- 最新提交 `2fb8af7 [T4016d] Thin Task around shared continuation helper` 未在提交说明中显式声明新的既有问题需要先修。
-- 当前首个未完成条目为 `T4016R`，其性质是 review 任务：需要核对 continuation / `Task` 的生产实现、文档叙事与测试覆盖是否一致。
-- 下一步：
-  1. 搜索仓库中是否仍残留用户态 `-> resume`、旧 `ImmediateResume` 语义或 task-only runtime hack 叙事。
-  2. 审查 `Task` / continuation 相关实现与运行时 helper，确认 `Task` 是否仅作为 continuation thin wrapper。
-  3. 复核与 `T4016R` 直接相关的测试，再决定是收口该 review，还是前置新增缺陷任务。
-- 已完成静态审查：
-  - `-> resume` 仅剩 removed-syntax parser diagnostic；
-  - `Continuation.resume(...)` 的 typecheck / lowering / LLVM codegen 已统一走 answer-returning helper；
-  - `Task` 仅在私有层把同一 continuation answer 通道解释为 `__TaskStepResult`，未见继续偷读 continuation frame 前缀的路径。
-- 已完成定向验证：
-  - `cargo test -p scoop_runtime --test continuation_one_shot --test task_spawn_join` 通过；
-  - `cargo test -p scoop_runtime --test gc_enter_native` 通过。
-- 在全量 `cargo run -p scoop -- test` 中发现新的 pre-existing blocker：
-  - 失败 fixture：`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
-  - 现象：期望 `SCOOP_GC_MOVE=1` 下通过，实际 `exit(3)`。
-  - 复现：单独 build 成功，但手动运行 `SCOOP_GC_MOVE=1 /tmp/extern_enter_native_roots_gc.out` 仍 `exit(3)`。
-- 阻塞问题的当前判断：
-  - 该 fixture 的 LLVM IR 已生成 `scoop_enter_native(root_slots = 1)`，说明“完全没插入 native roots”不是问题本体；
-  - 但 extern body statepoint 返回后，IR 继续沿用 native 期间的 SSA `gc.relocate` 值，并在 `scoop_leave_native()` 之后写回局部 `%x`；
-  - moving GC 若已通过 `native_roots` 把 `%x` 更新到新地址，此写回会把 stale/pre-move 指针重新写回 managed frame，导致后续 `GC.handleNew/handleGet` 路径失败。
-- 计划已变更：
-  1. 不继续尝试完成 `T4016R`。
-  2. 先在 `TODO.md` / `PLAN.md` 中新增前置任务 `T1510c1`，明确该 `@Extern` + moving-GC native-roots 回归。
-  3. 让 `T4016R` 显式依赖 `T1510c1`，本轮只提交任务重排与阻塞说明后停止。
-- 已完成重排：
-  - `TODO.md` 已新增 `T1510c1 [TODO]`，放在 `T4016d` 与 `T4016R` 之间；
-  - `T4016R` 已改为依赖 `T1510c1, T4016d`；
-  - `PLAN.md` 已补记该 blocking mismatch、IR 证据与新的执行顺序 `T1510c1 -> T4016R -> ...`。
+## 进展记录
+- 已检查最新提交 `be1747658a03b41da6a49903799107e68c266699`，提交信息为 `[T1510c1] Add extern native-roots moving-GC blocker`。该提交没有修复实现，而是把既有问题显式加入 `TODO.md` / `PLAN.md`，因此需要先处理该 blocker。
+- 已确认 `TODO.md` 中当前第一个未完成任务是 `T1510c1`：修复 `@Extern` + `enter_native` 在 moving GC 下把过期 SSA keepalive 写回 managed 局部槽位。
+- 已检查 `PLAN.md`：当前轮次顺序与 `TODO.md` 一致，`T1510c1` 是继续推进 `T4016R` 前的前置修复项。
+- 当前执行决策：不再分解任务，先复现 `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`，然后检查 extern-call lowering / native roots / spill-reload 相关代码路径，定位 stale SSA 写回发生位置并修复。
+- 已复现原始失败：`cargo run -p scoop -- build tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop -o /tmp/extern_enter_native_roots_gc.out && SCOOP_GC_MOVE=1 /tmp/extern_enter_native_roots_gc.out` 退出码为 `3`。
+- 已抓取 LLVM IR 并确认当前坏模式：
+  - extern/native 三连调用被 statepoint 包裹；
+  - 调用前从 `%x` load 出 `gc_root_keepalive_*`；
+  - native 侧 moving GC 更新 `native_roots` 后，managed 侧又把 keepalive SSA store 回 `%x`，导致 stale 指针 resurrect。
+- 进一步做了最小复现验证，确认问题不只发生在“写回原局部槽位”：
+  - 若外层表达式先求值出一个带 GC refs 的中间值，再在后续子表达式里进入 extern/native 并触发 GC，该中间值继续保留在 SSA 里也会 stale；
+  - 已用临时样例 `Box(x, @Unsafe do { gcCollectInNative(); 1 })` 复现同类崩溃。
+- 因此修复策略已扩展为两层：
+  1. extern/native 调用点不再复用 ordinary safepoint 的“SSA keepalive spill/writeback”合同；
+  2. 对任何需要跨后续子表达式保存、且底层包含 GC refs 的中间值，先落到临时 slot，再在最终消费点 reload。
+- 已开始实现：
+  - `@Extern` / `enter_native` / `leave_native` 从 LLVM GC 视角标记为 leaf；
+  - top-level extern call 走独立 lowering；
+  - 调用参数、class ctor 显式参数、enum ctor 字段、struct/tuple literal 元素开始接入 deferred spill/reload 机制；
+  - 新增一个 runtime_gc 回归 fixture 和一个 build/LLVM IR 断言 fixture 锁定合同。
+- 已完成实现收口：
+  - direct extern/native 路径不再把 statepoint `gc.relocate` 的旧 SSA keepalive 写回 managed 局部槽位；
+  - pointer-shaped 临时 GC 值现在会注册为“活动中的额外 root 槽位”，同时纳入 ordinary conservative root 收集与 native_roots 收集；
+  - class ctor 参数属性赋值改为按需从参数局部槽位 reload，不再通过 `stored_args` 旁路复用旧 SSA。
+- 已完成验证：
+  - `cargo test -p scoopc --lib`
+  - `cargo run -p scoop -- build tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop -o /tmp/extern_enter_native_roots_gc.out && SCOOP_GC_MOVE=1 /tmp/extern_enter_native_roots_gc.out`
+  - `cargo run -p scoop -- build tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop -o /tmp/extern_enter_native_gc_arg_spill_reload.out && SCOOP_GC_MOVE=1 /tmp/extern_enter_native_gc_arg_spill_reload.out`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+- 已完成文档/计划同步：
+  - `TODO.md` 已将 `T1510c1` 标记为 `[DONE]`，并补记 direct GC SSA reload 与 LLVM IR regression 的验收结果。
+  - `PLAN.md` 已把 P0 更新为完成状态，并将下一步顺序推进到 `T4016R`。
+- 当前仅剩：检查最终 diff，提交本轮变更，然后停止。

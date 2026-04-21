@@ -39,7 +39,13 @@
   - fixture 的 LLVM IR 确实生成了 `scoop_enter_native(root_slots = 1)`，局部 `x` 的槽位也被放进 `native_root_slots`；
   - 但 extern body 的 statepoint 返回后，codegen 继续沿用 native 期间的 SSA `gc.relocate` 值，并在 `scoop_leave_native()` 之后把它写回 `%x`；
   - moving GC 若已通过 `native_roots` 把 `%x` 更新到新地址，这个“把旧 SSA 值写回局部槽位”的动作会把 stale/pre-move 指针 resurrect 回 managed frame，随后 `GC.handleNew/handleGet` 路径以 `exit(3)` 失败。
-- 因此当前应先执行 `T1510c1`：修正 extern-call lowering / spill-reload 合同，让 managed 侧在离开 native 后重新从真实 roots 槽位取值，而不是继续信任 native call 前/中的 SSA keepalive。
+- 本轮已完成 `T1510c1`，修复点包括：
+  - extern/native 三连调用改走独立 lowering，不再复用 ordinary safepoint 的 SSA keepalive spill/writeback 合同；`@Extern` / `scoop_enter_native` / `scoop_leave_native` 也已从 LLVM GC 视角标记为 leaf。
+  - 新增“活动中的临时 GC root 槽位”管理：call args、class ctor params 等 pointer-shaped 中间值若要跨后续子表达式存活，会先落到受根集追踪的槽位，并同时纳入 native_roots 与 ordinary conservative root 收集。
+  - class ctor 参数属性赋值不再缓存 `stored_args` SSA，而是按需从参数局部槽位 reload，避免在后续 extern/native 调用后继续沿用 stale 形参值。
+  - 新增 `tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop` 与 `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 两个定向回归，分别锁定“外层表达式中的 direct GC SSA reload”与“LLVM IR 不再把 extern/native 三连调用包成 statepoint”。
+  - 已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 当前可继续推进 `T4016R`。
 
 ### P1. 正确的单次 delimited continuation 与 `Task` 去 hack
 
@@ -67,7 +73,7 @@
   - `T4016R` 的静态审查结论当前保持“待收口”：
     - 已确认 `-> resume` 只剩 removed-syntax diagnostic，`Continuation.resume(...)` 的 typecheck / lowering / codegen 统一走 answer-returning helper，`Task` 也只在私有层把同一 continuation answer 通道解释为 `__TaskStepResult`；
     - 但在尝试用全量 `cargo run -p scoop -- test` 关闭 review 时，命中了上面的 `T1510c1` 既有 blocker，因此 `T4016R` 不能在全量回归恢复绿色前标记完成。
-  - 新的顺序调整为：`T1510c1 -> T4016R -> T4012...`。
+  - 当前顺序调整为：`T4016R -> T4012...`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
