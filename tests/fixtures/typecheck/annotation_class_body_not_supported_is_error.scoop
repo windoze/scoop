@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_body_not_supported
+// EXPECT-ERROR-AT: 8:25
+// EXPECT-ERROR: 不支持类型体
+
+package fixtures.typecheck
+
+annotation class Marker {}

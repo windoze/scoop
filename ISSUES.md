@@ -62,11 +62,11 @@
 - 影响：当前真正低风险、低改动的方向应是优先支持“无 binder 的 payload or-pattern”。若未来要放开 binder-sharing，则至少需要要求“各分支 binder 集合一致且每个 binder 精确同型”，不能把 `A(x) | C(x)` 这类情况宽松合流成 `Any`。另外，暂不应把 bare `A | C` 扩成“忽略 payload”的语法糖，因为 parser 当前把大写裸名解释为 0-arg variant。
 - 证据：`crates/scoopc/src/typecheck/when_pat.rs:89-103`；`crates/scoopc/src/typecheck/when_pat.rs:193-206`；`crates/scoopc/src/resolve/scopes.rs:940-950`；`crates/scoopc/src/parser/expr.rs:2077-2085`。
 
-## 9. annotation 系统仍只覆盖部分规范
+## 9. annotation 的 declaration model 已收口为 compile-time markers only，但多项 built-in behavior 仍未兑现
 
-- 现状：annotation class 仍不支持继承 / 实现接口，也不支持类型体；实现上只接受“主构造参数承载数据”的 data-only 子集。与此同时，编译器硬编码识别的 built-in annotation 仍只有 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`，spec 里写到的 `@Deprecated`、`@Inline`、`@AllowIntrinsic`、`@Suppress` 等编译器语义并未落地。
-- 影响：注解系统已经有基本声明、use-site target 与 `@Target/@Retention` 校验，但 richer annotation model 与多项 built-in annotation behavior 仍未兑现。
-- 证据：`crates/scoopc/src/typecheck/annotations.rs:77-90`；`crates/scoopc/src/typecheck/builtin_annotations.rs:12-18`；`crates/scoopc/src/typecheck/builtin_annotations.rs:53-66`；`crates/scoopc/src/resolve/mod.rs:311-340`；`SCOOP_FULL_SPEC.md:2285-2299`。
+- 现状：annotation class 已明确不是一般 nominal type / class 能力的延伸；实现与规范都已收口到“主构造 `val` 参数承载编译期 marker payload”的 data-only 子集，并拒绝 supertypes、type body、type/effect params 与 `where`。当前剩余缺口主要收窄为 built-in annotation behavior：编译器硬编码识别的仍只有 `Unsafe / Safe / NoGC / Extern / Intrinsic / CallingConvention`，spec 里写到的 `@Deprecated`、`@Inline`、`@AllowIntrinsic`、`@Suppress` 等编译器语义尚未落地。
+- 影响：注解声明模型、use-site target 与 `@Target/@Retention` contract 已经统一；剩余 issue 不再是“annotation 要不要做成复杂 nominal feature”，而是 built-in annotations 的具体编译器行为仍不完整。
+- 证据：`crates/scoopc/src/typecheck/annotations.rs`；`crates/scoopc/src/typecheck/builtin_annotations.rs`；`crates/scoopc/src/resolve/mod.rs`；`SCOOP_FULL_SPEC.md` 第 15 节。
 
 ## 10. 应先删除 legacy `inline` / non-local return 语义残留；新设计另议
 

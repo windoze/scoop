@@ -392,8 +392,10 @@ pub enum Modifier {
     Const,
     /// 注解类标记：`annotation class`（spec §15.2）。
     ///
-    /// 当前阶段仅用于 parser 把 `annotation` 作为修饰符解析并存储；
-    /// 语义限制（例如只允许用于 class、参数必须是 `val` 等）由后续阶段实现。
+    /// 说明：
+    /// - parser 会把 `annotation` 当作通用 modifier token 解析并存储；
+    /// - 真实语义由 typecheck 收口：`annotation` 只允许服务于 compile-time marker
+    ///   的 `annotation class`，不能作为一般 nominal type / declaration modifier 复用。
     Annotation,
 }
 

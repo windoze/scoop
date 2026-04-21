@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_modifier_invalid_target
+// EXPECT-ERROR-AT: 8:16
+// EXPECT-ERROR: `annotation class`
+
+package fixtures.typecheck
+
+annotation fun marker(): Unit {}

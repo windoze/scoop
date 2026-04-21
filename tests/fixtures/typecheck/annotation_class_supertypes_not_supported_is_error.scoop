@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_supertypes_not_supported
+// EXPECT-ERROR-AT: 10:27
+// EXPECT-ERROR: 不支持继承
+
+package fixtures.typecheck
+
+class Base
+
+annotation class Marker : Base

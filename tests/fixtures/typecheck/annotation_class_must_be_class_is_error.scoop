@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_must_be_class
+// EXPECT-ERROR-AT: 8:22
+// EXPECT-ERROR: 必须是 `class`
+
+package fixtures.typecheck
+
+annotation interface Marker

@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_modifier_not_supported
+// EXPECT-ERROR-AT: 8:23
+// EXPECT-ERROR: 不支持修饰符 `open`
+
+package fixtures.typecheck
+
+open annotation class Marker

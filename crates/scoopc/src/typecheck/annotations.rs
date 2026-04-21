@@ -1,14 +1,19 @@
-//! 注解系统的最小语义检查（T1002）。
+//! 注解系统的 compile-time marker 语义检查。
 //!
-//! 当前阶段目标：
-//! - 识别 `annotation class X(...)` 并对其施加最小形态约束（data-only）；
+//! 当前阶段目标（T4012a）：
+//! - 把 `annotation` 收口为 **compile-time markers only**，而不是一般 nominal type 能力的延伸；
+//! - 识别 `annotation class X(...)` 并对其施加 data-only marker 约束；
 //! - 在 `@Name(...)` 使用处验证 `Name` 必须引用一个注解类（spec §15.2~§15.3）。
 //!
+//! 当前合同：
+//! - `annotation` 关键字只服务于 `annotation class`；
+//! - annotation class 只允许以主构造 `val` 参数承载编译期数据；
+//! - annotation class 不引入继承、运行时对象模型或额外控制流语义。
+//!
 //! 非目标（留给后续任务）：
-//! - 完整的 target/retention/meta-annotation 规则（T1016）；
-//! - 注解参数类型白名单与默认值/必填规则；
+//! - 完整的 built-in annotation behavior（`@Deprecated/@AllowIntrinsic/@Suppress/...`）；
 //! - 注解在表达式位置的语义（如 `@Suppress(...) expr`）；
-//! - `@Extern/@Intrinsic/@NoGC/@Unsafe` 等内建注解的特殊行为（T1003 已覆盖最小门禁；更完整规则见 TODO）。
+//! - 更丰富的 metaprogramming / reflection surface。
 
 use std::collections::HashMap;
 
@@ -66,9 +71,50 @@ struct AnnotationCheckContext<'a> {
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum AnnotationError {
+    #[error("`annotation` 关键字只能用于 `annotation class` 声明，但这里出现在 {found} 上")]
+    #[diagnostic(code(scoop::typecheck::annotation_modifier_invalid_target))]
+    AnnotationModifierInvalidTarget {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("注解类必须是 `class`：{type_fqn}")]
     #[diagnostic(code(scoop::typecheck::annotation_class_must_be_class))]
     AnnotationClassMustBeClass {
+        type_fqn: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解类不支持修饰符 `{modifier}`：{type_fqn}")]
+    #[diagnostic(code(scoop::typecheck::annotation_class_modifier_not_supported))]
+    AnnotationClassModifierNotSupported {
+        type_fqn: String,
+        modifier: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解类暂不支持 effect 参数：{type_fqn}")]
+    #[diagnostic(code(scoop::typecheck::annotation_class_effect_param_not_supported))]
+    AnnotationClassEffectParamNotSupported {
+        type_fqn: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解类暂不支持 where 子句：{type_fqn}")]
+    #[diagnostic(code(scoop::typecheck::annotation_class_where_clause_not_supported))]
+    AnnotationClassWhereClauseNotSupported {
+        type_fqn: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解类暂不支持类型参数：{type_fqn}")]
+    #[diagnostic(code(scoop::typecheck::annotation_class_type_params_not_supported))]
+    AnnotationClassTypeParamsNotSupported {
         type_fqn: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -392,6 +438,11 @@ pub fn check_file_annotations(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &ta.modifiers,
+                    "typealias",
+                    ta.name.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     &mut lower,
@@ -402,6 +453,11 @@ pub fn check_file_annotations(
                 check_builtin_annotations_on_type_alias_decl(source, ta)?;
             }
             ast::Item::Fun(fun) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &fun.modifiers,
+                    "函数",
+                    fun.name.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     &mut lower,
@@ -413,6 +469,11 @@ pub fn check_file_annotations(
                 check_param_list_annotations(ctx, &mut lower, builtins, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &p.modifiers,
+                    "扩展属性",
+                    p.name.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     &mut lower,
@@ -423,6 +484,11 @@ pub fn check_file_annotations(
                 reject_builtin_annotations_on_target(source, &p.annotations, "extension property")?;
             }
             ast::Item::Val(v) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &v.modifiers,
+                    "顶层属性",
+                    v.name().map(|name| name.span).unwrap_or(v.span),
+                )?;
                 check_annotation_uses(
                     ctx,
                     &mut lower,
@@ -458,10 +524,15 @@ fn check_type_decl_annotations(
     let local = ctx.source.slice(decl.name.span);
     let type_fqn = join_prefix(prefix, local);
 
+    // 0) `annotation class` 的 declaration shape 先于注解 use-site 检查：
+    //    若声明头本身非法，应优先给出“annotation 不是一般 nominal type”的诊断，
+    //    避免 `@Target/@Retention` 等 meta-annotation 先报次级错误。
+    if decl.modifiers.contains(&ast::Modifier::Annotation) {
+        check_annotation_class_decl_rules(ctx.source, decl, &type_fqn)?;
+    }
+
     // 1) 注解使用：`@Foo` / `@Foo(...)`。
-    let site = if decl.kind == ast::TypeKind::Class
-        && decl.modifiers.contains(&ast::Modifier::Annotation)
-    {
+    let site = if decl.modifiers.contains(&ast::Modifier::Annotation) {
         AnnotationSite::annotation_class_decl()
     } else {
         AnnotationSite::new(AnnotationTargetKind::Type)
@@ -477,12 +548,7 @@ fn check_type_decl_annotations(
     // - 这里在 typecheck 阶段做最小门禁与参数合法性检查；后端（LLVM）会消费这些参数生成 packed/aligned layout。
     check_clayout_struct_decl(ctx.source, ctx.file, ctx.index, decl, &type_fqn, lower)?;
 
-    // 2) 注解类自身的最小形态约束（data-only）。
-    if decl.modifiers.contains(&ast::Modifier::Annotation) {
-        check_annotation_class_decl_rules(ctx.source, decl, &type_fqn)?;
-    }
-
-    // 2.5) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
+    // 2) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
     if let Some(primary_ctor) = &decl.primary_ctor {
         check_param_list_annotations(ctx, lower, builtins, &primary_ctor.params)?;
     }
@@ -504,6 +570,7 @@ fn check_type_decl_annotations(
                 reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
+                reject_annotation_modifier_on_non_type_target(&p.modifiers, "属性", p.name.span)?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -514,6 +581,11 @@ fn check_type_decl_annotations(
                 reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &ctor.modifiers,
+                    "构造器",
+                    ctor.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -525,6 +597,11 @@ fn check_type_decl_annotations(
                 check_param_list_annotations(ctx, lower, builtins, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &fun.modifiers,
+                    "成员函数",
+                    fun.name.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -576,6 +653,12 @@ fn check_object_decl_annotations(
     obj: &ast::ObjectDecl,
     prefix: &str,
 ) -> Result<(), AnnotationError> {
+    reject_annotation_modifier_on_non_type_target(
+        &obj.modifiers,
+        object_kind_name(obj.kind),
+        obj.name.as_ref().map(|name| name.span).unwrap_or(obj.span),
+    )?;
+
     // object 自身的注解使用。
     check_annotation_uses(
         ctx,
@@ -616,6 +699,7 @@ fn check_object_decl_annotations(
                 reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
+                reject_annotation_modifier_on_non_type_target(&p.modifiers, "属性", p.name.span)?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -626,6 +710,11 @@ fn check_object_decl_annotations(
                 reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &ctor.modifiers,
+                    "构造器",
+                    ctor.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -636,6 +725,11 @@ fn check_object_decl_annotations(
                 reject_builtin_annotations_on_target(ctx.source, &ctor.annotations, "constructor")?;
             }
             ast::TypeMember::Fun(fun) => {
+                reject_annotation_modifier_on_non_type_target(
+                    &fun.modifiers,
+                    "成员函数",
+                    fun.name.span,
+                )?;
                 check_annotation_uses(
                     ctx,
                     lower,
@@ -664,7 +758,7 @@ fn check_annotation_class_decl_rules(
     decl: &ast::TypeDecl,
     type_fqn: &str,
 ) -> Result<(), AnnotationError> {
-    // spec §15.2：语法为 `annotation class ...`，当前阶段只支持 class。
+    // spec §15.2：`annotation` 只服务于 `annotation class ...`，而不是一般 nominal type。
     if decl.kind != ast::TypeKind::Class {
         return Err(AnnotationError::AnnotationClassMustBeClass {
             type_fqn: type_fqn.to_string(),
@@ -672,7 +766,34 @@ fn check_annotation_class_decl_rules(
         });
     }
 
-    // 当前阶段（T1002）：annotation class 作为 data-only 容器，不允许 implements/extends。
+    check_annotation_class_modifiers(decl, type_fqn)?;
+
+    // compile-time marker 不引入 effect 参数。
+    if let Some(eff_param) = &decl.eff_param {
+        return Err(AnnotationError::AnnotationClassEffectParamNotSupported {
+            type_fqn: type_fqn.to_string(),
+            span: eff_param.span.into(),
+        });
+    }
+
+    // compile-time marker 不引入 where 约束。
+    if let Some(where_clause) = &decl.where_clause {
+        return Err(AnnotationError::AnnotationClassWhereClauseNotSupported {
+            type_fqn: type_fqn.to_string(),
+            span: where_clause.span.into(),
+        });
+    }
+
+    // compile-time marker 不引入泛型实例化面。
+    if let Some(first) = decl.type_params.first() {
+        let last = decl.type_params.last().unwrap_or(first);
+        return Err(AnnotationError::AnnotationClassTypeParamsNotSupported {
+            type_fqn: type_fqn.to_string(),
+            span: Span::new(first.span.start, last.span.end).into(),
+        });
+    }
+
+    // 当前阶段（T4012a）：annotation class 作为 data-only 容器，不允许 implements/extends。
     if let Some(st) = decl.supertypes.first() {
         return Err(AnnotationError::AnnotationClassSupertypesNotSupported {
             type_fqn: type_fqn.to_string(),
@@ -680,7 +801,7 @@ fn check_annotation_class_decl_rules(
         });
     }
 
-    // 当前阶段（T1002）：不解析/不支持注解类的类型体成员（方法/属性等）。
+    // 当前阶段（T4012a）：不支持类型体成员（方法/属性/init/secondary ctor 等）。
     if let Some(body) = &decl.body {
         return Err(AnnotationError::AnnotationClassBodyNotSupported {
             type_fqn: type_fqn.to_string(),
@@ -703,6 +824,65 @@ fn check_annotation_class_decl_rules(
     }
 
     Ok(())
+}
+
+fn check_annotation_class_modifiers(
+    decl: &ast::TypeDecl,
+    type_fqn: &str,
+) -> Result<(), AnnotationError> {
+    for modifier in &decl.modifiers {
+        match modifier {
+            ast::Modifier::Public
+            | ast::Modifier::Internal
+            | ast::Modifier::Private
+            | ast::Modifier::Annotation => {}
+            other => {
+                return Err(AnnotationError::AnnotationClassModifierNotSupported {
+                    type_fqn: type_fqn.to_string(),
+                    modifier: modifier_name(*other).to_string(),
+                    span: decl.name.span.into(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reject_annotation_modifier_on_non_type_target(
+    modifiers: &[ast::Modifier],
+    found: &str,
+    span: Span,
+) -> Result<(), AnnotationError> {
+    if modifiers.contains(&ast::Modifier::Annotation) {
+        return Err(AnnotationError::AnnotationModifierInvalidTarget {
+            found: found.to_string(),
+            span: span.into(),
+        });
+    }
+    Ok(())
+}
+
+fn modifier_name(modifier: ast::Modifier) -> &'static str {
+    match modifier {
+        ast::Modifier::Public => "public",
+        ast::Modifier::Internal => "internal",
+        ast::Modifier::Private => "private",
+        ast::Modifier::Open => "open",
+        ast::Modifier::Abstract => "abstract",
+        ast::Modifier::Sealed => "sealed",
+        ast::Modifier::Async => "async",
+        ast::Modifier::Inline => "inline",
+        ast::Modifier::Override => "override",
+        ast::Modifier::Const => "const",
+        ast::Modifier::Annotation => "annotation",
+    }
+}
+
+fn object_kind_name(kind: ast::ObjectKind) -> &'static str {
+    match kind {
+        ast::ObjectKind::Object => "object",
+        ast::ObjectKind::Companion => "companion object",
+    }
 }
 
 /// 批量检查一组注解使用（`@Name(...)`）。

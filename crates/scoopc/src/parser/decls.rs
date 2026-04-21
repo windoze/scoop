@@ -76,7 +76,9 @@ impl<'a> Parser<'a> {
     ///
     /// 说明：
     /// - 支持注解与修饰符任意交错出现；
-    /// - modifiers 会按既有规则排序去重（T0245），annotations 保持源代码顺序。
+    /// - modifiers 会按既有规则排序去重（T0245），annotations 保持源代码顺序；
+    /// - `annotation` 在 parser 里仍先按通用 modifier 解析，真正“只能写作
+    ///   `annotation class`”的 contract 由 typecheck 统一执行。
     fn parse_decl_prefix(
         &mut self,
     ) -> Result<(Vec<ast::AnnotationUse>, Vec<ast::Modifier>), ParseError> {

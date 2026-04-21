@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_where_clause_not_supported
+// EXPECT-ERROR-AT: 8:28
+// EXPECT-ERROR: 不支持 where 子句
+
+package fixtures.typecheck
+
+annotation class Marker<T> where T: String

@@ -1,65 +1,92 @@
-# 执行计划
+# 执行记录
 
-说明：我不会写入不可公开的逐字思维链，但会持续记录可审计的执行计划、关键判断依据和进度变化。
+## 当前阶段
 
-## 初始计划
+已完成初始化与任务定位，进入 `T4012a` 实施。
 
-1. 检查最近一次提交的提交信息与变更，确认是否提到任何已知问题；如果存在且仍未修复，先处理这些问题。
+## 约束说明
+
+- 按用户要求，先记录计划，再执行任何 shell 命令。
+- 这里只记录可审阅的执行计划与决策摘要，不写入不可验证的内部推理细节。
+
+## 初始执行计划
+
+1. 检查最近一次提交的提交信息与改动，确认是否提到了需要先修复的既有问题。
 2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，核对当前计划与 `TODO.md` 是否一致。
-4. 判断首个未完成任务是否足够小且可在本轮完整完成。
-5. 如果任务过大或存在前置依赖缺失：
-   - 在 `PLAN.md` 中细化为更小子任务；
-   - 在 `TODO.md` 中按依赖顺序插入或重排这些子任务；
-   - 执行第一个新的子任务，并在文档中记录阻塞关系。
-6. 实现本轮要完成的任务，避免规避规范或临时性变通。
-7. 运行相关测试与质量检查，至少覆盖受影响范围；如有必要，运行更广泛的回归测试。
-8. 更新 `TODO.md` 与 `PLAN.md`，标记已完成内容并记录任何计划调整。
-9. 提交本轮修改，提交信息应清晰描述任务编号和变更内容。
-10. 停止，不继续处理下一个任务。
-
-## 进度
-
-- 已完成：写入初始执行计划。
-- 已完成：检查最近一次提交；提交信息未声明新的待修前置问题。
-- 已完成：读取 `TODO.md` 与 `PLAN.md`；确认首个未完成任务为 `T4016R`。
-- 已完成：针对 `T4016R` 执行 review，未发现需要前插的新 blocker。
-
-## Review 结论（T4016R）
-
-1. 语法与中间表示：
-   - parser 仅把 `-> resume { ... }` 作为 removed diagnostic 处理；
-   - AST / HIR 的 handler arm 只保留 non-resuming 与 escape-continuation 两类。
-2. continuation answer model：
-   - `sysroot/core.scoop`、spec 与 runtime 文档均使用 `Continuation<Resume, Answer, eff E>`；
-   - typecheck 将 `k.resume(...): Answer` 的返回类型绑定到 continuation 的 answer type；
-   - runtime 通过共享 `scoop_continuation_resume_with(...)` 提供 payload + answer 通道。
-3. `Task` 合同：
-   - `Task` 私有 step driver 的 delimiter answer 为 `__TaskStepResult`；
-   - runtime/c/scoop_task.c 通过共享 continuation helper 恢复 continuation 并读取 `__TaskStepResult`，未再依赖 task-private frame-peek。
-4. 机械复核：
-   - 生产代码中未发现残留的用户态 `-> resume` surface；剩余引用仅存在于文档、removed diagnostic 与回归 fixture。
-   - legacy `Continuation<Resume>` / `Continuation<Resume, eff E>` 简写只剩 removed diagnostic fixture 与前端报错文本。
-5. 已完成验证：
-   - `cargo run -p scoop -- test`
+3. 如该任务过大或依赖缺失，拆分任务并更新 `PLAN.md` 与 `TODO.md`，然后只处理拆分后的第一个子任务。
+4. 阅读相关代码、规格、测试与文档，确认实现边界与现状。
+5. 实现当前目标任务，必要时补充或整理模块与注释。
+6. 运行相关格式化、检查、测试与 lint，至少覆盖：
+   - `cargo fmt --check`（必要时先 `cargo fmt`）
    - `cargo test --all`
    - `cargo clippy --all-targets -- -D warnings`
+   - 与当前任务直接相关的更小范围命令（如有）
+7. 若发现规范不匹配、缺失特性或既有缺陷阻塞当前任务：
+   - 先把该问题转化为更前置的 `TODO.md` 任务；
+   - 更新 `PLAN.md` 解释依赖关系；
+   - 提交这些计划调整并停止。
+8. 若任务完成：
+   - 在 `TODO.md` 中标记完成；
+   - 更新 `PLAN.md` 记录已完成内容与后续状态；
+   - 提交所有变更；
+   - 停止，不继续下一个任务。
 
-## 收尾动作
+## 更新规则
 
-1. 将 `TODO.md` 中的 `T4016R` 标记为完成，并记录 review 结论。
-2. 更新 `PLAN.md`，把下一步推进到 `T4012`。
-3. 检查工作区状态并提交本轮修改。
+- 每完成一个关键步骤，或执行计划发生变化时，更新此文件。
 
-## 本轮具体执行路径（T4016R）
+## 已完成的关键步骤
 
-1. 审查 `TODO.md` / `PLAN.md` 中对 `T4016R` 的验收要求，整理 review 清单。
-2. 搜索并阅读 continuation、handler arm、`Task` 相关的实现与文档位置，重点检查：
-   - `-> resume` 是否只剩 removed diagnostic，而未以其它 special form 存活；
-   - `k.resume(...)` 的静态与运行时返回模型是否为 delimiter answer type；
-   - `Task` 是否统一走 continuation contract，而非 task-private runtime hack。
-3. 检查关键回归 fixture / 单测 / 文档是否与实现一致。
-4. 运行必要测试与质量检查，至少覆盖 fixture 主线、Rust 测试与 clippy。
-5. 根据审查结果二选一：
-   - 若发现规范不一致或实现缺口：在 `TODO.md` / `PLAN.md` 中插入前置修复任务，记录阻塞关系，提交并停止；
-   - 若未发现阻塞问题：将 `T4016R` 标为完成，更新计划与记录，提交并停止。
+1. 已检查最近一次提交 `14154fefabf612e786e51a3ee74a1e869a1a67bc` 的提交说明与改动摘要；未发现需要在 `TODO.md` 现有顺序之外优先修复的新既有问题。
+2. 已阅读 `TODO.md` 与 `PLAN.md`；当前首个未完成的可执行子任务为 `T4012a`：将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义。
+3. 已初步审阅 annotation 相关实现与文档：
+   - `crates/scoopc/src/typecheck/annotations.rs`
+   - `crates/scoopc/src/typecheck/builtin_annotations.rs`
+   - `crates/scoopc/src/typecheck/type_env.rs`
+   - `crates/scoopc/src/resolve/mod.rs`
+   - `sysroot/core.scoop`
+   - `SCOOP_FULL_SPEC.md`
+   - `ISSUES.md`
+4. 已完成 `T4012a` 实现：
+   - annotation declaration contract 已收口为 compile-time markers only；
+   - typecheck 新增拒绝：非法 `annotation` modifier target、annotation class nominal modifier、type/effect params、`where`、supertypes、type body；
+   - 规格与注释文档已同步。
+5. 已完成定向回归与全量验证：
+   - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+   - `cargo run -p scoop -- test`
+   - `cargo test --all`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo clippy --all-targets -- -D warnings`
+
+## 当前判断
+
+- `T4012a` 已完成，不需要进一步拆分。
+- 现有实现已经拒绝了一部分复杂 annotation class 形态：
+  - 只能是 `class`
+  - 不支持 supertypes
+  - 不支持 type body
+  - 主构造参数必须为 `val`
+- 本轮补充后，annotation model 的主要剩余工作已切换到 `T4012b`：non-inline built-in annotations 的具体编译器语义。
+
+## 细化执行计划（T4012a）
+
+1. 在 annotation/typecheck 相关代码中补齐并收口 declaration-shape 约束：
+   - 明确 `annotation` modifier 只服务于 `annotation class`；
+   - annotation class 禁止 type params、effect params、where clause；
+   - 保持并复核现有 data-only 限制（无 supertype、无 body、参数必须 `val`）。
+2. 补充针对非法复杂 nominal 组合的 fixtures / 单测：
+   - 合法 marker annotation case；
+   - 非法 supertypes / body / type params / effect params / where clause / 非 class 目标等。
+3. 同步规范与相关文档，明确 annotation 是 compile-time markers only，而不是一般 nominal/runtime feature。
+4. 运行定向测试与全量质量检查：
+   - annotation 相关 fixtures
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+5. 若实现与规范一致且测试通过：
+   - 更新 `TODO.md`、`PLAN.md`；
+   - 提交变更并停止。
+
+## 当前状态
+
+- `TODO.md` / `PLAN.md` 尚待写回完成状态。
+- 下一步：整理 git diff、提交 `[T4012a] ...`，然后停止。

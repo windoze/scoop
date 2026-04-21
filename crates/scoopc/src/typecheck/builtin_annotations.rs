@@ -3,6 +3,8 @@
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
 //! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic` 的最小语义（更多规则见 TODO）；
+//! - annotation 整体仍是 compile-time marker surface；只有少数 built-in annotation
+//!   会在编译器中附带额外语义；
 //! - 更完整的 `@Target/@Retention/@AllowIntrinsic/...` 规则留给后续任务（见 TODO）。
 
 use crate::ast;

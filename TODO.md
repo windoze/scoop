@@ -241,7 +241,7 @@
   - 子任务全部完成后，`ISSUES.md` 第 9 条至少收窄到与 `@Inline` 交叉的剩余项，或被完全关闭。
 - 依赖：T4016R
 
-### T4012a [TODO] 将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义
+### T4012a [DONE] 将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义
 - 范围：
   - 明确 annotation 不是一般 nominal type / class 能力的延伸；它们只承载编译期标记信息，不引入复杂继承、接口实现、运行时对象模型或额外控制流语义。
   - parser / resolver / typecheck / docs 要对允许的 annotation declaration 形状、参数承载方式与非法组合给出统一 contract。
@@ -249,6 +249,17 @@
 - 验收：
   - annotation model 的方向与文档统一，不再保留“未来要把 annotation 做成复杂 nominal feature”的错误叙事。
 - 依赖：T4012
+- 已完成：
+  - `typecheck::annotations` 已把 annotation declaration contract 收口为 compile-time markers only：`annotation` 关键字只允许服务于 `annotation class`；annotation class 继续保持 data-only，并新增拒绝 nominal modifier、type params、effect params、`where` 子句等复杂 nominal 形态。
+  - `check_type_decl_annotations` 的报错顺序已调整为先检查 annotation class 自身形状，再处理 `@Target/@Retention` 等注解 use-site，避免对非法 `annotation interface/...` 给出误导性的次级报错。
+  - 已同步 `SCOOP_FULL_SPEC.md`、`sysroot/core.scoop`、`ISSUES.md` 与 parser / AST / built-in annotation 注释，把 annotation 统一叙述为 compile-time marker surface，而不是一般 nominal/runtime feature。
+  - 新增定向 typecheck fixtures，覆盖 `annotation interface`、非法 nominal modifier、effect/type params、`where`、supertypes、type body，以及把 `annotation` 用在 `fun` 上的诊断。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4012b [TODO] 补齐 non-inline built-in annotations 的编译器语义
 - 范围：

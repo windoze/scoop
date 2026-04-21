@@ -2205,9 +2205,9 @@ This approach handles subtyping, bounded polymorphism, and overload resolution i
 
 ### 15.1 Overview
 
-Annotations attach metadata to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@intrinsic`, `@extern`, `@inline`, `@deprecated`) and by user code for compile-time metaprogramming via `comptime` (§6).
+Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@intrinsic`, `@extern`, `@inline`, `@deprecated`) and by user code for compile-time metaprogramming via `comptime` (§6).
 
-Annotations are declared as `annotation class` — a restricted form of class that acts as an immutable data container. Annotation instances exist only at compile time; they have no runtime representation.
+Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional compile-time payload. Annotation values exist only at compile time; they have no runtime representation and do not introduce extra control-flow semantics.
 
 ### 15.2 Annotation Class Declaration
 
@@ -2230,13 +2230,15 @@ annotation class Unsafe
 ```
 
 **Rules:**
+- `annotation` may only appear as `annotation class`.
+- Annotation classes cannot declare type parameters, effect parameters, or a `where` clause.
 - All parameters must be `val` (immutable).
 - Allowed parameter types: `String`, `Int`, `Float`, `Bool`, enum values, `Array<T>` of the preceding types, and other annotation types.
 - Parameters may have default values. Parameters without defaults are required at the use site.
-- Annotation classes cannot have methods, computed properties, or implement interfaces.
+- Annotation classes cannot have supertypes, type bodies, secondary constructors, methods, computed properties, or implement interfaces.
 - Annotation classes cannot be instantiated with constructor syntax outside of annotation position (`@Name(...)`).
 
-Annotation class primary-constructor `val` parameters define the annotation's **member variables** (properties). At compile time, an annotation instance conceptually has a value for each such property, either from the use-site arguments or from the property's default value.
+Annotation class primary-constructor `val` parameters define the annotation's **compile-time payload fields**. At compile time, an annotation instance conceptually has a value for each such field, either from the use-site arguments or from the field's default value.
 
 ### 15.3 Annotation Usage
 
