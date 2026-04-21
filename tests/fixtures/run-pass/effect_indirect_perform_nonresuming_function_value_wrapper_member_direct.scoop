@@ -1,0 +1,34 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_function_value_wrapper_member_direct.stdout
+//
+// T4016T1c: wrapper/member direct call 必须和局部函数值走同一套 may-suspend 主线。
+// - 同一个 `wrapper.f()` 调用点同时兼容“静态 non-Pure、实际值是 Pure closure”
+//   与“静态 non-Pure、实际值会 perform”的两种情形；
+// - 不允许要求用户先写 `val f = wrapper.f` 再调用，才能让 handler 捕获 effect。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+struct Wrapper(val f: () -> Int / (Ask))
+
+fun drive(wrapper: Wrapper): Int {
+    val result: Int = handle {
+        wrapper.f()
+    } with {
+        Ask.ask(seed), k -> {
+            println("caught")
+            println(seed.toString())
+            k.resume(seed + 1)
+        }
+    }
+    println(result.toString())
+    result
+}
+
+fun main() {
+    drive(Wrapper({ 7 }))
+    drive(Wrapper({ Ask.ask(41) }))
+}

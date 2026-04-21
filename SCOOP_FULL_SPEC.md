@@ -2116,6 +2116,7 @@ Rules:
 - `perform E.op(...)` requires the effect item `E` unless the operation is handled by an enclosing `handle { ... } with { ... }` (or `try`/`catch`) that has a matching arm for `E.op`.
 - Calling a function `f` requires the effect row declared on `f` (after substituting any type/effect arguments).
 - Invoking a function value (e.g., `block()`) requires the effect row declared on that function type (see §7.5).
+- This call-site rule is determined by the **static function type** of the callee expression, even when the function value is obtained through an opaque path such as a field/property access, a `when`/`if` branch merge, or a higher-order function return. If that static function type is non-`Pure`, lowering must treat the call as may-suspend even when a particular runtime value happens to be a pure closure.
 - Language constructs that are specified to perform effects (e.g., `!!` and `as` performing `Raise.raise(RuntimeError.…)`) contribute those effects to the required effect row (see §5.7).
 - Effects performed in handler arms contribute normally to the enclosing context (handler arms execute outside the handler instance’s dispatch scope; see Appendix A).
 

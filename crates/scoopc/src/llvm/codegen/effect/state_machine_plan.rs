@@ -22,6 +22,12 @@ struct HandlePlanContext {
     ctor_call_targets: hir::CtorCallSiteIndex,
     continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
     non_pure_continuation_resume_call_sites: hir::NonPureContinuationResumeCallSiteIndex,
+    top_level_value_tys: HashMap<String, TypeId>,
+    fun_return_tys: HashMap<String, TypeId>,
+    object_property_tys: HashMap<String, TypeId>,
+    struct_field_tys: HashMap<String, HashMap<String, TypeId>>,
+    class_field_tys: HashMap<String, HashMap<String, TypeId>>,
+    class_super_keys: HashMap<String, String>,
     object_value_fqns: HashSet<String>,
     object_property_fqns: HashSet<String>,
     top_level_immutable_value_fqns: HashSet<String>,
@@ -1598,6 +1604,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         SuspendCallAnalysis {
             types: self.types,
             known_fun_effects: &self.context.known_fun_effects,
+            known_local_metadata: &self.context.known_local_metadata,
             current_source_path: self.context.current_source_path.as_path(),
             program_facts: SuspendCallProgramFacts {
                 ctor_call_targets: &self.context.ctor_call_targets,
@@ -1605,6 +1612,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 non_pure_continuation_resume_call_sites: &self
                     .context
                     .non_pure_continuation_resume_call_sites,
+                top_level_value_tys: &self.context.top_level_value_tys,
+                fun_return_tys: &self.context.fun_return_tys,
+                object_property_tys: &self.context.object_property_tys,
+                struct_field_tys: &self.context.struct_field_tys,
+                class_field_tys: &self.context.class_field_tys,
+                class_super_keys: &self.context.class_super_keys,
                 object_value_fqns: &self.context.object_value_fqns,
                 object_property_fqns: &self.context.object_property_fqns,
                 top_level_immutable_value_fqns: &self.context.top_level_immutable_value_fqns,
@@ -2686,7 +2699,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             return Some(SuspendSiteKind::ClassCtorInit { class_name });
         }
 
-        if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee.ty) {
+        let callee_ty = resolve_plan_expr_concrete_type(
+            self.context,
+            self.types,
+            callee,
+            &self.context.known_local_metadata,
+        )
+        .unwrap_or(callee.ty);
+        if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_ty) {
             if fun_ty.effects.is_pure() {
                 return self
                     .local_function_value_may_suspend_when_called(callee)
@@ -6173,6 +6193,232 @@ fn try_extract_callee_fqn(callee: &hir::Expr) -> Option<String> {
     }
 }
 
+fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
+    !matches!(
+        types.kind(ty),
+        TypeKind::Ref(RefTypeKind::Any) | TypeKind::Param(_)
+    )
+}
+
+fn resolve_plan_expr_concrete_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    expr: &hir::Expr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Option<TypeId> {
+    if hir_ty_is_precise(types, expr.ty) {
+        return Some(expr.ty);
+    }
+
+    match &expr.kind {
+        hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+            known_local_metadata.get(id).map(|metadata| metadata.ty)
+        }
+        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+            context.top_level_value_tys.get(fqn).copied()
+        }
+        hir::ExprKind::MemberAccess { receiver, member } => {
+            resolve_plan_member_access_concrete_type(
+                context,
+                types,
+                receiver,
+                member,
+                known_local_metadata,
+            )
+        }
+        hir::ExprKind::Call { callee, .. } => {
+            resolve_plan_call_result_type(context, types, callee, known_local_metadata)
+        }
+        hir::ExprKind::Block(block) => {
+            resolve_plan_block_result_concrete_type(context, types, block, known_local_metadata)
+        }
+        hir::ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => else_branch.as_deref().and_then(|else_branch| {
+            resolve_plan_branch_result_concrete_type(
+                context,
+                types,
+                [then_branch.as_ref(), else_branch],
+                known_local_metadata,
+            )
+        }),
+        hir::ExprKind::When { arms, .. } => resolve_plan_branch_result_concrete_type(
+            context,
+            types,
+            arms.iter().map(|arm| &arm.body),
+            known_local_metadata,
+        ),
+        _ => None,
+    }
+}
+
+fn resolve_plan_block_result_concrete_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    block: &hir::Block,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Option<TypeId> {
+    let hir::StmtKind::Expr(expr) = &block.stmts.last()?.kind else {
+        return None;
+    };
+    resolve_plan_expr_concrete_type(context, types, expr, known_local_metadata)
+}
+
+fn resolve_plan_branch_result_concrete_type<'a>(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    exprs: impl IntoIterator<Item = &'a hir::Expr>,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Option<TypeId> {
+    let mut candidate: Option<TypeId> = None;
+    for expr in exprs {
+        let resolved =
+            resolve_plan_expr_concrete_type(context, types, expr, known_local_metadata)?;
+        match candidate {
+            None => candidate = Some(resolved),
+            Some(existing) if existing == resolved => {}
+            Some(_) => return None,
+        }
+    }
+    candidate
+}
+
+fn resolve_plan_member_access_concrete_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    receiver: &hir::Expr,
+    member: &hir::MemberAccess,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Option<TypeId> {
+    let field_fqn = match member.resolved.as_ref()? {
+        hir::MemberRef::Value { fqn, .. } | hir::MemberRef::ExtensionValue { fqn, .. } => fqn,
+        _ => return None,
+    };
+
+    if let Some(ty) = context.top_level_value_tys.get(field_fqn).copied() {
+        return Some(ty);
+    }
+    if let Some(ty) = context.object_property_tys.get(field_fqn).copied() {
+        return Some(ty);
+    }
+
+    let receiver_ty = resolve_plan_expr_concrete_type(context, types, receiver, known_local_metadata)
+        .unwrap_or(receiver.ty);
+    resolve_plan_struct_field_concrete_type(context, types, receiver_ty, field_fqn)
+        .or_else(|| resolve_plan_class_field_concrete_type(context, types, receiver_ty, field_fqn))
+}
+
+fn resolve_plan_struct_field_concrete_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    receiver_ty: TypeId,
+    field_fqn: &str,
+) -> Option<TypeId> {
+    let TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) = types.kind(receiver_ty)
+    else {
+        return None;
+    };
+    let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+    context
+        .struct_field_tys
+        .get(&layout_key)
+        .and_then(|fields| fields.get(field_fqn).copied())
+        .or_else(|| {
+            (layout_key != nominal.fqn)
+                .then(|| {
+                    context
+                        .struct_field_tys
+                        .get(&nominal.fqn)
+                        .and_then(|fields| fields.get(field_fqn).copied())
+                })
+                .flatten()
+        })
+}
+
+fn resolve_plan_class_field_concrete_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    receiver_ty: TypeId,
+    field_fqn: &str,
+) -> Option<TypeId> {
+    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
+        return None;
+    };
+    let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+    lookup_plan_class_field_concrete_type_by_key(context, &layout_key, field_fqn).or_else(|| {
+        (layout_key != nominal.fqn)
+            .then(|| {
+                lookup_plan_class_field_concrete_type_by_key(context, &nominal.fqn, field_fqn)
+            })
+            .flatten()
+    })
+}
+
+fn lookup_plan_class_field_concrete_type_by_key(
+    context: &HandlePlanContext,
+    class_key: &str,
+    field_fqn: &str,
+) -> Option<TypeId> {
+    if let Some(ty) = context
+        .class_field_tys
+        .get(class_key)
+        .and_then(|fields| fields.get(field_fqn).copied())
+    {
+        return Some(ty);
+    }
+    context
+        .class_super_keys
+        .get(class_key)
+        .and_then(|super_key| lookup_plan_class_field_concrete_type_by_key(context, super_key, field_fqn))
+}
+
+fn resolve_plan_call_result_type(
+    context: &HandlePlanContext,
+    types: &TypeStore,
+    callee: &hir::Expr,
+    known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
+) -> Option<TypeId> {
+    if let Some(callee_ty) =
+        resolve_plan_expr_concrete_type(context, types, callee, known_local_metadata)
+        && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = types.kind(callee_ty)
+        && hir_ty_is_precise(types, fun_ty.return_ty)
+    {
+        return Some(fun_ty.return_ty);
+    }
+
+    let fqn = match &callee.kind {
+        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+        hir::ExprKind::UnresolvedIdent { name } => Some(name.as_str()),
+        hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+            hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. } => {
+                Some(fqn.as_str())
+            }
+            _ => None,
+        },
+        _ => None,
+    }?;
+
+    if let Some(return_ty) = context.fun_return_tys.get(fqn).copied()
+        && hir_ty_is_precise(types, return_ty)
+    {
+        return Some(return_ty);
+    }
+
+    if let Some(class_ty) = types.find_nominal_ref_by_fqn(fqn) {
+        return Some(class_ty);
+    }
+
+    types.iter_ids().find(|id| {
+        matches!(
+            types.kind(*id),
+            TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == fqn && nominal.args.is_empty()
+        )
+    })
+}
+
 fn collect_outer_scope_slots(
     handle: &hir::HandleExpr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -6244,7 +6490,6 @@ fn collect_known_local_metadata_in_handle(
     }
 }
 
-#[cfg(test)]
 fn collect_known_local_metadata_in_fun(
     fun: &hir::FunDecl,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -6423,6 +6668,7 @@ fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
 struct SuspendCallAnalysis<'a> {
     types: &'a TypeStore,
     known_fun_effects: &'a HashMap<String, bool>,
+    known_local_metadata: &'a HashMap<hir::SymbolId, KnownLocalMetadata>,
     current_source_path: &'a Path,
     program_facts: SuspendCallProgramFacts<'a>,
 }
@@ -6432,6 +6678,12 @@ struct SuspendCallProgramFacts<'a> {
     ctor_call_targets: &'a hir::CtorCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     non_pure_continuation_resume_call_sites: &'a hir::NonPureContinuationResumeCallSiteIndex,
+    top_level_value_tys: &'a HashMap<String, TypeId>,
+    fun_return_tys: &'a HashMap<String, TypeId>,
+    object_property_tys: &'a HashMap<String, TypeId>,
+    struct_field_tys: &'a HashMap<String, HashMap<String, TypeId>>,
+    class_field_tys: &'a HashMap<String, HashMap<String, TypeId>>,
+    class_super_keys: &'a HashMap<String, String>,
     object_value_fqns: &'a HashSet<String>,
     object_property_fqns: &'a HashSet<String>,
     top_level_immutable_value_fqns: &'a HashSet<String>,
@@ -6440,6 +6692,184 @@ struct SuspendCallProgramFacts<'a> {
 impl<'a> SuspendCallAnalysis<'a> {
     fn call_site(&self, span: Span) -> hir::CallSite {
         hir::CallSite::new(self.current_source_path.to_path_buf(), span)
+    }
+
+    fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<TypeId> {
+        if hir_ty_is_precise(self.types, expr.ty) {
+            return Some(expr.ty);
+        }
+
+        match &expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                self.known_local_metadata.get(id).map(|metadata| metadata.ty)
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.program_facts.top_level_value_tys.get(fqn).copied()
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.resolve_member_access_concrete_type(receiver, member)
+            }
+            hir::ExprKind::Call { callee, .. } => self.resolve_call_result_type(callee),
+            hir::ExprKind::Block(block) => block.stmts.last().and_then(|stmt| {
+                let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                    return None;
+                };
+                self.resolve_expr_concrete_type(expr)
+            }),
+            hir::ExprKind::If {
+                then_branch,
+                else_branch,
+                ..
+            } => else_branch.as_deref().and_then(|else_branch| {
+                self.resolve_common_branch_concrete_type([then_branch.as_ref(), else_branch])
+            }),
+            hir::ExprKind::When { arms, .. } => {
+                self.resolve_common_branch_concrete_type(arms.iter().map(|arm| &arm.body))
+            }
+            _ => None,
+        }
+    }
+
+    fn resolve_common_branch_concrete_type<'b>(
+        &self,
+        exprs: impl IntoIterator<Item = &'b hir::Expr>,
+    ) -> Option<TypeId> {
+        let mut candidate = None;
+        for expr in exprs {
+            let resolved = self.resolve_expr_concrete_type(expr)?;
+            match candidate {
+                None => candidate = Some(resolved),
+                Some(existing) if existing == resolved => {}
+                Some(_) => return None,
+            }
+        }
+        candidate
+    }
+
+    fn resolve_member_access_concrete_type(
+        &self,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+    ) -> Option<TypeId> {
+        let field_fqn = match member.resolved.as_ref()? {
+            hir::MemberRef::Value { fqn, .. } | hir::MemberRef::ExtensionValue { fqn, .. } => fqn,
+            _ => return None,
+        };
+
+        if let Some(ty) = self.program_facts.top_level_value_tys.get(field_fqn).copied() {
+            return Some(ty);
+        }
+        if let Some(ty) = self.program_facts.object_property_tys.get(field_fqn).copied() {
+            return Some(ty);
+        }
+
+        let receiver_ty = self
+            .resolve_expr_concrete_type(receiver)
+            .unwrap_or(receiver.ty);
+        self.resolve_struct_field_concrete_type(receiver_ty, field_fqn)
+            .or_else(|| self.resolve_class_field_concrete_type(receiver_ty, field_fqn))
+    }
+
+    fn resolve_struct_field_concrete_type(
+        &self,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) =
+            self.types.kind(receiver_ty)
+        else {
+            return None;
+        };
+        let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types);
+        self.program_facts
+            .struct_field_tys
+            .get(&layout_key)
+            .and_then(|fields| fields.get(field_fqn).copied())
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| {
+                        self.program_facts
+                            .struct_field_tys
+                            .get(&nominal.fqn)
+                            .and_then(|fields| fields.get(field_fqn).copied())
+                    })
+                    .flatten()
+            })
+    }
+
+    fn resolve_class_field_concrete_type(
+        &self,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types);
+        self.lookup_class_field_concrete_type_by_key(&layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| self.lookup_class_field_concrete_type_by_key(&nominal.fqn, field_fqn))
+                    .flatten()
+            })
+    }
+
+    fn lookup_class_field_concrete_type_by_key(
+        &self,
+        class_key: &str,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        if let Some(ty) = self
+            .program_facts
+            .class_field_tys
+            .get(class_key)
+            .and_then(|fields| fields.get(field_fqn).copied())
+        {
+            return Some(ty);
+        }
+        self.program_facts
+            .class_super_keys
+            .get(class_key)
+            .and_then(|super_key| self.lookup_class_field_concrete_type_by_key(super_key, field_fqn))
+    }
+
+    fn resolve_call_result_type(&self, callee: &hir::Expr) -> Option<TypeId> {
+        if let Some(callee_ty) = self.resolve_expr_concrete_type(callee)
+            && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_ty)
+            && hir_ty_is_precise(self.types, fun_ty.return_ty)
+        {
+            return Some(fun_ty.return_ty);
+        }
+
+        let fqn = match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+            hir::ExprKind::UnresolvedIdent { name } => Some(name.as_str()),
+            hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. } => {
+                    Some(fqn.as_str())
+                }
+                _ => None,
+            },
+            _ => None,
+        }?;
+
+        if let Some(return_ty) = self.program_facts.fun_return_tys.get(fqn).copied()
+            && hir_ty_is_precise(self.types, return_ty)
+        {
+            return Some(return_ty);
+        }
+
+        if let Some(class_ty) = self.types.find_nominal_ref_by_fqn(fqn) {
+            return Some(class_ty);
+        }
+
+        self.types.iter_ids().find(|id| {
+            matches!(
+                self.types.kind(*id),
+                TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal))
+                    if nominal.fqn == fqn && nominal.args.is_empty()
+            )
+        })
     }
 
     fn block_may_suspend(
@@ -6776,7 +7206,10 @@ impl<'a> SuspendCallAnalysis<'a> {
         expr: &hir::Expr,
         known_locals: &HashMap<hir::SymbolId, bool>,
     ) -> bool {
-        if function_ty_may_suspend(self.types, expr.ty) {
+        if self
+            .resolve_expr_concrete_type(expr)
+            .is_some_and(|ty| function_ty_may_suspend(self.types, ty))
+        {
             return true;
         }
         match &expr.kind {
@@ -6847,9 +7280,12 @@ fn collect_known_fun_call_suspendability(
             let Some(body) = &fun.body else {
                 continue;
             };
+            let mut known_local_metadata = HashMap::new();
+            collect_known_local_metadata_in_fun(fun, &mut known_local_metadata);
             let analysis = SuspendCallAnalysis {
                 types,
                 known_fun_effects: &snapshot,
+                known_local_metadata: &known_local_metadata,
                 current_source_path: fun.source_path.as_path(),
                 program_facts,
             };
@@ -7480,6 +7916,65 @@ impl HandlePlanContext {
     #[cfg(feature = "llvm")]
     fn from_codegen<'a, 'ctx>(cg: &MainCodegen<'a, 'ctx>) -> Self {
         let ctor_call_targets = cg.ctor_call_sites.clone();
+        let top_level_value_tys = cg
+            .top_level_vars
+            .iter()
+            .map(|(fqn, var)| (fqn.clone(), var.ty))
+            .chain(cg.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
+            .chain(
+                cg.top_level_immutable_values
+                    .iter()
+                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
+            )
+            .collect();
+        let fun_return_tys = cg
+            .fun_index
+            .iter()
+            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
+            .collect();
+        let object_property_tys = cg
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init.properties.iter().map(move |(name, property)| {
+                    (format!("{owner_fqn}.{name}"), property.ty)
+                })
+            })
+            .collect();
+        let struct_field_tys = cg
+            .struct_layouts
+            .iter()
+            .map(|(layout_key, layout)| {
+                let fields = layout
+                    .fields
+                    .iter()
+                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect();
+        let class_field_tys = cg
+            .class_inits
+            .iter()
+            .map(|(layout_key, class)| {
+                let fields = class
+                    .fields
+                    .iter()
+                    .map(|field| (field.fqn.clone(), field.ty))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect();
+        let class_super_keys = cg
+            .class_inits
+            .iter()
+            .filter_map(|(layout_key, class)| {
+                class
+                    .super_class_fqn
+                    .clone()
+                    .map(|super_key| (layout_key.clone(), super_key))
+            })
+            .collect();
         let object_value_fqns = cg.object_inits.keys().cloned().collect();
         let object_property_fqns = cg
             .object_inits
@@ -7539,6 +8034,12 @@ impl HandlePlanContext {
             non_pure_continuation_resume_call_sites: cg
                 .non_pure_continuation_resume_call_sites
                 .clone(),
+            top_level_value_tys,
+            fun_return_tys,
+            object_property_tys,
+            struct_field_tys,
+            class_field_tys,
+            class_super_keys,
             object_value_fqns,
             object_property_fqns,
             top_level_immutable_value_fqns,
@@ -7673,11 +8174,78 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
+        let top_level_value_tys = self
+            .top_level_vars
+            .iter()
+            .map(|(fqn, var)| (fqn.clone(), var.ty))
+            .chain(self.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
+            .chain(
+                self.top_level_immutable_values
+                    .iter()
+                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
+            )
+            .collect::<HashMap<_, _>>();
+        let fun_return_tys = self
+            .fun_index
+            .iter()
+            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
+            .collect::<HashMap<_, _>>();
+        let object_property_tys = self
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .iter()
+                    .map(|(name, property)| (format!("{owner_fqn}.{name}"), property.ty))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<HashMap<_, _>>();
+        let struct_field_tys = self
+            .struct_layouts
+            .iter()
+            .map(|(layout_key, layout)| {
+                let fields = layout
+                    .fields
+                    .iter()
+                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect::<HashMap<_, _>>();
+        let class_field_tys = self
+            .class_inits
+            .iter()
+            .map(|(layout_key, class)| {
+                let fields = class
+                    .fields
+                    .iter()
+                    .map(|field| (field.fqn.clone(), field.ty))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect::<HashMap<_, _>>();
+        let class_super_keys = self
+            .class_inits
+            .iter()
+            .filter_map(|(layout_key, class)| {
+                class
+                    .super_class_fqn
+                    .clone()
+                    .map(|super_key| (layout_key.clone(), super_key))
+            })
+            .collect::<HashMap<_, _>>();
         let program_facts = SuspendCallProgramFacts {
             ctor_call_targets: &ctor_call_targets,
             continuation_resume_call_sites: self.continuation_resume_call_sites,
             non_pure_continuation_resume_call_sites: self
                 .non_pure_continuation_resume_call_sites,
+            top_level_value_tys: &top_level_value_tys,
+            fun_return_tys: &fun_return_tys,
+            object_property_tys: &object_property_tys,
+            struct_field_tys: &struct_field_tys,
+            class_field_tys: &class_field_tys,
+            class_super_keys: &class_super_keys,
             object_value_fqns: &object_value_fqns,
             object_property_fqns: &object_property_fqns,
             top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
@@ -7711,11 +8279,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> bool {
         let known_fun_effects = self.known_fun_call_suspendability_map();
         let mut known_locals = HashMap::new();
+        let mut known_local_metadata = HashMap::new();
         for scope in &self.env.scopes {
             for (&id, local) in scope {
                 let Some(hir_ty) = local.hir_ty else {
                     continue;
                 };
+                known_local_metadata.insert(
+                    id,
+                    KnownLocalMetadata {
+                        ty: hir_ty,
+                        mutable: local.mutable,
+                    },
+                );
                 if hir_ty_is_function_value(self.types, hir_ty) {
                     known_locals.insert(id, local.call_may_suspend);
                 }
@@ -7740,10 +8316,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .keys()
             .cloned()
             .collect::<HashSet<_>>();
+        let top_level_value_tys = self
+            .top_level_vars
+            .iter()
+            .map(|(fqn, var)| (fqn.clone(), var.ty))
+            .chain(self.top_level_consts.iter().map(|(fqn, value)| (fqn.clone(), value.ty)))
+            .chain(
+                self.top_level_immutable_values
+                    .iter()
+                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
+            )
+            .collect::<HashMap<_, _>>();
+        let fun_return_tys = self
+            .fun_index
+            .iter()
+            .map(|(fqn, fun)| (fqn.clone(), fun.return_ty))
+            .collect::<HashMap<_, _>>();
+        let object_property_tys = self
+            .object_inits
+            .iter()
+            .flat_map(|(owner_fqn, object_init)| {
+                object_init
+                    .properties
+                    .iter()
+                    .map(|(name, property)| (format!("{owner_fqn}.{name}"), property.ty))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<HashMap<_, _>>();
+        let struct_field_tys = self
+            .struct_layouts
+            .iter()
+            .map(|(layout_key, layout)| {
+                let fields = layout
+                    .fields
+                    .iter()
+                    .filter_map(|field| field.ty.map(|ty| (field.fqn.clone(), ty)))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect::<HashMap<_, _>>();
+        let class_field_tys = self
+            .class_inits
+            .iter()
+            .map(|(layout_key, class)| {
+                let fields = class
+                    .fields
+                    .iter()
+                    .map(|field| (field.fqn.clone(), field.ty))
+                    .collect::<HashMap<_, _>>();
+                (layout_key.clone(), fields)
+            })
+            .collect::<HashMap<_, _>>();
+        let class_super_keys = self
+            .class_inits
+            .iter()
+            .filter_map(|(layout_key, class)| {
+                class
+                    .super_class_fqn
+                    .clone()
+                    .map(|super_key| (layout_key.clone(), super_key))
+            })
+            .collect::<HashMap<_, _>>();
 
         SuspendCallAnalysis {
             types: self.types,
             known_fun_effects: &known_fun_effects,
+            known_local_metadata: &known_local_metadata,
             current_source_path: self
                 .current_source()
                 .expect("codegen context should always have a current source")
@@ -7753,6 +8391,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 continuation_resume_call_sites: self.continuation_resume_call_sites,
                 non_pure_continuation_resume_call_sites: self
                     .non_pure_continuation_resume_call_sites,
+                top_level_value_tys: &top_level_value_tys,
+                fun_return_tys: &fun_return_tys,
+                object_property_tys: &object_property_tys,
+                struct_field_tys: &struct_field_tys,
+                class_field_tys: &class_field_tys,
+                class_super_keys: &class_super_keys,
                 object_value_fqns: &object_value_fqns,
                 object_property_fqns: &object_property_fqns,
                 top_level_immutable_value_fqns: &top_level_immutable_value_fqns,
@@ -7993,6 +8637,12 @@ fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePl
         ctor_call_targets: HashMap::new(),
         continuation_resume_call_sites: HashSet::new(),
         non_pure_continuation_resume_call_sites: HashSet::new(),
+        top_level_value_tys: HashMap::new(),
+        fun_return_tys: HashMap::new(),
+        object_property_tys: HashMap::new(),
+        struct_field_tys: HashMap::new(),
+        class_field_tys: HashMap::new(),
+        class_super_keys: HashMap::new(),
         object_value_fqns: HashSet::new(),
         object_property_fqns: HashSet::new(),
         top_level_immutable_value_fqns: HashSet::new(),

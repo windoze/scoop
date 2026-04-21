@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -305,12 +305,26 @@
   - `cargo run -p scoop_tools -- spec-fixtures check`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1c [TODO] 对 opaque function values 以静态 function type 的 effect row 上界决定 may-suspend 编译，补齐 wrapper/member 路径
+### T4016T1c [DONE] 对 opaque function values 以静态 function type 的 effect row 上界决定 may-suspend 编译，补齐 wrapper/member 路径
 - 范围：
   - 统一 state-machine planner、segment classification、callable-value codegen 与 concrete-type 恢复逻辑：对 opaque function values，call-site suspendability 由其静态 function type 的 effect row 上界决定；non-`Pure` row 必须按 may-suspend 编译。
   - 补齐 struct/class/enum field、member access、wrapper object、分支 LUB / higher-order 返回等会把函数值藏进 opaque 表达式的路径，确保它们与 `val f = ...; f()` 使用同一套 suspendability 规则，而不是只在局部变量路径上正确。
   - 验证同一调用点可同时兼容“静态类型为 non-`Pure`，实际值是 `Pure` closure”和“静态类型为 non-`Pure`，实际值会 `perform` 并触发 outward propagation / callee state machine”的两种情形。
   - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 或相关设计注释，把 opaque function values 的 call-site suspendability 规则写成显式合同。
+- 完成：
+  - `typecheck/expr/call.rs` 已补齐 “callee 是普通表达式且其类型为 function/FunPtr” 的调用类型推导，`choose(mode)()` 这类 higher-order 返回值直调不再被 `UnsupportedExpr { kind: "call" }` 拒绝。
+  - state-machine planner / suspend analysis / LLVM callable-value codegen 已统一使用更完整的 concrete-type 恢复：`MemberAccess`、`Call`、`Block`、`If`、`When`、object property、struct/class field 上的函数值都能按静态 function type 的 effect row 决定 may-suspend。
+  - `handle { wrapper.f() }` 与 `handle { choose(mode)() }` 这两类此前会漏掉的 opaque callable 调用点，现已在 `call-may-suspend` / runtime 语义上与局部函数值路径对齐。
+- 已复验：
+  - `cargo test -p scoopc segment_dump_classifies_ -- --nocapture`
+  - `cargo test -p scoopc unified_state_machine_transforms_all_segment_kinds_from_feature_matrix -- --nocapture`
+  - 新增 fixture 单独 `build + run` 的 stdout 校验
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo clippy --all-targets -- -D warnings`
 - 验收：
   - `handle { wrapper.f() }` 一类 direct member callable 在 `Pure` / effectful 两种实际值下都能正确工作。
   - 新增 run-pass / state-machine dump 回归覆盖 wrapper field + direct member call + handler capture。

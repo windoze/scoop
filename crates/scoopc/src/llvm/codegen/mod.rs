@@ -9713,10 +9713,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// T0130: 对于 Call 表达式，尝试通过 callee 的已知签名推导返回类型。
     fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<crate::ty::TypeId> {
         let ty = expr.ty;
-        // 如果 HIR type 不是 Any，直接使用
+        // 如果 HIR type 已是可用的精确类型，直接使用。
         if !matches!(
             self.types.kind(ty),
             crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Any)
+                | crate::ty::TypeKind::Param(_)
         ) {
             return Some(ty);
         }
@@ -9740,6 +9741,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.resolve_call_result_type(callee);
         }
 
+        if let hir::ExprKind::Block(block) = &expr.kind {
+            let hir::StmtKind::Expr(expr) = &block.stmts.last()?.kind else {
+                return None;
+            };
+            return self.resolve_expr_concrete_type(expr);
+        }
+
+        if let hir::ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } = &expr.kind
+        {
+            let else_branch = else_branch.as_deref()?;
+            let then_ty = self.resolve_expr_concrete_type(then_branch)?;
+            let else_ty = self.resolve_expr_concrete_type(else_branch)?;
+            return (then_ty == else_ty).then_some(then_ty);
+        }
+
+        if let hir::ExprKind::When { arms, .. } = &expr.kind {
+            let mut candidate: Option<TypeId> = None;
+            for arm in arms {
+                let resolved = self.resolve_expr_concrete_type(&arm.body)?;
+                match candidate {
+                    None => candidate = Some(resolved),
+                    Some(existing) if existing == resolved => {}
+                    Some(_) => return None,
+                }
+            }
+            return candidate;
+        }
+
         None
     }
 
@@ -9755,6 +9788,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(ty) = self.top_level_value_ty(field_fqn) {
             return Some(ty);
+        }
+        if let Some((owner_fqn, name)) = field_fqn.rsplit_once('.')
+            && let Some(property_ty) = self
+                .object_inits
+                .get(owner_fqn)
+                .and_then(|object_init| object_init.properties.get(name))
+                .map(|property| property.ty)
+        {
+            return Some(property_ty);
         }
 
         let receiver_ty = self
@@ -9826,6 +9868,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fqn = match &callee.kind {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
             hir::ExprKind::UnresolvedIdent { name } => Some(name.as_str()),
+            hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. } => {
+                    Some(fqn.as_str())
+                }
+                _ => None,
+            },
             _ => None,
         }?;
 

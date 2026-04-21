@@ -3112,10 +3112,37 @@ pub(super) fn infer_call_expr_type(
             },
             lower,
         ),
-        other => Err(ExprTypeError::UnsupportedExpr {
-            kind: expr_kind_name(other),
-            span: callee.span.into(),
-        }),
+        other => {
+            let callee_ty = super::infer::infer_expr_type(inputs, callee_expr, lower)?;
+            if matches!(lower.type_kind(callee_ty), TypeKind::Ref(RefTypeKind::Function(_))) {
+                return infer_function_type_call_expr_type(
+                    inputs,
+                    call_expr,
+                    expr_kind_name(other),
+                    callee_ty,
+                    args,
+                    lower,
+                );
+            }
+
+            if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(callee_ty)
+                && nominal.fqn == FUNPTR_FQN
+            {
+                return infer_funptr_type_call_expr_type(
+                    inputs,
+                    call_expr,
+                    expr_kind_name(other),
+                    callee_ty,
+                    args,
+                    lower,
+                );
+            }
+
+            Err(ExprTypeError::UnsupportedExpr {
+                kind: expr_kind_name(other),
+                span: callee.span.into(),
+            })
+        }
     }
 }
 

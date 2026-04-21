@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.stdout
+//
+// T4016T1c: higher-order 返回值与 `when` 分支 LUB 产出的函数值也要按静态 function type
+// 的 effect row 决定 may-suspend 编译，而不是只在局部变量路径上正确。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(seed: Int): Int
+}
+
+enum Mode {
+    Pure,
+    Effectful(val seed: Int),
+}
+
+fun choose(mode: Mode): () -> Int / (Ask) {
+    when (mode) {
+        Pure -> {
+            val thunk: () -> Int / (Ask) = { 5 }
+            thunk
+        }
+        Effectful(seed) -> {
+            val thunk: () -> Int / (Ask) = { Ask.ask(seed) }
+            thunk
+        }
+    }
+}
+
+fun drive(mode: Mode): Int {
+    val result: Int = handle {
+        choose(mode)()
+    } with {
+        Ask.ask(seed), k -> {
+            println("caught")
+            println(seed.toString())
+            k.resume(seed + 1)
+        }
+    }
+    println(result.toString())
+    result
+}
+
+fun main() {
+    drive(Mode.Pure)
+    drive(Effectful(9))
+}
