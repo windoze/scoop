@@ -20,12 +20,11 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 已收口：`T1510c1` 与 `T1510c2` 均已完成；下一步回到正确的单次 delimited continuation / `Task` review 收口（`T4016R`）
-2. 正确的单次 delimited continuation 与 `Task` 去 hack review 收口（`T4016a1 -> T4016a2 -> T4016b1 -> T4016b2 -> T4016c -> T4016b3 -> T4016b4 -> T4016d -> T4016R`，其中 `T4016R` 现额外依赖 `T1510c1` 与 `T1510c2`）
-3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
-4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
-5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
-6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 均已完成；下一步进入 annotation markers / built-in annotations 主线（`T4012`）
+2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
+3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
+4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
+5. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
 
 ## 2. 分阶段目标
 
@@ -58,7 +57,11 @@
   - `runtime/c/scoop_test.c` 注释已明确：stackmap smoke 必须走 ordinary managed runtime call；`@Extern` + `enter_native/leave_native` leaf lowering 明确不再作为 smoke 载体。
   - 新增 `tests/fixtures/build/stackmap_registry_statepoint_smoke_managed_call.scoop`，锁定 smoke 调用点会生成 `@scoop_test_stackmap_statepoint_smoke` 对应的 statepoint；原 `extern_enter_native_no_statepoint_writeback.scoop` 继续锁定 extern/native 三连调用不生成 statepoint。
   - 已复验手动 `build + run` 的 smoke 产物输出 `1`，并通过 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
-- 当前可回到 `T4016R`：在前置 blockers 收口后，重新做 continuation / `Task` 的最终 review。
+- `T4016R` 已完成：在前置 blockers 收口后重新审查 continuation / `Task` 主线，结论如下：
+  - parser / AST / HIR 里 `-> resume` 只剩 removed-syntax diagnostic；生产 surface 只保留 `->` 与 `, k ->` 两种 arm。
+  - `Continuation.resume(...): Answer` 的静态模型、LLVM lowering 与 runtime 都统一走 `scoop_continuation_resume_with(...)` 共享 payload+answer helper。
+  - `Task` 继续以私有 `__TaskStepResult` 作为 delimiter answer，但 runtime 只通过共享 continuation helper 消费它，不再依赖 task-private frame-peek / 旁路 ABI。
+  - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 
 ### P1. 正确的单次 delimited continuation 与 `Task` 去 hack
 
@@ -83,10 +86,10 @@
     - 已复验隔离的 fixtures runner 子集、手动 `build + SCOOP_GC_STRESS=1` 执行路径、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；
     - 结论：此前在 `workerA_resuming` 后异常退出的 blocker 已随 `T4016b4a0` 的 GC roots 修复实质消失，本轮已把它正式收口为可持续回归的验收项。
   - `T4016b4b` 已完成：已重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并以全量 `run-pass` 完成最终验收。
-  - `T4016R` 的静态审查结论当前保持“待收口”：
-    - 已确认 `-> resume` 只剩 removed-syntax diagnostic，`Continuation.resume(...)` 的 typecheck / lowering / codegen 统一走 answer-returning helper，`Task` 也只在私有层把同一 continuation answer 通道解释为 `__TaskStepResult`；
-    - 但在尝试用全量 `cargo run -p scoop -- test` 关闭 review 时，先命中 `T1510c1`；修复后再次复验，又命中新的 `T1510c2` blocker：`stackmap_registry_statepoint_smoke.scoop` 仍把 extern/native 调用点当作真实 statepoint smoke，和 `T1510c1` 已定下的 no-statepoint 合同冲突。
-  - 当前顺序调整为：`T4016R -> T4012...`。
+  - `T4016R` 已完成：
+    - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
+    - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
+  - 当前顺序调整为：`T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -150,7 +153,7 @@
 - annotation 保持 compile-time markers only，不进入复杂 nominal / runtime 语义。
 - 先收口 non-inline built-in annotations，并补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
 - 再删除 `inline` 关键字与 legacy non-local return 语义残留；若未来仍需内联提示，统一由 `@Inline` 作为纯优化 marker 承担。
-- 当前状态：`T1510c2 -> T4016R -> T4012a -> T4012b -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4012a -> T4012b -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P3. FFI / ABI 边界收口
 

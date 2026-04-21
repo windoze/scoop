@@ -213,12 +213,20 @@
   - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T1510c1
 
-### T4016R [TODO] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack
+### T4016R [DONE] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack
 - 重点：
   - 不允许在实现 returning-resume 后偷偷引入 multi-shot / clone / replay。
   - 不允许 `-> resume` 继续以用户态语法、隐藏 special form 或第二套 lowering contract 存活；若存在 immediate-resume fast path，也只能是 continuation primitive 的内部优化。
   - `k.resume(...)` 必须真实返回 delimiter answer type；“resume 后本地代码继续执行”的语义要通过生产代码与回归确认，而不是只停在 spec 文字。
   - `Task` 必须使用同一 continuation contract；不允许继续依赖 frame layout poking、task-private ABI 假设或“resume 返回 `Unit` 但 task 另有旁路结果”的双重叙事。
+- 结论：
+  - parser / AST / HIR 中 `-> resume` 只剩 removed-syntax diagnostic；生产 surface 仅保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr`。
+  - `Continuation.resume(...): Answer` 的静态与运行时实现统一走 continuation answer-return 通道；`Task` 仅在私有层把同一 answer channel 解释为 `__TaskStepResult`。
+  - 已机械复核仓库残留文本：legacy continuation 简写只剩 removed-diagnostic fixtures 与前端报错文案，不再进入生产主线。
+- 已复验：
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T1510c1, T1510c2, T4016d
 
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker

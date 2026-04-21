@@ -1,61 +1,65 @@
-# 执行计划与决策记录
+# 执行计划
 
-说明：我不会写入原始的内部推理全文，但会持续记录足够详细的执行计划、关键判断、进展与变更原因，便于审查当前工作状态。
+说明：我不会写入不可公开的逐字思维链，但会持续记录可审计的执行计划、关键判断依据和进度变化。
 
-## 初始目标
+## 初始计划
 
-本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。若在执行过程中发现前置缺陷、规范不匹配或任务过大，需要先更新计划与任务分解，再按新的首个可执行子任务推进。
+1. 检查最近一次提交的提交信息与变更，确认是否提到任何已知问题；如果存在且仍未修复，先处理这些问题。
+2. 阅读 `TODO.md`，定位第一个未完成任务。
+3. 阅读 `PLAN.md`，核对当前计划与 `TODO.md` 是否一致。
+4. 判断首个未完成任务是否足够小且可在本轮完整完成。
+5. 如果任务过大或存在前置依赖缺失：
+   - 在 `PLAN.md` 中细化为更小子任务；
+   - 在 `TODO.md` 中按依赖顺序插入或重排这些子任务；
+   - 执行第一个新的子任务，并在文档中记录阻塞关系。
+6. 实现本轮要完成的任务，避免规避规范或临时性变通。
+7. 运行相关测试与质量检查，至少覆盖受影响范围；如有必要，运行更广泛的回归测试。
+8. 更新 `TODO.md` 与 `PLAN.md`，标记已完成内容并记录任何计划调整。
+9. 提交本轮修改，提交信息应清晰描述任务编号和变更内容。
+10. 停止，不继续处理下一个任务。
 
-## 初始步骤计划
+## 进度
 
-1. 检查最新一次提交，确认提交信息是否提到遗留问题；若有，先修复这些问题。
-2. 读取 `TODO.md`，识别第一个未完成任务。
-3. 读取 `PLAN.md`，理解现有路线、依赖关系与任务上下文。
-4. 判断该任务是否足够小且可在本轮完整完成。
-5. 如果任务过大：
-   - 细化为更小的子任务；
-   - 更新 `PLAN.md`；
-   - 更新 `TODO.md`，将原任务替换或补充为有序子任务；
-   - 选择新的第一个子任务作为本轮目标。
-6. 实现本轮目标任务。
-7. 运行相关验证：
-   - 最小必要测试；
-   - 相关集成/回归测试；
-   - 如适用，运行格式化与 `cargo clippy --all-targets -- -D warnings`。
-8. 若测试或验证暴露规范缺陷、实现缺口或依赖问题：
-   - 不采用规避方案；
-   - 在 `TODO.md` 中新增或重排前置修复任务；
-   - 更新 `PLAN.md` 记录阻塞原因；
-   - 提交这些计划调整后停止。
-9. 若任务完成：
-   - 更新 `TODO.md` 勾选完成；
-   - 更新 `PLAN.md` 反映当前状态；
-   - 视需要更新本文件中的进展记录；
-   - 提交变更并停止。
+- 已完成：写入初始执行计划。
+- 已完成：检查最近一次提交；提交信息未声明新的待修前置问题。
+- 已完成：读取 `TODO.md` 与 `PLAN.md`；确认首个未完成任务为 `T4016R`。
+- 已完成：针对 `T4016R` 执行 review，未发现需要前插的新 blocker。
 
-## 当前状态
+## Review 结论（T4016R）
 
-- 已检查最新提交：`[T1510c2] Add stackmap statepoint smoke blocker`。
-- 已读取 `TODO.md` / `PLAN.md`。
-- 已确认当前首个未完成任务为 `T1510c2`：修复 runtime stackmap statepoint smoke 在 extern/native leaf lowering 后失效。
-- 该任务同时满足“最新提交提到的既有问题”和“`TODO.md` 首个未完成任务”两个条件，因此本轮直接处理它。
+1. 语法与中间表示：
+   - parser 仅把 `-> resume { ... }` 作为 removed diagnostic 处理；
+   - AST / HIR 的 handler arm 只保留 non-resuming 与 escape-continuation 两类。
+2. continuation answer model：
+   - `sysroot/core.scoop`、spec 与 runtime 文档均使用 `Continuation<Resume, Answer, eff E>`；
+   - typecheck 将 `k.resume(...): Answer` 的返回类型绑定到 continuation 的 answer type；
+   - runtime 通过共享 `scoop_continuation_resume_with(...)` 提供 payload + answer 通道。
+3. `Task` 合同：
+   - `Task` 私有 step driver 的 delimiter answer 为 `__TaskStepResult`；
+   - runtime/c/scoop_task.c 通过共享 continuation helper 恢复 continuation 并读取 `__TaskStepResult`，未再依赖 task-private frame-peek。
+4. 机械复核：
+   - 生产代码中未发现残留的用户态 `-> resume` surface；剩余引用仅存在于文档、removed diagnostic 与回归 fixture。
+   - legacy `Continuation<Resume>` / `Continuation<Resume, eff E>` 简写只剩 removed diagnostic fixture 与前端报错文本。
+5. 已完成验证：
+   - `cargo run -p scoop -- test`
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
 
-## 进展记录
+## 收尾动作
 
-- 已创建本文件，作为本轮执行期间的计划与状态记录位置。
-- 已确认无需先做新的任务分解：先阅读 smoke fixture、相关 runtime helper、LLVM lowering 与 build regression，再判断是否需要在实现过程中补拆子任务。
-- 已完成方案收敛：不回退 `T1510c1` 的 extern/native leaf 合同；改为新增 sysroot 内部 smoke helper，把 stackmap smoke 调用点重新放回 ordinary managed runtime call 主线，以恢复真实 statepoint record。
-- 已开始代码修改：
-  - `sysroot/core.scoop`：新增 `__scoop_stackmap_statepoint_smoke()` 声明与注释；
-  - `crates/scoopc/src/llvm/codegen/{gc.rs,runtime_abi.rs,runtime_symbols.rs}`：新增 intrinsic lowering 与 runtime symbol 声明；
-  - `tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop`：切换到内部 helper；
-  - `tests/fixtures/build/stackmap_registry_statepoint_smoke_managed_call.scoop`：新增 IR 回归；
-  - `runtime/c/scoop_test.c`：更新 helper 注释，明确不能再走 `@Extern` leaf 路径。
-- 已完成实现与验证：
-  - 手动 `build + run tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop` 输出 `1`；
-  - 手动 `--emit-llvm` 检查显示 `@scoop_test_stackmap_statepoint_smoke` 调用点重新被重写为 `llvm.experimental.gc.statepoint`；
-  - `extern_enter_native_no_statepoint_writeback.scoop` 的 IR 仍保持 `call void @scoop_enter_native` / `call void @scoop_test_gc_collect_in_native` / `call void @scoop_leave_native`，未回退 leaf/no-statepoint 合同；
-  - `cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 通过。
-- 待收尾：
-  - 已更新 `TODO.md` / `PLAN.md` 标记 `T1510c2` 完成；
-  - 下一步整理 `git status`、提交本轮变更，然后停止。
+1. 将 `TODO.md` 中的 `T4016R` 标记为完成，并记录 review 结论。
+2. 更新 `PLAN.md`，把下一步推进到 `T4012`。
+3. 检查工作区状态并提交本轮修改。
+
+## 本轮具体执行路径（T4016R）
+
+1. 审查 `TODO.md` / `PLAN.md` 中对 `T4016R` 的验收要求，整理 review 清单。
+2. 搜索并阅读 continuation、handler arm、`Task` 相关的实现与文档位置，重点检查：
+   - `-> resume` 是否只剩 removed diagnostic，而未以其它 special form 存活；
+   - `k.resume(...)` 的静态与运行时返回模型是否为 delimiter answer type；
+   - `Task` 是否统一走 continuation contract，而非 task-private runtime hack。
+3. 检查关键回归 fixture / 单测 / 文档是否与实现一致。
+4. 运行必要测试与质量检查，至少覆盖 fixture 主线、Rust 测试与 clippy。
+5. 根据审查结果二选一：
+   - 若发现规范不一致或实现缺口：在 `TODO.md` / `PLAN.md` 中插入前置修复任务，记录阻塞关系，提交并停止；
+   - 若未发现阻塞问题：将 `T4016R` 标为完成，更新计划与记录，提交并停止。
