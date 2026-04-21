@@ -1,13 +1,14 @@
-// Scoop C runtime: Task<T> manual polling core.
+// Scoop C runtime: Task<T> manual stepping core.
 //
 // 说明：
-// - `Task<T>` 当前只承载 lazy/manual polling 语义；
-// - `poll()` / `step()` 都驱动任务执行，直到“下一次挂起或完成”为止；
+// - `Task<T>` 当前只承载 lazy/manual stepping 语义；
+// - 公开 surface 只保留 `step()`；runtime 内部仍复用历史命名的 `scoop_task_poll` 入口驱动任务
+//   执行到“下一次挂起或完成”；
 // - task 的 suspended-state carrier 对外不可见，runtime 内部继续借助 raw continuation；
 // - 从 `T4016a1` 的目标语义看，task step driver 的私有 delimiter answer 实际上是
 //   `__TaskStepResult`；`T4016c` 起 task runtime 已改为通过共享 continuation answer helper
 //   消费它，而不是自行窥视 continuation heap frame 前缀；
-// - `scoop_task_join` 只是 compiler/runtime/test harness 使用的内部 helper：它循环 `poll()`，
+// - `scoop_task_join` 只是 compiler/runtime/test harness 使用的内部 helper：它循环 drive task
 //   直到任务完成；它不代表公开的 structured-concurrency `join` 语义。
 
 #include <stddef.h>

@@ -399,6 +399,7 @@ the core `Task` API.
 
 ### Phase 1: Surface cleanup
 
+- This phase defines the current public `scoop.core` task surface.
 - Rename `Poll<T>` to `TaskStep<T>`.
 - Remove `poll()` and keep `step()` as the only public drive operation.
 - Update docs, sysroot surface, lowering targets, and tests to use the renamed

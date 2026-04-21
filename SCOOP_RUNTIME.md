@@ -344,22 +344,22 @@ This section records the continuation contract that the implementation is conver
   - The continuation captures the handler stack active at the suspension point.
   - Resuming from another OS thread reinstalls that captured handler stack for the duration of the resumed computation.
   - If the resumed computation suspends again, that suspension exposes a fresh continuation; `k.resume(...)` itself still exposes only the eventual delimiter answer or a raised error.
-- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement, and `scoop_continuation_resume_with(...)` now packages “write payload + drive resume + read delimiter answer” through the generic continuation ABI. `scoop_continuation_resume_into(...)` remains the lower-level entry for cases where payload has already been staged on the continuation object. Expression-position `k.resume(...)` and `Task` polling now both consume that same shared payload+answer path rather than relying on a second task-specific resume contract.
+- Current runtime transport still uses `(resume_word, resume_gc_ref)` for resume payload movement, and `scoop_continuation_resume_with(...)` now packages “write payload + drive resume + read delimiter answer” through the generic continuation ABI. `scoop_continuation_resume_into(...)` remains the lower-level entry for cases where payload has already been staged on the continuation object. Expression-position `k.resume(...)` and `Task.step()` now both consume that same shared payload+answer path rather than relying on a second task-specific resume contract.
 
-## 11. Task Polling Runtime Contract
+## 11. Task Stepping Runtime Contract
 
-This stage standardizes the internal runtime ABI that backs `Task.poll()` / `Task.step()`:
+This stage standardizes the internal runtime ABI that backs `Task.step()`:
 
 - `scoop_task_create` creates a lazy task object from a closure wrapper that returns an internal `__TaskStepResult` object.
 - `scoop_task_step_ready(word, gc_ref)` constructs the private step-result carrier for “completed this step with a final `T`”.
 - `scoop_task_step_pending(awaited_task, continuation)` constructs the private step-result carrier for “suspended on `await awaited_task` and captured a fresh continuation”.
-- `scoop_task_poll(task, out_word, out_gc_ref)` is the runtime entry used by both `Task.poll()` and `Task.step()`. It starts or resumes the task until the next suspension or completion, returning:
-  - `0` for `Poll.Pending`
-  - `1` for `Poll.Ready(value)` and writing the transport payload to `out_word/out_gc_ref`
+- `scoop_task_poll(task, out_word, out_gc_ref)` is the current internal runtime entry used by `Task.step()`. Despite the historical symbol name, it is not a public `Task.poll()` contract. It starts or resumes the task until the next suspension or completion, returning:
+  - `0` for `TaskStep.Pending`
+  - `1` for `TaskStep.Ready(value)` and writing the transport payload to `out_word/out_gc_ref`
 - `scoop_task_join` is now defined in terms of repeated `scoop_task_poll`. It remains an internal helper used by compiler/runtime/test harness code; it does not define a public structured-concurrency `join` surface.
 
 Implementation note:
 
 - The private `__TaskStepResult` carrier is not part of the public language surface.
 - A suspended task is just an ordinary task object plus a private raw continuation whose delimiter answer is `__TaskStepResult`; the compiler may erase the continuation payload type internally, but it does not erase the answer carrier.
-- When a pending task resumes that captured continuation, the runtime calls the shared `scoop_continuation_resume_with(...)` helper with the awaited payload and reads the next `__TaskStepResult` from the standardized state-machine frame transport (`state_tag`, `resume_word`, `resume_gc_ref`). This keeps raw continuation payload fields and frame details inside the generic continuation ABI while preserving the public `Poll<T>` contract.
+- When a pending task resumes that captured continuation, the runtime calls the shared `scoop_continuation_resume_with(...)` helper with the awaited payload and reads the next `__TaskStepResult` from the standardized state-machine frame transport (`state_tag`, `resume_word`, `resume_gc_ref`). This keeps raw continuation payload fields and frame details inside the generic continuation ABI while preserving the public `TaskStep<T>` contract.

@@ -236,7 +236,7 @@
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
 
-### T4016T1 [TODO] 将 core task public surface 直接收口为 `TaskStep<T>` + `step()`，并同步语言 / 运行时规格
+### T4016T1 [DONE] 将 core task public surface 直接收口为 `TaskStep<T>` + `step()`，并同步语言 / 运行时规格
 - 范围：
   - 按 `SCOOP_TASK.md` 收口 `scoop.core` 的最小公开 task surface：保留 `Task<T>`、`TaskStep<T>`、`Task.step()` 与 `Async.await`，移除 `Poll<T>` 与 `Task.poll()`。
   - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop`、相关实现注释、diagnostics 与 fixtures，把 `step()` 明确成唯一 core drive API；不保留 alias / compatibility 叙事。
@@ -245,6 +245,18 @@
   - 生产 surface 与生产文档中不再暴露 `Poll<T>` / `poll()`；`TaskStep<T>` + `step()` 成为唯一 core task 命名。
   - 语言 spec、runtime spec、design doc、sysroot 与相关 fixtures 对 task public surface 形成统一叙事。
 - 依赖：T4016R
+- 已完成：
+  - `sysroot/core.scoop` 已移除公开 `Poll<T>` / `Task.poll()`，将 core task surface 收口为 `TaskStep<T>` + `Task.step()`；相关注释同步改写为 step-only 叙事。
+  - LLVM codegen 现在只对 `scoop.core.step` 做 task public surface special-case，`TaskStep<T>` 取代 `Poll<T>` 成为返回类型；`structured_concurrency_deferred` 诊断也改为只推荐 `Task.step()`。
+  - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`ISSUES.md` 与 `STDLIB_COMPLETENESS.md` 已同步到 step-only public surface；runtime 注释明确 `scoop_task_poll` 只是内部历史命名，不再代表公开 `poll()` 合同。
+  - run-pass 回归已重命名为 `task_step_manual_basic.scoop`，并新增 `task_poll_removed_is_error.scoop` / `task_poll_type_removed_is_error.scoop`，锁定 `poll()` / `Poll<T>` 均已从公开 surface 移除。
+- 已复验：
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：

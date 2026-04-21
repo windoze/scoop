@@ -962,7 +962,7 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // `scoop_continuation_resume_with(...)` 作为共享 helper，把“写 payload + 驱动 resume +
 // 读取 delimiter answer”收口为一条 continuation ABI；`scoop_continuation_resume_into(...)`
 // 则保留为“payload 已经写好后只消费 answer channel”的更低层入口。
-// expression-position `resume(...): Answer` 与 `Task.poll()/step()` 现在都走同一条
+// expression-position `resume(...): Answer` 与 `Task.step()` 现在都走同一条
 // continuation payload+answer 通道；task 只是把该 answer 解释为私有 step result。
 //
 // T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，

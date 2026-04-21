@@ -848,19 +848,18 @@ Current-stage focus:
 
 - This stage standardizes effect codegen and the core shape of `Task<T>`.
 - Executor frameworks (queues, wakeups, work-stealing, spawn scheduling) are intentionally deferred.
-- A `Task<T>` must remain usable without an executor by manual polling/stepping.
+- A `Task<T>` must remain usable without an executor by manual stepping.
 
 Conceptual async surface:
 
 ```kotlin
-enum Poll<T> {
+enum TaskStep<T> {
     Pending,
     Ready(T),
 }
 
 class Task<T> {
-    fun poll(): Poll<T>
-    fun step(): Poll<T>
+    fun step(): TaskStep<T>
 }
 ```
 
@@ -873,7 +872,7 @@ val t: Task<User> = async {
 }
 
 while (true) {
-    when (t.poll()) {
+    when (t.step()) {
         Pending -> ()
         Ready(user) -> {
             println(user.name)
@@ -890,12 +889,11 @@ Key semantics:
 - `await expr` inside an async body desugars to `perform Async.await(expr)`.
 - The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
 - `Task<T>` stores private execution state. Before the first poll it holds an initial entry closure; after suspension it may hold an internal continuation whose delimiter answer is a private step-result carrier; after completion it holds the final result.
-- The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `poll()` contract is preserved.
-- That private step-result carrier is an implementation detail used to translate the continuation answer back into the public `Poll<T>` contract; it does not create a second user-visible resume model alongside `Continuation.resume(...)`.
-- An implementation may route both ordinary `Continuation.resume(...)` and `Task.poll()` / `Task.step()` through the same internal continuation payload+answer helper. `Task` does not introduce a separate resume ABI; it only maps a private continuation answer carrier back into the public `Poll<T>` surface.
-- This stage does **not** define a public `scoop.task` executor package, adapter API, or structured-concurrency surface. Any helper used to create or drive tasks outside `async` / `await` / `poll()` / `step()` is implementation-internal.
-- `Task.poll()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
-- `Task.step()` is the same manual-driving contract exposed under a more explicit name. In the current stage, without a separate readiness/wakeup protocol, `step()` and `poll()` are semantically equivalent: both drive the task until its next suspension or completion.
+- The language contract does **not** require a dedicated executor ABI or task-specific codegen for `Task<T>`. An implementation may realize `Task<T>` as an ordinary object/class plus private suspended-state carriers, so long as the `step()` contract is preserved.
+- That private step-result carrier is an implementation detail used to translate the continuation answer back into the public `TaskStep<T>` contract; it does not create a second user-visible resume model alongside `Continuation.resume(...)`.
+- An implementation may route both ordinary `Continuation.resume(...)` and `Task.step()` through the same internal continuation payload+answer helper. `Task` does not introduce a separate resume ABI; it only maps a private continuation answer carrier back into the public `TaskStep<T>` surface.
+- This stage does **not** define a public `scoop.task` executor package, adapter API, or structured-concurrency surface. Any helper used to create or drive tasks outside `async` / `await` / `step()` is implementation-internal.
+- `Task.step()` starts or resumes the task and runs it until the task either completes (`Ready(value)`) or suspends again (`Pending`).
 - If a resumed task suspends again through an escape-continuation handler, that handler captures a fresh continuation and stores it back into the task's private state. The previous continuation remains consumed (one-shot).
 - Direct access to those internal continuations is not part of the common task API.
 - The exact executor or wakeup mechanism, if any, is intentionally out of scope for this stage.

@@ -21,7 +21,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 均已完成；基于 `SCOOP_TASK.md`，下一步先执行 `T4016T1 -> T4016T2 -> T4016T3`，把 core task public surface、Scoop 化实现与 task-only runtime/codegen surface 一次收口
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 与 `T4016T1` 均已完成；基于 `SCOOP_TASK.md`，下一步继续执行 `T4016T2 -> T4016T3`，把 task 主体 Scoop 化并删除 task-only runtime/codegen surface
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -90,8 +90,8 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。后续仍需按 `SCOOP_TASK.md` 执行 `T4016T1 -> T4016T2 -> T4016T3`。
-  - 当前顺序调整为：`T4016T1 -> T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1` 的 public surface 收口，后续继续按 `SCOOP_TASK.md` 执行 `T4016T2 -> T4016T3`。
+  - 当前顺序调整为：`T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -115,7 +115,7 @@
     - runtime 新增共享 helper `scoop_continuation_resume_into(...)`：负责 one-shot 检查、执行 resume，并在 resumed computation 正常完成 delimiter 时把 answer transport 通过显式 ABI 写回 caller；
     - LLVM `Continuation.resume` lowering 与 state-machine tail-resume fast path 已切到该 helper，避免继续依赖旧的 void-only resume ABI；
     - `runtime/c/scoop_task.c` 已改为通过共享 helper 取得 `__TaskStepResult`，不再直接回读 continuation heap frame 前缀；
-    - 已同步 `sysroot/core.scoop` / `SCOOP_RUNTIME.md` 的过渡叙事，并补 runtime `continuation_one_shot` 回归、两个 LLVM IR 定向测试，以及 `task_poll_step_manual_basic.scoop`、`continuation_resume_surface_named_tuple_and_unit_basic.scoop` 的端到端运行验证；
+    - 已同步 `sysroot/core.scoop` / `SCOOP_RUNTIME.md` 的过渡叙事，并补 runtime `continuation_one_shot` 回归、两个 LLVM IR 定向测试，以及 `task_step_manual_basic.scoop`、`continuation_resume_surface_named_tuple_and_unit_basic.scoop` 的端到端运行验证；
     - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - `T4016b3` 已完成：
     - `Continuation.resume(...)` 的 typecheck 已改为返回 continuation 的 answer type，safe-call `receiver?.resume(...)` 也会相应返回 `Option<Answer>`；
@@ -129,9 +129,9 @@
     - `runtime/c/scoop_task.c` 已删除本地 `ScoopContinuation` payload 布局镜像，pending task 恢复路径改为完全走共享 helper；
     - LLVM `Continuation.resume(...)` fresh-path / replay-path / tail-resume fast path 已切到共享 helper，不再由 caller 直接 GEP 写 `resume_word` / `resume_gc_ref`；
     - `scoop_continuation_resume_u64` 已保留旧的“只驱动 resume、不要求 delimiter answer”兼容语义，避免 cross-thread resume helper 被错误收口进 answer-required 路径；
-    - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `runtime/c/scoop_runtime.c` 已统一当时的收口叙事：`Task` 只是把私有 `__TaskStepResult` continuation answer 投影回当时公开的 `Poll<T>` thin wrapper；后续 `T4016T1~T4016T3` 将继续把 public naming、runtime/codegen surface 与实现落点收口到 `SCOOP_TASK.md` 新设计；
+    - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `runtime/c/scoop_runtime.c` 已统一当时的收口叙事：`Task` 只是把私有 `__TaskStepResult` continuation answer 投影回当时公开的 `Poll<T>` thin wrapper；随后已由 `T4016T1` 把 public naming 收口为 `TaskStep<T>` + `step()`，后续 `T4016T2~T4016T3` 继续把实现落点收口到 `SCOOP_TASK.md` 新设计；
     - 已补 runtime 回归 `continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failure` 与 `task_poll_resumes_pending_task_via_shared_continuation_helper`，并更新 LLVM IR 断言以锁定共享 helper 路径；
-    - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/task_poll_step_manual_basic.scoop -o /tmp/task_poll_step_manual_basic.out`、执行 `/tmp/task_poll_step_manual_basic.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (375)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+    - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_manual_basic.scoop -o /tmp/task_step_manual_basic.out`、执行 `/tmp/task_step_manual_basic.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (375)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - `T4016b4a` 已完成：
     - type lowering 现已移除 legacy `Continuation<Resume, eff E>` shorthand，并新增早期 removed/compatibility diagnostic：要求显式写成 `Continuation<Resume, Answer, eff E>`；
     - `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`、`continuation_resume_from_escape_binder_requires_step_effect.scoop` 与 `non_pure_continuation_resume_classifies_as_call_suspend_site` 单测已迁到显式 answer type；
@@ -148,17 +148,22 @@
     - LLVM codegen 改为在 object/top-level immutable 的 once-init 函数内就地注册 `__scoop_object_prop__*`、`__scoop_top_level_val__*` 与 `__scoop_object_instance__*`，同时为 backing global 生成可递归描述 nested GC refs 的 type descriptor；
     - 在修复注册路径时，还顺手收口了 ordinary pointer-shaped locals keepalive 的两个编译器回归：frame-slot GEP 现会在当前 block 重新物化，dispatch loop / task body wrapper 的嵌套函数 codegen 也不再泄漏 `env`；
     - 已验证 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`SCOOP_GC_MOVE=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/gc_module_global_roots_move_basic.out` 与 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 通过。
-  - 下一步按 `SCOOP_TASK.md` 进入 `T4016T1 -> T4016T2 -> T4016T3`：先收口 `TaskStep<T>` + `step()` 的 core public surface 与 spec/runtime docs，再把 task 主体迁回 Scoop，最后删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
+  - 本轮已完成 `T4016T1`：core public surface 已收口为 `TaskStep<T>` + `step()`，相关 spec/runtime/design/doc/fixtures/diagnostics 已同步。
+  - 下一步按 `SCOOP_TASK.md` 继续 `T4016T2 -> T4016T3`：先把 task 主体迁回 Scoop，再删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
 
 ### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`）
 
 - `T4016d` / `T4016R` 已证明：`Task` 不再需要 task-private continuation hack，也不再需要第二套 answer model；但这只解决了 continuation 语义与 runtime hack 债务，还没有把 core task public surface、实现落点与 runtime/codegen surface 收口到最小形态。
 - 基于 `SCOOP_TASK.md`，当前新增三步，只覆盖 phase 1-3：
-  - `T4016T1`：把 core public surface 直接收口到 `TaskStep<T>` + `step()`，移除 `Poll<T>` / `poll()`，并同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 与相关 fixtures / diagnostics；
+  - `T4016T1` 已完成：
+    - `sysroot/core.scoop` 已移除 `Poll<T>` / `Task.poll()`，公开 surface 只保留 `Task<T>`、`TaskStep<T>`、`Task.step()` 与 `Async.await`；
+    - LLVM codegen / 诊断文案 / `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / `SCOOP_TASK.md` / `ISSUES.md` / `STDLIB_COMPLETENESS.md` 已同步到 step-only 叙事；
+    - run-pass 回归已重命名为 `task_step_manual_basic.scoop`，并新增 `task_poll_removed_is_error.scoop` / `task_poll_type_removed_is_error.scoop` 锁定移除后的诊断；
+    - 已验证 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
   - `T4016T2`：把 task 内部 driver / state / `step()` 主体迁回 Scoop，把 `async` / `await` lowering 改写到 ordinary Scoop helper target，并明确跨线程 drive/resume 的最小同步合同；语言 spec、runtime spec 与设计文档要同步改写；
   - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
 - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T1 -> T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

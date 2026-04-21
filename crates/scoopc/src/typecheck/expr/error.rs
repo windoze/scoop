@@ -18,7 +18,7 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "当前阶段尚未定义公开的 structured concurrency 语法 `{feature}`；请改用 `async {{ ... }}` / `async fun` 创建 `Task<T>`，并通过 `await` 或 `Task.poll()/step()` 驱动"
+        "当前阶段尚未定义公开的 structured concurrency 语法 `{feature}`；请改用 `async {{ ... }}` / `async fun` 创建 `Task<T>`，并通过 `await` 或 `Task.step()` 驱动"
     )]
     #[diagnostic(code(scoop::typecheck::structured_concurrency_deferred))]
     StructuredConcurrencyDeferred {

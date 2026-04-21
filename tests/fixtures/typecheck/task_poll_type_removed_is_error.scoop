@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 11:20
+// EXPECT-ERROR: 未解析的类型
+// 目标：T4016T1 删除公开 `Poll<T>` 类型名；用户态应改用 `TaskStep<T>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun readStep(step: Poll<Int>): Int {
+    return 0
+}

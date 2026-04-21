@@ -1,13 +1,13 @@
 // EXPECT: pass
-// RUN-STDOUT: task_poll_step_manual_basic.stdout
+// RUN-STDOUT: task_step_manual_basic.stdout
 //
-// T4009b：`Task.poll()` / `step()` / `Poll<T>` 最小 manual-driving 合同。
+// T4016T1：`Task.step()` / `TaskStep<T>` 是唯一的 core manual-driving surface。
 //
 // 目标覆盖：
-// - `async { ... }` 产生的 lazy task 可由 `step()` / `poll()` 手动驱动；
-// - 当前阶段 `step()` 与 `poll()` 语义等价：都会推进到“下一次挂起或完成”；
+// - `async { ... }` 产生的 lazy task 可由 `step()` 手动驱动；
+// - `TaskStep<T>` 是公开的 step 结果类型；
 // - 因此当 awaited task 能在同一次驱动里完成时，首个 `step()` 也会直接得到 `Ready(value)`；
-// - 任务完成后再次 `step()` / `poll()` 仍应稳定返回缓存结果，而不是重跑 body。
+// - 任务完成后再次 `step()` 仍应稳定返回缓存结果，而不是重跑 body。
 
 import scoop.core.*
 
@@ -25,7 +25,8 @@ fun main(): Int {
         x + 1
     }
 
-    when (outer.step()) {
+    val step0: TaskStep<Int> = outer.step()
+    when (step0) {
         Pending -> println("step0=pending")
         Ready(value) -> {
             println("step0=ready")
@@ -33,10 +34,10 @@ fun main(): Int {
         }
     }
 
-    when (outer.poll()) {
-        Pending -> println("poll1=pending")
+    when (outer.step()) {
+        Pending -> println("step1=pending")
         Ready(value) -> {
-            println("poll1=ready")
+            println("step1=ready")
             println(value)
         }
     }
