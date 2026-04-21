@@ -1,0 +1,17 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: @llvm.experimental.gc.statepoint.p0(i64 2882400000, i32 0, ptr elementtype(i64 ()) @scoop_test_stackmap_statepoint_smoke
+// BUILD-LLVM-NOT-CONTAINS: call i64 @scoop_test_stackmap_statepoint_smoke()
+//
+// 目标：T1510c2 statepoint smoke 回归：
+// - stackmap registry smoke 必须改走 ordinary managed runtime 调用；
+// - 该调用点应继续生成真实 statepoint；
+// - 同时 `extern_enter_native_no_statepoint_writeback.scoop` 继续锁定 `@Extern` leaf 调用不生成 statepoint。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    return __scoop_stackmap_statepoint_smoke()
+}

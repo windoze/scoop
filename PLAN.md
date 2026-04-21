@@ -20,7 +20,7 @@
 
 ## 1. 顺序总览
 
-1. 新增前置 blockers：先修复 `@Extern` + moving-GC native-roots 回归（`T1510c1`，已完成），再修复 runtime stackmap statepoint smoke 在 extern/native leaf lowering 后失效（`T1510c2`）
+1. 前置 blockers 已收口：`T1510c1` 与 `T1510c2` 均已完成；下一步回到正确的单次 delimited continuation / `Task` review 收口（`T4016R`）
 2. 正确的单次 delimited continuation 与 `Task` 去 hack review 收口（`T4016a1 -> T4016a2 -> T4016b1 -> T4016b2 -> T4016c -> T4016b3 -> T4016b4 -> T4016d -> T4016R`，其中 `T4016R` 现额外依赖 `T1510c1` 与 `T1510c2`）
 3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（`T4012a -> T4012b -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
@@ -53,7 +53,12 @@
   - `T1510c1` 已通过 `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 锁定 extern/native 三连调用不再被 statepoint 包裹；
   - 但 `stackmap_registry_statepoint_smoke.scoop` 仍把 `@Extern("scoop_test_stackmap_statepoint_smoke")` 调用点当作真实 statepoint smoke 的载体，默认这个 caller return address 能在 registry 中查到 record；
   - 因此当前失败并不说明 registry 解析/索引逻辑整体失效，而是 smoke fixture 继续依赖已经被 `T1510c1` 明确移除的调用点形状。
-- 当前需要前置 `T1510c2`：在**不回退 extern/native no-statepoint 合同**的前提下，恢复一个真实的 end-to-end statepoint smoke；在该 blocker 收口前，`T4016R` 不能标记完成。
+- 本轮已完成 `T1510c2`：
+  - `stackmap_registry_statepoint_smoke.scoop` 已改走 sysroot 内部 helper `__scoop_stackmap_statepoint_smoke()`；codegen 会把它 lowering 到 ordinary managed runtime call `scoop_test_stackmap_statepoint_smoke()`，从而让调用点重新保留真实的 statepoint / stackmap record。
+  - `runtime/c/scoop_test.c` 注释已明确：stackmap smoke 必须走 ordinary managed runtime call；`@Extern` + `enter_native/leave_native` leaf lowering 明确不再作为 smoke 载体。
+  - 新增 `tests/fixtures/build/stackmap_registry_statepoint_smoke_managed_call.scoop`，锁定 smoke 调用点会生成 `@scoop_test_stackmap_statepoint_smoke` 对应的 statepoint；原 `extern_enter_native_no_statepoint_writeback.scoop` 继续锁定 extern/native 三连调用不生成 statepoint。
+  - 已复验手动 `build + run` 的 smoke 产物输出 `1`，并通过 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+- 当前可回到 `T4016R`：在前置 blockers 收口后，重新做 continuation / `Task` 的最终 review。
 
 ### P1. 正确的单次 delimited continuation 与 `Task` 去 hack
 
@@ -81,7 +86,7 @@
   - `T4016R` 的静态审查结论当前保持“待收口”：
     - 已确认 `-> resume` 只剩 removed-syntax diagnostic，`Continuation.resume(...)` 的 typecheck / lowering / codegen 统一走 answer-returning helper，`Task` 也只在私有层把同一 continuation answer 通道解释为 `__TaskStepResult`；
     - 但在尝试用全量 `cargo run -p scoop -- test` 关闭 review 时，先命中 `T1510c1`；修复后再次复验，又命中新的 `T1510c2` blocker：`stackmap_registry_statepoint_smoke.scoop` 仍把 extern/native 调用点当作真实 statepoint smoke，和 `T1510c1` 已定下的 no-statepoint 合同冲突。
-  - 当前顺序调整为：`T1510c2 -> T4016R -> T4012...`。
+  - 当前顺序调整为：`T4016R -> T4012...`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：

@@ -107,6 +107,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(Some(CgValue::unit()));
         }
 
+        if fqn == "scoop.core.__scoop_stackmap_statepoint_smoke" {
+            if !args.is_empty() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "stackmap statepoint smoke arity mismatch",
+                    at: span.into(),
+                });
+            }
+
+            // 重要：
+            // - 该 test helper 需要“调用点本身”保留真实 statepoint/stackmap record；
+            // - 因此这里只能走 ordinary managed runtime call，不能复用 `@Extern` 的 native/leaf lowering。
+            let rt = self.declare_runtime_stackmap_statepoint_smoke();
+            let call = self.build_call_preserving_gc_local_roots(
+                span,
+                rt,
+                &[],
+                "stackmap_statepoint_smoke",
+            )?;
+            let raw =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "stackmap statepoint smoke return value",
+                        at: span.into(),
+                    })?;
+            let BasicValueEnum::IntValue(raw_int) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "stackmap statepoint smoke return type",
+                    at: span.into(),
+                });
+            };
+
+            let from = IntTy {
+                bits: 64,
+                signed: true,
+            };
+            let to = IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            };
+            let casted = self.cast_int(raw_int, from, to)?;
+            return Ok(Some(CgValue::int(casted, to)));
+        }
+
         Ok(None)
     }
 

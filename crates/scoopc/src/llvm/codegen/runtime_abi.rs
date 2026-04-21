@@ -1188,6 +1188,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
+
+    pub(super) fn declare_runtime_stackmap_statepoint_smoke(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `intptr_t scoop_test_stackmap_statepoint_smoke(void)`
+        //
+        // 说明：
+        // - 该 helper 必须以 ordinary managed runtime 调用进入 LLVM IR；
+        // - 不能走 `@Extern` + enter_native/leave_native leaf lowering，否则调用点本身不会再产出
+        //   statepoint/stackmap record，helper 内部的 `__builtin_return_address(0)` 也无法命中 registry。
+        let fn_ty = self.context.i64_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
 }
 
 // Effect runtime ABI 声明：被 `codegen_sysroot_effect_intrinsics`、`codegen_perform_expr`、

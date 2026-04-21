@@ -201,16 +201,16 @@
   - `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 锁定 LLVM IR：extern/native 三连调用不再被 statepoint 包裹，managed 侧通过 slot reload 继续使用更新后的 roots。
 - 依赖：无
 
-### T1510c2 [TODO] 修复 runtime stackmap statepoint smoke 在 extern/native leaf lowering 后失效
+### T1510c2 [DONE] 修复 runtime stackmap statepoint smoke 在 extern/native leaf lowering 后失效
 - 范围：
   - `tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop` 当前仍假定 `@Extern("scoop_test_stackmap_statepoint_smoke")` 这个调用点会在 entry `main` 中生成真实的 statepoint / stackmap record，并在 native helper 内通过 `__builtin_return_address(0)` 命中 registry。
   - 但 `T1510c1` 已把 extern/native 三连调用改成 leaf lowering，并新增 `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 明确锁定“不再生成 statepoint”的合同；因此该 smoke fixture 现在实际输出 `-3`（registry 非空，但 caller return address lookup 失败）。
   - 需要在**不回退 `T1510c1` 合同**的前提下，恢复一个真实的 end-to-end statepoint smoke：改用保证会产出 managed safepoint / statepoint record 的调用点，或补最小 compiler/runtime 支撑，让真实产物里的 smoke 调用点 return address 仍能稳定命中 registry。
   - 同步更新相关 fixture / runtime test / 注释，明确“哪些调用点必须保留 statepoint，哪些 extern/native leaf 调用明确不应保留 statepoint”，避免两套回归继续互相打架。
 - 验收：
-  - `tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop`（或等价替代的真实 smoke fixture）重新稳定输出 `1`，且验证对象必须是**真实产物中的 statepoint record**，而不是 synthetic / mock stackmap section。
-  - 新增或更新的 build/IR 回归能锁定 smoke 选中的调用点仍会生成 statepoint；同时 `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 继续通过，证明没有把 `T1510c1` 回退掉。
-  - `cargo run -p scoop -- test` 全量通过。
+  - `tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop` 已改用 `__scoop_stackmap_statepoint_smoke()`；其 lowering 走 ordinary managed runtime call，真实产物重新稳定输出 `1`。
+  - 新增 `tests/fixtures/build/stackmap_registry_statepoint_smoke_managed_call.scoop`，锁定 smoke 选中的调用点仍会生成 statepoint；同时 `tests/fixtures/build/extern_enter_native_no_statepoint_writeback.scoop` 继续通过，证明没有把 `T1510c1` 回退掉。
+  - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T1510c1
 
 ### T4016R [TODO] Review：确认 continuation 已是正确的单次 delimited continuation，且 `Task` 不再依赖 runtime hack
