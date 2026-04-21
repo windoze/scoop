@@ -1,0 +1,18 @@
+// EXPECT: pass
+// T4016T1a：typecheck 也要接受 custom enum 直接承载函数类型 payload，
+// 并允许 `when` / 模式 binder 上的函数值继续调用。
+
+enum Step {
+    Ready(val f: () -> Int),
+    Stop,
+}
+
+fun probe(step: Step): Int {
+    val viaWhen: Int = when (step) {
+        Ready(f) -> f()
+        Stop -> 0
+    }
+
+    val Step.Ready(bound) = step
+    return viaWhen + bound()
+}

@@ -21,7 +21,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R` 与 `T4016T1` 均已完成；基于 `SCOOP_TASK.md`，下一步继续执行 `T4016T2 -> T4016T3`，把 task 主体 Scoop 化并删除 task-only runtime/codegen surface
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1` 与 `T4016T1a` 均已完成；基于 `SCOOP_TASK.md`，下一步先执行 `T4016T1R` 复审 function-type payload 已进入统一 rich-enum / callable-value 主线，再继续 `T4016T2 -> T4016T3`
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -90,8 +90,8 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1` 的 public surface 收口，后续继续按 `SCOOP_TASK.md` 执行 `T4016T2 -> T4016T3`。
-  - 当前顺序调整为：`T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1` 与 `T4016T1a`，后续继续按 `SCOOP_TASK.md` 先做 `T4016T1R`，再推进 `T4016T2 -> T4016T3`。
+  - 当前顺序调整为：`T4016T1R -> T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -149,9 +149,11 @@
     - 在修复注册路径时，还顺手收口了 ordinary pointer-shaped locals keepalive 的两个编译器回归：frame-slot GEP 现会在当前 block 重新物化，dispatch loop / task body wrapper 的嵌套函数 codegen 也不再泄漏 `env`；
     - 已验证 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`SCOOP_GC_MOVE=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/gc_module_global_roots_move_basic.out` 与 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 通过。
   - 本轮已完成 `T4016T1`：core public surface 已收口为 `TaskStep<T>` + `step()`，相关 spec/runtime/design/doc/fixtures/diagnostics 已同步。
-  - 下一步按 `SCOOP_TASK.md` 继续 `T4016T2 -> T4016T3`：先把 task 主体迁回 Scoop，再删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
+  - 本轮已完成 `T4016T1a`：rich enum / struct layout 现可保留 function-type payload 的真实 `TypeId`；member value 为函数值时也会继续走统一 callable-value 主线。新增 `enum_function_payload_basic.scoop`、`task_state_function_payload_basic.scoop`、`struct_function_field_call_basic.scoop` 及对应 typecheck 回归已锁定 custom enum payload、`Task` 目标形状与字段函数值调用。
+  - 为完成全量验收，本轮同时修复了 fixture runner 在 `cargo run -p scoop -- test` 中通过 `current_exe()` 拿到 `.../scoop (deleted)` 路径而导致 run-pass 自调用失败的既有问题；runner 现会回退到去掉 `(deleted)` 后缀的真实路径，`cargo run -p scoop -- test` 已恢复通过。
+  - 下一步按 `SCOOP_TASK.md` 继续 `T4016T1R -> T4016T2 -> T4016T3`：先复审 function-type payload 主线无 task-only workaround，再把 task 主体迁回 Scoop，最后删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn/join` 的 phase 4 明确延期到 stdlib stage。
 
-### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T2 -> T4016T3`）
+### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T1a -> T4016T1R -> T4016T2 -> T4016T3`）
 
 - `T4016d` / `T4016R` 已证明：`Task` 不再需要 task-private continuation hack，也不再需要第二套 answer model；但这只解决了 continuation 语义与 runtime hack 债务，还没有把 core task public surface、实现落点与 runtime/codegen surface 收口到最小形态。
 - 基于 `SCOOP_TASK.md`，当前新增三步，只覆盖 phase 1-3：
@@ -160,10 +162,17 @@
     - LLVM codegen / 诊断文案 / `SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` / `SCOOP_TASK.md` / `ISSUES.md` / `STDLIB_COMPLETENESS.md` 已同步到 step-only 叙事；
     - run-pass 回归已重命名为 `task_step_manual_basic.scoop`，并新增 `task_poll_removed_is_error.scoop` / `task_poll_type_removed_is_error.scoop` 锁定移除后的诊断；
     - 已验证 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+  - `T4016T1a` 已完成：
+    - `hir/lower/util.rs` 已补齐 `TypeRef::Function` 的 layout `TypeId` / effect row 恢复，以及 generic struct/enum layout 收集里的函数字段 substitution，不再把函数字段降成“无布局类型”；
+    - `typecheck/expr/call.rs` / `typecheck/expr/member.rs` / `llvm/codegen/mod.rs` 已把 member value 为函数值/`FunPtr` 的路径接回统一 callable-value 主线，struct/class 风格字段上的函数值调用不再在 build 阶段丢失 resolution 或 concrete type；
+    - 新增 `enum_function_payload_basic.scoop`、`task_state_function_payload_basic.scoop`、`struct_function_field_call_basic.scoop` 与对应 typecheck fixtures，最小回归已覆盖 custom enum payload、`Created(val start: () -> __TaskStepResult)` 目标形状，以及 `receiver.f()` 字段函数值调用；
+    - 为保证 `cargo run -p scoop -- test` 可持续复验，本轮同时修复了 fixture runner 对 `current_exe()` 返回 `.../scoop (deleted)` 的自调用失败。
+    - 已验证 `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+  - `T4016T1R`：复审 rich enum / callable-value / LLVM 主线没有残留 task-only wrapper、helper 命名约定或 fixture 缩窄。
   - `T4016T2`：把 task 内部 driver / state / `step()` 主体迁回 Scoop，把 `async` / `await` lowering 改写到 ordinary Scoop helper target，并明确跨线程 drive/resume 的最小同步合同；语言 spec、runtime spec 与设计文档要同步改写；
   - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
 - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T1R -> T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

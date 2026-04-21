@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+//
+// 回归：struct/class 风格字段上的函数值也必须保留可调用的精确类型，
+// 不能在 `receiver.f()` 处退化成“普通不可调用成员”。
+
+struct Holder(val f: () -> Int)
+
+fun main(): Int {
+    return Holder({ 7 }).f()
+}

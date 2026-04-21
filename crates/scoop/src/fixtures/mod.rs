@@ -74,6 +74,40 @@ impl RunPassEnvOverrides {
     }
 }
 
+pub(crate) fn current_scoop_exe_path() -> std::io::Result<PathBuf> {
+    let current = std::env::current_exe()?;
+    if current.is_file() {
+        return Ok(current);
+    }
+
+    if let Some(stripped) = strip_deleted_exe_suffix(&current)
+        && stripped.is_file()
+    {
+        return Ok(stripped);
+    }
+
+    if let Some(argv0) = std::env::args_os().next() {
+        let argv0 = PathBuf::from(argv0);
+        if argv0.is_file() {
+            return Ok(argv0);
+        }
+        if argv0.is_relative() {
+            let cwd_candidate = std::env::current_dir()?.join(&argv0);
+            if cwd_candidate.is_file() {
+                return Ok(cwd_candidate);
+            }
+        }
+    }
+
+    Ok(current)
+}
+
+fn strip_deleted_exe_suffix(path: &Path) -> Option<PathBuf> {
+    let file_name = path.file_name()?.to_str()?;
+    let stripped = file_name.strip_suffix(" (deleted)")?;
+    Some(path.with_file_name(stripped))
+}
+
 pub fn run_all(
     fixtures_root: &Path,
     opt_level: Option<OptLevel>,
@@ -251,7 +285,7 @@ fn run_run_pass_cone_case(
         let build_root = cone_root.join("build");
         let _ = std::fs::remove_dir_all(&build_root);
 
-        let scoop_exe = std::env::current_exe()
+        let scoop_exe = current_scoop_exe_path()
             .into_diagnostic()
             .wrap_err("无法定位当前 scoop 可执行文件")?;
 
@@ -2715,7 +2749,7 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use super::{RunPassEnvOverrides, phase_name, run_all};
+    use super::{RunPassEnvOverrides, phase_name, run_all, strip_deleted_exe_suffix};
 
     #[test]
     fn phase_name_uses_relative_phase_dir_when_present() {
@@ -2745,6 +2779,13 @@ mod tests {
         let rel = Path::new("hello.scoop");
 
         assert_eq!(phase_name(fixtures_root, rel), None);
+    }
+
+    #[test]
+    fn strip_deleted_exe_suffix_recovers_real_path() {
+        let deleted = Path::new("/tmp/target/debug/scoop (deleted)");
+        let stripped = strip_deleted_exe_suffix(deleted).unwrap();
+        assert_eq!(stripped, Path::new("/tmp/target/debug/scoop"));
     }
 
     #[test]

@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 回归：字段类型为函数值时，`receiver.f()` 需要继续被当作 callable value。
+
+struct Holder(val f: () -> Int)
+
+fun main(): Int {
+    val holder: Holder = Holder({ 7 })
+    return holder.f()
+}

@@ -13,7 +13,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
 
 use super::types::*;
 use super::{HirLowering, HirLoweringSetup};
@@ -1989,7 +1989,7 @@ fn parse_int_literal_u32(text: &str) -> Option<u32> {
 pub(super) fn collect_struct_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> StructLayoutIndex {
     let mut out: StructLayoutIndex = HashMap::new();
 
@@ -2081,7 +2081,7 @@ pub(super) fn collect_struct_layouts(
 pub(super) fn collect_enum_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> EnumLayoutIndex {
     let mut out: EnumLayoutIndex = HashMap::new();
 
@@ -2265,39 +2265,9 @@ pub(super) fn type_ref_to_layout_type_id(
     file: &ast::File,
     index: &Index,
     ty: &ast::TypeRef,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
-    match ty {
-        ast::TypeRef::Path(path) => {
-            let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty)?;
-            let layout_key = if path.args.is_empty() {
-                base_fqn
-            } else {
-                let args = path
-                    .args
-                    .iter()
-                    .map(|arg| type_ref_to_layout_type_id(source, file, index, arg, types))
-                    .collect::<Option<Vec<_>>>()?;
-                mangle_nominal_fqn(&base_fqn, &args, types)
-            };
-            find_layout_type_id_by_key(types, &layout_key)
-        }
-        ast::TypeRef::Tuple(tuple) => {
-            let elements = tuple
-                .elements
-                .iter()
-                .map(|elem| type_ref_to_layout_type_id(source, file, index, elem, types))
-                .collect::<Option<Vec<_>>>()?;
-            find_tuple_layout_type_id(types, &elements)
-        }
-        ast::TypeRef::Nullable { inner, .. } => {
-            let inner_ty = type_ref_to_layout_type_id(source, file, index, inner, types)?;
-            find_option_layout_type_id(types, inner_ty)
-        }
-        ast::TypeRef::Star { .. }
-        | ast::TypeRef::EffectRowArg { .. }
-        | ast::TypeRef::Function(_) => None,
-    }
+    lower_layout_type_ref_with_bindings(source, file, index, ty, &HashMap::new(), types)
 }
 
 fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<crate::ty::TypeId> {
@@ -2306,28 +2276,140 @@ fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<cra
         .find(|id| type_id_to_layout_fqn(types, *id).as_deref() == Some(layout_key))
 }
 
-fn find_tuple_layout_type_id(
-    types: &TypeStore,
-    elements: &[crate::ty::TypeId],
+fn lower_layout_type_ref_with_bindings(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ty: &ast::TypeRef,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
-    types.iter_ids().find(|id| {
-        matches!(
-            types.kind(*id),
-            TypeKind::Value(ValueTypeKind::Tuple(existing)) if existing.as_slice() == elements
-        )
-    })
+    match ty {
+        ast::TypeRef::Path(path) => {
+            if path.segments.len() == 1 && path.args.is_empty() {
+                let name = path.segments[0].text(source);
+                if let Some(concrete_ty) = param_map.get(name) {
+                    return Some(*concrete_ty);
+                }
+            }
+
+            let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty)?;
+            let mut type_args = Vec::new();
+            for arg in &path.args {
+                if matches!(arg, ast::TypeRef::EffectRowArg { .. }) {
+                    continue;
+                }
+                type_args.push(lower_layout_type_ref_with_bindings(
+                    source, file, index, arg, param_map, types,
+                )?);
+            }
+
+            let layout_key = if type_args.is_empty() {
+                base_fqn
+            } else {
+                mangle_nominal_fqn(&base_fqn, &type_args, types)
+            };
+            find_layout_type_id_by_key(types, &layout_key)
+        }
+        ast::TypeRef::Tuple(tuple) => {
+            if tuple.elements.is_empty() {
+                if let Some(unit_ty) = types
+                    .iter_ids()
+                    .find(|id| matches!(types.kind(*id), TypeKind::Value(ValueTypeKind::Unit)))
+                {
+                    return Some(unit_ty);
+                }
+                return Some(types.intern(TypeKind::Value(ValueTypeKind::Unit)));
+            }
+
+            let elements = tuple
+                .elements
+                .iter()
+                .map(|elem| {
+                    lower_layout_type_ref_with_bindings(source, file, index, elem, param_map, types)
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(types.ty_tuple(elements))
+        }
+        ast::TypeRef::Nullable { inner, .. } => {
+            let inner_ty =
+                lower_layout_type_ref_with_bindings(source, file, index, inner, param_map, types)?;
+            Some(types.ty_option(inner_ty))
+        }
+        ast::TypeRef::Function(fun) => {
+            let receiver = match fun.receiver.as_ref() {
+                Some(receiver) => Some(lower_layout_type_ref_with_bindings(
+                    source, file, index, receiver, param_map, types,
+                )?),
+                None => None,
+            };
+            let params = fun
+                .params
+                .iter()
+                .map(|param| {
+                    lower_layout_type_ref_with_bindings(
+                        source, file, index, param, param_map, types,
+                    )
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let return_ty = lower_layout_type_ref_with_bindings(
+                source,
+                file,
+                index,
+                &fun.return_ty,
+                param_map,
+                types,
+            )?;
+            let effects = lower_layout_effect_row_expr(
+                source,
+                file,
+                index,
+                fun.effects.as_ref(),
+                param_map,
+                types,
+            )?;
+            Some(types.ty_function(
+                receiver,
+                params,
+                return_ty,
+                effects,
+                fun.effects.as_ref().is_some_and(|row| row.closed),
+            ))
+        }
+        ast::TypeRef::Star { .. } | ast::TypeRef::EffectRowArg { .. } => None,
+    }
 }
 
-fn find_option_layout_type_id(
-    types: &TypeStore,
-    inner_ty: crate::ty::TypeId,
-) -> Option<crate::ty::TypeId> {
-    types.iter_ids().find(|id| {
-        matches!(
-            types.kind(*id),
-            TypeKind::Value(ValueTypeKind::Option(existing)) if *existing == inner_ty
-        )
-    })
+fn lower_layout_effect_row_expr(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    expr: Option<&ast::EffectRowExpr>,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    types: &mut TypeStore,
+) -> Option<EffectRow> {
+    let Some(expr) = expr else {
+        return Some(EffectRow::pure());
+    };
+    if expr.terms.is_empty() {
+        return Some(EffectRow::pure());
+    }
+
+    let terms = expr
+        .terms
+        .iter()
+        .map(|term| {
+            lower_layout_type_ref_with_bindings(
+                source,
+                file,
+                index,
+                &ast::TypeRef::Path(term.clone()),
+                param_map,
+                types,
+            )
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(EffectRow::new(terms))
 }
 
 fn push_struct_layout_field(
@@ -2394,7 +2476,7 @@ fn append_struct_body_property_layout_fields(
 pub(super) fn collect_generic_struct_instantiation_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> StructLayoutIndex {
     // 1) 收集泛型 struct 声明：base_fqn → (source, decl)
     let mut generic_structs: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
@@ -2426,9 +2508,11 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
 
     // 2) 扫描 TypeStore 中的具体实例化
     let mut out: StructLayoutIndex = HashMap::new();
-    for ty_id in types.iter_ids() {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
-            continue;
+    let concrete_type_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
+    for ty_id in concrete_type_ids {
+        let nominal = match types.kind(ty_id) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.clone(),
+            _ => continue,
         };
         if nominal.args.is_empty() {
             continue;
@@ -2506,7 +2590,7 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
 pub(super) fn collect_generic_enum_instantiation_layouts(
     pairs: &[(&SourceFile, &ast::File)],
     index: &Index,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> EnumLayoutIndex {
     // 1) 收集泛型 enum 声明
     let mut generic_enums: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
@@ -2538,9 +2622,11 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
 
     // 2) 扫描 TypeStore
     let mut out: EnumLayoutIndex = HashMap::new();
-    for ty_id in types.iter_ids() {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
-            continue;
+    let concrete_type_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
+    for ty_id in concrete_type_ids {
+        let nominal = match types.kind(ty_id) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.clone(),
+            _ => continue,
         };
         if nominal.args.is_empty() {
             continue;
@@ -2832,7 +2918,7 @@ fn resolve_field_type_fqn(
     index: &Index,
     ty_ref: Option<&ast::TypeRef>,
     param_map: &HashMap<String, crate::ty::TypeId>,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> Option<String> {
     let ty = resolve_field_type_id(source, file, index, ty_ref, param_map, types)?;
     type_id_to_layout_fqn(types, ty)
@@ -2844,52 +2930,10 @@ fn resolve_field_type_id(
     index: &Index,
     ty_ref: Option<&ast::TypeRef>,
     param_map: &HashMap<String, crate::ty::TypeId>,
-    types: &TypeStore,
+    types: &mut TypeStore,
 ) -> Option<crate::ty::TypeId> {
     let ty_ref = ty_ref?;
-    match ty_ref {
-        ast::TypeRef::Path(path) => {
-            if path.segments.len() == 1 && path.args.is_empty() {
-                let name = path.segments[0].text(source);
-                if let Some(concrete_ty) = param_map.get(name) {
-                    return Some(*concrete_ty);
-                }
-            }
-
-            let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty_ref)?;
-            let layout_key = if path.args.is_empty() {
-                base_fqn
-            } else {
-                let args = path
-                    .args
-                    .iter()
-                    .map(|arg| {
-                        resolve_field_type_id(source, file, index, Some(arg), param_map, types)
-                    })
-                    .collect::<Option<Vec<_>>>()?;
-                mangle_nominal_fqn(&base_fqn, &args, types)
-            };
-            find_layout_type_id_by_key(types, &layout_key)
-        }
-        ast::TypeRef::Tuple(tuple) => {
-            let elements = tuple
-                .elements
-                .iter()
-                .map(|elem| {
-                    resolve_field_type_id(source, file, index, Some(elem), param_map, types)
-                })
-                .collect::<Option<Vec<_>>>()?;
-            find_tuple_layout_type_id(types, &elements)
-        }
-        ast::TypeRef::Nullable { inner, .. } => {
-            let inner_ty =
-                resolve_field_type_id(source, file, index, Some(inner), param_map, types)?;
-            find_option_layout_type_id(types, inner_ty)
-        }
-        ast::TypeRef::Star { .. }
-        | ast::TypeRef::EffectRowArg { .. }
-        | ast::TypeRef::Function(_) => None,
-    }
+    lower_layout_type_ref_with_bindings(source, file, index, ty_ref, param_map, types)
 }
 
 /// T0126/T4010b1: 为所有具体的泛型 nominal 实例化生成单态化的成员 callable HIR。

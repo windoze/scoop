@@ -259,7 +259,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1a [TODO] 补齐 rich enum variant 对 function-type payload 的布局 / LLVM 主线，允许 `Created(val start: () -> ...)`
+### T4016T1a [DONE] 补齐 rich enum variant 对 function-type payload 的布局 / LLVM 主线，允许 `Created(val start: () -> ...)`
 - 范围：
   - 修复当前 `TypeRef::Function` 在 enum / struct layout side table 中丢失真实 `TypeId` / 可恢复布局键的问题，确保 HIR `EnumVariantFieldLayout`、boxed payload descriptor 与 LLVM enum layout 都能恢复 function-type 字段，而不是在 `struct field type`、`enum payload (non-scalar)` 或等价旧旁路上提前失败。
   - 打通 custom rich enum 上的 function-type payload 构造、存储、`when` 解构、局部 binder 与后续 callable-value 调用主线；不得要求改用 `Option<() -> ...>`、额外 wrapper class / object，或 task-private runtime helper 作为 workaround。
@@ -268,6 +268,18 @@
   - LLVM 路径下，自定义 enum variant 可直接承载 function type payload，并能在 ctor + pattern binder + callable invocation 主线上工作。
   - `Task` 后续可直接用 `enum` + closure payload 表示内部 state，而不是先引入额外 wrapper / ABI 特判来绕过该既有问题。
 - 依赖：T4016T1
+- 已完成：
+  - `hir/lower/util.rs` 现可为 `TypeRef::Function` 生成稳定的 layout `TypeId` / effect row，并在 generic struct/enum layout 收集时保留函数字段的真实类型信息，不再把它们降成 `None`。
+  - `typecheck/expr/call.rs` 与 `typecheck/expr/member.rs` 现已把 value member 的函数值/`FunPtr` 调用接回统一 callable-value 主线，并把重新解析出的 member resolution 写回 side table，避免 build 阶段丢失 `receiver.f()` 的精确信息。
+  - `llvm/codegen/mod.rs` 现可恢复 member access / struct ctor 结果的 concrete type，并让 struct/class 风格字段上的函数值命中统一 callable-callee 分发；不再在 `call callee`、`struct field type` 等旧旁路上失败。
+  - 新增 `enum_function_payload_basic.scoop`、`task_state_function_payload_basic.scoop`、`struct_function_field_call_basic.scoop` 与对应 typecheck fixtures，分别锁定 custom enum payload、`Task` 目标形状与字段函数值调用。
+- 已复验：
+  - `cargo check -p scoopc --features llvm`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T1R [TODO] Review：确认 function-type enum payload 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
 - 范围：

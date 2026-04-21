@@ -277,6 +277,16 @@ pub(super) fn infer_member_access_expr_type(
     Ok(inferred.ty)
 }
 
+pub(super) fn infer_member_access_ty_from_known_receiver(
+    inputs: ExprInferInputs<'_>,
+    receiver_ty: Option<TypeId>,
+    member: &ast::MemberIdent,
+    resolved: Option<&ast::ResolvedMemberRef>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    Ok(infer_member_access_with_receiver_ty(inputs, receiver_ty, member, resolved, lower)?.ty)
+}
+
 fn infer_member_access_with_receiver_ty(
     inputs: ExprInferInputs<'_>,
     receiver_ty: Option<TypeId>,

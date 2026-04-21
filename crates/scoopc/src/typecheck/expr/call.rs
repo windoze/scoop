@@ -5817,6 +5817,73 @@ fn infer_member_call_expr_type(
         }
     }
 
+    if !matches!(
+        member.resolved.as_ref(),
+        Some(ast::ResolvedMemberRef::Fun { .. } | ast::ResolvedMemberRef::ExtensionFun { .. })
+    ) {
+        let value_resolved = super::member::resolve_member_value_target_for_receiver(
+            inputs,
+            receiver,
+            Some(actual_receiver_ty),
+            member,
+            lower,
+        );
+        if matches!(
+            value_resolved.as_ref(),
+            Some(
+                ast::ResolvedMemberRef::Value { .. }
+                    | ast::ResolvedMemberRef::ExtensionValue { .. }
+            )
+        ) {
+            if let Some(resolved) = value_resolved.as_ref() {
+                lower.record_typechecked_member_resolution(member.span, resolved.clone());
+            }
+
+            let callee_ty = super::member::infer_member_access_ty_from_known_receiver(
+                inputs,
+                Some(actual_receiver_ty),
+                member,
+                value_resolved.as_ref(),
+                lower,
+            )?;
+
+            if is_funptr_type(callee_ty, lower) {
+                return infer_funptr_type_call_expr_type(
+                    inputs,
+                    call_expr,
+                    member_name,
+                    callee_ty,
+                    args,
+                    lower,
+                );
+            }
+
+            if matches!(
+                lower.type_kind(callee_ty),
+                TypeKind::Ref(RefTypeKind::Function(_))
+            ) {
+                return infer_function_type_call_expr_type(
+                    inputs,
+                    call_expr,
+                    member_name,
+                    callee_ty,
+                    args,
+                    lower,
+                );
+            }
+
+            let callee = match value_resolved.as_ref() {
+                Some(ast::ResolvedMemberRef::Value { fqn })
+                | Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => fqn.clone(),
+                _ => member_name.to_string(),
+            };
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee,
+                span: member.span.into(),
+            });
+        }
+    }
+
     // 当前阶段只支持"扩展函数调用"（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），

@@ -209,7 +209,7 @@ pub(crate) fn run_fixture(
         return Ok(());
     }
 
-    let scoop_exe = std::env::current_exe().map_err(|e| {
+    let scoop_exe = super::current_scoop_exe_path().map_err(|e| {
         super::box_diagnostic(RunLocateScoopFailed {
             fixture: rel_fixture.display().to_string(),
             source: e,

@@ -2345,6 +2345,69 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .codegen_continuation_resume_builtin(span, callee, args, expected, result_ty);
         }
 
+        enum CallableCallee {
+            FunctionValue(crate::ty::FunctionType),
+            FunPtr(crate::ty::FunctionType),
+        }
+
+        let callable_callee = self
+            .resolve_expr_concrete_type(callee)
+            .and_then(|callee_hir_ty| match self.types.kind(callee_hir_ty) {
+                TypeKind::Ref(RefTypeKind::Function(fun_ty)) => {
+                    Some(CallableCallee::FunctionValue(fun_ty.clone()))
+                }
+                TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                    if nominal.fqn == "scoop.unsafe.FunPtr" =>
+                {
+                    let sig_ty = nominal.args.first().copied()?;
+                    let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
+                    else {
+                        return None;
+                    };
+                    Some(CallableCallee::FunPtr(fun_ty.clone()))
+                }
+                _ => None,
+            });
+        if let Some(callable_callee) = callable_callee {
+            match callable_callee {
+                CallableCallee::FunctionValue(fun_ty) => {
+                    let callee_value = self.codegen_expr(callee)?;
+                    let callee_v = self.coerce_value(callee.span, callee_value, CgTy::Ref)?;
+                    let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_v.value else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "callable callee value type",
+                            at: callee.span.into(),
+                        });
+                    };
+                    return self.codegen_function_value_call_from_closure_obj(
+                        span,
+                        callee.span,
+                        closure_obj_i8,
+                        &fun_ty,
+                        args,
+                    );
+                }
+                CallableCallee::FunPtr(fun_ty) => {
+                    let callee_v = self.codegen_expr(callee)?;
+                    let (funptr_addr, funptr_int_ty) =
+                        callee_v
+                            .as_int()
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr callee value type",
+                                at: callee.span.into(),
+                            })?;
+                    return self.codegen_funptr_value_call(
+                        span,
+                        callee.span,
+                        funptr_addr,
+                        funptr_int_ty,
+                        &fun_ty,
+                        args,
+                    );
+                }
+            }
+        }
+
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。
         //
         // 说明：
@@ -9667,6 +9730,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.top_level_value_ty(fqn);
         }
 
+        if let hir::ExprKind::MemberAccess { receiver, member } = &expr.kind {
+            return self.resolve_member_access_concrete_type(receiver, member);
+        }
+
         // T0130: 对于 Call 表达式，尝试通过 callee 推导返回类型。
         // 典型场景：`printDescription(Dog())` 中 `Dog()` 是一个 class 构造器调用。
         if let hir::ExprKind::Call { callee, .. } = &expr.kind {
@@ -9674,6 +9741,78 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         None
+    }
+
+    fn resolve_member_access_concrete_type(
+        &self,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+    ) -> Option<crate::ty::TypeId> {
+        let field_fqn = match member.resolved.as_ref()? {
+            hir::MemberRef::Value { fqn, .. } | hir::MemberRef::ExtensionValue { fqn, .. } => fqn,
+            _ => return None,
+        };
+
+        if let Some(ty) = self.top_level_value_ty(field_fqn) {
+            return Some(ty);
+        }
+
+        let receiver_ty = self
+            .resolve_expr_concrete_type(receiver)
+            .unwrap_or(receiver.ty);
+        self.resolve_struct_field_concrete_type(receiver_ty, field_fqn)
+            .or_else(|| self.resolve_class_field_concrete_type(receiver_ty, field_fqn))
+    }
+
+    fn resolve_struct_field_concrete_type(
+        &self,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<crate::ty::TypeId> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = self.nominal_layout_key(nominal);
+        let layout = self
+            .struct_layouts
+            .get(&layout_key)
+            .or_else(|| self.struct_layouts.get(&nominal.fqn))?;
+        layout
+            .fields
+            .iter()
+            .find(|field| field.fqn == field_fqn)
+            .and_then(|field| field.ty)
+    }
+
+    fn resolve_class_field_concrete_type(
+        &self,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<crate::ty::TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = self.nominal_layout_key(nominal);
+        self.lookup_class_field_concrete_type_by_key(&layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| self.lookup_class_field_concrete_type_by_key(&nominal.fqn, field_fqn))
+                    .flatten()
+            })
+    }
+
+    fn lookup_class_field_concrete_type_by_key(
+        &self,
+        class_key: &str,
+        field_fqn: &str,
+    ) -> Option<crate::ty::TypeId> {
+        let class = self.class_inits.get(class_key)?;
+        if let Some(field_idx) = class.field_indices.get(field_fqn).copied() {
+            return class.fields.get(field_idx as usize).map(|field| field.ty);
+        }
+        class.super_class_fqn.as_deref().and_then(|super_fqn| {
+            self.lookup_class_field_concrete_type_by_key(super_fqn, field_fqn)
+        })
     }
 
     /// `Char` 在 LLVM 侧与 `Int` 同为 `CgTy::Int`，因此 builtin 分发需要额外看 HIR concrete type。
@@ -9693,6 +9832,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 查找 class_inits 中是否有这个 FQN（class 构造器调用）
         if self.class_inits.contains_key(fqn) {
             return self.types.find_nominal_ref_by_fqn(fqn);
+        }
+        // 值类型 struct 构造器调用。
+        if self.struct_layouts.contains_key(fqn) {
+            return self.types.iter_ids().find(|id| {
+                matches!(
+                    self.types.kind(*id),
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                        if nominal.fqn == fqn && nominal.args.is_empty()
+                )
+            });
         }
         // 查找 fun_index 中的返回类型
         if let Some(fun) = self.fun_index.get(fqn) {

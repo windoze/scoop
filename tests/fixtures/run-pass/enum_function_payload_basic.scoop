@@ -1,0 +1,29 @@
+// EXPECT: pass
+// EXPECT-EXIT: 16
+//
+// T4016T1a：custom rich enum variant 需要能直接承载函数类型 payload。
+//
+// 覆盖：
+// - `enum Step { Ready(val f: () -> Int) }` 可直接构造；
+// - `when` binder 与显式 `Step.Ready(...)` 模式 binder 都能恢复函数值；
+// - binder 产出的函数值继续走统一 callable-value 调用主线。
+
+enum Step {
+    Ready(val f: () -> Int),
+    Stop,
+}
+
+fun drive(step: Step): Int {
+    val viaWhen: Int = when (step) {
+        Ready(f) -> f()
+        Stop -> 0
+    }
+
+    val Step.Ready(bound) = step
+    return viaWhen + bound()
+}
+
+fun main(): Int {
+    val step: Step = Ready({ 8 })
+    return drive(step)
+}

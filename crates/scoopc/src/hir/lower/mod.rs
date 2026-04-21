@@ -1945,15 +1945,15 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let extern_libs = collect_extern_libs(&pairs);
 
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
-    let mut struct_layouts = collect_struct_layouts(&pairs, &index, &types);
+    let mut struct_layouts = collect_struct_layouts(&pairs, &index, &mut types);
     // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
-    let mut enum_layouts = collect_enum_layouts(&pairs, &index, &types);
+    let mut enum_layouts = collect_enum_layouts(&pairs, &index, &mut types);
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(
-        &pairs, &index, &types,
+        &pairs, &index, &mut types,
     ));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
-        &pairs, &index, &types,
+        &pairs, &index, &mut types,
     ));
     // T0125：泛型 class 的具体实例化 ClassInit。
     let class_inits = {
@@ -2103,18 +2103,18 @@ pub fn lower_for_compilation_unit(
     ctor_call_sites.extend(class_ctor_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
-    let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &types);
-    let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &types);
+    let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
+    let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &mut types);
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(
         compilation_unit,
         index,
-        &types,
+        &mut types,
     ));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
         compilation_unit,
         index,
-        &types,
+        &mut types,
     ));
     // T0125：泛型 class 的具体实例化 ClassInit。
     let class_inits = {
@@ -2309,18 +2309,18 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         .flat_map(|(source, file)| collect_extern_funs(source, file))
         .collect();
     let extern_libs = collect_extern_libs(compilation_unit);
-    let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &types);
-    let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &types);
+    let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
+    let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &mut types);
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(
         compilation_unit,
         index,
-        &types,
+        &mut types,
     ));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
         compilation_unit,
         index,
-        &types,
+        &mut types,
     ));
 
     let mut object_inits = ObjectInitIndex::new();
