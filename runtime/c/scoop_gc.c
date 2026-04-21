@@ -671,6 +671,29 @@ typedef struct ScoopGcHandleRecord {
 
 static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
 
+typedef struct ScoopGcGlobalRootRecord {
+  struct ScoopGcGlobalRootRecord *next;
+  void *base;
+  const ScoopTypeDescriptor *type_desc;
+} ScoopGcGlobalRootRecord;
+
+static ScoopGcGlobalRootRecord *scoop_gc_global_roots = 0;
+
+static uint64_t scoop_gc_global_roots_visit_unlocked(ScoopGcTraceVisitor visitor, void *ctx) {
+  if (visitor == 0) {
+    return 0;
+  }
+
+  uint64_t visited = 0;
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base == 0 || it->type_desc == 0) {
+      continue;
+    }
+    visited += scoop_gc_type_descriptor_trace(it->type_desc, it->base, visitor, ctx);
+  }
+  return visited;
+}
+
 static uint32_t scoop_gc_heap_contains_object_in_heap_unlocked(ScoopGcHeap *heap,
                                                                ScoopGcObjectHeader *obj) {
   if (heap == 0 || obj == 0) {
@@ -888,6 +911,39 @@ uint32_t scoop_handle_drop(uint64_t handle) {
 
   (void)pthread_mutex_unlock(&scoop_gc_lock);
   return 0;
+}
+
+void scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc) {
+  if (base == 0 || type_desc == 0) {
+    return;
+  }
+
+  void scoop_runtime_init(void);
+  scoop_runtime_init();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base != base) {
+      continue;
+    }
+    it->type_desc = type_desc;
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  ScoopGcGlobalRootRecord *rec = (ScoopGcGlobalRootRecord *)malloc(sizeof(ScoopGcGlobalRootRecord));
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  rec->next = scoop_gc_global_roots;
+  rec->base = base;
+  rec->type_desc = type_desc;
+  scoop_gc_global_roots = rec;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
@@ -1496,6 +1552,10 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
                                          "handle root not live");
     }
   }
+  {
+    ScoopGcVerifySlotCtx v = {.state = &st, .kind = "global_root", .thread_id = 0};
+    (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_verify_root_slot_visitor, (void *)&v);
+  }
 
   // per-thread roots
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
@@ -1865,6 +1925,10 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
     scoop_gc_baseline_update_slot_visitor((void **)&it->object, (void *)&update_ctx);
   }
 
+  // 4b2) module-global roots update：module-local backing globals 同样属于永久 roots。
+  (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_baseline_update_slot_visitor,
+                                             (void *)&update_ctx);
+
   // 4c) heap object fields update：扫描所有 live 对象（对已搬迁对象扫描其 to-space 副本）。
   for (size_t i = 0; i < live_len; i++) {
     ScoopGcObjectHeader *obj = live[i];
@@ -2040,6 +2104,9 @@ void scoop_gc_collect(void) {
     }
     scoop_gc_mark_object_if_needed(&ctx, it->object);
   }
+
+  // 1d) mark module-global roots：object/top-level backing globals 也必须保活其引用对象。
+  (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_mark_visitor, (void *)&ctx);
 
   // 2) mark transitive closure（若对象带 type descriptor）。
   while (stack.len > 0) {

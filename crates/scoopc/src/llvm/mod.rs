@@ -855,7 +855,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
-    let exit_code = codegen::MainCodegen::new(codegen::MainCodegenInputs {
+    let make_main_codegen_inputs = || codegen::MainCodegenInputs {
         context,
         module: &module,
         builder: &builder,
@@ -887,8 +887,9 @@ fn build_main_module_from_lowered_hir<'ctx>(
         extern_funs: &lowered.extern_funs,
         fun_index: &fun_index,
         effect_op_tags: Rc::clone(&effect_op_tags),
-    })
-    .codegen_main_exit_code(hir_main)?;
+    };
+    let main_codegen = codegen::MainCodegen::new(make_main_codegen_inputs());
+    let exit_code = main_codegen.codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;
 
     module

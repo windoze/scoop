@@ -20,12 +20,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // 重要：该调用点必须能产出 stackmap record，否则 GC 期间无法枚举 managed roots。
             let rt = self.declare_runtime_gc_collect_safepoint();
-            let _ = self.build_call_preserving_gc_local_roots(
-                span,
-                rt,
-                &[],
-                "gc_collect_safepoint",
-            )?;
+            let _ =
+                self.build_call_preserving_gc_local_roots(span, rt, &[], "gc_collect_safepoint")?;
             return Ok(Some(CgValue::unit()));
         }
 
@@ -839,7 +835,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut slots = Vec::new();
         for (local_id, local) in locals {
             if let Some(value_ptr_ty) = self.local_gc_root_value_ptr_type(at, &local)? {
-                slots.push((local_id, local.ptr, value_ptr_ty));
+                let slot_ptr =
+                    self.local_ptr_for_use(at, local, &format!("gc_root_slot_{local_id}"))?;
+                slots.push((local_id, slot_ptr, value_ptr_ty));
             }
         }
         slots.sort_by_key(|(id, _, _)| *id);
@@ -1166,6 +1164,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv.set_constant(true);
         gv.set_linkage(Linkage::Internal);
         Ok(gv)
+    }
+
+    pub(super) fn basic_type_contains_gc_ptrs(
+        &self,
+        at: crate::span::Span,
+        ty: BasicTypeEnum<'ctx>,
+    ) -> Result<bool, LlvmEmitError> {
+        let mut ptr_offsets = Vec::new();
+        self.collect_gc_ptr_offsets_in_basic_type(at, ty, 0, &mut ptr_offsets)?;
+        Ok(!ptr_offsets.is_empty())
+    }
+
+    pub(super) fn get_or_create_global_root_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        global_name: &str,
+        storage_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        if !self.basic_type_contains_gc_ptrs(at, storage_ty)? {
+            return Ok(None);
+        }
+
+        let wrapper_ty = self.context.struct_type(&[storage_ty], false);
+        let desc_name = format!("{global_name}__global_root_type_desc");
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &desc_name,
+            canonical_name: global_name,
+            obj_ty: wrapper_ty,
+            trace_start_offset_bytes: 0,
+            parent: None,
+            itable: None,
+            vtable: None,
+        })
+        .map(Some)
     }
 
     pub(super) fn get_or_create_class_type_desc_global(

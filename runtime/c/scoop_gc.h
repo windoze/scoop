@@ -270,6 +270,20 @@ uint64_t scoop_handle_new(void *obj);
 void *scoop_handle_get(uint64_t handle);
 uint32_t scoop_handle_drop(uint64_t handle);
 
+// --- Module-global roots（T4016b4a0） ---
+//
+// 说明：
+// - 编译器会把 object property globals、object singleton globals、top-level immutable backing
+//   globals 中“实际承载 GC 引用”的槽位注册到 runtime；
+// - GC 必须把这些模块级全局槽视为永久 roots，并在 moving/compaction 后更新其内部引用；
+// - `base` 指向该全局槽的起始地址，`type_desc` 描述其内存布局中的 GC pointer words。
+//
+// API 约定（v0）：
+// - 重复注册同一 `base` 是幂等的：runtime 会复用现有记录并更新其 `type_desc`；
+// - `base == NULL` 或 `type_desc == NULL` 时退化为 no-op；
+// - 当前不提供 unregister：这些记录与编译单元同生命周期，进程退出时统一释放。
+void scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc);
+
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);

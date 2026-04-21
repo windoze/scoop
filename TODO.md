@@ -142,7 +142,7 @@
   - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/continuation_escape_binder_resume_effect_row_runtime_basic.scoop -o /tmp/cont-shorthand.out && /tmp/cont-shorthand.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4016b4
 
-### T4016b4a0 [TODO] 把 object property / top-level immutable backing globals 纳入永久 GC roots，恢复显式 GC 后的模块级引用稳定性
+### T4016b4a0 [DONE] 把 object property / top-level immutable backing globals 纳入永久 GC roots，恢复显式 GC 后的模块级引用稳定性
 - 范围：
   - 定位并修复模块级 GC 指针全局槽未被 GC 作为永久 roots 扫描/更新的问题，至少覆盖：
     - object property globals（`__scoop_object_prop__*`）
@@ -157,7 +157,7 @@
 ### T4016b4b0 [TODO] 修复 GC stress 下 cross-thread escaped continuation resume 的 runtime 崩溃，恢复 `T4016b4b` 的有效验收前提
 - 范围：
   - 在 `T4016b4a0` 补齐模块级 GC 指针全局槽 roots 合同之后，继续定位并修复 `tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下由 worker 线程 `resume` 已逃逸 continuation 时，于 `workerA_resuming` 后异常退出的问题。
-  - 说明：当前已确认显式 GC 后 `__scoop_object_prop__Shared.cellA` 会被错误改写为后续字符串对象指针；该更基础的 global-roots 缺口需先由 `T4016b4a0` 修复，本条再继续收口 cross-thread continuation / GC / frame liveness 的剩余问题。
+  - 说明：`T4016b4a0` 已补齐 `__scoop_object_prop__*` / `__scoop_top_level_val__*` / `__scoop_object_instance__*` 的永久 roots/update 合同；`gc_continuation_multi_thread_concurrent_alloc_resume.scoop` 在 `SCOOP_GC_STRESS=1` 下现已能正常结束，本条下一步需要继续核查是否还存在更窄的 cross-thread continuation / frame liveness / thread 路径残留问题，再决定是否可直接并回 `T4016b4b` 的全量验收。
   - 核查 continuation / thread registration / GC rooting / frame liveness / cross-thread resume 合同，确保该 fixture 已能 build 的前提下，运行路径也与预期一致。
   - 补 runtime / run-pass regression，确认该类“cross-thread continuation + object allocation + GC collect”场景不再作为 `T4016b4b` 全量 `run-pass` 验收的噪声 blocker。
 - 验收：

@@ -96,6 +96,7 @@
   X(scoop_gc_heap) \
   X(scoop_gc_heap_init) \
   X(scoop_gc_heap_register_object) \
+  X(scoop_gc_register_global_root) \
   X(scoop_gc_safepoint) \
   X(scoop_gc_safepoint_poll) \
   X(scoop_gc_self_check) \

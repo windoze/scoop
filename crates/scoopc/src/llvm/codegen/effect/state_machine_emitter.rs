@@ -449,18 +449,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         step_result?;
-        self.emit_dispatch_loop_body(
+
+        let saved_block = self.builder.get_insert_block();
+        let saved_env = std::mem::take(&mut self.env);
+        let saved_return_ctx = self.return_context.take();
+        let saved_return_ty = self.current_fun_return_ty.take();
+        let saved_callee_suspend_plan = self.current_callee_suspend_plan.take();
+        let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
+        let dispatch_result = self.emit_dispatch_loop_body(
             span,
             contract,
             frame_layout,
             step_fn,
             dispatch_loop_fn,
             enclosing_return_ty,
-        )?;
+        );
+
+        self.loop_context_stack = saved_loop_stack;
+        self.current_callee_suspend_plan = saved_callee_suspend_plan;
+        self.current_fun_return_ty = saved_return_ty;
+        self.return_context = saved_return_ctx;
+        self.env = saved_env;
 
         if let Some(saved) = saved_block {
             self.builder.position_at_end(saved);
         }
+
+        dispatch_result?;
 
         Ok((step_fn, dispatch_loop_fn))
     }
@@ -1770,10 +1785,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CgTy::Unit => CgValue::unit(),
                 CgTy::Never => CgValue::never(),
                 _ => {
+                    let local_ptr = self.local_ptr_for_use(
+                        at,
+                        local,
+                        &format!("seed_outer_slot_ptr_{}", slot.id().as_u32()),
+                    )?;
                     let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
                     let loaded = self.builder.build_load(
                         llvm_ty,
-                        local.ptr,
+                        local_ptr,
                         &format!("seed_outer_load_{}", slot.id().as_u32()),
                     )?;
                     self.cg_value_from_loaded(at, local.ty, loaded)?
@@ -1791,8 +1811,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     storage_index,
                     &format!("seed_outer_slot_storage_{}", slot.id().as_u32()),
                 )?;
+                let local_ptr = self.local_ptr_for_use(
+                    at,
+                    local,
+                    &format!("seed_outer_slot_storage_ptr_src_{}", slot.id().as_u32()),
+                )?;
                 let storage_ptr = self.builder.build_pointer_cast(
-                    local.ptr,
+                    local_ptr,
                     self.llvm_i8_ptr_type(),
                     &format!("seed_outer_slot_storage_ptr_{}", slot.id().as_u32()),
                 )?;

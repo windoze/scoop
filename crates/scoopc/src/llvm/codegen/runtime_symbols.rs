@@ -55,6 +55,7 @@ pub(super) const SCOOP_FS_WRITE_ALL_TEXT_UTF8: &str = "scoop_fs_write_all_text_u
 pub(super) const SCOOP_GC_COLLECT_SAFEPOINT: &str = "scoop_gc_collect_safepoint";
 pub(super) const SCOOP_GC_DEBUG_ALLOC_GARBAGE: &str = "scoop_gc_debug_alloc_garbage";
 pub(super) const SCOOP_GC_DEBUG_HEAP_OBJECT_COUNT: &str = "scoop_gc_debug_heap_object_count";
+pub(super) const SCOOP_GC_REGISTER_GLOBAL_ROOT: &str = "scoop_gc_register_global_root";
 pub(super) const SCOOP_GC_WRITE_BARRIER: &str = "scoop_gc_write_barrier";
 pub(super) const SCOOP_HANDLE_DROP: &str = "scoop_handle_drop";
 pub(super) const SCOOP_HANDLE_GET: &str = "scoop_handle_get";

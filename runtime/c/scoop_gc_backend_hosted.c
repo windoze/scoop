@@ -63,6 +63,29 @@ typedef struct ScoopGcHandleRecord {
 
 static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
 
+typedef struct ScoopGcGlobalRootRecord {
+  struct ScoopGcGlobalRootRecord *next;
+  void *base;
+  const ScoopTypeDescriptor *type_desc;
+} ScoopGcGlobalRootRecord;
+
+static ScoopGcGlobalRootRecord *scoop_gc_global_roots = 0;
+
+static uint64_t scoop_gc_global_roots_visit_unlocked(ScoopGcTraceVisitor visitor, void *ctx) {
+  if (visitor == 0) {
+    return 0;
+  }
+
+  uint64_t visited = 0;
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base == 0 || it->type_desc == 0) {
+      continue;
+    }
+    visited += scoop_gc_type_descriptor_trace(it->type_desc, it->base, visitor, ctx);
+  }
+  return visited;
+}
+
 static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -337,6 +360,39 @@ uint32_t scoop_handle_drop(uint64_t handle) {
   return 0;
 }
 
+void scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc) {
+  if (base == 0 || type_desc == 0) {
+    return;
+  }
+
+  void scoop_runtime_init(void);
+  scoop_runtime_init();
+
+  scoop_gc_lock_acquire();
+
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base != base) {
+      continue;
+    }
+    it->type_desc = type_desc;
+    scoop_gc_lock_release();
+    return;
+  }
+
+  ScoopGcGlobalRootRecord *rec = (ScoopGcGlobalRootRecord *)malloc(sizeof(ScoopGcGlobalRootRecord));
+  if (rec == 0) {
+    scoop_gc_lock_release();
+    return;
+  }
+
+  rec->next = scoop_gc_global_roots;
+  rec->base = base;
+  rec->type_desc = type_desc;
+  scoop_gc_global_roots = rec;
+
+  scoop_gc_lock_release();
+}
+
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return;
@@ -500,6 +556,9 @@ void scoop_gc_collect(void) {
     }
     scoop_gc_mark_object_if_needed(&ctx, it->object);
   }
+
+  // 1d) mark module-global roots：module-local backing globals 也必须保活其引用对象。
+  (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_mark_visitor, (void *)&ctx);
 
   // 2) mark transitive closure
   while (stack.len > 0) {

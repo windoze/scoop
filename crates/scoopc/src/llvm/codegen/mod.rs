@@ -1307,6 +1307,82 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn rematerialize_ptr_in_current_block(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let Some(inst) = ptr.as_instruction_value() else {
+            return Ok(ptr);
+        };
+
+        if inst.get_opcode() != inkwell::values::InstructionOpcode::GetElementPtr {
+            return Ok(ptr);
+        }
+
+        let base = inst
+            .get_operand(0)
+            .and_then(|operand| operand.value())
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "local slot gep base operand",
+                at: at.into(),
+            })?;
+        let BasicValueEnum::PointerValue(base_ptr) = base else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "local slot gep base pointer type",
+                at: at.into(),
+            });
+        };
+        let base_ptr =
+            self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
+
+        let source_ty =
+            inst.get_gep_source_element_type()
+                .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                    kind: "local slot gep source type",
+                    at: at.into(),
+                })?;
+        let BasicTypeEnum::StructType(struct_ty) = source_ty else {
+            return Ok(ptr);
+        };
+
+        let mut indices = inst.get_indices();
+        if indices.is_empty() {
+            for operand_index in 1..inst.get_num_operands() {
+                let Some(operand) = inst.get_operand(operand_index).and_then(|op| op.value())
+                else {
+                    return Ok(ptr);
+                };
+                let BasicValueEnum::IntValue(index_value) = operand else {
+                    return Ok(ptr);
+                };
+                let Some(index) = index_value.get_zero_extended_constant() else {
+                    return Ok(ptr);
+                };
+                indices.push(index as u32);
+            }
+        }
+        let field_index = match indices.as_slice() {
+            [field_index] => *field_index,
+            [0, field_index] => *field_index,
+            _ => return Ok(ptr),
+        };
+
+        Ok(self
+            .builder
+            .build_struct_gep(struct_ty, base_ptr, field_index, name)?)
+    }
+
+    fn local_ptr_for_use(
+        &mut self,
+        at: crate::span::Span,
+        local: CgLocal<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        self.rematerialize_ptr_in_current_block(at, local.ptr, name)
+    }
+
     fn codegen_initializer_expr(
         &mut self,
         expr: &hir::Expr,
@@ -1637,6 +1713,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             let _stored =
                 self.store_local_value(init.span, global.as_pointer_value(), value_cg, init_value)?;
+            let storage_ty = self.llvm_basic_type_of(init.span, value_cg)?;
+            let global_name = top_level_immutable_value_global_name(&value.fqn);
+            self.register_global_root_if_needed(init.span, global, &global_name, storage_ty)?;
         }
 
         let once_end = self.declare_runtime_once_end();
@@ -1664,11 +1743,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
-            if cg.ordinary_effect_propagation_enabled() {
-                cg.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
-            }
             Ok(())
         })?;
+        if self.ordinary_effect_propagation_enabled() {
+            self.emit_ordinary_call_effect_propagation_check(at, "top_level_val_init_effect")?;
+        }
         if !self.ordinary_effect_propagation_enabled() {
             let insert_block =
                 self.builder
@@ -1847,6 +1926,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Never => CgValue::never(),
         })
+    }
+
+    fn register_global_root_if_needed(
+        &mut self,
+        at: crate::span::Span,
+        global: GlobalValue<'ctx>,
+        global_name: &str,
+        storage_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(type_desc) =
+            self.get_or_create_global_root_type_desc_global(at, global_name, storage_ty)?
+        else {
+            return Ok(());
+        };
+
+        let rt_register = self.declare_runtime_gc_register_global_root();
+        let _ = self.builder.build_call(
+            rt_register,
+            &[
+                global.as_pointer_value().into(),
+                type_desc.as_pointer_value().into(),
+            ],
+            "gc_register_global_root",
+        )?;
+        Ok(())
     }
 
     fn build_fun_callee_suspend_plan(&self, fun: &hir::FunDecl) -> Option<CalleeSuspendPlan> {
@@ -2165,11 +2269,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: callee.span.into(),
                         });
                     };
+                    let local_ptr =
+                        self.local_ptr_for_use(callee.span, local, "load_funptr_slot")?;
                     let loaded = self
                         .builder
                         .build_load(
                             self.llvm_basic_type_of(callee.span, local.ty)?,
-                            local.ptr,
+                            local_ptr,
                             "load_funptr",
                         )?
                         .into_int_value();
@@ -2804,11 +2910,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: receiver_expr.span.into(),
             });
         };
+        let local_ptr =
+            self.local_ptr_for_use(receiver_expr.span, local, "load_funptr_receiver_slot")?;
         let loaded = self
             .builder
             .build_load(
                 self.llvm_basic_type_of(receiver_expr.span, local.ty)?,
-                local.ptr,
+                local_ptr,
                 "load_funptr",
             )?
             .into_int_value();
@@ -7710,6 +7818,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         wrapper.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         let saved_block = self.builder.get_insert_block();
+        let saved_env = std::mem::take(&mut self.env);
+        let saved_loop_stack = std::mem::take(&mut self.loop_context_stack);
         let saved_return_ty = self.current_fun_return_ty;
         let saved_return_context = self.return_context;
         let saved_effect_return_context = self.effect_function_return_context;
@@ -7754,6 +7864,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         self.builder.build_return(Some(&step_result_obj))?;
 
+        self.env = saved_env;
+        self.loop_context_stack = saved_loop_stack;
         self.current_fun_return_ty = saved_return_ty;
         self.return_context = saved_return_context;
         self.effect_function_return_context = saved_effect_return_context;
@@ -9172,7 +9284,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 }
 
-                Ok(local.ptr)
+                self.local_ptr_for_use(at, local, "atomic_int_slot")
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 let Some(var) = self.top_level_vars.get(fqn) else {
@@ -9531,9 +9643,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = cg.builder.build_call(leave, &[], "leave_native")?;
             }
 
-            cg.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
             Ok(call_site)
         })?;
+        self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
 
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
@@ -9761,13 +9873,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site =
-                cg.builder
-                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_vtable")?;
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "call_vtable",
+            )?;
             call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
-            cg.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
             Ok(call_site)
         })?;
+        self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -9980,13 +10095,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site =
-                cg.builder
-                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_itable")?;
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "call_itable",
+            )?;
             call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
-            cg.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
             Ok(call_site)
         })?;
+        self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
@@ -10414,16 +10532,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site =
-                cg.builder
-                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_funptr")?;
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "call_funptr",
+            )?;
             if let Some(result_ty) = hidden_sret_result_ty {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
             call_site.set_call_convention(0);
-            cg.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
             Ok(call_site)
         })?;
+        self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -10650,9 +10771,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let llvm_local_ty = self.llvm_basic_type_of(callee_span, local.ty)?;
+        let local_ptr = self.local_ptr_for_use(callee_span, *local, "load_closure_obj_slot")?;
         let closure_obj_i8 = self
             .builder
-            .build_load(llvm_local_ty, local.ptr, "load_closure_obj")?
+            .build_load(llvm_local_ty, local_ptr, "load_closure_obj")?
             .into_pointer_value();
 
         self.codegen_function_value_call_from_closure_obj(
@@ -10773,15 +10895,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
-            let call_site =
-                cg.builder
-                    .build_indirect_call(llvm_fun_ty, typed_fn_ptr, &llvm_args, "call_closure")?;
+            let call_site = cg.builder.build_indirect_call(
+                llvm_fun_ty,
+                typed_fn_ptr,
+                &llvm_args,
+                "call_closure",
+            )?;
             if let Some(result_ty) = hidden_sret_result_ty {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
-            cg.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
             Ok(call_site)
         })?;
+        self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -11109,9 +11234,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+                let local_ptr =
+                    self.local_ptr_for_use(span, local, &format!("capture_slot_{name}"))?;
                 let loaded =
                     self.builder
-                        .build_load(llvm_ty, local.ptr, &format!("capture_load_{name}"))?;
+                        .build_load(llvm_ty, local_ptr, &format!("capture_load_{name}"))?;
 
                 let field_gep = self.builder.build_struct_gep(
                     env_ty,
@@ -12996,6 +13123,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             kind: "unknown local value",
                             at: span.into(),
                         })?;
+                let local_ptr = self.local_ptr_for_use(span, local, "load_local_slot")?;
 
                 match local.ty {
                     CgTy::Unit => Ok(CgValue::unit()),
@@ -13005,7 +13133,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(
                                 self.llvm_basic_type_of(span, local.ty)?,
-                                local.ptr,
+                                local_ptr,
                                 "load_bool",
                             )?
                             .into_int_value();
@@ -13016,7 +13144,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(
                                 self.llvm_basic_type_of(span, local.ty)?,
-                                local.ptr,
+                                local_ptr,
                                 "load_float",
                             )?
                             .into_float_value();
@@ -13027,7 +13155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(
                                 self.llvm_basic_type_of(span, local.ty)?,
-                                local.ptr,
+                                local_ptr,
                                 "load_int",
                             )?
                             .into_int_value();
@@ -13038,7 +13166,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(
                                 self.llvm_basic_type_of(span, local.ty)?,
-                                local.ptr,
+                                local_ptr,
                                 "load_str",
                             )?
                             .into_pointer_value();
@@ -13052,7 +13180,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .builder
                             .build_load(
                                 self.llvm_basic_type_of(span, local.ty)?,
-                                local.ptr,
+                                local_ptr,
                                 "load_ref",
                             )?
                             .into_pointer_value();
@@ -13064,7 +13192,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     CgTy::Tuple(_) => {
                         let raw = self.builder.build_load(
                             self.llvm_basic_type_of(span, local.ty)?,
-                            local.ptr,
+                            local_ptr,
                             "load_tuple",
                         )?;
                         Ok(CgValue {
@@ -13075,7 +13203,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     CgTy::Struct(_) => {
                         let raw = self.builder.build_load(
                             self.llvm_basic_type_of(span, local.ty)?,
-                            local.ptr,
+                            local_ptr,
                             "load_struct",
                         )?;
                         Ok(CgValue {
@@ -13086,7 +13214,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     CgTy::Enum(_) => {
                         let raw = self.builder.build_load(
                             self.llvm_basic_type_of(span, local.ty)?,
-                            local.ptr,
+                            local_ptr,
                             "load_enum",
                         )?;
                         Ok(CgValue {
@@ -13327,10 +13455,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         return Ok(CgValue::unit());
                     }
 
+                    let local_ptr = self.local_ptr_for_use(member.span, local, "field_base_ptr")?;
                     let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
                     let field_ptr = self.builder.build_struct_gep(
                         llvm_struct_ty,
-                        local.ptr,
+                        local_ptr,
                         field_idx,
                         "field_gep",
                     )?;
@@ -13401,10 +13530,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(CgValue::unit());
             }
 
+            let local_ptr = self.local_ptr_for_use(member.span, local, "tuple_base_ptr")?;
             let llvm_tuple_ty = self.llvm_tuple_type(member.span, tuple_ty)?;
             let elem_ptr = self.builder.build_struct_gep(
                 llvm_tuple_ty,
-                local.ptr,
+                local_ptr,
                 elem_idx,
                 "tuple_elem_gep",
             )?;
@@ -13531,9 +13661,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
-            cg.emit_ordinary_call_effect_propagation_check(at, "object_property_init_effect")?;
             Ok(())
         })?;
+        self.emit_ordinary_call_effect_propagation_check(at, "object_property_init_effect")?;
 
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
@@ -13677,6 +13807,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // object 单例值本身按 `Ref` ABI 表示为一个真正的 GC heap object；
         // properties 仍保存在独立的全局槽里，因此这里的实例对象只承载 header/type-desc 身份。
         let _ = self.allocate_object_singleton_instance(err_span, &obj.fqn)?;
+        let instance_global = self.declare_object_instance_global(&obj.fqn);
+        let instance_name = object_instance_global_name(&obj.fqn);
+        self.register_global_root_if_needed(
+            err_span,
+            instance_global,
+            &instance_name,
+            self.llvm_gc_i8_ptr_type().into(),
+        )?;
 
         self.env.push_scope();
         for step in &obj.steps {
@@ -13711,6 +13849,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             global.as_pointer_value(),
                             prop_cg,
                             v,
+                        )?;
+                        let storage_ty = self.llvm_basic_type_of(init.span, prop_cg)?;
+                        let global_name = object_prop_global_name(&prop_fqn);
+                        self.register_global_root_if_needed(
+                            init.span,
+                            global,
+                            &global_name,
+                            storage_ty,
                         )?;
                     }
                 }
@@ -13815,9 +13961,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
-            cg.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
             Ok(())
         })?;
+        self.emit_ordinary_call_effect_propagation_check(at, "object_init_effect")?;
 
         let instance = self.declare_object_instance_global(object_fqn);
         let loaded = self.builder.build_load(

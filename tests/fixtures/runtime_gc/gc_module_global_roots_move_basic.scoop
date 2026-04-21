@@ -1,0 +1,52 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: gc_module_global_roots_move_basic.stdout.txt
+//
+// T4016b4a0：模块级 GC 指针全局槽必须进入永久 roots/update 合同。
+//
+// 覆盖点：
+// - object property global（direct ref）：`Shared.cell`；
+// - object property global（aggregate with nested ref）：`Shared.wrap`；
+// - top-level immutable backing global（direct ref）：`savedCell`；
+// - top-level immutable backing global（aggregate with nested ref）：`savedWrap`；
+// - moving GC 后重新从这些模块级全局槽读取值，仍应得到正确对象与字段内容。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+class Cell(val label: String)
+
+struct Wrap(val label: String)
+
+object Shared {
+    val cell: Cell = Cell("shared-cell")
+    val wrap: Wrap = Wrap { label: "shared-wrap" }
+}
+
+val savedCell: Cell = Cell("saved-cell")
+val savedWrap: Wrap = Wrap { label: "saved-wrap" }
+
+fun touchGlobals(): Unit {
+    val sharedCell: Cell = Shared.cell
+    println(sharedCell.label)
+
+    val sharedWrap: Wrap = Shared.wrap
+    println(sharedWrap.label)
+
+    val topCell: Cell = savedCell
+    println(topCell.label)
+
+    val topWrap: Wrap = savedWrap
+    println(topWrap.label)
+}
+
+fun main(): Unit {
+    touchGlobals()
+
+    __scoop_gc_debug_alloc_garbage(64)
+    __scoop_gc_collect()
+
+    touchGlobals()
+}

@@ -766,10 +766,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             _ => {
+                let local_ptr = self.local_ptr_for_use(at, local, "callee_suspend_load_slot")?;
                 let llvm_ty = self.llvm_basic_type_of(at, local.ty)?;
                 let loaded = self
                     .builder
-                    .build_load(llvm_ty, local.ptr, "callee_suspend_load")?;
+                    .build_load(llvm_ty, local_ptr, "callee_suspend_load")?;
                 self.cg_value_from_loaded(at, local.ty, loaded)
             }
         }

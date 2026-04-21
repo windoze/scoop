@@ -115,6 +115,29 @@ typedef struct ScoopGcHandleRecord {
 
 static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
 
+typedef struct ScoopGcGlobalRootRecord {
+  struct ScoopGcGlobalRootRecord *next;
+  void *base;
+  const ScoopTypeDescriptor *type_desc;
+} ScoopGcGlobalRootRecord;
+
+static ScoopGcGlobalRootRecord *scoop_gc_global_roots = 0;
+
+static uint64_t scoop_gc_global_roots_visit_unlocked(ScoopGcTraceVisitor visitor, void *ctx) {
+  if (visitor == 0) {
+    return 0;
+  }
+
+  uint64_t visited = 0;
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base == 0 || it->type_desc == 0) {
+      continue;
+    }
+    visited += scoop_gc_type_descriptor_trace(it->type_desc, it->base, visitor, ctx);
+  }
+  return visited;
+}
+
 static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -2111,6 +2134,44 @@ uint32_t scoop_handle_drop(uint64_t handle) {
   return 0;
 }
 
+void scoop_gc_register_global_root(void *base, const ScoopTypeDescriptor *type_desc) {
+  if (base == 0 || type_desc == 0) {
+    return;
+  }
+
+  void scoop_runtime_init(void);
+  scoop_runtime_init();
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+
+  scoop_gc_immix_lock(state);
+
+  for (ScoopGcGlobalRootRecord *it = scoop_gc_global_roots; it != 0; it = it->next) {
+    if (it->base != base) {
+      continue;
+    }
+    it->type_desc = type_desc;
+    scoop_gc_immix_unlock(state);
+    return;
+  }
+
+  ScoopGcGlobalRootRecord *rec = (ScoopGcGlobalRootRecord *)malloc(sizeof(ScoopGcGlobalRootRecord));
+  if (rec == 0) {
+    scoop_gc_immix_unlock(state);
+    return;
+  }
+
+  rec->next = scoop_gc_global_roots;
+  rec->base = base;
+  rec->type_desc = type_desc;
+  scoop_gc_global_roots = rec;
+
+  scoop_gc_immix_unlock(state);
+}
+
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return;
@@ -2977,6 +3038,16 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
                                          "handle root not live");
     }
   }
+  {
+    ScoopGcVerifySlotCtx v = {
+        .state = &st,
+        .kind = "global_root",
+        .thread_id = 0,
+        .heap = heap,
+        .membership = &membership,
+    };
+    (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_verify_root_slot_visitor, (void *)&v);
+  }
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     const uintptr_t tid = scoop_gc_thread_id_for_diag(it->thread);
@@ -3609,6 +3680,9 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     scoop_gc_immix_update_slot_visitor((void **)&it->object, &update_ctx);
   }
 
+  // 3a3) module-global roots update：module-local backing globals 同样属于永久 roots。
+  (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_immix_update_slot_visitor, &update_ctx);
+
   // 3b) heap object fields update：扫描所有 live 对象（对已搬迁对象改为扫描其 to-space 副本）。
   for (size_t i = 0; i < live_len; i++) {
     ScoopGcObjectHeader *obj = live[i];
@@ -4125,6 +4199,10 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
     scoop_gc_immix_minor_mark_slot_visitor((void **)&it->object, (void *)&mark_ctx);
   }
 
+  // 1c2) mark module-global roots：module-local backing globals 也可能直接引用 nursery 对象。
+  (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_immix_minor_mark_slot_visitor,
+                                             (void *)&mark_ctx);
+
   // 1d) mark transitive closure（nursery 内引用）
   while (!mark_ctx.oom && stack.len > 0) {
     ScoopGcObjectHeader *obj = scoop_gc_immix_minor_work_stack_pop(&stack);
@@ -4260,6 +4338,8 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
       }
       scoop_gc_immix_update_slot_visitor((void **)&it->object, &update_ctx);
     }
+
+    (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_immix_update_slot_visitor, &update_ctx);
 
     // 3b) moved object fields update：只扫描 to-space 副本（不扫描老年代）。
     for (size_t i = 0; i < move_len; i++) {
@@ -4662,6 +4742,7 @@ void scoop_gc_collect(void) {
         }
         scoop_gc_parallel_mark_object_if_needed(&ctx, it->object);
       }
+      (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_parallel_mark_visitor, (void *)&ctx);
 
       uint64_t in_flight = __atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE);
       if (in_flight > 0) {
@@ -4774,6 +4855,8 @@ void scoop_gc_collect(void) {
       }
       scoop_gc_mark_object_if_needed(&ctx, it->object);
     }
+
+    (void)scoop_gc_global_roots_visit_unlocked(scoop_gc_mark_visitor, (void *)&ctx);
 
     // 2) mark transitive closure
     while (stack.len > 0) {

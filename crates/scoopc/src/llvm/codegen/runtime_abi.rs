@@ -1028,6 +1028,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_gc_register_global_root(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_GC_REGISTER_GLOBAL_ROOT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_gc_register_global_root(void* base, const ScoopTypeDescriptor* type_desc)`
+        //
+        // 说明：
+        // - `base` 指向一个 module-local global backing slot 的起始地址；
+        // - `type_desc` 描述该 backing slot 内部哪些 word 是 GC-managed pointers；
+        // - runtime 会把该 backing slot 当作永久 roots，并在 moving GC 后按描述更新内部引用。
+        let default_ptr_ty = self.context.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [default_ptr_ty.into(), default_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_gc_collect_safepoint(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT_SAFEPOINT;
         if let Some(existing) = self.module.get_function(NAME) {
