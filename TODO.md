@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1R -> T4016T1d -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -354,6 +354,27 @@
   - 未发现“只对 task 私有形状可用”“只有局部变量路径可用”或“换成 `Option` / wrapper / direct cast 才能过”的残余旁路；`T4016T2` 可以基于自定义 enum + closure payload 继续推进。
 - 依赖：T4016T1c
 
+### T4016T1d [TODO] 补齐 ordinary Scoop generic task-state object model 的 LLVM / typecheck 缺口
+- 范围：
+  - 在尝试实现 `T4016T2` 时，补齐把 task 主体迁回 Scoop 所直接依赖的 generic object-model 缺口，而不是继续依赖 `runtime/c/scoop_task.c` 的私有 struct 表示。
+  - 已复现的 blocker 包括：
+    - 直接用 `class Task<T>(..., var state: __TaskState<T>)` 承载 generic rich enum / continuation 状态时，LLVM 路径报 `unsupported_main_body: struct field type`；
+    - 用 `T?` / `Option<T>` 或 `Option<Nominal<T>>` 表示可空状态槽位时，LLVM 路径仍会在 codegen 中漏出 `TypeKind::Param(T)`，报 `unsupported_main_body: Option<T> inner type` / `class field type`；
+    - 改成 `Any?` 私有槽位后，`as` / `as?` 会把 `Raise<RuntimeError>` 泄漏进 `Task.step()`，而 `is` smart-cast 分支上的 generic member access 当前又会报 `unsupported_expr: member access（未 resolve）`；
+    - generic `Task<T>` / state carrier 的普通 class ctor 路径，在类型参数仅通过包装状态对象暴露时，会出现 `no_matching_overload` / `class ctor call overload mismatch/ambiguous`，无法把普通 Scoop state carrier 稳定实例化出来。
+  - 需要提供一种**生产可用且纯 Scoop 的** generic task-state 表示，使 `Task<T>` 至少能安全承载：
+    - created/start closure；
+    - waiting/awaited task + `Continuation<Any, __TaskDriverStep<T>>`；
+    - completed/cached `T`；
+    - per-task `Mutex`；
+    - 不引入 `Raise<RuntimeError>` 的公开 `Task.step(): TaskStep<T>`。
+  - 为该缺口补最小 build/typecheck/run-pass regression，直接锁定“ordinary Scoop 定义的 generic task object model 可落到 LLVM”这一前提，而不是继续只覆盖 `Created(val start: () -> __TaskStepResult)` 的孤立形状。
+- 验收：
+  - 存在一个最小可执行 probe，其表示等价于 ordinary Scoop-defined generic task state/object model，并已在 LLVM 路径上成功 build/run。
+  - `T4016T2` 不再被 generic state carrier / ctor / safe recovery 这类 object-model 缺口阻塞。
+  - 已复验相关 regression、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+- 依赖：T4016T1R
+
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
   - 依照 `SCOOP_TASK.md` 把 task-private driver result、task state 与 `Task.step()` 主体实现迁到 Scoop 代码；`__TaskStepResult` / `__TaskState` / 内部 helper 名称可调整，但必须是普通 Scoop 定义而不是新的 C runtime 语义节点。
@@ -364,7 +385,7 @@
   - 大部分 task state / step-driving 逻辑已以普通 Scoop 代码存在并可测试，不再主要驻留于 `runtime/c/scoop_task.c`。
   - async lowering 只剩 sugar / private glue，不再把 task-only runtime helper 当作语言主线的一部分。
   - 文档已说明跨线程 `step()` / resume 的最小同步合同与 GC/rooting 约束。
-- 依赖：T4016T1R
+- 依赖：T4016T1d
 
 ### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
 - 范围：

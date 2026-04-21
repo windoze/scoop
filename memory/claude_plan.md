@@ -1,72 +1,47 @@
-# 本轮执行记录
+# 执行计划与进度记录
 
-## 目标
-- 按用户要求，先检查最新提交是否提到需要先修复的既有问题。
-- 然后确认 `TODO.md` 中第一个未完成任务。
-- 但基于上一轮已完成的探查结果，当前已确认存在一个必须优先修复的既有缺陷：
-  - LLVM 路径下，boxed enum variant 携带 function-type payload 时，若通过 `val Variant(...) = expr` 解构绑定提取函数值并调用，会在 build 阶段因 `value coercion` 失败而报错。
-- 因此本轮实际优先事项是修复该既有缺陷，并补充回归覆盖；只有在该缺陷修复完成后，才判断 `TODO.md` 首个任务是否可以一并完成。
+## 当前阶段
 
-## 已知事实
-- 已确认 boxed enum 构造本身可用。
-- 已确认 boxed enum `when` 解构路径本身可用。
-- 已确认失败集中在 boxed enum `val` destructuring binder + callable 调用的组合路径。
-- 已确认问题表现为 LLVM codegen 阶段出现 `Ref -> Int` 的错误 coercion。
-- 已有未提交调试与半成品修复改动，需先审阅并整理，再继续推进。
+初始化。本文件先记录本轮的可执行计划，随后会在读取仓库状态后持续更新，不直接暴露不可审查的内部推理细节。
 
-## 关键进展
-- 已确认 `patterns.rs` 中为 variant pattern 合成 binder 恢复真实字段类型的改动是必要的，需保留：
-  - boxed enum function payload 在隐藏 `when` binder 上不能继续退化成 `Any`。
-- 已继续把故障从“enum 字段提取”缩到“隐藏 `Raise.raise(...)` 的 HIR 类型错误”：
-  - boxed destructuring 生成的字段提取类型与最终 `ValDecl` 目标类型本身都正确；
-  - 真正失败的是 pattern lowering 生成的隐藏 `Raise.raise(RuntimeError.NullAssertionFailed)` 一律被标成 `Any`；
-  - ordinary callee suspend plan 因此把 `Raise.raise` 的 `resume_slot_ty` 误建模成 `Ref`，在 `n: Int` 这类 boxed multi-field destructuring 路径上被恢复为 `Ref -> Int` coercion 失败。
-- 已实施修复：
-  - `synth_raise_null_assertion_failed()` 生成的隐藏 `Perform` 节点现改为 `Nothing` 类型；
-  - 同时把该隐藏 `Perform` 的 span 改成基于原位置的零宽 span，避免和外层合成 `when` 使用完全相同的 span，降低 resume-tail 重写误命中的风险。
-- 已用最小复现验证：
-  - `/tmp/probe_drive_pattern_nHKYt8.scoop` 现已成功 build；
-  - 运行产物返回值为 `8`，与预期一致。
-- 已补正式回归与全量验证：
-  - 新增 `tests/fixtures/run-pass/enum_function_payload_boxed_multi_field_basic.scoop`，锁定 boxed multi-field enum function payload 的 ctor、`when` 解构调用与 `val` 解构调用。
-  - 已同步 `tests/fixtures/hir/local_val_destructuring_lowering.hir` 与 `tests/fixtures/hir/safe_call_not_null_assert.hir`，反映 hidden `Raise.raise(...)` 现在为 `Nothing` 类型且使用零宽 span。
-  - 已通过：
-    - `cargo run -p scoop -- build tests/fixtures/run-pass/enum_function_payload_boxed_multi_field_basic.scoop -o /tmp/enum_function_payload_boxed_multi_field_basic.out`
-    - `/tmp/enum_function_payload_boxed_multi_field_basic.out`
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`
-    - `cargo test -p scoopc segment_dump_classifies_ -- --nocapture`
-    - `cargo run -p scoop -- test`
-    - `cargo test --all`
-    - `cargo clippy --all-targets -- -D warnings`
-- 当前结论：
-  - 这次既有缺陷已收口，且 `T4016T1R` 的 review 条件已满足；
-  - `TODO.md` / `PLAN.md` 下一步应切到 `T4016T2`。
+## 初始执行计划
 
-## 执行计划
-1. 查看最新提交信息，确认是否显式提到需要先修的既有问题。
-2. 查看 `TODO.md`、`PLAN.md`、当前 git 状态，确认本轮边界与已有改动。
-3. 审阅当前未提交改动，区分：
-   - 真实修复候选代码；
-   - 临时调试打印；
-   - 仍需补充或回退的部分。
-4. 继续定位 boxed enum destructuring 的 `Ref -> Int` 类型错配来源，重点检查：
-   - HIR lowering 的 pattern binder 类型推断；
-   - local pattern val lowering 生成的多个 `ValDecl` 与 initializer 的关联；
-   - LLVM codegen 中 `ValDecl` 初始化、局部引用与调用路径。
-5. 实施最小且正确的修复，不引入 workaround，不放宽语义。
-6. 删除所有临时调试输出，保证最终代码干净。
-7. 增加正式回归测试，覆盖 boxed enum function payload 在：
-   - `when` 解构调用；
-   - `val Variant(...) = expr` 解构调用；
-   两条路径上的行为。
-8. 运行相关测试与质量检查；若发现其它既有问题，立即转为优先修复。
-9. 若回归通过，则将当前 bugfix 视为 `T4016T1R` 的必要完成条件之一，并同步更新 `TODO.md` 与 `PLAN.md`。
-10. 提交本轮变更并停止，不继续下一项任务。
+1. 检查最新一次 Git 提交，确认提交说明里是否提到已知问题、回归、临时修复或未完成边界。
+2. 打开并阅读 `TODO.md`，定位第一个未完成任务。
+3. 打开并阅读 `PLAN.md`，核对该任务在整体计划中的上下文、依赖和优先级。
+4. 如果第一个未完成任务过大，则先细分为可单次完成的子任务，并同步更新 `TODO.md` 与 `PLAN.md`，然后本轮只实现细分后的第一个子任务。
+5. 实现当前目标任务；若在实现、测试或审查中发现任何既有问题、规格不匹配或实现边界缺口，则优先修复，或将其作为前置任务插入 `TODO.md` 后停止继续推进原任务。
+6. 运行与修改范围相关的验证，包括格式化、测试，以及按要求执行 `cargo clippy --all-targets -- -D warnings`；若失败则继续修复直到通过，或按阻塞流程调整任务计划。
+7. 完成后更新 `TODO.md`、`PLAN.md` 和本文件，记录已完成内容、验证结果及任何计划变更。
+8. 使用清晰的提交信息提交本轮变更，然后停止，不继续执行下一个任务。
 
-## 约束
-- 全程使用中文记录。
-- 不接受 workaround、fixture-only hack 或规避真实缺陷的变通。
-- 所有文件编辑使用 `apply_patch`。
-- 不回退不属于本轮的用户改动。
-- 在关键进展、计划变化、完成主要步骤时持续更新本文件。
+## 当前已知约束
+
+- 本轮只完成 `TODO.md` 中的第一个未完成任务。
+- 不能通过变通方案绕过规格或实现缺口。
+- 若发现前置缺陷，必须先修复或将其显式插入 `TODO.md` 作为前置任务。
+- 代码修改后需要保证无编译/检查告警。
+
+## 进度
+
+- 已创建计划文件，准备开始读取仓库状态。
+- 已检查最新提交：`e8261ffbbb61d1a1242e76bd5b5ec55f73926bc7 [T4016T1R] Close boxed enum callable destructuring gap`。提交说明未额外挂出新的待修 issue。
+- 已确认当前首个可执行未完成条目不是顶层父任务 `T4016`，而是其下一个具体子任务 `T4016T2`。
+- 已阅读 `TODO.md` / `PLAN.md` / `SCOOP_TASK.md` / `sysroot/core.scoop` / `runtime/c/scoop_task.c` / lowering 与 LLVM task 相关代码，确认当前 task 语义主体仍主要驻留在 C runtime，`T4016T2` 的目标是把这部分迁回 Scoop。
+
+## 探针结论
+
+为避免在错误前提上直接改生产代码，先做了若干最小编译探针，验证 ordinary Scoop 定义的 generic task object model 是否已经具备实现 `T4016T2` 的必要前提。当前结论：
+
+- `Mutex`、普通类字段、普通 enum 字段本身可用，不是 blocker。
+- 但把 generic task state 直接搬到 Scoop 时出现多条真实前置缺口：
+  - `class Task<T>(..., var state: __TaskState<T>)` 这类 generic rich enum / continuation 状态字段在 LLVM 路径报 `unsupported_main_body: struct field type`。
+  - `T?` / `Option<T>` 或 `Option<Nominal<T>>` 槽位会在 codegen 中漏出 `TypeKind::Param(T)`，触发 `unsupported_main_body: Option<T> inner type` / `class field type`。
+  - `Any?` 私有槽位方案里，`as` / `as?` 会把 `Raise<RuntimeError>` 引入 `Task.step()`；而 `is` smart-cast + generic member access 又会报 `unsupported_expr: member access（未 resolve）`。
+  - generic state carrier / `Task<T>` 的普通 ctor 路径，在类型参数只通过包装状态对象暴露时，会出现 `no_matching_overload` / `class ctor call overload mismatch/ambiguous`。
+
+## 决策
+
+- 当前不继续硬做 `T4016T2`，因为这会迫使实现绕过 ordinary Scoop generic task-state object model 的真实缺口，违反“不得以 workaround 推进”的约束。
+- 改为先在 `TODO.md` 中插入新的前置任务，精确收口上述 LLVM / typecheck 缺口；同步更新 `PLAN.md` 的顺序和说明。
+- 完成这些计划更新后提交并停止，等待下一轮从新插入的前置任务开始。
