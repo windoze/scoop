@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1R -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -281,13 +281,38 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1R [TODO] Review：确认 function-type enum payload 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
+### T4016T1b [TODO] 禁止带 effect 的函数类型使用 `as/as?`，收口函数类型转换语义
 - 范围：
-  - 复审 typecheck layout、HIR enum field metadata、LLVM enum ctor / `when` 提取 / binder / callable-value call 路径，确认 function type 没有再被降格成无类型 `Ref` / `Any`，也没有通过 task-private wrapper、helper 命名约定或 fixture 缩窄规避问题。
-  - 复核新增回归同时覆盖 inline/boxed variant、top-level/local callable value，以及 `Created(val start: () -> ...)` 这类 `T4016T2` 直接依赖的形状。
+  - 在 typecheck / infer / diagnostics 中，若 `as` / `as?` 的 source 或 target 含函数类型且其 effect row 非 `Pure`，则直接报错；不得再把这类语法解释成 runtime cast，也不得把它包装成“只是编译期 `static_cast` 风格提示”的特判。
+  - 保留普通函数子类型 / coercion 主线作为唯一合法路径：参数逆变、返回协变、effect row widening 与后续统一的 closed-row 规则仍通过赋值/期望类型/分支 LUB 生效，而不是通过显式 cast 驱动。
+  - 明确跨 runtime nominal 边界的推荐做法是 wrapper / nominal container，而不是直接对 effectful function value 做 cast；`Pure! -> Any` 的既有擦除门禁继续独立保留，不被新的 cast 规则绕开。
+  - 同步 `SCOOP_FULL_SPEC.md`、必要实现注释与 fixtures，明确 effect row 不具备 runtime-checkable semantics，non-`Pure` function type 上不定义 `as/as?`。
 - 验收：
-  - 未发现“只对 task 私有形状可用”或“换成 `Option` / wrapper 才能过”的残余旁路；`T4016T2` 可以基于自定义 enum + closure payload 继续推进。
+  - 新增 typecheck 回归锁定 `(() -> T / E) as ...` 与 `as?` 的禁止诊断。
+  - 文档与诊断不再暗示 non-`Pure` function type 可被 runtime cast。
+  - 现有函数子类型 / coercion 场景保持可用，不需要通过显式 cast 才能上转到更宽 effect row。
 - 依赖：T4016T1a
+
+### T4016T1c [TODO] 对 opaque function values 以静态 function type 的 effect row 上界决定 may-suspend 编译，补齐 wrapper/member 路径
+- 范围：
+  - 统一 state-machine planner、segment classification、callable-value codegen 与 concrete-type 恢复逻辑：对 opaque function values，call-site suspendability 由其静态 function type 的 effect row 上界决定；non-`Pure` row 必须按 may-suspend 编译。
+  - 补齐 struct/class/enum field、member access、wrapper object、分支 LUB / higher-order 返回等会把函数值藏进 opaque 表达式的路径，确保它们与 `val f = ...; f()` 使用同一套 suspendability 规则，而不是只在局部变量路径上正确。
+  - 验证同一调用点可同时兼容“静态类型为 non-`Pure`，实际值是 `Pure` closure”和“静态类型为 non-`Pure`，实际值会 `perform` 并触发 outward propagation / callee state machine”的两种情形。
+  - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 或相关设计注释，把 opaque function values 的 call-site suspendability 规则写成显式合同。
+- 验收：
+  - `handle { wrapper.f() }` 一类 direct member callable 在 `Pure` / effectful 两种实际值下都能正确工作。
+  - 新增 run-pass / state-machine dump 回归覆盖 wrapper field + direct member call + handler capture。
+  - planner 与 codegen 不再对同一 callee 表达式得出相互矛盾的 suspendability 结论。
+- 依赖：T4016T1b
+
+### T4016T1R [TODO] Review：确认 function-type payload、cast 边界与 opaque callable suspendability 已进入统一 callable-value / rich-enum 主线，而不是 task-only workaround
+- 范围：
+  - 复审 typecheck layout、cast / infer diagnostics、HIR enum field metadata、state-machine suspendability 规划、LLVM enum ctor / `when` 提取 / binder / callable-value call 路径，确认 function type 没有再被降格成无类型 `Ref` / `Any`，也没有把 effect row 误当成 runtime-checkable metadata。
+  - 复核新增回归同时覆盖 inline/boxed variant、top-level/local callable value、wrapper/member field direct call，以及 `Created(val start: () -> ...)` 这类 `T4016T2` 直接依赖的形状。
+  - 确认实现不再要求“先把 `wrapper.f` 存进局部变量再调用”这类仅为绕过 planner/codegen 脱节而存在的临时写法。
+- 验收：
+  - 未发现“只对 task 私有形状可用”“只有局部变量路径可用”或“换成 `Option` / wrapper / direct cast 才能过”的残余旁路；`T4016T2` 可以基于自定义 enum + closure payload 继续推进。
+- 依赖：T4016T1c
 
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
