@@ -22,7 +22,9 @@ void scoop_runtime_init(void);
 uint32_t scoop_runtime_is_initialized(void);
 void scoop_thread_register(void);
 void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
-uint32_t scoop_continuation_resume_into(void *continuation,
+uint32_t scoop_continuation_resume_with(void *continuation,
+                                        uint64_t resume_word,
+                                        void *resume_gc_ref,
                                         uint64_t *out_word,
                                         void **out_gc_ref);
 
@@ -43,20 +45,8 @@ typedef enum ScoopTaskStepKindU32 {
 // `runtime/c/scoop_runtime.c` 中 continuation 的前缀布局。
 //
 // task runtime 只需要：
-// - 向 continuation 写入 resume payload；
-// - 调用共享的 `scoop_continuation_resume_into(...)`；
+// - 通过共享的 `scoop_continuation_resume_with(...)` 提供 awaited payload；
 // - 把 helper 返回的 delimiter answer 解释为私有 `__TaskStepResult`。
-typedef struct ScoopContinuation {
-  ScoopGcObjectHeader hdr;
-  _Atomic uint32_t resumed;
-  uint32_t resume_state_tag;
-  void *captured_handler_stack_top;
-  void *state;
-  void *step_fn;
-  uint64_t resume_word;
-  void *resume_gc_ref;
-  void *captured_callee_suspend_state;
-} ScoopContinuation;
 
 typedef struct ScoopTaskStepResult {
   ScoopGcObjectHeader hdr;
@@ -80,15 +70,6 @@ typedef struct ScoopTask {
   uint64_t result_word;
   void *result_gc_ref;     // GC-traced
 } ScoopTask;
-
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(offsetof(ScoopContinuation, resume_word) ==
-                   offsetof(ScoopContinuation, step_fn) + sizeof(void *),
-               "ScoopContinuation.resume_word must follow step_fn");
-_Static_assert(offsetof(ScoopContinuation, resume_gc_ref) ==
-                   offsetof(ScoopContinuation, resume_word) + sizeof(uint64_t),
-               "ScoopContinuation.resume_gc_ref must follow resume_word");
-#endif
 
 static void scoop_pin_nullable_or_die(void *obj) {
   if (obj != 0 && !scoop_pin(obj)) {
@@ -392,12 +373,10 @@ static ScoopTaskStepResult *scoop_task_resume_continuation_to_step(
     exit(3);
   }
 
-  ScoopContinuation *k = (ScoopContinuation *)continuation;
-  k->resume_word = resume_word;
-  k->resume_gc_ref = resume_gc_ref;
   uint64_t step_word = 0;
   void *step_gc_ref = 0;
-  if (!scoop_continuation_resume_into(continuation, &step_word, &step_gc_ref)) {
+  if (!scoop_continuation_resume_with(
+          continuation, resume_word, resume_gc_ref, &step_word, &step_gc_ref)) {
     exit(3);
   }
 

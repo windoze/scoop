@@ -50,6 +50,7 @@
   X(scoop_continuation_resume_into) \
   X(scoop_continuation_resume_publish_pending_continuation) \
   X(scoop_continuation_resume_u64) \
+  X(scoop_continuation_resume_with) \
   X(scoop_continuation_try_resume) \
   X(scoop_effect_clear) \
   X(scoop_effect_clear_active) \

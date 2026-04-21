@@ -470,8 +470,9 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 // - `poll()` / `step()` 是手动驱动 task 的公开 surface；raw continuation 仅作为内部 suspended-state
 //   carrier 存在；
 // - 当前实现里，suspended task 可以直接理解为“ordinary object + 私有 step-result
-//   continuation”的薄封装；runtime 通过共享 continuation answer helper 取得下一步
-//   `__TaskStepResult`，底层 frame transport 继续只是 runtime ABI 内部细节，不是稳定合同。
+//   continuation”的薄封装；runtime 通过共享 continuation payload+answer helper 取得下一步
+//   `__TaskStepResult`，不直接触碰 continuation payload 字段布局；底层 frame transport 继续只是
+//   runtime ABI 内部细节，不是稳定合同。
 enum Poll<T> {
     Pending,
     Ready(val value: T),
@@ -503,8 +504,8 @@ effect Async {
 // - compiler 生成的内部 `Async.await` handler 会统一拦截 task body 里的所有 await 站点，
 //   因而在私有 helper surface 上把 resume payload 擦除为 `Any`，但 continuation 的 answer
 //   继续显式写成 `__TaskStepResult`；
-// - generic `Continuation.resume(...): Answer` 已接入语言主线；task runtime 只是把该 answer
-//   解释为私有 step result，再投影回公开的 `Poll<T>` 合同。
+// - generic `Continuation.resume(...): Answer` 已接入语言主线；task runtime 只是通过共享
+//   continuation helper 把该 answer 解释为私有 step result，再投影回公开的 `Poll<T>` 合同。
 // - `__scoop_task_from_result` / `__scoop_task_join` 只是 compiler/runtime/test harness 使用的
 //   内部 helper：前者把已知结果包装成 task，后者通过循环 `poll()` 等到 task 完成。
 class __TaskStepResult

@@ -958,10 +958,12 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // `T4016a1` 已把语言语义收口为“answer-returning continuation”：
 // `k.resume(...)` 在最近 delimiter 正常完成时应产生该 delimiter 的 answer。
 // 当前 C runtime 结构体里显式记录的仍只有 resume payload transport；delimiter answer
-// 继续复用标准化 state-machine 结果槽，并通过统一 helper
-// `scoop_continuation_resume_into(...)` 暴露给 caller，避免 `Task`/LLVM 直接窥视 frame 前缀。
+// 继续复用标准化 state-machine 结果槽。
+// `scoop_continuation_resume_with(...)` 作为共享 helper，把“写 payload + 驱动 resume +
+// 读取 delimiter answer”收口为一条 continuation ABI；`scoop_continuation_resume_into(...)`
+// 则保留为“payload 已经写好后只消费 answer channel”的更低层入口。
 // expression-position `resume(...): Answer` 与 `Task.poll()/step()` 现在都走同一条
-// continuation answer-return 通道；task 只是把该 answer 解释为私有 step result。
+// continuation payload+answer 通道；task 只是把该 answer 解释为私有 step result。
 //
 // T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，
 // 允许传递任意类型的 resume payload（scalar 走 word，GC ref/boxed compound 走 gc_ref）。
@@ -1429,6 +1431,29 @@ static uint32_t scoop_continuation_read_answer_transport(void *continuation,
   return 1;
 }
 
+static void scoop_continuation_store_resume_payload(void *continuation,
+                                                    uint64_t resume_word,
+                                                    void *resume_gc_ref) {
+  if (continuation == 0) {
+    exit(3);
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  k->resume_word = resume_word;
+  k->resume_gc_ref = resume_gc_ref;
+}
+
+static uint32_t scoop_continuation_resume_after_try(void *continuation,
+                                                    uint64_t *out_word,
+                                                    void **out_gc_ref) {
+  scoop_continuation_resume_common(continuation);
+  if (__scoop_effect_active != 0) {
+    return 0;
+  }
+
+  return scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
+}
+
 // 显式 continuation answer channel。
 //
 // 调用方先按共享 payload contract 写入 `resume_word` / `resume_gc_ref`；
@@ -1451,12 +1476,30 @@ uint32_t scoop_continuation_resume_into(void *continuation,
     return 0;
   }
 
-  scoop_continuation_resume_common(continuation);
-  if (__scoop_effect_active != 0) {
+  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref);
+}
+
+// 共享 continuation payload+answer helper。
+//
+// 调用方通过参数提供 resume payload；helper 负责把 payload 写入 continuation，
+// 然后执行 one-shot 检查、resume，并在最近 delimiter 正常完成时回填 answer transport。
+uint32_t scoop_continuation_resume_with(void *continuation,
+                                        uint64_t resume_word,
+                                        void *resume_gc_ref,
+                                        uint64_t *out_word,
+                                        void **out_gc_ref) {
+  if (out_word != 0) {
+    *out_word = 0;
+  }
+  if (out_gc_ref != 0) {
+    *out_gc_ref = 0;
+  }
+  if (!scoop_continuation_resume_try(continuation)) {
     return 0;
   }
 
-  return scoop_continuation_read_answer_transport(continuation, out_word, out_gc_ref);
+  scoop_continuation_store_resume_payload(continuation, resume_word, resume_gc_ref);
+  return scoop_continuation_resume_after_try(continuation, out_word, out_gc_ref);
 }
 
 // 兼容入口：保留旧 ABI 形状，仅负责驱动 resume；不要求 caller 消费 answer transport。
@@ -1472,9 +1515,7 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
   if (!scoop_continuation_resume_try(continuation)) {
     return;
   }
-  ScoopContinuation *k = (ScoopContinuation *)continuation;
-  k->resume_word = resume_value;
-  k->resume_gc_ref = 0;
+  scoop_continuation_store_resume_payload(continuation, resume_value, 0);
   scoop_continuation_resume_common(continuation);
 }
 

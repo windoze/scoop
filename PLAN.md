@@ -51,7 +51,7 @@
     - 已复验隔离的 fixtures runner 子集、手动 `build + SCOOP_GC_STRESS=1` 执行路径、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 全部通过；
     - 结论：此前在 `workerA_resuming` 后异常退出的 blocker 已随 `T4016b4a0` 的 GC roots 修复实质消失，本轮已把它正式收口为可持续回归的验收项。
   - `T4016b4b` 已完成：已重新盘点剩余 pure `Continuation<Resume>` shorthand 残留，并以全量 `run-pass` 完成最终验收。
-  - 下一步进入 `T4016d`：继续把 `Task` 收口为基于 continuation answer type 的薄封装，并移除剩余 runtime hack 叙事/实现债务。
+  - 下一步进入 `T4016R`：对照 production code、runtime 合同与回归，确认 `Task` 已真正退化为 continuation thin wrapper，且没有残留 task-only hack 叙事。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -83,10 +83,15 @@
     - LLVM lowering 已把 fresh-path / replay-path 的 `Continuation.resume(...): Answer` 都接到共享 answer-return helper，并在需要时解码 answer transport；
     - 已补 typecheck / run-pass 回归，覆盖 expression-position resume、safe-call，以及 resumed computation 再次 suspend 的 replay-path answer-return。
     - 已验证 `cargo test --all`、`cargo clippy --all-targets -- -D warnings`、定向 continuation 回归与新增 fixture 子集通过。
-  - `T4016d` 已有部分实现落地：
-    - async HIR lowering 生成的私有 task-step continuation 现已显式写成 `Continuation<Any, __TaskStepResult>`，不再把 answer type 藏回旧的一参 continuation 形状；
-    - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `runtime/c/scoop_runtime.c` 已改为最终叙事：`Task.poll()/step()` 与 expression-position `Continuation.resume(...)` 共用同一条 continuation answer-return 通道。
-    - 相关新增 HIR 单测与既有 async LLVM IR 回归、`cargo test --all`、`cargo clippy --all-targets -- -D warnings` 已通过。
+  - `T4016d` 已完成：
+    - async HIR lowering 生成的私有 task-step continuation 已显式写成 `Continuation<Any, __TaskStepResult>`，不再把 answer type 藏回旧的一参 continuation 形状；
+    - runtime 新增共享 helper `scoop_continuation_resume_with(...)`，把“写 payload + resume + 读 answer”收口为统一 continuation ABI；`Task.poll()/step()` 与 expression-position `Continuation.resume(...)` 现已共用这一入口，而不是各自窥视 continuation payload 字段；
+    - `runtime/c/scoop_task.c` 已删除本地 `ScoopContinuation` payload 布局镜像，pending task 恢复路径改为完全走共享 helper；
+    - LLVM `Continuation.resume(...)` fresh-path / replay-path / tail-resume fast path 已切到共享 helper，不再由 caller 直接 GEP 写 `resume_word` / `resume_gc_ref`；
+    - `scoop_continuation_resume_u64` 已保留旧的“只驱动 resume、不要求 delimiter answer”兼容语义，避免 cross-thread resume helper 被错误收口进 answer-required 路径；
+    - `sysroot/core.scoop`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `runtime/c/scoop_runtime.c` 已统一最终叙事：`Task` 只是把私有 `__TaskStepResult` continuation answer 投影回公开 `Poll<T>` 的 thin wrapper；
+    - 已补 runtime 回归 `continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failure` 与 `task_poll_resumes_pending_task_via_shared_continuation_helper`，并更新 LLVM IR 断言以锁定共享 helper 路径；
+    - 已验证 `cargo run -p scoop -- build tests/fixtures/run-pass/task_poll_step_manual_basic.scoop -o /tmp/task_poll_step_manual_basic.out`、执行 `/tmp/task_poll_step_manual_basic.out`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (375)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - `T4016b4a` 已完成：
     - type lowering 现已移除 legacy `Continuation<Resume, eff E>` shorthand，并新增早期 removed/compatibility diagnostic：要求显式写成 `Continuation<Resume, Answer, eff E>`；
     - `continuation_escape_binder_resume_effect_row_runtime_basic.scoop`、`continuation_resume_from_escape_binder_requires_step_effect.scoop` 与 `non_pure_continuation_resume_classifies_as_call_suspend_site` 单测已迁到显式 answer type；
@@ -103,7 +108,7 @@
     - LLVM codegen 改为在 object/top-level immutable 的 once-init 函数内就地注册 `__scoop_object_prop__*`、`__scoop_top_level_val__*` 与 `__scoop_object_instance__*`，同时为 backing global 生成可递归描述 nested GC refs 的 type descriptor；
     - 在修复注册路径时，还顺手收口了 ordinary pointer-shaped locals keepalive 的两个编译器回归：frame-slot GEP 现会在当前 block 重新物化，dispatch loop / task body wrapper 的嵌套函数 codegen 也不再泄漏 `env`；
     - 已验证 `cargo test -p scoopc --lib`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`、`SCOOP_GC_MOVE=1 SCOOP_GC_VERIFY_ROOTS=1 /tmp/gc_module_global_roots_move_basic.out` 与 `SCOOP_GC_STRESS=1 /tmp/gc_continuation_multi_thread_concurrent_alloc_resume.out` 通过。
-  - 下一步进入 `T4016d`：聚焦 `Task` 私有 step-result continuation 的最终薄封装语义，彻底移除 task-only runtime hack 与过渡叙事。
+  - 下一步进入 `T4016R`：聚焦 review 视角确认 `Task`/continuation 语义与实现已完全对齐，并检查是否仍有 task-only runtime hack 或双重叙事残留。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

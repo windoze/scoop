@@ -177,7 +177,7 @@
   - 已复验 `cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
 - 依赖：T4016b4b0
 
-### T4016d [TODO] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack
+### T4016d [DONE] 让 `Task` 退化为基于 continuation answer type 的薄封装，并移除 runtime hack
 - 范围：
   - task-private step driver 的 continuation answer type 要显式化：当前 `__TaskStepResult` 可继续作为内部 carrier，但它应成为 raw continuation 的显式 answer，而不是在 runtime `resume` 后由 task 私有代码回读得到的隐藏结果。
   - `Task.poll()/step()` 继续只暴露 `Poll<T>`；内部 richer step result 仍保持私有，但要建立在统一 continuation answer model 上。

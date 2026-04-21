@@ -2220,7 +2220,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             UnifiedStateTerminator::ArmResumeMatchedSite => {
                 // Tail `k.resume(...)` fast path：arm body 已计算出 resume payload（保存在
-                // last_value 中）。把它写回 continuation，然后调用 continuation_resume。
+                // last_value 中）。这里直接走共享 continuation payload+answer helper，
+                // 不再由 lowering/caller 直接触碰 continuation payload 字段布局。
                 let cont_gep = self.builder.build_struct_gep(
                     frame_layout.frame_type,
                     state_ptr,
@@ -2232,20 +2233,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_load(self.llvm_gc_i8_ptr_type(), cont_gep, "continuation_ref")?
                     .into_pointer_value();
 
-                // Write the resume payload into the continuation struct.
-                if let Some(val) = last_value {
-                    self.write_resume_payload_to_continuation(span, val, cont_ptr)?;
-                }
-
-                // Tail fast path 仍不直接消费 answer transport，但 runtime entry 已统一切到
-                // continuation answer-channel helper，避免 resume sites 再分裂成第二套 ABI。
-                let resume_fn = self.declare_runtime_continuation_resume_into();
                 let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
-                self.builder.build_call(
-                    resume_fn,
-                    &[cont_ptr.into(), null_slot.into(), null_slot.into()],
-                    "",
-                )?;
+                if let Some(val) = last_value {
+                    self.resume_continuation_with_payload(
+                        span,
+                        cont_ptr,
+                        val,
+                        null_slot,
+                        null_slot,
+                        "continuation_resume_tail",
+                    )?;
+                } else {
+                    self.resume_continuation_with_encoded_payload(
+                        cont_ptr,
+                        self.context.i64_type().const_zero(),
+                        self.llvm_gc_i8_ptr_type().const_null(),
+                        null_slot,
+                        null_slot,
+                        "continuation_resume_tail",
+                    )?;
+                }
 
                 // After resume returns, the step_fn has finished (or
                 // suspended again — the dispatch loop handles that).
@@ -4764,8 +4771,8 @@ fun main(): Int {
             .expect("llvm ir");
 
         assert!(
-            ir.contains("call i32 @scoop_continuation_resume_into"),
-            "outer when-arm try/catch should lower Continuation.resume via the shared answer-return runtime entry"
+            ir.contains("call i32 @scoop_continuation_resume_with"),
+            "outer when-arm try/catch should lower Continuation.resume via the shared payload+answer runtime entry"
         );
     }
 

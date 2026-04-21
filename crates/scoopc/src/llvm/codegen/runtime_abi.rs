@@ -1337,18 +1337,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    /// continuation answer-return ABI：调用方先写 payload，再通过 out slots 接收 answer transport。
-    pub(super) fn declare_runtime_continuation_resume_into(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_INTO;
+    /// continuation payload+answer ABI：调用方提供 payload，并通过同一入口接收 answer transport。
+    pub(super) fn declare_runtime_continuation_resume_with(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME_WITH;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `uint32_t scoop_continuation_resume_into(void* k, uint64_t* out_word, void** out_gc_ref)`
+        // `uint32_t scoop_continuation_resume_with(void* k, uint64_t resume_word, void* resume_gc_ref, uint64_t* out_word, void** out_gc_ref)`
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let slot_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i8_ptr_ty.into(), slot_ptr_ty.into(), slot_ptr_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 5] = [
+            i8_ptr_ty.into(),
+            self.context.i64_type().into(),
+            i8_ptr_ty.into(),
+            slot_ptr_ty.into(),
+            slot_ptr_ty.into(),
+        ];
         let fn_ty = self.context.i32_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }

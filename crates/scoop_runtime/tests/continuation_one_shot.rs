@@ -100,8 +100,10 @@ unsafe extern "C" {
     ) -> *mut c_void;
     fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
     fn scoop_continuation_resume(continuation: *mut c_void);
-    fn scoop_continuation_resume_into(
+    fn scoop_continuation_resume_with(
         continuation: *mut c_void,
+        resume_word: u64,
+        resume_gc_ref: *mut c_void,
         out_word: *mut u64,
         out_gc_ref: *mut *mut c_void,
     ) -> u32;
@@ -291,7 +293,7 @@ fn continuation_double_resume_uses_shared_runtime_error_transport_contract() {
 }
 
 #[test]
-fn continuation_resume_into_returns_answer_transport_and_clears_outputs_on_failure() {
+fn continuation_resume_with_returns_answer_transport_and_clears_outputs_on_failure() {
     let _guard = continuation_test_guard();
     unsafe {
         scoop_runtime_init();
@@ -321,45 +323,41 @@ fn continuation_resume_into_returns_answer_transport_and_clears_outputs_on_failu
             "scoop_continuation_alloc must return non-null"
         );
 
-        let cont = &mut *(k as *mut ScoopContinuation);
-        cont.resume_word = 77;
-        cont.resume_gc_ref = expected_gc_ref;
-
         let mut out_word = u64::MAX;
         let mut out_gc_ref = frame as *mut c_void;
         assert_eq!(
-            scoop_continuation_resume_into(k, &mut out_word, &mut out_gc_ref),
+            scoop_continuation_resume_with(k, 77, expected_gc_ref, &mut out_word, &mut out_gc_ref),
             1,
-            "resume_into must report a delimiter answer when the resumed step finishes normally"
+            "resume_with must report a delimiter answer when the resumed step finishes normally"
         );
         assert_eq!(out_word, 77);
         assert_eq!(out_gc_ref, expected_gc_ref);
         assert_eq!(
             scoop_effect_is_active(),
             0,
-            "successful resume_into must not leave the effect-active flag set"
+            "successful resume_with must not leave the effect-active flag set"
         );
 
         out_word = 999;
         out_gc_ref = expected_gc_ref;
         assert_eq!(
-            scoop_continuation_resume_into(k, &mut out_word, &mut out_gc_ref),
+            scoop_continuation_resume_with(k, 123, ptr::null_mut(), &mut out_word, &mut out_gc_ref),
             0,
             "double resume should report that no delimiter answer was produced"
         );
         assert_eq!(
             out_word, 0,
-            "failed resume_into must clear the scalar out slot"
+            "failed resume_with must clear the scalar out slot"
         );
         assert_eq!(
             out_gc_ref,
             ptr::null_mut(),
-            "failed resume_into must clear the gc_ref out slot"
+            "failed resume_with must clear the gc_ref out slot"
         );
         assert_eq!(
             scoop_effect_is_active(),
             1,
-            "failed resume_into must still surface RuntimeError through the shared effect transport"
+            "failed resume_with must still surface RuntimeError through the shared effect transport"
         );
 
         scoop_effect_clear();

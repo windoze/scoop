@@ -1246,22 +1246,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if self.current_continuation_resume_replay {
             let replay = self.take_continuation_resume_replay_state(span)?;
-            self.write_encoded_resume_payload_to_continuation(
+            let (out_word_slot, out_gc_ref_slot) =
+                self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "replay")?;
+            self.resume_continuation_with_encoded_payload(
                 replay.pending_continuation,
                 replay.resume_word,
                 replay.resume_gc_ref,
-            )?;
-
-            let resume_fn = self.declare_runtime_continuation_resume_into();
-            let (out_word_slot, out_gc_ref_slot) =
-                self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "replay")?;
-            self.builder.build_call(
-                resume_fn,
-                &[
-                    replay.pending_continuation.into(),
-                    out_word_slot.into(),
-                    out_gc_ref_slot.into(),
-                ],
+                out_word_slot,
+                out_gc_ref_slot,
                 "continuation_resume_replay",
             )?;
             self.emit_ordinary_call_effect_propagation_check(
@@ -1303,18 +1295,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: receiver.span.into(),
                 })?
         };
-        self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
-
-        let resume_fn = self.declare_runtime_continuation_resume_into();
         let (out_word_slot, out_gc_ref_slot) =
             self.alloc_continuation_resume_answer_slots(span, answer_cg_ty, "fresh")?;
-        self.builder.build_call(
-            resume_fn,
-            &[
-                cont_ptr.into(),
-                out_word_slot.into(),
-                out_gc_ref_slot.into(),
-            ],
+        self.resume_continuation_with_payload(
+            span,
+            cont_ptr,
+            payload,
+            out_word_slot,
+            out_gc_ref_slot,
             "continuation_resume",
         )?;
 
@@ -1336,21 +1324,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if self.current_continuation_resume_replay {
             let replay = self.take_continuation_resume_replay_state(span)?;
-            self.write_encoded_resume_payload_to_continuation(
+            let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
+            self.resume_continuation_with_encoded_payload(
                 replay.pending_continuation,
                 replay.resume_word,
                 replay.resume_gc_ref,
-            )?;
-
-            let resume_fn = self.declare_runtime_continuation_resume_into();
-            let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
-            self.builder.build_call(
-                resume_fn,
-                &[
-                    replay.pending_continuation.into(),
-                    null_slot.into(),
-                    null_slot.into(),
-                ],
+                null_slot,
+                null_slot,
                 "continuation_resume_replay",
             )?;
             self.emit_ordinary_call_effect_propagation_check(
@@ -1402,13 +1382,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: receiver.span.into(),
                 })?
         };
-        self.write_resume_payload_to_continuation(span, payload, cont_ptr)?;
-
-        let resume_fn = self.declare_runtime_continuation_resume_into();
         let null_slot = self.context.ptr_type(AddressSpace::default()).const_null();
-        self.builder.build_call(
-            resume_fn,
-            &[cont_ptr.into(), null_slot.into(), null_slot.into()],
+        self.resume_continuation_with_payload(
+            span,
+            cont_ptr,
+            payload,
+            null_slot,
+            null_slot,
             "continuation_resume",
         )?;
 
@@ -2080,39 +2060,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// Write a resume payload into a continuation's `resume_word` /
-    /// `resume_gc_ref` fields using the shared effect transport contract.
-    pub(super) fn write_resume_payload_to_continuation(
+    /// 通过共享 continuation runtime helper 提供 resume payload，并可选接收 delimiter answer。
+    pub(super) fn resume_continuation_with_payload(
         &mut self,
         span: crate::span::Span,
-        val: CgValue<'ctx>,
         cont_ptr: PointerValue<'ctx>,
+        val: CgValue<'ctx>,
+        out_word_slot: PointerValue<'ctx>,
+        out_gc_ref_slot: PointerValue<'ctx>,
+        call_name: &str,
     ) -> Result<(), LlvmEmitError> {
         let (word, gc_ref) = self.encode_effect_transport_value(span, val)?;
-        self.write_encoded_resume_payload_to_continuation(cont_ptr, word, gc_ref)
+        self.resume_continuation_with_encoded_payload(
+            cont_ptr,
+            word,
+            gc_ref,
+            out_word_slot,
+            out_gc_ref_slot,
+            call_name,
+        )
     }
 
-    pub(super) fn write_encoded_resume_payload_to_continuation(
+    pub(super) fn resume_continuation_with_encoded_payload(
         &mut self,
         cont_ptr: PointerValue<'ctx>,
         word: IntValue<'ctx>,
         gc_ref: PointerValue<'ctx>,
+        out_word_slot: PointerValue<'ctx>,
+        out_gc_ref_slot: PointerValue<'ctx>,
+        call_name: &str,
     ) -> Result<(), LlvmEmitError> {
-        let cont_ty = self.llvm_continuation_struct_type();
-        let word_gep = self.builder.build_struct_gep(
-            cont_ty,
-            cont_ptr,
-            6, // resume_word
-            "cont_resume_word",
+        let resume_fn = self.declare_runtime_continuation_resume_with();
+        self.builder.build_call(
+            resume_fn,
+            &[
+                cont_ptr.into(),
+                word.into(),
+                gc_ref.into(),
+                out_word_slot.into(),
+                out_gc_ref_slot.into(),
+            ],
+            call_name,
         )?;
-        self.builder.build_store(word_gep, word)?;
-        let gc_ref_gep = self.builder.build_struct_gep(
-            cont_ty,
-            cont_ptr,
-            7, // resume_gc_ref
-            "cont_resume_gc_ref",
-        )?;
-        self.builder.build_store(gc_ref_gep, gc_ref)?;
         Ok(())
     }
 

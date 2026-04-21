@@ -2351,8 +2351,12 @@ fun main(): Int {
             "state-machine handler binder lowering should unbox the transported tuple payload before reading multiple binders"
         );
         assert!(
-            ir.contains("@scoop_continuation_resume_into"),
-            "Continuation.resume lowering should route through the shared answer-return helper entry"
+            ir.contains("@scoop_continuation_resume_with"),
+            "Continuation.resume lowering should route through the shared payload+answer helper entry"
+        );
+        assert!(
+            !ir.contains("@scoop_continuation_resume_into"),
+            "Continuation.resume lowering should no longer stage payload by calling the lower-level answer-only helper directly"
         );
         assert!(
             !ir.contains("call void @scoop_effect_perform_slot_write_u64(i32"),
