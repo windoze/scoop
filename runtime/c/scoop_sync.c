@@ -7,9 +7,12 @@
 //
 // 设计约定（early stage）：
 // - `Mutex/CondVar/Once` 在 sysroot 侧声明为 class（引用类型），因此这里把它们实现为
-//   “GC-managed 对象”（以 `ScoopGcObjectHeader` 开头，并通过 `scoop_alloc` 分配）。
-// - 资源释放采用显式 `destroy()`：调用后该对象进入“已销毁”状态，后续操作会 no-op；
-//   对象内存仍由 GC 回收（TODO：未来可通过 type descriptor 的 release_fn 接入 finalizer）。
+//   “GC-managed 对象”（以 `ScoopGcObjectHeader` 开头，并通过 `scoop_alloc_typed` 分配）。
+// - 资源释放采用双路径：
+//   - 用户可通过显式 `destroy()` 提前释放平台资源；
+//   - 若对象在未显式 `destroy()` 的情况下变为不可达，则通过 type descriptor 的 release_fn
+//     在 sweep 前做同一份 cleanup。
+// - 这里的 release_fn 只是受限 GC cleanup，不等价于通用 finalizer：不保证顺序，且不允许复活对象。
 // - `Once.run(block)` 当前只支持非捕获 lambda（由后端保证）；并提供最小的“同线程重入不死锁”
 //   语义：初始化线程在 init 过程中再次 run 同一 once，会直接返回。
 
@@ -22,6 +25,7 @@
 
 // `scoop_alloc` / 线程注册 API 由 `scoop_runtime.c` 提供；这里仅做前置声明。
 void *scoop_alloc(uint64_t size);
+void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
 void scoop_thread_register(void);
 
 // GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
@@ -29,28 +33,87 @@ void scoop_thread_register(void);
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
 
+// --- Test-only destroy counters ---
+
+static uint64_t scoop_test_sync_mutex_destroy_calls = 0;
+static uint64_t scoop_test_sync_condvar_destroy_calls = 0;
+static uint64_t scoop_test_sync_once_destroy_calls = 0;
+
+void scoop_test_sync_destroy_counts_reset(void) {
+  __atomic_store_n(&scoop_test_sync_mutex_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_sync_condvar_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_sync_once_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_mutex_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_mutex_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_condvar_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_condvar_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_once_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_once_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
 // --- Mutex ---
 
 typedef struct ScoopSyncMutex {
   ScoopGcObjectHeader header;
   ScoopPlatformMutex mutex;
   uint32_t destroyed;
-  uint32_t _reserved_u32;
+  uint32_t initialized;
 } ScoopSyncMutex;
+
+static void scoop_sync_mutex_destroy_impl(ScoopSyncMutex *m) {
+  if (m == 0 || m->destroyed || !m->initialized) {
+    return;
+  }
+
+  m->destroyed = 1;
+  scoop_platform_sync_mutex_destroy(&m->mutex);
+  m->initialized = 0;
+  (void)__atomic_fetch_add(&scoop_test_sync_mutex_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+static void scoop_sync_mutex_release(void *object) {
+  scoop_sync_mutex_destroy_impl((ScoopSyncMutex *)object);
+}
+
+static const ScoopTypeDescriptor SCOOP_SYNC_MUTEX_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopSyncMutex),
+    .align_bytes = (uint64_t)_Alignof(ScoopSyncMutex),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = scoop_sync_mutex_release,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
 
 void *scoop_sync_mutex_create(void) {
   scoop_thread_register();
 
-  ScoopSyncMutex *m = (ScoopSyncMutex *)scoop_alloc((uint64_t)sizeof(ScoopSyncMutex));
+  ScoopSyncMutex *m = (ScoopSyncMutex *)scoop_alloc_typed(
+      &SCOOP_SYNC_MUTEX_TYPE_DESC, (uint64_t)sizeof(ScoopSyncMutex));
   if (m == 0) {
     return 0;
   }
 
+  m->destroyed = 1;
+  m->initialized = 0;
   if (!scoop_platform_sync_mutex_init(&m->mutex)) {
     return 0;
   }
   m->destroyed = 0;
-  m->_reserved_u32 = 0;
+  m->initialized = 1;
   return (void *)m;
 }
 
@@ -62,7 +125,7 @@ void scoop_sync_mutex_lock(void *mutex_obj) {
   scoop_thread_register();
 
   ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (m->destroyed) {
+  if (m->destroyed || !m->initialized) {
     return;
   }
   scoop_platform_sync_mutex_lock(&m->mutex);
@@ -76,7 +139,7 @@ void scoop_sync_mutex_unlock(void *mutex_obj) {
   scoop_thread_register();
 
   ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (m->destroyed) {
+  if (m->destroyed || !m->initialized) {
     return;
   }
   scoop_platform_sync_mutex_unlock(&m->mutex);
@@ -89,12 +152,7 @@ void scoop_sync_mutex_destroy(void *mutex_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (m->destroyed) {
-    return;
-  }
-  m->destroyed = 1;
-  scoop_platform_sync_mutex_destroy(&m->mutex);
+  scoop_sync_mutex_destroy_impl((ScoopSyncMutex *)mutex_obj);
 }
 
 // --- CondVar ---
@@ -103,22 +161,57 @@ typedef struct ScoopSyncCondVar {
   ScoopGcObjectHeader header;
   ScoopPlatformCondVar cond;
   uint32_t destroyed;
-  uint32_t _reserved_u32;
+  uint32_t initialized;
 } ScoopSyncCondVar;
+
+static void scoop_sync_condvar_destroy_impl(ScoopSyncCondVar *cv) {
+  if (cv == 0 || cv->destroyed || !cv->initialized) {
+    return;
+  }
+
+  cv->destroyed = 1;
+  scoop_platform_sync_condvar_destroy(&cv->cond);
+  cv->initialized = 0;
+  (void)__atomic_fetch_add(&scoop_test_sync_condvar_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+static void scoop_sync_condvar_release(void *object) {
+  scoop_sync_condvar_destroy_impl((ScoopSyncCondVar *)object);
+}
+
+static const ScoopTypeDescriptor SCOOP_SYNC_CONDVAR_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopSyncCondVar),
+    .align_bytes = (uint64_t)_Alignof(ScoopSyncCondVar),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = scoop_sync_condvar_release,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
 
 void *scoop_sync_condvar_create(void) {
   scoop_thread_register();
 
-  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)scoop_alloc((uint64_t)sizeof(ScoopSyncCondVar));
+  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)scoop_alloc_typed(
+      &SCOOP_SYNC_CONDVAR_TYPE_DESC, (uint64_t)sizeof(ScoopSyncCondVar));
   if (cv == 0) {
     return 0;
   }
 
+  cv->destroyed = 1;
+  cv->initialized = 0;
   if (!scoop_platform_sync_condvar_init(&cv->cond)) {
     return 0;
   }
   cv->destroyed = 0;
-  cv->_reserved_u32 = 0;
+  cv->initialized = 1;
   return (void *)cv;
 }
 
@@ -131,7 +224,7 @@ void scoop_sync_condvar_wait(void *condvar_obj, void *mutex_obj) {
 
   ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
   ScoopSyncMutex *m = (ScoopSyncMutex *)mutex_obj;
-  if (cv->destroyed || m->destroyed) {
+  if (cv->destroyed || !cv->initialized || m->destroyed || !m->initialized) {
     return;
   }
 
@@ -155,7 +248,7 @@ void scoop_sync_condvar_notify_one(void *condvar_obj) {
   scoop_thread_register();
 
   ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  if (cv->destroyed) {
+  if (cv->destroyed || !cv->initialized) {
     return;
   }
   scoop_platform_sync_condvar_signal(&cv->cond);
@@ -169,7 +262,7 @@ void scoop_sync_condvar_notify_all(void *condvar_obj) {
   scoop_thread_register();
 
   ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  if (cv->destroyed) {
+  if (cv->destroyed || !cv->initialized) {
     return;
   }
   scoop_platform_sync_condvar_broadcast(&cv->cond);
@@ -182,12 +275,7 @@ void scoop_sync_condvar_destroy(void *condvar_obj) {
 
   scoop_thread_register();
 
-  ScoopSyncCondVar *cv = (ScoopSyncCondVar *)condvar_obj;
-  if (cv->destroyed) {
-    return;
-  }
-  cv->destroyed = 1;
-  scoop_platform_sync_condvar_destroy(&cv->cond);
+  scoop_sync_condvar_destroy_impl((ScoopSyncCondVar *)condvar_obj);
 }
 
 // --- Once ---
@@ -205,28 +293,76 @@ typedef struct ScoopSyncOnce {
   ScoopPlatformMutex lock;
   ScoopPlatformCondVar cond;
   uint32_t state;
-  uint32_t _reserved_u32;
+  uint32_t init_flags;
   ScoopPlatformThread owner;
 } ScoopSyncOnce;
+
+enum {
+  SCOOP_SYNC_ONCE_INIT_FLAG_LOCK = 1u << 0,
+  SCOOP_SYNC_ONCE_INIT_FLAG_COND = 1u << 1,
+};
+
+static void scoop_sync_once_destroy_impl(ScoopSyncOnce *o) {
+  if (o == 0 || o->init_flags == 0u) {
+    return;
+  }
+
+  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND) != 0u) {
+    scoop_platform_sync_condvar_destroy(&o->cond);
+    o->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
+  }
+  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) != 0u) {
+    scoop_platform_sync_mutex_destroy(&o->lock);
+    o->init_flags &= ~(uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
+  }
+  o->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  (void)memset(&o->owner, 0, sizeof(o->owner));
+  (void)__atomic_fetch_add(&scoop_test_sync_once_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+static void scoop_sync_once_release(void *object) {
+  scoop_sync_once_destroy_impl((ScoopSyncOnce *)object);
+}
+
+static const ScoopTypeDescriptor SCOOP_SYNC_ONCE_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopSyncOnce),
+    .align_bytes = (uint64_t)_Alignof(ScoopSyncOnce),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = scoop_sync_once_release,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
 
 void *scoop_sync_once_create(void) {
   scoop_thread_register();
 
-  ScoopSyncOnce *o = (ScoopSyncOnce *)scoop_alloc((uint64_t)sizeof(ScoopSyncOnce));
+  ScoopSyncOnce *o =
+      (ScoopSyncOnce *)scoop_alloc_typed(&SCOOP_SYNC_ONCE_TYPE_DESC, (uint64_t)sizeof(ScoopSyncOnce));
   if (o == 0) {
     return 0;
   }
 
+  o->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
+  o->init_flags = 0u;
+  (void)memset(&o->owner, 0, sizeof(o->owner));
   if (!scoop_platform_sync_mutex_init(&o->lock)) {
     return 0;
   }
+  o->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK;
   if (!scoop_platform_sync_condvar_init(&o->cond)) {
     scoop_platform_sync_mutex_destroy(&o->lock);
+    o->init_flags = 0u;
     return 0;
   }
-  o->state = (uint32_t)SCOOP_SYNC_ONCE_STATE_UNINITIALIZED;
-  o->_reserved_u32 = 0;
-  (void)memset(&o->owner, 0, sizeof(o->owner));
+  o->init_flags |= (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND;
   return (void *)o;
 }
 
@@ -238,6 +374,9 @@ bool scoop_sync_once_is_done(void *once_obj) {
   scoop_thread_register();
 
   ScoopSyncOnce *o = (ScoopSyncOnce *)once_obj;
+  if ((o->init_flags & (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK) == 0u) {
+    return false;
+  }
   scoop_platform_sync_mutex_lock(&o->lock);
   bool done = (o->state == (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZED);
   scoop_platform_sync_mutex_unlock(&o->lock);
@@ -252,6 +391,11 @@ void scoop_sync_once_run(void *once_obj, void *env_ptr, ScoopSyncOnceInitFn fn) 
   scoop_thread_register();
 
   ScoopSyncOnce *o = (ScoopSyncOnce *)once_obj;
+  if ((o->init_flags & ((uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK |
+                        (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND)) !=
+      ((uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_LOCK | (uint32_t)SCOOP_SYNC_ONCE_INIT_FLAG_COND)) {
+    return;
+  }
   ScoopPlatformThread self = scoop_platform_thread_self();
 
   scoop_platform_sync_mutex_lock(&o->lock);

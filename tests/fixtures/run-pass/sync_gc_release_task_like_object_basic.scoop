@@ -1,0 +1,69 @@
+// EXPECT: pass
+// RUN-STDOUT: sync_gc_release_task_like_object_basic.stdout
+//
+// T4016T1d5：ordinary Scoop object 持有的 sync 资源必须在对象不可达后沿 GC release 路径释放，
+// 不能继续依赖 task-only runtime lock，也不能把“调用者手动 destroy 内部锁”当成对外契约。
+//
+// 覆盖点：
+// - 普通 Scoop class 字段直接持有 `Mutex` / `CondVar` / `Once`；
+// - 对象丢弃并触发 `__scoop_gc_collect()` 后，sync 资源会被 cleanup；
+// - 显式 `destroy()` 仍然可提前释放平台资源，且 GC sweep 不会对同一对象 double-destroy。
+
+import scoop.core.*
+import scoop.sync.*
+
+@Unsafe
+@Extern("scoop_test_sync_destroy_counts_reset")
+fun syncDestroyCountsReset(): Unit
+
+@Unsafe
+@Extern("scoop_test_sync_mutex_destroy_count")
+fun syncMutexDestroyCount(): Int
+
+@Unsafe
+@Extern("scoop_test_sync_condvar_destroy_count")
+fun syncCondVarDestroyCount(): Int
+
+@Unsafe
+@Extern("scoop_test_sync_once_destroy_count")
+fun syncOnceDestroyCount(): Int
+
+class TaskLike(
+    val lock: Mutex,
+    val ready: CondVar,
+    val started: Once,
+    var completed: Bool
+)
+
+fun printCounts(label: String) {
+    val mutexCount: Int = @Unsafe do { syncMutexDestroyCount() }
+    val condVarCount: Int = @Unsafe do { syncCondVarDestroyCount() }
+    val onceCount: Int = @Unsafe do { syncOnceDestroyCount() }
+    println(f"{label} {mutexCount} {condVarCount} {onceCount}")
+}
+
+fun dropTaskLike(): Unit {
+    val task: TaskLike = TaskLike(mutexCreate(), condVarCreate(), onceCreate(), false)
+    task.completed = true
+    println(f"drop-task-like {task.completed}")
+}
+
+fun explicitDestroySyncHandles(): Unit {
+    val lock: Mutex = mutexCreate()
+    val ready: CondVar = condVarCreate()
+    lock.destroy()
+    ready.destroy()
+}
+
+fun main() {
+    @Unsafe do { syncDestroyCountsReset() }
+
+    dropTaskLike()
+    __scoop_gc_collect()
+    printCounts("after-drop")
+
+    explicitDestroySyncHandles()
+    printCounts("after-explicit")
+    __scoop_gc_collect()
+    printCounts("after-explicit-gc")
+}

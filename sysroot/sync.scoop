@@ -11,7 +11,10 @@ import scoop.core.*
 
 /// 互斥锁（opaque handle；语义由 std/runtime 约定）。
 ///
-/// 说明：当前阶段先以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化。
+/// 说明：
+/// - 当前阶段先以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化；
+/// - `destroy()` 仍是“提前释放平台资源”的显式路径；
+/// - 若对象在未显式 `destroy()` 的情况下变为不可达，runtime 会在 GC sweep 前做受限 cleanup。
 class Mutex
 
 /// 条件变量（与 `Mutex` 配对使用）。
@@ -31,7 +34,7 @@ fun Mutex.lock(): Unit
 /// 解锁。
 fun Mutex.unlock(): Unit
 
-/// 销毁互斥锁（early stage：显式资源管理；未来可演进为 RAII/finalizer）。
+/// 销毁互斥锁（early stage：显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
 fun Mutex.destroy(): Unit
 
 // --- CondVar ---
@@ -50,7 +53,7 @@ fun CondVar.notifyOne(): Unit
 /// 唤醒所有等待者（若存在）。
 fun CondVar.notifyAll(): Unit
 
-/// 销毁条件变量。
+/// 销毁条件变量（显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
 fun CondVar.destroy(): Unit
 
 // --- Once ---
@@ -63,6 +66,7 @@ fun Once.isDone(): Bool
 
 /// 执行一次：若尚未完成，则运行 `block` 并把 once 标记为完成；否则直接返回。
 ///
-/// 说明：该 API 的具体内存序与并发语义由 std/runtime 逐步固化；T1319a 仅提供声明面。
+/// 说明：
+/// - 该 API 的具体内存序与并发语义由 std/runtime 逐步固化；T1319a 仅提供声明面；
+/// - `Once` 自身没有显式 `destroy()` API，但其内部平台资源会在对象不可达后由 runtime sweep cleanup。
 fun Once.run(block: () -> Unit): Unit
-

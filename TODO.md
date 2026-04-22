@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -466,14 +466,22 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1d5 [TODO] 为 ordinary Scoop task 持有的 sync 资源补齐无泄漏释放合同
-- 范围：
-  - 收口普通 Scoop object 持有 `Mutex` / 其它显式 `destroy()` sync 资源时的生命周期合同，保证 `Task` 迁回 Scoop 后不会因为内部锁没有 release path 而系统性泄漏平台资源。
-  - 该修复必须与当前 `scoop.sync` 的显式 `destroy()` 叙事、GC managed object model 与 runtime release/finalizer 边界一致；不得退回 task-only C struct，也不得接受“先不释放/靠进程退出回收”。
-  - 为 `Task` 目标形状补 regression，锁定 ordinary Scoop task-like object 在完成、丢弃、GC/release 边界上的 sync 资源不会泄漏或 double-destroy。
-- 验收：
-  - `T4016T2` 可在普通 Scoop `Task` 直接持有同步原语的前提下推进，而不是继续依赖 task-only runtime lock。
-  - 已有或新增 regression 能证明锁资源有明确释放路径，且不需要“调用者必须额外手动 destroy task 内部锁”这种外露契约。
+### T4016T1d5 [DONE] 为 ordinary Scoop task 持有的 sync 资源补齐无泄漏释放合同
+- 已完成：
+  - `runtime/c/scoop_sync.c` 现已把 `Mutex` / `CondVar` / `Once` 统一切到 `scoop_alloc_typed(...)` + `ScoopTypeDescriptor.release_fn`；显式 `destroy()` 与 sweep cleanup 共享同一组内部 helper，不再只靠“用户必须手动 destroy”维持平台资源释放。
+  - `Mutex` / `CondVar` 新增 `initialized` 防护，`Once` 新增初始化 flag，避免 typed allocation 失败或 sweep 路径对未完成初始化的底层平台对象做误销毁。
+  - 新增 sync destroy 测试计数器导出与 allowlist：`scoop_test_sync_destroy_counts_reset`、`scoop_test_sync_mutex_destroy_count`、`scoop_test_sync_condvar_destroy_count`、`scoop_test_sync_once_destroy_count`。
+  - `sysroot/sync.scoop` 注释已同步到新合同：显式 `destroy()` 仍是提前释放路径，但未显式释放的 sync 对象会在不可达后由 runtime sweep 做受限 cleanup。
+  - 新增 run-pass 回归 `tests/fixtures/run-pass/sync_gc_release_task_like_object_basic.scoop`，用 ordinary Scoop task-like object 直接锁定：
+    - `Mutex` / `CondVar` / `Once` 作为普通字段持有时，外层对象丢弃并 GC 后会释放资源；
+    - 显式 `destroy()` 仍可提前释放；
+    - sweep 不会 double-destroy。
+- 已复验：
+  - `cargo fmt`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T1d4
 
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
