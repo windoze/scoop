@@ -35,6 +35,7 @@ use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::span::Span;
 
 mod codegen;
+mod frontend;
 mod stackmap;
 mod target;
 pub(crate) use codegen::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
@@ -82,6 +83,10 @@ fn configure_llvm_global_options_once() {
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmEmitError {
+    #[error("LLVM 单文件前端准备失败：{message}")]
+    #[diagnostic(code(scoop::llvm::frontend_prepare_failed))]
+    Frontend { message: String },
+
     #[error(transparent)]
     #[diagnostic(transparent)]
     Parse(#[from] ParseError),
@@ -580,9 +585,14 @@ fn build_minimal_main_module<'ctx>(
     source: &SourceFile,
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    let lowered = hir::lower_for_dump(session, source)?;
-    let (source_map, entry_source_id) = build_single_file_source_map(session, source);
-    build_main_module_from_lowered_hir(&source_map, entry_source_id, context, &lowered, None)
+    let codegen_unit = frontend::prepare_single_file_codegen_unit(session, source)?;
+    build_main_module_from_lowered_hir(
+        &codegen_unit.source_map,
+        codegen_unit.entry_source_id,
+        context,
+        &codegen_unit.lowered,
+        None,
+    )
 }
 
 fn build_main_module_from_lowered_hir<'ctx>(
@@ -901,13 +911,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
     Ok(module)
 }
 
+#[cfg(test)]
 fn build_single_file_source_map(session: &Session, source: &SourceFile) -> (SourceMap, SourceId) {
-    let mut source_map = SourceMap::new();
-    for file in &session.sysroot().files {
-        let _ = source_map.add_source_clone(&file.source);
-    }
-    let entry_source_id = source_map.add_source_clone(source);
-    (source_map, entry_source_id)
+    let input_sources = vec![source.clone()];
+    frontend::build_source_map_with_extra_sources(session, &input_sources, 0)
 }
 
 fn entry_source(source_map: &SourceMap, entry_source_id: SourceId) -> &SourceFile {
@@ -995,11 +1002,13 @@ package fixtures.clayout
 
 import scoop.core.*
 
-@CLayout(packed = 1)
+@CLayout(packed: 1)
 struct Packed(val a: UInt8, val b: Int64)
 
 fun main() {
-    val s = Packed { a: 1, b: 2 }
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s = Packed { a: a0, b: b0 }
     println(0)
 }
 "#,
@@ -1034,11 +1043,13 @@ package fixtures.clayout
 
 import scoop.core.*
 
-@CLayout(aligned = 16, packed = 1)
+@CLayout(aligned: 16, packed: 1)
 struct AlignedPacked(val a: UInt8, val b: Int64)
 
 fun main() {
-    val s = AlignedPacked { a: 1, b: 2 }
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s = AlignedPacked { a: a0, b: b0 }
     println(0)
 }
 "#,
@@ -1084,11 +1095,13 @@ package fixtures.clayout
 
 import scoop.core.*
 
-@CLayout(packed = 1)
+@CLayout(packed: 1)
 struct Packed(val a: UInt8, val b: Int64)
 
 fun main() {
-    val s: Packed = Packed { a: 1, b: 2 }
+    val a0: UInt8 = 1
+    val b0: Int64 = 2
+    val s: Packed = Packed { a: a0, b: b0 }
     val x: Int64 = s.b
     println(0)
 }
@@ -1699,8 +1712,8 @@ fun choose(flag: Bool, left: Float64, right: Float64): Float64 {
 }
 
 fun main() {
-    val a64: Float64 = seed64()
-    val a32: Float32 = seed32()
+    val a64: Float64 = @Unsafe do { seed64() }
+    val a32: Float32 = @Unsafe do { seed32() }
     val b64: Float64 = id64(a64)
     val b32: Float32 = id32(a32)
     val c64: Float64 = choose(true, b64, a64)
@@ -1748,8 +1761,8 @@ fun seed64(): Float64
 fun seed32(): Float32
 
 fun main() {
-    val a64: Float64 = seed64()
-    val a32: Float32 = seed32()
+    val a64: Float64 = @Unsafe do { seed64() }
+    val a32: Float32 = @Unsafe do { seed32() }
 
     val s64: String = a64.toString()
     val s32: String = a32.toString()
@@ -2402,6 +2415,73 @@ fun main(): Int {
         assert!(
             !ir.contains("@scoop_task_join"),
             "async task body 内的 await 不应再退回到内部 join helper"
+        );
+    }
+
+    #[test]
+    fn single_file_minimal_ir_supports_handled_async_await() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val resultTask: Task<Int> = async {
+        val t: Task<Int> = async { 41 }
+        val x: Int = await t
+        x + 1
+    }
+
+    return handle {
+        Async.await(resultTask)
+    } with {
+        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_task_create"),
+            "single-file LLVM 路径应继续把 async sugar 降到 task create helper"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
+            "handled Async.await(...) 的 perform site 应在最小 IR 路径上保留 effect transport lowering"
+        );
+        assert!(
+            ir.contains("@scoop_task_join"),
+            "外层 handled Async.await(...) 的 arm body 应能在最小 IR 路径上看到 task join helper"
+        );
+    }
+
+    #[test]
+    fn single_file_minimal_ir_includes_compilable_sysroot_string_helpers() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val word: String = "hello".substring(1, 4)
+    return if (word == "ell") 1 else 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop.core.substring("),
+            "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
         );
     }
 

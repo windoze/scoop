@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -440,15 +440,31 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1d4 [TODO] 让 single-file / minimal LLVM IR 路径纳入可编译 sysroot 源，与 `scoop build` 保持一致
+### T4016T1d4 [DONE] 让 single-file / minimal LLVM IR 路径纳入可编译 sysroot 源，与 `scoop build` 保持一致
 - 范围：
-  - 修复 `emit_minimal_main_ir(...)`、`build_minimal_main_module(...)`、相关 test helper 与 source-map/fun-index 组装路径，使其像 `scoop build` 一样把 `sysroot/task.scoop` 这类可编译 sysroot 源纳入完整前端 / lowering / codegen 主线。
+  - 修复 `emit_minimal_main_ir(...)`、`build_minimal_main_module(...)`、相关 test helper 与 source-map/fun-index 组装路径，使其像 `scoop build` 一样把 `stdlib/*.scoop` 与 `sysroot/task.scoop` 这类可编译 sysroot 源纳入完整前端 / lowering / codegen 主线。
   - 确保 async/task 相关 LLVM 单测看到的是 ordinary Scoop helper 函数体，而不是只看得到 sysroot 签名、最终在 codegen 阶段落成 `UnsupportedMainBody { kind: "call callee type" }`。
   - 新增或修正定向测试，锁定 single-file/minimal IR 路径与 build pipeline 不再分叉。
 - 验收：
-  - `cargo test -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture` 通过。
-  - `emit_minimal_main_ir(...)` 对 async/task helper 的行为与 `scoop build` 保持一致，不再遗漏可编译 sysroot source。
+  - `cargo test -p scoopc --features llvm async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture` 通过。
+  - `emit_minimal_main_ir(...)` 对 async/task helper 与 `String.substring(...)` 这类 support source 的行为与 `scoop build` 保持一致，不再遗漏 `stdlib` / 可编译 sysroot source。
 - 依赖：T4016T1d3
+- 已完成：
+  - 新增 `crates/scoopc/src/llvm/frontend.rs`，为单文件 LLVM 路径补齐 build 同款的 parse / resolve / typecheck / monomorph key 收集 / `lower_for_compilation_unit_multi_files_with_type_env(...)` 组装。
+  - `emit_minimal_main_ir(...)` / `build_minimal_main_module(...)` 不再直接走 `hir::lower_for_dump(...)`；现在会把 `stdlib/*.scoop`、`session.sysroot().compilable_source_paths` 与入口文件一起纳入完整前端与 source map。
+  - `scoopc --emit-llvm tests/fixtures/run-pass/async_await_minimal_int_basic.scoop` 与 `scoopc --emit-llvm tests/fixtures/run-pass/stdlib_string_basic.scoop` 已从此前的 `unsupported_main_body` / `unresolved_member` 恢复为稳定产出 LLVM IR。
+  - 新增 LLVM 单测 `single_file_minimal_ir_supports_handled_async_await` 与 `single_file_minimal_ir_includes_compilable_sysroot_string_helpers`，并把既有 `@CLayout` / `@Extern` IR 单测源码调整为与 build 路径一致的合法输入，避免继续依赖旧的最小调试旁路。
+- 已复验：
+  - `cargo fmt`
+  - `cargo test -p scoopc --features llvm async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture`
+  - `cargo test -p scoopc --features llvm single_file_minimal_ir_supports_handled_async_await -- --nocapture`
+  - `cargo test -p scoopc --features llvm single_file_minimal_ir_includes_compilable_sysroot_string_helpers -- --nocapture`
+  - `cargo run -p scoopc --features llvm -- --emit-llvm tests/fixtures/run-pass/async_await_minimal_int_basic.scoop -o /tmp/async_await_minimal_int_basic.ll`
+  - `cargo run -p scoopc --features llvm -- --emit-llvm tests/fixtures/run-pass/stdlib_string_basic.scoop -o /tmp/stdlib_string_basic.ll`
+  - `cargo test -p scoopc --features llvm`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T1d5 [TODO] 为 ordinary Scoop task 持有的 sync 资源补齐无泄漏释放合同
 - 范围：
