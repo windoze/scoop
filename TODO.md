@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -416,7 +416,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T1d3 [TODO] 补齐限定 enum variant ctor / `when` pattern 主线，避免 ordinary Scoop task 依赖未定义解析旁路
+### T4016T1d3 [DONE] 补齐限定 enum variant ctor / `when` pattern 主线，避免 ordinary Scoop task 依赖未定义解析旁路
 - 范围：
   - 让表达式位置的 `Enum.Variant(...)` 能稳定走 enum variant ctor 主线，而不是只支持 unqualified `Variant(...)` 或 unit variant 的 `Enum.Variant` 值。
   - 让 `when` variant pattern 与现有 `val Result.Ok(v) = r` 解构能力对齐，支持 `Enum.Variant(...)` / `Enum.Variant` 的限定写法，而不是在 parser 阶段就报“期望 `->`，但遇到 `.`”。
@@ -425,6 +425,20 @@
   - `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_manual_basic.scoop -o /tmp/task_step_manual_basic.out` 不再因 `scoop.core.TaskStep.Ready` unresolved_member 失败。
   - 限定 enum variant ctor / `when` pattern 有独立 parser / typecheck / run-pass regression，不再只能靠 unqualified 写法绕过。
 - 依赖：T4016T1d2
+- 已完成：
+  - `crates/scoopc/src/ast/mod.rs` 的 `when` variant pattern 现已记录完整 `TypePath`；`crates/scoopc/src/parser/expr.rs` 已支持 `Enum.Variant(...)` 与 `Enum.Variant` 的限定写法，不再在 parser 阶段把 `.` 误判成 arm 分隔前的非法 token。
+  - `crates/scoopc/src/resolve/mod.rs` 现会把所有 enum variants 注入 value namespace；`crates/scoopc/src/typecheck/expr/call.rs` / `infer.rs` / `llvm/codegen/mod.rs` 已把 `Enum.Variant(...)` 接回统一 enum variant ctor 主线，而不是只支持 unqualified ctor 或 0-arg `Enum.Variant` 值。
+  - `crates/scoopc/src/typecheck/when_pat.rs` 与 `val_pat.rs` 现按“限定名前缀解析到的 enum FQN”做匹配，允许 `TaskStep.Ready(...)` 这类 generic enum 在省略 type args 的前缀写法下稳定通过，不再误报 `type_arity_mismatch`。
+  - `tests/fixtures/run-pass/task_step_manual_basic.scoop` 已改为使用 `TaskStep.Pending` / `TaskStep.Ready(value)` 的 sysroot 限定写法；新增多文件回归 `tests/fixtures/typecheck_multi/qualified_enum_variant_ctor_when_pattern_cross_file`，锁定 cross-file qualified ctor / `when` pattern。
+- 已复验：
+  - `cargo test -p scoopc parse_when_qualified_variant_patterns -- --nocapture`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck_multi/qualified_enum_variant_ctor_when_pattern_cross_file`
+  - `cargo run -p scoop -- build /tmp/qualified_variant_expr_only.scoop -o /tmp/qualified_variant_expr_only.out`
+  - `cargo run -p scoop -- build /tmp/qualified_variant_ctor.scoop -o /tmp/qualified_variant_ctor.out`
+  - `/tmp/qualified_variant_ctor.out`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T1d4 [TODO] 让 single-file / minimal LLVM IR 路径纳入可编译 sysroot 源，与 `scoop build` 保持一致
 - 范围：

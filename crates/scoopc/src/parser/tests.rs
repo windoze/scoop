@@ -279,17 +279,19 @@ fn parse_when_variant_payload_or_pattern() {
     };
     assert_eq!(pats.len(), 2);
 
-    let ast::WhenPat::Variant { name, args, .. } = &pats[0] else {
+    let ast::WhenPat::Variant { path, args, .. } = &pats[0] else {
         panic!("期望第一个 or 分支为 variant pattern");
     };
-    assert_eq!(src.slice(name.span), "Hit");
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(src.slice(path.segments[0].span), "Hit");
     assert_eq!(args.len(), 1);
     assert!(matches!(args[0], ast::WhenPat::IntLit { .. }));
 
-    let ast::WhenPat::Variant { name, args, .. } = &pats[1] else {
+    let ast::WhenPat::Variant { path, args, .. } = &pats[1] else {
         panic!("期望第二个 or 分支为 variant pattern");
     };
-    assert_eq!(src.slice(name.span), "Miss");
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(src.slice(path.segments[0].span), "Miss");
     assert!(args.is_empty());
 }
 
@@ -313,23 +315,63 @@ fn parse_when_bare_variant_or_pattern_keeps_zero_arity_variants() {
     };
     assert_eq!(pats.len(), 2);
 
-    let ast::WhenPat::Variant { name, args, .. } = &pats[0] else {
+    let ast::WhenPat::Variant { path, args, .. } = &pats[0] else {
         panic!("期望第一个 or 分支为 bare variant pattern");
     };
-    assert_eq!(src.slice(name.span), "Hit");
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(src.slice(path.segments[0].span), "Hit");
     assert!(
         args.is_empty(),
         "bare variant pattern 不应被 parser 扩成 payload wildcard"
     );
 
-    let ast::WhenPat::Variant { name, args, .. } = &pats[1] else {
+    let ast::WhenPat::Variant { path, args, .. } = &pats[1] else {
         panic!("期望第二个 or 分支为 bare variant pattern");
     };
-    assert_eq!(src.slice(name.span), "Miss");
+    assert_eq!(path.segments.len(), 1);
+    assert_eq!(src.slice(path.segments[0].span), "Miss");
     assert!(
         args.is_empty(),
         "bare variant pattern 不应被 parser 扩成 payload wildcard"
     );
+}
+
+#[test]
+fn parse_when_qualified_variant_patterns() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval choice = when (x) { TaskStep.Ready(1) | TaskStep.Pending -> 1 else -> 2 }\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(choice) = &file.items[0] else {
+        panic!("期望第一个 item 为 val");
+    };
+    let choice_init = choice.init.as_ref().expect("choice 应有 initializer");
+    let ast::ExprKind::When { arms, .. } = &choice_init.kind else {
+        panic!("期望 choice initializer 为 when 表达式");
+    };
+    let ast::WhenPat::Or { pats, .. } = &arms[0].pat else {
+        panic!("期望首个 when pattern 为 or-pattern");
+    };
+    assert_eq!(pats.len(), 2);
+
+    let ast::WhenPat::Variant { path, args, .. } = &pats[0] else {
+        panic!("期望第一个 or 分支为 qualified variant pattern");
+    };
+    assert_eq!(path.segments.len(), 2);
+    assert_eq!(src.slice(path.segments[0].span), "TaskStep");
+    assert_eq!(src.slice(path.segments[1].span), "Ready");
+    assert_eq!(args.len(), 1);
+    assert!(matches!(args[0], ast::WhenPat::IntLit { .. }));
+
+    let ast::WhenPat::Variant { path, args, .. } = &pats[1] else {
+        panic!("期望第二个 or 分支为 qualified bare variant pattern");
+    };
+    assert_eq!(path.segments.len(), 2);
+    assert_eq!(src.slice(path.segments[0].span), "TaskStep");
+    assert_eq!(src.slice(path.segments[1].span), "Pending");
+    assert!(args.is_empty());
 }
 
 #[test]

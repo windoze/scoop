@@ -157,12 +157,19 @@ impl<'a> HirLowering<'a> {
                 span: *span,
                 elements: elements.iter().map(|e| self.lower_when_pat(e)).collect(),
             },
-            ast::WhenPat::Variant { span, name, args } => WhenPat::Variant {
-                span: *span,
-                name_span: name.span,
-                name: name.text(self.source).to_string(),
-                args: args.iter().map(|a| self.lower_when_pat(a)).collect(),
-            },
+            ast::WhenPat::Variant { span, path, args } => {
+                let variant_name = path
+                    .segments
+                    .last()
+                    .copied()
+                    .expect("when variant pattern path should contain at least one segment");
+                WhenPat::Variant {
+                    span: *span,
+                    name_span: variant_name.span,
+                    name: variant_name.text(self.source).to_string(),
+                    args: args.iter().map(|a| self.lower_when_pat(a)).collect(),
+                }
+            }
             ast::WhenPat::IntLit { span } => WhenPat::IntLit { span: *span },
             ast::WhenPat::CharLit { span } => WhenPat::CharLit {
                 span: *span,

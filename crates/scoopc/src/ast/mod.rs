@@ -1896,14 +1896,15 @@ pub enum WhenPat {
         span: Span,
         elements: Vec<WhenPat>,
     },
-    /// enum variant 模式：`Some(x)` / `None`（0 参数 variant）。
+    /// enum variant 模式：`Some(x)` / `Result.Ok(v)` / `None`（0 参数 variant）。
     ///
     /// 说明：
     /// - 早期阶段仅支持“位置参数”的 variant pattern；
-    /// - `name` 目前不做解析写回，由 typecheck 基于 subject 的 enum 类型做约束与匹配。
+    /// - `path` 允许写 `Enum.Variant` 形式以消歧；
+    /// - 解析/约束仍由 typecheck 基于 subject 的 enum 类型完成。
     Variant {
         span: Span,
-        name: Ident,
+        path: TypePath,
         args: Vec<WhenPat>,
     },
     IntLit {

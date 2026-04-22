@@ -753,6 +753,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`when` 的 variant pattern enum 前缀不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_variant_pat_enum_mismatch))]
+    WhenVariantPatEnumMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`when` 的 variant pattern 未找到匹配的 variant：{enum_fqn}.{variant}")]
     #[diagnostic(code(scoop::typecheck::when_variant_pat_unknown_variant))]
     WhenVariantPatUnknownVariant {

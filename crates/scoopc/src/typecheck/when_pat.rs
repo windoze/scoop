@@ -164,11 +164,39 @@ fn check_when_pat(
                 }),
             }
         }
-        ast::WhenPat::Variant { name, args, span } => {
-            let variant_name = source.slice(name.span);
+        ast::WhenPat::Variant { path, args, span } => {
+            let variant_ident =
+                path.segments
+                    .last()
+                    .copied()
+                    .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                        kind: "when variant pattern（空路径）",
+                        span: (*span).into(),
+                    })?;
+            let variant_name = source.slice(variant_ident.span);
 
             let (enum_fqn, enum_args, enum_source) =
-                enum_instance_from_type(source, expected_ty, lower, name.span)?;
+                enum_instance_from_type(source, expected_ty, lower, path.span)?;
+
+            if path.segments.len() >= 2 {
+                let prefix_segments = &path.segments[..path.segments.len() - 1];
+                let start = prefix_segments.first().unwrap().span.start;
+                let end = prefix_segments.last().unwrap().span.end;
+                let prefix_span = Span::new(start, end);
+                let prefix_names: Vec<String> = prefix_segments
+                    .iter()
+                    .map(|segment| source.slice(segment.span).to_string())
+                    .collect();
+                let prefix_fqn = lower.resolve_type_path_fqn_by_name(&prefix_names, prefix_span)?;
+                let prefix_matches = prefix_fqn == enum_fqn;
+                if !prefix_matches {
+                    return Err(ExprTypeError::WhenVariantPatEnumMismatch {
+                        expected: lower.fmt_type(expected_ty),
+                        found: prefix_fqn,
+                        span: prefix_span.into(),
+                    });
+                }
+            }
 
             let decl = lower.env().enum_decl(&enum_fqn).cloned().ok_or_else(|| {
                 ExprTypeError::UnsupportedExpr {
@@ -185,7 +213,7 @@ fn check_when_pat(
                 .ok_or_else(|| ExprTypeError::WhenVariantPatUnknownVariant {
                     enum_fqn: enum_fqn.clone(),
                     variant: variant_name.to_string(),
-                    span: name.span.into(),
+                    span: variant_ident.span.into(),
                 })?;
 
             let variant_fqn = format!("{enum_fqn}.{variant_name}");

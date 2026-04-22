@@ -23,7 +23,7 @@ use super::super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
 use super::super::lower::TypeLowering;
-use super::super::type_env::TypeSymbol;
+use super::super::type_env::{EnumVariantInfo, TypeSymbol};
 use super::super::{TypeLowerError, TypeSymbolKind};
 
 #[derive(Debug, Clone)]
@@ -49,6 +49,13 @@ struct MemberCallRequest<'a> {
     args: &'a [ast::Expr],
     explicit_type_args: Option<&'a [TypeId]>,
     safe: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct EnumVariantCtorTarget<'a> {
+    pub(super) enum_fqn: &'a str,
+    pub(super) variant_name: &'a str,
+    pub(super) callee_span: Span,
 }
 
 #[derive(Clone, Copy)]
@@ -3074,6 +3081,12 @@ pub(super) fn infer_call_expr_type(
             Ok(chosen.instantiated.return_ty)
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
+            if let Some(ty) = try_infer_qualified_enum_variant_ctor_call_expr_type(
+                inputs, call_expr, member, args, lower,
+            )? {
+                return Ok(ty);
+            }
+
             if let Some(ty) = infer_effect_op_call_expr_type(
                 inputs,
                 call_expr,
@@ -3802,52 +3815,64 @@ fn infer_nominal_constructor_call_expr_type(
     Ok(Some(ty))
 }
 
-fn infer_enum_variant_ctor_call_expr_type(
+fn lookup_enum_variant_decl_data(
+    source: &SourceFile,
+    lower: &TypeLowering<'_>,
+    enum_fqn: &str,
+    variant_name: &str,
+) -> Option<(Vec<String>, SourceFile, EnumVariantInfo)> {
+    let decl = lower.env().enum_decl(enum_fqn)?;
+    let type_params = decl.type_params.clone();
+    let enum_source = lower
+        .env()
+        .source(&decl.decl_file)
+        .cloned()
+        .unwrap_or_else(|| source.clone());
+    let variant = decl
+        .variants
+        .iter()
+        .find(|variant| variant.name == variant_name)?
+        .clone();
+    Some((type_params, enum_source, variant))
+}
+
+fn resolved_qualified_enum_variant_value_fqn(
+    source: &SourceFile,
+    member: &ast::MemberIdent,
+    lower: &TypeLowering<'_>,
+) -> Option<(String, String)> {
+    let ast::ResolvedMemberRef::Value { fqn } = member.resolved.as_ref()? else {
+        return None;
+    };
+    let (enum_fqn, variant_name) = fqn.rsplit_once('.')?;
+    lookup_enum_variant_decl_data(source, lower, enum_fqn, variant_name)?;
+    Some((enum_fqn.to_string(), variant_name.to_string()))
+}
+
+fn infer_specific_enum_variant_ctor_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
-    callee: &ast::ValueIdent,
+    target: EnumVariantCtorTarget<'_>,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-) -> Result<Option<TypeId>, ExprTypeError> {
+) -> Result<TypeId, ExprTypeError> {
     let source = inputs.source;
     let builtins = inputs.builtins;
-    let variant_name = source.slice(callee.span);
-    let candidates = lower.env().find_enum_variants_named(variant_name);
-
-    if candidates.is_empty() {
-        return Ok(None);
-    }
-    if candidates.len() != 1 {
-        let mut names: Vec<String> = candidates
-            .iter()
-            .map(|(enum_fqn, _)| format!("{enum_fqn}.{variant_name}"))
-            .collect();
-        names.sort();
-        names.dedup();
-
-        return Err(ExprTypeError::AmbiguousEnumVariantCtor {
-            name: variant_name.to_string(),
-            candidates: names.join(" | "),
-            span: callee.span.into(),
+    let EnumVariantCtorTarget {
+        enum_fqn,
+        variant_name,
+        callee_span,
+    } = target;
+    let Some((type_params, enum_source, variant)) =
+        lookup_enum_variant_decl_data(source, lower, enum_fqn, variant_name)
+    else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "enum variant ctor（缺少 enum 声明信息）",
+            span: call_expr.span.into(),
         });
-    }
-
-    let (enum_fqn, variant) = candidates.into_iter().next().expect("len == 1");
-    let Some((type_params, enum_source)) = lower.env().enum_decl(&enum_fqn).map(|d| {
-        let type_params = d.type_params.clone();
-        let source = lower
-            .env()
-            .source(&d.decl_file)
-            .cloned()
-            .unwrap_or_else(|| source.clone());
-        (type_params, source)
-    }) else {
-        // 防御性：`candidates` 来源于 `TypeEnv.enums`，理论上一定存在。
-        return Ok(None);
     };
 
     let variant_fqn = format!("{enum_fqn}.{variant_name}");
-
     let expected = variant.fields.len();
     let found = args.len();
     if expected != found {
@@ -3859,18 +3884,12 @@ fn infer_enum_variant_ctor_call_expr_type(
         });
     }
 
-    // 先推导所有实参类型，保证子表达式（如 `Some(f())`）也会被覆盖。
     let mut arg_types: Vec<TypeId> = Vec::with_capacity(args.len());
     for arg in args {
         arg_types.push(inputs.infer(lower, arg)?);
     }
 
-    // enum 的类型参数名集合（用于识别 `T` 这类 type param 引用）。
     let type_param_set: HashSet<String> = type_params.iter().cloned().collect();
-
-    // 早期最小泛型推断（T0426）：
-    // - 只从 "payload 字段类型为直接 type param（例如 `T`）" 的位置推断；
-    // - 若同一 type param 被多次约束，要求相等（或其中一个为 `Nothing`）。
     let mut subst: HashMap<String, TypeId> = HashMap::new();
     for (idx, (field, found_ty)) in variant
         .fields
@@ -3897,9 +3916,7 @@ fn infer_enum_variant_ctor_call_expr_type(
             Some(prev) if prev == builtins.nothing => {
                 subst.insert(name.to_string(), found_ty);
             }
-            Some(_prev) if found_ty == builtins.nothing => {
-                // `Nothing` 不增加额外约束：保留已有推断结果。
-            }
+            Some(_prev) if found_ty == builtins.nothing => {}
             Some(prev) => {
                 return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
                     variant: format!("{enum_fqn}.{variant_name}"),
@@ -3912,7 +3929,6 @@ fn infer_enum_variant_ctor_call_expr_type(
         }
     }
 
-    // 逐个检查实参与字段声明类型是否匹配（字段类型允许引用 enum type params）。
     for (idx, (field, found_ty)) in variant
         .fields
         .iter()
@@ -3923,7 +3939,7 @@ fn infer_enum_variant_ctor_call_expr_type(
             EnumTypeSubstContext {
                 enum_source: &enum_source,
                 use_span: call_expr.span,
-                enum_fqn: &enum_fqn,
+                enum_fqn,
                 builtins,
                 type_param_set: &type_param_set,
                 subst: &subst,
@@ -3943,21 +3959,190 @@ fn infer_enum_variant_ctor_call_expr_type(
         }
     }
 
-    // 将推断结果转回 enum 实例类型。
     let mut enum_args: Vec<TypeId> = Vec::with_capacity(type_params.len());
     for name in &type_params {
         let Some(id) = subst.get(name).copied() else {
             return Err(ExprTypeError::EnumVariantCtorTypeArgNotInferred {
-                enum_fqn: enum_fqn.clone(),
+                enum_fqn: enum_fqn.to_string(),
                 param: name.clone(),
-                span: callee.span.into(),
+                span: callee_span.into(),
             });
         };
         enum_args.push(id);
     }
 
-    let enum_ty = lower.lower_type_fqn_with_args(enum_fqn, enum_args, call_expr.span)?;
-    Ok(Some(enum_ty))
+    Ok(lower.lower_type_fqn_with_args(enum_fqn.to_string(), enum_args, call_expr.span)?)
+}
+
+fn infer_enum_variant_ctor_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    callee: &ast::ValueIdent,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let source = inputs.source;
+    let variant_name = source.slice(callee.span);
+    let candidates = lower.env().find_enum_variants_named(variant_name);
+
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    if candidates.len() != 1 {
+        let mut names: Vec<String> = candidates
+            .iter()
+            .map(|(enum_fqn, _)| format!("{enum_fqn}.{variant_name}"))
+            .collect();
+        names.sort();
+        names.dedup();
+
+        return Err(ExprTypeError::AmbiguousEnumVariantCtor {
+            name: variant_name.to_string(),
+            candidates: names.join(" | "),
+            span: callee.span.into(),
+        });
+    }
+
+    let (enum_fqn, variant) = candidates.into_iter().next().expect("len == 1");
+    Ok(Some(infer_specific_enum_variant_ctor_call_expr_type(
+        inputs,
+        call_expr,
+        EnumVariantCtorTarget {
+            enum_fqn: &enum_fqn,
+            variant_name: &variant.name,
+            callee_span: callee.span,
+        },
+        args,
+        lower,
+    )?))
+}
+
+pub(super) fn try_infer_qualified_enum_variant_ctor_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some((enum_fqn, variant_name)) =
+        resolved_qualified_enum_variant_value_fqn(inputs.source, member, lower)
+    else {
+        return Ok(None);
+    };
+
+    Ok(Some(infer_specific_enum_variant_ctor_call_expr_type(
+        inputs,
+        call_expr,
+        EnumVariantCtorTarget {
+            enum_fqn: &enum_fqn,
+            variant_name: &variant_name,
+            callee_span: member.span,
+        },
+        args,
+        lower,
+    )?))
+}
+
+pub(super) fn infer_specific_enum_variant_ctor_call_expr_type_by_expected(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    target: EnumVariantCtorTarget<'_>,
+    args: &[ast::Expr],
+    expected_enum_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+    let EnumVariantCtorTarget {
+        enum_fqn,
+        variant_name,
+        callee_span,
+    } = target;
+    let Some((type_params, enum_source, variant)) =
+        lookup_enum_variant_decl_data(source, lower, enum_fqn, variant_name)
+    else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "enum variant ctor（缺少 enum 声明信息）",
+            span: call_expr.span.into(),
+        });
+    };
+
+    if type_params.len() != expected_enum_args.len() {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "enum variant ctor（expected enum type args 数量异常）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    let variant_fqn = format!("{enum_fqn}.{variant_name}");
+    let expected_arity = variant.fields.len();
+    let found_arity = args.len();
+    if expected_arity != found_arity {
+        return Err(ExprTypeError::EnumVariantCtorArityMismatch {
+            variant: variant_fqn,
+            expected: expected_arity,
+            found: found_arity,
+            span: call_expr.span.into(),
+        });
+    }
+
+    let type_param_set: HashSet<String> = type_params.iter().cloned().collect();
+    let subst: HashMap<String, TypeId> = type_params
+        .iter()
+        .cloned()
+        .zip(expected_enum_args.iter().copied())
+        .collect();
+
+    for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {
+        let expected_field_ty = lower_type_ref_with_enum_subst(
+            EnumTypeSubstContext {
+                enum_source: &enum_source,
+                use_span: call_expr.span,
+                enum_fqn,
+                builtins,
+                type_param_set: &type_param_set,
+                subst: &subst,
+            },
+            &field.ty,
+            lower,
+        )?;
+
+        let found_ty = inputs.infer_in_expected(
+            lower,
+            arg_expr,
+            expected_field_ty,
+            ExpectedTypeFrom::new(format!(
+                "enum variant `{enum_fqn}.{variant_name}` 第 {} 个参数",
+                idx + 1
+            )),
+        )?;
+
+        if !is_type_assignable(found_ty, expected_field_ty, lower, builtins)
+            && !literal_absorbs_to_expected(arg_expr, expected_field_ty, source, lower, builtins)
+        {
+            return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
+                variant: format!("{enum_fqn}.{variant_name}"),
+                index: idx + 1,
+                expected: lower.fmt_type(expected_field_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg_expr.span.into(),
+            });
+        }
+    }
+
+    let mut enum_args: Vec<TypeId> = Vec::with_capacity(type_params.len());
+    for name in &type_params {
+        let Some(id) = subst.get(name).copied() else {
+            return Err(ExprTypeError::EnumVariantCtorTypeArgNotInferred {
+                enum_fqn: enum_fqn.to_string(),
+                param: name.clone(),
+                span: callee_span.into(),
+            });
+        };
+        enum_args.push(id);
+    }
+
+    Ok(lower.lower_type_fqn_with_args(enum_fqn.to_string(), enum_args, call_expr.span)?)
 }
 
 pub(in super::super) fn lower_type_ref_with_enum_subst(

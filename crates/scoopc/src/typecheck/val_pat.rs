@@ -123,24 +123,18 @@ impl ValPatChecker<'_, '_> {
             let start = prefix_segments.first().unwrap().span.start;
             let end = prefix_segments.last().unwrap().span.end;
             let prefix_span = Span::new(start, end);
-            let prefix_path = ast::TypePath {
-                span: prefix_span,
-                segments: prefix_segments.to_vec(),
-                args: Vec::new(),
-            };
-
-            let prefix_ty = self
+            let prefix_names: Vec<String> = prefix_segments
+                .iter()
+                .map(|segment| self.source.slice(segment.span).to_string())
+                .collect();
+            let prefix_fqn = self
                 .lower
-                .lower_type_ref(&ast::TypeRef::Path(prefix_path))?;
-            let prefix_matches = match self.lower.type_kind(prefix_ty) {
-                TypeKind::Value(ValueTypeKind::Option(_)) => enum_fqn == "scoop.core.Option",
-                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn == enum_fqn,
-                _ => false,
-            };
+                .resolve_type_path_fqn_by_name(&prefix_names, prefix_span)?;
+            let prefix_matches = prefix_fqn == enum_fqn;
             if !prefix_matches {
                 return Err(ExprTypeError::ValVariantPatEnumMismatch {
                     expected: self.lower.fmt_type(subject_ty),
-                    found: self.lower.fmt_type(prefix_ty),
+                    found: prefix_fqn,
                     span: prefix_span.into(),
                 });
             }

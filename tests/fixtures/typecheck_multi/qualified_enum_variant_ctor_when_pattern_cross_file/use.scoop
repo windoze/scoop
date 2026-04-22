@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：限定 enum variant ctor / `when` pattern 在多文件路径上也进入统一主线。
+
+package fixtures.typecheck_multi.qualified_enum_variant_ctor_when_pattern_cross_file
+
+val ready: Step<Int> = Step.Ready(7)
+
+fun project(step: Step<Int>): Int {
+    return when (step) {
+        Step.Ready(value) -> value
+        Step.Pending -> 0
+    }
+}
+
+val projected: Int = project(ready)

@@ -1,0 +1,8 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi.qualified_enum_variant_ctor_when_pattern_cross_file
+
+enum Step<T> {
+    Ready(val value: T),
+    Pending,
+}

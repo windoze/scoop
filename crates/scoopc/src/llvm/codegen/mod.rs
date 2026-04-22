@@ -2982,6 +2982,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     _ => unreachable!("filtered by matches!"),
                 };
             }
+
+            if let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref()
+                && let Some((_owner_fqn, variant_name)) = fqn.rsplit_once('.')
+                && let Some(CgTy::Enum(enum_ty)) = expected
+            {
+                let layout = self.cg_enum_layout(span, enum_ty)?;
+                if layout
+                    .variants
+                    .iter()
+                    .any(|variant| variant.name == variant_name)
+                {
+                    return self.codegen_enum_variant_ctor_call(span, enum_ty, variant_name, args);
+                }
+            }
         }
 
         // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，

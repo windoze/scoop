@@ -539,7 +539,7 @@ pub struct Index {
     ///
     /// 用途：在成员访问解析时区分：
     /// - object 单例值：`Obj.member`
-    /// - enum 作为 value namespace：`Enum.Variant`（其符号注入留给后续任务）
+    /// - enum 作为 value namespace：`Enum.Variant`
     pub object_types: HashSet<String>,
 }
 
@@ -1021,29 +1021,28 @@ impl Index {
                     // enum variant 值需要注入到 value namespace：
                     // - `EnumName.Variant`（限定名引用）应当可解析（spec §5.7 / T0419）。
                     //
-                    // 当前阶段（最小落点）：
-                    // - 仅注入 0-参数（unit）variant 作为“值”；
-                    // - 带 payload 的 variant 构造（`Some(x)` / `Enum.Some(x)`）的完整符号建模与重载规则
-                    //   留给后续 rich enum 任务（T0425+）。
-                    if v.params.is_empty() {
-                        // 注意：这里刻意不在 resolver 阶段对“重复 variant 名称”报错：
-                        // - typecheck 的 `TypeEnv` 会以更稳定的错误码（`duplicate_enum_variant`）报告该问题；
-                        // - resolver 侧只需要保证“可解析的最小符号骨架”存在即可。
-                        //
-                        // 因此若插入时遇到同名冲突（DuplicateDefinition），这里选择忽略并继续，
-                        // 让 typecheck 再给出更精确的诊断。
-                        let inserted = self.insert_symbol(
-                            type_origin,
-                            SymbolKind::Value,
-                            v.name.span,
-                            visibility,
-                            &[],
-                        );
-                        match inserted {
-                            Ok(()) => {}
-                            Err(ResolveError::DuplicateDefinition { .. }) => {}
-                            Err(e) => return Err(e),
-                        }
+                    // 当前阶段 resolver 只负责“限定 member 名可解析”的骨架：
+                    // - unit variant 允许作为裸值 `Enum.Variant` 使用；
+                    // - payload variant 则允许作为限定 ctor callee `Enum.Variant(...)` 进入后续
+                    //   typecheck / lowering 主线。
+                    //
+                    // 注意：这里刻意不在 resolver 阶段对“重复 variant 名称”报错：
+                    // - typecheck 的 `TypeEnv` 会以更稳定的错误码（`duplicate_enum_variant`）报告该问题；
+                    // - resolver 侧只需要保证“可解析的最小符号骨架”存在即可。
+                    //
+                    // 因此若插入时遇到同名冲突（DuplicateDefinition），这里选择忽略并继续，
+                    // 让 typecheck 再给出更精确的诊断。
+                    let inserted = self.insert_symbol(
+                        type_origin,
+                        SymbolKind::Value,
+                        v.name.span,
+                        visibility,
+                        &[],
+                    );
+                    match inserted {
+                        Ok(()) => {}
+                        Err(ResolveError::DuplicateDefinition { .. }) => {}
+                        Err(e) => return Err(e),
                     }
                 }
                 ast::TypeMember::Property(p) => {

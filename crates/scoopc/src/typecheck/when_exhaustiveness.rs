@@ -421,12 +421,15 @@ fn pat_covers_example(source: &SourceFile, pat: &ast::WhenPat, ex: &ExamplePat) 
             _ => false,
         },
 
-        ast::WhenPat::Variant { name, args, .. } => match ex {
+        ast::WhenPat::Variant { path, args, .. } => match ex {
             ExamplePat::Variant {
                 name: ex_name,
                 args: ex_args,
             } => {
-                if source.slice(name.span) != ex_name {
+                let Some(variant_name) = path.segments.last() else {
+                    return false;
+                };
+                if source.slice(variant_name.span) != ex_name {
                     return false;
                 }
                 variant_pat_covers_example(source, args, ex_args)

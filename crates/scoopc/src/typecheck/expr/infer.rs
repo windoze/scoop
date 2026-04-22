@@ -7,8 +7,9 @@ use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::call::{
-    GenericArgConstraint, InstantiatedFunSig, check_fn_value_to_any_erasure_gate,
-    collect_type_arg_candidates_for_single_type_param, infer_call_expr_type,
+    EnumVariantCtorTarget, GenericArgConstraint, InstantiatedFunSig,
+    check_fn_value_to_any_erasure_gate, collect_type_arg_candidates_for_single_type_param,
+    infer_call_expr_type, infer_specific_enum_variant_ctor_call_expr_type_by_expected,
     infer_top_level_fun_value_expr_type, instantiate_fun_sig_for_call, lower_effect_op_signature,
     substitute_single_type_param, type_param_name,
 };
@@ -2042,6 +2043,20 @@ pub(super) fn infer_expr_type_in_expected_context(
     }
 
     if let ast::ExprKind::Call { callee, args } = &expr.kind
+        && let ast::ExprKind::MemberAccess { member, .. } = &callee.kind
+        && let Some(ty) = try_infer_qualified_enum_variant_ctor_call_expr_type_by_expected(
+            inputs,
+            expr,
+            member,
+            args,
+            expected_ty,
+            lower,
+        )?
+    {
+        return Ok(ty);
+    }
+
+    if let ast::ExprKind::Call { callee, args } = &expr.kind
         && let ast::ExprKind::Ident(id) = &callee.kind
         && id.resolved.is_none()
         && let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
@@ -2317,7 +2332,6 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
     lower: &mut TypeLowering<'_>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
-    let builtins = inputs.builtins;
     let variant_name = source.slice(callee.span);
     let candidates = lower.env().find_enum_variants_named(variant_name);
 
@@ -2350,82 +2364,70 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
         return Ok(None);
     }
     let (enum_fqn, variant) = matched.pop().expect("len == 1");
+    Ok(Some(
+        infer_specific_enum_variant_ctor_call_expr_type_by_expected(
+            inputs,
+            call_expr,
+            EnumVariantCtorTarget {
+                enum_fqn: &enum_fqn,
+                variant_name: &variant.name,
+                callee_span: callee.span,
+            },
+            args,
+            &expected_enum_args,
+            lower,
+        )?,
+    ))
+}
 
-    let Some((type_params, enum_source)) = lower.env().enum_decl(&enum_fqn).map(|d| {
-        let type_params = d.type_params.clone();
-        let source = lower
-            .env()
-            .source(&d.decl_file)
-            .cloned()
-            .unwrap_or_else(|| source.clone());
-        (type_params, source)
-    }) else {
-        // 防御性：`matched` 来源于 `TypeEnv.enums`，理论上一定存在。
+fn try_infer_qualified_enum_variant_ctor_call_expr_type_by_expected(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some((expected_enum_fqn, expected_enum_args)) =
+        enum_instance_fqn_and_args_from_type(expected_ty, lower)
+    else {
         return Ok(None);
     };
 
-    if type_params.len() != expected_enum_args.len() {
-        // 期望类型与 enum 声明的 arity 不一致时，交给常规推导路径处理并给出诊断。
+    let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() else {
+        return Ok(None);
+    };
+    let Some((enum_fqn, variant_name)) = fqn.rsplit_once('.') else {
+        return Ok(None);
+    };
+
+    let variant_exists = lower.env().enum_decl(enum_fqn).is_some_and(|decl| {
+        decl.variants
+            .iter()
+            .any(|variant| variant.name == variant_name)
+    });
+    if !variant_exists {
         return Ok(None);
     }
 
-    let variant_fqn = format!("{enum_fqn}.{variant_name}");
-    let expected_arity = variant.fields.len();
-    let found_arity = args.len();
-    if expected_arity != found_arity {
-        return Err(ExprTypeError::EnumVariantCtorArityMismatch {
-            variant: variant_fqn,
-            expected: expected_arity,
-            found: found_arity,
-            span: call_expr.span.into(),
-        });
+    if enum_fqn != expected_enum_fqn {
+        return Ok(None);
     }
 
-    let type_param_set: HashSet<String> = type_params.iter().cloned().collect();
-    let subst: HashMap<String, TypeId> = type_params
-        .iter()
-        .cloned()
-        .zip(expected_enum_args)
-        .collect();
-
-    for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {
-        let expected_field_ty = lower_type_ref_with_enum_subst(
-            EnumTypeSubstContext {
-                enum_source: &enum_source,
-                use_span: call_expr.span,
-                enum_fqn: &enum_fqn,
-                builtins,
-                type_param_set: &type_param_set,
-                subst: &subst,
+    Ok(Some(
+        infer_specific_enum_variant_ctor_call_expr_type_by_expected(
+            inputs,
+            call_expr,
+            EnumVariantCtorTarget {
+                enum_fqn,
+                variant_name,
+                callee_span: member.span,
             },
-            &field.ty,
+            args,
+            &expected_enum_args,
             lower,
-        )?;
-
-        let found_ty = inputs.infer_in_expected(
-            lower,
-            arg_expr,
-            expected_field_ty,
-            ExpectedTypeFrom::new(format!(
-                "enum variant `{enum_fqn}.{variant_name}` 第 {} 个参数",
-                idx + 1
-            )),
-        )?;
-
-        if !is_type_assignable(found_ty, expected_field_ty, lower, builtins)
-            && !literal_absorbs_to_expected(arg_expr, expected_field_ty, source, lower, builtins)
-        {
-            return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
-                variant: format!("{enum_fqn}.{variant_name}"),
-                index: idx + 1,
-                expected: lower.fmt_type(expected_field_ty),
-                found: lower.fmt_type(found_ty),
-                span: arg_expr.span.into(),
-            });
-        }
-    }
-
-    Ok(Some(expected_ty))
+        )?,
+    ))
 }
 
 fn enum_instance_fqn_and_args_from_type(

@@ -6,6 +6,7 @@
 // 目标覆盖：
 // - `async { ... }` 产生的 lazy task 可由 `step()` 手动驱动；
 // - `TaskStep<T>` 是公开的 step 结果类型；
+// - `TaskStep.Ready(...)` / `TaskStep.Pending` 这些 sysroot enum variant 的限定写法可直接工作；
 // - 因此当 awaited task 能在同一次驱动里完成时，首个 `step()` 也会直接得到 `Ready(value)`；
 // - 任务完成后再次 `step()` 仍应稳定返回缓存结果，而不是重跑 body。
 
@@ -27,24 +28,24 @@ fun main(): Int {
 
     val step0: TaskStep<Int> = outer.step()
     when (step0) {
-        Pending -> println("step0=pending")
-        Ready(value) -> {
+        TaskStep.Pending -> println("step0=pending")
+        TaskStep.Ready(value) -> {
             println("step0=ready")
             println(value)
         }
     }
 
     when (outer.step()) {
-        Pending -> println("step1=pending")
-        Ready(value) -> {
+        TaskStep.Pending -> println("step1=pending")
+        TaskStep.Ready(value) -> {
             println("step1=ready")
             println(value)
         }
     }
 
     when (outer.step()) {
-        Pending -> println("step2=pending")
-        Ready(value) -> {
+        TaskStep.Pending -> println("step2=pending")
+        TaskStep.Ready(value) -> {
             println("step2=ready")
             println(value)
         }

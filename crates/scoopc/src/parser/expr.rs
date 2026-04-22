@@ -2048,6 +2048,10 @@ impl<'a> Parser<'a> {
         }
 
         if self.peek_kind(TokenKind::Ident) {
+            if self.looks_like_qualified_when_variant_pattern_ahead() {
+                return self.parse_when_variant_pattern();
+            }
+
             let tok = self.bump();
             let ident = ast::Ident::new(tok.span);
             let name = self
@@ -2073,7 +2077,11 @@ impl<'a> Parser<'a> {
                     let close = self.bump();
                     return Ok(ast::WhenPat::Variant {
                         span: Span::new(start, close.span.end),
-                        name: ident,
+                        path: ast::TypePath {
+                            span: ident.span,
+                            segments: vec![ident],
+                            args: Vec::new(),
+                        },
                         args,
                     });
                 }
@@ -2146,7 +2154,11 @@ impl<'a> Parser<'a> {
                 let close = self.expect_symbol(Symbol::RParen)?;
                 return Ok(ast::WhenPat::Variant {
                     span: Span::new(start, close.span.end),
-                    name: ident,
+                    path: ast::TypePath {
+                        span: ident.span,
+                        segments: vec![ident],
+                        args: Vec::new(),
+                    },
                     args,
                 });
             }
@@ -2162,7 +2174,11 @@ impl<'a> Parser<'a> {
             {
                 return Ok(ast::WhenPat::Variant {
                     span: tok.span,
-                    name: ident,
+                    path: ast::TypePath {
+                        span: ident.span,
+                        segments: vec![ident],
+                        args: Vec::new(),
+                    },
                     args: Vec::new(),
                 });
             }
@@ -2175,6 +2191,128 @@ impl<'a> Parser<'a> {
             expected: "when 分支模式（`else` / `is T` / 字面量 / 绑定 / tuple / variant）",
             found: tok.kind,
             span: tok.span.into(),
+        })
+    }
+
+    fn looks_like_qualified_when_variant_pattern_ahead(&self) -> bool {
+        self.peek_kind(TokenKind::Ident)
+            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            && self.peek_n(2).kind == TokenKind::Ident
+    }
+
+    fn parse_when_variant_pattern(&mut self) -> Result<ast::WhenPat, ParseError> {
+        let path = self.parse_when_pat_type_path()?;
+        let start = path.span.start;
+
+        if !self.peek_symbol(Symbol::LParen) {
+            return Ok(ast::WhenPat::Variant {
+                span: path.span,
+                path,
+                args: Vec::new(),
+            });
+        }
+
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let mut args = Vec::new();
+        let mut rest_span: Option<Span> = None;
+
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok(ast::WhenPat::Variant {
+                span: Span::new(start, close.span.end),
+                path,
+                args,
+            });
+        }
+
+        loop {
+            if rest_span.is_some() {
+                let tok = *self.peek();
+                if self.peek_symbol(Symbol::DotDot)
+                    || (self.peek_symbol(Symbol::Dot)
+                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                {
+                    let err = ParseError::Expected {
+                        expected: "when variant pattern：`..` 只能出现一次",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    };
+                    let _ = self.consume_balanced_after_open(
+                        Symbol::LParen,
+                        Symbol::RParen,
+                        open.span.start,
+                    );
+                    return Err(err);
+                }
+                let err = ParseError::Expected {
+                    expected: "`)`（`..` 必须是最后一个参数）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                };
+                let _ = self.consume_balanced_after_open(
+                    Symbol::LParen,
+                    Symbol::RParen,
+                    open.span.start,
+                );
+                return Err(err);
+            }
+
+            if self.peek_symbol(Symbol::DotDot)
+                || (self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+            {
+                let span = if self.peek_symbol(Symbol::DotDot) {
+                    self.bump().span
+                } else {
+                    let dot1 = self.bump();
+                    let dot2 = self.bump();
+                    Span::new(dot1.span.start, dot2.span.end)
+                };
+                rest_span = Some(span);
+                args.push(ast::WhenPat::Rest { span });
+            } else {
+                args.push(self.parse_when_pat_internal(false)?);
+            }
+
+            if self.eat_symbol(Symbol::Comma) {
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RParen)?;
+        Ok(ast::WhenPat::Variant {
+            span: Span::new(start, close.span.end),
+            path,
+            args,
+        })
+    }
+
+    fn parse_when_pat_type_path(&mut self) -> Result<ast::TypePath, ParseError> {
+        let first = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
+        let start = first.span.start;
+        let mut segments = vec![ast::Ident::new(first.span)];
+
+        while self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Ident {
+            self.bump(); // `.`
+            let seg = self.bump(); // ident
+            segments.push(ast::Ident::new(seg.span));
+        }
+
+        let end = segments.last().unwrap().span.end;
+        Ok(ast::TypePath {
+            span: Span::new(start, end),
+            segments,
+            args: Vec::new(),
         })
     }
 
