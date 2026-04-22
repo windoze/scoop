@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d2 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -235,7 +235,11 @@
 - 说明：
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
-  - 进一步推进 `T4016T2` 前，必须先补齐当前 LLVM 路径下“custom rich enum variant 直接承载 function type payload”这一既有缺口；否则 `Created(val start: () -> ...)` 这类 `Task` state 目标形状只能靠 wrapper / workaround 规避，违反本轮约束。
+  - `T4016T1a` / `T4016T1d1` / `T4016T1d2` 已经收口了“function-type payload + generic task-state object model”主线，但继续推进 `T4016T2` 时又暴露出三个新的前置 blocker：
+    1. 限定 payload enum ctor / `when` pattern 仍不完整，`TaskStep.Ready(value)` 报 `unresolved_member`，`when (step) { TaskStep.Ready(v) -> ... }` 仍 parse 失败；
+    2. `emit_minimal_main_ir(...)` / single-file LLVM 测试路径没有随 `scoop build` 一起纳入 `sysroot/task.scoop` 这类可编译 sysroot 源；
+    3. 普通 Scoop `Task` 若直接持有 `Mutex`，当前 sync runtime 仍只有显式 `destroy()` 合同，没有能覆盖 task 生命周期的无泄漏释放路径。
+  - 因此 `T4016T2` 必须继续前插更窄的 blocker 任务，不能带着这些实现边界直接推进。
 
 ### T4016T1 [DONE] 将 core task public surface 直接收口为 `TaskStep<T>` + `step()`，并同步语言 / 运行时规格
 - 范围：
@@ -412,6 +416,36 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
+### T4016T1d3 [TODO] 补齐限定 enum variant ctor / `when` pattern 主线，避免 ordinary Scoop task 依赖未定义解析旁路
+- 范围：
+  - 让表达式位置的 `Enum.Variant(...)` 能稳定走 enum variant ctor 主线，而不是只支持 unqualified `Variant(...)` 或 unit variant 的 `Enum.Variant` 值。
+  - 让 `when` variant pattern 与现有 `val Result.Ok(v) = r` 解构能力对齐，支持 `Enum.Variant(...)` / `Enum.Variant` 的限定写法，而不是在 parser 阶段就报“期望 `->`，但遇到 `.`”。
+  - 补 cross-file / sysroot regression，锁定 `TaskStep.Ready(value)`、`__TaskState.TaskCompleted(value)` 与 `when (step) { TaskStep.Ready(v) -> ... }` 这类 `T4016T2` 直接依赖的形状可用。
+- 验收：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_manual_basic.scoop -o /tmp/task_step_manual_basic.out` 不再因 `scoop.core.TaskStep.Ready` unresolved_member 失败。
+  - 限定 enum variant ctor / `when` pattern 有独立 parser / typecheck / run-pass regression，不再只能靠 unqualified 写法绕过。
+- 依赖：T4016T1d2
+
+### T4016T1d4 [TODO] 让 single-file / minimal LLVM IR 路径纳入可编译 sysroot 源，与 `scoop build` 保持一致
+- 范围：
+  - 修复 `emit_minimal_main_ir(...)`、`build_minimal_main_module(...)`、相关 test helper 与 source-map/fun-index 组装路径，使其像 `scoop build` 一样把 `sysroot/task.scoop` 这类可编译 sysroot 源纳入完整前端 / lowering / codegen 主线。
+  - 确保 async/task 相关 LLVM 单测看到的是 ordinary Scoop helper 函数体，而不是只看得到 sysroot 签名、最终在 codegen 阶段落成 `UnsupportedMainBody { kind: "call callee type" }`。
+  - 新增或修正定向测试，锁定 single-file/minimal IR 路径与 build pipeline 不再分叉。
+- 验收：
+  - `cargo test -p scoopc async_task_ir_uses_task_create_and_internal_step_result_helpers -- --nocapture` 通过。
+  - `emit_minimal_main_ir(...)` 对 async/task helper 的行为与 `scoop build` 保持一致，不再遗漏可编译 sysroot source。
+- 依赖：T4016T1d3
+
+### T4016T1d5 [TODO] 为 ordinary Scoop task 持有的 sync 资源补齐无泄漏释放合同
+- 范围：
+  - 收口普通 Scoop object 持有 `Mutex` / 其它显式 `destroy()` sync 资源时的生命周期合同，保证 `Task` 迁回 Scoop 后不会因为内部锁没有 release path 而系统性泄漏平台资源。
+  - 该修复必须与当前 `scoop.sync` 的显式 `destroy()` 叙事、GC managed object model 与 runtime release/finalizer 边界一致；不得退回 task-only C struct，也不得接受“先不释放/靠进程退出回收”。
+  - 为 `Task` 目标形状补 regression，锁定 ordinary Scoop task-like object 在完成、丢弃、GC/release 边界上的 sync 资源不会泄漏或 double-destroy。
+- 验收：
+  - `T4016T2` 可在普通 Scoop `Task` 直接持有同步原语的前提下推进，而不是继续依赖 task-only runtime lock。
+  - 已有或新增 regression 能证明锁资源有明确释放路径，且不需要“调用者必须额外手动 destroy task 内部锁”这种外露契约。
+- 依赖：T4016T1d4
+
 ### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
   - 依照 `SCOOP_TASK.md` 把 task-private driver result、task state 与 `Task.step()` 主体实现迁到 Scoop 代码；`__TaskStepResult` / `__TaskState` / 内部 helper 名称可调整，但必须是普通 Scoop 定义而不是新的 C runtime 语义节点。
@@ -422,7 +456,7 @@
   - 大部分 task state / step-driving 逻辑已以普通 Scoop 代码存在并可测试，不再主要驻留于 `runtime/c/scoop_task.c`。
   - async lowering 只剩 sugar / private glue，不再把 task-only runtime helper 当作语言主线的一部分。
   - 文档已说明跨线程 `step()` / resume 的最小同步合同与 GC/rooting 约束。
-- 依赖：T4016T1d2
+- 依赖：T4016T1d5
 
 ### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
 - 范围：

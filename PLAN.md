@@ -21,7 +21,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c` 与 `T4016T1R` 均已完成；但在真正落地 `T4016T2` 时又暴露出 ordinary Scoop generic task-state object model 的前置缺口。该缺口现已细化为 `T4016T1d1 -> T4016T1d2` 两步，因此当前顺序改为 `T4016T1d1 -> T4016T1d2 -> T4016T2 -> T4016T3`
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1` 与 `T4016T1d2` 均已完成；但在真正落地 `T4016T2` 时又暴露出三个新的前置缺口：限定 payload enum ctor / `when` pattern、single-file/minimal IR 路径未纳入可编译 sysroot 源，以及 ordinary Scoop task 的 sync 资源释放语义。因此当前顺序改为 `T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -90,12 +90,12 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R` 与 `T4016T1d1`，后续继续按 `SCOOP_TASK.md` 推进 `T4016T1d2 -> T4016T2 -> T4016T3`。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；这并不意味着 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。当前已完成 `T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1` 与 `T4016T1d2`，后续继续按 `SCOOP_TASK.md` 推进 `T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`。
   - `T4016T1R` 期间又收口了一个必须优先修的既有缺口：boxed multi-field enum variant 经 `val Variant(...) = expr` 解构后，若 payload 含 function type 且后续直接调用，隐藏 `Raise.raise(...)` 会被 ordinary callee suspend plan 误建模成 `Ref` 型 resume slot。现已通过：
     - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
     - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
     - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
-  - 当前顺序调整为：`T4016T1d2 -> T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - 当前顺序调整为：`T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -171,9 +171,13 @@
     - `resolve/scopes.rs` 已允许 `Any` receiver 成员访问延后到 typecheck，`hir/lower/expr.rs` / `llvm/codegen/mod.rs` 也已改为保留并优先使用 smart-cast 后的具体类型；
     - 新增 `task_generic_state_object_model_basic.scoop` 与 `smart_cast_any_member_access_generic_class_basic.scoop` 两个 run-pass 回归，前者锁定 ordinary Scoop concrete-instance state carrier/object model，后者锁定 `Any` smart-cast generic class field access；
     - 已复验 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
-  - `T4016T1d2` 仍是下一前置项：generic helper / method body 里的 `TypeKind::Param(T)` 泄漏尚未消失，不能把当前窄化为 `driveInt(...)` / 直接 `lock.destroy()` 的验收面误记为原始 `T4016T1d` 已全部完成。
+  - `T4016T1d2` 已完成，但继续推进 `T4016T2` 时又暴露出三个新的 blocker：
+    - 限定 payload enum ctor / `when` pattern 仍不完整：`TaskStep.Ready(value)` 报 `unresolved_member`，`TaskStep.Ready(v)` 仍在 parser 阶段卡在 `.`；
+    - `emit_minimal_main_ir(...)` / single-file LLVM 测试路径没有跟随 `scoop build` 一起纳入 `sysroot/task.scoop` 这类可编译 sysroot 源，导致 async/task helper 仍在最小 IR 路径上报 `UnsupportedMainBody { kind: "call callee type" }`；
+    - 普通 Scoop `Task` 若直接持有 `Mutex`，当前 sync runtime 仍只有显式 `destroy()` 合同，没有能覆盖 task 生命周期的无泄漏 release path。
+  - 因此 `T4016T2` 必须再次前插三个更窄的前置项：`T4016T1d3 -> T4016T1d4 -> T4016T1d5`。
 
-### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T2 -> T4016T3`）
+### P1.5. 最小 core Task surface 与 Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`）
 
 - `T4016d` / `T4016R` 已证明：`Task` 不再需要 task-private continuation hack，也不再需要第二套 answer model；但这只解决了 continuation 语义与 runtime hack 债务，还没有把 core task public surface、实现落点与 runtime/codegen surface 收口到最小形态。
 - 基于 `SCOOP_TASK.md`，当前新增五个后续收口项，只覆盖 phase 1-3：
@@ -215,10 +219,13 @@
     - `llvm/codegen/mod.rs` 的 `sync.destroy` receiver 类型恢复已切到统一的 `resolve_expr_concrete_type(...)` 主线，`carrier.lock.destroy()` 这类 generic receiver 字段上的 concrete nominal 调用不再退回旧的 local-var-only 路径。
     - 新增 run-pass 回归 `task_generic_state_generic_helper_method_basic.scoop`，同一用例同时锁定 `fun <T> drive(...)`、generic method body 中的 `if (x is Box<T>) x.value` 与 `carrier.lock.destroy()`。
     - 已复验 `cargo fmt --check`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (387)`）、`cargo run -p scoop -- test`（`fixtures: ok (1157)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - `T4016T1d3`：补齐限定 enum variant ctor / `when` pattern 主线，使 `TaskStep.Ready(value)`、`__TaskState.TaskCompleted(value)` 与 `when (step) { TaskStep.Ready(v) -> ... }` 这类 ordinary Scoop task 直接依赖的形状不再卡在 resolver/parser 边界。
+  - `T4016T1d4`：让 `emit_minimal_main_ir(...)` / single-file LLVM 测试路径像 `scoop build` 一样纳入 `sysroot/task.scoop` 这类可编译 sysroot 源，避免 async/task helper 只在 build pipeline 可见、在最小 IR 路径继续报 `call callee type`。
+  - `T4016T1d5`：为 ordinary Scoop `Task` 直接持有 `Mutex` 等 sync 资源补齐无泄漏释放合同；在 current runtime 仍只有显式 `destroy()` 的前提下，不能带着平台 mutex 泄漏继续推进 task Scoop 化。
   - `T4016T2`：把 task 内部 driver / state / `step()` 主体迁回 Scoop，把 `async` / `await` lowering 改写到 ordinary Scoop helper target，并明确跨线程 drive/resume 的最小同步合同；语言 spec、runtime spec 与设计文档要同步改写；
   - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
 - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
