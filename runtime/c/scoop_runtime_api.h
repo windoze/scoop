@@ -165,12 +165,6 @@
   X(scoop_sync_once_create) \
   X(scoop_sync_once_is_done) \
   X(scoop_sync_once_run) \
-  X(scoop_task_create) \
-  X(scoop_task_from_result) \
-  X(scoop_task_join) \
-  X(scoop_task_poll) \
-  X(scoop_task_step_pending) \
-  X(scoop_task_step_ready) \
   X(scoop_test_add_int) \
   X(scoop_test_callee_suspend_state_set) \
   X(scoop_test_continuation_resume_replay_state_create) \

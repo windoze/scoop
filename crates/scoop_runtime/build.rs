@@ -21,7 +21,6 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_sync.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_thread.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_channels.c");
-    println!("cargo:rerun-if-changed=../../runtime/c/scoop_task.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_once.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend_minimal.c");
@@ -65,7 +64,6 @@ fn main() {
         .file("../../runtime/c/scoop_sync.c")
         .file("../../runtime/c/scoop_thread.c")
         .file("../../runtime/c/scoop_channels.c")
-        .file("../../runtime/c/scoop_task.c")
         .file("../../runtime/c/scoop_once.c")
         .file("../../runtime/c/scoop_gc_common.c")
         .file("../../runtime/c/scoop_test.c")

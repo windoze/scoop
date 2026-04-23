@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -21,7 +21,7 @@
 
 ## T4016：正确的单次 delimited continuation、移除 `-> resume` 语法与 `Task` 去 hack
 
-### T4016 [TODO] 收口正确的单次（one-shot）delimited continuation，移除用户态 `-> resume` 语法，并让 `Task` 摆脱 runtime hack（拆分执行）
+### T4016 [DONE] 收口正确的单次（one-shot）delimited continuation，移除用户态 `-> resume` 语法，并让 `Task` 摆脱 runtime hack（拆分执行）
 - 说明：
   - 当前 `Continuation<T, eff E>` + `Continuation.resume(...): Unit` 更接近“为 effect / async lowering 服务的 step-driving advanced API”，还不是完整的 delimited continuation surface。
   - 本组任务要把 continuation 收口为**正确的、单次、deep、以最近 `handle` 为 delimiter** 的语义：`k` 捕获剩余计算，`k.resume(v)` 在 resumed computation 正常完成 delimiter 时返回 answer type，本地后续代码可继续执行。
@@ -513,7 +513,7 @@
     - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T1d5
 
-### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
+### T4016T3 [DONE] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
 - 范围：
   - 删除 `scoop_task_create`、`scoop_task_poll`、`scoop_task_step_ready`、`scoop_task_step_pending`、`scoop_task_from_result`、`scoop_task_join` 及其 LLVM codegen special-case，移除 `runtime/c/scoop_task.c`。
   - 若 core 仍需要 internal helper 名称，它们必须是 ordinary Scoop definitions，或者 generic continuation / sync runtime 的普通调用；不得再保留 task-only C ABI / intrinsic 分支。
@@ -524,6 +524,19 @@
   - `Task` 只依赖 generic continuation、GC、thread 与 sync runtime substrate；task 主体逻辑留在 Scoop。
   - 语言 spec、runtime spec、design doc 与 sysroot 对 core task 最终合同完全一致。
 - 依赖：T4016T2
+- 已完成：
+  - 删除 `runtime/c/scoop_task.c`、`runtime/c/scoop_runtime_api.h` 中对应 allowlist 项，以及 `crates/scoop_runtime/build.rs` 里的编译入口；task-only C ABI 已从 runtime 构建产物中移除。
+  - 删除 `sysroot/core.scoop` 中 legacy `__scoop_task_*` 声明；`Task.step()`、`__task_create()`、`__task_step_ready()`、`__task_step_pending()`、`__task_from_result()`、`__task_join()` 全部只保留 ordinary Scoop 定义。
+  - 删除 LLVM codegen 中 `scoop.core.step` / `__scoop_task_*` 的 task-only runtime special-case，以及 `runtime_symbols.rs` / `runtime_abi.rs` 对 `scoop_task_*` 的声明；task transport 只剩 `__task_transport_pack()` / `__task_transport_unpack()` intrinsic。
+  - 删除直接测试 `scoop_task_*` ABI 的 runtime integration test，改由编译器 IR 回归与现有 run-pass fixture 锁定最终合同；新增 `task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi`，补锁 `Task.step()` 不再调用 `scoop_task_poll`。
+  - 同步 `SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop` 与 `sysroot/task.scoop` 到“Task 仅依赖 generic continuation + sync/thread substrate”的最终叙事。
+- 已复验：
+  - `cargo fmt`
+  - `cargo test -p scoopc --features llvm`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
 

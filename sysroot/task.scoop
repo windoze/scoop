@@ -2,9 +2,7 @@
 //
 // 说明：
 // - 这里承载 core task 的普通 Scoop 实现；
-// - runtime 只继续提供 continuation / GC / thread / sync substrate；
-// - 旧的 `__scoop_task_*` runtime ABI 仍保留到 `T4016T3` 删除，但新的 async lowering 已改走
-//   这里的 ordinary helper。
+// - runtime 只继续提供 continuation / GC / thread / sync substrate。
 
 package scoop.core
 

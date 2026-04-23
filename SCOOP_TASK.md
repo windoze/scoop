@@ -153,10 +153,9 @@ In particular, the compiler should stop owning:
 - task-specific join / from-result runtime helpers;
 - task-specific LLVM codegen branches beyond normal function / method calls.
 
-## What Moves Out of Runtime / Codegen
+## What Moved Out of Runtime / Codegen
 
-The following current symbols are implementation debt and should disappear as
-task-specific runtime / codegen surface:
+The old task-specific runtime / codegen ABI has been removed:
 
 - `scoop_task_create`
 - `scoop_task_poll`
@@ -165,39 +164,36 @@ task-specific runtime / codegen surface:
 - `scoop_task_from_result`
 - `scoop_task_join`
 
-The target is not necessarily "zero internal helper names", but "zero task-only
-runtime / codegen ABI".
-
-It is acceptable to keep internal helper *functions* such as
-`__taskCreate(...)`, `__taskStepReady(...)`, or `__taskStepPending(...)` if they
-are ordinary Scoop definitions rather than runtime intrinsics or LLVM special
-cases.
+The remaining internal helper names are ordinary Scoop definitions such as
+`__task_create(...)`, `__task_step_ready(...)`, `__task_step_pending(...)`,
+`__task_from_result(...)`, and `__task_join(...)`. They are no longer runtime
+intrinsics or LLVM special cases.
 
 ## Internal Scoop-Level Task Model
 
-The exact internal names can still change, but the model should look roughly
-like this.
+The current internal model is:
 
 ### Internal drive result
 
 ```kotlin
 package scoop.core
 
-enum __TaskDriverStep<T> {
+enum __TaskStepResult<T> {
     Pending(
-        val awaited: Task<Any>,
-        val continuation: Continuation<Any, __TaskDriverStep<T>>
+        val awaited: Task<(Int, Any)>,
+        val continuation: Continuation<(Int, Any), __TaskStepResult<T>>
     ),
-    Ready(val value: T),
+    Ready(val value: (Int, Any)),
 }
 ```
 
 Notes:
 
 - This is the private continuation answer carrier.
-- It replaces the current task-only C runtime carrier.
-- The compiler may continue to erase the internal resume payload to `Any`, but
-  the answer carrier should stay explicit.
+- It replaces the removed task-only C runtime carrier.
+- The compiler still erases internal resume payloads through the `(Int, Any)`
+  transport pair `__task_transport_pack(...)` / `__task_transport_unpack(...)`,
+  but the answer carrier stays explicit.
 
 ### Internal task state
 
@@ -205,13 +201,13 @@ Notes:
 package scoop.core
 
 enum __TaskState<T> {
-    Created(val start: () -> __TaskDriverStep<T>),
+    Created(val start: () -> __TaskStepResult<T>),
     Running,
     Waiting(
-        val awaited: Task<Any>,
-        val continuation: Continuation<Any, __TaskDriverStep<T>>
+        val awaited: Task<(Int, Any)>,
+        val continuation: Continuation<(Int, Any), __TaskStepResult<T>>
     ),
-    Completed(val value: T),
+    Completed(val value: (Int, Any)),
 }
 ```
 
@@ -221,15 +217,13 @@ enum __TaskState<T> {
 package scoop.core
 
 class Task<T>(
-    val __lock: __TaskMutex,
+    val __lock: Mutex,
     var __state: __TaskState<T>
 )
 ```
 
-The exact representation can use one mutable enum field, or a tag plus separate
-slots, whichever is easier for Scoop / lowering. The important point is that the
-authoritative task state is now a normal Scoop-level object model rather than a
-private C runtime struct.
+The important point is that the authoritative task state is now a normal
+Scoop-level object model rather than a private C runtime struct.
 
 ## Step Algorithm
 
@@ -251,9 +245,9 @@ The intended algorithm is:
    detach both values, unlock, drive `awaited.step()`, and:
    - if awaited returns `Pending`, restore `Waiting(awaited, continuation)` and
      return `Pending`;
-   - if awaited returns `Ready(valueAny)`, call
-     `continuation.resume(valueAny)`, obtain the next private
-     `__TaskDriverStep<T>`, and publish it.
+   - if awaited returns `Ready(valueTransport)`, call
+     `continuation.resume(valueTransport)`, obtain the next private
+     `__TaskStepResult<T>`, and publish it.
 7. Publishing a private driver step means:
    - `Ready(value)` -> set task state to `Completed(value)`;
    - `Pending(awaited2, continuation2)` -> set task state to
@@ -279,7 +273,7 @@ Reasons:
 - a task may advance without any new external data at all, for example when it is
   first started;
 - a task waiting on another task obtains its resume payload from that awaited
-  task's completion result;
+  task's completion transport result;
 - different suspension points need different payload types, so a public
   `step(arg)` would either leak low-level continuation typing into `Task` or
   force everything into `Any` / sum-type plumbing at the wrong layer;
@@ -332,16 +326,8 @@ Preferred direction:
   (`Mutex`, later `CondVar` when needed);
 - do **not** add a new task-specific lock runtime.
 
-If package layering makes a direct `scoop.core -> scoop.sync` dependency awkward,
-the acceptable fallback is:
-
-- introduce internal-only task sync aliases such as `__TaskMutex` in core;
-- map them onto the same generic sync runtime symbols;
-- keep them explicitly private to task implementation;
-- still avoid any new task-only runtime ABI.
-
-This fallback is a packaging workaround, not a semantic license to keep
-`runtime/c/scoop_task.c`.
+The current implementation directly reuses `scoop.sync.Mutex`; there is no
+separate task-only lock type.
 
 ## Cross-Thread Resume and GC
 

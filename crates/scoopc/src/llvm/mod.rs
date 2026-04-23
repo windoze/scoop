@@ -2413,6 +2413,7 @@ fun main(): Int {
         );
         assert!(
             !ir.contains("@scoop_task_create")
+                && !ir.contains("@scoop_task_poll")
                 && !ir.contains("@scoop_task_step_pending")
                 && !ir.contains("@scoop_task_step_ready")
                 && !ir.contains("@scoop_task_join"),
@@ -2461,8 +2462,46 @@ fun main(): Int {
             "外层 handled Async.await(...) 的 arm body 应能在最小 IR 路径上看到 ordinary Scoop `__task_join` helper"
         );
         assert!(
-            !ir.contains("@scoop_task_create") && !ir.contains("@scoop_task_join"),
+            !ir.contains("@scoop_task_create")
+                && !ir.contains("@scoop_task_poll")
+                && !ir.contains("@scoop_task_join"),
             "minimal LLVM 路径里的 async / await 主线不应再回退到 legacy task runtime ABI"
+        );
+    }
+
+    #[test]
+    fn task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async { 41 }
+    return when (task.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("scoop.core.step::<Int>"),
+            "Task.step() 应落到 ordinary Scoop `scoop.core.step::<Int>` 定义"
+        );
+        assert!(
+            ir.contains("scoop.core.__task_drive_created::<Int>"),
+            "ordinary Scoop 的 `Task.step()` 实现应继续调用 `__task_drive_created::<Int>`"
+        );
+        assert!(
+            !ir.contains("@scoop_task_poll"),
+            "Task.step() 不应再直接调用 legacy `scoop_task_poll` runtime ABI"
         );
     }
 

@@ -522,9 +522,7 @@ effect Async {
 // - generic `Continuation.resume(...): Answer` 已接入语言主线；`Task.step()` 会在普通 Scoop 代码里
 //   直接消费这个 answer，并投影回公开的 `TaskStep<T>` 合同；
 // - `__task_from_result` / `__task_join` 只是 compiler/stdlib/test harness 使用的内部 helper：
-//   前者把已知结果包装成 task，后者通过循环 drive task 直到完成；
-// - legacy `__scoop_task_*` runtime ABI 仍暂时保留为 `T4016T3` 待删实现债务，不再是 async
-//   sugar 的语义宿主。
+//   前者把已知结果包装成 task，后者通过循环 drive task 直到完成。
 enum __TaskStepResult<T> {
     Pending(
         val awaited: Task<(Int, Any)>,
@@ -551,12 +549,6 @@ fun <T> __task_step_ready(value: T): __TaskStepResult<T>
 fun <T> __task_step_pending(awaited: Task<(Int, Any)>, continuation: Continuation<(Int, Any), __TaskStepResult<T>>): __TaskStepResult<T>
 fun <T> __task_from_result(value: T): Task<T>
 fun <T> __task_join(task: Task<T>): T
-
-fun <T> __scoop_task_create(block: () -> __TaskStepResult<T>): Task<T>
-fun <T> __scoop_task_step_ready(value: T): __TaskStepResult<T>
-fun <T> __scoop_task_step_pending(awaited: Task<Any>, continuation: Continuation<Any, __TaskStepResult<T>>): __TaskStepResult<T>
-fun <T> __scoop_task_from_result(value: T): Task<T>
-fun <T> __scoop_task_join(task: Task<T>): T
 
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {

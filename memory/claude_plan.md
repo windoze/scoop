@@ -1,136 +1,101 @@
-# 本轮执行计划（结构化记录）
+# 当前执行记录
 
-## 目标
+## 说明
 
-本轮只完成 `TODO.md` 中第一个未完成任务；如果在执行前或执行过程中发现已有问题、回归、规格不匹配、未完成实现边界或最新提交提到的遗留问题，则先修复该问题，或在无法直接完成时把它整理为阻塞当前任务的前置任务并更新 `TODO.md` / `PLAN.md`。
+按要求先写入计划文件。这里记录的是可执行步骤、检查项、决策依据摘要和进度更新，不包含不可审计的内部推理细节。
 
-## 约束与执行原则
+## 初始目标
 
-- 不绕过已有问题，不使用临时性 workaround。
-- 任何已发现的真实缺陷都视为当前范围内事项。
-- 在真正开始实现前，先确认最新提交是否提到需要优先修复的问题。
-- 只做一个任务；完成后更新计划与任务状态，运行测试，提交 git commit，然后停止。
+本轮只完成一件事：
 
-## 计划步骤
+1. 先检查最新提交是否提到已有问题；若提到，优先修复。
+2. 读取 `TODO.md`，找到第一个未完成任务。
+3. 评估该任务是否过大；若过大，则拆分任务并更新 `PLAN.md` 与 `TODO.md`，随后只执行拆分后的第一个子任务。
+4. 对当前目标任务完成实现、测试、文档更新、提交。
+5. 完成后立即停止，不进入下一项任务。
 
-1. 查看最新一次 git commit，确认是否明确提到待修复的遗留问题。
-2. 读取 `TODO.md` 与 `PLAN.md`，识别第一个未完成任务及其上下文。
-3. 判断该任务是否过大：
-   - 若可直接完成，则进入实现。
-   - 若过大，则先把它拆分为更小的子任务，更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-4. 在实现前阅读相关代码、测试和规格上下文，确认是否存在阻塞性的既有缺陷。
-5. 实现当前任务或优先修复阻塞缺陷。
-6. 运行与改动相关的测试；必要时补充或调整测试，直到结果稳定。
-7. 更新 `TODO.md`、`PLAN.md`，并同步更新此文件记录关键进展。
-8. 检查工作区状态，整理提交内容，创建一次清晰的 git commit。
-9. 停止，不继续下一个任务。
+## 执行步骤
 
-## 当前状态
+1. 查看最新提交信息，确认是否显式提到待修复的既有问题。
+2. 查看工作区状态，避免误覆盖用户已有改动。
+3. 读取 `TODO.md` 与 `PLAN.md`，确定当前优先级和依赖关系。
+4. 若执行过程中发现任何既有缺陷、规格不一致、回避式实现或实现边界缺口：
+   - 先判断该问题是否阻塞当前任务。
+   - 若阻塞且无法在本轮直接修复，则把前置修复任务插入 `TODO.md` 当前任务之前，更新 `PLAN.md`，提交后停止。
+   - 若可直接修复，则先修复该问题，再继续当前任务。
+5. 实现当前任务后运行相关验证：
+   - 最小相关测试；
+   - 必要时运行更广的回归；
+   - 运行格式化、`cargo clippy --all-targets -- -D warnings`（若与任务改动相关且成本可接受）；
+   - 确保无新增警告和回归。
+6. 更新 `TODO.md`、`PLAN.md` 与本文件。
+7. 提交 Git，提交信息对应任务编号或变更内容。
 
-- 已完成：初始化本轮计划文件。
-- 已完成：检查最新提交；提交说明未额外声明需要优先修复的新遗留问题。
-- 已完成：读取 `TODO.md` / `PLAN.md`，确认首个未完成叶子任务为 `T4016T2`。
-- 已完成：复核当前 `Task` 实现落点（`sysroot/core.scoop`、`runtime/c/scoop_task.c`、HIR lowering、LLVM codegen）。
-- 进行中：实现 `T4016T2`。
+## 风险与约束
 
-## 已确认的实现策略
+- 不回退或覆盖非本次任务引入的已有修改。
+- 不采用规避式实现；遇到缺失特性或错误行为时，要么修复，要么显式前置成任务。
+- 如果发现 `PROMPT.md` 存在意外改动，需要纳入提交而非忽略。
 
-- 不再把 `T4016T2` 继续拆分；本轮直接完成该任务。
-- 保留 `T4016T3` 作为“删除遗留 task-only runtime/codegen ABI”的后续任务，本轮不提前删除整套旧 runtime 文件。
-- 本轮核心改动方向：
-  1. 在可编译 sysroot 源中加入 task 实现文件，把 `Task` 的状态机、`step()`、join/create/from-result 等主体迁到普通 Scoop 代码。
-  2. 把私有 step carrier 改成带类型参数的普通 Scoop 定义，使 task state / continuation answer model 与普通类型系统对齐。
-  3. 把 async lowering 的内部 helper 落点改到普通 Scoop helper，而不是 `__scoop_task_*` runtime intrinsic。
-  4. 取消 `Task.step()` 的 LLVM runtime special-case，让它走普通 Scoop 调用路径；旧 `__scoop_task_*` C ABI 先保留为 `T4016T3` 待删债务。
-  5. 更新文档与回归，补一条 LLVM build 级别断言，锁定新路径不再依赖 task-only runtime poll/create ABI。
+## 进度
 
-## 当前执行清单
+- 已完成：创建计划文件并记录执行顺序。
+- 已完成：检查最新提交、工作区状态、`TODO.md` 与 `PLAN.md`。
+- 结论：
+  - 最新提交 `d699c2cf6bcb294c9a71c5cb540ef8be70e6aaa6` 的提交信息仅为“`[T4016T2] Move task driver and state back into Scoop`”，未显式提到需先修复的既有问题。
+  - 当前工作区只有本文件改动。
+  - 顶层 `T4016` / `T4012` / `T4013` 等 `[TODO]` 为父任务；按顺序需要执行的第一个未完成叶子任务是 `T4016T3`。
+- `T4016T3` 当前目标摘要：
+  - 删除 `scoop_task_create` / `scoop_task_poll` / `scoop_task_step_ready` / `scoop_task_step_pending` / `scoop_task_from_result` / `scoop_task_join`；
+  - 删除 `runtime/c/scoop_task.c`；
+  - 移除 LLVM codegen 中针对 legacy task ABI 的 special-case；
+  - 同步 `SCOOP_RUNTIME.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 到“task 只依赖 ordinary Scoop 定义 + generic continuation/sync substrate”的最终叙事。
+- 初步热点位置：
+  - `runtime/c/scoop_task.c`
+  - `runtime/c/scoop_runtime_api.h`
+  - `crates/scoop_runtime/build.rs`
+  - `crates/scoop_runtime/tests/task_spawn_join.rs`
+  - `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs`
+  - `sysroot/core.scoop`
+  - `SCOOP_RUNTIME.md`
+- 已完成：阅读关键代码并确认 `T4016T3` 可直接执行，不需要再拆子任务。
+- 当前实现判断：
+  - 生产路径中仍残留 `Task.step()` -> `scoop_task_poll` 的 LLVM special-case。
+  - `__scoop_task_create` / `__scoop_task_from_result` / `__scoop_task_join` / `__scoop_task_step_ready` / `__scoop_task_step_pending` 只剩 codegen 与 sysroot 声明债务；HIR lowering 已改用 `__task_*`。
+  - `runtime/c/scoop_task.c` 与 `crates/scoop_runtime/tests/task_spawn_join.rs` 只服务即将删除的 task-only C ABI。
+- 当前实施计划：
+  1. 删除 sysroot 中 legacy `__scoop_task_*` 声明与相关注释，保留 `__task_*` 和 transport intrinsic。
+  2. 删除 LLVM codegen 中 `scoop.core.step` / `__scoop_task_*` 的 task-only runtime special-case，以及对应 runtime symbol/ABI 声明。
+  3. 删除 `runtime/c/scoop_task.c`，并从 runtime build / export allowlist 中移除相应符号。
+  4. 删除或重写直接测 `scoop_task_*` ABI 的 runtime 测试；补充面向当前最终合同的编译器/夹具断言，确保 IR 不再引用 `scoop_task_*`（尤其补上 `scoop_task_poll`）。
+  5. 同步 `SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、必要的 `SCOOP_FULL_SPEC.md` / `TODO.md` / `PLAN.md` 叙事。
+  6. 跑定向测试，再跑全量验收命令。
+- 下一步：开始修改 sysroot / codegen / runtime 文件。
 
-1. 修改 `sysroot/core.scoop` 的 task 声明面，引入普通 Scoop task state / carrier / helper 声明。
-2. 新增 `sysroot/task.scoop`，实现 `Task.step()` 与内部 helper。
-3. 调整 sysroot 加载，使 `task.scoop` 作为可编译 sysroot 源参与完整前端/后端流水线。
-4. 修改 HIR lowering，把 async sugar 落到新的普通 Scoop helper，并接入带类型参数的 task step carrier。
-5. 移除 `Task.step()` 的 LLVM task runtime special-case；保留旧 `__scoop_task_*` ABI 给 `T4016T3` 收尾删除。
-6. 更新相关 fixtures / 文档 / 计划文件并跑测试。
+## 本轮结果
 
-## 备注
+- 已完成实现：
+  - 删除 `runtime/c/scoop_task.c`。
+  - 删除 `runtime/c/scoop_runtime_api.h` 中 `scoop_task_*` 导出名单。
+  - 删除 `crates/scoop_runtime/build.rs` 中对 task-only runtime C 文件的编译入口。
+  - 删除 `sysroot/core.scoop` 中 legacy `__scoop_task_*` 声明，并清理 `sysroot/task.scoop` 注释。
+  - 删除 LLVM codegen 中 `scoop.core.step` / `__scoop_task_*` special-case，以及 `runtime_symbols.rs` / `runtime_abi.rs` 里的 `scoop_task_*` 符号声明。
+  - 删除直接测试旧 ABI 的 `crates/scoop_runtime/tests/task_spawn_join.rs`。
+  - 新增 LLVM 回归 `task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi`，补锁 `Task.step()` 不再走 `scoop_task_poll`。
+  - 同步 `SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`TODO.md`、`PLAN.md`。
 
-- 这里记录的是可审计的执行计划与关键决策，不包含原始推理草稿。
-## 2026-04-22 续做计划（当前轮）
-
-### 已知状态
-- 本轮目标仍然是 `TODO.md` 中首个未完成叶子任务 `T4016T2`。
-- 现有未提交改动已经把 task runtime 的大部分路径切到了 ordinary Scoop 实现，但当前被一个真实前置缺口阻塞：
-  `sysroot/task.scoop` 中对 `Task.__state` 的赋值在 typecheck 时报 `assignment_target_not_mutable`。
-- 该错误不是 task 逻辑本身的问题，而是编译器的成员可变性查询只覆盖当前文件，无法跨文件看到 `sysroot/core.scoop` 中 `Task.__state` 的 `var` 声明。
-
-### 执行计划
-1. 先检查当前 worktree 和最新提交信息，确认没有遗漏的预先问题需要先修。
-2. 修复 typecheck 阶段的跨文件成员可变性查询：
-   - 定位 `member_mutabilities` 的当前来源与使用点。
-   - 在 lower/typecheck 共享层增加按成员 FQN 回查声明可变性的能力。
-   - 让 assignment mutability 检查在当前文件 map miss 时回退到跨文件查询。
-3. 重新构建最小 async/task fixture，确认 `Task.__state` 赋值通过 typecheck，并继续暴露下一个真实问题（如果有）。
-4. 若继续遇到 pre-existing issue，则按“先修阻塞问题”的要求继续处理，直到 `T4016T2` 可正确完成；若发现无法在本轮直接修完，则更新 `TODO.md` / `PLAN.md` 重新排依赖并停止。
-5. 在 `T4016T2` 主体路径恢复后，完成该任务要求的代码与测试更新，包括：
-   - ordinary Scoop `Task.step()` / `__task_*` 路径的实现与调用链验证；
-   - 必要的 fixture / LLVM 断言 / 文档调整；
-   - 运行相关测试、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-6. 若任务完成：
-   - 更新 `memory/claude_plan.md`、`TODO.md`、`PLAN.md`；
-   - 提交一个只覆盖本轮完成内容的 git commit；
-   - 停止，不进入下一个任务。
-
-### 当前判断
-- 目前不应拆分 `T4016T2`，因为阻塞点看起来是一个可以直接修复的编译器缺口，而不是必须先插入 `TODO.md` 的大任务分解。
-- 接下来优先级最高的是“跨文件成员可变性查询”，而不是继续扩展 task runtime 代码。
-
-### 进展记录
-- 已修改 `crates/scoopc/src/typecheck/expr/collect.rs`：
-  - `collect_member_mutabilities(...)` 现在改为收集“当前文件 + env 里其它文件”的成员可变性；
-  - 新增 `collect_member_mutabilities_in_file(...)` 作为单文件扫描 helper，避免原逻辑只看当前 AST。
-- 已修改 `crates/scoopc/src/typecheck/expr/entry.rs`，让表达式 typecheck 入口把 `env` 传给成员可变性收集。
-- 下一步是重新执行最小 async/task build probe，验证 `Task.__state` 赋值的 mutability blocker 是否已消失，并继续处理暴露出的下一个真实问题。
-
-## 2026-04-23 收尾验收计划（当前轮）
-
-### 已确认事实
-- `TODO.md` 中首个未完成叶子任务仍是 `T4016T2`。
-- 当前 worktree 已经把主要 task 逻辑迁到 `sysroot/task.scoop`，并把 async lowering 的主落点切到 `scoop.core.__task_*` ordinary Scoop helper。
-- 本轮已经补掉最后一个阻塞定向回归收尾的旧 emitter 测试：`async_task_resume_replay_ir_terminates_step_fn_on_active_effect` 现在断言真实 IR 不变量，而不是历史 label 名。
-- 用户额外要求本轮必须执行“全量测试”，并在确认 `T4016T2` 完成后按 `PROMPT.md` 流程收尾。
-
-### 当前收尾步骤
-1. 复核 `T4016T2` 验收口径与当前代码/文档分层是否一致：
-   - task driver/state/step 主体是否已在 ordinary Scoop 中；
-   - async lowering 是否已改写到 ordinary Scoop helper target；
-   - 文档是否已明确 runtime 只保留 continuation/GC/thread/sync substrate 与遗留 ABI 债务边界。
-2. 运行全量验证：
-   - `cargo run -p scoop_tools -- spec-fixtures check`
-   - `cargo run -p scoop -- test`
-   - `cargo test --all`
-   - `cargo clippy --all-targets -- -D warnings`
-3. 若任一命令暴露真实问题，先修复问题再回到验收；不通过 workaround 继续推进。
-4. 若全量验证通过且代码/文档满足验收口径：
-   - 把 `T4016T2` 标记为完成；
-   - 更新 `PLAN.md` 当前阶段状态，让下一未完成任务变成 `T4016T3`；
-   - 记录本轮关键验证结论与新增回归覆盖。
-5. 整理并提交一次 `[T4016T2] ...` 的收尾 commit，然后停止。
-
-### 收尾结果
-- 已确认 `T4016T2` 完成，下一未完成任务变为 `T4016T3`。
-- 本轮除 task 主体 Scoop 化之外，还修掉了全量验收暴露的真实前置问题：
-  - 跨文件成员 mutability 查询缺口；
-  - monomorphized `__task_drive_waiting::<T>` 的 `Continuation.resume(...)` resume-slot rewrite 缺口；
-  - cross-package bare enum variant ctor 被 internal helper enum (`__TaskState` / `__TaskStepResult`) 污染的可见性问题；
-  - 多个 MIR/typecheck/run-pass golden 与 IR 旧断言的过期收尾项。
-- 最终验证结果：
-  - `cargo fmt --check`
-  - `cargo run -q -p scoop_tools -- spec-fixtures check`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/mir` -> `fixtures: ok (6)`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck` -> `fixtures: ok (379)`
-  - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass` -> `fixtures: ok (388)`
-  - `cargo run -q -p scoop -- test` -> `fixtures: ok (1160)`
-  - `cargo test --all -q`
+- 已完成验证：
+  - `cargo fmt`
+  - `cargo test -p scoopc --features llvm`
+  - `cargo run -p scoop -- test`
+  - `cargo run -p scoop_tools -- spec-fixtures check`
+  - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
-- 备注：`scoop test` 过程中仍会打印已有的 warning 级日志（例如 warning-fixture / layout boxing / redundant else 诊断，以及 `UIntPtr` layout field debug warn），但它们未作为 suite 失败项；cargo test 与 clippy 已在当前代码状态下通过。
+
+- 结果判断：
+  - `T4016T3` 已完成，可在 `TODO.md` 中标记为完成。
+  - 当前下一项未完成任务已推进为 `T4012b3`。
+
+- 下一步：复核 diff、提交 Git，并停止本轮。

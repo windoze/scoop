@@ -348,9 +348,9 @@ This section records the continuation contract that the implementation is conver
 
 ## 11. Task Stepping Layer Contract
 
-At the current `T4016T2` stage, `Task.step()` is no longer defined by a
-task-specific runtime polling ABI. The authoritative task driver now lives in
-ordinary Scoop code (`sysroot/task.scoop`):
+`Task.step()` is defined entirely by ordinary Scoop code (`sysroot/task.scoop`)
+rather than by any task-specific runtime polling ABI. The authoritative task
+driver lives at the Scoop layer:
 
 - `__task_create(...)` creates a lazy task object with ordinary Scoop state
   `Created(start)`.
@@ -363,7 +363,7 @@ ordinary Scoop code (`sysroot/task.scoop`):
   runtime / test-harness helper surface, not a public structured-concurrency
   contract.
 
-The runtime layer now only provides generic substrate used by that Scoop-level
+The runtime layer only provides generic substrate used by that Scoop-level
 driver:
 
 - GC-managed class / enum allocation and tracing;
@@ -394,6 +394,10 @@ Implementation note:
 - When a waiting task resumes that captured continuation, it still goes through
   the shared `scoop_continuation_resume_with(...)` helper and the standardized
   frame transport (`state_tag`, `resume_word`, `resume_gc_ref`).
-- Legacy `scoop_task_*` symbols remain in the runtime only as implementation
-  debt for internal `__scoop_task_*` helpers until `T4016T3`; they no longer
-  define the ordinary `__task_*` / `Task.step()` path.
+- There is no separate task-only C ABI for `Task.step()`, `__task_create(...)`,
+  `__task_step_ready(...)`, `__task_step_pending(...)`, `__task_from_result(...)`,
+  or `__task_join(...)`.
+- The only remaining task-specific compiler/runtime special handling is the
+  transport helper pair `__task_transport_pack(...)` /
+  `__task_transport_unpack(...)`, which exists solely to preserve `(word, gc_ref)`
+  movement for erased payloads crossing the generic continuation path.

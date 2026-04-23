@@ -21,7 +21,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5` 与 `T4016T2` 均已完成。当前剩余顺序为 `T4016T3`
+1. 前置 blockers 与 continuation / `Task` review 已收口：`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2` 与 `T4016T3` 均已完成。当前剩余顺序为 `T4012b3`
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（当前剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -241,9 +241,14 @@
     - async lowering 与 single-file/full-build LLVM 路径统一落到 `scoop.core.__task_*` helper；ordinary path 的 LLVM 回归改为断言“不再直接依赖 legacy `scoop_task_*` runtime ABI”；
     - `SCOOP_RUNTIME.md` 已同步为当前 task stepping layer contract；runtime 仅保留 continuation / GC / thread / sync substrate，task-only ABI 明确留给 `T4016T3` 删除；
     - 为通过全量验收，本轮补齐了跨文件成员 mutability、monomorphized task driver 的 resume-slot rewrite，以及跨包 bare enum variant ctor 对 internal helper enum 的可见性过滤。
-  - `T4016T3`：删除 `scoop_task_*` task-only runtime / codegen ABI 与 `runtime/c/scoop_task.c`，让剩余底座只保留 generic continuation、GC、thread 与 sync runtime；`SCOOP_RUNTIME.md` 需同步移除 task-only ABI 叙事。
+  - `T4016T3` 已完成：
+    - 删除 `runtime/c/scoop_task.c`、`runtime/c/scoop_runtime_api.h` 对应 allowlist、`crates/scoop_runtime/build.rs` 里的 task-only 编译入口，以及 `crates/scoop_runtime/tests/task_spawn_join.rs` 这类直接依赖旧 ABI 的 runtime integration test。
+    - 删除 `sysroot/core.scoop` 中 legacy `__scoop_task_*` 声明；`Task.step()` 与 `__task_*` helper 只保留 ordinary Scoop 定义，task transport 仅剩 `__task_transport_pack()` / `__task_transport_unpack()` intrinsic。
+    - 删除 LLVM codegen 中 `scoop.core.step` / `__scoop_task_*` special-case，以及 `runtime_symbols.rs` / `runtime_abi.rs` 里的 `scoop_task_*` 符号声明；新增 LLVM 回归 `task_step_ir_uses_ordinary_scoop_definition_not_legacy_poll_abi`，补锁 `Task.step()` 也不会再走 `scoop_task_poll`。
+    - `SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop` 与 `sysroot/task.scoop` 已同步到最终合同：`Task` 只依赖 generic continuation、GC、thread 与 sync substrate，不再存在 task-only C ABI / LLVM intrinsic 分支。
+    - 已复验 `cargo fmt`、`cargo test -p scoopc --features llvm`、`cargo run -p scoop -- test`（`fixtures: ok (1160)`）、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T3 -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
