@@ -2,21 +2,35 @@
 //
 // 说明：
 // - 这里承载 core task 的普通 Scoop 实现；
-// - runtime 只继续提供 continuation / GC / thread / sync substrate；
-// - 当前文件仍是 `T4016T3` 时点的过渡实现：内部继续用 per-task `Mutex` 串行化状态迁移；
-// - 稳定公开合同已经收口为 single-driver / trap-on-contention：`Pending` 只表示真实等待，
-//   并发 / reentrant `step()` 不属于合法使用方式；后续任务会把这里的过渡实现对齐到该合同。
+// - runtime 只继续提供 continuation / GC / thread / atomic substrate；
+// - `T4016T6` 已把 task 对象模型从 per-task `Mutex` 改成最小 atomic claim 字段；
+// - 当前仍保留 `Running -> Pending` 的过渡行为，供后续 `T4016T7` 收口为 trap-on-contention。
 
 package scoop.core
 
 import scoop.core.*
 import scoop.process.*
-import scoop.sync.*
 import scoop.thread.*
+import scoop.unsafe.*
+
+fun <T> __task_claim_acquire(task: Task<T>): Unit {
+    while (true) {
+        val claimed: Bool = @Unsafe do { __atomicIntCompareExchange(task.__claim, 0, 1) }
+        if (claimed) {
+            return
+        }
+        // 这里只需要替代旧的 mutex 临界区，不在 task 对象上保留阻塞式同步原语。
+        yield()
+    }
+}
+
+fun <T> __task_claim_release(task: Task<T>): Unit {
+    @Unsafe do { __atomicIntStore(task.__claim, 0) }
+}
 
 fun <T> __task_create(block: () -> __TaskStepResult<T>): Task<T> {
     val state: __TaskState<T> = Created(block)
-    return Task(mutexCreate(), state)
+    return Task(0, state)
 }
 
 fun <T> __task_step_ready(value: T): __TaskStepResult<T> {
@@ -32,22 +46,22 @@ fun <T> __task_step_pending(
 
 fun <T> __task_from_result(value: T): Task<T> {
     val state: __TaskState<T> = Completed(__task_transport_pack<T>(value))
-    return Task(mutexCreate(), state)
+    return Task(0, state)
 }
 
 fun <T> __task_apply_step(task: Task<T>, step: __TaskStepResult<T>): TaskStep<T> {
-    task.__lock.lock()
+    __task_claim_acquire(task)
     return when (step) {
         Pending(awaited, continuation) -> {
             val next: __TaskState<T> = Waiting(awaited, continuation)
             task.__state = next
-            task.__lock.unlock()
+            __task_claim_release(task)
             Pending()
         }
         Ready(value) -> {
             val next: __TaskState<T> = Completed(value)
             task.__state = next
-            task.__lock.unlock()
+            __task_claim_release(task)
             Ready(__task_transport_unpack<T>(value))
         }
     }
@@ -58,10 +72,10 @@ fun <T> __task_restore_waiting(
     awaited: Task<(Int, Any)>,
     continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
 ): TaskStep<T> {
-    task.__lock.lock()
+    __task_claim_acquire(task)
     val next: __TaskState<T> = Waiting(awaited, continuation)
     task.__state = next
-    task.__lock.unlock()
+    __task_claim_release(task)
     return Pending()
 }
 
@@ -97,26 +111,26 @@ fun <T> __task_drive_waiting(
 }
 
 fun <T> Task<T>.step(): TaskStep<T> {
-    this.__lock.lock()
+    __task_claim_acquire(this)
     return when (this.__state) {
         Running -> {
-            this.__lock.unlock()
+            __task_claim_release(this)
             Pending()
         }
         Completed(value) -> {
-            this.__lock.unlock()
+            __task_claim_release(this)
             Ready(__task_transport_unpack<T>(value))
         }
         Created(start) -> {
             val next: __TaskState<T> = Running()
             this.__state = next
-            this.__lock.unlock()
+            __task_claim_release(this)
             __task_drive_created(this, start)
         }
         Waiting(awaited, continuation) -> {
             val next: __TaskState<T> = Running()
             this.__state = next
-            this.__lock.unlock()
+            __task_claim_release(this)
             __task_drive_waiting(this, awaited, continuation)
         }
     }

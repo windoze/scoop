@@ -266,14 +266,19 @@
     - `codegen_class_ctor_invoke_inner(...)` 与 ctor-parameter-property 写回路径不再对“已求值/已类型对齐”的 ctor args 重新走 source-backed literal 反查；相关落槽逻辑现已收口到 `store_local_value_exact(...)`。
     - `SourceMap::slice` / `offset_to_line_col` 现会显式拒绝非 UTF-8 字符边界的 span/offset，避免同类 source mismatch 直接 panic。
     - 新增 source 单测与 LLVM 单测 `cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments`，锁定“跨文件 class ctor + 整数字面量参数 + 中文注释”回归；并已复验 `cargo test -p scoopc --features llvm`、`cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+  - `T4016T6` 已完成：
+    - `sysroot/core.scoop` 中 `Task<T>` 的内部布局已从 `__lock: scoop.sync.Mutex` 切到 `__claim: scoop.unsafe.__AtomicInt`；task 注释也同步更新为“atomic claim 字段 + 私有 `__TaskState<T>`”的过渡实现说明。
+    - `sysroot/task.scoop` 已删除 `mutexCreate()` / `lock()` / `unlock()` 路径；新增 `__task_claim_acquire()` / `__task_claim_release()`，通过 `__atomicIntCompareExchange` / `__atomicIntStore` 承担原先的短临界区串行化。
+    - `__task_create()` / `__task_from_result()` 不再为每个 task 分配 sync 对象；`Task.step()`、`__task_apply_step()` 与 `__task_restore_waiting()` 已切到 atomic claim helper，同时刻意保留当前 `Running -> Pending` 的过渡语义，把 trap-on-contention 留给 `T4016T7`。
+    - 新增 `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`，锁定 task manual-drive 主线会发出 atomic `cmpxchg` / `store atomic`，且不再出现 `scoop_sync_mutex_{create,lock,unlock,destroy}` 调用。
+    - 由于 sysroot 类型表新增/重排导致 MIR `TypeId` 稳定编号前移，已同步更新 `tests/fixtures/mir/closure_capture_val.mir` 与 `tests/fixtures/mir/closure_capture_var.mir` 两份 golden；并已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (389)`）、`cargo run -p scoop -- test`（`fixtures: ok (1163)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
   - 因此当前剩余顺序为：
-    - `T4016T6`：把 `Task` object model 从 per-task `Mutex` 改为 atomic claim field。
     - `T4016T7`：重写 `Task.step()` 为 claim-bit 驱动，并把 concurrent/reentrant `step()` 误用收口为 trap。
     - `T4016T8`：清理 compiler/runtime/substrate 中残留的 mutex / contention-is-pending 假设，并确认 cross-thread sequential handoff 合同。
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

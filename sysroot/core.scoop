@@ -486,17 +486,19 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 // - public `step()` 若观察到 `Running`，或发生并发 / reentrant drive，视为 executor/driver
 //   误用并直接 trap；
 // - 当前实现仍可理解为“ordinary object + 私有 step-result continuation”的薄封装：
-//   task 自身暂时保存一个普通 `scoop.sync.Mutex` 与普通 Scoop 定义的 `__TaskState<T>`；
-//   该 `Mutex` 只是过渡实现细节，不是稳定 contract 的一部分；
-// - runtime 继续只提供 generic continuation / GC / thread / sync/atomic substrate。
+//   task 自身现在保存一个最小 atomic claim 字段与普通 Scoop 定义的 `__TaskState<T>`；
+//   claim 字段当前只负责串行化状态迁移；public `step()` 的 trap-on-contention 收口留待后续
+//   `T4016T7` 完成；
+// - runtime 继续只提供 generic continuation / GC / thread / atomic substrate。
 enum TaskStep<T> {
     Pending,
     Ready(val value: T),
 }
 
 class Task<T>(
-    // 过渡实现细节：后续会被更轻量的 exclusive-drive claim 取代。
-    val __lock: scoop.sync.Mutex,
+    // 过渡实现细节：当前用于替代 per-task `Mutex` 的最小状态串行化字段；
+    // `T4016T7` 会继续把 public `step()` 入口收口为真正的 try-claim / trap-on-contention 合同。
+    var __claim: scoop.unsafe.__AtomicInt,
     var __state: __TaskState<T>,
 )
 fun <T> Task<T>.step(): TaskStep<T>

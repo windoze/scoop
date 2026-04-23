@@ -1,0 +1,23 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1)
+// BUILD-LLVM-CONTAINS: store atomic i64 0, ptr addrspace(1)
+// BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_create
+// BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_lock
+// BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_unlock
+// BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_destroy
+//
+// 目标：T4016T6：core `Task` 的手动 drive 主线已切到 atomic claim 字段，不再为每个 task
+// 分配或调用 per-task mutex runtime 对象。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async { 41 }
+    return when (task.step()) {
+        TaskStep.Pending -> 0
+        TaskStep.Ready(value) -> value
+    }
+}

@@ -604,7 +604,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T6 [TODO] 把 core `Task` object model 从 per-task `Mutex` 改成轻量 atomic claim field
+### T4016T6 [DONE] 把 core `Task` object model 从 per-task `Mutex` 改成轻量 atomic claim field
 - 范围：
   - 改写 `sysroot/core.scoop` / `sysroot/task.scoop` 中 `Task` 的内部布局：移除 `__lock: scoop.sync.Mutex`，引入最小 atomic claim / driving 字段与对应 internal helper。
   - 去掉 `Task` 创建路径上的 `mutexCreate()` / `destroy()` 依赖，保证 single-thread executor / 手动 drive 路径不再为每个 task 分配同步对象。
@@ -613,6 +613,18 @@
   - 新建 `Task` 不再携带 per-task `Mutex` 或等价 heavyweight sync object。
   - `Task` 的 ordinary Scoop 定义、async lowering glue 与 runtime substrate 能共同表达 atomic claim field 的最小形状。
 - 依赖：T4016T5a
+- 已完成：
+  - `sysroot/core.scoop` 已把 `Task<T>` 的内部布局从 `__lock: scoop.sync.Mutex` 改成 `__claim: scoop.unsafe.__AtomicInt`，并同步把 task 注释改写到“atomic claim 字段 + 私有 `__TaskState<T>`”的过渡叙事。
+  - `sysroot/task.scoop` 已删除 `mutexCreate()` / `lock()` / `unlock()` 依赖；新增 `__task_claim_acquire()` / `__task_claim_release()`，通过 `__atomicIntCompareExchange` / `__atomicIntStore` 承担原先的短临界区串行化。
+  - `__task_create()` / `__task_from_result()` 不再为每个 task 分配同步对象；`Task.step()`、`__task_apply_step()` 与 `__task_restore_waiting()` 已切到 atomic claim helper，同时保持当前 `Running -> Pending` 的过渡可观察语义，留待 `T4016T7` 继续收口为 trap。
+  - 新增 build LLVM 回归 `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`，锁定 task manual-drive 主线会发出 atomic `cmpxchg` / `store atomic`，且不再引用 `scoop_sync_mutex_{create,lock,unlock,destroy}`。
+  - `Task` 的 sysroot 类型表变化使 MIR 中的部分 `TypeId` 稳定编号前移；已同步更新 `tests/fixtures/mir/closure_capture_val.mir` 与 `tests/fixtures/mir/closure_capture_var.mir` 两份 golden，使全量 fixture 基线重新对齐当前实现。
+- 已复验：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (389)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1163)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T7 [TODO] 用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap
 - 范围：
