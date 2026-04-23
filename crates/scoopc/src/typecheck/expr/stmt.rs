@@ -12,7 +12,10 @@ use super::call::{
 };
 use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
-use super::member::{infer_not_null_assert_expr_type, resolve_member_value_target_for_receiver};
+use super::member::{
+    infer_member_access_ty_from_known_receiver, infer_not_null_assert_expr_type,
+    resolve_member_value_target_for_receiver,
+};
 use super::ops::{
     NominalReceiverRef, collect_unique_zero_arg_member_method_sig, literal_absorbs_to_expected,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
@@ -1621,12 +1624,13 @@ fn check_assign_expr_stmt(
                 });
             }
 
-            shared.struct_field_types.get(fqn).copied().ok_or_else(|| {
-                ExprTypeError::UnsupportedMemberAccess {
-                    fqn: fqn.clone(),
-                    span: member.span.into(),
-                }
-            })?
+            infer_member_access_ty_from_known_receiver(
+                receiver_inputs,
+                receiver_ty,
+                member,
+                Some(resolved),
+                lower,
+            )?
         }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {

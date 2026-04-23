@@ -1,29 +1,30 @@
 // EXPECT: pass
 // EXPECT-EXIT: 2
 //
-// T4016T1a：`Task` 目标形状 `Created(val start: () -> __TaskStepResult)` 不能再依赖 wrapper/workaround。
+// T4016T1a/T4016T2：`Task` 目标形状 `Created(val start: () -> __TaskStepResult<T>)`
+// 不能再依赖 wrapper/workaround。
 
 import scoop.core.*
 
 enum TaskState {
-    Created(val start: () -> __TaskStepResult),
+    Created(val start: () -> __TaskStepResult<Int>),
     Running,
 }
 
 fun drive(state: TaskState): Int {
     val viaWhen: Int = when (state) {
         Created(start) -> {
-            val first: __TaskStepResult = start()
+            val first: __TaskStepResult<Int> = start()
             1
         }
         Running -> 0
     }
 
     val TaskState.Created(bound) = state
-    val second: __TaskStepResult = bound()
+    val second: __TaskStepResult<Int> = bound()
     return viaWhen + 1
 }
 
 fun main(): Int {
-    return drive(Created({ __scoop_task_step_ready(0) }))
+    return drive(Created({ __task_step_ready(0) }))
 }

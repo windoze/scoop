@@ -1,0 +1,133 @@
+// Scoop sysroot: Task internals
+//
+// 说明：
+// - 这里承载 core task 的普通 Scoop 实现；
+// - runtime 只继续提供 continuation / GC / thread / sync substrate；
+// - 旧的 `__scoop_task_*` runtime ABI 仍保留到 `T4016T3` 删除，但新的 async lowering 已改走
+//   这里的 ordinary helper。
+
+package scoop.core
+
+import scoop.core.*
+import scoop.process.*
+import scoop.sync.*
+import scoop.thread.*
+
+fun <T> __task_create(block: () -> __TaskStepResult<T>): Task<T> {
+    val state: __TaskState<T> = Created(block)
+    return Task(mutexCreate(), state)
+}
+
+fun <T> __task_step_ready(value: T): __TaskStepResult<T> {
+    return Ready(__task_transport_pack<T>(value))
+}
+
+fun <T> __task_step_pending(
+    awaited: Task<(Int, Any)>,
+    continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
+): __TaskStepResult<T> {
+    return Pending(awaited, continuation)
+}
+
+fun <T> __task_from_result(value: T): Task<T> {
+    val state: __TaskState<T> = Completed(__task_transport_pack<T>(value))
+    return Task(mutexCreate(), state)
+}
+
+fun <T> __task_apply_step(task: Task<T>, step: __TaskStepResult<T>): TaskStep<T> {
+    task.__lock.lock()
+    return when (step) {
+        Pending(awaited, continuation) -> {
+            val next: __TaskState<T> = Waiting(awaited, continuation)
+            task.__state = next
+            task.__lock.unlock()
+            Pending()
+        }
+        Ready(value) -> {
+            val next: __TaskState<T> = Completed(value)
+            task.__state = next
+            task.__lock.unlock()
+            Ready(__task_transport_unpack<T>(value))
+        }
+    }
+}
+
+fun <T> __task_restore_waiting(
+    task: Task<T>,
+    awaited: Task<(Int, Any)>,
+    continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
+): TaskStep<T> {
+    task.__lock.lock()
+    val next: __TaskState<T> = Waiting(awaited, continuation)
+    task.__state = next
+    task.__lock.unlock()
+    return Pending()
+}
+
+fun <T> __task_drive_created(
+    task: Task<T>,
+    start: () -> __TaskStepResult<T>,
+): TaskStep<T> {
+    val step: __TaskStepResult<T> = start()
+    return __task_apply_step(task, step)
+}
+
+fun <T> __task_drive_waiting(
+    task: Task<T>,
+    awaited: Task<(Int, Any)>,
+    continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
+): TaskStep<T> {
+    val awaited_step: TaskStep<(Int, Any)> = awaited.step()
+    return when (awaited_step) {
+        Pending -> __task_restore_waiting(task, awaited, continuation)
+        Ready(value) -> {
+            val resumed: TaskStep<T> = try {
+                val step: __TaskStepResult<T> = continuation.resume(value)
+                __task_apply_step(task, step)
+            } catch (e: RuntimeError) {
+                // 与 legacy task runtime 一致：这里若触发 continuation runtime error，
+                // 说明 task 内部 drive/resume 合同被破坏，按 fatal invariant 处理。
+                exit(3)
+                Pending()
+            }
+            resumed
+        }
+    }
+}
+
+fun <T> Task<T>.step(): TaskStep<T> {
+    this.__lock.lock()
+    return when (this.__state) {
+        Running -> {
+            this.__lock.unlock()
+            Pending()
+        }
+        Completed(value) -> {
+            this.__lock.unlock()
+            Ready(__task_transport_unpack<T>(value))
+        }
+        Created(start) -> {
+            val next: __TaskState<T> = Running()
+            this.__state = next
+            this.__lock.unlock()
+            __task_drive_created(this, start)
+        }
+        Waiting(awaited, continuation) -> {
+            val next: __TaskState<T> = Running()
+            this.__state = next
+            this.__lock.unlock()
+            __task_drive_waiting(this, awaited, continuation)
+        }
+    }
+}
+
+fun <T> __task_join(task: Task<T>): T {
+    while (true) {
+        when (task.step()) {
+            Pending -> yield()
+            Ready(value) -> {
+                return value
+            }
+        }
+    }
+}

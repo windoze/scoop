@@ -134,9 +134,9 @@ struct HirLoweringSetup<'a> {
 impl<'a> HirLowering<'a> {
     const ASYNC_EFFECT_FQN: &'static str = "scoop.core.Async";
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
-    const TASK_CREATE_FQN: &'static str = "scoop.core.__scoop_task_create";
-    const TASK_STEP_PENDING_FQN: &'static str = "scoop.core.__scoop_task_step_pending";
-    const TASK_STEP_READY_FQN: &'static str = "scoop.core.__scoop_task_step_ready";
+    const TASK_CREATE_FQN: &'static str = "scoop.core.__task_create";
+    const TASK_STEP_PENDING_FQN: &'static str = "scoop.core.__task_step_pending";
+    const TASK_STEP_READY_FQN: &'static str = "scoop.core.__task_step_ready";
     const TASK_STEP_RESULT_FQN: &'static str = "scoop.core.__TaskStepResult";
     const TASK_TYPE_FQN: &'static str = "scoop.core.Task";
     const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
@@ -1477,8 +1477,15 @@ impl<'a> HirLowering<'a> {
         self.intern_nominal(Self::TASK_TYPE_FQN.to_string(), vec![inner_ty], None)
     }
 
-    fn task_step_result_type(&mut self) -> TypeId {
-        self.intern_nominal(Self::TASK_STEP_RESULT_FQN.to_string(), Vec::new(), None)
+    fn task_step_result_type(&mut self, inner_ty: TypeId) -> TypeId {
+        self.intern_nominal(Self::TASK_STEP_RESULT_FQN.to_string(), vec![inner_ty], None)
+    }
+
+    fn task_transport_type(&mut self) -> TypeId {
+        self.types.intern(TypeKind::Value(ValueTypeKind::Tuple(vec![
+            self.builtins.int,
+            self.builtins.any,
+        ])))
     }
 
     fn async_effect_type(&mut self) -> TypeId {
@@ -1807,6 +1814,47 @@ fn collect_default_arg_structs_in_object_decl(
     }
 }
 
+fn collect_compilation_unit_object_and_class_inits(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    typecheck_types: Option<&TypeStore>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> (ObjectInitIndex, ClassInitIndex, CtorCallSiteIndex) {
+    let mut object_inits = ObjectInitIndex::new();
+    let mut class_inits = ClassInitIndex::new();
+    let mut ctor_call_sites = CtorCallSiteIndex::new();
+
+    for (source, file) in compilation_unit {
+        let (file_object_inits, file_object_ctor_call_sites) = collect_object_inits(
+            source,
+            file,
+            index,
+            type_kinds,
+            typecheck_types,
+            types,
+            builtins,
+        );
+        object_inits.extend(file_object_inits);
+        ctor_call_sites.extend(file_object_ctor_call_sites);
+
+        let (file_class_inits, file_class_ctor_call_sites) = collect_class_inits(
+            source,
+            file,
+            index,
+            type_kinds,
+            typecheck_types,
+            types,
+            builtins,
+        );
+        class_inits.extend(file_class_inits);
+        ctor_call_sites.extend(file_class_ctor_call_sites);
+    }
+
+    (object_inits, class_inits, ctor_call_sites)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ValScope {
     TopLevel,
@@ -1917,28 +1965,18 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         )
     };
 
-    // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
-    let (object_inits, object_ctor_call_sites) = collect_object_inits(
-        source,
-        &ast,
-        &index,
-        &type_kinds,
-        None,
-        &mut types,
-        builtins,
-    );
-    ctor_call_sites.extend(object_ctor_call_sites);
-    // T1312：收集 class 初始化信息（Appendix B.2.2）。
-    let (class_inits, class_ctor_call_sites) = collect_class_inits(
-        source,
-        &ast,
-        &index,
-        &type_kinds,
-        None,
-        &mut types,
-        builtins,
-    );
-    ctor_call_sites.extend(class_ctor_call_sites);
+    // T4016T2：sysroot/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
+    // 需要从整个 compilation unit 收集 object/class side tables，而不是只看当前 lowering 的文件。
+    let (object_inits, class_inits, side_table_ctor_call_sites) =
+        collect_compilation_unit_object_and_class_inits(
+            &pairs,
+            &index,
+            &type_kinds,
+            None,
+            &mut types,
+            builtins,
+        );
+    ctor_call_sites.extend(side_table_ctor_call_sites);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -1974,6 +2012,19 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     );
     let mut member_funs = member_funs;
     member_funs.extend(monomorphized_member_funs);
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+        &pairs, &index, &mut types,
+    ));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+        &pairs, &index, &mut types,
+    ));
+    let class_inits = {
+        let mut ci = class_inits;
+        ci.extend(collect_generic_class_instantiation_inits(
+            &pairs, &mut types, &ci,
+        ));
+        ci
+    };
     Ok(LoweredHir {
         file,
         member_funs,
@@ -2096,12 +2147,16 @@ pub fn lower_for_compilation_unit(
         )
     };
 
-    let (object_inits, object_ctor_call_sites) =
-        collect_object_inits(source, file, index, &type_kinds, None, &mut types, builtins);
-    ctor_call_sites.extend(object_ctor_call_sites);
-    let (class_inits, class_ctor_call_sites) =
-        collect_class_inits(source, file, index, &type_kinds, None, &mut types, builtins);
-    ctor_call_sites.extend(class_ctor_call_sites);
+    let (object_inits, class_inits, side_table_ctor_call_sites) =
+        collect_compilation_unit_object_and_class_inits(
+            compilation_unit,
+            index,
+            &type_kinds,
+            None,
+            &mut types,
+            builtins,
+        );
+    ctor_call_sites.extend(side_table_ctor_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
@@ -2324,33 +2379,16 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         &mut types,
     ));
 
-    let mut object_inits = ObjectInitIndex::new();
-    let mut class_inits = ClassInitIndex::new();
-    for (source, file) in files_to_lower {
-        let (file_object_inits, file_object_ctor_call_sites) = collect_object_inits(
-            source,
-            file,
+    let (object_inits, mut class_inits, side_table_ctor_call_sites) =
+        collect_compilation_unit_object_and_class_inits(
+            compilation_unit,
             index,
             &type_kinds,
             Some(typecheck_types),
             &mut types,
             builtins,
         );
-        object_inits.extend(file_object_inits);
-        ctor_call_sites.extend(file_object_ctor_call_sites);
-
-        let (file_class_inits, file_class_ctor_call_sites) = collect_class_inits(
-            source,
-            file,
-            index,
-            &type_kinds,
-            Some(typecheck_types),
-            &mut types,
-            builtins,
-        );
-        class_inits.extend(file_class_inits);
-        ctor_call_sites.extend(file_class_ctor_call_sites);
-    }
+    ctor_call_sites.extend(side_table_ctor_call_sites);
     // T0125：泛型 class 的具体实例化 ClassInit（第一遍：处理文件中已有的泛型 class 实例化类型）。
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
@@ -2362,15 +2400,17 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     // 注意：必须在 class member monomorphization 之前运行，因为独立函数的单态化
     // 可能在 TypeStore 中创建新的泛型 class 实例化类型（例如 `Printer<Greeter>`），
     // 这些类型需要被后续的 class member monomorphization 发现。
-    let monomorphized_funs = collect_generic_fun_instantiations(
-        compilation_unit,
+    let monomorphized_funs = collect_generic_fun_instantiations(GenericFunInstantiationInputs {
+        pairs: compilation_unit,
         monomorph_keys,
         index,
-        &type_kinds,
-        &mut types,
+        type_kinds: &type_kinds,
+        types: &mut types,
         builtins,
         typecheck_types,
-    );
+        initial_items: &items,
+        initial_member_funs: &member_funs,
+    });
     items.extend(monomorphized_funs.into_iter().map(Item::Fun));
 
     // T0130：第二遍 class 实例化 —— standalone fun monomorphization 可能在 TypeStore 中
@@ -2389,6 +2429,21 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
         Some(typecheck_types),
         &mut types,
         builtins,
+    ));
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(
+        compilation_unit,
+        index,
+        &mut types,
+    ));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(
+        compilation_unit,
+        index,
+        &mut types,
+    ));
+    class_inits.extend(collect_generic_class_instantiation_inits(
+        compilation_unit,
+        &mut types,
+        &class_inits,
     ));
 
     Ok(LoweredHir {
@@ -4567,7 +4622,7 @@ fun run(): Unit / Echo {
     }
 
     #[test]
-    fn lower_typed_single_source_file_erases_async_step_payload_but_keeps_step_answer_explicit() {
+    fn lower_typed_single_source_file_routes_async_step_payload_through_transport_carrier() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<t4016d_async_task_step_answer>",
@@ -4596,27 +4651,139 @@ async fun fetch(): Int {
             .expect("应收集到 fixtures.t4016d.fetch");
         let fetch_body = fetch_fun.body.as_ref().expect("fetch 应有 body");
         let pending_call =
-            find_top_level_call_in_block(fetch_body, "scoop.core.__scoop_task_step_pending")
+            find_top_level_call_in_block(fetch_body, "scoop.core.__task_step_pending")
                 .expect("async lowering 应生成私有 task pending helper 调用");
 
         let ExprKind::Call { args, .. } = &pending_call.kind else {
-            panic!("__scoop_task_step_pending 应为 call expr");
+            panic!("__task_step_pending 应为 call expr");
         };
         let [
             CallArg::Positional(awaited_expr),
             CallArg::Positional(continuation_expr),
         ] = args.as_slice()
         else {
-            panic!("__scoop_task_step_pending 应接收 awaited task 与 continuation 两个位置参数");
+            panic!("__task_step_pending 应接收 awaited task 与 continuation 两个位置参数");
         };
 
         assert_eq!(
             lowered.types.display(awaited_expr.ty).to_string(),
-            "scoop.core.Task<Any>"
+            "scoop.core.Task<(Int, Any)>"
         );
         assert_eq!(
             lowered.types.display(continuation_expr.ty).to_string(),
-            "scoop.core.Continuation<Any, scoop.core.__TaskStepResult>"
+            "scoop.core.Continuation<(Int, Any), scoop.core.__TaskStepResult<Int>>"
+        );
+    }
+
+    #[test]
+    fn lower_typed_single_source_file_task_runtime_layouts_do_not_leak_type_params() {
+        fn ty_contains_param(types: &crate::ty::TypeStore, ty: crate::ty::TypeId) -> bool {
+            let mut stack = vec![ty];
+            while let Some(id) = stack.pop() {
+                match types.kind(id) {
+                    crate::ty::TypeKind::Param(_) => return true,
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal))
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) => {
+                        stack.extend(nominal.args.iter().copied());
+                    }
+                    crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                        stack.push(*inner);
+                    }
+                    crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elements)) => {
+                        stack.extend(elements.iter().copied());
+                    }
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Function(fun)) => {
+                        if let Some(receiver) = fun.receiver {
+                            stack.push(receiver);
+                        }
+                        stack.extend(fun.params.iter().copied());
+                        stack.push(fun.return_ty);
+                        stack.extend(fun.effects.terms.iter().copied());
+                    }
+                    crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Union(union)) => {
+                        stack.extend(union.variants.iter().copied());
+                    }
+                    crate::ty::TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                    crate::ty::TypeKind::Ref(
+                        crate::ty::RefTypeKind::Any | crate::ty::RefTypeKind::String,
+                    )
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Unit)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nothing)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Bool)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Char)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Float64)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Float32)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Int)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UInt)
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::IntN(_))
+                    | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::UIntN(_)) => {}
+                }
+            }
+            false
+        }
+
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<t4016t2_task_layouts>",
+            r#"
+package fixtures.t4016t2
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        val nested: Task<Int> = async { 41 }
+        val x: Int = await nested
+        x + 1
+    }
+    return __task_join(task)
+}
+"#,
+        );
+
+        let lowered = lower_typed_single_source_file(&sess, &source);
+
+        let mut bad_struct_fields = Vec::new();
+        for (layout_fqn, layout) in &lowered.struct_layouts {
+            for field in &layout.fields {
+                let Some(ty) = field.ty else {
+                    continue;
+                };
+                if ty_contains_param(&lowered.types, ty) {
+                    bad_struct_fields.push(format!(
+                        "{layout_fqn}.{} -> {}",
+                        field.name,
+                        lowered.types.display(ty)
+                    ));
+                }
+            }
+        }
+        assert!(
+            bad_struct_fields.is_empty(),
+            "struct layout 不应残留 type param: {bad_struct_fields:?}"
+        );
+
+        let mut bad_enum_fields = Vec::new();
+        for (layout_fqn, layout) in &lowered.enum_layouts {
+            for variant in &layout.variants {
+                for field in &variant.fields {
+                    let Some(ty) = field.ty else {
+                        continue;
+                    };
+                    if ty_contains_param(&lowered.types, ty) {
+                        bad_enum_fields.push(format!(
+                            "{layout_fqn}.{}.{} -> {}",
+                            variant.name,
+                            field.name,
+                            lowered.types.display(ty)
+                        ));
+                    }
+                }
+            }
+        }
+        assert!(
+            bad_enum_fields.is_empty(),
+            "enum layout 不应残留 type param: {bad_enum_fields:?}"
         );
     }
 

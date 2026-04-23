@@ -321,6 +321,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(cg);
         }
+        if let Some(ty) = ty {
+            tracing::warn!(
+                "cg_ty_of_layout_field: fallback to ty_fqn for layout field at {:?}; ty={}, ty_fqn={:?}",
+                at,
+                self.types.display(ty),
+                ty_fqn
+            );
+        } else {
+            tracing::warn!(
+                "cg_ty_of_layout_field: missing TypeId for layout field at {:?}; ty_fqn={:?}",
+                at,
+                ty_fqn
+            );
+        }
         self.cg_ty_of_type_fqn(at, ty_fqn)
     }
 

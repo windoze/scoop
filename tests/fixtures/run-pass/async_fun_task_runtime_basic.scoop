@@ -7,7 +7,7 @@
 // - `async fun foo(): T` 对外返回 `Task<T>`；
 // - 外层可通过 handled `Async.await` + 内部 helper 驱动 lazy task；
 // - task body 内 `await` 另一个 `async fun` 返回的 lazy task 时，会通过内部
-//   `step-ready/pending + poll` driver 推进该 task，而不是继续依赖“外层立即求值”旧语义。
+//   `step-ready/pending + Task.step()` driver 推进该 task，而不是继续依赖“外层立即求值”旧语义。
 
 import scoop.core.*
 
@@ -28,7 +28,7 @@ fun main(): Int {
     val value: Int = handle {
         Async.await(task)
     } with {
-        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+        Async.await(taskArg: Task<Int>) -> __task_join(taskArg)
     }
     println("done")
     println(value)

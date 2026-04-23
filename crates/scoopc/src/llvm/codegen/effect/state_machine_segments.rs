@@ -875,7 +875,7 @@ impl HandleSegmentList {
                         ));
                     }
                 }
-                SuspendSiteKind::RuntimeRaise { .. } => {
+                SuspendSiteKind::RuntimeRaise { reason } => {
                     for arm_id in &site.matching_arms {
                         let arm = arm_bodies_by_id.get(arm_id).expect("validated arm should exist");
                         if arm.op_fqn != "scoop.core.Raise.raise" {
@@ -895,9 +895,9 @@ impl HandleSegmentList {
                             describe_suspend_site_kind(&site.kind)
                         ));
                     }
-                    if site.resume_path.is_some() {
+                    if site.resume_path.is_some() && reason != "Continuation.resume" {
                         return Err(format!(
-                            "{path}: site{} kind={} must not carry resume_path metadata",
+                            "{path}: site{} kind={} must not carry resume_path metadata unless it is Continuation.resume",
                             site.id,
                             describe_suspend_site_kind(&site.kind)
                         ));
@@ -3703,6 +3703,234 @@ fun demo(): Int {
                 assert!(name.starts_with("__resume_site"));
             }
             other => panic!("expected rewritten local var ref, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn source_plan_rewrites_try_resume_direct_local_binding_to_synthetic_local() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): Int
+}
+
+fun demo(k: Continuation<Int, Int, eff Boom>): Int / (Boom + Raise<RuntimeError>) {
+    val resumed: Int = try {
+        val step: Int = k.resume(1)
+        step + 1
+    } catch (e: RuntimeError) {
+        0
+    }
+    resumed
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot for resume call");
+        let bind_init = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    decl.init.as_ref()
+                }
+                _ => None,
+            })
+            .expect("resume state should still bind the direct step local");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected rewritten direct resume binding, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn source_plan_rewrites_task_drive_waiting_style_resume_binding() {
+        let source_plan = build_source_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): (Int, Any)
+}
+
+fun apply(step: __TaskStepResult<Int>): Int {
+    when (step) {
+        Ready(_) -> 1
+        Pending(_, _) -> 2
+    }
+}
+
+fun demo(
+    k: Continuation<(Int, Any), __TaskStepResult<Int>, eff Boom>,
+    value: (Int, Any),
+): Int / (Boom + Raise<RuntimeError>) {
+    val resumed: Int = try {
+        val step: __TaskStepResult<Int> = k.resume(value)
+        apply(step)
+    } catch (e: RuntimeError) {
+        0
+    }
+    resumed
+}
+"#,
+        );
+
+        let resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+
+        let step_bind = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    Some(decl)
+                }
+                _ => None,
+            })
+            .expect("resume state should bind the direct step local");
+        let bind_init = step_bind
+            .init
+            .as_ref()
+            .expect("step local should keep an initializer");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected rewritten task-drive step binding, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn round_tripped_plan_preserves_task_drive_waiting_style_resume_binding() {
+        let plan = build_round_tripped_plan(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): (Int, Any)
+}
+
+fun apply(step: __TaskStepResult<Int>): Int {
+    when (step) {
+        Ready(_) -> 1
+        Pending(_, _) -> 2
+    }
+}
+
+fun demo(
+    k: Continuation<(Int, Any), __TaskStepResult<Int>, eff Boom>,
+    value: (Int, Any),
+): Int / (Boom + Raise<RuntimeError>) {
+    val resumed: Int = try {
+        val step: __TaskStepResult<Int> = k.resume(value)
+        apply(step)
+    } catch (e: RuntimeError) {
+        0
+    }
+    resumed
+}
+"#,
+        );
+
+        let resume_state = plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+
+        let step_bind = resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    Some(decl)
+                }
+                _ => None,
+            })
+            .expect("round-tripped resume state should bind the direct step local");
+        let bind_init = step_bind
+            .init
+            .as_ref()
+            .expect("step local should keep an initializer");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected round-tripped rewritten task-drive step binding, got {other:?}"),
         }
     }
 

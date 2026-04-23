@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use crate::ast;
 use crate::resolve::{ConeId, ConstructorOverload, FunOverload, Visibility};
@@ -60,6 +61,7 @@ pub(super) struct EnumVariantCtorTarget<'a> {
 
 #[derive(Clone, Copy)]
 pub(in super::super) struct EnumTypeSubstContext<'a> {
+    pub(in super::super) decl_file: &'a Path,
     pub(in super::super) enum_source: &'a SourceFile,
     pub(in super::super) use_span: Span,
     pub(in super::super) enum_fqn: &'a str,
@@ -3937,6 +3939,7 @@ fn infer_specific_enum_variant_ctor_call_expr_type(
     {
         let expected_ty = lower_type_ref_with_enum_subst(
             EnumTypeSubstContext {
+                decl_file: enum_source.path(),
                 enum_source: &enum_source,
                 use_span: call_expr.span,
                 enum_fqn,
@@ -3983,7 +3986,9 @@ fn infer_enum_variant_ctor_call_expr_type(
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
     let variant_name = source.slice(callee.span);
-    let candidates = lower.env().find_enum_variants_named(variant_name);
+    let candidates = lower
+        .env()
+        .find_visible_enum_variants_named(variant_name, source);
 
     if candidates.is_empty() {
         return Ok(None);
@@ -4096,6 +4101,7 @@ pub(super) fn infer_specific_enum_variant_ctor_call_expr_type_by_expected(
     for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {
         let expected_field_ty = lower_type_ref_with_enum_subst(
             EnumTypeSubstContext {
+                decl_file: enum_source.path(),
                 enum_source: &enum_source,
                 use_span: call_expr.span,
                 enum_fqn,
@@ -4150,7 +4156,7 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
     ty: &ast::TypeRef,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
-    match ty {
+    lower.with_decl_file_context(ctx.decl_file, |lower| match ty {
         ast::TypeRef::Path(p) => {
             // 单段名且无 type args：可能是对 enum type param 的引用（例如 `T`）。
             if p.segments.len() == 1 && p.args.is_empty() {
@@ -4183,12 +4189,20 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
                 Err(other) => return Err(other.into()),
             };
 
+            let mut eff_arg: Option<EffectRow> = None;
             let mut args: Vec<TypeId> = Vec::with_capacity(p.args.len());
             for a in &p.args {
-                args.push(lower_type_ref_with_enum_subst(ctx, a, lower)?);
+                match a {
+                    ast::TypeRef::EffectRowArg { row, .. } => {
+                        if eff_arg.is_none() {
+                            eff_arg = Some(lower.lower_effect_row_expr(Some(row))?);
+                        }
+                    }
+                    _ => args.push(lower_type_ref_with_enum_subst(ctx, a, lower)?),
+                }
             }
 
-            Ok(lower.lower_type_fqn_with_args(fqn, args, ctx.use_span)?)
+            Ok(lower.lower_type_fqn_with_args_and_eff(fqn, args, eff_arg, ctx.use_span)?)
         }
         ast::TypeRef::Tuple(t) => {
             if t.elements.is_empty() {
@@ -4257,7 +4271,7 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
             let effects_closed = f.effects.as_ref().is_some_and(|r| r.closed);
             Ok(lower.ty_function(receiver, params, return_ty, effects, effects_closed))
         }
-    }
+    })
 }
 
 fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {

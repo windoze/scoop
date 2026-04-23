@@ -2509,6 +2509,50 @@ fn append_struct_body_property_layout_fields(
     }
 }
 
+fn type_contains_param(types: &TypeStore, ty: crate::ty::TypeId) -> bool {
+    let mut stack = vec![ty];
+    while let Some(id) = stack.pop() {
+        match types.kind(id) {
+            TypeKind::Param(_) => return true,
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+    false
+}
+
 /// 收集泛型 struct 的具体实例化布局（T0124）。
 ///
 /// 在 typecheck 之后运行：扫描 TypeStore 中所有 `ValueTypeKind::Nominal`（args 非空），
@@ -2559,6 +2603,13 @@ pub(super) fn collect_generic_struct_instantiation_layouts(
             _ => continue,
         };
         if nominal.args.is_empty() {
+            continue;
+        }
+        if nominal
+            .args
+            .iter()
+            .any(|&arg| type_contains_param(types, arg))
+        {
             continue;
         }
 
@@ -2706,6 +2757,13 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
         if nominal.args.is_empty() {
             continue;
         }
+        if nominal
+            .args
+            .iter()
+            .any(|&arg| type_contains_param(types, arg))
+        {
+            continue;
+        }
 
         let Some((source, file, decl)) = generic_enums.get(&nominal.fqn) else {
             continue;
@@ -2827,6 +2885,13 @@ pub(super) fn collect_generic_class_instantiation_inits(
             continue;
         };
         if nominal.args.is_empty() {
+            continue;
+        }
+        if nominal
+            .args
+            .iter()
+            .any(|&arg| type_contains_param(types, arg))
+        {
             continue;
         }
 
@@ -3275,11 +3340,7 @@ pub(super) fn collect_generic_member_fun_instantiations(
             continue;
         }
         // 跳过仍包含 Param 类型的实例化（例如 Box<T>）
-        if nominal
-            .args
-            .iter()
-            .any(|&a| matches!(types.kind(a), TypeKind::Param(_)))
-        {
+        if nominal.args.iter().any(|&a| type_contains_param(types, a)) {
             continue;
         }
 
@@ -3517,6 +3578,678 @@ fn collect_generic_member_owner_decls_in_object_decl<'a>(
     }
 }
 
+fn map_hir_call_args_to_params_by_name(
+    param_names: &[String],
+    args: &[CallArg],
+) -> Option<Vec<usize>> {
+    if args.len() != param_names.len() {
+        return None;
+    }
+
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+    for arg in args {
+        match arg {
+            CallArg::Positional(_) => {
+                if seen_named {
+                    return None;
+                }
+                positional_count = positional_count.saturating_add(1);
+            }
+            CallArg::Named { .. } => {
+                seen_named = true;
+            }
+        }
+    }
+
+    if positional_count > param_names.len() {
+        return None;
+    }
+
+    let mut param_to_arg: Vec<Option<usize>> = vec![None; param_names.len()];
+    for (slot_idx, arg_idx) in (0..positional_count).enumerate() {
+        *param_to_arg.get_mut(slot_idx)? = Some(arg_idx);
+    }
+
+    for (arg_idx, arg) in args.iter().enumerate().skip(positional_count) {
+        let CallArg::Named { name, .. } = arg else {
+            return None;
+        };
+        let slot_idx = param_names.iter().position(|param| param == name)?;
+        let slot = param_to_arg.get_mut(slot_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(arg_idx);
+    }
+
+    let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+    for (param_idx, arg_idx) in param_to_arg.into_iter().enumerate() {
+        let arg_idx = arg_idx?;
+        let slot = arg_to_param.get_mut(arg_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(param_idx);
+    }
+
+    arg_to_param.into_iter().collect()
+}
+
+fn collect_hir_type_param_names(types: &TypeStore, ty: crate::ty::TypeId, out: &mut Vec<String>) {
+    let mut stack = vec![ty];
+    while let Some(id) = stack.pop() {
+        match types.kind(id) {
+            TypeKind::Param(tp) => {
+                if !out.contains(&tp.name) {
+                    out.push(tp.name.clone());
+                }
+            }
+            TypeKind::StarProjection(star) => stack.push(star.read_ty),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                stack.extend(nominal.args.iter().copied());
+                if let Some(eff) = &nominal.eff {
+                    stack.extend(eff.terms.iter().copied());
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Option(inner)) => stack.push(*inner),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+                stack.extend(elements.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if let Some(receiver) = fun.receiver {
+                    stack.push(receiver);
+                }
+                stack.extend(fun.params.iter().copied());
+                stack.push(fun.return_ty);
+                stack.extend(fun.effects.terms.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Union(union)) => {
+                stack.extend(union.variants.iter().copied());
+            }
+            TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String)
+            | TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => {}
+        }
+    }
+}
+
+fn collect_hir_type_param_bindings(
+    types: &TypeStore,
+    declared_ty: crate::ty::TypeId,
+    concrete_ty: crate::ty::TypeId,
+    bindings: &mut HashMap<String, crate::ty::TypeId>,
+) {
+    match (types.kind(declared_ty), types.kind(concrete_ty)) {
+        (TypeKind::Param(tp), _) => match bindings.get(&tp.name).copied() {
+            Some(existing) if existing == concrete_ty => {}
+            Some(_) => {}
+            None => {
+                bindings.insert(tp.name.clone(), concrete_ty);
+            }
+        },
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(declared)),
+            TypeKind::Ref(RefTypeKind::Nominal(concrete)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(declared)),
+            TypeKind::Value(ValueTypeKind::Nominal(concrete)),
+        ) => {
+            if declared.fqn != concrete.fqn || declared.args.len() != concrete.args.len() {
+                return;
+            }
+            for (decl_arg, concrete_arg) in declared.args.iter().zip(concrete.args.iter()) {
+                collect_hir_type_param_bindings(types, *decl_arg, *concrete_arg, bindings);
+            }
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Option(declared_inner)),
+            TypeKind::Value(ValueTypeKind::Option(concrete_inner)),
+        ) => {
+            collect_hir_type_param_bindings(types, *declared_inner, *concrete_inner, bindings);
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(declared_elements)),
+            TypeKind::Value(ValueTypeKind::Tuple(concrete_elements)),
+        ) => {
+            if declared_elements.len() != concrete_elements.len() {
+                return;
+            }
+            for (decl_elem, concrete_elem) in declared_elements.iter().zip(concrete_elements.iter())
+            {
+                collect_hir_type_param_bindings(types, *decl_elem, *concrete_elem, bindings);
+            }
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Function(declared_fun)),
+            TypeKind::Ref(RefTypeKind::Function(concrete_fun)),
+        ) => {
+            match (declared_fun.receiver, concrete_fun.receiver) {
+                (Some(declared_receiver), Some(concrete_receiver)) => {
+                    collect_hir_type_param_bindings(
+                        types,
+                        declared_receiver,
+                        concrete_receiver,
+                        bindings,
+                    );
+                }
+                (None, None) => {}
+                _ => return,
+            }
+            if declared_fun.params.len() != concrete_fun.params.len() {
+                return;
+            }
+            for (decl_param, concrete_param) in
+                declared_fun.params.iter().zip(concrete_fun.params.iter())
+            {
+                collect_hir_type_param_bindings(types, *decl_param, *concrete_param, bindings);
+            }
+            collect_hir_type_param_bindings(
+                types,
+                declared_fun.return_ty,
+                concrete_fun.return_ty,
+                bindings,
+            );
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Union(declared_union)),
+            TypeKind::Ref(RefTypeKind::Union(concrete_union)),
+        ) => {
+            if declared_union.variants.len() != concrete_union.variants.len() {
+                return;
+            }
+            for (decl_variant, concrete_variant) in declared_union
+                .variants
+                .iter()
+                .zip(concrete_union.variants.iter())
+            {
+                collect_hir_type_param_bindings(types, *decl_variant, *concrete_variant, bindings);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extract_concrete_hir_expr_ty(
+    types: &TypeStore,
+    expr: &super::super::Expr,
+) -> Option<crate::ty::TypeId> {
+    let ty = expr.ty;
+    (!type_contains_param(types, ty) && !matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Any)))
+        .then_some(ty)
+}
+
+fn generic_fun_callee_fqn(expr: &super::super::Expr) -> Option<&str> {
+    match &expr.kind {
+        super::super::ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+        super::super::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+            MemberRef::Fun { fqn, .. } | MemberRef::ExtensionFun { fqn, .. } => Some(fqn.as_str()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn generic_fun_call_receiver_expr(expr: &super::super::Expr) -> Option<&super::super::Expr> {
+    let super::super::ExprKind::MemberAccess { receiver, member } = &expr.kind else {
+        return None;
+    };
+    match member.resolved.as_ref()? {
+        MemberRef::Fun { .. } | MemberRef::ExtensionFun { .. } => Some(receiver),
+        _ => None,
+    }
+}
+
+fn infer_generic_fun_call_type_args(
+    types: &TypeStore,
+    sig_fun: &super::super::FunDecl,
+    declared_type_param_names: &[String],
+    receiver_expr: Option<&super::super::Expr>,
+    args: &[CallArg],
+) -> Option<Vec<crate::ty::TypeId>> {
+    let receiver_param_offset = usize::from(
+        receiver_expr.is_some()
+            && sig_fun
+                .params
+                .first()
+                .is_some_and(|param| param.name == "this"),
+    );
+
+    let decl_param_names: Vec<String> = sig_fun
+        .params
+        .iter()
+        .skip(receiver_param_offset)
+        .map(|param| param.name.clone())
+        .collect();
+    let arg_to_param = map_hir_call_args_to_params_by_name(&decl_param_names, args)?;
+    let mut param_to_arg: Vec<Option<usize>> = vec![None; sig_fun.params.len()];
+    for (arg_idx, param_idx) in arg_to_param.iter().copied().enumerate() {
+        *param_to_arg.get_mut(param_idx + receiver_param_offset)? = Some(arg_idx);
+    }
+
+    let mut referenced_type_param_names: Vec<String> = Vec::new();
+    for param in &sig_fun.params {
+        collect_hir_type_param_names(types, param.ty, &mut referenced_type_param_names);
+    }
+    collect_hir_type_param_names(types, sig_fun.return_ty, &mut referenced_type_param_names);
+    if referenced_type_param_names.is_empty() {
+        return None;
+    }
+
+    let mut bindings: HashMap<String, crate::ty::TypeId> = HashMap::new();
+    for (idx, param) in sig_fun.params.iter().enumerate() {
+        if !type_contains_param(types, param.ty) {
+            continue;
+        }
+        let concrete_ty = if receiver_param_offset == 1 && idx == 0 {
+            let receiver_expr = receiver_expr?;
+            extract_concrete_hir_expr_ty(types, receiver_expr)?
+        } else {
+            let arg_idx = param_to_arg.get(idx).copied().flatten()?;
+            let arg_expr = match args.get(arg_idx)? {
+                CallArg::Positional(expr) => expr,
+                CallArg::Named { value, .. } => value,
+            };
+            extract_concrete_hir_expr_ty(types, arg_expr)?
+        };
+        collect_hir_type_param_bindings(types, param.ty, concrete_ty, &mut bindings);
+    }
+
+    let mut ordered_args = Vec::with_capacity(declared_type_param_names.len());
+    for name in declared_type_param_names {
+        let ty = bindings.get(name).copied()?;
+        if type_contains_param(types, ty) {
+            return None;
+        }
+        ordered_args.push(ty);
+    }
+    Some(ordered_args)
+}
+
+fn collect_generic_fun_calls_in_block(
+    block: &Block,
+    generic_fun_candidates_by_fqn: &HashMap<String, Vec<(String, Span)>>,
+    generic_fun_type_param_names: &HashMap<(String, Span), Vec<String>>,
+    generic_fun_signatures: &HashMap<(String, Span), super::super::FunDecl>,
+    types: &TypeStore,
+    out: &mut Vec<((String, Span), Vec<crate::ty::TypeId>)>,
+) {
+    for stmt in &block.stmts {
+        collect_generic_fun_calls_in_stmt(
+            stmt,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        );
+    }
+}
+
+fn collect_generic_fun_calls_in_stmt(
+    stmt: &super::super::Stmt,
+    generic_fun_candidates_by_fqn: &HashMap<String, Vec<(String, Span)>>,
+    generic_fun_type_param_names: &HashMap<(String, Span), Vec<String>>,
+    generic_fun_signatures: &HashMap<(String, Span), super::super::FunDecl>,
+    types: &TypeStore,
+    out: &mut Vec<((String, Span), Vec<crate::ty::TypeId>)>,
+) {
+    match &stmt.kind {
+        StmtKind::Empty
+        | StmtKind::Break { .. }
+        | StmtKind::Continue { .. }
+        | StmtKind::Todo(_) => {}
+        StmtKind::Expr(expr) => collect_generic_fun_calls_in_expr(
+            expr,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        ),
+        StmtKind::Val(decl) => {
+            if let Some(init) = decl.init.as_ref() {
+                collect_generic_fun_calls_in_expr(
+                    init,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        StmtKind::Assign { lhs, rhs, .. } => {
+            collect_generic_fun_calls_in_expr(
+                lhs,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            collect_generic_fun_calls_in_expr(
+                rhs,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+        }
+        StmtKind::Return { value } => {
+            if let Some(value) = value.as_ref() {
+                collect_generic_fun_calls_in_expr(
+                    value,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        StmtKind::While { cond, body } => {
+            collect_generic_fun_calls_in_expr(
+                cond,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            collect_generic_fun_calls_in_block(
+                body,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+        }
+    }
+}
+
+fn collect_generic_fun_calls_in_expr(
+    expr: &super::super::Expr,
+    generic_fun_candidates_by_fqn: &HashMap<String, Vec<(String, Span)>>,
+    generic_fun_type_param_names: &HashMap<(String, Span), Vec<String>>,
+    generic_fun_signatures: &HashMap<(String, Span), super::super::FunDecl>,
+    types: &TypeStore,
+    out: &mut Vec<((String, Span), Vec<crate::ty::TypeId>)>,
+) {
+    match &expr.kind {
+        super::super::ExprKind::Missing
+        | super::super::ExprKind::Literal(_)
+        | super::super::ExprKind::VarRef(_)
+        | super::super::ExprKind::UnresolvedIdent { .. }
+        | super::super::ExprKind::Todo(_) => {}
+        super::super::ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_generic_fun_calls_in_expr(
+                    &field.value,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        super::super::ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_generic_fun_calls_in_expr(
+                    element,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        super::super::ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let InterpolatedStringPart::Expr { expr } = part {
+                    collect_generic_fun_calls_in_expr(
+                        expr,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    );
+                }
+            }
+        }
+        super::super::ExprKind::Unary { expr: inner, .. }
+        | super::super::ExprKind::TypeCheck { expr: inner, .. }
+        | super::super::ExprKind::Cast { expr: inner, .. } => collect_generic_fun_calls_in_expr(
+            inner,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        ),
+        super::super::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_generic_fun_calls_in_expr(
+                lhs,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            collect_generic_fun_calls_in_expr(
+                rhs,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+        }
+        super::super::ExprKind::Block(block) => collect_generic_fun_calls_in_block(
+            block,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        ),
+        super::super::ExprKind::Call { callee, args } => {
+            if let Some(callee_fqn) = generic_fun_callee_fqn(callee)
+                && let Some(candidates) = generic_fun_candidates_by_fqn.get(callee_fqn)
+                && candidates.len() == 1
+            {
+                let lookup_key = candidates[0].clone();
+                if let (Some(sig_fun), Some(type_param_names)) = (
+                    generic_fun_signatures.get(&lookup_key),
+                    generic_fun_type_param_names.get(&lookup_key),
+                ) && let Some(type_args) = infer_generic_fun_call_type_args(
+                    types,
+                    sig_fun,
+                    type_param_names,
+                    generic_fun_call_receiver_expr(callee),
+                    args,
+                ) {
+                    out.push((lookup_key, type_args));
+                }
+            }
+
+            collect_generic_fun_calls_in_expr(
+                callee,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            for arg in args {
+                match arg {
+                    CallArg::Positional(expr) => collect_generic_fun_calls_in_expr(
+                        expr,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    ),
+                    CallArg::Named { value, .. } => collect_generic_fun_calls_in_expr(
+                        value,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    ),
+                }
+            }
+        }
+        super::super::ExprKind::Closure(closure) => collect_generic_fun_calls_in_expr(
+            &closure.body,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        ),
+        super::super::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_generic_fun_calls_in_expr(
+                cond,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            collect_generic_fun_calls_in_expr(
+                then_branch,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            if let Some(else_branch) = else_branch.as_ref() {
+                collect_generic_fun_calls_in_expr(
+                    else_branch,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        super::super::ExprKind::When { subject, arms } => {
+            collect_generic_fun_calls_in_expr(
+                subject,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_generic_fun_calls_in_expr(
+                        guard,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    );
+                }
+                collect_generic_fun_calls_in_expr(
+                    &arm.body,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+        super::super::ExprKind::MemberAccess { receiver, .. } => collect_generic_fun_calls_in_expr(
+            receiver,
+            generic_fun_candidates_by_fqn,
+            generic_fun_type_param_names,
+            generic_fun_signatures,
+            types,
+            out,
+        ),
+        super::super::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    CallArg::Positional(expr) => collect_generic_fun_calls_in_expr(
+                        expr,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    ),
+                    CallArg::Named { value, .. } => collect_generic_fun_calls_in_expr(
+                        value,
+                        generic_fun_candidates_by_fqn,
+                        generic_fun_type_param_names,
+                        generic_fun_signatures,
+                        types,
+                        out,
+                    ),
+                }
+            }
+        }
+        super::super::ExprKind::Handle(handle) => {
+            collect_generic_fun_calls_in_block(
+                &handle.body,
+                generic_fun_candidates_by_fqn,
+                generic_fun_type_param_names,
+                generic_fun_signatures,
+                types,
+                out,
+            );
+            for arm in &handle.arms {
+                collect_generic_fun_calls_in_expr(
+                    &arm.body,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+            if let Some(finally) = handle.finally.as_ref() {
+                collect_generic_fun_calls_in_block(
+                    finally,
+                    generic_fun_candidates_by_fqn,
+                    generic_fun_type_param_names,
+                    generic_fun_signatures,
+                    types,
+                    out,
+                );
+            }
+        }
+    }
+}
+
 /// T0127: 从 monomorph keys 收集泛型独立函数的具体实例化，生成单态化的 HIR FunDecl。
 ///
 /// 工作原理：
@@ -3524,16 +4257,34 @@ fn collect_generic_member_owner_decls_in_object_decl<'a>(
 /// 2. 遍历 monomorph keys，对每个 key 找到对应的函数声明。
 /// 3. 调用 `lower_fun_with_type_bindings` 生成具体实例的 HIR FunDecl。
 /// 4. 重命名 FQN 为 mangled 形式（例如 `pkg.id::<Int>`）。
+pub(super) struct GenericFunInstantiationInputs<'a> {
+    pub pairs: &'a [(&'a SourceFile, &'a ast::File)],
+    pub monomorph_keys: &'a [crate::monomorph::MonomorphKey],
+    pub index: &'a Index,
+    pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub types: &'a mut TypeStore,
+    pub builtins: BuiltinTypes,
+    pub typecheck_types: &'a TypeStore,
+    pub initial_items: &'a [super::super::Item],
+    pub initial_member_funs: &'a [super::super::FunDecl],
+}
+
 pub(super) fn collect_generic_fun_instantiations(
-    pairs: &[(&SourceFile, &ast::File)],
-    monomorph_keys: &[crate::monomorph::MonomorphKey],
-    index: &Index,
-    type_kinds: &HashMap<String, ast::TypeKind>,
-    types: &mut TypeStore,
-    builtins: BuiltinTypes,
-    typecheck_types: &TypeStore,
+    inputs: GenericFunInstantiationInputs<'_>,
 ) -> Vec<super::super::FunDecl> {
-    if monomorph_keys.is_empty() {
+    let GenericFunInstantiationInputs {
+        pairs,
+        monomorph_keys,
+        index,
+        type_kinds,
+        types,
+        builtins,
+        typecheck_types,
+        initial_items,
+        initial_member_funs,
+    } = inputs;
+
+    if monomorph_keys.is_empty() && initial_items.is_empty() && initial_member_funs.is_empty() {
         return Vec::new();
     }
 
@@ -3551,6 +4302,12 @@ pub(super) fn collect_generic_fun_instantiations(
             if fun.type_params.is_empty() {
                 continue;
             }
+            if matches!(fun.body, ast::FunBody::Missing) {
+                // T4016T2: `sysroot/core.scoop` 会保留 declaration-only surface，而真实实现体位于
+                // `sysroot/task.scoop` 等可编译源。generic fixed-point 发现器只应索引“可实例化的实现体”，
+                // 否则像 `scoop.core.step` 这类符号会因为 declaration + implementation 双候选而被误判成 overload。
+                continue;
+            }
             let local_name = source.slice(fun.name.span);
             let fqn = if pkg_prefix.is_empty() {
                 local_name.to_string()
@@ -3565,54 +4322,133 @@ pub(super) fn collect_generic_fun_instantiations(
         return Vec::new();
     }
 
-    // 2) 去重 + 生成实例
+    let mut generic_fun_candidates_by_fqn: HashMap<String, Vec<(String, crate::span::Span)>> =
+        HashMap::new();
+    let mut generic_fun_type_param_names: HashMap<(String, crate::span::Span), Vec<String>> =
+        HashMap::new();
+    let mut generic_fun_signatures: HashMap<(String, crate::span::Span), super::super::FunDecl> =
+        HashMap::new();
+    for (lookup_key, (source, file, fun_decl)) in &generic_funs {
+        generic_fun_candidates_by_fqn
+            .entry(lookup_key.0.clone())
+            .or_default()
+            .push(lookup_key.clone());
+        generic_fun_type_param_names.insert(
+            lookup_key.clone(),
+            fun_decl
+                .type_params
+                .iter()
+                .map(|param| param.name.text(source).to_string())
+                .collect(),
+        );
+
+        let param_bindings = fun_decl
+            .type_params
+            .iter()
+            .map(|param| {
+                let name = param.name.text(source).to_string();
+                let ty = types.ty_param(crate::ty::TypeParamType {
+                    name: name.clone(),
+                    decl_file: source.path().to_path_buf(),
+                    decl_span: param.name.span,
+                });
+                (name, ty)
+            })
+            .collect::<Vec<_>>();
+        let sig_fun = super::lower_fun_with_type_bindings(
+            super::LoweringInputs {
+                source,
+                file,
+                index,
+                type_kinds,
+                typecheck_types: Some(typecheck_types),
+                types,
+                builtins,
+            },
+            fun_decl,
+            param_bindings,
+        );
+        generic_fun_signatures.insert(lookup_key.clone(), sig_fun);
+    }
+
+    // 2) fixed-point：初始 monomorph key + 新生成实例体里的 generic fun 调用，直到收敛。
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<super::super::FunDecl> = Vec::new();
+    let mut pending: Vec<((String, crate::span::Span), Vec<crate::ty::TypeId>)> = monomorph_keys
+        .iter()
+        .map(|key| {
+            let re_interned_args = key
+                .type_args
+                .iter()
+                .map(|&arg| types.re_intern_from(typecheck_types, arg))
+                .collect::<Vec<_>>();
+            (
+                (key.symbol.fqn.clone(), key.symbol.decl_span),
+                re_interned_args,
+            )
+        })
+        .collect();
 
-    for key in monomorph_keys {
-        // T0130: monomorph key 中的 TypeId 来自 typecheck 阶段的 TypeStore，
-        // 需要在当前 HIR lowering 的 TypeStore 中重新 intern。
-        let re_interned_args: Vec<crate::ty::TypeId> = key
-            .type_args
-            .iter()
-            .map(|&a| types.re_intern_from(typecheck_types, a))
-            .collect();
+    for item in initial_items {
+        let super::super::Item::Fun(fun) = item else {
+            continue;
+        };
+        let Some(body) = fun.body.as_ref() else {
+            continue;
+        };
+        collect_generic_fun_calls_in_block(
+            body,
+            &generic_fun_candidates_by_fqn,
+            &generic_fun_type_param_names,
+            &generic_fun_signatures,
+            types,
+            &mut pending,
+        );
+    }
+    for fun in initial_member_funs {
+        let Some(body) = fun.body.as_ref() else {
+            continue;
+        };
+        collect_generic_fun_calls_in_block(
+            body,
+            &generic_fun_candidates_by_fqn,
+            &generic_fun_type_param_names,
+            &generic_fun_signatures,
+            types,
+            &mut pending,
+        );
+    }
 
-        // 跳过仍含 Param 类型的 key（泛型传递调用）
+    while let Some((lookup_key, re_interned_args)) = pending.pop() {
         if re_interned_args
             .iter()
-            .any(|&a| matches!(types.kind(a), TypeKind::Param(_)))
+            .any(|&a| type_contains_param(types, a))
         {
             continue;
         }
 
-        let lookup_key = (key.symbol.fqn.clone(), key.symbol.decl_span);
         let Some((source, file, fun_decl)) = generic_funs.get(&lookup_key) else {
             continue;
         };
-
         if fun_decl.type_params.len() != re_interned_args.len() {
             continue;
         }
 
-        // 构造 mangled FQN 用于去重
         let args_str = re_interned_args
             .iter()
             .map(|id| types.display(*id).to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let instance_fqn = format!("{}::<{args_str}>", key.symbol.fqn);
-
+        let instance_fqn = format!("{}::<{args_str}>", lookup_key.0);
         if !seen.insert(instance_fqn.clone()) {
             continue;
         }
 
-        // 构建 type param → concrete TypeId 映射
         let bindings: Vec<(String, crate::ty::TypeId)> = fun_decl
             .type_params
             .iter()
             .zip(re_interned_args.iter())
-            .map(|(p, &arg)| (p.name.text(source).to_string(), arg))
+            .map(|(param, &arg)| (param.name.text(source).to_string(), arg))
             .collect();
 
         let mut hir_fun = super::lower_fun_with_type_bindings(
@@ -3628,6 +4464,19 @@ pub(super) fn collect_generic_fun_instantiations(
             fun_decl,
             bindings,
         );
+
+        if let Some(body) = hir_fun.body.as_ref() {
+            let mut discovered = Vec::new();
+            collect_generic_fun_calls_in_block(
+                body,
+                &generic_fun_candidates_by_fqn,
+                &generic_fun_type_param_names,
+                &generic_fun_signatures,
+                types,
+                &mut discovered,
+            );
+            pending.extend(discovered);
+        }
 
         hir_fun.fqn = instance_fqn;
         out.push(hir_fun);

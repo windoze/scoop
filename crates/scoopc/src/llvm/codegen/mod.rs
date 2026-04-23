@@ -79,8 +79,6 @@ use types::{
     CgEnumLayout, CgEnumPayload, CgEnumRepr, CgEnumVariant, CgTy, CgValue, GC_ADDRSPACE, IntTy,
 };
 
-pub(crate) use effect::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
-
 /// Closure lowering 后，codegen 需要分别知道：
 /// - receiver lambda 的隐式 `this` 绑定（来自 LLVM receiver 参数，而非 capture env）；
 /// - 普通显式参数 / 隐式 `it` 绑定；
@@ -1028,18 +1026,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let llvm_params = fun
-            .params
-            .iter()
-            .map(|p| self.llvm_param_ty(p.span, p.ty))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut llvm_params = Vec::with_capacity(fun.params.len());
+        for param in &fun.params {
+            match self.llvm_param_ty(param.span, param.ty) {
+                Ok(ty) => llvm_params.push(ty),
+                Err(err) => {
+                    tracing::warn!(
+                        "declare_top_level_fun: unsupported param type for {} param {} -> {}",
+                        fun.fqn,
+                        param.name,
+                        self.types.display(param.ty)
+                    );
+                    return Err(err);
+                }
+            }
+        }
 
-        let return_cg = self
-            .cg_ty_of(fun.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+        let Some(return_cg) = self.cg_ty_of(fun.return_ty) else {
+            tracing::warn!(
+                "declare_top_level_fun: unsupported return type for {} -> {}",
+                fun.fqn,
+                self.types.display(fun.return_ty)
+            );
+            return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "function return type",
                 at: fun.span.into(),
-            })?;
+            });
+        };
 
         let fn_ty = match return_cg {
             CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_params, false),
@@ -2254,12 +2267,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.env.push_scope();
         self.codegen_fun_params(fun, llvm_fun)?;
 
-        let declared_return_cg =
-            self.cg_ty_of(fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function return type",
-                    at: fun.span.into(),
-                })?;
+        let Some(declared_return_cg) = self.cg_ty_of(fun.return_ty) else {
+            tracing::warn!(
+                "codegen_top_level_fun: unsupported return type for {} -> {}",
+                fun.fqn,
+                self.types.display(fun.return_ty)
+            );
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            });
+        };
         self.current_fun_return_ty = Some(declared_return_cg);
 
         // T0141: Set up function-level return context for early return support.
@@ -2759,8 +2777,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.channels.close" {
                 return self.codegen_sysroot_channels_close(span, callee.span, args);
             }
-            // T4009a3：公开的 `scoop.task.*` / `Executor` surface 已移除；
-            // 当前仅保留 async sugar 需要的内部 `__scoop_task_*` helper。
+            // T4016T2：公开的 `scoop.task.*` / `Executor` surface 已移除；
+            // async sugar 当前走 ordinary Scoop `__task_*` helper；这里只保留 transport
+            // intrinsic 与 `T4016T3` 删除前的 legacy `__scoop_task_*` ABI。
+            if fqn == "scoop.core.__task_transport_pack"
+                || fqn == "scoop.core.__task_transport_unpack"
+            {
+                return self.codegen_sysroot_task_transport_intrinsics(
+                    span,
+                    callee.span,
+                    fqn,
+                    args,
+                    result_ty,
+                );
+            }
             if fqn == "scoop.core.__scoop_task_create" {
                 return self.codegen_sysroot_task_create(span, callee.span, args);
             }
@@ -2790,9 +2820,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn.starts_with("scoop.core.__scoop_array_builder_") {
                 return self.codegen_sysroot_array_builder_intrinsics(span, callee.span, fqn, args);
             }
-            // T4009/T4016T1：Task 内部 helper 统一走普通 `Task<T>` object-model runtime ABI。
-            if fqn == "scoop.core.step"
-                || fqn == "scoop.core.__scoop_task_from_result"
+            // Legacy task runtime ABI：仅保留给 `T4016T3` 删除前的旧 `__scoop_task_*` helper。
+            // `Task.step()` 与新的 `__task_*` helper 已迁到 ordinary Scoop 定义，不再走这里。
+            if fqn == "scoop.core.__scoop_task_from_result"
                 || fqn == "scoop.core.__scoop_task_join"
                 || fqn == "scoop.core.__scoop_task_step_ready"
                 || fqn == "scoop.core.__scoop_task_step_pending"
@@ -9202,6 +9232,104 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_sysroot_task_transport_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+        result_ty: Option<TypeId>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match fqn {
+            "scoop.core.__task_transport_pack" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport pack arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport pack named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let packed_ty = result_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "task transport pack result type",
+                    at: span.into(),
+                })?;
+                if !self.is_task_transport_tuple_ty(packed_ty) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport pack carrier type",
+                        at: span.into(),
+                    });
+                }
+
+                let value_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
+                let value_cg =
+                    self.cg_ty_of(value_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task transport pack arg cg type",
+                            at: expr.span.into(),
+                        })?;
+                let value = self.codegen_initializer_expr(expr, value_cg, value_ty)?;
+                let value = self.coerce_value(expr.span, value, value_cg)?;
+                let (word, gc_ref) = self.encode_effect_transport_value(expr.span, value)?;
+                self.build_task_transport_tuple_value(span, packed_ty, word, gc_ref)
+            }
+            "scoop.core.__task_transport_unpack" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport unpack arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport unpack named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let target_ty = result_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "task transport unpack result type",
+                    at: span.into(),
+                })?;
+                let target_cg =
+                    self.cg_ty_of(target_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task transport unpack target cg type",
+                            at: span.into(),
+                        })?;
+
+                let carrier_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
+                if !self.is_task_transport_tuple_ty(carrier_ty) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task transport unpack carrier type",
+                        at: expr.span.into(),
+                    });
+                }
+                let carrier_cg =
+                    self.cg_ty_of(carrier_ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task transport unpack carrier cg type",
+                            at: expr.span.into(),
+                        })?;
+                let carrier = self.codegen_initializer_expr(expr, carrier_cg, carrier_ty)?;
+                let carrier = self.coerce_value(expr.span, carrier, carrier_cg)?;
+                let (word, gc_ref) = self.split_task_transport_tuple_value(expr.span, carrier)?;
+                self.decode_effect_transport_value(span, word, gc_ref, target_cg)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown sysroot task transport intrinsic callee",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
     fn codegen_sysroot_thread_intrinsics(
         &mut self,
         span: crate::span::Span,
@@ -9548,14 +9676,187 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         while let Some(id) = stack.pop() {
             match self.types.kind(id) {
                 crate::ty::TypeKind::Param(_) => return true,
+                crate::ty::TypeKind::StarProjection(star) => stack.push(star.read_ty),
                 crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
                 | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
                     stack.extend(n.args.iter().copied());
+                    if let Some(eff) = &n.eff {
+                        stack.extend(eff.terms.iter().copied());
+                    }
+                }
+                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                    stack.push(*inner);
+                }
+                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elements)) => {
+                    stack.extend(elements.iter().copied());
+                }
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Function(fun)) => {
+                    if let Some(receiver) = fun.receiver {
+                        stack.push(receiver);
+                    }
+                    stack.extend(fun.params.iter().copied());
+                    stack.push(fun.return_ty);
+                    stack.extend(fun.effects.terms.iter().copied());
+                }
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Union(union)) => {
+                    stack.extend(union.variants.iter().copied());
                 }
                 _ => {}
             }
         }
         false
+    }
+
+    fn collect_type_param_names_in_type(&self, ty: crate::ty::TypeId, out: &mut Vec<String>) {
+        let mut stack = vec![ty];
+        while let Some(id) = stack.pop() {
+            match self.types.kind(id) {
+                crate::ty::TypeKind::Param(tp) => {
+                    if !out.contains(&tp.name) {
+                        out.push(tp.name.clone());
+                    }
+                }
+                crate::ty::TypeKind::StarProjection(star) => stack.push(star.read_ty),
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
+                | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
+                    stack.extend(n.args.iter().copied());
+                    if let Some(eff) = &n.eff {
+                        stack.extend(eff.terms.iter().copied());
+                    }
+                }
+                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Option(inner)) => {
+                    stack.push(*inner);
+                }
+                crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Tuple(elements)) => {
+                    stack.extend(elements.iter().copied());
+                }
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Function(fun)) => {
+                    if let Some(receiver) = fun.receiver {
+                        stack.push(receiver);
+                    }
+                    stack.extend(fun.params.iter().copied());
+                    stack.push(fun.return_ty);
+                    stack.extend(fun.effects.terms.iter().copied());
+                }
+                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Union(union)) => {
+                    stack.extend(union.variants.iter().copied());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_type_param_bindings_from_types(
+        &self,
+        declared_ty: crate::ty::TypeId,
+        concrete_ty: crate::ty::TypeId,
+        bindings: &mut std::collections::HashMap<String, crate::ty::TypeId>,
+    ) {
+        use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+
+        match (self.types.kind(declared_ty), self.types.kind(concrete_ty)) {
+            (TypeKind::Param(tp), _) => match bindings.get(&tp.name).copied() {
+                Some(existing) if existing == concrete_ty => {}
+                Some(_) => {}
+                None => {
+                    bindings.insert(tp.name.clone(), concrete_ty);
+                }
+            },
+            (
+                TypeKind::Ref(RefTypeKind::Nominal(declared)),
+                TypeKind::Ref(RefTypeKind::Nominal(concrete)),
+            )
+            | (
+                TypeKind::Value(ValueTypeKind::Nominal(declared)),
+                TypeKind::Value(ValueTypeKind::Nominal(concrete)),
+            ) => {
+                if declared.fqn != concrete.fqn || declared.args.len() != concrete.args.len() {
+                    return;
+                }
+                for (decl_arg, concrete_arg) in declared.args.iter().zip(&concrete.args) {
+                    self.collect_type_param_bindings_from_types(*decl_arg, *concrete_arg, bindings);
+                }
+            }
+            (
+                TypeKind::Value(ValueTypeKind::Option(declared_inner)),
+                TypeKind::Value(ValueTypeKind::Option(concrete_inner)),
+            ) => {
+                self.collect_type_param_bindings_from_types(
+                    *declared_inner,
+                    *concrete_inner,
+                    bindings,
+                );
+            }
+            (
+                TypeKind::Value(ValueTypeKind::Tuple(declared_elements)),
+                TypeKind::Value(ValueTypeKind::Tuple(concrete_elements)),
+            ) => {
+                if declared_elements.len() != concrete_elements.len() {
+                    return;
+                }
+                for (decl_elem, concrete_elem) in
+                    declared_elements.iter().zip(concrete_elements.iter())
+                {
+                    self.collect_type_param_bindings_from_types(
+                        *decl_elem,
+                        *concrete_elem,
+                        bindings,
+                    );
+                }
+            }
+            (
+                TypeKind::Ref(RefTypeKind::Function(declared_fun)),
+                TypeKind::Ref(RefTypeKind::Function(concrete_fun)),
+            ) => {
+                match (declared_fun.receiver, concrete_fun.receiver) {
+                    (Some(declared_receiver), Some(concrete_receiver)) => self
+                        .collect_type_param_bindings_from_types(
+                            declared_receiver,
+                            concrete_receiver,
+                            bindings,
+                        ),
+                    (None, None) => {}
+                    _ => return,
+                }
+                if declared_fun.params.len() != concrete_fun.params.len() {
+                    return;
+                }
+                for (decl_param, concrete_param) in
+                    declared_fun.params.iter().zip(concrete_fun.params.iter())
+                {
+                    self.collect_type_param_bindings_from_types(
+                        *decl_param,
+                        *concrete_param,
+                        bindings,
+                    );
+                }
+                self.collect_type_param_bindings_from_types(
+                    declared_fun.return_ty,
+                    concrete_fun.return_ty,
+                    bindings,
+                );
+            }
+            (
+                TypeKind::Ref(RefTypeKind::Union(declared_union)),
+                TypeKind::Ref(RefTypeKind::Union(concrete_union)),
+            ) => {
+                if declared_union.variants.len() != concrete_union.variants.len() {
+                    return;
+                }
+                for (decl_variant, concrete_variant) in declared_union
+                    .variants
+                    .iter()
+                    .zip(concrete_union.variants.iter())
+                {
+                    self.collect_type_param_bindings_from_types(
+                        *decl_variant,
+                        *concrete_variant,
+                        bindings,
+                    );
+                }
+            }
+            _ => {}
+        }
     }
 
     fn try_resolve_monomorphized_member_fqn(
@@ -9636,20 +9937,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             *slot = Some(arg_idx);
         }
 
-        // 收集签名中出现的所有 Param 类型名（保持出现顺序）
+        // 收集签名中出现的所有 Param 类型名（保持出现顺序），并穿透 `Task<T>` /
+        // `Option<T>` / `() -> T` 这类包装形状。
         let mut param_names: Vec<String> = Vec::new();
         for p in &sig_fun.params {
-            if let crate::ty::TypeKind::Param(tp) = self.types.kind(p.ty)
-                && !param_names.contains(&tp.name)
-            {
-                param_names.push(tp.name.clone());
-            }
+            self.collect_type_param_names_in_type(p.ty, &mut param_names);
         }
-        if let crate::ty::TypeKind::Param(tp) = self.types.kind(sig_fun.return_ty)
-            && !param_names.contains(&tp.name)
-        {
-            param_names.push(tp.name.clone());
-        }
+        self.collect_type_param_names_in_type(sig_fun.return_ty, &mut param_names);
 
         if param_names.is_empty() {
             return None;
@@ -9660,10 +9954,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             std::collections::HashMap::new();
 
         for (idx, param) in sig_fun.params.iter().enumerate() {
-            let crate::ty::TypeKind::Param(tp) = self.types.kind(param.ty) else {
-                continue;
-            };
-            if bindings.contains_key(&tp.name) {
+            if !self.ty_contains_param(param.ty) {
                 continue;
             }
 
@@ -9676,7 +9967,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let concrete_ty = self.resolve_expr_concrete_type(arg_expr);
             if let Some(ty) = concrete_ty {
-                bindings.insert(tp.name.clone(), ty);
+                self.collect_type_param_bindings_from_types(param.ty, ty, &mut bindings);
             }
         }
 
@@ -9690,6 +9981,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .filter(|k| k.starts_with(&prefix))
                 .map(|k| k.as_str())
                 .collect();
+            if !variants.is_empty() {
+                tracing::warn!(
+                    "try_resolve_monomorphized_standalone_fun_fqn: incomplete bindings for {} -> {:?}; known variants={:?}",
+                    fqn,
+                    bindings
+                        .iter()
+                        .map(|(name, ty)| (name.as_str(), self.types.display(*ty).to_string()))
+                        .collect::<Vec<_>>(),
+                    variants
+                );
+            }
             if variants.len() == 1 {
                 return Some(variants[0].to_string());
             }
@@ -9710,6 +10012,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if self.fun_index.contains_key(&mangled_fqn) {
             Some(mangled_fqn)
         } else {
+            let prefix = format!("{fqn}::<");
+            let variants: Vec<&str> = self
+                .fun_index
+                .keys()
+                .filter(|k| k.starts_with(&prefix))
+                .map(|k| k.as_str())
+                .collect();
+            if !variants.is_empty() {
+                tracing::warn!(
+                    "try_resolve_monomorphized_standalone_fun_fqn: inferred {} but variant missing; known variants={:?}",
+                    mangled_fqn,
+                    variants
+                );
+            }
             None
         }
     }
@@ -13907,6 +14223,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // fallback：先把 receiver 降到值，再用 extractvalue 取字段。
                 let recv = self.codegen_expr(receiver)?;
                 let CgTy::Struct(struct_ty) = recv.ty else {
+                    tracing::warn!(
+                        "codegen_member_access_expr: unsupported struct receiver for member {} (resolved={:?}) -> {:?}",
+                        member.name,
+                        member.resolved,
+                        recv.ty
+                    );
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "member access receiver type",
                         at: receiver.span.into(),
@@ -13973,6 +14295,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // fallback：先把 receiver 降到值，再用 extractvalue 取元素。
         let recv = self.codegen_expr(receiver)?;
         let CgTy::Tuple(tuple_ty) = recv.ty else {
+            tracing::warn!(
+                "codegen_member_access_expr: unsupported tuple receiver for member {} -> {:?}",
+                member.name,
+                recv.ty
+            );
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "member access receiver type",
                 at: receiver.span.into(),

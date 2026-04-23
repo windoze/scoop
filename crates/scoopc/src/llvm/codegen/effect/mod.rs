@@ -23,13 +23,12 @@ mod unified_state_machine_skeleton {
     include!("state_machine_transform.rs");
 }
 
-pub(crate) use unified_state_machine_skeleton::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EffectTransportKind {
     Word,
     GcRef,
     BoxedComposite,
+    TaskTransportTuple,
 }
 
 const CALLEE_SUSPEND_STATE_RESUME_WORD_INDEX: u32 = 1;
@@ -1260,7 +1259,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 "continuation_resume_replay_effect",
             )?;
-            return self.load_continuation_resume_answer(
+            return self.load_continuation_resume_answer_with_active_fallback(
                 span,
                 answer_cg_ty,
                 out_word_slot,
@@ -1307,7 +1306,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
 
         self.emit_ordinary_call_effect_propagation_check(span, "continuation_resume_effect")?;
-        self.load_continuation_resume_answer(
+        self.load_continuation_resume_answer_with_active_fallback(
             span,
             answer_cg_ty,
             out_word_slot,
@@ -1455,6 +1454,102 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.decode_effect_transport_value(span, loaded_word, loaded_gc_ref, target)
             }
         }
+    }
+
+    fn load_continuation_resume_answer_with_active_fallback(
+        &mut self,
+        span: crate::span::Span,
+        answer_cg_ty: CgTy,
+        out_word_slot: PointerValue<'ctx>,
+        out_gc_ref_slot: PointerValue<'ctx>,
+        suffix: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if self.ordinary_effect_propagation_enabled()
+            || matches!(answer_cg_ty, CgTy::Unit | CgTy::Never)
+        {
+            return self.load_continuation_resume_answer(
+                span,
+                answer_cg_ty,
+                out_word_slot,
+                out_gc_ref_slot,
+                suffix,
+            );
+        }
+
+        let current_fn = self.current_codegen_function(span)?;
+        let active_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("continuation_resume_{suffix}_active"));
+        let inactive_bb = self.context.append_basic_block(
+            current_fn,
+            &format!("continuation_resume_{suffix}_inactive"),
+        );
+        let merge_bb = self
+            .context
+            .append_basic_block(current_fn, &format!("continuation_resume_{suffix}_merge"));
+
+        let is_active_fn = self.declare_runtime_effect_is_active();
+        let active_raw = self
+            .builder
+            .build_call(
+                is_active_fn,
+                &[],
+                &format!("continuation_resume_{suffix}_is_active"),
+            )?
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "continuation resume effect is_active return",
+                at: span.into(),
+            })?
+            .into_int_value();
+        let is_active = self.builder.build_int_compare(
+            inkwell::IntPredicate::NE,
+            active_raw,
+            self.context.i32_type().const_int(0, false),
+            &format!("continuation_resume_{suffix}_active_bool"),
+        )?;
+        self.builder
+            .build_conditional_branch(is_active, active_bb, inactive_bb)?;
+
+        let result_basic_ty = self.llvm_basic_type_of(span, answer_cg_ty)?;
+        let result_slot = self.create_entry_alloca_raw(
+            span,
+            &format!("continuation_resume_result_{suffix}"),
+            result_basic_ty,
+        )?;
+
+        self.builder.position_at_end(active_bb);
+        let default = self.default_value(span, answer_cg_ty)?;
+        let default_raw = default.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "continuation resume active fallback value",
+            at: span.into(),
+        })?;
+        self.builder.build_store(result_slot, default_raw)?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(inactive_bb);
+        let decoded = self.load_continuation_resume_answer(
+            span,
+            answer_cg_ty,
+            out_word_slot,
+            out_gc_ref_slot,
+            suffix,
+        )?;
+        let decoded_raw = decoded.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "continuation resume inactive decoded value",
+            at: span.into(),
+        })?;
+        self.builder.build_store(result_slot, decoded_raw)?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        self.builder.position_at_end(merge_bb);
+        let merged = self.builder.build_load(
+            result_basic_ty,
+            result_slot,
+            &format!("continuation_resume_result_{suffix}_merged"),
+        )?;
+        self.cg_value_from_loaded(span, answer_cg_ty, merged)
     }
 
     /// Emit code for a standalone `perform` expression (outside of a state
@@ -1841,7 +1936,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Float32
             | CgTy::Int(_) => EffectTransportKind::Word,
             CgTy::String | CgTy::Ref => EffectTransportKind::GcRef,
-            CgTy::Tuple(_) | CgTy::Struct(_) => EffectTransportKind::BoxedComposite,
+            CgTy::Tuple(tuple_ty) => {
+                if self.is_task_transport_tuple_ty(tuple_ty) {
+                    EffectTransportKind::TaskTransportTuple
+                } else {
+                    EffectTransportKind::BoxedComposite
+                }
+            }
+            CgTy::Struct(_) => EffectTransportKind::BoxedComposite,
             CgTy::Enum(enum_ty) => {
                 let layout = self.cg_enum_layout(at, enum_ty)?;
                 match layout.repr {
@@ -1868,6 +1970,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         })
+    }
+
+    pub(super) fn is_task_transport_tuple_ty(&self, ty: TypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(ty) else {
+            return false;
+        };
+        matches!(
+            elements.as_slice(),
+            [word_ty, gc_ref_ty] if *word_ty == self.builtins.int && *gc_ref_ty == self.builtins.any
+        )
+    }
+
+    pub(super) fn build_task_transport_tuple_value(
+        &mut self,
+        at: crate::span::Span,
+        tuple_ty: TypeId,
+        word: IntValue<'ctx>,
+        gc_ref: PointerValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let word_cg =
+            self.cg_ty_of(self.builtins.int)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "task transport tuple word type",
+                    at: at.into(),
+                })?;
+        let word_value = self.narrow_u64_word_to_cg_value(at, word, word_cg)?;
+        let gc_ref_value = CgValue {
+            ty: CgTy::Ref,
+            value: Some(gc_ref.into()),
+        };
+        self.build_tuple_cg_value_from_values(at, tuple_ty, &[word_value, gc_ref_value])
+    }
+
+    pub(super) fn split_task_transport_tuple_value(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<(IntValue<'ctx>, PointerValue<'ctx>), LlvmEmitError> {
+        let CgTy::Tuple(tuple_ty) = value.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "task transport tuple value",
+                at: at.into(),
+            });
+        };
+        if !self.is_task_transport_tuple_ty(tuple_ty) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "task transport tuple type",
+                at: at.into(),
+            });
+        }
+
+        let word_value = self.extract_tuple_payload_element(at, value, tuple_ty, 0)?;
+        let gc_ref_value = self.extract_tuple_payload_element(at, value, tuple_ty, 1)?;
+        let word = self.coerce_u64_word(at, word_value)?;
+        let gc_ref = gc_ref_value
+            .value
+            .map(BasicValueEnum::into_pointer_value)
+            .unwrap_or_else(|| self.llvm_gc_i8_ptr_type().const_null());
+        Ok((word, gc_ref))
     }
 
     fn effect_transport_box_identity(
@@ -2033,6 +2194,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok((zero_word, gc_ref))
             }
+            EffectTransportKind::TaskTransportTuple => {
+                self.split_task_transport_tuple_value(at, value)
+            }
             EffectTransportKind::BoxedComposite => {
                 let boxed = self.box_effect_transport_value(at, value)?;
                 Ok((zero_word, boxed))
@@ -2053,6 +2217,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => match self.effect_transport_kind(at, target)? {
                 EffectTransportKind::Word => self.narrow_u64_word_to_cg_value(at, word, target),
                 EffectTransportKind::GcRef => self.cg_value_from_loaded(at, target, gc_ref.into()),
+                EffectTransportKind::TaskTransportTuple => {
+                    let CgTy::Tuple(tuple_ty) = target else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "task transport tuple decode target",
+                            at: at.into(),
+                        });
+                    };
+                    self.build_task_transport_tuple_value(at, tuple_ty, word, gc_ref)
+                }
                 EffectTransportKind::BoxedComposite => {
                     self.unbox_effect_transport_value(at, gc_ref, target)
                 }

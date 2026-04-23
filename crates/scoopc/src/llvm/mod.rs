@@ -38,7 +38,6 @@ mod codegen;
 mod frontend;
 mod stackmap;
 mod target;
-pub(crate) use codegen::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program;
 pub use target::{HostTargetInfo, LlvmTargetError};
 
 /// LLVM statepoint GC 策略名（内置于 LLVM）。
@@ -2378,7 +2377,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn async_task_ir_uses_task_create_and_internal_step_result_helpers() {
+    fn async_task_ir_uses_ordinary_scoop_task_helpers_not_legacy_runtime_abi() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -2401,20 +2400,23 @@ fun main(): Int {
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
         assert!(
-            ir.contains("@scoop_task_create"),
-            "async sugar 应降到 taskCreate runtime ABI，而不是直接把 body 立即求值成普通值"
+            ir.contains("scoop.core.__task_create::<Int>"),
+            "async sugar 应落到 ordinary Scoop `__task_create` helper，而不是旧 runtime ABI"
         );
         assert!(
-            ir.contains("@scoop_task_step_pending"),
-            "async task body 内的 await 应改写成内部 pending step-result helper，而不是同步 join"
+            ir.contains("scoop.core.__task_step_pending::<Int>"),
+            "async task body 内的 await 应改写成 ordinary Scoop pending step helper，而不是同步 join"
         );
         assert!(
-            ir.contains("@scoop_task_step_ready"),
-            "async task body 正常完成时应构造 ready step-result，而不是直接返回普通值"
+            ir.contains("scoop.core.__task_step_ready::<Int>"),
+            "async task body 正常完成时应构造 ordinary Scoop ready step helper，而不是直接返回普通值"
         );
         assert!(
-            !ir.contains("@scoop_task_join"),
-            "async task body 内的 await 不应再退回到内部 join helper"
+            !ir.contains("@scoop_task_create")
+                && !ir.contains("@scoop_task_step_pending")
+                && !ir.contains("@scoop_task_step_ready")
+                && !ir.contains("@scoop_task_join"),
+            "ordinary `__task_*` 路径不应再直接依赖 legacy `scoop_task_*` runtime ABI"
         );
     }
 
@@ -2437,7 +2439,7 @@ fun main(): Int {
     return handle {
         Async.await(resultTask)
     } with {
-        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+        Async.await(taskArg: Task<Int>) -> __task_join(taskArg)
     }
 }
 "#,
@@ -2447,16 +2449,20 @@ fun main(): Int {
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
         assert!(
-            ir.contains("@scoop_task_create"),
-            "single-file LLVM 路径应继续把 async sugar 降到 task create helper"
+            ir.contains("scoop.core.__task_create::<Int>"),
+            "single-file LLVM 路径应继续看到 ordinary Scoop `__task_create` helper"
         );
         assert!(
             ir.contains("@scoop_effect_perform_slot_write_u64_with_gc_ref"),
             "handled Async.await(...) 的 perform site 应在最小 IR 路径上保留 effect transport lowering"
         );
         assert!(
-            ir.contains("@scoop_task_join"),
-            "外层 handled Async.await(...) 的 arm body 应能在最小 IR 路径上看到 task join helper"
+            ir.contains("scoop.core.__task_join::<Int>"),
+            "外层 handled Async.await(...) 的 arm body 应能在最小 IR 路径上看到 ordinary Scoop `__task_join` helper"
+        );
+        assert!(
+            !ir.contains("@scoop_task_create") && !ir.contains("@scoop_task_join"),
+            "minimal LLVM 路径里的 async / await 主线不应再回退到 legacy task runtime ABI"
         );
     }
 

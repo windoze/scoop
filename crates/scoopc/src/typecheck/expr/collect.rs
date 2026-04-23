@@ -634,17 +634,45 @@ pub(super) fn build_fun_where_constraints_from_resolve_sig(
 pub(super) fn collect_member_mutabilities(
     source: &SourceFile,
     file: &ast::File,
+    env: &TypeEnv,
 ) -> HashMap<String, bool> {
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
     let mut map: HashMap<String, bool> = HashMap::new();
+
+    collect_member_mutabilities_in_file(source, file, &mut map);
+
+    // 成员赋值需要看到“当前编译单元的其它声明文件”中的 `var`/`val` 信息：
+    // 例如 sysroot 中 `Task` 定义在 `core.scoop`，而其方法体实现放在 `task.scoop`。
+    let mut foreign_files = env
+        .files()
+        .filter(|(path, _)| path.as_path() != source.path())
+        .filter_map(|(path, stored_file)| {
+            let stored_source = env.source(path)?.clone();
+            Some((path.clone(), stored_source, stored_file.clone()))
+        })
+        .collect::<Vec<_>>();
+    foreign_files.sort_by(|(lhs, _, _), (rhs, _, _)| lhs.cmp(rhs));
+
+    for (_, foreign_source, foreign_file) in foreign_files {
+        collect_member_mutabilities_in_file(&foreign_source, &foreign_file, &mut map);
+    }
+
+    map
+}
+
+fn collect_member_mutabilities_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    out: &mut HashMap<String, bool>,
+) {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
 
     for item in &file.items {
         match item {
             ast::Item::Type(ty) => {
-                collect_member_mutabilities_in_type_decl(source, ty, &pkg_prefix, &mut map);
+                collect_member_mutabilities_in_type_decl(source, ty, &pkg_prefix, out);
             }
             ast::Item::Object(obj) => {
-                collect_member_mutabilities_in_object_decl(source, obj, &pkg_prefix, &mut map);
+                collect_member_mutabilities_in_object_decl(source, obj, &pkg_prefix, out);
             }
             ast::Item::Fun(_)
             | ast::Item::Val(_)
@@ -653,8 +681,6 @@ pub(super) fn collect_member_mutabilities(
             | ast::Item::ComptimeIf(_) => {}
         }
     }
-
-    map
 }
 
 fn collect_member_mutabilities_in_type_decl(

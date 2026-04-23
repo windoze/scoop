@@ -14,7 +14,8 @@ use super::call::{
     substitute_single_type_param, type_param_name,
 };
 use super::member::{
-    infer_elvis_expr_type, infer_member_access_expr_type, infer_not_null_assert_expr_type,
+    infer_elvis_expr_type, infer_member_access_expr_type,
+    infer_member_access_ty_from_known_receiver, infer_not_null_assert_expr_type,
     infer_safe_member_access_expr_type, infer_splice_field_expr_type,
     resolve_member_value_target_for_receiver,
 };
@@ -812,27 +813,13 @@ fn infer_assign_expr_type(
                 });
             };
             lower.record_typechecked_member_resolution(member.span, resolved.clone());
-
-            let fqn = match resolved {
-                ast::ResolvedMemberRef::Value { fqn } => fqn,
-                ast::ResolvedMemberRef::Fun { fqn }
-                | ast::ResolvedMemberRef::ExtensionValue { fqn }
-                | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
-                    return Err(ExprTypeError::UnsupportedMemberAccess {
-                        fqn: fqn.clone(),
-                        span: member.span.into(),
-                    });
-                }
-            };
-
-            // 注意：这里不做 member 可写性检查（缺少 member_mutabilities 表）。
-            // 若 fqn 不是字段/属性（例如 enum unit variant 值），这里会报 unsupported。
-            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
-                ExprTypeError::UnsupportedMemberAccess {
-                    fqn: fqn.clone(),
-                    span: member.span.into(),
-                }
-            })?
+            infer_member_access_ty_from_known_receiver(
+                inputs,
+                receiver_ty,
+                member,
+                Some(resolved),
+                lower,
+            )?
         }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {
@@ -1340,6 +1327,29 @@ pub(super) fn infer_handle_expr_type(
         }
     }
 
+    fn compute_handle_context_effect_row(
+        body_performed: &[(TypeId, Span)],
+        handled_effects: &[TypeId],
+        lower: &mut TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> EffectRow {
+        let mut seen: HashSet<TypeId> = HashSet::new();
+        let mut terms: Vec<TypeId> = Vec::new();
+
+        for (effect, _) in body_performed.iter().copied() {
+            let captured = handled_effects
+                .iter()
+                .copied()
+                .any(|handled| is_type_assignable(handled, effect, lower, builtins));
+            if captured || !seen.insert(effect) {
+                continue;
+            }
+            terms.push(effect);
+        }
+
+        EffectRow::new(terms)
+    }
+
     // 1) 先在嵌套 effect collection 中 typecheck handle body，
     //    以便：
     //    - 推导 body 的结果类型（用于 handler arm 返回类型一致性检查）
@@ -1365,6 +1375,7 @@ pub(super) fn infer_handle_expr_type(
         expected_handle_answer_ty
     };
 
+    let mut lowered_arms: Vec<HandleArmLowered> = Vec::with_capacity(arms.len());
     for arm in arms {
         let lowered =
             lower_handle_arm_effect_op_sig(source, arm, &body_performed, lower, builtins)?;
@@ -1407,7 +1418,13 @@ pub(super) fn infer_handle_expr_type(
         seen.push(lowered.handled_effect);
         handled_effects.push(lowered.handled_effect);
         lower.record_inferred_handle_arm_effect_ty(arm.op.span, lowered.handled_effect);
+        lowered_arms.push(lowered);
+    }
 
+    let continuation_context_effects =
+        compute_handle_context_effect_row(&body_performed, &handled_effects, lower, builtins);
+
+    for (arm, lowered) in arms.iter().zip(lowered_arms.iter()) {
         let mut arm_locals = inputs.locals.clone();
         for (decl_span, ty) in lowered.binder_tys.iter().copied() {
             arm_locals.insert(decl_span, ty);
@@ -1419,16 +1436,13 @@ pub(super) fn infer_handle_expr_type(
                 // `Continuation<Resume, Answer, eff E>`。
                 //
                 // 说明：
-                // - `E` 来自 `T4008b1` 的 resumed-step summary；
-                // - 首轮 typecheck 尚未拿到该 summary 时会暂退到 `Pure`，随后由 `check_file_exprs`
-                //   的第二阶段用精确 effect row 重跑；
+                // - `E` 是“当前 handle body 在捕获当前 handler 后，向外层环境继续暴露的 required effects”；
+                //   也就是 handle 所在 context effect row，而不是某个私有 lowering/runtime effect；
                 // - `Answer` 优先取当前已知的 handle delimiter 结果类型；若当前仍未知，则先放入
                 //   内部 answer-hole，待本 arm/后续路径把结果类型定下来后回填。
-                // - `k.resume(value)` 的 required-effects 传播在 `Continuation.resume` 的内建规则中处理（spec §5.5）。
-                let cont_effects = lower
-                    .escape_continuation_effect_row(arm.span)
-                    .cloned()
-                    .unwrap_or_else(EffectRow::pure);
+                // - `k.resume(value)` 的 required-effects 传播仍由 `Continuation.resume` 的内建规则处理：
+                //   `E + Raise<RuntimeError>`。
+                let cont_effects = continuation_context_effects.clone();
                 let cont_answer_ty =
                     result_ty.unwrap_or_else(|| lower.ty_continuation_answer_hole(arm.span));
                 let cont_ty = lower.ty_continuation(
@@ -2043,6 +2057,33 @@ pub(super) fn infer_expr_type_in_expected_context(
     }
 
     if let ast::ExprKind::Call { callee, args } = &expr.kind
+        && let ast::ExprKind::Ident(id) = &callee.kind
+        && let Some(ast::ResolvedValueRef::TopLevel { fqn }) = id.resolved.as_ref()
+        && let Some((expected_enum_fqn, expected_enum_args)) =
+            enum_instance_fqn_and_args_from_type(expected_ty, lower)
+        && let Some((enum_fqn, variant_name)) = fqn.rsplit_once('.')
+        && enum_fqn == expected_enum_fqn
+        && lower.env().enum_decl(enum_fqn).is_some_and(|decl| {
+            decl.variants
+                .iter()
+                .any(|variant| variant.name == variant_name)
+        })
+    {
+        return infer_specific_enum_variant_ctor_call_expr_type_by_expected(
+            inputs,
+            expr,
+            EnumVariantCtorTarget {
+                enum_fqn,
+                variant_name,
+                callee_span: id.span,
+            },
+            args,
+            &expected_enum_args,
+            lower,
+        );
+    }
+
+    if let ast::ExprKind::Call { callee, args } = &expr.kind
         && let ast::ExprKind::MemberAccess { member, .. } = &callee.kind
         && let Some(ty) = try_infer_qualified_enum_variant_ctor_call_expr_type_by_expected(
             inputs,
@@ -2333,7 +2374,9 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let source = inputs.source;
     let variant_name = source.slice(callee.span);
-    let candidates = lower.env().find_enum_variants_named(variant_name);
+    let candidates = lower
+        .env()
+        .find_visible_enum_variants_named(variant_name, source);
 
     // 说明：
     // - 当 callee ident 未被 resolver 绑定（`resolved == None`）时，我们会尝试把 `Foo(...)` 视为
@@ -2992,6 +3035,7 @@ fn resolve_with_update_enum_info(
                 .map(|field| {
                     let ty = lower_type_ref_with_enum_subst(
                         EnumTypeSubstContext {
+                            decl_file: enum_source.path(),
                             enum_source: &enum_source,
                             use_span,
                             enum_fqn,

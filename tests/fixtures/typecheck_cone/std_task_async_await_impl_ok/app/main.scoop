@@ -18,7 +18,7 @@ fun main(): Int {
     val value: Int = handle {
         Async.await(outer)
     } with {
-        Async.await(taskArg: Task<Int>) -> __scoop_task_join(taskArg)
+        Async.await(taskArg: Task<Int>) -> __task_join(taskArg)
     }
     return value
 }

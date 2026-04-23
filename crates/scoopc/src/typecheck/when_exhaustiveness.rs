@@ -293,6 +293,7 @@ fn examples_for_type(
                     for field in &variant.fields {
                         let field_ty = lower_type_ref_with_enum_subst(
                             EnumTypeSubstContext {
+                                decl_file: enum_source.path(),
                                 enum_source: &enum_source,
                                 use_span,
                                 enum_fqn: &enum_fqn,

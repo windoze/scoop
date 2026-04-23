@@ -48,7 +48,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    12,
+                                    22,
                                 ),
                             },
                             LocalDecl {
@@ -167,7 +167,7 @@ File {
                         span: 60..70,
                         name: "$env",
                         ty: TypeId(
-                            12,
+                            22,
                         ),
                         local: l0,
                     },
@@ -192,7 +192,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    12,
+                                    22,
                                 ),
                             },
                             LocalDecl {

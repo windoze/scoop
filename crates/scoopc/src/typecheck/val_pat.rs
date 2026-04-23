@@ -213,6 +213,7 @@ impl ValPatChecker<'_, '_> {
         for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
             let expected_field_ty = lower_type_ref_with_enum_subst(
                 EnumTypeSubstContext {
+                    decl_file: enum_source.path(),
                     enum_source: &enum_source,
                     use_span: pat.span,
                     enum_fqn: &enum_fqn,

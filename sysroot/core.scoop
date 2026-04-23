@@ -475,21 +475,26 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, 
 // Task（spec §5.3 / §5.7）
 //
 // 说明：
-// - `Task<T>` 是异步计算对象；当前 runtime 以 GC-managed heap object 保存其私有状态；
+// - `Task<T>` 是异步计算对象；当前主体实现位于可编译 sysroot 源 `sysroot/task.scoop`；
 // - `async { ... }` / `async fun foo(): T` 当前都对外暴露为 lazy `Task<T>`；
 // - 当前阶段不提供公开 executor/task-adapter package；
 // - `step()` 是手动驱动 task 的唯一公开 surface；raw continuation 仅作为内部 suspended-state
 //   carrier 存在；
 // - 当前实现里，suspended task 可以直接理解为“ordinary object + 私有 step-result
-//   continuation”的薄封装；runtime 通过共享 continuation payload+answer helper 取得下一步
-//   `__TaskStepResult`，不直接触碰 continuation payload 字段布局；底层 frame transport 继续只是
-//   runtime ABI 内部细节，不是稳定合同。
+//   continuation”的薄封装：task 自身只保存一个普通 `scoop.sync.Mutex` 和普通 Scoop
+//   定义的 `__TaskState<T>`；
+// - `step()` 的最小同步合同是“同一时刻至多一个线程拥有 drive attempt”：
+//   竞争线程若观察到 `Running`，会直接返回 `Pending`；
+// - runtime 继续只提供 generic continuation / GC / thread / sync substrate。
 enum TaskStep<T> {
     Pending,
     Ready(val value: T),
 }
 
-class Task<T>
+class Task<T>(
+    val __lock: scoop.sync.Mutex,
+    var __state: __TaskState<T>,
+)
 fun <T> Task<T>.step(): TaskStep<T>
 
 // Built-in effect: Async（spec §5.7）
@@ -505,24 +510,51 @@ effect Async {
 // Task internal helpers（compiler/runtime only）。
 //
 // 说明：
-// - `__TaskStepResult` 与 `__scoop_task_step_*` 只服务 compiler/runtime 的私有 task driver，
-//   不构成用户态 API；
-// - `__scoop_task_create` 是 `async` sugar 的内部 lazy-task 创建落点，不构成用户态 API；
+// - `__TaskStepResult<T>`、`__TaskState<T>` 与 `__task_*` 只服务 compiler/stdlib 的私有 task
+//   driver，不构成用户态 API；
+// - `__task_create` 是 `async` sugar 的内部 lazy-task 创建落点，不构成用户态 API；
 // - structured concurrency（包括公开的 `spawn` / `join` 语法）仍留待后续任务，不属于当前
 //   `Task` core 合同；
-// - `__TaskStepResult` 是 task step driver 的私有 delimiter answer carrier；
-// - compiler 生成的内部 `Async.await` handler 会统一拦截 task body 里的所有 await 站点，
-//   因而在私有 helper surface 上把 resume payload 擦除为 `Any`，但 continuation 的 answer
-//   继续显式写成 `__TaskStepResult`；
-// - generic `Continuation.resume(...): Answer` 已接入语言主线；task runtime 只是通过共享
-//   continuation helper 把该 answer 解释为私有 step result，再投影回公开的 `TaskStep<T>`
-//   合同。
-// - `__scoop_task_from_result` / `__scoop_task_join` 只是 compiler/runtime/test harness 使用的
-//   内部 helper：前者把已知结果包装成 task，后者通过循环 drive task 直到完成。
-class __TaskStepResult
-fun <T> __scoop_task_create(block: () -> __TaskStepResult): Task<T>
-fun <T> __scoop_task_step_ready(value: T): __TaskStepResult
-fun __scoop_task_step_pending(awaited: Task<Any>, continuation: Continuation<Any, __TaskStepResult>): __TaskStepResult
+// - `__TaskStepResult<T>` 是 task step driver 的私有 delimiter answer carrier；
+// - compiler 生成的内部 `Async.await` handler 会统一拦截 task body 里的所有 await 站点；
+//   为避免 `Int`/`Bool` 这类 word payload 在 erase 成普通 `Any` 时丢失，task 私有 helper
+//   统一经由 `(Int, Any)` transport carrier 传递 resume payload；
+// - generic `Continuation.resume(...): Answer` 已接入语言主线；`Task.step()` 会在普通 Scoop 代码里
+//   直接消费这个 answer，并投影回公开的 `TaskStep<T>` 合同；
+// - `__task_from_result` / `__task_join` 只是 compiler/stdlib/test harness 使用的内部 helper：
+//   前者把已知结果包装成 task，后者通过循环 drive task 直到完成；
+// - legacy `__scoop_task_*` runtime ABI 仍暂时保留为 `T4016T3` 待删实现债务，不再是 async
+//   sugar 的语义宿主。
+enum __TaskStepResult<T> {
+    Pending(
+        val awaited: Task<(Int, Any)>,
+        val continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
+    ),
+    Ready(val value: (Int, Any)),
+}
+
+enum __TaskState<T> {
+    Created(val start: () -> __TaskStepResult<T>),
+    Running,
+    Waiting(
+        val awaited: Task<(Int, Any)>,
+        val continuation: Continuation<(Int, Any), __TaskStepResult<T>>,
+    ),
+    Completed(val value: (Int, Any)),
+}
+
+fun <T> __task_transport_pack(value: T): (Int, Any)
+fun <T> __task_transport_unpack(value: (Int, Any)): T
+
+fun <T> __task_create(block: () -> __TaskStepResult<T>): Task<T>
+fun <T> __task_step_ready(value: T): __TaskStepResult<T>
+fun <T> __task_step_pending(awaited: Task<(Int, Any)>, continuation: Continuation<(Int, Any), __TaskStepResult<T>>): __TaskStepResult<T>
+fun <T> __task_from_result(value: T): Task<T>
+fun <T> __task_join(task: Task<T>): T
+
+fun <T> __scoop_task_create(block: () -> __TaskStepResult<T>): Task<T>
+fun <T> __scoop_task_step_ready(value: T): __TaskStepResult<T>
+fun <T> __scoop_task_step_pending(awaited: Task<Any>, continuation: Continuation<Any, __TaskStepResult<T>>): __TaskStepResult<T>
 fun <T> __scoop_task_from_result(value: T): Task<T>
 fun <T> __scoop_task_join(task: Task<T>): T
 

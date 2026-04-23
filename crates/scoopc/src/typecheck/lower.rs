@@ -482,14 +482,6 @@ pub(crate) struct TypeLowering<'a> {
     /// - effect segmentation 只对这批调用点走 call-boundary replay 主线，Pure continuation
     ///   则继续保留 self-contained `try/catch` / runtime-raise hidden-boundary 语义。
     non_pure_continuation_resume_call_sites: HashSet<Span>,
-    /// escape continuation arm 的 resumed-step effect row（按 arm span 索引）。
-    ///
-    /// 用途：
-    /// - `, k ->` 注入 `Continuation<Resume, Answer, eff E>` 时复用 `T4008b1` 的
-    ///   step-level summary，并把 delimiter answer type 一并写回静态模型；
-    /// - key 选用 arm span，而不是 binder span / SymbolId，是为了让 typecheck 两阶段重跑时
-    ///   能稳定地在 AST 与 HIR 之间对齐同一个 handler arm。
-    escape_continuation_effect_rows: HashMap<Span, EffectRow>,
     /// typecheck 选中的“顶层函数值”目标。
     ///
     /// 用途：
@@ -624,7 +616,6 @@ impl<'a> TypeLowering<'a> {
             typechecked_member_resolutions: HashMap::new(),
             continuation_resume_call_sites: HashSet::new(),
             non_pure_continuation_resume_call_sites: HashSet::new(),
-            escape_continuation_effect_rows: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
             typechecked_effect_op_call_bindings: HashMap::new(),
             typechecked_ctor_call_bindings: HashMap::new(),
@@ -882,6 +873,35 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn is_object_type(&self, fqn: &str) -> bool {
         self.index.object_types.contains(fqn)
+    }
+
+    /// 在“声明处文件”的 source/package/import 上下文中执行一个闭包。
+    ///
+    /// 用途：
+    /// - 某些跨文件 typecheck 路径需要在保留当前 type/effect param scope 的同时，
+    ///   临时借用声明处文件的源码与 import 规则来解析 `TypeRef` 片段；
+    /// - 例如 enum payload 字段定义在 `core.scoop`，但构造调用发生在 `task.scoop` 或用户文件。
+    pub(super) fn with_decl_file_context<R>(
+        &mut self,
+        decl_file: &Path,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let saved_source = self.source;
+        let saved_pkg_prefix = std::mem::replace(&mut self.pkg_prefix, pkg_prefix);
+        let saved_imports = std::mem::replace(&mut self.imports, imports);
+
+        self.source = decl_source;
+        let out = f(self);
+        self.source = saved_source;
+        self.pkg_prefix = saved_pkg_prefix;
+        self.imports = saved_imports;
+        out
     }
 
     /// 在“声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`。
@@ -1462,14 +1482,6 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
-    pub(super) fn set_escape_continuation_effect_rows(&mut self, rows: HashMap<Span, EffectRow>) {
-        self.escape_continuation_effect_rows = rows;
-    }
-
-    pub(super) fn escape_continuation_effect_row(&self, arm_span: Span) -> Option<&EffectRow> {
-        self.escape_continuation_effect_rows.get(&arm_span)
-    }
-
     pub(super) fn ty_continuation(
         &mut self,
         resume_ty: TypeId,
@@ -1779,44 +1791,108 @@ impl<'a> TypeLowering<'a> {
         args: Vec<TypeId>,
         span: Span,
     ) -> Result<TypeId, TypeLowerError> {
+        self.lower_type_fqn_with_args_and_eff(fqn, args, None, span)
+    }
+
+    pub(super) fn lower_type_fqn_with_args_and_eff(
+        &mut self,
+        fqn: String,
+        args: Vec<TypeId>,
+        explicit_eff: Option<EffectRow>,
+        span: Span,
+    ) -> Result<TypeId, TypeLowerError> {
         self.emit_deprecated_type_use(&fqn, span);
 
         // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
         match fqn.as_str() {
             "scoop.core.Any" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.any);
             }
             "scoop.core.String" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.string);
             }
             "scoop.core.Unit" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.unit);
             }
             "scoop.core.Nothing" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.nothing);
             }
             "scoop.core.Bool" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.bool_);
             }
             "scoop.core.Char" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.char_);
             }
             "scoop.core.Float64" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.float64);
             }
             "scoop.core.Float32" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.float32);
             }
             "scoop.core.Int" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.int);
             }
             // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
@@ -1826,14 +1902,32 @@ impl<'a> TypeLowering<'a> {
             // - typecheck 内部把它降低为与 `Int` 完全一致的 builtin 类型，避免后端出现额外 ABI 分歧。
             "scoop.unsafe.__AtomicInt" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.int);
             }
             "scoop.core.UInt" => {
                 check_arity(&fqn, 0, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.builtins.uint);
             }
             "scoop.core.Option" => {
                 check_arity(&fqn, 1, args.len(), span)?;
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
                 return Ok(self.types.ty_option(args[0]));
             }
             _ => {}
@@ -1877,12 +1971,27 @@ impl<'a> TypeLowering<'a> {
         };
 
         match sym.kind {
-            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, &args, span),
+            TypeSymbolKind::TypeAlias => {
+                if explicit_eff.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: span.into(),
+                    });
+                }
+                self.lower_type_alias_fqn(&fqn, &args, span)
+            }
             TypeSymbolKind::Nominal(kind) => {
                 self.check_where_constraints_on_instantiation(&fqn, sym, &args, span)?;
-                let eff = match &sym.eff_param {
-                    None => None,
-                    Some(eff_param) => {
+                let eff = match (&sym.eff_param, explicit_eff) {
+                    (None, None) => None,
+                    (None, Some(_)) => {
+                        return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                            name: fqn,
+                            span: span.into(),
+                        });
+                    }
+                    (Some(_), Some(row)) => Some(row),
+                    (Some(eff_param), None) => {
                         let bindings = sym
                             .type_param_names
                             .iter()

@@ -121,7 +121,7 @@ impl<'a> HirLowering<'a> {
         inner_return_ty: TypeId,
     ) -> Expr {
         let result_ty = self.task_type_of(inner_return_ty);
-        let step_result_ty = self.task_step_result_type();
+        let step_result_ty = self.task_step_result_type(inner_return_ty);
         let closure_ty =
             self.types
                 .ty_function(None, Vec::new(), step_result_ty, EffectRow::pure(), true);
@@ -164,7 +164,7 @@ impl<'a> HirLowering<'a> {
         lowered_body: Block,
         inner_return_ty: TypeId,
     ) -> Expr {
-        let step_result_ty = self.task_step_result_type();
+        let step_result_ty = self.task_step_result_type(inner_return_ty);
         let mut normalized_body = lowered_body;
         if let Some(tail_stmt) = normalized_body.stmts.pop() {
             match tail_stmt.kind {
@@ -258,12 +258,13 @@ impl<'a> HirLowering<'a> {
             ],
         };
 
-        // 这里由一个内部 `Async.await` handler 统一拦截 task body 中的所有 await 站点，
-        // 因而 resume payload 在 HIR 边界上擦除为 `Any`；但 step driver 的 delimiter answer
-        // 继续显式保留为私有 `__TaskStepResult`，使 `Task` 只成为 continuation answer model
-        // 之上的薄封装，而不是另一套黑箱 ABI。
-        let task_binder_ty = self.task_type_of(self.builtins.any);
-        let continuation_ty = self.continuation_type_of(self.builtins.any, step_result_ty);
+        // 这里由一个内部 `Async.await` handler 统一拦截 task body 中的所有 await 站点。
+        // 为了避免把 `Int`/`Bool` 这类 word payload 擦成普通 `Any` 后丢失数值，
+        // task 私有 resume payload 在 HIR 边界上统一改走 `(Int, Any)` transport carrier；
+        // step driver 的 delimiter answer 继续显式保留为私有 `__TaskStepResult<T>`。
+        let transport_ty = self.task_transport_type();
+        let task_binder_ty = self.task_type_of(transport_ty);
+        let continuation_ty = self.continuation_type_of(transport_ty, step_result_ty);
         let (task_span, task_id, task_name) =
             self.fresh_synthetic_local(body_span, "__task_awaited", false);
         let (continuation_span, continuation_id, continuation_name) =

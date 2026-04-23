@@ -510,6 +510,47 @@ impl TypeEnv {
         out
     }
 
+    /// 与 `find_enum_variants_named` 类似，但会过滤“仅供实现内部使用”的 helper enum。
+    ///
+    /// 当前约定：
+    /// - 名称最后一段以 `__` 开头的 enum 视为 internal helper enum；
+    /// - 这类 enum 的 bare variant ctor 只在**同包**源码里可见；
+    /// - 跨包源码即使 `import scoop.core.*`，也不应因 `__TaskState.Created` 之类内部实现细节
+    ///   让普通 `Created(...)` / `Ready(...)` 变成歧义。
+    pub fn find_visible_enum_variants_named(
+        &self,
+        variant_name: &str,
+        use_source: &SourceFile,
+    ) -> Vec<(String, EnumVariantInfo)> {
+        let use_pkg_prefix = self
+            .file_type_context(use_source.path())
+            .map(|ctx| ctx.pkg_prefix.as_str())
+            .unwrap_or("");
+        let mut out = Vec::new();
+
+        for (enum_fqn, decl) in &self.enums {
+            let enum_name = enum_fqn.rsplit('.').next().unwrap_or(enum_fqn);
+            let is_internal_helper = enum_name.starts_with("__");
+            if is_internal_helper {
+                let enum_pkg_prefix = self
+                    .file_type_context(&decl.decl_file)
+                    .map(|ctx| ctx.pkg_prefix.as_str())
+                    .unwrap_or_else(|| enum_fqn.rsplit_once('.').map(|(pkg, _)| pkg).unwrap_or(""));
+                if enum_pkg_prefix != use_pkg_prefix {
+                    continue;
+                }
+            }
+
+            for v in &decl.variants {
+                if v.name == variant_name {
+                    out.push((enum_fqn.clone(), v.clone()));
+                }
+            }
+        }
+
+        out
+    }
+
     fn collect_from_file(
         &mut self,
         source: &SourceFile,

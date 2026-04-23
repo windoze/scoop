@@ -1140,7 +1140,7 @@ impl UnifiedHandleStateMachine {
                         ));
                     }
                 }
-                SuspendSiteKind::RuntimeRaise { .. } => {
+                SuspendSiteKind::RuntimeRaise { reason } => {
                     for arm_id in &site.matching_arms {
                         let arm = arm_by_id.get(arm_id).expect("validated arm should exist");
                         if arm.op_fqn != "scoop.core.Raise.raise" {
@@ -1160,9 +1160,9 @@ impl UnifiedHandleStateMachine {
                             describe_suspend_site_kind(&site.kind)
                         ));
                     }
-                    if site.resume_path.is_some() {
+                    if site.resume_path.is_some() && reason != "Continuation.resume" {
                         return Err(format!(
-                            "{path}: site{} kind={} must not carry resume_path metadata",
+                            "{path}: site{} kind={} must not carry resume_path metadata unless it is Continuation.resume",
                             site.id,
                             describe_suspend_site_kind(&site.kind)
                         ));
@@ -1991,6 +1991,7 @@ fn render_unified_state_edge(edge: &UnifiedStateEdge) -> String {
 #[cfg(test)]
 mod transform_tests {
     use std::collections::{HashMap, HashSet};
+    use std::path::{Path, PathBuf};
 
     use crate::ast;
     use crate::hir;
@@ -3596,6 +3597,255 @@ fun demo(): Int {
     }
 
     #[test]
+    fn unified_machine_preserves_task_drive_waiting_style_resume_binding() {
+        let lowered = lower_typed_single_source(
+            r#"
+package a
+
+import scoop.core.*
+
+effect Boom {
+    fun next(): (Int, Any)
+}
+
+fun apply(step: __TaskStepResult<Int>): Int {
+    when (step) {
+        Ready(_) -> 1
+        Pending(_, _) -> 2
+    }
+}
+
+fun demo(
+    k: Continuation<(Int, Any), __TaskStepResult<Int>, eff Boom>,
+    value: (Int, Any),
+): Int / (Boom + Raise<RuntimeError>) {
+    val resumed: Int = try {
+        val step: __TaskStepResult<Int> = k.resume(value)
+        apply(step)
+    } catch (e: RuntimeError) {
+        0
+    }
+    resumed
+}
+"#,
+        );
+        let segment_list = build_segment_list_from_lowered(&lowered);
+        let machine = segment_list
+            .build_unified_state_machine()
+            .expect("valid segment contract should transform");
+
+        let resume_state = machine
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .ops()
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .ops()
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+
+        let step_bind = resume_state
+            .ops()
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    Some(decl)
+                }
+                _ => None,
+            })
+            .expect("unified resume state should bind the direct step local");
+        let bind_init = step_bind
+            .init
+            .as_ref()
+            .expect("step local should keep an initializer");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!("expected unified rewritten task-drive step binding, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn monomorphized_task_drive_waiting_preserves_resume_binding_rewrite() {
+        let lowered = lower_typed_single_source_with_support_sources(
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        val nested: Task<Int> = async { 41 }
+        val x: Int = await nested
+        x + 1
+    }
+    return __task_join(task)
+}
+"#,
+        );
+
+        let drive_fun = lowered
+            .file
+            .items
+            .iter()
+            .find_map(|item| match item {
+                hir::Item::Fun(fun) if fun.fqn == "scoop.core.__task_drive_waiting::<Int>" => {
+                    Some(fun)
+                }
+                _ => None,
+            })
+            .or_else(|| {
+                lowered
+                    .member_funs
+                    .iter()
+                    .find(|fun| fun.fqn == "scoop.core.__task_drive_waiting::<Int>")
+            })
+            .expect("expected monomorphized scoop.core.__task_drive_waiting::<Int>");
+        let drive_body = drive_fun
+            .body
+            .as_ref()
+            .expect("__task_drive_waiting::<Int> should have a body");
+        let handle = first_handle_in_block(drive_body)
+            .expect("__task_drive_waiting::<Int> should contain the try/catch handle");
+        let context = collect_plan_context(&lowered, drive_fun);
+        let source_plan = HandleStateMachinePlan::build_with_context(&lowered.types, handle, &context);
+        let source_resume_state = source_plan
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .actions
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a source-plan resume state");
+        let source_resume_site = source_plan
+            .suspend_sites
+            .iter()
+            .find(|site| {
+                source_resume_state.actions.iter().any(|op| {
+                    matches!(
+                        op,
+                        HandleStateOp::ResumeAfterSite {
+                            site_id,
+                            reason: ResumeAfterSiteReason::Call,
+                            ..
+                        } if *site_id == site.id
+                    )
+                })
+            })
+            .expect("expected source-plan resume site");
+        assert!(
+            source_resume_site.resume_path.is_some(),
+            "monomorphized task driver resume site should record a resume path before materialization"
+        );
+        let source_step_bind = source_resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    Some(decl)
+                }
+                _ => None,
+            })
+            .expect("source-plan resume state should bind the direct step local");
+        let source_bind_init = source_step_bind
+            .init
+            .as_ref()
+            .expect("source-plan step local should keep an initializer");
+        let source_resume_slot_name = source_resume_state
+            .actions
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("source-plan resume state should allocate a synthetic resume slot");
+
+        match &source_bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &source_resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!(
+                "expected source-plan task driver step binding to read the synthetic resume slot, got {other:?}"
+            ),
+        }
+
+        let machine = source_plan
+            .build_segment_list()
+            .build_unified_state_machine()
+            .expect("task driver handle should transform");
+
+        let resume_state = machine
+            .states
+            .iter()
+            .find(|state| {
+                state
+                    .ops()
+                    .iter()
+                    .any(|op| matches!(op, HandleStateOp::ResumeAfterSite { .. }))
+            })
+            .expect("expected a resume state");
+        let resume_slot_name = resume_state
+            .ops()
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::ResumeAfterSite {
+                    reason: ResumeAfterSiteReason::Call,
+                    resume_slot: Some(slot),
+                    ..
+                } => Some(slot.name.clone()),
+                _ => None,
+            })
+            .expect("resume state should allocate a synthetic resume slot");
+        let step_bind = resume_state
+            .ops()
+            .iter()
+            .find_map(|op| match op {
+                HandleStateOp::BindLocal { decl, .. } if decl.name.as_deref() == Some("step") => {
+                    Some(decl)
+                }
+                _ => None,
+            })
+            .expect("resume state should bind the direct step local");
+        let bind_init = step_bind
+            .init
+            .as_ref()
+            .expect("step local should keep an initializer");
+
+        match &bind_init.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { name, .. }) => {
+                assert_eq!(name, &resume_slot_name);
+                assert!(name.starts_with("__resume_site"));
+            }
+            other => panic!(
+                "expected monomorphized task driver step binding to read the synthetic resume slot, got {other:?}"
+            ),
+        }
+    }
+
+    #[test]
     fn nested_handles_allocate_unique_synthetic_resume_slot_ids() {
         let lowered = lower_typed_single_source(
             r#"
@@ -4214,6 +4464,159 @@ fun demo(flag: Bool): Int {
         lower_typed_single_source_with_source(source_text).1
     }
 
+    fn lower_typed_single_source_with_support_sources(source_text: &str) -> hir::LoweredHir {
+        let session = Session::new().unwrap();
+        let entry_source = SourceFile::new_virtual("<mem>", source_text);
+
+        let stdlib_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib");
+        let stdlib_root = stdlib_root.canonicalize().unwrap();
+        let mut support_paths = Vec::new();
+        collect_scoop_files_for_test(&stdlib_root, &mut support_paths);
+        support_paths.extend(session.sysroot().compilable_source_paths.iter().cloned());
+        support_paths.sort();
+
+        let mut input_sources = support_paths
+            .into_iter()
+            .map(|path| SourceFile::load(&path).unwrap())
+            .collect::<Vec<_>>();
+        input_sources.push(entry_source.clone());
+
+        let mut asts = Vec::with_capacity(input_sources.len());
+        for source in &input_sources {
+            let mut ast = parse_file(source).unwrap();
+            crate::comptime::trim_package_level_comptime_ifs(source, &mut ast).unwrap();
+            crate::typecheck::check_file_headers(source, &ast).unwrap();
+            crate::typecheck::check_file_struct_decls(source, &ast).unwrap();
+            asts.push(ast);
+        }
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> =
+                Vec::with_capacity(session.sysroot().files.len() + input_sources.len());
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            for (source, ast) in input_sources.iter().zip(asts.iter()) {
+                pairs.push((source, ast));
+            }
+            Index::build(&pairs).unwrap()
+        };
+
+        let mut headers = Vec::with_capacity(input_sources.len());
+        for (source, ast) in input_sources.iter().zip(asts.iter()) {
+            headers.push(crate::resolve::check_file_headers(source, ast, &index).unwrap());
+        }
+        for ((source, ast), header) in input_sources
+            .iter()
+            .zip(asts.iter_mut())
+            .zip(headers.iter())
+        {
+            crate::resolve::check_file_bodies(source, ast, &index, header).unwrap();
+        }
+
+        let mut env = typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).unwrap();
+        for (source, ast) in input_sources.iter().zip(asts.iter()) {
+            env.extend_from_file(source, ast, &index).unwrap();
+        }
+
+        let mut typecheck_types = TypeStore::new();
+        let builtins = typecheck_types.intern_builtins();
+        let mut monomorph_keys = Vec::new();
+
+        for ((source, ast), header) in input_sources.iter().zip(asts.iter()).zip(headers.iter()) {
+            typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_properties(source, ast, &index, &env).unwrap();
+            typecheck::check_file_inheritance(source, ast, &index).unwrap();
+            typecheck::check_file_interfaces(source, ast, &index, &env).unwrap();
+            typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_where_clauses(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .unwrap();
+            typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &header.imports,
+                &env,
+                &mut typecheck_types,
+                builtins,
+            )
+            .unwrap();
+            monomorph_keys.extend(
+                typecheck::check_file_exprs_with_monomorph_keys(
+                    source,
+                    ast,
+                    &index,
+                    &header.imports,
+                    &env,
+                    &mut typecheck_types,
+                    builtins,
+                )
+                .unwrap(),
+            );
+        }
+
+        typecheck::check_file_type_layouts(&index, &env, &mut typecheck_types, builtins).unwrap();
+
+        let mut compilation_unit: Vec<(&SourceFile, &ast::File)> =
+            Vec::with_capacity(session.sysroot().files.len() + input_sources.len());
+        for file in &session.sysroot().files {
+            compilation_unit.push((&file.source, &file.ast));
+        }
+        for (source, ast) in input_sources.iter().zip(asts.iter()) {
+            compilation_unit.push((source, ast));
+        }
+
+        let files_to_lower = input_sources
+            .iter()
+            .zip(asts.iter())
+            .collect::<Vec<(&SourceFile, &ast::File)>>();
+        hir::lower_for_compilation_unit_multi_files_with_type_env(
+            &index,
+            &compilation_unit,
+            &files_to_lower,
+            &monomorph_keys,
+            Some(&env),
+            &typecheck_types,
+        )
+        .unwrap()
+    }
+
     fn lower_typed_single_source_with_source(source_text: &str) -> (SourceFile, hir::LoweredHir) {
         let session = Session::new().unwrap();
         let source = SourceFile::new_virtual("<mem>", source_text);
@@ -4283,6 +4686,21 @@ fun demo(flag: Bool): Int {
         )
         .unwrap();
         (source, lowered)
+    }
+
+    fn collect_scoop_files_for_test(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let ty = entry.file_type().unwrap();
+            if ty.is_dir() {
+                collect_scoop_files_for_test(&path, out);
+                continue;
+            }
+            if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
+                out.push(path);
+            }
+        }
     }
 
     fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {

@@ -1723,10 +1723,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let is_continuation_resume_call = self
             .continuation_resume_call_sites
             .contains(&self.current_call_site(call_expr.span)?);
+        let saved_return_ctx = self.return_context.take();
+        let saved_return_ty = self.current_fun_return_ty.take();
+        // replay 的 SuspendCall 仍在 step function 里重放一个完整 call tree；
+        // 若它再次把 TLS active 置起，当前 frame 必须立刻 `ret void` 让更外层
+        // dispatch/continuation 重新接管，而不是继续把 `0/null` 占位答案写回 frame。
+        self.current_fun_return_ty = Some(CgTy::Never);
         let saved_replay_mode = self.current_continuation_resume_replay;
         self.current_continuation_resume_replay = is_continuation_resume_call;
-        let call_result = self.codegen_expr_in_expected_context(call_expr, None)?;
+        let call_result = self.codegen_expr_in_expected_context(call_expr, None);
         self.current_continuation_resume_replay = saved_replay_mode;
+        self.current_fun_return_ty = saved_return_ty;
+        self.return_context = saved_return_ctx;
+        let call_result = call_result?;
         self.store_value_to_frame_slot(
             source_span,
             resume_slot,
@@ -4669,7 +4678,7 @@ import scoop.core.*
 fun main(): Int {
     val task: Task<Int> = async {
         println("before")
-        val x: Int = await __scoop_task_from_result(41)
+        val x: Int = await __task_from_result(41)
         println("after")
         println(x)
         x + 1
@@ -4688,8 +4697,8 @@ fun main(): Int {
                 let function = format!("define {chunk}");
                 let body_end = function.find("\n}")?;
                 let function = &function[..body_end + 2];
-                (function.contains("@scoop_task_step_pending")
-                    && function.contains("@scoop_task_step_ready"))
+                (function.contains("scoop.core.__task_step_pending::<")
+                    && function.contains("scoop.core.__task_step_ready::<"))
                 .then_some(function.to_string())
             })
             .expect("expected async task closure function in IR");
@@ -4702,14 +4711,83 @@ fun main(): Int {
             "resumed async task body must not replay the original await perform site:\n{async_closure_ir}"
         );
         assert_eq!(
-            async_closure_ir.matches("@scoop_task_step_pending").count(),
+            async_closure_ir
+                .matches("scoop.core.__task_step_pending::<")
+                .count(),
             1,
             "async task closure should materialize exactly one pending step helper for the single await site:\n{async_closure_ir}"
         );
         assert_eq!(
-            async_closure_ir.matches("@scoop_task_step_ready").count(),
+            async_closure_ir
+                .matches("scoop.core.__task_step_ready::<")
+                .count(),
             1,
             "async task closure should materialize exactly one ready step helper on normal completion:\n{async_closure_ir}"
+        );
+    }
+
+    #[test]
+    fn async_task_resume_replay_ir_terminates_step_fn_on_active_effect() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val task: Task<Int> = async {
+        println("before")
+        val x: Int = await __task_from_result(41)
+        println("after")
+        println(x)
+        x + 1
+    }
+    return 0
+}
+"#,
+        );
+        let session = Session::new().expect("session");
+        let ir = emit_minimal_main_ir(&session, &source).expect("llvm ir");
+        let async_closure_ir = ir
+            .split("\ndefine ")
+            .skip(1)
+            .find_map(|chunk| {
+                let function = format!("define {chunk}");
+                let body_end = function.find("\n}")?;
+                let function = &function[..body_end + 2];
+                (function.contains("scoop.core.__task_step_pending::<")
+                    && function.contains("scoop.core.__task_step_ready::<"))
+                .then_some(function.to_string())
+            })
+            .expect("expected async task closure function in IR");
+        let replay_block = async_closure_ir
+            .split("site0_resume_replay:")
+            .nth(1)
+            .and_then(|tail| tail.split("site0_resume_inactive:").next())
+            .expect("expected resume replay block in async task closure IR");
+        let active_return_block = async_closure_ir
+            .split("direct_call_effect_return:")
+            .nth(1)
+            .and_then(|tail| tail.split("direct_call_effect_continue:").next())
+            .expect("expected active-effect early return block in async task closure IR");
+
+        assert!(
+            replay_block.contains(
+                "br i1 %direct_call_effect_active, label %direct_call_effect_return, label %direct_call_effect_continue"
+            ),
+            "replayed Continuation.resume inside async task should branch directly on active effect instead of materializing a fallback answer:\n{async_closure_ir}"
+        );
+        assert!(
+            active_return_block.contains("ret void"),
+            "active resume replay path should terminate the step function immediately:\n{async_closure_ir}"
+        );
+        assert!(
+            async_closure_ir.contains("direct_call_effect_continue:")
+                && async_closure_ir.contains("resume_slot_")
+                && async_closure_ir.contains("ptr addrspace(1) %call40")
+                && async_closure_ir.contains("br label %site0_resume_merge"),
+            "inactive resume replay path should stash the replayed answer into the synthetic resume slot before rejoining the state machine:\n{async_closure_ir}"
         );
     }
 

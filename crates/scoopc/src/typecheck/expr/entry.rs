@@ -1,17 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::hir;
 use crate::monomorph::MonomorphKey;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, TypeId, TypeStore};
-
-#[cfg(not(feature = "llvm"))]
-use crate::effect_step_summary::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program as compute_escape_continuation_direct_step_effect_rows_for_handle_with_program;
-#[cfg(feature = "llvm")]
-use crate::llvm::compute_escape_continuation_direct_step_effect_rows_for_handle_in_program as compute_escape_continuation_direct_step_effect_rows_for_handle_with_program;
 
 use super::call::{
     check_call_arg_named_rules, check_fn_value_to_any_erasure_gate,
@@ -233,25 +227,14 @@ fn check_file_exprs_impl(
     env: &TypeEnv,
     types: &mut TypeStore,
 ) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
-    let source = request.source;
     let file = request.file;
     reset_file_expr_side_tables(file);
 
     let first_pass = check_file_exprs_pass(request, index, imports, env, types, HashMap::new())?;
     apply_check_file_exprs_pass_result(file, &first_pass);
-
-    let precise_escape_rows =
-        compute_escape_continuation_effect_rows_for_file(source, file, index, env, types)?;
-    let final_pass = if precise_escape_rows.is_empty() {
-        first_pass
-    } else {
-        check_file_exprs_pass(request, index, imports, env, types, precise_escape_rows)?
-    };
-
-    apply_check_file_exprs_pass_result(file, &final_pass);
     Ok((
-        final_pass.monomorph_keys,
-        final_pass.type_instantiation_keys,
+        first_pass.monomorph_keys,
+        first_pass.type_instantiation_keys,
     ))
 }
 
@@ -293,7 +276,7 @@ fn check_file_exprs_pass(
     imports: &ImportTable,
     env: &TypeEnv,
     types: &mut TypeStore,
-    escape_continuation_effect_rows: HashMap<Span, EffectRow>,
+    _unused_escape_continuation_effect_rows: HashMap<Span, EffectRow>,
 ) -> Result<CheckFileExprsPassResult, ExprTypeError> {
     let source = request.source;
     let file = request.file;
@@ -317,7 +300,6 @@ fn check_file_exprs_pass(
     let top_level_types =
         collect_top_level_value_types(source, file, index, imports, env, types, builtins)?;
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
-    lower.set_escape_continuation_effect_rows(escape_continuation_effect_rows);
     if request.collect_monomorph {
         lower.enable_monomorph_collection();
     }
@@ -325,7 +307,7 @@ fn check_file_exprs_pass(
         lower.enable_type_instantiation_collection();
     }
     let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
-    let member_mutabilities = collect_member_mutabilities(source, file);
+    let member_mutabilities = collect_member_mutabilities(source, file, env);
 
     for item in &file.items {
         match item {
@@ -433,317 +415,6 @@ fn check_file_exprs_pass(
         monomorph_keys,
         type_instantiation_keys,
     })
-}
-
-fn compute_escape_continuation_effect_rows_for_file(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
-    typecheck_types: &mut TypeStore,
-) -> Result<HashMap<Span, EffectRow>, ExprTypeError> {
-    let compilation_unit = build_typechecked_compilation_unit(source, file, env);
-    let lowered = hir::lower_for_compilation_unit_multi_files_with_type_env(
-        index,
-        &compilation_unit,
-        &[(source, file)],
-        &[],
-        Some(env),
-        typecheck_types,
-    )
-    .map_err(|_| ExprTypeError::UnsupportedExpr {
-        kind: "escape continuation resumed-step summary lowering",
-        span: Span::new(0, source.text().len()).into(),
-    })?;
-
-    Ok(collect_escape_continuation_effect_rows_from_lowered(
-        &lowered,
-        typecheck_types,
-    ))
-}
-
-fn build_typechecked_compilation_unit<'a>(
-    source: &'a SourceFile,
-    file: &'a ast::File,
-    env: &'a TypeEnv,
-) -> Vec<(&'a SourceFile, &'a ast::File)> {
-    let mut unit = env
-        .files()
-        .filter_map(|(path, stored_file)| env.source(path).map(|src| (src, stored_file)))
-        .collect::<Vec<_>>();
-
-    if let Some(existing) = unit.iter_mut().find(|(src, _)| src.path() == source.path()) {
-        *existing = (source, file);
-    } else {
-        unit.push((source, file));
-    }
-
-    unit.sort_by(|(lhs, _), (rhs, _)| lhs.path().cmp(rhs.path()));
-    unit
-}
-
-fn collect_escape_continuation_effect_rows_from_lowered(
-    lowered: &hir::LoweredHir,
-    typecheck_types: &mut TypeStore,
-) -> HashMap<Span, EffectRow> {
-    let mut out = HashMap::new();
-
-    for item in &lowered.file.items {
-        match item {
-            hir::Item::Fun(fun) => {
-                if let Some(body) = fun.body.as_ref() {
-                    collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
-                }
-            }
-            hir::Item::Val(val) => {
-                if let Some(init) = val.init.as_ref() {
-                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-                }
-            }
-            hir::Item::Todo { .. } => {}
-        }
-    }
-
-    for fun in &lowered.member_funs {
-        if let Some(body) = fun.body.as_ref() {
-            collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
-        }
-    }
-
-    for var in lowered.top_level_vars.values() {
-        if let Some(init) = var.init.as_ref() {
-            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-        }
-    }
-
-    for konst in lowered.top_level_consts.values() {
-        if let Some(init) = konst.init.as_ref() {
-            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-        }
-    }
-
-    for value in lowered.top_level_immutable_values.values() {
-        if let Some(init) = value.init.as_ref() {
-            collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-        }
-    }
-
-    for init in lowered.object_inits.values() {
-        for step in &init.steps {
-            match step {
-                hir::ObjectInitStep::PropertyInit { init, .. } => {
-                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-                }
-                hir::ObjectInitStep::InitBlock { block } => {
-                    collect_escape_rows_in_block(lowered, block, typecheck_types, &mut out);
-                }
-            }
-        }
-    }
-
-    for init in lowered.class_inits.values() {
-        for arg in &init.super_ctor_args {
-            collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, &mut out);
-        }
-        for step in &init.steps {
-            match step {
-                hir::ClassInitStep::PropertyInit { init, .. } => {
-                    collect_escape_rows_in_expr(lowered, init, typecheck_types, &mut out);
-                }
-                hir::ClassInitStep::InitBlock { block } => {
-                    collect_escape_rows_in_block(lowered, block, typecheck_types, &mut out);
-                }
-            }
-        }
-        for ctor in &init.ctors {
-            if let Some(delegation) = &ctor.delegation {
-                for arg in &delegation.args {
-                    collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, &mut out);
-                }
-            }
-            if let Some(body) = &ctor.body {
-                collect_escape_rows_in_block(lowered, body, typecheck_types, &mut out);
-            }
-        }
-    }
-
-    out
-}
-
-fn collect_escape_rows_in_block(
-    lowered: &hir::LoweredHir,
-    block: &hir::Block,
-    typecheck_types: &mut TypeStore,
-    out: &mut HashMap<Span, EffectRow>,
-) {
-    for stmt in &block.stmts {
-        collect_escape_rows_in_stmt(lowered, stmt, typecheck_types, out);
-    }
-}
-
-fn collect_escape_rows_in_stmt(
-    lowered: &hir::LoweredHir,
-    stmt: &hir::Stmt,
-    typecheck_types: &mut TypeStore,
-    out: &mut HashMap<Span, EffectRow>,
-) {
-    match &stmt.kind {
-        hir::StmtKind::Expr(expr) => {
-            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
-        }
-        hir::StmtKind::Val(val) => {
-            if let Some(init) = val.init.as_ref() {
-                collect_escape_rows_in_expr(lowered, init, typecheck_types, out);
-            }
-        }
-        hir::StmtKind::Assign { lhs, rhs, .. } => {
-            collect_escape_rows_in_expr(lowered, lhs, typecheck_types, out);
-            collect_escape_rows_in_expr(lowered, rhs, typecheck_types, out);
-        }
-        hir::StmtKind::While { cond, body } => {
-            collect_escape_rows_in_expr(lowered, cond, typecheck_types, out);
-            collect_escape_rows_in_block(lowered, body, typecheck_types, out);
-        }
-        hir::StmtKind::Return { value } => {
-            if let Some(value) = value.as_ref() {
-                collect_escape_rows_in_expr(lowered, value, typecheck_types, out);
-            }
-        }
-        hir::StmtKind::Empty
-        | hir::StmtKind::Break { .. }
-        | hir::StmtKind::Continue { .. }
-        | hir::StmtKind::Todo(_) => {}
-    }
-}
-
-fn collect_escape_rows_in_expr(
-    lowered: &hir::LoweredHir,
-    expr: &hir::Expr,
-    typecheck_types: &mut TypeStore,
-    out: &mut HashMap<Span, EffectRow>,
-) {
-    match &expr.kind {
-        hir::ExprKind::Missing
-        | hir::ExprKind::Literal(_)
-        | hir::ExprKind::VarRef(_)
-        | hir::ExprKind::UnresolvedIdent { .. }
-        | hir::ExprKind::Todo(_) => {}
-        hir::ExprKind::StructLit { fields, .. } => {
-            for field in fields {
-                collect_escape_rows_in_expr(lowered, &field.value, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::TupleLit { elements } => {
-            for element in elements {
-                collect_escape_rows_in_expr(lowered, element, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_escape_rows_in_expr(lowered, expr, typecheck_types, out);
-                }
-            }
-        }
-        hir::ExprKind::Unary { expr, .. }
-        | hir::ExprKind::TypeCheck { expr, .. }
-        | hir::ExprKind::Cast { expr, .. } => {
-            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
-        }
-        hir::ExprKind::Binary { lhs, rhs, .. } => {
-            collect_escape_rows_in_expr(lowered, lhs, typecheck_types, out);
-            collect_escape_rows_in_expr(lowered, rhs, typecheck_types, out);
-        }
-        hir::ExprKind::Block(block) => {
-            collect_escape_rows_in_block(lowered, block, typecheck_types, out)
-        }
-        hir::ExprKind::Closure(closure) => {
-            collect_escape_rows_in_expr(lowered, &closure.body, typecheck_types, out)
-        }
-        hir::ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => {
-            collect_escape_rows_in_expr(lowered, cond, typecheck_types, out);
-            collect_escape_rows_in_expr(lowered, then_branch, typecheck_types, out);
-            if let Some(else_branch) = else_branch.as_deref() {
-                collect_escape_rows_in_expr(lowered, else_branch, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::When { subject, arms } => {
-            collect_escape_rows_in_expr(lowered, subject, typecheck_types, out);
-            for arm in arms {
-                if let Some(guard) = arm.guard.as_ref() {
-                    collect_escape_rows_in_expr(lowered, guard, typecheck_types, out);
-                }
-                collect_escape_rows_in_expr(lowered, &arm.body, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::MemberAccess { receiver, .. } => {
-            collect_escape_rows_in_expr(lowered, receiver, typecheck_types, out);
-        }
-        hir::ExprKind::Call { callee, args } => {
-            collect_escape_rows_in_expr(lowered, callee, typecheck_types, out);
-            for arg in args {
-                collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::Perform { args, .. } => {
-            for arg in args {
-                collect_escape_rows_in_call_arg(lowered, arg, typecheck_types, out);
-            }
-        }
-        hir::ExprKind::Handle(handle) => {
-            let rows = compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(
-                &lowered.types,
-                handle,
-                &lowered.object_inits,
-                &lowered.top_level_immutable_values,
-            );
-            for arm in &handle.arms {
-                if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind {
-                    let row = rows
-                        .get(&continuation)
-                        .cloned()
-                        .unwrap_or_else(EffectRow::pure);
-                    out.insert(
-                        arm.span,
-                        EffectRow::new(
-                            row.terms
-                                .into_iter()
-                                .map(|ty| typecheck_types.re_intern_from(&lowered.types, ty))
-                                .collect(),
-                        ),
-                    );
-                }
-            }
-
-            collect_escape_rows_in_block(lowered, &handle.body, typecheck_types, out);
-            for arm in &handle.arms {
-                collect_escape_rows_in_expr(lowered, &arm.body, typecheck_types, out);
-            }
-            if let Some(finally) = handle.finally.as_ref() {
-                collect_escape_rows_in_block(lowered, finally, typecheck_types, out);
-            }
-        }
-    }
-}
-
-fn collect_escape_rows_in_call_arg(
-    lowered: &hir::LoweredHir,
-    arg: &hir::CallArg,
-    typecheck_types: &mut TypeStore,
-    out: &mut HashMap<Span, EffectRow>,
-) {
-    match arg {
-        hir::CallArg::Positional(expr) => {
-            collect_escape_rows_in_expr(lowered, expr, typecheck_types, out)
-        }
-        hir::CallArg::Named { value, .. } => {
-            collect_escape_rows_in_expr(lowered, value, typecheck_types, out)
-        }
-    }
 }
 
 pub(super) fn try_infer_fun_return_ty_from_block(
@@ -2183,23 +1854,6 @@ private fun bad(): Int {
     }
 }
 "#;
-
-    #[test]
-    fn escape_continuation_effect_rows_from_file_include_next_perform_boundary() {
-        let (source, ast, index, imports, env, mut types, builtins) =
-            setup_typed_file(ESCAPE_BINDER_SOURCE);
-        typecheck::check_file_exprs(&source, &ast, &index, &imports, &env, &mut types, builtins)
-            .expect("typecheck should succeed");
-
-        let rows = compute_escape_continuation_effect_rows_for_file(
-            &source, &ast, &index, &env, &mut types,
-        )
-        .expect("direct-step rows");
-        let (arm_span, _) = escape_arm_spans(&ast);
-        let row = rows.get(&arm_span).expect("escape arm row");
-
-        assert_eq!(types.display(row.terms[0]).to_string(), "a.Boom");
-    }
 
     #[test]
     fn check_file_exprs_retypes_escape_continuation_binder_with_precise_effect_row() {

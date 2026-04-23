@@ -3231,19 +3231,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         path: &[SuspendSourceFramePath],
     ) {
         let Some(site) = self.suspend_sites.iter_mut().find(|site| {
-            let kind_matches = matches!(
-                (&site.kind, &expr.kind),
-                (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
-                    | (
-                        SuspendSiteKind::CallMaySuspend { .. },
-                        hir::ExprKind::Call { .. },
-                    )
-                    | (
-                        SuspendSiteKind::CallStateMachineCallee { .. },
-                        hir::ExprKind::Call { .. },
-                    )
-            );
-            kind_matches && site.span == expr.span && site.source_path.is_none()
+            suspend_site_kind_matches_source_path_expr_kind(&site.kind, &expr.kind)
+                && site.span == expr.span
+                && site.source_path.is_none()
         }) else {
             return;
         };
@@ -3523,21 +3513,9 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         expr_frames: &[SuspendResumeExprFrame],
     ) {
         let Some(site) = self.suspend_sites.iter_mut().find(|site| {
-            let kind_matches = matches!(
-                (&site.kind, &expr.kind),
-                (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
-                    | (
-                        SuspendSiteKind::CallMaySuspend { .. }
-                            | SuspendSiteKind::CallStateMachineCallee { .. }
-                            | SuspendSiteKind::ClassCtorInit { .. },
-                        hir::ExprKind::Call { .. },
-                    )
-                    | (
-                        SuspendSiteKind::NestedHandleBoundary { .. },
-                        hir::ExprKind::Handle(_),
-                    )
-            );
-            kind_matches && site.span == expr.span && site.resume_path.is_none()
+            suspend_site_kind_matches_resume_path_expr_kind(&site.kind, &expr.kind)
+                && site.span == expr.span
+                && site.resume_path.is_none()
         }) else {
             return;
         };
@@ -5137,6 +5115,47 @@ fn resume_rewrite_candidate_spans(
         }
     }
     spans
+}
+
+fn suspend_site_kind_matches_source_path_expr_kind(
+    site_kind: &SuspendSiteKind,
+    expr_kind: &hir::ExprKind,
+) -> bool {
+    matches!(
+        (site_kind, expr_kind),
+        (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
+            | (
+                SuspendSiteKind::CallMaySuspend { .. }
+                    | SuspendSiteKind::CallStateMachineCallee { .. }
+                    | SuspendSiteKind::ClassCtorInit { .. },
+                hir::ExprKind::Call { .. },
+            )
+            | (
+                SuspendSiteKind::NestedHandleBoundary { .. },
+                hir::ExprKind::Handle(_),
+            )
+    )
+}
+
+fn suspend_site_kind_matches_resume_path_expr_kind(
+    site_kind: &SuspendSiteKind,
+    expr_kind: &hir::ExprKind,
+) -> bool {
+    matches!(
+        (site_kind, expr_kind),
+        (SuspendSiteKind::Perform { .. }, hir::ExprKind::Perform { .. })
+            | (
+                SuspendSiteKind::CallMaySuspend { .. }
+                    | SuspendSiteKind::CallStateMachineCallee { .. }
+                    | SuspendSiteKind::ClassCtorInit { .. }
+                    | SuspendSiteKind::RuntimeRaise { .. },
+                hir::ExprKind::Call { .. },
+            )
+            | (
+                SuspendSiteKind::NestedHandleBoundary { .. },
+                hir::ExprKind::Handle(_),
+            )
+    )
 }
 
 fn state_contains_any_expr_span(state: &PlanState, candidate_spans: &[Span]) -> bool {

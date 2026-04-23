@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T2 -> T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：修复 `@Extern` + moving-GC native-roots 既有回归 -> continuation / `Task` review 收口 -> core task surface 收口 / Scoop 化（下一步 `T4016T3`） -> annotation markers / `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -484,16 +484,33 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T1d4
 
-### T4016T2 [TODO] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
+### T4016T2 [DONE] 将 task 内部 driver / state / sync 主体迁回 Scoop，并把 async lowering 改写到普通 helper target
 - 范围：
   - 依照 `SCOOP_TASK.md` 把 task-private driver result、task state 与 `Task.step()` 主体实现迁到 Scoop 代码；`__TaskStepResult` / `__TaskState` / 内部 helper 名称可调整，但必须是普通 Scoop 定义而不是新的 C runtime 语义节点。
   - `async { ... }` / `async fun` / `await` 的 lowering 继续只保留语言特有 sugar 责任，但其落点要改成 ordinary Scoop helper / internal core definitions，不再依赖 `__scoop_task_*` runtime intrinsics 作为语义宿主。
   - 为跨线程 drive/resume 定义最小同步合同：每个 task 至少有独占 drive attempt 的同步机制；优先复用 generic `Mutex` / sync runtime，而不是引入 task-only lock ABI。
   - 同步 `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 与必要实现注释，明确“task 主体在 Scoop 中、continuation / GC / thread / sync 在 runtime 中”的分层。
+- 完成说明：
+  - `sysroot/task.scoop` 已承载 ordinary Scoop task driver/state/sync 主体：`__task_create`、`__task_step_ready`、`__task_step_pending`、`__task_from_result`、`Task.step()`、`__task_join()`、`__task_drive_created()`、`__task_drive_waiting()` 与 `__task_apply_step()`。
+  - async sugar lowering 与 single-file/full build LLVM 路径已统一落到 `scoop.core.__task_*` helper；`crates/scoopc/src/llvm/mod.rs` 与 effect state-machine 回归现已锁定 ordinary helper 路径不再直接依赖 legacy `scoop_task_*` runtime ABI。
+  - `SCOOP_RUNTIME.md` 已改写为当前的 task stepping layer contract：runtime 只保留 continuation / GC / thread / sync substrate；legacy `scoop_task_*` ABI 仅作为 `T4016T3` 待删实现债务。
+  - 为收口真实路径，本轮同时修复了三个被全量验收暴露的前置缺口：
+    - 跨文件成员 mutability 查询，恢复 `sysroot/task.scoop` 对 `Task.__state` 的写入 typecheck；
+    - monomorphized `scoop.core.__task_drive_waiting::<T>` 的 `Continuation.resume(...)` resume-slot rewrite，修复 async runtime segfault；
+    - bare enum variant ctor 候选过滤，避免跨包源码因 `scoop.core.__TaskState.Created` / `__TaskStepResult.Ready` 等 internal helper variant 污染 `Created(...)` / `Ready(...)` 的裸名字解析。
 - 验收：
   - 大部分 task state / step-driving 逻辑已以普通 Scoop 代码存在并可测试，不再主要驻留于 `runtime/c/scoop_task.c`。
   - async lowering 只剩 sugar / private glue，不再把 task-only runtime helper 当作语言主线的一部分。
   - 文档已说明跨线程 `step()` / resume 的最小同步合同与 GC/rooting 约束。
+  - 已复验：
+    - `cargo fmt --check`
+    - `cargo run -q -p scoop_tools -- spec-fixtures check`
+    - `cargo run -q -p scoop -- test --fixtures tests/fixtures/mir`（`fixtures: ok (6)`）
+    - `cargo run -q -p scoop -- test --fixtures tests/fixtures/typecheck`（`fixtures: ok (379)`）
+    - `cargo run -q -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (388)`）
+    - `cargo run -q -p scoop -- test`（`fixtures: ok (1160)`）
+    - `cargo test --all -q`
+    - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T4016T1d5
 
 ### T4016T3 [TODO] 删除 task-only runtime / codegen ABI，并把最终合同收口为 generic continuation + sync substrate
