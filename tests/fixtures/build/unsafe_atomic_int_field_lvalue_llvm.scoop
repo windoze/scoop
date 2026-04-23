@@ -1,0 +1,33 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: load atomic i64, ptr addrspace(1) %class_field_gep
+// BUILD-LLVM-CONTAINS: store atomic i64 1, ptr addrspace(1) %class_field_gep
+// BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1) %class_field_gep
+// BUILD-LLVM-CONTAINS: %atomic_int_field_gep = getelementptr inbounds nuw %fixtures.build.ClaimBox, ptr addrspace(1) %class_field_gep
+// BUILD-LLVM-CONTAINS: store atomic i64 4, ptr addrspace(1) %atomic_int_field_gep
+//
+// 目标：T4016T5：atomic field lvalue 不应先退化成普通 member load；LLVM 必须直接在字段 GEP 上发出原子指令。
+
+package fixtures.build
+
+import scoop.core.*
+import scoop.unsafe.*
+
+class Counter(var claim: __AtomicInt)
+
+struct ClaimBox(val claim: __AtomicInt)
+
+class Holder(var counter: Counter, var nested: ClaimBox)
+
+fun main() {
+    @Unsafe do {
+        val counter: Counter = Counter(0)
+        __atomicIntStore(counter.claim, 1)
+        val _directOk: Bool = __atomicIntCompareExchange(counter.claim, 1, 2)
+
+        val holder: Holder = Holder(counter, ClaimBox(3))
+        __atomicIntStore(holder.nested.claim, 4)
+        println(__atomicIntLoad(holder.counter.claim))
+        println(__atomicIntLoad(holder.nested.claim))
+    }
+}

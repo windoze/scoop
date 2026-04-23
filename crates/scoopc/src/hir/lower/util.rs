@@ -2270,6 +2270,17 @@ pub(super) fn type_ref_to_layout_type_id(
     lower_layout_type_ref_with_bindings(source, file, index, ty, None, &HashMap::new(), types)
 }
 
+fn builtin_layout_alias_type_id(
+    base_fqn: &str,
+    types: &mut TypeStore,
+) -> Option<crate::ty::TypeId> {
+    match base_fqn {
+        "scoop.unsafe.__AtomicInt" => Some(types.intern(TypeKind::Value(ValueTypeKind::Int))),
+        "scoop.core.UIntPtr" => Some(types.intern(TypeKind::Value(ValueTypeKind::UInt))),
+        _ => None,
+    }
+}
+
 fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<crate::ty::TypeId> {
     types
         .iter_ids()
@@ -2329,6 +2340,11 @@ fn lower_layout_type_ref_with_bindings(
             }
 
             let base_fqn = index.type_ref_to_fqn_in_file(source, file, ty)?;
+            if path.args.is_empty()
+                && let Some(alias_ty) = builtin_layout_alias_type_id(&base_fqn, types)
+            {
+                return Some(alias_ty);
+            }
             let mut type_args = Vec::new();
             for arg in &path.args {
                 if matches!(arg, ast::TypeRef::EffectRowArg { .. }) {

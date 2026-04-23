@@ -1,0 +1,39 @@
+// EXPECT: pass
+// RUN-STDOUT: unsafe_atomic_int_field_lvalue_basic.stdout
+//
+// 目标：T4016T5：`__atomicInt*` 在 ordinary class 字段，以及由 addressable class field
+// 派生出的 nested struct 字段上，都能直接对真实字段槽位生成原子读写/CAS。
+
+import scoop.core.*
+import scoop.unsafe.*
+
+class Counter(var claim: __AtomicInt)
+
+struct ClaimBox(val claim: __AtomicInt)
+
+class Holder(var direct: Counter, var nested: ClaimBox)
+
+fun main() {
+    @Unsafe do {
+        val counter: Counter = Counter(0)
+        println(__atomicIntLoad(counter.claim))
+        __atomicIntStore(counter.claim, 1)
+
+        val directOk: Bool = __atomicIntCompareExchange(counter.claim, 1, 2)
+        when (directOk) {
+            true -> println("direct_ok")
+            false -> println("direct_fail")
+        }
+        println(__atomicIntLoad(counter.claim))
+
+        val holder: Holder = Holder(counter, ClaimBox(7))
+        println(__atomicIntLoad(holder.direct.claim))
+
+        val nestedOk: Bool = __atomicIntCompareExchange(holder.nested.claim, 7, 8)
+        when (nestedOk) {
+            true -> println("nested_ok")
+            false -> println("nested_fail")
+        }
+        println(__atomicIntLoad(holder.nested.claim))
+    }
+}

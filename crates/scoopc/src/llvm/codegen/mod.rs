@@ -147,6 +147,13 @@ enum AtomicIntLvalueMode {
     ReadWrite,
 }
 
+#[derive(Clone, Copy)]
+struct AddressablePlace<'ctx> {
+    ptr: PointerValue<'ctx>,
+    ty: CgTy,
+    writable: bool,
+}
+
 #[derive(Debug, Default, Clone)]
 struct Env<'ctx> {
     scopes: Vec<HashMap<hir::SymbolId, CgLocal<'ctx>>>,
@@ -8956,44 +8963,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: self.host.word_bit_width(),
             signed: true,
         };
+        let place = self.codegen_addressable_place(target_expr)?;
 
-        match &target_expr.kind {
+        if mode == AtomicIntLvalueMode::ReadWrite && !place.writable {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "atomicInt requires mutable lvalue",
+                at: at.into(),
+            });
+        }
+
+        let CgTy::Int(int_ty) = place.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "atomicInt target type",
+                at: at.into(),
+            });
+        };
+        if int_ty != expected {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "atomicInt target width",
+                at: at.into(),
+            });
+        }
+
+        Ok(place.ptr)
+    }
+
+    // 原子 intrinsics 需要“真实可寻址的槽位地址”，不能先把 member access 降成 rvalue load。
+    fn codegen_addressable_place(
+        &mut self,
+        expr: &hir::Expr,
+    ) -> Result<AddressablePlace<'ctx>, LlvmEmitError> {
+        match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
                 let local = self
                     .env
                     .get(*id)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "atomicInt lvalue local",
-                        at: at.into(),
+                        at: expr.span.into(),
                     })?;
 
-                if mode == AtomicIntLvalueMode::ReadWrite && !local.mutable {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt requires mutable lvalue",
-                        at: at.into(),
-                    });
-                }
-
-                let CgTy::Int(int_ty) = local.ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt target type",
-                        at: at.into(),
-                    });
-                };
-                if int_ty != expected {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt target width",
-                        at: at.into(),
-                    });
-                }
-
-                self.local_ptr_for_use(at, local, "atomic_int_slot")
+                let ptr = self.local_ptr_for_use(expr.span, local, "atomic_int_slot")?;
+                Ok(AddressablePlace {
+                    ptr,
+                    ty: local.ty,
+                    writable: local.mutable,
+                })
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 let Some(var) = self.top_level_vars.get(fqn) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "atomicInt lvalue top-level var",
-                        at: at.into(),
+                        at: expr.span.into(),
                     });
                 };
 
@@ -9002,26 +9023,84 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .cg_ty_of(var.ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "atomicInt top-level var type",
-                        at: at.into(),
+                        at: expr.span.into(),
                     })?;
-                let CgTy::Int(int_ty) = cg_ty else {
+                Ok(AddressablePlace {
+                    ptr: gv.as_pointer_value(),
+                    ty: cg_ty,
+                    writable: true,
+                })
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt top-level var type",
-                        at: at.into(),
+                        kind: "atomicInt target must be an lvalue",
+                        at: expr.span.into(),
                     });
                 };
-                if int_ty != expected {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt top-level var width",
-                        at: at.into(),
+
+                let receiver_hir_ty = self
+                    .resolve_expr_concrete_type(receiver)
+                    .unwrap_or(receiver.ty);
+                if let Some((class, field_idx, field_cg)) =
+                    self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
+                {
+                    let field = class.fields.get(field_idx as usize).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "class field index",
+                            at: member.span.into(),
+                        },
+                    )?;
+                    let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+                    let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
+                    let Some(raw) = recv.value else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class field receiver value",
+                            at: receiver.span.into(),
+                        });
+                    };
+                    let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class field receiver type",
+                            at: receiver.span.into(),
+                        });
+                    };
+
+                    let ptr =
+                        self.codegen_class_field_ptr(member.span, &class, obj_ptr, field_idx)?;
+                    return Ok(AddressablePlace {
+                        ptr,
+                        ty: field_cg,
+                        writable: field.mutable,
                     });
                 }
 
-                Ok(gv.as_pointer_value())
+                let base = self.codegen_addressable_place(receiver)?;
+                let CgTy::Struct(struct_ty) = base.ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt target must be an lvalue",
+                        at: expr.span.into(),
+                    });
+                };
+
+                let (field_idx, field_ty) =
+                    self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
+                let ptr = self.builder.build_struct_gep(
+                    llvm_struct_ty,
+                    base.ptr,
+                    field_idx,
+                    "atomic_int_field_gep",
+                )?;
+                Ok(AddressablePlace {
+                    ptr,
+                    ty: field_ty,
+                    writable: base.writable,
+                })
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "atomicInt target must be an lvalue",
-                at: target_expr.span.into(),
+                at: expr.span.into(),
             }),
         }
     }

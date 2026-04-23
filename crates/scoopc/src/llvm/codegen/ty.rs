@@ -188,8 +188,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Check if a type FQN refers to a GC-free type (value type with no reference fields).
     fn type_fqn_is_gc_free(&self, fqn: &str) -> bool {
         match fqn {
-            "scoop.core.Unit" | "scoop.core.Bool" | "scoop.core.Float64" | "scoop.core.Float32"
-            | "scoop.core.Int" | "scoop.core.UInt" | "scoop.core.UIntPtr" => true,
+            "scoop.core.Unit"
+            | "scoop.core.Bool"
+            | "scoop.core.Float64"
+            | "scoop.core.Float32"
+            | "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.UIntPtr"
+            | "scoop.unsafe.__AtomicInt" => true,
             "scoop.core.String" | "scoop.core.Any" => false,
             other => {
                 // Fixed-width integer types: Int8, Int16, Int32, Int64, UInt8, etc.
@@ -251,6 +257,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.Float64" => Ok(CgTy::Float64),
             "scoop.core.Float32" => Ok(CgTy::Float32),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            })),
+            "scoop.unsafe.__AtomicInt" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
             })),

@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3` 与 `T4016T4` 均已完成；但 core `Task` 还需按 `T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R` 收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
+1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4` 与 `T4016T5` 均已完成；core `Task` 接下来按 `T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4016T4R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -257,15 +257,19 @@
     - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/core.scoop` 与 `sysroot/task.scoop` 已同步最小规格草案与实现注释：`Pending` 只表示真实 not-ready，cross-thread 只允许顺序 handoff，public `step()` 观察到 `Running` / concurrent / reentrant misuse 必须 trap。
     - 同时保留了“当前 per-task `Mutex` 只是 `T4016T3` checkpoint 细节”的说明，为后续 claim-bit 实装清障，而不再把旧的 contention-as-`Pending` 语义写成稳定 contract。
     - 已复验 `cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test`（`fixtures: ok (1160)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+  - `T4016T5` 已完成：
+    - `crates/scoopc/src/llvm/codegen/mod.rs` 现已把 atomic 目标求址升级为可递归恢复真实槽位地址的 `AddressablePlace` 主线；`__atomicInt*` 不再只支持局部变量 / 顶层 var，ordinary class field、nested class field 与由 addressable class field 派生出的 nested struct field 都能直接在真实字段槽位上发出原子指令。
+    - 在继续 probing object-field atomics 时暴露出的更基础 layout/type 恢复缺口也已同步修复：`crates/scoopc/src/hir/lower/util.rs` 现会把 `scoop.unsafe.__AtomicInt` / `scoop.core.UIntPtr` 这类 layout alias 映射回稳定的 builtin `TypeId`；`crates/scoopc/src/llvm/codegen/ty.rs` 补上了 `__AtomicInt` 的 fallback lowering 与 GC-free 分类。
+    - 新增 `tests/fixtures/run-pass/unsafe_atomic_int_field_lvalue_basic.scoop` 与 `tests/fixtures/build/unsafe_atomic_int_field_lvalue_llvm.scoop`，分别锁定语义行为与 LLVM 必须直接在字段 GEP 上发出 `load atomic` / `store atomic` / `cmpxchg` 的合同。
+    - 已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (16)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (389)`）、`cargo run -p scoop -- test`（`fixtures: ok (1162)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
   - 因此当前剩余顺序为：
-    - `T4016T5`：补齐 object-field atomic intrinsic 的编译器 blocker，保证 claim bit 可以作为普通 `Task` 字段承载。
     - `T4016T6`：把 `Task` object model 从 per-task `Mutex` 改为 atomic claim field。
     - `T4016T7`：重写 `Task.step()` 为 claim-bit 驱动，并把 concurrent/reentrant `step()` 误用收口为 trap。
     - `T4016T8`：清理 compiler/runtime/substrate 中残留的 mutex / contention-is-pending 假设，并确认 cross-thread sequential handoff 合同。
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 

@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -561,7 +561,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T5 [TODO] 补齐 internal atomic intrinsic 对对象字段 lvalue 的编译器主线，作为 claim-bit 实现 blocker
+### T4016T5 [DONE] 补齐 internal atomic intrinsic 对对象字段 lvalue 的编译器主线，作为 claim-bit 实现 blocker
 - 范围：
   - 补齐 `__AtomicInt` / `__atomicIntLoad` / `__atomicIntStore` / `__atomicIntCompareExchange` 对 ordinary object/class/struct field lvalue 的前端 / typecheck / lowering / LLVM codegen 支持，不再只停在局部变量或顶层 var 路径。
   - 若在 object-field atomics 路径上暴露出更基础的 addressable-lvalue / monomorph / codegen 缺口，必须在本任务内先补齐；不允许为 `Task` 单独增加 special-case 绕过主线。
@@ -570,6 +570,18 @@
   - `Task` 可把 atomic claim bit 作为普通对象字段承载，而不需要 task-only compiler/runtime special-case。
   - internal atomic intrinsic 在对象字段 lvalue 上的行为与现有局部变量 / 顶层槽位路径一致，并进入持续回归。
 - 依赖：T4016T4
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已把 `__atomicInt*` 的目标求址从“仅支持局部变量 / 顶层 var”升级为可递归恢复真实槽位地址的 `AddressablePlace` 主线；ordinary class 字段、nested class 字段，以及由 addressable class field 派生出的 nested struct 字段都不再先退化成 rvalue load。
+  - 在沿 object-field atomic 路径继续 probing 时暴露出的更基础既有缺口也已一并修复：`crates/scoopc/src/hir/lower/util.rs` 现在会把 `scoop.unsafe.__AtomicInt` / `scoop.core.UIntPtr` 这类 layout alias 恢复到稳定的 builtin `TypeId`；`crates/scoopc/src/llvm/codegen/ty.rs` 也补上了 `__AtomicInt` 的 fallback lowering 与 GC-free 判定，避免 nested struct field path 再因缺失 `TypeId` 落回 `struct field type`。
+  - 新增 run-pass 回归 `tests/fixtures/run-pass/unsafe_atomic_int_field_lvalue_basic.scoop`，同一用例同时锁定 direct class field、nested class field 与 nested struct field 上的 atomic load/store/CAS 行为。
+  - 新增 build LLVM 回归 `tests/fixtures/build/unsafe_atomic_int_field_lvalue_llvm.scoop`，锁定 LLVM 必须直接在 `class_field_gep` / `atomic_int_field_gep` 上发出 `load atomic`、`store atomic` 与 `cmpxchg`，而不是先把成员访问降成普通值读取。
+- 已复验：
+  - `cargo fmt`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (16)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (389)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1162)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T6 [TODO] 把 core `Task` object model 从 per-task `Mutex` 改成轻量 atomic claim field
 - 范围：
