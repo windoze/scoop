@@ -2,7 +2,7 @@
 
 > 生成时间：2026-04-21  
 > 历史归档：`PLAN-5.md` / `TODO-5.md`  
-> 本轮主题：先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再把 `Continuation` 从当前“为 effect / async lowering 服务的 step-driving advanced API”收口为**正确的单次（one-shot）delimited continuation**，然后继续按 `SCOOP_TASK.md` 收口 core `Task` surface、最小化 task-only runtime/codegen、把 task 主体迁回 Scoop，并进一步收口去除 `Task` 内建 lock 的轻量 claim single-driver 合同（只覆盖 phase 1-3；phase 4 executor / wake / reactor 明确延期到 stdlib）；annotation、删除 `inline` 关键字、FFI / ABI、const / comptime 顺延。  
+> 本轮主题：先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再把 `Continuation` 从当前“为 effect / async lowering 服务的 step-driving advanced API”收口为**正确的单次（one-shot）delimited continuation**，然后继续按 `SCOOP_TASK.md` 收口 core `Task` surface、最小化 task-only runtime/codegen、把 task 主体迁回 Scoop，并进一步收口去除 `Task` 内建 lock 的轻量 claim single-driver 合同（只覆盖 phase 1-3；phase 4 executor / wake / reactor 明确延期到 stdlib）；随后按 `CONTINUATION.md` 把 effect / continuation 运行时从 TLS side channel 收口到显式 `EffectCtx` / `EffectOutcome` 设计，最后再回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。  
 > 设计前提：**不支持 multi-shot continuation**。Scoop 保持当前可变局部、writeback、once-init 与 GC-managed frame 的整体运行时方向，不为 continuation cloning / replay 另开一套“immutable everything”语义世界。
 
 ## 0. 工作原则
@@ -23,10 +23,11 @@
 ## 1. 顺序总览
 
 1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6` 与 `T4016T7` 均已完成；core `Task` 接下来按 `T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
-2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4016T4R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
-3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
-4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
-5. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
+2. `CONTINUATION.md` 已形成显式 `EffectCtx` / `EffectOutcome` 设计草案；后续按 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
+3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
+4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
+5. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
+6. `ISSUES.md` 第 12 条：const / comptime 纯计算子集扩展（`T4015a -> T4015b -> T4015c -> T4015R`）
 
 ## 2. 分阶段目标
 
@@ -96,7 +97,7 @@
     - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
     - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
     - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
-  - 当前顺序调整为：`T4016T8 -> T4016T9 -> T4016T4R -> T4012 -> T4013 -> T4014 -> T4015`。
+  - 当前顺序调整为：`T4016T8 -> T4016T9 -> T4016T4R -> T4017 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -284,7 +285,25 @@
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+
+### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`）
+
+- `CONTINUATION.md` 已提出新的内部模型：
+  - `EffectCtx*` 表示运行时动态 effect 环境；
+  - `EffectOutcome<R>` 表示一次 eager 执行是 `Complete` 还是 `Propagate(signal)`；
+  - continuation 捕获的是 `frame + captured ctx`，而不是“当前线程 TLS 上碰巧残留的 effect 状态”。
+- 迁移不改公开语言 surface，重点是把当前 `handler stack + active flag + perform slot + callee suspend state + pending continuation replay` 这套 TLS side channel，分阶段迁到显式 compiler/runtime contract。
+- 当前项目没有为兼容而保留 effect TLS 的需求；最终状态下，effect/continuation 相关 TLS 若仍存在，只能承担调试职责。
+- 具体顺序固定为：
+  - `T4017a`：先做文档更新，收口 `CONTINUATION.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md` 与 `docs/effect_unified_state_machine.md` 的叙事。
+  - `T4017b`：把 `declared_effectful` / `body_may_outward_effect` / `needs_resumable_frame` 的区分接入编译器主线，只在真正可能 outward-effect 的调用点保留 TLS propagation check。
+  - `T4017c`：在 compiler/runtime contract 中引入显式 `EffectCtx` / `EffectOutcome` / `EffectSignal` 抽象，并从这一层开始停止新增任何依赖 effect TLS 语义的路径。
+  - `T4017d`：把 ordinary direct / closure / funptr effectful call 切到显式 `ctx + outcome` internal ABI。
+  - `T4017e`：把 continuation replay、`callee_suspend_state`、`pending_continuation` 等恢复路径迁出 TLS，收口到 `frame + ctx + signal/resume token`。
+  - `T4017f`：补齐 vtable / itable / object init / top-level init / extern thunk 等剩余边界，并删除 effect TLS 的主语义职责；若还有 TLS 残留，只能留作调试。
+  - `T4017R`：review 全链路，确认 effect propagation 的 source of truth 已转成显式 `ctx + outcome`，而不是 TLS side channel。
+- 当前状态：依赖 `T4016T4R`；完成后再回到 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
@@ -308,7 +327,7 @@
   - `T4012b3`：最后为 `@Suppress` 建立 warning-code 与 suppression surface。由于 spec 还举了 expression annotation 例子，这一步需要连同表达式注解语义一起收口，不能只做声明头占位。
 - 在 `T4012b*` 收口后，再补入 `@Experimental(feature = "...")` 这一保留的 built-in feature-gate marker；具体 feature gating wiring 后续再做。
 - 再删除 `inline` 关键字与 legacy non-local return 语义残留；若未来仍需内联提示，统一由 `@Inline` 作为纯优化 marker 承担。
-- 当前状态：依赖 `T4016T4R`；回到本组后的顺序为 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：依赖 `T4017R`；回到本组后的顺序为 `T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P3. FFI / ABI 边界收口
 
@@ -322,7 +341,7 @@
 
 ## 3. 各阶段完成标准
 
-### C1. delimited continuation / `Task`
+### C1. delimited continuation / `Task` / 显式 effect runtime
 
 - `Continuation` 的静态模型必须显式承载 answer type，或给出等价但同样显式的语言级表示；不得继续把 answer type 藏在 task-private runtime 旁路中。
 - `k.resume(...)` 最终必须成为真正返回表达式值的 primitive，而不是仅“触发 resumed step 后返回 `Unit`”的 builtin call。
@@ -336,6 +355,9 @@
   - `Task.step()` 在新语义下的公开 drive 合同，以及跨线程 drive/resume 的最小同步语义。
 - `Task` 必须不再依赖“调用 `scoop_continuation_resume(...)` 后再偷读 heap frame 前缀”的 runtime hack；最终 task 主体实现应主要驻留在 Scoop，而不是 `runtime/c/scoop_task.c`。
 - `SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`SCOOP_TASK.md`、`sysroot/core.scoop` 与实现注释必须对 core task public surface、内部 driver model 与 runtime substrate 保持一致。
+- effect propagation 的 source of truth 必须从 `TLS active + perform slot` 收口为显式 `EffectCtx` / `EffectOutcome` internal contract；TLS 若仍保留，只能承担调试职责。
+- ordinary call sites 若静态证明不会 outward-effect，不得继续无差别支付 effect TLS 分流成本。
+- continuation capture / resume 的 authoritative state 必须可解释为 `frame + captured ctx (+ signal/resume token)`，而不是 resuming thread 当前 TLS。
 
 ### C2. annotation / `inline` / FFI / const/comptime
 
