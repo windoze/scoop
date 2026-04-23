@@ -3,16 +3,17 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
 - 基于 `SCOOP_TASK.md`，core task 设计仍在进行中，不保留 `Poll<T>` / `poll()` 等命名或 surface 的向后兼容包袱；若公开 API 要改名，应直接收口到最终形态。
+- core `Task` 继续收口为轻量 single-driver object：不支持多个父 task / 多线程共享同一 task 驱动；public `step()` 的并发 / reentrant 误用直接 trap，`Pending` 不再承担竞争失败语义。
 - annotation 保持 **compile-time markers only**，不进入复杂 nominal / runtime 语义。
 - `inline` 关键字以移除为默认方向；若后续仍需表达内联偏好，统一由 `@Inline` 作为 compile-time marker 承担，不再保留关键字与控制流语义双轨。
 - 每个实现任务后必须立即做 review 任务；review 只审查生产代码与规范一致性，不以测试命名代替结论。
@@ -230,11 +231,12 @@
   - `cargo clippy --all-targets -- -D warnings`
 - 依赖：T1510c1, T1510c2, T4016d
 
-## T4016T：最小化 core Task surface，并把 Task 主体迁回 Scoop（只覆盖 phase 1-3；phase 4 延期到 stdlib）
+## T4016T：最小化 core Task surface、把 Task 主体迁回 Scoop，并收口无锁 single-driver Task 合同（只覆盖 phase 1-3；phase 4 延期到 stdlib）
 
 - 说明：
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
+  - `T4016T3` 虽已删除 task-only runtime/codegen ABI，但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可由 `Pending` 吸收”的过渡合同；本组继续前插 `T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，完整收口到无锁、轻量 claim、single-driver 的 core task 版本。
   - `T4016T1a` / `T4016T1d1` / `T4016T1d2` 已经收口了“function-type payload + generic task-state object model”主线，但继续推进 `T4016T2` 时又暴露出三个新的前置 blocker：
     1. 限定 payload enum ctor / `when` pattern 仍不完整，`TaskStep.Ready(value)` 报 `unresolved_member`，`when (step) { TaskStep.Ready(v) -> ... }` 仍 parse 失败；
     2. `emit_minimal_main_ir(...)` / single-file LLVM 测试路径没有随 `scoop build` 一起纳入 `sysroot/task.scoop` 这类可编译 sysroot 源；
@@ -538,6 +540,78 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
+### T4016T4 [TODO] 收口 core `Task.step()` 的 single-driver / trap-on-contention 合同，并先同步设计文档
+- 范围：
+  - 明确公开 `Task` 合同：`Task` 不是可共享并发 drive 的 thread-safe object；结构化并发中的 task 保持树状层级，不支持“多个父 task 共享同一个子 task”这类语义。
+  - 把 `Task.step()` 的公开行为收口为：同一时刻只允许一个 driver；public `step()` 观察到 `Running`、或并发 / reentrant `step()` 竞争，均视为 executor / driver 的严重错误并直接 trap，而不是返回 `Pending` 或抛出 `Raise<RuntimeError>`。
+  - 明确 `Pending` 只表示 task 尚未完成且当前无法继续推进；它不再承担“另一个线程正在 drive”或“竞争失败稍后重试”的语义。
+  - 先同步 `SCOOP_TASK.md` 与必要规格草案 / 实现注释到上述合同，为后续编译器 / sysroot / runtime 实装清障；完整文档扫尾留给 `T4016T9`。
+- 验收：
+  - 设计文档能明确回答 shared subtask、cross-thread sequential handoff、public `step()` 观察到 `Running`、以及并发 / reentrant `step()` 的合同。
+  - 仓库内不再把 `Pending` 解释为 drive contention，也不再把 concurrent `step()` 误用定义成 `Raise<RuntimeError>`。
+- 依赖：T4016T3
+
+### T4016T5 [TODO] 补齐 internal atomic intrinsic 对对象字段 lvalue 的编译器主线，作为 claim-bit 实现 blocker
+- 范围：
+  - 补齐 `__AtomicInt` / `__atomicIntLoad` / `__atomicIntStore` / `__atomicIntCompareExchange` 对 ordinary object/class/struct field lvalue 的前端 / typecheck / lowering / LLVM codegen 支持，不再只停在局部变量或顶层 var 路径。
+  - 若在 object-field atomics 路径上暴露出更基础的 addressable-lvalue / monomorph / codegen 缺口，必须在本任务内先补齐；不允许为 `Task` 单独增加 special-case 绕过主线。
+  - 新增 compiler / LLVM / fixture regression，锁定 object field atomic load/store/CAS 的 ordinary Scoop 主线可用。
+- 验收：
+  - `Task` 可把 atomic claim bit 作为普通对象字段承载，而不需要 task-only compiler/runtime special-case。
+  - internal atomic intrinsic 在对象字段 lvalue 上的行为与现有局部变量 / 顶层槽位路径一致，并进入持续回归。
+- 依赖：T4016T4
+
+### T4016T6 [TODO] 把 core `Task` object model 从 per-task `Mutex` 改成轻量 atomic claim field
+- 范围：
+  - 改写 `sysroot/core.scoop` / `sysroot/task.scoop` 中 `Task` 的内部布局：移除 `__lock: scoop.sync.Mutex`，引入最小 atomic claim / driving 字段与对应 internal helper。
+  - 去掉 `Task` 创建路径上的 `mutexCreate()` / `destroy()` 依赖，保证 single-thread executor / 手动 drive 路径不再为每个 task 分配同步对象。
+  - 保持 `Created/Running/Waiting/Completed` 状态机与现有 async lowering 私有 glue 兼容，但后续 drive ownership 改由轻量 claim 位表达，而不是 mutex critical section。
+- 验收：
+  - 新建 `Task` 不再携带 per-task `Mutex` 或等价 heavyweight sync object。
+  - `Task` 的 ordinary Scoop 定义、async lowering glue 与 runtime substrate 能共同表达 atomic claim field 的最小形状。
+- 依赖：T4016T5
+
+### T4016T7 [TODO] 用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap
+- 范围：
+  - 重写 `Task.step()` 的入口 / 退出协议：以 atomic claim/release 获取 drive ownership，保留 `Created/Running/Waiting/Completed` 的 step-driving 主状态机。
+  - 当 claim 失败、public `step()` 成功 claim 后又观察到 `Running`、或同一 `Task` 出现 reentrant drive 时，一律直接 trap；不得回落为 `Pending`、隐藏重试或 `Raise<RuntimeError>`。
+  - 明确 release / cleanup 路径，确保正常 `Ready/Pending` 返回与 trap 前 invariant check 各自拥有一致的 claim 生命周期，不引入 claim 泄漏或 double-release。
+  - 新增定向回归，覆盖 single-thread 手动 drive、cross-thread sequential handoff，以及错误的 concurrent/reentrant `step()` trap 语义。
+- 验收：
+  - `Pending` 只剩“尚未完成且当前无法继续推进”的语义；public `step()` 再也不会把 `Running` 作为正常可观察状态泄漏给调用方。
+  - 并发 / reentrant `step()` 误用在生产路径上稳定 trap，且不污染调用链 effect row。
+- 依赖：T4016T6
+
+### T4016T8 [TODO] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
+- 范围：
+  - 清理 async lowering、LLVM/runtime 注释与任何剩余实现分支中“contention 可能返回 `Pending`”或“Task 依赖 mutex serialization”的假设，统一到 single-driver + claim-bit contract。
+  - 明确并实现 cross-thread sequential handoff 所需的 atomic / memory-order 最小合同，确认不同线程顺序 drive 同一 `Task` 时 continuation / GC / thread registration 路径仍然正确。
+  - 若去锁化过程中暴露 trap helper、atomic ordering、thread/GC substrate 或 compiler plumbing 的基础缺口，必须在本任务内先行补齐；不允许以恢复 mutex 或保留旧旁路作为折中。
+  - 补 compiler / runtime / run-pass / stress regression，覆盖无锁 task 在 single-thread 与 cross-thread handoff 下的主线行为。
+- 验收：
+  - 生产代码中不再残留“竞争失败返回 `Pending`”或“Task 依赖 per-task mutex”的旁路。
+  - 无锁 `Task` 在顺序跨线程 handoff 场景下可稳定工作，runtime / compiler / sysroot 合同一致。
+- 依赖：T4016T7
+
+### T4016T9 [TODO] 全量同步 core Task 无锁 single-driver 合同的文档、规格与源码注释
+- 范围：
+  - 更新 `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`ISSUES.md`、`STDLIB_COMPLETENESS.md`、`sysroot/core.scoop`、`sysroot/task.scoop`、`sysroot/unsafe.scoop` 及相关编译器 / runtime 注释，统一去掉 per-task mutex / shared drive / contention-is-pending 旧叙事。
+  - 把 core `Task` 的最终公开合同写清：轻量 claim bit、single-driver、cross-thread 只允许顺序 handoff、public `step()` 上的 `Running` 与并发 / reentrant 误用直接 trap。
+  - 同步所有受影响示例、fixture 注释与实现说明，避免文档继续把旧的 mutex 设计写成现行语义。
+- 验收：
+  - 仓库内所有相关文档 / 注释对 core `Task` 合同形成统一叙事，不再自相矛盾。
+  - 设计文档、语言规范、运行时规范与 sysroot 注释可以直接回答“为什么 `Task` 无锁且不是共享 thread-safe object”。
+- 依赖：T4016T8
+
+### T4016T4R [TODO] Review：确认 core `Task` 已收口为无锁、轻量 claim、single-driver 合同
+- 重点：
+  - 不允许 `Task` 继续内建 per-task `Mutex` 或其他等价 heavyweight sync object。
+  - 不允许 public `step()` 再把 `Running` / contention 暴露为 `Pending`；并发 / reentrant 误用必须稳定 trap，且不引入 `Raise<RuntimeError>` 污染。
+  - object-field atomic intrinsic 支持必须走 ordinary compiler/runtime 主线，而不是为 `Task` 单独开 special-case。
+  - 跨线程语义只允许顺序 handoff；不允许回到“共享子 task / 多父 task / 多 driver 并发 step”旧模型。
+  - `SCOOP_TASK.md`、`SCOOP_FULL_SPEC.md`、`SCOOP_RUNTIME.md`、`sysroot/*` 注释与回归必须和最终实现一致。
+- 依赖：T4016T9
+
 ## T4012：annotation markers、built-in annotations 与 `@Experimental` feature-gate marker
 
 ### T4012 [TODO] 收口 compile-time marker annotations 与 non-inline built-in annotations（拆分执行）
@@ -548,7 +622,7 @@
   - `@Inline` 与 `ISSUES.md` 第 10 条的 legacy inline 清理强耦合，因此本组任务先只覆盖 marker annotations 与 non-inline built-ins，`@Inline` 明确顺延到 `T4013`。
 - 验收：
   - 子任务全部完成后，`ISSUES.md` 第 9 条至少收窄到与 `@Inline` 交叉的剩余项，或被完全关闭。
-- 依赖：T4016T3
+- 依赖：T4016T4R
 
 ### T4012a [DONE] 将 annotation 收口为 compile-time markers only，并拒绝复杂 nominal 语义
 - 范围：
