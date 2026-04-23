@@ -1170,8 +1170,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let is_active_fn = self.declare_runtime_effect_is_active();
         let active_raw = self
-            .builder
-            .build_call(is_active_fn, &[], &format!("{label}_is_active"))?
+            .build_call_preserving_gc_local_roots(
+                at,
+                is_active_fn,
+                &[],
+                &format!("{label}_is_active"),
+            )?
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -1490,8 +1494,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let is_active_fn = self.declare_runtime_effect_is_active();
         let active_raw = self
-            .builder
-            .build_call(
+            .build_call_preserving_gc_local_roots(
+                span,
                 is_active_fn,
                 &[],
                 &format!("continuation_resume_{suffix}_is_active"),
@@ -2147,15 +2151,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_gep =
             self.builder
                 .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
-        let materialized = self.materialize_deferred_cg_value(
-            at,
-            "effect_transport_box_value_reload",
-            deferred,
-        )?;
-        let raw = materialized.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "effect transport boxed payload value",
-            at: at.into(),
-        })?;
+        let materialized =
+            self.materialize_deferred_cg_value(at, "effect_transport_box_value_reload", deferred)?;
+        let raw = materialized
+            .value
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect transport boxed payload value",
+                at: at.into(),
+            })?;
         let _ = self.store_local_value_exact(
             at,
             payload_gep,
@@ -2351,7 +2354,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 let rt = self.declare_runtime_effect_is_active();
-                let call = self.builder.build_call(rt, &[], "effect_is_active")?;
+                let call =
+                    self.build_call_preserving_gc_local_roots(span, rt, &[], "effect_is_active")?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "effect is_active return value",

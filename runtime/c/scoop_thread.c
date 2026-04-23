@@ -28,6 +28,7 @@ void scoop_thread_unregister(void);
 // before blocking system calls, allowing STW GC to skip this thread.
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
+void scoop_gc_safepoint_poll(void);
 
 typedef void (*ScoopThreadStartFn)(void *env);
 
@@ -133,6 +134,9 @@ void scoop_thread_join(void *thread_obj) {
 
 void scoop_thread_yield(void) {
   scoop_thread_register();
+  // T1512c：`yield()` 是显式的线程协作边界；若它不是 safepoint，另一个线程在
+  // GC stress 分配里发起 STW 时，会永远等不到当前线程 park。
+  scoop_gc_safepoint_poll();
   scoop_platform_thread_yield();
 }
 

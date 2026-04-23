@@ -655,7 +655,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T7a [TODO] 修复 ordinary/statepoint 调用对含 GC refs 的 by-value aggregate 值的 safepoint 合同
+### T4016T7a [DONE] 修复 ordinary/statepoint 调用对含 GC refs 的 by-value aggregate 值的 safepoint 合同
 - 范围：
   - 修复 ordinary/statepoint call 上“按值传递含 GC refs 的 aggregate 实参”会把未 relocate 的旧指针直接送入 callee 的编译器缺口；不得再依赖 SSA aggregate 在 safepoint 前后自动保持有效。
   - 统一 `DeferredCgValue` / effect transport box / enum boxed payload / ordinary call arg lowering 的 GC 合同，确保 tuple / struct / tagged-union enum 这类聚合值在 `SCOOP_GC_STRESS=1` 与 moving GC 下都不会丢 root、悬挂或把 stale payload 写回 heap。
@@ -665,6 +665,18 @@
   - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1` / `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下不再因 aggregate transport 崩溃。
   - `Task` 顺序 handoff 的后续修复不再被 generic aggregate transport bug 干扰。
 - 依赖：T4016T7
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 已将 ordinary/internal 调用里“含 GC refs 的 aggregate 实参”统一降为 hidden by-ref 参数，并把 ordinary direct/vtable/itable aggregate 返回统一接入 hidden sret；`operator overload` 路径也已复用同一 ordinary-call lowering，不再保留分叉 ABI。
+  - `DeferredCgValue` / spill roots / effect transport 的 GC 合同已对齐：`crates/scoopc/src/llvm/codegen/gc.rs` 只对 stack-backed spill slot 做保守 roots writeback；effect runtime 调用改走保 roots 的 call helper；object/global init helper 补上 `gc "statepoint-example"`，并修复 `gc-leaf-function` 误判。
+  - runtime 侧已补齐三个既有缺口：`InNative` 线程在 native 期间会保留 enter-native 时捕获的 stack-walking ctx 以枚举更高层 managed caller frames；`yield()` 现在先做 safepoint poll；collect 入口若发现其他线程已发起 STW，会先参与 safepoint/park 而不是以 `Running` 状态傻等。
+  - 新增 runtime GC 回归 `tests/fixtures/runtime_gc/gc_move_ordinary_call_struct_arg_basic.scoop` 与 `tests/fixtures/runtime_gc/task_step_manual_gc_aggregate_transport_basic.scoop`，分别覆盖 ordinary aggregate transport 与 `TaskStep`/effect transport 聚合搬运主线。
+  - 在最终全量验证中还收口了一个既有测试隔离问题：`crates/scoop_runtime/tests/gc_immix_compaction.rs` 现已加入进程内 `Mutex` 串行化保护，避免同一 test binary 内并发跑两个依赖全局 GC/runtime 状态的 Immix compaction 测试时触发 STW 死锁。
+- 已复验：
+  - `cargo test -p scoopc async_task_resume_replay_ir_terminates_step_fn_on_active_effect --lib -- --nocapture`
+  - `cargo test -p scoop_runtime --test gc_immix_compaction -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1168)`）
 
 ### T4016T8 [TODO] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
 - 范围：

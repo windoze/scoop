@@ -1,0 +1,54 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: task_step_manual_gc_aggregate_transport_basic.stdout.txt
+//
+// T4016T7a：`TaskStep` / `__TaskStepResult` 经 ordinary helper 与 effect transport
+// 传递时，含 GC refs 的 aggregate payload 不能在 statepoint 之后退回旧地址。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun main(): Int {
+    val inner: Task<Int> = async {
+        println("inner")
+        41
+    }
+
+    val outer: Task<Int> = async {
+        println("outer-before")
+        val x: Int = await inner
+        println("outer-after")
+        println(x)
+        x + 1
+    }
+
+    val step0: TaskStep<Int> = outer.step()
+    when (step0) {
+        TaskStep.Pending -> println("step0=pending")
+        TaskStep.Ready(value) -> {
+            println("step0=ready")
+            println(value)
+        }
+    }
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("step1=pending")
+        TaskStep.Ready(value) -> {
+            println("step1=ready")
+            println(value)
+        }
+    }
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("step2=pending")
+        TaskStep.Ready(value) -> {
+            println("step2=ready")
+            println(value)
+        }
+    }
+
+    return 0
+}

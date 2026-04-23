@@ -2711,8 +2711,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let is_active_fn = self.declare_runtime_effect_is_active();
         let active_raw = self
-            .builder
-            .build_call(is_active_fn, &[], name)?
+            .build_call_preserving_gc_local_roots(at, is_active_fn, &[], name)?
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -4771,6 +4770,7 @@ fun main(): Int {
             .nth(1)
             .and_then(|tail| tail.split("direct_call_effect_continue:").next())
             .expect("expected active-effect early return block in async task closure IR");
+        let continue_block = find_block_ir(&async_closure_ir, "direct_call_effect_continue");
 
         assert!(
             replay_block.contains(
@@ -4783,10 +4783,10 @@ fun main(): Int {
             "active resume replay path should terminate the step function immediately:\n{async_closure_ir}"
         );
         assert!(
-            async_closure_ir.contains("direct_call_effect_continue:")
-                && async_closure_ir.contains("resume_slot_")
-                && async_closure_ir.contains("ptr addrspace(1) %call40")
-                && async_closure_ir.contains("br label %site0_resume_merge"),
+            continue_block.contains("resume_slot_")
+                && continue_block.contains("@scoop_gc_write_barrier")
+                && continue_block.contains("ptr addrspace(1) %call")
+                && continue_block.contains("br label %site0_resume_merge"),
             "inactive resume replay path should stash the replayed answer into the synthetic resume slot before rejoining the state machine:\n{async_closure_ir}"
         );
     }

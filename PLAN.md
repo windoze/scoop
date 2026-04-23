@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6` 与 `T4016T7` 均已完成；在 `T4016T8` probing 中又暴露出一个更早的 compiler blocker：ordinary/statepoint call 还不能安全搬运含 GC refs 的 by-value aggregate 值，因此 core `Task` 现需按 `T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
+1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6`、`T4016T7` 与 `T4016T7a` 均已完成；当前 core `Task` 主线按 `T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”。
 2. `CONTINUATION.md` 已形成显式 `EffectCtx` / `EffectOutcome` 设计草案；后续按 `T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R` 分阶段把 effect / continuation runtime 从 TLS side channel 迁到显式上下文 + 显式 outcome。
 3. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4017R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 4. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
@@ -92,14 +92,17 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；`T4016T1~T4016T7` 现已进一步完成 public surface、ordinary Scoop task 主体、task-only ABI 删除，以及无锁 claim-bit + trap-on-contention 的执行主线。
-  - `T4016T8` probing 新暴露的 blocker：ordinary/statepoint call 会把含 GC refs 的 by-value aggregate 实参以 stale SSA 形式直接传入 callee；即便 payload / effect transport box 自身补了 root keepalive，只要 `__TaskStepResult` / `TaskStep` 仍按值穿过 ordinary helper，moving/stress GC 下就会在 `task_step_manual_basic` 与顺序 handoff 场景中触发悬挂/崩溃。
-  - 因此剩余工作先前插 `T4016T7a`，专门收口“GC-sensitive by-value aggregate ordinary-call contract”，再回到 `T4016T8 -> T4016T9 -> T4016T4R` 的 task handoff/review 扫尾。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；`T4016T1~T4016T7a` 现已进一步完成 public surface、ordinary Scoop task 主体、task-only ABI 删除，以及无锁 claim-bit + trap-on-contention 的执行主线。
+  - `T4016T8` probing 暴露的 earlier blocker（ordinary/statepoint call 会把含 GC refs 的 by-value aggregate 实参以 stale SSA 形式直接传入 callee）已在 `T4016T7a` 收口：
+    - ordinary/internal 调用里含 GC refs 的 aggregate 实参与 aggregate 返回值现统一走 hidden by-ref / hidden sret ABI，`__TaskStepResult` / `TaskStep` / effect transport 不再裸穿 stale aggregate SSA；
+    - `gc-leaf-function` 误判、object/global init helper 缺失 GC strategy、operator overload 未复用统一 ordinary-call lowering 等边界也一并对齐；
+    - runtime 补齐了 `InNative` caller-frame roots、`yield()` safepoint 与 collect 入口遇到已发起 STW 时的让出逻辑；全量验证中还补上 `gc_immix_compaction` test binary 的进程内串行化锁，避免共享全局 runtime 时的 STW 死锁。
+  - `T4016T7a` 已通过 `cargo run -p scoop -- test`（`fixtures: ok (1168)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 验收。
   - `T4016T1R` 期间又收口了一个必须优先修的既有缺口：boxed multi-field enum variant 经 `val Variant(...) = expr` 解构后，若 payload 含 function type 且后续直接调用，隐藏 `Raise.raise(...)` 会被 ordinary callee suspend plan 误建模成 `Ref` 型 resume slot。现已通过：
     - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
     - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
     - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
-  - 当前顺序调整为：`T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R -> T4017 -> T4012 -> T4013 -> T4014 -> T4015`。
+  - 当前顺序调整为：`T4016T8 -> T4016T9 -> T4016T4R -> T4017 -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -287,7 +290,7 @@
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P1.6. continuation / effect runtime 显式上下文化（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`）
 

@@ -6,6 +6,7 @@ use scoop_runtime as _;
 mod immix {
     use core::ffi::c_void;
     use core::ptr;
+    use std::sync::Mutex;
 
     type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
     type ScoopTypeTraceFn = Option<
@@ -16,6 +17,14 @@ mod immix {
         ) -> u64,
     >;
     type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
+
+    // `scoop_runtime_init()` 与 GC 全局状态是进程级别的；同一个 test binary 内并发跑多个
+    // Immix compaction 集成测试会互相干扰，甚至让 STW 错把另一个测试线程视为未 park 的
+    // managed 线程，从而死锁。
+    //
+    // 约定：本文件内的 Immix compaction 测试在同一个进程中串行执行；不影响其它 test
+    // binary 的并行度。
+    static GC_IMMIX_COMPACTION_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[repr(C)]
     struct ScoopTypeDescriptor {
@@ -69,6 +78,7 @@ mod immix {
 
     #[test]
     fn immix_compaction_updates_native_roots_slots_and_object_fields() {
+        let _lock = GC_IMMIX_COMPACTION_TEST_LOCK.lock().unwrap();
         unsafe {
             scoop_runtime_init();
             scoop_thread_register();
@@ -175,6 +185,7 @@ mod immix {
 
     #[test]
     fn immix_compaction_does_not_move_pinned_objects() {
+        let _lock = GC_IMMIX_COMPACTION_TEST_LOCK.lock().unwrap();
         unsafe {
             scoop_runtime_init();
             scoop_thread_register();

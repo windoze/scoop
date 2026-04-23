@@ -1,170 +1,110 @@
-# T4016T8 执行计划与进展记录
+# 当前任务：T4016T7a 收口
 
-## 当前目标
+更新时间：2026-04-24
 
-- 本轮只处理 `TODO.md` 中首个未完成任务 `T4016T8`：收口无锁 `Task` 的 compiler/runtime/substrate handoff 与 trap 合同。
-- 在完成该任务前，不推进后续任务。
-- 若在 probing、测试、实现中发现既有问题或规范不匹配，必须先修复；不能通过改 fixture 形状、缩小覆盖面或引入特判来绕过。
+## 思路摘要
 
-## 已确认前置状态
+当前目标不是继续推进下一个任务，而是把 `TODO.md` 中首个未完成任务 `T4016T7a` 完整收口，然后停止。
 
-- 最新提交 `9a5985e` 为 `Update plan`，未直接声明新的待修代码问题。
-- `TODO.md` 首个未完成项确认是 `T4016T8`。
-- 生产代码中的 `Task` 已从 per-task mutex 切换为 atomic claim。
-- `SCOOP_RUNTIME.md` / `SCOOP_TASK.md` 里仍有“当前 checkpoint 是 per-task mutex”的旧叙事，但这属于后续 `T4016T9` 的文档收口，不是本轮主任务。
+根据上一轮工作交接，主线实现已经基本完成，且大部分定向验证与 `cargo run -p scoop -- test` 已经通过。当前剩余的收尾问题只有一个：
 
-## 已发现的既有问题
+- `cargo test --all` 里还有 1 个失败测试：
+  - `llvm::codegen::effect::state_machine_emitter::tests::async_task_resume_replay_ir_terminates_step_fn_on_active_effect`
 
-- 旧回归 `tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop` 名义上覆盖“顺序 handoff”，实际上包含竞态。
-- 在 `SCOOP_GC_STRESS=1` 或 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下，该回归会在 `outer-before` 后直接失败。
-- 这属于 `T4016T8` 范围内的既有问题，必须先修。
+这个失败目前看起来不是新的生产逻辑错误，而是测试对 LLVM IR 中 SSA 临时变量名写死，导致在代码生成结构调整后发生编号漂移。修复方向应当优先是：
 
-## 已完成的改动
+- 保持生产行为不变；
+- 把该测试改成检查语义稳定的 IR 片段；
+- 然后重新跑全量测试与 clippy；
+- 如果全部通过，再更新 `TODO.md`、`PLAN.md`，提交一次 commit 并停止。
 
-1. 修正顺序 handoff 基础 fixture 的竞态写法
-   - 文件：`tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop`
-   - 调整为：由 main 先执行第一次 `outer.step()`，确认发布 `Waiting(...)` 后再 spawn worker。
-   - 目的：将“顺序 handoff”与“并发 step trap”拆开，避免测试本身引入竞态。
+同时需要继续遵守：
 
-2. 新增 waiting-path LLVM 回归
-   - 文件：`tests/fixtures/build/task_waiting_handoff_atomic_no_mutex_llvm.scoop`
-   - 目标：锁定 `__task_drive_waiting::<Int>` 的 waiting-path 仍走 atomic claim，无 mutex，并要求看到 `@scoop_gc_write_barrier`。
+- 如果在测试过程中发现新的既有 bug / regression / spec mismatch，必须立即转为当前优先级问题处理，不能绕过；
+- 只能完成这一个任务，不能顺手做下一个；
+- 所有文件编辑必须使用 `apply_patch`；
+- 需要持续更新本文件，记录关键进展与计划变更。
 
-3. 新增 GC stress + move 的顺序 handoff 回归
-   - 文件：
-     - `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`
-     - `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.stdout.txt`
-   - 目标：覆盖 main 首次 `Pending`、显式 GC、worker 接手 resume、再次显式 GC 的 continuation/GC/thread 路径。
+## 已知代码状态
 
-4. 在 `sysroot/task.scoop` 补充 claim 原子语义注释
-   - 说明当前依赖 SeqCst 的 acquire/release 与可见性合同。
+交接里已完成并应当保留的改动包括：
 
-5. 在 LLVM GC store 路径上进行了修正尝试
-   - 文件：`crates/scoopc/src/llvm/codegen/gc.rs`
-   - 已做内容：
-     - 提取 `store_gc_pointer_slot_with_write_barrier(...)`。
-     - 该 helper 改为通过 `build_call_preserving_gc_local_roots(...)` 调 runtime barrier，而不是直接 `build_call`。
-     - 对 `CgTy::Enum(enum_ty)` 增加 `try_store_heap_tagged_union_enum_exact(...)`：
-       - 若目标是 GC heap 上的 `TaggedUnion` enum 字段，不再整块 `store`。
-       - 改为分别写 `gc_ptr`、`word`、`tag` 三个槽位。
-       - `gc_ptr` 槽位通过 write barrier 发布。
-     - 同步调整 `needs_write_barrier_for_value_ty(...)` 的说明：tagged-union enum 改为在 `store_local_value_exact` 中拆槽写回，不再走原先整值指针 store 的判定。
+1. LLVM ordinary/internal call 的 aggregate 参数与 aggregate 返回值在含 GC refs 场景下改为 ABI 安全传递。
+2. `gc-leaf-function` 误判已修复。
+3. object/global init helper 已标注 `gc "statepoint-example"`。
+4. conservative spill/writeback 只回写 stack-backed slot，不再错误写回 heap-backed frame/object field。
+5. effect 相关 runtime 调用已切换到保 root 的调用路径。
+6. runtime 已修复：
+   - `InNative` 线程 roots 不完整；
+   - `yield()` 不是 safepoint；
+   - collect 入口遇到其他线程已发起 STW 时会傻等。
+7. operator overload 调用路径已复用通用 top-level call lowering，避免 aggregate return/arg 的分叉实现再次失配。
+8. 新增两个 runtime_gc fixture，用于覆盖 ordinary call aggregate transport 与 task step aggregate transport。
 
-## 当前诊断现象
+## 当前判断
 
-1. `task_step_cross_thread_sequential_handoff_basic`
-   - 普通运行不再立即 `exit(3)`，但会挂住，随后 core dump。
-   - 当前可见输出仅到：
-     ```text
-     outer-before
-     main-pending
-     ```
-   - 含义：原先“并发 step trap”路径已被拆出，但 worker 接手后没有正确完成。
+从交接信息看，`T4016T7a` 的主实现已经完成，当前更像是“验证收口时暴露出的脆弱测试”。
 
-2. `task_step_manual_basic`
-   - 在 `SCOOP_GC_STRESS=1` 或 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下不会 crash，但会永远返回 `Pending`：
-     ```text
-     outer-before
-     step0=pending
-     step1=pending
-     step2=pending
-     ```
-   - 含义：即便没有跨线程，第一次 `Pending` 之后 waiting-state 也会在 GC 压力下失效。
-   - 结论：根因不止是 handoff 线程切换，很可能是 waiting payload / continuation graph 的 GC 可达性或发布合同出了问题。
+因此本轮的最小闭环应当是：
 
-3. `sysroot/task.scoop` 中临时加入了 trap 诊断退出码
-   - 当前临时值：
-     - claim acquire failure: `exit(31)`
-     - `continuation.resume(...)` catch `RuntimeError`: `exit(32)`
-     - claim 成功后仍观察到 `Running`: `exit(33)`
-   - 在 `task_step_cross_thread_sequential_handoff_gc_stress` 下目前拿到的是 `31`，输出为：
-     ```text
-     outer-before
+1. 检查最新提交和 `TODO.md`/`PLAN.md` 当前状态，确认首个未完成任务仍是 `T4016T7a`。
+2. 打开失败测试所在代码，确认断言确实依赖固定 SSA 名字，而不是掩盖新的行为回归。
+3. 修改测试断言，使其验证：
+   - active effect 分支会终止 step function；
+   - continue 分支会把 replay 结果通过 write barrier 写入 resume slot；
+   - 然后跳回 `site0_resume_merge`。
+4. 跑定向测试确认这个测试通过。
+5. 跑 `cargo test --all`。
+6. 跑 `cargo clippy --all-targets -- -D warnings`。
+7. 若全部通过：
+   - 更新 `TODO.md`，把 `T4016T7a` 标记完成；
+   - 更新 `PLAN.md`，同步当前状态；
+   - 更新本文件，记录验证结果与完成状态；
+   - 提交 commit；
+   - 停止。
 
-     main-pending
-     gc-after-main
-     ```
-   - 含义：在 “main 首次 Pending -> GC -> worker 接手” 序列中，worker 的 claim 失败；要么 `__claim` 没回到 0，要么对象状态/对象本身在 GC 后损坏。
-   - 但 `task_step_manual_basic` 的“永远 Pending”说明 waiting-state 内容丢失/损坏也仍然存在。
+## 关键风险
 
-## 当前最可能的根因假设
+1. 失败测试如果并非纯粹 SSA 编号漂移，而是 replay/store 路径结构真的变了，就必须先定位生产逻辑是否倒退，不能只“放宽断言”。
+2. `cargo test --all` 或 `clippy` 可能再暴露新的既有问题；若出现，必须先修这些问题，或者把阻塞关系前插回 `TODO.md`/`PLAN.md` 后停止。
+3. 工作树里已经有较多未提交改动，不能误回滚已有有效修复。
 
-1. `Waiting(awaited, continuation)` 的 boxed payload trace metadata 不完整
-   - `__TaskState.Waiting` 是 boxed variant，payload 里有两个 GC ref：
-     - `awaited: Task<(Int, Any)>`
-     - `continuation: Continuation<(Int, Any), __TaskStepResult<T>>`
-   - 如果 enum boxed payload object 的 type descriptor / bitmap 只追踪了其中一个字段，GC 后会导致：
-     - continuation 丢失或损坏，表现为一直 `Pending`；
-     - waiting payload 被部分破坏，连带影响 claim 或状态观察。
+## 执行步骤
 
-2. `Task.__state` 整体写回虽已拆槽，但相关 boxed payload object / descriptor 的 trace 路径仍有缺口
-   - 也可能不是 heap store 本身，而是 boxed payload object 的 type desc 生成错误。
+1. 查看最新提交信息，确认是否存在需要先处理的“提交中提到的既有问题”。
+2. 查看 `TODO.md` 与 `PLAN.md`，确认 `T4016T7a` 仍是首个未完成任务，且当前无需拆分为新的子任务。
+3. 打开失败测试与相关 IR 断言，检查当前失败点。
+4. 修改测试为语义稳健断言。
+5. 运行定向测试：
+   - `cargo test -p scoopc async_task_resume_replay_ir_terminates_step_fn_on_active_effect --lib -- --nocapture`
+6. 运行全量验证：
+   - `cargo test --all`
+   - `cargo clippy --all-targets -- -D warnings`
+7. 若验证通过，更新：
+   - `TODO.md`
+   - `PLAN.md`
+   - `memory/claude_plan.md`
+8. 提交：
+   - 预期 commit message：`[T4016T7a] Fix GC-safe aggregate ordinary-call transport`
+9. 停止，不继续执行下一个任务。
 
-## 当前执行计划
+## 进展记录
 
-1. 检查 enum boxed payload 的 type descriptor / trace bitmap 生成逻辑
-   - 重点查看：
-     - `get_or_create_enum_boxed_payload_type_desc_global(...)`
-     - boxed payload object 的 bitmap 如何依据 variant fields 生成
-     - `__TaskState.Waiting` / `__TaskStepResult.Pending` 这类双 ref payload 是否两个槽位都被标记
-
-2. 增加最小化 GC 回归验证 boxed enum payload tracing
-   - 设计一个不依赖 task 的最小 rich-enum GC stress case：
-     - boxed enum variant 持有两个 refs
-     - 存入 heap object 字段
-     - 显式 GC 后再读取两个 refs
-   - 如果该用例失败，可直接锁定问题在 generic enum boxed payload GC tracing，而不是 task 特例。
-
-3. 若确认 descriptor/bitmap 存在缺陷，则修复并回归验证
-   - 必跑：
-     - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1`
-     - `task_step_cross_thread_sequential_handoff_basic`
-     - `task_step_cross_thread_sequential_handoff_gc_stress`
-     - `task_waiting_handoff_atomic_no_mutex_llvm`
-
-4. 清理临时诊断
-   - 修复完成后，将 `sysroot/task.scoop` 中临时的 `31/32/33` 退出码恢复为正式 trap 合同所需值。
-
-5. 完成任务收口
-   - 更新 `TODO.md` / `PLAN.md`
-   - 运行完整相关测试，确保无 warning
-   - 提交一次清晰的 git commit
-
-## 进行中状态
-
-- 当前进入第 1 步：检查 enum boxed payload 的 descriptor / trace bitmap 生成逻辑，并准备最小复现用例。
-- 在定位完成前，不更新 `TODO.md` / `PLAN.md` 的任务完成状态，也不提交。
-
-## 最新进展（本轮后半段）
-
-1. 已排除“boxed payload descriptor / trace bitmap 漏标第二个引用”这一假设
-   - 直接检查 LLVM IR 可见：
-     - `__TaskState.Waiting` 的 boxed payload type 为 `{ ptr addrspace(1), ptr addrspace(1) }`
-     - 对应 type descriptor bitmap 为 `3`
-     - `__TaskStepResult.Pending` 同样是双 GC 指针 payload，bitmap 也是 `3`
-   - 结论：Waiting/Pending boxed payload 的 type descriptor 本身没有只追踪一个字段的问题。
-
-2. 已确认并部分修正了“aggregate 值分配前后裸跨 safepoint”问题
-   - 已做：
-     - `DeferredCgValue` 从“只 spill 直接 GC 指针”扩展为可 spill 含嵌套 GC refs 的 aggregate。
-     - enum boxed payload ctor 改成：先保活 field deferred roots，再 `scoop_alloc_typed`，然后用 relocate 后的值重建 payload。
-     - `EffectValueBox` 分配改成走 `build_call_preserving_gc_local_roots(...)`，并在 alloc 后 reload 再写 payload。
-   - 现状：
-     - LLVM IR 已能看到 `__task_step_pending::<Int>` / `__task_restore_waiting::<Int>` 的 alloc safepoint 把双 ref payload roots 放进 `gc-live`。
-     - `EffectValueBox` alloc 也开始保活/relocate `TaskStep` / `__TaskStepResult` 的 payload GC 指针。
-
-3. 但任务仍未完成，因为又暴露出更底层的 blocker
-   - 新的关键发现：
-     - ordinary/statepoint call 仍会把“含 GC refs 的 by-value aggregate 实参”以旧的 SSA aggregate 形式直接传给 callee。
-     - IR 中虽然已经能看到 aggregate 的 leaf GC refs 被单独 keepalive，但真正传给 ordinary helper 的 `TaskStep` / `__TaskStepResult` 实参并没有在 call 前用 relocate 后的叶子重建。
-   - 这会导致：
-     - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1` 和 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下仍然在 `step0=pending` 后 `EXIT=139`。
-     - `task_step_cross_thread_sequential_handoff_gc_stress` 仍然落在 claim failure（此前诊断为 `31`）路径，说明顺序 handoff 仍被更早的 aggregate transport 缺口破坏。
-   - 结论：
-     - 这不是 `T4016T8` 独有的 task 局部问题，而是更基础的 compiler contract 缺口：
-       ordinary/statepoint call 还不能安全传递含 GC refs 的 by-value aggregate 值。
-
-4. 因此本轮应按阻塞流程处理
-   - 需要把这个 compiler blocker 作为前置任务插入 `TODO.md` 当前 `T4016T8` 之前。
-   - `T4016T8` 本身保持 `[TODO]`，并改为依赖该新前置任务。
-   - 本轮提交应以“登记 blocker、更新计划与依赖顺序”为收口，不把 `T4016T8` 标记为完成。
+- 2026-04-24：基于交接信息重建本轮计划，判断当前主要剩余项是 1 个脆弱 LLVM IR 测试失败，优先做测试收口与全量验证。
+- 2026-04-24：已确认失败测试的生产 IR 语义仍正确，失败原因是断言把 `direct_call_effect_continue` 中的 replay 结果 SSA 名字写死为 `%call40`。已改为使用 `find_block_ir(...)` 提取 continue block，并检查 `resume_slot_`、`@scoop_gc_write_barrier`、`ptr addrspace(1) %call` 与回跳 `site0_resume_merge` 这些稳定语义片段。
+- 2026-04-24：`cargo clippy --all-targets -- -D warnings` 暴露出 3 个由当前改动引入的质量问题，已通过局部重构收口：
+  - 删除 `collect_gc_ptr_leaf_slots_in_spill()` 里只用于递归透传的无效 `Span` 参数；
+  - 为 `codegen_bound_call_args()` 引入 `BoundCallArgsSpec`；
+  - 为 `bind_ordinary_param_local()` 引入 `OrdinaryParamLocalBinding`。
+- 2026-04-24：在重跑 `cargo test --all` 时发现 `gc_immix_compaction` test binary 会卡死。定位后确认是既有测试隔离问题：
+  - 同一 test binary 内有两个依赖全局 GC/runtime 状态的 Immix compaction 测试；
+  - Rust test harness 会并发执行它们；
+  - 其中一个测试在 `InNative` 期间发起 STW 时，另一个测试线程仍处于 `Running`，导致死锁。
+  已在 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 中补上进程内 `Mutex` 串行化保护，和已有 `gc_immix_allocator.rs` 的约束保持一致。下一步重新跑该文件与全量验证。
+- 2026-04-24：最终验证已全部通过：
+  - `cargo test -p scoopc async_task_resume_replay_ir_terminates_step_fn_on_active_effect --lib -- --nocapture`
+  - `cargo test -p scoop_runtime --test gc_immix_compaction -- --nocapture`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+  - `cargo run -p scoop -- test`（`fixtures: ok (1168)`）
+- 2026-04-24：`T4016T7a` 已收口，`TODO.md` / `PLAN.md` 的当前队首应切换为 `T4016T8`。下一步只需整理工作树、提交 `[T4016T7a] Fix GC-safe aggregate ordinary-call transport`，然后停止。

@@ -891,12 +891,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(slots)
     }
 
-    /// 在一次 ordinary safepoint 前后保守 keepalive 所有 pointer-shaped GC locals。
+    fn conservative_gc_root_slot_needs_spill_writeback(&self, slot: PointerValue<'ctx>) -> bool {
+        slot.get_type().get_address_space() == AddressSpace::default()
+    }
+
+    /// 在一次 ordinary safepoint 前后保守 keepalive 所有“需要手动 spill/writeback”的
+    /// pointer-shaped GC locals。
     ///
     /// 做法：
-    /// - 调用前先从局部槽位 load 出 SSA root；
-    /// - 调用后再把 relocate 后的 SSA root store 回原槽位；
-    /// - 这样 `rewrite-statepoints-for-gc` 才会把这些 locals 纳入 `gc-live` / stackmap。
+    /// - 仅对 stack/native-slot 一类的 stack-backed 槽位执行 `load -> gc-live -> writeback`；
+    /// - heap-backed 槽位（例如 effect frame / GC object field）本身已位于 traced heap 中，
+    ///   运行时会直接更新真实槽位，不能再把“调用前旧 keepalive”写回覆盖新值；
+    /// - 对 stack-backed 槽位，调用前先从局部槽位 load 出 SSA root，调用后再把
+    ///   relocate 后的 SSA root store 回原槽位；
+    /// - 这样 `rewrite-statepoints-for-gc` 才会把这些 stack locals 纳入 `gc-live` / stackmap。
     pub(super) fn with_conservative_gc_local_root_spills<T, F>(
         &mut self,
         at: crate::span::Span,
@@ -908,6 +916,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let spills = self
             .collect_conservative_gc_root_slots(at)?
             .into_iter()
+            .filter(|(_, slot, _)| self.conservative_gc_root_slot_needs_spill_writeback(*slot))
             .map(|(local_id, slot, value_ptr_ty)| {
                 let loaded = self
                     .builder
@@ -1851,14 +1860,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let slot_addr_i8_gc =
             self.builder
                 .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr_i8_gc")?;
-        let slot_addr = self.builder.build_address_space_cast(
-            slot_addr_i8_gc,
-            i8_ptr_ty,
-            "gc_wb_slot_addr",
-        )?;
-        let value_i8 = self
-            .builder
-            .build_pointer_cast(value_ptr, gc_i8_ptr_ty, "gc_wb_value_i8")?;
+        let slot_addr =
+            self.builder
+                .build_address_space_cast(slot_addr_i8_gc, i8_ptr_ty, "gc_wb_slot_addr")?;
+        let value_i8 =
+            self.builder
+                .build_pointer_cast(value_ptr, gc_i8_ptr_ty, "gc_wb_value_i8")?;
 
         let _ = self.build_call_preserving_gc_local_roots(
             at,
@@ -1896,9 +1903,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_ptr_slot = self
             .builder
             .build_struct_gep(llvm_enum_ty, ptr, 2, "enum_gc_ptr_gep")?;
-        let word_slot = self
-            .builder
-            .build_struct_gep(llvm_enum_ty, ptr, 1, "enum_payload_word_gep")?;
+        let word_slot =
+            self.builder
+                .build_struct_gep(llvm_enum_ty, ptr, 1, "enum_payload_word_gep")?;
         let tag_slot = self
             .builder
             .build_struct_gep(llvm_enum_ty, ptr, 0, "enum_tag_gep")?;

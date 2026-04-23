@@ -93,10 +93,11 @@ struct ClosureParamBindings {
 ///
 /// `pointer_value` 只在值最终表现为指针时填充，供 vtable/itable 等需要复用 receiver
 /// 原始指针的路径读取；普通 direct call / function-value call 仅消费 `value`。
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct EvaluatedCallArg<'ctx> {
     value: inkwell::values::BasicMetadataValueEnum<'ctx>,
     pointer_value: Option<PointerValue<'ctx>>,
+    cleanup_root_slot_ids: Vec<u32>,
 }
 
 /// 一个“已求值，但不能继续依赖 SSA 跨后续子表达式存活”的中间值。
@@ -116,6 +117,55 @@ struct DeferredCgValue<'ctx> {
     ty: CgTy,
     immediate: Option<BasicValueEnum<'ctx>>,
     spill: Option<DeferredGcSensitiveSpill<'ctx>>,
+}
+
+#[derive(Clone, Copy)]
+enum OrdinaryParamAbi<'ctx> {
+    Direct {
+        cg_ty: CgTy,
+        llvm_param_ty: BasicMetadataTypeEnum<'ctx>,
+    },
+    IndirectGcAggregate {
+        cg_ty: CgTy,
+        llvm_param_ty: BasicMetadataTypeEnum<'ctx>,
+        pointee_ty: BasicTypeEnum<'ctx>,
+    },
+}
+
+impl<'ctx> OrdinaryParamAbi<'ctx> {
+    fn cg_ty(self) -> CgTy {
+        match self {
+            Self::Direct { cg_ty, .. } | Self::IndirectGcAggregate { cg_ty, .. } => cg_ty,
+        }
+    }
+
+    fn llvm_param_ty(self) -> BasicMetadataTypeEnum<'ctx> {
+        match self {
+            Self::Direct { llvm_param_ty, .. }
+            | Self::IndirectGcAggregate { llvm_param_ty, .. } => llvm_param_ty,
+        }
+    }
+
+    fn pointee_ty(self) -> Option<BasicTypeEnum<'ctx>> {
+        match self {
+            Self::Direct { .. } => None,
+            Self::IndirectGcAggregate { pointee_ty, .. } => Some(pointee_ty),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum CallArgAbiMode {
+    Native,
+    Ordinary,
+}
+
+#[derive(Clone, Copy)]
+struct BoundCallArgsSpec {
+    span: crate::span::Span,
+    callee_span: crate::span::Span,
+    kind: &'static str,
+    abi_mode: CallArgAbiMode,
 }
 
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
@@ -145,6 +195,18 @@ struct ExtraGcRootSlot<'ctx> {
     id: u32,
     slot: PointerValue<'ctx>,
     value_ptr_ty: PointerType<'ctx>,
+}
+
+#[derive(Clone, Copy)]
+struct OrdinaryParamLocalBinding<'ctx, 'a> {
+    at: crate::span::Span,
+    llvm_fun: FunctionValue<'ctx>,
+    param_index: u32,
+    name: &'a str,
+    id: hir::SymbolId,
+    ty_id: TypeId,
+    call_may_suspend: bool,
+    missing_kind: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1012,48 +1074,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let has_body = fun.body.is_some() && !is_extern;
 
-        // LLVM's gc.result cannot lower aggregate types (struct/tuple/enum) that span
-        // multiple physical registers — causes "Cannot emit physreg copy instruction".
-        // For functions returning GC-free aggregates, we mark them as `gc-leaf-function`
-        // so that `rewrite-statepoints-for-gc` skips statepoint wrapping at call sites,
-        // avoiding the aggregate gc.result issue.
-        //
-        // Safety: GC-free aggregate constructors (e.g. IntProgression.rangeTo/downTo)
-        // don't trigger GC, so treating them as leaf is correct. For more complex
-        // functions that return GC-free aggregates but perform internal GC operations,
-        // the proper fix is to convert aggregate returns to sret (TODO: future task).
-        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
         // `@Extern` 调用点会在进入 native 前把 managed roots 暴露为 `native_roots` slots；
         // 从 LLVM GC/statepoint 的视角看，这些调用必须视作 leaf：
         // - native 内部即使触发 GC，也应以 slots 更新为准；
         // - 不能再依赖 caller frame 上的 SSA `gc.relocate` / stackmap 结果。
-        let is_gc_leaf = returns_gc_free_aggregate || is_extern;
-
-        if let Some(existing) = self.module.get_function(llvm_name) {
-            if has_body {
-                existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
-            }
-            if is_gc_leaf {
-                self.mark_gc_leaf_function(existing);
-            }
-            return Ok(existing);
-        }
-
-        let mut llvm_params = Vec::with_capacity(fun.params.len());
-        for param in &fun.params {
-            match self.llvm_param_ty(param.span, param.ty) {
-                Ok(ty) => llvm_params.push(ty),
-                Err(err) => {
-                    tracing::warn!(
-                        "declare_top_level_fun: unsupported param type for {} param {} -> {}",
-                        fun.fqn,
-                        param.name,
-                        self.types.display(param.ty)
-                    );
-                    return Err(err);
-                }
-            }
-        }
+        //
+        // 历史上我们还会把“返回 GC-free aggregate 的普通函数”标成 leaf，以绕开
+        // `gc.result` 不能承载多寄存器 aggregate 的 LLVM 限制；但现在 ordinary path
+        // 已统一把 aggregate return 改成 hidden sret，这类函数不应再被视作 leaf，
+        // 否则它们内部的 managed calls 会被错误跳过 statepoint rewrite。
+        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
 
         let Some(return_cg) = self.cg_ty_of(fun.return_ty) else {
             tracing::warn!(
@@ -1067,9 +1097,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let fn_ty = match return_cg {
-            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_params, false),
-            other => self
+        let hidden_sret_result_ty = if is_extern {
+            None
+        } else {
+            self.hidden_sret_result_ty(fun.span, return_cg)?
+        };
+        let is_gc_leaf =
+            is_extern || (returns_gc_free_aggregate && hidden_sret_result_ty.is_none());
+
+        if let Some(existing) = self.module.get_function(llvm_name) {
+            if has_body {
+                existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+            }
+            if is_gc_leaf {
+                self.mark_gc_leaf_function(existing);
+            }
+            return Ok(existing);
+        }
+
+        let mut llvm_params = Vec::with_capacity(fun.params.len());
+        for param in &fun.params {
+            let llvm_param_ty = if is_extern {
+                self.llvm_param_ty(param.span, param.ty)
+            } else {
+                self.ordinary_param_abi(param.span, param.ty)
+                    .map(OrdinaryParamAbi::llvm_param_ty)
+            };
+            match llvm_param_ty {
+                Ok(ty) => llvm_params.push(ty),
+                Err(err) => {
+                    tracing::warn!(
+                        "declare_top_level_fun: unsupported param type for {} param {} -> {}",
+                        fun.fqn,
+                        param.name,
+                        self.types.display(param.ty)
+                    );
+                    return Err(err);
+                }
+            }
+        }
+        if hidden_sret_result_ty.is_some() {
+            llvm_params.insert(0, self.context.ptr_type(AddressSpace::default()).into());
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, return_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_params, false)
+            }
+            (None, other) => self
                 .llvm_basic_type_of(fun.span, other)?
                 .fn_type(&llvm_params, false),
         };
@@ -1084,6 +1159,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         if has_body {
             llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+        }
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
         if is_gc_leaf {
             self.mark_gc_leaf_function(llvm_fun);
@@ -1171,6 +1249,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_load(llvm_ret_ty, result_ptr, "sret_result")?;
         self.cg_value_from_loaded(at, ret_cg, loaded)
+    }
+
+    fn register_gc_root_slots_for_spill_slot(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+    ) -> Result<Vec<u32>, LlvmEmitError> {
+        let slot =
+            self.rematerialize_ptr_in_current_block(at, slot, &format!("{name_prefix}_slot"))?;
+        let mut gc_leaf_slots = Vec::new();
+        self.collect_gc_ptr_leaf_slots_in_spill(slot, value_ty, name_prefix, &mut gc_leaf_slots)?;
+        Ok(gc_leaf_slots
+            .into_iter()
+            .map(|(slot, value_ptr_ty)| self.register_extra_gc_root_slot(slot, value_ptr_ty))
+            .collect())
+    }
+
+    fn register_hidden_sret_result_roots(
+        &mut self,
+        at: crate::span::Span,
+        ret_cg: CgTy,
+        result_ptr: PointerValue<'ctx>,
+        name_prefix: &str,
+    ) -> Result<Vec<u32>, LlvmEmitError> {
+        let llvm_ret_ty = self.llvm_basic_type_of(at, ret_cg)?;
+        if !self.basic_type_contains_gc_ptrs(at, llvm_ret_ty)? {
+            return Ok(Vec::new());
+        }
+        self.register_gc_root_slots_for_spill_slot(at, result_ptr, llvm_ret_ty, name_prefix)
+    }
+
+    fn release_gc_root_slot_ids(&mut self, root_slot_ids: &[u32]) {
+        for root_slot_id in root_slot_ids {
+            self.unregister_extra_gc_root_slot(*root_slot_id);
+        }
     }
 
     fn declare_top_level_var_global(
@@ -1463,7 +1578,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn collect_gc_ptr_leaf_slots_in_spill(
         &mut self,
-        at: crate::span::Span,
         slot: PointerValue<'ctx>,
         value_ty: BasicTypeEnum<'ctx>,
         name_prefix: &str,
@@ -1487,7 +1601,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         &format!("{name_prefix}_field_{idx}"),
                     )?;
                     self.collect_gc_ptr_leaf_slots_in_spill(
-                        at,
                         field_slot,
                         field_ty,
                         name_prefix,
@@ -1508,7 +1621,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )?
                     };
                     self.collect_gc_ptr_leaf_slots_in_spill(
-                        at,
                         elem_slot,
                         arr.get_element_type(),
                         name_prefix,
@@ -1552,7 +1664,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.store_local_value_exact(at, slot, ty, value)?;
 
         let mut gc_leaf_slots = Vec::new();
-        self.collect_gc_ptr_leaf_slots_in_spill(at, slot, llvm_ty, name, &mut gc_leaf_slots)?;
+        self.collect_gc_ptr_leaf_slots_in_spill(slot, llvm_ty, name, &mut gc_leaf_slots)?;
         let root_slot_ids = gc_leaf_slots
             .into_iter()
             .map(|(slot, value_ptr_ty)| self.register_extra_gc_root_slot(slot, value_ptr_ty))
@@ -1816,6 +1928,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .module
             .get_function(&name)
             .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+        llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         if llvm_fun.get_first_basic_block().is_some() {
             return Ok(llvm_fun);
@@ -1996,8 +2109,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let is_active_fn = self.declare_runtime_effect_is_active();
             let active_raw = self
-                .builder
-                .build_call(is_active_fn, &[], "top_level_val_init_effect_is_active")?
+                .build_call_preserving_gc_local_roots(
+                    at,
+                    is_active_fn,
+                    &[],
+                    "top_level_val_init_effect_is_active",
+                )?
                 .try_as_basic_value()
                 .basic()
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -2347,9 +2464,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        self.env.push_scope();
-        self.codegen_fun_params(fun, llvm_fun)?;
-
         let Some(declared_return_cg) = self.cg_ty_of(fun.return_ty) else {
             tracing::warn!(
                 "codegen_top_level_fun: unsupported return type for {} -> {}",
@@ -2362,6 +2476,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
         self.current_fun_return_ty = Some(declared_return_cg);
+        let uses_hidden_sret = self
+            .hidden_sret_result_ty(fun.span, declared_return_cg)?
+            .is_some();
+        self.current_sret_return_ptr = if uses_hidden_sret {
+            Some(
+                llvm_fun
+                    .get_nth_param(0)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "missing llvm function sret param",
+                        at: fun.span.into(),
+                    })?
+                    .into_pointer_value(),
+            )
+        } else {
+            None
+        };
+
+        self.env.push_scope();
+        self.codegen_fun_params(fun, llvm_fun, u32::from(uses_hidden_sret))?;
 
         // T0141: Set up function-level return context for early return support.
         // The return slot lives in the entry block before body codegen.
@@ -2402,6 +2535,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         self.emit_function_return_block(fun.span, declared_return_cg, return_bb, return_alloca)?;
+        self.current_sret_return_ptr = None;
         self.env.pop_scope();
         Ok(())
     }
@@ -9784,18 +9918,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|param| param.name.clone())
             .collect();
         let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
-        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> = self
-            .codegen_bound_call_args(
+        let ret_cg =
+            self.cg_ty_of(sig_fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call return type",
+                    at: span.into(),
+                })?;
+        let hidden_sret_result_ty = if is_extern {
+            None
+        } else {
+            self.hidden_sret_result_ty(callee_span, ret_cg)?
+        };
+        let evaluated_args = self.codegen_bound_call_args(
+            BoundCallArgsSpec {
                 span,
                 callee_span,
-                &param_names,
-                &param_tys,
-                args,
-                "call arg binding",
-            )?
-            .into_iter()
-            .map(|slot| slot.value)
-            .collect();
+                kind: "call arg binding",
+                abi_mode: if is_extern {
+                    CallArgAbiMode::Native
+                } else {
+                    CallArgAbiMode::Ordinary
+                },
+            },
+            &param_names,
+            &param_tys,
+            args,
+        )?;
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(callee_span, "call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|slot| slot.value));
 
         let llvm_name = self
             .extern_funs
@@ -9808,35 +9966,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
 
-        let call_site = if is_extern {
-            self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)?
+        let call_site_result = if is_extern {
+            self.emit_extern_native_call(span, fqn, llvm_fun, &llvm_args)
         } else {
             self.with_conservative_gc_local_root_spills(span, |cg| {
                 let call_site = cg.builder.build_call(llvm_fun, &llvm_args, "call")?;
+                if let Some(result_ty) = hidden_sret_result_ty {
+                    cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+                }
                 call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
                 Ok(call_site)
-            })?
+            })
+        };
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
+            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "call_sret")?
+        } else {
+            Vec::new()
         };
         self.emit_ordinary_call_effect_propagation_check(span, "direct_call_effect")?;
-
-        let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call return type",
-                    at: span.into(),
-                })?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
+                let result = if let Some(result_ptr) = sret_result_slot {
+                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                };
+                self.release_gc_root_slot_ids(&sret_root_slot_ids);
+                result
             }
         }
     }
@@ -10015,13 +10182,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(sig_fun.params.len());
-        for p in &sig_fun.params {
-            llvm_param_tys.push(self.llvm_param_ty(callee_span, p.ty)?);
-        }
-
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -10029,9 +10189,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
 
-        let llvm_fun_ty = match ret_cg {
-            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
-            other => self
+        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        if hidden_sret_result_ty.is_some() {
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for p in &sig_fun.params {
+            llvm_param_tys.push(self.ordinary_param_abi(callee_span, p.ty)?.llvm_param_ty());
+        }
+
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
@@ -10044,12 +10217,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect();
         let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
         let evaluated_args = self.codegen_bound_call_args(
-            span,
-            callee_span,
+            BoundCallArgsSpec {
+                span,
+                callee_span,
+                kind: "vtable call arg binding",
+                abi_mode: CallArgAbiMode::Ordinary,
+            },
             &param_names,
             &param_tys,
             args,
-            "vtable call arg binding",
         )?;
         let receiver_ptr = evaluated_args
             .first()
@@ -10058,8 +10234,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "vtable call receiver type",
                 at: callee_span.into(),
             })?;
-        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            evaluated_args.into_iter().map(|arg| arg.value).collect();
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(callee_span, "vtable_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
 
         // 3) 从 `this.header.type_desc.vtable[slot]` 取出目标函数指针并执行 indirect call。
         let fn_i8 = self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?;
@@ -10069,16 +10253,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "vtable_fn_typed",
         )?;
 
-        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
                 typed_fn_ptr,
                 &llvm_args,
                 "call_vtable",
             )?;
+            if let Some(result_ty) = hidden_sret_result_ty {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
             call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
             Ok(call_site)
-        })?;
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
+            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "vtable_call_sret")?
+        } else {
+            Vec::new()
+        };
         self.emit_ordinary_call_effect_propagation_check(span, "vtable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
@@ -10086,13 +10280,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(Some(self.cg_value_from_loaded(span, ret_cg, raw)?))
+                let result = if let Some(result_ptr) = sret_result_slot {
+                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "vtable call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                };
+                self.release_gc_root_slot_ids(&sret_root_slot_ids);
+                Ok(Some(result?))
             }
         }
     }
@@ -10203,13 +10403,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(sig_fun.params.len());
-        for p in &sig_fun.params {
-            llvm_param_tys.push(self.llvm_param_ty(callee_span, p.ty)?);
-        }
-
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -10217,9 +10410,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
 
-        let llvm_fun_ty = match ret_cg {
-            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
-            other => self
+        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        if hidden_sret_result_ty.is_some() {
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        for p in &sig_fun.params {
+            llvm_param_tys.push(self.ordinary_param_abi(callee_span, p.ty)?.llvm_param_ty());
+        }
+
+        let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
@@ -10232,12 +10438,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect();
         let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
         let evaluated_args = self.codegen_bound_call_args(
-            span,
-            callee_span,
+            BoundCallArgsSpec {
+                span,
+                callee_span,
+                kind: "itable call arg binding",
+                abi_mode: CallArgAbiMode::Ordinary,
+            },
             &param_names,
             &param_tys,
             args,
-            "itable call arg binding",
         )?;
         let receiver_ptr = evaluated_args
             .first()
@@ -10246,8 +10455,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "itable call receiver type",
                 at: callee_span.into(),
             })?;
-        let llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
-            evaluated_args.into_iter().map(|arg| arg.value).collect();
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot = self.create_entry_alloca(callee_span, "itable_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
 
         // 3) 从 `this.header.type_desc.itable` 查找 interface entry 并取出 `methods[slot]`。
         let fn_i8 = self.load_interface_itable_slot_fn_ptr_i8(
@@ -10291,16 +10508,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "itable_fn_typed",
         )?;
 
-        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
                 typed_fn_ptr,
                 &llvm_args,
                 "call_itable",
             )?;
+            if let Some(result_ty) = hidden_sret_result_ty {
+                cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+            }
             call_site.set_call_convention(cg.llvm_call_convention_for_fqn(fqn));
             Ok(call_site)
-        })?;
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        let sret_root_slot_ids = if let Some(result_ptr) = sret_result_slot {
+            self.register_hidden_sret_result_roots(span, ret_cg, result_ptr, "itable_call_sret")?
+        } else {
+            Vec::new()
+        };
         self.emit_ordinary_call_effect_propagation_check(span, "itable_call_effect")?;
 
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
@@ -10308,13 +10535,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable call return value",
-                        at: span.into(),
-                    },
-                )?;
-                Ok(Some(self.cg_value_from_loaded(span, ret_cg, raw)?))
+                let result = if let Some(result_ptr) = sret_result_slot {
+                    self.load_sret_result_from_ptr(span, ret_cg, result_ptr)
+                } else {
+                    let raw = call_site.try_as_basic_value().basic().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "itable call return value",
+                            at: span.into(),
+                        },
+                    )?;
+                    self.cg_value_from_loaded(span, ret_cg, raw)
+                };
+                self.release_gc_root_slot_ids(&sret_root_slot_ids);
+                Ok(Some(result?))
             }
         }
     }
@@ -10718,17 +10951,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        for arg in self.codegen_callable_value_args(
+        let evaluated_args = self.codegen_callable_value_args(
             span,
             callee_span,
             fun_ty,
             args,
             "funptr call arg binding",
-        )? {
-            llvm_args.push(arg);
+            CallArgAbiMode::Native,
+        )?;
+        for arg in &evaluated_args {
+            llvm_args.push(arg.value);
         }
 
-        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
                 typed_fn_ptr,
@@ -10740,7 +10975,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             call_site.set_call_convention(0);
             Ok(call_site)
-        })?;
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
         self.emit_ordinary_call_effect_propagation_check(span, "funptr_call_effect")?;
 
         match ret_cg {
@@ -10831,13 +11068,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 在保持源码求值顺序的前提下，把调用点实参求值并归位为"按形参顺序排列"的 LLVM 实参。
     fn codegen_bound_call_args(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
+        spec: BoundCallArgsSpec,
         param_names: &[String],
         param_tys: &[TypeId],
         args: &[hir::CallArg],
-        kind: &'static str,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
+        let BoundCallArgsSpec {
+            span,
+            callee_span,
+            kind,
+            abi_mode,
+        } = spec;
         if param_names.len() != param_tys.len() || args.len() != param_names.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind,
@@ -10908,19 +11149,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind,
                     at: span.into(),
                 })?;
-                let materialized = self.materialize_deferred_cg_value(
-                    expr_span,
-                    &format!("call_arg_reload_{param_idx}"),
-                    deferred,
-                )?;
+                let param_ty =
+                    *param_tys
+                        .get(param_idx)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "call arg param type",
+                            at: callee_span.into(),
+                        })?;
+                let param_abi = match abi_mode {
+                    CallArgAbiMode::Native => None,
+                    CallArgAbiMode::Ordinary => {
+                        Some(self.ordinary_param_abi(callee_span, param_ty)?)
+                    }
+                };
+                if let Some(abi) = param_abi
+                    && abi.pointee_ty().is_some()
+                {
+                    let (slot_ptr, cleanup_root_slot_ids) = self
+                        .deferred_gc_spill_slot_for_call_arg(
+                            expr_span,
+                            &format!("call_arg_reload_{param_idx}"),
+                            deferred,
+                        )?;
+                    return Ok(EvaluatedCallArg {
+                        value: slot_ptr.into(),
+                        pointer_value: None,
+                        cleanup_root_slot_ids,
+                    });
+                }
+
+                let (materialized, cleanup_root_slot_ids) = self
+                    .materialize_deferred_cg_value_for_call_arg(
+                        expr_span,
+                        &format!("call_arg_reload_{param_idx}"),
+                        deferred,
+                    )?;
                 let pointer_value = match materialized.value {
                     Some(BasicValueEnum::PointerValue(ptr)) => Some(ptr),
                     _ => None,
                 };
-                let value = self.as_llvm_arg_value(expr_span, materialized.ty, materialized)?;
+                let param_cg = param_abi
+                    .map(OrdinaryParamAbi::cg_ty)
+                    .unwrap_or(materialized.ty);
+                let value = self.as_llvm_arg_value(expr_span, param_cg, materialized)?;
                 Ok(EvaluatedCallArg {
                     value,
                     pointer_value,
+                    cleanup_root_slot_ids,
                 })
             })
             .collect()
@@ -10955,14 +11230,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         args: &[hir::CallArg],
         kind: &'static str,
-    ) -> Result<Vec<inkwell::values::BasicMetadataValueEnum<'ctx>>, LlvmEmitError> {
+        abi_mode: CallArgAbiMode,
+    ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = self.callable_value_param_names(fun_ty);
         let param_tys = self.callable_value_param_tys(fun_ty);
-        Ok(self
-            .codegen_bound_call_args(span, callee_span, &param_names, &param_tys, args, kind)?
-            .into_iter()
-            .map(|slot| slot.value)
-            .collect())
+        self.codegen_bound_call_args(
+            BoundCallArgsSpec {
+                span,
+                callee_span,
+                kind,
+                abi_mode,
+            },
+            &param_names,
+            &param_tys,
+            args,
+        )
     }
 
     fn codegen_function_value_call(
@@ -11054,10 +11336,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         llvm_param_tys.push(gc_i8_ptr_ty.into());
         if let Some(receiver_ty) = fun_ty.receiver {
-            llvm_param_tys.push(self.llvm_param_ty(callee_span, receiver_ty)?);
+            llvm_param_tys.push(
+                self.ordinary_param_abi(callee_span, receiver_ty)?
+                    .llvm_param_ty(),
+            );
         }
         for ty in &fun_ty.params {
-            llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
+            llvm_param_tys.push(self.ordinary_param_abi(callee_span, *ty)?.llvm_param_ty());
         }
 
         let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
@@ -11094,17 +11379,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
         llvm_args.push(env_ptr.into());
-        for arg in self.codegen_callable_value_args(
+        let evaluated_args = self.codegen_callable_value_args(
             span,
             callee_span,
             fun_ty,
             args,
             "function value call arg binding",
-        )? {
-            llvm_args.push(arg);
+            CallArgAbiMode::Ordinary,
+        )?;
+        for arg in &evaluated_args {
+            llvm_args.push(arg.value);
         }
 
-        let call_site = self.with_conservative_gc_local_root_spills(span, |cg| {
+        let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
                 typed_fn_ptr,
@@ -11115,7 +11402,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
             Ok(call_site)
-        })?;
+        });
+        self.release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
         self.emit_ordinary_call_effect_propagation_check(span, "closure_call_effect")?;
 
         match ret_cg {
@@ -11199,10 +11488,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // env ptr：GC-managed 引用（closure env 是一个 heap object）。
             llvm_param_tys.push(gc_i8_ptr_ty.into());
             if let Some(receiver_ty) = fun_ty.receiver {
-                llvm_param_tys.push(self.llvm_param_ty(span, receiver_ty)?);
+                llvm_param_tys.push(self.ordinary_param_abi(span, receiver_ty)?.llvm_param_ty());
             }
             for ty in &fun_ty.params {
-                llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
+                llvm_param_tys.push(self.ordinary_param_abi(span, *ty)?.llvm_param_ty());
             }
 
             let fn_ty = match (hidden_sret_result_ty, ret_cg) {
@@ -11672,187 +11961,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let Some((id, name, ty_id)) = receiver_binding {
-            let target_ty = self
-                .cg_ty_of(*ty_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "lambda receiver type",
-                    at: closure.span.into(),
-                })?;
-
-            let ptr = self.create_entry_alloca(closure.span, name, target_ty)?;
-
-            let init = match target_ty {
-                CgTy::Unit => CgValue::unit(),
-                CgTy::Never => CgValue::never(),
-                CgTy::Bool => {
-                    let raw = llvm_fun
-                        .get_nth_param(env_param_index + 1)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda receiver",
-                            at: closure.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::bool(raw)
-                }
-                CgTy::Float64 | CgTy::Float32 => {
-                    let raw = llvm_fun
-                        .get_nth_param(env_param_index + 1)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda receiver",
-                            at: closure.span.into(),
-                        })?
-                        .into_float_value();
-                    CgValue::float(raw, target_ty)
-                }
-                CgTy::Int(int_ty) => {
-                    let raw = llvm_fun
-                        .get_nth_param(env_param_index + 1)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda receiver",
-                            at: closure.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::int(raw, int_ty)
-                }
-                CgTy::String => {
-                    let raw = llvm_fun
-                        .get_nth_param(env_param_index + 1)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda receiver",
-                            at: closure.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::String,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Ref => {
-                    let raw = llvm_fun
-                        .get_nth_param(env_param_index + 1)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda receiver",
-                            at: closure.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "lambda receiver type",
-                        at: closure.span.into(),
-                    });
-                }
-            };
-
-            let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
-            self.env.insert(
-                *id,
-                CgLocal {
-                    hir_ty: Some(*ty_id),
-                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
-                    ty: target_ty,
-                    ptr,
-                    mutable: false,
-                },
-            );
+            self.bind_ordinary_param_local(OrdinaryParamLocalBinding {
+                at: closure.span,
+                llvm_fun,
+                param_index: env_param_index + 1,
+                name,
+                id: *id,
+                ty_id: *ty_id,
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
+                missing_kind: "missing llvm lambda receiver",
+            })?;
         }
 
         // params：env 固定占用第 0 个 LLVM param；若函数类型带 receiver，则第 1 个 LLVM param
         // 为 receiver，用户显式声明的 params 从其后开始。
         let llvm_param_offset = env_param_index + 1 + u32::from(fun_ty.receiver.is_some());
         for (idx, (id, name, ty_id)) in param_bindings.iter().enumerate() {
-            let target_ty = self
-                .cg_ty_of(*ty_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "lambda param type",
-                    at: closure.span.into(),
-                })?;
-
-            let ptr = self.create_entry_alloca(closure.span, name, target_ty)?;
-
-            let init = match target_ty {
-                CgTy::Unit => CgValue::unit(),
-                CgTy::Never => CgValue::never(),
-                CgTy::Bool => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32 + llvm_param_offset)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda param",
-                            at: closure.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::bool(raw)
-                }
-                CgTy::Float64 | CgTy::Float32 => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32 + llvm_param_offset)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda param",
-                            at: closure.span.into(),
-                        })?
-                        .into_float_value();
-                    CgValue::float(raw, target_ty)
-                }
-                CgTy::Int(int_ty) => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32 + llvm_param_offset)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda param",
-                            at: closure.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::int(raw, int_ty)
-                }
-                CgTy::String => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32 + llvm_param_offset)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda param",
-                            at: closure.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::String,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Ref => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32 + llvm_param_offset)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm lambda param",
-                            at: closure.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "lambda param type",
-                        at: closure.span.into(),
-                    });
-                }
-            };
-
-            let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
-
-            self.env.insert(
-                *id,
-                CgLocal {
-                    hir_ty: Some(*ty_id),
-                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
-                    ty: target_ty,
-                    ptr,
-                    mutable: false,
-                },
-            );
+            self.bind_ordinary_param_local(OrdinaryParamLocalBinding {
+                at: closure.span,
+                llvm_fun,
+                param_index: idx as u32 + llvm_param_offset,
+                name,
+                id: *id,
+                ty_id: *ty_id,
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(*ty_id)),
+                missing_kind: "missing llvm lambda param",
+            })?;
         }
 
         let callee_suspend_plan = self.build_closure_callee_suspend_plan(closure, fun_ty.return_ty);
@@ -12545,6 +12679,233 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(self.llvm_basic_type_of(span, cg)?.into())
     }
 
+    fn ordinary_param_abi(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
+        let cg = self
+            .cg_ty_of(ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function param type",
+                at: span.into(),
+            })?;
+        let llvm_ty = self.llvm_basic_type_of(span, cg)?;
+        let needs_indirect = matches!(
+            llvm_ty,
+            BasicTypeEnum::StructType(_)
+                | BasicTypeEnum::ArrayType(_)
+                | BasicTypeEnum::VectorType(_)
+                | BasicTypeEnum::ScalableVectorType(_)
+        ) && self.type_contains_gc_refs(ty, &mut HashSet::new());
+        if needs_indirect {
+            Ok(OrdinaryParamAbi::IndirectGcAggregate {
+                cg_ty: cg,
+                llvm_param_ty: self.llvm_ptr_type(AddressSpace::default()).into(),
+                pointee_ty: llvm_ty,
+            })
+        } else {
+            Ok(OrdinaryParamAbi::Direct {
+                cg_ty: cg,
+                llvm_param_ty: llvm_ty.into(),
+            })
+        }
+    }
+
+    fn type_contains_gc_refs(&self, ty: TypeId, visiting: &mut HashSet<TypeId>) -> bool {
+        if !visiting.insert(ty) {
+            return false;
+        }
+
+        let contains = match self.types.kind(ty) {
+            TypeKind::Ref(_) => true,
+            TypeKind::StarProjection(star) => self.type_contains_gc_refs(star.read_ty, visiting),
+            TypeKind::Param(_) => true,
+            TypeKind::Value(kind) => match kind {
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Char
+                | ValueTypeKind::Float64
+                | ValueTypeKind::Float32
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_) => false,
+                ValueTypeKind::Option(inner) => self.type_contains_gc_refs(*inner, visiting),
+                ValueTypeKind::Tuple(elements) => elements
+                    .iter()
+                    .copied()
+                    .any(|elem| self.type_contains_gc_refs(elem, visiting)),
+                ValueTypeKind::Nominal(nominal) => {
+                    let key = self.nominal_layout_key(nominal);
+                    if let Some(layout) = self.struct_layouts.get(&key) {
+                        layout.fields.iter().any(|field| {
+                            field.ty.is_some_and(|field_ty| {
+                                self.type_contains_gc_refs(field_ty, visiting)
+                            })
+                        })
+                    } else if let Some(layout) = self.enum_layouts.get(&key) {
+                        layout.variants.iter().any(|variant| {
+                            variant.fields.iter().any(|field| {
+                                field.ty.is_some_and(|field_ty| {
+                                    self.type_contains_gc_refs(field_ty, visiting)
+                                })
+                            })
+                        })
+                    } else {
+                        false
+                    }
+                }
+            },
+        };
+
+        visiting.remove(&ty);
+        contains
+    }
+
+    fn cg_value_from_llvm_param(
+        &self,
+        at: crate::span::Span,
+        llvm_fun: FunctionValue<'ctx>,
+        param_index: u32,
+        target_ty: CgTy,
+        missing_kind: &'static str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let raw =
+            llvm_fun
+                .get_nth_param(param_index)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: missing_kind,
+                    at: at.into(),
+                })?;
+
+        Ok(match target_ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Never => CgValue::never(),
+            CgTy::Bool => CgValue::bool(raw.into_int_value()),
+            CgTy::Float64 | CgTy::Float32 => CgValue::float(raw.into_float_value(), target_ty),
+            CgTy::Int(int_ty) => CgValue::int(raw.into_int_value(), int_ty),
+            CgTy::String => CgValue {
+                ty: CgTy::String,
+                value: Some(raw.into_pointer_value().into()),
+            },
+            CgTy::Ref => CgValue {
+                ty: CgTy::Ref,
+                value: Some(raw.into_pointer_value().into()),
+            },
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => CgValue {
+                ty: target_ty,
+                value: Some(raw),
+            },
+        })
+    }
+
+    fn bind_ordinary_param_local(
+        &mut self,
+        binding: OrdinaryParamLocalBinding<'ctx, '_>,
+    ) -> Result<(), LlvmEmitError> {
+        let OrdinaryParamLocalBinding {
+            at,
+            llvm_fun,
+            param_index,
+            name,
+            id,
+            ty_id,
+            call_may_suspend,
+            missing_kind,
+        } = binding;
+        let abi = self.ordinary_param_abi(at, ty_id)?;
+        let target_ty = abi.cg_ty();
+        let ptr = if abi.pointee_ty().is_some() {
+            llvm_fun
+                .get_nth_param(param_index)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: missing_kind,
+                    at: at.into(),
+                })?
+                .into_pointer_value()
+        } else {
+            let ptr = self.create_entry_alloca(at, name, target_ty)?;
+            let init =
+                self.cg_value_from_llvm_param(at, llvm_fun, param_index, target_ty, missing_kind)?;
+            let _ = self.store_local_value(at, ptr, target_ty, init)?;
+            ptr
+        };
+
+        self.env.insert(
+            id,
+            CgLocal {
+                hir_ty: Some(ty_id),
+                call_may_suspend,
+                ty: target_ty,
+                ptr,
+                mutable: false,
+            },
+        );
+        Ok(())
+    }
+
+    fn materialize_deferred_cg_value_for_call_arg(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: DeferredCgValue<'ctx>,
+    ) -> Result<(CgValue<'ctx>, Vec<u32>), LlvmEmitError> {
+        if let Some(raw) = value.immediate {
+            return Ok((
+                CgValue {
+                    ty: value.ty,
+                    value: Some(raw),
+                },
+                Vec::new(),
+            ));
+        }
+
+        if let Some(spill) = value.spill {
+            let slot =
+                self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
+            let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
+            let loaded = self.builder.build_load(llvm_ty, slot, name)?;
+            return Ok((
+                CgValue {
+                    ty: value.ty,
+                    value: Some(loaded),
+                },
+                spill.root_slot_ids,
+            ));
+        }
+
+        Ok((
+            CgValue {
+                ty: value.ty,
+                value: None,
+            },
+            Vec::new(),
+        ))
+    }
+
+    fn deferred_gc_spill_slot_for_call_arg(
+        &mut self,
+        at: crate::span::Span,
+        name: &str,
+        value: DeferredCgValue<'ctx>,
+    ) -> Result<(PointerValue<'ctx>, Vec<u32>), LlvmEmitError> {
+        let spill = value.spill.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "indirect aggregate call arg spill",
+            at: at.into(),
+        })?;
+        let slot =
+            self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
+        Ok((slot, spill.root_slot_ids))
+    }
+
+    fn release_evaluated_call_arg_roots(&mut self, args: &[EvaluatedCallArg<'ctx>]) {
+        for arg in args {
+            self.release_gc_root_slot_ids(&arg.cleanup_root_slot_ids);
+        }
+    }
+
     fn as_llvm_arg_value(
         &self,
         span: crate::span::Span,
@@ -12575,100 +12936,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
         llvm_fun: FunctionValue<'ctx>,
+        param_offset: u32,
     ) -> Result<(), LlvmEmitError> {
         for (idx, param) in fun.params.iter().enumerate() {
-            let target_ty = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "param type",
-                    at: param.span.into(),
-                })?;
-
-            let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
-            let init = match target_ty {
-                CgTy::Unit => CgValue::unit(),
-                CgTy::Never => CgValue::never(),
-                CgTy::Bool => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::bool(raw)
-                }
-                CgTy::Float64 | CgTy::Float32 => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        })?
-                        .into_float_value();
-                    CgValue::float(raw, target_ty)
-                }
-                CgTy::Int(int_ty) => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        })?
-                        .into_int_value();
-                    CgValue::int(raw, int_ty)
-                }
-                CgTy::String => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::String,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Ref => {
-                    let raw = llvm_fun
-                        .get_nth_param(idx as u32)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        })?
-                        .into_pointer_value();
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(raw.into()),
-                    }
-                }
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    let raw = llvm_fun.get_nth_param(idx as u32).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing llvm param",
-                            at: param.span.into(),
-                        },
-                    )?;
-                    CgValue {
-                        ty: target_ty,
-                        value: Some(raw),
-                    }
-                }
-            };
-
-            let _stored = self.store_local_value(param.span, ptr, target_ty, init)?;
-            self.env.insert(
-                param.id,
-                CgLocal {
-                    hir_ty: Some(param.ty),
-                    call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
-                    ty: target_ty,
-                    ptr,
-                    mutable: false,
-                },
-            );
+            self.bind_ordinary_param_local(OrdinaryParamLocalBinding {
+                at: param.span,
+                llvm_fun,
+                param_index: idx as u32 + param_offset,
+                name: &param.name,
+                id: param.id,
+                ty_id: param.ty,
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                missing_kind: "missing llvm param",
+            })?;
         }
         Ok(())
     }
@@ -13970,6 +14250,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .module
             .get_function(&name)
             .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+        llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         // 已有 body：无需重复生成。
         if llvm_fun.get_first_basic_block().is_some() {
@@ -14571,61 +14852,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         }
-
-        // Evaluate LHS (this/receiver parameter)
-        let this_target_cg =
-            self.cg_ty_of(sig_fun.params[0].ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "operator overload receiver type",
-                    at: lhs.span.into(),
-                })?;
-        let lhs_v = self.codegen_expr(lhs)?;
-        let lhs_coerced = self.coerce_value(lhs.span, lhs_v, this_target_cg)?;
-        let lhs_arg = self.as_llvm_arg_value(lhs.span, this_target_cg, lhs_coerced)?;
-
-        // Evaluate RHS (method parameter)
-        let rhs_target_cg =
-            self.cg_ty_of(sig_fun.params[1].ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "operator overload rhs type",
-                    at: rhs.span.into(),
-                })?;
-        let rhs_v = self.codegen_expr(rhs)?;
-        let rhs_coerced = self.coerce_value(rhs.span, rhs_v, rhs_target_cg)?;
-        let rhs_arg = self.as_llvm_arg_value(rhs.span, rhs_target_cg, rhs_coerced)?;
-
-        // Get or declare the LLVM function
-        let llvm_fun = match self.module.get_function(method_fqn) {
-            Some(f) => f,
-            None => self.declare_top_level_fun(sig_fun)?,
-        };
-
-        let call_site = self
-            .builder
-            .build_call(llvm_fun, &[lhs_arg, rhs_arg], "op_overload")?;
-        call_site.set_call_convention(self.llvm_call_convention_for_fqn(method_fqn));
-        self.emit_ordinary_call_effect_propagation_check(span, "operator_call_effect")?;
-
-        // Convert return value to CgValue (same pattern as codegen_top_level_fun_call).
-        let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "operator overload return type",
-                    at: span.into(),
-                })?;
-        match ret_cg {
-            CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Never => Ok(CgValue::never()),
-            _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "operator overload return value",
-                        at: span.into(),
-                    },
-                )?;
-                self.cg_value_from_loaded(span, ret_cg, raw)
-            }
-        }
+        let call_args = [
+            hir::CallArg::Positional(lhs.clone()),
+            hir::CallArg::Positional(rhs.clone()),
+        ];
+        self.codegen_top_level_fun_call(span, span, method_fqn, &call_args)
     }
 
     fn codegen_binary(

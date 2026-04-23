@@ -330,11 +330,11 @@ static uint32_t scoop_gc_stop_the_world_begin_prepare_unlocked(pthread_t initiat
     // T1505c：保留 InNative 线程状态；否则 GC 会错误等待其 park，导致死锁。
     if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
       it->state = SCOOP_GC_THREAD_RUNNING;
+      // 非 InNative 线程的 ctx 只在本轮 STW 内有效；新一轮开始前必须清空。
+      scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+      it->stack_walking_ctx = 0;
     }
     it->parked_epoch = 0;
-    // 释放上一轮残留的 ctx（按协议 STW end 会清空；这里做防御式兜底）。
-    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
-    it->stack_walking_ctx = 0;
   }
 
   // 需要 park 的线程数量：
@@ -430,9 +430,12 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
       it->state = SCOOP_GC_THREAD_RUNNING;
     }
     it->parked_epoch = 0;
-    // T1505b：STW 结束后清空 stack walking ctx，避免悬挂指针或误用旧 ctx。
-    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
-    it->stack_walking_ctx = 0;
+    // T1512c：InNative 线程需要保留 enter_native 时捕获的 ctx，用于 native 期间枚举更高层
+    // managed caller frames；其余线程的 ctx 只在当前 STW 内有效，结束后必须清空。
+    if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+      it->stack_walking_ctx = 0;
+    }
   }
 
   (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
@@ -1850,19 +1853,15 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
     return;
   }
 
-  // 若当前正处于 stop-the-world，则 enter_native 必须先参与本轮 STW（park），否则 GC 可能会等待该线程
-  // 进入 safepoint 而永远等不到（deadlock）。
-  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
-    rec->last_safepoint_epoch = scoop_gc_stw.epoch;
-
-    if (rec->parked_epoch != scoop_gc_stw.epoch) {
-      rec->state = SCOOP_GC_THREAD_PARKED;
-      rec->parked_epoch = scoop_gc_stw.epoch;
-      scoop_gc_stw.parked_count += 1;
-      (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
-    }
-
-    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  // T1512c：线程跨入 native 前仍然保留着更高层 managed caller frames；若只登记当前 call-site 的
+  // `native_roots`，GC 将看不到 caller 栈上的 live roots（例如 main 持有的 Thread handle）。
+  // 因此 enter_native 必须同时捕获当前 stack walking ctx，并在整个 InNative 期间保留它。
+  scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+  rec->stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+  if (rec->stack_walking_ctx == 0) {
+    scoop_gc_immix_unlock(state);
+    (void)fprintf(stderr, "[scooprt][gc][stackmap] enter_native failed to capture unwind ctx\n");
+    abort();
   }
 
   // TLS：保存 native roots buffer（供后续 stackmap roots/handle 协议扩展）。
@@ -1875,8 +1874,21 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
   rec->native_roots = (void *)root_slots;
   rec->native_roots_len = root_slots_len;
   rec->state = SCOOP_GC_THREAD_IN_NATIVE;
-  rec->parked_epoch = 0;
   rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+
+  // 若当前正处于 stop-the-world，则 enter_native 可以直接把自己切到 InNative ready 状态：
+  // - 当前 call-site roots 由 `native_roots` 提供；
+  // - 更高层 managed caller frames 由 enter_native 时捕获的 ctx 提供；
+  // - `parked_count` 仍需补记一次，告诉 GC “这个线程已就绪，不必再等它 park”。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+    if (rec->parked_epoch != scoop_gc_stw.epoch) {
+      rec->parked_epoch = scoop_gc_stw.epoch;
+      scoop_gc_stw.parked_count += 1;
+      (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
+    }
+  } else {
+    rec->parked_epoch = 0;
+  }
 
   scoop_gc_immix_unlock(state);
 }
@@ -1929,6 +1941,8 @@ void scoop_leave_native(void) {
   rec->native_roots_len = 0;
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->parked_epoch = 0;
+  scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+  rec->stack_walking_ctx = 0;
 
   scoop_gc_immix_unlock(state);
 }
@@ -3075,6 +3089,27 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       }
 
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        if (it->stack_walking_ctx == 0) {
+          scoop_gc_verify_roots_record_error(
+              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
+        } else {
+          ScoopGcVerifySlotCtx v = {
+              .state = &st,
+              .kind = "stackmap",
+              .thread_id = tid,
+              .heap = heap,
+              .membership = &membership,
+          };
+          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          uint32_t records_hit = 0;
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(
+              it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+          if (err != SCOOP_STACKMAP_VISIT_OK) {
+            scoop_gc_verify_roots_record_error(
+                &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+          }
+        }
+
         ScoopGcVerifySlotCtx v = {
             .state = &st,
             .kind = "native_roots",
@@ -3089,6 +3124,27 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      if (it->stack_walking_ctx == 0) {
+        scoop_gc_verify_roots_record_error(
+            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "in-native thread missing stack_walking_ctx");
+      } else {
+        ScoopGcVerifySlotCtx v = {
+            .state = &st,
+            .kind = "stackmap",
+            .thread_id = tid,
+            .heap = heap,
+            .membership = &membership,
+        };
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(
+            it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          scoop_gc_verify_roots_record_error(
+              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+        }
+      }
+
       ScoopGcVerifySlotCtx v = {
           .state = &st,
           .kind = "native_roots",
@@ -3613,8 +3669,33 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     // T1505c：InNative 线程 roots 来自 native_roots buffer（同样需要在 moving GC 中被更新）。
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      if (it->stack_walking_ctx == 0) {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] missing in-native ctx for roots update (thread=0x%" PRIxPTR
+                      ")\n",
+                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+        abort();
+      }
+
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_immix_update_slot_visitor, &update_ctx);
+      {
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                     scoop_gc_immix_update_slot_visitor,
+                                                     &update_ctx,
+                                                     &err,
+                                                     &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] update in-native caller roots failed: err=%u "
+                        "(thread=0x%" PRIxPTR ")\n",
+                        (unsigned)err,
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+      }
       continue;
     }
 
@@ -4058,6 +4139,15 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
 
   scoop_gc_immix_lock(state);
 
+  // 若别的线程已经发起了 STW，本线程此时不能只是“等它结束”：
+  // 那会把自己留在 Running 状态，导致 initiator 永远等不到 parked_count。
+  // 这里直接把这次 minor collect 退化为一次 safepoint poll，让当前线程先参与对方的 STW。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+    scoop_gc_immix_unlock(state);
+    scoop_gc_safepoint_poll();
+    return 0;
+  }
+
   // 保证同一时刻只允许一个 GC 周期（major/minor 都走同一 STW）。
   while (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
@@ -4139,8 +4229,33 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     // T1505c：InNative 线程 roots 来自 native_roots buffer。
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      if (it->stack_walking_ctx == 0) {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] missing in-native ctx for minor mark (thread=0x%" PRIxPTR
+                      ")\n",
+                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+        abort();
+      }
+
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_immix_minor_mark_slot_visitor, (void *)&mark_ctx);
+      {
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                     scoop_gc_immix_minor_mark_slot_visitor,
+                                                     (void *)&mark_ctx,
+                                                     &err,
+                                                     &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] minor mark in-native caller roots failed: err=%u "
+                        "(thread=0x%" PRIxPTR ")\n",
+                        (unsigned)err,
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+      }
       continue;
     }
 
@@ -4278,8 +4393,33 @@ static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t 
     // 3a) roots update（stackmap/native roots slots 原地改写为新地址）
     for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        if (it->stack_walking_ctx == 0) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] missing in-native ctx for minor roots update "
+                        "(thread=0x%" PRIxPTR ")\n",
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+
         (void)scoop_gc_native_roots_visit_slots(
             it->native_roots, it->native_roots_len, scoop_gc_immix_update_slot_visitor, &update_ctx);
+        {
+          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          uint32_t records_hit = 0;
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                       scoop_gc_immix_update_slot_visitor,
+                                                       &update_ctx,
+                                                       &err,
+                                                       &records_hit);
+          if (err != SCOOP_STACKMAP_VISIT_OK) {
+            (void)fprintf(stderr,
+                          "[scooprt][gc][stackmap] minor update in-native caller roots failed: err=%u "
+                          "(thread=0x%" PRIxPTR ")\n",
+                          (unsigned)err,
+                          (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            abort();
+          }
+        }
         continue;
       }
 
@@ -4592,6 +4732,14 @@ void scoop_gc_collect(void) {
 
   scoop_gc_immix_lock(state);
 
+  // 与 minor collect 同理：若别的线程已发起 STW，本线程必须先作为 mutator 参与 safepoint，
+  // 而不是在 GC 入口处被动等待，否则 initiator 会永远等不到它 park。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+    scoop_gc_immix_unlock(state);
+    scoop_gc_safepoint_poll();
+    return;
+  }
+
   // 保证同一时刻只允许一个 GC 周期。
   while (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
@@ -4667,8 +4815,33 @@ void scoop_gc_collect(void) {
       for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
         // T1505c：InNative 线程 roots 来自 native_roots buffer。
         if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+          if (it->stack_walking_ctx == 0) {
+            (void)fprintf(stderr,
+                          "[scooprt][gc][stackmap] missing in-native ctx for mark roots "
+                          "(thread=0x%" PRIxPTR ")\n",
+                          (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            abort();
+          }
+
           (void)scoop_gc_native_roots_visit_slots(
               it->native_roots, it->native_roots_len, scoop_gc_parallel_mark_visitor, (void *)&ctx);
+          {
+            uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+            uint32_t records_hit = 0;
+            (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                         scoop_gc_parallel_mark_visitor,
+                                                         (void *)&ctx,
+                                                         &err,
+                                                         &records_hit);
+            if (err != SCOOP_STACKMAP_VISIT_OK) {
+              (void)fprintf(stderr,
+                            "[scooprt][gc][stackmap] mark in-native caller roots failed: err=%u "
+                            "(thread=0x%" PRIxPTR ")\n",
+                            (unsigned)err,
+                            (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+              abort();
+            }
+          }
           continue;
         }
 
@@ -4787,8 +4960,33 @@ void scoop_gc_collect(void) {
     for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
       // T1505c：InNative 线程 roots 来自 native_roots buffer。
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        if (it->stack_walking_ctx == 0) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] missing in-native ctx for mark roots "
+                        "(thread=0x%" PRIxPTR ")\n",
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+
         (void)scoop_gc_native_roots_visit_slots(
             it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
+        {
+          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          uint32_t records_hit = 0;
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                       scoop_gc_mark_visitor,
+                                                       (void *)&ctx,
+                                                       &err,
+                                                       &records_hit);
+          if (err != SCOOP_STACKMAP_VISIT_OK) {
+            (void)fprintf(stderr,
+                          "[scooprt][gc][stackmap] mark in-native caller roots failed: err=%u "
+                          "(thread=0x%" PRIxPTR ")\n",
+                          (unsigned)err,
+                          (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            abort();
+          }
+        }
         continue;
       }
 

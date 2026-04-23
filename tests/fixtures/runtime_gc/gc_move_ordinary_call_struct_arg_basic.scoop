@@ -1,0 +1,25 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_STRESS=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: gc_move_ordinary_call_struct_arg_basic.stdout.txt
+//
+// T4016T7a：ordinary/statepoint 调用把含 GC refs 的 aggregate 参数传给 callee 后，
+// callee 在 GC 之后继续读取该参数，仍必须看到 relocate 后的新 payload。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+struct Payload(val label: String, val value: Int)
+
+fun describe(payload: Payload): String {
+    __scoop_gc_debug_alloc_garbage(32)
+    __scoop_gc_collect()
+    return f"{payload.label} {payload.value}"
+}
+
+fun main() {
+    val payload: Payload = Payload { label: f"hello {7}", value: 42 }
+    println(describe(payload))
+}
