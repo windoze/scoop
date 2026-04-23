@@ -1767,8 +1767,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::String
             | CgTy::Ref
             | CgTy::Tuple(_)
-            | CgTy::Struct(_)
-            | CgTy::Enum(_) => {
+            | CgTy::Struct(_) => {
                 let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
@@ -1789,35 +1788,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     };
 
-                    let wb = self.declare_runtime_gc_write_barrier();
-                    let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-                    let i8_ptr_ty = self.llvm_i8_ptr_type();
-
-                    // `slot_addr`：传入“slot 的地址”即可；runtime 用 memcpy 写回（避免 strict alias UB）。
-                    //
-                    // 注意：该地址只是 native 指针（C ABI `void*`），不应位于 GC address space；
-                    // 否则会被 statepoint/stackmap 当作 GC root，产生 derived/non-header roots。
-                    let slot_addr_i8_gc = self.builder.build_pointer_cast(
-                        ptr,
-                        gc_i8_ptr_ty,
-                        "gc_wb_slot_addr_i8_gc",
-                    )?;
-                    let slot_addr = self.builder.build_address_space_cast(
-                        slot_addr_i8_gc,
-                        i8_ptr_ty,
-                        "gc_wb_slot_addr",
-                    )?;
-                    let value_i8 = self.builder.build_pointer_cast(
-                        value_ptr,
-                        gc_i8_ptr_ty,
-                        "gc_wb_value_i8",
-                    )?;
-
-                    let _ = self.builder.build_call(
-                        wb,
-                        &[slot_addr.into(), value_i8.into()],
-                        "gc_write_barrier",
-                    )?;
+                    self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)?;
                 } else {
                     let store_inst = self.builder.build_store(ptr, raw)?;
                     // T0119: `@CLayout(packed = N)` — aggregate store 到 alloca 时，
@@ -1832,8 +1803,139 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
             }
+            CgTy::Enum(enum_ty) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "store value",
+                        at: at.into(),
+                    });
+                };
+
+                if self.try_store_heap_tagged_union_enum_exact(at, ptr, enum_ty, raw)? {
+                    return Ok(value);
+                }
+
+                if ptr.get_type().get_address_space() == self.gc_address_space()
+                    && needs_write_barrier_for_value_ty(self, at, ty)?
+                {
+                    let BasicValueEnum::PointerValue(value_ptr) = raw else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "write barrier value type (ptr)",
+                            at: at.into(),
+                        });
+                    };
+
+                    self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)?;
+                } else {
+                    let _ = self.builder.build_store(ptr, raw)?;
+                }
+            }
         }
         Ok(value)
+    }
+
+    fn store_gc_pointer_slot_with_write_barrier(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        value_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let wb = self.declare_runtime_gc_write_barrier();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        // `slot_addr`：传入“slot 的地址”即可；runtime 用 memcpy 写回（避免 strict alias UB）。
+        //
+        // 注意：该地址只是 native 指针（C ABI `void*`），不应位于 GC address space；
+        // 否则会被 statepoint/stackmap 当作 GC root，产生 derived/non-header roots。
+        let slot_addr_i8_gc =
+            self.builder
+                .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr_i8_gc")?;
+        let slot_addr = self.builder.build_address_space_cast(
+            slot_addr_i8_gc,
+            i8_ptr_ty,
+            "gc_wb_slot_addr",
+        )?;
+        let value_i8 = self
+            .builder
+            .build_pointer_cast(value_ptr, gc_i8_ptr_ty, "gc_wb_value_i8")?;
+
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            wb,
+            &[slot_addr.into(), value_i8.into()],
+            "gc_write_barrier",
+        )?;
+        Ok(())
+    }
+
+    fn try_store_heap_tagged_union_enum_exact(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        enum_ty: crate::ty::TypeId,
+        raw: BasicValueEnum<'ctx>,
+    ) -> Result<bool, LlvmEmitError> {
+        if ptr.get_type().get_address_space() != self.gc_address_space() {
+            return Ok(false);
+        }
+
+        let layout = self.cg_enum_layout(at, enum_ty)?;
+        if !matches!(layout.repr, CgEnumRepr::TaggedUnion) {
+            return Ok(false);
+        }
+
+        let BasicValueEnum::StructValue(enum_raw) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tagged union enum heap store",
+                at: at.into(),
+            });
+        };
+
+        let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
+        let gc_ptr_slot = self
+            .builder
+            .build_struct_gep(llvm_enum_ty, ptr, 2, "enum_gc_ptr_gep")?;
+        let word_slot = self
+            .builder
+            .build_struct_gep(llvm_enum_ty, ptr, 1, "enum_payload_word_gep")?;
+        let tag_slot = self
+            .builder
+            .build_struct_gep(llvm_enum_ty, ptr, 0, "enum_tag_gep")?;
+
+        // 先写 GC pointer 槽位：若写屏障内部触发 GC，GC 至少还能通过静态 layout 看到新 payload。
+        let gc_ptr = self
+            .builder
+            .build_extract_value(enum_raw, 2, "enum_payload_ptr")?;
+        let BasicValueEnum::PointerValue(gc_ptr) = gc_ptr else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tagged union enum gc payload field",
+                at: at.into(),
+            });
+        };
+        self.store_gc_pointer_slot_with_write_barrier(at, gc_ptr_slot, gc_ptr)?;
+
+        let word = self
+            .builder
+            .build_extract_value(enum_raw, 1, "enum_payload_word")?;
+        let BasicValueEnum::IntValue(word) = word else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tagged union enum word payload field",
+                at: at.into(),
+            });
+        };
+        let _ = self.builder.build_store(word_slot, word)?;
+
+        let tag = self.builder.build_extract_value(enum_raw, 0, "enum_tag")?;
+        let BasicValueEnum::IntValue(tag) = tag else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tagged union enum tag field",
+                at: at.into(),
+            });
+        };
+        let _ = self.builder.build_store(tag_slot, tag)?;
+
+        Ok(true)
     }
 }
 
@@ -1848,13 +1950,12 @@ fn needs_write_barrier_for_value_ty<'a, 'ctx>(
     // - 但 `Option<Ref>` 这类 enum 可能通过 niche 优化降为“直接用 payload 指针承载 enum 值”，
     //   在 LLVM IR 侧同样表现为 `ptr addrspace(1)`；
     //   若仅按 `CgTy::Ref/String` 判断，会漏掉这类 heap field store，从而在 `--gc-stress` 下出现回归。
+    // - 更复杂的 tagged union enum 会在 `store_local_value_exact` 中拆成
+    //   `tag/word/gc_ptr` 三槽写回；这里保留“单指针 store”子集。
     match ty {
         CgTy::Ref | CgTy::String => Ok(true),
         CgTy::Enum(enum_ty) => {
             // 仅处理“niche pointer enum，且 payload 是 GC 指针”的子集。
-            //
-            // 备注：更复杂的 tagged union enum 若被 inline 存入 heap slot，
-            // 需要对其内部每个 GC 字段做 barrier（后续任务统一处理）。
             let layout = cg.cg_enum_layout(at, enum_ty)?;
             match layout.repr {
                 CgEnumRepr::Niche {

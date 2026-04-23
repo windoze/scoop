@@ -14,6 +14,8 @@ import scoop.thread.*
 import scoop.unsafe.*
 
 fun <T> __task_claim_acquire(task: Task<T>): Unit {
+    // `__atomicIntCompareExchange` / `__atomicIntStore` 当前都固定为 SeqCst；
+    // 这里依赖它们在跨线程顺序 handoff 时同时承担“独占 claim”与“状态发布可见性”合同。
     val claimed: Bool = @Unsafe do { __atomicIntCompareExchange(task.__claim, 0, 1) }
     if (claimed) {
         return

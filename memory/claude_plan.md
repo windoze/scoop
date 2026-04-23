@@ -1,80 +1,170 @@
-# 当前执行计划（公开版决策摘要）
+# T4016T8 执行计划与进展记录
 
-说明：我不会写入逐字逐句的内部推理，但会在这里持续维护足够详细的执行计划、判断依据摘要、关键发现与进展，便于随时审阅。
+## 当前目标
 
-## 初始目标
+- 本轮只处理 `TODO.md` 中首个未完成任务 `T4016T8`：收口无锁 `Task` 的 compiler/runtime/substrate handoff 与 trap 合同。
+- 在完成该任务前，不推进后续任务。
+- 若在 probing、测试、实现中发现既有问题或规范不匹配，必须先修复；不能通过改 fixture 形状、缩小覆盖面或引入特判来绕过。
 
-本轮只完成一件事：找到 `TODO.md` 中第一个未完成任务，将其完整实现、测试、更新文档与任务状态，并提交一个 Git commit 后停止。
+## 已确认前置状态
 
-## 初始执行步骤
+- 最新提交 `9a5985e` 为 `Update plan`，未直接声明新的待修代码问题。
+- `TODO.md` 首个未完成项确认是 `T4016T8`。
+- 生产代码中的 `Task` 已从 per-task mutex 切换为 atomic claim。
+- `SCOOP_RUNTIME.md` / `SCOOP_TASK.md` 里仍有“当前 checkpoint 是 per-task mutex”的旧叙事，但这属于后续 `T4016T9` 的文档收口，不是本轮主任务。
 
-1. 检查最新一条 Git commit 的说明，确认其中是否提到需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 阅读 `PLAN.md`，确认当前整体计划与该任务上下文。
-4. 结合代码现状评估该任务是否可以在本轮完整完成：
-   - 如果可以，直接实施。
-   - 如果任务过大，则先把任务拆分为更小的子任务，并更新 `PLAN.md` 与 `TODO.md`，然后执行拆分后的第一个子任务。
-5. 在实施前检查相关代码、测试、规范或夹具，确认不存在阻塞该任务的既有缺陷。
-6. 如果发现任何先于当前任务的既有问题、规格不匹配、实现边界缺失或测试回归：
-   - 先修复该问题；如果本轮无法直接修复，则把它作为前置任务插入 `TODO.md` 当前任务之前，更新 `PLAN.md`，提交后停止。
-7. 完成代码修改后，运行相关格式化、测试和必要的 lint / clippy，直到没有相关警告与失败。
-8. 更新 `TODO.md` 与 `PLAN.md`，记录本轮完成情况和后续状态。
-9. 提交 Git commit，提交信息将与任务编号/内容对应。
-10. 停止，不继续下一个任务。
+## 已发现的既有问题
 
-## 当前已知约束
+- 旧回归 `tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop` 名义上覆盖“顺序 handoff”，实际上包含竞态。
+- 在 `SCOOP_GC_STRESS=1` 或 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下，该回归会在 `outer-before` 后直接失败。
+- 这属于 `T4016T8` 范围内的既有问题，必须先修。
 
-- 必须优先处理最新提交中提到的遗留问题。
-- 不允许通过变通、夹具特判、缩小语义范围等方式绕过规格缺口。
-- 如果实现过程中发现新的前置缺陷，必须先修复或先把它登记为更早的任务。
-- 需要尽量保证 `cargo clippy --all-targets -- -D warnings` 通过。
-- 需要保持 `README.md`、`PLAN.md`、`TODO.md` 与实际状态一致。
+## 已完成的改动
 
-## 当前结论（已探查）
+1. 修正顺序 handoff 基础 fixture 的竞态写法
+   - 文件：`tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop`
+   - 调整为：由 main 先执行第一次 `outer.step()`，确认发布 `Waiting(...)` 后再 spawn worker。
+   - 目的：将“顺序 handoff”与“并发 step trap”拆开，避免测试本身引入竞态。
 
-1. 最新提交为 `[T4016T6] Replace task mutex with atomic claim field`，提交说明本身没有额外声明一个必须优先插队修复的遗留问题。
-2. `TODO.md` 中第一个未完成任务是 `T4016T7`：用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap。
-3. 目前未发现必须先于 `T4016T7` 新增到 `TODO.md` 更前位置的 blocker，因此本轮直接实现 `T4016T7`。
+2. 新增 waiting-path LLVM 回归
+   - 文件：`tests/fixtures/build/task_waiting_handoff_atomic_no_mutex_llvm.scoop`
+   - 目标：锁定 `__task_drive_waiting::<Int>` 的 waiting-path 仍走 atomic claim，无 mutex，并要求看到 `@scoop_gc_write_barrier`。
 
-## T4016T7 的具体实现计划
+3. 新增 GC stress + move 的顺序 handoff 回归
+   - 文件：
+     - `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.scoop`
+     - `tests/fixtures/runtime_gc/task_step_cross_thread_sequential_handoff_gc_stress.stdout.txt`
+   - 目标：覆盖 main 首次 `Pending`、显式 GC、worker 接手 resume、再次显式 GC 的 continuation/GC/thread 路径。
 
-1. 修改 `sysroot/task.scoop`：
-   - 去掉当前 `__task_claim_acquire()` 中“claim 失败就 `yield()` 重试”的行为。
-   - 改成一次性 try-claim；若 claim 失败则直接 trap（当前阶段沿用 `exit(3)` 作为 fatal trap 表达）。
-   - 把 `Task.step()` 中 `Running -> Pending()` 的过渡逻辑改成 trap。
-   - 保持“运行用户代码 / `Continuation.resume(...)` 时不持有 claim；返回后重新 claim 发布状态”的主线不变。
-2. 视需要补最小内部 helper（例如统一的 trap helper），但不引入新的 runtime ABI 或 task 特判路径。
-3. 补三类定向回归：
-   - 单线程手动 drive 现有行为保持正常。
-   - 跨线程顺序 handoff：前一个 `step()` 返回后，另一个线程可以继续 drive 同一 task。
-   - 误用 trap：覆盖至少一个 reentrant `step()`，以及至少一个并发 `step()` 竞争场景，稳定以 `EXPECT-EXIT: 3` 结束。
-4. 运行定向测试；若通过，再跑更大范围的 `cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --all-targets -- -D warnings`。
-5. 完成后更新 `TODO.md` / `PLAN.md`，把 `T4016T7` 标记为完成并记录验证结果，然后提交 commit 并停止。
+4. 在 `sysroot/task.scoop` 补充 claim 原子语义注释
+   - 说明当前依赖 SeqCst 的 acquire/release 与可见性合同。
 
-## 当前风险点
+5. 在 LLVM GC store 路径上进行了修正尝试
+   - 文件：`crates/scoopc/src/llvm/codegen/gc.rs`
+   - 已做内容：
+     - 提取 `store_gc_pointer_slot_with_write_barrier(...)`。
+     - 该 helper 改为通过 `build_call_preserving_gc_local_roots(...)` 调 runtime barrier，而不是直接 `build_call`。
+     - 对 `CgTy::Enum(enum_ty)` 增加 `try_store_heap_tagged_union_enum_exact(...)`：
+       - 若目标是 GC heap 上的 `TaggedUnion` enum 字段，不再整块 `store`。
+       - 改为分别写 `gc_ptr`、`word`、`tag` 三个槽位。
+       - `gc_ptr` 槽位通过 write barrier 发布。
+     - 同步调整 `needs_write_barrier_for_value_ty(...)` 的说明：tagged-union enum 改为在 `store_local_value_exact` 中拆槽写回，不再走原先整值指针 store 的判定。
 
-- `Task.step()` 在释放 claim 后执行用户代码，这意味着“并发误用”通常会表现为：另一个 driver 成功 claim，但观察到 `Running` 后 trap；实现时要确保这一点是稳定且可回归的。
-- reentrant trap 需要用最小、确定性的 fixture 表达，避免依赖不稳定时序。
-- cross-thread sequential handoff 需要与“并发误用 trap”区分开：只允许前一轮 drive 已经发布新状态并返回之后再换线程继续 drive。
+## 当前诊断现象
 
-## 本轮完成情况
+1. `task_step_cross_thread_sequential_handoff_basic`
+   - 普通运行不再立即 `exit(3)`，但会挂住，随后 core dump。
+   - 当前可见输出仅到：
+     ```text
+     outer-before
+     main-pending
+     ```
+   - 含义：原先“并发 step trap”路径已被拆出，但 worker 接手后没有正确完成。
 
-1. 已完成 `T4016T7`，没有发现必须前插到 `TODO.md` 更前位置的新 blocker。
-2. 已实施的代码改动：
-   - `sysroot/task.scoop`：`__task_claim_acquire()` 改成单次 try-claim；失败直接 `exit(3)`。
-   - `sysroot/task.scoop`：`Task.step()` 中 `Running -> Pending()` 过渡逻辑删除，改成直接 trap。
-   - `sysroot/core.scoop` / `sysroot/task.scoop`：注释同步到“claim 竞争 / reentrant drive 直接 trap”的当前合同。
-   - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`：补锁 trap 路径与“不再自旋 yield”。
-   - 新增三个 run-pass 回归：顺序跨线程 handoff、重入 trap、并发竞争 trap。
-3. 关键验证结果：
-   - 新增 handoff fixture 单独 `build + run` 输出与 golden 一致。
-   - 新增 reentrant / concurrent trap fixture 单独执行均稳定以退出码 `3` 结束。
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/build` 通过（`fixtures: ok (17)`）。
-   - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 通过（`fixtures: ok (392)`）。
-   - `cargo run -p scoop -- test` 通过（`fixtures: ok (1166)`）。
-   - `cargo test --all` 通过。
-   - `cargo clippy --all-targets -- -D warnings` 通过。
-4. 待执行的收尾动作：
-   - 检查 git 工作区，确认只提交本轮相关文件；
-   - 提交 commit；
-   - 停止，等待下一轮执行 `T4016T8`。
+2. `task_step_manual_basic`
+   - 在 `SCOOP_GC_STRESS=1` 或 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下不会 crash，但会永远返回 `Pending`：
+     ```text
+     outer-before
+     step0=pending
+     step1=pending
+     step2=pending
+     ```
+   - 含义：即便没有跨线程，第一次 `Pending` 之后 waiting-state 也会在 GC 压力下失效。
+   - 结论：根因不止是 handoff 线程切换，很可能是 waiting payload / continuation graph 的 GC 可达性或发布合同出了问题。
+
+3. `sysroot/task.scoop` 中临时加入了 trap 诊断退出码
+   - 当前临时值：
+     - claim acquire failure: `exit(31)`
+     - `continuation.resume(...)` catch `RuntimeError`: `exit(32)`
+     - claim 成功后仍观察到 `Running`: `exit(33)`
+   - 在 `task_step_cross_thread_sequential_handoff_gc_stress` 下目前拿到的是 `31`，输出为：
+     ```text
+     outer-before
+
+     main-pending
+     gc-after-main
+     ```
+   - 含义：在 “main 首次 Pending -> GC -> worker 接手” 序列中，worker 的 claim 失败；要么 `__claim` 没回到 0，要么对象状态/对象本身在 GC 后损坏。
+   - 但 `task_step_manual_basic` 的“永远 Pending”说明 waiting-state 内容丢失/损坏也仍然存在。
+
+## 当前最可能的根因假设
+
+1. `Waiting(awaited, continuation)` 的 boxed payload trace metadata 不完整
+   - `__TaskState.Waiting` 是 boxed variant，payload 里有两个 GC ref：
+     - `awaited: Task<(Int, Any)>`
+     - `continuation: Continuation<(Int, Any), __TaskStepResult<T>>`
+   - 如果 enum boxed payload object 的 type descriptor / bitmap 只追踪了其中一个字段，GC 后会导致：
+     - continuation 丢失或损坏，表现为一直 `Pending`；
+     - waiting payload 被部分破坏，连带影响 claim 或状态观察。
+
+2. `Task.__state` 整体写回虽已拆槽，但相关 boxed payload object / descriptor 的 trace 路径仍有缺口
+   - 也可能不是 heap store 本身，而是 boxed payload object 的 type desc 生成错误。
+
+## 当前执行计划
+
+1. 检查 enum boxed payload 的 type descriptor / trace bitmap 生成逻辑
+   - 重点查看：
+     - `get_or_create_enum_boxed_payload_type_desc_global(...)`
+     - boxed payload object 的 bitmap 如何依据 variant fields 生成
+     - `__TaskState.Waiting` / `__TaskStepResult.Pending` 这类双 ref payload 是否两个槽位都被标记
+
+2. 增加最小化 GC 回归验证 boxed enum payload tracing
+   - 设计一个不依赖 task 的最小 rich-enum GC stress case：
+     - boxed enum variant 持有两个 refs
+     - 存入 heap object 字段
+     - 显式 GC 后再读取两个 refs
+   - 如果该用例失败，可直接锁定问题在 generic enum boxed payload GC tracing，而不是 task 特例。
+
+3. 若确认 descriptor/bitmap 存在缺陷，则修复并回归验证
+   - 必跑：
+     - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1`
+     - `task_step_cross_thread_sequential_handoff_basic`
+     - `task_step_cross_thread_sequential_handoff_gc_stress`
+     - `task_waiting_handoff_atomic_no_mutex_llvm`
+
+4. 清理临时诊断
+   - 修复完成后，将 `sysroot/task.scoop` 中临时的 `31/32/33` 退出码恢复为正式 trap 合同所需值。
+
+5. 完成任务收口
+   - 更新 `TODO.md` / `PLAN.md`
+   - 运行完整相关测试，确保无 warning
+   - 提交一次清晰的 git commit
+
+## 进行中状态
+
+- 当前进入第 1 步：检查 enum boxed payload 的 descriptor / trace bitmap 生成逻辑，并准备最小复现用例。
+- 在定位完成前，不更新 `TODO.md` / `PLAN.md` 的任务完成状态，也不提交。
+
+## 最新进展（本轮后半段）
+
+1. 已排除“boxed payload descriptor / trace bitmap 漏标第二个引用”这一假设
+   - 直接检查 LLVM IR 可见：
+     - `__TaskState.Waiting` 的 boxed payload type 为 `{ ptr addrspace(1), ptr addrspace(1) }`
+     - 对应 type descriptor bitmap 为 `3`
+     - `__TaskStepResult.Pending` 同样是双 GC 指针 payload，bitmap 也是 `3`
+   - 结论：Waiting/Pending boxed payload 的 type descriptor 本身没有只追踪一个字段的问题。
+
+2. 已确认并部分修正了“aggregate 值分配前后裸跨 safepoint”问题
+   - 已做：
+     - `DeferredCgValue` 从“只 spill 直接 GC 指针”扩展为可 spill 含嵌套 GC refs 的 aggregate。
+     - enum boxed payload ctor 改成：先保活 field deferred roots，再 `scoop_alloc_typed`，然后用 relocate 后的值重建 payload。
+     - `EffectValueBox` 分配改成走 `build_call_preserving_gc_local_roots(...)`，并在 alloc 后 reload 再写 payload。
+   - 现状：
+     - LLVM IR 已能看到 `__task_step_pending::<Int>` / `__task_restore_waiting::<Int>` 的 alloc safepoint 把双 ref payload roots 放进 `gc-live`。
+     - `EffectValueBox` alloc 也开始保活/relocate `TaskStep` / `__TaskStepResult` 的 payload GC 指针。
+
+3. 但任务仍未完成，因为又暴露出更底层的 blocker
+   - 新的关键发现：
+     - ordinary/statepoint call 仍会把“含 GC refs 的 by-value aggregate 实参”以旧的 SSA aggregate 形式直接传给 callee。
+     - IR 中虽然已经能看到 aggregate 的 leaf GC refs 被单独 keepalive，但真正传给 ordinary helper 的 `TaskStep` / `__TaskStepResult` 实参并没有在 call 前用 relocate 后的叶子重建。
+   - 这会导致：
+     - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1` 和 `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下仍然在 `step0=pending` 后 `EXIT=139`。
+     - `task_step_cross_thread_sequential_handoff_gc_stress` 仍然落在 claim failure（此前诊断为 `31`）路径，说明顺序 handoff 仍被更早的 aggregate transport 缺口破坏。
+   - 结论：
+     - 这不是 `T4016T8` 独有的 task 局部问题，而是更基础的 compiler contract 缺口：
+       ordinary/statepoint call 还不能安全传递含 GC refs 的 by-value aggregate 值。
+
+4. 因此本轮应按阻塞流程处理
+   - 需要把这个 compiler blocker 作为前置任务插入 `TODO.md` 当前 `T4016T8` 之前。
+   - `T4016T8` 本身保持 `[TODO]`，并改为依赖该新前置任务。
+   - 本轮提交应以“登记 blocker、更新计划与依赖顺序”为收口，不把 `T4016T8` 标记为完成。

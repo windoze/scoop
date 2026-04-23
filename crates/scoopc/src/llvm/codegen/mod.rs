@@ -105,11 +105,17 @@ struct EvaluatedCallArg<'ctx> {
 /// 若外层表达式把带 GC refs 的中间值继续保留在 SSA 里，extern 返回后这些 SSA 会变 stale。
 /// 因此，凡是需要跨“后续子表达式求值”保存的 GC-sensitive 值，都先落到临时 slot，
 /// 最终消费时再 reload。
-#[derive(Clone, Copy)]
+#[derive(Clone)]
+struct DeferredGcSensitiveSpill<'ctx> {
+    slot: PointerValue<'ctx>,
+    root_slot_ids: Vec<u32>,
+}
+
+#[derive(Clone)]
 struct DeferredCgValue<'ctx> {
     ty: CgTy,
     immediate: Option<BasicValueEnum<'ctx>>,
-    spill: Option<(u32, PointerValue<'ctx>, PointerType<'ctx>)>,
+    spill: Option<DeferredGcSensitiveSpill<'ctx>>,
 }
 
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
@@ -1455,43 +1461,110 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.extra_gc_root_slots.retain(|slot| slot.id != id);
     }
 
+    fn collect_gc_ptr_leaf_slots_in_spill(
+        &mut self,
+        at: crate::span::Span,
+        slot: PointerValue<'ctx>,
+        value_ty: BasicTypeEnum<'ctx>,
+        name_prefix: &str,
+        out: &mut Vec<(PointerValue<'ctx>, PointerType<'ctx>)>,
+    ) -> Result<(), LlvmEmitError> {
+        match value_ty {
+            BasicTypeEnum::PointerType(ptr_ty) => {
+                if ptr_ty.get_address_space() == self.gc_address_space() {
+                    out.push((slot, ptr_ty));
+                }
+            }
+            BasicTypeEnum::StructType(st) => {
+                if st.is_opaque() {
+                    return Ok(());
+                }
+                for (idx, field_ty) in st.get_field_types().into_iter().enumerate() {
+                    let field_slot = self.builder.build_struct_gep(
+                        st,
+                        slot,
+                        idx as u32,
+                        &format!("{name_prefix}_field_{idx}"),
+                    )?;
+                    self.collect_gc_ptr_leaf_slots_in_spill(
+                        at,
+                        field_slot,
+                        field_ty,
+                        name_prefix,
+                        out,
+                    )?;
+                }
+            }
+            BasicTypeEnum::ArrayType(arr) => {
+                let i32_ty = self.context.i32_type();
+                let zero = i32_ty.const_zero();
+                for idx in 0..arr.len() {
+                    let elem_slot = unsafe {
+                        self.builder.build_in_bounds_gep(
+                            arr,
+                            slot,
+                            &[zero, i32_ty.const_int(idx as u64, false)],
+                            &format!("{name_prefix}_elem_{idx}"),
+                        )?
+                    };
+                    self.collect_gc_ptr_leaf_slots_in_spill(
+                        at,
+                        elem_slot,
+                        arr.get_element_type(),
+                        name_prefix,
+                        out,
+                    )?;
+                }
+            }
+            BasicTypeEnum::IntType(_)
+            | BasicTypeEnum::FloatType(_)
+            | BasicTypeEnum::VectorType(_)
+            | BasicTypeEnum::ScalableVectorType(_) => {}
+        }
+        Ok(())
+    }
+
     fn defer_gc_sensitive_cg_value(
         &mut self,
         at: crate::span::Span,
         name: &str,
         value: CgValue<'ctx>,
     ) -> Result<DeferredCgValue<'ctx>, LlvmEmitError> {
+        let ty = value.ty;
         let Some(raw) = value.value else {
             return Ok(DeferredCgValue {
-                ty: value.ty,
+                ty,
                 immediate: None,
                 spill: None,
             });
         };
 
         let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
-        let BasicTypeEnum::PointerType(value_ptr_ty) = llvm_ty else {
+        if !self.basic_type_contains_gc_ptrs(at, llvm_ty)? {
             return Ok(DeferredCgValue {
-                ty: value.ty,
-                immediate: Some(raw),
-                spill: None,
-            });
-        };
-        if value_ptr_ty.get_address_space() != self.gc_address_space() {
-            return Ok(DeferredCgValue {
-                ty: value.ty,
+                ty,
                 immediate: Some(raw),
                 spill: None,
             });
         }
 
-        let slot = self.create_entry_alloca(at, name, value.ty)?;
-        let _ = self.store_local_value(at, slot, value.ty, value)?;
-        let root_slot_id = self.register_extra_gc_root_slot(slot, value_ptr_ty);
+        let slot = self.create_entry_alloca(at, name, ty)?;
+        let _ = self.store_local_value_exact(at, slot, ty, value)?;
+
+        let mut gc_leaf_slots = Vec::new();
+        self.collect_gc_ptr_leaf_slots_in_spill(at, slot, llvm_ty, name, &mut gc_leaf_slots)?;
+        let root_slot_ids = gc_leaf_slots
+            .into_iter()
+            .map(|(slot, value_ptr_ty)| self.register_extra_gc_root_slot(slot, value_ptr_ty))
+            .collect();
+
         Ok(DeferredCgValue {
-            ty: value.ty,
+            ty,
             immediate: None,
-            spill: Some((root_slot_id, slot, value_ptr_ty)),
+            spill: Some(DeferredGcSensitiveSpill {
+                slot,
+                root_slot_ids,
+            }),
         })
     }
 
@@ -1508,11 +1581,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        if let Some((root_slot_id, slot, value_ptr_ty)) = value.spill {
-            self.unregister_extra_gc_root_slot(root_slot_id);
+        if let Some(spill) = value.spill {
+            for root_slot_id in spill.root_slot_ids {
+                self.unregister_extra_gc_root_slot(root_slot_id);
+            }
             let slot =
-                self.rematerialize_ptr_in_current_block(at, slot, &format!("{name}_slot"))?;
-            let loaded = self.builder.build_load(value_ptr_ty, slot, name)?;
+                self.rematerialize_ptr_in_current_block(at, spill.slot, &format!("{name}_slot"))?;
+            let llvm_ty = self.llvm_basic_type_of(at, value.ty)?;
+            let loaded = self.builder.build_load(llvm_ty, slot, name)?;
             return Ok(CgValue {
                 ty: value.ty,
                 value: Some(loaded),
@@ -3532,7 +3608,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // 这样默认值表达式仍可读取已提供的参数，同时不会在显式实参求值阶段
             // 用 side-table `ClassCtorParam` 的 `SymbolId` 污染调用者的局部环境。
             for (param_idx, param) in ctor_params.iter().enumerate() {
-                let Some((expr_span, explicit)) = explicit_values[param_idx] else {
+                let Some((expr_span, explicit)) = explicit_values[param_idx].clone() else {
                     continue;
                 };
                 let explicit = self.materialize_deferred_cg_value(
@@ -11978,19 +12054,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = idx;
         }
 
-        let field_values = field_values
-            .into_iter()
-            .enumerate()
-            .map(|(idx, (field_span, field_cg, deferred))| {
-                let materialized = self.materialize_deferred_cg_value(
-                    field_span,
-                    &format!("enum_ctor_field_reload_{idx}"),
-                    deferred,
-                )?;
-                Ok((field_cg, materialized))
-            })
-            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
-
         self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
     }
 
@@ -11999,7 +12062,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         enum_ty: TypeId,
         variant_name: &str,
-        field_values: &[(CgTy, CgValue<'ctx>)],
+        field_values: &[(crate::span::Span, CgTy, DeferredCgValue<'ctx>)],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let layout = self.cg_enum_layout(span, enum_ty)?;
         let variant = layout
@@ -12021,35 +12084,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 1) boxed variant：把 payload fields 聚合成一个 payload struct，存到栈上并把指针写入 enum payload。
         if variant.boxed {
-            let payload_struct_ty =
-                self.llvm_enum_boxed_payload_struct_type(span, enum_ty, &variant)?;
-            let mut payload: AggregateValueEnum<'ctx> = payload_struct_ty.get_undef().into();
-
-            for (idx, (field_cg, field_v)) in field_values.iter().enumerate() {
-                // Unit 没有运行期值；当前阶段不允许把 Unit 作为 enum payload 字段。
-                if matches!(field_cg, CgTy::Unit) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum boxed payload field (unit)",
-                        at: span.into(),
-                    });
-                }
-                let raw = field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum boxed payload field value",
-                    at: span.into(),
-                })?;
-                payload = self.builder.build_insert_value(
-                    payload,
-                    raw,
-                    idx as u32,
-                    &format!("enum_payload_field_{idx}"),
-                )?;
-            }
-
             // GC safety（T1516）：
             // - boxed payload 不能暂存在栈上然后把栈指针塞进 enum 的 word payload；
             //   否则其中的 GC refs 无法被 stackmap/bitmap 扫描，触发 GC 后会出现悬挂指针。
             // - 因此 boxed payload 必须是一个 GC-managed heap object，并把对象指针写入 enum 的
             //   GC pointer slot（payload_ptr）。
+            let payload_struct_ty =
+                self.llvm_enum_boxed_payload_struct_type(span, enum_ty, &variant)?;
             let payload_obj_ty =
                 self.llvm_enum_boxed_payload_object_type(span, enum_ty, &variant)?;
             let obj_size_bytes = self.target_data.get_store_size(&payload_obj_ty);
@@ -12087,6 +12128,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
+            let mut payload: AggregateValueEnum<'ctx> = payload_struct_ty.get_undef().into();
+            for (idx, (field_span, field_cg, deferred)) in field_values.iter().enumerate() {
+                let field_v = self.materialize_deferred_cg_value(
+                    *field_span,
+                    &format!("enum_ctor_field_reload_{idx}"),
+                    deferred.clone(),
+                )?;
+                // Unit 没有运行期值；当前阶段不允许把 Unit 作为 enum payload 字段。
+                if matches!(field_cg, CgTy::Unit) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum boxed payload field (unit)",
+                        at: span.into(),
+                    });
+                }
+                let raw = field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum boxed payload field value",
+                    at: span.into(),
+                })?;
+                payload = self.builder.build_insert_value(
+                    payload,
+                    raw,
+                    idx as u32,
+                    &format!("enum_payload_field_{idx}"),
+                )?;
+            }
+
             let payload_obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let payload_obj_ptr = self.builder.build_pointer_cast(
                 raw_ptr,
@@ -12122,6 +12189,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
             );
         }
+
+        let field_values = field_values
+            .iter()
+            .enumerate()
+            .map(|(idx, (field_span, field_cg, deferred))| {
+                let materialized = self.materialize_deferred_cg_value(
+                    *field_span,
+                    &format!("enum_ctor_field_reload_{idx}"),
+                    deferred.clone(),
+                )?;
+                Ok((*field_cg, materialized))
+            })
+            .collect::<Result<Vec<_>, LlvmEmitError>>()?;
 
         // 2) inline（非 boxed）variant：当前阶段仍采用 "word payload" 承载的小 payload。
         if variant.fields.len() > 1 {

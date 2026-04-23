@@ -3,12 +3,12 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后按 `CONTINUATION.md` 推进显式 `EffectCtx` / `EffectOutcome` 收口（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`），最后再回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后按 `CONTINUATION.md` 推进显式 `EffectCtx` / `EffectOutcome` 收口（`T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`），最后再回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R -> T4017a -> T4017b -> T4017c -> T4017d -> T4017e -> T4017f -> T4017R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -236,7 +236,7 @@
 - 说明：
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
-  - `T4016T3` 虽已删除 task-only runtime/codegen ABI，但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可由 `Pending` 吸收”的过渡合同；本组继续前插 `T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，完整收口到无锁、轻量 claim、single-driver 的 core task 版本。
+  - `T4016T3` 虽已删除 task-only runtime/codegen ABI，但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可由 `Pending` 吸收”的过渡合同；本组继续前插 `T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T7a -> T4016T8 -> T4016T9 -> T4016T4R`，完整收口到无锁、轻量 claim、single-driver 的 core task 版本。
   - `T4016T1a` / `T4016T1d1` / `T4016T1d2` 已经收口了“function-type payload + generic task-state object model”主线，但继续推进 `T4016T2` 时又暴露出三个新的前置 blocker：
     1. 限定 payload enum ctor / `when` pattern 仍不完整，`TaskStep.Ready(value)` 报 `unresolved_member`，`when (step) { TaskStep.Ready(v) -> ... }` 仍 parse 失败；
     2. `emit_minimal_main_ir(...)` / single-file LLVM 测试路径没有随 `scoop build` 一起纳入 `sysroot/task.scoop` 这类可编译 sysroot 源；
@@ -655,6 +655,17 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
+### T4016T7a [TODO] 修复 ordinary/statepoint 调用对含 GC refs 的 by-value aggregate 值的 safepoint 合同
+- 范围：
+  - 修复 ordinary/statepoint call 上“按值传递含 GC refs 的 aggregate 实参”会把未 relocate 的旧指针直接送入 callee 的编译器缺口；不得再依赖 SSA aggregate 在 safepoint 前后自动保持有效。
+  - 统一 `DeferredCgValue` / effect transport box / enum boxed payload / ordinary call arg lowering 的 GC 合同，确保 tuple / struct / tagged-union enum 这类聚合值在 `SCOOP_GC_STRESS=1` 与 moving GC 下都不会丢 root、悬挂或把 stale payload 写回 heap。
+  - 至少补两类回归：一个最小 ordinary-call 聚合实参 GC stress 回归；一个覆盖 `__TaskStepResult` / `TaskStep` 经由 ordinary helper 与 effect transport 传递的 task regression。
+- 验收：
+  - 含 GC refs 的 by-value aggregate 不再裸穿过 ordinary/statepoint call；callee 观察到的 payload 必须与 safepoint relocate 后的对象一致。
+  - `task_step_manual_basic` 在 `SCOOP_GC_STRESS=1` / `SCOOP_GC_MOVE=1 SCOOP_GC_STRESS=1` 下不再因 aggregate transport 崩溃。
+  - `Task` 顺序 handoff 的后续修复不再被 generic aggregate transport bug 干扰。
+- 依赖：T4016T7
+
 ### T4016T8 [TODO] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
 - 范围：
   - 清理 async lowering、LLVM/runtime 注释与任何剩余实现分支中“contention 可能返回 `Pending`”或“Task 依赖 mutex serialization”的假设，统一到 single-driver + claim-bit contract。
@@ -664,7 +675,7 @@
 - 验收：
   - 生产代码中不再残留“竞争失败返回 `Pending`”或“Task 依赖 per-task mutex”的旁路。
   - 无锁 `Task` 在顺序跨线程 handoff 场景下可稳定工作，runtime / compiler / sysroot 合同一致。
-- 依赖：T4016T7
+- 依赖：T4016T7a
 
 ### T4016T9 [TODO] 全量同步 core Task 无锁 single-driver 合同的文档、规格与源码注释
 - 范围：

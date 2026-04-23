@@ -2106,22 +2106,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "effect transport boxed payload value",
-            at: at.into(),
-        })?;
-        let obj_ty = self.llvm_effect_transport_box_object_type(at, value.ty)?;
+        let value_ty = value.ty;
+        let deferred = self.defer_gc_sensitive_cg_value(at, "effect_transport_box_value", value)?;
+        let obj_ty = self.llvm_effect_transport_box_object_type(at, value_ty)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
         let desc =
-            self.get_or_create_effect_transport_box_type_desc_global(at, value.ty, obj_ty)?;
+            self.get_or_create_effect_transport_box_type_desc_global(at, value_ty, obj_ty)?;
         let desc_i8 = self.builder.build_pointer_cast(
             desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
             "effect_value_box_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
-        let call = self.builder.build_call(
+        let call = self.build_call_preserving_gc_local_roots(
+            at,
             rt_alloc,
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_effect_value_box",
@@ -2148,7 +2147,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_gep =
             self.builder
                 .build_struct_gep(obj_ty, obj_ptr, 1, "effect_value_box_payload_gep")?;
-        self.builder.build_store(payload_gep, raw)?;
+        let materialized = self.materialize_deferred_cg_value(
+            at,
+            "effect_transport_box_value_reload",
+            deferred,
+        )?;
+        let raw = materialized.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "effect transport boxed payload value",
+            at: at.into(),
+        })?;
+        let _ = self.store_local_value_exact(
+            at,
+            payload_gep,
+            materialized.ty,
+            CgValue {
+                ty: materialized.ty,
+                value: Some(raw),
+            },
+        )?;
         Ok(self.builder.build_pointer_cast(
             raw_ptr,
             self.llvm_gc_i8_ptr_type(),

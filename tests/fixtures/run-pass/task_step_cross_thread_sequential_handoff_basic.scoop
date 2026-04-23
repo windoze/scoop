@@ -2,7 +2,9 @@
 // RUN-STDOUT: task_step_cross_thread_sequential_handoff_basic.stdout
 // TIMEOUT: 3000
 //
-// T4016T7：不同线程顺序 handoff 同一 task 仍应有效；只有并发 / reentrant drive 才是 trap。
+// T4016T8：不同线程顺序 handoff 同一 task 仍应有效；只有并发 / reentrant drive 才是 trap。
+// 注意：worker 线程必须等 main 已完成首个 `step()` 并发布 `Waiting(...)` 后再接手，
+// 否则就会退化成错误的并发 `step()`，应由 trap fixture 覆盖而不是由本用例吸收。
 
 import scoop.core.*
 import scoop.thread.*
@@ -21,6 +23,14 @@ fun main() {
         value + 1
     }
 
+    when (outer.step()) {
+        TaskStep.Pending -> println("main-pending")
+        TaskStep.Ready(value) -> {
+            println("main-ready")
+            println(value)
+        }
+    }
+
     val workerThread: Thread = threadSpawn {
         when (outer.step()) {
             TaskStep.Pending -> println("worker-pending")
@@ -28,14 +38,6 @@ fun main() {
                 println("worker-ready")
                 println(value)
             }
-        }
-    }
-
-    when (outer.step()) {
-        TaskStep.Pending -> println("main-pending")
-        TaskStep.Ready(value) -> {
-            println("main-ready")
-            println(value)
         }
     }
 
