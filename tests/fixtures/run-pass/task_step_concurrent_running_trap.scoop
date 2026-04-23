@@ -1,0 +1,40 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// TIMEOUT: 3000
+//
+// T4016T7：当一个 driver 已把 task 推到 `Running` 并正在执行 user code 时，
+// 另一个线程再调用 `step()` 必须 trap，而不是把竞争编码成 `Pending`。
+
+import scoop.core.*
+import scoop.thread.*
+import scoop.unsafe.*
+
+@Global
+var taskStarted: __AtomicInt = 0
+
+@Global
+var workerDone: __AtomicInt = 0
+
+fun main() {
+    val task: Task<Int> = async {
+        @Unsafe do { __atomicIntStore(taskStarted, 1) }
+
+        while (@Unsafe do { __atomicIntLoad(workerDone) } == 0) {
+            yield()
+        }
+
+        7
+    }
+
+    val workerThread: Thread = threadSpawn {
+        while (@Unsafe do { __atomicIntLoad(taskStarted) } == 0) {
+            yield()
+        }
+
+        val _step: TaskStep<Int> = task.step()
+        @Unsafe do { __atomicIntStore(workerDone, 1) }
+    }
+
+    val _step: TaskStep<Int> = task.step()
+    workerThread.join()
+}

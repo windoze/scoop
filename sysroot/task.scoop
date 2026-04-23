@@ -3,8 +3,8 @@
 // 说明：
 // - 这里承载 core task 的普通 Scoop 实现；
 // - runtime 只继续提供 continuation / GC / thread / atomic substrate；
-// - `T4016T6` 已把 task 对象模型从 per-task `Mutex` 改成最小 atomic claim 字段；
-// - 当前仍保留 `Running -> Pending` 的过渡行为，供后续 `T4016T7` 收口为 trap-on-contention。
+// - task 对象模型已从 per-task `Mutex` 收口为最小 atomic claim 字段；
+// - public `step()` 对 claim 冲突、重入 drive 与 `Running` 观察统一按 fatal misuse trap 处理。
 
 package scoop.core
 
@@ -14,14 +14,13 @@ import scoop.thread.*
 import scoop.unsafe.*
 
 fun <T> __task_claim_acquire(task: Task<T>): Unit {
-    while (true) {
-        val claimed: Bool = @Unsafe do { __atomicIntCompareExchange(task.__claim, 0, 1) }
-        if (claimed) {
-            return
-        }
-        // 这里只需要替代旧的 mutex 临界区，不在 task 对象上保留阻塞式同步原语。
-        yield()
+    val claimed: Bool = @Unsafe do { __atomicIntCompareExchange(task.__claim, 0, 1) }
+    if (claimed) {
+        return
     }
+
+    // public `step()` 的并发 / reentrant 误用按 fatal trap 处理，而不是回落为 `Pending`。
+    exit(3)
 }
 
 fun <T> __task_claim_release(task: Task<T>): Unit {
@@ -114,7 +113,9 @@ fun <T> Task<T>.step(): TaskStep<T> {
     __task_claim_acquire(this)
     return when (this.__state) {
         Running -> {
-            __task_claim_release(this)
+            // 成功 claim 后若仍观察到 `Running`，说明另一个 driver 正在推进该 task；
+            // 这属于 core task single-driver 合同的误用，不能再编码成 `Pending`。
+            exit(3)
             Pending()
         }
         Completed(value) -> {

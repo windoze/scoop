@@ -2,13 +2,15 @@
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1)
 // BUILD-LLVM-CONTAINS: store atomic i64 0, ptr addrspace(1)
+// BUILD-LLVM-CONTAINS: @scoop_process_exit
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_create
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_lock
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_unlock
 // BUILD-LLVM-NOT-CONTAINS: @scoop_sync_mutex_destroy
+// BUILD-LLVM-NOT-CONTAINS: @scoop_thread_yield
 //
-// 目标：T4016T6：core `Task` 的手动 drive 主线已切到 atomic claim 字段，不再为每个 task
-// 分配或调用 per-task mutex runtime 对象。
+// 目标：T4016T7：core `Task.step()` 的手动 drive 主线已切到 atomic claim + trap-on-contention，
+// 不再为每个 task 分配 per-task mutex，也不再在 claim 竞争时自旋 `yield()`。
 
 package fixtures.build
 

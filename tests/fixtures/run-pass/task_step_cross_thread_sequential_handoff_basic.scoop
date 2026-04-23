@@ -1,0 +1,51 @@
+// EXPECT: pass
+// RUN-STDOUT: task_step_cross_thread_sequential_handoff_basic.stdout
+// TIMEOUT: 3000
+//
+// T4016T7：不同线程顺序 handoff 同一 task 仍应有效；只有并发 / reentrant drive 才是 trap。
+
+import scoop.core.*
+import scoop.thread.*
+
+fun main() {
+    val inner: Task<Int> = async {
+        println("inner")
+        41
+    }
+
+    val outer: Task<Int> = async {
+        println("outer-before")
+        val value: Int = await inner
+        println("outer-after")
+        println(value)
+        value + 1
+    }
+
+    val workerThread: Thread = threadSpawn {
+        when (outer.step()) {
+            TaskStep.Pending -> println("worker-pending")
+            TaskStep.Ready(value) -> {
+                println("worker-ready")
+                println(value)
+            }
+        }
+    }
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("main-pending")
+        TaskStep.Ready(value) -> {
+            println("main-ready")
+            println(value)
+        }
+    }
+
+    workerThread.join()
+
+    when (outer.step()) {
+        TaskStep.Pending -> println("main-final-pending")
+        TaskStep.Ready(value) -> {
+            println("main-final-ready")
+            println(value)
+        }
+    }
+}

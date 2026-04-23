@@ -8,7 +8,7 @@
 ## 全局约束
 
 - `TODO-5.md` 中的 `[DONE]` 条目只作历史归档；新的收口工作必须在当前文件中重新立任务，不能回写归档。
-- 当前剩余实现顺序为：`T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
+- 当前剩余实现顺序为：`T4016T8 -> T4016T9 -> T4016T4R`，随后回到 annotation markers（下一步 `T4012b3`） -> `inline` -> FFI / ABI -> const / comptime。
 - continuation 继续保持 **single-shot only**；multi-shot、continuation cloning、resume-many replay 明确 out-of-scope。
 - 语言层面只保留 `Effect.op(args) -> expr` 与 `Effect.op(args), k -> expr` 两种 handler arm；`-> resume` 从用户态语法移除。若编译器内部仍需要 immediate-resume fast path，只能作为 lowering / codegen 优化分类。
 - `Task<T>` 是 general API；raw `Continuation` 是 advanced API。`T4016` 完成后，`Task` runtime 不得再依赖“resume 后偷读 heap frame 前缀结果”的私有 hack。
@@ -626,7 +626,7 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
-### T4016T7 [TODO] 用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap
+### T4016T7 [DONE] 用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap
 - 范围：
   - 重写 `Task.step()` 的入口 / 退出协议：以 atomic claim/release 获取 drive ownership，保留 `Created/Running/Waiting/Completed` 的 step-driving 主状态机。
   - 当 claim 失败、public `step()` 成功 claim 后又观察到 `Running`、或同一 `Task` 出现 reentrant drive 时，一律直接 trap；不得回落为 `Pending`、隐藏重试或 `Raise<RuntimeError>`。
@@ -636,6 +636,24 @@
   - `Pending` 只剩“尚未完成且当前无法继续推进”的语义；public `step()` 再也不会把 `Running` 作为正常可观察状态泄漏给调用方。
   - 并发 / reentrant `step()` 误用在生产路径上稳定 trap，且不污染调用链 effect row。
 - 依赖：T4016T6
+- 已完成：
+  - `sysroot/task.scoop` 中 `__task_claim_acquire()` 已从“claim 失败后 `yield()` 重试”改成“一次 `cmpxchg` try-claim，失败直接 `exit(3)` trap”，不再把 drive ownership 竞争隐藏成阻塞式重试。
+  - `Task.step()` 的 `Running -> Pending()` 过渡行为已删除；成功 claim 后若观察到 `Running`，现在直接按 single-driver misuse trap 处理。
+  - `sysroot/core.scoop` / `sysroot/task.scoop` 注释已对齐到当前实现：claim 字段负责最小独占 drive ownership，claim 冲突与 reentrant drive 都不再通过 `Pending` 暴露给调用方。
+  - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 已补锁 LLVM 合同：manual-drive 路径保留 `cmpxchg` / `store atomic`，包含 `scoop_process_exit` trap 路径，且不再出现 claim 竞争自旋用的 `scoop_thread_yield`。
+  - 新增 `tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop`、`tests/fixtures/run-pass/task_step_reentrant_trap.scoop` 与 `tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop`，分别覆盖顺序跨线程 handoff、同线程重入 trap 与并发线程竞争 trap。
+- 已复验：
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_cross_thread_sequential_handoff_basic.scoop -o /tmp/task_step_cross_thread_sequential_handoff_basic.out`
+  - `/tmp/task_step_cross_thread_sequential_handoff_basic.out`
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_reentrant_trap.scoop -o /tmp/task_step_reentrant_trap.out`
+  - `/tmp/task_step_reentrant_trap.out`
+  - `cargo run -p scoop -- build tests/fixtures/run-pass/task_step_concurrent_running_trap.scoop -o /tmp/task_step_concurrent_running_trap.out`
+  - `/tmp/task_step_concurrent_running_trap.out`
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (392)`）
+  - `cargo run -p scoop -- test`（`fixtures: ok (1166)`）
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
 
 ### T4016T8 [TODO] 收口编译器 / runtime / substrate 对无锁 Task 的 handoff 与 trap 合同
 - 范围：

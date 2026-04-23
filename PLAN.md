@@ -22,7 +22,7 @@
 
 ## 1. 顺序总览
 
-1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5` 与 `T4016T5a` 均已完成；core `Task` 接下来按 `T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
+1. 前置 blockers 与 continuation / `Task` review 已收口；`T1510c1`、`T1510c2`、`T4016R`、`T4016T1`、`T4016T1a`、`T4016T1b`、`T4016T1c`、`T4016T1R`、`T4016T1d1`、`T4016T1d2`、`T4016T1d3`、`T4016T1d4`、`T4016T1d5`、`T4016T2`、`T4016T3`、`T4016T4`、`T4016T5`、`T4016T5a`、`T4016T6` 与 `T4016T7` 均已完成；core `Task` 接下来按 `T4016T8 -> T4016T9 -> T4016T4R` 继续收口“去掉 per-task lock / 轻量 claim / single-driver trap”主线。
 2. `ISSUES.md` 第 9 条：annotation markers、non-inline built-in annotations 与 `@Experimental` feature-gate marker（依赖 `T4016T4R`；回到该组后的剩余顺序：`T4012b3 -> T4012c -> T4012R`）
 3. `ISSUES.md` 第 10 条：删除 `inline` 关键字与 legacy non-local return 语义残留（`T4013 -> T4013R`）
 4. `ISSUES.md` 第 11 条：FFI / ABI 的 effect-impermeable 边界与 stable handle / pin 职责分离（`T4014a -> T4014b -> T4014R`）
@@ -91,12 +91,12 @@
   - `T4016R` 已完成：
     - 生产代码与文档中，continuation answer model、one-shot deep 语义、`-> resume` 移除与 `Task` 的私有 answer carrier 叙事现已一致。
     - 对仓库残留文本的机械复核显示：legacy continuation 简写仅剩 removed-diagnostic fixtures / 报错文本；`-> resume` 仅剩文档说明、removed diagnostic 与迁移回归。
-  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；`T4016T1~T4016T3` 又进一步完成了 public surface、ordinary Scoop task 主体与 task-only ABI 删除。但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可被 `Pending` 吸收”的过渡合同，因此还要继续前插 `T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，再回到 annotation 主线。
+  - `T4016d` / `T4016R` 收口的是 continuation answer model 与 task-hack 移除；`T4016T1~T4016T7` 现已进一步完成 public surface、ordinary Scoop task 主体、task-only ABI 删除，以及无锁 claim-bit + trap-on-contention 的执行主线。剩余工作收窄为 `T4016T8 -> T4016T9 -> T4016T4R` 的 compiler/runtime/substrate 合同扫尾与 review。
   - `T4016T1R` 期间又收口了一个必须优先修的既有缺口：boxed multi-field enum variant 经 `val Variant(...) = expr` 解构后，若 payload 含 function type 且后续直接调用，隐藏 `Raise.raise(...)` 会被 ordinary callee suspend plan 误建模成 `Ref` 型 resume slot。现已通过：
     - 为 variant pattern 的隐藏 binder 恢复真实字段类型；
     - 将 `synth_raise_null_assertion_failed()` 的隐藏 `Perform` 收口为 `Nothing` 类型，并避免与外层合成 `when` 共用完全相同的 span；
     - 新增 boxed multi-field enum function payload run-pass 回归，并同步相关 HIR golden。
-  - 当前顺序调整为：`T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012 -> T4013 -> T4014 -> T4015`。
+  - 当前顺序调整为：`T4016T8 -> T4016T9 -> T4016T4R -> T4012 -> T4013 -> T4014 -> T4015`。
 - 当前状态：
   - `T4016a1` 已完成：`SCOOP_FULL_SPEC.md` / `SCOOP_RUNTIME.md` 已把 continuation answer model、deep handler、one-shot 与 `-> resume` 移除的迁移叙事收口到同一口径。
   - `T4016a2` 已完成：`sysroot/core.scoop`、`runtime/c/scoop_runtime.c` 与 `runtime/c/scoop_task.c` 的注释现已明确：
@@ -272,13 +272,19 @@
     - `__task_create()` / `__task_from_result()` 不再为每个 task 分配 sync 对象；`Task.step()`、`__task_apply_step()` 与 `__task_restore_waiting()` 已切到 atomic claim helper，同时刻意保留当前 `Running -> Pending` 的过渡语义，把 trap-on-contention 留给 `T4016T7`。
     - 新增 `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop`，锁定 task manual-drive 主线会发出 atomic `cmpxchg` / `store atomic`，且不再出现 `scoop_sync_mutex_{create,lock,unlock,destroy}` 调用。
     - 由于 sysroot 类型表新增/重排导致 MIR `TypeId` 稳定编号前移，已同步更新 `tests/fixtures/mir/closure_capture_val.mir` 与 `tests/fixtures/mir/closure_capture_var.mir` 两份 golden；并已复验 `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (389)`）、`cargo run -p scoop -- test`（`fixtures: ok (1163)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
+  - `T4016T7` 已完成：
+    - `sysroot/task.scoop` 的 claim 入口已从“失败后 `yield()` 重试”收口为单次 `cmpxchg` try-claim；claim 失败直接 `exit(3)`，不再把竞争编码成阻塞式重试或 `Pending`。
+    - `Task.step()` 中 `Running -> Pending()` 的过渡行为已删除；成功 claim 后若观察到 `Running`，现在稳定按 single-driver misuse trap 处理。
+    - `sysroot/core.scoop` / `sysroot/task.scoop` 注释已同步到当前合同：claim 字段表达最小独占 drive ownership，claim 竞争与 reentrant drive 都直接 trap。
+    - `tests/fixtures/build/task_atomic_claim_no_mutex_llvm.scoop` 已继续补锁 trap 路径：manual-drive LLVM IR 现在既保留 atomic claim 指令，也包含 `scoop_process_exit`，且不再出现 claim 竞争自旋的 `scoop_thread_yield`。
+    - 新增 run-pass 回归 `task_step_cross_thread_sequential_handoff_basic.scoop`、`task_step_reentrant_trap.scoop` 与 `task_step_concurrent_running_trap.scoop`，分别锁定顺序跨线程 handoff、同线程重入 trap 与并发竞争 trap。
+    - 已复验三条新回归的单独 `build + run`，以及 `cargo run -p scoop -- test --fixtures tests/fixtures/build`（`fixtures: ok (17)`）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（`fixtures: ok (392)`）、`cargo run -p scoop -- test`（`fixtures: ok (1166)`）、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings`。
   - 因此当前剩余顺序为：
-    - `T4016T7`：重写 `Task.step()` 为 claim-bit 驱动，并把 concurrent/reentrant `step()` 误用收口为 trap。
     - `T4016T8`：清理 compiler/runtime/substrate 中残留的 mutex / contention-is-pending 假设，并确认 cross-thread sequential handoff 合同。
     - `T4016T9`：全量同步设计文档、规范、sysroot 注释与实现说明。
     - `T4016T4R`：review 全链路，确认无锁 single-driver 合同、trap 语义与回归一致。
   - phase 4 executor / wake / reactor / public `spawn/join` 不属于本组任务；它们明确延期到后续 stdlib stage，不作为 `scoop.core` 设计前提，也不在本轮计划内扩张 core surface。
-- 当前状态：`T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
+- 当前状态：`T4016T8 -> T4016T9 -> T4016T4R -> T4012b3 -> T4012c -> T4012R -> T4013 -> T4013R`。
 
 ### P2. annotation markers 与 `inline` 关键字清理
 
