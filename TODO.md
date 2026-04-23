@@ -3,7 +3,7 @@
 > 生成时间：2026-04-21  
 > 历史归档：`TODO-5.md` / `PLAN-5.md`  
 > 顺序约束：严格按当前文件中的条目顺序推进；不得跨条目并行实现。  
-> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
+> 本轮先修复全量回归暴露的 `@Extern` + moving-GC native-roots 既有问题，再完成正确的单次 delimited continuation / `Task` review，并按 `SCOOP_TASK.md` 继续做 core task surface 收口 / Scoop 化与 `Task` 去内建 lock 的轻量 claim 版收口（`T4016T1 -> T4016T1a -> T4016T1b -> T4016T1c -> T4016T1R -> T4016T1d1 -> T4016T1d2 -> T4016T1d3 -> T4016T1d4 -> T4016T1d5 -> T4016T2 -> T4016T3 -> T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，只覆盖 phase 1-3；phase 4 executor / wake / reactor 延期到 stdlib），随后回到 annotation、删除 `inline` 关键字、FFI / ABI、const / comptime。
 
 ## 全局约束
 
@@ -236,7 +236,7 @@
 - 说明：
   - `T4016d` / `T4016R` 已完成的是 continuation answer model 收口与 task runtime hack 移除；这并不等于 core task public naming、runtime/codegen surface 与实现落点已经最终定稿。
   - 按 `SCOOP_TASK.md` 的新设计，本组只覆盖 phase 1-3：公开 surface 收口、task 主体 Scoop 化、删除 task-only runtime/codegen ABI；executor / wake / reactor / public `spawn` / `join` 的 phase 4 明确延期到 stdlib stage。
-  - `T4016T3` 虽已删除 task-only runtime/codegen ABI，但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可由 `Pending` 吸收”的过渡合同；本组继续前插 `T4016T4 -> T4016T5 -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，完整收口到无锁、轻量 claim、single-driver 的 core task 版本。
+  - `T4016T3` 虽已删除 task-only runtime/codegen ABI，但 `Task` 仍保留 per-task `Mutex` 与“共享/竞争 `step()` 可由 `Pending` 吸收”的过渡合同；本组继续前插 `T4016T4 -> T4016T5 -> T4016T5a -> T4016T6 -> T4016T7 -> T4016T8 -> T4016T9 -> T4016T4R`，完整收口到无锁、轻量 claim、single-driver 的 core task 版本。
   - `T4016T1a` / `T4016T1d1` / `T4016T1d2` 已经收口了“function-type payload + generic task-state object model”主线，但继续推进 `T4016T2` 时又暴露出三个新的前置 blocker：
     1. 限定 payload enum ctor / `when` pattern 仍不完整，`TaskStep.Ready(value)` 报 `unresolved_member`，`when (step) { TaskStep.Ready(v) -> ... }` 仍 parse 失败；
     2. `emit_minimal_main_ir(...)` / single-file LLVM 测试路径没有随 `scoop build` 一起纳入 `sysroot/task.scoop` 这类可编译 sysroot 源；
@@ -583,6 +583,27 @@
   - `cargo test --all`
   - `cargo clippy --all-targets -- -D warnings`
 
+### T4016T5a [DONE] 修复 cross-file class ctor 参数存储沿错绑 source 解析整数文本并在 UTF-8 源文件上 panic
+- 范围：
+  - 修复 LLVM codegen 在 cross-file class ctor 调用里对“已求值/已类型对齐的 ctor args”继续做 source-backed integer literal 反查时，错误沿用 callee/class 的 `current_source_id` 与 declaration span 的问题。
+  - 使 `SourceMap::slice` / `SourceFile::slice` 在遇到非字符边界 span 时返回正常错误而不是 panic，避免类似路径在含中文注释等 UTF-8 多字节源码上直接崩溃。
+  - 补最小 regression，直接覆盖“caller 传 `0/1/...` 这类整数字面量给跨文件 class ctor，callee 源文件含非 ASCII 注释/文本”的 LLVM build/codegen 路径。
+- 验收：
+  - cross-file class ctor 参数本地化/属性写入路径不再依赖错绑 source 的文本切片；含 UTF-8 注释的 callee 源文件不会再因整数文本回读而 panic。
+  - 已补回归锁定该场景，且 `cargo run -p scoop -- test`、`cargo test --all` 与 `cargo clippy --all-targets -- -D warnings` 通过。
+- 依赖：T4016T5
+- 已完成：
+  - `crates/scoopc/src/llvm/codegen/gc.rs` 新增 `store_local_value_exact(...)`，供“已完成类型对齐”的值直接落槽；避免 cross-file class ctor 在 callee source 上对 caller 的整数字面量 span 再次做 source-backed 反查。
+  - `crates/scoopc/src/llvm/codegen/mod.rs` 的 class ctor 参数本地化与 ctor-parameter-property 写回路径已切到上述 exact-store helper，不再沿错绑 source 的 `store_local_value(...)` 回读文本。
+  - `crates/scoopc/src/source.rs` 现会在 `offset_to_line_col` / `SourceMap::slice` 路径上显式拒绝非 UTF-8 字符边界的 offset/span，避免同类 bug 直接 panic。
+  - 新增 `source.rs` 单测覆盖非字符边界 offset/span；新增 LLVM 单测 `cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments`，直接锁定“跨文件 class ctor + 整数字面量参数 + 中文注释”回归。
+- 已复验：
+  - `cargo fmt`
+  - `cargo test -p scoopc --features llvm`
+  - `cargo run -p scoop -- test`
+  - `cargo test --all`
+  - `cargo clippy --all-targets -- -D warnings`
+
 ### T4016T6 [TODO] 把 core `Task` object model 从 per-task `Mutex` 改成轻量 atomic claim field
 - 范围：
   - 改写 `sysroot/core.scoop` / `sysroot/task.scoop` 中 `Task` 的内部布局：移除 `__lock: scoop.sync.Mutex`，引入最小 atomic claim / driving 字段与对应 internal helper。
@@ -591,7 +612,7 @@
 - 验收：
   - 新建 `Task` 不再携带 per-task `Mutex` 或等价 heavyweight sync object。
   - `Task` 的 ordinary Scoop 定义、async lowering glue 与 runtime substrate 能共同表达 atomic claim field 的最小形状。
-- 依赖：T4016T5
+- 依赖：T4016T5a
 
 ### T4016T7 [TODO] 用轻量 claim bit 重写 `Task.step()`，并把并发 / reentrant 误用收口为 trap
 - 范围：

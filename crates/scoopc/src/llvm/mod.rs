@@ -2063,6 +2063,87 @@ fun main(): Int { return helper(41) }
     }
 
     #[test]
+    fn cross_file_class_ctor_literal_codegen_uses_correct_source_with_utf8_comments() {
+        let session = Session::new().unwrap();
+
+        let src_lib = SourceFile::new_virtual(
+            "<lib>",
+            r#"
+package fixtures.t4016t5a
+
+import scoop.core.*
+
+// 中文注释：跨文件构造器参数不应把 caller span 绑到这里。
+class Box(val value: Int)
+"#,
+        );
+        let src_main = SourceFile::new_virtual(
+            "<main>",
+            r#"
+package fixtures.t4016t5a
+
+import scoop.core.*
+
+fun main(): Int {
+    val box: Box = Box(7)
+    return box.value
+}
+"#,
+        );
+
+        let mut ast_lib = parse_file(&src_lib).unwrap();
+        let mut ast_main = parse_file(&src_main).unwrap();
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for file in &session.sysroot().files {
+                pairs.push((&file.source, &file.ast));
+            }
+            pairs.push((&src_lib, &ast_lib));
+            pairs.push((&src_main, &ast_main));
+            Index::build(&pairs).unwrap()
+        };
+
+        let headers_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &headers_lib).unwrap();
+
+        let headers_main =
+            crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &headers_main).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for file in &session.sysroot().files {
+            unit.push((&file.source, &file.ast));
+        }
+        unit.push((&src_lib, &ast_lib));
+        unit.push((&src_main, &ast_main));
+
+        let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+        let typecheck_types = TypeStore::new();
+        let lowered = hir::lower_for_compilation_unit_multi_files(
+            &src_main,
+            &index,
+            &unit,
+            &files_to_lower,
+            &[],
+            &typecheck_types,
+        )
+        .unwrap();
+
+        let mut source_map = SourceMap::new();
+        for file in &session.sysroot().files {
+            let _ = source_map.add_source_clone(&file.source);
+        }
+        let _ = source_map.add_source_clone(&src_lib);
+        let entry_source_id = source_map.add_source_clone(&src_main);
+
+        let ir =
+            emit_minimal_main_ir_from_lowered_hir(&source_map, entry_source_id, &lowered).unwrap();
+
+        assert!(ir.contains("define i32 @main("));
+    }
+
+    #[test]
     fn effect_runtime_intrinsics_are_emitted_as_symbol_calls() {
         let source = SourceFile::new_virtual(
             "<mem>",

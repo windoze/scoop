@@ -1736,6 +1736,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 标量：`Unit/Bool/Int*`
         // - struct/enum（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
         let v = self.coerce_value(at, value, ty)?;
+        self.store_local_value_exact(at, ptr, ty, v)
+    }
+
+    pub(super) fn store_local_value_exact(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        ty: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if value.ty != ty && value.ty != CgTy::Never {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "store exact value type mismatch",
+                at: at.into(),
+            });
+        }
+
         match ty {
             // T1612: Nothing/Never has no runtime value; storing is a no-op (unreachable path).
             CgTy::Never => return Ok(CgValue::never()),
@@ -1752,7 +1769,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Tuple(_)
             | CgTy::Struct(_)
             | CgTy::Enum(_) => {
-                let Some(raw) = v.value else {
+                let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
                         at: at.into(),
@@ -1816,7 +1833,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         }
-        Ok(v)
+        Ok(value)
     }
 }
 

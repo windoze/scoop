@@ -3729,7 +3729,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let arg_v = self.cg_value_from_loaded(span, param_cg, loaded)?;
             let field_ptr = self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
-            let _ = self.store_local_value(span, field_ptr, param_cg, arg_v)?;
+            let _ = self.store_local_value_exact(span, field_ptr, param_cg, arg_v)?;
         }
 
         // property initializer / init blocks（按源码顺序）
@@ -3862,7 +3862,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: callee_span.into(),
                         })?;
                 let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
-                let _ = self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
+                let _ =
+                    self.store_local_value_exact(param.decl_span, param_ptr, param_cg, *arg_v)?;
                 self.env.insert(
                     param.id,
                     CgLocal {

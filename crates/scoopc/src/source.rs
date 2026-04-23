@@ -71,6 +71,13 @@ impl SourceFile {
         if offset > self.text.len() {
             return Err(miette!("offset 越界：{} > {}", offset, self.text.len()));
         }
+        if !self.text.is_char_boundary(offset) {
+            return Err(miette!(
+                "offset 非 UTF-8 字符边界：{}（文件：{}）",
+                offset,
+                self.path.display()
+            ));
+        }
 
         let line_index = match self.line_starts.binary_search(&offset) {
             Ok(i) => i,
@@ -286,6 +293,14 @@ impl SourceMap {
                 source.path.display()
             ));
         }
+        if !source.text.is_char_boundary(span.start) || !source.text.is_char_boundary(span.end) {
+            return Err(miette!(
+                "span 非 UTF-8 字符边界：{}..{}（文件：{}）",
+                span.start,
+                span.end,
+                source.path.display()
+            ));
+        }
         Ok(())
     }
 }
@@ -320,6 +335,21 @@ mod tests {
     }
 
     #[test]
+    fn offset_to_line_col_rejects_non_char_boundary() {
+        let file = SourceFile {
+            path: PathBuf::from("<mem>"),
+            text: "a中b".to_string(),
+            line_starts: compute_line_starts("a中b"),
+        };
+
+        let err = file.offset_to_line_col(2).unwrap_err();
+        assert!(
+            err.to_string().contains("UTF-8 字符边界"),
+            "expected non-char-boundary offset to be rejected"
+        );
+    }
+
+    #[test]
     fn source_map_slice_and_location_across_multiple_files() {
         let mut map = SourceMap::new();
         let alpha_id = map.add_source(SourceFile::new_virtual("alpha.scoop", "one\nalpha\n"));
@@ -338,6 +368,20 @@ mod tests {
         assert_eq!((alpha_loc.line, alpha_loc.column), (2, 1));
         assert_eq!(beta_loc.path, PathBuf::from("beta.scoop"));
         assert_eq!((beta_loc.line, beta_loc.column), (2, 1));
+    }
+
+    #[test]
+    fn source_map_slice_rejects_non_char_boundary_span() {
+        let mut map = SourceMap::new();
+        let source_id = map.add_source(SourceFile::new_virtual("utf8.scoop", "a中b"));
+
+        let err = map
+            .slice(SourceMapSpan::new(source_id, Span::new(1, 2)))
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("UTF-8 字符边界"),
+            "expected non-char-boundary span to be rejected"
+        );
     }
 
     #[test]
